@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -8,9 +9,12 @@ import {
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import AddEventModal, { NewEventData } from '../components/AddEventModal';
 import EventCard from '../components/EventCard';
-import { MOCK_EVENTS } from '../mockData/events';
+import { addEvent } from '../services/events';
 import { DateString, MarkedDates, toDateString } from '../types';
+import { useAllEvents, useEvents } from '../hooks/useEvents';
 
 function getTodayString(): DateString {
   return toDateString(new Date().toISOString().split('T')[0]);
@@ -26,8 +30,8 @@ function formatDisplayDate(dateStr: DateString): string {
   const date = new Date(dateStr + 'T00:00:00');
   const today = getTodayString();
   const tomorrow = getOffsetDate(1);
-  if (dateStr === today) return 'Today';
-  if (dateStr === tomorrow) return 'Tomorrow';
+  if (dateStr === today) { return 'Today'; }
+  if (dateStr === tomorrow) { return 'Tomorrow'; }
   return date.toLocaleDateString('en-US', {
     weekday: 'long',
     month: 'long',
@@ -40,17 +44,26 @@ function formatEmptyStateDate(dateStr: DateString): string {
   return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
 }
 
-export default function CalendarScreen() {
+interface Props {
+  user: FirebaseAuthTypes.User;
+  onSignOut: () => void;
+}
+
+export default function CalendarScreen({ user, onSignOut }: Props) {
   const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState<DateString>(getTodayString());
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const { events: dayEvents, loading } = useEvents(user.uid, selectedDate);
+  const allEvents = useAllEvents(user.uid);
 
   const markedDates: MarkedDates = useMemo(() => {
     const marks: MarkedDates = {};
-    MOCK_EVENTS.forEach(event => {
+    allEvents.forEach(event => {
       marks[event.date] = { marked: true, dotColor: event.color };
     });
     return marks;
-  }, []);
+  }, [allEvents]);
 
   const markedWithSelected = useMemo(() => ({
     ...markedDates,
@@ -61,19 +74,21 @@ export default function CalendarScreen() {
     },
   }), [markedDates, selectedDate]);
 
-  const dayEvents = useMemo(
-    () =>
-      MOCK_EVENTS
-        .filter(e => e.date === selectedDate)
-        .sort((a, b) => a.startTime.localeCompare(b.startTime)),
-    [selectedDate],
-  );
+  const handleSaveEvent = async (data: NewEventData) => {
+    await addEvent(user.uid, { ...data, date: selectedDate });
+  };
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Agenda</Text>
+        <TouchableOpacity
+          onPress={onSignOut}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out">
+          <Text style={styles.signOut}>Sign out</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Calendar */}
@@ -103,7 +118,14 @@ export default function CalendarScreen() {
       {/* Events section */}
       <View style={styles.eventsSection}>
         <Text style={styles.eventsTitle}>{formatDisplayDate(selectedDate)}</Text>
-        {dayEvents.length === 0 ? (
+
+        {loading ? (
+          <ActivityIndicator
+            style={styles.loader}
+            color="#6366f1"
+            accessibilityLabel="Loading events"
+          />
+        ) : dayEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📭</Text>
             <Text style={styles.emptyText}>
@@ -125,11 +147,19 @@ export default function CalendarScreen() {
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         activeOpacity={0.85}
+        onPress={() => setModalVisible(true)}
         accessibilityLabel="Add new event"
-        accessibilityRole="button"
-      >
+        accessibilityRole="button">
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
+
+      {/* Add Event Modal */}
+      <AddEventModal
+        visible={modalVisible}
+        date={selectedDate}
+        onClose={() => setModalVisible(false)}
+        onSave={handleSaveEvent}
+      />
     </View>
   );
 }
@@ -140,6 +170,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f9fb',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 12,
     backgroundColor: '#ffffff',
@@ -150,6 +183,11 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '700',
     color: '#1a1a2e',
+  },
+  signOut: {
+    fontSize: 14,
+    color: '#6366f1',
+    fontWeight: '500',
   },
   calendar: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -165,6 +203,9 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 20,
     marginBottom: 8,
+  },
+  loader: {
+    marginTop: 48,
   },
   eventsList: {
     paddingBottom: 100,

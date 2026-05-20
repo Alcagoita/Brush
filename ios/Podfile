@@ -8,11 +8,9 @@ require Pod::Executable.execute_command('node', ['-p',
 platform :ios, min_ios_version_supported
 prepare_react_native_project!
 
-linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
-end
+# Required for react-native-firebase (firebase-ios-sdk v9+)
+$RNFirebaseAsStaticFramework = true
+use_frameworks! :linkage => :static
 
 target 'Agenda' do
   config = use_native_modules!
@@ -30,5 +28,16 @@ target 'Agenda' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # Log RNFB build phase output to catch configuration issues early
+    installer.pods_project.targets.each do |target|
+      if target.name.start_with?('RNFB')
+        target.build_configurations.each do |config|
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'RCT_NEW_ARCH_ENABLED=1'
+        end
+        Pod::UI.puts "  ✔ #{target.name} build phase configured"
+      end
+    end
   end
 end

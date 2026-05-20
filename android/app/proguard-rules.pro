@@ -8,3 +8,30 @@
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
 # Add any project specific keep options here:
+
+# ─── Firebase ────────────────────────────────────────────────────────────────
+# Keep Firebase classes from being stripped by R8/ProGuard in release builds.
+
+# FirebaseCore
+-keep class com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# Firestore
+-keep class com.google.firestore.** { *; }
+-dontwarn com.google.firestore.**
+
+# Firebase Auth
+-keepattributes Signature
+-keepattributes *Annotation*
+
+# Firebase Messaging
+-keep class com.google.firebase.messaging.** { *; }
+
+# Firebase Storage
+-keep class com.google.firebase.storage.** { *; }
+
+# Prevent stripping of React Native Firebase bridge classes
+-keep class io.invertase.firebase.** { *; }
+-dontwarn io.invertase.firebase.**
