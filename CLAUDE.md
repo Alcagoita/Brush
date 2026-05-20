@@ -16,6 +16,10 @@
 - A PR requires **at least 1 approved review** before it can be merged.
 - Stale reviews are automatically dismissed when new commits are pushed.
 - Branch protection is enforced on both `main` and `develop`.
+- **GitHub Copilot** is automatically requested as a reviewer on every non-draft PR via a GitHub Actions workflow.
+  - Copilot performs a first-pass code review and leaves inline comments and suggestions.
+  - Copilot always posts a **"Comment"** review — it does not count as an approval.
+  - A human approval is still required before merging.
 
 ### Commit Messages
 
