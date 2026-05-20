@@ -11,16 +11,25 @@ import messaging from '@react-native-firebase/messaging';
 import { useAuth } from './src/hooks/useAuth';
 import { useFCM } from './src/hooks/useFCM';
 import { signOut } from './src/services/auth';
+import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
 import CalendarScreen from './src/screens/CalendarScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import NetworkBanner from './src/components/NetworkBanner';
+import ErrorBoundary from './src/components/ErrorBoundary';
 
 export default function App() {
   const { user, loading } = useAuth();
 
   // Persist the FCM device token whenever a user is signed in.
-  // Pass null when signed out so the hook is a no-op.
   useFCM(user?.uid ?? null);
+
+  // Attach / detach the Crashlytics user identifier on auth changes.
+  useEffect(() => {
+    if (!loading) {
+      setCrashlyticsUser(user?.uid ?? null);
+      logBreadcrumb(user ? `User signed in: ${user.uid}` : 'User signed out');
+    }
+  }, [user, loading]);
 
   // Foreground notification handler — show an Alert while the app is active.
   // Background / quit-state messages are handled in index.js.
@@ -42,16 +51,18 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-      {/* Offline banner sits above everything; renders null when online */}
-      <NetworkBanner />
-      {user ? (
-        <CalendarScreen user={user} onSignOut={signOut} />
-      ) : (
-        <LoginScreen />
-      )}
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+        {/* Offline banner sits above everything; renders null when online */}
+        <NetworkBanner />
+        {user ? (
+          <CalendarScreen user={user} onSignOut={signOut} />
+        ) : (
+          <LoginScreen />
+        )}
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }
 
