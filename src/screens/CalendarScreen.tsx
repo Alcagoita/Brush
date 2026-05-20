@@ -119,6 +119,7 @@ export default function CalendarScreen() {
 
       {/* Calendar */}
       <Calendar
+        testID="calendar"
         current={selectedDate}
         onDayPress={day => setSelectedDate(day.dateString)}
         markedDates={markedWithSelected}
