@@ -15,7 +15,17 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    FirebaseApp.configure()
+    if FirebaseApp.app() == nil {
+      do {
+        FirebaseApp.configure()
+        print("[Firebase] Initialized successfully.")
+      } catch {
+        print("[Firebase] Configuration failed: \(error.localizedDescription)")
+        assertionFailure("[Firebase] Could not configure FirebaseApp — check GoogleService-Info.plist.")
+      }
+    } else {
+      print("[Firebase] Already initialized, skipping configure().")
+    }
 
     let delegate = ReactNativeDelegate()
     let factory = RCTReactNativeFactory(delegate: delegate)
