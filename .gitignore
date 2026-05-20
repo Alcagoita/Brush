@@ -1,6 +1,10 @@
 # Build outputs (APKs stored locally, not committed)
 builds/
 
+# Firebase config files (contain sensitive API keys — keep out of git)
+android/app/google-services.json
+ios/Agenda/GoogleService-Info.plist
+
 # OSX
 #
 .DS_Store
