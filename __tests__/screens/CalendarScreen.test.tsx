@@ -32,6 +32,11 @@ describe('CalendarScreen', () => {
     expect(screen.getByText('+')).toBeTruthy();
   });
 
+  it('FAB has correct accessibility label and role', () => {
+    render(<CalendarScreen />);
+    expect(screen.getByRole('button', { name: 'Add new event' })).toBeTruthy();
+  });
+
   it('shows events for today on initial load', () => {
     render(<CalendarScreen />);
     expect(screen.getByText('Team Standup')).toBeTruthy();
@@ -54,11 +59,10 @@ describe('CalendarScreen', () => {
     expect(times).toEqual(sorted);
   });
 
-  it('shows empty state when a day with no events is selected', () => {
+  it('shows empty state with date context when a day with no events is selected', () => {
     render(<CalendarScreen />);
-    // May 28 is in the current month and has no mock events — no navigation needed
     fireEvent.press(screen.getByTestId(`calendar.day_${EMPTY_DAY}`));
-    expect(screen.getByText('No events scheduled')).toBeTruthy();
+    expect(screen.getByText('No events for May 28')).toBeTruthy();
   });
 
   it('updates the event list when a different day is selected', () => {

@@ -9,66 +9,20 @@ import {
 import { Calendar } from 'react-native-calendars';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventCard from '../components/EventCard';
-import { Event, MarkedDates } from '../types';
+import { MOCK_EVENTS } from '../mockData/events';
+import { DateString, MarkedDates, toDateString } from '../types';
 
-// --- Mock data ---
-const MOCK_EVENTS: Event[] = [
-  {
-    id: '1',
-    title: 'Team Standup',
-    description: 'Daily sync with the engineering team',
-    date: getTodayString(),
-    startTime: '09:00',
-    endTime: '09:30',
-    color: '#6366f1',
-  },
-  {
-    id: '2',
-    title: 'Design Review',
-    description: 'Review new UI mockups for Agenda',
-    date: getTodayString(),
-    startTime: '11:00',
-    endTime: '12:00',
-    color: '#0f9b8e',
-  },
-  {
-    id: '3',
-    title: 'Lunch with Sara',
-    date: getTodayString(),
-    startTime: '13:00',
-    endTime: '14:00',
-    color: '#f59e0b',
-  },
-  {
-    id: '4',
-    title: 'Sprint Planning',
-    description: 'Plan tasks for the upcoming sprint',
-    date: getOffsetDate(1),
-    startTime: '10:00',
-    endTime: '11:30',
-    color: '#e94560',
-  },
-  {
-    id: '5',
-    title: 'Doctor Appointment',
-    date: getOffsetDate(3),
-    startTime: '15:00',
-    endTime: '16:00',
-    color: '#10b981',
-  },
-];
-
-function getTodayString(): string {
-  return new Date().toISOString().split('T')[0];
+function getTodayString(): DateString {
+  return toDateString(new Date().toISOString().split('T')[0]);
 }
 
-function getOffsetDate(days: number): string {
+function getOffsetDate(days: number): DateString {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  return toDateString(d.toISOString().split('T')[0]);
 }
 
-function formatDisplayDate(dateStr: string): string {
+function formatDisplayDate(dateStr: DateString): string {
   const date = new Date(dateStr + 'T00:00:00');
   const today = getTodayString();
   const tomorrow = getOffsetDate(1);
@@ -81,9 +35,14 @@ function formatDisplayDate(dateStr: string): string {
   });
 }
 
+function formatEmptyStateDate(dateStr: DateString): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { month: 'long', day: 'numeric' });
+}
+
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const [selectedDate, setSelectedDate] = useState(getTodayString());
+  const [selectedDate, setSelectedDate] = useState<DateString>(getTodayString());
 
   const markedDates: MarkedDates = useMemo(() => {
     const marks: MarkedDates = {};
@@ -121,7 +80,7 @@ export default function CalendarScreen() {
       <Calendar
         testID="calendar"
         current={selectedDate}
-        onDayPress={day => setSelectedDate(day.dateString)}
+        onDayPress={day => setSelectedDate(toDateString(day.dateString))}
         markedDates={markedWithSelected}
         theme={{
           backgroundColor: '#ffffff',
@@ -147,7 +106,9 @@ export default function CalendarScreen() {
         {dayEvents.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📭</Text>
-            <Text style={styles.emptyText}>No events scheduled</Text>
+            <Text style={styles.emptyText}>
+              No events for {formatEmptyStateDate(selectedDate)}
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -164,6 +125,8 @@ export default function CalendarScreen() {
       <TouchableOpacity
         style={[styles.fab, { bottom: insets.bottom + 24 }]}
         activeOpacity={0.85}
+        accessibilityLabel="Add new event"
+        accessibilityRole="button"
       >
         <Text style={styles.fabIcon}>+</Text>
       </TouchableOpacity>
