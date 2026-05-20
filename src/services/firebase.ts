@@ -12,6 +12,25 @@ import messaging from '@react-native-firebase/messaging';
 import storage from '@react-native-firebase/storage';
 import { EMULATOR_HOST, USE_EMULATOR } from '../config/env';
 
+// ─── Offline persistence ──────────────────────────────────────────────────────
+// React Native Firebase enables persistence by default on both platforms, but
+// we make it explicit here and configure an unlimited cache so the calendar
+// and events remain fully usable while offline.
+//
+// settings() must be called before any Firestore reads/writes.
+
+let _settingsApplied = false;
+
+if (!_settingsApplied) {
+  firestore().settings({
+    // Remove the 40 MB default cap so all user events are cached on-device.
+    cacheSizeBytes: firestore.CACHE_SIZE_UNLIMITED,
+    // Ignore undefined fields in documents instead of throwing.
+    ignoreUndefinedProperties: true,
+  });
+  _settingsApplied = true;
+}
+
 // ─── Local emulator wiring ────────────────────────────────────────────────────
 // Must happen before any other Firebase calls. Safe to call multiple times
 // (React Native Fast Refresh re-runs this module, so we guard with a flag).
