@@ -16,6 +16,13 @@ ANDROID_SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/Library/Android/sdk}}"
 export ANDROID_HOME="$ANDROID_SDK"
 export ANDROID_SDK_ROOT="$ANDROID_SDK"
 
+# Gradle 9.x requires Java 17 — prefer the Homebrew-installed JDK
+JAVA17="/usr/local/opt/openjdk@17/bin"
+if [ -d "$JAVA17" ]; then
+  export PATH="$JAVA17:$PATH"
+  export JAVA_HOME="/usr/local/opt/openjdk@17"
+fi
+
 echo ""
 echo "▶ Building Agenda APK..."
 echo "  Project : $PROJECT_ROOT"
