@@ -10,6 +10,14 @@
 - `release/*`: Branch off `develop`, merge to `main` and `develop` with a tag.
 - `hotfix/*`: Branch off `main`, merge to `main` and `develop`.
 
+### Build Artifacts
+
+- After every successful merge, a debug APK is automatically built and saved to `builds/` locally.
+- The `builds/` folder is **not committed** to git — it exists only on your local machine.
+- The build is triggered by the `post-merge` git hook in `.git/hooks/`.
+- To install hooks on a fresh clone, run: `bash scripts/setup-hooks.sh`
+- To build manually at any time, run: `bash scripts/build-apk.sh`
+
 ### Pull Request Rules
 
 - Every task **must** be submitted via a Pull Request — direct pushes to `main` or `develop` are not allowed.

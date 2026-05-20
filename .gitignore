@@ -1,3 +1,6 @@
+# Build outputs (APKs stored locally, not committed)
+builds/
+
 # OSX
 #
 .DS_Store
