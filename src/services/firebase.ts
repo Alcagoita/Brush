@@ -10,6 +10,20 @@ import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 import messaging from '@react-native-firebase/messaging';
 import storage from '@react-native-firebase/storage';
+import { EMULATOR_HOST, USE_EMULATOR } from '../config/env';
+
+// ─── Local emulator wiring ────────────────────────────────────────────────────
+// Must happen before any other Firebase calls. Safe to call multiple times
+// (React Native Fast Refresh re-runs this module, so we guard with a flag).
+
+let _emulatorsAttached = false;
+
+if (USE_EMULATOR && !_emulatorsAttached) {
+  auth().useEmulator(`http://${EMULATOR_HOST}:9099`);
+  firestore().useEmulator(EMULATOR_HOST, 8080);
+  _emulatorsAttached = true;
+  console.log('[Firebase] 🔧 Using local emulators —', EMULATOR_HOST);
+}
 
 // ─── Service instances ────────────────────────────────────────────────────────
 
