@@ -15,6 +15,9 @@ export function subscribeToDateEvents(
     .where('date', '==', date)
     .orderBy('startTime', 'asc')
     .onSnapshot(
+      // Serve from the local cache first so the UI renders instantly,
+      // then applies server updates as they arrive.
+      { includeMetadataChanges: false },
       snapshot => {
         const events: Event[] = snapshot.docs.map(doc => ({
           id: doc.id,
@@ -35,6 +38,7 @@ export function subscribeToAllEventDates(
 ): () => void {
   return eventsCollection(userId)
     .onSnapshot(
+      { includeMetadataChanges: false },
       snapshot => {
         const events: Event[] = snapshot.docs.map(doc => ({
           id: doc.id,
