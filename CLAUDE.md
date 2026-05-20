@@ -10,6 +10,13 @@
 - `release/*`: Branch off `develop`, merge to `main` and `develop` with a tag.
 - `hotfix/*`: Branch off `main`, merge to `main` and `develop`.
 
+### Pull Request Rules
+
+- Every task **must** be submitted via a Pull Request — direct pushes to `main` or `develop` are not allowed.
+- A PR requires **at least 1 approved review** before it can be merged.
+- Stale reviews are automatically dismissed when new commits are pushed.
+- Branch protection is enforced on both `main` and `develop`.
+
 ### Commit Messages
 
 Use Conventional Commits format:
