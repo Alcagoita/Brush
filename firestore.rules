@@ -1,0 +1,36 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── User events ──────────────────────────────────────────────────────────
+    // Each user can only read and write their own events.
+    match /users/{userId}/events/{eventId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ─── FCM tokens ───────────────────────────────────────────────────────────
+    // Device tokens are private to the owning user.
+    match /users/{userId}/tokens/{token} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ─── Health check ────────────────────────────────────────────────────────
+    // A single publicly-readable collection used by checkFirebaseConnection().
+    // No sensitive data lives here; writes are always denied.
+    match /_health/{document} {
+      allow read:  if true;
+      allow write: if false;
+    }
+
+    // ─── Catch-all: deny everything else ─────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
