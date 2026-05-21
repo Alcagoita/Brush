@@ -5,7 +5,12 @@
  * without touching call sites across the app.
  */
 
-import crashlytics from '@react-native-firebase/crashlytics';
+import {
+  getCrashlytics,
+  log,
+  recordError as crashlyticsRecordError,
+  setUserId,
+} from '@react-native-firebase/crashlytics';
 
 /**
  * Record a non-fatal error with an optional user-readable context string.
@@ -13,10 +18,11 @@ import crashlytics from '@react-native-firebase/crashlytics';
  */
 export function recordError(error: Error, context?: string): void {
   try {
+    const cl = getCrashlytics();
     if (context) {
-      crashlytics().log(context);
+      log(cl, context);
     }
-    crashlytics().recordError(error);
+    crashlyticsRecordError(cl, error);
   } catch {
     // Crash reporting must never crash the app.
   }
@@ -29,7 +35,7 @@ export function recordError(error: Error, context?: string): void {
  */
 export function setCrashlyticsUser(uid: string | null): void {
   try {
-    crashlytics().setUserId(uid ?? '');
+    setUserId(getCrashlytics(), uid ?? '');
   } catch {
     // ignore
   }
@@ -40,7 +46,7 @@ export function setCrashlyticsUser(uid: string | null): void {
  */
 export function logBreadcrumb(message: string): void {
   try {
-    crashlytics().log(message);
+    log(getCrashlytics(), message);
   } catch {
     // ignore
   }

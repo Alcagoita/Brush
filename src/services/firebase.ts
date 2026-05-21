@@ -6,50 +6,58 @@
  * initialization point and makes it easy to swap or mock services.
  */
 
-import auth from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
-import messaging from '@react-native-firebase/messaging';
-import storage from '@react-native-firebase/storage';
+import { getApp } from '@react-native-firebase/app';
+import '@react-native-firebase/auth'; // registers RNFBAuth native module
+import { getAuth, connectAuthEmulator } from '@react-native-firebase/auth/lib/modular';
+import {
+  getFirestore,
+  connectFirestoreEmulator,
+  initializeFirestore,
+  CACHE_SIZE_UNLIMITED,
+} from '@react-native-firebase/firestore';
+import { getMessaging } from '@react-native-firebase/messaging';
+import { getStorage } from '@react-native-firebase/storage';
 import { EMULATOR_HOST, USE_EMULATOR } from '../config/env';
 
 // ─── Offline persistence ──────────────────────────────────────────────────────
-// React Native Firebase enables persistence by default on both platforms, but
-// we make it explicit here and configure an unlimited cache so the calendar
-// and events remain fully usable while offline.
-//
-// settings() must be called before any Firestore reads/writes.
+// initializeFirestore must be called once before any other Firestore access.
+// We guard with a flag so Fast Refresh doesn't call it twice.
 
 let _settingsApplied = false;
 
 if (!_settingsApplied) {
-  firestore().settings({
-    // Remove the 40 MB default cap so all user events are cached on-device.
-    cacheSizeBytes: firestore.CACHE_SIZE_UNLIMITED,
-    // Ignore undefined fields in documents instead of throwing.
-    ignoreUndefinedProperties: true,
-  });
+  try {
+    initializeFirestore(getApp(), {
+      // Remove the 40 MB default cap so all user events are cached on-device.
+      cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+      // Ignore undefined fields in documents instead of throwing.
+      ignoreUndefinedProperties: true,
+    });
+  } catch {
+    // initializeFirestore throws if called after getFirestore() — safe to ignore
+    // on Fast Refresh re-runs.
+  }
   _settingsApplied = true;
 }
 
 // ─── Local emulator wiring ────────────────────────────────────────────────────
-// Must happen before any other Firebase calls. Safe to call multiple times
-// (React Native Fast Refresh re-runs this module, so we guard with a flag).
+// Must happen before any other Firebase calls.
 
 let _emulatorsAttached = false;
 
 if (USE_EMULATOR && !_emulatorsAttached) {
-  auth().useEmulator(`http://${EMULATOR_HOST}:9099`);
-  firestore().useEmulator(EMULATOR_HOST, 8080);
+  connectAuthEmulator(getAuth(), `http://${EMULATOR_HOST}:9099`);
+  connectFirestoreEmulator(getFirestore(), EMULATOR_HOST, 8080);
   _emulatorsAttached = true;
   console.log('[Firebase] 🔧 Using local emulators —', EMULATOR_HOST);
 }
 
 // ─── Service instances ────────────────────────────────────────────────────────
 
-export const db = firestore();
-export const authService = auth();
-export const storageService = storage();
-export { messaging };
+export const db = getFirestore();
+export const authService = getAuth();
+export const storageService = getStorage();
+export { getMessaging as messaging };
 
 // ─── Initialization state ─────────────────────────────────────────────────────
 

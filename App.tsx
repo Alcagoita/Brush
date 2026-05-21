@@ -7,7 +7,7 @@ import {
   StatusBar,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import messaging from '@react-native-firebase/messaging';
+import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import { useAuth } from './src/hooks/useAuth';
 import { useFCM } from './src/hooks/useFCM';
 import { signOut } from './src/services/auth';
@@ -34,7 +34,7 @@ export default function App() {
   // Foreground notification handler — show an Alert while the app is active.
   // Background / quit-state messages are handled in index.js.
   useEffect(() => {
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
+    const unsubscribe = onMessage(getMessaging(), async remoteMessage => {
       const title = remoteMessage.notification?.title ?? 'New notification';
       const body = remoteMessage.notification?.body ?? '';
       Alert.alert(title, body);

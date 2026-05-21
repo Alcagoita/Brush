@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import auth from '@react-native-firebase/auth';
+import '@react-native-firebase/auth'; // ensures native module registration
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth/lib/modular';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
 
 export function useAuth() {
@@ -7,7 +8,7 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    return auth().onAuthStateChanged(newUser => {
+    return onAuthStateChanged(getAuth(), newUser => {
       setUser(newUser);
       setLoading(false);
     });
