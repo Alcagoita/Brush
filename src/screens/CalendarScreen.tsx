@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,6 +16,7 @@ import EventCard from '../components/EventCard';
 import { addEvent } from '../services/events';
 import { DateString, MarkedDates, toDateString } from '../types';
 import { useAllEvents, useEvents } from '../hooks/useEvents';
+import DevToolsScreen from './DevToolsScreen';
 
 function getTodayString(): DateString {
   return toDateString(new Date().toISOString().split('T')[0]);
@@ -53,6 +55,7 @@ export default function CalendarScreen({ user, onSignOut }: Props) {
   const insets = useSafeAreaInsets();
   const [selectedDate, setSelectedDate] = useState<DateString>(getTodayString());
   const [modalVisible, setModalVisible] = useState(false);
+  const [devToolsVisible, setDevToolsVisible] = useState(false);
 
   const { events: dayEvents, loading } = useEvents(user.uid, selectedDate);
   const allEvents = useAllEvents(user.uid);
@@ -83,12 +86,23 @@ export default function CalendarScreen({ user, onSignOut }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Agenda</Text>
-        <TouchableOpacity
-          onPress={onSignOut}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out">
-          <Text style={styles.signOut}>Sign out</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          {__DEV__ && (
+            <TouchableOpacity
+              onPress={() => setDevToolsVisible(true)}
+              accessibilityRole="button"
+              accessibilityLabel="Open developer tools"
+              style={styles.devToolsButton}>
+              <Text style={styles.devToolsIcon}>{'\u{1F527}'}</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity
+            onPress={onSignOut}
+            accessibilityRole="button"
+            accessibilityLabel="Sign out">
+            <Text style={styles.signOut}>Sign out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Calendar */}
@@ -160,6 +174,26 @@ export default function CalendarScreen({ user, onSignOut }: Props) {
         onClose={() => setModalVisible(false)}
         onSave={handleSaveEvent}
       />
+
+      {/* Dev Tools Modal — only compiled into __DEV__ builds */}
+      {__DEV__ && (
+        <Modal
+          visible={devToolsVisible}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setDevToolsVisible(false)}>
+          <View style={[styles.devModalHeader, { paddingTop: insets.top }]}>
+            <Text style={styles.devModalTitle}>Developer Tools</Text>
+            <TouchableOpacity
+              onPress={() => setDevToolsVisible(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close developer tools">
+              <Text style={styles.devModalClose}>Close</Text>
+            </TouchableOpacity>
+          </View>
+          <DevToolsScreen />
+        </Modal>
+      )}
     </View>
   );
 }
@@ -184,8 +218,39 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1a1a2e',
   },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  devToolsButton: {
+    padding: 4,
+  },
+  devToolsIcon: {
+    fontSize: 18,
+  },
   signOut: {
     fontSize: 14,
+    color: '#6366f1',
+    fontWeight: '500',
+  },
+  devModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e5e7eb',
+  },
+  devModalTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1a1a2e',
+  },
+  devModalClose: {
+    fontSize: 15,
     color: '#6366f1',
     fontWeight: '500',
   },
