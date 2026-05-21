@@ -108,6 +108,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Agenda" */;
 			buildPhases = (
+				5278C57B1DDABA331AA8C5E7 /* [Firebase] Verify GoogleService-Info.plist */,
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
@@ -205,6 +206,24 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
+		};
+		5278C57B1DDABA331AA8C5E7 /* [Firebase] Verify GoogleService-Info.plist */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "[Firebase] Verify GoogleService-Info.plist";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ ! -f \"${SRCROOT}/Agenda/GoogleService-Info.plist\" ]; then\n  echo \"error: GoogleService-Info.plist not found at ${SRCROOT}/Agenda/GoogleService-Info.plist\"\n  echo \"error: Run: firebase apps:sdkconfig ios <APP_ID> --out ios/Agenda/GoogleService-Info.plist\"\n  exit 1\nfi\n";
 		};
 		591FDBABA8D2E86508F06050 /* [CP-User] [RNFB] Core Configuration */ = {
 			isa = PBXShellScriptBuildPhase;
