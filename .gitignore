@@ -5,6 +5,9 @@ builds/
 android/app/google-services.json
 ios/Agenda/GoogleService-Info.plist
 
+# Emulator data (regenerated locally, not committed)
+emulator-data/
+
 # OSX
 #
 .DS_Store
