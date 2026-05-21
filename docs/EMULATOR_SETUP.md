@@ -3,6 +3,11 @@
 This guide explains how to run the app against local Firebase emulators instead
 of the production project. Useful for development and E2E testing.
 
+> **Prerequisite:** `src/config/env.ts` and `src/services/firebase.ts` must exist
+> (introduced in the modular API migration). Run `git log --oneline develop` and
+> confirm the `fix(ios): resolve Firebase build errors and migrate to modular API`
+> commit is present before following this guide.
+
 ---
 
 ## Why use the emulator?
@@ -31,6 +36,9 @@ firebase emulators:start --only auth,firestore
 
 # All services used by the app
 firebase emulators:start --only auth,firestore,storage
+
+# Force-restart individual services without stopping everything
+firebase emulators:start --only auth,firestore --force-new
 ```
 
 Emulator UIs are available at **http://localhost:4000** once started.
@@ -45,15 +53,21 @@ Open `src/config/env.ts` and set:
 export const USE_EMULATOR: boolean = __DEV__ && true;
 ```
 
-> **Important:** Set this back to `false` (or keep `__DEV__ && false`) before
-> building a release. Never ship an app pointed at the emulator.
+`EMULATOR_HOST` is defined in the same file and auto-resolved based on platform:
+
+```typescript
+export const EMULATOR_HOST: string = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+```
+
+> **Important:** Set `USE_EMULATOR` back to `false` (or keep `__DEV__ && false`)
+> before building a release. Never ship an app pointed at the emulator.
 
 ---
 
 ## 4. How it works
 
-`src/services/firebase.ts` reads the `USE_EMULATOR` flag at module load time
-and calls the modular connectors before any Firebase operation:
+`src/services/firebase.ts` reads both flags at module load time and calls the
+modular connectors before any Firebase operation:
 
 ```typescript
 import { connectAuthEmulator } from '@react-native-firebase/auth/lib/modular';
@@ -96,18 +110,30 @@ npm run e2e:test:ios
 
 ---
 
-## 6. Resetting emulator data
+## 6. Persisting emulator data
 
-Emulator data is ephemeral by default — it is wiped when the process stops.
-To persist data between sessions use the `--export-on-exit` / `--import` flags:
+Emulator data is ephemeral by default — wiped when the process stops. The
+`./emulator-data` directory is listed in `.gitignore` (local only).
 
 ```bash
 # Save state on exit
 firebase emulators:start --export-on-exit ./emulator-data
 
-# Restore saved state
+# Restore saved state on next run
 firebase emulators:start --import ./emulator-data
 ```
+
+---
+
+## 7. Firestore indexes
+
+Complex queries (multiple `where` + `orderBy` clauses) require composite
+indexes. In production these are deployed via `firestore.indexes.json`. In the
+emulator they can be created on the fly through the Firestore UI at
+**http://localhost:4000/firestore** — click **Indexes → Add index**.
+
+If a query fails with `"The query requires an index"`, create the missing index
+in the emulator UI or add it to `firestore.indexes.json` and redeploy.
 
 ---
 
@@ -121,6 +147,10 @@ Metro caches modules aggressively. Restart Metro with a clean cache:
 npx react-native start --reset-cache
 ```
 
+To confirm the app is connecting to the emulator, watch the Metro terminal for
+the `[Firebase] Using local emulators` log line on startup, or use the network
+inspector in the emulator UI at **http://localhost:4000**.
+
 ### `EADDRINUSE` on port 8080 or 9099
 
 Another process is using the port. Find and kill it:
@@ -132,5 +162,10 @@ lsof -ti :9099 | xargs kill -9
 
 ### Auth emulator rejects sign-in
 
-The emulator starts empty. You must **sign up first** — existing production
-accounts are not available in the emulator.
+The emulator starts empty — existing production accounts are not available.
+You must **sign up first** in each fresh emulator session.
+
+Additional Auth emulator quirks to be aware of:
+- Empty passwords are accepted (unlike production which requires ≥ 6 characters)
+- User UIDs are randomly generated each session unless you use `--import` to
+  restore a saved snapshot — don't hardcode UIDs in tests
