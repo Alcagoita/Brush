@@ -7,16 +7,25 @@
  */
 
 import { useEffect } from 'react';
-import messaging from '@react-native-firebase/messaging';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getMessaging,
+  requestPermission,
+  getToken,
+  onTokenRefresh,
+  AuthorizationStatus,
+} from '@react-native-firebase/messaging';
+import {
+  getFirestore,
+  doc,
+  setDoc,
+  serverTimestamp,
+} from '@react-native-firebase/firestore';
 
 async function saveToken(userId: string, token: string): Promise<void> {
-  await firestore()
-    .collection('users')
-    .doc(userId)
-    .collection('tokens')
-    .doc(token)
-    .set({ createdAt: firestore.FieldValue.serverTimestamp() });
+  await setDoc(
+    doc(getFirestore(), 'users', userId, 'tokens', token),
+    { createdAt: serverTimestamp() },
+  );
   console.log('[FCM] Token saved to Firestore:', token.slice(0, 20) + '…');
 }
 
@@ -29,11 +38,13 @@ export function useFCM(userId: string | null): void {
     let unsubscribeRefresh: (() => void) | undefined;
 
     async function setup() {
+      const messaging = getMessaging();
+
       // 1. Request permission (iOS prompts; Android ≥ 13 also prompts)
-      const authStatus = await messaging().requestPermission();
+      const authStatus = await requestPermission(messaging);
       const granted =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        authStatus === AuthorizationStatus.AUTHORIZED ||
+        authStatus === AuthorizationStatus.PROVISIONAL;
 
       if (!granted) {
         console.log('[FCM] Permission denied — status:', authStatus);
@@ -41,11 +52,11 @@ export function useFCM(userId: string | null): void {
       }
 
       // 2. Get current token and persist it
-      const token = await messaging().getToken();
+      const token = await getToken(messaging);
       await saveToken(userId, token);
 
       // 3. Listen for token rotations and persist the new token
-      unsubscribeRefresh = messaging().onTokenRefresh(newToken => {
+      unsubscribeRefresh = onTokenRefresh(messaging, newToken => {
         saveToken(userId, newToken).catch(err =>
           console.warn('[FCM] Token refresh save failed:', err.message),
         );
