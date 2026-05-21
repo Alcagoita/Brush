@@ -4,9 +4,11 @@ This guide explains how to run the app against local Firebase emulators instead
 of the production project. Useful for development and E2E testing.
 
 > **Prerequisite:** `src/config/env.ts` and `src/services/firebase.ts` must exist
-> (introduced in the modular API migration). Run `git log --oneline develop` and
-> confirm the `fix(ios): resolve Firebase build errors and migrate to modular API`
-> commit is present before following this guide.
+> (introduced in the modular API migration). Confirm with:
+> ```bash
+> git log --oneline develop | grep "fix(ios).*modular"
+> ```
+> If the command returns no output, pull the latest `develop` before continuing.
 
 ---
 
@@ -108,6 +110,10 @@ npm run e2e:build:ios
 npm run e2e:test:ios
 ```
 
+> **Note:** The `e2e:*` scripts require Detox and its native dependencies to be
+> set up first. See the E2E testing setup guide (or the headers of `e2e/*.test.ts`)
+> for prerequisites.
+
 ---
 
 ## 6. Persisting emulator data
@@ -132,8 +138,13 @@ indexes. In production these are deployed via `firestore.indexes.json`. In the
 emulator they can be created on the fly through the Firestore UI at
 **http://localhost:4000/firestore** — click **Indexes → Add index**.
 
-If a query fails with `"The query requires an index"`, create the missing index
-in the emulator UI or add it to `firestore.indexes.json` and redeploy.
+The emulator auto-creates indexes on demand, so queries that would fail in
+production may succeed locally. Always test complex queries against production
+(or a staging project) before shipping. To deploy indexes to production:
+
+```bash
+firebase deploy --only firestore:indexes
+```
 
 ---
 
