@@ -15,6 +15,7 @@ import React, {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Appearance, ColorSchemeName } from 'react-native';
@@ -48,6 +49,20 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Start with the device preference; we'll override with Firestore value once loaded.
   const [dark, setDarkState] = useState<boolean>(deviceIsDark());
 
+  /**
+   * Guards against a race condition where the Firestore load completes AFTER
+   * the user has already explicitly toggled the theme. Without this flag the
+   * async getDoc could revert a user-initiated change.
+   *
+   * Timeline without guard:
+   *   t=0  mount → start loading Firestore pref (saved: light)
+   *   t=1  user taps toggle → setDark(true) → state = dark
+   *   t=2  getDoc resolves → state reverts to light  ← bug
+   *
+   * With guard: t=2 getDoc sees userHasExplicitlySet=true and no-ops.
+   */
+  const userHasExplicitlySet = useRef(false);
+
   // ── Load saved preference from Firestore on mount ──
   useEffect(() => {
     const uid = getAuth().currentUser?.uid;
@@ -56,6 +71,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const userRef = doc(getFirestore(), 'users', uid);
     getDoc(userRef)
       .then(snapshot => {
+        // If the user toggled before the load finished, respect their choice.
+        if (userHasExplicitlySet.current) return;
         if (snapshot.exists()) {
           const data = snapshot.data();
           if (typeof data?.darkMode === 'boolean') {
@@ -72,7 +89,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const listener = Appearance.addChangeListener(
       ({ colorScheme }: { colorScheme: ColorSchemeName }) => {
-        // Only follow the OS if the user hasn't explicitly set a preference.
+        // When signed in, Firestore is the source of truth — ignore OS-level
+        // changes to avoid overriding the user's saved preference.
+        // When signed out there is no saved preference, so follow the OS.
         const uid = getAuth().currentUser?.uid;
         if (!uid) {
           setDarkState(colorScheme === 'dark');
@@ -84,6 +103,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // ── Persist preference ──
   const setDark = useCallback(async (value: boolean) => {
+    userHasExplicitlySet.current = true;
     setDarkState(value);
     const uid = getAuth().currentUser?.uid;
     if (!uid) return;
