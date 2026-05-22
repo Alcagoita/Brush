@@ -16,6 +16,7 @@ import CalendarScreen from './src/screens/CalendarScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import NetworkBanner from './src/components/NetworkBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { ThemeProvider } from './src/theme/ThemeContext';
 
 export default function App() {
   const { user, loading } = useAuth();
@@ -53,14 +54,16 @@ export default function App() {
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
-        {/* Offline banner sits above everything; renders null when online */}
-        <NetworkBanner />
-        {user ? (
-          <CalendarScreen user={user} onSignOut={signOut} />
-        ) : (
-          <LoginScreen />
-        )}
+        <ThemeProvider>
+          <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+          {/* Offline banner sits above everything; renders null when online */}
+          <NetworkBanner />
+          {user ? (
+            <CalendarScreen user={user} onSignOut={signOut} />
+          ) : (
+            <LoginScreen />
+          )}
+        </ThemeProvider>
       </SafeAreaProvider>
     </ErrorBoundary>
   );
