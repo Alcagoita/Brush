@@ -1,19 +1,31 @@
+# ─── Project-specific ────────────────────────────────────────────────────────
+
 # Build outputs (APKs stored locally, not committed)
 builds/
 
 # Firebase config files (contain sensitive API keys — keep out of git)
+# New developers: run `firebase apps:sdkconfig` to download these
 android/app/google-services.json
 ios/Agenda/GoogleService-Info.plist
 
 # Emulator data (regenerated locally, not committed)
 emulator-data/
 
-# OSX
-#
+# ─── Environment & secrets ───────────────────────────────────────────────────
+
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.cer
+
+# ─── macOS ───────────────────────────────────────────────────────────────────
+
 .DS_Store
 
-# Xcode
-#
+# ─── Xcode ───────────────────────────────────────────────────────────────────
+
 build/
 *.pbxuser
 !default.pbxuser
@@ -30,56 +42,80 @@ DerivedData
 *.hmap
 *.ipa
 *.xcuserstate
+project.xcworkspace
 **/.xcode.env.local
+*.xcframework
 
-# Android/IntelliJ
-#
-build/
+# ─── Android / Gradle ────────────────────────────────────────────────────────
+
 .idea
 .gradle
 local.properties
 *.iml
 *.hprof
 .cxx/
+.kotlin/
+android/app/build/
 *.keystore
 !debug.keystore
-.kotlin/
 
-# node.js
-#
+# ─── Android Studio ──────────────────────────────────────────────────────────
+
+.project
+.settings
+.classpath
+
+# ─── Node.js ─────────────────────────────────────────────────────────────────
+
 node_modules/
-npm-debug.log
-yarn-error.log
+*.log
+.nvm
 
-# fastlane
-#
-# It is recommended to not store the screenshots in the git repo. Instead, use fastlane to re-generate the
-# screenshots whenever they are needed.
-# For more information about the recommended setup visit:
-# https://docs.fastlane.tools/best-practices/source-control/
+# ─── Ruby / CocoaPods ────────────────────────────────────────────────────────
+
+**/Pods/
+/vendor/bundle/
+.ruby-version
+vendor/
+
+# ─── Fastlane ────────────────────────────────────────────────────────────────
 
 **/fastlane/report.xml
 **/fastlane/Preview.html
 **/fastlane/screenshots
 **/fastlane/test_output
 
-# Bundle artifact
-*.jsbundle
+# ─── Metro ───────────────────────────────────────────────────────────────────
 
-# Ruby / CocoaPods
-**/Pods/
-/vendor/bundle/
-
-# Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*
 
-# testing
-/coverage
+# ─── Bundle artifacts ────────────────────────────────────────────────────────
 
-# Yarn
+*.jsbundle
+
+# ─── Testing ─────────────────────────────────────────────────────────────────
+
+/coverage
+/reports
+*.js.meta
+
+# ─── Yarn ────────────────────────────────────────────────────────────────────
+
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/sdks
 !.yarn/versions
+
+# ─── IDEs ────────────────────────────────────────────────────────────────────
+
+/.vscode
+.vs
+
+# ─── Misc ────────────────────────────────────────────────────────────────────
+
+*.stackdump
+__pycache__/
+*.orig
+/tmp/
