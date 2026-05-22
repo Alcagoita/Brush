@@ -1,69 +1,90 @@
 /**
  * ProgressRing — SVG circular progress indicator.
  *
- * Accepts animated values for diameter and strokeWidth so the parent can
- * drive scroll-collapse interpolations. Progress arc starts at 12 o'clock.
+ * Driven by Reanimated SharedValues so all geometry updates run on the
+ * UI thread — no JS re-renders on every animation frame.
+ *
+ * Progress changes (tasks completing) animate smoothly via withTiming.
  */
-import React from 'react';
-import { Animated } from 'react-native';
+import React, { useEffect } from 'react';
+import Animated, {
+  useAnimatedProps,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../theme';
+
+const AnimatedSvg    = Animated.createAnimatedComponent(Svg);
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 interface Props {
   /** 0–1 fraction of tasks completed. */
   progress: number;
-  /** Animated diameter of the whole ring (outer edge). */
-  diameter: Animated.AnimatedInterpolation<number>;
-  /** Animated stroke width. */
-  strokeWidth: Animated.AnimatedInterpolation<number>;
+  /** Shared/derived value — diameter of the whole ring (outer edge). */
+  diameter: SharedValue<number>;
+  /** Shared/derived value — stroke width. */
+  strokeWidth: SharedValue<number>;
 }
 
-// react-native-svg Circle doesn't accept Animated values directly — we need
-// the animated wrapper. For numeric SVG attributes we derive them from the
-// Animated values via addListener + state.
 export default function ProgressRing({ progress, diameter, strokeWidth }: Props) {
   const { palette } = useTheme();
 
-  const [size, setSize] = React.useState(246);
-  const [stroke, setStroke] = React.useState(14);
+  // Keep progress on the UI thread; animate transitions between values.
+  const progressSV = useSharedValue(progress);
+  useEffect(() => {
+    progressSV.value = withTiming(progress, { duration: 400 });
+  }, [progress, progressSV]);
 
-  React.useEffect(() => {
-    const idD = (diameter as any).addListener(({ value }: { value: number }) => setSize(value));
-    const idS = (strokeWidth as any).addListener(({ value }: { value: number }) => setStroke(value));
-    return () => {
-      (diameter as any).removeListener(idD);
-      (strokeWidth as any).removeListener(idS);
+  // Animated Svg wrapper — width/height must follow the collapsing diameter.
+  const svgProps = useAnimatedProps(() => ({
+    width:  diameter.value,
+    height: diameter.value,
+  }));
+
+  // Track circle (background ring).
+  const trackProps = useAnimatedProps(() => {
+    const d = diameter.value;
+    const s = strokeWidth.value;
+    const r = (d - s) / 2;
+    return { cx: d / 2, cy: d / 2, r, strokeWidth: s };
+  });
+
+  // Progress arc — strokeDashoffset encodes how much of the arc is filled.
+  const arcProps = useAnimatedProps(() => {
+    const d     = diameter.value;
+    const s     = strokeWidth.value;
+    const r     = (d - s) / 2;
+    const circ  = 2 * Math.PI * r;
+    const clamped = Math.min(Math.max(progressSV.value, 0), 1);
+    return {
+      cx:                d / 2,
+      cy:                d / 2,
+      r,
+      strokeWidth:       s,
+      strokeDasharray:   circ,
+      strokeDashoffset:  circ * (1 - clamped),
     };
-  }, [diameter, strokeWidth]);
-
-  const radius = (size - stroke) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const offset = circumference * (1 - Math.min(Math.max(progress, 0), 1));
-  const center = size / 2;
+  });
 
   return (
-    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+    <AnimatedSvg
+      animatedProps={svgProps}
+      style={{ transform: [{ rotate: '-90deg' }] }}>
       {/* Track */}
-      <Circle
-        cx={center}
-        cy={center}
-        r={radius}
+      <AnimatedCircle
         stroke={palette.ringTrack}
-        strokeWidth={stroke}
         fill="none"
+        animatedProps={trackProps}
       />
       {/* Progress arc */}
-      <Circle
-        cx={center}
-        cy={center}
-        r={radius}
+      <AnimatedCircle
         stroke={palette.ringFill}
-        strokeWidth={stroke}
         fill="none"
-        strokeDasharray={circumference}
-        strokeDashoffset={offset}
         strokeLinecap="round"
+        animatedProps={arcProps}
       />
-    </Svg>
+    </AnimatedSvg>
   );
 }

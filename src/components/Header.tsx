@@ -6,7 +6,7 @@
  * The unread dot on the bell is peach (palette.accent).
  * Greeting adapts to the time of day.
  */
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
@@ -15,6 +15,7 @@ import { spacing } from '../theme/tokens';
 interface Props {
   displayName: string;
   hasUnread?: boolean;
+  onAvatarPress?: () => void;
   onBellPress?: () => void;
 }
 
@@ -30,10 +31,17 @@ function initials(name: string): string {
   return name.trim().charAt(0).toUpperCase() || '?';
 }
 
-export default function Header({ displayName, hasUnread = false, onBellPress }: Props) {
+export default function Header({ displayName, hasUnread = false, onAvatarPress, onBellPress }: Props) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
-  const greet = useMemo(greeting, []);
+
+  // Re-evaluate the greeting every 60 s so it updates if the app stays open
+  // across a time boundary (e.g. morning → afternoon).
+  const [greet, setGreet] = useState(greeting);
+  useEffect(() => {
+    const id = setInterval(() => setGreet(greeting()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <View
@@ -45,12 +53,16 @@ export default function Header({ displayName, hasUnread = false, onBellPress }: 
           borderBottomColor: palette.line,
         },
       ]}>
-      {/* Avatar */}
-      <View style={[styles.avatar, { backgroundColor: palette.surface2 }]}>
+      {/* Avatar — taps navigate to Profile */}
+      <TouchableOpacity
+        style={[styles.avatar, { backgroundColor: palette.surface2 }]}
+        onPress={onAvatarPress}
+        accessibilityRole="button"
+        accessibilityLabel="Open profile">
         <Text style={[styles.avatarText, { color: palette.text }]}>
           {initials(displayName)}
         </Text>
-      </View>
+      </TouchableOpacity>
 
       {/* Greeting */}
       <View style={styles.greetingWrap}>
