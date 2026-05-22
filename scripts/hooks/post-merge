@@ -2,7 +2,7 @@
 # post-merge hook — runs automatically after every git merge / git pull.
 # Triggers an APK build only when merging into main (end of sprint).
 
-CURRENT_BRANCH="$(git branch --show-current)"
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 
 if [ "$CURRENT_BRANCH" != "main" ]; then
   exit 0
