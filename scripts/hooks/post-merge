@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# post-merge hook — runs automatically after every git merge / git pull.
+# Triggers an APK build so builds/ always reflects the latest merged code.
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)/scripts"
+
+echo ""
+echo "🔀 Merge detected — starting APK build..."
+bash "$SCRIPT_DIR/build-apk.sh"

@@ -1,3 +1,13 @@
+# Build outputs (APKs stored locally, not committed)
+builds/
+
+# Firebase config files (contain sensitive API keys — keep out of git)
+android/app/google-services.json
+ios/Agenda/GoogleService-Info.plist
+
+# Emulator data (regenerated locally, not committed)
+emulator-data/
+
 # OSX
 #
 .DS_Store

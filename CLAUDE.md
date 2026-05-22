@@ -10,6 +10,25 @@
 - `release/*`: Branch off `develop`, merge to `main` and `develop` with a tag.
 - `hotfix/*`: Branch off `main`, merge to `main` and `develop`.
 
+### Build Artifacts
+
+- After every successful merge, a debug APK is automatically built and saved to `builds/` locally.
+- The `builds/` folder is **not committed** to git — it exists only on your local machine.
+- The build is triggered by the `post-merge` git hook in `.git/hooks/`.
+- To install hooks on a fresh clone, run: `bash scripts/setup-hooks.sh`
+- To build manually at any time, run: `bash scripts/build-apk.sh`
+
+### Pull Request Rules
+
+- Every task **must** be submitted via a Pull Request — direct pushes to `main` or `develop` are not allowed.
+- A PR requires **at least 1 approved review** before it can be merged.
+- Stale reviews are automatically dismissed when new commits are pushed.
+- Branch protection is enforced on both `main` and `develop`.
+- **GitHub Copilot** is automatically requested as a reviewer on every PR via a repository Ruleset.
+  - Copilot performs a first-pass code review and leaves inline comments and suggestions.
+  - Copilot always posts a **"Comment"** review — it does not count as an approval.
+  - A human approval is still required before merging.
+
 ### Commit Messages
 
 Use Conventional Commits format:

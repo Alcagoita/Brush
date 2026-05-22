@@ -1,3 +1,9 @@
+// Tell react-native-community packages where react-native lives so they don't
+// need to shell out to `node` (which Android Studio's JVM process can't find).
+ext {
+    REACT_NATIVE_NODE_MODULES_DIR = new File("${rootDir}/../node_modules/react-native").absolutePath
+}
+
 buildscript {
     ext {
         buildToolsVersion = "36.0.0"
@@ -15,6 +21,8 @@ buildscript {
         classpath("com.android.tools.build:gradle")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath("com.google.gms:google-services:4.4.2")
+        classpath("com.google.firebase:firebase-crashlytics-gradle:3.0.3")
     }
 }
 
