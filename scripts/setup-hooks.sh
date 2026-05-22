@@ -18,5 +18,5 @@ for hook in "$HOOKS_SRC"/*; do
 done
 
 echo ""
-echo "✅ Git hooks installed. APK will be built automatically after every merge."
+echo "✅ Git hooks installed. APK will be built automatically when merging into main (end of sprint)."
 echo ""
