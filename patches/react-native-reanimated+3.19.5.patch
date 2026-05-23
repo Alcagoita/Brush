@@ -60,6 +60,19 @@ index 4be3555..d06b133 100644
  #include <react/jni/JMessageQueueThread.h>
  #include <react/jni/WritableNativeMap.h>
  #include <string>
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h
+index b2c1fab..50ca6da 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h
+@@ -9,7 +9,7 @@
+ #include <ReactCommon/CallInvokerHolder.h>
+ #include <fbjni/fbjni.h>
+ #include <jsi/jsi.h>
+-#include <react/jni/CxxModuleWrapper.h>
++// #include <react/jni/CxxModuleWrapper.h>  // Removed in RN 0.85
+ #include <react/jni/JavaScriptExecutorHolder.h>
+ #include <react/jni/WritableNativeMap.h>
+ 
 diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt
 index bb61ff7..871b584 100644
 --- a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt
@@ -92,6 +105,19 @@ index 6224980..70e1a4a 100644
  #include <react/jni/JMessageQueueThread.h>
  
  #include <memory>
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h
+index 1cd7bf2..5f55278 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h
+@@ -9,7 +9,7 @@
+ #include <ReactCommon/CallInvokerHolder.h>
+ #include <fbjni/fbjni.h>
+ #include <jsi/jsi.h>
+-#include <react/jni/CxxModuleWrapper.h>
++// #include <react/jni/CxxModuleWrapper.h>  // Removed in RN 0.85
+ #include <react/jni/JMessageQueueThread.h>
+ #include <react/jni/WritableNativeMap.h>
+ 
 diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/UIManagerModuleListener.java b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/UIManagerModuleListener.java
 new file mode 100644
 index 0000000..567a6f8
