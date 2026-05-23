@@ -21,6 +21,32 @@ index 8e970cb..187c231 100644
        jsi::Runtime &uiRuntime,
        const std::shared_ptr<UIScheduler> uiScheduler
  #ifdef ANDROID
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/hermes/inspector/RuntimeAdapter.h b/node_modules/react-native-reanimated/android/src/main/cpp/hermes/inspector/RuntimeAdapter.h
+new file mode 100644
+index 0000000..f7c97c6
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/hermes/inspector/RuntimeAdapter.h
+@@ -0,0 +1,20 @@
++// Compatibility stub for RN 0.85 / Hermes 250829098.0.10.
++// The hermes/inspector/ package was removed in this Hermes release; the
++// modern inspector uses hermes/inspector-modern/ instead.  Registration.h
++// (in inspector-modern) still declares enableDebugging() taking a
++// std::unique_ptr<RuntimeAdapter>, so we re-declare the abstract base class
++// here to satisfy that forward reference.
++#pragma once
++
++#include <hermes/hermes.h>
++
++namespace facebook::hermes::inspector_modern {
++
++class RuntimeAdapter {
++ public:
++  virtual ~RuntimeAdapter() = default;
++  virtual facebook::hermes::HermesRuntime &getRuntime() = 0;
++  virtual void tickleJs() = 0;
++};
++
++} // namespace facebook::hermes::inspector_modern
 diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h
 index 4be3555..d06b133 100644
 --- a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h
