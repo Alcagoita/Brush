@@ -21,7 +21,7 @@
  * thread; no JS re-renders during scroll.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Dimensions,
   Platform,
@@ -52,8 +52,9 @@ import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
-import { subscribeToTasksForDate } from '../services/firestore';
-import { Task } from '../types';
+import TaskRow from '../components/TaskRow';
+import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
+import { PoiType, Task } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -123,8 +124,10 @@ export default function TodayScreen() {
   const { palette } = useTheme();
   const navigation  = useNavigation<Nav>();
 
-  const [tasks,        setTasks]        = useState<Task[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(true);
+  const [tasks,          setTasks]          = useState<Task[]>([]);
+  const [tasksLoading,   setTasksLoading]   = useState(true);
+  /** Active nearby POI type — null until KAN-22 wires background geolocation. */
+  const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
 
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
@@ -145,6 +148,16 @@ export default function TodayScreen() {
       setTasks(newTasks);
       setTasksLoading(false);
     });
+  }, [uid]);
+
+  // ── Toggle handler (KAN-14 will layer optimistic UI + haptics on top) ──
+  const handleToggle = useCallback(async (taskId: string, done: boolean) => {
+    if (!uid) { return; }
+    try {
+      await setTaskDone(uid, taskId, done);
+    } catch (err) {
+      console.warn('[TodayScreen] toggle failed', err);
+    }
   }, [uid]);
 
   // ── Progress ──
@@ -312,29 +325,12 @@ export default function TodayScreen() {
             </Text>
           ) : (
             tasks.map(task => (
-              <View
+              <TaskRow
                 key={task.id}
-                style={[styles.taskRow, { borderBottomColor: palette.line }]}
-                accessibilityRole="text"
-                accessibilityLabel={`${task.title}${task.done ? ', completed' : ''}`}
-                accessibilityState={{ checked: task.done }}>
-                <View
-                  style={[
-                    styles.taskDot,
-                    { backgroundColor: task.done ? palette.faint : palette.accent },
-                  ]}
-                />
-                <Text
-                  style={[
-                    styles.taskTitle,
-                    {
-                      color: task.done ? palette.muted : palette.text,
-                      textDecorationLine: task.done ? 'line-through' : 'none',
-                    },
-                  ]}>
-                  {task.title}
-                </Text>
-              </View>
+                task={task}
+                nearbyPoiType={nearbyPoiType}
+                onToggle={handleToggle}
+              />
             ))
           )}
         </View>
@@ -452,24 +448,6 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 14,
     borderRadius: 7,
-  },
-  // ── Task rows ──
-  taskRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-  },
-  taskDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 9999,
-  },
-  taskTitle: {
-    flex: 1,
-    fontSize: 15,
-    fontFamily: 'Geist-Regular',
   },
   bottomPad: { height: 80 },
 });
