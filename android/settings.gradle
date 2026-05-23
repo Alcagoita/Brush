@@ -1,6 +1,11 @@
 pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
 plugins { id("com.facebook.react.settings") }
-extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
+  // Use absolute node path so Gradle finds the CLI even when launched from
+  // Android Studio (which doesn't inherit the shell PATH).
+  def nodeBinary = providers.gradleProperty("NODE_BINARY").getOrElse("node")
+  ex.autolinkLibrariesFromCommand("${nodeBinary} node_modules/.bin/react-native config")
+}
 rootProject.name = 'Agenda'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
