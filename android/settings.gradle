@@ -1,6 +1,12 @@
 pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
 plugins { id("com.facebook.react.settings") }
-extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
+extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
+  // autolinkLibrariesFromCommand takes a List<String> (executable + args).
+  // Passing the absolute node path avoids the "npx not found" error that
+  // occurs when Android Studio's Gradle daemon doesn't inherit the shell PATH.
+  def nodeBinary = providers.gradleProperty("NODE_BINARY").getOrElse("node")
+  ex.autolinkLibrariesFromCommand([nodeBinary, "node_modules/.bin/react-native", "config"])
+}
 rootProject.name = 'Agenda'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')

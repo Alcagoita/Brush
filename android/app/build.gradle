@@ -9,6 +9,11 @@ apply plugin: "com.google.firebase.crashlytics"
  * By default you don't need to apply any configuration, just uncomment the lines you need.
  */
 react {
+    // Pass the absolute node path so Android Studio's Gradle daemon (which
+    // doesn't inherit the shell PATH) can find node for ALL codegen tasks —
+    // this value propagates to every library subproject via rootExtension.
+    nodeExecutableAndArgs = [rootProject.properties.get("NODE_BINARY", "node") as String]
+
     /* Folders */
     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
     // root = file("../../")
@@ -54,6 +59,16 @@ react {
 
     /* Autolinking */
     autolinkLibrariesWithApp()
+}
+
+/**
+ * When "Clean Project" runs, also delete the CMake configuration cache (.cxx).
+ * Without this, CMake detects a stale GLOB mismatch (codegen JNI dirs were wiped
+ * by clean) and tries to re-configure BEFORE the codegen tasks re-run, causing
+ * the externalNativeBuildClean task to fail with "not an existing directory".
+ */
+clean {
+    delete "${projectDir}/.cxx"
 }
 
 /**
