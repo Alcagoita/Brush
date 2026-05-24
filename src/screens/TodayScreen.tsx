@@ -54,6 +54,8 @@ import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
+import { requestLocationPermission } from '../services/geolocation';
+import { startProximityMonitoring } from '../services/proximity';
 import { PoiType, Task } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -126,8 +128,8 @@ export default function TodayScreen() {
 
   const [tasks,          setTasks]          = useState<Task[]>([]);
   const [tasksLoading,   setTasksLoading]   = useState(true);
-  /** Active nearby POI type — null until KAN-22 wires background geolocation. */
-  const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
+  /** Active nearby POI type — updated by the proximity engine (KAN-24). */
+  const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null);
   /**
    * Optimistic overrides: immediately reflects a toggle in the UI while the
    * Firestore write is in-flight. Cleared once the write resolves (or reverts
@@ -154,6 +156,31 @@ export default function TodayScreen() {
       setTasks(newTasks);
       setTasksLoading(false);
     });
+  }, [uid]);
+
+  // ── Proximity monitoring (KAN-24) ──
+  // Request location permission once on mount, then start the proximity engine.
+  // The engine watches the user's location and calls setNearbyPoiType when
+  // they enter/leave a POI geofence. Cleaned up on unmount.
+  useEffect(() => {
+    if (!uid) { return; }
+    let stopMonitoring: (() => void) | null = null;
+
+    requestLocationPermission().then(status => {
+      if (status !== 'granted') { return; }
+      stopMonitoring = startProximityMonitoring(
+        uid,
+        effectiveTasks,
+        setNearbyPoiType,
+      );
+    }).catch(err => {
+      console.warn('[TodayScreen] location permission error', err);
+    });
+
+    return () => { stopMonitoring?.(); };
+  // Run once on mount — proximity engine keeps its own task ref up-to-date
+  // via updateProximityTasks() called in the effectiveTasks memo below.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
   // ── Optimistic toggle with haptic feedback ──
