@@ -93,7 +93,7 @@ interface NewTaskSheetProps {
 
 const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
   function NewTaskSheet({ visible, uid, onClose }, ref) {
-    const { palette } = useTheme();
+    const { palette, dark } = useTheme();
 
     // Form state
     const [title,    setTitle]    = useState('');
@@ -446,22 +446,42 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                       </Pressable>
                     </View>
                   )}
-                  <DateTimePicker
-                    value={timeDate}
-                    mode="time"
-                    is24Hour
-                    display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                    onValueChange={(_evt, date) => {
-                      // Android: dialog closes on OK — hide the picker.
-                      // iOS:     spinner fires on every scroll — keep open.
-                      if (Platform.OS === 'android') { setShowTimePicker(false); }
-                      setTimeDate(date);
-                      const h = String(date.getHours()).padStart(2, '0');
-                      const m = String(date.getMinutes()).padStart(2, '0');
-                      setTime(`${h}:${m}`);
-                    }}
-                    onDismiss={() => setShowTimePicker(false)}
-                  />
+
+                  {/* On iOS the spinner renders inline — wrap it so it shares the
+                      app's surface background and border, blending with the form. */}
+                  <View
+                    style={[
+                      styles.pickerWrap,
+                      Platform.OS === 'ios' && {
+                        backgroundColor: palette.surface,
+                        borderColor:     palette.line,
+                      },
+                    ]}>
+                    <DateTimePicker
+                      value={timeDate}
+                      mode="time"
+                      is24Hour
+                      display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                      // themeVariant ensures the Android dialog respects the app's
+                      // light/dark setting instead of always using the system default.
+                      themeVariant={dark ? 'dark' : 'light'}
+                      // accentColor tints the selected time, OK button, and clock
+                      // hands to the app's peach accent on both platforms.
+                      accentColor={palette.accent}
+                      // textColor controls spinner-wheel text on iOS (ignored on Android).
+                      textColor={palette.text}
+                      onValueChange={(_evt, date) => {
+                        // Android: dialog closes on OK — hide the picker.
+                        // iOS:     spinner fires on every scroll — keep open.
+                        if (Platform.OS === 'android') { setShowTimePicker(false); }
+                        setTimeDate(date);
+                        const h = String(date.getHours()).padStart(2, '0');
+                        const m = String(date.getMinutes()).padStart(2, '0');
+                        setTime(`${h}:${m}`);
+                      }}
+                      onDismiss={() => setShowTimePicker(false)}
+                    />
+                  </View>
                 </>
               )}
 
@@ -651,6 +671,17 @@ const styles = StyleSheet.create({
     flex:       1,
     fontSize:   15,
     fontFamily: 'Geist-Regular',
+  },
+  // Wraps the DateTimePicker on iOS so it inherits the form surface colour.
+  // On Android the picker is a system dialog so the wrapper has no styling.
+  pickerWrap: {
+    marginHorizontal: 22,
+    marginTop:         8,
+    borderRadius:     12,
+    borderWidth:       1,
+    overflow:         'hidden',
+    // borderColor / backgroundColor injected inline (iOS only)
+    borderColor:      'transparent',
   },
   iosDoneRow: {
     alignItems:     'flex-end',
