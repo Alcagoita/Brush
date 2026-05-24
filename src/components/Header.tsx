@@ -11,6 +11,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { spacing } from '../theme/tokens';
+import { BellIcon } from './AppIcon';
 
 interface Props {
   displayName: string;
@@ -80,7 +81,7 @@ export default function Header({ displayName, hasUnread = false, onAvatarPress, 
         onPress={onBellPress}
         accessibilityRole="button"
         accessibilityLabel={hasUnread ? 'Notifications, unread' : 'Notifications'}>
-        <Text style={[styles.bellIcon, { color: palette.text }]}>🔔</Text>
+        <BellIcon color={palette.text} size={20} />
         {hasUnread && (
           <View style={[styles.dot, { backgroundColor: palette.accent }]} />
         )}
@@ -128,9 +129,6 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  bellIcon: {
-    fontSize: 18,
   },
   dot: {
     position: 'absolute',

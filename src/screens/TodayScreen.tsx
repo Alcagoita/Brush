@@ -21,15 +21,17 @@
  * thread; no JS re-renders during scroll.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   Vibration,
   View,
 } from 'react-native';
+import { PlusIcon } from '../components/AppIcon';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -59,6 +61,7 @@ import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../se
 import { NearbyPlace } from '../services/maps';
 import { PoiType, Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
+import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -142,6 +145,13 @@ export default function TodayScreen() {
    * on error). This keeps the progress ring and row state instant.
    */
   const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
+  /** Controls visibility of the new-task bottom sheet (KAN-51). */
+  const [sheetVisible,   setSheetVisible]   = useState(false);
+
+  /** Ref to the sheet — used to call hide() once a new task appears in the list. */
+  const sheetRef        = useRef<NewTaskSheetHandle>(null);
+  /** Previous task count — compared on every Firestore snapshot. */
+  const prevTasksLenRef = useRef(0);
 
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
@@ -212,6 +222,18 @@ export default function TodayScreen() {
   // effectiveTasks is a new array ref on every render that affects it,
   // so this fires exactly when the list content changes.
   }, [effectiveTasks]);
+
+  // ── Auto-close sheet when new task appears in the Firestore snapshot ──
+  // Firestore's local cache fires the subscription before (or just as) addTask()
+  // resolves, so this catches the task appearing in the list and hides the sheet
+  // as soon as the write is confirmed — belt-and-suspenders with handleSubmit's
+  // own direct close call.
+  useEffect(() => {
+    if (sheetVisible && tasks.length > prevTasksLenRef.current) {
+      sheetRef.current?.hide();
+    }
+    prevTasksLenRef.current = tasks.length;
+  }, [tasks, sheetVisible]);
 
   // ── Optimistic toggle with haptic feedback ──
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
@@ -412,6 +434,27 @@ export default function TodayScreen() {
 
         <View style={styles.bottomPad} />
       </Animated.ScrollView>
+
+      {/* ── Add-task FAB (KAN-51) ── */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.fab,
+          { backgroundColor: palette.accent },
+          pressed && styles.fabPressed,
+        ]}
+        onPress={() => setSheetVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Add task">
+        <PlusIcon color="#FFFFFF" size={24} />
+      </Pressable>
+
+      {/* ── New-task bottom sheet (KAN-51) ── */}
+      <NewTaskSheet
+        ref={sheetRef}
+        visible={sheetVisible}
+        uid={uid ?? ''}
+        onClose={() => setSheetVisible(false)}
+      />
     </View>
   );
 }
@@ -512,5 +555,28 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  bottomPad: { height: 80 },
+  // 100px bottom pad so the FAB never overlaps the last task row (spec: 100px).
+  bottomPad: { height: 100 },
+
+  // ── Add-task FAB ──
+  fab: {
+    position:     'absolute',
+    right:         20,
+    bottom:        20,
+    zIndex:         5,
+    width:          56,
+    height:         56,
+    borderRadius:   18,
+    alignItems:     'center',
+    justifyContent: 'center',
+    // Drop shadow (spec: 0 6px 18px rgba(232,168,106,0.45), 0 2px 4px rgba(0,0,0,0.08))
+    shadowColor:   '#e8a86a',
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius:  18,
+    elevation:      8,
+  },
+  fabPressed: {
+    transform: [{ scale: 0.96 }],
+  },
 });
