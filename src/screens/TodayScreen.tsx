@@ -55,8 +55,10 @@ import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
 import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring, updateProximityTasks } from '../services/proximity';
+import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../services/proximity';
+import { NearbyPlace } from '../services/maps';
 import { PoiType, Task } from '../types';
+import NearbyCard from '../components/NearbyCard';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -130,6 +132,10 @@ export default function TodayScreen() {
   const [tasksLoading,   setTasksLoading]   = useState(true);
   /** Active nearby POI type — updated by the proximity engine (KAN-24). */
   const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null);
+  /** The specific place the user is currently near (for the hero block). */
+  const [nearbyPlace,    setNearbyPlace]    = useState<NearbyPlace | null>(null);
+  /** All known nearest places per POI type — drives NearbyCard idle rows. */
+  const [poiPlaces,      setPoiPlaces]      = useState<PlacesMap>({});
   /**
    * Optimistic overrides: immediately reflects a toggle in the UI while the
    * Firestore write is in-flight. Cleared once the write resolves (or reverts
@@ -158,6 +164,13 @@ export default function TodayScreen() {
     });
   }, [uid]);
 
+  // ── Effective tasks — optimistic overrides applied ──
+  // Declared here (above the effects) so proximity effects can reference it.
+  const effectiveTasks = tasks.map(t => ({
+    ...t,
+    done: optimisticDone[t.id] ?? t.done,
+  }));
+
   // ── Proximity monitoring (KAN-24) ──
   // Request location permission once on mount, then start the proximity engine.
   // The engine watches the user's location and calls setNearbyPoiType when
@@ -171,7 +184,11 @@ export default function TodayScreen() {
       stopMonitoring = startProximityMonitoring(
         uid,
         effectiveTasks,
-        setNearbyPoiType,
+        (poiType, place, allPlaces) => {
+          setNearbyPoiType(poiType);
+          setNearbyPlace(place);
+          setPoiPlaces(allPlaces);
+        },
       );
     }).catch(err => {
       console.warn('[TodayScreen] location permission error', err);
@@ -220,13 +237,6 @@ export default function TodayScreen() {
       });
     }
   }, [uid]);
-
-  // ── Effective tasks — optimistic overrides applied ──
-  // Used for both rendering and progress calculation so the ring updates instantly.
-  const effectiveTasks = tasks.map(t => ({
-    ...t,
-    done: optimisticDone[t.id] ?? t.done,
-  }));
 
   // ── Progress ──
   const totalTasks  = effectiveTasks.length;
@@ -367,16 +377,13 @@ export default function TodayScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* ── Nearby card placeholder (KAN-46) ── */}
-        <View
-          style={[
-            styles.placeholderCard,
-            { backgroundColor: palette.surface, borderColor: palette.line },
-          ]}>
-          <Text style={[styles.placeholderLabel, { color: palette.muted }]}>
-            Nearby card — coming in KAN-46
-          </Text>
-        </View>
+        {/* ── Nearby card (KAN-46) ── */}
+        <NearbyCard
+          tasks={effectiveTasks}
+          nearbyPoiType={nearbyPoiType}
+          nearbyPlace={nearbyPlace}
+          poiPlaces={poiPlaces}
+        />
 
         {/* ── Task list (KAN-15 will upgrade to full TaskRow components) ── */}
         <View style={[styles.section, { borderTopColor: palette.line }]}>
@@ -469,18 +476,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontFamily: 'Geist-Regular',
     fontVariant: ['tabular-nums'],
-  },
-  placeholderCard: {
-    marginHorizontal: spacing.page,
-    marginTop: 16,
-    borderRadius: radius.card,
-    borderWidth: StyleSheet.hairlineWidth,
-    padding: 20,
-    alignItems: 'center',
-  },
-  placeholderLabel: {
-    fontSize: 13,
-    fontFamily: 'Geist-Regular',
   },
   section: {
     marginTop: 24,
