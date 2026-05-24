@@ -8,12 +8,14 @@
  * Animations (reanimated):
  *   Open:  sheet  translateY 600 → 0,  320ms cubic-bezier(0.32, 0.72, 0, 1)
  *          scrim  opacity    0   → 0.4, 250ms linear
- *   Close: reverse of open
+ *   Close: sheet translateY 0 → 600, 280ms — completion callback via runOnJS
  *
  * Drag-to-dismiss: PanResponder on the drag handle only. Dragging down > 80px
  * (or velocity > 0.5) triggers close; releasing earlier springs back to 0.
  *
  * Dismiss triggers: scrim tap · X button · Cancel button · drag handle
+ *
+ * Time picker: native DateTimePicker (dialog on Android, spinner on iOS).
  */
 
 import React, {
@@ -38,11 +40,13 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import { PoiType, CategoryKey } from '../types';
@@ -51,8 +55,7 @@ import { CloseIcon, ClockIcon, PoiIcon } from './AppIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const SCREEN_H       = Dimensions.get('window').height;
-const CLOSE_AFTER_MS = 300;
+const SCREEN_H = Dimensions.get('window').height;
 
 const POI_OPTIONS: { type: PoiType; label: string }[] = [
   { type: 'atm',         label: 'ATM'      },
@@ -64,9 +67,6 @@ const POI_OPTIONS: { type: PoiType; label: string }[] = [
 function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
-
-// Icons are imported from AppIcon — see src/components/AppIcon.tsx for the
-// full Vibe Agenda icon style spec (Lucide-style outline, strokeWidth 1.6).
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -88,10 +88,22 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
   const [time,     setTime]     = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Time picker state
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [timeDate,       setTimeDate]       = useState<Date>(() => {
+    const d = new Date();
+    d.setSeconds(0, 0);
+    return d;
+  });
+
   // Controls whether the Modal is mounted (unmount only after exit animation).
   const [mounted, setMounted] = useState(false);
 
   const titleRef = useRef<TextInput>(null);
+
+  // ── onClose ref — always points to the current prop, never stale ──
+  const onCloseRef = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   // ── Reanimated shared values ──
   const translateY   = useSharedValue(SCREEN_H);
@@ -106,38 +118,59 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
     opacity: scrimOpacity.value,
   }));
 
-  // ── Open / close animations ──
-  const openAnimation  = useCallback(() => {
-    translateY.value   = withTiming(0,   { duration: 320, easing: Easing.bezier(0.32, 0.72, 0, 1) });
-    scrimOpacity.value = withTiming(0.4, { duration: 250, easing: Easing.linear });
-  }, [translateY, scrimOpacity]);
-
-  const closeAnimation = useCallback((callback?: () => void) => {
-    translateY.value   = withTiming(SCREEN_H, { duration: 280, easing: Easing.bezier(0.32, 0.72, 0, 1) });
-    scrimOpacity.value = withTiming(0,        { duration: 250, easing: Easing.linear });
-    setTimeout(() => callback?.(), CLOSE_AFTER_MS);
-  }, [translateY, scrimOpacity]);
-
   // ── Reset form when sheet is dismissed ──
+  // NOTE: resetForm is stable (dragOffset is a SharedValue — stable reference).
   const resetForm = useCallback(() => {
     setTitle('');
     setCategory('personal');
     setPoi(null);
     setTime('');
     setSubmitting(false);
+    setShowTimePicker(false);
     dragOffset.value = 0;
   }, [dragOffset]);
 
+  // ── Cleanup that runs after the close animation completes ──
+  // Stable: depends only on resetForm (stable) and onCloseRef (a ref — stable).
+  const doClose = useCallback(() => {
+    setMounted(false);
+    resetForm();
+    onCloseRef.current();
+  }, [resetForm]);
+
+  // ── Open animation ──
+  const openAnimation = useCallback(() => {
+    translateY.value   = withTiming(0,   { duration: 320, easing: Easing.bezier(0.32, 0.72, 0, 1) });
+    scrimOpacity.value = withTiming(0.4, { duration: 250, easing: Easing.linear });
+  }, [translateY, scrimOpacity]);
+
+  // ── Close animation ──
+  // Uses withTiming's completion callback + runOnJS so doClose always fires
+  // on the JS thread when the animation finishes — more reliable than setTimeout
+  // on the New Architecture.
+  //
+  // closeAnimation is stable: translateY/scrimOpacity are SharedValues,
+  // doClose is stable → no stale-closure risk.
+  const closeAnimation = useCallback(() => {
+    scrimOpacity.value = withTiming(0, { duration: 250, easing: Easing.linear });
+    const finish = runOnJS(doClose);
+    translateY.value = withTiming(
+      SCREEN_H,
+      { duration: 280, easing: Easing.bezier(0.32, 0.72, 0, 1) },
+      (finished) => {
+        'worklet';
+        if (finished) finish();
+      },
+    );
+  }, [translateY, scrimOpacity, doClose]);
+
+  // ── Unified close handler — stable (all deps are stable) ──
   const handleClose = useCallback(() => {
     dragOffset.value = 0;
-    closeAnimation(() => {
-      setMounted(false);
-      resetForm();
-      onClose();
-    });
-  }, [closeAnimation, resetForm, onClose, dragOffset]);
+    closeAnimation();
+  }, [closeAnimation, dragOffset]);
 
-  // Keep a stable ref to handleClose so the PanResponder can call it.
+  // Stable ref so PanResponder always calls the latest handleClose.
   const handleCloseRef = useRef(handleClose);
   useEffect(() => { handleCloseRef.current = handleClose; }, [handleClose]);
 
@@ -180,6 +213,7 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
   }), []);
 
   // ── Submit ──
+  // handleClose is now stable, so including it in deps is safe.
   const handleSubmit = useCallback(async () => {
     const trimmed = title.trim();
     if (!trimmed || !uid || submitting) { return; }
@@ -194,14 +228,28 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
         ...(poi  ? { poi }               : {}),
         ...(time.trim() ? { time: time.trim() } : {}),
       });
-      // Use the ref so we always call the latest handleClose, avoiding a
-      // stale-closure issue caused by onClose changing reference each render.
-      handleCloseRef.current();
+      handleClose();
     } catch (err) {
       console.warn('[NewTaskSheet] addTask failed', err);
       setSubmitting(false);
     }
-  }, [title, category, poi, time, uid, submitting]);
+  }, [title, category, poi, time, uid, submitting, handleClose]);
+
+  // ── Time picker change ──
+  const handleTimeChange = useCallback((_event: any, selectedDate?: Date) => {
+    // Android: dialog auto-dismisses — always hide the picker.
+    // iOS:     spinner stays open so user can keep scrolling;
+    //          they close it by tapping "Done" (rendered below).
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+    }
+    if (selectedDate) {
+      setTimeDate(selectedDate);
+      const h = String(selectedDate.getHours()).padStart(2, '0');
+      const m = String(selectedDate.getMinutes()).padStart(2, '0');
+      setTime(`${h}:${m}`);
+    }
+  }, []);
 
   if (!mounted) { return null; }
 
@@ -360,23 +408,58 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
               </Text>
             </Text>
             <View style={styles.fieldPad}>
-              <View style={[
-                styles.timeRow,
-                { backgroundColor: palette.surface, borderColor: palette.line },
-              ]}>
-                <ClockIcon color={palette.faint} />
-                <TextInput
-                  style={[styles.timeInput, { color: palette.text }]}
-                  placeholder="e.g. 14:00"
-                  placeholderTextColor={palette.muted}
-                  value={time}
-                  onChangeText={setTime}
-                  keyboardType="numbers-and-punctuation"
-                  returnKeyType="done"
-                  // TODO(KAN-51): wire to platform native time picker in production
-                />
-              </View>
+              {/* Tapping opens the native time picker */}
+              <Pressable
+                style={[
+                  styles.timeRow,
+                  { backgroundColor: palette.surface, borderColor: palette.line },
+                ]}
+                onPress={() => setShowTimePicker(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Choose time">
+                <ClockIcon color={time ? palette.accent : palette.faint} />
+                <Text
+                  style={[
+                    styles.timeText,
+                    { color: time ? palette.text : palette.muted },
+                  ]}>
+                  {time || 'Tap to choose'}
+                </Text>
+                {!!time && (
+                  <Pressable
+                    onPress={() => { setTime(''); setShowTimePicker(false); }}
+                    hitSlop={8}
+                    accessibilityLabel="Clear time">
+                    <CloseIcon color={palette.muted} size={16} />
+                  </Pressable>
+                )}
+              </Pressable>
             </View>
+
+            {/* Native time picker — Android: modal dialog; iOS: inline spinner */}
+            {showTimePicker && (
+              <>
+                {Platform.OS === 'ios' && (
+                  <View style={styles.iosDoneRow}>
+                    <Pressable
+                      onPress={() => setShowTimePicker(false)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Done">
+                      <Text style={[styles.iosDoneLabel, { color: palette.accent }]}>
+                        Done
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+                <DateTimePicker
+                  value={timeDate}
+                  mode="time"
+                  is24Hour
+                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                  onChange={handleTimeChange}
+                />
+              </>
+            )}
 
             {/* ── CTA row ── */}
             <View style={styles.ctaRow}>
@@ -494,7 +577,7 @@ const styles = StyleSheet.create({
     fontSize:      11,
     fontWeight:    '500',
     fontFamily:    'Geist-SemiBold',
-    letterSpacing:  1.76,   // 0.16em at 11px
+    letterSpacing:  1.76,
     paddingTop:    20,
     paddingBottom: 10,
     paddingHorizontal: 22,
@@ -567,21 +650,32 @@ const styles = StyleSheet.create({
     textAlign:  'center',
   },
 
-  // ── Time input ──
+  // ── Time row (Pressable) ──
   timeRow: {
     flexDirection:  'row',
     alignItems:     'center',
     gap:            10,
     paddingHorizontal: 14,
-    paddingVertical:   12,
+    paddingVertical:   14,
     borderRadius:   12,
     borderWidth:     1,
   },
-  timeInput: {
+  timeText: {
     flex:       1,
     fontSize:   15,
     fontFamily: 'Geist-Regular',
-    fontVariant: ['tabular-nums'],
+  },
+
+  // ── iOS "Done" row above the spinner ──
+  iosDoneRow: {
+    alignItems:     'flex-end',
+    paddingHorizontal: 22,
+    paddingTop:      8,
+  },
+  iosDoneLabel: {
+    fontSize:   15,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
   },
 
   // ── CTA row ──
