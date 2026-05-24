@@ -246,7 +246,8 @@ export function startProximityMonitoring(
   // sees fresh data without needing to be re-registered.
   let latestTasks = tasks;
 
-  const updateTasks = (newTasks: Task[]) => {
+  // Wire up the global updater so updateProximityTasks() reaches this closure.
+  _latestTasksUpdater = (newTasks: Task[]) => {
     latestTasks = newTasks;
   };
 
@@ -262,8 +263,8 @@ export function startProximityMonitoring(
 
   return () => {
     isMonitoring = false;
+    _latestTasksUpdater = null;
     stopProximityMonitoring();
-    // Return updateTasks so caller can keep tasks fresh (used below).
   };
 }
 
@@ -272,7 +273,8 @@ export function startProximityMonitoring(
  * restarting location tracking. Call this whenever TodayScreen's task
  * list changes (Firestore snapshot or optimistic toggle).
  *
- * This is a lightweight update — no new watcher is created.
+ * `_latestTasksUpdater` is set by startProximityMonitoring() and cleared
+ * by its cleanup function, so this is a safe no-op when no monitor is active.
  */
 let _latestTasksUpdater: ((tasks: Task[]) => void) | null = null;
 
