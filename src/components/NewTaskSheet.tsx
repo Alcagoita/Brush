@@ -43,11 +43,11 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import { PoiType, CategoryKey } from '../types';
 import { addTask } from '../services/firestore';
+import { CloseIcon, ClockIcon, PoiIcon } from './AppIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -65,104 +65,8 @@ function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-// ─── SVG icons ────────────────────────────────────────────────────────────────
-//
-// All icons follow the Vibe Agenda icon style:
-//   24×24 viewBox · fill="none" · stroke="currentColor" (passed as `color` prop)
-//   strokeWidth 1.6 · strokeLinecap="round" · strokeLinejoin="round"
-//   Exception: tiny solid accents (wheel dots on cart) use fill=color, stroke="none"
-
-const S = {
-  strokeWidth:    1.6,
-  strokeLinecap:  'round'  as const,
-  strokeLinejoin: 'round'  as const,
-};
-
-/** 16 × 16 "×" close button icon. */
-function CloseIcon({ color }: { color: string }) {
-  return (
-    <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <Line x1="6"  y1="6"  x2="18" y2="18" stroke={color} {...S} />
-      <Line x1="18" y1="6"  x2="6"  y2="18" stroke={color} {...S} />
-    </Svg>
-  );
-}
-
-/** 18 × 18 clock icon for the time field. */
-function ClockIcon({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="12" r="10" stroke={color} {...S} />
-      <Path d="M12 6v6l4 2" stroke={color} {...S} />
-    </Svg>
-  );
-}
-
-/**
- * POI tile icons — 22 × 22, rendered at the tile centre.
- *
- * ATM         — credit-card outline with magnetic stripe
- * Café        — coffee cup with handle and steam wisps
- * Market      — shopping cart; wheel dots are the only solid fills
- * Pharmacy    — diagonal pill capsule with centre divider
- */
-function PoiIcon({ type, color, size = 22 }: { type: PoiType; color: string; size?: number }) {
-  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none' };
-
-  switch (type) {
-    case 'atm':
-      return (
-        <Svg {...p}>
-          {/* Card outline */}
-          <Rect x="2" y="5" width="20" height="14" rx="2" stroke={color} {...S} />
-          {/* Magnetic stripe */}
-          <Line x1="2" y1="10" x2="22" y2="10" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
-          {/* Chip placeholder */}
-          <Line x1="5.5" y1="14.5" x2="9"  y2="14.5" stroke={color} {...S} />
-        </Svg>
-      );
-
-    case 'cafe':
-      return (
-        <Svg {...p}>
-          {/* Steam wisps */}
-          <Path d="M8 3 Q7.5 5 8 7"   stroke={color} {...S} />
-          <Path d="M12 3 Q11.5 5 12 7" stroke={color} {...S} />
-          {/* Cup body */}
-          <Path d="M4 9h14v9a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9z" stroke={color} {...S} />
-          {/* Handle */}
-          <Path d="M18 11h1a3 3 0 0 1 0 6h-1" stroke={color} {...S} />
-        </Svg>
-      );
-
-    case 'supermarket':
-      return (
-        <Svg {...p}>
-          {/* Cart body */}
-          <Path
-            d="M2 2h2l1.68 8.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 1.95-1.57L21 5H6"
-            stroke={color} {...S}
-          />
-          {/* Wheel dots — solid accent per style spec */}
-          <Circle cx="9"  cy="20" r="1.1" fill={color} stroke="none" />
-          <Circle cx="18" cy="20" r="1.1" fill={color} stroke="none" />
-        </Svg>
-      );
-
-    case 'pharmacy':
-      return (
-        <Svg {...p}>
-          {/* Diagonal pill capsule */}
-          <Path
-            d="M10.5 20.5 20 11a4.95 4.95 0 1 0-7-7L3.5 13.5a4.95 4.95 0 1 0 7 7Z"
-            stroke={color} {...S}
-          />
-          {/* Centre divider */}
-          <Line x1="8.5" y1="8.5" x2="15.5" y2="15.5" stroke={color} {...S} />
-        </Svg>
-      );
-  }
-}
+// Icons are imported from AppIcon — see src/components/AppIcon.tsx for the
+// full Vibe Agenda icon style spec (Lucide-style outline, strokeWidth 1.6).
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -317,9 +221,15 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
       </Animated.View>
 
       {/* ── Sheet ── */}
+      {/* KeyboardAvoidingView is enabled on iOS only.
+          On Android, windowSoftInputMode="adjustResize" (AndroidManifest) handles
+          keyboard avoidance at the OS level — enabling KAV on Android causes the
+          sheet to jump when the keyboard slides in, conflicting with the reanimated
+          translateY animation. */}
       <KeyboardAvoidingView
         style={styles.kavContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        enabled={Platform.OS === 'ios'}
         pointerEvents="box-none">
 
         <Animated.View
