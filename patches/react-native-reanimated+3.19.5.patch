@@ -1,0 +1,247 @@
+diff --git a/node_modules/react-native-reanimated/Common/cpp/reanimated/LayoutAnimations/LayoutAnimationsProxy.h b/node_modules/react-native-reanimated/Common/cpp/reanimated/LayoutAnimations/LayoutAnimationsProxy.h
+index 8e970cb..187c231 100644
+--- a/node_modules/react-native-reanimated/Common/cpp/reanimated/LayoutAnimations/LayoutAnimationsProxy.h
++++ b/node_modules/react-native-reanimated/Common/cpp/reanimated/LayoutAnimations/LayoutAnimationsProxy.h
+@@ -57,7 +57,8 @@ struct LayoutAnimationsProxy
+   mutable std::unordered_set<SurfaceId> surfacesToRemove_;
+   mutable std::vector<Tag> finishedAnimationTags_;
+   std::shared_ptr<LayoutAnimationsManager> layoutAnimationsManager_;
+-  ContextContainer::Shared contextContainer_;
++  // RN 0.85: ContextContainer::Shared typedef removed; use the underlying type.
++  std::shared_ptr<const react::ContextContainer> contextContainer_;
+   SharedComponentDescriptorRegistry componentDescriptorRegistry_;
+   jsi::Runtime &uiRuntime_;
+   const std::shared_ptr<UIScheduler> uiScheduler_;
+@@ -70,7 +71,7 @@ struct LayoutAnimationsProxy
+   LayoutAnimationsProxy(
+       std::shared_ptr<LayoutAnimationsManager> layoutAnimationsManager,
+       SharedComponentDescriptorRegistry componentDescriptorRegistry,
+-      ContextContainer::Shared contextContainer,
++      std::shared_ptr<const react::ContextContainer> contextContainer,
+       jsi::Runtime &uiRuntime,
+       const std::shared_ptr<UIScheduler> uiScheduler
+ #ifdef ANDROID
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/hermes/inspector/RuntimeAdapter.h b/node_modules/react-native-reanimated/android/src/main/cpp/hermes/inspector/RuntimeAdapter.h
+new file mode 100644
+index 0000000..f7c97c6
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/hermes/inspector/RuntimeAdapter.h
+@@ -0,0 +1,20 @@
++// Compatibility stub for RN 0.85 / Hermes 250829098.0.10.
++// The hermes/inspector/ package was removed in this Hermes release; the
++// modern inspector uses hermes/inspector-modern/ instead.  Registration.h
++// (in inspector-modern) still declares enableDebugging() taking a
++// std::unique_ptr<RuntimeAdapter>, so we re-declare the abstract base class
++// here to satisfy that forward reference.
++#pragma once
++
++#include <hermes/hermes.h>
++
++namespace facebook::hermes::inspector_modern {
++
++class RuntimeAdapter {
++ public:
++  virtual ~RuntimeAdapter() = default;
++  virtual facebook::hermes::HermesRuntime &getRuntime() = 0;
++  virtual void tickleJs() = 0;
++};
++
++} // namespace facebook::hermes::inspector_modern
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h
+index 4be3555..d06b133 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/JNIHelper.h
+@@ -3,7 +3,7 @@
+ #include <fbjni/fbjni.h>
+ #include <jsi/JSIDynamic.h>
+ #include <jsi/jsi.h>
+-#include <react/jni/CxxModuleWrapper.h>
++// #include <react/jni/CxxModuleWrapper.h>  // Removed in RN 0.85
+ #include <react/jni/JMessageQueueThread.h>
+ #include <react/jni/WritableNativeMap.h>
+ #include <string>
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h
+index b2c1fab..50ca6da 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/reanimated/android/NativeProxy.h
+@@ -9,7 +9,7 @@
+ #include <ReactCommon/CallInvokerHolder.h>
+ #include <fbjni/fbjni.h>
+ #include <jsi/jsi.h>
+-#include <react/jni/CxxModuleWrapper.h>
++// #include <react/jni/CxxModuleWrapper.h>  // Removed in RN 0.85
+ #include <react/jni/JavaScriptExecutorHolder.h>
+ #include <react/jni/WritableNativeMap.h>
+ 
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt
+index bb61ff7..871b584 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/CMakeLists.txt
+@@ -57,7 +57,13 @@ else()
+ endif()
+ 
+ if(${JS_RUNTIME} STREQUAL "hermes")
+-  target_link_libraries(worklets hermes-engine::libhermes)
++  # RN 0.85+ renamed the prefab module from libhermes → hermesvm.
++  # Try the new name first; fall back to the old name for older RN versions.
++  if(TARGET hermes-engine::hermesvm)
++    target_link_libraries(worklets hermes-engine::hermesvm)
++  else()
++    target_link_libraries(worklets hermes-engine::libhermes)
++  endif()
+ 
+   if(${HERMES_ENABLE_DEBUGGER})
+     string(APPEND CMAKE_CXX_FLAGS " -DHERMES_ENABLE_DEBUGGER=1")
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/AndroidUIScheduler.h b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/AndroidUIScheduler.h
+index 6224980..70e1a4a 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/AndroidUIScheduler.h
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/AndroidUIScheduler.h
+@@ -5,7 +5,7 @@
+ #include <fbjni/fbjni.h>
+ #include <jni.h>
+ #include <jsi/jsi.h>
+-#include <react/jni/CxxModuleWrapper.h>
++// #include <react/jni/CxxModuleWrapper.h>  // Removed in RN 0.85
+ #include <react/jni/JMessageQueueThread.h>
+ 
+ #include <memory>
+diff --git a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h
+index 1cd7bf2..5f55278 100644
+--- a/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h
++++ b/node_modules/react-native-reanimated/android/src/main/cpp/worklets/android/WorkletsModule.h
+@@ -9,7 +9,7 @@
+ #include <ReactCommon/CallInvokerHolder.h>
+ #include <fbjni/fbjni.h>
+ #include <jsi/jsi.h>
+-#include <react/jni/CxxModuleWrapper.h>
++// #include <react/jni/CxxModuleWrapper.h>  // Removed in RN 0.85
+ #include <react/jni/JMessageQueueThread.h>
+ #include <react/jni/WritableNativeMap.h>
+ 
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/UIManagerModuleListener.java b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/UIManagerModuleListener.java
+new file mode 100644
+index 0000000..567a6f8
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/UIManagerModuleListener.java
+@@ -0,0 +1,10 @@
++package com.facebook.react.uimanager;
++
++/**
++ * RN 0.85 compat stub — UIManagerModuleListener was removed. ReanimatedModule
++ * implements this interface for the Paper dispatch path; on New Architecture
++ * the Fabric UIManagerListener is used instead. This stub satisfies the compiler.
++ */
++public interface UIManagerModuleListener {
++  void willDispatchViewUpdates(UIManagerModule uiManager);
++}
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/layoutanimation/LayoutAnimationController.java b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/layoutanimation/LayoutAnimationController.java
+new file mode 100644
+index 0000000..f039b2d
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/layoutanimation/LayoutAnimationController.java
+@@ -0,0 +1,38 @@
++package com.facebook.react.uimanager.layoutanimation;
++
++import android.view.View;
++
++/**
++ * RN 0.85 compat stub — LayoutAnimationController was removed. ReaLayoutAnimator
++ * extends this class in the Paper code path; on New Architecture the reflection-
++ * based injection into NativeViewHierarchyManager fails gracefully (initOk=false)
++ * so none of these methods are ever dispatched at runtime.
++ */
++public class LayoutAnimationController {
++
++  private boolean mLayoutAnimationEnabled = false;
++
++  public boolean shouldAnimateLayout(View viewToAnimate) {
++    return false;
++  }
++
++  public void reset() {}
++
++  public void applyLayoutUpdate(View view, int x, int y, int width, int height) {
++    view.layout(x, y, x + width, y + height);
++  }
++
++  public void deleteView(final View view, final LayoutAnimationListener listener) {
++    if (listener != null) {
++      listener.onAnimationEnd();
++    }
++  }
++
++  public boolean isLayoutAnimationEnabled() {
++    return mLayoutAnimationEnabled;
++  }
++
++  public void setLayoutAnimationEnabled(boolean enabled) {
++    mLayoutAnimationEnabled = enabled;
++  }
++}
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/layoutanimation/LayoutAnimationListener.java b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/layoutanimation/LayoutAnimationListener.java
+new file mode 100644
+index 0000000..690f0e9
+--- /dev/null
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/facebook/react/uimanager/layoutanimation/LayoutAnimationListener.java
+@@ -0,0 +1,10 @@
++package com.facebook.react.uimanager.layoutanimation;
++
++/**
++ * RN 0.85 compat stub — LayoutAnimationListener was removed from the
++ * layoutanimation package. Reanimated's Paper-path code still compiles
++ * against it; on New Architecture it is never invoked at runtime.
++ */
++public interface LayoutAnimationListener {
++  void onAnimationEnd();
++}
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java
+index 14d252c..cc5b805 100644
+--- a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/ReanimatedModule.java
+@@ -92,9 +92,9 @@ public class ReanimatedModule extends NativeReanimatedModuleSpec
+     } else {
+       UIManagerModule uiManager =
+           Objects.requireNonNull(reactCtx.getNativeModule(UIManagerModule.class));
+-      uiManager.addUIManagerListener(this);
++      uiManager.addUIManagerEventListener(this);
+       mUnsubscribe =
+-          Utils.combineRunnables(mUnsubscribe, () -> uiManager.removeUIManagerListener(this));
++          Utils.combineRunnables(mUnsubscribe, () -> uiManager.removeUIManagerEventListener(this));
+     }
+     reactCtx.addLifecycleEventListener(this);
+     mUnsubscribe =
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.java
+index 36d6a4a..7c169bd 100644
+--- a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.java
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIImplementation.java
+@@ -37,12 +37,14 @@ public class ReanimatedUIImplementation extends UIImplementation {
+       ViewManagerRegistry viewManagerRegistry,
+       EventDispatcher eventDispatcher,
+       int minTimeLeftInFrameForNonBatchedOperationMs) {
++    // RN 0.85: UIViewOperationQueue constructor no longer accepts a
++    // NativeViewHierarchyManager argument. On New Architecture this
++    // Paper code path is never reached at runtime.
+     super(
+         reactContext,
+         viewManagerRegistry,
+         new UIViewOperationQueue(
+             reactContext,
+-            new ReanimatedNativeHierarchyManager(viewManagerRegistry, reactContext),
+             minTimeLeftInFrameForNonBatchedOperationMs),
+         eventDispatcher);
+   }
+diff --git a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.java b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.java
+index 9c84f87..c3df7ad 100644
+--- a/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.java
++++ b/node_modules/react-native-reanimated/android/src/main/java/com/swmansion/reanimated/layoutReanimation/ReanimatedUIManager.java
+@@ -21,9 +21,7 @@ public class ReanimatedUIManager extends UIManagerModule {
+     super(reactContext, viewManagersList, minTimeLeftInFrameForNonBatchedOperationMs);
+   }
+ 
+-  public void onBatchComplete() {
+-    super.onBatchComplete();
+-  }
++  // onBatchComplete() was removed from UIManagerModule in RN 0.76+.
+ 
+   @Override
+   public boolean canOverrideExistingModule() {
