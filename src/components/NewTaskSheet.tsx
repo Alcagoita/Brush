@@ -194,12 +194,14 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
         ...(poi  ? { poi }               : {}),
         ...(time.trim() ? { time: time.trim() } : {}),
       });
-      handleClose();
+      // Use the ref so we always call the latest handleClose, avoiding a
+      // stale-closure issue caused by onClose changing reference each render.
+      handleCloseRef.current();
     } catch (err) {
       console.warn('[NewTaskSheet] addTask failed', err);
       setSubmitting(false);
     }
-  }, [title, category, poi, time, uid, submitting, handleClose]);
+  }, [title, category, poi, time, uid, submitting]);
 
   if (!mounted) { return null; }
 
@@ -281,8 +283,7 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
                 placeholderTextColor={palette.muted}
                 value={title}
                 onChangeText={setTitle}
-                returnKeyType="done"
-                onSubmitEditing={isValid ? handleSubmit : undefined}
+                returnKeyType="default"
                 maxLength={200}
               />
             </View>
