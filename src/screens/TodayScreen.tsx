@@ -359,15 +359,23 @@ export default function TodayScreen() {
           </Animated.View>
 
           {/* Caption — fades out over k 0→0.625 */}
+          {/* box-none: the Animated.View passes through touches; only the
+              Pressable child captures the tap on the day number. */}
           <Animated.View
             style={[styles.captionWrap, captionStyle]}
-            pointerEvents="none">
+            pointerEvents="box-none">
             <Text style={[styles.captionLabel, { color: palette.muted }]}>
               {weekday.toUpperCase()}
             </Text>
-            <Text style={[styles.captionDay, { color: palette.text }]}>
-              {day}
-            </Text>
+            {/* Tap the day number to open the Calendar screen */}
+            <Pressable
+              onPress={() => navigation.navigate('Calendar', { initialDate: todayISO() })}
+              accessibilityRole="button"
+              accessibilityLabel="Open calendar">
+              <Text style={[styles.captionDay, { color: palette.text }]}>
+                {day}
+              </Text>
+            </Pressable>
             <Text style={[styles.captionSub, { color: palette.muted }]}>
               {`${month} · `}
               <Text style={[styles.captionSubBold, { color: palette.text }]}>

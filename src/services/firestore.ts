@@ -129,6 +129,38 @@ export function subscribeToTasksForDate(
 }
 
 /**
+ * Subscribe to all tasks for the given calendar month.
+ *
+ * @param uid        - User ID
+ * @param yearMonth  - 'YYYY-MM' (e.g. '2026-05')
+ * @param onUpdate   - Receives the full task list for that month on every change
+ * @param onError    - Optional error handler
+ * @returns Unsubscribe function — call on component unmount
+ */
+export function subscribeToTasksForMonth(
+  uid: string,
+  yearMonth: string,
+  onUpdate: (tasks: Task[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  const [year, month] = yearMonth.split('-').map(Number);
+  const start = `${yearMonth}-01`;
+  // First day of next month as exclusive upper bound (ISO string comparison works)
+  const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
+
+  const q = query(
+    tasksRef(uid),
+    where('date', '>=', start),
+    where('date', '<',  nextMonth),
+  );
+  return onSnapshot(
+    q,
+    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    onError,
+  );
+}
+
+/**
  * Subscribe to all undone tasks that have a POI (needed for geofence matching).
  * Returns an unsubscribe function.
  */
