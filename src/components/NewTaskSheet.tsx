@@ -475,9 +475,16 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                         // iOS:     spinner fires on every scroll — keep open.
                         if (Platform.OS === 'android') { setShowTimePicker(false); }
                         setTimeDate(date);
-                        const h = String(date.getHours()).padStart(2, '0');
-                        const m = String(date.getMinutes()).padStart(2, '0');
-                        setTime(`${h}:${m}`);
+                        const h = date.getHours();
+                        const m = date.getMinutes();
+                        // Guard: DateTimePicker always returns a valid Date, but
+                        // validate the range so the data layer stays clean if the
+                        // time field is ever replaced with a free-text input.
+                        if (h >= 0 && h < 24 && m >= 0 && m < 60) {
+                          setTime(
+                            `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+                          );
+                        }
                       }}
                       onDismiss={() => setShowTimePicker(false)}
                     />
