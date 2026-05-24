@@ -8,6 +8,10 @@ builds/
 android/app/google-services.json
 ios/Agenda/GoogleService-Info.plist
 
+# Google Places API key — contains a real API key, must never be committed.
+# Copy src/config/keys.example.ts → src/config/keys.ts and fill in your key.
+src/config/keys.ts
+
 # Emulator data (regenerated locally, not committed)
 emulator-data/
 
