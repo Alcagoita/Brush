@@ -25,13 +25,11 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   Dimensions,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   Vibration,
   View,
 } from 'react-native';
-import Svg, { Line } from 'react-native-svg';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -61,7 +59,6 @@ import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../se
 import { NearbyPlace } from '../services/maps';
 import { PoiType, Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
-import NewTaskSheet from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -145,8 +142,6 @@ export default function TodayScreen() {
    * on error). This keeps the progress ring and row state instant.
    */
   const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
-  /** Controls visibility of the new-task bottom sheet (KAN-51). */
-  const [sheetVisible,   setSheetVisible]   = useState(false);
 
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
@@ -417,29 +412,6 @@ export default function TodayScreen() {
 
         <View style={styles.bottomPad} />
       </Animated.ScrollView>
-
-      {/* ── Add-task FAB (KAN-51) ── */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: palette.accent },
-          pressed && styles.fabPressed,
-        ]}
-        onPress={() => setSheetVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Add task">
-        <Svg width={24} height={24} viewBox="0 0 24 24" fill="none">
-          <Line x1="12" y1="5"  x2="12" y2="19" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
-          <Line x1="5"  y1="12" x2="19" y2="12" stroke="#FFFFFF" strokeWidth={2} strokeLinecap="round" />
-        </Svg>
-      </Pressable>
-
-      {/* ── New-task bottom sheet (KAN-51) ── */}
-      <NewTaskSheet
-        visible={sheetVisible}
-        uid={uid ?? ''}
-        onClose={() => setSheetVisible(false)}
-      />
     </View>
   );
 }
@@ -540,28 +512,5 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  // 100px bottom pad so the FAB never overlaps the last task row (spec: 100px).
-  bottomPad: { height: 100 },
-
-  // ── Add-task FAB ──
-  fab: {
-    position:     'absolute',
-    right:         20,
-    bottom:        20,
-    zIndex:         5,
-    width:          56,
-    height:         56,
-    borderRadius:   18,
-    alignItems:     'center',
-    justifyContent: 'center',
-    // Drop shadow (spec: 0 6px 18px rgba(232,168,106,0.45), 0 2px 4px rgba(0,0,0,0.08))
-    shadowColor:   '#e8a86a',
-    shadowOffset:  { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius:  18,
-    elevation:      8,
-  },
-  fabPressed: {
-    transform: [{ scale: 0.96 }],
-  },
+  bottomPad: { height: 80 },
 });
