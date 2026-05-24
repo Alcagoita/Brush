@@ -8,7 +8,7 @@
  * Animations (reanimated):
  *   Open:  sheet  translateY 600 → 0,  320ms cubic-bezier(0.32, 0.72, 0, 1)
  *          scrim  opacity    0   → 0.4, 250ms linear
- *   Close: sheet translateY 0 → 600, 280ms — completion callback via runOnJS
+ *   Close: sheet translateY 0 → 600, 280ms; setTimeout(300ms) triggers cleanup
  *
  * Drag-to-dismiss: PanResponder on the drag handle only. Dragging down > 80px
  * (or velocity > 0.5) triggers close; releasing earlier springs back to 0.
@@ -40,7 +40,6 @@ import {
 } from 'react-native';
 import Animated, {
   Easing,
-  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -145,23 +144,13 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
   }, [translateY, scrimOpacity]);
 
   // ── Close animation ──
-  // Uses withTiming's completion callback + runOnJS so doClose always fires
-  // on the JS thread when the animation finishes — more reliable than setTimeout
-  // on the New Architecture.
-  //
-  // closeAnimation is stable: translateY/scrimOpacity are SharedValues,
-  // doClose is stable → no stale-closure risk.
+  // setTimeout runs on the JS thread — no worklet interaction, no cross-thread
+  // issues. doClose is stable (stable deps) so the closure is never stale.
+  // The 300 ms delay outlasts the 280 ms slide-down animation.
   const closeAnimation = useCallback(() => {
-    scrimOpacity.value = withTiming(0, { duration: 250, easing: Easing.linear });
-    const finish = runOnJS(doClose);
-    translateY.value = withTiming(
-      SCREEN_H,
-      { duration: 280, easing: Easing.bezier(0.32, 0.72, 0, 1) },
-      (finished) => {
-        'worklet';
-        if (finished) finish();
-      },
-    );
+    scrimOpacity.value = withTiming(0,        { duration: 250, easing: Easing.linear });
+    translateY.value   = withTiming(SCREEN_H, { duration: 280, easing: Easing.bezier(0.32, 0.72, 0, 1) });
+    setTimeout(doClose, 300);
   }, [translateY, scrimOpacity, doClose]);
 
   // ── Unified close handler — stable (all deps are stable) ──
