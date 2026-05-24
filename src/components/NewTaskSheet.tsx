@@ -43,7 +43,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import Svg, { Line } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import { PoiType, CategoryKey } from '../types';
@@ -54,14 +54,11 @@ import { addTask } from '../services/firestore';
 const SCREEN_H       = Dimensions.get('window').height;
 const CLOSE_AFTER_MS = 300;
 
-// ️ (variation selector-16) appended to each emoji forces the OS to
-// render it as a coloured emoji glyph rather than a monochrome text symbol.
-// This is needed on Android where some emoji default to text presentation.
-const POI_OPTIONS: { type: PoiType; label: string; icon: string }[] = [
-  { type: 'atm',         label: 'ATM',      icon: '💳️' },
-  { type: 'cafe',        label: 'Café',     icon: '☕️' },
-  { type: 'supermarket', label: 'Market',   icon: '🛒️' },
-  { type: 'pharmacy',    label: 'Pharmacy', icon: '💊️' },
+const POI_OPTIONS: { type: PoiType; label: string }[] = [
+  { type: 'atm',         label: 'ATM'      },
+  { type: 'cafe',        label: 'Café'     },
+  { type: 'supermarket', label: 'Market'   },
+  { type: 'pharmacy',    label: 'Pharmacy' },
 ];
 
 function todayISO(): string {
@@ -69,13 +66,24 @@ function todayISO(): string {
 }
 
 // ─── SVG icons ────────────────────────────────────────────────────────────────
+//
+// All icons follow the Vibe Agenda icon style:
+//   24×24 viewBox · fill="none" · stroke="currentColor" (passed as `color` prop)
+//   strokeWidth 1.6 · strokeLinecap="round" · strokeLinejoin="round"
+//   Exception: tiny solid accents (wheel dots on cart) use fill=color, stroke="none"
 
-/** 16 × 16 "×" icon for the close button. */
+const S = {
+  strokeWidth:    1.6,
+  strokeLinecap:  'round'  as const,
+  strokeLinejoin: 'round'  as const,
+};
+
+/** 16 × 16 "×" close button icon. */
 function CloseIcon({ color }: { color: string }) {
   return (
     <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-      <Line x1="6"  y1="6"  x2="18" y2="18" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Line x1="18" y1="6"  x2="6"  y2="18" stroke={color} strokeWidth={2} strokeLinecap="round" />
+      <Line x1="6"  y1="6"  x2="18" y2="18" stroke={color} {...S} />
+      <Line x1="18" y1="6"  x2="6"  y2="18" stroke={color} {...S} />
     </Svg>
   );
 }
@@ -84,11 +92,76 @@ function CloseIcon({ color }: { color: string }) {
 function ClockIcon({ color }: { color: string }) {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none">
-      <Line x1="12" y1="12" x2="12" y2="7"  stroke={color} strokeWidth={2} strokeLinecap="round" />
-      <Line x1="12" y1="12" x2="16" y2="14" stroke={color} strokeWidth={2} strokeLinecap="round" />
-      {/* circle drawn as a path element would need Path — approximate with viewBox offset */}
+      <Circle cx="12" cy="12" r="10" stroke={color} {...S} />
+      <Path d="M12 6v6l4 2" stroke={color} {...S} />
     </Svg>
   );
+}
+
+/**
+ * POI tile icons — 22 × 22, rendered at the tile centre.
+ *
+ * ATM         — credit-card outline with magnetic stripe
+ * Café        — coffee cup with handle and steam wisps
+ * Market      — shopping cart; wheel dots are the only solid fills
+ * Pharmacy    — diagonal pill capsule with centre divider
+ */
+function PoiIcon({ type, color, size = 22 }: { type: PoiType; color: string; size?: number }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none' };
+
+  switch (type) {
+    case 'atm':
+      return (
+        <Svg {...p}>
+          {/* Card outline */}
+          <Rect x="2" y="5" width="20" height="14" rx="2" stroke={color} {...S} />
+          {/* Magnetic stripe */}
+          <Line x1="2" y1="10" x2="22" y2="10" stroke={color} strokeWidth={2.5} strokeLinecap="round" />
+          {/* Chip placeholder */}
+          <Line x1="5.5" y1="14.5" x2="9"  y2="14.5" stroke={color} {...S} />
+        </Svg>
+      );
+
+    case 'cafe':
+      return (
+        <Svg {...p}>
+          {/* Steam wisps */}
+          <Path d="M8 3 Q7.5 5 8 7"   stroke={color} {...S} />
+          <Path d="M12 3 Q11.5 5 12 7" stroke={color} {...S} />
+          {/* Cup body */}
+          <Path d="M4 9h14v9a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4V9z" stroke={color} {...S} />
+          {/* Handle */}
+          <Path d="M18 11h1a3 3 0 0 1 0 6h-1" stroke={color} {...S} />
+        </Svg>
+      );
+
+    case 'supermarket':
+      return (
+        <Svg {...p}>
+          {/* Cart body */}
+          <Path
+            d="M2 2h2l1.68 8.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 1.95-1.57L21 5H6"
+            stroke={color} {...S}
+          />
+          {/* Wheel dots — solid accent per style spec */}
+          <Circle cx="9"  cy="20" r="1.1" fill={color} stroke="none" />
+          <Circle cx="18" cy="20" r="1.1" fill={color} stroke="none" />
+        </Svg>
+      );
+
+    case 'pharmacy':
+      return (
+        <Svg {...p}>
+          {/* Diagonal pill capsule */}
+          <Path
+            d="M10.5 20.5 20 11a4.95 4.95 0 1 0-7-7L3.5 13.5a4.95 4.95 0 1 0 7 7Z"
+            stroke={color} {...S}
+          />
+          {/* Centre divider */}
+          <Line x1="8.5" y1="8.5" x2="15.5" y2="15.5" stroke={color} {...S} />
+        </Svg>
+      );
+  }
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -343,8 +416,9 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
               </Text>
             </Text>
             <View style={styles.poiGrid}>
-              {POI_OPTIONS.map(({ type, label, icon }) => {
-                const active = poi === type;
+              {POI_OPTIONS.map(({ type, label }) => {
+                const active   = poi === type;
+                const iconColor = active ? palette.nearText : palette.muted;
                 return (
                   <Pressable
                     key={type}
@@ -358,11 +432,8 @@ export default function NewTaskSheet({ visible, uid, onClose }: NewTaskSheetProp
                     onPress={() => setPoi(active ? null : type)}
                     accessibilityRole="button"
                     accessibilityState={{ selected: active }}>
-                    <Text style={styles.poiIcon}>{icon}</Text>
-                    <Text style={[
-                      styles.poiLabel,
-                      { color: active ? palette.nearText : palette.muted },
-                    ]}>
+                    <PoiIcon type={type} color={iconColor} size={22} />
+                    <Text style={[styles.poiLabel, { color: iconColor }]}>
                       {label}
                     </Text>
                   </Pressable>
@@ -578,9 +649,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap:             4,
     paddingVertical: 10,
-  },
-  poiIcon: {
-    fontSize: 22,
   },
   poiLabel: {
     fontSize:   11,
