@@ -17,8 +17,13 @@
  *   KAN-14 will add optimistic updates and haptic feedback on top of this.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
@@ -35,6 +40,19 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle }: TaskRo
   const { palette } = useTheme();
   const cat = categories[task.category];
 
+  // ── Checkbox fill animation ──
+  // Animates the filled inner circle in/out when done toggles (200 ms ease).
+  const fillProgress = useSharedValue(task.done ? 1 : 0);
+  useEffect(() => {
+    fillProgress.value = withTiming(task.done ? 1 : 0, { duration: 200 });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.done]);
+
+  const fillStyle = useAnimatedStyle(() => ({
+    opacity: fillProgress.value,
+    transform: [{ scale: 0.55 + fillProgress.value * 0.1 }], // subtle grow on check
+  }));
+
   return (
     <Pressable
       style={({ pressed }) => [
@@ -47,14 +65,12 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle }: TaskRo
       accessibilityState={{ checked: task.done }}>
 
       {/* ── Checkbox ── */}
-      <View
-        style={[
-          styles.checkbox,
-          task.done
-            ? { backgroundColor: palette.faint, borderColor: palette.faint }
-            : { backgroundColor: 'transparent', borderColor: palette.text },
-        ]}
-      />
+      {/* Outer ring always visible; inner fill fades in when done. */}
+      <View style={[styles.checkbox, { borderColor: task.done ? palette.faint : palette.text }]}>
+        <Animated.View
+          style={[styles.checkboxFill, { backgroundColor: palette.faint }, fillStyle]}
+        />
+      </View>
 
       {/* ── Content: title + chips ── */}
       <View style={styles.content}>
@@ -118,6 +134,13 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxFill: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
   },
   content: {
     flex: 1,

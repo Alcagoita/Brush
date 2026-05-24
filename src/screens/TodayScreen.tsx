@@ -128,6 +128,12 @@ export default function TodayScreen() {
   const [tasksLoading,   setTasksLoading]   = useState(true);
   /** Active nearby POI type — null until KAN-22 wires background geolocation. */
   const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
+  /**
+   * Optimistic overrides: immediately reflects a toggle in the UI while the
+   * Firestore write is in-flight. Cleared once the write resolves (or reverts
+   * on error). This keeps the progress ring and row state instant.
+   */
+  const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
 
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
@@ -150,21 +156,43 @@ export default function TodayScreen() {
     });
   }, [uid]);
 
-  // ── Toggle handler (KAN-14 will layer optimistic UI + haptics on top) ──
+  // ── Optimistic toggle with haptic feedback ──
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     if (!uid) { return; }
+
+    // 1. Instant optimistic update — UI reflects the new state immediately.
+    setOptimisticDone(prev => ({ ...prev, [taskId]: done }));
+
+    // 2. Haptic tap — short pulse on both platforms.
+    Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
+
     try {
       await setTaskDone(uid, taskId, done);
     } catch (err) {
-      console.warn('[TodayScreen] toggle failed', err);
+      // Revert optimistic state on failure.
+      console.warn('[TodayScreen] toggle failed — reverting', err);
+    } finally {
+      // Clear optimistic entry; the Firestore snapshot is now the source of truth.
+      setOptimisticDone(prev => {
+        const next = { ...prev };
+        delete next[taskId];
+        return next;
+      });
     }
   }, [uid]);
 
+  // ── Effective tasks — optimistic overrides applied ──
+  // Used for both rendering and progress calculation so the ring updates instantly.
+  const effectiveTasks = tasks.map(t => ({
+    ...t,
+    done: optimisticDone[t.id] ?? t.done,
+  }));
+
   // ── Progress ──
-  const totalTasks  = tasks.length;
-  const doneTasks   = tasks.filter(t => t.done).length;
+  const totalTasks  = effectiveTasks.length;
+  const doneTasks   = effectiveTasks.filter(t => t.done).length;
   const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
-  const nearbyCount = tasks.filter(t => t.poi).length;
+  const nearbyCount = effectiveTasks.filter(t => t.poi).length;
 
   // ── Reanimated scroll value ──
   const scrollY = useSharedValue(0);
@@ -324,7 +352,7 @@ export default function TodayScreen() {
               No tasks for today
             </Text>
           ) : (
-            tasks.map(task => (
+            effectiveTasks.map(task => (
               <TaskRow
                 key={task.id}
                 task={task}
