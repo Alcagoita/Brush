@@ -54,11 +54,14 @@ import { addTask } from '../services/firestore';
 const SCREEN_H       = Dimensions.get('window').height;
 const CLOSE_AFTER_MS = 300;
 
+// ️ (variation selector-16) appended to each emoji forces the OS to
+// render it as a coloured emoji glyph rather than a monochrome text symbol.
+// This is needed on Android where some emoji default to text presentation.
 const POI_OPTIONS: { type: PoiType; label: string; icon: string }[] = [
-  { type: 'atm',         label: 'ATM',      icon: '💳' },
-  { type: 'cafe',        label: 'Café',     icon: '☕' },
-  { type: 'supermarket', label: 'Market',   icon: '🛒' },
-  { type: 'pharmacy',    label: 'Pharmacy', icon: '💊' },
+  { type: 'atm',         label: 'ATM',      icon: '💳️' },
+  { type: 'cafe',        label: 'Café',     icon: '☕️' },
+  { type: 'supermarket', label: 'Market',   icon: '🛒️' },
+  { type: 'pharmacy',    label: 'Pharmacy', icon: '💊️' },
 ];
 
 function todayISO(): string {
