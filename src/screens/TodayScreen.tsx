@@ -55,7 +55,7 @@ import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
 import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring } from '../services/proximity';
+import { startProximityMonitoring, updateProximityTasks } from '../services/proximity';
 import { PoiType, Task } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -182,6 +182,19 @@ export default function TodayScreen() {
   // via updateProximityTasks() called in the effectiveTasks memo below.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
+
+  // ── Keep proximity engine in sync with live tasks ──
+  // effectiveTasks changes on every Firestore snapshot and every optimistic
+  // toggle. This keeps latestTasks inside the proximity closure current so:
+  //   • poiAlertSeenDate written by markPoiAlertSeen is visible → same-day
+  //     re-entry suppression actually works.
+  //   • Toggling a task done immediately removes it from geofence candidates.
+  //   • New tasks added mid-day are picked up without restarting the watcher.
+  useEffect(() => {
+    updateProximityTasks(effectiveTasks);
+  // effectiveTasks is a new array ref on every render that affects it,
+  // so this fires exactly when the list content changes.
+  }, [effectiveTasks]);
 
   // ── Optimistic toggle with haptic feedback ──
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
