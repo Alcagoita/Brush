@@ -178,6 +178,19 @@ export async function deleteTask(uid: string, taskId: string): Promise<void> {
   await deleteDoc(taskRef(uid, taskId));
 }
 
+/**
+ * Mark that a POI proximity alert was shown for this task today (KAN-24).
+ * Subsequent calls on the same date are no-ops in the proximity service.
+ * Pass `date` as a YYYY-MM-DD string (use todayISO() from the caller).
+ */
+export async function markPoiAlertSeen(
+  uid: string,
+  taskId: string,
+  date: string,
+): Promise<void> {
+  await updateDoc(taskRef(uid, taskId), { poiAlertSeenDate: date });
+}
+
 // ─── POI preferences ──────────────────────────────────────────────────────────
 
 /**

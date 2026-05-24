@@ -47,6 +47,11 @@ export interface Task {
   poi?: PoiType;
   /** Google Places ID if the user pinned a specific place — optional. */
   poiPlaceId?: string;
+  /**
+   * The date (YYYY-MM-DD) on which a geofence-entry notification was last
+   * fired for this task. Suppresses repeat alerts on the same day (KAN-24).
+   */
+  poiAlertSeenDate?: string;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
