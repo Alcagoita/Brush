@@ -21,7 +21,7 @@
  * thread; no JS re-renders during scroll.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
@@ -61,7 +61,7 @@ import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../se
 import { NearbyPlace } from '../services/maps';
 import { PoiType, Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
-import NewTaskSheet from '../components/NewTaskSheet';
+import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -148,6 +148,11 @@ export default function TodayScreen() {
   /** Controls visibility of the new-task bottom sheet (KAN-51). */
   const [sheetVisible,   setSheetVisible]   = useState(false);
 
+  /** Ref to the sheet — used to call hide() once a new task appears in the list. */
+  const sheetRef        = useRef<NewTaskSheetHandle>(null);
+  /** Previous task count — compared on every Firestore snapshot. */
+  const prevTasksLenRef = useRef(0);
+
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
   const month   = MONTHS[now.getMonth()];
@@ -217,6 +222,18 @@ export default function TodayScreen() {
   // effectiveTasks is a new array ref on every render that affects it,
   // so this fires exactly when the list content changes.
   }, [effectiveTasks]);
+
+  // ── Auto-close sheet when new task appears in the Firestore snapshot ──
+  // Firestore's local cache fires the subscription before (or just as) addTask()
+  // resolves, so this catches the task appearing in the list and hides the sheet
+  // as soon as the write is confirmed — belt-and-suspenders with handleSubmit's
+  // own direct close call.
+  useEffect(() => {
+    if (sheetVisible && tasks.length > prevTasksLenRef.current) {
+      sheetRef.current?.hide();
+    }
+    prevTasksLenRef.current = tasks.length;
+  }, [tasks, sheetVisible]);
 
   // ── Optimistic toggle with haptic feedback ──
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
@@ -433,6 +450,7 @@ export default function TodayScreen() {
 
       {/* ── New-task bottom sheet (KAN-51) ── */}
       <NewTaskSheet
+        ref={sheetRef}
         visible={sheetVisible}
         uid={uid ?? ''}
         onClose={() => setSheetVisible(false)}
