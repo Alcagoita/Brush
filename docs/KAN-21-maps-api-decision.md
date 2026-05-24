@@ -55,6 +55,23 @@
 5. Copy `src/config/keys.example.ts` → `src/config/keys.ts`.
 6. Paste the key into `keys.ts`. This file is gitignored and **must never be committed**.
 
+## API Key Security
+
+The key lives in the compiled JS bundle and can be extracted from a released APK/IPA.
+This is acceptable for development and internal testing. The following **must be done
+before any public release**:
+
+| # | Action | Where |
+|---|---|---|
+| 1 | **Add Android app restriction** — lock key to the app's bundle ID (`com.agenda`) + SHA-1 signing fingerprint | Cloud Console → Credentials → Edit key → Application restrictions |
+| 2 | **Add iOS app restriction** — lock key to bundle ID (`com.agenda`) | Same page → iOS apps |
+| 3 | **Set a daily quota cap** — e.g. 1,000 Nearby Search calls/day to bound worst-case billing if the key leaks | Cloud Console → APIs & Services → Places API (New) → Quotas |
+| 4 | **Enable billing alerts** — set a budget alert at a comfortable threshold (e.g. $10/month) | Cloud Console → Billing → Budgets & alerts |
+| 5 | **Rotate key if ever committed to git** — even briefly; treat a committed key as compromised | Create new key, delete old |
+
+> **Long-term option:** Route Places API calls through a Firebase Cloud Function so the
+> key never leaves the server. This is a Sprint 2+ backlog item.
+
 ## Files Created / Modified
 
 | File | Change |
