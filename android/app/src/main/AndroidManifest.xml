@@ -2,6 +2,18 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- ── Location permissions (KAN-22) ── -->
+    <!-- Fine location — required for nearby POI search at 50–75 m accuracy -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Coarse location — fallback / battery-saver mode -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Background location — required so geofences fire when app is backgrounded -->
+    <!-- Android 10+ requires this to be requested separately via the system dialog -->
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- Foreground service — needed to keep location alive when app is in background -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <application
       android:name=".MainApplication"
       android:label="@string/app_name"
@@ -23,5 +35,12 @@
             <category android:name="android.intent.category.LAUNCHER" />
         </intent-filter>
       </activity>
+
+      <!-- ── Location foreground service (KAN-22) ── -->
+      <!-- Keeps GPS alive when the app is backgrounded so geofences still fire. -->
+      <service
+        android:name="com.agontuk.RNFusedLocation.LocationUpdatesService"
+        android:foregroundServiceType="location"
+        android:exported="false" />
     </application>
 </manifest>
