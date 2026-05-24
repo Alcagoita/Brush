@@ -20,8 +20,12 @@
  *   Café / Supermarket → 75 m
  *
  * Usage (in TodayScreen):
- *   const stopMonitoring = startProximityMonitoring(uid, tasks, setNearbyPoiType);
- *   // call stopMonitoring() on unmount
+ *   const stop = startProximityMonitoring(uid, tasks, (type, place, allPlaces) => {
+ *     setNearbyPoiType(type);
+ *     setNearbyPlace(place);
+ *     setPoiPlaces(allPlaces);
+ *   });
+ *   // call stop() on unmount
  */
 
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
@@ -30,6 +34,19 @@ import { Coordinates, startTracking, stopTracking } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace } from './maps';
 import { markPoiAlertSeen } from './firestore';
 import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
+
+// ─── Public types ─────────────────────────────────────────────────────────────
+
+/** Snapshot of the nearest known place for each POI type. Populated as the
+ *  Places API cache fills in. Used by NearbyCard for the idle-state rows. */
+export type PlacesMap = Partial<Record<PoiType, NearbyPlace>>;
+
+/** Callback fired whenever nearby state OR place data changes. */
+export type ProximityCallback = (
+  nearbyPoiType: PoiType | null,
+  nearbyPlace:   NearbyPlace | null,
+  allPlaces:     PlacesMap,
+) => void;
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -155,11 +172,19 @@ async function getNearestPlace(
  *
  * Also handles notification firing and Firestore alert-seen writes.
  */
+function buildPlacesMap(): PlacesMap {
+  const map: PlacesMap = {};
+  for (const [poiType, cache] of placeCache) {
+    if (cache.places[0]) { map[poiType] = cache.places[0]; }
+  }
+  return map;
+}
+
 async function checkProximity(
   uid: string,
   coords: Coordinates,
   tasks: Task[],
-  onNearbyChanged: (poiType: PoiType | null) => void,
+  onUpdate: ProximityCallback,
 ): Promise<void> {
   // Collect unique POI types from undone tasks that have a poi field.
   const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
@@ -168,7 +193,7 @@ async function checkProximity(
   if (uniquePoiTypes.length === 0) {
     if (currentNearbyType !== null) {
       currentNearbyType = null;
-      onNearbyChanged(null);
+      onUpdate(null, null, buildPlacesMap());
     }
     return;
   }
@@ -196,10 +221,13 @@ async function checkProximity(
   const winner = candidates[0] ?? null;
   const newNearbyType = winner?.poiType ?? null;
 
-  // Notify the screen if the nearby state changed.
+  // Always emit updated place data so NearbyCard idle rows refresh.
+  const allPlaces = buildPlacesMap();
+  onUpdate(newNearbyType, winner?.place ?? null, allPlaces);
+
+  // Notification + Firestore write only on entry transition.
   if (newNearbyType !== currentNearbyType) {
     currentNearbyType = newNearbyType;
-    onNearbyChanged(newNearbyType);
 
     // Fire a notification on entry (null → type, or type switch).
     if (winner) {
@@ -237,7 +265,7 @@ async function checkProximity(
 export function startProximityMonitoring(
   uid: string,
   tasks: Task[],
-  onNearbyChanged: (poiType: PoiType | null) => void,
+  onUpdate: ProximityCallback,
 ): () => void {
   if (isMonitoring) { stopProximityMonitoring(); }
   isMonitoring = true;
@@ -254,7 +282,7 @@ export function startProximityMonitoring(
   startTracking(
     async (coords: Coordinates) => {
       if (!isMonitoring) { return; }
-      await checkProximity(uid, coords, latestTasks, onNearbyChanged);
+      await checkProximity(uid, coords, latestTasks, onUpdate);
     },
     (err) => {
       console.warn('[proximity] location error', err.code, err.message);
