@@ -229,11 +229,8 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
 
-        {/* ── App icon + wordmark ── */}
+        {/* ── Wordmark ── */}
         <View style={styles.brand}>
-          <View style={[styles.appIcon, { backgroundColor: palette.accent }]}>
-            <Text style={[styles.appIconLetter, { color: palette.bg }]}>A</Text>
-          </View>
           <Text style={[styles.wordmark, { color: palette.text }]}>Agenda</Text>
           <Text style={[styles.tagline, { color: palette.muted }]}>
             {isSignUp ? 'Create your account' : 'Sign in to continue'}
@@ -330,19 +327,6 @@ const styles = StyleSheet.create({
   brand: {
     alignItems:   'center',
     marginBottom: 48,
-  },
-  appIcon: {
-    width:          56,
-    height:         56,
-    borderRadius:   16,
-    alignItems:     'center',
-    justifyContent: 'center',
-    marginBottom:   16,
-  },
-  appIconLetter: {
-    fontSize:   26,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
   },
   wordmark: {
     fontSize:      36,
