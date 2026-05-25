@@ -30,6 +30,7 @@ import {
 import {
   Task,
   User,
+  Category,
   PoiPreference,
   PoiType,
   CategoryKey,
@@ -258,6 +259,66 @@ export async function setPoiPreference(
 export async function getAllPoiPreferences(uid: string): Promise<PoiPreference[]> {
   const allTypes: PoiType[] = ['atm', 'cafe', 'supermarket', 'pharmacy'];
   return Promise.all(allTypes.map(t => getPoiPreference(uid, t)));
+}
+
+// ─── Custom categories ────────────────────────────────────────────────────────
+
+function categoriesRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'categories');
+}
+
+function categoryRef(uid: string, categoryId: string) {
+  return doc(getFirestore(), 'users', uid, 'categories', categoryId);
+}
+
+/**
+ * Subscribe to the user's custom categories (built-ins are not stored here).
+ * Returns an unsubscribe function — call on component unmount.
+ */
+export function subscribeToCategories(
+  uid: string,
+  onUpdate: (categories: Category[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(categoriesRef(uid), orderBy('name', 'asc')),
+    snap => onUpdate(
+      snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category)),
+    ),
+    onError,
+  );
+}
+
+/**
+ * Create a new custom category.
+ * Returns the auto-generated Firestore document ID.
+ */
+export async function addCategory(
+  uid: string,
+  data: Omit<Category, 'id' | 'isBuiltIn'>,
+): Promise<string> {
+  const ref = await addDoc(categoriesRef(uid), { ...data, isBuiltIn: false });
+  return ref.id;
+}
+
+/**
+ * Update a custom category's name, color, or poi.
+ * Built-in categories should never be passed here.
+ */
+export async function updateCategory(
+  uid: string,
+  categoryId: string,
+  data: Partial<Pick<Category, 'name' | 'color' | 'poi'>>,
+): Promise<void> {
+  await updateDoc(categoryRef(uid, categoryId), data);
+}
+
+/**
+ * Permanently delete a custom category.
+ * The caller is responsible for ensuring it is not a built-in category.
+ */
+export async function deleteCategory(uid: string, categoryId: string): Promise<void> {
+  await deleteDoc(categoryRef(uid, categoryId));
 }
 
 // ─── Re-exports for convenience ───────────────────────────────────────────────

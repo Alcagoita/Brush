@@ -58,6 +58,27 @@ export interface Task {
   date: string;
 }
 
+// ─── Category ─────────────────────────────────────────────────────────────────
+
+/**
+ * A task category — either one of the 4 built-in design-system categories
+ * or a user-created custom category stored in Firestore.
+ *
+ * /users/{uid}/categories/{id}  (custom categories only — built-ins are derived
+ * from design tokens and never written to Firestore)
+ */
+export interface Category {
+  /** 'work' | 'health' | 'errands' | 'personal' for built-ins; Firestore ID for custom. */
+  id: string;
+  name: string;
+  /** One of the 4 design-system category hex colors. */
+  color: string;
+  /** Primary POI type for this category — null means no location association. */
+  poi: PoiType | null;
+  /** Built-in categories cannot be renamed, recoloured, or deleted. */
+  isBuiltIn: boolean;
+}
+
 // ─── POI / category mapping constants ─────────────────────────────────────────
 
 /** Which POI types can appear on tasks of each category. */

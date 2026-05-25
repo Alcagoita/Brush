@@ -5,12 +5,16 @@
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { signOut } from '../services/auth';
 
+type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
+
 export default function ProfileScreen() {
   const { palette, dark, setDark } = useTheme();
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
 
   return (
     <View style={[styles.container, { backgroundColor: palette.bg }]}>
@@ -25,6 +29,17 @@ export default function ProfileScreen() {
       <Text style={[styles.sub, { color: palette.muted }]}>
         Full UI coming in a future sprint
       </Text>
+
+      {/* Categories — KAN-16 */}
+      <TouchableOpacity
+        style={[styles.btn, { backgroundColor: palette.surface2 }]}
+        onPress={() => navigation.navigate('Categories')}
+        accessibilityRole="button"
+        accessibilityLabel="Manage categories">
+        <Text style={[styles.btnText, { color: palette.text }]}>
+          🗂  Manage Categories
+        </Text>
+      </TouchableOpacity>
 
       {/* Theme toggle — useful for testing KAN-47 until a proper UI exists */}
       <TouchableOpacity
