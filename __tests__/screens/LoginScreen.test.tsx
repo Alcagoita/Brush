@@ -205,12 +205,12 @@ describe('LoginScreen — Firebase error mapping', () => {
     );
   });
 
-  it('shows email error for auth/invalid-credential', async () => {
+  it('shows general error for auth/invalid-credential (wrong password or unknown email)', async () => {
     mockSignIn.mockRejectedValueOnce(makeAuthError('auth/invalid-credential'));
     render(<LoginScreen />);
     await submitForm('user@example.com', 'wrongpass');
     await waitFor(() =>
-      expect(screen.getByText('No account found with this email.')).toBeTruthy(),
+      expect(screen.getByText('Invalid email or password. Please check your credentials.')).toBeTruthy(),
     );
   });
 
