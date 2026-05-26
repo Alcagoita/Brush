@@ -18,7 +18,7 @@
 
 import { Linking, Platform } from 'react-native';
 import { GOOGLE_PLACES_API_KEY } from '../config/keys';
-import { PoiType, POI_GOOGLE_TYPES } from '../types';
+import { Category, PoiType, POI_GOOGLE_TYPES } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,11 @@ const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby'
 /**
  * Search for places of the given POI type within `radiusMeters` of `lat`/`lng`.
  *
+ * `poiType` accepts either one of the four built-in PoiType values or any
+ * arbitrary Google Places primary type string (e.g. "gym", "restaurant").
+ * Built-in types are mapped through POI_GOOGLE_TYPES; all others are passed
+ * directly to the Places API as-is.
+ *
  * Results are sorted ascending by straight-line distance from the origin.
  * Returns up to 5 candidates (we only ever show the closest one per type).
  *
@@ -84,10 +89,12 @@ const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby'
 export async function searchNearbyPlaces(
   lat: number,
   lng: number,
-  poiType: PoiType,
+  poiType: string,
   radiusMeters: number,
 ): Promise<NearbyPlace[]> {
-  const googleType = POI_GOOGLE_TYPES[poiType];
+  // For the four legacy PoiType values, use the mapped Google type.
+  // All other strings (custom category types) are already Google Places types.
+  const googleType = POI_GOOGLE_TYPES[poiType as PoiType] ?? poiType;
 
   const body = {
     locationRestriction: {
@@ -280,6 +287,25 @@ export interface PlaceTypeSuggestion {
   type:  string;
   label: string;
 }
+
+// ─── Category → place type mapping ───────────────────────────────────────────
+
+/**
+ * Returns the Google Places primary type string to use for proximity searches
+ * for tasks that belong to `category`.
+ *
+ * This is the formal mapping layer (KAN-23): because `category.poi` is already
+ * stored as a Google Places primary type string, the mapping is an identity
+ * pass-through. The function exists as the single place to put any future
+ * translation logic (e.g. aliasing, overrides) without touching call sites.
+ *
+ * Returns null when the category has no location association.
+ */
+export function resolveCategoryPlaceType(category: Category): string | null {
+  return category.poi ?? null;
+}
+
+// ─── Place type search ────────────────────────────────────────────────────────
 
 /**
  * Search Google Places for place types matching the given query.

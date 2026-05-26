@@ -22,17 +22,11 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { radius } from '../theme/tokens';
-import { PoiType } from '../types';
-
-const POI_LABELS: Record<PoiType, string> = {
-  atm:         'ATM',
-  cafe:        'Café',
-  supermarket: 'Market',
-  pharmacy:    'Pharmacy',
-};
+import { placeTypeLabel } from '../services/maps';
 
 interface PoiChipProps {
-  poi: PoiType;
+  /** Google Places primary type string (built-in PoiType or custom type). */
+  poi: string;
   /** True when this POI type is currently within the user's geofence (KAN-46). */
   isNearby?: boolean;
 }
@@ -79,7 +73,7 @@ export default function PoiChip({ poi, isNearby = false }: PoiChipProps) {
     <View style={[styles.chip, { backgroundColor: bgColor, borderColor }]}>
       {isNearby && <PulsingDot color={palette.accent} />}
       <Text style={[styles.label, { color: textColor }]}>
-        {POI_LABELS[poi]}
+        {placeTypeLabel(poi)}
       </Text>
     </View>
   );
