@@ -71,10 +71,15 @@ export interface Category {
   /** 'work' | 'health' | 'errands' | 'personal' for built-ins; Firestore ID for custom. */
   id: string;
   name: string;
-  /** One of the 4 design-system category hex colors. */
+  /** Hex colour string (e.g. "#5b7fd4"). */
   color: string;
-  /** Primary POI type for this category — null means no location association. */
-  poi: PoiType | null;
+  /**
+   * Google Places primary type string (e.g. "gym", "restaurant", "atm").
+   * Built-in categories use one of the four PoiType values; custom categories
+   * may store any Google Places type discovered via the search feature.
+   * Null means no location association.
+   */
+  poi: string | null;
   /** Built-in categories cannot be renamed, recoloured, or deleted. */
   isBuiltIn: boolean;
 }

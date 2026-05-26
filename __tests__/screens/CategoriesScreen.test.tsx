@@ -4,7 +4,7 @@
  * Covers:
  *   - Renders the 4 built-in categories
  *   - Built-in rows have no Edit/Delete actions
- *   - Custom categories (from mock subscription) render with Edit/Delete
+ *   - Custom categories (from mock subscription) render with Edit / × delete
  *   - Empty state shown when no custom categories
  *   - "Add Category" button opens the sheet
  *   - Sheet: validates empty name
@@ -12,6 +12,8 @@
  *   - Sheet: closes on Cancel
  *   - Edit: pre-fills the form with existing values; calls updateCategory on save
  *   - Delete: confirmation alert → calls deleteCategory on confirm
+ *   - Color picker: 18 swatches rendered; swatch selection; hex input
+ *   - Location type: quick-pick chips; Google Places search + result selection
  */
 
 import React from 'react';
@@ -30,6 +32,21 @@ jest.mock('../../src/services/firestore', () => ({
   addCategory:           (...args: unknown[]) => mockAddCategory(...args),
   updateCategory:        (...args: unknown[]) => mockUpdateCategory(...args),
   deleteCategory:        (...args: unknown[]) => mockDeleteCategory(...args),
+}));
+
+const mockSearchPlaceTypes = jest.fn();
+
+jest.mock('../../src/services/maps', () => ({
+  searchPlaceTypes: (...args: unknown[]) => mockSearchPlaceTypes(...args),
+  placeTypeLabel:   (type: string) =>
+    type === 'gym' ? 'Gym' :
+    type === 'atm' ? 'ATM' :
+    type === 'cafe' ? 'Café' :
+    type === 'supermarket' ? 'Supermarket' :
+    type === 'pharmacy' ? 'Pharmacy' :
+    type === 'restaurant' ? 'Restaurant' :
+    type,
+  PlaceTypeSuggestion: {},   // re-export type — no runtime value needed
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -73,7 +90,7 @@ jest.mock('../../src/components/AppIcon', () => ({
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
 
-import CategoriesScreen from '../../src/screens/CategoriesScreen';
+import CategoriesScreen, { CATEGORY_COLORS } from '../../src/screens/CategoriesScreen';
 import type { Category } from '../../src/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -98,11 +115,22 @@ function renderWith(customCategories: Category[] = []) {
   return render(<CategoriesScreen />);
 }
 
+/** Opens the sheet (Add or Edit) and waits for it to appear. */
+async function openAddSheet() {
+  fireEvent.press(screen.getByRole('button', { name: 'Add category' }));
+  await waitFor(() => screen.getByText('New Category'));
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Alert, 'alert');
+  jest.useFakeTimers();
+});
+
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 // ── Render ────────────────────────────────────────────────────────────────────
@@ -171,7 +199,7 @@ describe('CategoriesScreen — custom row actions', () => {
     expect(screen.getByRole('button', { name: 'Edit Shopping' })).toBeTruthy();
   });
 
-  it('shows Delete button for a custom category', () => {
+  it('shows × Delete button for a custom category', () => {
     renderWith([CUSTOM_CATEGORY]);
     expect(screen.getByRole('button', { name: 'Delete Shopping' })).toBeTruthy();
   });
@@ -182,16 +210,13 @@ describe('CategoriesScreen — custom row actions', () => {
 describe('CategoriesScreen — add category', () => {
   it('opens the sheet when Add Category is pressed', async () => {
     renderWith();
-    fireEvent.press(screen.getByRole('button', { name: 'Add category' }));
-    await waitFor(() =>
-      expect(screen.getByText('New Category')).toBeTruthy(),
-    );
+    await openAddSheet();
+    expect(screen.getByText('New Category')).toBeTruthy();
   });
 
   it('shows a name error when saving with empty name', async () => {
     renderWith();
-    fireEvent.press(screen.getByRole('button', { name: 'Add category' }));
-    await waitFor(() => screen.getByText('New Category'));
+    await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
     expect(screen.getByText('Please enter a category name.')).toBeTruthy();
   });
@@ -199,8 +224,7 @@ describe('CategoriesScreen — add category', () => {
   it('calls addCategory with trimmed name and selected options on save', async () => {
     mockAddCategory.mockResolvedValueOnce('new-id');
     renderWith();
-    fireEvent.press(screen.getByRole('button', { name: 'Add category' }));
-    await waitFor(() => screen.getByText('New Category'));
+    await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Category name'), '  Fitness  ');
     fireEvent.press(screen.getByRole('radio', { name: 'Café' }));
@@ -220,8 +244,7 @@ describe('CategoriesScreen — add category', () => {
 
   it('closes the sheet on Cancel', async () => {
     renderWith();
-    fireEvent.press(screen.getByRole('button', { name: 'Add category' }));
-    await waitFor(() => screen.getByText('New Category'));
+    await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() =>
       expect(screen.queryByText('New Category')).toBeNull(),
@@ -272,7 +295,7 @@ describe('CategoriesScreen — edit category', () => {
 // ── Delete category ───────────────────────────────────────────────────────────
 
 describe('CategoriesScreen — delete category', () => {
-  it('shows a confirmation alert when Delete is pressed', () => {
+  it('shows a confirmation alert when × is pressed', () => {
     renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Delete Shopping' }));
     expect(Alert.alert).toHaveBeenCalledWith(
@@ -287,7 +310,6 @@ describe('CategoriesScreen — delete category', () => {
     renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Delete Shopping' }));
 
-    // Simulate pressing the "Delete" button in the Alert
     const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2] as Array<{ text: string; onPress?: () => void }>;
     const deleteBtn = alertButtons.find(b => b.text === 'Delete');
     deleteBtn?.onPress?.();
@@ -304,5 +326,196 @@ describe('CategoriesScreen — delete category', () => {
     cancelBtn?.onPress?.();
 
     expect(mockDeleteCategory).not.toHaveBeenCalled();
+  });
+});
+
+// ── Color picker ──────────────────────────────────────────────────────────────
+
+describe('CategoriesScreen — color picker', () => {
+  it('renders 18 colour swatches', async () => {
+    renderWith();
+    await openAddSheet();
+    expect(CATEGORY_COLORS).toHaveLength(18);
+    // Each swatch has accessibilityRole="radio"
+    const swatches = screen.getAllByRole('radio').filter(el =>
+      el.props.accessibilityLabel?.startsWith('Color #'),
+    );
+    expect(swatches).toHaveLength(18);
+  });
+
+  it('selects a swatch and updates the colour', async () => {
+    mockAddCategory.mockResolvedValueOnce('id');
+    renderWith();
+    await openAddSheet();
+
+    // Tap the red swatch (#e05252)
+    fireEvent.press(screen.getByRole('radio', { name: 'Color #e05252' }));
+    fireEvent.changeText(screen.getByLabelText('Category name'), 'Red Cat');
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
+    });
+
+    await waitFor(() =>
+      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
+        expect.objectContaining({ color: '#e05252' }),
+      ),
+    );
+  });
+
+  it('hex input updates colour when valid', async () => {
+    mockAddCategory.mockResolvedValueOnce('id');
+    renderWith();
+    await openAddSheet();
+
+    fireEvent.changeText(screen.getByLabelText('Custom hex colour'), '#123456');
+    fireEvent.changeText(screen.getByLabelText('Category name'), 'Custom');
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
+    });
+
+    await waitFor(() =>
+      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
+        expect.objectContaining({ color: '#123456' }),
+      ),
+    );
+  });
+
+  it('invalid hex does not change the saved colour', async () => {
+    mockAddCategory.mockResolvedValueOnce('id');
+    renderWith();
+    await openAddSheet();
+
+    // Enter an invalid hex — colour stays at whatever the first swatch is
+    fireEvent.changeText(screen.getByLabelText('Custom hex colour'), '#gg0000');
+    fireEvent.changeText(screen.getByLabelText('Category name'), 'Bad Hex');
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
+    });
+
+    await waitFor(() => {
+      const call = mockAddCategory.mock.calls[0][1] as { color: string };
+      // Color should NOT be the invalid value
+      expect(call.color).not.toBe('#gg0000');
+      expect(call.color).toMatch(/^#[0-9a-fA-F]{6}$/);
+    });
+  });
+});
+
+// ── Location type ─────────────────────────────────────────────────────────────
+
+describe('CategoriesScreen — location type', () => {
+  it('renders the None chip and the 4 quick-pick chips', async () => {
+    renderWith();
+    await openAddSheet();
+    expect(screen.getByRole('radio', { name: 'None' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'ATM' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Café' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Supermarket' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: 'Pharmacy' })).toBeTruthy();
+  });
+
+  it('selecting a quick-pick chip saves that POI type', async () => {
+    mockAddCategory.mockResolvedValueOnce('id');
+    renderWith();
+    await openAddSheet();
+
+    fireEvent.changeText(screen.getByLabelText('Category name'), 'Meds');
+    fireEvent.press(screen.getByRole('radio', { name: 'Pharmacy' }));
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
+    });
+
+    await waitFor(() =>
+      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
+        expect.objectContaining({ poi: 'pharmacy' }),
+      ),
+    );
+  });
+
+  it('None chip saves null POI', async () => {
+    mockAddCategory.mockResolvedValueOnce('id');
+    renderWith();
+    await openAddSheet();
+
+    fireEvent.changeText(screen.getByLabelText('Category name'), 'Work');
+    // ATM is currently active after pressing it; then go back to None
+    fireEvent.press(screen.getByRole('radio', { name: 'ATM' }));
+    fireEvent.press(screen.getByRole('radio', { name: 'None' }));
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
+    });
+
+    await waitFor(() =>
+      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
+        expect.objectContaining({ poi: null }),
+      ),
+    );
+  });
+
+  it('renders a location type search input', async () => {
+    renderWith();
+    await openAddSheet();
+    expect(screen.getByLabelText('Search location type')).toBeTruthy();
+  });
+
+  it('typing in search calls searchPlaceTypes after debounce', async () => {
+    mockSearchPlaceTypes.mockResolvedValueOnce([
+      { type: 'gym', label: 'Gym' },
+    ]);
+    renderWith();
+    await openAddSheet();
+
+    fireEvent.changeText(screen.getByLabelText('Search location type'), 'gym');
+
+    // Fast-forward past the 350ms debounce
+    await act(async () => {
+      jest.advanceTimersByTime(400);
+    });
+
+    expect(mockSearchPlaceTypes).toHaveBeenCalledWith('gym');
+  });
+
+  it('search results appear and can be selected', async () => {
+    mockSearchPlaceTypes.mockResolvedValueOnce([
+      { type: 'gym',        label: 'Gym' },
+      { type: 'restaurant', label: 'Restaurant' },
+    ]);
+    mockAddCategory.mockResolvedValueOnce('id');
+    renderWith();
+    await openAddSheet();
+
+    fireEvent.changeText(screen.getByLabelText('Search location type'), 'gym');
+    await act(async () => { jest.advanceTimersByTime(400); });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Gym' })).toBeTruthy());
+
+    // Tap the Gym result
+    fireEvent.press(screen.getByRole('button', { name: 'Gym' }));
+
+    // Save
+    fireEvent.changeText(screen.getByLabelText('Category name'), 'Fitness');
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
+    });
+
+    await waitFor(() =>
+      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
+        expect.objectContaining({ poi: 'gym' }),
+      ),
+    );
+  });
+
+  it('does not call searchPlaceTypes for empty input', async () => {
+    renderWith();
+    await openAddSheet();
+
+    fireEvent.changeText(screen.getByLabelText('Search location type'), '');
+    await act(async () => { jest.advanceTimersByTime(400); });
+
+    expect(mockSearchPlaceTypes).not.toHaveBeenCalled();
   });
 });

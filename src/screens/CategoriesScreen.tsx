@@ -5,12 +5,12 @@
  *   1. Top bar      — back button + "Categories" title
  *   2. Category list
  *      BUILT-IN section  — 4 design-system rows (read-only)
- *      CUSTOM section    — user-created rows with edit + delete actions
+ *      CUSTOM section    — user-created rows with edit (×) delete actions
  *   3. "Add category" button (bottom of custom section)
  *   4. Add/Edit bottom sheet (Modal)
  *      - Name text input
- *      - Color picker (4 design-system swatches)
- *      - POI picker   (None + 4 POI types)
+ *      - Color picker (18 swatches + hex input)
+ *      - POI picker   (4 quick-pick chips + Google Places search)
  *      - Save / Cancel
  *
  * Rules:
@@ -19,7 +19,7 @@
  *   - All colours via useTheme() — no hardcoded values.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -45,47 +45,68 @@ import {
   updateCategory,
   deleteCategory,
 } from '../services/firestore';
-import { Category, PoiType } from '../types';
+import {
+  searchPlaceTypes,
+  placeTypeLabel,
+  PlaceTypeSuggestion,
+} from '../services/maps';
+import { Category } from '../types';
 import { ChevronLeftIcon } from '../components/AppIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-/** The 4 design-system category colors available to all categories. */
+const ERROR_COLOR = '#e05252';
+
+/**
+ * 18 preset colours arranged in 3 rows of 6.
+ * The 4 original design-system colours are kept at their legacy positions.
+ */
 export const CATEGORY_COLORS = [
-  '#5b7fd4', // Work  — soft blue
-  '#5ba87a', // Health — sage
-  '#8b6bc4', // Errands — muted purple
-  '#e8a86a', // Personal — peach
+  // Row 1 — blues & purples
+  '#5b7fd4', // Work — soft blue (legacy)
+  '#4f9ee8', // sky blue
+  '#3b78e8', // bright blue
+  '#8b6bc4', // Errands — muted purple (legacy)
+  '#a06ed4', // lavender
+  '#c47aa0', // mauve
+  // Row 2 — greens, yellows, warm
+  '#5ba87a', // Health — sage (legacy)
+  '#3da890', // teal
+  '#4dc880', // mint
+  '#8ab84a', // olive
+  '#d4c84a', // yellow
+  '#e8a86a', // Personal — peach (legacy)
+  // Row 3 — warm spectrum + neutrals
+  '#e87a4a', // orange
+  '#e05252', // red
+  '#e05294', // hot pink
+  '#c45294', // magenta
+  '#8a9ab4', // slate
+  '#7a7a7a', // gray
 ] as const;
 
-const POI_OPTIONS: { value: PoiType | null; label: string }[] = [
-  { value: null,         label: 'None' },
-  { value: 'atm',        label: 'ATM' },
-  { value: 'cafe',       label: 'Café' },
-  { value: 'supermarket',label: 'Supermarket' },
-  { value: 'pharmacy',   label: 'Pharmacy' },
+/** Quick-pick POI types shown as chips at the top of the location picker. */
+const QUICK_POI_OPTIONS: { value: string; label: string }[] = [
+  { value: 'atm',         label: 'ATM' },
+  { value: 'cafe',        label: 'Café' },
+  { value: 'supermarket', label: 'Supermarket' },
+  { value: 'pharmacy',    label: 'Pharmacy' },
 ];
 
 /** Built-in categories derived from design tokens — never stored in Firestore. */
 const BUILT_IN_CATEGORIES: Category[] = [
-  { id: 'work',      name: 'Work',      color: builtInMeta.work.color,     poi: null,           isBuiltIn: true },
-  { id: 'health',    name: 'Health',    color: builtInMeta.health.color,   poi: 'pharmacy',     isBuiltIn: true },
-  { id: 'errands',   name: 'Errands',   color: builtInMeta.errands.color,  poi: 'supermarket',  isBuiltIn: true },
-  { id: 'personal',  name: 'Personal',  color: builtInMeta.personal.color, poi: 'cafe',         isBuiltIn: true },
+  { id: 'work',     name: 'Work',     color: builtInMeta.work.color,     poi: null,          isBuiltIn: true },
+  { id: 'health',   name: 'Health',   color: builtInMeta.health.color,   poi: 'pharmacy',    isBuiltIn: true },
+  { id: 'errands',  name: 'Errands',  color: builtInMeta.errands.color,  poi: 'supermarket', isBuiltIn: true },
+  { id: 'personal', name: 'Personal', color: builtInMeta.personal.color, poi: 'cafe',        isBuiltIn: true },
 ];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function poiLabel(poi: PoiType | null): string {
-  return POI_OPTIONS.find(o => o.value === poi)?.label ?? 'None';
-}
 
 // ─── CategoryRow ──────────────────────────────────────────────────────────────
 
 interface CategoryRowProps {
-  category:  Category;
-  onEdit:    (cat: Category) => void;
-  onDelete:  (cat: Category) => void;
+  category: Category;
+  onEdit:   (cat: Category) => void;
+  onDelete: (cat: Category) => void;
 }
 
 function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
@@ -105,13 +126,13 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
         {hasPoi && (
           <View style={[styles.poiBadge, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
             <Text style={[styles.poiBadgeText, { color: palette.muted }]}>
-              {poiLabel(category.poi)}
+              {placeTypeLabel(category.poi!)}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Edit / delete — custom categories only */}
+      {/* Edit + × delete — custom categories only */}
       {!category.isBuiltIn && (
         <View style={styles.rowActions}>
           <Pressable
@@ -123,10 +144,10 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
           </Pressable>
           <Pressable
             onPress={() => onDelete(category)}
-            style={styles.actionBtn}
+            style={styles.deleteBtn}
             accessibilityRole="button"
             accessibilityLabel={`Delete ${category.name}`}>
-            <Text style={[styles.actionLabel, { color: '#e05252' }]}>Delete</Text>
+            <Text style={styles.deleteX}>×</Text>
           </Pressable>
         </View>
       )}
@@ -137,32 +158,92 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
 // ─── Add / Edit sheet ─────────────────────────────────────────────────────────
 
 interface SheetProps {
-  visible:   boolean;
-  initial:   Partial<Category> | null; // null = add mode
-  onSave:    (data: Omit<Category, 'id' | 'isBuiltIn'>) => Promise<void>;
-  onCancel:  () => void;
+  visible:  boolean;
+  initial:  Partial<Category> | null; // null = add mode
+  onSave:   (data: Omit<Category, 'id' | 'isBuiltIn'>) => Promise<void>;
+  onCancel: () => void;
 }
 
 function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [name,    setName]    = useState('');
-  const [color,   setColor]   = useState<string>(CATEGORY_COLORS[0]);
-  const [poi,     setPoi]     = useState<PoiType | null>(null);
-  const [saving,  setSaving]  = useState(false);
-  const [nameErr, setNameErr] = useState('');
+  const [name,         setName]         = useState('');
+  const [color,        setColor]        = useState<string>(CATEGORY_COLORS[0]);
+  const [hexInput,     setHexInput]     = useState<string>(CATEGORY_COLORS[0]);
+  const [poi,          setPoi]          = useState<string | null>(null);
+  const [poiQuery,     setPoiQuery]     = useState('');
+  const [poiResults,   setPoiResults]   = useState<PlaceTypeSuggestion[]>([]);
+  const [poiSearching, setPoiSearching] = useState(false);
+  const [saving,       setSaving]       = useState(false);
+  const [nameErr,      setNameErr]      = useState('');
+
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Populate form when opening
   useEffect(() => {
     if (visible) {
+      const initColor = initial?.color ?? CATEGORY_COLORS[0];
       setName(initial?.name  ?? '');
-      setColor(initial?.color ?? CATEGORY_COLORS[0]);
+      setColor(initColor);
+      setHexInput(initColor);
       setPoi(initial?.poi   ?? null);
+      setPoiQuery('');
+      setPoiResults([]);
+      setPoiSearching(false);
       setNameErr('');
       setSaving(false);
     }
   }, [visible, initial]);
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => () => {
+    if (searchTimer.current) { clearTimeout(searchTimer.current); }
+  }, []);
+
+  // ── Handlers ────────────────────────────────────────────────────────────────
+
+  const handleSwatchPress = (c: string) => {
+    setColor(c);
+    setHexInput(c);
+  };
+
+  const handleHexChange = (text: string) => {
+    const normalized = text.startsWith('#') ? text : '#' + text;
+    setHexInput(normalized);
+    if (/^#[0-9a-fA-F]{6}$/.test(normalized)) {
+      setColor(normalized);
+    }
+  };
+
+  const hexValid = /^#[0-9a-fA-F]{6}$/.test(hexInput);
+
+  const handlePoiSearch = (text: string) => {
+    setPoiQuery(text);
+    if (searchTimer.current) { clearTimeout(searchTimer.current); }
+    if (!text.trim()) {
+      setPoiResults([]);
+      setPoiSearching(false);
+      return;
+    }
+    setPoiSearching(true);
+    searchTimer.current = setTimeout(async () => {
+      try {
+        const results = await searchPlaceTypes(text.trim());
+        setPoiResults(results);
+      } catch {
+        setPoiResults([]);
+      } finally {
+        setPoiSearching(false);
+      }
+    }, 350);
+  };
+
+  const handlePoiSelect = (type: string | null) => {
+    setPoi(type);
+    setPoiQuery('');
+    setPoiResults([]);
+  };
 
   const handleSave = async () => {
     const trimmed = name.trim();
@@ -176,6 +257,8 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   };
 
   const isAdd = initial === null;
+
+  // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <Modal
@@ -191,10 +274,11 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
           style={[
             styles.sheet,
             {
-              backgroundColor:  palette.surface,
-              paddingBottom:    insets.bottom + 16,
+              backgroundColor: palette.surface,
+              paddingBottom:   insets.bottom + 16,
             },
           ]}>
+
           {/* Handle */}
           <View style={[styles.handle, { backgroundColor: palette.faint }]} />
 
@@ -202,11 +286,11 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
             {isAdd ? 'New Category' : 'Edit Category'}
           </Text>
 
-          {/* Name */}
+          {/* ── Name ── */}
           <Text style={[styles.fieldLabel, { color: palette.muted }]}>NAME</Text>
           <View style={[
             styles.nameInputWrap,
-            { backgroundColor: palette.surface2, borderColor: nameErr ? '#e05252' : palette.line },
+            { backgroundColor: palette.surface2, borderColor: nameErr ? ERROR_COLOR : palette.line },
           ]}>
             <TextInput
               style={[styles.nameInput, { color: palette.text }]}
@@ -220,17 +304,17 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
               accessibilityLabel="Category name"
             />
           </View>
-          {nameErr ? (
-            <Text style={styles.nameErr}>{nameErr}</Text>
-          ) : null}
+          {nameErr ? <Text style={styles.nameErr}>{nameErr}</Text> : null}
 
-          {/* Color */}
+          {/* ── Colour ── */}
           <Text style={[styles.fieldLabel, { color: palette.muted }]}>COLOUR</Text>
-          <View style={styles.colorRow}>
+
+          {/* 18-colour grid */}
+          <View style={styles.colorGrid}>
             {CATEGORY_COLORS.map(c => (
               <Pressable
                 key={c}
-                onPress={() => setColor(c)}
+                onPress={() => handleSwatchPress(c)}
                 style={[
                   styles.colorSwatch,
                   { backgroundColor: c },
@@ -243,15 +327,64 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
             ))}
           </View>
 
-          {/* POI */}
+          {/* Hex input row */}
+          <View style={styles.hexRow}>
+            <View
+              style={[
+                styles.hexPreview,
+                {
+                  backgroundColor: hexValid ? hexInput : color,
+                  borderColor:     palette.line,
+                },
+              ]}
+            />
+            <View style={[
+              styles.hexInputWrap,
+              { backgroundColor: palette.surface2, borderColor: hexValid || hexInput === '' ? palette.line : ERROR_COLOR },
+            ]}>
+              <TextInput
+                style={[styles.hexInput, { color: palette.text }]}
+                value={hexInput}
+                onChangeText={handleHexChange}
+                placeholder="#rrggbb"
+                placeholderTextColor={palette.faint}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={7}
+                accessibilityLabel="Custom hex colour"
+              />
+            </View>
+          </View>
+
+          {/* ── Location type ── */}
           <Text style={[styles.fieldLabel, { color: palette.muted }]}>LOCATION TYPE</Text>
-          <View style={styles.poiRow}>
-            {POI_OPTIONS.map(opt => {
+
+          {/* Quick-pick chips + None */}
+          <View style={styles.quickPickRow}>
+            {/* None chip */}
+            <Pressable
+              onPress={() => handlePoiSelect(null)}
+              style={[
+                styles.poiChip,
+                {
+                  backgroundColor: poi === null ? palette.text  : palette.surface2,
+                  borderColor:     poi === null ? palette.text  : palette.line,
+                },
+              ]}
+              accessibilityRole="radio"
+              accessibilityLabel="None"
+              accessibilityState={{ checked: poi === null }}>
+              <Text style={[styles.poiChipText, { color: poi === null ? palette.bg : palette.muted }]}>
+                None
+              </Text>
+            </Pressable>
+
+            {QUICK_POI_OPTIONS.map(opt => {
               const active = poi === opt.value;
               return (
                 <Pressable
-                  key={String(opt.value)}
-                  onPress={() => setPoi(opt.value)}
+                  key={opt.value}
+                  onPress={() => handlePoiSelect(opt.value)}
                   style={[
                     styles.poiChip,
                     {
@@ -270,7 +403,73 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
             })}
           </View>
 
-          {/* Actions */}
+          {/* Search for more types */}
+          <View style={[
+            styles.poiSearchWrap,
+            { backgroundColor: palette.surface2, borderColor: palette.line },
+          ]}>
+            <TextInput
+              style={[styles.poiSearchInput, { color: palette.text }]}
+              value={poiQuery}
+              onChangeText={handlePoiSearch}
+              placeholder="Search more types…"
+              placeholderTextColor={palette.faint}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="search"
+              accessibilityLabel="Search location type"
+            />
+            {poiSearching && (
+              <ActivityIndicator
+                size="small"
+                color={palette.muted}
+                style={styles.poiSearchSpinner}
+              />
+            )}
+          </View>
+
+          {/* Search results */}
+          {poiResults.length > 0 && (
+            <View style={styles.poiResultsRow}>
+              {poiResults.map(r => (
+                <Pressable
+                  key={r.type}
+                  onPress={() => handlePoiSelect(r.type)}
+                  style={[
+                    styles.poiResultChip,
+                    { borderColor: palette.line, backgroundColor: palette.surface2 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={r.label}>
+                  <Text style={[styles.poiResultChipText, { color: palette.text }]}>
+                    {r.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Currently selected (non-quick-pick) */}
+          {poi !== null && !QUICK_POI_OPTIONS.some(o => o.value === poi) && (
+            <View style={styles.poiSelectedRow}>
+              <Text style={[styles.poiSelectedLabel, { color: palette.muted }]}>
+                Selected:
+              </Text>
+              <View style={[styles.poiSelectedChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
+                <Text style={[styles.poiSelectedChipText, { color: palette.text }]}>
+                  {placeTypeLabel(poi)}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => handlePoiSelect(null)}
+                accessibilityRole="button"
+                accessibilityLabel="Clear location type">
+                <Text style={[styles.poiClearX, { color: palette.muted }]}>×</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {/* ── Actions ── */}
           <View style={styles.sheetActions}>
             <Pressable
               onPress={onCancel}
@@ -294,6 +493,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
               }
             </Pressable>
           </View>
+
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -337,11 +537,12 @@ export default function CategoriesScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text:  'Delete',
           style: 'destructive',
-          onPress: () => deleteCategory(uid, cat.id).catch(err =>
-            console.warn('[CategoriesScreen] delete failed', err),
-          ),
+          onPress: () =>
+            deleteCategory(uid, cat.id).catch(err =>
+              console.warn('[CategoriesScreen] delete failed', err),
+            ),
         },
       ],
     );
@@ -377,7 +578,8 @@ export default function CategoriesScreen() {
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
 
         {/* ── Built-in ── */}
         <Text style={[styles.sectionLabel, { color: palette.muted }]}>BUILT-IN</Text>
@@ -438,7 +640,7 @@ export default function CategoriesScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root:  { flex: 1 },
+  root: { flex: 1 },
 
   // ── Top bar ──
   topBar: {
@@ -459,13 +661,13 @@ const styles = StyleSheet.create({
   // ── List ──
   scroll: { flex: 1 },
   sectionLabel: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  1.2,
-    marginTop:      24,
-    marginBottom:    8,
-    marginHorizontal: spacing.page,
+    fontSize:         11,
+    fontWeight:       '600',
+    fontFamily:       'Geist-SemiBold',
+    letterSpacing:     1.2,
+    marginTop:         24,
+    marginBottom:       8,
+    marginHorizontal:  spacing.page,
   },
   section: {
     marginHorizontal: spacing.page,
@@ -486,8 +688,8 @@ const styles = StyleSheet.create({
   colorDot: {
     width:        12,
     height:       12,
-    borderRadius: 6,
-    flexShrink:   0,
+    borderRadius:  6,
+    flexShrink:    0,
   },
   rowContent: {
     flex:          1,
@@ -501,8 +703,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
   },
   poiBadge: {
-    borderRadius:    9999,
-    borderWidth:     1,
+    borderRadius:      9999,
+    borderWidth:        1,
     paddingHorizontal: 8,
     paddingVertical:   2,
   },
@@ -512,6 +714,7 @@ const styles = StyleSheet.create({
   },
   rowActions: {
     flexDirection: 'row',
+    alignItems:    'center',
     gap:            4,
   },
   actionBtn: {
@@ -522,11 +725,24 @@ const styles = StyleSheet.create({
     fontSize:   13,
     fontFamily: 'Geist-Regular',
   },
+  deleteBtn: {
+    width:          32,
+    height:         32,
+    alignItems:     'center',
+    justifyContent: 'center',
+    borderRadius:    16,
+  },
+  deleteX: {
+    fontSize:   20,
+    lineHeight: 24,
+    color:      ERROR_COLOR,
+    fontFamily: 'Geist-Regular',
+  },
 
   // ── Add button ──
   emptyText: {
-    fontSize:      14,
-    fontFamily:    'Geist-Regular',
+    fontSize:          14,
+    fontFamily:        'Geist-Regular',
     paddingHorizontal: 16,
     paddingVertical:   14,
   },
@@ -547,10 +763,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheetOuter: {
-    position:        'absolute',
-    bottom:           0,
-    left:             0,
-    right:            0,
+    position: 'absolute',
+    bottom:    0,
+    left:      0,
+    right:     0,
   },
   sheet: {
     borderTopLeftRadius:  24,
@@ -566,9 +782,9 @@ const styles = StyleSheet.create({
     marginBottom:  16,
   },
   sheetTitle: {
-    fontSize:      17,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
+    fontSize:     17,
+    fontWeight:   '600',
+    fontFamily:   'Geist-SemiBold',
     marginBottom:  20,
   },
   fieldLabel: {
@@ -579,10 +795,10 @@ const styles = StyleSheet.create({
     marginBottom:   8,
   },
   nameInputWrap: {
-    borderRadius:  radius.ctaBtn,
-    borderWidth:   1,
+    borderRadius:      radius.ctaBtn,
+    borderWidth:       1,
     paddingHorizontal: 14,
-    marginBottom:   4,
+    marginBottom:       4,
   },
   nameInput: {
     fontSize:        15,
@@ -592,13 +808,16 @@ const styles = StyleSheet.create({
   nameErr: {
     fontSize:     12,
     fontFamily:   'Geist-Regular',
-    color:        '#e05252',
+    color:        ERROR_COLOR,
     marginBottom:  8,
   },
-  colorRow: {
+
+  // ── Colour grid ──
+  colorGrid: {
     flexDirection: 'row',
-    gap:            12,
-    marginBottom:   20,
+    flexWrap:      'wrap',
+    gap:            10,
+    marginBottom:   12,
   },
   colorSwatch: {
     width:        36,
@@ -606,18 +825,46 @@ const styles = StyleSheet.create({
     borderRadius: 18,
   },
   colorSwatchSelected: {
-    borderWidth:  3,
-    borderColor:  'rgba(0,0,0,0.25)',
+    borderWidth: 3,
+    borderColor: 'rgba(0,0,0,0.28)',
   },
-  poiRow: {
+
+  // ── Hex input ──
+  hexRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:            10,
+    marginBottom:   20,
+  },
+  hexPreview: {
+    width:        32,
+    height:       32,
+    borderRadius:  8,
+    borderWidth:   1,
+    flexShrink:    0,
+  },
+  hexInputWrap: {
+    flex:              1,
+    borderRadius:       8,
+    borderWidth:        1,
+    paddingHorizontal: 12,
+  },
+  hexInput: {
+    fontSize:        13,
+    fontFamily:      'Geist-Regular',
+    paddingVertical:  8,
+  },
+
+  // ── POI picker ──
+  quickPickRow: {
     flexDirection: 'row',
     flexWrap:      'wrap',
     gap:            8,
-    marginBottom:   24,
+    marginBottom:   12,
   },
   poiChip: {
     borderRadius:      9999,
-    borderWidth:       1,
+    borderWidth:        1,
     paddingHorizontal: 14,
     paddingVertical:    7,
   },
@@ -625,14 +872,75 @@ const styles = StyleSheet.create({
     fontSize:   13,
     fontFamily: 'Geist-Regular',
   },
+  poiSearchWrap: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    borderRadius:       8,
+    borderWidth:        1,
+    paddingHorizontal: 12,
+    marginBottom:       8,
+  },
+  poiSearchInput: {
+    flex:            1,
+    fontSize:        14,
+    fontFamily:      'Geist-Regular',
+    paddingVertical: 10,
+  },
+  poiSearchSpinner: {
+    marginLeft: 8,
+  },
+  poiResultsRow: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:            8,
+    marginBottom:   8,
+  },
+  poiResultChip: {
+    borderRadius:      9999,
+    borderWidth:        1,
+    paddingHorizontal: 12,
+    paddingVertical:    6,
+  },
+  poiResultChipText: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
+  poiSelectedRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:            8,
+    marginBottom:   16,
+  },
+  poiSelectedLabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+  poiSelectedChip: {
+    borderRadius:      9999,
+    borderWidth:        1,
+    paddingHorizontal: 10,
+    paddingVertical:    4,
+  },
+  poiSelectedChipText: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
+  poiClearX: {
+    fontSize:   20,
+    lineHeight: 24,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Sheet actions ──
   sheetActions: {
     flexDirection: 'row',
     gap:            12,
+    marginTop:       8,
   },
   cancelBtn: {
     flex:            1,
     borderRadius:    radius.ctaBtn,
-    borderWidth:     1,
+    borderWidth:      1,
     paddingVertical: 14,
     alignItems:      'center',
   },
