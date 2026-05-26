@@ -160,7 +160,7 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
 interface SheetProps {
   visible:  boolean;
   initial:  Partial<Category> | null; // null = add mode
-  onSave:   (data: Omit<Category, 'id' | 'isBuiltIn'>) => Promise<void>;
+  onSave:   (data: Omit<Category, 'id' | 'isBuiltIn'>) => void;
   onCancel: () => void;
 }
 
@@ -175,7 +175,6 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   const [poiQuery,     setPoiQuery]     = useState('');
   const [poiResults,   setPoiResults]   = useState<PlaceTypeSuggestion[]>([]);
   const [poiSearching, setPoiSearching] = useState(false);
-  const [saving,       setSaving]       = useState(false);
   const [nameErr,      setNameErr]      = useState('');
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -192,7 +191,6 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       setPoiResults([]);
       setPoiSearching(false);
       setNameErr('');
-      setSaving(false);
     }
   }, [visible, initial]);
 
@@ -245,15 +243,10 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
     setPoiResults([]);
   };
 
-  const handleSave = async () => {
+  const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) { setNameErr('Please enter a category name.'); return; }
-    setSaving(true);
-    try {
-      await onSave({ name: trimmed, color, poi });
-    } finally {
-      setSaving(false);
-    }
+    onSave({ name: trimmed, color, poi });
   };
 
   const isAdd = initial === null;
@@ -480,17 +473,13 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
             </Pressable>
             <Pressable
               onPress={handleSave}
-              disabled={saving}
               style={({ pressed }) => [
                 styles.saveBtn,
-                { backgroundColor: palette.text, opacity: (saving || pressed) ? 0.8 : 1 },
+                { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
               ]}
               accessibilityRole="button"
               accessibilityLabel="Save category">
-              {saving
-                ? <ActivityIndicator color={palette.bg} />
-                : <Text style={[styles.saveLabel, { color: palette.bg }]}>Save</Text>
-              }
+              <Text style={[styles.saveLabel, { color: palette.bg }]}>Save</Text>
             </Pressable>
           </View>
 
@@ -514,11 +503,25 @@ export default function CategoriesScreen() {
   const [sheetVisible,     setSheetVisible]     = useState(false);
   const [editing,          setEditing]          = useState<Category | null>(null);
 
+  /** Tracks the previous list length — used to detect a newly-added category. */
+  const prevCatsLenRef = useRef(0);
+
   // Live subscription to custom categories
   useEffect(() => {
     if (!uid) { return; }
     return subscribeToCategories(uid, setCustomCategories);
   }, [uid]);
+
+  // ── Auto-close sheet when a new category appears in the Firestore snapshot ──
+  // Firestore's local cache fires the subscription before addCategory() resolves,
+  // so this closes the sheet as soon as the write is visible — belt-and-suspenders
+  // with handleSave's own setSheetVisible(false) for the edit path.
+  useEffect(() => {
+    if (sheetVisible && editing === null && customCategories.length > prevCatsLenRef.current) {
+      setSheetVisible(false);
+    }
+    prevCatsLenRef.current = customCategories.length;
+  }, [customCategories, sheetVisible, editing]);
 
   const handleAdd = useCallback(() => {
     setEditing(null);
@@ -548,13 +551,20 @@ export default function CategoriesScreen() {
     );
   }, [uid]);
 
-  const handleSave = useCallback(async (data: Omit<Category, 'id' | 'isBuiltIn'>) => {
+  const handleSave = useCallback((data: Omit<Category, 'id' | 'isBuiltIn'>) => {
     if (editing) {
-      await updateCategory(uid, editing.id, data);
+      // EDIT: close immediately, write runs in the background.
+      setSheetVisible(false);
+      updateCategory(uid, editing.id, data).catch(err =>
+        console.warn('[CategoriesScreen] updateCategory failed', err),
+      );
     } else {
-      await addCategory(uid, data);
+      // ADD: fire and forget — the useEffect above closes the sheet when the
+      // new item appears in the Firestore subscription (same as TodayScreen).
+      addCategory(uid, data).catch(err =>
+        console.warn('[CategoriesScreen] addCategory failed', err),
+      );
     }
-    setSheetVisible(false);
   }, [uid, editing]);
 
   // ─── Render ──────────────────────────────────────────────────────────────────

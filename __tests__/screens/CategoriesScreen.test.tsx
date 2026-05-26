@@ -229,9 +229,7 @@ describe('CategoriesScreen — add category', () => {
     fireEvent.changeText(screen.getByLabelText('Category name'), '  Fitness  ');
     fireEvent.press(screen.getByRole('radio', { name: 'Café' }));
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid', {
@@ -278,9 +276,7 @@ describe('CategoriesScreen — edit category', () => {
 
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Groceries');
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockUpdateCategory).toHaveBeenCalledWith(
@@ -352,9 +348,7 @@ describe('CategoriesScreen — color picker', () => {
     fireEvent.press(screen.getByRole('radio', { name: 'Color #e05252' }));
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Red Cat');
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
@@ -371,9 +365,7 @@ describe('CategoriesScreen — color picker', () => {
     fireEvent.changeText(screen.getByLabelText('Custom hex colour'), '#123456');
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Custom');
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
@@ -391,9 +383,7 @@ describe('CategoriesScreen — color picker', () => {
     fireEvent.changeText(screen.getByLabelText('Custom hex colour'), '#gg0000');
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Bad Hex');
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() => {
       const call = mockAddCategory.mock.calls[0][1] as { color: string };
@@ -425,9 +415,7 @@ describe('CategoriesScreen — location type', () => {
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Meds');
     fireEvent.press(screen.getByRole('radio', { name: 'Pharmacy' }));
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
@@ -446,9 +434,7 @@ describe('CategoriesScreen — location type', () => {
     fireEvent.press(screen.getByRole('radio', { name: 'ATM' }));
     fireEvent.press(screen.getByRole('radio', { name: 'None' }));
 
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
@@ -498,9 +484,7 @@ describe('CategoriesScreen — location type', () => {
 
     // Save
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Fitness');
-    await act(async () => {
-      fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-    });
+    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
