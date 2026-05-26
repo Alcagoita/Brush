@@ -58,6 +58,32 @@ export interface Task {
   date: string;
 }
 
+// ─── Category ─────────────────────────────────────────────────────────────────
+
+/**
+ * A task category — either one of the 4 built-in design-system categories
+ * or a user-created custom category stored in Firestore.
+ *
+ * /users/{uid}/categories/{id}  (custom categories only — built-ins are derived
+ * from design tokens and never written to Firestore)
+ */
+export interface Category {
+  /** 'work' | 'health' | 'errands' | 'personal' for built-ins; Firestore ID for custom. */
+  id: string;
+  name: string;
+  /** Hex colour string (e.g. "#5b7fd4"). */
+  color: string;
+  /**
+   * Google Places primary type string (e.g. "gym", "restaurant", "atm").
+   * Built-in categories use one of the four PoiType values; custom categories
+   * may store any Google Places type discovered via the search feature.
+   * Null means no location association.
+   */
+  poi: string | null;
+  /** Built-in categories cannot be renamed, recoloured, or deleted. */
+  isBuiltIn: boolean;
+}
+
 // ─── POI / category mapping constants ─────────────────────────────────────────
 
 /** Which POI types can appear on tasks of each category. */
