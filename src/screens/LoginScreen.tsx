@@ -49,8 +49,11 @@ function parseAuthError(code: string, isSignUp: boolean): ParsedError {
     case 'auth/invalid-email':
       return { field: 'email', message: 'Please enter a valid email address.' };
     case 'auth/user-not-found':
-    case 'auth/invalid-credential':
       return { field: 'email', message: 'No account found with this email.' };
+    case 'auth/invalid-credential':
+      // Firebase v9+ returns this for both wrong password AND unknown email
+      // to prevent account enumeration. Use a neutral message.
+      return { field: 'general', message: 'Invalid email or password. Please check your credentials.' };
     case 'auth/wrong-password':
       return { field: 'password', message: 'Incorrect password. Please try again.' };
     case 'auth/email-already-in-use':
