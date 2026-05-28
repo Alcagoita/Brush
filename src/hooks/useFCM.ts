@@ -34,6 +34,9 @@ export function useFCM(userId: string | null): void {
     if (!userId) {
       return;
     }
+    // Capture the narrowed non-null value so TypeScript retains the `string`
+    // type inside the async closure (outer variables are re-readable by TS).
+    const uid: string = userId;
 
     let unsubscribeRefresh: (() => void) | undefined;
 
@@ -53,11 +56,11 @@ export function useFCM(userId: string | null): void {
 
       // 2. Get current token and persist it
       const token = await getToken(messaging);
-      await saveToken(userId, token);
+      await saveToken(uid, token);
 
       // 3. Listen for token rotations and persist the new token
       unsubscribeRefresh = onTokenRefresh(messaging, newToken => {
-        saveToken(userId, newToken).catch(err =>
+        saveToken(uid, newToken).catch(err =>
           console.warn('[FCM] Token refresh save failed:', err.message),
         );
       });
