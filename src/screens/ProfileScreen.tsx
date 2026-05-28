@@ -23,7 +23,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, PoiIcon } from '../components/AppIcon';
 import { signOut } from '../services/auth';
 import { subscribeToPoiPreferences, setPoiPreference } from '../services/firestore';
 import { POI_GEOFENCE_RADIUS } from '../types';
@@ -40,11 +40,11 @@ const MIN_RADIUS = 25;
 const MAX_RADIUS = 500;
 
 /** Ordered list of built-in POI types rendered in the preferences section. */
-const POI_ROWS: { type: string; emoji: string; label: string }[] = [
-  { type: 'atm',         emoji: '🏧', label: 'ATM' },
-  { type: 'pharmacy',    emoji: '💊', label: 'Pharmacy' },
-  { type: 'cafe',        emoji: '☕', label: 'Café' },
-  { type: 'supermarket', emoji: '🛒', label: 'Supermarket' },
+const POI_ROWS: { type: string; label: string }[] = [
+  { type: 'atm',         label: 'ATM' },
+  { type: 'pharmacy',    label: 'Pharmacy' },
+  { type: 'cafe',        label: 'Café' },
+  { type: 'supermarket', label: 'Supermarket' },
 ];
 
 const DEFAULT_RADII: Record<string, number> = {
@@ -138,7 +138,7 @@ export default function ProfileScreen() {
             Alert radius per location type
           </Text>
 
-          {POI_ROWS.map(({ type, emoji, label }, idx) => {
+          {POI_ROWS.map(({ type, label }, idx) => {
             const r = poiRadii[type] ?? DEFAULT_RADII[type] ?? MIN_RADIUS;
             const atMin = r <= MIN_RADIUS;
             const atMax = r >= MAX_RADIUS;
@@ -152,8 +152,10 @@ export default function ProfileScreen() {
                   style={styles.poiRow}
                   accessibilityLabel={`${label} notification radius`}>
 
-                  {/* Label */}
-                  <Text style={[styles.poiEmoji]}>{emoji}</Text>
+                  {/* Icon tile — matches the 36×36 idleIconTile pattern from NearbyCard */}
+                  <View style={[styles.poiIconTile, { backgroundColor: palette.surface2 }]}>
+                    <PoiIcon type={type} color={palette.muted} size={20} />
+                  </View>
                   <Text style={[styles.poiLabel, { color: palette.text }]}>{label}</Text>
 
                   {/* Stepper */}
@@ -304,9 +306,15 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     paddingVertical: 10,
   },
-  poiEmoji: {
-    fontSize:    18,
-    marginRight: 10,
+  // 36×36 icon tile — matches the idleIconTile pattern used throughout the app
+  // (NearbyCard, NewTaskSheet). Always use PoiIcon inside this tile; never emoji.
+  poiIconTile: {
+    width:          36,
+    height:         36,
+    borderRadius:   radii.listIcon, // 10
+    alignItems:     'center',
+    justifyContent: 'center',
+    marginRight:    10,
   },
   poiLabel: {
     flex:       1,

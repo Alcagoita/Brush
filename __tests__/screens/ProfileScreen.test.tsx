@@ -58,9 +58,14 @@ jest.mock('../../src/theme', () => ({
   }),
 }));
 
-// AppIcon — minimal stub
+// AppIcon — stub all used icons; PoiIcon renders a testID so row icons are
+// identifiable in tests without depending on SVG rendering.
 jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon: () => null,
+  PoiIcon:         ({ type }: { type: string }) => {
+    const { View } = require('react-native');
+    return <View testID={`poi-icon-${type}`} />;
+  },
 }));
 
 // Auth service

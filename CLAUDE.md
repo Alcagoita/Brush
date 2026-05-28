@@ -329,6 +329,13 @@ docs/
 6. **One ticket per branch** — don't bundle multiple KAN tickets into one PR.
 7. **Firebase rules**: Firestore reads/writes are always scoped to `/users/{uid}/...` — never read another user's data.
 8. **Don't work on Backlog tickets** until they are moved to an active sprint.
+9. **Never use emoji as icons.** Always use the `PoiIcon` (or other `AppIcon` exports) component for any POI-type icon. The standard list-row tile pattern is:
+   ```tsx
+   <View style={{ width: 36, height: 36, borderRadius: radius.listIcon, backgroundColor: palette.surface2, alignItems: 'center', justifyContent: 'center' }}>
+     <PoiIcon type={poiType} color={palette.muted} size={20} />
+   </View>
+   ```
+   Hero/large contexts use `size={22}`, `borderRadius: radius.heroIcon` (14), and a tinted background (`accentColor + '33'`). See `NearbyCard.tsx` for the reference implementation.
 
 ---
 
