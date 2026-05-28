@@ -149,6 +149,12 @@ async function fireNotification(
   await notifee.displayNotification({
     title: `${poiLabel} nearby`,
     body:  `${place.name} is ${distLabel} — you have "${task.title}"`,
+    // KAN-28: data payload for deep linking — press handler navigates to Today.
+    data: {
+      screen: 'Today',
+      taskId: task.id,
+      date:   task.date,
+    },
     android: {
       channelId:   CHANNEL_ID,
       importance:  AndroidImportance.HIGH,
