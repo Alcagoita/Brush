@@ -59,7 +59,7 @@ import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
 import { requestLocationPermission } from '../services/geolocation';
 import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
-import { PoiType, Task } from '../types';
+import { Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
 import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -134,7 +134,7 @@ export default function TodayScreen() {
   const [tasks,          setTasks]          = useState<Task[]>([]);
   const [tasksLoading,   setTasksLoading]   = useState(true);
   /** Active nearby POI type — updated by the proximity engine (KAN-24). */
-  const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null);
+  const [nearbyPoiType,  setNearbyPoiType]  = useState<string | null>(null);
   /** The specific place the user is currently near (for the hero block). */
   const [nearbyPlace,    setNearbyPlace]    = useState<NearbyPlace | null>(null);
   /** All known nearest places per POI type — drives NearbyCard idle rows. */

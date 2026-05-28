@@ -20,7 +20,7 @@
 
 import React from 'react';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
-import { PoiType } from '../types';
+// PoiType import removed — PoiIcon now accepts the broader `string` type (KAN-23).
 
 // ─── Shared stroke props ──────────────────────────────────────────────────────
 
@@ -108,7 +108,9 @@ export function ClockIcon({ color, size = 24 }: IconProps) {
 //   Pharmacy    — diagonal pill capsule with centre divider (Lucide Pill)
 
 interface PoiIconProps extends IconProps {
-  type: PoiType;
+  /** Google Places primary type string. Built-in types render a specific icon;
+   *  all other strings (custom category types) render a generic map-pin. */
+  type: string;
 }
 
 export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
@@ -155,6 +157,18 @@ export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
             stroke={color} strokeWidth={1.6} {...S}
           />
           <Line x1="8.5" y1="8.5" x2="15.5" y2="15.5" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    default:
+      // Generic map-pin for custom (non-built-in) place types.
+      return (
+        <Svg {...p}>
+          <Path
+            d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"
+            stroke={color} strokeWidth={1.6} {...S}
+          />
+          <Circle cx="12" cy="9" r="2.5" stroke={color} strokeWidth={1.6} {...S} />
         </Svg>
       );
   }

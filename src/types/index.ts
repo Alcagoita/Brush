@@ -43,8 +43,12 @@ export interface Task {
   done: boolean;
   /** Scheduled time in "HH:MM" format — optional. */
   time?: string;
-  /** POI type this task is associated with — optional. */
-  poi?: PoiType;
+  /**
+   * Google Places primary type string this task is associated with — optional.
+   * For built-in categories this is one of the four PoiType values; for custom
+   * categories it may be any Google Places type (e.g. "gym", "restaurant").
+   */
+  poi?: string;
   /** Google Places ID if the user pinned a specific place — optional. */
   poiPlaceId?: string;
   /**

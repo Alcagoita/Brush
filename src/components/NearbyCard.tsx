@@ -41,26 +41,17 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
-import { NearbyPlace, openInMaps, formatDistance } from '../services/maps';
+import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
 import { PlacesMap } from '../services/proximity';
-import { PoiType, Task } from '../types';
+import { Task } from '../types';
 import { ChevronRightIcon, PoiIcon } from './AppIcon';
-
-// ─── POI meta ─────────────────────────────────────────────────────────────────
-
-const POI_LABELS: Record<PoiType, string> = {
-  atm:         'ATM',
-  cafe:        'Café',
-  supermarket: 'Market',
-  pharmacy:    'Pharmacy',
-};
-
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface NearbyCardProps {
   tasks:          Task[];
-  nearbyPoiType:  PoiType | null;
+  /** Google Places primary type string (built-in or custom), or null. */
+  nearbyPoiType:  string | null;
   nearbyPlace:    NearbyPlace | null;
   poiPlaces:      PlacesMap;
 }
@@ -94,7 +85,7 @@ function HaloIcon({
   poiType,
   accentColor,
 }: {
-  poiType:     PoiType;
+  poiType:     string;
   accentColor: string;
 }) {
   const { palette } = useTheme();
@@ -172,7 +163,7 @@ function IdleRow({
         <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
           {place
             ? `${place.name} · ${formatDistance(place.distanceMeters)}`
-            : task.poi ? POI_LABELS[task.poi] : ''}
+            : task.poi ? placeTypeLabel(task.poi) : ''}
         </Text>
       </View>
 
