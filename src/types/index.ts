@@ -26,7 +26,11 @@ export type PoiType = 'atm' | 'cafe' | 'supermarket' | 'pharmacy';
 
 /** /users/{uid}/pois/{poiType} */
 export interface PoiPreference {
-  type: PoiType;
+  /**
+   * Google Places primary type string. Built-in categories use one of the four
+   * PoiType values; custom categories may use any Places type (e.g. "gym").
+   */
+  type: string;
   /** Geofence radius in metres. Defaults: ATM/pharmacy = 50 m, café/supermarket = 75 m. */
   radiusMeters: number;
 }
