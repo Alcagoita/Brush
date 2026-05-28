@@ -82,6 +82,29 @@ const placeCache = new Map<string, PlaceCache>();
 let currentNearbyType: string | null = null;
 let isMonitoring = false;
 
+/**
+ * Live user-defined geofence radius preferences (KAN-25).
+ * Keyed by Google Places primary type string. Updated in real time via
+ * `updateProximityPoiPreferences()` whenever the Firestore subscription fires.
+ */
+let poiRadiusPrefs: Record<string, number> = {};
+
+// ─── Radius helper ───────────────────────────────────────────────────────────
+
+/**
+ * Returns the effective geofence radius in metres for a POI type string.
+ *
+ * Priority (KAN-25):
+ *   1. User-saved preference from Firestore (`poiRadiusPrefs`).
+ *   2. Built-in spec default from `POI_GEOFENCE_RADIUS` (50 m or 75 m).
+ *   3. `DEFAULT_GEOFENCE_RADIUS` (75 m) for custom types with no stored pref.
+ */
+function getGeofenceRadius(poiType: string): number {
+  return poiRadiusPrefs[poiType]
+    ?? (POI_GEOFENCE_RADIUS as Record<string, number>)[poiType]
+    ?? DEFAULT_GEOFENCE_RADIUS;
+}
+
 // ─── Date helper ──────────────────────────────────────────────────────────────
 
 function todayISO(): string {
@@ -157,10 +180,7 @@ async function getNearestPlace(
 ): Promise<NearbyPlace | null> {
   if (!isCacheValid(poiType, lat, lng)) {
     try {
-      // Fall back to DEFAULT_GEOFENCE_RADIUS for custom (non-built-in) types.
-      const baseRadius = (POI_GEOFENCE_RADIUS as Record<string, number>)[poiType]
-        ?? DEFAULT_GEOFENCE_RADIUS;
-      const radius = baseRadius * 4; // search in a larger bubble
+      const radius = getGeofenceRadius(poiType) * 4; // search in a larger bubble
       const places = await searchNearbyPlaces(lat, lng, poiType, radius);
       placeCache.set(poiType, { origin: { lat, lng }, places });
     } catch {
@@ -218,10 +238,7 @@ async function checkProximity(
       const distance = getDistanceMeters(
         coords.lat, coords.lng, place.lat, place.lng,
       );
-      // Fall back to DEFAULT_GEOFENCE_RADIUS for custom (non-built-in) types.
-      const radius = (POI_GEOFENCE_RADIUS as Record<string, number>)[poiType]
-        ?? DEFAULT_GEOFENCE_RADIUS;
-      if (distance <= radius) {
+      if (distance <= getGeofenceRadius(poiType)) {
         candidates.push({ poiType, place, distance });
       }
     }),
@@ -321,6 +338,24 @@ export function updateProximityTasks(tasks: Task[]): void {
   _latestTasksUpdater?.(tasks);
 }
 
+/**
+ * Update the live POI radius preferences used by the active proximity monitor
+ * (KAN-25). Call this whenever the Firestore preferences subscription fires.
+ *
+ * The new radii take effect on the NEXT location update — no restart needed.
+ * Safe to call before `startProximityMonitoring` (sets module-level state that
+ * persists until the next `stopProximityMonitoring` call).
+ *
+ * @param prefs - Plain `Record<string, number>` map of poiType → radiusMeters,
+ *                as returned by `subscribeToPoiPreferences`.
+ */
+export function updateProximityPoiPreferences(prefs: Record<string, number>): void {
+  poiRadiusPrefs = prefs;
+  // Invalidate the search cache so the next location tick re-searches with
+  // the updated radii (prevents stale "too-small bubble" results).
+  placeCache.clear();
+}
+
 /** Stop all proximity monitoring and clear internal state. */
 export function stopProximityMonitoring(): void {
   isMonitoring = false;
@@ -328,4 +363,5 @@ export function stopProximityMonitoring(): void {
   placeCache.clear();
   currentNearbyType = null;
   _latestTasksUpdater = null;
+  poiRadiusPrefs = {};
 }

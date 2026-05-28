@@ -55,9 +55,9 @@ import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
-import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
+import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences } from '../services/firestore';
 import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../services/proximity';
+import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
 import { Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
@@ -180,6 +180,17 @@ export default function TodayScreen() {
     ...t,
     done: optimisticDone[t.id] ?? t.done,
   }));
+
+  // ── Live POI radius preferences (KAN-25) ──
+  // Subscribes to /users/{uid}/pois/ and pushes the latest prefs into the
+  // proximity engine in real time. The engine applies them on the next location
+  // tick without needing to restart the watcher.
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToPoiPreferences(uid, prefs => {
+      updateProximityPoiPreferences(prefs);
+    });
+  }, [uid]);
 
   // ── Proximity monitoring (KAN-24) ──
   // Request location permission once on mount, then start the proximity engine.
