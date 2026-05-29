@@ -20,6 +20,7 @@ import {
   updateDoc,
   deleteDoc,
   setDoc,
+  writeBatch,
   query,
   where,
   orderBy,
@@ -407,26 +408,34 @@ function achievementRef(uid: string, achievementId: string) {
 /**
  * Award 1 point for completing a task (KAN-31).
  *
- * Two independent writes (no transaction needed — eventual consistency is fine
- * for a gamification system):
- *   1. Atomically increments `totalPoints` on /users/{uid}.
- *   2. Appends a PointsHistoryEntry to /users/{uid}/pointsHistory.
+ * Uses a write batch so both operations are atomic — if either write fails,
+ * neither is committed. This prevents totalPoints from incrementing without
+ * a corresponding history entry (or vice-versa).
+ *
+ *   1. Increments `totalPoints` on /users/{uid} (server-side, no read needed).
+ *   2. Adds a PointsHistoryEntry to /users/{uid}/pointsHistory.
  */
 export async function awardPoint(
   uid: string,
   taskId: string,
   taskTitle: string,
 ): Promise<void> {
-  await Promise.all([
-    updateDoc(userRef(uid), { totalPoints: increment(1) }),
-    addDoc(pointsHistoryRef(uid), {
-      taskId,
-      taskTitle,
-      awardedAt: serverTimestamp(),
-      points: 1,
-      reason: 'task_completed',
-    } satisfies Omit<PointsHistoryEntry, 'id'>),
-  ]);
+  const db = getFirestore();
+  const batch = writeBatch(db);
+
+  // Pre-generate an auto-ID ref so we can use batch.set instead of addDoc.
+  const histRef = doc(pointsHistoryRef(uid));
+
+  batch.update(userRef(uid), { totalPoints: increment(1) });
+  batch.set(histRef, {
+    taskId,
+    taskTitle,
+    awardedAt: serverTimestamp(),
+    points: 1,
+    reason: 'task_completed',
+  } satisfies Omit<PointsHistoryEntry, 'id'>);
+
+  await batch.commit();
 }
 
 /**

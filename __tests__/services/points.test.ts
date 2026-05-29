@@ -3,8 +3,10 @@
  *
  * Covers:
  *   awardPoint
- *     - increments totalPoints on the user document
- *     - adds a correctly shaped PointsHistoryEntry
+ *     - uses a write batch (atomic — both writes commit or neither does)
+ *     - batch.update increments totalPoints on the user document
+ *     - batch.set adds a correctly shaped PointsHistoryEntry
+ *     - batch.commit is called exactly once
  *   hasAchievement
  *     - returns true when the achievement document exists
  *     - returns false when the document does not exist
@@ -31,8 +33,15 @@
 type DocSnapshotCallback  = (snap: { data: () => object | undefined; exists: () => boolean }) => void;
 type CollSnapshotCallback = (snap: { docs: Array<{ id: string; data: () => object }> }) => void;
 
-const mockUpdateDoc   = jest.fn();
-const mockAddDoc      = jest.fn();
+const mockBatchUpdate  = jest.fn();
+const mockBatchSet     = jest.fn();
+const mockBatchCommit  = jest.fn();
+const mockWriteBatch   = jest.fn(() => ({
+  update: mockBatchUpdate,
+  set:    mockBatchSet,
+  commit: mockBatchCommit,
+}));
+
 const mockGetDoc      = jest.fn();
 const mockSetDoc      = jest.fn();
 const mockOnSnapshot  = jest.fn();
@@ -43,10 +52,11 @@ jest.mock('@react-native-firebase/firestore', () => ({
   getFirestore:    jest.fn(),
   collection:      jest.fn(() => ({ _type: 'collection' })),
   doc:             jest.fn(() => ({ _type: 'doc' })),
-  addDoc:          (...args: unknown[]) => mockAddDoc(...args),
+  addDoc:          jest.fn(),
   getDoc:          (...args: unknown[]) => mockGetDoc(...args),
-  updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
+  updateDoc:       jest.fn(),
   setDoc:          (...args: unknown[]) => mockSetDoc(...args),
+  writeBatch:      () => mockWriteBatch(),
   getDocs:         jest.fn(),
   deleteDoc:       jest.fn(),
   query:           jest.fn((...a: unknown[]) => a[0]),
@@ -76,49 +86,49 @@ beforeEach(() => jest.clearAllMocks());
 // ─── awardPoint ───────────────────────────────────────────────────────────────
 
 describe('awardPoint', () => {
-  it('increments totalPoints on the user document', async () => {
-    mockUpdateDoc.mockResolvedValue(undefined);
-    mockAddDoc.mockResolvedValue({ id: 'hist-1' });
+  beforeEach(() => {
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
 
+  it('uses a write batch (creates one batch per call)', async () => {
+    await awardPoint('uid-1', 'task-abc', 'Buy milk');
+    expect(mockWriteBatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('batch.update increments totalPoints on the user document', async () => {
     await awardPoint('uid-1', 'task-abc', 'Buy milk');
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
+    expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
       expect.anything(),
       { totalPoints: expect.objectContaining({ _increment: 1 }) },
     );
   });
 
-  it('adds a correctly shaped PointsHistoryEntry', async () => {
-    mockUpdateDoc.mockResolvedValue(undefined);
-    mockAddDoc.mockResolvedValue({ id: 'hist-1' });
-
+  it('batch.set adds a correctly shaped PointsHistoryEntry', async () => {
     await awardPoint('uid-1', 'task-abc', 'Buy milk');
 
-    expect(mockAddDoc).toHaveBeenCalledTimes(1);
-    expect(mockAddDoc).toHaveBeenCalledWith(
+    expect(mockBatchSet).toHaveBeenCalledTimes(1);
+    expect(mockBatchSet).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         taskId:    'task-abc',
         taskTitle: 'Buy milk',
         points:    1,
         reason:    'task_completed',
-        awardedAt: expect.anything(), // serverTimestamp sentinel
+        awardedAt: expect.anything(),
       }),
     );
   });
 
-  it('runs both writes in parallel (Promise.all)', async () => {
-    // Both mocks must resolve for awardPoint to resolve.
-    let resolveUpdate!: () => void;
-    let resolveAdd!: () => void;
-    mockUpdateDoc.mockReturnValue(new Promise<void>(r => { resolveUpdate = r; }));
-    mockAddDoc.mockReturnValue(new Promise<void>(r => { resolveAdd = r; }));
+  it('calls batch.commit exactly once', async () => {
+    await awardPoint('uid-1', 'task-abc', 'Buy milk');
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
 
-    const done = awardPoint('uid-1', 'task-1', 'Task');
-    resolveUpdate();
-    resolveAdd();
-    await expect(done).resolves.toBeUndefined();
+  it('rejects if batch.commit rejects (atomic — no partial writes)', async () => {
+    mockBatchCommit.mockRejectedValue(new Error('Network error'));
+    await expect(awardPoint('uid-1', 'task-abc', 'Buy milk')).rejects.toThrow('Network error');
   });
 });
 
