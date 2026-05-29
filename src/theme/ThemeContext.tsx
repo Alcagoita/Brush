@@ -18,9 +18,9 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { Appearance, ColorSchemeName } from 'react-native';
+import { Appearance, ColorSchemeName, View } from 'react-native';
 import { getFirestore, doc, getDoc, setDoc } from '@react-native-firebase/firestore';
-import { getAuth } from '@react-native-firebase/auth/lib/modular';
+import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { darkPalette, lightPalette, Palette } from './tokens';
 
@@ -46,7 +46,8 @@ function deviceIsDark(): boolean {
 // ─── Provider ─────────────────────────────────────────────────────────────────
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  // Start with the device preference; we'll override with Firestore value once loaded.
+  // Start with the device preference; overridden with the Firestore value
+  // before children are rendered (see themeReady below).
   const [dark, setDarkState] = useState<boolean>(deviceIsDark());
 
   /**
@@ -63,26 +64,58 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
    */
   const userHasExplicitlySet = useRef(false);
 
-  // ── Load saved preference from Firestore on mount ──
-  useEffect(() => {
-    const uid = getAuth().currentUser?.uid;
-    if (!uid) return;
+  /**
+   * Set to true once we have resolved the user's saved preference (or
+   * determined there is none). Children are not rendered until this is true,
+   * which prevents the light→dark colour flash on cold start.
+   *
+   * With Firestore offline persistence, the getDoc resolves from the
+   * on-device cache in < 50 ms, so the gate is imperceptible.
+   */
+  const [themeReady, setThemeReady] = useState(false);
 
-    const userRef = doc(getFirestore(), 'users', uid);
-    getDoc(userRef)
-      .then(snapshot => {
+  // ── Load saved preference from Firestore ──────────────────────────────────
+  //
+  // Uses onAuthStateChanged instead of reading currentUser synchronously.
+  // Firebase Auth rehydrates from the device keychain asynchronously; there is
+  // a brief window at cold start where currentUser is null even for a signed-in
+  // user. onAuthStateChanged fires as soon as auth state is known (still fast —
+  // it reads from the local cache) and guarantees we never miss the uid.
+  useEffect(() => {
+    // Track whether we have processed the first auth event. Subsequent events
+    // (e.g. the user signs out while the screen is mounted) are ignored — the
+    // Appearance listener handles the signed-out case from that point on.
+    // Using a flag rather than calling unsubscribeAuth() inside the callback
+    // avoids a variable-assignment race when the callback fires synchronously.
+    let authLoaded = false;
+
+    const unsubscribeAuth = onAuthStateChanged(getAuth(), async user => {
+      if (authLoaded) { return; }
+      authLoaded = true;
+
+      if (!user) {
+        // No signed-in user → no Firestore preference → device theme is fine.
+        setThemeReady(true);
+        return;
+      }
+
+      try {
+        const snapshot = await getDoc(doc(getFirestore(), 'users', user.uid));
         // If the user toggled before the load finished, respect their choice.
-        if (userHasExplicitlySet.current) return;
-        if (snapshot.exists()) {
+        if (!userHasExplicitlySet.current && snapshot.exists()) {
           const data = snapshot.data();
           if (typeof data?.darkMode === 'boolean') {
             setDarkState(data.darkMode);
           }
         }
-      })
-      .catch(() => {
+      } catch {
         // Non-critical — fall back to device preference silently.
-      });
+      } finally {
+        setThemeReady(true);
+      }
+    });
+
+    return unsubscribeAuth;
   }, []);
 
   // ── Keep in sync with OS-level changes (e.g. auto dark mode at sunset) ──
@@ -124,6 +157,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     () => ({ palette, dark, setDark }),
     [palette, dark, setDark],
   );
+
+  // Block the first paint until the saved preference is known.
+  // Renders a solid backdrop in the OS-inferred background colour so the
+  // screen is never white — just invisible for the ~50 ms the cache read takes.
+  if (!themeReady) {
+    return <View style={{ flex: 1, backgroundColor: palette.bg }} />;
+  }
 
   return (
     <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
