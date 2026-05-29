@@ -30,24 +30,76 @@ Example: the user has "Pick up groceries" tagged to Supermarket. When they walk 
 
 ---
 
-## Current Sprint — Sprint 1: Today Screen
+## Sprint 1: Today Screen — ✅ Complete
 
 Goal: ship a working Today screen that matches the design handoff exactly, backed by real Firebase data and live geolocation.
 
-| # | Ticket | Summary | Notes |
-|---|--------|---------|-------|
-| 1 | KAN-47 | App theme system — design tokens & light/dark mode | **Start here. Everything else depends on this.** |
-| 2 | KAN-11 | Define To-Do data model in Firestore | Schema first, then UI |
-| 3 | KAN-17 | Navigation structure and routing | Bottom tab shell — Today + Profile |
-| 4 | KAN-45 | Today screen UI — progress ring, sticky header & scroll collapse | See design spec below |
-| 5 | KAN-15 | To-Do list screen UI | Task rows, checkboxes, category chips |
-| 6 | KAN-14 | Mark To-Do item as done or undone | Toggle in Firestore, update progress ring |
-| 7 | KAN-21 | Research and select Maps/Places API | Document choice, set up API key |
-| 8 | KAN-22 | Background geolocation tracking | Permissions, background mode |
-| 9 | KAN-24 | POI proximity detection and geofencing | Geofence radii: ATM/Pharmacy 50 m, Cafe/Supermarket 75 m |
-| 10 | KAN-46 | Nearby card — idle state, hero alert and POI chip | See design spec below |
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 1 | KAN-47 | App theme system — design tokens & light/dark mode | ✅ Concluído |
+| 2 | KAN-11 | Define To-Do data model in Firestore | ✅ Concluído |
+| 3 | KAN-17 | Navigation structure and routing | ✅ Concluído |
+| 4 | KAN-45 | Today screen UI — progress ring, sticky header & scroll collapse | ✅ Concluído |
+| 5 | KAN-15 | To-Do list screen UI | ✅ Concluído |
+| 6 | KAN-14 | Mark To-Do item as done or undone | ✅ Concluído |
+| 7 | KAN-21 | Research and select Maps/Places API | ✅ Concluído |
+| 8 | KAN-22 | Background geolocation tracking | ✅ Concluído |
+| 9 | KAN-24 | POI proximity detection and geofencing | ✅ Concluído |
+| 10 | KAN-46 | Nearby card — idle state, hero alert and POI chip | ✅ Concluído |
 
-Everything else is in **Sprint 2 or Backlog** — do not work on those tickets this sprint.
+---
+
+## Current Sprint — Sprint 2: Points, Auth & Polish
+
+Goal: add the points & achievements system, complete auth flows (Google + Apple), polish the login screen, and close remaining notification & category work.
+
+Work the list top-to-bottom. Do not start items ranked 7–9 until their dependencies are merged.
+
+### 🔴 Highest priority
+
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 1 | KAN-51 | Add-task FAB and new-task bottom sheet | ✅ Concluído |
+| 2 | KAN-50 | Calendar screen — month grid, day selection and detail card | ✅ Concluído |
+
+### 🟠 High
+
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 3 | KAN-48 | Login screen UI redesign — match Vibe Agenda design system | ✅ Concluído |
+| 4 | KAN-16 | Manage categories for to-do items | ✅ Concluído |
+
+### 🔵 Medium
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 5 | KAN-23 | Category-to-POI type mapping logic | KAN-16 | ✅ Concluído |
+| 6 | KAN-25 | Firebase integration for user location and POI preferences | — | ✅ Concluído |
+| 7 | KAN-43 | Login screen polish and UX improvements | KAN-48 | ⬜ A fazer |
+| 8 | KAN-39 | Google OAuth login | KAN-48 | ⬜ A fazer |
+| 9 | KAN-40 | Apple Sign-In (iOS) | KAN-39 | ⬜ A fazer |
+| 10 | KAN-32 | Trigger achievement when entire to-do list is completed | — | ⬜ A fazer |
+
+### Additional Sprint-2 tickets (added during sprint)
+
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 11 | KAN-26 | Set up Firebase Cloud Messaging (FCM) for push notifications | ✅ Concluído |
+| 12 | KAN-27 | Geo-triggered local notifications when near a relevant POI | ✅ Concluído |
+| 13 | KAN-28 | Push notification content, deep linking and handling | ✅ Concluído |
+| 14 | KAN-29 | Notification preferences in app settings | ✅ Concluído |
+| 15 | KAN-30 | Points and achievements data model in Firebase | 🔄 In Development |
+| 16 | KAN-31 | Award 1 point per completed To-Do item | ⬜ A fazer |
+
+### Out of scope for Sprint 2
+
+- Lock-screen push notification mock
+- Task detail / edit screen
+- Past-day or future-day full task list
+- Settings screen
+- Onboarding / location permission flow
+- Wear OS companion app (Sprint 3+)
+- Battery drain / low-battery mode (backlog, KAN-52)
 
 ---
 
@@ -336,21 +388,28 @@ docs/
    </View>
    ```
    Hero/large contexts use `size={22}`, `borderRadius: radius.heroIcon` (14), and a tinted background (`accentColor + '33'`). See `NearbyCard.tsx` for the reference implementation.
+10. **Points system extensibility.** `PointsHistoryEntry.reason` is a discriminated union — currently `'task_completed'` only. When adding a new point type (e.g. streak bonus, achievement bonus):
+    1. Add the new literal to the `reason` union in `src/types/index.ts`.
+    2. Create a dedicated `awardPoint*` function (or an options-object overload) in `src/services/firestore.ts` — do **not** repurpose the existing `awardPoint(uid, taskId, taskTitle)` signature.
+    3. Add unit tests for the new reason type in `__tests__/services/points.test.ts`.
 
 ---
 
 ## Sprint Boundary Rule
 
-**Sprint 1 contains exactly 10 tickets:**
-KAN-11, KAN-14, KAN-15, KAN-17, KAN-21, KAN-22, KAN-24, KAN-45, KAN-46, KAN-47.
+**Sprint 1 — ✅ Complete.** All 10 tickets shipped.
 
-When all 14 tickets above have been completed and their PRs merged:
+**Sprint 2 contains 16 tickets:**
+KAN-51, KAN-50, KAN-48, KAN-16, KAN-23, KAN-25, KAN-43, KAN-39, KAN-40, KAN-32,
+KAN-26, KAN-27, KAN-28, KAN-29, KAN-30, KAN-31.
+
+When all Sprint 2 tickets above have been completed and their PRs merged:
 
 1. **Stop immediately.** Do not pick up any new work.
 2. **Report to the user** with this exact message:
 
-> "Sprint 1 is complete. All 14 tickets are done. Please review the build and let me know when to start Sprint 2."
+> "Sprint 2 is complete. All 16 tickets are done. Please review the build and let me know when to start Sprint 3."
 
-3. **Do not start Sprint 2** or any Backlog ticket until the user explicitly says so — even if the next logical task seems obvious.
+3. **Do not start Sprint 3** or any Backlog ticket until the user explicitly says so — even if the next logical task seems obvious.
 
 This rule takes priority over any instruction to "keep going", "continue", or "do the next thing".
