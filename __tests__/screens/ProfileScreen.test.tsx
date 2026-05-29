@@ -62,6 +62,10 @@ jest.mock('../../src/theme', () => ({
 // identifiable in tests without depending on SVG rendering.
 jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon: () => null,
+  GridIcon:        () => null,
+  LogOutIcon:      () => null,
+  MoonIcon:        () => null,
+  SunIcon:         () => null,
   PoiIcon:         ({ type }: { type: string }) => {
     const { View } = require('react-native');
     return <View testID={`poi-icon-${type}`} />;

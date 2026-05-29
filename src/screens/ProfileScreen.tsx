@@ -23,7 +23,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, PoiIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
 import { signOut } from '../services/auth';
 import { subscribeToPoiPreferences, setPoiPreference } from '../services/firestore';
 import { POI_GEOFENCE_RADIUS } from '../types';
@@ -124,8 +124,9 @@ export default function ProfileScreen() {
           onPress={() => navigation.navigate('Categories')}
           accessibilityRole="button"
           accessibilityLabel="Manage categories">
+          <GridIcon color={palette.muted} size={20} />
           <Text style={[styles.btnText, { color: palette.text }]}>
-            🗂  Manage Categories
+            Manage Categories
           </Text>
         </TouchableOpacity>
 
@@ -208,8 +209,12 @@ export default function ProfileScreen() {
           onPress={() => setDark(!dark)}
           accessibilityRole="button"
           accessibilityLabel={dark ? 'Switch to light mode' : 'Switch to dark mode'}>
+          {dark
+            ? <SunIcon  color={palette.muted} size={20} />
+            : <MoonIcon color={palette.muted} size={20} />
+          }
           <Text style={[styles.btnText, { color: palette.text }]}>
-            {dark ? '☀️  Light mode' : '🌙  Dark mode'}
+            {dark ? 'Light mode' : 'Dark mode'}
           </Text>
         </TouchableOpacity>
 
@@ -218,6 +223,7 @@ export default function ProfileScreen() {
           onPress={signOut}
           accessibilityRole="button"
           accessibilityLabel="Sign out">
+          <LogOutIcon color={palette.accent} size={20} />
           <Text style={[styles.btnText, { color: palette.accent }]}>Sign out</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -266,10 +272,12 @@ const styles = StyleSheet.create({
   // ── Generic button row ──
   btn: {
     width:             '100%',
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               12,
     paddingVertical:   14,
     paddingHorizontal: 20,
     borderRadius:      radii.ctaBtn,
-    alignItems:        'center',
   },
   btnText: {
     fontSize:   15,
