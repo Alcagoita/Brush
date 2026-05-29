@@ -25,6 +25,7 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  increment,
   Timestamp,
 } from '@react-native-firebase/firestore';
 import {
@@ -35,6 +36,9 @@ import {
   PoiType,
   CategoryKey,
   POI_GEOFENCE_RADIUS,
+  AchievementType,
+  Achievement,
+  PointsHistoryEntry,
 } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -378,6 +382,147 @@ export async function updateCategory(
  */
 export async function deleteCategory(uid: string, categoryId: string): Promise<void> {
   await deleteDoc(categoryRef(uid, categoryId));
+}
+
+// ─── Points & Achievements ────────────────────────────────────────────────────
+//
+// Collections:
+//   /users/{uid}/pointsHistory/{id}      — one doc per point awarded
+//   /users/{uid}/achievements/{id}       — one doc per earned achievement
+//
+// totalPoints is denormalised onto /users/{uid} for fast reads.
+
+function pointsHistoryRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'pointsHistory');
+}
+
+function achievementsRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'achievements');
+}
+
+function achievementRef(uid: string, achievementId: string) {
+  return doc(getFirestore(), 'users', uid, 'achievements', achievementId);
+}
+
+/**
+ * Award 1 point for completing a task (KAN-31).
+ *
+ * Two independent writes (no transaction needed — eventual consistency is fine
+ * for a gamification system):
+ *   1. Atomically increments `totalPoints` on /users/{uid}.
+ *   2. Appends a PointsHistoryEntry to /users/{uid}/pointsHistory.
+ */
+export async function awardPoint(
+  uid: string,
+  taskId: string,
+  taskTitle: string,
+): Promise<void> {
+  await Promise.all([
+    updateDoc(userRef(uid), { totalPoints: increment(1) }),
+    addDoc(pointsHistoryRef(uid), {
+      taskId,
+      taskTitle,
+      awardedAt: serverTimestamp(),
+      points: 1,
+      reason: 'task_completed',
+    } satisfies Omit<PointsHistoryEntry, 'id'>),
+  ]);
+}
+
+/**
+ * Check whether an achievement has already been awarded.
+ * Useful for guarding idempotency-sensitive callers before calling awardAchievement.
+ */
+export async function hasAchievement(
+  uid: string,
+  achievementId: string,
+): Promise<boolean> {
+  const snap = await getDoc(achievementRef(uid, achievementId));
+  return snap.exists();
+}
+
+/**
+ * Idempotently award an achievement (KAN-32).
+ *
+ * Document ID rules (caller's responsibility):
+ *   - Global achievements  →  achievementId = type  (e.g. 'first_task')
+ *   - Date-scoped ones     →  achievementId = `${type}_${YYYY-MM-DD}`
+ *                              (e.g. 'daily_complete_2026-05-29')
+ *
+ * Using the natural key as the doc ID means awarding the same achievement twice
+ * is a safe no-op (overwrites with identical data).
+ */
+export async function awardAchievement(
+  uid: string,
+  achievementId: string,
+  type: AchievementType,
+  metadata?: Record<string, unknown>,
+): Promise<void> {
+  await setDoc(
+    achievementRef(uid, achievementId),
+    {
+      type,
+      earnedAt: serverTimestamp(),
+      ...(metadata !== undefined ? { metadata } : {}),
+    },
+    { merge: false },
+  );
+}
+
+/**
+ * Subscribe to the user's total points count.
+ * Reads the `totalPoints` field on /users/{uid}.
+ * Fires immediately, then on every change. Returns an unsubscribe function.
+ */
+export function subscribeToTotalPoints(
+  uid: string,
+  onUpdate: (totalPoints: number) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    userRef(uid),
+    snap => {
+      const data = snap.data() as { totalPoints?: number } | undefined;
+      onUpdate(data?.totalPoints ?? 0);
+    },
+    onError,
+  );
+}
+
+/**
+ * Subscribe to the user's earned achievements, newest first.
+ * Returns an unsubscribe function — call on component unmount.
+ */
+export function subscribeToAchievements(
+  uid: string,
+  onUpdate: (achievements: Achievement[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(achievementsRef(uid), orderBy('earnedAt', 'desc')),
+    snap => onUpdate(
+      snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement)),
+    ),
+    onError,
+  );
+}
+
+/**
+ * Subscribe to the user's points history, newest first.
+ * Returns an unsubscribe function — call on component unmount.
+ */
+export function subscribeToPointsHistory(
+  uid: string,
+  onUpdate: (history: PointsHistoryEntry[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')),
+    snap => onUpdate(
+      snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry)),
+    ),
+    onError,
+  );
 }
 
 // ─── Re-exports for convenience ───────────────────────────────────────────────

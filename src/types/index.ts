@@ -118,6 +118,63 @@ export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
   supermarket: 75,
 };
 
+// ─── Points & Achievements ────────────────────────────────────────────────────
+
+/**
+ * All achievement types the app can award.
+ *
+ * Naming convention:
+ *   - Global (awarded once ever):  '<name>'             e.g. 'first_task'
+ *   - Date-scoped (once per day):  '<name>'  — the doc ID carries the date
+ *                                              e.g. 'daily_complete_2026-05-29'
+ */
+export type AchievementType =
+  | 'first_task'      // very first task ever completed
+  | 'daily_complete'; // every task for a calendar day completed (KAN-32)
+
+/**
+ * /users/{uid}/pointsHistory/{id}
+ *
+ * One document per point awarded. Used for the points history screen (KAN-33)
+ * and as the source of truth if `totalPoints` ever needs to be recomputed.
+ */
+export interface PointsHistoryEntry {
+  /** Firestore document ID (auto-generated). */
+  id: string;
+  /** The task that earned the point. */
+  taskId: string;
+  /** Snapshot of the task title at completion time. */
+  taskTitle: string;
+  awardedAt: FirebaseFirestoreTypes.Timestamp;
+  /** Points awarded — always 1 in v1; kept for future multi-point awards. */
+  points: number;
+  /** Why the point was awarded — discriminated union for future extensibility. */
+  reason: 'task_completed';
+}
+
+/**
+ * /users/{uid}/achievements/{achievementId}
+ *
+ * Document ID rules:
+ *   - Global achievements  →  achievementId = type  (e.g. 'first_task')
+ *   - Date-scoped ones     →  achievementId = `${type}_${YYYY-MM-DD}`
+ *                              (e.g. 'daily_complete_2026-05-29')
+ *
+ * Using the ID as the natural key makes writes idempotent — awarding the same
+ * achievement twice simply overwrites with identical data.
+ */
+export interface Achievement {
+  /**
+   * Firestore document ID.
+   * Equals `type` for global achievements; `${type}_${date}` for date-scoped.
+   */
+  id: string;
+  type: AchievementType;
+  earnedAt: FirebaseFirestoreTypes.Timestamp;
+  /** Optional contextual data — e.g. `{ date: '2026-05-29' }` for daily_complete. */
+  metadata?: Record<string, unknown>;
+}
+
 // ─── Legacy calendar types (kept for backward compatibility) ──────────────────
 
 export interface CalendarEvent {
