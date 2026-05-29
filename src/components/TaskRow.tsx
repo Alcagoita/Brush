@@ -27,12 +27,12 @@ import Animated, {
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
-import { PoiType, Task } from '../types';
+import { Task } from '../types';
 
 interface TaskRowProps {
   task: Task;
-  /** Currently active (nearby) POI type — null until KAN-22 wires geolocation. */
-  nearbyPoiType?: PoiType | null;
+  /** Currently active (nearby) POI type string — null until KAN-22 wires geolocation. */
+  nearbyPoiType?: string | null;
   onToggle: (taskId: string, done: boolean) => void;
 }
 

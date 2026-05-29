@@ -1,97 +1,144 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Vibe Agenda
 
-# Getting Started
+A location-aware to-do app for iOS and Android built with React Native.  
+When you're near a Point of Interest tied to one of your tasks, the app surfaces a hero alert and offers a one-tap "Open in Maps" route.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+---
 
-## Step 1: Start Metro
+## Tech Stack
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+- **Framework**: React Native 0.85
+- **Auth**: Firebase Authentication (email/password, Google, Apple)
+- **Database**: Firebase Firestore
+- **Push notifications**: Firebase Cloud Messaging + Notifee
+- **Geolocation**: react-native-geolocation-service
+- **Maps**: Google Maps / Google Places API
+- **Font**: Geist
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node >= 22.11.0
+- Ruby (for CocoaPods)
+- Xcode 15+ (iOS)
+- Android Studio (Android)
+- [React Native environment setup](https://reactnative.dev/docs/set-up-your-environment)
+
+### Install dependencies
 
 ```sh
-# Using npm
-npm start
-
-# OR using Yarn
-yarn start
+npm install
 ```
 
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+### iOS — install native deps
 
 ```sh
 bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
 bundle exec pod install
 ```
 
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
+### Run
 
 ```sh
-# Using npm
+# iOS
 npm run ios
 
-# OR using Yarn
-yarn ios
+# Android
+npm run android
+
+# Metro (separate terminal)
+npm start
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+---
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+## Firebase Setup
 
-## Step 3: Modify your app
+### Android
 
-Now that you have successfully run the app, let's make changes!
+Place `google-services.json` in `android/app/`.
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+### iOS
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+Place `GoogleService-Info.plist` in `ios/Agenda/`.
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+---
 
-## Congratulations! :tada:
+## Authentication Setup
 
-You've successfully run and modified your React Native App. :partying_face:
+### Email / Password
 
-### Now what?
+Enable in Firebase Console → Authentication → Sign-in method → Email/Password.
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+---
 
-# Troubleshooting
+### Google Sign-In
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+**Firebase Console**
+1. Authentication → Sign-in method → Google → Enable
+2. Copy the **Web client ID** — it must match the `webClientId` in `src/services/auth.ts`
 
-# Learn More
+**Android** — no extra steps. `google-services.json` already contains the OAuth config.
 
-To learn more about React Native, take a look at the following resources:
+**iOS**
+1. Open `ios/Agenda.xcworkspace` in Xcode
+2. Add the **reversed client ID** from `GoogleService-Info.plist` as a URL scheme:  
+   Project → Info → URL Types → `+` → paste `REVERSED_CLIENT_ID` value
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+---
+
+### Apple Sign-In (iOS only)
+
+**Apple Developer Account**
+1. Certificates, Identifiers & Profiles → Identifiers → select your App ID
+2. Enable **Sign in with Apple** → Save
+
+**Xcode**
+1. Open `ios/Agenda.xcworkspace`
+2. Select the `Agenda` target → **Signing & Capabilities**
+3. Click **+ Capability** → add **Sign in with Apple**
+
+**Firebase Console**
+1. Authentication → Sign-in method → Apple → Enable
+2. No extra keys needed — the `identityToken` from the device is verified server-side
+
+> Apple Sign-In is only required for iOS App Store submissions that include other third-party social sign-in options. The button is hidden on Android automatically.
+
+---
+
+## Project Structure
+
+```
+src/
+  screens/        — LoginScreen, TodayScreen, CalendarScreen, …
+  components/     — ProgressRing, NearbyCard, TaskRow, PoiChip, …
+  theme/          — tokens.ts, ThemeContext.tsx
+  services/       — auth.ts, firestore.ts, geolocation.ts, maps.ts
+  navigation/     — AppNavigator.tsx, navigationRef.ts
+  hooks/          — useAuth.ts, useFCM.ts
+  types/          — index.ts
+docs/
+  design/         — design handoff files
+```
+
+---
+
+## Branching (Gitflow)
+
+| Branch type | Cut from | Merges into | Naming |
+|-------------|----------|-------------|--------|
+| Feature | `develop` | `develop` | `KAN-XX-short-description` |
+| Bugfix | `develop` | `develop` | `bugfix/short-description` |
+| Release | `develop` | `main` + `develop` | `release/X.Y.Z` |
+| Hotfix | `main` | `main` + `develop` | `hotfix/short-description` |
+
+---
+
+## Troubleshooting
+
+- **Metro cache issues**: `npm start -- --reset-cache`
+- **iOS build errors**: `bundle exec pod install --repo-update`
+- **Android build errors**: `cd android && ./gradlew clean`

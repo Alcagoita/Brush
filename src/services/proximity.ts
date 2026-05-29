@@ -31,19 +31,23 @@
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 import { Platform } from 'react-native';
 import { Coordinates, startTracking, stopTracking } from './geolocation';
-import { getDistanceMeters, searchNearbyPlaces, NearbyPlace } from './maps';
+import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markPoiAlertSeen } from './firestore';
 import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
-/** Snapshot of the nearest known place for each POI type. Populated as the
- *  Places API cache fills in. Used by NearbyCard for the idle-state rows. */
-export type PlacesMap = Partial<Record<PoiType, NearbyPlace>>;
+/**
+ * Snapshot of the nearest known place for each POI type string.
+ * Keys are Google Places primary type strings (built-in PoiType values
+ * or arbitrary custom category types). Populated as the Places API cache
+ * fills in. Used by NearbyCard for the idle-state rows.
+ */
+export type PlacesMap = Partial<Record<string, NearbyPlace>>;
 
 /** Callback fired whenever nearby state OR place data changes. */
 export type ProximityCallback = (
-  nearbyPoiType: PoiType | null,
+  nearbyPoiType: string | null,
   nearbyPlace:   NearbyPlace | null,
   allPlaces:     PlacesMap,
 ) => void;
@@ -53,6 +57,13 @@ export type ProximityCallback = (
 /** Re-query Places API only after the user has moved this far from the last
  *  search origin. Keeps API calls low while maintaining freshness. */
 const CACHE_INVALIDATION_DISTANCE = 200; // metres
+
+/**
+ * Default geofence radius in metres for custom (non-built-in) POI types.
+ * Custom category types (e.g. "gym", "restaurant") don't appear in
+ * POI_GEOFENCE_RADIUS, so we fall back to the larger café/supermarket radius.
+ */
+const DEFAULT_GEOFENCE_RADIUS = 75; // metres
 
 /** Notifee Android channel id for proximity alerts. */
 const CHANNEL_ID = 'proximity_alerts';
@@ -66,10 +77,33 @@ interface PlaceCache {
   places: NearbyPlace[];
 }
 
-const placeCache = new Map<PoiType, PlaceCache>();
+const placeCache = new Map<string, PlaceCache>();
 
-let currentNearbyType: PoiType | null = null;
+let currentNearbyType: string | null = null;
 let isMonitoring = false;
+
+/**
+ * Live user-defined geofence radius preferences (KAN-25).
+ * Keyed by Google Places primary type string. Updated in real time via
+ * `updateProximityPoiPreferences()` whenever the Firestore subscription fires.
+ */
+let poiRadiusPrefs: Record<string, number> = {};
+
+// ─── Radius helper ───────────────────────────────────────────────────────────
+
+/**
+ * Returns the effective geofence radius in metres for a POI type string.
+ *
+ * Priority (KAN-25):
+ *   1. User-saved preference from Firestore (`poiRadiusPrefs`).
+ *   2. Built-in spec default from `POI_GEOFENCE_RADIUS` (50 m or 75 m).
+ *   3. `DEFAULT_GEOFENCE_RADIUS` (75 m) for custom types with no stored pref.
+ */
+function getGeofenceRadius(poiType: string): number {
+  return poiRadiusPrefs[poiType]
+    ?? (POI_GEOFENCE_RADIUS as Record<string, number>)[poiType]
+    ?? DEFAULT_GEOFENCE_RADIUS;
+}
 
 // ─── Date helper ──────────────────────────────────────────────────────────────
 
@@ -97,13 +131,6 @@ async function ensureChannel(): Promise<void> {
 
 // ─── Notification ──────────────────────────────────────────────────────────────
 
-const POI_LABELS: Record<PoiType, string> = {
-  atm:         'ATM',
-  cafe:        'Café',
-  supermarket: 'Supermarket',
-  pharmacy:    'Pharmacy',
-};
-
 async function fireNotification(
   task: Task,
   place: NearbyPlace,
@@ -115,11 +142,19 @@ async function fireNotification(
     ? `${Math.round(distanceMeters)} m away`
     : `${(distanceMeters / 1000).toFixed(1)} km away`;
 
-  const poiLabel = task.poi ? POI_LABELS[task.poi] : 'nearby';
+  // placeTypeLabel handles both built-in PoiType values and custom Google
+  // Places type strings (e.g. "gym" → "Gym").
+  const poiLabel = task.poi ? placeTypeLabel(task.poi) : 'nearby';
 
   await notifee.displayNotification({
     title: `${poiLabel} nearby`,
     body:  `${place.name} is ${distLabel} — you have "${task.title}"`,
+    // KAN-28: data payload for deep linking — press handler navigates to Today.
+    data: {
+      screen: 'Today',
+      taskId: task.id,
+      date:   task.date,
+    },
     android: {
       channelId:   CHANNEL_ID,
       importance:  AndroidImportance.HIGH,
@@ -137,7 +172,7 @@ async function fireNotification(
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
 
-function isCacheValid(poiType: PoiType, lat: number, lng: number): boolean {
+function isCacheValid(poiType: string, lat: number, lng: number): boolean {
   const cached = placeCache.get(poiType);
   if (!cached) { return false; }
   const dist = getDistanceMeters(lat, lng, cached.origin.lat, cached.origin.lng);
@@ -145,13 +180,13 @@ function isCacheValid(poiType: PoiType, lat: number, lng: number): boolean {
 }
 
 async function getNearestPlace(
-  poiType: PoiType,
+  poiType: string,
   lat: number,
   lng: number,
 ): Promise<NearbyPlace | null> {
   if (!isCacheValid(poiType, lat, lng)) {
     try {
-      const radius = POI_GEOFENCE_RADIUS[poiType] * 4; // search in a larger bubble
+      const radius = getGeofenceRadius(poiType) * 4; // search in a larger bubble
       const places = await searchNearbyPlaces(lat, lng, poiType, radius);
       placeCache.set(poiType, { origin: { lat, lng }, places });
     } catch {
@@ -186,9 +221,9 @@ async function checkProximity(
   tasks: Task[],
   onUpdate: ProximityCallback,
 ): Promise<void> {
-  // Collect unique POI types from undone tasks that have a poi field.
+  // Collect unique POI type strings from undone tasks that have a poi field.
   const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
-  const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as PoiType))];
+  const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];
 
   if (uniquePoiTypes.length === 0) {
     if (currentNearbyType !== null) {
@@ -199,7 +234,7 @@ async function checkProximity(
   }
 
   // For each POI type, find the nearest place and compute the user's distance.
-  type Candidate = { poiType: PoiType; place: NearbyPlace; distance: number };
+  type Candidate = { poiType: string; place: NearbyPlace; distance: number };
   const candidates: Candidate[] = [];
 
   await Promise.all(
@@ -209,8 +244,7 @@ async function checkProximity(
       const distance = getDistanceMeters(
         coords.lat, coords.lng, place.lat, place.lng,
       );
-      const radius = POI_GEOFENCE_RADIUS[poiType];
-      if (distance <= radius) {
+      if (distance <= getGeofenceRadius(poiType)) {
         candidates.push({ poiType, place, distance });
       }
     }),
@@ -310,6 +344,24 @@ export function updateProximityTasks(tasks: Task[]): void {
   _latestTasksUpdater?.(tasks);
 }
 
+/**
+ * Update the live POI radius preferences used by the active proximity monitor
+ * (KAN-25). Call this whenever the Firestore preferences subscription fires.
+ *
+ * The new radii take effect on the NEXT location update — no restart needed.
+ * Safe to call before `startProximityMonitoring` (sets module-level state that
+ * persists until the next `stopProximityMonitoring` call).
+ *
+ * @param prefs - Plain `Record<string, number>` map of poiType → radiusMeters,
+ *                as returned by `subscribeToPoiPreferences`.
+ */
+export function updateProximityPoiPreferences(prefs: Record<string, number>): void {
+  poiRadiusPrefs = prefs;
+  // Invalidate the search cache so the next location tick re-searches with
+  // the updated radii (prevents stale "too-small bubble" results).
+  placeCache.clear();
+}
+
 /** Stop all proximity monitoring and clear internal state. */
 export function stopProximityMonitoring(): void {
   isMonitoring = false;
@@ -317,4 +369,5 @@ export function stopProximityMonitoring(): void {
   placeCache.clear();
   currentNearbyType = null;
   _latestTasksUpdater = null;
+  poiRadiusPrefs = {};
 }

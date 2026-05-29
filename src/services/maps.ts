@@ -18,7 +18,7 @@
 
 import { Linking, Platform } from 'react-native';
 import { GOOGLE_PLACES_API_KEY } from '../config/keys';
-import { PoiType, POI_GOOGLE_TYPES } from '../types';
+import { Category, PoiType, POI_GOOGLE_TYPES } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,6 +76,11 @@ const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby'
 /**
  * Search for places of the given POI type within `radiusMeters` of `lat`/`lng`.
  *
+ * `poiType` accepts either one of the four built-in PoiType values or any
+ * arbitrary Google Places primary type string (e.g. "gym", "restaurant").
+ * Built-in types are mapped through POI_GOOGLE_TYPES; all others are passed
+ * directly to the Places API as-is.
+ *
  * Results are sorted ascending by straight-line distance from the origin.
  * Returns up to 5 candidates (we only ever show the closest one per type).
  *
@@ -84,10 +89,12 @@ const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby'
 export async function searchNearbyPlaces(
   lat: number,
   lng: number,
-  poiType: PoiType,
+  poiType: string,
   radiusMeters: number,
 ): Promise<NearbyPlace[]> {
-  const googleType = POI_GOOGLE_TYPES[poiType];
+  // For the four legacy PoiType values, use the mapped Google type.
+  // All other strings (custom category types) are already Google Places types.
+  const googleType = POI_GOOGLE_TYPES[poiType as PoiType] ?? poiType;
 
   const body = {
     locationRestriction: {
@@ -186,4 +193,165 @@ export function formatDistance(meters: number): string {
     return `${Math.round(meters)} m`;
   }
   return `${(meters / 1000).toFixed(1)} km`;
+}
+
+// ─── Place type search ────────────────────────────────────────────────────────
+
+const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
+
+/**
+ * Generic place type strings that convey no useful information to a user
+ * (returned by the Places API alongside specific types like "gym").
+ * We filter these out before displaying search results.
+ */
+const GENERIC_PLACE_TYPES = new Set([
+  'establishment', 'point_of_interest', 'food', 'store', 'health', 'finance',
+  'service', 'political', 'locality', 'sublocality', 'country', 'route',
+  'street_address', 'premise', 'subpremise', 'postal_code', 'natural_feature',
+  'transit_station', 'place_of_worship', 'geocode',
+]);
+
+/**
+ * Human-readable labels for common Google Places primary types.
+ * Covers the full taxonomy that users are likely to search for as
+ * category location types.
+ */
+export const PLACE_TYPE_LABELS: Record<string, string> = {
+  atm:                  'ATM',
+  bank:                 'Bank',
+  bar:                  'Bar',
+  beauty_salon:         'Beauty Salon',
+  book_store:           'Book Store',
+  cafe:                 'Café',
+  car_repair:           'Car Repair',
+  car_wash:             'Car Wash',
+  clothing_store:       'Clothing Store',
+  convenience_store:    'Convenience Store',
+  dentist:              'Dentist',
+  department_store:     'Department Store',
+  doctor:               'Doctor',
+  drugstore:            'Drugstore',
+  electronics_store:    'Electronics Store',
+  fast_food_restaurant: 'Fast Food',
+  fitness_center:       'Fitness Center',
+  florist:              'Florist',
+  gas_station:          'Gas Station',
+  grocery_store:        'Grocery Store',
+  gym:                  'Gym',
+  hair_care:            'Hair Salon',
+  hardware_store:       'Hardware Store',
+  home_goods_store:     'Home Goods',
+  hospital:             'Hospital',
+  jewelry_store:        'Jewelry Store',
+  laundry:              'Laundry',
+  library:              'Library',
+  liquor_store:         'Liquor Store',
+  meal_delivery:        'Delivery',
+  meal_takeaway:        'Takeaway',
+  movie_theater:        'Movie Theater',
+  museum:               'Museum',
+  night_club:           'Night Club',
+  park:                 'Park',
+  pet_store:            'Pet Store',
+  pharmacy:             'Pharmacy',
+  physiotherapist:      'Physiotherapist',
+  post_office:          'Post Office',
+  restaurant:           'Restaurant',
+  school:               'School',
+  shopping_mall:        'Shopping Mall',
+  spa:                  'Spa',
+  sports_complex:       'Sports Complex',
+  stadium:              'Stadium',
+  storage:              'Storage',
+  subway_station:       'Subway Station',
+  supermarket:          'Supermarket',
+  tourist_attraction:   'Tourist Attraction',
+  train_station:        'Train Station',
+  university:           'University',
+  veterinary_care:      'Veterinary',
+};
+
+/**
+ * Returns a human-readable label for a Google Places type string.
+ * Falls back to title-casing the raw type (e.g. "fitness_center" → "Fitness Center").
+ */
+export function placeTypeLabel(type: string): string {
+  return (
+    PLACE_TYPE_LABELS[type] ??
+    type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+  );
+}
+
+/** Result item returned by searchPlaceTypes. */
+export interface PlaceTypeSuggestion {
+  type:  string;
+  label: string;
+}
+
+// ─── Category → place type mapping ───────────────────────────────────────────
+
+/**
+ * Returns the Google Places primary type string to use for proximity searches
+ * for tasks that belong to `category`.
+ *
+ * This is the formal mapping layer (KAN-23): because `category.poi` is already
+ * stored as a Google Places primary type string, the mapping is an identity
+ * pass-through. The function exists as the single place to put any future
+ * translation logic (e.g. aliasing, overrides) without touching call sites.
+ *
+ * Returns null when the category has no location association.
+ */
+export function resolveCategoryPlaceType(category: Category): string | null {
+  return category.poi ?? null;
+}
+
+// ─── Place type search ────────────────────────────────────────────────────────
+
+/**
+ * Search Google Places for place types matching the given query.
+ *
+ * Uses the Places API (New) Text Search endpoint and extracts unique
+ * primary types from the top results — giving the user real Google Maps
+ * categories to choose from as a category location type.
+ *
+ * Returns up to 8 distinct, non-generic type suggestions.
+ * Throws on network error or non-200 response.
+ */
+export async function searchPlaceTypes(query: string): Promise<PlaceTypeSuggestion[]> {
+  const response = await fetch(PLACES_TEXT_SEARCH_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type':     'application/json',
+      'X-Goog-Api-Key':   GOOGLE_PLACES_API_KEY,
+      // Request only the primary type — minimal billing impact.
+      'X-Goog-FieldMask': 'places.primaryType',
+    },
+    body: JSON.stringify({
+      textQuery:      query,
+      maxResultCount: 10,
+      languageCode:   'en',
+    }),
+  });
+
+  if (!response.ok) {
+    const text = await response.text().catch(() => '');
+    throw new Error(`Places API ${response.status}: ${text}`);
+  }
+
+  const data = (await response.json()) as {
+    places?: Array<{ primaryType?: string }>;
+  };
+
+  const seen    = new Set<string>();
+  const results: PlaceTypeSuggestion[] = [];
+
+  for (const place of data.places ?? []) {
+    const type = place.primaryType;
+    if (!type || GENERIC_PLACE_TYPES.has(type) || seen.has(type)) { continue; }
+    seen.add(type);
+    results.push({ type, label: placeTypeLabel(type) });
+    if (results.length >= 8) { break; }
+  }
+
+  return results;
 }

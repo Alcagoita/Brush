@@ -41,31 +41,17 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
-import { NearbyPlace, openInMaps, formatDistance } from '../services/maps';
+import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
 import { PlacesMap } from '../services/proximity';
-import { PoiType, Task } from '../types';
-
-// ─── POI meta ─────────────────────────────────────────────────────────────────
-
-const POI_LABELS: Record<PoiType, string> = {
-  atm:         'ATM',
-  cafe:        'Café',
-  supermarket: 'Market',
-  pharmacy:    'Pharmacy',
-};
-
-const POI_ICONS: Record<PoiType, string> = {
-  atm:         '💳',
-  cafe:        '☕',
-  supermarket: '🛒',
-  pharmacy:    '💊',
-};
+import { Task } from '../types';
+import { ChevronRightIcon, PoiIcon } from './AppIcon';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface NearbyCardProps {
   tasks:          Task[];
-  nearbyPoiType:  PoiType | null;
+  /** Google Places primary type string (built-in or custom), or null. */
+  nearbyPoiType:  string | null;
   nearbyPlace:    NearbyPlace | null;
   poiPlaces:      PlacesMap;
 }
@@ -99,7 +85,7 @@ function HaloIcon({
   poiType,
   accentColor,
 }: {
-  poiType:     PoiType;
+  poiType:     string;
   accentColor: string;
 }) {
   const { palette } = useTheme();
@@ -140,7 +126,7 @@ function HaloIcon({
           styles.heroIconTile,
           { backgroundColor: accentColor + '33' }, // ~20% opacity tint
         ]}>
-        <Text style={styles.tileEmoji}>{POI_ICONS[poiType]}</Text>
+        <PoiIcon type={poiType} color={accentColor} size={22} />
       </View>
     </View>
   );
@@ -161,7 +147,10 @@ function IdleRow({
     <View style={[styles.idleRow, { borderBottomColor: palette.line }]}>
       {/* Icon tile */}
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
-        <Text style={styles.tileEmoji}>{task.poi ? POI_ICONS[task.poi] : '📍'}</Text>
+        {task.poi
+          ? <PoiIcon type={task.poi} color={palette.muted} size={20} />
+          : <PoiIcon type="atm"      color={palette.muted} size={20} />
+        }
       </View>
 
       {/* Text */}
@@ -174,12 +163,12 @@ function IdleRow({
         <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
           {place
             ? `${place.name} · ${formatDistance(place.distanceMeters)}`
-            : task.poi ? POI_LABELS[task.poi] : ''}
+            : task.poi ? placeTypeLabel(task.poi) : ''}
         </Text>
       </View>
 
       {/* Chevron */}
-      <Text style={[styles.chevron, { color: palette.faint }]}>›</Text>
+      <ChevronRightIcon color={palette.faint} size={18} />
     </View>
   );
 }
@@ -427,9 +416,6 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
-  tileEmoji: {
-    fontSize: 18,
-  },
   idleContent: {
     flex: 1,
     gap:  2,
@@ -441,10 +427,6 @@ const styles = StyleSheet.create({
   },
   idleSub: {
     fontSize:   12,
-    fontFamily: 'Geist-Regular',
-  },
-  chevron: {
-    fontSize: 20,
     fontFamily: 'Geist-Regular',
   },
 });

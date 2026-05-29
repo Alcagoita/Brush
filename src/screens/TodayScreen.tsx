@@ -21,15 +21,17 @@
  * thread; no JS re-renders during scroll.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
+  Pressable,
   StyleSheet,
   Text,
   Vibration,
   View,
 } from 'react-native';
+import { PlusIcon } from '../components/AppIcon';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -53,12 +55,14 @@ import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
-import { setTaskDone, subscribeToTasksForDate } from '../services/firestore';
+import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, awardPoint } from '../services/firestore';
+import { checkAndAwardDailyComplete } from '../services/achievements';
 import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring, updateProximityTasks, PlacesMap } from '../services/proximity';
+import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
-import { PoiType, Task } from '../types';
+import { Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
+import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -131,7 +135,7 @@ export default function TodayScreen() {
   const [tasks,          setTasks]          = useState<Task[]>([]);
   const [tasksLoading,   setTasksLoading]   = useState(true);
   /** Active nearby POI type — updated by the proximity engine (KAN-24). */
-  const [nearbyPoiType,  setNearbyPoiType]  = useState<PoiType | null>(null);
+  const [nearbyPoiType,  setNearbyPoiType]  = useState<string | null>(null);
   /** The specific place the user is currently near (for the hero block). */
   const [nearbyPlace,    setNearbyPlace]    = useState<NearbyPlace | null>(null);
   /** All known nearest places per POI type — drives NearbyCard idle rows. */
@@ -142,6 +146,13 @@ export default function TodayScreen() {
    * on error). This keeps the progress ring and row state instant.
    */
   const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
+  /** Controls visibility of the new-task bottom sheet (KAN-51). */
+  const [sheetVisible,   setSheetVisible]   = useState(false);
+
+  /** Ref to the sheet — used to call hide() once a new task appears in the list. */
+  const sheetRef        = useRef<NewTaskSheetHandle>(null);
+  /** Previous task count — compared on every Firestore snapshot. */
+  const prevTasksLenRef = useRef(0);
 
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
@@ -170,6 +181,17 @@ export default function TodayScreen() {
     ...t,
     done: optimisticDone[t.id] ?? t.done,
   }));
+
+  // ── Live POI radius preferences (KAN-25) ──
+  // Subscribes to /users/{uid}/pois/ and pushes the latest prefs into the
+  // proximity engine in real time. The engine applies them on the next location
+  // tick without needing to restart the watcher.
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToPoiPreferences(uid, prefs => {
+      updateProximityPoiPreferences(prefs);
+    });
+  }, [uid]);
 
   // ── Proximity monitoring (KAN-24) ──
   // Request location permission once on mount, then start the proximity engine.
@@ -213,6 +235,18 @@ export default function TodayScreen() {
   // so this fires exactly when the list content changes.
   }, [effectiveTasks]);
 
+  // ── Auto-close sheet when new task appears in the Firestore snapshot ──
+  // Firestore's local cache fires the subscription before (or just as) addTask()
+  // resolves, so this catches the task appearing in the list and hides the sheet
+  // as soon as the write is confirmed — belt-and-suspenders with handleSubmit's
+  // own direct close call.
+  useEffect(() => {
+    if (sheetVisible && tasks.length > prevTasksLenRef.current) {
+      sheetRef.current?.hide();
+    }
+    prevTasksLenRef.current = tasks.length;
+  }, [tasks, sheetVisible]);
+
   // ── Optimistic toggle with haptic feedback ──
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     if (!uid) { return; }
@@ -225,6 +259,30 @@ export default function TodayScreen() {
 
     try {
       await setTaskDone(uid, taskId, done);
+
+      // 3. Award 1 point when marking done (KAN-31).
+      //    Fire-and-forget — a points failure must never revert the task toggle.
+      if (done) {
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          awardPoint(uid, taskId, task.title).catch(err =>
+            console.warn('[TodayScreen] awardPoint failed (non-critical)', err),
+          );
+        }
+
+        // 4. Trigger daily-complete achievement if every task is now done (KAN-32).
+        //    "Every other task is done" + "this task was just marked done" = all done.
+        //    Fire-and-forget — achievement failure must never affect the toggle.
+        const allOthersDone =
+          tasks.length > 0 &&
+          tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
+
+        if (allOthersDone) {
+          checkAndAwardDailyComplete(uid, todayISO(), tasks.length, tasks.length).catch(err =>
+            console.warn('[TodayScreen] daily-complete achievement failed (non-critical)', err),
+          );
+        }
+      }
     } catch (err) {
       // Revert optimistic state on failure.
       console.warn('[TodayScreen] toggle failed — reverting', err);
@@ -236,7 +294,7 @@ export default function TodayScreen() {
         return next;
       });
     }
-  }, [uid]);
+  }, [uid, tasks, optimisticDone]);
 
   // ── Progress ──
   const totalTasks  = effectiveTasks.length;
@@ -337,15 +395,23 @@ export default function TodayScreen() {
           </Animated.View>
 
           {/* Caption — fades out over k 0→0.625 */}
+          {/* box-none: the Animated.View passes through touches; only the
+              Pressable child captures the tap on the day number. */}
           <Animated.View
             style={[styles.captionWrap, captionStyle]}
-            pointerEvents="none">
+            pointerEvents="box-none">
             <Text style={[styles.captionLabel, { color: palette.muted }]}>
               {weekday.toUpperCase()}
             </Text>
-            <Text style={[styles.captionDay, { color: palette.text }]}>
-              {day}
-            </Text>
+            {/* Tap the day number to open the Calendar screen */}
+            <Pressable
+              onPress={() => navigation.navigate('Calendar', { initialDate: todayISO() })}
+              accessibilityRole="button"
+              accessibilityLabel="Open calendar">
+              <Text style={[styles.captionDay, { color: palette.text }]}>
+                {day}
+              </Text>
+            </Pressable>
             <Text style={[styles.captionSub, { color: palette.muted }]}>
               {`${month} · `}
               <Text style={[styles.captionSubBold, { color: palette.text }]}>
@@ -412,6 +478,27 @@ export default function TodayScreen() {
 
         <View style={styles.bottomPad} />
       </Animated.ScrollView>
+
+      {/* ── Add-task FAB (KAN-51) ── */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.fab,
+          { backgroundColor: palette.accent },
+          pressed && styles.fabPressed,
+        ]}
+        onPress={() => setSheetVisible(true)}
+        accessibilityRole="button"
+        accessibilityLabel="Add task">
+        <PlusIcon color="#FFFFFF" size={24} />
+      </Pressable>
+
+      {/* ── New-task bottom sheet (KAN-51) ── */}
+      <NewTaskSheet
+        ref={sheetRef}
+        visible={sheetVisible}
+        uid={uid ?? ''}
+        onClose={() => setSheetVisible(false)}
+      />
     </View>
   );
 }
@@ -512,5 +599,28 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  bottomPad: { height: 80 },
+  // 100px bottom pad so the FAB never overlaps the last task row (spec: 100px).
+  bottomPad: { height: 100 },
+
+  // ── Add-task FAB ──
+  fab: {
+    position:     'absolute',
+    right:         20,
+    bottom:        20,
+    zIndex:         5,
+    width:          56,
+    height:         56,
+    borderRadius:   18,
+    alignItems:     'center',
+    justifyContent: 'center',
+    // Drop shadow (spec: 0 6px 18px rgba(232,168,106,0.45), 0 2px 4px rgba(0,0,0,0.08))
+    shadowColor:   '#e8a86a',
+    shadowOffset:  { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius:  18,
+    elevation:      8,
+  },
+  fabPressed: {
+    transform: [{ scale: 0.96 }],
+  },
 });
