@@ -31,9 +31,23 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
-import { signInWithEmail, signUpWithEmail } from '../services/auth';
+import { signInWithEmail, signUpWithEmail, signInWithGoogle } from '../services/auth';
+
+// ─── Google icon (official brand colours, no hardcoded theme colours) ─────────
+
+function GoogleIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 48 48" style={{ marginRight: 10 }}>
+      <Path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
+      <Path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19.1 13 24 13c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.5 29.4 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+      <Path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.3 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8H6.3C9.6 35.6 16.3 44 24 44z"/>
+      <Path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.2 5.2C40.8 36.2 44 30.5 44 24c0-1.3-.1-2.6-.4-3.9z"/>
+    </Svg>
+  );
+}
 
 // ─── Error parsing ────────────────────────────────────────────────────────────
 
@@ -167,7 +181,8 @@ export default function LoginScreen() {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
-  const [loading,  setLoading]  = useState(false);
+  const [loading,       setLoading]       = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const [emailError,    setEmailError]    = useState('');
   const [passwordError, setPasswordError] = useState('');
@@ -216,6 +231,24 @@ export default function LoginScreen() {
   const handleToggleMode = () => {
     clearErrors();
     setIsSignUp(p => !p);
+  };
+
+  const handleGoogleSignIn = async () => {
+    clearErrors();
+    setGoogleLoading(true);
+    try {
+      await signInWithGoogle();
+      // Auth state change in useAuth() handles navigation automatically
+    } catch (error: any) {
+      const code = error?.code ?? '';
+      if (code === 'SIGN_IN_CANCELLED' || code === '12501') {
+        // User dismissed the picker — no error message needed
+        return;
+      }
+      setGeneralError('Google sign-in failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   // ─── Render ──────────────────────────────────────────────────────────────────
@@ -307,6 +340,36 @@ export default function LoginScreen() {
                 {isSignUp ? 'Sign in' : 'Sign up'}
               </Text>
             </Text>
+          </Pressable>
+
+          {/* ── Divider ── */}
+          <View style={styles.dividerWrap}>
+            <View style={[styles.dividerLine, { backgroundColor: palette.line }]} />
+            <Text style={[styles.dividerLabel, { color: palette.muted }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: palette.line }]} />
+          </View>
+
+          {/* ── Google Sign-In ── */}
+          <Pressable
+            style={({ pressed }) => [
+              styles.googleBtn,
+              { borderColor: palette.line, backgroundColor: palette.surface },
+              (googleLoading || pressed) && styles.ctaPressed,
+            ]}
+            onPress={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            accessibilityRole="button"
+            accessibilityLabel="Continue with Google">
+            {googleLoading ? (
+              <ActivityIndicator color={palette.text} />
+            ) : (
+              <>
+                <GoogleIcon />
+                <Text style={[styles.googleLabel, { color: palette.text }]}>
+                  Continue with Google
+                </Text>
+              </>
+            )}
           </Pressable>
         </View>
       </ScrollView>
@@ -427,6 +490,38 @@ const styles = StyleSheet.create({
     textAlign:  'center',
   },
   toggleAction: {
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Divider ──
+  dividerWrap: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    marginVertical: 16,
+    gap:            10,
+  },
+  dividerLine: {
+    flex:   1,
+    height: 1,
+  },
+  dividerLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Google button ──
+  googleBtn: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    justifyContent:  'center',
+    borderRadius:    radius.ctaBtn,
+    borderWidth:     1,
+    paddingVertical: 14,
+    marginBottom:    8,
+  },
+  googleLabel: {
+    fontSize:   15,
     fontWeight: '500',
     fontFamily: 'Geist-Regular',
   },
