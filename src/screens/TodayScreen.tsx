@@ -55,7 +55,7 @@ import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
-import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences } from '../services/firestore';
+import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, awardPoint } from '../services/firestore';
 import { requestLocationPermission } from '../services/geolocation';
 import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
@@ -258,6 +258,17 @@ export default function TodayScreen() {
 
     try {
       await setTaskDone(uid, taskId, done);
+
+      // 3. Award 1 point when marking done (KAN-31).
+      //    Fire-and-forget — a points failure must never revert the task toggle.
+      if (done) {
+        const task = tasks.find(t => t.id === taskId);
+        if (task) {
+          awardPoint(uid, taskId, task.title).catch(err =>
+            console.warn('[TodayScreen] awardPoint failed (non-critical)', err),
+          );
+        }
+      }
     } catch (err) {
       // Revert optimistic state on failure.
       console.warn('[TodayScreen] toggle failed — reverting', err);
@@ -269,7 +280,7 @@ export default function TodayScreen() {
         return next;
       });
     }
-  }, [uid]);
+  }, [uid, tasks]);
 
   // ── Progress ──
   const totalTasks  = effectiveTasks.length;
