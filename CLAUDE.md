@@ -78,7 +78,7 @@ Work the list top-to-bottom. Do not start items ranked 7–9 until their depende
 | 7 | KAN-43 | Login screen polish and UX improvements | KAN-48 | ⬜ A fazer |
 | 8 | KAN-39 | Google OAuth login | KAN-48 | ⬜ A fazer |
 | 9 | KAN-40 | Apple Sign-In (iOS) | KAN-39 | ⬜ A fazer |
-| 10 | KAN-32 | Trigger achievement when entire to-do list is completed | — | ⬜ A fazer |
+| 10 | KAN-32 | Trigger achievement when entire to-do list is completed | — | ✅ Concluído |
 
 ### Additional Sprint-2 tickets (added during sprint)
 
@@ -88,8 +88,8 @@ Work the list top-to-bottom. Do not start items ranked 7–9 until their depende
 | 12 | KAN-27 | Geo-triggered local notifications when near a relevant POI | ✅ Concluído |
 | 13 | KAN-28 | Push notification content, deep linking and handling | ✅ Concluído |
 | 14 | KAN-29 | Notification preferences in app settings | ✅ Concluído |
-| 15 | KAN-30 | Points and achievements data model in Firebase | 🔄 In Development |
-| 16 | KAN-31 | Award 1 point per completed To-Do item | ⬜ A fazer |
+| 15 | KAN-30 | Points and achievements data model in Firebase | ✅ Concluído |
+| 16 | KAN-31 | Award 1 point per completed To-Do item | ✅ Concluído |
 
 ### Out of scope for Sprint 2
 
