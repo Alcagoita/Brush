@@ -61,7 +61,7 @@ describe('checkAndAwardDailyComplete', () => {
     expect(mockDisplayNotification).not.toHaveBeenCalled();
   });
 
-  it('calls awardAchievement with correct achievementId, type, and metadata', async () => {
+  it('calls awardAchievement with correct achievementId, type, and metadata (base)', async () => {
     mockHasAchievement.mockResolvedValue(false);
 
     await checkAndAwardDailyComplete('uid-1', '2026-05-29');
@@ -71,6 +71,19 @@ describe('checkAndAwardDailyComplete', () => {
       'daily_complete_2026-05-29',
       'daily_complete',
       { date: '2026-05-29' },
+    );
+  });
+
+  it('includes totalTasks and totalPoints in metadata when provided', async () => {
+    mockHasAchievement.mockResolvedValue(false);
+
+    await checkAndAwardDailyComplete('uid-1', '2026-05-29', 5, 5);
+
+    expect(mockAwardAchievement).toHaveBeenCalledWith(
+      'uid-1',
+      'daily_complete_2026-05-29',
+      'daily_complete',
+      { date: '2026-05-29', totalTasks: 5, totalPoints: 5 },
     );
   });
 

@@ -34,12 +34,16 @@ async function ensureChannel(): Promise<void> {
  * returns early without firing another notification. Safe to call on every
  * task toggle.
  *
- * @param uid  - Authenticated user ID
- * @param date - Calendar date in "YYYY-MM-DD" format (use todayISO() at call site)
+ * @param uid         - Authenticated user ID
+ * @param date        - Calendar date in "YYYY-MM-DD" format (use todayISO() at call site)
+ * @param totalTasks  - Number of tasks completed today (stored as metadata)
+ * @param totalPoints - Points earned today (stored as metadata; equals totalTasks since 1 pt/task)
  */
 export async function checkAndAwardDailyComplete(
   uid: string,
   date: string,
+  totalTasks?: number,
+  totalPoints?: number,
 ): Promise<void> {
   const achievementId = `daily_complete_${date}`;
 
@@ -47,7 +51,11 @@ export async function checkAndAwardDailyComplete(
   const alreadyAwarded = await hasAchievement(uid, achievementId);
   if (alreadyAwarded) { return; }
 
-  await awardAchievement(uid, achievementId, 'daily_complete', { date });
+  const metadata: Record<string, unknown> = { date };
+  if (totalTasks  !== undefined) { metadata.totalTasks  = totalTasks;  }
+  if (totalPoints !== undefined) { metadata.totalPoints = totalPoints; }
+
+  await awardAchievement(uid, achievementId, 'daily_complete', metadata);
 
   await ensureChannel();
   await notifee.displayNotification({

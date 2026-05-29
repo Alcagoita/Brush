@@ -275,6 +275,8 @@ describe('KAN-32 — daily-complete achievement', () => {
     expect(mockCheckAndAwardDailyComplete).toHaveBeenCalledWith(
       'user-test',
       expect.any(String), // todayISO() result
+      1,                  // totalTasks  = tasks.length (TASK only)
+      1,                  // totalPoints = tasks.length (1 pt per task)
     );
   });
 

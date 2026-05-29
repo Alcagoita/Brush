@@ -278,7 +278,7 @@ export default function TodayScreen() {
           tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
 
         if (allOthersDone) {
-          checkAndAwardDailyComplete(uid, todayISO()).catch(err =>
+          checkAndAwardDailyComplete(uid, todayISO(), tasks.length, tasks.length).catch(err =>
             console.warn('[TodayScreen] daily-complete achievement failed (non-critical)', err),
           );
         }
