@@ -2,13 +2,17 @@
  * KAN-29 — ProfileScreen notification preferences tests.
  *
  * Covers:
- *   - "Notification Preferences" section renders with all 4 POI types
+ *   - "Notification Preferences" section renders with all 4 built-in POI types
  *   - Default radii are shown before any Firestore preferences load
  *   - Stored preferences override defaults when the subscription fires
  *   - Pressing "+" increases the radius by 25 m and calls setPoiPreference
  *   - Pressing "−" decreases the radius by 25 m and calls setPoiPreference
  *   - Radius is clamped: "−" disabled at 25 m, "+" disabled at 500 m
  *   - setPoiPreference is NOT called when already at the limit
+ *   - Custom categories with a poi field add extra rows
+ *   - Custom categories without a poi field are not shown
+ *   - Custom categories whose poi type duplicates a built-in are not doubled up
+ *   - Two custom categories sharing the same poi type produce only one row
  */
 
 import React from 'react';
@@ -18,10 +22,21 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 const mockSubscribeToPoiPreferences = jest.fn();
 const mockSetPoiPreference           = jest.fn();
+const mockSubscribeToCategories      = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   subscribeToPoiPreferences: (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
   setPoiPreference:          (...args: unknown[]) => mockSetPoiPreference(...args),
+  subscribeToCategories:     (...args: unknown[]) => mockSubscribeToCategories(...args),
+}));
+
+// Maps — placeTypeLabel used to label custom poi types
+jest.mock('../../src/services/maps', () => ({
+  placeTypeLabel: (type: string) =>
+    type === 'fitness_center' ? 'Fitness Center' :
+    type === 'restaurant'     ? 'Restaurant'     :
+    type === 'gym'            ? 'Gym'            :
+    type,
 }));
 
 // Auth — return a fixed uid
@@ -85,19 +100,46 @@ import ProfileScreen from '../../src/screens/ProfileScreen';
 
 /**
  * Capture the onUpdate callback passed to subscribeToPoiPreferences and return
- * it so tests can fire a simulated Firestore snapshot.
+ * a trigger function so tests can fire a simulated Firestore snapshot.
  */
 function capturePrefsCallback(): (prefs: Record<string, number>) => void {
   let captured: ((prefs: Record<string, number>) => void) | null = null;
   mockSubscribeToPoiPreferences.mockImplementation(
     (_uid: string, onUpdate: (prefs: Record<string, number>) => void) => {
       captured = onUpdate;
-      return jest.fn(); // unsubscribe
+      return jest.fn();
     },
   );
-  // Return a function so tests can trigger a snapshot after render.
   return (prefs: Record<string, number>) => {
     if (captured) { act(() => { captured!(prefs); }); }
+  };
+}
+
+/**
+ * Capture the onUpdate callback passed to subscribeToCategories and return
+ * a trigger function so tests can fire a simulated Firestore snapshot.
+ */
+function captureCategoriesCallback(): (cats: object[]) => void {
+  let captured: ((cats: object[]) => void) | null = null;
+  mockSubscribeToCategories.mockImplementation(
+    (_uid: string, onUpdate: (cats: object[]) => void) => {
+      captured = onUpdate;
+      return jest.fn();
+    },
+  );
+  return (cats: object[]) => {
+    if (captured) { act(() => { captured!(cats); }); }
+  };
+}
+
+function makeCategory(overrides: Record<string, unknown> = {}) {
+  return {
+    id:        'cat-1',
+    name:      'Gym',
+    color:     '#ff0000',
+    poi:       'fitness_center',
+    isBuiltIn: false,
+    ...overrides,
   };
 }
 
@@ -111,8 +153,9 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSetPoiPreference.mockResolvedValue(undefined);
-    // Default: subscription returns empty unsubscribe with no snapshot.
+    // Default: both subscriptions return a no-op unsubscribe with no snapshot.
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
   });
 
   // ── Rendering ───────────────────────────────────────────────────────────────
@@ -230,5 +273,68 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
     expect(screen.getByText('125 m')).toBeTruthy();
     expect(mockSetPoiPreference).toHaveBeenLastCalledWith('test-uid', 'atm', 125);
     expect(mockSetPoiPreference).toHaveBeenCalledTimes(3);
+  });
+
+  // ── Custom categories ────────────────────────────────────────────────────────
+
+  it('subscribes to categories with the current user uid', () => {
+    renderScreen();
+    expect(mockSubscribeToCategories).toHaveBeenCalledWith(
+      'test-uid',
+      expect.any(Function),
+    );
+  });
+
+  it('adds a row for a custom category that has a poi type', () => {
+    const fireCategories = captureCategoriesCallback();
+    renderScreen();
+    fireCategories([makeCategory({ poi: 'fitness_center' })]);
+    // placeTypeLabel('fitness_center') → 'Fitness Center' (mocked above)
+    expect(screen.getByText('Fitness Center')).toBeTruthy();
+  });
+
+  it('does not add a row for a custom category without a poi type', () => {
+    const fireCategories = captureCategoriesCallback();
+    renderScreen();
+    fireCategories([makeCategory({ poi: null })]);
+    expect(screen.queryByText('Fitness Center')).toBeNull();
+  });
+
+  it('does not duplicate a built-in row when a custom category shares its poi type', () => {
+    const fireCategories = captureCategoriesCallback();
+    renderScreen();
+    // 'atm' is already a built-in row — no second ATM row should appear.
+    fireCategories([makeCategory({ poi: 'atm' })]);
+    expect(screen.getAllByText('ATM')).toHaveLength(1);
+  });
+
+  it('shows only one row when two custom categories share the same poi type', () => {
+    const fireCategories = captureCategoriesCallback();
+    renderScreen();
+    fireCategories([
+      makeCategory({ id: 'cat-1', name: 'Gym',     poi: 'fitness_center' }),
+      makeCategory({ id: 'cat-2', name: 'Pilates', poi: 'fitness_center' }),
+    ]);
+    expect(screen.getAllByText('Fitness Center')).toHaveLength(1);
+  });
+
+  it('custom category row defaults to 75 m (matching proximity engine default)', () => {
+    const fireCategories = captureCategoriesCallback();
+    renderScreen();
+    // Before: Café + Supermarket show 75 m → 2 labels.
+    expect(screen.getAllByText('75 m')).toHaveLength(2);
+    fireCategories([makeCategory({ poi: 'restaurant' })]);
+    // After: restaurant row adds a third 75 m label (DEFAULT_CUSTOM_RADIUS).
+    expect(screen.getAllByText('75 m')).toHaveLength(3);
+  });
+
+  it('custom category stepper calls setPoiPreference with the correct poi type', () => {
+    const fireCategories = captureCategoriesCallback();
+    renderScreen();
+    fireCategories([makeCategory({ poi: 'fitness_center' })]);
+
+    // fitness_center starts at 75 m; pressing + should go to 100 m.
+    fireEvent.press(screen.getByLabelText('Increase Fitness Center radius'));
+    expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'fitness_center', 100);
   });
 });

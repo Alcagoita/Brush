@@ -7,7 +7,7 @@
  * time (proximity.ts listens to subscribeToPoiPreferences and invalidates its
  * place cache on every change).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -25,8 +25,9 @@ import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
 import { signOut } from '../services/auth';
-import { subscribeToPoiPreferences, setPoiPreference } from '../services/firestore';
-import { POI_GEOFENCE_RADIUS } from '../types';
+import { subscribeToPoiPreferences, setPoiPreference, subscribeToCategories } from '../services/firestore';
+import { placeTypeLabel } from '../services/maps';
+import { Category, POI_GEOFENCE_RADIUS } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -38,8 +39,17 @@ const STEP = 25;
 const MIN_RADIUS = 25;
 /** Maximum geofence radius a user can set. */
 const MAX_RADIUS = 500;
+/**
+ * Default radius for custom (non-built-in) POI types — matches
+ * DEFAULT_GEOFENCE_RADIUS in proximity.ts so the stepper initialises at the
+ * same value the engine would use before the user saves a preference.
+ */
+const DEFAULT_CUSTOM_RADIUS = 75;
 
-/** Ordered list of built-in POI types rendered in the preferences section. */
+/** Built-in POI types — always shown; used to deduplicate custom category rows. */
+const BUILTIN_POI_TYPES = new Set(['atm', 'pharmacy', 'cafe', 'supermarket']);
+
+/** Fixed rows for the 4 built-in POI types. */
 const POI_ROWS: { type: string; label: string }[] = [
   { type: 'atm',         label: 'ATM' },
   { type: 'pharmacy',    label: 'Pharmacy' },
@@ -75,9 +85,37 @@ export default function ProfileScreen() {
     });
   }, [uid]);
 
+  // ── Custom categories ──────────────────────────────────────────────────────
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToCategories(uid, cats => {
+      setCustomCategories(cats);
+    });
+  }, [uid]);
+
+  /**
+   * All POI rows to display: the 4 built-ins first, then one row per unique
+   * custom poi type that the user has assigned to at least one of their
+   * custom categories. Built-in types are deduplicated so a custom "ATM"
+   * category doesn't produce a duplicate row.
+   */
+  const allPoiRows = useMemo<{ type: string; label: string }[]>(() => {
+    const seen = new Set<string>(BUILTIN_POI_TYPES);
+    const custom: { type: string; label: string }[] = [];
+    for (const cat of customCategories) {
+      if (cat.poi && !seen.has(cat.poi)) {
+        seen.add(cat.poi);
+        custom.push({ type: cat.poi, label: placeTypeLabel(cat.poi) });
+      }
+    }
+    return [...POI_ROWS, ...custom];
+  }, [customCategories]);
+
   // ── Stepper handler ────────────────────────────────────────────────────────
   function handleRadiusChange(poiType: string, delta: number): void {
-    const current = poiRadii[poiType] ?? DEFAULT_RADII[poiType] ?? MIN_RADIUS;
+    const current = poiRadii[poiType] ?? DEFAULT_RADII[poiType] ?? DEFAULT_CUSTOM_RADIUS;
     const next = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, current + delta));
     if (next === current) { return; }
 
@@ -139,8 +177,8 @@ export default function ProfileScreen() {
             Alert radius per location type
           </Text>
 
-          {POI_ROWS.map(({ type, label }, idx) => {
-            const r = poiRadii[type] ?? DEFAULT_RADII[type] ?? MIN_RADIUS;
+          {allPoiRows.map(({ type, label }, idx) => {
+            const r = poiRadii[type] ?? DEFAULT_RADII[type] ?? DEFAULT_CUSTOM_RADIUS;
             const atMin = r <= MIN_RADIUS;
             const atMax = r >= MAX_RADIUS;
 
