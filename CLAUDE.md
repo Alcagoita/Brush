@@ -21,6 +21,24 @@ Example: the user has "Pick up groceries" tagged to Supermarket. When they walk 
 
 ---
 
+## Gitflow Branching Strategy
+
+This project follows **standard Gitflow**. Never deviate from these rules.
+
+| Branch type | Cut from | Merges into | Naming |
+|-------------|----------|-------------|--------|
+| Feature | `develop` | `develop` | `KAN-XX-short-description` |
+| Release | `develop` | `main` + `develop` | `release/X.Y.Z` |
+| Hotfix | `main` | `main` + `develop` | `hotfix/short-description` |
+
+- **`main`** — production only. Never commit or branch directly from it except for hotfixes.
+- **`develop`** — integration branch. All feature PRs target this.
+- **Features** — always cut from `develop`, always PR back into `develop`.
+- **Sprint end** — a release branch is cut from `develop`, merged into `main`, then back into `develop`.
+- **If unsure which branch to use — ask before creating the branch.**
+
+---
+
 ## JIRA Workflow
 
 - **Project key**: KAN
