@@ -377,7 +377,7 @@ docs/
 2. **Tabular numerals** on any number that changes (distance, progress count, day number).
 3. **No drop shadows** — use 1px borders only.
 4. **Geist font** for all text. Load it once at the app root.
-5. **Branch from main**, name it `KAN-XX-description`, open a PR when done.
+5. **Branch from develop**, name it `KAN-XX-description`, open a PR targeting `develop` when done.
 6. **One ticket per branch** — don't bundle multiple KAN tickets into one PR.
 7. **Firebase rules**: Firestore reads/writes are always scoped to `/users/{uid}/...` — never read another user's data.
 8. **Don't work on Backlog tickets** until they are moved to an active sprint.
