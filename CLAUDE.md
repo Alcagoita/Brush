@@ -428,6 +428,24 @@ docs/
 
 ## Sprint Boundary Rule
 
+### End-of-Sprint Checklist
+
+When all tickets in a sprint are merged into `develop`, follow these steps **in order** before declaring the sprint done:
+
+1. Cut a `release/X.Y.Z` branch from `develop`
+2. Bump the version in `package.json`
+3. PR the release branch into `main`, merge with `--admin` if needed
+4. Tag the release on `main`: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+5. Push the tag: `git push origin vX.Y.Z`
+6. **Create a GitHub release** on the tag with full release notes — group tickets by feature area, include setup/migration notes if relevant
+7. Merge the release branch back into `develop`
+8. Delete the release branch
+9. Report to the user and wait for Sprint N+1 planning
+
+**Never skip the GitHub release.** Release notes are required for every sprint — they are the handoff document for QA, stakeholders, and future contributors.
+
+---
+
 **Sprint 1 — ✅ Complete.** All 10 tickets shipped.
 
 **Sprint 2 contains 16 tickets:**
