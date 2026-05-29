@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   StyleSheet,
   View,
   StatusBar,
@@ -21,9 +22,27 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
 
+const TRANSITION_MS = 220;
+
 function AppShell() {
   const { user, loading } = useAuth();
   const { palette, dark } = useTheme();
+
+  // Tracks the auth state actually rendered — lags behind `user` by one animation cycle
+  // so the fade-out completes before we swap login ↔ app.
+  const [displayUser, setDisplayUser] = useState(user);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (loading) return;
+    if (user === displayUser) return;
+
+    Animated.timing(fadeAnim, { toValue: 0, duration: TRANSITION_MS, useNativeDriver: true })
+      .start(() => {
+        setDisplayUser(user);
+        Animated.timing(fadeAnim, { toValue: 1, duration: TRANSITION_MS, useNativeDriver: true }).start();
+      });
+  }, [user, loading, displayUser]);
 
   // Persist the FCM device token whenever a user is signed in.
   useFCM(user?.uid ?? null);
@@ -86,13 +105,15 @@ function AppShell() {
         backgroundColor={palette.bg}
       />
       <NetworkBanner />
-      {user ? (
-        <NavigationContainer ref={navigationRef}>
-          <AppNavigator />
-        </NavigationContainer>
-      ) : (
-        <LoginScreen />
-      )}
+      <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
+        {displayUser ? (
+          <NavigationContainer ref={navigationRef}>
+            <AppNavigator />
+          </NavigationContainer>
+        ) : (
+          <LoginScreen />
+        )}
+      </Animated.View>
     </>
   );
 }
@@ -115,5 +136,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#f8f9fb',
+  },
+  fill: {
+    flex: 1,
   },
 });

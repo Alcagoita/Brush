@@ -21,6 +21,24 @@ Example: the user has "Pick up groceries" tagged to Supermarket. When they walk 
 
 ---
 
+## Gitflow Branching Strategy
+
+This project follows **standard Gitflow**. Never deviate from these rules.
+
+| Branch type | Cut from | Merges into | Naming |
+|-------------|----------|-------------|--------|
+| Feature | `develop` | `develop` | `KAN-XX-short-description` |
+| Release | `develop` | `main` + `develop` | `release/X.Y.Z` |
+| Hotfix | `main` | `main` + `develop` | `hotfix/short-description` |
+
+- **`main`** — production only. Never commit or branch directly from it except for hotfixes.
+- **`develop`** — integration branch. All feature PRs target this.
+- **Features** — always cut from `develop`, always PR back into `develop`.
+- **Sprint end** — a release branch is cut from `develop`, merged into `main`, then back into `develop`.
+- **If unsure which branch to use — ask before creating the branch.**
+
+---
+
 ## JIRA Workflow
 
 - **Project key**: KAN
@@ -377,7 +395,7 @@ docs/
 2. **Tabular numerals** on any number that changes (distance, progress count, day number).
 3. **No drop shadows** — use 1px borders only.
 4. **Geist font** for all text. Load it once at the app root.
-5. **Branch from main**, name it `KAN-XX-description`, open a PR when done.
+5. **Branch from develop**, name it `KAN-XX-description`, open a PR targeting `develop` when done.
 6. **One ticket per branch** — don't bundle multiple KAN tickets into one PR.
 7. **Firebase rules**: Firestore reads/writes are always scoped to `/users/{uid}/...` — never read another user's data.
 8. **Don't work on Backlog tickets** until they are moved to an active sprint.
