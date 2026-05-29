@@ -46,6 +46,17 @@ This project follows **standard Gitflow**. Never deviate from these rules.
 - **Commit format**: `KAN-XX: short description` (e.g. `KAN-45: implement progress ring`)
 - Linking a branch or PR with the ticket key in its name automatically closes the ticket when merged.
 
+### Ticket Status Rules
+
+| Event | Transition ticket to |
+|-------|----------------------|
+| Starting a ticket | **In Development** |
+| PR merged into develop | **Concluído** |
+
+- **Always** update the Jira ticket status when starting and when merging.
+- Never leave a ticket in **A fazer** while actively working on it.
+- Never leave a ticket in **In Development** after the PR has been merged.
+
 ---
 
 ## Sprint 1: Today Screen — ✅ Complete
