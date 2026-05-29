@@ -25,6 +25,14 @@ jest.mock('../../src/services/firestore', () => ({
   subscribeToPoiPreferences: (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
 }));
 
+// ─── Achievements mock ────────────────────────────────────────────────────────
+
+const mockCheckAndAwardDailyComplete = jest.fn();
+
+jest.mock('../../src/services/achievements', () => ({
+  checkAndAwardDailyComplete: (...args: unknown[]) => mockCheckAndAwardDailyComplete(...args),
+}));
+
 // ─── Auth mock ────────────────────────────────────────────────────────────────
 
 let mockUid: string | null = 'user-test';
@@ -167,6 +175,7 @@ function setupFirestoreMocks(tasks: typeof TASK[]) {
   mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
   mockSetTaskDone.mockResolvedValue(undefined);
   mockAwardPoint.mockResolvedValue(undefined);
+  mockCheckAndAwardDailyComplete.mockResolvedValue(undefined);
 }
 
 // ─── Import (after all mocks) ─────────────────────────────────────────────────
@@ -236,5 +245,92 @@ describe('KAN-31 — point awarding on task toggle', () => {
     await act(async () => {});
 
     expect(mockAwardPoint).not.toHaveBeenCalled();
+  });
+});
+
+// ─── KAN-32 — daily-complete achievement ─────────────────────────────────────
+
+/** A second pending task — used in multi-task scenarios. */
+const TASK_2 = {
+  id:        'task-2',
+  title:     'Walk the dog',
+  category:  'health' as const,
+  done:      false,
+  date:      '2026-05-29',
+  createdAt: { toDate: () => new Date() } as any,
+};
+
+describe('KAN-32 — daily-complete achievement', () => {
+  it('calls checkAndAwardDailyComplete when the last pending task is marked done', async () => {
+    // Only TASK is pending — marking it done makes the list fully complete.
+    setupFirestoreMocks([TASK]);
+    render(<TodayScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('task-row-task-1'));
+    });
+    await act(async () => {});
+
+    expect(mockCheckAndAwardDailyComplete).toHaveBeenCalledTimes(1);
+    expect(mockCheckAndAwardDailyComplete).toHaveBeenCalledWith(
+      'user-test',
+      expect.any(String), // todayISO() result
+      1,                  // totalTasks  = tasks.length (TASK only)
+      1,                  // totalPoints = tasks.length (1 pt per task)
+    );
+  });
+
+  it('does NOT call checkAndAwardDailyComplete when other tasks are still pending', async () => {
+    // Two pending tasks — marking only one done leaves the list incomplete.
+    setupFirestoreMocks([TASK, TASK_2]);
+    render(<TodayScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('task-row-task-1'));
+    });
+    await act(async () => {});
+
+    expect(mockCheckAndAwardDailyComplete).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call checkAndAwardDailyComplete when marking a task undone', async () => {
+    setupFirestoreMocks([DONE_TASK]);
+    render(<TodayScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('task-row-task-done'));
+    });
+    await act(async () => {});
+
+    expect(mockCheckAndAwardDailyComplete).not.toHaveBeenCalled();
+  });
+
+  it('does NOT call checkAndAwardDailyComplete when uid is absent', async () => {
+    mockUid = null;
+    setupFirestoreMocks([TASK]);
+    render(<TodayScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.queryByTestId('task-row-task-1') ?? { type: 'View' } as any);
+    });
+    await act(async () => {});
+
+    expect(mockCheckAndAwardDailyComplete).not.toHaveBeenCalled();
+  });
+
+  it('does NOT revert the task toggle when checkAndAwardDailyComplete fails', async () => {
+    setupFirestoreMocks([TASK]);
+    mockCheckAndAwardDailyComplete.mockRejectedValue(new Error('Achievement service error'));
+    jest.spyOn(console, 'warn').mockImplementation(() => {});
+    render(<TodayScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('task-row-task-1'));
+    });
+    await act(async () => {});
+
+    // setTaskDone still called — toggle was not reverted.
+    expect(mockSetTaskDone).toHaveBeenCalledWith('user-test', 'task-1', true);
+    expect(screen.getByTestId('task-row-task-1')).toBeTruthy();
   });
 });

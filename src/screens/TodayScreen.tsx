@@ -56,6 +56,7 @@ import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, awardPoint } from '../services/firestore';
+import { checkAndAwardDailyComplete } from '../services/achievements';
 import { requestLocationPermission } from '../services/geolocation';
 import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
@@ -268,6 +269,19 @@ export default function TodayScreen() {
             console.warn('[TodayScreen] awardPoint failed (non-critical)', err),
           );
         }
+
+        // 4. Trigger daily-complete achievement if every task is now done (KAN-32).
+        //    "Every other task is done" + "this task was just marked done" = all done.
+        //    Fire-and-forget — achievement failure must never affect the toggle.
+        const allOthersDone =
+          tasks.length > 0 &&
+          tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
+
+        if (allOthersDone) {
+          checkAndAwardDailyComplete(uid, todayISO(), tasks.length, tasks.length).catch(err =>
+            console.warn('[TodayScreen] daily-complete achievement failed (non-critical)', err),
+          );
+        }
       }
     } catch (err) {
       // Revert optimistic state on failure.
@@ -280,7 +294,7 @@ export default function TodayScreen() {
         return next;
       });
     }
-  }, [uid, tasks]);
+  }, [uid, tasks, optimisticDone]);
 
   // ── Progress ──
   const totalTasks  = effectiveTasks.length;
