@@ -42,7 +42,7 @@ function AppShell() {
         setDisplayUser(user);
         Animated.timing(fadeAnim, { toValue: 1, duration: TRANSITION_MS, useNativeDriver: true }).start();
       });
-  }, [user, loading]);
+  }, [user, loading, displayUser]);
 
   // Persist the FCM device token whenever a user is signed in.
   useFCM(user?.uid ?? null);
