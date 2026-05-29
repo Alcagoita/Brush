@@ -78,7 +78,7 @@ Goal: ship a working Today screen that matches the design handoff exactly, backe
 
 ---
 
-## Current Sprint — Sprint 2: Points, Auth & Polish
+## Sprint 2: Points, Auth & Polish — ✅ Complete
 
 Goal: add the points & achievements system, complete auth flows (Google + Apple), polish the login screen, and close remaining notification & category work.
 
