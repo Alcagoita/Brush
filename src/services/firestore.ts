@@ -133,7 +133,7 @@ export function subscribeToTasksForDate(
   );
   return onSnapshot(
     q,
-    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -165,7 +165,7 @@ export function subscribeToTasksForMonth(
   );
   return onSnapshot(
     q,
-    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -186,7 +186,7 @@ export function subscribeToPoiTasks(
   );
   return onSnapshot(
     q,
-    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -346,9 +346,10 @@ export function subscribeToCategories(
 ): () => void {
   return onSnapshot(
     query(categoriesRef(uid), orderBy('name', 'asc')),
-    snap => onUpdate(
-      snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category)),
-    ),
+    snap => {
+      if (!snap) return;
+      onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category)));
+    },
     onError,
   );
 }
@@ -509,9 +510,7 @@ export function subscribeToAchievements(
 ): () => void {
   return onSnapshot(
     query(achievementsRef(uid), orderBy('earnedAt', 'desc')),
-    snap => onUpdate(
-      snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement)),
-    ),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement))); },
     onError,
   );
 }
@@ -527,9 +526,7 @@ export function subscribeToPointsHistory(
 ): () => void {
   return onSnapshot(
     query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')),
-    snap => onUpdate(
-      snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry)),
-    ),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry))); },
     onError,
   );
 }
