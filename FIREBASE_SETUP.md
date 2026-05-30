@@ -6,8 +6,7 @@
 - [Xcode](https://developer.apple.com/xcode/) (for iOS builds)
 - [Android Studio](https://developer.android.com/studio) + Android SDK (for Android builds)
 - Java 17+ (required by Gradle 9.x) — `brew install openjdk@17`
-- Access to the **vibe-agenda** Firebase project (request from the project owner)
-  > ℹ️ The app has been rebranded to **Brush** but the Firebase project ID `vibe-agenda` is permanent and cannot be changed.
+- Access to the **brush-away** Firebase project (request from the project owner)
 
 ---
 
@@ -23,12 +22,12 @@ These files contain sensitive API keys and are **not committed to git**. Downloa
 
 ```bash
 # Android
-firebase apps:sdkconfig ANDROID 1:463435762915:android:422f81789b25c3a09249d6 \
-  --project vibe-agenda > android/app/google-services.json
+firebase apps:sdkconfig ANDROID 1:187550770253:android:439283eb536d33c835e804 \
+  --project brush-away > android/app/google-services.json
 
 # iOS
-firebase apps:sdkconfig IOS 1:463435762915:ios:11415e7c9a36dc349249d6 \
-  --project vibe-agenda > ios/Agenda/GoogleService-Info.plist
+firebase apps:sdkconfig IOS 1:187550770253:ios:0f925811aad9f45235e804 \
+  --project brush-away > ios/Agenda/GoogleService-Info.plist
 ```
 
 ### 3. Install JS dependencies
@@ -56,9 +55,9 @@ npx react-native run-ios
 
 | Environment | Firebase Project |
 |---|---|
-| `dev` | `vibe-agenda-dev` |
-| `staging` | `vibe-agenda-staging` |
-| `prod` | `vibe-agenda` |
+| `dev` | `brush-away-dev` |
+| `staging` | `brush-away-staging` |
+| `prod` | `brush-away` |
 
 ```bash
 bash scripts/switch-env.sh dev      # switch to development
