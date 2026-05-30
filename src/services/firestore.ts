@@ -133,7 +133,7 @@ export function subscribeToTasksForDate(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -165,7 +165,7 @@ export function subscribeToTasksForMonth(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -186,7 +186,7 @@ export function subscribeToPoiTasks(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
