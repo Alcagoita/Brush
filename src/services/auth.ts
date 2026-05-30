@@ -15,7 +15,7 @@ import { appleAuth } from '@invertase/react-native-apple-authentication';
 // Configure Google Sign-In once at module load time.
 // webClientId comes from the OAuth 2.0 client in google-services.json / GoogleService-Info.plist.
 GoogleSignin.configure({
-  webClientId: '818641166618-bh2ck6pb8eflqp1fkrps6o8bmkb5bktl.apps.googleusercontent.com',
+  webClientId: '187550770253-p3bb919dl616s1phbl4dj8v1spbtk753.apps.googleusercontent.com',
 });
 
 export const signInWithEmail = (email: string, password: string) =>
