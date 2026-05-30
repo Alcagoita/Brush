@@ -255,6 +255,7 @@ export function subscribeToPoiPreferences(
   return onSnapshot(
     poisRef(uid),
     snap => {
+      if (!snap) return;
       const prefs: Record<string, number> = {};
       for (const d of snap.docs) {
         const pref = d.data() as PoiPreference;
@@ -492,6 +493,7 @@ export function subscribeToTotalPoints(
   return onSnapshot(
     userRef(uid),
     snap => {
+      if (!snap) return;
       const data = snap.data() as { totalPoints?: number } | undefined;
       onUpdate(data?.totalPoints ?? 0);
     },
