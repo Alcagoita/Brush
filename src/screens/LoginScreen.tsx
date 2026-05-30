@@ -296,7 +296,7 @@ export default function LoginScreen() {
 
         {/* ── Wordmark ── */}
         <View style={styles.brand}>
-          <Text style={[styles.wordmark, { color: palette.text }]}>Agenda</Text>
+          <Text style={[styles.wordmark, { color: palette.text }]}>Brush</Text>
           <Text style={[styles.tagline, { color: palette.muted }]}>
             {isSignUp ? 'Create your account' : 'Sign in to continue'}
           </Text>

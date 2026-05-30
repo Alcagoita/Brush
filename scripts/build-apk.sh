@@ -24,7 +24,7 @@ if [ -d "$JAVA17" ]; then
 fi
 
 echo ""
-echo "▶ Building Agenda APK..."
+echo "▶ Building Brush APK..."
 echo "  Project : $PROJECT_ROOT"
 echo "  SDK     : $ANDROID_HOME"
 echo ""
@@ -41,10 +41,10 @@ cd "$ANDROID_DIR"
 
 # 3. Copy APK to builds/
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
-DEST="$BUILDS_DIR/Agenda-debug-$TIMESTAMP.apk"
+DEST="$BUILDS_DIR/Brush-debug-$TIMESTAMP.apk"
 mkdir -p "$BUILDS_DIR"
 cp "$APK_SOURCE" "$DEST"
 
 echo ""
-echo "✅ APK ready: builds/Agenda-debug-$TIMESTAMP.apk"
+echo "✅ APK ready: builds/Brush-debug-$TIMESTAMP.apk"
 echo ""

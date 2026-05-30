@@ -31,7 +31,7 @@ afterAll(async () => {
 
 describe('Authentication', () => {
   it('shows the Login screen on first launch', async () => {
-    await expect(element(by.text('Agenda'))).toBeVisible();
+    await expect(element(by.text('Brush'))).toBeVisible();
     await expect(element(by.text('Sign in to continue'))).toBeVisible();
     await expect(element(by.label('Email address'))).toBeVisible();
     await expect(element(by.label('Password'))).toBeVisible();
@@ -61,7 +61,7 @@ describe('Authentication', () => {
     await element(by.label('Create account')).tap();
 
     // Should land on CalendarScreen
-    await waitFor(element(by.text('Agenda')))
+    await waitFor(element(by.text('Brush')))
       .toBeVisible()
       .withTimeout(10000);
     await expect(element(by.label('Add new event'))).toBeVisible();

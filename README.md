@@ -98,7 +98,7 @@ Enable in Firebase Console → Authentication → Sign-in method → Email/Passw
 
 **Xcode**
 1. Open `ios/Agenda.xcworkspace`
-2. Select the `Agenda` target → **Signing & Capabilities**
+2. Select the `Brush` target → **Signing & Capabilities**
 3. Click **+ Capability** → add **Sign in with Apple**
 
 **Firebase Console**
