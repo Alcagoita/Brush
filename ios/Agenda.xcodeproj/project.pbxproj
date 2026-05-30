@@ -346,8 +346,9 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = Agenda;
+				/* ⚠️ KAN-70: bundle ID changed from com.agenda → com.brush (affects App Store listing identity) */
+				PRODUCT_BUNDLE_IDENTIFIER = "com.brush";
+				PRODUCT_NAME = Brush;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -375,8 +376,9 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.reactjs.native.example.$(PRODUCT_NAME:rfc1034identifier)";
-				PRODUCT_NAME = Agenda;
+				/* ⚠️ KAN-70: bundle ID changed from com.agenda → com.brush (affects App Store listing identity) */
+				PRODUCT_BUNDLE_IDENTIFIER = "com.brush";
+				PRODUCT_NAME = Brush;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

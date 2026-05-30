@@ -94,9 +94,10 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.agenda"
+    // ⚠️ KAN-70: bundle ID changed from com.agenda → com.brush (affects Play Store listing identity)
+    namespace "com.brush"
     defaultConfig {
-        applicationId "com.agenda"
+        applicationId "com.brush"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

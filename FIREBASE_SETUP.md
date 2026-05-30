@@ -7,6 +7,7 @@
 - [Android Studio](https://developer.android.com/studio) + Android SDK (for Android builds)
 - Java 17+ (required by Gradle 9.x) — `brew install openjdk@17`
 - Access to the **vibe-agenda** Firebase project (request from the project owner)
+  > ℹ️ The app has been rebranded to **Brush** but the Firebase project ID `vibe-agenda` is permanent and cannot be changed.
 
 ---
 
