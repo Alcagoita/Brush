@@ -174,6 +174,9 @@ export default function TodayScreen() {
     return subscribeToTasksForDate(uid, todayISO(), (newTasks) => {
       setTasks(newTasks);
       setTasksLoading(false);
+    }, (err) => {
+      console.warn('[TodayScreen] tasks subscription error:', err.message);
+      setTasksLoading(false);
     });
   }, [uid]);
 
