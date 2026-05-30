@@ -481,6 +481,7 @@ export default function TodayScreen() {
                 task={task}
                 nearbyPoiType={nearbyPoiType}
                 onToggle={handleToggle}
+                customCategories={customCategories}
               />
             ))
           )}

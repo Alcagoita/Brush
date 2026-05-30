@@ -27,18 +27,29 @@ import Animated, {
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
-import { Task } from '../types';
+import { Task, Category } from '../types';
 
 interface TaskRowProps {
   task: Task;
   /** Currently active (nearby) POI type string — null until KAN-22 wires geolocation. */
   nearbyPoiType?: string | null;
   onToggle: (taskId: string, done: boolean) => void;
+  /** Custom categories from Firestore — used to resolve non-built-in category IDs (KAN-61). */
+  customCategories?: Category[];
 }
 
-export default function TaskRow({ task, nearbyPoiType = null, onToggle }: TaskRowProps) {
+/** Fallback for tasks whose category ID doesn't match any known category. */
+const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
+
+export default function TaskRow({ task, nearbyPoiType = null, onToggle, customCategories = [] }: TaskRowProps) {
   const { palette } = useTheme();
-  const cat = categories[task.category];
+  const builtIn = categories[task.category as keyof typeof categories];
+  const custom  = customCategories.find(c => c.id === task.category);
+  const cat     = builtIn
+    ? { color: builtIn.color, label: builtIn.label }
+    : custom
+    ? { color: custom.color,  label: custom.name }
+    : FALLBACK_CAT;
 
   // ── Checkbox fill animation ──
   // Animates the filled inner circle in/out when done toggles (200 ms ease).
