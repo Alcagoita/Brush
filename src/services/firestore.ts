@@ -1,5 +1,5 @@
 /**
- * firestore.ts — Firestore CRUD helpers for the Vibe Agenda data model.
+ * firestore.ts — Firestore CRUD helpers for the Brush data model.
  *
  * All reads/writes are scoped to /users/{uid}/... — never touches another
  * user's data (enforced here and in Firestore security rules).

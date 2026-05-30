@@ -1,8 +1,8 @@
-# Vibe Agenda — Claude Code Project Guide
+# Brush — Claude Code Project Guide
 
 ## What This App Is
 
-Vibe Agenda is a location-aware to-do app for iOS and Android built with React Native.
+Brush is a location-aware to-do app for iOS and Android built with React Native.
 Its defining feature: when the user is physically near a Point of Interest (POI) tied to one of their tasks, the app surfaces a hero alert and offers a one-tap "Open in Maps" route.
 
 Example: the user has "Pick up groceries" tagged to Supermarket. When they walk within 75 m of a Whole Foods, the Today screen promotes that task to a hero alert and a local notification fires.
@@ -95,7 +95,7 @@ Work the list top-to-bottom. Do not start items ranked 7–9 until their depende
 
 | # | Ticket | Summary | Status |
 |---|--------|---------|--------|
-| 3 | KAN-48 | Login screen UI redesign — match Vibe Agenda design system | ✅ Concluído |
+| 3 | KAN-48 | Login screen UI redesign — match Brush design system | ✅ Concluído |
 | 4 | KAN-16 | Manage categories for to-do items | ✅ Concluído |
 
 ### 🔵 Medium
@@ -427,6 +427,24 @@ docs/
 ---
 
 ## Sprint Boundary Rule
+
+### End-of-Sprint Checklist
+
+When all tickets in a sprint are merged into `develop`, follow these steps **in order** before declaring the sprint done:
+
+1. Cut a `release/X.Y.Z` branch from `develop`
+2. Bump the version in `package.json`
+3. PR the release branch into `main`, merge with `--admin` if needed
+4. Tag the release on `main`: `git tag -a vX.Y.Z -m "Release vX.Y.Z"`
+5. Push the tag: `git push origin vX.Y.Z`
+6. **Create a GitHub release** on the tag with full release notes — group tickets by feature area, include setup/migration notes if relevant
+7. Merge the release branch back into `develop`
+8. Delete the release branch
+9. Report to the user and wait for Sprint N+1 planning
+
+**Never skip the GitHub release.** Release notes are required for every sprint — they are the handoff document for QA, stakeholders, and future contributors.
+
+---
 
 **Sprint 1 — ✅ Complete.** All 10 tickets shipped.
 
