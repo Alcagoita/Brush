@@ -43,7 +43,8 @@ export type CategoryKey = 'work' | 'health' | 'errands' | 'personal';
 export interface Task {
   id: string;
   title: string;
-  category: CategoryKey;
+  /** Built-in CategoryKey or a Firestore custom category ID (KAN-61). */
+  category: string;
   done: boolean;
   /** Scheduled time in "HH:MM" format — optional. */
   time?: string;
