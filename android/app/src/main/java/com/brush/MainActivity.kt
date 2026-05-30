@@ -1,4 +1,4 @@
-package com.agenda
+package com.brush
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
