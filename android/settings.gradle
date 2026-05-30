@@ -7,6 +7,6 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
   def nodeBinary = providers.gradleProperty("NODE_BINARY").getOrElse("node")
   ex.autolinkLibrariesFromCommand([nodeBinary, "node_modules/.bin/react-native", "config"])
 }
-rootProject.name = 'Agenda'
+rootProject.name = 'Brush'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
