@@ -1,5 +1,5 @@
 /**
- * AppIcon — centralized SVG icon set for Vibe Agenda.
+ * AppIcon — centralized SVG icon set for Brush.
  *
  * Style spec (applies to every icon in this file):
  *   • 24 × 24 viewBox, rendered at whatever size the caller passes

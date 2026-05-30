@@ -1,7 +1,7 @@
 /**
  * LoginScreen — KAN-48
  *
- * Vibe Agenda design system login screen.
+ * Brush design system login screen.
  *
  * Layout (top → bottom, vertically centred):
  *   - App icon + wordmark + tagline

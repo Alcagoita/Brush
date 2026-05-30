@@ -1,8 +1,8 @@
-# Vibe Agenda — Claude Code Project Guide
+# Brush — Claude Code Project Guide
 
 ## What This App Is
 
-Vibe Agenda is a location-aware to-do app for iOS and Android built with React Native.
+Brush is a location-aware to-do app for iOS and Android built with React Native.
 Its defining feature: when the user is physically near a Point of Interest (POI) tied to one of their tasks, the app surfaces a hero alert and offers a one-tap "Open in Maps" route.
 
 Example: the user has "Pick up groceries" tagged to Supermarket. When they walk within 75 m of a Whole Foods, the Today screen promotes that task to a hero alert and a local notification fires.
@@ -95,7 +95,7 @@ Work the list top-to-bottom. Do not start items ranked 7–9 until their depende
 
 | # | Ticket | Summary | Status |
 |---|--------|---------|--------|
-| 3 | KAN-48 | Login screen UI redesign — match Vibe Agenda design system | ✅ Concluído |
+| 3 | KAN-48 | Login screen UI redesign — match Brush design system | ✅ Concluído |
 | 4 | KAN-16 | Manage categories for to-do items | ✅ Concluído |
 
 ### 🔵 Medium

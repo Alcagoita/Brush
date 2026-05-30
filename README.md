@@ -1,4 +1,4 @@
-# Vibe Agenda
+# Brush
 
 A location-aware to-do app for iOS and Android built with React Native.  
 When you're near a Point of Interest tied to one of your tasks, the app surfaces a hero alert and offers a one-tap "Open in Maps" route.

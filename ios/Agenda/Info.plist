@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-	<string>Agenda</string>
+	<string>Brush</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -36,11 +36,11 @@
 	<!-- ── Location permission strings (KAN-22) ── -->
 	<!-- Shown to the user when the system location dialog appears. -->
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Agenda uses your location to alert you when you're near a place linked to one of your tasks — for example, a pharmacy for "Pick up prescription".</string>
+	<string>Brush uses your location to alert you when you're near a place linked to one of your tasks — for example, a pharmacy for "Pick up prescription".</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Agenda uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
+	<string>Brush uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Agenda uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
+	<string>Brush uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UIBackgroundModes</key>
