@@ -251,6 +251,12 @@ export function setTrackingAccuracy(mode: AccuracyMode): void {
   currentAccuracyMode = mode;
 
   // Restart the watcher with the new options only if it was already running.
+  //
+  // Invariant: watchId !== null ⟹ currentLocationCallback !== null.
+  // startTracking() is the only path that sets watchId, and it always sets
+  // currentLocationCallback first. The `&& currentLocationCallback` check is
+  // therefore redundant, but kept as a TypeScript null guard and defensive
+  // safeguard against future refactors that might break this invariant.
   if (watchId !== null && currentLocationCallback) {
     startTracking(currentLocationCallback, currentErrorCallback);
   }
