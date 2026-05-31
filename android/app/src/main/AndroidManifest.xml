@@ -46,5 +46,11 @@
         android:name="com.agontuk.RNFusedLocation.LocationUpdatesService"
         android:foregroundServiceType="location"
         android:exported="false" />
+
+      <!-- ── Native geofence broadcast receiver (KAN-56) ── -->
+      <!-- Receives GEOFENCE_TRANSITION_ENTER events from GeofencingClient. -->
+      <receiver
+        android:name=".GeofenceBroadcastReceiver"
+        android:exported="false" />
     </application>
 </manifest>

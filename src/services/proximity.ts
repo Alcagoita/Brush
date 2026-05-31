@@ -34,6 +34,13 @@ import { Coordinates, startTracking, stopTracking, setTrackingAccuracy } from '.
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markPoiAlertSeen } from './firestore';
 import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
+import {
+  NativeGeofence,
+  geofenceEmitter,
+  buildGeofenceId,
+  parseGeofenceId,
+  GEOFENCE_ENTRY_EVENT,
+} from './nativeGeofence';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -93,6 +100,90 @@ let isMonitoring = false;
  * walking pace — enough time for the engine to detect the crossing.
  */
 const FINE_ACCURACY_THRESHOLD_M = 500;
+
+// ─── Native geofence registration (KAN-56) ───────────────────────────────────
+
+/** Subscription for the native geofence entry event emitter. */
+let geofenceEntrySubscription: ReturnType<NonNullable<typeof geofenceEmitter>['addListener']> | null = null;
+
+/**
+ * Register native OS geofences for all active undone POI tasks.
+ *
+ * For each unique POI type: resolve the nearest place from the cache, then
+ * register a native geofence at those coordinates. Stores a mapping of
+ * geofence ID → { poiType, taskIds } so the entry handler can look up context.
+ *
+ * Clears and re-registers all geofences on each call to stay in sync with
+ * the current task list (tasks added/completed, POI prefs changed).
+ */
+async function syncNativeGeofences(
+  uid: string,
+  tasks: Task[],
+  onUpdate: ProximityCallback,
+): Promise<void> {
+  await NativeGeofence.removeAllGeofences();
+
+  const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
+  const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];
+
+  for (const poiType of uniquePoiTypes) {
+    const cached = placeCache.get(poiType);
+    if (!cached?.places.length) { continue; }
+
+    const nearest = cached.places[0];
+    const radius  = getGeofenceRadius(poiType);
+    const geoId   = buildGeofenceId(poiType, nearest.placeId);
+
+    try {
+      await NativeGeofence.registerGeofence(geoId, nearest.lat, nearest.lng, radius);
+    } catch (err) {
+      console.warn('[proximity] failed to register geofence', geoId, err);
+    }
+  }
+}
+
+/**
+ * Handle a native geofence entry event (KAN-56).
+ *
+ * Called when the OS fires a boundary-crossing event. Looks up the POI type
+ * from the geofence ID, finds the first eligible undone task, fires a
+ * notification, and writes poiAlertSeenDate to Firestore.
+ */
+async function handleGeofenceEntry(
+  geofenceId: string,
+  uid: string,
+  tasks: Task[],
+  onUpdate: ProximityCallback,
+): Promise<void> {
+  const parsed = parseGeofenceId(geofenceId);
+  if (!parsed) {
+    console.warn('[proximity] unrecognised geofence ID', geofenceId);
+    return;
+  }
+
+  const { poiType } = parsed;
+  const today = new Date().toISOString().split('T')[0];
+
+  const matchingTask = tasks.find(
+    t => !t.done && t.poi === poiType && t.poiAlertSeenDate !== today,
+  );
+  if (!matchingTask) { return; }
+
+  // Find the nearest cached place for UI context (NearbyCard hero state).
+  const cached = placeCache.get(poiType);
+  const place  = cached?.places[0] ?? null;
+
+  if (place) {
+    onUpdate(poiType, place, buildPlacesMap());
+  }
+
+  try {
+    await fireNotification(matchingTask, place!, 0);
+    await markPoiAlertSeen(uid, matchingTask.id, today);
+  } catch (err) {
+    console.warn('[proximity] geofence notification failed', err);
+  }
+}
 
 /**
  * Live user-defined geofence radius preferences (KAN-25).
@@ -325,15 +416,35 @@ export function startProximityMonitoring(
   if (isMonitoring) { stopProximityMonitoring(); }
   isMonitoring = true;
 
-  // Keep a mutable ref to the latest tasks so the location callback always
-  // sees fresh data without needing to be re-registered.
+  // Keep a mutable ref to the latest tasks so callbacks always see fresh data.
   let latestTasks = tasks;
 
   // Wire up the global updater so updateProximityTasks() reaches this closure.
   _latestTasksUpdater = (newTasks: Task[]) => {
     latestTasks = newTasks;
+    // Re-sync native geofences whenever the task list changes (KAN-56).
+    syncNativeGeofences(uid, newTasks, onUpdate).catch(err =>
+      console.warn('[proximity] geofence sync failed', err),
+    );
   };
 
+  // ── Native geofence entry listener (KAN-56) ──────────────────────────────
+  // Listen for OS geofence boundary crossing events and handle them in JS.
+  if (geofenceEmitter) {
+    geofenceEntrySubscription = geofenceEmitter.addListener(
+      GEOFENCE_ENTRY_EVENT,
+      ({ geofenceId }: { geofenceId: string }) => {
+        handleGeofenceEntry(geofenceId, uid, latestTasks, onUpdate).catch(err =>
+          console.warn('[proximity] geofence entry handler failed', err),
+        );
+      },
+    );
+  }
+
+  // ── watchPosition (display-only after KAN-56) ────────────────────────────
+  // watchPosition is now only responsible for keeping NearbyCard distance rows
+  // up to date. Notification delivery is handled by native geofences above.
+  // Runs at coarse accuracy by default (KAN-55); switches to fine when near a POI.
   startTracking(
     async (coords: Coordinates) => {
       if (!isMonitoring) { return; }
@@ -342,6 +453,11 @@ export function startProximityMonitoring(
     (err) => {
       console.warn('[proximity] location error', err.code, err.message);
     },
+  );
+
+  // Initial geofence registration for tasks already in the list.
+  syncNativeGeofences(uid, tasks, onUpdate).catch(err =>
+    console.warn('[proximity] initial geofence sync failed', err),
   );
 
   return () => {
@@ -391,4 +507,11 @@ export function stopProximityMonitoring(): void {
   currentNearbyType = null;
   _latestTasksUpdater = null;
   poiRadiusPrefs = {};
+
+  // ── Native geofence cleanup (KAN-56) ───────────────────────────────────────
+  geofenceEntrySubscription?.remove();
+  geofenceEntrySubscription = null;
+  NativeGeofence.removeAllGeofences().catch(err =>
+    console.warn('[proximity] failed to remove geofences on stop', err),
+  );
 }
