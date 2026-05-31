@@ -58,7 +58,7 @@ import TaskRow from '../components/TaskRow';
 import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, subscribeToCategories, awardPoint } from '../services/firestore';
 import { checkAndAwardDailyComplete } from '../services/achievements';
 import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
+import { startProximityMonitoring, stopProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
 import { Task, Category } from '../types';
 import NearbyCard from '../components/NearbyCard';
@@ -152,7 +152,11 @@ export default function TodayScreen() {
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
 
   /** Ref to the sheet — used to call hide() once a new task appears in the list. */
-  const sheetRef        = useRef<NewTaskSheetHandle>(null);
+  const sheetRef           = useRef<NewTaskSheetHandle>(null);
+  /** Tracks whether the proximity engine is currently running (KAN-53). */
+  const isMonitoringRef    = useRef(false);
+  /** Cached permission status so restarts skip re-requesting permission (KAN-53). */
+  const permissionGrantedRef = useRef(false);
   /** Previous task count — compared on every Firestore snapshot. */
   const prevTasksLenRef = useRef(0);
 
@@ -206,16 +210,22 @@ export default function TodayScreen() {
     });
   }, [uid]);
 
-  // ── Proximity monitoring (KAN-24) ──
-  // Request location permission once on mount, then start the proximity engine.
-  // The engine watches the user's location and calls setNearbyPoiType when
-  // they enter/leave a POI geofence. Cleaned up on unmount.
+  // ── Proximity monitoring (KAN-24 / KAN-53) ──
+  // Request location permission once on mount, then start the proximity engine
+  // only if there is at least one undone task with a POI field.
+  // Skipping the engine entirely when no POI tasks exist avoids draining the
+  // battery with continuous high-accuracy GPS for no benefit.
   useEffect(() => {
     if (!uid) { return; }
+
+    const poiTaskCount = effectiveTasks.filter(t => !t.done && t.poi).length;
+    if (poiTaskCount === 0) { return; } // ← KAN-53: gate — no POI tasks, no GPS
+
     let stopMonitoring: (() => void) | null = null;
 
     requestLocationPermission().then(status => {
       if (status !== 'granted') { return; }
+      permissionGrantedRef.current = true;
       stopMonitoring = startProximityMonitoring(
         uid,
         effectiveTasks,
@@ -225,28 +235,52 @@ export default function TodayScreen() {
           setPoiPlaces(allPlaces);
         },
       );
+      isMonitoringRef.current = true;
     }).catch(err => {
       console.warn('[TodayScreen] location permission error', err);
     });
 
-    return () => { stopMonitoring?.(); };
-  // Run once on mount — proximity engine keeps its own task ref up-to-date
-  // via updateProximityTasks() called in the effectiveTasks memo below.
+    return () => {
+      stopMonitoring?.();
+      isMonitoringRef.current = false;
+    };
+  // Run once on mount — engine kept in sync via the effect below.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
-  // ── Keep proximity engine in sync with live tasks ──
-  // effectiveTasks changes on every Firestore snapshot and every optimistic
-  // toggle. This keeps latestTasks inside the proximity closure current so:
-  //   • poiAlertSeenDate written by markPoiAlertSeen is visible → same-day
-  //     re-entry suppression actually works.
-  //   • Toggling a task done immediately removes it from geofence candidates.
-  //   • New tasks added mid-day are picked up without restarting the watcher.
+  // ── Stop / restart proximity engine when POI task count changes (KAN-53) ──
+  // • Count 1+ → 0: stop engine (all POI tasks done — GPS no longer needed).
+  // • Count 0 → 1+: restart engine (new POI task added — resume monitoring).
+  // Permission is cached in permissionGrantedRef so no re-prompt is issued.
   useEffect(() => {
+    if (!uid) { return; }
+
+    const activePoiCount = effectiveTasks.filter(t => !t.done && t.poi).length;
+
+    if (activePoiCount === 0 && isMonitoringRef.current) {
+      // All POI tasks done — stop the engine.
+      stopProximityMonitoring();
+      isMonitoringRef.current = false;
+      setNearbyPoiType(null);
+      setNearbyPlace(null);
+    } else if (activePoiCount > 0 && !isMonitoringRef.current && permissionGrantedRef.current) {
+      // A new POI task was added while the engine was stopped — restart.
+      const stop = startProximityMonitoring(
+        uid,
+        effectiveTasks,
+        (poiType, place, allPlaces) => {
+          setNearbyPoiType(poiType);
+          setNearbyPlace(place);
+          setPoiPlaces(allPlaces);
+        },
+      );
+      isMonitoringRef.current = true;
+      return () => { stop(); isMonitoringRef.current = false; };
+    }
+
+    // Keep the engine's task list current for all other changes.
     updateProximityTasks(effectiveTasks);
-  // effectiveTasks is a new array ref on every render that affects it,
-  // so this fires exactly when the list content changes.
-  }, [effectiveTasks]);
+  }, [effectiveTasks, uid]);
 
   // ── Auto-close sheet when new task appears in the Firestore snapshot ──
   // Firestore's local cache fires the subscription before (or just as) addTask()
