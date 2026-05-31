@@ -155,8 +155,14 @@ export default function TodayScreen() {
   const sheetRef           = useRef<NewTaskSheetHandle>(null);
   /** Tracks whether the proximity engine is currently running (KAN-53). */
   const isMonitoringRef    = useRef(false);
-  /** Cached permission status so restarts skip re-requesting permission (KAN-53). */
-  const permissionGrantedRef = useRef(false);
+  /** Holds the stop function returned by startProximityMonitoring (KAN-53). */
+  const stopMonitoringRef  = useRef<(() => void) | null>(null);
+  /**
+   * Location permission state (KAN-53).
+   * Using state (not just a ref) so that the engine management effect re-runs
+   * once permission is granted — refs don't trigger re-renders.
+   */
+  const [permissionGranted, setPermissionGranted] = useState(false);
   /** Previous task count — compared on every Firestore snapshot. */
   const prevTasksLenRef = useRef(0);
 
@@ -210,61 +216,38 @@ export default function TodayScreen() {
     });
   }, [uid]);
 
-  // ── Proximity monitoring (KAN-24 / KAN-53) ──
-  // Request location permission once on mount, then start the proximity engine
-  // only if there is at least one undone task with a POI field.
-  // Skipping the engine entirely when no POI tasks exist avoids draining the
-  // battery with continuous high-accuracy GPS for no benefit.
+  // ── Permission request (KAN-53) ──
+  // Request once on uid change and store the result as state so that the
+  // engine management effect below re-runs when the answer arrives.
+  // Using state (vs. a ref) is intentional — refs don't trigger re-renders,
+  // so the engine would never start if tasks load before permission resolves.
   useEffect(() => {
     if (!uid) { return; }
-
-    const poiTaskCount = effectiveTasks.filter(t => !t.done && t.poi).length;
-    if (poiTaskCount === 0) { return; } // ← KAN-53: gate — no POI tasks, no GPS
-
-    let stopMonitoring: (() => void) | null = null;
-
     requestLocationPermission().then(status => {
-      if (status !== 'granted') { return; }
-      permissionGrantedRef.current = true;
-      stopMonitoring = startProximityMonitoring(
-        uid,
-        effectiveTasks,
-        (poiType, place, allPlaces) => {
-          setNearbyPoiType(poiType);
-          setNearbyPlace(place);
-          setPoiPlaces(allPlaces);
-        },
-      );
-      isMonitoringRef.current = true;
+      if (status === 'granted') { setPermissionGranted(true); }
     }).catch(err => {
       console.warn('[TodayScreen] location permission error', err);
     });
-
-    return () => {
-      stopMonitoring?.();
-      isMonitoringRef.current = false;
-    };
-  // Run once on mount — engine kept in sync via the effect below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid]);
 
-  // ── Stop / restart proximity engine when POI task count changes (KAN-53) ──
-  // • Count 1+ → 0: stop engine (all POI tasks done — GPS no longer needed).
-  // • Count 0 → 1+: restart engine (new POI task added — resume monitoring).
-  // Permission is cached in permissionGrantedRef so no re-prompt is issued.
+  // ── Proximity engine management (KAN-24 / KAN-53) ──
+  // Single effect that owns the full engine lifecycle. Re-runs whenever tasks
+  // or permission status change so the engine is always in the correct state:
+  //
+  //   • Gate:    count = 0  && not monitoring → do nothing (no GPS drain)
+  //   • Start:   count > 0  && not monitoring → start engine
+  //   • Stop:    count = 0  && monitoring     → stop engine (all POI tasks done)
+  //   • Sync:    count > 0  && monitoring     → push latest tasks to engine
+  //
+  // stopMonitoringRef holds the stop fn from startProximityMonitoring so the
+  // cleanup on unmount can always stop cleanly, independent of isMonitoringRef.
   useEffect(() => {
-    if (!uid) { return; }
+    if (!uid || !permissionGranted) { return; }
 
     const activePoiCount = effectiveTasks.filter(t => !t.done && t.poi).length;
 
-    if (activePoiCount === 0 && isMonitoringRef.current) {
-      // All POI tasks done — stop the engine.
-      stopProximityMonitoring();
-      isMonitoringRef.current = false;
-      setNearbyPoiType(null);
-      setNearbyPlace(null);
-    } else if (activePoiCount > 0 && !isMonitoringRef.current && permissionGrantedRef.current) {
-      // A new POI task was added while the engine was stopped — restart.
+    if (activePoiCount > 0 && !isMonitoringRef.current) {
+      // Start (initial start OR restart after all POI tasks were completed).
       const stop = startProximityMonitoring(
         uid,
         effectiveTasks,
@@ -274,13 +257,32 @@ export default function TodayScreen() {
           setPoiPlaces(allPlaces);
         },
       );
-      isMonitoringRef.current = true;
-      return () => { stop(); isMonitoringRef.current = false; };
+      isMonitoringRef.current  = true;
+      stopMonitoringRef.current = stop;
+    } else if (activePoiCount === 0 && isMonitoringRef.current) {
+      // Stop — all POI tasks done, GPS no longer needed.
+      stopMonitoringRef.current?.();
+      stopMonitoringRef.current = null;
+      stopProximityMonitoring();
+      isMonitoringRef.current = false;
+      setNearbyPoiType(null);
+      setNearbyPlace(null);
+    } else {
+      // Engine already in the correct state — just keep task list current.
+      updateProximityTasks(effectiveTasks);
     }
 
-    // Keep the engine's task list current for all other changes.
-    updateProximityTasks(effectiveTasks);
-  }, [effectiveTasks, uid]);
+    // Cleanup runs before every re-run AND on unmount.
+    // We call the engine's stop fn here to release the watcher on re-run,
+    // but we deliberately do NOT reset isMonitoringRef here. The next
+    // effect body needs to see the previous monitoring state so the
+    // stop/restart branches trigger correctly.
+    // isMonitoringRef is reset only inside the explicit stop branch above.
+    return () => {
+      stopMonitoringRef.current?.();
+      stopMonitoringRef.current = null;
+    };
+  }, [effectiveTasks, uid, permissionGranted]);
 
   // ── Auto-close sheet when new task appears in the Firestore snapshot ──
   // Firestore's local cache fires the subscription before (or just as) addTask()
