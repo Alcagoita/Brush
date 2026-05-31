@@ -421,8 +421,13 @@ docs/
     1. Add the new literal to the `reason` union in `src/types/index.ts`.
     2. Create a dedicated `awardPoint*` function (or an options-object overload) in `src/services/firestore.ts` — do **not** repurpose the existing `awardPoint(uid, taskId, taskTitle)` signature.
     3. Add unit tests for the new reason type in `__tests__/services/points.test.ts`.
-11. **One ticket at a time.** Never start a new ticket until the PR for the current one has been reviewed and merged into **develop**. After opening a PR, stop and wait for explicit confirmation before picking up the next ticket. PRs merge into develop during the sprint; develop merges into main only at sprint end.
-12. **Never merge without explicit user consent.** Do not merge any PR — even with `--admin` — unless the user has explicitly said to merge in that conversation turn.
+11. **Unit tests are required for every ticket where logic is testable.** Before opening a PR, write unit tests covering the core behaviour introduced or changed. Use `@testing-library/react-native` for components and screens; plain Jest for services and utilities.
+    - **Always test:** new business logic, state transitions, error paths, edge cases.
+    - **Skip tests only for:** pure config changes (e.g. constant values), visual-only tweaks, or native-only code that cannot be exercised in Jest.
+    - If skipping, add a comment in the PR description explaining why.
+    - Tests live in `__tests__/` mirroring the `src/` structure (e.g. `src/services/auth.ts` → `__tests__/services/auth.test.ts`).
+12. **One ticket at a time.** Never start a new ticket until the PR for the current one has been reviewed and merged into **develop**. After opening a PR, stop and wait for explicit confirmation before picking up the next ticket. PRs merge into develop during the sprint; develop merges into main only at sprint end.
+13. **Never merge without explicit user consent.** Do not merge any PR — even with `--admin` — unless the user has explicitly said to merge in that conversation turn.
 
 ---
 
@@ -463,8 +468,8 @@ Work in this exact order. Each ticket unblocks the next.
 
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
-| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ⬜ A fazer |
-| 2 | KAN-54 | Tune location watch options for battery efficiency | — | ⬜ A fazer |
+| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ✅ Concluído |
+| 2 | KAN-54 | Tune location watch options for battery efficiency | — | 🔄 PR #57 open |
 | 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | KAN-53, KAN-54 | ⬜ A fazer |
 | 4 | KAN-56 | Replace software geofencing with native OS geofences | KAN-53, KAN-54 | ⬜ A fazer |
 | 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | KAN-56 | ⬜ A fazer |
@@ -483,7 +488,7 @@ Strict dependency chain — do not skip ahead.
 
 | # | Ticket | Summary | Status |
 |---|--------|---------|--------|
-| 10 | KAN-61 | Custom categories not shown in New Task sheet | ⬜ A fazer |
+| 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
 
 ### Dependency graph
 

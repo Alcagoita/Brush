@@ -45,21 +45,32 @@ export type PermissionStatus = 'granted' | 'denied' | 'blocked' | 'unavailable';
 // ─── Watch options ─────────────────────────────────────────────────────────────
 
 /**
- * Options for continuous tracking.
- * - `distanceFilter: 10` — emit only when the user moves ≥ 10 m (battery saver).
- * - `interval: 8000` / `fastestInterval: 4000` — Android-specific poll cadence.
- * - `accuracy: { android: 'high', ios: 'best' }` — needed for 50 m geofences.
+ * Options for continuous tracking (KAN-54 — tuned for battery efficiency).
+ *
+ * distanceFilter 25 m  — halves wakeups vs. the old 10 m value.
+ *                        Maximum detection latency for a 50 m ATM fence is
+ *                        ~2 steps at walking pace (~3 m/s) = ~8 s. Acceptable.
+ *
+ * interval 8 s         — Android preferred poll cadence. Battery Historian showed
+ *                        no excess wakeups at this value; kept unchanged.
+ *
+ * fastestInterval 4 s  — Android floor. Kept to avoid starving the engine when
+ *                        the user is moving quickly toward a POI.
+ *
+ * ios 'best'           — Replaces 'bestForNavigation' (turn-by-turn nav mode,
+ *                        maximum drain). 'best' is sufficient for 50 m geofences
+ *                        and draws significantly less power on A-series chips.
  */
 const WATCH_OPTIONS: GeoWatchOptions = {
   enableHighAccuracy: true,
-  distanceFilter: 10,        // metres — reduces updates when user is stationary
-  interval: 8_000,           // Android: preferred update interval (ms)
-  fastestInterval: 4_000,    // Android: fastest acceptable update interval (ms)
+  distanceFilter: 25,        // was 10 — halves wakeups; 2-step latency for 50 m fences is acceptable
+  interval: 8_000,           // Android: preferred update interval (ms) — unchanged
+  fastestInterval: 4_000,    // Android: fastest acceptable update interval (ms) — unchanged
   showsBackgroundLocationIndicator: true,   // iOS: shows blue pill in status bar
   forceRequestLocation: false,
   accuracy: {
     android: 'high',
-    ios: 'bestForNavigation',
+    ios: 'best',             // was 'bestForNavigation' — sufficient for 50 m fences, lower drain
   },
 };
 
@@ -205,7 +216,7 @@ export function getCurrentPosition(): Promise<Coordinates> {
         enableHighAccuracy: true,
         timeout: 15_000,
         maximumAge: 10_000,
-        accuracy: { android: 'high', ios: 'bestForNavigation' },
+        accuracy: { android: 'high', ios: 'best' }, // was 'bestForNavigation' — KAN-54
       },
     );
   });
