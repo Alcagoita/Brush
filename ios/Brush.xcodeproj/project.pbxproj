@@ -122,9 +122,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		13B07F861A680F5B00A75B9A /* Agenda */ = {
+		13B07F861A680F5B00A75B9A /* Brush */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Agenda" */;
+			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Brush" */;
 			buildPhases = (
 				C38B50BA6285516D6DCD4F65 /* [CP] Check Pods Manifest.lock */,
 				5278C57B1DDABA331AA8C5E7 /* [Firebase] Verify GoogleService-Info.plist */,
@@ -141,9 +141,9 @@
 			);
 			dependencies = (
 			);
-			name = Agenda;
-			productName = Agenda;
-			productReference = 13B07F961A680F5B00A75B9A /* Agenda.app */;
+			name = Brush;
+			productName = Brush;
+			productReference = 13B07F961A680F5B00A75B9A /* Brush.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */

@@ -55,12 +55,12 @@ import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
-import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, awardPoint } from '../services/firestore';
+import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, subscribeToCategories, awardPoint } from '../services/firestore';
 import { checkAndAwardDailyComplete } from '../services/achievements';
 import { requestLocationPermission } from '../services/geolocation';
 import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
 import { NearbyPlace } from '../services/maps';
-import { Task } from '../types';
+import { Task, Category } from '../types';
 import NearbyCard from '../components/NearbyCard';
 import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -147,7 +147,9 @@ export default function TodayScreen() {
    */
   const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
   /** Controls visibility of the new-task bottom sheet (KAN-51). */
-  const [sheetVisible,   setSheetVisible]   = useState(false);
+  const [sheetVisible,     setSheetVisible]     = useState(false);
+  /** User-created categories from Firestore — passed to NewTaskSheet (KAN-61). */
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
 
   /** Ref to the sheet — used to call hide() once a new task appears in the list. */
   const sheetRef        = useRef<NewTaskSheetHandle>(null);
@@ -172,6 +174,17 @@ export default function TodayScreen() {
     return subscribeToTasksForDate(uid, todayISO(), (newTasks) => {
       setTasks(newTasks);
       setTasksLoading(false);
+    }, (err) => {
+      console.warn('[TodayScreen] tasks subscription error:', err.message);
+      setTasksLoading(false);
+    });
+  }, [uid]);
+
+  // ── Custom categories subscription (KAN-61) ──
+  useEffect(() => {
+    if (!uid) return;
+    return subscribeToCategories(uid, cats => {
+      setCustomCategories(cats.filter(c => !c.isBuiltIn));
     });
   }, [uid]);
 
@@ -471,6 +484,7 @@ export default function TodayScreen() {
                 task={task}
                 nearbyPoiType={nearbyPoiType}
                 onToggle={handleToggle}
+                customCategories={customCategories}
               />
             ))
           )}
@@ -498,6 +512,7 @@ export default function TodayScreen() {
         visible={sheetVisible}
         uid={uid ?? ''}
         onClose={() => setSheetVisible(false)}
+        customCategories={customCategories}
       />
     </View>
   );

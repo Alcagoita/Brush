@@ -14,7 +14,7 @@ const EMPTY_DAY = '2026-05-28';
 describe('CalendarScreen', () => {
   it('renders the app header title', () => {
     render(<CalendarScreen />);
-    expect(screen.getByText('Agenda')).toBeTruthy();
+    expect(screen.getByText('Brush')).toBeTruthy();
   });
 
   it('renders the calendar header', () => {

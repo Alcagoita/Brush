@@ -132,7 +132,7 @@ async function requestAndroidPermission(): Promise<PermissionStatus> {
 function showBlockedAlert(): void {
   Alert.alert(
     'Location permission required',
-    'Agenda needs "Always" location access to alert you when you\'re near a task\'s location. Please enable it in Settings.',
+    'Brush needs "Always" location access to alert you when you\'re near a task\'s location. Please enable it in Settings.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
