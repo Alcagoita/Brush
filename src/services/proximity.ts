@@ -30,7 +30,7 @@
 
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 import { Platform } from 'react-native';
-import { Coordinates, startTracking, stopTracking } from './geolocation';
+import { Coordinates, startTracking, stopTracking, setTrackingAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markPoiAlertSeen } from './firestore';
 import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
@@ -81,6 +81,18 @@ const placeCache = new Map<string, PlaceCache>();
 
 let currentNearbyType: string | null = null;
 let isMonitoring = false;
+
+/**
+ * Distance threshold for switching GPS accuracy mode (KAN-55).
+ *
+ * When the nearest cached POI is within this distance the engine switches to
+ * fine (GPS) mode for precise geofence detection. Beyond this threshold it
+ * switches to coarse (cell/WiFi) mode to save battery.
+ *
+ * 500 m gives ~2–3 min of fine GPS before entering a 50–75 m geofence at
+ * walking pace — enough time for the engine to detect the crossing.
+ */
+const FINE_ACCURACY_THRESHOLD_M = 500;
 
 /**
  * Live user-defined geofence radius preferences (KAN-25).
@@ -258,6 +270,15 @@ async function checkProximity(
   // Always emit updated place data so NearbyCard idle rows refresh.
   const allPlaces = buildPlacesMap();
   onUpdate(newNearbyType, winner?.place ?? null, allPlaces);
+
+  // ── Adaptive accuracy (KAN-55) ─────────────────────────────────────────────
+  // Switch to fine GPS when within approach distance of any cached POI;
+  // switch back to coarse (cell/WiFi) when all POIs are far away.
+  // setTrackingAccuracy() is a no-op if the mode hasn't changed.
+  const nearestCachedDist = Math.min(
+    ...Object.values(allPlaces).map(p => p?.distanceMeters ?? Infinity),
+  );
+  setTrackingAccuracy(nearestCachedDist <= FINE_ACCURACY_THRESHOLD_M ? 'fine' : 'coarse');
 
   // Notification + Firestore write only on entry transition.
   if (newNearbyType !== currentNearbyType) {
