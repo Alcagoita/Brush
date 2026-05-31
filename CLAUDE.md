@@ -463,8 +463,8 @@ Work in this exact order. Each ticket unblocks the next.
 
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
-| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ⬜ A fazer |
-| 2 | KAN-54 | Tune location watch options for battery efficiency | — | ⬜ A fazer |
+| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ✅ Concluído |
+| 2 | KAN-54 | Tune location watch options for battery efficiency | — | 🔄 PR #57 open |
 | 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | KAN-53, KAN-54 | ⬜ A fazer |
 | 4 | KAN-56 | Replace software geofencing with native OS geofences | KAN-53, KAN-54 | ⬜ A fazer |
 | 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | KAN-56 | ⬜ A fazer |
@@ -483,7 +483,7 @@ Strict dependency chain — do not skip ahead.
 
 | # | Ticket | Summary | Status |
 |---|--------|---------|--------|
-| 10 | KAN-61 | Custom categories not shown in New Task sheet | ⬜ A fazer |
+| 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
 
 ### Dependency graph
 
