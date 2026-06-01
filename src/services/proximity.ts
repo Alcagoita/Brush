@@ -456,6 +456,16 @@ export function startProximityMonitoring(
   );
 
   // Initial geofence registration for tasks already in the list.
+  //
+  // Ordering note: geofenceEmitter.addListener() is set up BEFORE this call,
+  // so any INITIAL_TRIGGER_ENTER event fired by the OS immediately after a
+  // geofence is registered (i.e. the user is already inside the boundary) is
+  // guaranteed to be caught by the listener.
+  //
+  // A race condition where the user crosses a boundary *during* registration
+  // is not possible — the OS cannot fire an entry event for a geofence that
+  // has not yet been registered. The ~100ms registration window is therefore
+  // safe. Documented here for future reference.
   syncNativeGeofences(uid, tasks, onUpdate).catch(err =>
     console.warn('[proximity] initial geofence sync failed', err),
   );
