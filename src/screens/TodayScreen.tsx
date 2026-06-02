@@ -62,7 +62,7 @@ import { requestLocationPermission } from '../services/geolocation';
 import { startProximityMonitoring, stopProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, pauseGeofenceMonitoring, resumeGeofenceMonitoring, PlacesMap } from '../services/proximity';
 import { getBatteryLevel, useBatteryLevel, shouldPauseForBattery } from '../services/battery';
 import { NearbyPlace } from '../services/maps';
-import { Task, Category } from '../types';
+import { Task, Category, TasksUiState } from '../types';
 import NearbyCard from '../components/NearbyCard';
 import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -134,8 +134,12 @@ export default function TodayScreen() {
   const { palette } = useTheme();
   const navigation  = useNavigation<Nav>();
 
-  const [tasks,          setTasks]          = useState<Task[]>([]);
-  const [tasksLoading,   setTasksLoading]   = useState(true);
+  /**
+   * Single discriminated union for today's task list (KAN-57).
+   * Replaces the previous `tasks: Task[]` + `tasksLoading: boolean` pair so
+   * the loading, success, and error states are mutually exclusive and explicit.
+   */
+  const [tasksState, setTasksState] = useState<TasksUiState>({ status: 'loading' });
   /** Active nearby POI type — updated by the proximity engine (KAN-24). */
   const [nearbyPoiType,  setNearbyPoiType]  = useState<string | null>(null);
   /** The specific place the user is currently near (for the hero block). */
@@ -233,11 +237,10 @@ export default function TodayScreen() {
       return;
     }
     return subscribeToTasksForDate(uid, todayISO(), (newTasks) => {
-      setTasks(newTasks);
-      setTasksLoading(false);
+      setTasksState({ status: 'success', tasks: newTasks });
     }, (err) => {
       console.warn('[TodayScreen] tasks subscription error:', err.message);
-      setTasksLoading(false);
+      setTasksState({ status: 'error', message: err.message });
     });
   }, [uid]);
 
@@ -248,6 +251,11 @@ export default function TodayScreen() {
       setCustomCategories(cats.filter(c => !c.isBuiltIn));
     });
   }, [uid]);
+
+  // ── Derive task array from UiState (KAN-57) ──
+  // Falls back to [] when loading or errored so all downstream logic remains
+  // unchanged — only the task-list render section branches on the status.
+  const tasks = tasksState.status === 'success' ? tasksState.tasks : [];
 
   // ── Effective tasks — optimistic overrides applied ──
   // Declared here (above the effects) so proximity effects can reference it.
@@ -556,11 +564,18 @@ export default function TodayScreen() {
         <View style={[styles.section, { borderTopColor: palette.line }]}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>TODAY</Text>
 
-          {tasksLoading ? (
-            // Skeleton rows while Firestore loads
+          {tasksState.status === 'loading' ? (
+            // Skeleton rows while Firestore loads (KAN-57: loading branch)
             [0, 1, 2].map(i => (
               <SkeletonRow key={i} index={i} faint={palette.faint} />
             ))
+          ) : tasksState.status === 'error' ? (
+            // Error branch (KAN-57): subscription failed — show a message
+            <Text
+              style={[styles.empty, { color: palette.muted }]}
+              accessibilityRole="alert">
+              {tasksState.message || 'Could not load tasks. Please try again.'}
+            </Text>
           ) : tasks.length === 0 ? (
             <Text style={[styles.empty, { color: palette.muted }]}>
               No tasks for today

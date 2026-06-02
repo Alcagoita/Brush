@@ -38,7 +38,7 @@ import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
 import { subscribeToTasksForMonth } from '../services/firestore';
-import { Task } from '../types';
+import { Task, MonthTasksUiState } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
 
@@ -317,7 +317,11 @@ export default function CalendarScreen() {
   const [selectedDate,   setSelectedDate]   = useState<string>(initDate);
   const [displayYear,    setDisplayYear]    = useState<number>(initY);
   const [displayMonth,   setDisplayMonth]   = useState<number>(initM);   // 1-based
-  const [monthTasks,     setMonthTasks]     = useState<Task[]>([]);
+  /**
+   * Single discriminated union for the month's tasks (KAN-57).
+   * Replaces `monthTasks: Task[]` so the loading and error states are explicit.
+   */
+  const [monthTasksState, setMonthTasksState] = useState<MonthTasksUiState>({ status: 'loading' });
 
   const today     = todayISO();
   const todayYear = Number(today.split('-')[0]);
@@ -327,8 +331,17 @@ export default function CalendarScreen() {
   useEffect(() => {
     if (!uid) { return; }
     const ym = toYearMonth(displayYear, displayMonth);
-    return subscribeToTasksForMonth(uid, ym, tasks => setMonthTasks(tasks));
+    return subscribeToTasksForMonth(uid, ym, (tasks) => {
+      setMonthTasksState({ status: 'success', tasks });
+    }, (err) => {
+      console.warn('[CalendarScreen] tasks subscription error:', err.message);
+      setMonthTasksState({ status: 'error', message: err.message });
+    });
   }, [uid, displayYear, displayMonth]);
+
+  // Derive task array; falls back to [] when loading/errored so memos below
+  // are always safe and the grid renders without data when unavailable.
+  const monthTasks = monthTasksState.status === 'success' ? monthTasksState.tasks : [];
 
   // ── Day grid ──
   const grid = useMemo(
@@ -473,11 +486,20 @@ export default function CalendarScreen() {
         <Text style={[styles.detailSectionLabel, { color: palette.muted }]}>
           TASKS
         </Text>
-        <DetailCard
-          dateISO={selectedDate}
-          tasks={selectedTasks}
-          isToday={selectedDate === today}
-        />
+        {/* Error branch (KAN-57): subscription failed — show a message */}
+        {monthTasksState.status === 'error' ? (
+          <Text
+            style={[styles.detailEmptyText, { color: palette.muted }]}
+            accessibilityRole="alert">
+            {monthTasksState.message || 'Could not load tasks. Please try again.'}
+          </Text>
+        ) : (
+          <DetailCard
+            dateISO={selectedDate}
+            tasks={selectedTasks}
+            isToday={selectedDate === today}
+          />
+        )}
       </ScrollView>
     </View>
   );
@@ -588,6 +610,11 @@ const styles = StyleSheet.create({
     fontFamily:    'Geist-SemiBold',
     letterSpacing:  1.2,
     marginBottom:   10,
+  },
+  detailEmptyText: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+    paddingVertical: 12,
   },
 
   // ── Detail card ──

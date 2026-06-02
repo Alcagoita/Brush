@@ -187,6 +187,37 @@ export interface Achievement {
   metadata?: Record<string, unknown>;
 }
 
+// ─── Screen UiState types (KAN-57) ───────────────────────────────────────────
+//
+// Discriminated unions that replace separate loading-flag + data-array state.
+// Each union covers all three cases: loading, success, and error.
+//
+// Pattern (NowInAndroid / TypeScript):
+//   | { status: 'loading' }                    — data in flight
+//   | { status: 'success'; <payload> }         — data available
+//   | { status: 'error';   message: string }   — retrieval failed, show feedback
+//
+// Kept in types/index.ts so KAN-59's custom hooks can import them without
+// a dependency cycle.
+
+/** UiState for a list of today's tasks (TodayScreen). */
+export type TasksUiState =
+  | { status: 'loading' }
+  | { status: 'success'; tasks: Task[] }
+  | { status: 'error';   message: string };
+
+/** UiState for the custom categories list (CategoriesScreen). */
+export type CategoriesUiState =
+  | { status: 'loading' }
+  | { status: 'success'; categories: Category[] }
+  | { status: 'error';   message: string };
+
+/** UiState for a month's tasks (CalendarScreen). */
+export type MonthTasksUiState =
+  | { status: 'loading' }
+  | { status: 'success'; tasks: Task[] }
+  | { status: 'error';   message: string };
+
 // ─── Legacy calendar types (kept for backward compatibility) ──────────────────
 
 export interface CalendarEvent {

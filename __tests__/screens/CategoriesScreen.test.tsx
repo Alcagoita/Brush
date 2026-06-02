@@ -503,3 +503,35 @@ describe('CategoriesScreen — location type', () => {
     expect(mockSearchPlaceTypes).not.toHaveBeenCalled();
   });
 });
+
+// ─── KAN-57 — CategoriesUiState error branch ─────────────────────────────────
+
+describe('CategoriesScreen — KAN-57 UiState error branch', () => {
+  it('shows an error message when the categories subscription fires an error', async () => {
+    mockSubscribeToCategories.mockImplementation(
+      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Firestore unavailable'));
+        return jest.fn();
+      },
+    );
+
+    render(<CategoriesScreen />);
+    await act(async () => {});
+
+    expect(screen.getByText('Firestore unavailable')).toBeTruthy();
+  });
+
+  it('does not show custom category rows when in the error state', async () => {
+    mockSubscribeToCategories.mockImplementation(
+      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Network error'));
+        return jest.fn();
+      },
+    );
+
+    render(<CategoriesScreen />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText('My Category category')).toBeNull();
+  });
+});
