@@ -140,6 +140,13 @@ export default function TodayScreen() {
    * the loading, success, and error states are mutually exclusive and explicit.
    */
   const [tasksState, setTasksState] = useState<TasksUiState>({ status: 'loading' });
+
+  /**
+   * Incremented by the "Try again" button in the error state (KAN-58).
+   * Including it in the subscription effect's dependency array causes the effect
+   * to re-run and re-subscribe without unmounting the whole screen.
+   */
+  const [retryKey, setRetryKey] = useState(0);
   /** Active nearby POI type — updated by the proximity engine (KAN-24). */
   const [nearbyPoiType,  setNearbyPoiType]  = useState<string | null>(null);
   /** The specific place the user is currently near (for the hero block). */
@@ -203,7 +210,9 @@ export default function TodayScreen() {
 
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeLowBatteryPausePref(uid, setLowBatteryPausePref);
+    return subscribeLowBatteryPausePref(uid, setLowBatteryPausePref, (err) => {
+      console.warn('[TodayScreen] lowBatteryPausePref subscription error', err);
+    });
   }, [uid]);
 
   /**
@@ -230,25 +239,33 @@ export default function TodayScreen() {
   const uid         = user?.uid;
   const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'there';
 
-  // ── Live task subscription ──
+  // ── Live task subscription (KAN-58) ──
+  // retryKey is included so the "Try again" button re-runs this effect without
+  // unmounting the screen. On every re-run we reset to loading first so the
+  // skeleton is shown while the new subscription is being established.
   useEffect(() => {
     if (!uid) {
-      setTasksLoading(false);
+      // Signed-out: surface an empty success state so the screen doesn't spin.
+      setTasksState({ status: 'success', tasks: [] });
       return;
     }
+    setTasksState({ status: 'loading' });
     return subscribeToTasksForDate(uid, todayISO(), (newTasks) => {
       setTasksState({ status: 'success', tasks: newTasks });
     }, (err) => {
-      console.warn('[TodayScreen] tasks subscription error:', err.message);
-      setTasksState({ status: 'error', message: err.message });
+      console.warn('[TodayScreen] tasks subscription error', err);
+      setTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
     });
-  }, [uid]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, retryKey]);
 
   // ── Custom categories subscription (KAN-61) ──
   useEffect(() => {
     if (!uid) return;
     return subscribeToCategories(uid, cats => {
       setCustomCategories(cats.filter(c => !c.isBuiltIn));
+    }, (err) => {
+      console.warn('[TodayScreen] categories subscription error', err);
     });
   }, [uid]);
 
@@ -272,6 +289,8 @@ export default function TodayScreen() {
     if (!uid) { return; }
     return subscribeToPoiPreferences(uid, prefs => {
       updateProximityPoiPreferences(prefs);
+    }, (err) => {
+      console.warn('[TodayScreen] poiPreferences subscription error', err);
     });
   }, [uid]);
 
@@ -570,12 +589,21 @@ export default function TodayScreen() {
               <SkeletonRow key={i} index={i} faint={palette.faint} />
             ))
           ) : tasksState.status === 'error' ? (
-            // Error branch (KAN-57): subscription failed — show a message
-            <Text
-              style={[styles.empty, { color: palette.muted }]}
-              accessibilityRole="alert">
-              {tasksState.message || 'Could not load tasks. Please try again.'}
-            </Text>
+            // Error branch (KAN-58): subscription failed — show message + retry
+            <View style={styles.errorWrap}>
+              <Text
+                style={[styles.empty, { color: palette.muted }]}
+                accessibilityRole="alert">
+                {tasksState.message || 'Could not load tasks. Please try again.'}
+              </Text>
+              <Pressable
+                onPress={() => setRetryKey(k => k + 1)}
+                style={[styles.retryBtn, { borderColor: palette.line }]}
+                accessibilityRole="button"
+                accessibilityLabel="Try again">
+                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+              </Pressable>
+            </View>
           ) : tasks.length === 0 ? (
             <Text style={[styles.empty, { color: palette.muted }]}>
               No tasks for today
@@ -699,6 +727,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Geist-Regular',
     paddingVertical: 8,
+  },
+  // ── Error retry (KAN-58) ──
+  errorWrap: {
+    gap: 10,
+  },
+  retryBtn: {
+    alignSelf:         'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical:    8,
+    borderRadius:       8,
+    borderWidth:        1,
+  },
+  retryLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
   },
   // ── Skeleton ──
   skeletonRow: {

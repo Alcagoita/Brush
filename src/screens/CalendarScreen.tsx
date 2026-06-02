@@ -322,6 +322,8 @@ export default function CalendarScreen() {
    * Replaces `monthTasks: Task[]` so the loading and error states are explicit.
    */
   const [monthTasksState, setMonthTasksState] = useState<MonthTasksUiState>({ status: 'loading' });
+  /** Incremented by "Try again" to re-trigger the subscription (KAN-58). */
+  const [retryKey, setRetryKey] = useState(0);
 
   const today     = todayISO();
   const todayYear = Number(today.split('-')[0]);
@@ -331,13 +333,15 @@ export default function CalendarScreen() {
   useEffect(() => {
     if (!uid) { return; }
     const ym = toYearMonth(displayYear, displayMonth);
+    setMonthTasksState({ status: 'loading' });
     return subscribeToTasksForMonth(uid, ym, (tasks) => {
       setMonthTasksState({ status: 'success', tasks });
     }, (err) => {
-      console.warn('[CalendarScreen] tasks subscription error:', err.message);
-      setMonthTasksState({ status: 'error', message: err.message });
+      console.warn('[CalendarScreen] tasks subscription error', err);
+      setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
     });
-  }, [uid, displayYear, displayMonth]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, displayYear, displayMonth, retryKey]);
 
   // Derive task array; falls back to [] when loading/errored so memos below
   // are always safe and the grid renders without data when unavailable.
@@ -486,13 +490,22 @@ export default function CalendarScreen() {
         <Text style={[styles.detailSectionLabel, { color: palette.muted }]}>
           TASKS
         </Text>
-        {/* Error branch (KAN-57): subscription failed — show a message */}
+        {/* Error branch (KAN-58): show message + retry button */}
         {monthTasksState.status === 'error' ? (
-          <Text
-            style={[styles.detailEmptyText, { color: palette.muted }]}
-            accessibilityRole="alert">
-            {monthTasksState.message || 'Could not load tasks. Please try again.'}
-          </Text>
+          <View style={styles.errorWrap}>
+            <Text
+              style={[styles.detailEmptyText, { color: palette.muted }]}
+              accessibilityRole="alert">
+              {monthTasksState.message || 'Could not load tasks. Please try again.'}
+            </Text>
+            <Pressable
+              onPress={() => setRetryKey(k => k + 1)}
+              style={[styles.retryBtn, { borderColor: palette.line }]}
+              accessibilityRole="button"
+              accessibilityLabel="Try again">
+              <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+            </Pressable>
+          </View>
         ) : (
           <DetailCard
             dateISO={selectedDate}
@@ -615,6 +628,21 @@ const styles = StyleSheet.create({
     fontSize:   14,
     fontFamily: 'Geist-Regular',
     paddingVertical: 12,
+  },
+  // ── Error retry (KAN-58) ──
+  errorWrap: {
+    gap: 8,
+  },
+  retryBtn: {
+    alignSelf:         'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical:    8,
+    borderRadius:       8,
+    borderWidth:        1,
+  },
+  retryLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Detail card ──

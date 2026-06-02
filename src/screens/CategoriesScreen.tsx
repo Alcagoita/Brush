@@ -505,6 +505,8 @@ export default function CategoriesScreen() {
    * are explicitly representable and reachable in the render tree.
    */
   const [categoriesState, setCategoriesState] = useState<CategoriesUiState>({ status: 'loading' });
+  /** Incremented by "Try again" to re-trigger the subscription (KAN-58). */
+  const [retryKey,        setRetryKey]        = useState(0);
   const [sheetVisible,    setSheetVisible]    = useState(false);
   const [editing,         setEditing]         = useState<Category | null>(null);
 
@@ -514,16 +516,18 @@ export default function CategoriesScreen() {
   /** Tracks the previous list length — used to detect a newly-added category. */
   const prevCatsLenRef = useRef(0);
 
-  // Live subscription to custom categories
+  // Live subscription to custom categories (KAN-58: retryKey re-runs on retry)
   useEffect(() => {
     if (!uid) { return; }
+    setCategoriesState({ status: 'loading' });
     return subscribeToCategories(uid, (cats) => {
       setCategoriesState({ status: 'success', categories: cats });
     }, (err) => {
-      console.warn('[CategoriesScreen] categories subscription error:', err.message);
-      setCategoriesState({ status: 'error', message: err.message });
+      console.warn('[CategoriesScreen] categories subscription error', err);
+      setCategoriesState({ status: 'error', message: 'Could not load categories. Check your connection.' });
     });
-  }, [uid]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, retryKey]);
 
   // ── Auto-close sheet when a new category appears in the Firestore snapshot ──
   // Firestore's local cache fires the subscription before addCategory() resolves,
@@ -621,12 +625,21 @@ export default function CategoriesScreen() {
         <Text style={[styles.sectionLabel, { color: palette.muted }]}>CUSTOM</Text>
         <View style={[styles.section, { borderColor: palette.line, backgroundColor: palette.surface }]}>
           {categoriesState.status === 'error' ? (
-            // Error branch (KAN-57): subscription failed — show a message
-            <Text
-              style={[styles.emptyText, { color: palette.muted }]}
-              accessibilityRole="alert">
-              {categoriesState.message || 'Could not load categories. Please try again.'}
-            </Text>
+            // Error branch (KAN-58): show message + retry button
+            <View style={styles.errorWrap}>
+              <Text
+                style={[styles.emptyText, { color: palette.muted }]}
+                accessibilityRole="alert">
+                {categoriesState.message || 'Could not load categories. Please try again.'}
+              </Text>
+              <Pressable
+                onPress={() => setRetryKey(k => k + 1)}
+                style={[styles.retryBtn, { borderColor: palette.line }]}
+                accessibilityRole="button"
+                accessibilityLabel="Try again">
+                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+              </Pressable>
+            </View>
           ) : customCategories.length === 0 ? (
             <Text style={[styles.emptyText, { color: palette.muted }]}>
               {categoriesState.status === 'loading' ? 'Loading…' : 'No custom categories yet'}
@@ -766,6 +779,24 @@ const styles = StyleSheet.create({
     fontSize:   20,
     lineHeight: 24,
     color:      ERROR_COLOR,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Error retry (KAN-58) ──
+  errorWrap: {
+    paddingHorizontal: 16,
+    paddingVertical:   14,
+    gap: 10,
+  },
+  retryBtn: {
+    alignSelf:         'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical:    8,
+    borderRadius:       8,
+    borderWidth:        1,
+  },
+  retryLabel: {
+    fontSize:   14,
     fontFamily: 'Geist-Regular',
   },
 
