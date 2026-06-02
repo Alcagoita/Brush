@@ -20,14 +20,18 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToPoiPreferences = jest.fn();
-const mockSetPoiPreference           = jest.fn();
-const mockSubscribeToCategories      = jest.fn();
+const mockSubscribeToPoiPreferences  = jest.fn();
+const mockSetPoiPreference            = jest.fn();
+const mockSubscribeToCategories       = jest.fn();
+const mockSubscribeLowBatteryPausePref = jest.fn();
+const mockSetLowBatteryPausePref       = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToPoiPreferences: (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
-  setPoiPreference:          (...args: unknown[]) => mockSetPoiPreference(...args),
-  subscribeToCategories:     (...args: unknown[]) => mockSubscribeToCategories(...args),
+  subscribeToPoiPreferences:   (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
+  setPoiPreference:            (...args: unknown[]) => mockSetPoiPreference(...args),
+  subscribeToCategories:       (...args: unknown[]) => mockSubscribeToCategories(...args),
+  subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
+  setLowBatteryPausePref:       (...args: unknown[]) => mockSetLowBatteryPausePref(...args),
 }));
 
 // Maps — placeTypeLabel used to label custom poi types
@@ -153,9 +157,11 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSetPoiPreference.mockResolvedValue(undefined);
-    // Default: both subscriptions return a no-op unsubscribe with no snapshot.
+    mockSetLowBatteryPausePref.mockResolvedValue(undefined);
+    // Default: all subscriptions return a no-op unsubscribe with no snapshot.
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
   });
 
   // ── Rendering ───────────────────────────────────────────────────────────────
@@ -336,5 +342,83 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
     // fitness_center starts at 75 m; pressing + should go to 100 m.
     fireEvent.press(screen.getByLabelText('Increase Fitness Center radius'));
     expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'fitness_center', 100);
+  });
+});
+
+// ─── Battery section (KAN-52) ─────────────────────────────────────────────────
+
+/**
+ * Capture the onUpdate callback passed to subscribeLowBatteryPausePref and return
+ * a trigger function so tests can simulate Firestore updates.
+ */
+function captureLowBatteryCallback(): (enabled: boolean) => void {
+  let captured: ((enabled: boolean) => void) | null = null;
+  mockSubscribeLowBatteryPausePref.mockImplementation(
+    (_uid: string, onUpdate: (enabled: boolean) => void) => {
+      captured = onUpdate;
+      return jest.fn();
+    },
+  );
+  return (enabled: boolean) => {
+    if (captured) { act(() => { captured!(enabled); }); }
+  };
+}
+
+describe('ProfileScreen — Battery section (KAN-52)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSetPoiPreference.mockResolvedValue(undefined);
+    mockSetLowBatteryPausePref.mockResolvedValue(undefined);
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+  });
+
+  it('renders the Battery section heading', () => {
+    renderScreen();
+    expect(screen.getByText('Battery')).toBeTruthy();
+  });
+
+  it('renders the toggle label and sub-label', () => {
+    renderScreen();
+    expect(screen.getByText('Pause nearby alerts on low battery')).toBeTruthy();
+    expect(screen.getByText('Alerts pause when battery drops below 20%')).toBeTruthy();
+  });
+
+  it('subscribes to the low-battery pref with the current uid', () => {
+    renderScreen();
+    expect(mockSubscribeLowBatteryPausePref).toHaveBeenCalledWith(
+      'test-uid',
+      expect.any(Function),
+    );
+  });
+
+  it('toggle starts off (false) by default', () => {
+    renderScreen();
+    // The Switch is off when subscribeLowBatteryPausePref fires no update.
+    const toggle = screen.getByLabelText('Pause nearby alerts on low battery');
+    expect(toggle.props.value).toBe(false);
+  });
+
+  it('reflects true when the Firestore subscription fires with true', () => {
+    const firePref = captureLowBatteryCallback();
+    renderScreen();
+    firePref(true);
+    const toggle = screen.getByLabelText('Pause nearby alerts on low battery');
+    expect(toggle.props.value).toBe(true);
+  });
+
+  it('calls setLowBatteryPausePref with true when the toggle is switched on', () => {
+    renderScreen();
+    fireEvent(screen.getByLabelText('Pause nearby alerts on low battery'), 'valueChange', true);
+    expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', true);
+  });
+
+  it('calls setLowBatteryPausePref with false when the toggle is switched off', () => {
+    const firePref = captureLowBatteryCallback();
+    renderScreen();
+    firePref(true); // Start in enabled state
+    fireEvent(screen.getByLabelText('Pause nearby alerts on low battery'), 'valueChange', false);
+    expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', false);
   });
 });

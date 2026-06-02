@@ -90,6 +90,19 @@ let currentNearbyType: string | null = null;
 let isMonitoring = false;
 
 /**
+ * Pause context — stored when startProximityMonitoring() runs so that
+ * pauseGeofenceMonitoring() / resumeGeofenceMonitoring() can operate without
+ * the caller having to pass uid/tasks/callback again (KAN-52).
+ */
+interface PauseContext {
+  uid: string;
+  getLatestTasks: () => Task[];
+  onUpdate: ProximityCallback;
+}
+let _pauseContext: PauseContext | null = null;
+let _isPaused = false;
+
+/**
  * Distance threshold for switching GPS accuracy mode (KAN-55).
  *
  * When the nearest cached POI is within this distance the engine switches to
@@ -415,9 +428,17 @@ export function startProximityMonitoring(
 ): () => void {
   if (isMonitoring) { stopProximityMonitoring(); }
   isMonitoring = true;
+  _isPaused = false;
 
   // Keep a mutable ref to the latest tasks so callbacks always see fresh data.
   let latestTasks = tasks;
+
+  // Store context for pause/resume — see pauseGeofenceMonitoring() (KAN-52).
+  _pauseContext = {
+    uid,
+    getLatestTasks: () => latestTasks,
+    onUpdate,
+  };
 
   // Wire up the global updater so updateProximityTasks() reaches this closure.
   _latestTasksUpdater = (newTasks: Task[]) => {
@@ -509,9 +530,84 @@ export function updateProximityPoiPreferences(prefs: Record<string, number>): vo
   placeCache.clear();
 }
 
+/**
+ * Pause geofence monitoring while keeping the engine alive (KAN-52).
+ *
+ * Stops location tracking and removes all native OS geofences so the GPS radio
+ * goes idle. The engine state (`isMonitoring = true`) is preserved so that
+ * `resumeGeofenceMonitoring()` can restart transparently.
+ *
+ * Intended use: called by TodayScreen when `shouldPauseForBattery()` returns
+ * true (battery < 20% and the user has enabled the toggle).
+ *
+ * No-op if the engine is not monitoring or is already paused.
+ */
+export function pauseGeofenceMonitoring(): void {
+  if (!isMonitoring || _isPaused) { return; }
+  _isPaused = true;
+
+  stopTracking();
+
+  geofenceEntrySubscription?.remove();
+  geofenceEntrySubscription = null;
+
+  NativeGeofence.removeAllGeofences().catch(err =>
+    console.warn('[proximity] pauseGeofenceMonitoring: removeAllGeofences failed', err),
+  );
+}
+
+/**
+ * Resume geofence monitoring after a pause (KAN-52).
+ *
+ * Re-registers native geofences and restarts location tracking using the context
+ * captured when startProximityMonitoring() was originally called. The caller does
+ * not need to pass any arguments — all state is kept internally.
+ *
+ * No-op if the engine is not monitoring, is not paused, or the pause context has
+ * been cleared (i.e. stopProximityMonitoring() was already called).
+ */
+export function resumeGeofenceMonitoring(): void {
+  if (!isMonitoring || !_isPaused || !_pauseContext) { return; }
+  _isPaused = false;
+
+  const { uid, getLatestTasks, onUpdate } = _pauseContext;
+
+  // Re-attach native geofence entry listener before registering geofences so
+  // that INITIAL_TRIGGER_ENTER events (fired immediately on registration when
+  // the user is already inside a boundary) are not lost.
+  if (geofenceEmitter) {
+    geofenceEntrySubscription = geofenceEmitter.addListener(
+      GEOFENCE_ENTRY_EVENT,
+      ({ geofenceId }: { geofenceId: string }) => {
+        handleGeofenceEntry(geofenceId, uid, getLatestTasks(), onUpdate).catch(err =>
+          console.warn('[proximity] geofence entry handler failed', err),
+        );
+      },
+    );
+  }
+
+  // Re-register native geofences for all current undone POI tasks.
+  syncNativeGeofences(uid, getLatestTasks(), onUpdate).catch(err =>
+    console.warn('[proximity] resumeGeofenceMonitoring: geofence sync failed', err),
+  );
+
+  // Restart watchPosition (display-only — drives NearbyCard distance rows).
+  startTracking(
+    async (coords: Coordinates) => {
+      if (!isMonitoring || _isPaused) { return; }
+      await checkProximity(uid, coords, getLatestTasks(), onUpdate);
+    },
+    (err) => {
+      console.warn('[proximity] location error', err.code, err.message);
+    },
+  );
+}
+
 /** Stop all proximity monitoring and clear internal state. */
 export function stopProximityMonitoring(): void {
   isMonitoring = false;
+  _isPaused = false;
+  _pauseContext = null;
   stopTracking();
   placeCache.clear();
   currentNearbyType = null;

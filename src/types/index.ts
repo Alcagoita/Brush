@@ -18,6 +18,17 @@ export interface User {
   displayName: string;
   darkMode: boolean;
   createdAt: FirebaseFirestoreTypes.Timestamp;
+  /**
+   * User-controlled feature preferences stored on the root user document.
+   * Using a nested object keeps the root document flat for other flags.
+   */
+  poiPreferences?: {
+    /**
+     * When true, geofence monitoring is paused whenever battery drops below
+     * LOW_BATTERY_THRESHOLD (20%). Default: false (opt-in). KAN-52.
+     */
+    lowBatteryPause?: boolean;
+  };
 }
 
 // ─── POI ──────────────────────────────────────────────────────────────────────

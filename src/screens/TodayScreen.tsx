@@ -23,6 +23,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AppState,
   Dimensions,
   Platform,
   Pressable,
@@ -55,10 +56,11 @@ import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
-import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, subscribeToCategories, awardPoint } from '../services/firestore';
+import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, subscribeToCategories, awardPoint, subscribeLowBatteryPausePref } from '../services/firestore';
 import { checkAndAwardDailyComplete } from '../services/achievements';
 import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring, stopProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
+import { startProximityMonitoring, stopProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, pauseGeofenceMonitoring, resumeGeofenceMonitoring, PlacesMap } from '../services/proximity';
+import { getBatteryLevel, useBatteryLevel, shouldPauseForBattery } from '../services/battery';
 import { NearbyPlace } from '../services/maps';
 import { Task, Category } from '../types';
 import NearbyCard from '../components/NearbyCard';
@@ -165,6 +167,55 @@ export default function TodayScreen() {
   const [permissionGranted, setPermissionGranted] = useState(false);
   /** Previous task count — compared on every Firestore snapshot. */
   const prevTasksLenRef = useRef(0);
+
+  // ── Battery / low-battery pause (KAN-52) ──────────────────────────────────
+
+  /**
+   * Battery level from the native module. Initialised to 1.0 (full) so the
+   * guard never fires before the first read resolves. Updated by:
+   *   1. useBatteryLevel() hook — subscribes to native level-change events.
+   *   2. AppState foreground refresh — re-reads on every app foreground to
+   *      catch changes that happened while backgrounded.
+   */
+  const hookBatteryLevel = useBatteryLevel();
+  const [batteryLevel, setBatteryLevel] = useState(hookBatteryLevel);
+
+  // Keep local battery state in sync with hook updates (event-driven path).
+  useEffect(() => { setBatteryLevel(hookBatteryLevel); }, [hookBatteryLevel]);
+
+  // Re-read battery on app foreground (belt-and-suspenders per KAN-52 spec).
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', async (state) => {
+      if (state === 'active') {
+        const fresh = await getBatteryLevel();
+        setBatteryLevel(fresh);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  /** Whether the user has opted in to the low-battery pause feature. */
+  const [lowBatteryPausePref, setLowBatteryPausePref] = useState(false);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeLowBatteryPausePref(uid, setLowBatteryPausePref);
+  }, [uid]);
+
+  /**
+   * True when tracking should be paused: toggle is on AND battery is below 20%.
+   * Used to drive the NearbyCard paused indicator and the pause/resume effect.
+   */
+  const trackingPaused = shouldPauseForBattery(batteryLevel, lowBatteryPausePref);
+
+  // Pause or resume the proximity engine whenever the low-battery condition changes.
+  useEffect(() => {
+    if (trackingPaused) {
+      pauseGeofenceMonitoring();
+    } else {
+      resumeGeofenceMonitoring();
+    }
+  }, [trackingPaused]);
 
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
@@ -492,12 +543,13 @@ export default function TodayScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* ── Nearby card (KAN-46) ── */}
+        {/* ── Nearby card (KAN-46 / KAN-52) ── */}
         <NearbyCard
           tasks={effectiveTasks}
           nearbyPoiType={nearbyPoiType}
           nearbyPlace={nearbyPlace}
           poiPlaces={poiPlaces}
+          trackingPaused={trackingPaused}
         />
 
         {/* ── Task list (KAN-15 will upgrade to full TaskRow components) ── */}

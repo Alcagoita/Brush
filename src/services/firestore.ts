@@ -533,6 +533,45 @@ export function subscribeToPointsHistory(
   );
 }
 
+// ─── Low-battery pause preference (KAN-52) ───────────────────────────────────
+//
+// Stored on the root user document as `poiPreferences.lowBatteryPause: boolean`.
+// This keeps all user-controlled feature flags in one document instead of adding
+// a new subcollection, and avoids a snapshot for a simple boolean toggle.
+
+/**
+ * Persist the user's "Pause nearby alerts on low battery" preference.
+ * Pass `true` to enable, `false` to disable. Default server value is absent
+ * (treated as false by subscribers and the proximity engine).
+ */
+export async function setLowBatteryPausePref(
+  uid: string,
+  enabled: boolean,
+): Promise<void> {
+  await updateDoc(userRef(uid), { 'poiPreferences.lowBatteryPause': enabled });
+}
+
+/**
+ * Subscribe to live updates for the user's low-battery pause preference.
+ *
+ * Fires immediately with the stored value (or `false` if not yet set), then
+ * again whenever the preference changes. Returns an unsubscribe function.
+ */
+export function subscribeLowBatteryPausePref(
+  uid: string,
+  onUpdate: (enabled: boolean) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    userRef(uid),
+    snap => {
+      const data = snap?.data() as User | undefined;
+      onUpdate(data?.poiPreferences?.lowBatteryPause ?? false);
+    },
+    onError,
+  );
+}
+
 // ─── Re-exports for convenience ───────────────────────────────────────────────
 
 export { Timestamp, serverTimestamp };

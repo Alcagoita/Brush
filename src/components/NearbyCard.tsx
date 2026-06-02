@@ -54,6 +54,12 @@ interface NearbyCardProps {
   nearbyPoiType:  string | null;
   nearbyPlace:    NearbyPlace | null;
   poiPlaces:      PlacesMap;
+  /**
+   * When true the proximity engine is paused due to low battery (KAN-52).
+   * The card header changes to reflect the paused state; the idle/hero body
+   * is hidden to avoid showing stale place data while monitoring is off.
+   */
+  trackingPaused?: boolean;
 }
 
 // ─── Pulsing dot (header) ─────────────────────────────────────────────────────
@@ -180,6 +186,7 @@ export default function NearbyCard({
   nearbyPoiType,
   nearbyPlace,
   poiPlaces,
+  trackingPaused = false,
 }: NearbyCardProps) {
   const { palette } = useTheme();
 
@@ -188,6 +195,28 @@ export default function NearbyCard({
 
   // Nothing to show — no POI tasks today.
   if (poiTasks.length === 0) { return null; }
+
+  // ── Low-battery paused state (KAN-52) ──────────────────────────────────────
+  // Show a subtle indicator instead of the normal card body so the user knows
+  // why nearby alerts are not firing. Do not show stale place distances.
+  if (trackingPaused) {
+    return (
+      <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 16 }]}>
+        <View style={styles.header}>
+          <Text style={[styles.headerLabel, { color: palette.muted }]}>NEARBY</Text>
+        </View>
+        <View
+          style={[
+            styles.pausedBanner,
+            { backgroundColor: palette.surface, borderColor: palette.line },
+          ]}>
+          <Text style={[styles.pausedText, { color: palette.muted }]}>
+            Nearby alerts paused — low battery
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   const isHero = nearbyPoiType !== null && nearbyPlace !== null;
 
@@ -390,6 +419,18 @@ const styles = StyleSheet.create({
     fontSize:   15,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
+  },
+
+  // ── Low-battery paused banner (KAN-52) ──
+  pausedBanner: {
+    borderRadius:    radius.card,
+    borderWidth:     StyleSheet.hairlineWidth,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  pausedText: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Idle rows ──
