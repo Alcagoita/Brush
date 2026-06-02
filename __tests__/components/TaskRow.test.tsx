@@ -54,6 +54,26 @@ const onToggle = jest.fn();
 
 beforeEach(() => jest.clearAllMocks());
 
+describe('TaskRow — category colour (KAN-60)', () => {
+  it('applies the category brand colour to the chip label text', () => {
+    render(<TaskRow task={BASE_TASK} onToggle={onToggle} />);
+    // Errands colour is #8b6bc4 (muted purple) per tokens.ts.
+    const label = screen.getByText('Errands');
+    const styles = [label.props.style].flat();
+    const hasColor = styles.some((s: any) => s?.color === '#8b6bc4');
+    expect(hasColor).toBe(true);
+  });
+
+  it('applies a different colour for a different category', () => {
+    render(<TaskRow task={{ ...BASE_TASK, category: 'health' }} onToggle={onToggle} />);
+    // Health colour is #5ba87a (sage) per tokens.ts.
+    const label = screen.getByText('Health');
+    const styles = [label.props.style].flat();
+    const hasColor = styles.some((s: any) => s?.color === '#5ba87a');
+    expect(hasColor).toBe(true);
+  });
+});
+
 describe('TaskRow — built-in categories', () => {
   it('renders the task title', () => {
     render(<TaskRow task={BASE_TASK} onToggle={onToggle} />);
