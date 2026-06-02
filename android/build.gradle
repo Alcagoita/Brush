@@ -2,6 +2,17 @@
 // need to shell out to `node` (which Android Studio's JVM process can't find).
 ext {
     REACT_NATIVE_NODE_MODULES_DIR = new File("${rootDir}/../node_modules/react-native").absolutePath
+
+    // Pin play-services-location across ALL subprojects to 20.0.0.
+    //
+    // react-native-geolocation-service reads this via safeExtGet('playServicesLocationVersion').
+    // Using 20.0.0 (not 21.x) is intentional: play-services-location 21.0.0 changed
+    // SettingsClient from an abstract class to an interface, which breaks binary
+    // compatibility with the precompiled RNFusedLocation AAR bytecode at runtime
+    // (IncompatibleClassChangeError). 20.0.0 is the last version where the class
+    // shape is stable AND all GeofencingClient / Geofence APIs needed by
+    // BrushGeofenceModule are present.
+    playServicesLocationVersion = "20.0.0"
 }
 
 buildscript {
