@@ -493,31 +493,56 @@ describe('KAN-53 — proximity engine gate / stop / restart', () => {
   });
 });
 
-// ─── KAN-57 — TasksUiState error branch ──────────────────────────────────────
+// ─── KAN-57 / KAN-58 — TasksUiState error branch & retry ────────────────────
 
-describe('KAN-57 — TasksUiState error branch', () => {
-  it('shows an error message when the tasks subscription fires an error', async () => {
-    // Simulate subscribeToTasksForDate calling the error callback.
-    mockSubscribeToTasksForDate.mockImplementation(
-      (_uid: string, _date: string, _onSuccess: unknown, onError: (err: Error) => void) => {
-        onError(new Error('Firestore permission denied'));
-        return jest.fn();
-      },
-    );
-    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
-    mockSubscribeToCategories.mockReturnValue(jest.fn());
-    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+function setupErrorSubscription() {
+  mockSubscribeToTasksForDate.mockImplementation(
+    (_uid: string, _date: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+      onError(new Error('Firestore permission denied'));
+      return jest.fn();
+    },
+  );
+  mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+  mockSubscribeToCategories.mockReturnValue(jest.fn());
+  mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+}
 
+describe('KAN-57 / KAN-58 — TasksUiState error branch & retry', () => {
+  it('shows a user-friendly error message when the subscription fires an error', async () => {
+    setupErrorSubscription();
     render(<TodayScreen />);
     await act(async () => {});
 
-    expect(screen.getByText('Firestore permission denied')).toBeTruthy();
+    expect(screen.getByText('Could not load tasks. Check your connection.')).toBeTruthy();
   });
 
-  it('does NOT show the skeleton when in the error state', async () => {
+  it('shows a "Try again" button in the error state', async () => {
+    setupErrorSubscription();
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.getByLabelText('Try again')).toBeTruthy();
+  });
+
+  it('does NOT show task rows in the error state', async () => {
+    setupErrorSubscription();
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.queryByTestId('task-row-task-1')).toBeNull();
+  });
+
+  it('re-subscribes and shows tasks when "Try again" is pressed after a recovery', async () => {
+    // Phase 1: subscription errors.
+    let callCount = 0;
     mockSubscribeToTasksForDate.mockImplementation(
-      (_uid: string, _date: string, _onSuccess: unknown, onError: (err: Error) => void) => {
-        onError(new Error('Network error'));
+      (_uid: string, _date: string, onSuccess: (tasks: any[]) => void, onError: (err: Error) => void) => {
+        callCount += 1;
+        if (callCount === 1) {
+          onError(new Error('Network error'));
+        } else {
+          onSuccess([TASK]); // second attempt succeeds
+        }
         return jest.fn();
       },
     );
@@ -528,9 +553,16 @@ describe('KAN-57 — TasksUiState error branch', () => {
     render(<TodayScreen />);
     await act(async () => {});
 
-    // Error message is shown
-    expect(screen.getByText('Network error')).toBeTruthy();
-    // Task rows are NOT shown
-    expect(screen.queryByTestId('task-row-task-1')).toBeNull();
+    // Error shown after first attempt.
+    expect(screen.getByLabelText('Try again')).toBeTruthy();
+
+    // Press retry — second subscription call succeeds.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Try again'));
+    });
+
+    // Task now visible after recovery.
+    expect(screen.getByText('Buy milk')).toBeTruthy();
+    expect(screen.queryByLabelText('Try again')).toBeNull();
   });
 });
