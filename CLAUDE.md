@@ -455,73 +455,35 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 2 — ✅ Complete.** All 16 tickets shipped. Released as v0.2.0.
 
+**Sprint 3 — ✅ Complete.** All 10 tickets shipped. Released as v0.3.0.
+
 ---
 
-## Current Sprint — Sprint 3: Battery, Architecture & Bug Fixes
+## Sprint 3: Battery, Architecture & Bug Fixes — ✅ Complete
 
 **Goal:** No new user-facing features. Fix real battery problems, bring the codebase architecture in line with established patterns, and close an active bug.
 
-**10 tickets across two parallel tracks and one standalone bug.**
-
 ### Track A — Battery & GPS (Epic KAN-65)
-Work in this exact order. Each ticket unblocks the next.
 
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ✅ Concluído |
-| 2 | KAN-54 | Tune location watch options for battery efficiency | — | 🔄 PR #57 open |
-| 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | KAN-53, KAN-54 | ⬜ A fazer |
-| 4 | KAN-56 | Replace software geofencing with native OS geofences | KAN-53, KAN-54 | ⬜ A fazer |
-| 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | KAN-56 | ⬜ A fazer |
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | ✅ Concluído |
+| 2 | KAN-54 | Tune location watch options for battery efficiency | ✅ Concluído |
+| 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | ✅ Concluído |
+| 4 | KAN-56 | Replace software geofencing with native OS geofences | ✅ Concluído |
+| 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | ✅ Concluído |
 
 ### Track B — Architecture (Epic KAN-66)
-Strict dependency chain — do not skip ahead.
 
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 6 | KAN-57 | Introduce formal UiState discriminated union types for screens | — | ⬜ A fazer |
-| 7 | KAN-58 | Handle Firestore subscription errors in screens | KAN-57 | ⬜ A fazer |
-| 8 | KAN-59 | Extract screen state management into dedicated custom hooks | KAN-57, KAN-58 | ⬜ A fazer |
-| 9 | KAN-60 | Add UI-layer tests for screens and key components | KAN-59 | ⬜ A fazer |
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 6 | KAN-57 | Introduce formal UiState discriminated union types for screens | ✅ Concluído |
+| 7 | KAN-58 | Handle Firestore subscription errors in screens | ✅ Concluído |
+| 8 | KAN-59 | Extract screen state management into dedicated custom hooks | ✅ Concluído |
+| 9 | KAN-60 | Add UI-layer tests for screens and key components | ✅ Concluído |
 
 ### Standalone Bug (Epic KAN-67)
 
 | # | Ticket | Summary | Status |
 |---|--------|---------|--------|
 | 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
-
-### Dependency graph
-
-```
-Track A (Battery):
-KAN-53 ──┐
-KAN-54 ──┼──▶ KAN-55
-         └──▶ KAN-56 ──▶ KAN-52
-
-Track B (Architecture):
-KAN-57 ──▶ KAN-58 ──▶ KAN-59 ──▶ KAN-60
-
-Standalone:
-KAN-61 (no dependencies)
-```
-
-Tracks A and B are fully independent and can be worked in parallel. KAN-53 and KAN-54 have no dependencies and can be started simultaneously. KAN-61 can be picked up at any time.
-
-### Out of scope for Sprint 3
-- Any new user-facing features
-- KAN-62 (notification preferences UI rethink)
-- KAN-63, KAN-64 (points system extensions — v1.1)
-- Wear OS track (v1.2)
-- KAN-12, KAN-13 (task CRUD — Sprint 4+)
-
-When all 10 Sprint 3 tickets above have been completed and their PRs merged:
-
-1. **Stop immediately.** Do not pick up any new work.
-2. **Follow the End-of-Sprint Checklist** above (release branch, version bump, GitHub release, etc.).
-3. **Report to the user** with this exact message:
-
-> "Sprint 3 is complete. All 10 tickets are done. Please review the build and let me know when to start Sprint 4."
-
-4. **Do not start Sprint 4** or any Backlog ticket until the user explicitly says so — even if the next logical task seems obvious.
-
-This rule takes priority over any instruction to "keep going", "continue", or "do the next thing".
