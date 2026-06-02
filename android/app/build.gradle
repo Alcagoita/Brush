@@ -134,4 +134,10 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Required by BrushGeofenceModule and GeofenceBroadcastReceiver (KAN-56).
+    // Provides GeofencingClient, LocationServices, Geofence, GeofencingRequest,
+    // GeofencingEvent, and GeofenceStatusCodes. Firebase does not pull this in
+    // transitively during compilation.
+    implementation("com.google.android.gms:play-services-location:21.3.0")
 }
