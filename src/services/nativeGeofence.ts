@@ -26,6 +26,39 @@
 
 import { NativeModules, NativeEventEmitter, Platform } from 'react-native';
 
+// ─── PositioningProvider abstraction (KAN-56 / KAN-75) ───────────────────────
+//
+// This interface is the seam for the future indoor proximity engine (KAN-75).
+// The default implementation is GPS + native OS geofences (this file).
+// KAN-75 will add IndoorPositioningProvider (WiFi + indoor maps) against this
+// interface without requiring structural changes to the outdoor implementation.
+//
+// No refactoring of existing logic is needed now — this is purely additive.
+
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+}
+
+export interface WatchOptions {
+  distanceFilter?: number;
+  accuracy?: 'high' | 'balanced' | 'low';
+}
+
+export type PositionCallback = (coords: Coordinates) => void;
+
+/**
+ * Abstraction over the positioning source.
+ * Default implementation: GPS + native OS geofences (this file).
+ * Future implementation: WiFi + indoor maps (KAN-75 — IndoorPositioningProvider).
+ */
+export interface PositioningProvider {
+  getCurrentPosition(): Promise<Coordinates>;
+  /** Starts position updates. Returns a cleanup function to stop watching. */
+  watchPosition(opts: WatchOptions, cb: PositionCallback): () => void;
+}
+
 // ─── Native module interface ──────────────────────────────────────────────────
 
 export interface NativeGeofenceModule {
