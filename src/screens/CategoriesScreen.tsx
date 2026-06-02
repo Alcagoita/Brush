@@ -19,10 +19,9 @@
  *   - All colours via useTheme() — no hardcoded values.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -40,18 +39,13 @@ import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius, categories as builtInMeta } from '../theme/tokens';
 import {
-  subscribeToCategories,
-  addCategory,
-  updateCategory,
-  deleteCategory,
-} from '../services/firestore';
-import {
   searchPlaceTypes,
   placeTypeLabel,
   PlaceTypeSuggestion,
 } from '../services/maps';
-import { Category, CategoriesUiState } from '../types';
+import { Category } from '../types';
 import { ChevronLeftIcon } from '../components/AppIcon';
+import { useCategoriesScreen } from '../hooks/useCategoriesScreen';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -496,93 +490,23 @@ export default function CategoriesScreen() {
   const insets     = useSafeAreaInsets();
   const navigation = useNavigation();
 
-  const user = getAuth().currentUser;
-  const uid  = user?.uid ?? '';
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  const uid = getAuth().currentUser?.uid ?? '';
 
-  /**
-   * Single discriminated union for custom categories (KAN-57).
-   * Replaces `customCategories: Category[]` so the loading and error states
-   * are explicitly representable and reachable in the render tree.
-   */
-  const [categoriesState, setCategoriesState] = useState<CategoriesUiState>({ status: 'loading' });
-  /** Incremented by "Try again" to re-trigger the subscription (KAN-58). */
-  const [retryKey,        setRetryKey]        = useState(0);
-  const [sheetVisible,    setSheetVisible]    = useState(false);
-  const [editing,         setEditing]         = useState<Category | null>(null);
-
-  // Derive category array; falls back to [] when loading/errored.
-  const customCategories = categoriesState.status === 'success' ? categoriesState.categories : [];
-
-  /** Tracks the previous list length — used to detect a newly-added category. */
-  const prevCatsLenRef = useRef(0);
-
-  // Live subscription to custom categories (KAN-58: retryKey re-runs on retry)
-  useEffect(() => {
-    if (!uid) { return; }
-    setCategoriesState({ status: 'loading' });
-    return subscribeToCategories(uid, (cats) => {
-      setCategoriesState({ status: 'success', categories: cats });
-    }, (err) => {
-      console.warn('[CategoriesScreen] categories subscription error', err);
-      setCategoriesState({ status: 'error', message: 'Could not load categories. Check your connection.' });
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, retryKey]);
-
-  // ── Auto-close sheet when a new category appears in the Firestore snapshot ──
-  // Firestore's local cache fires the subscription before addCategory() resolves,
-  // so this closes the sheet as soon as the write is visible — belt-and-suspenders
-  // with handleSave's own setSheetVisible(false) for the edit path.
-  useEffect(() => {
-    if (sheetVisible && editing === null && customCategories.length > prevCatsLenRef.current) {
-      setSheetVisible(false);
-    }
-    prevCatsLenRef.current = customCategories.length;
-  }, [customCategories, sheetVisible, editing]);
-
-  const handleAdd = useCallback(() => {
-    setEditing(null);
-    setSheetVisible(true);
-  }, []);
-
-  const handleEdit = useCallback((cat: Category) => {
-    setEditing(cat);
-    setSheetVisible(true);
-  }, []);
-
-  const handleDelete = useCallback((cat: Category) => {
-    Alert.alert(
-      'Delete Category',
-      `Delete "${cat.name}"? Tasks using this category will keep their assignment.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text:  'Delete',
-          style: 'destructive',
-          onPress: () =>
-            deleteCategory(uid, cat.id).catch(err =>
-              console.warn('[CategoriesScreen] delete failed', err),
-            ),
-        },
-      ],
-    );
-  }, [uid]);
-
-  const handleSave = useCallback((data: Omit<Category, 'id' | 'isBuiltIn'>) => {
-    if (editing) {
-      // EDIT: close immediately, write runs in the background.
-      setSheetVisible(false);
-      updateCategory(uid, editing.id, data).catch(err =>
-        console.warn('[CategoriesScreen] updateCategory failed', err),
-      );
-    } else {
-      // ADD: fire and forget — the useEffect above closes the sheet when the
-      // new item appears in the Firestore subscription (same as TodayScreen).
-      addCategory(uid, data).catch(err =>
-        console.warn('[CategoriesScreen] addCategory failed', err),
-      );
-    }
-  }, [uid, editing]);
+  // ── ViewModel hook (KAN-59) ──────────────────────────────────────────────────
+  const {
+    categoriesState,
+    retryKey: _retryKey,
+    setRetryKey,
+    customCategories,
+    sheetVisible,
+    editing,
+    handleAdd,
+    handleEdit,
+    handleDelete,
+    handleSave,
+    handleCloseSheet,
+  } = useCategoriesScreen(uid);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -674,7 +598,7 @@ export default function CategoriesScreen() {
         visible={sheetVisible}
         initial={editing}
         onSave={handleSave}
-        onCancel={() => setSheetVisible(false)}
+        onCancel={handleCloseSheet}
       />
     </View>
   );
