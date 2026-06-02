@@ -50,7 +50,7 @@ import {
   placeTypeLabel,
   PlaceTypeSuggestion,
 } from '../services/maps';
-import { Category } from '../types';
+import { Category, CategoriesUiState } from '../types';
 import { ChevronLeftIcon } from '../components/AppIcon';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -499,9 +499,17 @@ export default function CategoriesScreen() {
   const user = getAuth().currentUser;
   const uid  = user?.uid ?? '';
 
-  const [customCategories, setCustomCategories] = useState<Category[]>([]);
-  const [sheetVisible,     setSheetVisible]     = useState(false);
-  const [editing,          setEditing]          = useState<Category | null>(null);
+  /**
+   * Single discriminated union for custom categories (KAN-57).
+   * Replaces `customCategories: Category[]` so the loading and error states
+   * are explicitly representable and reachable in the render tree.
+   */
+  const [categoriesState, setCategoriesState] = useState<CategoriesUiState>({ status: 'loading' });
+  const [sheetVisible,    setSheetVisible]    = useState(false);
+  const [editing,         setEditing]         = useState<Category | null>(null);
+
+  // Derive category array; falls back to [] when loading/errored.
+  const customCategories = categoriesState.status === 'success' ? categoriesState.categories : [];
 
   /** Tracks the previous list length — used to detect a newly-added category. */
   const prevCatsLenRef = useRef(0);
@@ -509,7 +517,12 @@ export default function CategoriesScreen() {
   // Live subscription to custom categories
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToCategories(uid, setCustomCategories);
+    return subscribeToCategories(uid, (cats) => {
+      setCategoriesState({ status: 'success', categories: cats });
+    }, (err) => {
+      console.warn('[CategoriesScreen] categories subscription error:', err.message);
+      setCategoriesState({ status: 'error', message: err.message });
+    });
   }, [uid]);
 
   // ── Auto-close sheet when a new category appears in the Firestore snapshot ──
@@ -607,9 +620,16 @@ export default function CategoriesScreen() {
         {/* ── Custom ── */}
         <Text style={[styles.sectionLabel, { color: palette.muted }]}>CUSTOM</Text>
         <View style={[styles.section, { borderColor: palette.line, backgroundColor: palette.surface }]}>
-          {customCategories.length === 0 ? (
+          {categoriesState.status === 'error' ? (
+            // Error branch (KAN-57): subscription failed — show a message
+            <Text
+              style={[styles.emptyText, { color: palette.muted }]}
+              accessibilityRole="alert">
+              {categoriesState.message || 'Could not load categories. Please try again.'}
+            </Text>
+          ) : customCategories.length === 0 ? (
             <Text style={[styles.emptyText, { color: palette.muted }]}>
-              No custom categories yet
+              {categoriesState.status === 'loading' ? 'Loading…' : 'No custom categories yet'}
             </Text>
           ) : (
             customCategories.map(cat => (

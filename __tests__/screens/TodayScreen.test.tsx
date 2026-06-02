@@ -13,18 +13,20 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Firestore mocks ──────────────────────────────────────────────────────────
 
-const mockSetTaskDone               = jest.fn();
-const mockAwardPoint                = jest.fn();
-const mockSubscribeToTasksForDate   = jest.fn();
-const mockSubscribeToPoiPreferences = jest.fn();
-const mockSubscribeToCategories     = jest.fn();
+const mockSetTaskDone                = jest.fn();
+const mockAwardPoint                 = jest.fn();
+const mockSubscribeToTasksForDate    = jest.fn();
+const mockSubscribeToPoiPreferences  = jest.fn();
+const mockSubscribeToCategories      = jest.fn();
+const mockSubscribeLowBatteryPausePref = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  setTaskDone:               (...args: unknown[]) => mockSetTaskDone(...args),
-  awardPoint:                (...args: unknown[]) => mockAwardPoint(...args),
-  subscribeToTasksForDate:   (...args: unknown[]) => mockSubscribeToTasksForDate(...args),
-  subscribeToPoiPreferences: (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
-  subscribeToCategories:     (...args: unknown[]) => mockSubscribeToCategories(...args),
+  setTaskDone:                 (...args: unknown[]) => mockSetTaskDone(...args),
+  awardPoint:                  (...args: unknown[]) => mockAwardPoint(...args),
+  subscribeToTasksForDate:     (...args: unknown[]) => mockSubscribeToTasksForDate(...args),
+  subscribeToPoiPreferences:   (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
+  subscribeToCategories:       (...args: unknown[]) => mockSubscribeToCategories(...args),
+  subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
 }));
 
 // ─── Achievements mock ────────────────────────────────────────────────────────
@@ -152,6 +154,15 @@ jest.mock('../../src/services/proximity', () => ({
   stopProximityMonitoring:       () => mockStopProximityMonitoring(),
   updateProximityTasks:          jest.fn(),
   updateProximityPoiPreferences: jest.fn(),
+  pauseGeofenceMonitoring:       jest.fn(),
+  resumeGeofenceMonitoring:      jest.fn(),
+}));
+
+jest.mock('../../src/services/battery', () => ({
+  useBatteryLevel:        () => 1.0,
+  getBatteryLevel:        jest.fn().mockResolvedValue(1.0),
+  shouldPauseForBattery:  (_level: number, _enabled: boolean) => false,
+  LOW_BATTERY_THRESHOLD:  0.20,
 }));
 jest.mock('../../src/config/keys', () => ({ GOOGLE_PLACES_API_KEY: 'TEST' }));
 
@@ -180,6 +191,7 @@ function setupFirestoreMocks(tasks: typeof TASK[]) {
   );
   mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
   mockSubscribeToCategories.mockReturnValue(jest.fn());
+  mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
   mockSetTaskDone.mockResolvedValue(undefined);
   mockAwardPoint.mockResolvedValue(undefined);
   mockCheckAndAwardDailyComplete.mockResolvedValue(undefined);
@@ -431,6 +443,7 @@ describe('KAN-53 — proximity engine gate / stop / restart', () => {
     );
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
 
     render(<TodayScreen />);
     await act(async () => {}); // let mount effects settle
@@ -462,6 +475,7 @@ describe('KAN-53 — proximity engine gate / stop / restart', () => {
     );
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
 
     render(<TodayScreen />);
     await act(async () => {});
@@ -476,5 +490,47 @@ describe('KAN-53 — proximity engine gate / stop / restart', () => {
 
     // Engine should now be running.
     expect(mockStartProximityMonitoring).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── KAN-57 — TasksUiState error branch ──────────────────────────────────────
+
+describe('KAN-57 — TasksUiState error branch', () => {
+  it('shows an error message when the tasks subscription fires an error', async () => {
+    // Simulate subscribeToTasksForDate calling the error callback.
+    mockSubscribeToTasksForDate.mockImplementation(
+      (_uid: string, _date: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Firestore permission denied'));
+        return jest.fn();
+      },
+    );
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.getByText('Firestore permission denied')).toBeTruthy();
+  });
+
+  it('does NOT show the skeleton when in the error state', async () => {
+    mockSubscribeToTasksForDate.mockImplementation(
+      (_uid: string, _date: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Network error'));
+        return jest.fn();
+      },
+    );
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    // Error message is shown
+    expect(screen.getByText('Network error')).toBeTruthy();
+    // Task rows are NOT shown
+    expect(screen.queryByTestId('task-row-task-1')).toBeNull();
   });
 });
