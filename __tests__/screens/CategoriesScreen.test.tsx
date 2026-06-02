@@ -503,3 +503,76 @@ describe('CategoriesScreen — location type', () => {
     expect(mockSearchPlaceTypes).not.toHaveBeenCalled();
   });
 });
+
+// ─── KAN-57 / KAN-58 — CategoriesUiState error branch & retry ───────────────
+
+describe('CategoriesScreen — KAN-57 / KAN-58 UiState error branch & retry', () => {
+  it('shows a user-friendly error message when the subscription fires an error', async () => {
+    mockSubscribeToCategories.mockImplementation(
+      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Firestore unavailable'));
+        return jest.fn();
+      },
+    );
+
+    render(<CategoriesScreen />);
+    await act(async () => {});
+
+    expect(screen.getByText('Could not load categories. Check your connection.')).toBeTruthy();
+  });
+
+  it('shows a "Try again" button in the error state', async () => {
+    mockSubscribeToCategories.mockImplementation(
+      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Network error'));
+        return jest.fn();
+      },
+    );
+
+    render(<CategoriesScreen />);
+    await act(async () => {});
+
+    expect(screen.getByLabelText('Try again')).toBeTruthy();
+  });
+
+  it('does not show custom category rows in the error state', async () => {
+    mockSubscribeToCategories.mockImplementation(
+      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+        onError(new Error('Network error'));
+        return jest.fn();
+      },
+    );
+
+    render(<CategoriesScreen />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText('My Category category')).toBeNull();
+  });
+
+  it('re-subscribes and shows categories when "Try again" is pressed after recovery', async () => {
+    let callCount = 0;
+    mockSubscribeToCategories.mockImplementation(
+      (_uid: string, onSuccess: (cats: any[]) => void, onError: (err: Error) => void) => {
+        callCount += 1;
+        if (callCount === 1) {
+          onError(new Error('Network error'));
+        } else {
+          onSuccess([{ id: 'cat-gym', name: 'Gym', color: '#ff0000', poi: null, isBuiltIn: false }]);
+        }
+        return jest.fn();
+      },
+    );
+
+    render(<CategoriesScreen />);
+    await act(async () => {});
+
+    expect(screen.getByLabelText('Try again')).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Try again'));
+    });
+
+    expect(screen.getByText('Gym')).toBeTruthy();
+    expect(screen.queryByLabelText('Try again')).toBeNull();
+  });
+});

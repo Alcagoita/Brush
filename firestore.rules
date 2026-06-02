@@ -3,21 +3,52 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ─── User events ──────────────────────────────────────────────────────────
-    // Each user can only read and write their own events.
-    match /users/{userId}/events/{eventId} {
-      allow read, write: if isOwner(userId);
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // ─── FCM tokens ───────────────────────────────────────────────────────────
-    // Device tokens are private to the owning user.
-    match /users/{userId}/tokens/{token} {
+    // ─── User document ────────────────────────────────────────────────────────
+    match /users/{userId} {
       allow read, write: if isOwner(userId);
+
+      // ─── Tasks ──────────────────────────────────────────────────────────────
+      match /tasks/{taskId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── Custom categories ───────────────────────────────────────────────────
+      match /categories/{categoryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── POI preferences ─────────────────────────────────────────────────────
+      match /pois/{poiType} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── Achievements ────────────────────────────────────────────────────────
+      match /achievements/{achievementId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── Points history ──────────────────────────────────────────────────────
+      match /pointsHistory/{entryId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── FCM device tokens ───────────────────────────────────────────────────
+      match /tokens/{token} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── Notification preferences ────────────────────────────────────────────
+      match /notificationPreferences/{doc} {
+        allow read, write: if isOwner(userId);
+      }
     }
 
-    // ─── Health check ────────────────────────────────────────────────────────
-    // A single publicly-readable collection used by checkFirebaseConnection().
-    // No sensitive data lives here; writes are always denied.
+    // ─── Health check ─────────────────────────────────────────────────────────
     match /_health/{document} {
       allow read:  if true;
       allow write: if false;
@@ -26,11 +57,6 @@ service cloud.firestore {
     // ─── Catch-all: deny everything else ─────────────────────────────────────
     match /{document=**} {
       allow read, write: if false;
-    }
-
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
     }
   }
 }

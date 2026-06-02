@@ -18,6 +18,17 @@ export interface User {
   displayName: string;
   darkMode: boolean;
   createdAt: FirebaseFirestoreTypes.Timestamp;
+  /**
+   * User-controlled feature preferences stored on the root user document.
+   * Using a nested object keeps the root document flat for other flags.
+   */
+  poiPreferences?: {
+    /**
+     * When true, geofence monitoring is paused whenever battery drops below
+     * LOW_BATTERY_THRESHOLD (20%). Default: false (opt-in). KAN-52.
+     */
+    lowBatteryPause?: boolean;
+  };
 }
 
 // ─── POI ──────────────────────────────────────────────────────────────────────
@@ -43,7 +54,8 @@ export type CategoryKey = 'work' | 'health' | 'errands' | 'personal';
 export interface Task {
   id: string;
   title: string;
-  category: CategoryKey;
+  /** Built-in CategoryKey or a Firestore custom category ID (KAN-61). */
+  category: string;
   done: boolean;
   /** Scheduled time in "HH:MM" format — optional. */
   time?: string;
@@ -174,6 +186,37 @@ export interface Achievement {
   /** Optional contextual data — e.g. `{ date: '2026-05-29' }` for daily_complete. */
   metadata?: Record<string, unknown>;
 }
+
+// ─── Screen UiState types (KAN-57) ───────────────────────────────────────────
+//
+// Discriminated unions that replace separate loading-flag + data-array state.
+// Each union covers all three cases: loading, success, and error.
+//
+// Pattern (NowInAndroid / TypeScript):
+//   | { status: 'loading' }                    — data in flight
+//   | { status: 'success'; <payload> }         — data available
+//   | { status: 'error';   message: string }   — retrieval failed, show feedback
+//
+// Kept in types/index.ts so KAN-59's custom hooks can import them without
+// a dependency cycle.
+
+/** UiState for a list of today's tasks (TodayScreen). */
+export type TasksUiState =
+  | { status: 'loading' }
+  | { status: 'success'; tasks: Task[] }
+  | { status: 'error';   message: string };
+
+/** UiState for the custom categories list (CategoriesScreen). */
+export type CategoriesUiState =
+  | { status: 'loading' }
+  | { status: 'success'; categories: Category[] }
+  | { status: 'error';   message: string };
+
+/** UiState for a month's tasks (CalendarScreen). */
+export type MonthTasksUiState =
+  | { status: 'loading' }
+  | { status: 'success'; tasks: Task[] }
+  | { status: 'error';   message: string };
 
 // ─── Legacy calendar types (kept for backward compatibility) ──────────────────
 

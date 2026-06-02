@@ -15,9 +15,9 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-               BuildableName = "Agenda.app"
-               BlueprintName = "Agenda"
-               ReferencedContainer = "container:Agenda.xcodeproj">
+               BuildableName = "Brush.app"
+               BlueprintName = "Brush"
+               ReferencedContainer = "container:Brush.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -35,7 +35,7 @@
                BlueprintIdentifier = "00E356ED1AD99517003FC87E"
                BuildableName = "AgendaTests.xctest"
                BlueprintName = "AgendaTests"
-               ReferencedContainer = "container:Agenda.xcodeproj">
+               ReferencedContainer = "container:Brush.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -55,9 +55,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "Agenda.app"
-            BlueprintName = "Agenda"
-            ReferencedContainer = "container:Agenda.xcodeproj">
+            BuildableName = "Brush.app"
+            BlueprintName = "Brush"
+            ReferencedContainer = "container:Brush.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -72,9 +72,9 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "13B07F861A680F5B00A75B9A"
-            BuildableName = "Agenda.app"
-            BlueprintName = "Agenda"
-            ReferencedContainer = "container:Agenda.xcodeproj">
+            BuildableName = "Brush.app"
+            BlueprintName = "Brush"
+            ReferencedContainer = "container:Brush.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>

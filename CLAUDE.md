@@ -421,8 +421,13 @@ docs/
     1. Add the new literal to the `reason` union in `src/types/index.ts`.
     2. Create a dedicated `awardPoint*` function (or an options-object overload) in `src/services/firestore.ts` — do **not** repurpose the existing `awardPoint(uid, taskId, taskTitle)` signature.
     3. Add unit tests for the new reason type in `__tests__/services/points.test.ts`.
-11. **One ticket at a time.** Never start a new ticket until the PR for the current one has been reviewed and merged into **develop**. After opening a PR, stop and wait for explicit confirmation before picking up the next ticket. PRs merge into develop during the sprint; develop merges into main only at sprint end.
-12. **Never merge without explicit user consent.** Do not merge any PR — even with `--admin` — unless the user has explicitly said to merge in that conversation turn.
+11. **Unit tests are required for every ticket where logic is testable.** Before opening a PR, write unit tests covering the core behaviour introduced or changed. Use `@testing-library/react-native` for components and screens; plain Jest for services and utilities.
+    - **Always test:** new business logic, state transitions, error paths, edge cases.
+    - **Skip tests only for:** pure config changes (e.g. constant values), visual-only tweaks, or native-only code that cannot be exercised in Jest.
+    - If skipping, add a comment in the PR description explaining why.
+    - Tests live in `__tests__/` mirroring the `src/` structure (e.g. `src/services/auth.ts` → `__tests__/services/auth.test.ts`).
+12. **One ticket at a time.** Never start a new ticket until the PR for the current one has been reviewed and merged into **develop**. After opening a PR, stop and wait for explicit confirmation before picking up the next ticket. PRs merge into develop during the sprint; develop merges into main only at sprint end.
+13. **Never merge without explicit user consent.** Do not merge any PR — even with `--admin` — unless the user has explicitly said to merge in that conversation turn.
 
 ---
 
@@ -448,17 +453,75 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 1 — ✅ Complete.** All 10 tickets shipped.
 
-**Sprint 2 contains 16 tickets:**
-KAN-51, KAN-50, KAN-48, KAN-16, KAN-23, KAN-25, KAN-43, KAN-39, KAN-40, KAN-32,
-KAN-26, KAN-27, KAN-28, KAN-29, KAN-30, KAN-31.
+**Sprint 2 — ✅ Complete.** All 16 tickets shipped. Released as v0.2.0.
 
-When all Sprint 2 tickets above have been completed and their PRs merged:
+---
+
+## Current Sprint — Sprint 3: Battery, Architecture & Bug Fixes
+
+**Goal:** No new user-facing features. Fix real battery problems, bring the codebase architecture in line with established patterns, and close an active bug.
+
+**10 tickets across two parallel tracks and one standalone bug.**
+
+### Track A — Battery & GPS (Epic KAN-65)
+Work in this exact order. Each ticket unblocks the next.
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ✅ Concluído |
+| 2 | KAN-54 | Tune location watch options for battery efficiency | — | 🔄 PR #57 open |
+| 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | KAN-53, KAN-54 | ⬜ A fazer |
+| 4 | KAN-56 | Replace software geofencing with native OS geofences | KAN-53, KAN-54 | ⬜ A fazer |
+| 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | KAN-56 | ⬜ A fazer |
+
+### Track B — Architecture (Epic KAN-66)
+Strict dependency chain — do not skip ahead.
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 6 | KAN-57 | Introduce formal UiState discriminated union types for screens | — | ⬜ A fazer |
+| 7 | KAN-58 | Handle Firestore subscription errors in screens | KAN-57 | ⬜ A fazer |
+| 8 | KAN-59 | Extract screen state management into dedicated custom hooks | KAN-57, KAN-58 | ⬜ A fazer |
+| 9 | KAN-60 | Add UI-layer tests for screens and key components | KAN-59 | ⬜ A fazer |
+
+### Standalone Bug (Epic KAN-67)
+
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
+
+### Dependency graph
+
+```
+Track A (Battery):
+KAN-53 ──┐
+KAN-54 ──┼──▶ KAN-55
+         └──▶ KAN-56 ──▶ KAN-52
+
+Track B (Architecture):
+KAN-57 ──▶ KAN-58 ──▶ KAN-59 ──▶ KAN-60
+
+Standalone:
+KAN-61 (no dependencies)
+```
+
+Tracks A and B are fully independent and can be worked in parallel. KAN-53 and KAN-54 have no dependencies and can be started simultaneously. KAN-61 can be picked up at any time.
+
+### Out of scope for Sprint 3
+- Any new user-facing features
+- KAN-62 (notification preferences UI rethink)
+- KAN-63, KAN-64 (points system extensions — v1.1)
+- Wear OS track (v1.2)
+- KAN-12, KAN-13 (task CRUD — Sprint 4+)
+
+When all 10 Sprint 3 tickets above have been completed and their PRs merged:
 
 1. **Stop immediately.** Do not pick up any new work.
-2. **Report to the user** with this exact message:
+2. **Follow the End-of-Sprint Checklist** above (release branch, version bump, GitHub release, etc.).
+3. **Report to the user** with this exact message:
 
-> "Sprint 2 is complete. All 16 tickets are done. Please review the build and let me know when to start Sprint 3."
+> "Sprint 3 is complete. All 10 tickets are done. Please review the build and let me know when to start Sprint 4."
 
-3. **Do not start Sprint 3** or any Backlog ticket until the user explicitly says so — even if the next logical task seems obvious.
+4. **Do not start Sprint 4** or any Backlog ticket until the user explicitly says so — even if the next logical task seems obvious.
 
 This rule takes priority over any instruction to "keep going", "continue", or "do the next thing".

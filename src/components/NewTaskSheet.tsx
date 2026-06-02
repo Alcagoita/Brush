@@ -55,7 +55,7 @@ import Animated, {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
-import { PoiType, CategoryKey } from '../types';
+import { PoiType, CategoryKey, Category } from '../types';
 import { addTask } from '../services/firestore';
 import { CloseIcon, ClockIcon, PoiIcon } from './AppIcon';
 
@@ -87,17 +87,19 @@ interface NewTaskSheetProps {
   visible: boolean;
   uid: string;
   onClose: () => void;
+  /** User-created categories from Firestore — rendered after the 4 built-ins (KAN-61). */
+  customCategories?: Category[];
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
-  function NewTaskSheet({ visible, uid, onClose }, ref) {
+  function NewTaskSheet({ visible, uid, onClose, customCategories = [] }, ref) {
     const { palette, dark } = useTheme();
 
     // Form state
     const [title,    setTitle]    = useState('');
-    const [category, setCategory] = useState<CategoryKey>('personal');
+    const [category, setCategory] = useState<string>('personal');
     const [poi,      setPoi]      = useState<PoiType | null>(null);
     const [time,     setTime]     = useState('');
     const [submitting, setSubmitting] = useState(false);
@@ -335,6 +337,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
               {/* ── Category ── */}
               <Text style={[styles.fieldLabel, { color: palette.muted }]}>CATEGORY</Text>
               <View style={styles.categoryRow}>
+                {/* ── Built-in categories ── */}
                 {(Object.keys(categories) as CategoryKey[]).map(key => {
                   const cat    = categories[key];
                   const active = category === key;
@@ -344,8 +347,8 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                       style={[
                         styles.categoryPill,
                         {
-                          backgroundColor: active ? palette.text    : palette.surface,
-                          borderColor:     active ? palette.text    : palette.line,
+                          backgroundColor: active ? palette.text : palette.surface,
+                          borderColor:     active ? palette.text : palette.line,
                         },
                       ]}
                       onPress={() => setCategory(key)}
@@ -357,6 +360,32 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                         { color: active ? palette.bg : palette.text },
                       ]}>
                         {cat.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+                {/* ── Custom categories (KAN-61) ── */}
+                {customCategories.map(cat => {
+                  const active = category === cat.id;
+                  return (
+                    <Pressable
+                      key={cat.id}
+                      style={[
+                        styles.categoryPill,
+                        {
+                          backgroundColor: active ? palette.text : palette.surface,
+                          borderColor:     active ? palette.text : palette.line,
+                        },
+                      ]}
+                      onPress={() => setCategory(cat.id)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}>
+                      <View style={[styles.categoryDot, { backgroundColor: cat.color }]} />
+                      <Text style={[
+                        styles.categoryLabel,
+                        { color: active ? palette.bg : palette.text },
+                      ]}>
+                        {cat.name}
                       </Text>
                     </Pressable>
                   );

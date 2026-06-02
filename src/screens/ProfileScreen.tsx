@@ -12,6 +12,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -25,7 +26,7 @@ import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
 import { signOut } from '../services/auth';
-import { subscribeToPoiPreferences, setPoiPreference, subscribeToCategories } from '../services/firestore';
+import { subscribeToPoiPreferences, setPoiPreference, subscribeToCategories, subscribeLowBatteryPausePref, setLowBatteryPausePref } from '../services/firestore';
 import { placeTypeLabel } from '../services/maps';
 import { Category, POI_GEOFENCE_RADIUS } from '../types';
 
@@ -112,6 +113,23 @@ export default function ProfileScreen() {
     }
     return [...POI_ROWS, ...custom];
   }, [customCategories]);
+
+  // ── Low-battery pause preference (KAN-52) ─────────────────────────────────
+  const [lowBatteryPause, setLowBatteryPause] = useState(false);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeLowBatteryPausePref(uid, setLowBatteryPause);
+  }, [uid]);
+
+  function handleLowBatteryToggle(value: boolean): void {
+    // Optimistic update
+    setLowBatteryPause(value);
+    if (!uid) { return; }
+    setLowBatteryPausePref(uid, value).catch(err =>
+      console.warn('[ProfileScreen] setLowBatteryPausePref failed', err),
+    );
+  }
 
   // ── Stepper handler ────────────────────────────────────────────────────────
   function handleRadiusChange(poiType: string, delta: number): void {
@@ -241,6 +259,32 @@ export default function ProfileScreen() {
           })}
         </View>
 
+        {/* ── Battery (KAN-52) ── */}
+        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>
+            Battery
+          </Text>
+
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={[styles.toggleLabel, { color: palette.text }]}>
+                Pause nearby alerts on low battery
+              </Text>
+              <Text style={[styles.toggleSub, { color: palette.muted }]}>
+                Alerts pause when battery drops below 20%
+              </Text>
+            </View>
+            <Switch
+              value={lowBatteryPause}
+              onValueChange={handleLowBatteryToggle}
+              trackColor={{ false: palette.line, true: palette.accent }}
+              thumbColor={palette.bg}
+              accessibilityLabel="Pause nearby alerts on low battery"
+              accessibilityRole="switch"
+            />
+          </View>
+        </View>
+
         {/* ── Appearance ── */}
         <TouchableOpacity
           style={[styles.btn, { backgroundColor: palette.surface2 }]}
@@ -365,6 +409,26 @@ const styles = StyleSheet.create({
   poiLabel: {
     flex:       1,
     fontSize:   14,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Toggle row (KAN-52) ──
+  toggleRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    paddingVertical: 10,
+    gap: 12,
+  },
+  toggleText: {
+    flex: 1,
+    gap:  2,
+  },
+  toggleLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+  },
+  toggleSub: {
+    fontSize:   12,
     fontFamily: 'Geist-Regular',
   },
 

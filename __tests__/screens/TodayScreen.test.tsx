@@ -13,16 +13,20 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Firestore mocks ──────────────────────────────────────────────────────────
 
-const mockSetTaskDone               = jest.fn();
-const mockAwardPoint                = jest.fn();
-const mockSubscribeToTasksForDate   = jest.fn();
-const mockSubscribeToPoiPreferences = jest.fn();
+const mockSetTaskDone                = jest.fn();
+const mockAwardPoint                 = jest.fn();
+const mockSubscribeToTasksForDate    = jest.fn();
+const mockSubscribeToPoiPreferences  = jest.fn();
+const mockSubscribeToCategories      = jest.fn();
+const mockSubscribeLowBatteryPausePref = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  setTaskDone:               (...args: unknown[]) => mockSetTaskDone(...args),
-  awardPoint:                (...args: unknown[]) => mockAwardPoint(...args),
-  subscribeToTasksForDate:   (...args: unknown[]) => mockSubscribeToTasksForDate(...args),
-  subscribeToPoiPreferences: (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
+  setTaskDone:                 (...args: unknown[]) => mockSetTaskDone(...args),
+  awardPoint:                  (...args: unknown[]) => mockAwardPoint(...args),
+  subscribeToTasksForDate:     (...args: unknown[]) => mockSubscribeToTasksForDate(...args),
+  subscribeToPoiPreferences:   (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
+  subscribeToCategories:       (...args: unknown[]) => mockSubscribeToCategories(...args),
+  subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
 }));
 
 // ─── Achievements mock ────────────────────────────────────────────────────────
@@ -142,10 +146,23 @@ jest.mock('../../src/components/AppIcon', () => ({ PlusIcon: () => null }));
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));
+const mockStartProximityMonitoring = jest.fn();
+const mockStopProximityMonitoring  = jest.fn();
+
 jest.mock('../../src/services/proximity', () => ({
-  startProximityMonitoring:      jest.fn(),
+  startProximityMonitoring:      (...args: unknown[]) => mockStartProximityMonitoring(...args),
+  stopProximityMonitoring:       () => mockStopProximityMonitoring(),
   updateProximityTasks:          jest.fn(),
   updateProximityPoiPreferences: jest.fn(),
+  pauseGeofenceMonitoring:       jest.fn(),
+  resumeGeofenceMonitoring:      jest.fn(),
+}));
+
+jest.mock('../../src/services/battery', () => ({
+  useBatteryLevel:        () => 1.0,
+  getBatteryLevel:        jest.fn().mockResolvedValue(1.0),
+  shouldPauseForBattery:  (_level: number, _enabled: boolean) => false,
+  LOW_BATTERY_THRESHOLD:  0.20,
 }));
 jest.mock('../../src/config/keys', () => ({ GOOGLE_PLACES_API_KEY: 'TEST' }));
 
@@ -173,6 +190,8 @@ function setupFirestoreMocks(tasks: typeof TASK[]) {
     },
   );
   mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+  mockSubscribeToCategories.mockReturnValue(jest.fn());
+  mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
   mockSetTaskDone.mockResolvedValue(undefined);
   mockAwardPoint.mockResolvedValue(undefined);
   mockCheckAndAwardDailyComplete.mockResolvedValue(undefined);
@@ -332,5 +351,218 @@ describe('KAN-32 — daily-complete achievement', () => {
     // setTaskDone still called — toggle was not reverted.
     expect(mockSetTaskDone).toHaveBeenCalledWith('user-test', 'task-1', true);
     expect(screen.getByTestId('task-row-task-1')).toBeTruthy();
+  });
+});
+
+// ─── KAN-53 — proximity engine gate / stop / restart ─────────────────────────
+//
+// These tests verify that the proximity engine is only running when it is
+// actually useful:
+//   Gate:    engine never starts when there are zero undone POI tasks at mount.
+//   Stop:    engine stops when the last POI task is marked done mid-day.
+//   Restart: engine restarts (without re-prompting) when a new POI task appears.
+//
+// The mock for requestLocationPermission resolves 'granted' (set in the
+// geolocation mock above). startProximityMonitoring returns a stop function
+// so the cleanup path in TodayScreen can call it.
+
+/** A task with a POI field — triggers the proximity engine. */
+const POI_TASK = {
+  id:        'poi-task-1',
+  title:     'Pick up prescription',
+  category:  'health' as const,
+  done:      false,
+  poi:       'pharmacy',
+  date:      '2026-05-29',
+  createdAt: { toDate: () => new Date() } as any,
+};
+
+/** Same task but marked done — used to simulate completing the last POI task. */
+const POI_TASK_DONE = { ...POI_TASK, done: true };
+
+describe('KAN-53 — proximity engine gate / stop / restart', () => {
+  beforeEach(() => {
+    // startProximityMonitoring returns a stop fn so the cleanup path works.
+    mockStartProximityMonitoring.mockReturnValue(jest.fn());
+  });
+
+  // ── Gate ──────────────────────────────────────────────────────────────────
+  // When there are no undone POI tasks at mount, GPS must never start.
+
+  it('GATE — does NOT start proximity monitoring when there are no POI tasks', async () => {
+    // TASK has no `poi` field — engine should stay off.
+    setupFirestoreMocks([TASK]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(mockStartProximityMonitoring).not.toHaveBeenCalled();
+  });
+
+  it('GATE — does NOT start proximity monitoring when tasks list is empty', async () => {
+    setupFirestoreMocks([]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(mockStartProximityMonitoring).not.toHaveBeenCalled();
+  });
+
+  it('GATE — starts proximity monitoring when at least one undone POI task exists', async () => {
+    setupFirestoreMocks([POI_TASK]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(mockStartProximityMonitoring).toHaveBeenCalledTimes(1);
+    expect(mockStartProximityMonitoring).toHaveBeenCalledWith(
+      'user-test',
+      expect.arrayContaining([expect.objectContaining({ id: 'poi-task-1' })]),
+      expect.any(Function),
+    );
+  });
+
+  it('GATE — does NOT start monitoring when only done POI tasks exist', async () => {
+    setupFirestoreMocks([POI_TASK_DONE]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(mockStartProximityMonitoring).not.toHaveBeenCalled();
+  });
+
+  // ── Stop ──────────────────────────────────────────────────────────────────
+  // When the last POI task is completed mid-day, the engine must stop.
+
+  it('STOP — calls stopProximityMonitoring when the last POI task is marked done', async () => {
+    // First snapshot: one undone POI task → engine starts.
+    // Second snapshot: same task now done → engine should stop.
+    let firestoreCallback: ((tasks: any[]) => void) | null = null;
+    mockSubscribeToTasksForDate.mockImplementation(
+      (_uid: string, _date: string, cb: (tasks: any[]) => void) => {
+        firestoreCallback = cb;
+        cb([POI_TASK]); // initial snapshot — starts the engine
+        return jest.fn();
+      },
+    );
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+
+    render(<TodayScreen />);
+    await act(async () => {}); // let mount effects settle
+
+    expect(mockStartProximityMonitoring).toHaveBeenCalledTimes(1);
+
+    // Simulate Firestore updating the task to done → engine should stop.
+    await act(async () => {
+      firestoreCallback!([POI_TASK_DONE]);
+    });
+
+    expect(mockStopProximityMonitoring).toHaveBeenCalledTimes(1);
+  });
+
+  // ── Restart ───────────────────────────────────────────────────────────────
+  // When a new POI task is added after the engine was stopped, it must restart
+  // without re-requesting location permission.
+
+  it('RESTART — restarts monitoring when a POI task is added after engine was stopped', async () => {
+    // Phase 1: start with no POI tasks → engine off.
+    // Phase 2: Firestore pushes a new POI task → engine should start.
+    let firestoreCallback: ((tasks: any[]) => void) | null = null;
+    mockSubscribeToTasksForDate.mockImplementation(
+      (_uid: string, _date: string, cb: (tasks: any[]) => void) => {
+        firestoreCallback = cb;
+        cb([TASK]); // initial: no POI tasks
+        return jest.fn();
+      },
+    );
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    // Engine should NOT have started yet (no POI tasks).
+    expect(mockStartProximityMonitoring).not.toHaveBeenCalled();
+
+    // Simulate a new POI task arriving via Firestore.
+    await act(async () => {
+      firestoreCallback!([TASK, POI_TASK]);
+    });
+
+    // Engine should now be running.
+    expect(mockStartProximityMonitoring).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ─── KAN-57 / KAN-58 — TasksUiState error branch & retry ────────────────────
+
+function setupErrorSubscription() {
+  mockSubscribeToTasksForDate.mockImplementation(
+    (_uid: string, _date: string, _onSuccess: unknown, onError: (err: Error) => void) => {
+      onError(new Error('Firestore permission denied'));
+      return jest.fn();
+    },
+  );
+  mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+  mockSubscribeToCategories.mockReturnValue(jest.fn());
+  mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+}
+
+describe('KAN-57 / KAN-58 — TasksUiState error branch & retry', () => {
+  it('shows a user-friendly error message when the subscription fires an error', async () => {
+    setupErrorSubscription();
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.getByText('Could not load tasks. Check your connection.')).toBeTruthy();
+  });
+
+  it('shows a "Try again" button in the error state', async () => {
+    setupErrorSubscription();
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.getByLabelText('Try again')).toBeTruthy();
+  });
+
+  it('does NOT show task rows in the error state', async () => {
+    setupErrorSubscription();
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.queryByTestId('task-row-task-1')).toBeNull();
+  });
+
+  it('re-subscribes and shows tasks when "Try again" is pressed after a recovery', async () => {
+    // Phase 1: subscription errors.
+    let callCount = 0;
+    mockSubscribeToTasksForDate.mockImplementation(
+      (_uid: string, _date: string, onSuccess: (tasks: any[]) => void, onError: (err: Error) => void) => {
+        callCount += 1;
+        if (callCount === 1) {
+          onError(new Error('Network error'));
+        } else {
+          onSuccess([TASK]); // second attempt succeeds
+        }
+        return jest.fn();
+      },
+    );
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    // Error shown after first attempt.
+    expect(screen.getByLabelText('Try again')).toBeTruthy();
+
+    // Press retry — second subscription call succeeds.
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Try again'));
+    });
+
+    // Task now visible after recovery.
+    expect(screen.getByText('Buy milk')).toBeTruthy();
+    expect(screen.queryByLabelText('Try again')).toBeNull();
   });
 });

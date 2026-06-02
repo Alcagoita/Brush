@@ -45,21 +45,32 @@ export type PermissionStatus = 'granted' | 'denied' | 'blocked' | 'unavailable';
 // ─── Watch options ─────────────────────────────────────────────────────────────
 
 /**
- * Options for continuous tracking.
- * - `distanceFilter: 10` — emit only when the user moves ≥ 10 m (battery saver).
- * - `interval: 8000` / `fastestInterval: 4000` — Android-specific poll cadence.
- * - `accuracy: { android: 'high', ios: 'best' }` — needed for 50 m geofences.
+ * Options for continuous tracking (KAN-54 — tuned for battery efficiency).
+ *
+ * distanceFilter 25 m  — halves wakeups vs. the old 10 m value.
+ *                        Maximum detection latency for a 50 m ATM fence is
+ *                        ~2 steps at walking pace (~3 m/s) = ~8 s. Acceptable.
+ *
+ * interval 8 s         — Android preferred poll cadence. Battery Historian showed
+ *                        no excess wakeups at this value; kept unchanged.
+ *
+ * fastestInterval 4 s  — Android floor. Kept to avoid starving the engine when
+ *                        the user is moving quickly toward a POI.
+ *
+ * ios 'best'           — Replaces 'bestForNavigation' (turn-by-turn nav mode,
+ *                        maximum drain). 'best' is sufficient for 50 m geofences
+ *                        and draws significantly less power on A-series chips.
  */
 const WATCH_OPTIONS: GeoWatchOptions = {
   enableHighAccuracy: true,
-  distanceFilter: 10,        // metres — reduces updates when user is stationary
-  interval: 8_000,           // Android: preferred update interval (ms)
-  fastestInterval: 4_000,    // Android: fastest acceptable update interval (ms)
+  distanceFilter: 25,        // was 10 — halves wakeups; 2-step latency for 50 m fences is acceptable
+  interval: 8_000,           // Android: preferred update interval (ms) — unchanged
+  fastestInterval: 4_000,    // Android: fastest acceptable update interval (ms) — unchanged
   showsBackgroundLocationIndicator: true,   // iOS: shows blue pill in status bar
   forceRequestLocation: false,
   accuracy: {
     android: 'high',
-    ios: 'bestForNavigation',
+    ios: 'best',             // was 'bestForNavigation' — sufficient for 50 m fences, lower drain
   },
 };
 
@@ -132,7 +143,7 @@ async function requestAndroidPermission(): Promise<PermissionStatus> {
 function showBlockedAlert(): void {
   Alert.alert(
     'Location permission required',
-    'Agenda needs "Always" location access to alert you when you\'re near a task\'s location. Please enable it in Settings.',
+    'Brush needs "Always" location access to alert you when you\'re near a task\'s location. Please enable it in Settings.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -143,6 +154,41 @@ function showBlockedAlert(): void {
   );
 }
 
+// ─── Adaptive accuracy (KAN-55) ───────────────────────────────────────────────
+
+/**
+ * Two-tier accuracy model:
+ *
+ * coarse — cell/WiFi triangulation. Used when all known POIs are > 500 m away.
+ *          Low power draw; sufficient to detect when the user is approaching.
+ *
+ * fine   — GPS. Used when at least one cached POI is ≤ 500 m away.
+ *          Higher power draw; required for 50–75 m geofence precision.
+ */
+export type AccuracyMode = 'coarse' | 'fine';
+
+const COARSE_OPTIONS: GeoWatchOptions = {
+  enableHighAccuracy: false,
+  distanceFilter: 50,          // coarser filter — no need for precision when far away
+  interval: 15_000,            // Android: longer interval saves battery in coarse mode
+  fastestInterval: 8_000,      // Android: floor in coarse mode
+  showsBackgroundLocationIndicator: true,
+  forceRequestLocation: false,
+  accuracy: {
+    android: 'balancedPower',  // cell/WiFi triangulation — much lower drain than GPS
+    ios: 'hundredMeters',      // ~100 m accuracy — sufficient for approach detection
+  },
+};
+
+const FINE_OPTIONS: GeoWatchOptions = WATCH_OPTIONS; // reuse the KAN-54 tuned options
+
+/** Currently active accuracy mode — module-level to avoid unnecessary restarts. */
+let currentAccuracyMode: AccuracyMode = 'coarse'; // bootstrap in coarse (KAN-55)
+
+/** Active location callback — stored so we can restart tracking on mode switch. */
+let currentLocationCallback: LocationCallback | null = null;
+let currentErrorCallback: LocationErrorCallback = defaultErrorHandler;
+
 // ─── Tracking ─────────────────────────────────────────────────────────────────
 
 let watchId: number | null = null;
@@ -150,16 +196,21 @@ let watchId: number | null = null;
 /**
  * Starts continuous location tracking.
  *
- * Calls `onLocation` each time the device moves ≥ 10 m.
+ * Calls `onLocation` each time the device moves beyond the active distanceFilter.
  * Calls `onError` on any error (permission revoked, GPS off, etc.).
  *
  * Safe to call multiple times — stops the previous watcher automatically.
+ * Bootstraps in coarse mode (KAN-55); call setTrackingAccuracy() to switch.
  */
 export function startTracking(
   onLocation: LocationCallback,
   onError: LocationErrorCallback = defaultErrorHandler,
 ): void {
+  currentLocationCallback = onLocation;
+  currentErrorCallback    = onError;
   stopTracking(); // clear any previous watcher
+
+  const options = currentAccuracyMode === 'fine' ? FINE_OPTIONS : COARSE_OPTIONS;
 
   watchId = Geolocation.watchPosition(
     (position: GeoPosition) => {
@@ -171,7 +222,7 @@ export function startTracking(
       });
     },
     onError,
-    WATCH_OPTIONS,
+    options,
   );
 }
 
@@ -183,6 +234,31 @@ export function stopTracking(): void {
   if (watchId !== null) {
     Geolocation.clearWatch(watchId);
     watchId = null;
+  }
+}
+
+/**
+ * Switches the GPS accuracy mode and restarts the watcher if needed (KAN-55).
+ *
+ * No-op if the requested mode matches the current mode — avoids restarting
+ * the watcher on every location tick.
+ *
+ * Does NOT reset placeCache or currentNearbyType inside proximity.ts — only
+ * the watcher options change.
+ */
+export function setTrackingAccuracy(mode: AccuracyMode): void {
+  if (mode === currentAccuracyMode) { return; } // no-op — already in this mode
+  currentAccuracyMode = mode;
+
+  // Restart the watcher with the new options only if it was already running.
+  //
+  // Invariant: watchId !== null ⟹ currentLocationCallback !== null.
+  // startTracking() is the only path that sets watchId, and it always sets
+  // currentLocationCallback first. The `&& currentLocationCallback` check is
+  // therefore redundant, but kept as a TypeScript null guard and defensive
+  // safeguard against future refactors that might break this invariant.
+  if (watchId !== null && currentLocationCallback) {
+    startTracking(currentLocationCallback, currentErrorCallback);
   }
 }
 
@@ -205,7 +281,7 @@ export function getCurrentPosition(): Promise<Coordinates> {
         enableHighAccuracy: true,
         timeout: 15_000,
         maximumAge: 10_000,
-        accuracy: { android: 'high', ios: 'bestForNavigation' },
+        accuracy: { android: 'high', ios: 'best' }, // was 'bestForNavigation' — KAN-54
       },
     );
   });

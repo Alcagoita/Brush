@@ -37,7 +37,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     window = UIWindow(frame: UIScreen.main.bounds)
 
     factory.startReactNative(
-      withModuleName: "Agenda",
+      withModuleName: "Brush",
       in: window,
       launchOptions: launchOptions
     )

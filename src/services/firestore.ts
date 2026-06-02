@@ -133,7 +133,7 @@ export function subscribeToTasksForDate(
   );
   return onSnapshot(
     q,
-    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -165,7 +165,7 @@ export function subscribeToTasksForMonth(
   );
   return onSnapshot(
     q,
-    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -186,7 +186,7 @@ export function subscribeToPoiTasks(
   );
   return onSnapshot(
     q,
-    snap => onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))),
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
     onError,
   );
 }
@@ -255,6 +255,7 @@ export function subscribeToPoiPreferences(
   return onSnapshot(
     poisRef(uid),
     snap => {
+      if (!snap) return;
       const prefs: Record<string, number> = {};
       for (const d of snap.docs) {
         const pref = d.data() as PoiPreference;
@@ -346,9 +347,10 @@ export function subscribeToCategories(
 ): () => void {
   return onSnapshot(
     query(categoriesRef(uid), orderBy('name', 'asc')),
-    snap => onUpdate(
-      snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category)),
-    ),
+    snap => {
+      if (!snap) return;
+      onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category)));
+    },
     onError,
   );
 }
@@ -491,6 +493,7 @@ export function subscribeToTotalPoints(
   return onSnapshot(
     userRef(uid),
     snap => {
+      if (!snap) return;
       const data = snap.data() as { totalPoints?: number } | undefined;
       onUpdate(data?.totalPoints ?? 0);
     },
@@ -509,9 +512,7 @@ export function subscribeToAchievements(
 ): () => void {
   return onSnapshot(
     query(achievementsRef(uid), orderBy('earnedAt', 'desc')),
-    snap => onUpdate(
-      snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement)),
-    ),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement))); },
     onError,
   );
 }
@@ -527,9 +528,46 @@ export function subscribeToPointsHistory(
 ): () => void {
   return onSnapshot(
     query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')),
-    snap => onUpdate(
-      snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry)),
-    ),
+    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry))); },
+    onError,
+  );
+}
+
+// ─── Low-battery pause preference (KAN-52) ───────────────────────────────────
+//
+// Stored on the root user document as `poiPreferences.lowBatteryPause: boolean`.
+// This keeps all user-controlled feature flags in one document instead of adding
+// a new subcollection, and avoids a snapshot for a simple boolean toggle.
+
+/**
+ * Persist the user's "Pause nearby alerts on low battery" preference.
+ * Pass `true` to enable, `false` to disable. Default server value is absent
+ * (treated as false by subscribers and the proximity engine).
+ */
+export async function setLowBatteryPausePref(
+  uid: string,
+  enabled: boolean,
+): Promise<void> {
+  await updateDoc(userRef(uid), { 'poiPreferences.lowBatteryPause': enabled });
+}
+
+/**
+ * Subscribe to live updates for the user's low-battery pause preference.
+ *
+ * Fires immediately with the stored value (or `false` if not yet set), then
+ * again whenever the preference changes. Returns an unsubscribe function.
+ */
+export function subscribeLowBatteryPausePref(
+  uid: string,
+  onUpdate: (enabled: boolean) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    userRef(uid),
+    snap => {
+      const data = snap?.data() as User | undefined;
+      onUpdate(data?.poiPreferences?.lowBatteryPause ?? false);
+    },
     onError,
   );
 }

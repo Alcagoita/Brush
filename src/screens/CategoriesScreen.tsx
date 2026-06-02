@@ -19,10 +19,9 @@
  *   - All colours via useTheme() — no hardcoded values.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -40,18 +39,13 @@ import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius, categories as builtInMeta } from '../theme/tokens';
 import {
-  subscribeToCategories,
-  addCategory,
-  updateCategory,
-  deleteCategory,
-} from '../services/firestore';
-import {
   searchPlaceTypes,
   placeTypeLabel,
   PlaceTypeSuggestion,
 } from '../services/maps';
 import { Category } from '../types';
 import { ChevronLeftIcon } from '../components/AppIcon';
+import { useCategoriesScreen } from '../hooks/useCategoriesScreen';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -496,76 +490,23 @@ export default function CategoriesScreen() {
   const insets     = useSafeAreaInsets();
   const navigation = useNavigation();
 
-  const user = getAuth().currentUser;
-  const uid  = user?.uid ?? '';
+  // ── Auth ─────────────────────────────────────────────────────────────────────
+  const uid = getAuth().currentUser?.uid ?? '';
 
-  const [customCategories, setCustomCategories] = useState<Category[]>([]);
-  const [sheetVisible,     setSheetVisible]     = useState(false);
-  const [editing,          setEditing]          = useState<Category | null>(null);
-
-  /** Tracks the previous list length — used to detect a newly-added category. */
-  const prevCatsLenRef = useRef(0);
-
-  // Live subscription to custom categories
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToCategories(uid, setCustomCategories);
-  }, [uid]);
-
-  // ── Auto-close sheet when a new category appears in the Firestore snapshot ──
-  // Firestore's local cache fires the subscription before addCategory() resolves,
-  // so this closes the sheet as soon as the write is visible — belt-and-suspenders
-  // with handleSave's own setSheetVisible(false) for the edit path.
-  useEffect(() => {
-    if (sheetVisible && editing === null && customCategories.length > prevCatsLenRef.current) {
-      setSheetVisible(false);
-    }
-    prevCatsLenRef.current = customCategories.length;
-  }, [customCategories, sheetVisible, editing]);
-
-  const handleAdd = useCallback(() => {
-    setEditing(null);
-    setSheetVisible(true);
-  }, []);
-
-  const handleEdit = useCallback((cat: Category) => {
-    setEditing(cat);
-    setSheetVisible(true);
-  }, []);
-
-  const handleDelete = useCallback((cat: Category) => {
-    Alert.alert(
-      'Delete Category',
-      `Delete "${cat.name}"? Tasks using this category will keep their assignment.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text:  'Delete',
-          style: 'destructive',
-          onPress: () =>
-            deleteCategory(uid, cat.id).catch(err =>
-              console.warn('[CategoriesScreen] delete failed', err),
-            ),
-        },
-      ],
-    );
-  }, [uid]);
-
-  const handleSave = useCallback((data: Omit<Category, 'id' | 'isBuiltIn'>) => {
-    if (editing) {
-      // EDIT: close immediately, write runs in the background.
-      setSheetVisible(false);
-      updateCategory(uid, editing.id, data).catch(err =>
-        console.warn('[CategoriesScreen] updateCategory failed', err),
-      );
-    } else {
-      // ADD: fire and forget — the useEffect above closes the sheet when the
-      // new item appears in the Firestore subscription (same as TodayScreen).
-      addCategory(uid, data).catch(err =>
-        console.warn('[CategoriesScreen] addCategory failed', err),
-      );
-    }
-  }, [uid, editing]);
+  // ── ViewModel hook (KAN-59) ──────────────────────────────────────────────────
+  const {
+    categoriesState,
+    retryKey: _retryKey,
+    setRetryKey,
+    customCategories,
+    sheetVisible,
+    editing,
+    handleAdd,
+    handleEdit,
+    handleDelete,
+    handleSave,
+    handleCloseSheet,
+  } = useCategoriesScreen(uid);
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -607,9 +548,25 @@ export default function CategoriesScreen() {
         {/* ── Custom ── */}
         <Text style={[styles.sectionLabel, { color: palette.muted }]}>CUSTOM</Text>
         <View style={[styles.section, { borderColor: palette.line, backgroundColor: palette.surface }]}>
-          {customCategories.length === 0 ? (
+          {categoriesState.status === 'error' ? (
+            // Error branch (KAN-58): show message + retry button
+            <View style={styles.errorWrap}>
+              <Text
+                style={[styles.emptyText, { color: palette.muted }]}
+                accessibilityRole="alert">
+                {categoriesState.message || 'Could not load categories. Please try again.'}
+              </Text>
+              <Pressable
+                onPress={() => setRetryKey(k => k + 1)}
+                style={[styles.retryBtn, { borderColor: palette.line }]}
+                accessibilityRole="button"
+                accessibilityLabel="Try again">
+                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+              </Pressable>
+            </View>
+          ) : customCategories.length === 0 ? (
             <Text style={[styles.emptyText, { color: palette.muted }]}>
-              No custom categories yet
+              {categoriesState.status === 'loading' ? 'Loading…' : 'No custom categories yet'}
             </Text>
           ) : (
             customCategories.map(cat => (
@@ -641,7 +598,7 @@ export default function CategoriesScreen() {
         visible={sheetVisible}
         initial={editing}
         onSave={handleSave}
-        onCancel={() => setSheetVisible(false)}
+        onCancel={handleCloseSheet}
       />
     </View>
   );
@@ -746,6 +703,24 @@ const styles = StyleSheet.create({
     fontSize:   20,
     lineHeight: 24,
     color:      ERROR_COLOR,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Error retry (KAN-58) ──
+  errorWrap: {
+    paddingHorizontal: 16,
+    paddingVertical:   14,
+    gap: 10,
+  },
+  retryBtn: {
+    alignSelf:         'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical:    8,
+    borderRadius:       8,
+    borderWidth:        1,
+  },
+  retryLabel: {
+    fontSize:   14,
     fontFamily: 'Geist-Regular',
   },
 

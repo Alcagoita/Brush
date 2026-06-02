@@ -32,8 +32,22 @@ jest.mock('react-native', () => ({
 const mockStartTracking = jest.fn();
 const mockStopTracking  = jest.fn();
 jest.mock('../../src/services/geolocation', () => ({
-  startTracking: (...args: unknown[]) => mockStartTracking(...args),
-  stopTracking:  ()                   => mockStopTracking(),
+  startTracking:        (...args: unknown[]) => mockStartTracking(...args),
+  stopTracking:         ()                   => mockStopTracking(),
+  setTrackingAccuracy:  jest.fn(),
+}));
+
+jest.mock('../../src/services/nativeGeofence', () => ({
+  NativeGeofence: {
+    registerGeofence:   jest.fn().mockResolvedValue(undefined),
+    removeGeofence:     jest.fn().mockResolvedValue(undefined),
+    removeAllGeofences: jest.fn().mockResolvedValue(undefined),
+  },
+  geofenceEmitter:        null,
+  buildGeofenceId:        (poiType: string, placeId: string) => `brush_geo_${poiType}_${placeId}`,
+  parseGeofenceId:        jest.fn().mockReturnValue(null),
+  GEOFENCE_ENTRY_EVENT:   'onGeofenceEntry',
+  supportsNativeGeofences: true,
 }));
 
 jest.mock('../../src/services/firestore', () => ({

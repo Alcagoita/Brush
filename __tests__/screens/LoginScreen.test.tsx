@@ -74,7 +74,7 @@ beforeEach(() => {
 describe('LoginScreen — render', () => {
   it('renders the app wordmark', () => {
     render(<LoginScreen />);
-    expect(screen.getByText('Agenda')).toBeTruthy();
+    expect(screen.getByText('Brush')).toBeTruthy();
   });
 
   it('renders the sign-in tagline by default', () => {

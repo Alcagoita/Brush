@@ -134,4 +134,15 @@ dependencies {
     } else {
         implementation jscFlavor
     }
+
+    // Required by BrushGeofenceModule and GeofenceBroadcastReceiver (KAN-56).
+    // Provides GeofencingClient, LocationServices, Geofence, GeofencingRequest,
+    // GeofencingEvent, and GeofenceStatusCodes. Firebase does not pull this in
+    // transitively during compilation.
+    //
+    // Pinned to 20.0.0 — NOT 21.x — because 21.0.0 changed SettingsClient from
+    // a class to an interface, breaking binary compatibility with the precompiled
+    // react-native-geolocation-service AAR (IncompatibleClassChangeError at runtime).
+    // All geofencing APIs needed here have existed since ≥ 11.x.
+    implementation("com.google.android.gms:play-services-location:20.0.0")
 }

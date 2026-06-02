@@ -1,11 +1,18 @@
 /**
  * TodayScreen — KAN-45
  *
+ * Pure rendering component (KAN-59). All data state, Firestore subscriptions,
+ * proximity engine, and battery monitoring are owned by useTodayScreen.
+ * This file contains only:
+ *   - Auth / display-name derivation
+ *   - Reanimated scroll/animation logic
+ *   - JSX render
+ *
  * Layout (top → bottom):
  *   1. Sticky Header (zIndex 3)           — avatar, greeting, bell
  *   2. Collapsible Ring Section (zIndex 2) — scroll-driven A→B collapse
- *   3. Nearby Card placeholder             — KAN-46 will replace
- *   4. Task list placeholder               — KAN-15 will replace
+ *   3. Nearby Card                        — KAN-46
+ *   4. Task list                          — KAN-15
  *
  * Scroll collapse:  k = clamp(scrollY / 170, 0, 1)
  *
@@ -17,11 +24,10 @@
  * caption   opaque  transparent   (fades over k 0→0.625)
  * counter   hidden   visible       (fades over k 0.45→0.91)
  *
- * Animation: react-native-reanimated — all interpolations run on the UI
- * thread; no JS re-renders during scroll.
+ * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   Dimensions,
   Platform,
@@ -55,15 +61,10 @@ import { spacing, radius } from '../theme/tokens';
 import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
-import { setTaskDone, subscribeToTasksForDate, subscribeToPoiPreferences, awardPoint } from '../services/firestore';
-import { checkAndAwardDailyComplete } from '../services/achievements';
-import { requestLocationPermission } from '../services/geolocation';
-import { startProximityMonitoring, updateProximityTasks, updateProximityPoiPreferences, PlacesMap } from '../services/proximity';
-import { NearbyPlace } from '../services/maps';
-import { Task } from '../types';
 import NearbyCard from '../components/NearbyCard';
 import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { useTodayScreen } from '../hooks/useTodayScreen';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -103,7 +104,6 @@ function SkeletonRow({ index, faint }: { index: number; faint: string }) {
   const opacity = useSharedValue(0.3);
 
   useEffect(() => {
-    // Stagger each row by 150 ms so they pulse in sequence.
     opacity.value = withRepeat(
       withSequence(
         withTiming(0.7, { duration: 700 + index * 50 }),
@@ -132,114 +132,37 @@ export default function TodayScreen() {
   const { palette } = useTheme();
   const navigation  = useNavigation<Nav>();
 
-  const [tasks,          setTasks]          = useState<Task[]>([]);
-  const [tasksLoading,   setTasksLoading]   = useState(true);
-  /** Active nearby POI type — updated by the proximity engine (KAN-24). */
-  const [nearbyPoiType,  setNearbyPoiType]  = useState<string | null>(null);
-  /** The specific place the user is currently near (for the hero block). */
-  const [nearbyPlace,    setNearbyPlace]    = useState<NearbyPlace | null>(null);
-  /** All known nearest places per POI type — drives NearbyCard idle rows. */
-  const [poiPlaces,      setPoiPlaces]      = useState<PlacesMap>({});
-  /**
-   * Optimistic overrides: immediately reflects a toggle in the UI while the
-   * Firestore write is in-flight. Cleared once the write resolves (or reverts
-   * on error). This keeps the progress ring and row state instant.
-   */
-  const [optimisticDone, setOptimisticDone] = useState<Record<string, boolean>>({});
-  /** Controls visibility of the new-task bottom sheet (KAN-51). */
-  const [sheetVisible,   setSheetVisible]   = useState(false);
-
-  /** Ref to the sheet — used to call hide() once a new task appears in the list. */
-  const sheetRef        = useRef<NewTaskSheetHandle>(null);
-  /** Previous task count — compared on every Firestore snapshot. */
-  const prevTasksLenRef = useRef(0);
-
-  const now     = new Date();
-  const weekday = WEEKDAYS[now.getDay()];
-  const month   = MONTHS[now.getMonth()];
-  const day     = now.getDate();
-
+  // ── Auth / display info ──────────────────────────────────────────────────────
   const user        = getAuth().currentUser;
   const uid         = user?.uid;
   const displayName = user?.displayName ?? user?.email?.split('@')[0] ?? 'there';
 
-  // ── Live task subscription ──
-  useEffect(() => {
-    if (!uid) {
-      setTasksLoading(false);
-      return;
-    }
-    return subscribeToTasksForDate(uid, todayISO(), (newTasks) => {
-      setTasks(newTasks);
-      setTasksLoading(false);
-    });
-  }, [uid]);
+  // ── ViewModel hook (KAN-59) ──────────────────────────────────────────────────
+  const {
+    tasksState,
+    retryKey: _retryKey,   // consumed by the hook; exposed only for error UI
+    setRetryKey,
+    nearbyPoiType,
+    nearbyPlace,
+    poiPlaces,
+    trackingPaused,
+    sheetVisible,
+    setSheetVisible,
+    customCategories,
+    tasks,
+    effectiveTasks,
+    totalTasks,
+    doneTasks,
+    progress,
+    nearbyCount,
+    handleToggle,
+  } = useTodayScreen(uid);
 
-  // ── Effective tasks — optimistic overrides applied ──
-  // Declared here (above the effects) so proximity effects can reference it.
-  const effectiveTasks = tasks.map(t => ({
-    ...t,
-    done: optimisticDone[t.id] ?? t.done,
-  }));
+  // ── Sheet ref + auto-close on new task ────────────────────────────────────────
+  // Kept in the screen because sheetRef is a UI element ref, not data state.
+  const sheetRef        = useRef<NewTaskSheetHandle>(null);
+  const prevTasksLenRef = useRef(0);
 
-  // ── Live POI radius preferences (KAN-25) ──
-  // Subscribes to /users/{uid}/pois/ and pushes the latest prefs into the
-  // proximity engine in real time. The engine applies them on the next location
-  // tick without needing to restart the watcher.
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToPoiPreferences(uid, prefs => {
-      updateProximityPoiPreferences(prefs);
-    });
-  }, [uid]);
-
-  // ── Proximity monitoring (KAN-24) ──
-  // Request location permission once on mount, then start the proximity engine.
-  // The engine watches the user's location and calls setNearbyPoiType when
-  // they enter/leave a POI geofence. Cleaned up on unmount.
-  useEffect(() => {
-    if (!uid) { return; }
-    let stopMonitoring: (() => void) | null = null;
-
-    requestLocationPermission().then(status => {
-      if (status !== 'granted') { return; }
-      stopMonitoring = startProximityMonitoring(
-        uid,
-        effectiveTasks,
-        (poiType, place, allPlaces) => {
-          setNearbyPoiType(poiType);
-          setNearbyPlace(place);
-          setPoiPlaces(allPlaces);
-        },
-      );
-    }).catch(err => {
-      console.warn('[TodayScreen] location permission error', err);
-    });
-
-    return () => { stopMonitoring?.(); };
-  // Run once on mount — proximity engine keeps its own task ref up-to-date
-  // via updateProximityTasks() called in the effectiveTasks memo below.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid]);
-
-  // ── Keep proximity engine in sync with live tasks ──
-  // effectiveTasks changes on every Firestore snapshot and every optimistic
-  // toggle. This keeps latestTasks inside the proximity closure current so:
-  //   • poiAlertSeenDate written by markPoiAlertSeen is visible → same-day
-  //     re-entry suppression actually works.
-  //   • Toggling a task done immediately removes it from geofence candidates.
-  //   • New tasks added mid-day are picked up without restarting the watcher.
-  useEffect(() => {
-    updateProximityTasks(effectiveTasks);
-  // effectiveTasks is a new array ref on every render that affects it,
-  // so this fires exactly when the list content changes.
-  }, [effectiveTasks]);
-
-  // ── Auto-close sheet when new task appears in the Firestore snapshot ──
-  // Firestore's local cache fires the subscription before (or just as) addTask()
-  // resolves, so this catches the task appearing in the list and hides the sheet
-  // as soon as the write is confirmed — belt-and-suspenders with handleSubmit's
-  // own direct close call.
   useEffect(() => {
     if (sheetVisible && tasks.length > prevTasksLenRef.current) {
       sheetRef.current?.hide();
@@ -247,62 +170,13 @@ export default function TodayScreen() {
     prevTasksLenRef.current = tasks.length;
   }, [tasks, sheetVisible]);
 
-  // ── Optimistic toggle with haptic feedback ──
-  const handleToggle = useCallback(async (taskId: string, done: boolean) => {
-    if (!uid) { return; }
+  // ── Date display ──────────────────────────────────────────────────────────────
+  const now     = new Date();
+  const weekday = WEEKDAYS[now.getDay()];
+  const month   = MONTHS[now.getMonth()];
+  const day     = now.getDate();
 
-    // 1. Instant optimistic update — UI reflects the new state immediately.
-    setOptimisticDone(prev => ({ ...prev, [taskId]: done }));
-
-    // 2. Haptic tap — short pulse on both platforms.
-    Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
-
-    try {
-      await setTaskDone(uid, taskId, done);
-
-      // 3. Award 1 point when marking done (KAN-31).
-      //    Fire-and-forget — a points failure must never revert the task toggle.
-      if (done) {
-        const task = tasks.find(t => t.id === taskId);
-        if (task) {
-          awardPoint(uid, taskId, task.title).catch(err =>
-            console.warn('[TodayScreen] awardPoint failed (non-critical)', err),
-          );
-        }
-
-        // 4. Trigger daily-complete achievement if every task is now done (KAN-32).
-        //    "Every other task is done" + "this task was just marked done" = all done.
-        //    Fire-and-forget — achievement failure must never affect the toggle.
-        const allOthersDone =
-          tasks.length > 0 &&
-          tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
-
-        if (allOthersDone) {
-          checkAndAwardDailyComplete(uid, todayISO(), tasks.length, tasks.length).catch(err =>
-            console.warn('[TodayScreen] daily-complete achievement failed (non-critical)', err),
-          );
-        }
-      }
-    } catch (err) {
-      // Revert optimistic state on failure.
-      console.warn('[TodayScreen] toggle failed — reverting', err);
-    } finally {
-      // Clear optimistic entry; the Firestore snapshot is now the source of truth.
-      setOptimisticDone(prev => {
-        const next = { ...prev };
-        delete next[taskId];
-        return next;
-      });
-    }
-  }, [uid, tasks, optimisticDone]);
-
-  // ── Progress ──
-  const totalTasks  = effectiveTasks.length;
-  const doneTasks   = effectiveTasks.filter(t => t.done).length;
-  const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
-  const nearbyCount = effectiveTasks.filter(t => t.poi).length;
-
-  // ── Reanimated scroll value ──
+  // ── Reanimated scroll value ───────────────────────────────────────────────────
   const scrollY = useSharedValue(0);
 
   const scrollHandler = useAnimatedScrollHandler({
@@ -311,7 +185,7 @@ export default function TodayScreen() {
     },
   });
 
-  // ── Derived values (UI thread) ──
+  // ── Derived values (UI thread) ────────────────────────────────────────────────
   const ringSize: SharedValue<number> = useDerivedValue(() =>
     interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_REST, RING_COLLAPSED], Extrapolation.CLAMP),
   );
@@ -319,7 +193,7 @@ export default function TodayScreen() {
     interpolate(scrollY.value, [0, SCROLL_RANGE], [STROKE_REST, STROKE_COLLAPSED], Extrapolation.CLAMP),
   );
 
-  // ── Animated styles (UI thread) ──
+  // ── Animated styles (UI thread) ───────────────────────────────────────────────
   const sectionStyle = useAnimatedStyle(() => ({
     height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
   }));
@@ -338,16 +212,13 @@ export default function TodayScreen() {
     opacity: interpolate(scrollY.value, [COUNTER_FADE_START, COUNTER_FADE_END], [0, 1], Extrapolation.CLAMP),
   }));
 
-  // ── Haptic feedback at full collapse ──
-  // Fires once as the ring reaches the collapsed threshold; resets on scroll-up.
+  // ── Haptic feedback at full collapse ──────────────────────────────────────────
   const hapticFired = useSharedValue(false);
   useAnimatedReaction(
     () => scrollY.value >= SCROLL_RANGE,
     (isCollapsed) => {
       if (isCollapsed && !hapticFired.value) {
         hapticFired.value = true;
-        // Vibration.vibrate with a short duration gives a subtle tap.
-        // Upgrade to react-native-haptic-feedback for finer iOS control.
         runOnJS(Vibration.vibrate)(Platform.OS === 'android' ? 10 : 1);
       }
       if (!isCollapsed) {
@@ -356,7 +227,7 @@ export default function TodayScreen() {
     },
   );
 
-  // ─── Render ─────────────────────────────────────────────────────────────────
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg }]}>
@@ -395,15 +266,12 @@ export default function TodayScreen() {
           </Animated.View>
 
           {/* Caption — fades out over k 0→0.625 */}
-          {/* box-none: the Animated.View passes through touches; only the
-              Pressable child captures the tap on the day number. */}
           <Animated.View
             style={[styles.captionWrap, captionStyle]}
             pointerEvents="box-none">
             <Text style={[styles.captionLabel, { color: palette.muted }]}>
               {weekday.toUpperCase()}
             </Text>
-            {/* Tap the day number to open the Calendar screen */}
             <Pressable
               onPress={() => navigation.navigate('Calendar', { initialDate: todayISO() })}
               accessibilityRole="button"
@@ -443,23 +311,40 @@ export default function TodayScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* ── Nearby card (KAN-46) ── */}
+        {/* ── Nearby card (KAN-46 / KAN-52) ── */}
         <NearbyCard
           tasks={effectiveTasks}
           nearbyPoiType={nearbyPoiType}
           nearbyPlace={nearbyPlace}
           poiPlaces={poiPlaces}
+          trackingPaused={trackingPaused}
         />
 
-        {/* ── Task list (KAN-15 will upgrade to full TaskRow components) ── */}
+        {/* ── Task list ── */}
         <View style={[styles.section, { borderTopColor: palette.line }]}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>TODAY</Text>
 
-          {tasksLoading ? (
+          {tasksState.status === 'loading' ? (
             // Skeleton rows while Firestore loads
             [0, 1, 2].map(i => (
               <SkeletonRow key={i} index={i} faint={palette.faint} />
             ))
+          ) : tasksState.status === 'error' ? (
+            // Error state — show message + retry button (KAN-58)
+            <View style={styles.errorWrap}>
+              <Text
+                style={[styles.empty, { color: palette.muted }]}
+                accessibilityRole="alert">
+                {tasksState.message || 'Could not load tasks. Please try again.'}
+              </Text>
+              <Pressable
+                onPress={() => setRetryKey(k => k + 1)}
+                style={[styles.retryBtn, { borderColor: palette.line }]}
+                accessibilityRole="button"
+                accessibilityLabel="Try again">
+                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+              </Pressable>
+            </View>
           ) : tasks.length === 0 ? (
             <Text style={[styles.empty, { color: palette.muted }]}>
               No tasks for today
@@ -471,6 +356,7 @@ export default function TodayScreen() {
                 task={task}
                 nearbyPoiType={nearbyPoiType}
                 onToggle={handleToggle}
+                customCategories={customCategories}
               />
             ))
           )}
@@ -498,6 +384,7 @@ export default function TodayScreen() {
         visible={sheetVisible}
         uid={uid ?? ''}
         onClose={() => setSheetVisible(false)}
+        customCategories={customCategories}
       />
     </View>
   );
@@ -582,6 +469,21 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     paddingVertical: 8,
   },
+  // ── Error retry (KAN-58) ──
+  errorWrap: {
+    gap: 10,
+  },
+  retryBtn: {
+    alignSelf:         'flex-start',
+    paddingHorizontal: 14,
+    paddingVertical:    8,
+    borderRadius:       8,
+    borderWidth:        1,
+  },
+  retryLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+  },
   // ── Skeleton ──
   skeletonRow: {
     flexDirection: 'row',
@@ -599,9 +501,7 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  // 100px bottom pad so the FAB never overlaps the last task row (spec: 100px).
   bottomPad: { height: 100 },
-
   // ── Add-task FAB ──
   fab: {
     position:     'absolute',
@@ -613,7 +513,6 @@ const styles = StyleSheet.create({
     borderRadius:   18,
     alignItems:     'center',
     justifyContent: 'center',
-    // Drop shadow (spec: 0 6px 18px rgba(232,168,106,0.45), 0 2px 4px rgba(0,0,0,0.08))
     shadowColor:   '#e8a86a',
     shadowOffset:  { width: 0, height: 6 },
     shadowOpacity: 0.45,
