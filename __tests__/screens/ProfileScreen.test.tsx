@@ -574,14 +574,14 @@ describe('ProfileScreen — KAN-80: collapsible notification preferences', () =>
 
   it('shows "X more" label in collapsed state when there are hidden rows', () => {
     renderScreen();
-    // 4 built-in rows all hidden → "4 more"
-    expect(screen.getByText('4 more')).toBeTruthy();
+    // 4 built-in rows all hidden → "4 items"
+    expect(screen.getByText('4 items')).toBeTruthy();
   });
 
   it('hides "X more" label when expanded', () => {
     renderScreen();
     fireEvent.press(screen.getByLabelText('Expand notification preferences'));
-    expect(screen.queryByText('4 more')).toBeNull();
+    expect(screen.queryByText('4 items')).toBeNull();
   });
 
   it('does not show "X more" when there is only one row', () => {
@@ -590,6 +590,6 @@ describe('ProfileScreen — KAN-80: collapsible notification preferences', () =>
     // return empty and checking that "more" text is absent when only 1 POI row exists.
     // Since built-ins are hardcoded to 4, we can't easily test 1-row scenario
     // without deeper mocking — skip to avoid false confidence.
-    // The "3 more" test above already validates the label logic.
+    // The "3 items" test above already validates the label logic.
   });
 });

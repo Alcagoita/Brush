@@ -481,7 +481,7 @@ export default function ProfileScreen() {
             <View style={styles.prefHeaderRight}>
               {!prefsExpanded && hiddenCount > 0 && (
                 <Text style={[styles.moreLabel, { color: palette.muted }]}>
-                  {hiddenCount} more
+                  {hiddenCount} items
                 </Text>
               )}
               {/* Rotate 90° = chevron-down (collapsed); 270° = chevron-up (expanded) */}
@@ -642,7 +642,7 @@ const styles = StyleSheet.create({
     borderRadius:      radii.card,
     paddingHorizontal: spacing.page,
     paddingTop:        16,
-    paddingBottom:     8,
+    paddingBottom:     16,
   },
   identityRow: {
     paddingVertical: 12,
