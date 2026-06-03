@@ -7,8 +7,9 @@
  * time (proximity.ts listens to subscribeToPoiPreferences and invalidates its
  * place cache on every change).
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,7 +26,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
-import { signOut } from '../services/auth';
+import { logout } from '../services/auth';
 import { subscribeToPoiPreferences, setPoiPreference, subscribeToCategories, subscribeLowBatteryPausePref, setLowBatteryPausePref } from '../services/firestore';
 import { placeTypeLabel } from '../services/maps';
 import { Category, POI_GEOFENCE_RADIUS } from '../types';
@@ -121,6 +122,35 @@ export default function ProfileScreen() {
     if (!uid) { return; }
     return subscribeLowBatteryPausePref(uid, setLowBatteryPause);
   }, [uid]);
+
+  // ── Logout (KAN-20) ────────────────────────────────────────────────────────
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  const handleLogout = useCallback(() => {
+    Alert.alert(
+      'Sign out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sign out',
+          style: 'destructive',
+          onPress: async () => {
+            setLoggingOut(true);
+            try {
+              await logout();
+              // Navigation back to LoginScreen is handled automatically by
+              // onAuthStateChanged → AppShell swaps to <LoginScreen />.
+              // The NavigationContainer is unmounted, so no back-gesture is possible.
+            } catch (err) {
+              console.warn('[ProfileScreen] logout failed', err);
+              setLoggingOut(false);
+            }
+          },
+        },
+      ],
+    );
+  }, []);
 
   function handleLowBatteryToggle(value: boolean): void {
     // Optimistic update
@@ -301,12 +331,15 @@ export default function ProfileScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={[styles.btn, { backgroundColor: palette.surface2 }]}
-          onPress={signOut}
+          style={[styles.btn, { backgroundColor: palette.surface2 }, loggingOut && { opacity: 0.6 }]}
+          onPress={handleLogout}
+          disabled={loggingOut}
           accessibilityRole="button"
           accessibilityLabel="Sign out">
           <LogOutIcon color={palette.accent} size={20} />
-          <Text style={[styles.btnText, { color: palette.accent }]}>Sign out</Text>
+          <Text style={[styles.btnText, { color: palette.accent }]}>
+            {loggingOut ? 'Signing out…' : 'Sign out'}
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
