@@ -459,7 +459,7 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 3 — ✅ Complete.** All 10 tickets shipped. Released as v0.3.0.
 
-**Sprint 4 — 🚧 In progress.**
+**Sprint 4 — ✅ Complete.** All 11 tickets shipped. Released as v0.4.0.
 
 ---
 
