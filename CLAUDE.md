@@ -51,11 +51,13 @@ This project follows **standard Gitflow**. Never deviate from these rules.
 | Event | Transition ticket to |
 |-------|----------------------|
 | Starting a ticket | **In Development** |
+| PR opened and waiting for review / merge | **Testing** |
 | PR merged into develop | **Concluído** |
 
-- **Always** update the Jira ticket status when starting and when merging.
+- **Always** update the Jira ticket status at each of the three transitions above.
 - Never leave a ticket in **A fazer** while actively working on it.
-- Never leave a ticket in **In Development** after the PR has been merged.
+- Never leave a ticket in **In Development** after the PR has been opened.
+- Never leave a ticket in **Testing** after the PR has been merged.
 
 ---
 
@@ -455,34 +457,34 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 2 — ✅ Complete.** All 16 tickets shipped. Released as v0.2.0.
 
+**Sprint 3 — ✅ Complete.** All 10 tickets shipped. Released as v0.3.0.
+
+**Sprint 4 — 🚧 In progress.**
+
 ---
 
-## Current Sprint — Sprint 3: Battery, Architecture & Bug Fixes
+## Sprint 3: Battery, Architecture & Bug Fixes — ✅ Complete
 
 **Goal:** No new user-facing features. Fix real battery problems, bring the codebase architecture in line with established patterns, and close an active bug.
 
-**10 tickets across two parallel tracks and one standalone bug.**
-
 ### Track A — Battery & GPS (Epic KAN-65)
-Work in this exact order. Each ticket unblocks the next.
 
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | — | ✅ Concluído |
-| 2 | KAN-54 | Tune location watch options for battery efficiency | — | 🔄 PR #57 open |
-| 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | KAN-53, KAN-54 | ⬜ A fazer |
-| 4 | KAN-56 | Replace software geofencing with native OS geofences | KAN-53, KAN-54 | ⬜ A fazer |
-| 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | KAN-56 | ⬜ A fazer |
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | ✅ Concluído |
+| 2 | KAN-54 | Tune location watch options for battery efficiency | ✅ Concluído |
+| 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | ✅ Concluído |
+| 4 | KAN-56 | Replace software geofencing with native OS geofences | ✅ Concluído |
+| 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | ✅ Concluído |
 
 ### Track B — Architecture (Epic KAN-66)
-Strict dependency chain — do not skip ahead.
 
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 6 | KAN-57 | Introduce formal UiState discriminated union types for screens | — | ⬜ A fazer |
-| 7 | KAN-58 | Handle Firestore subscription errors in screens | KAN-57 | ⬜ A fazer |
-| 8 | KAN-59 | Extract screen state management into dedicated custom hooks | KAN-57, KAN-58 | ⬜ A fazer |
-| 9 | KAN-60 | Add UI-layer tests for screens and key components | KAN-59 | ⬜ A fazer |
+| # | Ticket | Summary | Status |
+|---|--------|---------|--------|
+| 6 | KAN-57 | Introduce formal UiState discriminated union types for screens | ✅ Concluído |
+| 7 | KAN-58 | Handle Firestore subscription errors in screens | ✅ Concluído |
+| 8 | KAN-59 | Extract screen state management into dedicated custom hooks | ✅ Concluído |
+| 9 | KAN-60 | Add UI-layer tests for screens and key components | ✅ Concluído |
 
 ### Standalone Bug (Epic KAN-67)
 
@@ -490,38 +492,58 @@ Strict dependency chain — do not skip ahead.
 |---|--------|---------|--------|
 | 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
 
-### Dependency graph
+---
+
+## Sprint 4: Brand, CRUD, Profile & Points Infrastructure — 🚧 In progress
+
+**Goal:** Complete the essential v1.0 app loop — sign in, create and manage tasks, view profile, log out — while advancing the points and achievements system.
+
+### 🔴 Highest priority
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 1 | KAN-71 | Sign-in screen redesign — Brush brand | KAN-48 (Sprint-2) | ⬜ A fazer |
+| 2 | KAN-12 | Create a new To-Do item with title, description, due date and category | — | ⬜ A fazer |
+| 3 | KAN-13 | Edit and delete To-Do items | KAN-12 | ⬜ A fazer |
+
+### 🟠 High
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 4 | KAN-20 | Logout functionality | — | ⬜ A fazer |
+| 5 | KAN-18 | Profile view and edit screen | KAN-20 | ⬜ A fazer |
+
+### 🔵 Medium
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 6 | KAN-19 | Achievements and points display in user menu | KAN-18 | ⬜ A fazer |
+| 7 | KAN-33 | Points history and achievements gallery | KAN-19 | ⬜ A fazer |
+| 8 | KAN-80 | Notification Preferences — collapsible section, show first row by default | KAN-18 | ⬜ A fazer |
+| 9 | KAN-64 | Add awardPointsBatch utility for bulk point awards | — | ⬜ A fazer |
+| 10 | KAN-63 | Extend points system with additional reason types | KAN-64 | ⬜ A fazer |
+| 11 | KAN-78 | Avatar component — amber dot default + photo fallback (Header & ProfileScreen) | KAN-18 | ⬜ A fazer |
+
+### Dependency map
 
 ```
-Track A (Battery):
-KAN-53 ──┐
-KAN-54 ──┼──▶ KAN-55
-         └──▶ KAN-56 ──▶ KAN-52
+KAN-71  (standalone — brand)
 
-Track B (Architecture):
-KAN-57 ──▶ KAN-58 ──▶ KAN-59 ──▶ KAN-60
+KAN-12 ──▶ KAN-13  (CRUD)
 
-Standalone:
-KAN-61 (no dependencies)
+KAN-20 ──▶ KAN-18 ──▶ KAN-19 ──▶ KAN-33  (account + engagement)
+                  └──▶ KAN-80              (collapsible notification prefs)
+                  └──▶ KAN-78              (Avatar polish)
+
+KAN-64 ──▶ KAN-63  (points infrastructure)
 ```
 
-Tracks A and B are fully independent and can be worked in parallel. KAN-53 and KAN-54 have no dependencies and can be started simultaneously. KAN-61 can be picked up at any time.
+KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on day one in parallel.
 
-### Out of scope for Sprint 3
-- Any new user-facing features
-- KAN-62 (notification preferences UI rethink)
-- KAN-63, KAN-64 (points system extensions — v1.1)
-- Wear OS track (v1.2)
-- KAN-12, KAN-13 (task CRUD — Sprint 4+)
+### Out of scope for Sprint 4
 
-When all 10 Sprint 3 tickets above have been completed and their PRs merged:
-
-1. **Stop immediately.** Do not pick up any new work.
-2. **Follow the End-of-Sprint Checklist** above (release branch, version bump, GitHub release, etc.).
-3. **Report to the user** with this exact message:
-
-> "Sprint 3 is complete. All 10 tickets are done. Please review the build and let me know when to start Sprint 4."
-
-4. **Do not start Sprint 4** or any Backlog ticket until the user explicitly says so — even if the next logical task seems obvious.
-
-This rule takes priority over any instruction to "keep going", "continue", or "do the next thing".
+- Wear OS (v1.2 backlog)
+- Indoor/mall mode (KAN-72–77, backlog)
+- Smart store matching (KAN-76 future)
+- Streak logic and daily-complete trigger (future — types land in KAN-63, logic is separate)
+- App Store / Play Store submission

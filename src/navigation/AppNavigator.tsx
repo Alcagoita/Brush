@@ -15,6 +15,8 @@ import TodayScreen from '../screens/TodayScreen';
 import CalendarScreen from '../screens/CalendarScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
+import TaskFormScreen, { TaskFormParams } from '../screens/TaskFormScreen';
+import PointsHistoryScreen from '../screens/PointsHistoryScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -22,6 +24,10 @@ export type RootStackParamList = {
   Calendar: { initialDate?: string } | undefined;
   Profile: undefined;
   Categories: undefined;
+  /** Full task creation / edit form (KAN-12 / KAN-13). Presented as a modal. */
+  TaskForm: TaskFormParams;
+  /** Points history + achievements gallery (KAN-33). Pushed from ProfileScreen. */
+  PointsHistory: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -29,10 +35,16 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="Today"    component={TodayScreen} />
-      <Stack.Screen name="Calendar" component={CalendarScreen} />
+      <Stack.Screen name="Today"      component={TodayScreen} />
+      <Stack.Screen name="Calendar"   component={CalendarScreen} />
       <Stack.Screen name="Profile"    component={ProfileScreen} />
       <Stack.Screen name="Categories" component={CategoriesScreen} />
+      <Stack.Screen
+        name="TaskForm"
+        component={TaskFormScreen}
+        options={{ presentation: 'modal' }}
+      />
+      <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
     </Stack.Navigator>
   );
 }

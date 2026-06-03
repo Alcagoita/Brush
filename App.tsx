@@ -32,11 +32,25 @@ function AppShell() {
   // so the fade-out completes before we swap login ↔ app.
   const [displayUser, setDisplayUser] = useState(user);
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  // True once the first onAuthStateChanged result has been applied. Used to
+  // skip the fade animation on cold-start so a persisted session never flashes
+  // the login screen before navigating to the app.
+  const hasResolved = useRef(false);
 
   useEffect(() => {
     if (loading) return;
+
+    // First resolution — apply immediately with no animation so a silently
+    // restored session never shows the login screen, even for a frame.
+    if (!hasResolved.current) {
+      hasResolved.current = true;
+      setDisplayUser(user);
+      return;
+    }
+
     if (user === displayUser) return;
 
+    // Subsequent changes (explicit sign-in / sign-out) — animate the transition.
     Animated.timing(fadeAnim, { toValue: 0, duration: TRANSITION_MS, useNativeDriver: true })
       .start(() => {
         setDisplayUser(user);

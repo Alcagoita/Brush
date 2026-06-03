@@ -40,6 +40,7 @@ import {
   AchievementType,
   Achievement,
   PointsHistoryEntry,
+  PointsReason,
 } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -79,6 +80,15 @@ export async function upsertUser(
     { uid, ...data },
     { merge: true },
   );
+}
+
+/**
+ * Update the displayName field on the Firestore user document (KAN-18).
+ * Callers should also call firebase.auth().currentUser.updateProfile() to
+ * keep the Auth profile in sync — see ProfileScreen.
+ */
+export async function updateDisplayName(uid: string, displayName: string): Promise<void> {
+  await updateDoc(userRef(uid), { displayName });
 }
 
 /** Fetch the user document once. Returns null if it doesn't exist yet. */
@@ -435,8 +445,126 @@ export async function awardPoint(
     awardedAt: serverTimestamp(),
     points: 1,
     reason: 'task_completed',
-  } satisfies Omit<PointsHistoryEntry, 'id'>);
+  });
 
+  await batch.commit();
+}
+
+/**
+ * Award points for multiple tasks in a single atomic Firestore write batch.
+ *
+ * Increments `totalPoints` on the user document by the sum of all entry points,
+ * and creates one PointsHistoryEntry per entry — all in one commit.
+ *
+ * ⚠️ Firestore batch limit: 500 operations per batch.
+ * With `n` entries this function performs `1 update + n sets` = `n + 1` ops.
+ * Safe limit is therefore **499 entries per call**. Callers with larger lists
+ * must chunk themselves — chunking is out of scope for v1.
+ *
+ * @param uid     Firebase user ID.
+ * @param entries Array of { taskId, taskTitle, points } to award. No-ops if empty.
+ */
+export async function awardPointsBatch(
+  uid: string,
+  entries: Array<{ taskId: string; taskTitle: string; points: number }>,
+): Promise<void> {
+  if (entries.length === 0) { return; }
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  const total = entries.reduce((sum, e) => sum + e.points, 0);
+
+  batch.update(userRef(uid), { totalPoints: increment(total) });
+
+  for (const entry of entries) {
+    batch.set(doc(pointsHistoryRef(uid)), {
+      taskId:    entry.taskId,
+      taskTitle: entry.taskTitle,
+      awardedAt: serverTimestamp(),
+      points:    entry.points,
+      reason:    'task_completed',
+    });
+  }
+
+  await batch.commit();
+}
+
+// ─── KAN-63: Additional point-award functions ─────────────────────────────────
+//
+// Rule: each PointsReason has its own dedicated function.
+// Never repurpose awardPoint(uid, taskId, taskTitle) for non-task reasons.
+
+/**
+ * Award bonus points when an achievement is unlocked.
+ *
+ * @param uid             Firebase user ID.
+ * @param achievementType The achievement type being unlocked (e.g. 'first_task').
+ * @param points          Number of bonus points to award.
+ */
+export async function awardPointsAchievementBonus(
+  uid: string,
+  achievementType: string,
+  points: number,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  batch.update(userRef(uid), { totalPoints: increment(points) });
+  batch.set(doc(pointsHistoryRef(uid)), {
+    taskId:    '',
+    taskTitle: `Achievement unlocked: ${achievementType}`,
+    awardedAt: serverTimestamp(),
+    points,
+    reason:    'achievement_bonus',
+  });
+  await batch.commit();
+}
+
+/**
+ * Award a bonus when the user completes their entire daily task list.
+ *
+ * @param uid    Firebase user ID.
+ * @param date   The calendar date (YYYY-MM-DD) on which the daily list was completed.
+ * @param points Number of bonus points to award.
+ */
+export async function awardPointsDailyCompleteBonus(
+  uid: string,
+  date: string,
+  points: number,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  batch.update(userRef(uid), { totalPoints: increment(points) });
+  batch.set(doc(pointsHistoryRef(uid)), {
+    taskId:    '',
+    taskTitle: `Daily complete: ${date}`,
+    awardedAt: serverTimestamp(),
+    points,
+    reason:    'daily_complete_bonus',
+  });
+  await batch.commit();
+}
+
+/**
+ * Award a streak bonus point for completing tasks on consecutive days.
+ *
+ * @param uid         Firebase user ID.
+ * @param streakDays  Current streak length in days (used in the history label).
+ * @param points      Number of bonus points to award.
+ */
+export async function awardPointsStreakBonus(
+  uid: string,
+  streakDays: number,
+  points: number,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  batch.update(userRef(uid), { totalPoints: increment(points) });
+  batch.set(doc(pointsHistoryRef(uid)), {
+    taskId:    '',
+    taskTitle: `${streakDays}-day streak`,
+    awardedAt: serverTimestamp(),
+    points,
+    reason:    'streak_bonus',
+  });
   await batch.commit();
 }
 

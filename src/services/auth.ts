@@ -26,6 +26,24 @@ export const signUpWithEmail = (email: string, password: string) =>
 
 export const signOut = () => firebaseSignOut(getAuth());
 
+/**
+ * Full logout flow (KAN-20):
+ *  1. Stop the proximity monitoring engine so geofence callbacks don't fire
+ *     after the user's uid is no longer valid.
+ *  2. Sign out of Firebase Auth — onAuthStateChanged fires with null, and
+ *     AppShell swaps to LoginScreen automatically. No explicit navigation needed.
+ *
+ * Import lazily to avoid a circular-dependency: auth ← proximity ← firestore ← auth.
+ */
+export async function logout(): Promise<void> {
+  // Lazy require so Jest (CommonJS) and Metro (ESM) both resolve correctly,
+  // and to avoid a potential circular-dependency at module load time.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { stopProximityMonitoring } = require('./proximity') as typeof import('./proximity');
+  stopProximityMonitoring();
+  await firebaseSignOut(getAuth());
+}
+
 export const getCurrentUser = () => getAuth().currentUser;
 
 /**

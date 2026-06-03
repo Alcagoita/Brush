@@ -236,6 +236,7 @@ export default function TodayScreen() {
       <View style={styles.stickyHeader}>
         <Header
           displayName={displayName}
+          photoURL={user?.photoURL}
           hasUnread={false}
           onAvatarPress={() => navigation.navigate('Profile')}
         />
@@ -356,6 +357,7 @@ export default function TodayScreen() {
                 task={task}
                 nearbyPoiType={nearbyPoiType}
                 onToggle={handleToggle}
+                onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
                 customCategories={customCategories}
               />
             ))
@@ -419,6 +421,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -3,
     lineHeight: 88,
   },
   captionSub: {
@@ -441,6 +444,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -1,
   },
   counterSep: {
     fontSize: 20,
