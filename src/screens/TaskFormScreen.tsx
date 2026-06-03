@@ -185,12 +185,7 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
           borderColor:     selected ? accent        : palette.line,
         },
       ]}>
-      <View style={[
-        styles.poiIconWrap,
-        { backgroundColor: selected ? accent + '28' : palette.surface2 },
-      ]}>
-        <PoiIcon type={type} color={selected ? accent : palette.muted} size={18} />
-      </View>
+      <PoiIcon type={type} color={selected ? accent : palette.muted} size={22} />
       <Text style={[styles.poiLabel, { color: selected ? palette.text : palette.muted }]}>
         {label}
       </Text>
@@ -726,13 +721,6 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
     gap:            6,
-  },
-  poiIconWrap: {
-    width:          36,
-    height:         36,
-    borderRadius:   radius.listIcon,
-    alignItems:     'center',
-    justifyContent: 'center',
   },
   poiLabel: {
     fontSize:   11,
