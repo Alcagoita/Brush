@@ -1,15 +1,16 @@
 /**
- * ProfileScreen — KAN-18
+ * ProfileScreen — KAN-18 / KAN-19
  *
  * Profile view and edit screen.
  *
  * Sections (top → bottom):
  *   1. Avatar (amber dot default; photo if set) + "Add photo" affordance
  *   2. Identity: editable Name, read-only Email
- *   3. Notification Preferences (per-POI radius steppers) — KAN-29
- *   4. Battery — low-battery pause toggle — KAN-52
- *   5. Appearance — dark/light mode toggle
- *   6. Sign out — KAN-20
+ *   3. Points & Achievements — total points (live), earned badges, "See all" → KAN-33
+ *   4. Notification Preferences (per-POI radius steppers) — KAN-29
+ *   5. Battery — low-battery pause toggle — KAN-52
+ *   6. Appearance — dark/light mode toggle
+ *   7. Sign out — KAN-20
  *
  * Design decisions (KAN-18 comments):
  *   - Avatar default is the amber dot (palette.accent, 12 px) via Avatar component.
@@ -49,9 +50,11 @@ import {
   subscribeLowBatteryPausePref,
   setLowBatteryPausePref,
   updateDisplayName,
+  subscribeToTotalPoints,
+  subscribeToAchievements,
 } from '../services/firestore';
 import { placeTypeLabel } from '../services/maps';
-import { Category, POI_GEOFENCE_RADIUS } from '../types';
+import { Achievement, Category, POI_GEOFENCE_RADIUS } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -70,6 +73,38 @@ const POI_ROWS: { type: string; label: string }[] = [
   { type: 'cafe',        label: 'Café' },
   { type: 'supermarket', label: 'Supermarket' },
 ];
+
+// ─── Achievement metadata ─────────────────────────────────────────────────────
+
+const ACHIEVEMENT_META: Record<string, { label: string; icon: string }> = {
+  first_task:       { label: 'First task',    icon: '★' },
+  daily_complete:   { label: 'Day complete',  icon: '✓' },
+};
+
+function getAchievementMeta(type: string) {
+  return ACHIEVEMENT_META[type] ?? { label: type.replace(/_/g, ' '), icon: '•' };
+}
+
+// ─── AchievementBadge ─────────────────────────────────────────────────────────
+
+interface BadgeProps {
+  achievement: Achievement;
+  palette:     ReturnType<typeof useTheme>['palette'];
+}
+
+function AchievementBadge({ achievement, palette }: BadgeProps) {
+  const { label, icon } = getAchievementMeta(achievement.type);
+  return (
+    <View
+      style={[styles.badge, { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder }]}
+      accessibilityLabel={`Achievement: ${label}`}>
+      <Text style={[styles.badgeIcon, { color: palette.accent }]}>{icon}</Text>
+      <Text style={[styles.badgeLabel, { color: palette.nearText }]}>{label}</Text>
+    </View>
+  );
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const DEFAULT_RADII: Record<string, number> = {
   atm:         POI_GEOFENCE_RADIUS.atm,
@@ -123,6 +158,24 @@ export default function ProfileScreen() {
     setNameValue(currentUser?.displayName ?? '');
     setEditingName(false);
   };
+
+  // ── Points & Achievements (KAN-19) ────────────────────────────────────────
+  const [totalPoints,   setTotalPoints]   = useState(0);
+  const [achievements,  setAchievements]  = useState<Achievement[]>([]);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToTotalPoints(uid, setTotalPoints, err =>
+      console.warn('[ProfileScreen] totalPoints error', err),
+    );
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToAchievements(uid, setAchievements, err =>
+      console.warn('[ProfileScreen] achievements error', err),
+    );
+  }, [uid]);
 
   // ── Notification preferences ───────────────────────────────────────────────
   const [poiRadii, setPoiRadii] = useState<Record<string, number>>(DEFAULT_RADII);
@@ -319,6 +372,64 @@ export default function ProfileScreen() {
               {userEmail || '—'}
             </Text>
           </View>
+        </View>
+
+        {/* ── Points & Achievements (KAN-19) ── */}
+        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
+          {/* Header row: total points left, "See all" right */}
+          <View style={styles.pointsHeader}>
+            <View>
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>Points</Text>
+              <Text style={[styles.sectionSub, { color: palette.muted }]}>
+                Earned by completing tasks
+              </Text>
+            </View>
+            <View style={styles.pointsBadge}>
+              <Text
+                style={[styles.pointsCount, { color: palette.accent }]}
+                accessibilityLabel={`${totalPoints} points`}>
+                {totalPoints}
+              </Text>
+              <Text style={[styles.pointsUnit, { color: palette.muted }]}>pts</Text>
+            </View>
+          </View>
+
+          <View style={[styles.divider, { backgroundColor: palette.line }]} />
+
+          {/* Achievements row */}
+          <View style={styles.achievementsRow}>
+            <Text style={[styles.achievementsLabel, { color: palette.muted }]}>
+              Achievements
+            </Text>
+            {/* "See all" — navigates to KAN-33 when built */}
+            <Pressable
+              onPress={() => {
+                // KAN-33: navigate to PointsHistory screen when available
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="See all achievements">
+              <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all</Text>
+            </Pressable>
+          </View>
+
+          {achievements.length === 0 ? (
+            /* Empty state */
+            <View style={styles.achievementsEmpty}>
+              <Text style={[styles.achievementsEmptyText, { color: palette.faint }]}>
+                Complete tasks to earn achievements
+              </Text>
+            </View>
+          ) : (
+            /* Earned badge chips — horizontal scroll */
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.badgeScroll}>
+              {achievements.map(a => (
+                <AchievementBadge key={a.id} achievement={a} palette={palette} />
+              ))}
+            </ScrollView>
+          )}
         </View>
 
         {/* ── Navigation ── */}
@@ -630,5 +741,74 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     minWidth:   52,
     textAlign:  'center',
+  },
+
+  // ── Points & Achievements (KAN-19) ──
+  pointsHeader: {
+    flexDirection:  'row',
+    justifyContent: 'space-between',
+    alignItems:     'flex-start',
+    marginBottom:   12,
+  },
+  pointsBadge: {
+    flexDirection: 'row',
+    alignItems:    'baseline',
+    gap:           3,
+  },
+  pointsCount: {
+    fontSize:    32,
+    fontWeight:  '600',
+    fontFamily:  'Geist-SemiBold',
+    fontVariant: ['tabular-nums'],
+    lineHeight:  36,
+  },
+  pointsUnit: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
+  achievementsRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+  },
+  achievementsLabel: {
+    fontSize:   13,
+    fontWeight: '500',
+    fontFamily: 'Geist-Medium',
+  },
+  seeAllLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
+  achievementsEmpty: {
+    paddingVertical: 12,
+    alignItems:      'center',
+  },
+  achievementsEmptyText: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+    textAlign:  'center',
+  },
+  badgeScroll: {
+    gap:           8,
+    paddingBottom: 8,
+  },
+  badge: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:                6,
+    paddingHorizontal: 12,
+    paddingVertical:    8,
+    borderRadius:      9999,
+    borderWidth:       1,
+  },
+  badgeIcon: {
+    fontSize:   14,
+    lineHeight: 18,
+  },
+  badgeLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
   },
 });
