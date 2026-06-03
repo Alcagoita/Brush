@@ -344,3 +344,69 @@ describe('subscribeToPointsHistory', () => {
     expect(unsub).toHaveBeenCalledTimes(1);
   });
 });
+
+// ─── awardPointsBatch (KAN-64) ────────────────────────────────────────────────
+
+import { awardPointsBatch } from '../../src/services/firestore';
+
+describe('awardPointsBatch', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('no-ops when entries array is empty', async () => {
+    await awardPointsBatch('uid-1', []);
+    expect(mockWriteBatch).not.toHaveBeenCalled();
+    expect(mockBatchCommit).not.toHaveBeenCalled();
+  });
+
+  it('increments totalPoints by the sum of all entry points', async () => {
+    await awardPointsBatch('uid-1', [
+      { taskId: 't1', taskTitle: 'Task 1', points: 1 },
+      { taskId: 't2', taskTitle: 'Task 2', points: 2 },
+      { taskId: 't3', taskTitle: 'Task 3', points: 3 },
+    ]);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: mockIncrement(6) },
+    );
+  });
+
+  it('calls batch.set once per entry', async () => {
+    await awardPointsBatch('uid-1', [
+      { taskId: 't1', taskTitle: 'Task A', points: 1 },
+      { taskId: 't2', taskTitle: 'Task B', points: 1 },
+    ]);
+    expect(mockBatchSet).toHaveBeenCalledTimes(2);
+  });
+
+  it('calls batch.commit exactly once', async () => {
+    await awardPointsBatch('uid-1', [
+      { taskId: 't1', taskTitle: 'Task A', points: 1 },
+    ]);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('each batch.set entry contains correct taskId, taskTitle and points', async () => {
+    await awardPointsBatch('uid-1', [
+      { taskId: 'task-x', taskTitle: 'Walk the dog', points: 5 },
+    ]);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        taskId:    'task-x',
+        taskTitle: 'Walk the dog',
+        points:    5,
+        reason:    'task_completed',
+      }),
+    );
+  });
+
+  it('rejects if batch.commit rejects', async () => {
+    mockBatchCommit.mockRejectedValueOnce(new Error('network error'));
+    await expect(
+      awardPointsBatch('uid-1', [{ taskId: 't1', taskTitle: 'Task', points: 1 }]),
+    ).rejects.toThrow('network error');
+  });
+});
