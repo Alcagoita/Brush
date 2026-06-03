@@ -403,9 +403,7 @@ export default function ProfileScreen() {
             </Text>
             {/* "See all" — navigates to KAN-33 when built */}
             <Pressable
-              onPress={() => {
-                // KAN-33: navigate to PointsHistory screen when available
-              }}
+              onPress={() => navigation.navigate('PointsHistory')}
               accessibilityRole="button"
               accessibilityLabel="See all achievements">
               <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all</Text>
