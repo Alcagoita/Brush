@@ -40,6 +40,7 @@ import {
   AchievementType,
   Achievement,
   PointsHistoryEntry,
+  PointsReason,
 } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -444,7 +445,7 @@ export async function awardPoint(
     awardedAt: serverTimestamp(),
     points: 1,
     reason: 'task_completed',
-  } satisfies Omit<PointsHistoryEntry, 'id'>);
+  });
 
   await batch.commit();
 }
@@ -481,9 +482,89 @@ export async function awardPointsBatch(
       awardedAt: serverTimestamp(),
       points:    entry.points,
       reason:    'task_completed',
-    } satisfies Omit<PointsHistoryEntry, 'id'>);
+    });
   }
 
+  await batch.commit();
+}
+
+// ─── KAN-63: Additional point-award functions ─────────────────────────────────
+//
+// Rule: each PointsReason has its own dedicated function.
+// Never repurpose awardPoint(uid, taskId, taskTitle) for non-task reasons.
+
+/**
+ * Award bonus points when an achievement is unlocked.
+ *
+ * @param uid             Firebase user ID.
+ * @param achievementType The achievement type being unlocked (e.g. 'first_task').
+ * @param points          Number of bonus points to award.
+ */
+export async function awardPointsAchievementBonus(
+  uid: string,
+  achievementType: string,
+  points: number,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  batch.update(userRef(uid), { totalPoints: increment(points) });
+  batch.set(doc(pointsHistoryRef(uid)), {
+    taskId:    '',
+    taskTitle: `Achievement unlocked: ${achievementType}`,
+    awardedAt: serverTimestamp(),
+    points,
+    reason:    'achievement_bonus',
+  });
+  await batch.commit();
+}
+
+/**
+ * Award a bonus when the user completes their entire daily task list.
+ *
+ * @param uid    Firebase user ID.
+ * @param date   The calendar date (YYYY-MM-DD) on which the daily list was completed.
+ * @param points Number of bonus points to award.
+ */
+export async function awardPointsDailyCompleteBonus(
+  uid: string,
+  date: string,
+  points: number,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  batch.update(userRef(uid), { totalPoints: increment(points) });
+  batch.set(doc(pointsHistoryRef(uid)), {
+    taskId:    '',
+    taskTitle: `Daily complete: ${date}`,
+    awardedAt: serverTimestamp(),
+    points,
+    reason:    'daily_complete_bonus',
+  });
+  await batch.commit();
+}
+
+/**
+ * Award a streak bonus point for completing tasks on consecutive days.
+ *
+ * @param uid         Firebase user ID.
+ * @param streakDays  Current streak length in days (used in the history label).
+ * @param points      Number of bonus points to award.
+ */
+export async function awardPointsStreakBonus(
+  uid: string,
+  streakDays: number,
+  points: number,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  batch.update(userRef(uid), { totalPoints: increment(points) });
+  batch.set(doc(pointsHistoryRef(uid)), {
+    taskId:    '',
+    taskTitle: `${streakDays}-day streak`,
+    awardedAt: serverTimestamp(),
+    points,
+    reason:    'streak_bonus',
+  });
   await batch.commit();
 }
 

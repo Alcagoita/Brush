@@ -135,6 +135,17 @@ export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
 // ─── Points & Achievements ────────────────────────────────────────────────────
 
 /**
+ * All valid reasons a point can be awarded (KAN-63).
+ * Add new literals here; create a dedicated awardPoint* function in
+ * firestore.ts for each — do NOT repurpose existing function signatures.
+ */
+export type PointsReason =
+  | 'task_completed'       // 1 point per completed task (KAN-31)
+  | 'achievement_bonus'    // bonus when an achievement is unlocked
+  | 'daily_complete_bonus' // bonus for completing the full daily list
+  | 'streak_bonus';        // extra point for consecutive days
+
+/**
  * All achievement types the app can award.
  *
  * Naming convention:
@@ -162,8 +173,14 @@ export interface PointsHistoryEntry {
   awardedAt: FirebaseFirestoreTypes.Timestamp;
   /** Points awarded — always 1 in v1; kept for future multi-point awards. */
   points: number;
-  /** Why the point was awarded — discriminated union for future extensibility. */
-  reason: 'task_completed';
+  /**
+   * Why the point was awarded — discriminated union for future extensibility.
+   * New types added in KAN-63:
+   *   'achievement_bonus'     — bonus when an achievement is unlocked
+   *   'daily_complete_bonus'  — bonus for completing the full daily list
+   *   'streak_bonus'          — extra point for consecutive days
+   */
+  reason: PointsReason;
 }
 
 /**
