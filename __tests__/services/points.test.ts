@@ -410,3 +410,134 @@ describe('awardPointsBatch', () => {
     ).rejects.toThrow('network error');
   });
 });
+
+// ─── KAN-63: Additional reason types ─────────────────────────────────────────
+
+import {
+  awardPointsAchievementBonus,
+  awardPointsDailyCompleteBonus,
+  awardPointsStreakBonus,
+} from '../../src/services/firestore';
+
+describe('awardPointsAchievementBonus', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('increments totalPoints by the given amount', async () => {
+    await awardPointsAchievementBonus('uid-1', 'first_task', 5);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: mockIncrement(5) },
+    );
+  });
+
+  it('sets reason to achievement_bonus', async () => {
+    await awardPointsAchievementBonus('uid-1', 'first_task', 5);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reason: 'achievement_bonus' }),
+    );
+  });
+
+  it('includes the achievement type in the title', async () => {
+    await awardPointsAchievementBonus('uid-1', 'first_task', 5);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ taskTitle: 'Achievement unlocked: first_task' }),
+    );
+  });
+
+  it('calls batch.commit once', async () => {
+    await awardPointsAchievementBonus('uid-1', 'first_task', 5);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects if batch.commit rejects', async () => {
+    mockBatchCommit.mockRejectedValueOnce(new Error('fail'));
+    await expect(awardPointsAchievementBonus('uid-1', 'first_task', 5)).rejects.toThrow('fail');
+  });
+});
+
+describe('awardPointsDailyCompleteBonus', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('increments totalPoints by the given amount', async () => {
+    await awardPointsDailyCompleteBonus('uid-1', '2026-06-03', 3);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: mockIncrement(3) },
+    );
+  });
+
+  it('sets reason to daily_complete_bonus', async () => {
+    await awardPointsDailyCompleteBonus('uid-1', '2026-06-03', 3);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reason: 'daily_complete_bonus' }),
+    );
+  });
+
+  it('includes the date in the title', async () => {
+    await awardPointsDailyCompleteBonus('uid-1', '2026-06-03', 3);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ taskTitle: 'Daily complete: 2026-06-03' }),
+    );
+  });
+
+  it('calls batch.commit once', async () => {
+    await awardPointsDailyCompleteBonus('uid-1', '2026-06-03', 3);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects if batch.commit rejects', async () => {
+    mockBatchCommit.mockRejectedValueOnce(new Error('fail'));
+    await expect(awardPointsDailyCompleteBonus('uid-1', '2026-06-03', 3)).rejects.toThrow('fail');
+  });
+});
+
+describe('awardPointsStreakBonus', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('increments totalPoints by the given amount', async () => {
+    await awardPointsStreakBonus('uid-1', 7, 2);
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: mockIncrement(2) },
+    );
+  });
+
+  it('sets reason to streak_bonus', async () => {
+    await awardPointsStreakBonus('uid-1', 7, 2);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reason: 'streak_bonus' }),
+    );
+  });
+
+  it('includes the streak length in the title', async () => {
+    await awardPointsStreakBonus('uid-1', 7, 2);
+    expect(mockBatchSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ taskTitle: '7-day streak' }),
+    );
+  });
+
+  it('calls batch.commit once', async () => {
+    await awardPointsStreakBonus('uid-1', 7, 2);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects if batch.commit rejects', async () => {
+    mockBatchCommit.mockRejectedValueOnce(new Error('fail'));
+    await expect(awardPointsStreakBonus('uid-1', 7, 2)).rejects.toThrow('fail');
+  });
+});
