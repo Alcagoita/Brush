@@ -51,11 +51,13 @@ This project follows **standard Gitflow**. Never deviate from these rules.
 | Event | Transition ticket to |
 |-------|----------------------|
 | Starting a ticket | **In Development** |
+| PR opened and waiting for review / merge | **Testing** |
 | PR merged into develop | **Concluído** |
 
-- **Always** update the Jira ticket status when starting and when merging.
+- **Always** update the Jira ticket status at each of the three transitions above.
 - Never leave a ticket in **A fazer** while actively working on it.
-- Never leave a ticket in **In Development** after the PR has been merged.
+- Never leave a ticket in **In Development** after the PR has been opened.
+- Never leave a ticket in **Testing** after the PR has been merged.
 
 ---
 
