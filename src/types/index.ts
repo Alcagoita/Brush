@@ -57,6 +57,8 @@ export interface Task {
   /** Built-in CategoryKey or a Firestore custom category ID (KAN-61). */
   category: string;
   done: boolean;
+  /** Free-text description — optional, added in KAN-12. */
+  description?: string;
   /** Scheduled time in "HH:MM" format — optional. */
   time?: string;
   /**

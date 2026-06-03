@@ -58,6 +58,7 @@ import { categories } from '../theme/tokens';
 import { PoiType, CategoryKey, Category } from '../types';
 import { addTask } from '../services/firestore';
 import { CloseIcon, ClockIcon, PoiIcon } from './AppIcon';
+import { navigateTo } from '../navigation/navigationRef';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -521,6 +522,22 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 </>
               )}
 
+              {/* ── More details link — opens full TaskFormScreen (KAN-12) ── */}
+              <Pressable
+                onPress={() => {
+                  handleClose();
+                  // Small delay so the sheet close animation has started
+                  // before we push the modal, avoiding a jarring overlap.
+                  setTimeout(() => navigateTo('TaskForm', { uid }), 80);
+                }}
+                style={styles.moreDetailsBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Add more details">
+                <Text style={[styles.moreDetailsLabel, { color: palette.muted }]}>
+                  More details →
+                </Text>
+              </Pressable>
+
               {/* ── CTA row ── */}
               <View style={styles.ctaRow}>
                 {/* Cancel */}
@@ -734,6 +751,15 @@ const styles = StyleSheet.create({
     gap:            10,
     paddingHorizontal: 22,
     paddingTop:     24,
+  },
+  moreDetailsBtn: {
+    alignSelf:       'center',
+    paddingVertical:  10,
+    marginBottom:     4,
+  },
+  moreDetailsLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
   },
   ctaCancel: {
     paddingHorizontal: 20,
