@@ -16,6 +16,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import TaskFormScreen, { TaskFormParams } from '../screens/TaskFormScreen';
+import PointsHistoryScreen from '../screens/PointsHistoryScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -25,6 +26,8 @@ export type RootStackParamList = {
   Categories: undefined;
   /** Full task creation / edit form (KAN-12 / KAN-13). Presented as a modal. */
   TaskForm: TaskFormParams;
+  /** Points history + achievements gallery (KAN-33). Pushed from ProfileScreen. */
+  PointsHistory: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -41,6 +44,7 @@ export default function AppNavigator() {
         component={TaskFormScreen}
         options={{ presentation: 'modal' }}
       />
+      <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
     </Stack.Navigator>
   );
 }
