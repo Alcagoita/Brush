@@ -450,6 +450,44 @@ export async function awardPoint(
 }
 
 /**
+ * Award points for multiple tasks in a single atomic Firestore write batch.
+ *
+ * Increments `totalPoints` on the user document by the sum of all entry points,
+ * and creates one PointsHistoryEntry per entry — all in one commit.
+ *
+ * ⚠️ Firestore batch limit: 500 operations per batch.
+ * With `n` entries this function performs `1 update + n sets` = `n + 1` ops.
+ * Safe limit is therefore **499 entries per call**. Callers with larger lists
+ * must chunk themselves — chunking is out of scope for v1.
+ *
+ * @param uid     Firebase user ID.
+ * @param entries Array of { taskId, taskTitle, points } to award. No-ops if empty.
+ */
+export async function awardPointsBatch(
+  uid: string,
+  entries: Array<{ taskId: string; taskTitle: string; points: number }>,
+): Promise<void> {
+  if (entries.length === 0) { return; }
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  const total = entries.reduce((sum, e) => sum + e.points, 0);
+
+  batch.update(userRef(uid), { totalPoints: increment(total) });
+
+  for (const entry of entries) {
+    batch.set(doc(pointsHistoryRef(uid)), {
+      taskId:    entry.taskId,
+      taskTitle: entry.taskTitle,
+      awardedAt: serverTimestamp(),
+      points:    entry.points,
+      reason:    'task_completed',
+    } satisfies Omit<PointsHistoryEntry, 'id'>);
+  }
+
+  await batch.commit();
+}
+
+/**
  * Check whether an achievement has already been awarded.
  * Useful for guarding idempotency-sensitive callers before calling awardAchievement.
  */
