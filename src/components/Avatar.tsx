@@ -4,19 +4,28 @@
  * Shared avatar component used in the Header (TodayScreen) and ProfileScreen.
  *
  * States:
- *   No photoURL → amber dot (12px, palette.accent) centred in a circle.
- *                 This is the brand-mark default — NOT a letter initial.
- *   photoURL set → circular Image (cover resize).
+ *   No photoURL → amber dot (12px, palette.accent) with scr-pulse animation
+ *                 (scale + opacity loop, 1.6 s, matches the nearby dot rhythm).
+ *                 reduce-motion respected — dot shown statically.
+ *   photoURL set → circular Image (cover resize), no animation.
  *
  * Props:
- *   photoURL  — Firebase Auth user.photoURL (null/undefined = show dot)
+ *   photoURL  — Firebase Auth user.photoURL (null/undefined = show pulsing dot)
  *   size      — diameter in px (default 36)
  *   onPress   — optional; wraps in Pressable when provided
  *   accessibilityLabel — forwarded to the Pressable / View
  */
 
-import React from 'react';
-import { Image, Pressable, StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import {
+  AccessibilityInfo,
+  Animated,
+  Easing,
+  Image,
+  Pressable,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { useTheme } from '../theme';
 
 const DOT_SIZE = 12; // px — amber brand dot diameter
@@ -27,6 +36,57 @@ interface AvatarProps {
   onPress?:            () => void;
   accessibilityLabel?: string;
 }
+
+// ─── Pulsing dot ──────────────────────────────────────────────────────────────
+// scr-pulse: 1.6 s ease-in-out infinite
+//   0%, 100% → scale 1,   opacity 1
+//   50%      → scale 0.5, opacity 0.45
+
+function PulsingDot({ color }: { color: string }) {
+  const scale   = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation;
+
+    AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
+      if (reduced) { return; }
+
+      animation = Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(scale,   { toValue: 0.5,  duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 0.45, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+          Animated.parallel([
+            Animated.timing(scale,   { toValue: 1,    duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+            Animated.timing(opacity, { toValue: 1,    duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+          ]),
+        ]),
+      );
+      animation.start();
+    });
+
+    return () => animation?.stop();
+  }, [opacity, scale]);
+
+  return (
+    <Animated.View
+      style={[
+        styles.dot,
+        {
+          width:           DOT_SIZE,
+          height:          DOT_SIZE,
+          backgroundColor: color,
+          transform:       [{ scale }],
+          opacity,
+        },
+      ]}
+    />
+  );
+}
+
+// ─── Avatar ───────────────────────────────────────────────────────────────────
 
 export default function Avatar({
   photoURL,
@@ -54,13 +114,7 @@ export default function Avatar({
       accessibilityIgnoresInvertColors
     />
   ) : (
-    /* Amber dot — brand-mark default */
-    <View
-      style={[
-        styles.dot,
-        { width: DOT_SIZE, height: DOT_SIZE, backgroundColor: palette.accent },
-      ]}
-    />
+    <PulsingDot color={palette.accent} />
   );
 
   if (onPress) {
