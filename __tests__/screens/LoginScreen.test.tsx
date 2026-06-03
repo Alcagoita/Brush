@@ -1,15 +1,16 @@
 /**
- * Unit tests for src/screens/LoginScreen.tsx — KAN-48
+ * Unit tests for src/screens/LoginScreen.tsx — KAN-71
  *
  * Covers:
- *   - Renders correctly in sign-in and sign-up modes
+ *   - Renders correctly (logo text, tagline, fields, buttons)
+ *   - Sign-in / sign-up mode toggle
  *   - Client-side validation: empty email, empty password
  *   - Inline error messages (field-level and general banner)
  *   - Firebase error codes mapped to the correct field
  *   - Loading state while submit is in-flight
  *   - Show / Hide password toggle
- *   - Mode toggle (Sign in ↔ Sign up) updates labels without errors
  *   - Successful auth calls the correct service function
+ *   - Google sign-in handler
  */
 
 import React from 'react';
@@ -18,12 +19,14 @@ import LoginScreen from '../../src/screens/LoginScreen';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSignIn  = jest.fn();
-const mockSignUp  = jest.fn();
+const mockSignIn        = jest.fn();
+const mockSignUp        = jest.fn();
+const mockGoogleSignIn  = jest.fn();
 
 jest.mock('../../src/services/auth', () => ({
-  signInWithEmail: (...args: unknown[]) => mockSignIn(...args),
-  signUpWithEmail: (...args: unknown[]) => mockSignUp(...args),
+  signInWithEmail:  (...args: unknown[]) => mockSignIn(...args),
+  signUpWithEmail:  (...args: unknown[]) => mockSignUp(...args),
+  signInWithGoogle: (...args: unknown[]) => mockGoogleSignIn(...args),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -52,6 +55,20 @@ jest.mock('../../src/theme', () => ({
   }),
 }));
 
+// react-native-svg is a native module — stub it out for Jest
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const stub = (props: any) => React.createElement(View, props);
+  return {
+    __esModule: true,
+    default:    stub,
+    Svg:        stub,
+    Path:       stub,
+    Circle:     stub,
+  };
+});
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Fill email + password and press the named CTA button. */
@@ -72,14 +89,14 @@ beforeEach(() => {
 // ── Render ────────────────────────────────────────────────────────────────────
 
 describe('LoginScreen — render', () => {
-  it('renders the app wordmark', () => {
+  it('renders the "brus" part of the wordmark', () => {
     render(<LoginScreen />);
-    expect(screen.getByText('Brush')).toBeTruthy();
+    expect(screen.getByText('brus')).toBeTruthy();
   });
 
-  it('renders the sign-in tagline by default', () => {
+  it('renders the tagline', () => {
     render(<LoginScreen />);
-    expect(screen.getByText('Sign in to continue')).toBeTruthy();
+    expect(screen.getByText('Brush away your to-dos, as you pass them.')).toBeTruthy();
   });
 
   it('renders email and password fields', () => {
@@ -93,7 +110,12 @@ describe('LoginScreen — render', () => {
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeTruthy();
   });
 
-  it('renders the sign-up toggle link', () => {
+  it('renders the Continue with Google button', () => {
+    render(<LoginScreen />);
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeTruthy();
+  });
+
+  it('renders the sign-up footer link', () => {
     render(<LoginScreen />);
     expect(screen.getByText(/Don't have an account/)).toBeTruthy();
   });
@@ -109,19 +131,14 @@ describe('LoginScreen — render', () => {
 // ── Sign-up mode ──────────────────────────────────────────────────────────────
 
 describe('LoginScreen — sign-up mode', () => {
-  it('toggles to sign-up mode when the link is pressed', () => {
+  it('toggles to sign-up mode when the footer link is pressed', () => {
     render(<LoginScreen />);
     fireEvent.press(screen.getByRole('button', { name: /Sign up/ }));
-    expect(screen.getByText('Create your account')).toBeTruthy();
-  });
-
-  it('shows Create Account CTA in sign-up mode', () => {
-    render(<LoginScreen />);
-    fireEvent.press(screen.getByRole('button', { name: /Sign up/ }));
+    // CTA changes to "Create Account"
     expect(screen.getByRole('button', { name: 'Create account' })).toBeTruthy();
   });
 
-  it('shows "Already have an account?" link in sign-up mode', () => {
+  it('shows "Already have an account?" in sign-up mode', () => {
     render(<LoginScreen />);
     fireEvent.press(screen.getByRole('button', { name: /Sign up/ }));
     expect(screen.getByText(/Already have an account/)).toBeTruthy();
@@ -205,7 +222,7 @@ describe('LoginScreen — Firebase error mapping', () => {
     );
   });
 
-  it('shows general error for auth/invalid-credential (wrong password or unknown email)', async () => {
+  it('shows general error for auth/invalid-credential', async () => {
     mockSignIn.mockRejectedValueOnce(makeAuthError('auth/invalid-credential'));
     render(<LoginScreen />);
     await submitForm('user@example.com', 'wrongpass');
@@ -283,11 +300,9 @@ describe('LoginScreen — loading state', () => {
     fireEvent.changeText(screen.getByLabelText('Password'), 'password123');
     fireEvent.press(screen.getByRole('button', { name: 'Sign in' }));
 
-    // CTA should now be disabled
     const btn = screen.getByRole('button', { name: 'Sign in' });
     expect(btn.props.accessibilityState?.disabled).toBe(true);
 
-    // Resolve and clean up
     await act(async () => { resolve(); });
   });
 
@@ -307,8 +322,7 @@ describe('LoginScreen — loading state', () => {
 describe('LoginScreen — show/hide password', () => {
   it('password field is secure by default', () => {
     render(<LoginScreen />);
-    const input = screen.getByLabelText('Password');
-    expect(input.props.secureTextEntry).toBe(true);
+    expect(screen.getByLabelText('Password').props.secureTextEntry).toBe(true);
   });
 
   it('pressing "Show" reveals the password', () => {
@@ -348,6 +362,41 @@ describe('LoginScreen — successful auth', () => {
     });
     await waitFor(() =>
       expect(mockSignUp).toHaveBeenCalledWith('new@example.com', 'newpassword'),
+    );
+  });
+});
+
+// ── Google sign-in ────────────────────────────────────────────────────────────
+
+describe('LoginScreen — Google sign-in', () => {
+  it('calls signInWithGoogle when the Google button is pressed', async () => {
+    mockGoogleSignIn.mockResolvedValueOnce(undefined);
+    render(<LoginScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+    });
+    await waitFor(() => expect(mockGoogleSignIn).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows a general error banner when Google sign-in fails', async () => {
+    mockGoogleSignIn.mockRejectedValueOnce({ code: 'auth/unknown' });
+    render(<LoginScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+    });
+    await waitFor(() =>
+      expect(screen.getByText('Google sign-in failed. Please try again.')).toBeTruthy(),
+    );
+  });
+
+  it('shows no error when Google sign-in is cancelled (SIGN_IN_CANCELLED)', async () => {
+    mockGoogleSignIn.mockRejectedValueOnce({ code: 'SIGN_IN_CANCELLED' });
+    render(<LoginScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByRole('button', { name: 'Continue with Google' }));
+    });
+    await waitFor(() =>
+      expect(screen.queryByText('Google sign-in failed. Please try again.')).toBeNull(),
     );
   });
 });
