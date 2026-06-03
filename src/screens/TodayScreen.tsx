@@ -421,6 +421,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -3,
     lineHeight: 88,
   },
   captionSub: {
@@ -443,6 +444,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -1,
   },
   counterSep: {
     fontSize: 20,
