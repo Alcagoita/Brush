@@ -474,7 +474,7 @@ export default function ProfileScreen() {
               <Text style={[styles.sectionTitle, { color: palette.text }]}>
                 Notification Preferences
               </Text>
-              <Text style={[styles.sectionSub, { color: palette.muted }]}>
+              <Text style={[styles.sectionSub, { color: palette.muted, marginBottom: 0 }]}>
                 Alert radius per location type
               </Text>
             </View>
@@ -715,7 +715,6 @@ const styles = StyleSheet.create({
     flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'space-between',
-    marginBottom:   8,
   },
   prefHeaderText: {
     flex: 1,
