@@ -172,7 +172,7 @@ interface PoiTileProps {
 }
 
 function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
-  const accent = palette.accent;
+  const iconColor = selected ? palette.nearText : palette.muted;
   return (
     <Pressable
       onPress={onPress}
@@ -181,12 +181,12 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
       style={[
         styles.poiTile,
         {
-          backgroundColor: selected ? accent + '18' : palette.surface,
-          borderColor:     selected ? accent        : palette.line,
+          backgroundColor: selected ? palette.nearTint2  : palette.surface,
+          borderColor:     selected ? palette.nearBorder : palette.line,
         },
       ]}>
-      <PoiIcon type={type} color={selected ? accent : palette.muted} size={22} />
-      <Text style={[styles.poiLabel, { color: selected ? palette.text : palette.muted }]}>
+      <PoiIcon type={type} color={iconColor} size={22} />
+      <Text style={[styles.poiLabel, { color: iconColor }]}>
         {label}
       </Text>
     </Pressable>
@@ -505,7 +505,10 @@ export default function TaskFormScreen() {
 
         {/* ── POI ── */}
         <View style={styles.section}>
-          <SectionLabel label="NEARBY PLACE" color={palette.muted} />
+          <Text style={[styles.sectionLabel, { color: palette.muted }]}>
+            POINT OF INTEREST
+            <Text style={{ color: palette.faint }}>{' '}(OPTIONAL)</Text>
+          </Text>
           <View style={styles.poiGrid}>
             {POI_OPTIONS.map(opt => (
               <PoiTile
@@ -707,20 +710,20 @@ const styles = StyleSheet.create({
     color:      '#e05252',
   },
 
-  // ── POI grid ──
+  // ── POI grid — mirrors NewTaskSheet exactly ──
   poiGrid: {
     flexDirection: 'row',
-    flexWrap:      'wrap',
     gap:           10,
   },
   poiTile: {
-    width:          '22%',
-    aspectRatio:    1,
-    borderRadius:   radius.card,
-    borderWidth:    1,
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            6,
+    flex:            1,
+    aspectRatio:     1,
+    borderRadius:    14,
+    borderWidth:     1,
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             4,
+    paddingVertical: 10,
   },
   poiLabel: {
     fontSize:   11,
@@ -728,3 +731,4 @@ const styles = StyleSheet.create({
     textAlign:  'center',
   },
 });
+
