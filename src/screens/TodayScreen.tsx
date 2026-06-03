@@ -236,6 +236,7 @@ export default function TodayScreen() {
       <View style={styles.stickyHeader}>
         <Header
           displayName={displayName}
+          photoURL={user?.photoURL}
           hasUnread={false}
           onAvatarPress={() => navigation.navigate('Profile')}
         />

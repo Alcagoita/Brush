@@ -81,6 +81,15 @@ export async function upsertUser(
   );
 }
 
+/**
+ * Update the displayName field on the Firestore user document (KAN-18).
+ * Callers should also call firebase.auth().currentUser.updateProfile() to
+ * keep the Auth profile in sync — see ProfileScreen.
+ */
+export async function updateDisplayName(uid: string, displayName: string): Promise<void> {
+  await updateDoc(userRef(uid), { displayName });
+}
+
 /** Fetch the user document once. Returns null if it doesn't exist yet. */
 export async function getUser(uid: string): Promise<User | null> {
   const snap = await getDoc(userRef(uid));

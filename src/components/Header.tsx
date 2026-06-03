@@ -12,9 +12,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { spacing } from '../theme/tokens';
 import { BellIcon } from './AppIcon';
+import Avatar from './Avatar';
 
 interface Props {
   displayName: string;
+  /** Firebase Auth photoURL — forwarded to Avatar (dot shown when absent). */
+  photoURL?:    string | null;
   hasUnread?: boolean;
   onAvatarPress?: () => void;
   onBellPress?: () => void;
@@ -28,11 +31,7 @@ function greeting(): string {
   return 'Good night';
 }
 
-function initials(name: string): string {
-  return name.trim().charAt(0).toUpperCase() || '?';
-}
-
-export default function Header({ displayName, hasUnread = false, onAvatarPress, onBellPress }: Props) {
+export default function Header({ displayName, photoURL, hasUnread = false, onAvatarPress, onBellPress }: Props) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -54,16 +53,13 @@ export default function Header({ displayName, hasUnread = false, onAvatarPress, 
           borderBottomColor: palette.line,
         },
       ]}>
-      {/* Avatar — taps navigate to Profile */}
-      <TouchableOpacity
-        style={[styles.avatar, { backgroundColor: palette.surface2 }]}
+      {/* Avatar — amber dot default (KAN-78); taps navigate to Profile */}
+      <Avatar
+        photoURL={photoURL}
+        size={36}
         onPress={onAvatarPress}
-        accessibilityRole="button"
-        accessibilityLabel="Open profile">
-        <Text style={[styles.avatarText, { color: palette.text }]}>
-          {initials(displayName)}
-        </Text>
-      </TouchableOpacity>
+        accessibilityLabel="Open profile"
+      />
 
       {/* Greeting */}
       <View style={styles.greetingWrap}>
@@ -97,18 +93,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.page,
     paddingBottom: 14,
     zIndex: 3,
-  },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 9999,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
   },
   greetingWrap: {
     flex: 1,
