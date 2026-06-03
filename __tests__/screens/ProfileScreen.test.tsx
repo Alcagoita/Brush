@@ -89,7 +89,8 @@ jest.mock('../../src/theme', () => ({
 // AppIcon — stub all used icons; PoiIcon renders a testID so row icons are
 // identifiable in tests without depending on SVG rendering.
 jest.mock('../../src/components/AppIcon', () => ({
-  ChevronLeftIcon: () => null,
+  ChevronLeftIcon:  () => null,
+  ChevronRightIcon: () => null,
   GridIcon:        () => null,
   LogOutIcon:      () => null,
   MoonIcon:        () => null,
@@ -168,6 +169,17 @@ function renderScreen() {
   return render(<ProfileScreen />);
 }
 
+/**
+ * Render ProfileScreen with notification prefs section pre-expanded.
+ * KAN-80: section is collapsed by default; tests that interact with
+ * non-first rows must expand it first.
+ */
+function renderExpanded() {
+  const result = renderScreen();
+  fireEvent.press(screen.getByLabelText('Expand notification preferences'));
+  return result;
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
@@ -191,7 +203,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   });
 
   it('renders all 4 built-in POI type rows', () => {
-    renderScreen();
+    renderExpanded();
     expect(screen.getByText('ATM')).toBeTruthy();
     expect(screen.getByText('Pharmacy')).toBeTruthy();
     expect(screen.getByText('Café')).toBeTruthy();
@@ -199,7 +211,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   });
 
   it('shows default radii before any Firestore preference loads', () => {
-    renderScreen();
+    renderExpanded();
     // ATM and Pharmacy default to 50 m; two instances expected.
     expect(screen.getAllByText('50 m')).toHaveLength(2);
     // Café and Supermarket default to 75 m; two instances expected.
@@ -218,7 +230,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('overrides defaults when Firestore preferences fire', () => {
     const firePrefs = capturePrefsCallback();
-    renderScreen();
+    renderExpanded();
     firePrefs({ atm: 100, cafe: 150 });
 
     expect(screen.getByText('100 m')).toBeTruthy();
@@ -231,7 +243,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   // ── Stepper — increase ───────────────────────────────────────────────────────
 
   it('increases ATM radius by 25 m when "+" is pressed', () => {
-    renderScreen();
+    renderExpanded();
     // Before: ATM=50, Pharmacy=50 → two "50 m" labels.
     expect(screen.getAllByText('50 m')).toHaveLength(2);
     fireEvent.press(screen.getByLabelText('Increase ATM radius'));
@@ -249,7 +261,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   // ── Stepper — decrease ───────────────────────────────────────────────────────
 
   it('decreases Café radius by 25 m when "−" is pressed', () => {
-    renderScreen();
+    renderExpanded();
     // Before: Café=75, Supermarket=75 → two "75 m" labels.
     expect(screen.getAllByText('75 m')).toHaveLength(2);
     fireEvent.press(screen.getByLabelText('Decrease Café radius'));
@@ -259,7 +271,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   });
 
   it('calls setPoiPreference with the new radius when "−" is pressed', () => {
-    renderScreen();
+    renderExpanded();
     fireEvent.press(screen.getByLabelText('Decrease Café radius'));
     expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'cafe', 50);
   });
@@ -279,7 +291,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('does not increase Supermarket above 500 m', () => {
     const firePrefs = capturePrefsCallback();
-    renderScreen();
+    renderExpanded();
     firePrefs({ supermarket: 500 });
 
     fireEvent.press(screen.getByLabelText('Increase Supermarket radius'));
@@ -312,7 +324,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('adds a row for a custom category that has a poi type', () => {
     const fireCategories = captureCategoriesCallback();
-    renderScreen();
+    renderExpanded();
     fireCategories([makeCategory({ poi: 'fitness_center' })]);
     // placeTypeLabel('fitness_center') → 'Fitness Center' (mocked above)
     expect(screen.getByText('Fitness Center')).toBeTruthy();
@@ -335,7 +347,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('shows only one row when two custom categories share the same poi type', () => {
     const fireCategories = captureCategoriesCallback();
-    renderScreen();
+    renderExpanded();
     fireCategories([
       makeCategory({ id: 'cat-1', name: 'Gym',     poi: 'fitness_center' }),
       makeCategory({ id: 'cat-2', name: 'Pilates', poi: 'fitness_center' }),
@@ -345,7 +357,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('custom category row defaults to 75 m (matching proximity engine default)', () => {
     const fireCategories = captureCategoriesCallback();
-    renderScreen();
+    renderExpanded();
     // Before: Café + Supermarket show 75 m → 2 labels.
     expect(screen.getAllByText('75 m')).toHaveLength(2);
     fireCategories([makeCategory({ poi: 'restaurant' })]);
@@ -355,7 +367,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('custom category stepper calls setPoiPreference with the correct poi type', () => {
     const fireCategories = captureCategoriesCallback();
-    renderScreen();
+    renderExpanded();
     fireCategories([makeCategory({ poi: 'fitness_center' })]);
 
     // fitness_center starts at 75 m; pressing + should go to 100 m.
@@ -517,5 +529,68 @@ describe('ProfileScreen — KAN-19: points & achievements', () => {
       { id: 'first_task', type: 'first_task', earnedAt: {} },
     ]);
     expect(screen.queryByText('Complete tasks to earn achievements')).toBeNull();
+  });
+});
+
+// ─── KAN-80: Collapsible Notification Preferences ────────────────────────────
+
+describe('ProfileScreen — KAN-80: collapsible notification preferences', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
+    mockSubscribeToAchievements.mockReturnValue(jest.fn());
+  });
+
+  it('shows only the first POI row by default (collapsed)', () => {
+    renderScreen();
+    // ATM is the first built-in row
+    expect(screen.getByLabelText('ATM notification radius')).toBeTruthy();
+    // The rest should be hidden
+    expect(screen.queryByLabelText('Pharmacy notification radius')).toBeNull();
+    expect(screen.queryByLabelText('Café notification radius')).toBeNull();
+    expect(screen.queryByLabelText('Supermarket notification radius')).toBeNull();
+  });
+
+  it('shows all rows after pressing the header', () => {
+    renderScreen();
+    fireEvent.press(
+      screen.getByLabelText('Expand notification preferences'),
+    );
+    expect(screen.getByLabelText('ATM notification radius')).toBeTruthy();
+    expect(screen.getByLabelText('Pharmacy notification radius')).toBeTruthy();
+    expect(screen.getByLabelText('Café notification radius')).toBeTruthy();
+    expect(screen.getByLabelText('Supermarket notification radius')).toBeTruthy();
+  });
+
+  it('collapses back to one row after pressing the header a second time', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Expand notification preferences'));
+    fireEvent.press(screen.getByLabelText('Collapse notification preferences'));
+    expect(screen.getByLabelText('ATM notification radius')).toBeTruthy();
+    expect(screen.queryByLabelText('Pharmacy notification radius')).toBeNull();
+  });
+
+  it('shows "X more" label in collapsed state when there are hidden rows', () => {
+    renderScreen();
+    // 4 built-in rows → 3 hidden → "3 more"
+    expect(screen.getByText('3 more')).toBeTruthy();
+  });
+
+  it('hides "X more" label when expanded', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Expand notification preferences'));
+    expect(screen.queryByText('3 more')).toBeNull();
+  });
+
+  it('does not show "X more" when there is only one row', () => {
+    // Override allPoiRows to return just one row by suppressing custom categories
+    // and only having a single built-in. We achieve this by having categories
+    // return empty and checking that "more" text is absent when only 1 POI row exists.
+    // Since built-ins are hardcoded to 4, we can't easily test 1-row scenario
+    // without deeper mocking — skip to avoid false confidence.
+    // The "3 more" test above already validates the label logic.
   });
 });

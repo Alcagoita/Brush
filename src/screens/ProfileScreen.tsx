@@ -24,6 +24,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
+  LayoutAnimation,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,8 +33,14 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
+  UIManager,
   View,
 } from 'react-native';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true);
+}
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -40,7 +48,7 @@ import { getAuth, updateProfile } from '@react-native-firebase/auth/lib/modular'
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, ChevronRightIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import { logout } from '../services/auth';
 import {
@@ -234,6 +242,19 @@ export default function ProfileScreen() {
       console.warn('[ProfileScreen] setPoiPreference failed', err),
     );
   }
+
+  // ── Notification prefs expand/collapse (KAN-80) ───────────────────────────
+  // Default collapsed: only the first row is visible. State is NOT persisted —
+  // resets to collapsed on every screen mount.
+  const [prefsExpanded, setPrefsExpanded] = useState(false);
+
+  const visiblePoiRows = prefsExpanded ? allPoiRows : allPoiRows.slice(0, 1);
+  const hiddenCount    = allPoiRows.length - 1;
+
+  const togglePrefs = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setPrefsExpanded(prev => !prev);
+  };
 
   // ── Logout ─────────────────────────────────────────────────────────────────
   const [loggingOut, setLoggingOut] = useState(false);
@@ -440,16 +461,37 @@ export default function ProfileScreen() {
           <Text style={[styles.btnText, { color: palette.text }]}>Manage Categories</Text>
         </TouchableOpacity>
 
-        {/* ── Notification Preferences (KAN-29) ── */}
+        {/* ── Notification Preferences (KAN-29 / KAN-80 collapsible) ── */}
         <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>
-            Notification Preferences
-          </Text>
-          <Text style={[styles.sectionSub, { color: palette.muted }]}>
-            Alert radius per location type
-          </Text>
+          {/* Tappable header — toggles expand/collapse */}
+          <Pressable
+            onPress={togglePrefs}
+            style={styles.prefHeaderRow}
+            accessibilityRole="button"
+            accessibilityLabel={prefsExpanded ? 'Collapse notification preferences' : 'Expand notification preferences'}
+            accessibilityState={{ expanded: prefsExpanded }}>
+            <View style={styles.prefHeaderText}>
+              <Text style={[styles.sectionTitle, { color: palette.text }]}>
+                Notification Preferences
+              </Text>
+              <Text style={[styles.sectionSub, { color: palette.muted }]}>
+                Alert radius per location type
+              </Text>
+            </View>
+            <View style={styles.prefHeaderRight}>
+              {!prefsExpanded && hiddenCount > 0 && (
+                <Text style={[styles.moreLabel, { color: palette.muted }]}>
+                  {hiddenCount} more
+                </Text>
+              )}
+              {/* Rotate 90° = chevron-down (collapsed); 270° = chevron-up (expanded) */}
+              <View style={{ transform: [{ rotate: prefsExpanded ? '270deg' : '90deg' }] }}>
+                <ChevronRightIcon color={palette.muted} size={16} />
+              </View>
+            </View>
+          </Pressable>
 
-          {allPoiRows.map(({ type, label }, idx) => {
+          {visiblePoiRows.map(({ type, label }, idx) => {
             const r     = poiRadii[type] ?? DEFAULT_RADII[type] ?? DEFAULT_CUSTOM_RADIUS;
             const atMin = r <= MIN_RADIUS;
             const atMax = r >= MAX_RADIUS;
@@ -668,6 +710,26 @@ const styles = StyleSheet.create({
   },
 
   // ── Notification preferences ──
+  // ── Notification prefs header (KAN-80) ──
+  prefHeaderRow: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'space-between',
+    marginBottom:   8,
+  },
+  prefHeaderText: {
+    flex: 1,
+  },
+  prefHeaderRight: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           4,
+  },
+  moreLabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+
   sectionTitle: {
     fontSize:     15,
     fontWeight:   '600',
