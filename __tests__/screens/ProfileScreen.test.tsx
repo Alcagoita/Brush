@@ -253,7 +253,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   });
 
   it('calls setPoiPreference with the new radius when "+" is pressed', () => {
-    renderScreen();
+    renderExpanded();
     fireEvent.press(screen.getByLabelText('Increase ATM radius'));
     expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'atm', 75);
   });
@@ -280,7 +280,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('does not decrease ATM below 25 m', () => {
     const firePrefs = capturePrefsCallback();
-    renderScreen();
+    renderExpanded();
     firePrefs({ atm: 25 });
 
     fireEvent.press(screen.getByLabelText('Decrease ATM radius'));
@@ -302,7 +302,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
   // ── Multiple presses ────────────────────────────────────────────────────────
 
   it('accumulates multiple presses correctly', () => {
-    renderScreen();
+    renderExpanded();
     // ATM starts at 50 m — press "+" three times → 50 + 75 = 125 m.
     fireEvent.press(screen.getByLabelText('Increase ATM radius'));
     fireEvent.press(screen.getByLabelText('Increase ATM radius'));
@@ -339,7 +339,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
 
   it('does not duplicate a built-in row when a custom category shares its poi type', () => {
     const fireCategories = captureCategoriesCallback();
-    renderScreen();
+    renderExpanded();
     // 'atm' is already a built-in row — no second ATM row should appear.
     fireCategories([makeCategory({ poi: 'atm' })]);
     expect(screen.getAllByText('ATM')).toHaveLength(1);
@@ -544,11 +544,10 @@ describe('ProfileScreen — KAN-80: collapsible notification preferences', () =>
     mockSubscribeToAchievements.mockReturnValue(jest.fn());
   });
 
-  it('shows only the first POI row by default (collapsed)', () => {
+  it('shows no rows by default (fully collapsed)', () => {
     renderScreen();
-    // ATM is the first built-in row
-    expect(screen.getByLabelText('ATM notification radius')).toBeTruthy();
-    // The rest should be hidden
+    // No rows at all until the user taps
+    expect(screen.queryByLabelText('ATM notification radius')).toBeNull();
     expect(screen.queryByLabelText('Pharmacy notification radius')).toBeNull();
     expect(screen.queryByLabelText('Café notification radius')).toBeNull();
     expect(screen.queryByLabelText('Supermarket notification radius')).toBeNull();
@@ -565,24 +564,24 @@ describe('ProfileScreen — KAN-80: collapsible notification preferences', () =>
     expect(screen.getByLabelText('Supermarket notification radius')).toBeTruthy();
   });
 
-  it('collapses back to one row after pressing the header a second time', () => {
+  it('collapses back to zero rows after pressing the header a second time', () => {
     renderScreen();
     fireEvent.press(screen.getByLabelText('Expand notification preferences'));
     fireEvent.press(screen.getByLabelText('Collapse notification preferences'));
-    expect(screen.getByLabelText('ATM notification radius')).toBeTruthy();
+    expect(screen.queryByLabelText('ATM notification radius')).toBeNull();
     expect(screen.queryByLabelText('Pharmacy notification radius')).toBeNull();
   });
 
   it('shows "X more" label in collapsed state when there are hidden rows', () => {
     renderScreen();
-    // 4 built-in rows → 3 hidden → "3 more"
-    expect(screen.getByText('3 more')).toBeTruthy();
+    // 4 built-in rows all hidden → "4 more"
+    expect(screen.getByText('4 more')).toBeTruthy();
   });
 
   it('hides "X more" label when expanded', () => {
     renderScreen();
     fireEvent.press(screen.getByLabelText('Expand notification preferences'));
-    expect(screen.queryByText('3 more')).toBeNull();
+    expect(screen.queryByText('4 more')).toBeNull();
   });
 
   it('does not show "X more" when there is only one row', () => {

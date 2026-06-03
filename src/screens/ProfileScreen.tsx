@@ -244,12 +244,12 @@ export default function ProfileScreen() {
   }
 
   // ── Notification prefs expand/collapse (KAN-80) ───────────────────────────
-  // Default collapsed: only the first row is visible. State is NOT persisted —
-  // resets to collapsed on every screen mount.
+  // Default fully collapsed: NO rows visible until the user taps the header.
+  // State is NOT persisted — resets to collapsed on every screen mount.
   const [prefsExpanded, setPrefsExpanded] = useState(false);
 
-  const visiblePoiRows = prefsExpanded ? allPoiRows : allPoiRows.slice(0, 1);
-  const hiddenCount    = allPoiRows.length - 1;
+  const visiblePoiRows = prefsExpanded ? allPoiRows : [];
+  const hiddenCount    = allPoiRows.length;
 
   const togglePrefs = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
