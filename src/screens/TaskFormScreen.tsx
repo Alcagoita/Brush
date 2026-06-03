@@ -23,6 +23,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -37,7 +38,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
-import { addTask, updateTask, subscribeToCategories } from '../services/firestore';
+import { addTask, updateTask, deleteTask, subscribeToCategories } from '../services/firestore';
 import { ClockIcon, PoiIcon } from '../components/AppIcon';
 import type { Category, PoiType, Task } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -284,6 +285,35 @@ export default function TaskFormScreen() {
     }
   }, [title, description, category, poi, time, dueDate, uid, isEdit, existingTask, initialDate, navigation]);
 
+  // ── Delete (edit mode only) ─────────────────────────────────────────────────
+
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = useCallback(() => {
+    if (!existingTask) { return; }
+    Alert.alert(
+      'Delete this task?',
+      existingTask.title,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteTask(uid, existingTask.id);
+              navigation.goBack();
+            } catch (err) {
+              console.warn('[TaskFormScreen] delete error', err);
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [uid, existingTask, navigation]);
+
   // ── Category list (built-ins + custom) ─────────────────────────────────────
 
   const allCategories: { id: string; label: string; color: string }[] = [
@@ -495,6 +525,26 @@ export default function TaskFormScreen() {
           </View>
         </View>
 
+        {/* ── Delete button (edit mode only) ── */}
+        {isEdit && (
+          <>
+            <View style={[styles.divider, { backgroundColor: palette.line, marginTop: 8 }]} />
+            <Pressable
+              onPress={handleDelete}
+              disabled={deleting || submitting}
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                (deleting || pressed) && { opacity: 0.6 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete task">
+              <Text style={styles.deleteBtnLabel}>
+                {deleting ? 'Deleting…' : 'Delete task'}
+              </Text>
+            </Pressable>
+          </>
+        )}
+
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -648,6 +698,18 @@ const styles = StyleSheet.create({
   pillLabel: {
     fontSize:   14,
     fontFamily: 'Geist-Regular',
+  },
+
+  // ── Delete button ──
+  deleteBtn: {
+    alignItems:     'center',
+    paddingVertical: 20,
+    marginBottom:    8,
+  },
+  deleteBtnLabel: {
+    fontSize:   16,
+    fontFamily: 'Geist-Regular',
+    color:      '#e05252',
   },
 
   // ── POI grid ──
