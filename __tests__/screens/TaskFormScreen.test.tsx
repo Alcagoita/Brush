@@ -21,13 +21,15 @@ import TaskFormScreen from '../../src/screens/TaskFormScreen';
 
 const mockAddTask    = jest.fn();
 const mockUpdateTask = jest.fn();
+const mockDeleteTask = jest.fn();
 const mockGoBack     = jest.fn();
 const mockSubscribeToCategories = jest.fn(() => jest.fn()); // returns unsubscribe
 
 jest.mock('../../src/services/firestore', () => ({
-  addTask:              (...args: unknown[]) => mockAddTask(...args),
-  updateTask:           (...args: unknown[]) => mockUpdateTask(...args),
-  subscribeToCategories: (...args: unknown[]) => mockSubscribeToCategories(...args),
+  addTask:              jest.fn((...args: unknown[]) => mockAddTask(...args)),
+  updateTask:           jest.fn((...args: unknown[]) => mockUpdateTask(...args)),
+  deleteTask:           jest.fn((...args: unknown[]) => mockDeleteTask(...args)),
+  subscribeToCategories: jest.fn((...args: unknown[]) => mockSubscribeToCategories(...args)),
 }));
 
 jest.mock('@react-navigation/native', () => ({
@@ -340,5 +342,65 @@ describe('TaskFormScreen — cancel', () => {
     render(<TaskFormScreen />);
     fireEvent.press(screen.getByLabelText('Cancel'));
     expect(mockGoBack).toHaveBeenCalled();
+  });
+});
+
+// ── Delete ────────────────────────────────────────────────────────────────────
+
+describe('TaskFormScreen — delete (edit mode)', () => {
+  beforeEach(() => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+  });
+
+  it('shows a Delete task button in edit mode', () => {
+    render(<TaskFormScreen />);
+    expect(screen.getByLabelText('Delete task')).toBeTruthy();
+  });
+
+  it('does NOT show a Delete task button in create mode', () => {
+    setRouteParams({ uid: 'user-123' });
+    render(<TaskFormScreen />);
+    expect(screen.queryByLabelText('Delete task')).toBeNull();
+  });
+
+  it('calls deleteTask with uid + taskId and navigates back on confirm', async () => {
+    mockDeleteTask.mockResolvedValueOnce(undefined);
+
+    // Spy on Alert.alert and auto-confirm the destructive action
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation((_title, _msg, buttons) => {
+        const deleteBtn = (buttons as any[]).find((b: any) => b.style === 'destructive');
+        deleteBtn?.onPress?.();
+      });
+
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Delete task'));
+    });
+
+    await waitFor(() => {
+      expect(mockDeleteTask).toHaveBeenCalledWith('user-123', 'task-1');
+      expect(mockGoBack).toHaveBeenCalled();
+    });
+
+    alertSpy.mockRestore();
+  });
+
+  it('does NOT call deleteTask when the user cancels the confirmation', async () => {
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation((_title, _msg, buttons) => {
+        const cancelBtn = (buttons as any[]).find((b: any) => b.style === 'cancel');
+        cancelBtn?.onPress?.();
+      });
+
+    render(<TaskFormScreen />);
+    fireEvent.press(screen.getByLabelText('Delete task'));
+
+    expect(mockDeleteTask).not.toHaveBeenCalled();
+    expect(mockGoBack).not.toHaveBeenCalled();
+
+    alertSpy.mockRestore();
   });
 });

@@ -23,6 +23,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -37,7 +38,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
-import { addTask, updateTask, subscribeToCategories } from '../services/firestore';
+import { addTask, updateTask, deleteTask, subscribeToCategories } from '../services/firestore';
 import { ClockIcon, PoiIcon } from '../components/AppIcon';
 import type { Category, PoiType, Task } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -171,7 +172,7 @@ interface PoiTileProps {
 }
 
 function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
-  const accent = palette.accent;
+  const iconColor = selected ? palette.nearText : palette.muted;
   return (
     <Pressable
       onPress={onPress}
@@ -180,17 +181,12 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
       style={[
         styles.poiTile,
         {
-          backgroundColor: selected ? accent + '18' : palette.surface,
-          borderColor:     selected ? accent        : palette.line,
+          backgroundColor: selected ? palette.nearTint2  : palette.surface,
+          borderColor:     selected ? palette.nearBorder : palette.line,
         },
       ]}>
-      <View style={[
-        styles.poiIconWrap,
-        { backgroundColor: selected ? accent + '28' : palette.surface2 },
-      ]}>
-        <PoiIcon type={type} color={selected ? accent : palette.muted} size={18} />
-      </View>
-      <Text style={[styles.poiLabel, { color: selected ? palette.text : palette.muted }]}>
+      <PoiIcon type={type} color={iconColor} size={22} />
+      <Text style={[styles.poiLabel, { color: iconColor }]}>
         {label}
       </Text>
     </Pressable>
@@ -283,6 +279,35 @@ export default function TaskFormScreen() {
       setSubmitting(false);
     }
   }, [title, description, category, poi, time, dueDate, uid, isEdit, existingTask, initialDate, navigation]);
+
+  // ── Delete (edit mode only) ─────────────────────────────────────────────────
+
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = useCallback(() => {
+    if (!existingTask) { return; }
+    Alert.alert(
+      'Delete this task?',
+      existingTask.title,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            try {
+              await deleteTask(uid, existingTask.id);
+              navigation.goBack();
+            } catch (err) {
+              console.warn('[TaskFormScreen] delete error', err);
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [uid, existingTask, navigation]);
 
   // ── Category list (built-ins + custom) ─────────────────────────────────────
 
@@ -480,7 +505,10 @@ export default function TaskFormScreen() {
 
         {/* ── POI ── */}
         <View style={styles.section}>
-          <SectionLabel label="NEARBY PLACE" color={palette.muted} />
+          <Text style={[styles.sectionLabel, { color: palette.muted }]}>
+            POINT OF INTEREST
+            <Text style={{ color: palette.faint }}>{' '}(OPTIONAL)</Text>
+          </Text>
           <View style={styles.poiGrid}>
             {POI_OPTIONS.map(opt => (
               <PoiTile
@@ -494,6 +522,26 @@ export default function TaskFormScreen() {
             ))}
           </View>
         </View>
+
+        {/* ── Delete button (edit mode only) ── */}
+        {isEdit && (
+          <>
+            <View style={[styles.divider, { backgroundColor: palette.line, marginTop: 8 }]} />
+            <Pressable
+              onPress={handleDelete}
+              disabled={deleting || submitting}
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                (deleting || pressed) && { opacity: 0.6 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Delete task">
+              <Text style={styles.deleteBtnLabel}>
+                {deleting ? 'Deleting…' : 'Delete task'}
+              </Text>
+            </Pressable>
+          </>
+        )}
 
       </ScrollView>
     </KeyboardAvoidingView>
@@ -650,27 +698,32 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
   },
 
-  // ── POI grid ──
+  // ── Delete button ──
+  deleteBtn: {
+    alignItems:     'center',
+    paddingVertical: 20,
+    marginBottom:    8,
+  },
+  deleteBtnLabel: {
+    fontSize:   16,
+    fontFamily: 'Geist-Regular',
+    color:      '#e05252',
+  },
+
+  // ── POI grid — mirrors NewTaskSheet exactly ──
   poiGrid: {
     flexDirection: 'row',
-    flexWrap:      'wrap',
     gap:           10,
   },
   poiTile: {
-    width:          '22%',
-    aspectRatio:    1,
-    borderRadius:   radius.card,
-    borderWidth:    1,
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            6,
-  },
-  poiIconWrap: {
-    width:          36,
-    height:         36,
-    borderRadius:   radius.listIcon,
-    alignItems:     'center',
-    justifyContent: 'center',
+    flex:            1,
+    aspectRatio:     1,
+    borderRadius:    14,
+    borderWidth:     1,
+    alignItems:      'center',
+    justifyContent:  'center',
+    gap:             4,
+    paddingVertical: 10,
   },
   poiLabel: {
     fontSize:   11,
@@ -678,3 +731,4 @@ const styles = StyleSheet.create({
     textAlign:  'center',
   },
 });
+

@@ -356,6 +356,7 @@ export default function TodayScreen() {
                 task={task}
                 nearbyPoiType={nearbyPoiType}
                 onToggle={handleToggle}
+                onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
                 customCategories={customCategories}
               />
             ))
