@@ -20,18 +20,23 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToPoiPreferences  = jest.fn();
-const mockSetPoiPreference            = jest.fn();
-const mockSubscribeToCategories       = jest.fn();
+const mockSubscribeToPoiPreferences   = jest.fn();
+const mockSetPoiPreference             = jest.fn();
+const mockSubscribeToCategories        = jest.fn();
 const mockSubscribeLowBatteryPausePref = jest.fn();
 const mockSetLowBatteryPausePref       = jest.fn();
+const mockSubscribeToTotalPoints       = jest.fn();
+const mockSubscribeToAchievements      = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToPoiPreferences:   (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
-  setPoiPreference:            (...args: unknown[]) => mockSetPoiPreference(...args),
-  subscribeToCategories:       (...args: unknown[]) => mockSubscribeToCategories(...args),
+  subscribeToPoiPreferences:    (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
+  setPoiPreference:             (...args: unknown[]) => mockSetPoiPreference(...args),
+  subscribeToCategories:        (...args: unknown[]) => mockSubscribeToCategories(...args),
   subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
   setLowBatteryPausePref:       (...args: unknown[]) => mockSetLowBatteryPausePref(...args),
+  subscribeToTotalPoints:       (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
+  subscribeToAchievements:      (...args: unknown[]) => mockSubscribeToAchievements(...args),
+  updateDisplayName:            jest.fn(),
 }));
 
 // Maps — placeTypeLabel used to label custom poi types
@@ -43,9 +48,10 @@ jest.mock('../../src/services/maps', () => ({
     type,
 }));
 
-// Auth — return a fixed uid
+// Auth — return a fixed uid + minimal currentUser
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
-  getAuth: () => ({ currentUser: { uid: 'test-uid' } }),
+  getAuth:       () => ({ currentUser: { uid: 'test-uid', email: 'test@example.com', displayName: 'Tester', photoURL: null } }),
+  updateProfile: jest.fn(),
 }));
 
 // Navigation
@@ -64,13 +70,16 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../src/theme', () => ({
   useTheme: () => ({
     palette: {
-      bg:       '#fff',
-      surface2: '#eee',
-      text:     '#000',
-      muted:    '#999',
-      faint:    '#ccc',
-      line:     '#ddd',
-      accent:   '#e8a86a',
+      bg:         '#fff',
+      surface2:   '#eee',
+      text:       '#000',
+      muted:      '#999',
+      faint:      '#ccc',
+      line:       '#ddd',
+      accent:     '#e8a86a',
+      nearTint2:  '#f9ede0',
+      nearBorder: '#e8c9a0',
+      nearText:   '#7a4a20',
     },
     dark:    false,
     setDark: jest.fn(),
@@ -94,7 +103,15 @@ jest.mock('../../src/components/AppIcon', () => ({
 // Auth service
 jest.mock('../../src/services/auth', () => ({
   signOut: jest.fn(),
+  logout:  jest.fn(),
 }));
+
+// Avatar component — stub
+jest.mock('../../src/components/Avatar', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return (props: any) => React.createElement(View, props);
+});
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
@@ -162,6 +179,8 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
     mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
+    mockSubscribeToAchievements.mockReturnValue(jest.fn());
   });
 
   // ── Rendering ───────────────────────────────────────────────────────────────
@@ -420,5 +439,83 @@ describe('ProfileScreen — Battery section (KAN-52)', () => {
     firePref(true); // Start in enabled state
     fireEvent(screen.getByLabelText('Pause nearby alerts on low battery'), 'valueChange', false);
     expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', false);
+  });
+});
+
+// ─── KAN-19: Points & Achievements section ────────────────────────────────────
+
+/** Fire the subscribeToTotalPoints callback with a value. */
+function fireTotalPoints(value: number) {
+  const call = mockSubscribeToTotalPoints.mock.calls[0];
+  if (call) { act(() => { call[1](value); }); }
+}
+
+/** Fire the subscribeToAchievements callback with achievements. */
+function fireAchievements(achievements: object[]) {
+  const call = mockSubscribeToAchievements.mock.calls[0];
+  if (call) { act(() => { call[1](achievements); }); }
+}
+
+describe('ProfileScreen — KAN-19: points & achievements', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
+    mockSubscribeToCategories.mockReturnValue(jest.fn());
+    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
+    mockSubscribeToAchievements.mockReturnValue(jest.fn());
+  });
+
+  it('renders the Points section heading', () => {
+    renderScreen();
+    expect(screen.getByText('Points')).toBeTruthy();
+  });
+
+  it('subscribes to total points with the correct uid', () => {
+    renderScreen();
+    expect(mockSubscribeToTotalPoints).toHaveBeenCalledWith(
+      'test-uid',
+      expect.any(Function),
+      expect.any(Function),
+    );
+  });
+
+  it('displays 0 pts before the subscription fires', () => {
+    renderScreen();
+    expect(screen.getByLabelText('0 points')).toBeTruthy();
+  });
+
+  it('updates the point count when subscription fires', () => {
+    renderScreen();
+    fireTotalPoints(17);
+    expect(screen.getByLabelText('17 points')).toBeTruthy();
+  });
+
+  it('shows the "See all" achievements link', () => {
+    renderScreen();
+    expect(screen.getByLabelText('See all achievements')).toBeTruthy();
+  });
+
+  it('shows the empty-state text when no achievements earned', () => {
+    renderScreen();
+    expect(screen.getByText('Complete tasks to earn achievements')).toBeTruthy();
+  });
+
+  it('renders a badge for each earned achievement', () => {
+    renderScreen();
+    fireAchievements([
+      { id: 'first_task',                    type: 'first_task',     earnedAt: {} },
+      { id: 'daily_complete_2026-06-03',     type: 'daily_complete', earnedAt: {} },
+    ]);
+    expect(screen.getByLabelText('Achievement: First task')).toBeTruthy();
+    expect(screen.getByLabelText('Achievement: Day complete')).toBeTruthy();
+  });
+
+  it('hides the empty state once achievements arrive', () => {
+    renderScreen();
+    fireAchievements([
+      { id: 'first_task', type: 'first_task', earnedAt: {} },
+    ]);
+    expect(screen.queryByText('Complete tasks to earn achievements')).toBeNull();
   });
 });

@@ -457,6 +457,8 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 3 — ✅ Complete.** All 10 tickets shipped. Released as v0.3.0.
 
+**Sprint 4 — 🚧 In progress.**
+
 ---
 
 ## Sprint 3: Battery, Architecture & Bug Fixes — ✅ Complete
@@ -487,3 +489,59 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 | # | Ticket | Summary | Status |
 |---|--------|---------|--------|
 | 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
+
+---
+
+## Sprint 4: Brand, CRUD, Profile & Points Infrastructure — 🚧 In progress
+
+**Goal:** Complete the essential v1.0 app loop — sign in, create and manage tasks, view profile, log out — while advancing the points and achievements system.
+
+### 🔴 Highest priority
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 1 | KAN-71 | Sign-in screen redesign — Brush brand | KAN-48 (Sprint-2) | ⬜ A fazer |
+| 2 | KAN-12 | Create a new To-Do item with title, description, due date and category | — | ⬜ A fazer |
+| 3 | KAN-13 | Edit and delete To-Do items | KAN-12 | ⬜ A fazer |
+
+### 🟠 High
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 4 | KAN-20 | Logout functionality | — | ⬜ A fazer |
+| 5 | KAN-18 | Profile view and edit screen | KAN-20 | ⬜ A fazer |
+
+### 🔵 Medium
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 6 | KAN-19 | Achievements and points display in user menu | KAN-18 | ⬜ A fazer |
+| 7 | KAN-33 | Points history and achievements gallery | KAN-19 | ⬜ A fazer |
+| 8 | KAN-80 | Notification Preferences — collapsible section, show first row by default | KAN-18 | ⬜ A fazer |
+| 9 | KAN-64 | Add awardPointsBatch utility for bulk point awards | — | ⬜ A fazer |
+| 10 | KAN-63 | Extend points system with additional reason types | KAN-64 | ⬜ A fazer |
+| 11 | KAN-78 | Avatar component — amber dot default + photo fallback (Header & ProfileScreen) | KAN-18 | ⬜ A fazer |
+
+### Dependency map
+
+```
+KAN-71  (standalone — brand)
+
+KAN-12 ──▶ KAN-13  (CRUD)
+
+KAN-20 ──▶ KAN-18 ──▶ KAN-19 ──▶ KAN-33  (account + engagement)
+                  └──▶ KAN-80              (collapsible notification prefs)
+                  └──▶ KAN-78              (Avatar polish)
+
+KAN-64 ──▶ KAN-63  (points infrastructure)
+```
+
+KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on day one in parallel.
+
+### Out of scope for Sprint 4
+
+- Wear OS (v1.2 backlog)
+- Indoor/mall mode (KAN-72–77, backlog)
+- Smart store matching (KAN-76 future)
+- Streak logic and daily-complete trigger (future — types land in KAN-63, logic is separate)
+- App Store / Play Store submission
