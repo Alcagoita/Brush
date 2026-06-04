@@ -1,6 +1,12 @@
 module.exports = {
   preset: '@react-native/jest-preset',
   transformIgnorePatterns: [
-    'node_modules/(?!(react-native|@react-native|react-native-calendars|react-native-safe-area-context|react-native-swipe-gestures|recyclerlistview|memoize-one|react-native-reanimated|react-native-svg)/)',
+    'node_modules/(?!(react-native|@react-native|@react-native-firebase|@react-native-google-signin|react-native-calendars|react-native-safe-area-context|react-native-swipe-gestures|recyclerlistview|memoize-one|react-native-reanimated|react-native-svg|@react-navigation|@notifee|@invertase)/)',
+  ],
+  // Exclude e2e tests — they require a running device/emulator and are not
+  // part of the unit test suite.
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    '/e2e/',
   ],
 };
