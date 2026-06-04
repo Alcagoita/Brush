@@ -14,8 +14,13 @@ import { appleAuth } from '@invertase/react-native-apple-authentication';
 
 // Configure Google Sign-In once at module load time.
 // webClientId comes from the OAuth 2.0 client in google-services.json / GoogleService-Info.plist.
+// Scopes added in KAN-84: tasks.readonly and calendar.readonly for the import connectors.
 GoogleSignin.configure({
   webClientId: '187550770253-p3bb919dl616s1phbl4dj8v1spbtk753.apps.googleusercontent.com',
+  scopes: [
+    'https://www.googleapis.com/auth/tasks.readonly',
+    'https://www.googleapis.com/auth/calendar.readonly',
+  ],
 });
 
 export const signInWithEmail = (email: string, password: string) =>

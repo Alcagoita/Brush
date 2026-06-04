@@ -107,7 +107,7 @@ Work the list top-to-bottom. Do not start items ranked 7–9 until their depende
 | 5 | KAN-23 | Category-to-POI type mapping logic | KAN-16 | ✅ Concluído |
 | 6 | KAN-25 | Firebase integration for user location and POI preferences | — | ✅ Concluído |
 | 7 | KAN-43 | Login screen polish and UX improvements | KAN-48 | ⬜ A fazer |
-| 8 | KAN-39 | Google OAuth login | KAN-48 | ⬜ A fazer |
+| 8 | KAN-39 | Google OAuth login | KAN-48 | ✅ Concluído |
 | 9 | KAN-40 | Apple Sign-In (iOS) | KAN-39 | ⬜ A fazer |
 | 10 | KAN-32 | Trigger achievement when entire to-do list is completed | — | ✅ Concluído |
 
@@ -567,7 +567,7 @@ KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on da
 
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
-| 3 | KAN-83 | Import UI — button, progress, duplicate handling | — | ⬜ A fazer |
+| 3 | KAN-83 | Import UI — button, progress, duplicate handling | — | ✅ Concluído |
 | 4 | KAN-84 | Android import connector — Google Tasks + Calendar | KAN-39 (Sprint-2) | ⬜ A fazer |
 | 5 | KAN-85 | iOS import connector — Reminders + Calendar via EventKit | — | ⬜ A fazer |
 | 6 | KAN-35 | Wear OS companion app + Wearable Data Layer setup | KAN-34 | ⬜ A fazer |

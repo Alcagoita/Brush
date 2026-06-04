@@ -19,6 +19,12 @@ import type { Category } from '../../src/types';
 
 const mockAddTask = jest.fn();
 
+// navigationRef (imported by NewTaskSheet) requires @react-navigation/native
+jest.mock('@react-navigation/native', () => ({
+  createNavigationContainerRef: () => ({ current: null, navigate: jest.fn() }),
+  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+}));
+
 jest.mock('../../src/services/firestore', () => ({
   addTask: (...args: unknown[]) => mockAddTask(...args),
 }));
