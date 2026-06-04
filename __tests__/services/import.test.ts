@@ -9,17 +9,24 @@
  *   - isDuplicate returns false for an empty set
  *   - fetchExistingTitles calls the correct Firestore path and returns lowercase titles
  *   - fetchExistingTitles skips docs with no title field
- *   - Connector stubs throw until KAN-84 / KAN-85 implement them
+ *   - iOS connector stubs throw until KAN-85 implements them
+ *
+ * Note: Google connector tests (importFromGoogleTasks / importFromGoogleCalendar)
+ * live in __tests__/services/googleImport.test.ts (KAN-84).
  */
 
 import {
   isDuplicate,
   fetchExistingTitles,
-  importFromGoogleTasks,
-  importFromGoogleCalendar,
   importFromReminders,
   importFromCalendar,
 } from '../../src/services/import';
+
+// ─── GoogleSignin mock (needed because import.ts imports it at module level) ──
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: { getTokens: jest.fn(), configure: jest.fn() },
+}));
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
@@ -136,17 +143,9 @@ describe('fetchExistingTitles', () => {
   });
 });
 
-// ─── Connector stubs ──────────────────────────────────────────────────────────
+// ─── iOS connector stubs ──────────────────────────────────────────────────────
 
-describe('connector stubs', () => {
-  it('importFromGoogleTasks throws until KAN-84 is implemented', async () => {
-    await expect(importFromGoogleTasks('uid')).rejects.toThrow('KAN-84');
-  });
-
-  it('importFromGoogleCalendar throws until KAN-84 is implemented', async () => {
-    await expect(importFromGoogleCalendar('uid')).rejects.toThrow('KAN-84');
-  });
-
+describe('iOS connector stubs', () => {
   it('importFromReminders throws until KAN-85 is implemented', async () => {
     await expect(importFromReminders('uid')).rejects.toThrow('KAN-85');
   });
