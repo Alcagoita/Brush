@@ -63,6 +63,7 @@ import {
 } from '../services/firestore';
 import { placeTypeLabel } from '../services/maps';
 import { Achievement, Category, POI_GEOFENCE_RADIUS } from '../types';
+import ImportTasksSection from '../components/ImportTasksSection';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -535,6 +536,9 @@ export default function ProfileScreen() {
             );
           })}
         </View>
+
+        {/* ── Import tasks (KAN-83) ── */}
+        {uid ? <ImportTasksSection uid={uid} /> : null}
 
         {/* ── Battery (KAN-52) ── */}
         <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
