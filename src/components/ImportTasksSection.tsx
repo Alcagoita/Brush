@@ -103,8 +103,10 @@ function ImportRow({ source, uid, palette }: RowProps) {
       setState({ status: 'success', result });
       fadeIn();
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Import failed. Please try again.';
-      setState({ status: 'error', message });
+      // Log the raw error for debugging but never surface technical details
+      // (e.g. Firebase auth codes, network stack traces) to the user.
+      console.warn('[ImportTasksSection] connector error', err);
+      setState({ status: 'error', message: 'Import failed. Please try again.' });
       fadeIn();
     }
   }, [state.status, source, uid, fadeIn]);

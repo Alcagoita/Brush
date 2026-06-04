@@ -123,17 +123,19 @@ describe('ImportTasksSection — Android', () => {
     expect(screen.getByText('12 imported · 3 skipped · 0 failed')).toBeTruthy();
   });
 
-  it('shows error message when Google Tasks connector fails', async () => {
-    mockImportFromGoogleTasks.mockRejectedValueOnce(new Error('Network error'));
+  it('shows a user-friendly error message when Google Tasks connector fails with an Error', async () => {
+    // Raw error message must NOT be surfaced — wrap all errors in a generic message.
+    mockImportFromGoogleTasks.mockRejectedValueOnce(new Error('auth/invalid-credential'));
     renderSection();
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
     });
-    expect(screen.getByText('Network error')).toBeTruthy();
+    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.queryByText('auth/invalid-credential')).toBeNull();
     expect(screen.getByText('Tap the button above to retry.')).toBeTruthy();
   });
 
-  it('shows a generic error message for non-Error rejections', async () => {
+  it('shows a user-friendly error message for non-Error rejections', async () => {
     mockImportFromGoogleTasks.mockRejectedValueOnce('oops');
     renderSection();
     await act(async () => {
@@ -214,12 +216,13 @@ describe('ImportTasksSection — iOS', () => {
     expect(screen.getByText('4 imported · 1 skipped · 0 failed')).toBeTruthy();
   });
 
-  it('shows error state when Calendar connector fails', async () => {
+  it('shows a user-friendly error state when Calendar connector fails', async () => {
     mockImportFromCalendar.mockRejectedValueOnce(new Error('Permission denied'));
     renderSection();
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Calendar'));
     });
-    expect(screen.getByText('Permission denied')).toBeTruthy();
+    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.queryByText('Permission denied')).toBeNull();
   });
 });
