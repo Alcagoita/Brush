@@ -62,6 +62,11 @@ export interface Task {
   /** Scheduled time in "HH:MM" format — optional. */
   time?: string;
   /**
+   * The external source this task was imported from (KAN-84 / KAN-85).
+   * Undefined for tasks created natively inside the app.
+   */
+  source?: 'google_tasks' | 'google_calendar' | 'eventkit_reminders' | 'eventkit_calendar';
+  /**
    * Google Places primary type string this task is associated with — optional.
    * For built-in categories this is one of the four PoiType values; for custom
    * categories it may be any Google Places type (e.g. "gym", "restaurant").
@@ -204,6 +209,22 @@ export interface Achievement {
   earnedAt: FirebaseFirestoreTypes.Timestamp;
   /** Optional contextual data — e.g. `{ date: '2026-05-29' }` for daily_complete. */
   metadata?: Record<string, unknown>;
+}
+
+// ─── Task import (KAN-83 / KAN-84 / KAN-85) ──────────────────────────────────
+
+/**
+ * Result returned by every import connector.
+ * Connectors live in src/services/import.ts; the UI (ImportTasksSection) only
+ * depends on this shape.
+ */
+export interface ImportResult {
+  /** Number of tasks written to Firestore. */
+  imported: number;
+  /** Tasks skipped because an identical title already existed (case-insensitive). */
+  skipped: number;
+  /** Tasks that failed to write. */
+  failed: number;
 }
 
 // ─── Screen UiState types (KAN-57) ───────────────────────────────────────────
