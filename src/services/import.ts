@@ -77,6 +77,10 @@ export function parseGoogleDate(value: string | undefined): Date | null {
 /**
  * Returns true if the event should be filtered out:
  *   - All-day events more than 30 days in the future.
+ *
+ * TODO: make the cutoff configurable (e.g. user-facing "import range" setting)
+ * rather than hardcoding 30 days. Timed events are always imported regardless
+ * of how far out they are.
  */
 export function shouldSkipCalendarEvent(
   startDate: Date,
@@ -134,6 +138,9 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
   const data = await googleFetch(GOOGLE_TASKS_URL) as { items?: GoogleTaskItem[] };
   const items: GoogleTaskItem[] = data.items ?? [];
 
+  // NOTE: Firestore batches are capped at 500 writes. For MVP this is acceptable
+  // since users typically have <100 tasks. If imports grow large, chunk into
+  // multiple batches of ≤500 writes each. (Future optimisation.)
   const batch = firestore().batch();
   const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
 
@@ -155,7 +162,10 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
         source:    'google_tasks',
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
-      existingTitles.add(title.toLowerCase()); // prevent intra-batch duplicates
+      // Track the title in the local Set to prevent intra-batch duplicates.
+      // Safe because batch.commit() is atomic — either all writes land or none
+      // do, so the Set never diverges from Firestore on a partial failure.
+      existingTitles.add(title.toLowerCase());
       result.imported++;
     } catch {
       result.failed++;
@@ -180,6 +190,9 @@ export async function importFromGoogleCalendar(uid: string): Promise<ImportResul
   const data = await googleFetch(GOOGLE_CALENDAR_URL(now.toISOString())) as { items?: GoogleCalendarEvent[] };
   const items: GoogleCalendarEvent[] = data.items ?? [];
 
+  // NOTE: Firestore batches are capped at 500 writes. For MVP this is acceptable
+  // since users typically have <100 events. If imports grow large, chunk into
+  // multiple batches of ≤500 writes each. (Future optimisation.)
   const batch = firestore().batch();
   const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
 

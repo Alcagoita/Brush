@@ -284,6 +284,13 @@ describe('importFromGoogleTasks', () => {
 
     await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('401');
   });
+
+  it('throws when getTokens() fails (e.g. user declined OAuth scope)', async () => {
+    mockGetTokens.mockRejectedValueOnce(new Error('User declined scope'));
+    mockGet.mockResolvedValue({ docs: [] });
+
+    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('User declined scope');
+  });
 });
 
 // ─── importFromGoogleCalendar ─────────────────────────────────────────────────
