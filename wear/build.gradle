@@ -1,5 +1,8 @@
 apply plugin: 'com.android.application'
 apply plugin: 'org.jetbrains.kotlin.android'
+// Required by Kotlin 2.0+: the Compose Compiler is no longer bundled with the
+// Kotlin Gradle plugin and must be applied explicitly.
+apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace 'com.brush.wear'
@@ -23,10 +26,6 @@ android {
 
     buildFeatures {
         compose true
-    }
-
-    composeOptions {
-        kotlinCompilerExtensionVersion '1.5.14'
     }
 
     compileOptions {
