@@ -6,7 +6,7 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace 'com.brush.wear'
-    compileSdk 36
+    compileSdk rootProject.ext.compileSdkVersion
 
     defaultConfig {
         applicationId 'com.brush.wear'
