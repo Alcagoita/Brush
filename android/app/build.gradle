@@ -145,4 +145,8 @@ dependencies {
     // react-native-geolocation-service AAR (IncompatibleClassChangeError at runtime).
     // All geofencing APIs needed here have existed since ≥ 11.x.
     implementation("com.google.android.gms:play-services-location:20.0.0")
+
+    // Wearable Data Layer API — provides DataClient and MessageClient for
+    // Wear OS communication (KAN-35).
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }

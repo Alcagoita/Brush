@@ -9,4 +9,6 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
 }
 rootProject.name = 'Brush'
 include ':app'
+include ':wear'
+project(':wear').projectDir = new File(rootDir, '../wear')
 includeBuild('../node_modules/@react-native/gradle-plugin')

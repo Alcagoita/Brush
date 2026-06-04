@@ -33,6 +33,7 @@ import {
 } from '../services/proximity';
 import { getBatteryLevel, shouldPauseForBattery, useBatteryLevel } from '../services/battery';
 import { NearbyPlace } from '../services/maps';
+import { syncTasksToWatch } from '../services/wearSync';
 import { Category, Task, TasksUiState } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -155,6 +156,14 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, retryKey]);
+
+  // ── Wear OS sync (KAN-35) ──────────────────────────────────────────────────
+  // Push the task list to the watch each time it updates. No-ops on iOS or
+  // when the native module is unavailable.
+
+  useEffect(() => {
+    syncTasksToWatch(tasks);
+  }, [tasks]);
 
   // ── Custom categories subscription ─────────────────────────────────────────
 

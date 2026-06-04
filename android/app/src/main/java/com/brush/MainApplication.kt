@@ -15,6 +15,7 @@ class MainApplication : Application(), ReactApplication {
       packageList =
         PackageList(this).packages.apply {
           add(BrushGeofencePackage()) // KAN-56: native geofence module
+          add(WearSyncPackage())      // KAN-35: Wear OS DataClient sync
         },
     )
   }

@@ -6,6 +6,12 @@
     <!-- Required on Android 13+ (API 33+) for local notifications via notifee -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- ── Wear OS / Bluetooth permissions (KAN-35) ── -->
+    <!-- Required on Android 12+ (API 31+) for Wearable DataClient / MessageClient. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+
     <!-- ── Location permissions (KAN-22) ── -->
     <!-- Fine location — required for nearby POI search at 50–75 m accuracy -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
