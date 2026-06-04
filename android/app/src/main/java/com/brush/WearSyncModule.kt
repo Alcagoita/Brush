@@ -25,16 +25,21 @@ class WearSyncModule(private val reactContext: ReactApplicationContext) :
 
     @ReactMethod
     fun syncTasks(tasksJson: String) {
-        val putDataReq = PutDataMapRequest.create("/brush/tasks").apply {
-            dataMap.putString("tasks", tasksJson)
-            dataMap.putLong("updatedAt", System.currentTimeMillis())
-        }.asPutDataRequest().setUrgent()
+        // Wrap entirely — the Wearable API is best-effort. If no watch is paired,
+        // or if Play Services Wearable isn't initialised, we log and move on.
+        // The phone app must never crash because the watch is absent.
+        try {
+            val putDataReq = PutDataMapRequest.create("/brush/tasks").apply {
+                dataMap.putString("tasks", tasksJson)
+                dataMap.putLong("updatedAt", System.currentTimeMillis())
+            }.asPutDataRequest().setUrgent()
 
-        Wearable.getDataClient(reactContext).putDataItem(putDataReq)
-            .addOnFailureListener { e ->
-                // Non-fatal: watch may be disconnected. The DataClient will
-                // deliver the update when the connection is restored.
-                android.util.Log.w("WearSyncModule", "putDataItem failed: ${e.message}")
-            }
+            Wearable.getDataClient(reactContext).putDataItem(putDataReq)
+                .addOnFailureListener { e ->
+                    android.util.Log.d("WearSyncModule", "No watch available: ${e.message}")
+                }
+        } catch (e: Exception) {
+            android.util.Log.d("WearSyncModule", "Wearable API unavailable: ${e.message}")
+        }
     }
 }
