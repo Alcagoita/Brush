@@ -33,6 +33,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- ── EventKit permission strings (KAN-85) ── -->
+	<!-- Shown when the user taps "Import from Reminders" or "Import from Calendar". -->
+	<key>NSRemindersUsageDescription</key>
+	<string>Brush uses your Reminders to import tasks with one tap — nothing is modified or deleted.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>Brush uses your Calendar to import upcoming events as tasks — nothing is modified or deleted.</string>
 	<!-- ── Location permission strings (KAN-22) ── -->
 	<!-- Shown to the user when the system location dialog appears. -->
 	<key>NSLocationWhenInUseUsageDescription</key>

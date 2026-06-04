@@ -1,15 +1,11 @@
 /**
- * KAN-83 — import service unit tests.
+ * KAN-83 / KAN-85 — import service unit tests.
  *
  * Covers:
- *   - isDuplicate returns true for an exact case-insensitive match
- *   - isDuplicate returns true for a match that differs only in case
- *   - isDuplicate returns true for a match that has leading/trailing whitespace
- *   - isDuplicate returns false when the title is not in the set
- *   - isDuplicate returns false for an empty set
- *   - fetchExistingTitles calls the correct Firestore path and returns lowercase titles
- *   - fetchExistingTitles skips docs with no title field
- *   - iOS connector stubs throw until KAN-85 implements them
+ *   - isDuplicate (case-insensitive, whitespace)
+ *   - fetchExistingTitles (Firestore path, lowercase, missing title field)
+ *   - importFromReminders (happy path, duplicate skip, permission denied, no module)
+ *   - importFromCalendar  (happy path, duplicate skip, 30-day filter, permission denied)
  *
  * Note: Google connector tests (importFromGoogleTasks / importFromGoogleCalendar)
  * live in __tests__/services/googleImport.test.ts (KAN-84).
@@ -22,35 +18,65 @@ import {
   importFromCalendar,
 } from '../../src/services/import';
 
-// ─── GoogleSignin mock (needed because import.ts imports it at module level) ──
+// ─── GoogleSignin mock ────────────────────────────────────────────────────────
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: { getTokens: jest.fn(), configure: jest.fn() },
 }));
 
+// ─── react-native mocks ───────────────────────────────────────────────────────
+
+const mockOpenSettings = jest.fn().mockResolvedValue(undefined);
+jest.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
+  Linking: { openSettings: (...args: unknown[]) => mockOpenSettings(...args) },
+  NativeModules: {},
+}));
+
+// ─── BrushEventKitModule mock ─────────────────────────────────────────────────
+
+const mockFetchReminders   = jest.fn();
+const mockFetchCalendarEvents = jest.fn();
+
+jest.mock('../../src/native/BrushEventKitModule', () => ({
+  __esModule: true,
+  default: {
+    fetchReminders:     (...args: unknown[]) => mockFetchReminders(...args),
+    fetchCalendarEvents: (...args: unknown[]) => mockFetchCalendarEvents(...args),
+  },
+}));
+
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
-const mockGet = jest.fn();
+const mockGet   = jest.fn();
+const mockBatchSet    = jest.fn();
+const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@react-native-firebase/firestore', () => {
-  const collection = jest.fn().mockReturnThis();
-  const doc        = jest.fn().mockReturnThis();
-  const get        = (...args: unknown[]) => mockGet(...args);
-
-  return () => ({ collection, doc, collection: jest.fn(() => ({ doc: jest.fn(() => ({ collection: jest.fn(() => ({ get })) })) })) });
-});
-
-// Simplified mock: make firestore() return a chainable builder ending in get().
-jest.mock('@react-native-firebase/firestore', () => {
-  return () => ({
+  let docIdCounter = 0;
+  const docRef = () => ({
+    id: `mock-doc-${++docIdCounter}`,
+    set: mockBatchSet,
+  });
+  const batch = () => ({
+    set:    mockBatchSet,
+    commit: (...args: unknown[]) => mockBatchCommit(...args),
+  });
+  const firestoreFn = () => ({
+    batch,
     collection: () => ({
       doc: () => ({
         collection: () => ({
-          get: (...args: unknown[]) => mockGet(...args),
+          get:  (...args: unknown[]) => mockGet(...args),
+          doc:  docRef,
         }),
       }),
     }),
   });
+  (firestoreFn as unknown as { FieldValue: { serverTimestamp: () => string } }).FieldValue = {
+    serverTimestamp: () => 'SERVER_TIMESTAMP',
+  };
+  return firestoreFn;
 });
 
 // ─── isDuplicate ─────────────────────────────────────────────────────────────
@@ -143,14 +169,134 @@ describe('fetchExistingTitles', () => {
   });
 });
 
-// ─── iOS connector stubs ──────────────────────────────────────────────────────
+// ─── importFromReminders ──────────────────────────────────────────────────────
 
-describe('iOS connector stubs', () => {
-  it('importFromReminders throws until KAN-85 is implemented', async () => {
-    await expect(importFromReminders('uid')).rejects.toThrow('KAN-85');
+describe('importFromReminders', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockResolvedValue({ docs: [] });
+    mockBatchCommit.mockResolvedValue(undefined);
   });
 
-  it('importFromCalendar throws until KAN-85 is implemented', async () => {
-    await expect(importFromCalendar('uid')).rejects.toThrow('KAN-85');
+  it('imports reminders and returns correct counts', async () => {
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: 'Pick up milk', dueDateString: '2026-06-10T00:00:00.000Z' },
+      { title: 'Call dentist' },
+    ]);
+
+    const result = await importFromReminders('uid-1');
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips reminder whose title already exists (case-insensitive)', async () => {
+    mockGet.mockResolvedValueOnce({
+      docs: [{ data: () => ({ title: 'pick up milk' }) }],
+    });
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: 'Pick Up Milk' },
+      { title: 'New task' },
+    ]);
+
+    const result = await importFromReminders('uid-1');
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+  });
+
+  it('skips reminder with no title', async () => {
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: '' },
+      { title: '   ' },
+    ]);
+
+    const result = await importFromReminders('uid-1');
+    expect(result.skipped).toBe(2);
+    expect(result.imported).toBe(0);
+  });
+
+  it('opens Settings and rethrows when permission is denied', async () => {
+    const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
+    mockFetchReminders.mockRejectedValueOnce(permissionError);
+
+    await expect(importFromReminders('uid-1')).rejects.toThrow('denied');
+    expect(mockOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('rethrows non-permission errors without opening Settings', async () => {
+    mockFetchReminders.mockRejectedValueOnce(new Error('FETCH_ERROR'));
+
+    await expect(importFromReminders('uid-1')).rejects.toThrow('FETCH_ERROR');
+    expect(mockOpenSettings).not.toHaveBeenCalled();
+  });
+});
+
+// ─── importFromCalendar ───────────────────────────────────────────────────────
+
+describe('importFromCalendar', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockResolvedValue({ docs: [] });
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('imports calendar events and returns correct counts', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Team standup', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: false },
+      { title: 'Doctor appt',  startDateString: '2026-06-07T14:00:00.000Z', isAllDay: false },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips event with an unparseable date', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Bad event', startDateString: 'not-a-date', isAllDay: false },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+  });
+
+  it('skips all-day event more than 30 days out', async () => {
+    const farFuture = new Date();
+    farFuture.setDate(farFuture.getDate() + 45);
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Far event', startDateString: farFuture.toISOString(), isAllDay: true },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+  });
+
+  it('does not skip timed event more than 30 days out', async () => {
+    const farFuture = new Date();
+    farFuture.setDate(farFuture.getDate() + 45);
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Far timed event', startDateString: farFuture.toISOString(), isAllDay: false },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.imported).toBe(1);
+  });
+
+  it('opens Settings and rethrows on PERMISSION_DENIED', async () => {
+    const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
+    mockFetchCalendarEvents.mockRejectedValueOnce(permissionError);
+
+    await expect(importFromCalendar('uid-1')).rejects.toThrow('denied');
+    expect(mockOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes daysAhead=30 to the native module', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([]);
+    await importFromCalendar('uid-1');
+    expect(mockFetchCalendarEvents).toHaveBeenCalledWith(30);
   });
 });

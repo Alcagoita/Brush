@@ -21,6 +21,8 @@
 
 import firestore from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { Linking, Platform } from 'react-native';
+import BrushEventKitModule from '../native/BrushEventKitModule';
 import { ImportResult } from '../types';
 
 // ─── Google API helpers ───────────────────────────────────────────────────────
@@ -251,23 +253,138 @@ interface GoogleCalendarEvent {
 }
 
 /**
- * Import reminders from iOS EventKit (Reminders app).
+ * Import reminders from iOS EventKit (Reminders app) (KAN-85).
  *
- * Implementation in KAN-85.
- *
- * @throws {Error} until KAN-85 is implemented.
+ * Requests Reminders access at call time. If the user previously denied it,
+ * opens the Settings app so they can grant it, then throws so the UI can
+ * show an appropriate message.
  */
-export async function importFromReminders(_uid: string): Promise<ImportResult> {
-  throw new Error('importFromReminders: not yet implemented (KAN-85)');
+export async function importFromReminders(uid: string): Promise<ImportResult> {
+  if (Platform.OS !== 'ios') {
+    throw new Error('importFromReminders is only available on iOS.');
+  }
+  if (!BrushEventKitModule) {
+    throw new Error('BrushEventKitModule native module is not available.');
+  }
+
+  let items: Awaited<ReturnType<typeof BrushEventKitModule.fetchReminders>>;
+  try {
+    items = await BrushEventKitModule.fetchReminders();
+  } catch (err: unknown) {
+    if (isPermissionDenied(err)) {
+      await openSettings();
+    }
+    throw err;
+  }
+
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  const existingTitles = await fetchExistingTitles(uid);
+  const batch = firestore().batch();
+  const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
+
+  for (const item of items) {
+    const title = item.title?.trim();
+    if (!title) { result.skipped++; continue; }
+    if (isDuplicate(title, existingTitles)) { result.skipped++; continue; }
+
+    try {
+      const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
+      const docRef = tasksRef.doc();
+      batch.set(docRef, {
+        id:        docRef.id,
+        title,
+        category:  'personal',
+        done:      false,
+        date:      dueDate && !isNaN(dueDate.getTime())
+                     ? formatDateString(dueDate)
+                     : formatDateString(new Date()),
+        source:    'eventkit_reminders',
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
+      existingTitles.add(title.toLowerCase());
+      result.imported++;
+    } catch {
+      result.failed++;
+    }
+  }
+
+  await batch.commit();
+  return result;
 }
 
 /**
- * Import events from iOS EventKit (Calendar app).
+ * Import events from iOS EventKit (Calendar app) (KAN-85).
  *
- * Implementation in KAN-85.
- *
- * @throws {Error} until KAN-85 is implemented.
+ * Fetches events from today up to 30 days ahead. All-day events beyond 30 days
+ * are filtered by the native module. Requests Calendar access at call time.
  */
-export async function importFromCalendar(_uid: string): Promise<ImportResult> {
-  throw new Error('importFromCalendar: not yet implemented (KAN-85)');
+export async function importFromCalendar(uid: string): Promise<ImportResult> {
+  if (Platform.OS !== 'ios') {
+    throw new Error('importFromCalendar is only available on iOS.');
+  }
+  if (!BrushEventKitModule) {
+    throw new Error('BrushEventKitModule native module is not available.');
+  }
+
+  const DAYS_AHEAD = 30;
+  let items: Awaited<ReturnType<typeof BrushEventKitModule.fetchCalendarEvents>>;
+  try {
+    items = await BrushEventKitModule.fetchCalendarEvents(DAYS_AHEAD);
+  } catch (err: unknown) {
+    if (isPermissionDenied(err)) {
+      await openSettings();
+    }
+    throw err;
+  }
+
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  const now = new Date();
+  const existingTitles = await fetchExistingTitles(uid);
+  const batch = firestore().batch();
+  const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
+
+  for (const item of items) {
+    const title = item.title?.trim();
+    if (!title) { result.skipped++; continue; }
+    if (isDuplicate(title, existingTitles)) { result.skipped++; continue; }
+
+    try {
+      const startDate = new Date(item.startDateString);
+      if (isNaN(startDate.getTime())) { result.skipped++; continue; }
+      if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
+
+      const docRef = tasksRef.doc();
+      batch.set(docRef, {
+        id:        docRef.id,
+        title,
+        category:  'work',
+        done:      false,
+        date:      formatDateString(startDate),
+        source:    'eventkit_calendar',
+        createdAt: firestore.FieldValue.serverTimestamp(),
+      });
+      existingTitles.add(title.toLowerCase());
+      result.imported++;
+    } catch {
+      result.failed++;
+    }
+  }
+
+  await batch.commit();
+  return result;
+}
+
+// ─── EventKit helpers ─────────────────────────────────────────────────────────
+
+function isPermissionDenied(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: string }).code === 'PERMISSION_DENIED'
+  );
+}
+
+async function openSettings(): Promise<void> {
+  await Linking.openSettings();
 }
