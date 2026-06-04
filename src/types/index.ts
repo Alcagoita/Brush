@@ -274,3 +274,41 @@ export interface CalendarEvent {
 export type Event = CalendarEvent;
 
 export type MarkedDates = Record<DateString, { marked: boolean; dotColor: string }>;
+
+// ─── Task sharing (KAN-86 / KAN-87) ──────────────────────────────────────────
+
+/**
+ * A shared task record written to sharedTasks/{recipientUid}/incoming/{id}
+ * when a user sends a task to another Brush user.
+ */
+export interface SharedTask {
+  id:          string;
+  taskId:      string;
+  title:       string;
+  category:    string;
+  poi?:        PoiType;
+  sentBy:      string;       // sender uid
+  sentByName:  string;       // sender display name
+  sentAt:      FirebaseFirestoreTypes.Timestamp;
+  status:      'pending' | 'accepted' | 'declined';
+}
+
+/**
+ * A pending-notification record written to
+ * pendingNotifications/{recipientUid}/items/{id} at send time.
+ *
+ * The recipient device (KAN-87) subscribes to this collection and triggers
+ * a local notifee notification when a new item arrives.
+ *
+ * NOTE: This is the client-side notification delivery mechanism.
+ * A future Firebase Cloud Function can replace/supplement this with
+ * true FCM push (for delivery when the app is backgrounded/killed).
+ */
+export interface PendingNotification {
+  id:          string;
+  type:        'shared_task';
+  title:       string;       // notification title
+  body:        string;       // notification body
+  data?:       Record<string, string>;
+  createdAt:   FirebaseFirestoreTypes.Timestamp;
+}

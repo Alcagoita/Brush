@@ -39,7 +39,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
 import { addTask, updateTask, deleteTask, subscribeToCategories } from '../services/firestore';
+import { getCurrentUser } from '../services/auth';
 import { ClockIcon, PoiIcon } from '../components/AppIcon';
+import ShareTaskSheet from '../components/ShareTaskSheet';
 import type { Category, PoiType, Task } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -283,6 +285,7 @@ export default function TaskFormScreen() {
   // ── Delete (edit mode only) ─────────────────────────────────────────────────
 
   const [deleting, setDeleting] = useState(false);
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
 
   const handleDelete = useCallback(() => {
     if (!existingTask) { return; }
@@ -523,10 +526,22 @@ export default function TaskFormScreen() {
           </View>
         </View>
 
-        {/* ── Delete button (edit mode only) ── */}
-        {isEdit && (
+        {/* ── Share / Delete buttons (edit mode only) ── */}
+        {isEdit && existingTask && (
           <>
             <View style={[styles.divider, { backgroundColor: palette.line, marginTop: 8 }]} />
+            <Pressable
+              onPress={() => setShareSheetVisible(true)}
+              disabled={submitting || deleting}
+              style={({ pressed }) => [
+                styles.shareBtn,
+                { borderColor: palette.line },
+                pressed && { opacity: 0.6 },
+              ]}
+              accessibilityRole="button"
+              accessibilityLabel="Share task">
+              <Text style={[styles.shareBtnLabel, { color: palette.muted }]}>Share task</Text>
+            </Pressable>
             <Pressable
               onPress={handleDelete}
               disabled={deleting || submitting}
@@ -544,6 +559,17 @@ export default function TaskFormScreen() {
         )}
 
       </ScrollView>
+
+      {/* ── Share task sheet (KAN-86) ── */}
+      {isEdit && existingTask && (
+        <ShareTaskSheet
+          visible={shareSheetVisible}
+          onClose={() => setShareSheetVisible(false)}
+          senderUid={uid}
+          senderName={getCurrentUser()?.displayName ?? 'Brush user'}
+          task={existingTask}
+        />
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -695,6 +721,20 @@ const styles = StyleSheet.create({
   },
   pillLabel: {
     fontSize:   14,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── Share button ──
+  shareBtn: {
+    alignItems:      'center',
+    paddingVertical: 16,
+    borderWidth:     1,
+    borderRadius:    radius.ctaBtn,
+    marginHorizontal: spacing.page,
+    marginBottom:    8,
+  },
+  shareBtnLabel: {
+    fontSize:   15,
     fontFamily: 'Geist-Regular',
   },
 
