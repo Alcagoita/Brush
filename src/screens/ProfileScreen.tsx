@@ -181,6 +181,7 @@ export default function ProfileScreen() {
   const [usernameValue,     setUsernameValue]     = useState('');
   const [usernameError,     setUsernameError]     = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [usernameCheckError, setUsernameCheckError] = useState(false);
   const [checkingUsername,  setCheckingUsername]  = useState(false);
   const [savingUsername,    setSavingUsername]     = useState(false);
   const [cooldownDays,      setCooldownDays]       = useState<number | null>(null);
@@ -204,6 +205,7 @@ export default function ProfileScreen() {
     const v = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsernameValue(v);
     setUsernameAvailable(null);
+    setUsernameCheckError(false);
     const err = validateUsername(v);
     setUsernameError(err ?? '');
     if (err || v === currentUsername) { setCheckingUsername(false); return; }
@@ -213,8 +215,10 @@ export default function ProfileScreen() {
       try {
         const ok = await checkUsernameAvailable(v);
         setUsernameAvailable(ok);
+        setUsernameCheckError(false);
       } catch {
         setUsernameAvailable(null);
+        setUsernameCheckError(true);
       } finally {
         setCheckingUsername(false);
       }
@@ -513,6 +517,8 @@ export default function ProfileScreen() {
                 </View>
                 {usernameError ? (
                   <Text style={[styles.usernameHint, { color: '#e05252' }]}>{usernameError}</Text>
+                ) : usernameCheckError ? (
+                  <Text style={[styles.usernameHint, { color: '#e05252' }]}>Could not verify — Save to try anyway</Text>
                 ) : usernameAvailable === true && usernameValue !== currentUsername ? (
                   <Text style={[styles.usernameHint, { color: '#4caf7d' }]}>@{usernameValue} is available</Text>
                 ) : null}
@@ -522,11 +528,11 @@ export default function ProfileScreen() {
                   </Pressable>
                   <Pressable
                     onPress={handleSaveUsername}
-                    disabled={savingUsername || !!usernameError || usernameAvailable !== true || usernameValue === currentUsername}
+                    disabled={savingUsername || !!usernameError || (usernameAvailable !== true && !usernameCheckError) || usernameValue === currentUsername}
                     hitSlop={8}
                     accessibilityRole="button">
                     <Text style={[styles.nameActionLabel, {
-                      color: (savingUsername || !!usernameError || usernameAvailable !== true || usernameValue === currentUsername)
+                      color: (savingUsername || !!usernameError || (usernameAvailable !== true && !usernameCheckError) || usernameValue === currentUsername)
                         ? palette.faint : palette.accent,
                     }]}>
                       {savingUsername ? 'Saving…' : 'Save'}

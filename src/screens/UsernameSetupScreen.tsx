@@ -48,6 +48,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
   const [validationErr, setValidationErr] = useState<string | null>(null);
   const [available,    setAvailable]    = useState<boolean | null>(null);
   const [checking,     setChecking]     = useState(false);
+  const [checkError,   setCheckError]   = useState(false);
   const [submitting,   setSubmitting]   = useState(false);
   const [submitError,  setSubmitError]  = useState('');
 
@@ -59,6 +60,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
     setValue(v);
     setSubmitError('');
     setAvailable(null);
+    setCheckError(false);
 
     const err = validateUsername(v);
     setValidationErr(err);
@@ -71,8 +73,10 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
       try {
         const ok = await checkUsernameAvailable(v);
         setAvailable(ok);
+        setCheckError(false);
       } catch {
         setAvailable(null);
+        setCheckError(true);
       } finally {
         setChecking(false);
       }
@@ -82,7 +86,9 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
   useEffect(() => () => { if (debounceRef.current) { clearTimeout(debounceRef.current); } }, []);
 
   // ── Submit ──────────────────────────────────────────────────────────────────
-  const canSubmit = !validationErr && available === true && !checking && !submitting;
+  // Allow submission when available=true OR when the check errored (server
+  // will reject the write if the name is already taken).
+  const canSubmit = !validationErr && (available === true || checkError) && !checking && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) { return; }
@@ -104,6 +110,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
     if (!value) { return null; }
     if (validationErr) { return null; }
     if (checking) { return 'Checking…'; }
+    if (checkError) { return 'Could not check availability — tap Continue to retry'; }
     if (available === true)  { return '@' + value + ' is available'; }
     if (available === false) { return 'Username already taken'; }
     return null;
@@ -111,7 +118,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
 
   const statusColor = available === true
     ? SUCCESS_COLOR
-    : available === false
+    : available === false || checkError
     ? ERROR_COLOR
     : palette.muted;
 
