@@ -106,9 +106,9 @@ Work the list top-to-bottom. Do not start items ranked 7–9 until their depende
 |---|--------|---------|------------|--------|
 | 5 | KAN-23 | Category-to-POI type mapping logic | KAN-16 | ✅ Concluído |
 | 6 | KAN-25 | Firebase integration for user location and POI preferences | — | ✅ Concluído |
-| 7 | KAN-43 | Login screen polish and UX improvements | KAN-48 | ⬜ A fazer |
-| 8 | KAN-39 | Google OAuth login | KAN-48 | ⬜ A fazer |
-| 9 | KAN-40 | Apple Sign-In (iOS) | KAN-39 | ⬜ A fazer |
+| 7 | KAN-43 | Login screen polish and UX improvements | KAN-48 | ✅ Concluído |
+| 8 | KAN-39 | Google OAuth login | KAN-48 | ✅ Concluído |
+| 9 | KAN-40 | Apple Sign-In (iOS) | KAN-39 | ✅ Concluído |
 | 10 | KAN-32 | Trigger achievement when entire to-do list is completed | — | ✅ Concluído |
 
 ### Additional Sprint-2 tickets (added during sprint)
@@ -459,7 +459,9 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 3 — ✅ Complete.** All 10 tickets shipped. Released as v0.3.0.
 
-**Sprint 4 — 🚧 In progress.**
+**Sprint 4 — ✅ Complete.** All 11 tickets shipped. Released as v0.4.0.
+
+**Sprint 5 — 🚧 In progress.**
 
 ---
 
@@ -547,3 +549,52 @@ KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on da
 - Smart store matching (KAN-76 future)
 - Streak logic and daily-complete trigger (future — types land in KAN-63, logic is separate)
 - App Store / Play Store submission
+
+---
+
+## Sprint 5: Task Import, Sharing & Wear OS Foundation — 🚧 In progress
+
+**Goal:** Task import from external sources, in-app task sharing (+ AI message-to-task spike), and the Wear OS foundation. Two items (KAN-34, KAN-88) are spikes — output is a decision document and implementation tickets, not shipping code.
+
+### 🔴 High
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 1 | KAN-34 | Research React Native Wear OS integration libraries (SPIKE) | — | ✅ Concluído |
+| 2 | KAN-88 | SPIKE — message-to-task via Share Extension + AI parsing | — | ✅ Concluído |
+
+### 🔵 Medium
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 3 | KAN-83 | Import UI — button, progress, duplicate handling | — | ✅ Concluído |
+| 4 | KAN-84 | Android import connector — Google Tasks + Calendar | KAN-39 (Sprint-2) | ✅ Concluído |
+| 5 | KAN-85 | iOS import connector — Reminders + Calendar via EventKit | — | ✅ Concluído |
+| 6 | KAN-35 | Wear OS companion app + Wearable Data Layer setup | KAN-34 | ✅ Concluído |
+| 7 | KAN-86 | In-app task sharing — send flow | — | ✅ Concluído |
+| 8 | KAN-37 | View To-Do list on Wear OS watch | KAN-35 | ⬜ A fazer |
+| 9 | KAN-38 | Mark To-Do items as done from Wear OS watch | KAN-37 | ⬜ A fazer |
+
+### Dependency map
+
+```
+KAN-34 ──▶ KAN-35 ──▶ KAN-37 ──▶ KAN-38   (Wear OS track)
+
+KAN-83                                       (Import UI — standalone)
+KAN-84   (depends on KAN-39, already done)   (Android import connector)
+KAN-85                                       (iOS import connector)
+
+KAN-86                                       (Task sharing — send flow)
+
+KAN-88                                       (Spike — standalone)
+```
+
+**Day-one parallel starts:** KAN-34, KAN-88, KAN-83, KAN-85, KAN-86 can all start immediately.
+
+### Out of scope for Sprint 5
+
+- KAN-36: Geo-triggered notifications on Wear OS watch — leads Sprint-6
+- KAN-87: Task sharing receive flow — moved out of Sprint 5; blocked on KAN-97 (username) and KAN-98 (follow system) from the Friends & Social epic (KAN-96)
+- Message-to-task implementation — blocked on KAN-88 spike output
+- Apple Watch / watchOS support — Android/Wear OS only for this track
+- Ongoing sync for imports — one-time import only (button-triggered)

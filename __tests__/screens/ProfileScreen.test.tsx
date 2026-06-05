@@ -107,6 +107,13 @@ jest.mock('../../src/services/auth', () => ({
   logout:  jest.fn(),
 }));
 
+// ImportTasksSection — stub so ProfileScreen tests don't need firestore wired up
+jest.mock('../../src/components/ImportTasksSection', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return () => React.createElement(View, { testID: 'import-tasks-section' });
+});
+
 // Avatar component — stub
 jest.mock('../../src/components/Avatar', () => {
   const React = require('react');

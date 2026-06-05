@@ -1,0 +1,302 @@
+/**
+ * KAN-83 / KAN-85 — import service unit tests.
+ *
+ * Covers:
+ *   - isDuplicate (case-insensitive, whitespace)
+ *   - fetchExistingTitles (Firestore path, lowercase, missing title field)
+ *   - importFromReminders (happy path, duplicate skip, permission denied, no module)
+ *   - importFromCalendar  (happy path, duplicate skip, 30-day filter, permission denied)
+ *
+ * Note: Google connector tests (importFromGoogleTasks / importFromGoogleCalendar)
+ * live in __tests__/services/googleImport.test.ts (KAN-84).
+ */
+
+import {
+  isDuplicate,
+  fetchExistingTitles,
+  importFromReminders,
+  importFromCalendar,
+} from '../../src/services/import';
+
+// ─── GoogleSignin mock ────────────────────────────────────────────────────────
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: { getTokens: jest.fn(), configure: jest.fn() },
+}));
+
+// ─── react-native mocks ───────────────────────────────────────────────────────
+
+const mockOpenSettings = jest.fn().mockResolvedValue(undefined);
+jest.mock('react-native', () => ({
+  Platform: { OS: 'ios' },
+  Linking: { openSettings: (...args: unknown[]) => mockOpenSettings(...args) },
+  NativeModules: {},
+}));
+
+// ─── BrushEventKitModule mock ─────────────────────────────────────────────────
+
+const mockFetchReminders   = jest.fn();
+const mockFetchCalendarEvents = jest.fn();
+
+jest.mock('../../src/native/BrushEventKitModule', () => ({
+  __esModule: true,
+  default: {
+    fetchReminders:     (...args: unknown[]) => mockFetchReminders(...args),
+    fetchCalendarEvents: (...args: unknown[]) => mockFetchCalendarEvents(...args),
+  },
+}));
+
+// ─── Firestore mock ───────────────────────────────────────────────────────────
+
+const mockGet   = jest.fn();
+const mockBatchSet    = jest.fn();
+const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
+
+jest.mock('@react-native-firebase/firestore', () => {
+  let docIdCounter = 0;
+  const docRef = () => ({
+    id: `mock-doc-${++docIdCounter}`,
+    set: mockBatchSet,
+  });
+  const batch = () => ({
+    set:    mockBatchSet,
+    commit: (...args: unknown[]) => mockBatchCommit(...args),
+  });
+  const firestoreFn = () => ({
+    batch,
+    collection: () => ({
+      doc: () => ({
+        collection: () => ({
+          get:  (...args: unknown[]) => mockGet(...args),
+          doc:  docRef,
+        }),
+      }),
+    }),
+  });
+  (firestoreFn as unknown as { FieldValue: { serverTimestamp: () => string } }).FieldValue = {
+    serverTimestamp: () => 'SERVER_TIMESTAMP',
+  };
+  return firestoreFn;
+});
+
+// ─── isDuplicate ─────────────────────────────────────────────────────────────
+
+describe('isDuplicate', () => {
+  it('returns true for an exact match', () => {
+    const titles = new Set(['pick up milk', 'call mom']);
+    expect(isDuplicate('pick up milk', titles)).toBe(true);
+  });
+
+  it('returns true when title differs only in case', () => {
+    const titles = new Set(['pick up milk']);
+    expect(isDuplicate('Pick Up Milk', titles)).toBe(true);
+  });
+
+  it('returns true when the existing title has mixed case and the input is lowercase', () => {
+    // Titles in the set are already lowercased by fetchExistingTitles; check
+    // that isDuplicate lowercases the incoming title.
+    const titles = new Set(['buy bread']);
+    expect(isDuplicate('BUY BREAD', titles)).toBe(true);
+  });
+
+  it('returns true when input has leading/trailing whitespace', () => {
+    const titles = new Set(['buy bread']);
+    expect(isDuplicate('  buy bread  ', titles)).toBe(true);
+  });
+
+  it('returns false when the title is not present in the set', () => {
+    const titles = new Set(['pick up milk']);
+    expect(isDuplicate('grab coffee', titles)).toBe(false);
+  });
+
+  it('returns false for an empty set', () => {
+    expect(isDuplicate('any task', new Set())).toBe(false);
+  });
+
+  it('returns false for an empty title string against a non-empty set', () => {
+    const titles = new Set(['something']);
+    expect(isDuplicate('', titles)).toBe(false);
+  });
+});
+
+// ─── fetchExistingTitles ──────────────────────────────────────────────────────
+
+describe('fetchExistingTitles', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('returns lowercase titles from the Firestore snapshot', async () => {
+    mockGet.mockResolvedValueOnce({
+      docs: [
+        { data: () => ({ title: 'Pick up milk' }) },
+        { data: () => ({ title: 'Call Mom' }) },
+      ],
+    });
+
+    const result = await fetchExistingTitles('uid-123');
+    expect(result).toEqual(new Set(['pick up milk', 'call mom']));
+  });
+
+  it('trims whitespace when building the title set', async () => {
+    mockGet.mockResolvedValueOnce({
+      docs: [
+        { data: () => ({ title: '  buy bread  ' }) },
+      ],
+    });
+
+    const result = await fetchExistingTitles('uid-123');
+    expect(result.has('buy bread')).toBe(true);
+  });
+
+  it('skips docs that have no title field', async () => {
+    mockGet.mockResolvedValueOnce({
+      docs: [
+        { data: () => ({ done: false }) },          // no title
+        { data: () => ({ title: 'valid task' }) },
+      ],
+    });
+
+    const result = await fetchExistingTitles('uid-123');
+    expect(result.size).toBe(1);
+    expect(result.has('valid task')).toBe(true);
+  });
+
+  it('returns an empty set when there are no tasks', async () => {
+    mockGet.mockResolvedValueOnce({ docs: [] });
+    const result = await fetchExistingTitles('uid-123');
+    expect(result.size).toBe(0);
+  });
+});
+
+// ─── importFromReminders ──────────────────────────────────────────────────────
+
+describe('importFromReminders', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockResolvedValue({ docs: [] });
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('imports reminders and returns correct counts', async () => {
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: 'Pick up milk', dueDateString: '2026-06-10T00:00:00.000Z' },
+      { title: 'Call dentist' },
+    ]);
+
+    const result = await importFromReminders('uid-1');
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.failed).toBe(0);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips reminder whose title already exists (case-insensitive)', async () => {
+    mockGet.mockResolvedValueOnce({
+      docs: [{ data: () => ({ title: 'pick up milk' }) }],
+    });
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: 'Pick Up Milk' },
+      { title: 'New task' },
+    ]);
+
+    const result = await importFromReminders('uid-1');
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+  });
+
+  it('skips reminder with no title', async () => {
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: '' },
+      { title: '   ' },
+    ]);
+
+    const result = await importFromReminders('uid-1');
+    expect(result.skipped).toBe(2);
+    expect(result.imported).toBe(0);
+  });
+
+  it('opens Settings and rethrows when permission is denied', async () => {
+    const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
+    mockFetchReminders.mockRejectedValueOnce(permissionError);
+
+    await expect(importFromReminders('uid-1')).rejects.toThrow('denied');
+    expect(mockOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('rethrows non-permission errors without opening Settings', async () => {
+    mockFetchReminders.mockRejectedValueOnce(new Error('FETCH_ERROR'));
+
+    await expect(importFromReminders('uid-1')).rejects.toThrow('FETCH_ERROR');
+    expect(mockOpenSettings).not.toHaveBeenCalled();
+  });
+});
+
+// ─── importFromCalendar ───────────────────────────────────────────────────────
+
+describe('importFromCalendar', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockGet.mockResolvedValue({ docs: [] });
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('imports calendar events and returns correct counts', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Team standup', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: false },
+      { title: 'Doctor appt',  startDateString: '2026-06-07T14:00:00.000Z', isAllDay: false },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it('skips event with an unparseable date', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Bad event', startDateString: 'not-a-date', isAllDay: false },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+  });
+
+  it('skips all-day event more than 30 days out', async () => {
+    const farFuture = new Date();
+    farFuture.setDate(farFuture.getDate() + 45);
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Far event', startDateString: farFuture.toISOString(), isAllDay: true },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+  });
+
+  it('does not skip timed event more than 30 days out', async () => {
+    const farFuture = new Date();
+    farFuture.setDate(farFuture.getDate() + 45);
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Far timed event', startDateString: farFuture.toISOString(), isAllDay: false },
+    ]);
+
+    const result = await importFromCalendar('uid-1');
+    expect(result.imported).toBe(1);
+  });
+
+  it('opens Settings and rethrows on PERMISSION_DENIED', async () => {
+    const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
+    mockFetchCalendarEvents.mockRejectedValueOnce(permissionError);
+
+    await expect(importFromCalendar('uid-1')).rejects.toThrow('denied');
+    expect(mockOpenSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes daysAhead=30 to the native module', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([]);
+    await importFromCalendar('uid-1');
+    expect(mockFetchCalendarEvents).toHaveBeenCalledWith(30);
+  });
+});

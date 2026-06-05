@@ -16,6 +16,8 @@
 		C971944239423B0449F6C926 /* Pods_Agenda.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D505BCFB04EE52AF380D19C /* Pods_Agenda.framework */; };
 		DBF2E2083FD0013C478A2D92 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 31AC1B518174C41A0832DC7C /* GoogleService-Info.plist */; };
 		EEE24D0CE3434552B2D3DC1B /* Geist-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F1BFDF13CDF1454798C0C50C /* Geist-SemiBold.ttf */; };
+		33BD7488FFFF4AF19D366E1A /* BrushEventKitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */; };
+		2A8F5122BFD14439A51DA597 /* BrushEventKitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 735E419878854BEF848A5BDA /* BrushEventKitModule.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -30,6 +32,8 @@
 		5709B34CF0A7D63546082F79 /* Pods-Agenda.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Agenda.release.xcconfig"; path = "Target Support Files/Pods-Agenda/Pods-Agenda.release.xcconfig"; sourceTree = "<group>"; };
 		6D505BCFB04EE52AF380D19C /* Pods_Agenda.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Agenda.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Agenda/AppDelegate.swift; sourceTree = "<group>"; };
+		0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BrushEventKitModule.swift; path = Agenda/BrushEventKitModule.swift; sourceTree = "<group>"; };
+		735E419878854BEF848A5BDA /* BrushEventKitModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = BrushEventKitModule.m; path = Agenda/BrushEventKitModule.m; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Agenda/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1BFDF13CDF1454798C0C50C /* Geist-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBold.ttf"; path = "../src/assets/fonts/Geist-SemiBold.ttf"; sourceTree = "<group>"; };
@@ -52,6 +56,8 @@
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				761780EC2CA45674006654EE /* AppDelegate.swift */,
+				0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */,
+				735E419878854BEF848A5BDA /* BrushEventKitModule.m */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */,
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
@@ -320,6 +326,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
+				33BD7488FFFF4AF19D366E1A /* BrushEventKitModule.swift in Sources */,
+				2A8F5122BFD14439A51DA597 /* BrushEventKitModule.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -25,6 +25,15 @@ const mockDeleteTask = jest.fn();
 const mockGoBack     = jest.fn();
 const mockSubscribeToCategories = jest.fn(() => jest.fn()); // returns unsubscribe
 
+jest.mock('../../src/services/auth', () => ({
+  getCurrentUser: jest.fn(() => ({ displayName: 'Test User', uid: 'uid-test' })),
+}));
+
+jest.mock('../../src/services/sharing', () => ({
+  findUserByEmail: jest.fn(),
+  sendSharedTask:  jest.fn(),
+}));
+
 jest.mock('../../src/services/firestore', () => ({
   addTask:              jest.fn((...args: unknown[]) => mockAddTask(...args)),
   updateTask:           jest.fn((...args: unknown[]) => mockUpdateTask(...args)),

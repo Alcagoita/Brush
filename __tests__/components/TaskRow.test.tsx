@@ -199,13 +199,13 @@ describe('TaskRow — done state', () => {
 describe('TaskRow — interaction', () => {
   it('calls onToggle with taskId and toggled done value when pressed', () => {
     render(<TaskRow task={BASE_TASK} onToggle={onToggle} />);
-    fireEvent.press(screen.getByRole('checkbox', { name: 'Buy groceries' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: 'Mark Buy groceries as done' }));
     expect(onToggle).toHaveBeenCalledWith('task-1', true);
   });
 
   it('calls onToggle with false when task is already done', () => {
     render(<TaskRow task={{ ...BASE_TASK, done: true }} onToggle={onToggle} />);
-    fireEvent.press(screen.getByRole('checkbox', { name: 'Buy groceries' }));
+    fireEvent.press(screen.getByRole('checkbox', { name: 'Mark Buy groceries as undone' }));
     expect(onToggle).toHaveBeenCalledWith('task-1', false);
   });
 });

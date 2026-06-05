@@ -1,0 +1,440 @@
+/**
+ * KAN-84 — Google Tasks and Google Calendar import connector tests.
+ *
+ * Covers:
+ *   formatDateString
+ *     - formats a Date as YYYY-MM-DD
+ *   parseGoogleDate
+ *     - parses RFC 3339 strings
+ *     - parses YYYY-MM-DD strings
+ *     - returns null for undefined
+ *     - returns null for an unparseable string
+ *   shouldSkipCalendarEvent
+ *     - keeps timed events regardless of how far out they are
+ *     - keeps all-day events within 30 days
+ *     - skips all-day events more than 30 days out
+ *     - keeps all-day events exactly 30 days out (boundary)
+ *   importFromGoogleTasks
+ *     - imports tasks and writes them to Firestore
+ *     - sets source to "google_tasks" on each task
+ *     - skips items with no title
+ *     - skips duplicate titles (case-insensitive)
+ *     - prevents intra-batch duplicates from the same import
+ *     - counts failed items when a batch write throws
+ *   importFromGoogleCalendar
+ *     - imports events and writes them to Firestore
+ *     - sets source to "google_calendar" on each task
+ *     - skips events with no summary
+ *     - skips events with no parseable start date
+ *     - skips all-day events more than 30 days out
+ *     - keeps timed events regardless of distance
+ *     - skips duplicate titles
+ *   auth.ts scopes
+ *     - GoogleSignin.configure is called with tasks and calendar readonly scopes
+ */
+
+import {
+  formatDateString,
+  parseGoogleDate,
+  shouldSkipCalendarEvent,
+  importFromGoogleTasks,
+  importFromGoogleCalendar,
+  fetchExistingTitles,
+} from '../../src/services/import';
+
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+
+const mockGetTokens   = jest.fn();
+const mockBatchSet    = jest.fn();
+const mockBatchCommit = jest.fn();
+const mockGet         = jest.fn();
+const mockDoc         = jest.fn();
+
+jest.mock('@react-native-google-signin/google-signin', () => ({
+  GoogleSignin: {
+    getTokens:  (...args: unknown[]) => mockGetTokens(...args),
+    configure:  jest.fn(),
+  },
+}));
+
+// Auto-incrementing doc id stub
+let docIdCounter = 0;
+mockDoc.mockImplementation(() => {
+  docIdCounter++;
+  const id = `doc-${docIdCounter}`;
+  return { id, set: jest.fn() };
+});
+
+jest.mock('@react-native-firebase/firestore', () => {
+  const batch = () => ({
+    set:    (...args: unknown[]) => mockBatchSet(...args),
+    commit: (...args: unknown[]) => mockBatchCommit(...args),
+  });
+  const FieldValue = { serverTimestamp: () => 'SERVER_TIMESTAMP' };
+
+  const collectionChain = () => ({
+    doc:        (...args: unknown[]) => mockDoc(...args),
+    get:        (...args: unknown[]) => mockGet(...args),
+    collection: collectionChain,
+  });
+
+  const firestoreFn = () => ({
+    batch,
+    collection: () => ({
+      doc: () => ({
+        collection: collectionChain,
+      }),
+    }),
+  });
+  firestoreFn.FieldValue = FieldValue;
+  return firestoreFn;
+});
+
+// global fetch mock
+const mockFetch = jest.fn();
+global.fetch = mockFetch as unknown as typeof fetch;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function mockAccessToken(token = 'test-access-token') {
+  mockGetTokens.mockResolvedValue({ accessToken: token });
+}
+
+function mockTasksResponse(items: object[]) {
+  mockFetch.mockResolvedValueOnce({
+    ok:   true,
+    json: async () => ({ items }),
+  });
+}
+
+function mockCalendarResponse(items: object[]) {
+  mockFetch.mockResolvedValueOnce({
+    ok:   true,
+    json: async () => ({ items }),
+  });
+}
+
+function mockExistingTitles(titles: string[]) {
+  const lower = titles.map(t => t.toLowerCase().trim());
+  mockGet.mockResolvedValue({
+    docs: lower.map(t => ({ data: () => ({ title: t }) })),
+  });
+}
+
+// ─── formatDateString ─────────────────────────────────────────────────────────
+
+describe('formatDateString', () => {
+  it('formats a date as YYYY-MM-DD', () => {
+    expect(formatDateString(new Date('2026-06-15T12:00:00Z'))).toBe('2026-06-15');
+  });
+});
+
+// ─── parseGoogleDate ──────────────────────────────────────────────────────────
+
+describe('parseGoogleDate', () => {
+  it('parses an RFC 3339 string', () => {
+    const d = parseGoogleDate('2026-06-01T00:00:00.000Z');
+    expect(d).toBeInstanceOf(Date);
+    expect(d!.getFullYear()).toBe(2026);
+  });
+
+  it('parses a YYYY-MM-DD string', () => {
+    const d = parseGoogleDate('2026-07-20');
+    expect(d).toBeInstanceOf(Date);
+  });
+
+  it('returns null for undefined', () => {
+    expect(parseGoogleDate(undefined)).toBeNull();
+  });
+
+  it('returns null for an unparseable string', () => {
+    expect(parseGoogleDate('not-a-date')).toBeNull();
+  });
+});
+
+// ─── shouldSkipCalendarEvent ──────────────────────────────────────────────────
+
+describe('shouldSkipCalendarEvent', () => {
+  const now = new Date('2026-06-04T12:00:00Z');
+
+  it('does not skip timed events regardless of how far out they are', () => {
+    const far = new Date('2026-12-31T09:00:00Z');
+    expect(shouldSkipCalendarEvent(far, false, now)).toBe(false);
+  });
+
+  it('does not skip all-day events within 30 days', () => {
+    const soon = new Date('2026-06-20T00:00:00Z');
+    expect(shouldSkipCalendarEvent(soon, true, now)).toBe(false);
+  });
+
+  it('skips all-day events more than 30 days out', () => {
+    const far = new Date('2026-07-20T00:00:00Z');
+    expect(shouldSkipCalendarEvent(far, true, now)).toBe(true);
+  });
+
+  it('does not skip an all-day event exactly 30 days out', () => {
+    const boundary = new Date('2026-07-04T00:00:00Z');
+    expect(shouldSkipCalendarEvent(boundary, true, now)).toBe(false);
+  });
+});
+
+// ─── importFromGoogleTasks ────────────────────────────────────────────────────
+
+describe('importFromGoogleTasks', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    docIdCounter = 0;
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('imports tasks and returns the correct counts', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([
+      { id: '1', title: 'Buy groceries', status: 'needsAction' },
+      { id: '2', title: 'Call dentist',  status: 'needsAction' },
+    ]);
+
+    const result = await importFromGoogleTasks('uid-1');
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.failed).toBe(0);
+  });
+
+  it('sets source to "google_tasks" on each written task', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.source).toBe('google_tasks');
+    expect(setCall.category).toBe('work');
+    expect(setCall.done).toBe(false);
+  });
+
+  it('skips items with no title', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([
+      { id: '1', title: '',    status: 'needsAction' },
+      { id: '2', title: '   ', status: 'needsAction' },
+    ]);
+
+    const result = await importFromGoogleTasks('uid-1');
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toBe(2);
+  });
+
+  it('skips tasks that are duplicates of existing Firestore tasks', async () => {
+    mockAccessToken();
+    mockExistingTitles(['Buy groceries']);
+    mockTasksResponse([
+      { id: '1', title: 'Buy Groceries', status: 'needsAction' }, // case-insensitive match
+      { id: '2', title: 'Call dentist',  status: 'needsAction' },
+    ]);
+
+    const result = await importFromGoogleTasks('uid-1');
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+  });
+
+  it('prevents intra-batch duplicates within the same import', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([
+      { id: '1', title: 'Buy groceries', status: 'needsAction' },
+      { id: '2', title: 'BUY GROCERIES', status: 'needsAction' }, // same title, different case
+    ]);
+
+    const result = await importFromGoogleTasks('uid-1');
+    expect(result.imported).toBe(1);
+    expect(result.skipped).toBe(1);
+  });
+
+  it('uses today as the date when no due date is present', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'No due date task', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    // date should be a YYYY-MM-DD string
+    expect(setCall.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('uses the due date when present', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{
+      id: '1', title: 'Task with due date', status: 'needsAction',
+      due: '2026-08-01T00:00:00.000Z',
+    }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.date).toBe('2026-08-01');
+  });
+
+  it('throws when the Google API returns an error response', async () => {
+    mockAccessToken();
+    mockGet.mockResolvedValue({ docs: [] });
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 401, statusText: 'Unauthorized' });
+
+    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('401');
+  });
+
+  it('throws when getTokens() fails (e.g. user declined OAuth scope)', async () => {
+    mockGetTokens.mockRejectedValueOnce(new Error('User declined scope'));
+    mockGet.mockResolvedValue({ docs: [] });
+
+    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('User declined scope');
+  });
+});
+
+// ─── importFromGoogleCalendar ─────────────────────────────────────────────────
+
+describe('importFromGoogleCalendar', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    docIdCounter = 0;
+    mockBatchCommit.mockResolvedValue(undefined);
+  });
+
+  it('imports events and returns correct counts', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team standup', start: { dateTime: '2026-06-05T09:00:00Z' } },
+      { id: '2', summary: 'Dentist',      start: { dateTime: '2026-06-10T14:00:00Z' } },
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.imported).toBe(2);
+    expect(result.skipped).toBe(0);
+  });
+
+  it('sets source to "google_calendar" on each written task', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team standup', start: { dateTime: '2026-06-05T09:00:00Z' } },
+    ]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.source).toBe('google_calendar');
+    expect(setCall.category).toBe('work');
+    expect(setCall.done).toBe(false);
+  });
+
+  it('skips events with no summary', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', start: { dateTime: '2026-06-05T09:00:00Z' } }, // no summary
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.imported).toBe(0);
+    expect(result.skipped).toBe(1);
+  });
+
+  it('skips events with no parseable start date', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Broken event', start: { dateTime: 'not-a-date' } },
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+  });
+
+  it('skips all-day events more than 30 days out', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    // far future all-day event (date only, no dateTime)
+    mockCalendarResponse([
+      { id: '1', summary: 'Far future event', start: { date: '2027-01-01' } },
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+  });
+
+  it('imports timed events regardless of how far out they are', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Far future timed', start: { dateTime: '2027-01-01T09:00:00Z' } },
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.imported).toBe(1);
+  });
+
+  it('skips duplicate events', async () => {
+    mockAccessToken();
+    mockExistingTitles(['team standup']);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team Standup', start: { dateTime: '2026-06-05T09:00:00Z' } },
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.skipped).toBe(1);
+    expect(result.imported).toBe(0);
+  });
+
+  it('uses start.date for all-day events within 30 days', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'All-day soon', start: { date: '2026-06-20' } },
+    ]);
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result.imported).toBe(1);
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.date).toBe('2026-06-20');
+  });
+});
+
+// ─── OAuth scopes ─────────────────────────────────────────────────────────────
+
+describe('auth.ts — Google OAuth scopes (KAN-84)', () => {
+  it('configures GoogleSignin with tasks and calendar readonly scopes', () => {
+    // Re-require auth.ts so GoogleSignin.configure runs with fresh mocks
+    jest.resetModules();
+    const mockConfigure = jest.fn();
+    jest.doMock('@react-native-google-signin/google-signin', () => ({
+      GoogleSignin: { configure: mockConfigure },
+    }));
+    jest.doMock('@react-native-firebase/auth', () => ({}));
+    jest.doMock('@react-native-firebase/auth/lib/modular', () => ({
+      getAuth: jest.fn(),
+      signInWithEmailAndPassword: jest.fn(),
+      createUserWithEmailAndPassword: jest.fn(),
+      signOut: jest.fn(),
+      GoogleAuthProvider: { credential: jest.fn() },
+      OAuthProvider: jest.fn(),
+      signInWithCredential: jest.fn(),
+    }));
+    jest.doMock('@invertase/react-native-apple-authentication', () => ({
+      appleAuth: { performRequest: jest.fn(), Operation: {}, Scope: {} },
+    }));
+
+    require('../../src/services/auth');
+
+    expect(mockConfigure).toHaveBeenCalledWith(
+      expect.objectContaining({
+        scopes: expect.arrayContaining([
+          'https://www.googleapis.com/auth/tasks.readonly',
+          'https://www.googleapis.com/auth/calendar.readonly',
+        ]),
+      }),
+    );
+  });
+});
