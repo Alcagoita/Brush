@@ -18,7 +18,12 @@ export interface User {
   displayName: string;
   darkMode: boolean;
   createdAt: FirebaseFirestoreTypes.Timestamp;
-  /** Unique @username chosen at sign-up (KAN-97). */
+  /**
+   * Unique handle chosen at sign-up (KAN-97).
+   * Stored lowercase without the `@` prefix (e.g. `alice`).
+   * Display as `@${username}` in the UI.
+   * Case-insensitive — `alice` and `Alice` map to the same document.
+   */
   username?: string;
   /** When the username was last set — enforces the 30-day change cooldown (KAN-97). */
   usernameUpdatedAt?: FirebaseFirestoreTypes.Timestamp;

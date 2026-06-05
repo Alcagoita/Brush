@@ -706,6 +706,11 @@ export function subscribeLowBatteryPausePref(
 //   usernames/{username}  →  { uid: string }          — uniqueness index
 //   users/{uid}           →  { ..., username, usernameUpdatedAt }
 
+/**
+ * Usernames are stored and compared in lowercase only — `alice` and `Alice`
+ * are treated as the same handle. The stored value never contains the `@`
+ * prefix; display code is responsible for prepending it (e.g. `@${username}`).
+ */
 export const USERNAME_REGEX = /^[a-z0-9_]+$/;
 export const USERNAME_MIN   = 3;
 export const USERNAME_MAX   = 20;
@@ -713,7 +718,11 @@ export const USERNAME_COOLDOWN_DAYS  = 30;
 /** New accounts may change their username freely within this window. */
 export const USERNAME_GRACE_HOURS   = 24;
 
-/** Returns a validation error string, or null if the value is valid. */
+/**
+ * Returns a validation error string, or null if the value is valid.
+ * Expects the value already lowercased — callers should normalise before
+ * passing (e.g. `raw.toLowerCase()`).
+ */
 export function validateUsername(v: string): string | null {
   if (v.length < USERNAME_MIN) { return `At least ${USERNAME_MIN} characters required.`; }
   if (v.length > USERNAME_MAX) { return `Maximum ${USERNAME_MAX} characters.`; }
