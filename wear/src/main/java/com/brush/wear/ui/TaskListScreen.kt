@@ -17,7 +17,9 @@
 
 package com.brush.wear.ui
 
+import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -25,8 +27,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -35,6 +39,7 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import com.brush.wear.MarkDoneClient
 import com.brush.wear.TaskRepository
 import com.brush.wear.WatchTask
 
@@ -86,6 +91,7 @@ private fun EmptyState() {
 @Composable
 private fun TaskList(tasks: List<WatchTask>) {
     val remaining = tasks.count { !it.done }
+    val context   = LocalContext.current
 
     ScalingLazyColumn(
         modifier            = Modifier.fillMaxSize(),
@@ -104,7 +110,7 @@ private fun TaskList(tasks: List<WatchTask>) {
 
         // ── Task rows ──
         items(tasks) { task ->
-            TaskRow(task = task)
+            TaskRow(task = task, context = context)
         }
 
         // ── Footer ──
@@ -126,15 +132,26 @@ private fun TaskList(tasks: List<WatchTask>) {
 // ─── Task row ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun TaskRow(task: WatchTask) {
-    val isDone   = task.done
-    val dotColor = categoryColor(task.category)
-    val textAlpha = if (isDone) 0.4f else 1f
+private fun TaskRow(task: WatchTask, context: Context) {
+    val isDone        = task.done
+    val dotColor      = categoryColor(task.category)
+    val textAlpha     = if (isDone) 0.4f else 1f
+    val hapticFeedback = LocalHapticFeedback.current
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp),
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+            .clickable(enabled = !isDone) {
+                // Tactile confirmation — fires before the state update so the
+                // user feels the tap even if the optimistic update takes a frame.
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+                // Optimistic update — mark done locally immediately.
+                TaskRepository.markDoneOptimistic(task.id)
+                // Fire-and-forget message to the phone.
+                MarkDoneClient.send(context, task.id)
+            }
+            .padding(horizontal = 4.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         // Category dot

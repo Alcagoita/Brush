@@ -31,6 +31,7 @@ class WearDataListenerService : WearableListenerService() {
     }
 
     override fun onMessageReceived(event: MessageEvent) {
-        // Reserved for KAN-38: mark-done messages from the watch UI.
+        // The watch sends mark-done messages (KAN-38) — it does not receive them.
+        // No inbound message handling needed on the watch side.
     }
 }

@@ -1,10 +1,13 @@
 /**
- * KAN-35 — wearSync service unit tests.
+ * KAN-35 / KAN-38 — wearSync service unit tests.
  *
  * Covers:
  *   - syncTasksToWatch filters out done tasks before serialising
  *   - syncTasksToWatch sends only id/title/category/done fields
  *   - syncTasksToWatch no-ops on iOS
+ *   - When a task is marked done on phone, it is excluded from the next sync
+ *     payload (simulating the watch receiving the authoritative update after
+ *     WearMessageListenerService updates Firestore)
  */
 
 import { Task } from '../../src/types';
@@ -105,5 +108,21 @@ describe('syncTasksToWatch', () => {
     Object.defineProperty(Platform, 'OS', { value: 'ios', writable: true });
     syncTasksToWatch([makeTask()]);
     expect(mockSyncTasks).not.toHaveBeenCalled();
+  });
+
+  // ── KAN-38: authoritative sync after watch mark-done ──────────────────────
+  // When WearMessageListenerService marks a task done in Firestore, the JS
+  // subscription fires syncTasksToWatch() with the updated list. The task
+  // should be absent from the payload (filter: !done).
+
+  it('excludes a task that was just marked done (watch→phone round-trip)', () => {
+    const tasks = [
+      makeTask({ id: 't1', done: false }),
+      makeTask({ id: 't2', done: true }), // marked done by watch
+    ];
+    syncTasksToWatch(tasks);
+    const sent = JSON.parse(mockSyncTasks.mock.calls[0][0]);
+    expect(sent).toHaveLength(1);
+    expect(sent[0].id).toBe('t1');
   });
 });
