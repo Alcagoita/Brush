@@ -27,6 +27,10 @@ export interface User {
   username?: string;
   /** When the username was last set — enforces the 30-day change cooldown (KAN-97). */
   usernameUpdatedAt?: FirebaseFirestoreTypes.Timestamp;
+  /** Denormalized count of users this user follows (KAN-98). */
+  followingCount?: number;
+  /** Denormalized count of users following this user (KAN-98). */
+  followersCount?: number;
   /**
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
@@ -283,6 +287,21 @@ export interface CalendarEvent {
 export type Event = CalendarEvent;
 
 export type MarkedDates = Record<DateString, { marked: boolean; dotColor: string }>;
+
+// ─── Follow system (KAN-98) ───────────────────────────────────────────────────
+
+/**
+ * One entry in users/{uid}/following/{followedUid}
+ * or         users/{uid}/followers/{followerUid}.
+ *
+ * The `uid` field is the Firestore document ID (the other user's UID).
+ */
+export interface FollowEntry {
+  uid:         string;
+  username:    string;
+  displayName: string;
+  followedAt:  FirebaseFirestoreTypes.Timestamp;
+}
 
 // ─── Task sharing (KAN-86 / KAN-87) ──────────────────────────────────────────
 

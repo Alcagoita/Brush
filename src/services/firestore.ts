@@ -813,6 +813,136 @@ export async function getUserByUsername(username: string): Promise<User | null> 
   return getUser(uid);
 }
 
+// ─── Follow system (KAN-98) ───────────────────────────────────────────────────
+//
+// Schema:
+//   users/{uid}/following/{followedUid} → FollowEntry (without uid field)
+//   users/{uid}/followers/{followerUid} → FollowEntry (without uid field)
+//   users/{uid} → { ..., followingCount, followersCount }
+
+import type { FollowEntry } from '../types';
+
+function followingRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'following');
+}
+
+function followingEntryRef(uid: string, followedUid: string) {
+  return doc(getFirestore(), 'users', uid, 'following', followedUid);
+}
+
+function followersEntryRef(uid: string, followerUid: string) {
+  return doc(getFirestore(), 'users', uid, 'followers', followerUid);
+}
+
+/**
+ * Follow another user. Atomically:
+ *  - writes to follower's /following/{followedUid}
+ *  - writes to followed's /followers/{followerUid}
+ *  - increments followingCount on follower's doc
+ *  - increments followersCount on followed's doc
+ *
+ * No-op guard: callers should check isFollowing() first to avoid duplicates.
+ * Throws if followerUid === followedUid (cannot follow yourself).
+ */
+export async function followUser(
+  followerUid: string,
+  followerUsername: string,
+  followerDisplayName: string,
+  followedUid: string,
+  followedUsername: string,
+  followedDisplayName: string,
+): Promise<void> {
+  if (followerUid === followedUid) {
+    throw new Error('cannot_follow_self');
+  }
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+
+  batch.set(followingEntryRef(followerUid, followedUid), {
+    username:    followedUsername,
+    displayName: followedDisplayName,
+    followedAt:  serverTimestamp(),
+  });
+  batch.set(followersEntryRef(followedUid, followerUid), {
+    username:    followerUsername,
+    displayName: followerDisplayName,
+    followedAt:  serverTimestamp(),
+  });
+  batch.set(userRef(followerUid), { followingCount: increment(1) }, { merge: true });
+  batch.set(userRef(followedUid), { followersCount: increment(1) }, { merge: true });
+
+  await batch.commit();
+}
+
+/**
+ * Unfollow a user. Atomically removes both subcollection entries and
+ * decrements the denormalized counts.
+ */
+export async function unfollowUser(
+  followerUid: string,
+  followedUid: string,
+): Promise<void> {
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+
+  batch.delete(followingEntryRef(followerUid, followedUid));
+  batch.delete(followersEntryRef(followedUid, followerUid));
+  batch.set(userRef(followerUid), { followingCount: increment(-1) }, { merge: true });
+  batch.set(userRef(followedUid), { followersCount: increment(-1) }, { merge: true });
+
+  await batch.commit();
+}
+
+/** Returns true if followerUid currently follows followedUid. */
+export async function isFollowing(
+  followerUid: string,
+  followedUid: string,
+): Promise<boolean> {
+  const snap = await getDoc(followingEntryRef(followerUid, followedUid));
+  return snap.exists();
+}
+
+/**
+ * Subscribe to the list of users that uid follows, newest first.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToFollowing(
+  uid: string,
+  onUpdate: (entries: FollowEntry[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(followingRef(uid), orderBy('followedAt', 'desc')),
+    snap => {
+      if (!snap) { return; }
+      onUpdate(snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry)));
+    },
+    onError,
+  );
+}
+
+/**
+ * Subscribe to the list of users that follow uid, newest first.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToFollowers(
+  uid: string,
+  onUpdate: (entries: FollowEntry[]) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(
+      collection(getFirestore(), 'users', uid, 'followers'),
+      orderBy('followedAt', 'desc'),
+    ),
+    snap => {
+      if (!snap) { return; }
+      onUpdate(snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry)));
+    },
+    onError,
+  );
+}
+
 // ─── Re-exports for convenience ───────────────────────────────────────────────
 
 export { Timestamp, serverTimestamp };
