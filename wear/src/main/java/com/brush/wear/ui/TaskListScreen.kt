@@ -28,7 +28,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -131,15 +133,19 @@ private fun TaskList(tasks: List<WatchTask>) {
 
 @Composable
 private fun TaskRow(task: WatchTask, context: Context) {
-    val isDone    = task.done
-    val dotColor  = categoryColor(task.category)
-    val textAlpha = if (isDone) 0.4f else 1f
+    val isDone        = task.done
+    val dotColor      = categoryColor(task.category)
+    val textAlpha     = if (isDone) 0.4f else 1f
+    val hapticFeedback = LocalHapticFeedback.current
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
             .clickable(enabled = !isDone) {
+                // Tactile confirmation — fires before the state update so the
+                // user feels the tap even if the optimistic update takes a frame.
+                hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                 // Optimistic update — mark done locally immediately.
                 TaskRepository.markDoneOptimistic(task.id)
                 // Fire-and-forget message to the phone.
