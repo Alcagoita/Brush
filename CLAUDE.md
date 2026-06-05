@@ -461,7 +461,7 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 4 — ✅ Complete.** All 11 tickets shipped. Released as v0.4.0.
 
-**Sprint 5 — 🚧 In progress.**
+**Sprint 5 — ✅ Complete.** All 9 tickets shipped. Released as v0.5.0.
 
 ---
 
@@ -552,7 +552,7 @@ KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on da
 
 ---
 
-## Sprint 5: Task Import, Sharing & Wear OS Foundation — 🚧 In progress
+## Sprint 5: Task Import, Sharing & Wear OS Foundation — ✅ Complete
 
 **Goal:** Task import from external sources, in-app task sharing (+ AI message-to-task spike), and the Wear OS foundation. Two items (KAN-34, KAN-88) are spikes — output is a decision document and implementation tickets, not shipping code.
 
