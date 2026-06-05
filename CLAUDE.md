@@ -567,14 +567,13 @@ KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on da
 
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
-| 3 | KAN-83 | Import UI — button, progress, duplicate handling | — | ⬜ A fazer |
+| 3 | KAN-83 | Import UI — button, progress, duplicate handling | — | ✅ Concluído |
 | 4 | KAN-84 | Android import connector — Google Tasks + Calendar | KAN-39 (Sprint-2) | ✅ Concluído |
-| 5 | KAN-85 | iOS import connector — Reminders + Calendar via EventKit | — | ⬜ A fazer |
-| 6 | KAN-35 | Wear OS companion app + Wearable Data Layer setup | KAN-34 | ⬜ A fazer |
-| 7 | KAN-86 | In-app task sharing — send flow | — | ⬜ A fazer |
+| 5 | KAN-85 | iOS import connector — Reminders + Calendar via EventKit | — | ✅ Concluído |
+| 6 | KAN-35 | Wear OS companion app + Wearable Data Layer setup | KAN-34 | ✅ Concluído |
+| 7 | KAN-86 | In-app task sharing — send flow | — | ✅ Concluído |
 | 8 | KAN-37 | View To-Do list on Wear OS watch | KAN-35 | ⬜ A fazer |
-| 9 | KAN-87 | In-app task sharing — receive, accept and decline | KAN-86 | ⬜ A fazer |
-| 10 | KAN-38 | Mark To-Do items as done from Wear OS watch | KAN-37 | ⬜ A fazer |
+| 9 | KAN-38 | Mark To-Do items as done from Wear OS watch | KAN-37 | ⬜ A fazer |
 
 ### Dependency map
 
@@ -585,7 +584,7 @@ KAN-83                                       (Import UI — standalone)
 KAN-84   (depends on KAN-39, already done)   (Android import connector)
 KAN-85                                       (iOS import connector)
 
-KAN-86 ──▶ KAN-87                            (Task sharing — send then receive)
+KAN-86                                       (Task sharing — send flow)
 
 KAN-88                                       (Spike — standalone)
 ```
@@ -595,6 +594,7 @@ KAN-88                                       (Spike — standalone)
 ### Out of scope for Sprint 5
 
 - KAN-36: Geo-triggered notifications on Wear OS watch — leads Sprint-6
+- KAN-87: Task sharing receive flow — moved out of Sprint 5; blocked on KAN-97 (username) and KAN-98 (follow system) from the Friends & Social epic (KAN-96)
 - Message-to-task implementation — blocked on KAN-88 spike output
 - Apple Watch / watchOS support — Android/Wear OS only for this track
 - Ongoing sync for imports — one-time import only (button-triggered)

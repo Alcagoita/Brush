@@ -149,4 +149,11 @@ dependencies {
     // Wearable Data Layer API — provides DataClient and MessageClient for
     // Wear OS communication (KAN-35).
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
+
+    // Embeds the Wear OS companion APK into the phone AAB for Play Store
+    // automatic watch installation (KAN-37). Only active when -PbundleWear
+    // is passed; omitting it keeps the phone build fully independent.
+    if (project.hasProperty('bundleWear')) {
+        wearApp project(':wear')
+    }
 }
