@@ -18,6 +18,10 @@ export interface User {
   displayName: string;
   darkMode: boolean;
   createdAt: FirebaseFirestoreTypes.Timestamp;
+  /** Unique @username chosen at sign-up (KAN-97). */
+  username?: string;
+  /** When the username was last set — enforces the 30-day change cooldown (KAN-97). */
+  usernameUpdatedAt?: FirebaseFirestoreTypes.Timestamp;
   /**
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
@@ -282,15 +286,16 @@ export type MarkedDates = Record<DateString, { marked: boolean; dotColor: string
  * when a user sends a task to another Brush user.
  */
 export interface SharedTask {
-  id:          string;
-  taskId:      string;
-  title:       string;
-  category:    string;
-  poi?:        PoiType;
-  sentBy:      string;       // sender uid
-  sentByName:  string;       // sender display name
-  sentAt:      FirebaseFirestoreTypes.Timestamp;
-  status:      'pending' | 'accepted' | 'declined';
+  id:              string;
+  taskId:          string;
+  title:           string;
+  category:        string;
+  poi?:            PoiType;
+  sentBy:          string;       // sender uid
+  sentByName:      string;       // sender display name
+  sentByUsername?: string;       // sender @username (KAN-97)
+  sentAt:          FirebaseFirestoreTypes.Timestamp;
+  status:          'pending' | 'accepted' | 'declined';
 }
 
 /**
