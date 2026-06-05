@@ -176,16 +176,12 @@ export default function ProfileScreen() {
   };
 
   // ── Username edit (KAN-97) ────────────────────────────────────────────────
-  const [currentUsername,   setCurrentUsername]   = useState<string | undefined>(undefined);
-  const [editingUsername,   setEditingUsername]   = useState(false);
-  const [usernameValue,     setUsernameValue]     = useState('');
-  const [usernameError,     setUsernameError]     = useState('');
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [usernameCheckError, setUsernameCheckError] = useState(false);
-  const [checkingUsername,  setCheckingUsername]  = useState(false);
-  const [savingUsername,    setSavingUsername]     = useState(false);
-  const [cooldownDays,      setCooldownDays]       = useState<number | null>(null);
-  const usernameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [currentUsername, setCurrentUsername] = useState<string | undefined>(undefined);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameValue,   setUsernameValue]   = useState('');
+  const [usernameError,   setUsernameError]   = useState('');
+  const [savingUsername,  setSavingUsername]  = useState(false);
+  const [cooldownDays,    setCooldownDays]    = useState<number | null>(null);
 
   useEffect(() => {
     if (!uid) { return; }
@@ -197,40 +193,30 @@ export default function ProfileScreen() {
   const handleEditUsername = () => {
     setUsernameValue(currentUsername ?? '');
     setUsernameError('');
-    setUsernameAvailable(null);
     setEditingUsername(true);
   };
 
+  // Local format validation only — no API calls while typing.
   const handleUsernameChange = (raw: string) => {
     const v = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsernameValue(v);
-    setUsernameAvailable(null);
-    setUsernameCheckError(false);
-    const err = validateUsername(v);
-    setUsernameError(err ?? '');
-    if (err || v === currentUsername) { setCheckingUsername(false); return; }
-    if (usernameDebounceRef.current) { clearTimeout(usernameDebounceRef.current); }
-    setCheckingUsername(true);
-    usernameDebounceRef.current = setTimeout(async () => {
-      try {
-        const ok = await checkUsernameAvailable(v);
-        setUsernameAvailable(ok);
-        setUsernameCheckError(false);
-      } catch {
-        setUsernameAvailable(null);
-        setUsernameCheckError(true);
-      } finally {
-        setCheckingUsername(false);
-      }
-    }, 450);
+    setUsernameError(validateUsername(v) ?? '');
   };
 
+  // Availability checked here, once, on Save tap.
   const handleSaveUsername = async () => {
     if (!uid) { return; }
     const trimmed = usernameValue.trim();
-    if (validateUsername(trimmed) || usernameAvailable !== true) { return; }
+    const fmtErr = validateUsername(trimmed);
+    if (fmtErr || trimmed === currentUsername) { return; }
     setSavingUsername(true);
+    setUsernameError('');
     try {
+      const available = await checkUsernameAvailable(trimmed);
+      if (!available) {
+        setUsernameError('@' + trimmed + ' is already taken.');
+        return;
+      }
       await updateUsername(uid, trimmed);
       setCurrentUsername(trimmed);
       setEditingUsername(false);
@@ -242,7 +228,7 @@ export default function ProfileScreen() {
         setCooldownDays(days);
         setUsernameError(`You can change your username again in ${days} day${days !== 1 ? 's' : ''}.`);
       } else {
-        setUsernameError('Failed to save username. Please try again.');
+        setUsernameError('Failed to save. Please try again.');
       }
     } finally {
       setSavingUsername(false);
@@ -252,8 +238,6 @@ export default function ProfileScreen() {
   const handleCancelUsername = () => {
     setEditingUsername(false);
     setUsernameError('');
-    setUsernameAvailable(null);
-    if (usernameDebounceRef.current) { clearTimeout(usernameDebounceRef.current); }
   };
 
   const handleShareProfile = async () => {
@@ -511,16 +495,12 @@ export default function ProfileScreen() {
                     accessibilityLabel="Edit username"
                     maxLength={20}
                   />
-                  {checkingUsername && (
+                  {savingUsername && (
                     <ActivityIndicator size="small" color={palette.muted} style={{ marginLeft: 6 }} />
                   )}
                 </View>
                 {usernameError ? (
                   <Text style={[styles.usernameHint, { color: '#e05252' }]}>{usernameError}</Text>
-                ) : usernameCheckError ? (
-                  <Text style={[styles.usernameHint, { color: '#e05252' }]}>Could not verify — Save to try anyway</Text>
-                ) : usernameAvailable === true && usernameValue !== currentUsername ? (
-                  <Text style={[styles.usernameHint, { color: '#4caf7d' }]}>@{usernameValue} is available</Text>
                 ) : null}
                 <View style={styles.nameActions}>
                   <Pressable onPress={handleCancelUsername} hitSlop={8} accessibilityRole="button">
@@ -528,11 +508,11 @@ export default function ProfileScreen() {
                   </Pressable>
                   <Pressable
                     onPress={handleSaveUsername}
-                    disabled={savingUsername || !!usernameError || (usernameAvailable !== true && !usernameCheckError) || usernameValue === currentUsername}
+                    disabled={savingUsername || !!usernameError || usernameValue === currentUsername}
                     hitSlop={8}
                     accessibilityRole="button">
                     <Text style={[styles.nameActionLabel, {
-                      color: (savingUsername || !!usernameError || (usernameAvailable !== true && !usernameCheckError) || usernameValue === currentUsername)
+                      color: (savingUsername || !!usernameError || usernameValue === currentUsername)
                         ? palette.faint : palette.accent,
                     }]}>
                       {savingUsername ? 'Saving…' : 'Save'}

@@ -6,11 +6,11 @@
  * new users before they reach the main navigator.
  *
  * Flow:
- *   1. User types a username → real-time validation + debounced uniqueness check
- *   2. "Continue" → claimUsername → onComplete() → AppShell renders the app
+ *   1. User types a username → local format validation only (no API calls)
+ *   2. "Continue" → check availability + claim in one shot
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -32,9 +32,7 @@ import {
   validateUsername,
 } from '../services/firestore';
 
-const ERROR_COLOR    = '#e05252';
-const SUCCESS_COLOR  = '#4caf7d';
-const DEBOUNCE_MS    = 450;
+const ERROR_COLOR = '#e05252';
 
 interface Props {
   onComplete: () => void;
@@ -44,90 +42,48 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
 
-  const [value,        setValue]        = useState('');
+  const [value,        setValue]       = useState('');
   const [validationErr, setValidationErr] = useState<string | null>(null);
-  const [available,    setAvailable]    = useState<boolean | null>(null);
-  const [checking,     setChecking]     = useState(false);
-  const [checkError,   setCheckError]   = useState(false);
-  const [submitting,   setSubmitting]   = useState(false);
-  const [submitError,  setSubmitError]  = useState('');
+  const [submitting,   setSubmitting]  = useState(false);
+  const [submitError,  setSubmitError] = useState('');
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // ── Input change ────────────────────────────────────────────────────────────
+  // ── Input change — local format validation only, no API calls ───────────────
   const handleChange = useCallback((raw: string) => {
     const v = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setValue(v);
     setSubmitError('');
-    setAvailable(null);
-    setCheckError(false);
-
-    const err = validateUsername(v);
-    setValidationErr(err);
-    if (err) { setChecking(false); return; }
-
-    // Debounce uniqueness check
-    if (debounceRef.current) { clearTimeout(debounceRef.current); }
-    setChecking(true);
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const ok = await checkUsernameAvailable(v);
-        setAvailable(ok);
-        setCheckError(false);
-      } catch {
-        setAvailable(null);
-        setCheckError(true);
-      } finally {
-        setChecking(false);
-      }
-    }, DEBOUNCE_MS);
+    setValidationErr(validateUsername(v));
   }, []);
 
-  useEffect(() => () => { if (debounceRef.current) { clearTimeout(debounceRef.current); } }, []);
-
-  // ── Submit ──────────────────────────────────────────────────────────────────
-  // Allow submission when available=true OR when the check errored (server
-  // will reject the write if the name is already taken).
-  const canSubmit = !validationErr && (available === true || checkError) && !checking && !submitting;
+  // ── Submit — availability checked here, once, on tap ───────────────────────
+  const canSubmit = !validationErr && value.length >= 3 && !submitting;
 
   const handleSubmit = async () => {
     if (!canSubmit) { return; }
     const uid = getAuth().currentUser?.uid;
     if (!uid) { return; }
+
     setSubmitting(true);
+    setSubmitError('');
     try {
+      const available = await checkUsernameAvailable(value);
+      if (!available) {
+        setSubmitError('@' + value + ' is already taken. Please choose another.');
+        return;
+      }
       await claimUsername(uid, value);
       onComplete();
     } catch {
-      setSubmitError('Failed to save username. Please try again.');
+      setSubmitError('Something went wrong. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ── Status hint ─────────────────────────────────────────────────────────────
-  const statusText = (() => {
-    if (!value) { return null; }
-    if (validationErr) { return null; }
-    if (checking) { return 'Checking…'; }
-    if (checkError) { return 'Could not check availability — tap Continue to retry'; }
-    if (available === true)  { return '@' + value + ' is available'; }
-    if (available === false) { return 'Username already taken'; }
-    return null;
-  })();
-
-  const statusColor = available === true
-    ? SUCCESS_COLOR
-    : available === false || checkError
+  const borderColor = validationErr && value
     ? ERROR_COLOR
-    : palette.muted;
-
-  const borderColor = value && !validationErr
-    ? available === true
-      ? SUCCESS_COLOR
-      : available === false
-      ? ERROR_COLOR
-      : palette.accent
+    : value && !validationErr
+    ? palette.accent
     : palette.line;
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -168,25 +124,17 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
               accessibilityLabel="Username"
               maxLength={20}
             />
-            {checking && (
-              <ActivityIndicator size="small" color={palette.muted} style={styles.spinner} />
-            )}
           </View>
 
-          {/* Validation error */}
-          {validationErr ? (
+          {validationErr && value ? (
             <Text style={[styles.hint, { color: ERROR_COLOR }]}>{validationErr}</Text>
-          ) : statusText ? (
-            <Text style={[styles.hint, { color: statusColor }]}>{statusText}</Text>
+          ) : submitError ? (
+            <Text style={[styles.hint, { color: ERROR_COLOR }]}>{submitError}</Text>
           ) : (
             <Text style={[styles.hint, { color: palette.muted }]}>
               3–20 chars · letters, numbers, underscores only
             </Text>
           )}
-
-          {submitError ? (
-            <Text style={[styles.hint, { color: ERROR_COLOR, marginTop: 4 }]}>{submitError}</Text>
-          ) : null}
         </View>
 
         {/* CTA */}
@@ -227,9 +175,9 @@ const styles = StyleSheet.create({
   },
   header: { gap: 10 },
   title: {
-    fontSize:   26,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
+    fontSize:      26,
+    fontWeight:    '600',
+    fontFamily:    'Geist-SemiBold',
     letterSpacing: -0.5,
   },
   subtitle: {
@@ -247,18 +195,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   prefix: {
-    fontSize:   18,
-    fontFamily: 'Geist-Regular',
+    fontSize:    18,
+    fontFamily:  'Geist-Regular',
     marginRight: 2,
   },
   input: {
-    flex:       1,
-    fontSize:   17,
-    fontFamily: 'Geist-Regular',
-    height:     '100%',
+    flex:               1,
+    fontSize:           17,
+    fontFamily:         'Geist-Regular',
+    height:             '100%',
     includeFontPadding: false,
   },
-  spinner: { marginLeft: 8 },
   hint: {
     fontSize:   13,
     fontFamily: 'Geist-Regular',
