@@ -15,12 +15,24 @@ import { useAuth } from './src/hooks/useAuth';
 import { useFCM } from './src/hooks/useFCM';
 import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
 import LoginScreen from './src/screens/LoginScreen';
+import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import NetworkBanner from './src/components/NetworkBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
+import { getUser } from './src/services/firestore';
+
+// Deep link config — `brushaway.app/u/{username}` opens PublicProfile (KAN-97).
+const LINKING_CONFIG = {
+  prefixes: ['https://brushaway.app', 'brushaway://'],
+  config: {
+    screens: {
+      PublicProfile: 'u/:username',
+    } as Record<keyof RootStackParamList, unknown>,
+  },
+};
 
 const TRANSITION_MS = 220;
 
@@ -57,6 +69,19 @@ function AppShell() {
         Animated.timing(fadeAnim, { toValue: 1, duration: TRANSITION_MS, useNativeDriver: true }).start();
       });
   }, [user, loading, displayUser]);
+
+  // ── Username check (KAN-97) ───────────────────────────────────────────────
+  // null = still loading, false = needs setup, true = ready
+  const [hasUsername, setHasUsername] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!displayUser) { setHasUsername(null); return; }
+    let cancelled = false;
+    getUser(displayUser.uid)
+      .then(userData => { if (!cancelled) { setHasUsername(!!userData?.username); } })
+      .catch(() => { if (!cancelled) { setHasUsername(false); } });
+    return () => { cancelled = true; };
+  }, [displayUser]);
 
   // Persist the FCM device token whenever a user is signed in.
   useFCM(user?.uid ?? null);
@@ -121,9 +146,19 @@ function AppShell() {
       <NetworkBanner />
       <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
         {displayUser ? (
-          <NavigationContainer ref={navigationRef}>
-            <AppNavigator />
-          </NavigationContainer>
+          hasUsername === null ? (
+            // Still resolving whether username exists — hold on the spinner.
+            <View style={[styles.splash, { backgroundColor: palette.bg }]}>
+              <ActivityIndicator size="large" color={palette.accent} />
+            </View>
+          ) : !hasUsername ? (
+            // New user (or user without a username) — collect it before entering the app.
+            <UsernameSetupScreen onComplete={() => setHasUsername(true)} />
+          ) : (
+            <NavigationContainer ref={navigationRef} linking={LINKING_CONFIG}>
+              <AppNavigator />
+            </NavigationContainer>
+          )
         ) : (
           <LoginScreen />
         )}

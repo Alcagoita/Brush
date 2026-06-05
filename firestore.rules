@@ -8,9 +8,27 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // ─── Username index (KAN-97) ──────────────────────────────────────────────
+    // Public read so checkUsernameAvailable / getUserByUsername work for all
+    // authenticated users. Write is restricted: you may only create/delete an
+    // index entry that points to your own UID — enforcing single-owner claim.
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      // Deletion (username release on change): only the current owner may remove.
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+      // Updates are forbidden — changing a username = delete old + create new.
+      allow update: if false;
+    }
+
     // ─── User document ────────────────────────────────────────────────────────
+    // Any authenticated user may read a profile (needed for public profile cards).
+    // Only the document owner may write their own data.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read:  if request.auth != null;
+      allow write: if isOwner(userId);
 
       // ─── Tasks ──────────────────────────────────────────────────────────────
       match /tasks/{taskId} {

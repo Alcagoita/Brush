@@ -23,11 +23,13 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Switch,
   Text,
@@ -60,6 +62,11 @@ import {
   updateDisplayName,
   subscribeToTotalPoints,
   subscribeToAchievements,
+  getUser,
+  updateUsername,
+  checkUsernameAvailable,
+  validateUsername,
+  USERNAME_COOLDOWN_DAYS,
 } from '../services/firestore';
 import { placeTypeLabel } from '../services/maps';
 import { Achievement, Category, POI_GEOFENCE_RADIUS } from '../types';
@@ -166,6 +173,79 @@ export default function ProfileScreen() {
   const handleCancelName = () => {
     setNameValue(currentUser?.displayName ?? '');
     setEditingName(false);
+  };
+
+  // ── Username edit (KAN-97) ────────────────────────────────────────────────
+  const [currentUsername, setCurrentUsername] = useState<string | undefined>(undefined);
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [usernameValue,   setUsernameValue]   = useState('');
+  const [usernameError,   setUsernameError]   = useState('');
+  const [savingUsername,  setSavingUsername]  = useState(false);
+  const [cooldownDays,    setCooldownDays]    = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    getUser(uid).then(userData => {
+      setCurrentUsername(userData?.username);
+    });
+  }, [uid]);
+
+  const handleEditUsername = () => {
+    setUsernameValue(currentUsername ?? '');
+    setUsernameError('');
+    setEditingUsername(true);
+  };
+
+  // Local format validation only — no API calls while typing.
+  const handleUsernameChange = (raw: string) => {
+    const v = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    setUsernameValue(v);
+    setUsernameError(validateUsername(v) ?? '');
+  };
+
+  // Availability checked here, once, on Save tap.
+  const handleSaveUsername = async () => {
+    if (!uid) { return; }
+    const trimmed = usernameValue.trim();
+    const fmtErr = validateUsername(trimmed);
+    if (fmtErr || trimmed === currentUsername) { return; }
+    setSavingUsername(true);
+    setUsernameError('');
+    try {
+      const available = await checkUsernameAvailable(trimmed);
+      if (!available) {
+        setUsernameError('@' + trimmed + ' is already taken.');
+        return;
+      }
+      await updateUsername(uid, trimmed);
+      setCurrentUsername(trimmed);
+      setEditingUsername(false);
+      setCooldownDays(USERNAME_COOLDOWN_DAYS);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.startsWith('username_cooldown:')) {
+        const days = parseInt(msg.split(':')[1], 10);
+        setCooldownDays(days);
+        setUsernameError(`You can change your username again in ${days} day${days !== 1 ? 's' : ''}.`);
+      } else {
+        setUsernameError('Failed to save. Please try again.');
+      }
+    } finally {
+      setSavingUsername(false);
+    }
+  };
+
+  const handleCancelUsername = () => {
+    setEditingUsername(false);
+    setUsernameError('');
+  };
+
+  const handleShareProfile = async () => {
+    if (!currentUsername) { return; }
+    await Share.share({
+      message: `Follow me on Brush Away: https://brushaway.app/u/${currentUsername}`,
+      url: `https://brushaway.app/u/${currentUsername}`,
+    });
   };
 
   // ── Points & Achievements (KAN-19) ────────────────────────────────────────
@@ -394,7 +474,83 @@ export default function ProfileScreen() {
               {userEmail || '—'}
             </Text>
           </View>
+
+          <View style={[styles.identityDivider, { backgroundColor: palette.line }]} />
+
+          {/* Username row (KAN-97) */}
+          <View style={styles.identityRow}>
+            <Text style={[styles.identityLabel, { color: palette.muted }]}>Username</Text>
+            {editingUsername ? (
+              <View style={styles.nameEditWrap}>
+                <View style={styles.usernameInputRow}>
+                  <Text style={[styles.usernamePrefix, { color: palette.faint }]}>@</Text>
+                  <TextInput
+                    style={[styles.nameInput, { color: palette.text, borderBottomColor: palette.accent, flex: 1 }]}
+                    value={usernameValue}
+                    onChangeText={handleUsernameChange}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    returnKeyType="done"
+                    onSubmitEditing={handleSaveUsername}
+                    accessibilityLabel="Edit username"
+                    maxLength={20}
+                  />
+                  {savingUsername && (
+                    <ActivityIndicator size="small" color={palette.muted} style={{ marginLeft: 6 }} />
+                  )}
+                </View>
+                {usernameError ? (
+                  <Text style={[styles.usernameHint, { color: '#e05252' }]}>{usernameError}</Text>
+                ) : null}
+                <View style={styles.nameActions}>
+                  <Pressable onPress={handleCancelUsername} hitSlop={8} accessibilityRole="button">
+                    <Text style={[styles.nameActionLabel, { color: palette.muted }]}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    onPress={handleSaveUsername}
+                    disabled={savingUsername || !!usernameError || usernameValue === currentUsername}
+                    hitSlop={8}
+                    accessibilityRole="button">
+                    <Text style={[styles.nameActionLabel, {
+                      color: (savingUsername || !!usernameError || usernameValue === currentUsername)
+                        ? palette.faint : palette.accent,
+                    }]}>
+                      {savingUsername ? 'Saving…' : 'Save'}
+                    </Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : (
+              <Pressable
+                onPress={cooldownDays !== null ? undefined : handleEditUsername}
+                style={styles.identityValueRow}
+                accessibilityRole="button"
+                accessibilityLabel="Edit username">
+                <Text style={[styles.identityValue, { color: palette.text }]}>
+                  {currentUsername ? `@${currentUsername}` : '—'}
+                </Text>
+                {cooldownDays === null ? (
+                  <Text style={[styles.editHint, { color: palette.accent }]}>Edit</Text>
+                ) : (
+                  <Text style={[styles.editHint, { color: palette.faint }]}>
+                    {cooldownDays}d cooldown
+                  </Text>
+                )}
+              </Pressable>
+            )}
+          </View>
         </View>
+
+        {/* Share my profile (KAN-97) */}
+        {currentUsername ? (
+          <TouchableOpacity
+            style={[styles.btn, { backgroundColor: palette.surface2 }]}
+            onPress={handleShareProfile}
+            accessibilityRole="button"
+            accessibilityLabel="Share my profile">
+            <Text style={[styles.btnText, { color: palette.text }]}>Share my profile</Text>
+          </TouchableOpacity>
+        ) : null}
 
         {/* ── Points & Achievements (KAN-19) ── */}
         <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
@@ -677,9 +833,22 @@ const styles = StyleSheet.create({
     height: StyleSheet.hairlineWidth,
   },
 
-  // Name edit
+  // Name / Username edit
   nameEditWrap: {
     gap: 8,
+  },
+  usernameInputRow: {
+    flexDirection:   'row',
+    alignItems:      'center',
+  },
+  usernamePrefix: {
+    fontSize:   15,
+    fontFamily: 'Geist-Regular',
+    marginRight: 2,
+  },
+  usernameHint: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
   },
   nameInput: {
     fontSize:          15,

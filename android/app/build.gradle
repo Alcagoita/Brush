@@ -150,6 +150,15 @@ dependencies {
     // Wear OS communication (KAN-35).
     implementation("com.google.android.gms:play-services-wearable:20.0.1")
 
+    // Firebase Android SDK — required for direct Kotlin usage in
+    // WearMessageListenerService (KAN-38). The BOM version is kept in sync
+    // with @react-native-firebase (see node_modules/@react-native-firebase/app
+    // package.json sdkVersions.android.firebase). The autolinking sub-projects
+    // do not re-export these as api dependencies so :app must declare them explicitly.
+    implementation(platform("com.google.firebase:firebase-bom:34.10.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+
     // Embeds the Wear OS companion APK into the phone AAB for Play Store
     // automatic watch installation (KAN-37). Only active when -PbundleWear
     // is passed; omitting it keeps the phone build fully independent.
