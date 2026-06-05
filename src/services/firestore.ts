@@ -709,7 +709,9 @@ export function subscribeLowBatteryPausePref(
 export const USERNAME_REGEX = /^[a-z0-9_]+$/;
 export const USERNAME_MIN   = 3;
 export const USERNAME_MAX   = 20;
-export const USERNAME_COOLDOWN_DAYS = 30;
+export const USERNAME_COOLDOWN_DAYS  = 30;
+/** New accounts may change their username freely within this window. */
+export const USERNAME_GRACE_HOURS   = 24;
 
 /** Returns a validation error string, or null if the value is valid. */
 export function validateUsername(v: string): string | null {
@@ -760,7 +762,14 @@ export async function updateUsername(uid: string, newUsername: string): Promise<
   if (userData?.usernameUpdatedAt) {
     const updatedAt  = (userData.usernameUpdatedAt as Timestamp).toDate();
     const daysSince  = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60 * 24);
-    if (daysSince < USERNAME_COOLDOWN_DAYS) {
+
+    // New accounts get a 24-hour grace window to fix first-time typos.
+    const accountAgeMs  = userData.createdAt
+      ? Date.now() - (userData.createdAt as Timestamp).toDate().getTime()
+      : Infinity;
+    const inGracePeriod = accountAgeMs < USERNAME_GRACE_HOURS * 60 * 60 * 1000;
+
+    if (daysSince < USERNAME_COOLDOWN_DAYS && !inGracePeriod) {
       const daysLeft = Math.ceil(USERNAME_COOLDOWN_DAYS - daysSince);
       throw new Error(`username_cooldown:${daysLeft}`);
     }

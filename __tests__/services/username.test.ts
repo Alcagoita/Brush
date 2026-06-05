@@ -66,6 +66,7 @@ import {
   getUserByUsername,
   USERNAME_MIN,
   USERNAME_MAX,
+  USERNAME_GRACE_HOURS,
 } from '../../src/services/firestore';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -158,23 +159,36 @@ describe('updateUsername', () => {
     toDate: () => new Date(Date.now() - 40 * 24 * 60 * 60 * 1000), // 40 days ago
   };
 
-  it('throws a cooldown error when last update was within 30 days', async () => {
-    // getUser inner getDoc call
+  it('throws a cooldown error when last update was within 30 days and account is old', async () => {
     mockGetDoc.mockResolvedValueOnce(makeSnap(true, {
       uid: 'uid1',
       username: 'old',
       usernameUpdatedAt: recentTimestamp,
+      createdAt: oldTimestamp, // account older than grace period
     }));
 
     await expect(updateUsername('uid1', 'newname')).rejects.toThrow(/username_cooldown:/);
   });
 
+  it('allows change within cooldown when account is still within the grace period', async () => {
+    const justNow = { toDate: () => new Date(Date.now() - 60 * 1000) }; // 1 minute ago
+    mockGetDoc.mockResolvedValueOnce(makeSnap(true, {
+      uid: 'uid1',
+      username: 'old',
+      usernameUpdatedAt: recentTimestamp,
+      createdAt: justNow, // account created < USERNAME_GRACE_HOURS ago
+    }));
+
+    await expect(updateUsername('uid1', 'newname')).resolves.toBeUndefined();
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
   it('deletes the old index entry, creates the new one, and updates the user doc', async () => {
-    // getUser inner getDoc call
     mockGetDoc.mockResolvedValueOnce(makeSnap(true, {
       uid: 'uid1',
       username: 'oldname',
       usernameUpdatedAt: oldTimestamp,
+      createdAt: oldTimestamp,
     }));
 
     await updateUsername('uid1', 'newname');
@@ -188,6 +202,10 @@ describe('updateUsername', () => {
     expect(indexRef._path).toContain('newname');
 
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+  });
+
+  it(`grace period is ${USERNAME_GRACE_HOURS} hours`, () => {
+    expect(USERNAME_GRACE_HOURS).toBe(24);
   });
 });
 
