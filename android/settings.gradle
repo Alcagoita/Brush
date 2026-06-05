@@ -9,7 +9,11 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
 }
 rootProject.name = 'Brush'
 include ':app'
-// The :wear module is a standalone Wear OS companion app — build it separately
-// from the wear/ directory. It is not included here so wear build issues never
-// block the phone app build.
+// The :wear module is optional — only included when bundleWear=true is passed
+// so wear build issues never block the phone app during development.
+// For Play Store release: ./gradlew bundleRelease -PbundleWear
+if (settings.hasProperty('bundleWear')) {
+    include ':wear'
+    project(':wear').projectDir = new File(rootDir, '../wear')
+}
 includeBuild('../node_modules/@react-native/gradle-plugin')
