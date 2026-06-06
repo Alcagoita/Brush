@@ -250,8 +250,10 @@ export default function TodayScreen() {
           displayName={displayName}
           photoURL={user?.photoURL}
           hasUnread={inboxCount > 0}
+          socialBadge={inboxCount}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
+          onPeoplePress={() => navigation.navigate('SocialHub')}
         />
       </View>
 

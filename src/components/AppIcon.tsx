@@ -141,6 +141,52 @@ export function GridIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Users / Social hub ────────────────────────────────────────────────────────
+export function UsersIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Primary person */}
+      <Path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"
+            stroke={color} strokeWidth={1.6} {...S} />
+      <Circle cx="9" cy="7" r="4"
+              stroke={color} strokeWidth={1.6} {...S} />
+      {/* Secondary person (right, slightly offset) */}
+      <Path d="M23 21v-2a4 4 0 0 0-3-3.87"
+            stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M16 3.13a4 4 0 0 1 0 7.75"
+            stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Share / Send ──────────────────────────────────────────────────────────────
+export function ShareIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="18" cy="5"  r="3" stroke={color} strokeWidth={1.6} {...S} />
+      <Circle cx="6"  cy="12" r="3" stroke={color} strokeWidth={1.6} {...S} />
+      <Circle cx="18" cy="19" r="3" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="8.59" y1="13.51" x2="15.42" y2="17.49"
+            stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="15.41" y1="6.51" x2="8.59" y2="10.49"
+            stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Trophy / Challenge ────────────────────────────────────────────────────────
+export function TrophyIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M6 9H3V4h3" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M18 9h3V4h-3" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M6 4h12v7a6 6 0 0 1-12 0V4z" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M12 17v4" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M8 21h8" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── LogOut (sign out) ─────────────────────────────────────────────────────────
 export function LogOutIcon({ color, size = 24 }: IconProps) {
   return (
