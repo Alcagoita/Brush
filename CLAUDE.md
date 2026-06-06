@@ -612,7 +612,7 @@ KAN-88                                       (Spike — standalone)
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
 | 1 | KAN-97 | Username and profile share link | KAN-18 (Sprint-4) | ✅ Concluído |
-| 2 | KAN-98 | One-way follow system | KAN-97 | ⬜ A fazer |
+| 2 | KAN-98 | One-way follow system | KAN-97 | ✅ Concluído |
 
 ### 🟠 High
 
