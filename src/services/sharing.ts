@@ -77,6 +77,7 @@ export async function findUserByEmail(email: string): Promise<UserSummary | null
 export interface SendSharedTaskParams {
   senderUid:      string;
   senderName:     string;
+  senderUsername?: string;   // @username — included in inbox row (KAN-101)
   recipientUid:   string;
   recipientName:  string;
   task:           Task;
@@ -87,7 +88,7 @@ export interface SendSharedTaskParams {
  * Returns the ID of the created incoming record.
  */
 export async function sendSharedTask(params: SendSharedTaskParams): Promise<string> {
-  const { senderUid, senderName, recipientUid, recipientName, task } = params;
+  const { senderUid, senderName, senderUsername, recipientUid, recipientName, task } = params;
 
   if (senderUid === recipientUid) {
     throw new Error('CANNOT_SEND_TO_SELF');
@@ -103,8 +104,9 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
       title:      task.title,
       category:   task.category,
       ...(task.poi ? { poi: task.poi } : {}),
-      sentBy:     senderUid,
-      sentByName: senderName,
+      sentBy:          senderUid,
+      sentByName:      senderName,
+      ...(senderUsername ? { sentByUsername: senderUsername } : {}),
       sentAt:     serverTimestamp(),
       status:     'pending',
     } satisfies Omit<SharedTask, 'id'>,
@@ -116,7 +118,7 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
     collection(db, 'pendingNotifications', recipientUid, 'items'),
     {
       type:      'shared_task',
-      title:     `${senderName} sent you a task`,
+      title:     senderUsername ? `@${senderUsername} sent you a task` : `${senderName} sent you a task`,
       body:      task.title,
       data: {
         type:           'shared_task',

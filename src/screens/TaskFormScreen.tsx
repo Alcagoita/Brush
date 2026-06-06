@@ -41,7 +41,7 @@ import { categories as builtInCategories, radius, spacing } from '../theme/token
 import { addTask, updateTask, deleteTask, subscribeToCategories } from '../services/firestore';
 import { getCurrentUser } from '../services/auth';
 import { ClockIcon, PoiIcon } from '../components/AppIcon';
-import ShareTaskSheet from '../components/ShareTaskSheet';
+// ShareTaskSheet (KAN-86 email-based) replaced by ShareToDoScreen (KAN-101 follow-based)
 import type { Category, PoiType, Task } from '../types';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -285,7 +285,7 @@ export default function TaskFormScreen() {
   // ── Delete (edit mode only) ─────────────────────────────────────────────────
 
   const [deleting, setDeleting] = useState(false);
-  const [shareSheetVisible, setShareSheetVisible] = useState(false);
+  // shareSheetVisible removed — share flow now navigates to ShareToDoScreen (KAN-101)
 
   const handleDelete = useCallback(() => {
     if (!existingTask) { return; }
@@ -531,7 +531,7 @@ export default function TaskFormScreen() {
           <>
             <View style={[styles.divider, { backgroundColor: palette.line, marginTop: 8 }]} />
             <Pressable
-              onPress={() => setShareSheetVisible(true)}
+              onPress={() => existingTask && navigation.navigate('ShareToDo', { taskId: existingTask.id })}
               disabled={submitting || deleting}
               style={({ pressed }) => [
                 styles.shareBtn,
@@ -539,8 +539,8 @@ export default function TaskFormScreen() {
                 pressed && { opacity: 0.6 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Share task">
-              <Text style={[styles.shareBtnLabel, { color: palette.muted }]}>Share task</Text>
+              accessibilityLabel="Share task with a friend">
+              <Text style={[styles.shareBtnLabel, { color: palette.muted }]}>Send to a friend</Text>
             </Pressable>
             <Pressable
               onPress={handleDelete}
@@ -560,16 +560,7 @@ export default function TaskFormScreen() {
 
       </ScrollView>
 
-      {/* ── Share task sheet (KAN-86) ── */}
-      {isEdit && existingTask && (
-        <ShareTaskSheet
-          visible={shareSheetVisible}
-          onClose={() => setShareSheetVisible(false)}
-          senderUid={uid}
-          senderName={getCurrentUser()?.displayName ?? 'Brush user'}
-          task={existingTask}
-        />
-      )}
+      {/* Share flow navigates to ShareToDoScreen (KAN-101) — no sheet needed here */}
     </KeyboardAvoidingView>
   );
 }
