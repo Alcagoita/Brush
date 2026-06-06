@@ -67,7 +67,9 @@ import {
   checkUsernameAvailable,
   validateUsername,
   USERNAME_COOLDOWN_DAYS,
+  upsertUser,
 } from '../services/firestore';
+import { registerInDiscovery, unregisterFromDiscovery } from '../services/contacts';
 import { placeTypeLabel } from '../services/maps';
 import { Achievement, Category, POI_GEOFENCE_RADIUS } from '../types';
 import ImportTasksSection from '../components/ImportTasksSection';
@@ -336,6 +338,31 @@ export default function ProfileScreen() {
   const togglePrefs = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setPrefsExpanded(prev => !prev);
+  };
+
+  // ── Contact discoverability (KAN-99) ─────────────────────────────────────
+  const [discoverable, setDiscoverable] = useState(true); // default on
+
+  useEffect(() => {
+    if (!uid) { return; }
+    getUser(uid).then(u => {
+      if (u && u.poiPreferences && (u as any).contactDiscoverable !== undefined) {
+        setDiscoverable((u as any).contactDiscoverable);
+      }
+    });
+  }, [uid]);
+
+  const handleDiscoverableToggle = async (value: boolean) => {
+    setDiscoverable(value);
+    if (!uid) { return; }
+    await upsertUser(uid, { ...({ contactDiscoverable: value } as any) });
+    if (value) {
+      // Re-register in discovery index.
+      if (userEmail) { registerInDiscovery(uid, userEmail).catch(() => {}); }
+    } else {
+      // Remove from discovery index.
+      if (userEmail) { unregisterFromDiscovery(userEmail).catch(() => {}); }
+    }
   };
 
   // ── Logout ─────────────────────────────────────────────────────────────────
@@ -715,6 +742,29 @@ export default function ProfileScreen() {
               trackColor={{ false: palette.line, true: palette.accent }}
               thumbColor={palette.bg}
               accessibilityLabel="Pause nearby alerts on low battery"
+              accessibilityRole="switch"
+            />
+          </View>
+        </View>
+
+        {/* ── Contact discoverability (KAN-99) ── */}
+        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
+          <Text style={[styles.sectionTitle, { color: palette.text }]}>Privacy</Text>
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleText}>
+              <Text style={[styles.toggleLabel, { color: palette.text }]}>
+                Discoverable via contacts
+              </Text>
+              <Text style={[styles.toggleSub, { color: palette.muted }]}>
+                Friends can find you when scanning their contacts
+              </Text>
+            </View>
+            <Switch
+              value={discoverable}
+              onValueChange={handleDiscoverableToggle}
+              trackColor={{ false: palette.line, true: palette.accent }}
+              thumbColor={palette.bg}
+              accessibilityLabel="Discoverable via contacts"
               accessibilityRole="switch"
             />
           </View>
