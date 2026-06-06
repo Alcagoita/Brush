@@ -21,6 +21,7 @@ import PublicProfileScreen from '../screens/PublicProfileScreen';
 import SharedTaskInboxScreen from '../screens/SharedTaskInboxScreen';
 import SocialHubScreen from '../screens/SocialHubScreen';
 import ShareToDoScreen from '../screens/ShareToDoScreen';
+import CreateChallengeScreen from '../screens/CreateChallengeScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -40,6 +41,10 @@ export type RootStackParamList = {
   SocialHub: undefined;
   /** Task picker + friend picker for sharing a to-do (KAN-101). */
   ShareToDo: { taskId?: string } | undefined;
+  /** Challenge creation flow — type, params, friends, message (KAN-102). */
+  CreateChallenge: undefined;
+  /** Live challenge detail with leaderboard (KAN-103). */
+  ChallengeDetail: { challengeId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -60,7 +65,9 @@ export default function AppNavigator() {
       <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
       <Stack.Screen name="SharedTaskInbox" component={SharedTaskInboxScreen} />
       <Stack.Screen name="SocialHub"  component={SocialHubScreen} />
-      <Stack.Screen name="ShareToDo" component={ShareToDoScreen} />
+      <Stack.Screen name="ShareToDo"        component={ShareToDoScreen} />
+      <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
+      {/* ChallengeDetail added in KAN-103 */}
     </Stack.Navigator>
   );
 }
