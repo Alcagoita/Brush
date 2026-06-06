@@ -151,6 +151,52 @@ describe('sendSharedTask', () => {
     });
   });
 
+  // ── KAN-101: senderUsername ──────────────────────────────────────────────────
+
+  it('includes sentByUsername in the record when provided (KAN-101)', async () => {
+    mockAddDoc.mockResolvedValue({ id: 'x' });
+    await sendSharedTask({
+      senderUid: 'uid-a', senderName: 'Alice', senderUsername: 'alice',
+      recipientUid: 'uid-b', recipientName: 'Bob',
+      task: makeTask(),
+    });
+    const [, payload] = mockAddDoc.mock.calls[0];
+    expect(payload.sentByUsername).toBe('alice');
+  });
+
+  it('omits sentByUsername when not provided (KAN-101)', async () => {
+    mockAddDoc.mockResolvedValue({ id: 'x' });
+    await sendSharedTask({
+      senderUid: 'uid-a', senderName: 'Alice',
+      recipientUid: 'uid-b', recipientName: 'Bob',
+      task: makeTask(),
+    });
+    const [, payload] = mockAddDoc.mock.calls[0];
+    expect(payload).not.toHaveProperty('sentByUsername');
+  });
+
+  it('uses @username in notification title when senderUsername provided (KAN-101)', async () => {
+    mockAddDoc.mockResolvedValue({ id: 'x' });
+    await sendSharedTask({
+      senderUid: 'uid-a', senderName: 'Alice', senderUsername: 'alice',
+      recipientUid: 'uid-b', recipientName: 'Bob',
+      task: makeTask(),
+    });
+    const [, notifPayload] = mockAddDoc.mock.calls[1];
+    expect(notifPayload.title).toBe('@alice sent you a task');
+  });
+
+  it('includes screen: SharedTaskInbox in notification data (KAN-101)', async () => {
+    mockAddDoc.mockResolvedValue({ id: 'x' });
+    await sendSharedTask({
+      senderUid: 'uid-a', senderName: 'Alice',
+      recipientUid: 'uid-b', recipientName: 'Bob',
+      task: makeTask(),
+    });
+    const [, notifPayload] = mockAddDoc.mock.calls[1];
+    expect(notifPayload.data.screen).toBe('SharedTaskInbox');
+  });
+
   it('includes poi in the record when the task has one', async () => {
     mockAddDoc.mockResolvedValue({ id: 'x' });
 

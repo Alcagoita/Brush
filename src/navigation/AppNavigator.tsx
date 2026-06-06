@@ -20,6 +20,7 @@ import PointsHistoryScreen from '../screens/PointsHistoryScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
 import SharedTaskInboxScreen from '../screens/SharedTaskInboxScreen';
 import SocialHubScreen from '../screens/SocialHubScreen';
+import ShareToDoScreen from '../screens/ShareToDoScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -37,6 +38,8 @@ export type RootStackParamList = {
   SharedTaskInbox: undefined;
   /** Friends & Social hub — activity feed + following list (KAN-100). */
   SocialHub: undefined;
+  /** Task picker + friend picker for sharing a to-do (KAN-101). */
+  ShareToDo: { taskId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -56,7 +59,8 @@ export default function AppNavigator() {
       <Stack.Screen name="PointsHistory"    component={PointsHistoryScreen} />
       <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
       <Stack.Screen name="SharedTaskInbox" component={SharedTaskInboxScreen} />
-      <Stack.Screen name="SocialHub"       component={SocialHubScreen} />
+      <Stack.Screen name="SocialHub"  component={SocialHubScreen} />
+      <Stack.Screen name="ShareToDo" component={ShareToDoScreen} />
     </Stack.Navigator>
   );
 }
