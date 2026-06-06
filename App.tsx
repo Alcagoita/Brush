@@ -23,13 +23,16 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
 import { getUser } from './src/services/firestore';
+import { subscribeToSharedTaskNotifications } from './src/services/sharing';
+import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
 
-// Deep link config — `brushaway.app/u/{username}` opens PublicProfile (KAN-97).
+// Deep link config (KAN-97 / KAN-87).
 const LINKING_CONFIG = {
   prefixes: ['https://brushaway.app', 'brushaway://'],
   config: {
     screens: {
-      PublicProfile: 'u/:username',
+      PublicProfile:   'u/:username',
+      SharedTaskInbox: 'inbox',
     } as Record<keyof RootStackParamList, unknown>,
   },
 };
@@ -81,6 +84,29 @@ function AppShell() {
       .then(userData => { if (!cancelled) { setHasUsername(!!userData?.username); } })
       .catch(() => { if (!cancelled) { setHasUsername(false); } });
     return () => { cancelled = true; };
+  }, [displayUser]);
+
+  // ── Shared-task notification subscription (KAN-87) ───────────────────────
+  // Fires a local notifee notification when a new pendingNotification arrives.
+  // The data.screen key routes the press handler to SharedTaskInbox.
+  useEffect(() => {
+    if (!displayUser) { return; }
+    const uid = displayUser.uid;
+    return subscribeToSharedTaskNotifications(uid, async n => {
+      try {
+        await notifeeApp.createChannel({
+          id: 'shared_tasks', name: 'Shared Tasks', importance: AppAndroidImportance.HIGH,
+        });
+        await notifeeApp.displayNotification({
+          title: n.title,
+          body:  n.body,
+          data:  { ...n.data, screen: 'SharedTaskInbox' },
+          android: { channelId: 'shared_tasks', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
+        });
+      } catch (e) {
+        console.warn('[AppShell] shared task notification failed', e);
+      }
+    });
   }, [displayUser]);
 
   // Persist the FCM device token whenever a user is signed in.

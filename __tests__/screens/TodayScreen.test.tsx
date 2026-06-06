@@ -20,6 +20,10 @@ const mockSubscribeToPoiPreferences  = jest.fn();
 const mockSubscribeToCategories      = jest.fn();
 const mockSubscribeLowBatteryPausePref = jest.fn();
 
+jest.mock('../../src/services/sharing', () => ({
+  subscribeToIncomingSharedTasks: jest.fn(() => jest.fn()),
+}));
+
 jest.mock('../../src/services/firestore', () => ({
   setTaskDone:                 (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:                  (...args: unknown[]) => mockAwardPoint(...args),
