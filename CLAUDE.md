@@ -630,7 +630,7 @@ KAN-88                                       (Spike — standalone)
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
 | 9 | KAN-99 | Phone contacts friend suggestions | KAN-98 | ⬜ A fazer |
-| 10 | KAN-104 | Challenge — winner achievement and notifications | KAN-103 | ⬜ A fazer |
+| 10 | KAN-104 | Challenge — winner achievement and notifications | KAN-103 | ✅ Concluído |
 | 11 | KAN-105 | Compare achievements with friends | KAN-97, KAN-98 | ⬜ A fazer |
 
 ### Dependency map
