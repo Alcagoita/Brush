@@ -19,6 +19,7 @@ import TaskFormScreen, { TaskFormParams } from '../screens/TaskFormScreen';
 import PointsHistoryScreen from '../screens/PointsHistoryScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
 import SharedTaskInboxScreen from '../screens/SharedTaskInboxScreen';
+import SocialHubScreen from '../screens/SocialHubScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -34,6 +35,8 @@ export type RootStackParamList = {
   PublicProfile: { username: string };
   /** Shared-task inbox — receive, accept and decline (KAN-87). */
   SharedTaskInbox: undefined;
+  /** Friends & Social hub — activity feed + following list (KAN-100). */
+  SocialHub: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -53,6 +56,7 @@ export default function AppNavigator() {
       <Stack.Screen name="PointsHistory"    component={PointsHistoryScreen} />
       <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
       <Stack.Screen name="SharedTaskInbox" component={SharedTaskInboxScreen} />
+      <Stack.Screen name="SocialHub"       component={SocialHubScreen} />
     </Stack.Navigator>
   );
 }
