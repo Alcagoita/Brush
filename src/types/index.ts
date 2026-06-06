@@ -31,6 +31,10 @@ export interface User {
   followingCount?: number;
   /** Denormalized count of users following this user (KAN-98). */
   followersCount?: number;
+  /** Denormalized total points (incremented on each award — KAN-31). */
+  totalPoints?: number;
+  /** Current consecutive-day task streak. Updated by streak logic. */
+  currentStreak?: number;
   /**
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.

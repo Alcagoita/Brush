@@ -24,6 +24,7 @@ import ShareToDoScreen from '../screens/ShareToDoScreen';
 import CreateChallengeScreen from '../screens/CreateChallengeScreen';
 import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
 import ContactSuggestionsScreen from '../screens/ContactSuggestionsScreen';
+import CompareAchievementsScreen from '../screens/CompareAchievementsScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -49,6 +50,8 @@ export type RootStackParamList = {
   ChallengeDetail: { challengeId: string };
   /** Phone contacts friend suggestions (KAN-99). */
   ContactSuggestions: undefined;
+  /** Side-by-side achievement and stats comparison with a friend (KAN-105). */
+  CompareAchievements: { friendUid: string; friendUsername: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -72,7 +75,8 @@ export default function AppNavigator() {
       <Stack.Screen name="ShareToDo"        component={ShareToDoScreen} />
       <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
       <Stack.Screen name="ChallengeDetail"     component={ChallengeDetailScreen} />
-      <Stack.Screen name="ContactSuggestions" component={ContactSuggestionsScreen} />
+      <Stack.Screen name="ContactSuggestions"   component={ContactSuggestionsScreen} />
+      <Stack.Screen name="CompareAchievements"  component={CompareAchievementsScreen} />
     </Stack.Navigator>
   );
 }
