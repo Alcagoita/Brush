@@ -13,6 +13,7 @@
 
 import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -65,33 +66,53 @@ export default function SocialHubScreen() {
 
   const uid = getAuth().currentUser?.uid ?? '';
 
-  const [pendingTasks, setPendingTasks] = useState<SharedTask[]>([]);
-  const [following,    setFollowing]    = useState<FollowEntry[]>([]);
+  // loading: null = not yet resolved, true = in flight, false = settled
+  const [loadingTasks,     setLoadingTasks]     = useState(true);
+  const [loadingFollowing, setLoadingFollowing] = useState(true);
+  const [loadingFollowers, setLoadingFollowers] = useState(true);
+
+  const [pendingTasks,    setPendingTasks]    = useState<SharedTask[]>([]);
+  const [following,       setFollowing]       = useState<FollowEntry[]>([]);
   const [recentFollowers, setRecentFollowers] = useState<FollowEntry[]>([]);
+
+  const [tasksError,     setTasksError]     = useState(false);
+  const [followingError, setFollowingError] = useState(false);
+  const [followersError, setFollowersError] = useState(false);
 
   // Pending shared tasks
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToIncomingSharedTasks(uid, setPendingTasks, err =>
-      console.warn('[SocialHub] shared tasks error', err));
+    return subscribeToIncomingSharedTasks(
+      uid,
+      tasks => { setPendingTasks(tasks); setLoadingTasks(false); setTasksError(false); },
+      _err  => { setLoadingTasks(false); setTasksError(true); },
+    );
   }, [uid]);
 
   // Following list
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToFollowing(uid, setFollowing, err =>
-      console.warn('[SocialHub] following error', err));
+    return subscribeToFollowing(
+      uid,
+      entries => { setFollowing(entries); setLoadingFollowing(false); setFollowingError(false); },
+      _err    => { setLoadingFollowing(false); setFollowingError(true); },
+    );
   }, [uid]);
 
   // Recent followers (last 5 for activity feed)
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToFollowers(uid, followers =>
-      setRecentFollowers(followers.slice(0, 5)), err =>
-      console.warn('[SocialHub] followers error', err));
+    return subscribeToFollowers(
+      uid,
+      followers => { setRecentFollowers(followers.slice(0, 5)); setLoadingFollowers(false); setFollowersError(false); },
+      _err      => { setLoadingFollowers(false); setFollowersError(true); },
+    );
   }, [uid]);
 
-  const hasActivity = pendingTasks.length > 0 || recentFollowers.length > 0;
+  const isLoadingActivity  = loadingTasks || loadingFollowers;
+  const isLoadingFollowing = loadingFollowing;
+  const activityError      = tasksError || followersError;
+  const hasActivity        = pendingTasks.length > 0 || recentFollowers.length > 0;
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -137,7 +158,17 @@ export default function SocialHubScreen() {
         {/* ── Section 2: Activity feed ── */}
         <SectionHeader title="ACTIVITY" palette={palette} />
 
-        {!hasActivity ? (
+        {isLoadingActivity ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+            <ActivityIndicator color={palette.accent} />
+          </View>
+        ) : activityError ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+            <Text style={[styles.emptyText, { color: palette.muted }]}>
+              Activity unavailable. Pull to refresh.
+            </Text>
+          </View>
+        ) : !hasActivity ? (
           <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
             <UsersIcon color={palette.faint} size={28} />
             <Text style={[styles.emptyText, { color: palette.muted }]}>
@@ -145,6 +176,7 @@ export default function SocialHubScreen() {
             </Text>
           </View>
         ) : (
+          // hasActivity === true
           <View style={styles.feedList}>
             {/* Pending shared tasks */}
             {pendingTasks.map(task => (
@@ -196,9 +228,22 @@ export default function SocialHubScreen() {
         )}
 
         {/* ── Section 3: Following list ── */}
-        <SectionHeader title="FOLLOWING" palette={palette} />
+        <SectionHeader
+          title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
+          palette={palette}
+        />
 
-        {following.length === 0 ? (
+        {isLoadingFollowing ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+            <ActivityIndicator color={palette.accent} />
+          </View>
+        ) : followingError ? (
+          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+            <Text style={[styles.emptyText, { color: palette.muted }]}>
+              Could not load following list.
+            </Text>
+          </View>
+        ) : following.length === 0 ? (
           <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
             <Text style={[styles.emptyText, { color: palette.muted }]}>
               You're not following anyone yet.
