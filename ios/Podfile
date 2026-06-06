@@ -32,7 +32,7 @@ target 'BrushShareExtension' do
   pod 'FirebaseFunctions'
 end
 
-target 'Agenda' do
+target 'Brush' do
   config = use_native_modules!
 
   use_react_native!(

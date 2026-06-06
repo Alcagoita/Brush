@@ -6,7 +6,7 @@ builds/
 # Firebase config files (contain sensitive API keys — keep out of git)
 # New developers: run `firebase apps:sdkconfig` to download these
 android/app/google-services.json
-ios/Agenda/GoogleService-Info.plist
+ios/Brush/GoogleService-Info.plist
 
 # Google Places API key — contains a real API key, must never be committed.
 # Copy src/config/keys.example.ts → src/config/keys.ts and fill in your key.

@@ -8,33 +8,35 @@
 
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
+		2A8F5122BFD14439A51DA597 /* BrushEventKitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 735E419878854BEF848A5BDA /* BrushEventKitModule.m */; };
+		33BD7488FFFF4AF19D366E1A /* BrushEventKitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		8768F94715954DF19006DDC0 /* Geist-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8200D76D424775A91F0B29 /* Geist-Regular.ttf */; };
 		B4D591A2F88645EF874F9667 /* Geist-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 29246E9E8C04400D8DC4A9C3 /* Geist-Medium.ttf */; };
 		BDFAF69EA8A2E05B2127F303 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
-		C971944239423B0449F6C926 /* Pods_Agenda.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6D505BCFB04EE52AF380D19C /* Pods_Agenda.framework */; };
+		DBC000516EE8C892B78BF187 /* Pods_Brush.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5E811D3B0C30ABDC3E15475 /* Pods_Brush.framework */; };
 		DBF2E2083FD0013C478A2D92 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 31AC1B518174C41A0832DC7C /* GoogleService-Info.plist */; };
 		EEE24D0CE3434552B2D3DC1B /* Geist-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F1BFDF13CDF1454798C0C50C /* Geist-SemiBold.ttf */; };
-		33BD7488FFFF4AF19D366E1A /* BrushEventKitModule.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */; };
-		2A8F5122BFD14439A51DA597 /* BrushEventKitModule.m in Sources */ = {isa = PBXBuildFile; fileRef = 735E419878854BEF848A5BDA /* BrushEventKitModule.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		13B07F961A680F5B00A75B9A /* Agenda.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Agenda.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Agenda/Images.xcassets; sourceTree = "<group>"; };
-		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Agenda/Info.plist; sourceTree = "<group>"; };
-		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Agenda/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BrushEventKitModule.swift; path = Brush/BrushEventKitModule.swift; sourceTree = "<group>"; };
+		13B07F961A680F5B00A75B9A /* Brush.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Brush.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Brush/Images.xcassets; sourceTree = "<group>"; };
+		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Brush/Info.plist; sourceTree = "<group>"; };
+		13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = PrivacyInfo.xcprivacy; path = Brush/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A8200D76D424775A91F0B29 /* Geist-Regular.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Regular.ttf"; path = "../src/assets/fonts/Geist-Regular.ttf"; sourceTree = "<group>"; };
 		29246E9E8C04400D8DC4A9C3 /* Geist-Medium.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-Medium.ttf"; path = "../src/assets/fonts/Geist-Medium.ttf"; sourceTree = "<group>"; };
-		31AC1B518174C41A0832DC7C /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Agenda/GoogleService-Info.plist"; sourceTree = SOURCE_ROOT; };
+		31AC1B518174C41A0832DC7C /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Brush/GoogleService-Info.plist"; sourceTree = SOURCE_ROOT; };
 		3B4392A12AC88292D35C810B /* Pods-Agenda.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Agenda.debug.xcconfig"; path = "Target Support Files/Pods-Agenda/Pods-Agenda.debug.xcconfig"; sourceTree = "<group>"; };
 		5709B34CF0A7D63546082F79 /* Pods-Agenda.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Agenda.release.xcconfig"; path = "Target Support Files/Pods-Agenda/Pods-Agenda.release.xcconfig"; sourceTree = "<group>"; };
-		6D505BCFB04EE52AF380D19C /* Pods_Agenda.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Agenda.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Agenda/AppDelegate.swift; sourceTree = "<group>"; };
-		0455C99A83C74F26B0092061 /* BrushEventKitModule.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BrushEventKitModule.swift; path = Agenda/BrushEventKitModule.swift; sourceTree = "<group>"; };
-		735E419878854BEF848A5BDA /* BrushEventKitModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = BrushEventKitModule.m; path = Agenda/BrushEventKitModule.m; sourceTree = "<group>"; };
-		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Agenda/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		735E419878854BEF848A5BDA /* BrushEventKitModule.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; name = BrushEventKitModule.m; path = Brush/BrushEventKitModule.m; sourceTree = "<group>"; };
+		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Brush/AppDelegate.swift; sourceTree = "<group>"; };
+		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Brush/LaunchScreen.storyboard; sourceTree = "<group>"; };
+		959F51F696A8D0953FAE2D12 /* Pods-Brush.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brush.debug.xcconfig"; path = "Target Support Files/Pods-Brush/Pods-Brush.debug.xcconfig"; sourceTree = "<group>"; };
+		A5E811D3B0C30ABDC3E15475 /* Pods_Brush.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Brush.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		EC1CE4951ABEED4C9E8829E1 /* Pods-Brush.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brush.release.xcconfig"; path = "Target Support Files/Pods-Brush/Pods-Brush.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1BFDF13CDF1454798C0C50C /* Geist-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBold.ttf"; path = "../src/assets/fonts/Geist-SemiBold.ttf"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -44,14 +46,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C971944239423B0449F6C926 /* Pods_Agenda.framework in Frameworks */,
+				DBC000516EE8C892B78BF187 /* Pods_Brush.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		13B07FAE1A68108700A75B9A /* Agenda */ = {
+		13B07FAE1A68108700A75B9A /* Brush */ = {
 			isa = PBXGroup;
 			children = (
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
@@ -63,14 +65,14 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				31AC1B518174C41A0832DC7C /* GoogleService-Info.plist */,
 			);
-			name = Agenda;
+			name = Brush;
 			sourceTree = "<group>";
 		};
 		2D16E6871FA4F8E400B85C8A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				6D505BCFB04EE52AF380D19C /* Pods_Agenda.framework */,
+				A5E811D3B0C30ABDC3E15475 /* Pods_Brush.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -96,7 +98,7 @@
 		83CBB9F61A601CBA00E9B192 = {
 			isa = PBXGroup;
 			children = (
-				13B07FAE1A68108700A75B9A /* Agenda */,
+				13B07FAE1A68108700A75B9A /* Brush */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
@@ -111,7 +113,7 @@
 		83CBBA001A601CBA00E9B192 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				13B07F961A680F5B00A75B9A /* Agenda.app */,
+				13B07F961A680F5B00A75B9A /* Brush.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -121,6 +123,8 @@
 			children = (
 				3B4392A12AC88292D35C810B /* Pods-Agenda.debug.xcconfig */,
 				5709B34CF0A7D63546082F79 /* Pods-Agenda.release.xcconfig */,
+				959F51F696A8D0953FAE2D12 /* Pods-Brush.debug.xcconfig */,
+				EC1CE4951ABEED4C9E8829E1 /* Pods-Brush.release.xcconfig */,
 			);
 			path = Pods;
 			sourceTree = "<group>";
@@ -165,7 +169,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Agenda" */;
+			buildConfigurationList = 83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Brush" */;
 			compatibilityVersion = "Xcode 12.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -178,7 +182,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				13B07F861A680F5B00A75B9A /* Agenda */,
+				13B07F861A680F5B00A75B9A /* Brush */,
 			);
 		};
 /* End PBXProject section */
@@ -223,15 +227,15 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-frameworks-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-frameworks-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-frameworks-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-frameworks.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		5278C57B1DDABA331AA8C5E7 /* [Firebase] Verify GoogleService-Info.plist */ = {
@@ -250,7 +254,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ ! -f \"${SRCROOT}/Agenda/GoogleService-Info.plist\" ]; then\n  echo \"error: GoogleService-Info.plist not found at ${SRCROOT}/Agenda/GoogleService-Info.plist\"\n  echo \"error: Run: firebase apps:sdkconfig ios <APP_ID> --out ios/Agenda/GoogleService-Info.plist\"\n  exit 1\nfi\n";
+			shellScript = "if [ ! -f \"${SRCROOT}/Brush/GoogleService-Info.plist\" ]; then\n  echo \"error: GoogleService-Info.plist not found at ${SRCROOT}/Brush/GoogleService-Info.plist\"\n  echo \"error: Run: firebase apps:sdkconfig ios <APP_ID> --out ios/Brush/GoogleService-Info.plist\"\n  exit 1\nfi\n";
 		};
 		591FDBABA8D2E86508F06050 /* [CP-User] [RNFB] Core Configuration */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -294,7 +298,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-Agenda-checkManifestLockResult.txt",
+				"$(DERIVED_FILE_DIR)/Pods-Brush-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -307,15 +311,15 @@
 			files = (
 			);
 			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-resources-${CONFIGURATION}-input-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-resources-${CONFIGURATION}-output-files.xcfilelist",
+				"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Agenda/Pods-Agenda-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -336,13 +340,13 @@
 /* Begin XCBuildConfiguration section */
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3B4392A12AC88292D35C810B /* Pods-Agenda.debug.xcconfig */;
+			baseConfigurationReference = 959F51F696A8D0953FAE2D12 /* Pods-Brush.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_BITCODE = NO;
-				INFOPLIST_FILE = Agenda/Info.plist;
+				INFOPLIST_FILE = Brush/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -354,8 +358,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				/* ⚠️ KAN-70: bundle ID changed from com.agenda → com.brush (affects App Store listing identity) */
-				PRODUCT_BUNDLE_IDENTIFIER = "com.brush";
+				PRODUCT_BUNDLE_IDENTIFIER = com.brush;
 				PRODUCT_NAME = Brush;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -367,12 +370,12 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 5709B34CF0A7D63546082F79 /* Pods-Agenda.release.xcconfig */;
+			baseConfigurationReference = EC1CE4951ABEED4C9E8829E1 /* Pods-Brush.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CURRENT_PROJECT_VERSION = 1;
-				INFOPLIST_FILE = Agenda/Info.plist;
+				INFOPLIST_FILE = Brush/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -384,8 +387,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				/* ⚠️ KAN-70: bundle ID changed from com.agenda → com.brush (affects App Store listing identity) */
-				PRODUCT_BUNDLE_IDENTIFIER = "com.brush";
+				PRODUCT_BUNDLE_IDENTIFIER = com.brush;
 				PRODUCT_NAME = Brush;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
@@ -583,7 +585,7 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Agenda" */ = {
+		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Brush" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
@@ -592,7 +594,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Agenda" */ = {
+		83CBB9FA1A601CBA00E9B192 /* Build configuration list for PBXProject "Brush" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				83CBBA201A601CBA00E9B192 /* Debug */,
