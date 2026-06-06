@@ -16,6 +16,20 @@
  *     - calls updateDoc with correct field path
  */
 
+// ─── External mocks ──────────────────────────────────────────────────────────
+
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: { createChannel: jest.fn(), displayNotification: jest.fn() },
+  AndroidImportance: { HIGH: 4 },
+}));
+
+jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
+
+jest.mock('../../src/services/achievements', () => ({
+  awardChallengeWinnerAchievement: jest.fn().mockResolvedValue(undefined),
+}));
+
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
 const mockAddDoc    = jest.fn();

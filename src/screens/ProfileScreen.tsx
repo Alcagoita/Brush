@@ -93,8 +93,9 @@ const POI_ROWS: { type: string; label: string }[] = [
 // ─── Achievement metadata ─────────────────────────────────────────────────────
 
 const ACHIEVEMENT_META: Record<string, { label: string; icon: string }> = {
-  first_task:       { label: 'First task',    icon: '★' },
-  daily_complete:   { label: 'Day complete',  icon: '✓' },
+  first_task:        { label: 'First task',       icon: '★' },
+  daily_complete:    { label: 'Day complete',      icon: '✓' },
+  challenge_winner:  { label: 'First to do it',   icon: '🏆' },
 };
 
 function getAchievementMeta(type: string) {
