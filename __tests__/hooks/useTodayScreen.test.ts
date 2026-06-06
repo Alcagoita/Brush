@@ -33,6 +33,11 @@ jest.mock('../../src/services/achievements', () => ({
   checkAndAwardDailyComplete: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../../src/services/challenges', () => ({
+  getActiveChallengesForUser: jest.fn().mockResolvedValue([]),
+  incrementCompletedCount:    jest.fn().mockResolvedValue(false),
+}));
+
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));

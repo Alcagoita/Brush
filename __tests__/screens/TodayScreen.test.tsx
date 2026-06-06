@@ -41,6 +41,11 @@ jest.mock('../../src/services/achievements', () => ({
   checkAndAwardDailyComplete: (...args: unknown[]) => mockCheckAndAwardDailyComplete(...args),
 }));
 
+jest.mock('../../src/services/challenges', () => ({
+  getActiveChallengesForUser: jest.fn().mockResolvedValue([]),
+  incrementCompletedCount:    jest.fn().mockResolvedValue(false),
+}));
+
 // ─── Auth mock ────────────────────────────────────────────────────────────────
 
 let mockUid: string | null = 'user-test';

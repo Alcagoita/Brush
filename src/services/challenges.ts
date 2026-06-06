@@ -190,16 +190,133 @@ export async function updateParticipantStatus(
   });
 }
 
-// ─── incrementCompletedCount (KAN-103) ───────────────────────────────────────
+// ─── incrementCompletedCount + goal check (KAN-103) ─────────────────────────
 
+/**
+ * Increment the participant's completed count and check for goal-based completion.
+ *
+ * If the challenge is goal-based and the participant now equals or exceeds
+ * goalCount, mark them as the winner and close the challenge.
+ * Returns true if the challenge just ended.
+ */
 export async function incrementCompletedCount(
   challengeId: string,
   uid: string,
-): Promise<void> {
-  const { increment } = await import('@react-native-firebase/firestore');
+  challenge: Challenge,
+): Promise<boolean> {
+  const db = getFirestore();
+  const { increment: inc } = await import('@react-native-firebase/firestore');
+
+  const newCount = (challenge.participants[uid]?.completedCount ?? 0) + 1;
+  const isGoalMet = challenge.type === 'goal' && newCount >= (challenge.goalCount ?? Infinity);
+
+  if (isGoalMet) {
+    // Atomic: increment count + mark winner + close challenge.
+    await updateDoc(challengeRef(challengeId), {
+      [`participants.${uid}.completedCount`]: inc(1),
+      [`participants.${uid}.won`]:            true,
+      status:                                 'completed',
+    });
+
+    // Notify other participants.
+    const winner = challenge.participants[uid];
+    const winnerHandle = winner?.username ? `@${winner.username}` : (winner?.displayName ?? 'Someone');
+    const others = Object.entries(challenge.participants)
+      .filter(([pUid]) => pUid !== uid)
+      .map(([, p]) => p);
+
+    await Promise.allSettled(
+      Object.entries(challenge.participants)
+        .filter(([pUid]) => pUid !== uid)
+        .map(([pUid]) =>
+          addDoc(
+            collection(db, 'pendingNotifications', pUid, 'items'),
+            {
+              type:      'challenge_ended',
+              title:     `${winnerHandle} won the challenge!`,
+              body:      'Better luck next time.',
+              data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
+              createdAt: serverTimestamp(),
+            },
+          ),
+        ),
+    );
+
+    // Notify winner.
+    await addDoc(
+      collection(db, 'pendingNotifications', uid, 'items'),
+      {
+        type:      'challenge_won',
+        title:     '🏆 You won the challenge!',
+        body:      `First to complete ${challenge.goalCount} tasks.`,
+        data:      { type: 'challenge_won', challengeId, screen: 'ChallengeDetail' },
+        createdAt: serverTimestamp(),
+      },
+    );
+
+    return true;
+  }
+
   await updateDoc(challengeRef(challengeId), {
-    [`participants.${uid}.completedCount`]: increment(1),
+    [`participants.${uid}.completedCount`]: inc(1),
   });
+  return false;
+}
+
+/**
+ * Called at challenge deadline for time-based challenges.
+ * Determines winner by highest completedCount, marks them won, closes challenge.
+ */
+export async function resolveTimeBasedChallenge(
+  challengeId: string,
+  challenge: Challenge,
+): Promise<void> {
+  const db = getFirestore();
+  const entries = Object.entries(challenge.participants);
+  if (entries.length === 0) { return; }
+
+  const [winnerUid] = entries.reduce(
+    (best, curr) => curr[1].completedCount > best[1].completedCount ? curr : best,
+    entries[0],
+  );
+
+  const updates: Record<string, unknown> = { status: 'completed' };
+  updates[`participants.${winnerUid}.won`] = true;
+
+  await updateDoc(challengeRef(challengeId), updates);
+
+  // Notify all participants.
+  const winner = challenge.participants[winnerUid];
+  const winnerHandle = winner?.username ? `@${winner.username}` : (winner?.displayName ?? 'Someone');
+  await Promise.allSettled(
+    entries.map(([pUid]) =>
+      addDoc(
+        collection(db, 'pendingNotifications', pUid, 'items'),
+        {
+          type:      pUid === winnerUid ? 'challenge_won' : 'challenge_ended',
+          title:     pUid === winnerUid ? '🏆 You won the challenge!' : `${winnerHandle} won the challenge!`,
+          body:      'Time is up!',
+          data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
+          createdAt: serverTimestamp(),
+        },
+      ),
+    ),
+  );
+}
+
+/**
+ * Get all active challenges for a user (as a participant).
+ * Used by useTodayScreen to know which challenges to update on task done.
+ * Returns a one-time fetch (not subscribed).
+ */
+export async function getActiveChallengesForUser(uid: string): Promise<Challenge[]> {
+  const { getDocs } = await import('@react-native-firebase/firestore');
+  const snap = await getDocs(
+    query(challengesRef(), where('status', '==', 'active')),
+  );
+  return snap.docs
+    .map(d => ({ id: d.id, ...d.data() } as Challenge))
+    .filter(c => uid in c.participants && c.participants[uid].status === 'accepted');
 }
 
 export { Timestamp, serverTimestamp };
