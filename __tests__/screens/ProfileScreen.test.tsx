@@ -31,6 +31,18 @@ const mockGetUser                      = jest.fn();
 const mockUpdateUsername               = jest.fn();
 const mockCheckUsernameAvailable       = jest.fn();
 
+jest.mock('../../src/services/contacts', () => ({
+  registerInDiscovery:   jest.fn().mockResolvedValue(undefined),
+  unregisterFromDiscovery: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('react-native-permissions', () => ({
+  check:       jest.fn(),
+  request:     jest.fn(),
+  PERMISSIONS: { IOS: {}, ANDROID: {} },
+  RESULTS:     { GRANTED: 'granted' },
+}));
+
 jest.mock('../../src/services/firestore', () => ({
   subscribeToPoiPreferences:    (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
   setPoiPreference:             (...args: unknown[]) => mockSetPoiPreference(...args),
@@ -45,6 +57,7 @@ jest.mock('../../src/services/firestore', () => ({
   checkUsernameAvailable:       (...args: unknown[]) => mockCheckUsernameAvailable(...args),
   validateUsername:             jest.fn(() => null),
   USERNAME_COOLDOWN_DAYS:       30,
+  upsertUser:                   jest.fn().mockResolvedValue(undefined),
 }));
 
 // Maps — placeTypeLabel used to label custom poi types

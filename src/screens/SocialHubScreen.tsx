@@ -271,7 +271,7 @@ export default function SocialHubScreen() {
             {/* "Find more" chip → KAN-99 contacts suggestions */}
             <TouchableOpacity
               style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}
-              onPress={() => {/* KAN-99 */}}
+              onPress={() => navigation.navigate('ContactSuggestions')}
               accessibilityRole="button"
               accessibilityLabel="Find more friends">
               <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>

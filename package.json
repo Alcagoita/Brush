@@ -39,6 +39,7 @@
     "react-native-safe-area-context": "^5.5.2",
     "react-native-screens": "^4.25.2",
     "react-native-svg": "^15.15.5",
+    "react-native-contacts": "^7.0.8",
     "react-native-wear-connectivity": "^0.1.17"
   },
   "devDependencies": {

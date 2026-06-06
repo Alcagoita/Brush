@@ -23,6 +23,7 @@ import SocialHubScreen from '../screens/SocialHubScreen';
 import ShareToDoScreen from '../screens/ShareToDoScreen';
 import CreateChallengeScreen from '../screens/CreateChallengeScreen';
 import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
+import ContactSuggestionsScreen from '../screens/ContactSuggestionsScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -46,6 +47,8 @@ export type RootStackParamList = {
   CreateChallenge: undefined;
   /** Live challenge detail with leaderboard (KAN-103). */
   ChallengeDetail: { challengeId: string };
+  /** Phone contacts friend suggestions (KAN-99). */
+  ContactSuggestions: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -68,7 +71,8 @@ export default function AppNavigator() {
       <Stack.Screen name="SocialHub"  component={SocialHubScreen} />
       <Stack.Screen name="ShareToDo"        component={ShareToDoScreen} />
       <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
-      <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
+      <Stack.Screen name="ChallengeDetail"     component={ChallengeDetailScreen} />
+      <Stack.Screen name="ContactSuggestions" component={ContactSuggestionsScreen} />
     </Stack.Navigator>
   );
 }

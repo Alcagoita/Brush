@@ -120,6 +120,17 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ─── Contact discovery index (KAN-99) ────────────────────────────────────
+    // Hash → uid mapping. Only authenticated users may read or write their
+    // own entry (uid in document must match the caller's auth uid).
+    match /userDiscovery/{hash} {
+      allow read:          if request.auth != null;
+      allow create, update: if request.auth != null &&
+        request.resource.data.uid == request.auth.uid;
+      allow delete:        if request.auth != null &&
+        resource.data.uid == request.auth.uid;
+    }
+
     // ─── Health check ─────────────────────────────────────────────────────────
     match /_health/{document} {
       allow read:  if true;
