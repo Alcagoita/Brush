@@ -646,6 +646,16 @@ export function subscribeToAchievements(
 }
 
 /**
+ * One-time fetch of any user's earned achievements, newest first.
+ * Used to read a friend's achievements for the comparison view (KAN-105).
+ * Firestore rules allow any authenticated user to read achievements.
+ */
+export async function getAchievementsForUser(uid: string): Promise<Achievement[]> {
+  const snap = await getDocs(query(achievementsRef(uid), orderBy('earnedAt', 'desc')));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement));
+}
+
+/**
  * Subscribe to the user's points history, newest first.
  * Returns an unsubscribe function — call on component unmount.
  */

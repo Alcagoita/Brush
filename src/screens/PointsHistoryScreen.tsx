@@ -34,39 +34,19 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { ChevronLeftIcon } from '../components/AppIcon';
+import AchievementTile, {
+  ACHIEVEMENT_CATALOGUE,
+  achievementsGridStyle,
+} from '../components/AchievementTile';
 import {
   subscribeToPointsHistory,
   subscribeToAchievements,
 } from '../services/firestore';
-import type { Achievement, AchievementType, PointsHistoryEntry } from '../types';
+import type { Achievement, PointsHistoryEntry } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const PAGE_SIZE = 20;
-
-// ─── Achievement catalogue (hardcoded for v1) ─────────────────────────────────
-
-interface AchievementDef {
-  type:      AchievementType;
-  label:     string;
-  icon:      string;
-  condition: string;
-}
-
-const ACHIEVEMENT_CATALOGUE: AchievementDef[] = [
-  {
-    type:      'first_task',
-    label:     'First task',
-    icon:      '★',
-    condition: 'Complete your very first task',
-  },
-  {
-    type:      'daily_complete',
-    label:     'Day complete',
-    icon:      '✓',
-    condition: 'Complete every task for a day',
-  },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,56 +93,6 @@ function HistoryRow({
       <Text style={[styles.historyPoints, { color: palette.accent }]}>
         +{entry.points}
       </Text>
-    </View>
-  );
-}
-
-// ─── Achievement tile ─────────────────────────────────────────────────────────
-
-function AchievementTile({
-  def,
-  earned,
-  earnedAt,
-  palette,
-}: {
-  def:     AchievementDef;
-  earned:  boolean;
-  earnedAt?: string;
-  palette: ReturnType<typeof useTheme>['palette'];
-}) {
-  return (
-    <View
-      style={[
-        styles.achievementTile,
-        {
-          backgroundColor: earned ? palette.nearTint2  : palette.surface2,
-          borderColor:     earned ? palette.nearBorder : palette.line,
-        },
-      ]}
-      accessibilityLabel={`${def.label} achievement, ${earned ? 'earned' : 'locked'}`}>
-      {/* Icon circle */}
-      <View style={[
-        styles.achievementIcon,
-        { backgroundColor: earned ? palette.accent + '22' : palette.surface },
-      ]}>
-        <Text style={[styles.achievementIconText, { color: earned ? palette.accent : palette.faint }]}>
-          {def.icon}
-        </Text>
-      </View>
-
-      <Text style={[styles.achievementLabel, { color: earned ? palette.nearText : palette.text }]}>
-        {def.label}
-      </Text>
-
-      <Text style={[styles.achievementSub, { color: palette.muted }]} numberOfLines={2}>
-        {earned && earnedAt ? earnedAt : def.condition}
-      </Text>
-
-      {!earned && (
-        <View style={[styles.lockedBadge, { backgroundColor: palette.surface }]}>
-          <Text style={[styles.lockedText, { color: palette.faint }]}>Locked</Text>
-        </View>
-      )}
     </View>
   );
 }
@@ -270,9 +200,9 @@ export default function PointsHistoryScreen() {
         {/* ── Achievements Gallery ── */}
         <Text style={[styles.sectionHeading, { color: palette.text }]}>Achievements</Text>
 
-        <View style={styles.achievementsGrid}>
+        <View style={achievementsGridStyle}>
           {ACHIEVEMENT_CATALOGUE.map(def => {
-            const earned  = earnedMap[def.type];
+            const earned   = earnedMap[def.type];
             const earnedAt = earned ? formatTimestamp(earned.earnedAt as any) : undefined;
             return (
               <AchievementTile
@@ -392,52 +322,4 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
 
-  // ── Achievements grid ──
-  achievementsGrid: {
-    flexDirection: 'row',
-    flexWrap:      'wrap',
-    gap:           12,
-    marginBottom:  8,
-  },
-  achievementTile: {
-    width:             '47%',
-    borderRadius:      radius.card,
-    borderWidth:       1,
-    padding:           16,
-    gap:               8,
-    alignItems:        'center',
-  },
-  achievementIcon: {
-    width:          52,
-    height:         52,
-    borderRadius:   26,
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  achievementIconText: {
-    fontSize:   22,
-    lineHeight: 28,
-  },
-  achievementLabel: {
-    fontSize:   14,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
-    textAlign:  'center',
-  },
-  achievementSub: {
-    fontSize:   12,
-    fontFamily: 'Geist-Regular',
-    textAlign:  'center',
-    lineHeight: 16,
-  },
-  lockedBadge: {
-    paddingHorizontal: 10,
-    paddingVertical:    3,
-    borderRadius:       9999,
-    marginTop:          2,
-  },
-  lockedText: {
-    fontSize:   11,
-    fontFamily: 'Geist-Regular',
-  },
 });

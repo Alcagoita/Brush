@@ -46,8 +46,11 @@ service cloud.firestore {
       }
 
       // ─── Achievements ────────────────────────────────────────────────────────
+      // Any authenticated user may read achievements (KAN-105: friend comparison).
+      // Only the owner may write.
       match /achievements/{achievementId} {
-        allow read, write: if isOwner(userId);
+        allow read:  if request.auth != null;
+        allow write: if isOwner(userId);
       }
 
       // ─── Points history ──────────────────────────────────────────────────────
