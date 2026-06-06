@@ -12,6 +12,26 @@ prepare_react_native_project!
 $RNFirebaseAsStaticFramework = true
 use_frameworks! :linkage => :static
 
+# ── BrushShareExtension (KAN-91) ──────────────────────────────────────────────
+# Native Swift Share Extension target. Needs Firebase directly (not through
+# react-native-firebase) because it cannot load the React Native runtime.
+#
+# IMPORTANT: `inherit! :search_paths` means the extension uses the same pod
+# build products as the Agenda target — no duplicate compilation. This requires
+# the extension to be nested inside the Agenda target block in CocoaPods terms,
+# OR listed here alongside. With `use_frameworks! :linkage => :static` the
+# Firebase static libraries are linked separately into each binary, which is
+# the correct behaviour for extensions.
+#
+# If you hit "duplicate symbols" during linking, see:
+# https://firebase.google.com/docs/ios/troubleshooting#static-frameworks-extension
+target 'BrushShareExtension' do
+  pod 'FirebaseCore'
+  pod 'FirebaseAuth'
+  pod 'FirebaseFirestore'
+  pod 'FirebaseFunctions'
+end
+
 target 'Agenda' do
   config = use_native_modules!
 
