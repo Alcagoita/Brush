@@ -25,6 +25,7 @@ import CreateChallengeScreen from '../screens/CreateChallengeScreen';
 import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
 import ContactSuggestionsScreen from '../screens/ContactSuggestionsScreen';
 import CompareAchievementsScreen from '../screens/CompareAchievementsScreen';
+import ShareReceiveScreen from '../screens/ShareReceiveScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -52,6 +53,8 @@ export type RootStackParamList = {
   ContactSuggestions: undefined;
   /** Side-by-side achievement and stats comparison with a friend (KAN-105). */
   CompareAchievements: { friendUid: string; friendUsername: string };
+  /** Android Share Intent receiver — confirmation / failure form (KAN-90). */
+  ShareReceive: { sharedText: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -77,6 +80,11 @@ export default function AppNavigator() {
       <Stack.Screen name="ChallengeDetail"     component={ChallengeDetailScreen} />
       <Stack.Screen name="ContactSuggestions"   component={ContactSuggestionsScreen} />
       <Stack.Screen name="CompareAchievements"  component={CompareAchievementsScreen} />
+      <Stack.Screen
+        name="ShareReceive"
+        component={ShareReceiveScreen}
+        options={{ presentation: 'modal' }}
+      />
     </Stack.Navigator>
   );
 }

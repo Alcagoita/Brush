@@ -25,6 +25,7 @@ import type { RootStackParamList } from './src/navigation/AppNavigator';
 import { getUser } from './src/services/firestore';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
 import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
+import ShareMenu from 'react-native-share-menu';
 
 // Deep link config (KAN-97 / KAN-87).
 const LINKING_CONFIG = {
@@ -155,6 +156,31 @@ function AppShell() {
       }
     });
   }, []);
+
+  // ── Android Share Intent (KAN-90) ────────────────────────────────────────
+  // Only active once the user is fully logged in and the navigation container
+  // is ready (displayUser set, username confirmed). This ensures navigateTo()
+  // has a ready NavigationContainer to dispatch to.
+  useEffect(() => {
+    if (!displayUser || hasUsername !== true) { return; }
+
+    type SharedItem = { mimeType: string; data: string };
+
+    const handleShare = (item: SharedItem | null) => {
+      if (!item) { return; }
+      const text = typeof item.data === 'string' ? item.data.trim() : '';
+      if (!text || item.mimeType !== 'text/plain') { return; }
+      // Small delay so the NavigationContainer finishes mounting on cold-start.
+      setTimeout(() => navigateTo('ShareReceive', { sharedText: text }), 300);
+    };
+
+    // Handles the case where the app was launched via a share intent.
+    ShareMenu.getInitialShare(handleShare);
+
+    // Handles the case where a share arrives while the app is already open.
+    const sub = ShareMenu.addNewShareListener(handleShare);
+    return () => sub.remove();
+  }, [displayUser, hasUsername]);
 
   if (loading) {
     return (
