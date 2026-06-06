@@ -30,6 +30,7 @@
 
 import notifee, { AndroidImportance, AndroidStyle } from '@notifee/react-native';
 import { Platform } from 'react-native';
+import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, startTracking, stopTracking, setTrackingAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markPoiAlertSeen } from './firestore';
@@ -284,6 +285,16 @@ async function fireNotification(
       sound: 'default',
     },
   });
+
+  // KAN-36: forward the alert to the paired Wear OS watch (Android only).
+  // Fire-and-forget — never block the phone notification path.
+  if (Platform.OS === 'android') {
+    WearNotificationModule?.sendProximityAlert(
+      task.title,
+      place.name,
+      `${Math.round(distanceMeters)}m`,
+    );
+  }
 }
 
 // ─── Cache helpers ────────────────────────────────────────────────────────────
