@@ -172,8 +172,9 @@ export type PointsReason =
  *                                              e.g. 'daily_complete_2026-05-29'
  */
 export type AchievementType =
-  | 'first_task'      // very first task ever completed
-  | 'daily_complete'; // every task for a calendar day completed (KAN-32)
+  | 'first_task'        // very first task ever completed
+  | 'daily_complete'    // every task for a calendar day completed (KAN-32)
+  | 'challenge_winner'; // won a challenge against friends (KAN-104)
 
 /**
  * /users/{uid}/pointsHistory/{id}

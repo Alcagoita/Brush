@@ -24,6 +24,7 @@ import {
   Timestamp,
 } from '@react-native-firebase/firestore';
 import type { Challenge, ChallengeParticipant, FollowEntry } from '../types';
+import { awardChallengeWinnerAchievement } from './achievements';
 
 // ─── Ref helpers ──────────────────────────────────────────────────────────────
 
@@ -242,16 +243,9 @@ export async function incrementCompletedCount(
         ),
     );
 
-    // Notify winner.
-    await addDoc(
-      collection(db, 'pendingNotifications', uid, 'items'),
-      {
-        type:      'challenge_won',
-        title:     '🏆 You won the challenge!',
-        body:      `First to complete ${challenge.goalCount} tasks.`,
-        data:      { type: 'challenge_won', challengeId, screen: 'ChallengeDetail' },
-        createdAt: serverTimestamp(),
-      },
+    // Award winner achievement + bonus points (KAN-104) — fire-and-forget.
+    awardChallengeWinnerAchievement(uid, challengeId).catch(err =>
+      console.warn('[challenges] awardChallengeWinnerAchievement failed', err),
     );
 
     return true;
@@ -295,12 +289,17 @@ export async function resolveTimeBasedChallenge(
         {
           type:      pUid === winnerUid ? 'challenge_won' : 'challenge_ended',
           title:     pUid === winnerUid ? '🏆 You won the challenge!' : `${winnerHandle} won the challenge!`,
-          body:      'Time is up!',
+          body:      pUid === winnerUid ? 'Achievement unlocked: First to do it' : 'Better luck next time!',
           data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
           createdAt: serverTimestamp(),
         },
       ),
     ),
+  );
+
+  // Award winner achievement + bonus points (KAN-104) — fire-and-forget.
+  awardChallengeWinnerAchievement(winnerUid, challengeId).catch(err =>
+    console.warn('[challenges] awardChallengeWinnerAchievement failed', err),
   );
 }
 

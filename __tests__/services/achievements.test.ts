@@ -12,12 +12,14 @@
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockHasAchievement  = jest.fn();
-const mockAwardAchievement = jest.fn();
+const mockHasAchievement            = jest.fn();
+const mockAwardAchievement          = jest.fn();
+const mockAwardPointsAchievementBonus = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  hasAchievement:  (...args: unknown[]) => mockHasAchievement(...args),
-  awardAchievement: (...args: unknown[]) => mockAwardAchievement(...args),
+  hasAchievement:               (...args: unknown[]) => mockHasAchievement(...args),
+  awardAchievement:             (...args: unknown[]) => mockAwardAchievement(...args),
+  awardPointsAchievementBonus:  (...args: unknown[]) => mockAwardPointsAchievementBonus(...args),
 }));
 
 const mockCreateChannel        = jest.fn();
@@ -38,13 +40,14 @@ jest.mock('react-native', () => ({
 
 // ─── Import (after mocks) ─────────────────────────────────────────────────────
 
-import { checkAndAwardDailyComplete } from '../../src/services/achievements';
+import { checkAndAwardDailyComplete, awardChallengeWinnerAchievement } from '../../src/services/achievements';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockAwardAchievement.mockResolvedValue(undefined);
+  mockAwardPointsAchievementBonus.mockResolvedValue(undefined);
   mockCreateChannel.mockResolvedValue(undefined);
   mockDisplayNotification.mockResolvedValue(undefined);
 });
@@ -126,5 +129,56 @@ describe('checkAndAwardDailyComplete', () => {
     mockHasAchievement.mockResolvedValueOnce(true);
     await checkAndAwardDailyComplete('uid-1', '2026-05-29');
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1); // still 1
+  });
+});
+
+// ─── awardChallengeWinnerAchievement (KAN-104) ────────────────────────────────
+
+describe('awardChallengeWinnerAchievement', () => {
+  it('returns early without writing if already awarded for this challenge', async () => {
+    mockHasAchievement.mockResolvedValue(true);
+    await awardChallengeWinnerAchievement('uid-1', 'ch-abc');
+    expect(mockAwardAchievement).not.toHaveBeenCalled();
+    expect(mockAwardPointsAchievementBonus).not.toHaveBeenCalled();
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  it('writes achievement with type challenge_winner and challengeId context', async () => {
+    mockHasAchievement.mockResolvedValue(false);
+    await awardChallengeWinnerAchievement('uid-1', 'ch-abc');
+    expect(mockAwardAchievement).toHaveBeenCalledWith(
+      'uid-1',
+      'challenge_winner_ch-abc',
+      'challenge_winner',
+      { challengeId: 'ch-abc' },
+    );
+  });
+
+  it('awards achievement_bonus points', async () => {
+    mockHasAchievement.mockResolvedValue(false);
+    await awardChallengeWinnerAchievement('uid-1', 'ch-abc');
+    expect(mockAwardPointsAchievementBonus).toHaveBeenCalledWith(
+      'uid-1', 'challenge_winner', expect.any(Number),
+    );
+  });
+
+  it('fires a notification with trophy title deep-linking to ChallengeDetail', async () => {
+    mockHasAchievement.mockResolvedValue(false);
+    await awardChallengeWinnerAchievement('uid-1', 'ch-abc');
+    expect(mockDisplayNotification).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.stringContaining('🏆'),
+        data:  expect.objectContaining({ screen: 'ChallengeDetail', challengeId: 'ch-abc' }),
+      }),
+    );
+  });
+
+  it('uses a unique achievementId per challenge so multiple wins are recorded separately', async () => {
+    mockHasAchievement.mockResolvedValue(false);
+    await awardChallengeWinnerAchievement('uid-1', 'ch-111');
+    await awardChallengeWinnerAchievement('uid-1', 'ch-222');
+    const ids = mockAwardAchievement.mock.calls.map(([, id]: [unknown, string]) => id);
+    expect(ids).toContain('challenge_winner_ch-111');
+    expect(ids).toContain('challenge_winner_ch-222');
   });
 });
