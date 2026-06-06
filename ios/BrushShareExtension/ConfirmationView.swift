@@ -5,6 +5,10 @@
 //  SwiftUI confirmation form presented inside the share extension sheet.
 //  Mirrors the layout and tokens of ShareReceiveScreen.tsx (KAN-90).
 //
+//  Dark-mode support: BrushPalette carries both light and dark token sets.
+//  The view reads @Environment(\.colorScheme) and selects the right palette
+//  automatically — no traitCollection plumbing needed.
+//
 //  States:
 //    .loading     — spinner + raw message card while Cloud Function runs
 //    .confirm     — editable form pre-filled with AI parse result
@@ -16,22 +20,10 @@
 
 import SwiftUI
 
-// MARK: - Design tokens
+// MARK: - Color(hex:) helper
 
 private extension Color {
-    // Light-mode Brush palette (extensions always run in light mode for simplicity).
-    static let brushBg      = Color(hex: "#fdfdfb")
-    static let brushSurface = Color(hex: "#f6f5f1")
-    static let brushLine    = Color(.sRGB, red: 20/255, green: 20/255, blue: 18/255, opacity: 0.08)
-    static let brushText    = Color(hex: "#1a1a18")
-    static let brushMuted   = Color(hex: "#8a8a85")
-    static let brushFaint   = Color(hex: "#bdbdb7")
-    static let brushAccent  = Color(hex: "#e8a86a")
-    static let brushNearTint2  = Color(hex: "#f9ede0")
-    static let brushNearBorder = Color(hex: "#e8c9a0")
-    static let brushNearText   = Color(hex: "#7a4a20")
-
-    /// Initialise from a "#RRGGBB" hex string.
+    /// Initialise from a "#RRGGBB" hex string. Alpha is always 1.
     init(hex: String) {
         let h = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         var rgb: UInt64 = 0
@@ -43,6 +35,56 @@ private extension Color {
             blue:  Double( rgb        & 0xFF) / 255
         )
     }
+}
+
+// MARK: - BrushPalette
+
+/// Full colour token set for one appearance mode.
+/// Values mirror the TypeScript tokens in src/theme/tokens.ts exactly.
+struct BrushPalette {
+
+    let bg:         Color
+    let surface:    Color
+    let line:       Color   // translucent — use .overlay, not .background
+    let text:       Color
+    let muted:      Color
+    let faint:      Color
+    let accent:     Color
+    let nearTint2:  Color
+    let nearBorder: Color
+    let nearText:   Color
+
+    // MARK: Light
+
+    /// Light-mode palette — matches the `light` constant in tokens.ts.
+    static let light = BrushPalette(
+        bg:         Color(hex: "#fdfdfb"),
+        surface:    Color(hex: "#f6f5f1"),
+        line:       Color(.sRGB, red: 20/255,  green: 20/255,  blue: 18/255,  opacity: 0.08),
+        text:       Color(hex: "#1a1a18"),
+        muted:      Color(hex: "#8a8a85"),
+        faint:      Color(hex: "#bdbdb7"),
+        accent:     Color(hex: "#e8a86a"),
+        nearTint2:  Color(hex: "#f9ede0"),
+        nearBorder: Color(hex: "#e8c9a0"),
+        nearText:   Color(hex: "#7a4a20")
+    )
+
+    // MARK: Dark
+
+    /// Dark-mode palette — matches the `dark` constant in tokens.ts.
+    static let dark = BrushPalette(
+        bg:         Color(hex: "#0e0e0c"),
+        surface:    Color(hex: "#171715"),
+        line:       Color(.sRGB, red: 255/255, green: 255/255, blue: 255/255, opacity: 0.08),
+        text:       Color(hex: "#f6f5f2"),
+        muted:      Color(hex: "#8a8a85"),
+        faint:      Color(hex: "#525250"),
+        accent:     Color(hex: "#d4955a"),
+        nearTint2:  Color(hex: "#362514"),
+        nearBorder: Color(hex: "#6b4020"),
+        nearText:   Color(hex: "#dba87a")
+    )
 }
 
 // MARK: - Screen state
@@ -57,9 +99,15 @@ enum ShareScreenState {
 
 struct ConfirmationView: View {
 
-    let state: ShareScreenState
+    let state:      ShareScreenState
     let onComplete: () -> Void    // called after successful task write
     let onDiscard:  () -> Void    // called without writing
+
+    // Drives palette selection — updated automatically by the system.
+    @Environment(\.colorScheme) private var colorScheme
+
+    /// Active colour palette for this render pass.
+    private var p: BrushPalette { colorScheme == .dark ? .dark : .light }
 
     // ── Editable form state ────────────────────────────────────────────────────
     @State private var title    = ""
@@ -72,7 +120,7 @@ struct ConfirmationView: View {
     @State private var saving     = false
     @FocusState private var titleFocused: Bool
 
-    // ── Seeding ────────────────────────────────────────────────────────────────
+    // ── Convenience ───────────────────────────────────────────────────────────
     private var rawText: String {
         switch state {
         case .loading(let t): return t
@@ -80,6 +128,8 @@ struct ConfirmationView: View {
         case .failure(let t): return t
         }
     }
+
+    // MARK: Body
 
     var body: some View {
         NavigationView {
@@ -97,13 +147,13 @@ struct ConfirmationView: View {
                 .padding(.horizontal, 22)
                 .padding(.bottom, 32)
             }
-            .background(Color.brushBg)
+            .background(p.bg.ignoresSafeArea())
             .navigationTitle("Add from message")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Discard") { onDiscard() }
-                        .foregroundColor(.brushMuted)
+                        .foregroundColor(p.muted)
                 }
             }
         }
@@ -122,7 +172,7 @@ struct ConfirmationView: View {
                 .scaleEffect(1.2)
             Text("Parsing task…")
                 .font(.system(size: 14))
-                .foregroundColor(.brushMuted)
+                .foregroundColor(p.muted)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 32)
@@ -134,35 +184,37 @@ struct ConfirmationView: View {
     private func confirmationBody(result: ParseResult) -> some View {
         Text("AI suggestion — tap to edit")
             .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.brushAccent)
+            .foregroundColor(p.accent)
             .tracking(0.5)
             .padding(.top, 12)
             .padding(.bottom, 2)
 
         titleField()
-
         divider()
 
-        // POI chips
         sectionLabel("LOCATION")
         poiRow()
         divider()
 
-        // Time
         sectionLabel("TIME")
         if showTimePicker || time != nil {
-            DatePicker("", selection: Binding(
-                get:  { time ?? Date() },
-                set:  { time = $0; showTimePicker = true }
-            ), displayedComponents: .hourAndMinute)
+            DatePicker(
+                "",
+                selection: Binding(
+                    get: { time ?? Date() },
+                    set: { time = $0; showTimePicker = true }
+                ),
+                displayedComponents: .hourAndMinute
+            )
             .labelsHidden()
+            .colorScheme(colorScheme)   // keep the picker tinted correctly
             .padding(.vertical, 4)
 
             if time != nil {
-                Button(action: { time = nil; showTimePicker = false }) {
+                Button { time = nil; showTimePicker = false } label: {
                     Text("Clear time")
                         .font(.system(size: 13))
-                        .foregroundColor(.brushAccent)
+                        .foregroundColor(p.accent)
                 }
             }
         } else {
@@ -170,7 +222,6 @@ struct ConfirmationView: View {
         }
         divider()
 
-        // Category
         sectionLabel("CATEGORY")
         categoryRow()
         divider()
@@ -184,15 +235,15 @@ struct ConfirmationView: View {
     private func failureBody(rawText: String) -> some View {
         HStack(spacing: 10) {
             Image(systemName: "exclamationmark.circle")
-                .foregroundColor(.brushMuted)
+                .foregroundColor(p.muted)
             Text("We couldn't parse a task automatically. Add the details manually.")
                 .font(.system(size: 13))
-                .foregroundColor(.brushMuted)
+                .foregroundColor(p.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(14)
-        .background(Color.brushSurface)
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brushLine, lineWidth: 1))
+        .background(p.surface)
+        .overlay(RoundedRectangle(cornerRadius: 12).stroke(p.line, lineWidth: 1))
         .padding(.top, 8)
         .padding(.bottom, 8)
 
@@ -201,18 +252,18 @@ struct ConfirmationView: View {
         ctaButtons()
     }
 
-    // MARK: Reusable components
+    // MARK: Reusable sub-views
 
     @ViewBuilder
     private func rawCard(text: String) -> some View {
         Text(text)
             .font(.system(size: 14))
-            .foregroundColor(.brushMuted)
+            .foregroundColor(p.muted)
             .lineLimit(4)
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.brushSurface)
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Color.brushLine, lineWidth: 1))
+            .background(p.surface)
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(p.line, lineWidth: 1))
     }
 
     @ViewBuilder
@@ -220,7 +271,7 @@ struct ConfirmationView: View {
         VStack(alignment: .leading, spacing: 4) {
             TextField("Task title", text: $title)
                 .font(.system(size: 22, weight: .medium))
-                .foregroundColor(.brushText)
+                .foregroundColor(p.text)
                 .focused($titleFocused)
                 .submitLabel(.done)
                 .padding(.vertical, 16)
@@ -231,19 +282,22 @@ struct ConfirmationView: View {
                     .foregroundColor(.red)
             }
         }
-        Divider().background(Color.brushLine)
+        Rectangle()
+            .fill(p.line)
+            .frame(height: 1)
     }
 
     @ViewBuilder
     private func poiRow() -> some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                // None chip
-                poiChip(label: "None", selected: poi == nil) { poi = nil }
-
+                // "None" chip — deselects any active POI
+                poiChip(label: "None", sfSymbol: nil, selected: poi == nil) {
+                    poi = nil
+                }
                 ForEach(BrushPoiType.allCases) { type in
                     poiChip(
-                        label: type.displayLabel,
+                        label:    type.displayLabel,
                         sfSymbol: type.sfSymbol,
                         selected: poi == type
                     ) {
@@ -257,10 +311,10 @@ struct ConfirmationView: View {
 
     @ViewBuilder
     private func poiChip(
-        label: String,
-        sfSymbol: String? = nil,
+        label:    String,
+        sfSymbol: String?,
         selected: Bool,
-        action: @escaping () -> Void
+        action:   @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             HStack(spacing: 4) {
@@ -271,13 +325,11 @@ struct ConfirmationView: View {
                 Text(label)
                     .font(.system(size: 13))
             }
-            .foregroundColor(selected ? .brushNearText : .brushMuted)
+            .foregroundColor(selected ? p.nearText : p.muted)
             .padding(.horizontal, 12)
             .padding(.vertical, 7)
-            .background(selected ? Color.brushNearTint2 : Color.brushSurface)
-            .overlay(
-                Capsule().stroke(selected ? Color.brushNearBorder : Color.brushLine, lineWidth: 1)
-            )
+            .background(selected ? p.nearTint2 : p.surface)
+            .overlay(Capsule().stroke(selected ? p.nearBorder : p.line, lineWidth: 1))
             .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -286,23 +338,26 @@ struct ConfirmationView: View {
 
     @ViewBuilder
     private func categoryRow() -> some View {
-        HStack(spacing: 8) {
+        // Wraps to a second line on smaller screens — use FlowLayout-style wrapping
+        // via a LazyVGrid instead of a plain HStack so pills don't clip.
+        let columns = [GridItem(.adaptive(minimum: 80), spacing: 8)]
+        LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
             ForEach(TaskCategory.allCases) { cat in
-                let selected = category == cat
-                let color = Color(hex: cat.hexColor)
+                let selected  = category == cat
+                let catColor  = Color(hex: cat.hexColor)
                 Button { category = cat } label: {
                     HStack(spacing: 6) {
                         Circle()
-                            .fill(color)
+                            .fill(catColor)
                             .frame(width: 7, height: 7)
                         Text(cat.displayLabel)
                             .font(.system(size: 14))
-                            .foregroundColor(color)
+                            .foregroundColor(catColor)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
-                    .background(selected ? color.opacity(0.13) : Color.brushSurface)
-                    .overlay(Capsule().stroke(selected ? color : Color.brushLine, lineWidth: 1))
+                    .background(selected ? catColor.opacity(0.13) : p.surface)
+                    .overlay(Capsule().stroke(selected ? catColor : p.line, lineWidth: 1))
                     .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
@@ -316,10 +371,10 @@ struct ConfirmationView: View {
         Button(action: action) {
             Text(label)
                 .font(.system(size: 14))
-                .foregroundColor(.brushMuted)
+                .foregroundColor(p.muted)
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
-                .overlay(Capsule().stroke(Color.brushLine, lineWidth: 1))
+                .overlay(Capsule().stroke(p.line, lineWidth: 1))
                 .clipShape(Capsule())
         }
         .buttonStyle(.plain)
@@ -330,7 +385,7 @@ struct ConfirmationView: View {
     private func sectionLabel(_ label: String) -> some View {
         Text(label)
             .font(.system(size: 11, weight: .semibold))
-            .foregroundColor(.brushMuted)
+            .foregroundColor(p.muted)
             .tracking(0.6)
             .padding(.top, 14)
             .padding(.bottom, 6)
@@ -339,7 +394,7 @@ struct ConfirmationView: View {
     @ViewBuilder
     private func divider() -> some View {
         Rectangle()
-            .fill(Color.brushLine)
+            .fill(p.line)
             .frame(height: 1)
             .padding(.vertical, 4)
     }
@@ -352,16 +407,16 @@ struct ConfirmationView: View {
                     if saving {
                         ProgressView()
                             .progressViewStyle(.circular)
-                            .tint(Color.brushBg)
+                            .tint(p.bg)
                     } else {
                         Text("Add to Brush")
                             .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(p.bg)
                     }
                 }
-                .foregroundColor(Color.brushBg)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
-                .background(saving ? Color.brushFaint : Color.brushText)
+                .background(saving ? p.faint : p.text)
                 .cornerRadius(12)
             }
             .buttonStyle(.plain)
@@ -372,7 +427,7 @@ struct ConfirmationView: View {
             Button(action: onDiscard) {
                 Text("Discard")
                     .font(.system(size: 15))
-                    .foregroundColor(.brushMuted)
+                    .foregroundColor(p.muted)
                     .padding(.vertical, 18)
             }
             .buttonStyle(.plain)
@@ -391,9 +446,9 @@ struct ConfirmationView: View {
             title = result.title
             poi   = result.suggestedPoi
             if let timeStr = result.suggestedTime {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "HH:mm"
-                time = formatter.date(from: timeStr)
+                let fmt = DateFormatter()
+                fmt.dateFormat = "HH:mm"
+                time = fmt.date(from: timeStr)
                 showTimePicker = true
             }
 
@@ -414,8 +469,7 @@ struct ConfirmationView: View {
         titleError = ""
 
         guard let uid = CloudFunctions.currentUID else {
-            // If auth is unavailable (should not happen in normal flow), discard.
-            onDiscard()
+            onDiscard()   // auth unavailable — should not happen in normal flow
             return
         }
 
@@ -426,8 +480,7 @@ struct ConfirmationView: View {
             fmt.dateFormat = "yyyy-MM-dd"
             return fmt.string(from: Date())
         }()
-
-        let poiStr     = poi?.rawValue
+        let poiStr  = poi?.rawValue
         let timeStr: String? = {
             guard let t = time else { return nil }
             let fmt = DateFormatter(); fmt.dateFormat = "HH:mm"

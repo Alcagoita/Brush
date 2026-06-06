@@ -28,7 +28,13 @@ final class ShareViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = UIColor(red: 0.992, green: 0.992, blue: 0.984, alpha: 1) // brushBg
+        // Use the system adaptive colour so the brief flash before SwiftUI renders
+        // matches the active appearance (light or dark) rather than always white.
+        view.backgroundColor = UIColor { traits in
+            traits.userInterfaceStyle == .dark
+                ? UIColor(red: 0.055, green: 0.055, blue: 0.047, alpha: 1)  // dark  #0e0e0c
+                : UIColor(red: 0.992, green: 0.992, blue: 0.984, alpha: 1)  // light #fdfdfb
+        }
 
         extractSharedText { [weak self] text in
             guard let self else { return }
