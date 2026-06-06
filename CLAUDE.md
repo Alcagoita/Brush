@@ -623,7 +623,7 @@ KAN-88                                       (Spike — standalone)
 | 5 | KAN-100 | Friends & Social hub screen | KAN-97, KAN-98 | ✅ Concluído |
 | 6 | KAN-101 | Share a To-Do with friends | KAN-98, KAN-100 | ✅ Concluído |
 | 7 | KAN-102 | Challenge a friend or group — send flow | KAN-98, KAN-100 | ✅ Concluído |
-| 8 | KAN-103 | Challenge — accept/decline and live progress | KAN-102 | ⬜ A fazer |
+| 8 | KAN-103 | Challenge — accept/decline and live progress | KAN-102 | ✅ Concluído |
 
 ### 🔵 Medium
 
