@@ -84,6 +84,24 @@ service cloud.firestore {
       }
     }
 
+    // ─── Shared tasks inbox (KAN-87) ──────────────────────────────────────────
+    // The recipient (userId) owns the inbox. Senders need write access to
+    // create incoming entries; recipients read and delete their own.
+    match /sharedTasks/{userId}/incoming/{docId} {
+      allow read, delete: if isOwner(userId);
+      // Any authenticated user may send a task to another user.
+      allow create: if request.auth != null;
+      allow update: if false;
+    }
+
+    // ─── Pending notifications (KAN-87) ───────────────────────────────────────
+    // Written by the sender; read and deleted by the recipient's device.
+    match /pendingNotifications/{userId}/items/{docId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if request.auth != null;
+      allow update: if false;
+    }
+
     // ─── Health check ─────────────────────────────────────────────────────────
     match /_health/{document} {
       allow read:  if true;

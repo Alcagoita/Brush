@@ -122,6 +122,7 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
         type:           'shared_task',
         sharedTaskId:   incomingRef.id,
         recipientUid,
+        screen:         'SharedTaskInbox', // deep-link target for notifee press handler
       },
       createdAt: serverTimestamp(),
     } satisfies Omit<PendingNotification, 'id'>,

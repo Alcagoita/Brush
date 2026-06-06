@@ -18,6 +18,7 @@ import CategoriesScreen from '../screens/CategoriesScreen';
 import TaskFormScreen, { TaskFormParams } from '../screens/TaskFormScreen';
 import PointsHistoryScreen from '../screens/PointsHistoryScreen';
 import PublicProfileScreen from '../screens/PublicProfileScreen';
+import SharedTaskInboxScreen from '../screens/SharedTaskInboxScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -31,6 +32,8 @@ export type RootStackParamList = {
   PointsHistory: undefined;
   /** Public profile card opened via brushaway.app/u/{username} deep link (KAN-97). */
   PublicProfile: { username: string };
+  /** Shared-task inbox — receive, accept and decline (KAN-87). */
+  SharedTaskInbox: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -47,8 +50,9 @@ export default function AppNavigator() {
         component={TaskFormScreen}
         options={{ presentation: 'modal' }}
       />
-      <Stack.Screen name="PointsHistory"  component={PointsHistoryScreen} />
-      <Stack.Screen name="PublicProfile" component={PublicProfileScreen} />
+      <Stack.Screen name="PointsHistory"    component={PointsHistoryScreen} />
+      <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
+      <Stack.Screen name="SharedTaskInbox" component={SharedTaskInboxScreen} />
     </Stack.Navigator>
   );
 }
