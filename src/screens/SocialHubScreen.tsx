@@ -147,7 +147,7 @@ export default function SocialHubScreen() {
 
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: palette.surface2 }]}
-            onPress={() => {/* KAN-102 */}}
+            onPress={() => navigation.navigate('CreateChallenge')}
             accessibilityRole="button"
             accessibilityLabel="Challenge a friend">
             <TrophyIcon color={palette.text} size={18} />

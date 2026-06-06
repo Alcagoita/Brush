@@ -102,6 +102,24 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // ─── Challenges (KAN-102) ─────────────────────────────────────────────────
+    match /challenges/{challengeId} {
+      // Any participant or the creator may read the challenge.
+      allow read: if request.auth != null && (
+        resource.data.createdBy == request.auth.uid ||
+        request.auth.uid in resource.data.participants
+      );
+      // Only the creator can create.
+      allow create: if request.auth != null &&
+        request.resource.data.createdBy == request.auth.uid;
+      // Participants and the creator may update (accept/decline, progress).
+      allow update: if request.auth != null && (
+        resource.data.createdBy == request.auth.uid ||
+        request.auth.uid in resource.data.participants
+      );
+      allow delete: if false;
+    }
+
     // ─── Health check ─────────────────────────────────────────────────────────
     match /_health/{document} {
       allow read:  if true;

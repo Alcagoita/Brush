@@ -288,6 +288,34 @@ export type Event = CalendarEvent;
 
 export type MarkedDates = Record<DateString, { marked: boolean; dotColor: string }>;
 
+// ─── Challenges (KAN-102) ────────────────────────────────────────────────────
+
+export interface ChallengeParticipant {
+  username:       string;
+  displayName:    string;
+  status:         'pending' | 'accepted' | 'declined';
+  completedCount: number;
+  won:            boolean;
+}
+
+/**
+ * /challenges/{challengeId}
+ *
+ * participants is a map of uid → ChallengeParticipant so any party can be
+ * looked up in O(1) without a subcollection query.
+ */
+export interface Challenge {
+  id:           string;
+  type:         'goal' | 'time';
+  goalCount?:   number;
+  deadline?:    FirebaseFirestoreTypes.Timestamp;
+  createdBy:    string;           // uid of the challenger
+  participants: Record<string, ChallengeParticipant>;
+  status:       'pending' | 'active' | 'completed';
+  createdAt:    FirebaseFirestoreTypes.Timestamp;
+  message?:     string;
+}
+
 // ─── Follow system (KAN-98) ───────────────────────────────────────────────────
 
 /**
