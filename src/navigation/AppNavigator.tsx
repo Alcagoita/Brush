@@ -17,6 +17,14 @@ import ProfileScreen from '../screens/ProfileScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import TaskFormScreen, { TaskFormParams } from '../screens/TaskFormScreen';
 import PointsHistoryScreen from '../screens/PointsHistoryScreen';
+import PublicProfileScreen from '../screens/PublicProfileScreen';
+import SharedTaskInboxScreen from '../screens/SharedTaskInboxScreen';
+import SocialHubScreen from '../screens/SocialHubScreen';
+import ShareToDoScreen from '../screens/ShareToDoScreen';
+import CreateChallengeScreen from '../screens/CreateChallengeScreen';
+import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
+import ContactSuggestionsScreen from '../screens/ContactSuggestionsScreen';
+import CompareAchievementsScreen from '../screens/CompareAchievementsScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -28,6 +36,22 @@ export type RootStackParamList = {
   TaskForm: TaskFormParams;
   /** Points history + achievements gallery (KAN-33). Pushed from ProfileScreen. */
   PointsHistory: undefined;
+  /** Public profile card opened via brushaway.app/u/{username} deep link (KAN-97). */
+  PublicProfile: { username: string };
+  /** Shared-task inbox — receive, accept and decline (KAN-87). */
+  SharedTaskInbox: undefined;
+  /** Friends & Social hub — activity feed + following list (KAN-100). */
+  SocialHub: undefined;
+  /** Task picker + friend picker for sharing a to-do (KAN-101). */
+  ShareToDo: { taskId?: string } | undefined;
+  /** Challenge creation flow — type, params, friends, message (KAN-102). */
+  CreateChallenge: undefined;
+  /** Live challenge detail with leaderboard (KAN-103). */
+  ChallengeDetail: { challengeId: string };
+  /** Phone contacts friend suggestions (KAN-99). */
+  ContactSuggestions: undefined;
+  /** Side-by-side achievement and stats comparison with a friend (KAN-105). */
+  CompareAchievements: { friendUid: string; friendUsername: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,7 +68,15 @@ export default function AppNavigator() {
         component={TaskFormScreen}
         options={{ presentation: 'modal' }}
       />
-      <Stack.Screen name="PointsHistory" component={PointsHistoryScreen} />
+      <Stack.Screen name="PointsHistory"    component={PointsHistoryScreen} />
+      <Stack.Screen name="PublicProfile"   component={PublicProfileScreen} />
+      <Stack.Screen name="SharedTaskInbox" component={SharedTaskInboxScreen} />
+      <Stack.Screen name="SocialHub"  component={SocialHubScreen} />
+      <Stack.Screen name="ShareToDo"        component={ShareToDoScreen} />
+      <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
+      <Stack.Screen name="ChallengeDetail"     component={ChallengeDetailScreen} />
+      <Stack.Screen name="ContactSuggestions"   component={ContactSuggestionsScreen} />
+      <Stack.Screen name="CompareAchievements"  component={CompareAchievementsScreen} />
     </Stack.Navigator>
   );
 }

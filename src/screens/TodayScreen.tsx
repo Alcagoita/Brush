@@ -27,7 +27,7 @@
  * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
   Platform,
@@ -65,6 +65,7 @@ import NearbyCard from '../components/NearbyCard';
 import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
+import { subscribeToIncomingSharedTasks } from '../services/sharing';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -158,6 +159,17 @@ export default function TodayScreen() {
     handleToggle,
   } = useTodayScreen(uid);
 
+  // ── Shared-task inbox count (KAN-87) — drives bell badge ────────────────────
+  const [inboxCount, setInboxCount] = useState(0);
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToIncomingSharedTasks(
+      uid,
+      tasks => setInboxCount(tasks.length),
+      err => console.warn('[TodayScreen] inbox subscription error', err),
+    );
+  }, [uid]);
+
   // ── Sheet ref + auto-close on new task ────────────────────────────────────────
   // Kept in the screen because sheetRef is a UI element ref, not data state.
   const sheetRef        = useRef<NewTaskSheetHandle>(null);
@@ -237,8 +249,11 @@ export default function TodayScreen() {
         <Header
           displayName={displayName}
           photoURL={user?.photoURL}
-          hasUnread={false}
+          hasUnread={inboxCount > 0}
+          socialBadge={inboxCount}
           onAvatarPress={() => navigation.navigate('Profile')}
+          onBellPress={() => navigation.navigate('SharedTaskInbox')}
+          onPeoplePress={() => navigation.navigate('SocialHub')}
         />
       </View>
 

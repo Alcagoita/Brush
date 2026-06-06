@@ -19,6 +19,23 @@ export interface User {
   darkMode: boolean;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   /**
+   * Unique handle chosen at sign-up (KAN-97).
+   * Stored lowercase without the `@` prefix (e.g. `alice`).
+   * Display as `@${username}` in the UI.
+   * Case-insensitive — `alice` and `Alice` map to the same document.
+   */
+  username?: string;
+  /** When the username was last set — enforces the 30-day change cooldown (KAN-97). */
+  usernameUpdatedAt?: FirebaseFirestoreTypes.Timestamp;
+  /** Denormalized count of users this user follows (KAN-98). */
+  followingCount?: number;
+  /** Denormalized count of users following this user (KAN-98). */
+  followersCount?: number;
+  /** Denormalized total points (incremented on each award — KAN-31). */
+  totalPoints?: number;
+  /** Current consecutive-day task streak. Updated by streak logic. */
+  currentStreak?: number;
+  /**
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
    */
@@ -159,8 +176,9 @@ export type PointsReason =
  *                                              e.g. 'daily_complete_2026-05-29'
  */
 export type AchievementType =
-  | 'first_task'      // very first task ever completed
-  | 'daily_complete'; // every task for a calendar day completed (KAN-32)
+  | 'first_task'        // very first task ever completed
+  | 'daily_complete'    // every task for a calendar day completed (KAN-32)
+  | 'challenge_winner'; // won a challenge against friends (KAN-104)
 
 /**
  * /users/{uid}/pointsHistory/{id}
@@ -275,6 +293,49 @@ export type Event = CalendarEvent;
 
 export type MarkedDates = Record<DateString, { marked: boolean; dotColor: string }>;
 
+// ─── Challenges (KAN-102) ────────────────────────────────────────────────────
+
+export interface ChallengeParticipant {
+  username:       string;
+  displayName:    string;
+  status:         'pending' | 'accepted' | 'declined';
+  completedCount: number;
+  won:            boolean;
+}
+
+/**
+ * /challenges/{challengeId}
+ *
+ * participants is a map of uid → ChallengeParticipant so any party can be
+ * looked up in O(1) without a subcollection query.
+ */
+export interface Challenge {
+  id:           string;
+  type:         'goal' | 'time';
+  goalCount?:   number;
+  deadline?:    FirebaseFirestoreTypes.Timestamp;
+  createdBy:    string;           // uid of the challenger
+  participants: Record<string, ChallengeParticipant>;
+  status:       'pending' | 'active' | 'completed';
+  createdAt:    FirebaseFirestoreTypes.Timestamp;
+  message?:     string;
+}
+
+// ─── Follow system (KAN-98) ───────────────────────────────────────────────────
+
+/**
+ * One entry in users/{uid}/following/{followedUid}
+ * or         users/{uid}/followers/{followerUid}.
+ *
+ * The `uid` field is the Firestore document ID (the other user's UID).
+ */
+export interface FollowEntry {
+  uid:         string;
+  username:    string;
+  displayName: string;
+  followedAt:  FirebaseFirestoreTypes.Timestamp;
+}
+
 // ─── Task sharing (KAN-86 / KAN-87) ──────────────────────────────────────────
 
 /**
@@ -282,15 +343,16 @@ export type MarkedDates = Record<DateString, { marked: boolean; dotColor: string
  * when a user sends a task to another Brush user.
  */
 export interface SharedTask {
-  id:          string;
-  taskId:      string;
-  title:       string;
-  category:    string;
-  poi?:        PoiType;
-  sentBy:      string;       // sender uid
-  sentByName:  string;       // sender display name
-  sentAt:      FirebaseFirestoreTypes.Timestamp;
-  status:      'pending' | 'accepted' | 'declined';
+  id:              string;
+  taskId:          string;
+  title:           string;
+  category:        string;
+  poi?:            PoiType;
+  sentBy:          string;       // sender uid
+  sentByName:      string;       // sender display name
+  sentByUsername?: string;       // sender @username (KAN-97)
+  sentAt:          FirebaseFirestoreTypes.Timestamp;
+  status:          'pending' | 'accepted' | 'declined';
 }
 
 /**

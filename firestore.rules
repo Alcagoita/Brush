@@ -8,9 +8,27 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // ─── Username index (KAN-97) ──────────────────────────────────────────────
+    // Public read so checkUsernameAvailable / getUserByUsername work for all
+    // authenticated users. Write is restricted: you may only create/delete an
+    // index entry that points to your own UID — enforcing single-owner claim.
+    match /usernames/{username} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid;
+      // Deletion (username release on change): only the current owner may remove.
+      allow delete: if request.auth != null
+                    && resource.data.uid == request.auth.uid;
+      // Updates are forbidden — changing a username = delete old + create new.
+      allow update: if false;
+    }
+
     // ─── User document ────────────────────────────────────────────────────────
+    // Any authenticated user may read a profile (needed for public profile cards).
+    // Only the document owner may write their own data.
     match /users/{userId} {
-      allow read, write: if isOwner(userId);
+      allow read:  if request.auth != null;
+      allow write: if isOwner(userId);
 
       // ─── Tasks ──────────────────────────────────────────────────────────────
       match /tasks/{taskId} {
@@ -28,8 +46,11 @@ service cloud.firestore {
       }
 
       // ─── Achievements ────────────────────────────────────────────────────────
+      // Any authenticated user may read achievements (KAN-105: friend comparison).
+      // Only the owner may write.
       match /achievements/{achievementId} {
-        allow read, write: if isOwner(userId);
+        allow read:  if request.auth != null;
+        allow write: if isOwner(userId);
       }
 
       // ─── Points history ──────────────────────────────────────────────────────
@@ -46,6 +67,71 @@ service cloud.firestore {
       match /notificationPreferences/{doc} {
         allow read, write: if isOwner(userId);
       }
+
+      // ─── Following (KAN-98) ──────────────────────────────────────────────────
+      // The owner controls their own following list (who they choose to follow).
+      // Any authenticated user may read (needed for friend pickers in KAN-101/102).
+      match /following/{followedUid} {
+        allow read:          if request.auth != null;
+        allow create, delete: if isOwner(userId);
+        allow update:        if false;
+      }
+
+      // ─── Followers (KAN-98) ──────────────────────────────────────────────────
+      // Only the follower (document ID == their UID) may add/remove themselves.
+      // Any authenticated user may read.
+      match /followers/{followerUid} {
+        allow read:          if request.auth != null;
+        allow create, delete: if request.auth != null && request.auth.uid == followerUid;
+        allow update:        if false;
+      }
+    }
+
+    // ─── Shared tasks inbox (KAN-87) ──────────────────────────────────────────
+    // The recipient (userId) owns the inbox. Senders need write access to
+    // create incoming entries; recipients read and delete their own.
+    match /sharedTasks/{userId}/incoming/{docId} {
+      allow read, delete: if isOwner(userId);
+      // Any authenticated user may send a task to another user.
+      allow create: if request.auth != null;
+      allow update: if false;
+    }
+
+    // ─── Pending notifications (KAN-87) ───────────────────────────────────────
+    // Written by the sender; read and deleted by the recipient's device.
+    match /pendingNotifications/{userId}/items/{docId} {
+      allow read, delete: if isOwner(userId);
+      allow create: if request.auth != null;
+      allow update: if false;
+    }
+
+    // ─── Challenges (KAN-102) ─────────────────────────────────────────────────
+    match /challenges/{challengeId} {
+      // Any participant or the creator may read the challenge.
+      allow read: if request.auth != null && (
+        resource.data.createdBy == request.auth.uid ||
+        request.auth.uid in resource.data.participants
+      );
+      // Only the creator can create.
+      allow create: if request.auth != null &&
+        request.resource.data.createdBy == request.auth.uid;
+      // Participants and the creator may update (accept/decline, progress).
+      allow update: if request.auth != null && (
+        resource.data.createdBy == request.auth.uid ||
+        request.auth.uid in resource.data.participants
+      );
+      allow delete: if false;
+    }
+
+    // ─── Contact discovery index (KAN-99) ────────────────────────────────────
+    // Hash → uid mapping. Only authenticated users may read or write their
+    // own entry (uid in document must match the caller's auth uid).
+    match /userDiscovery/{hash} {
+      allow read:          if request.auth != null;
+      allow create, update: if request.auth != null &&
+        request.resource.data.uid == request.auth.uid;
+      allow delete:        if request.auth != null &&
+        resource.data.uid == request.auth.uid;
     }
 
     // ─── Health check ─────────────────────────────────────────────────────────

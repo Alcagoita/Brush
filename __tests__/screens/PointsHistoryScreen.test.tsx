@@ -187,7 +187,8 @@ describe('PointsHistoryScreen — achievements gallery', () => {
 
   it('shows "Locked" badge on unearned achievements', () => {
     render(<PointsHistoryScreen />);
-    expect(screen.getAllByText('Locked').length).toBe(2);
+    // All 3 catalogue entries are locked when no achievements earned
+    expect(screen.getAllByText('Locked').length).toBe(3);
   });
 
   it('shows the unlock condition for locked achievements', () => {
@@ -208,7 +209,7 @@ describe('PointsHistoryScreen — achievements gallery', () => {
     fireAchievements([
       { id: 'first_task', type: 'first_task', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
     ]);
-    // Only 1 locked badge remains (daily_complete still locked)
-    expect(screen.getAllByText('Locked').length).toBe(1);
+    // 2 locked badges remain (daily_complete + challenge_winner still locked)
+    expect(screen.getAllByText('Locked').length).toBe(2);
   });
 });

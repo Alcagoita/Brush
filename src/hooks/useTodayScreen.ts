@@ -21,6 +21,7 @@ import {
   subscribeToTasksForDate,
 } from '../services/firestore';
 import { checkAndAwardDailyComplete } from '../services/achievements';
+import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
 import { requestLocationPermission } from '../services/geolocation';
 import {
   pauseGeofenceMonitoring,
@@ -265,6 +266,15 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           awardPoint(uid, taskId, task.title).catch(err =>
             console.warn('[useTodayScreen] awardPoint failed (non-critical)', err),
           );
+
+          // KAN-103: increment progress on all active challenges (fire-and-forget).
+          getActiveChallengesForUser(uid).then(challenges => {
+            challenges.forEach(c =>
+              incrementCompletedCount(c.id, uid, c).catch(err =>
+                console.warn('[useTodayScreen] challenge increment failed', err),
+              ),
+            );
+          }).catch(() => {});
         }
 
         const allOthersDone =

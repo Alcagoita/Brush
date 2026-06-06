@@ -27,6 +27,21 @@ const mockSubscribeLowBatteryPausePref = jest.fn();
 const mockSetLowBatteryPausePref       = jest.fn();
 const mockSubscribeToTotalPoints       = jest.fn();
 const mockSubscribeToAchievements      = jest.fn();
+const mockGetUser                      = jest.fn();
+const mockUpdateUsername               = jest.fn();
+const mockCheckUsernameAvailable       = jest.fn();
+
+jest.mock('../../src/services/contacts', () => ({
+  registerInDiscovery:   jest.fn().mockResolvedValue(undefined),
+  unregisterFromDiscovery: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('react-native-permissions', () => ({
+  check:       jest.fn(),
+  request:     jest.fn(),
+  PERMISSIONS: { IOS: {}, ANDROID: {} },
+  RESULTS:     { GRANTED: 'granted' },
+}));
 
 jest.mock('../../src/services/firestore', () => ({
   subscribeToPoiPreferences:    (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
@@ -37,6 +52,12 @@ jest.mock('../../src/services/firestore', () => ({
   subscribeToTotalPoints:       (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
   subscribeToAchievements:      (...args: unknown[]) => mockSubscribeToAchievements(...args),
   updateDisplayName:            jest.fn(),
+  getUser:                      (...args: unknown[]) => mockGetUser(...args),
+  updateUsername:               (...args: unknown[]) => mockUpdateUsername(...args),
+  checkUsernameAvailable:       (...args: unknown[]) => mockCheckUsernameAvailable(...args),
+  validateUsername:             jest.fn(() => null),
+  USERNAME_COOLDOWN_DAYS:       30,
+  upsertUser:                   jest.fn().mockResolvedValue(undefined),
 }));
 
 // Maps — placeTypeLabel used to label custom poi types
@@ -194,6 +215,7 @@ describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
     jest.clearAllMocks();
     mockSetPoiPreference.mockResolvedValue(undefined);
     mockSetLowBatteryPausePref.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue(null);
     // Default: all subscriptions return a no-op unsubscribe with no snapshot.
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
@@ -407,9 +429,12 @@ describe('ProfileScreen — Battery section (KAN-52)', () => {
     jest.clearAllMocks();
     mockSetPoiPreference.mockResolvedValue(undefined);
     mockSetLowBatteryPausePref.mockResolvedValue(undefined);
+    mockGetUser.mockResolvedValue(null);
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
     mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
+    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
+    mockSubscribeToAchievements.mockReturnValue(jest.fn());
   });
 
   it('renders the Battery section heading', () => {
@@ -478,6 +503,7 @@ function fireAchievements(achievements: object[]) {
 describe('ProfileScreen — KAN-19: points & achievements', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetUser.mockResolvedValue(null);
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
     mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
@@ -544,6 +570,7 @@ describe('ProfileScreen — KAN-19: points & achievements', () => {
 describe('ProfileScreen — KAN-80: collapsible notification preferences', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetUser.mockResolvedValue(null);
     mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
     mockSubscribeToCategories.mockReturnValue(jest.fn());
     mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());

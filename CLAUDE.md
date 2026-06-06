@@ -461,7 +461,9 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 **Sprint 4 — ✅ Complete.** All 11 tickets shipped. Released as v0.4.0.
 
-**Sprint 5 — 🚧 In progress.**
+**Sprint 5 — ✅ Complete.** All 9 tickets shipped. Released as v0.5.0.
+
+**Sprint 6 — 🚧 In progress.** 11 tickets: Friends & Social (KAN-96 epic) + final Wear OS geo-alert (KAN-36).
 
 ---
 
@@ -496,7 +498,7 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ---
 
-## Sprint 4: Brand, CRUD, Profile & Points Infrastructure — 🚧 In progress
+## Sprint 4: Brand, CRUD, Profile & Points Infrastructure — ✅ Complete
 
 **Goal:** Complete the essential v1.0 app loop — sign in, create and manage tasks, view profile, log out — while advancing the points and achievements system.
 
@@ -552,7 +554,7 @@ KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on da
 
 ---
 
-## Sprint 5: Task Import, Sharing & Wear OS Foundation — 🚧 In progress
+## Sprint 5: Task Import, Sharing & Wear OS Foundation — ✅ Complete
 
 **Goal:** Task import from external sources, in-app task sharing (+ AI message-to-task spike), and the Wear OS foundation. Two items (KAN-34, KAN-88) are spikes — output is a decision document and implementation tickets, not shipping code.
 
@@ -598,3 +600,57 @@ KAN-88                                       (Spike — standalone)
 - Message-to-task implementation — blocked on KAN-88 spike output
 - Apple Watch / watchOS support — Android/Wear OS only for this track
 - Ongoing sync for imports — one-time import only (button-triggered)
+
+---
+
+## Sprint 6: Friends & Social + Wear OS Geo-alerts — 🚧 In progress
+
+**Goal:** Complete the Friends & Social feature set (epic KAN-96) and ship the final Wear OS ticket (KAN-36). By the end, users can follow friends, share to-dos, challenge each other, compare achievements, and receive proximity alerts on their watch.
+
+### 🔴 Highest — must ship first, everything depends on these
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 1 | KAN-97 | Username and profile share link | KAN-18 (Sprint-4) | ✅ Concluído |
+| 2 | KAN-98 | One-way follow system | KAN-97 | ✅ Concluído |
+
+### 🟠 High
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 3 | KAN-36 | Geo-triggered notifications on Wear OS watch | KAN-35 (Sprint-5) | ✅ Concluído |
+| 4 | KAN-87 | Task sharing inbox — receive, accept, decline | KAN-97, KAN-98 | ✅ Concluído |
+| 5 | KAN-100 | Friends & Social hub screen | KAN-97, KAN-98 | ✅ Concluído |
+| 6 | KAN-101 | Share a To-Do with friends | KAN-98, KAN-100 | ✅ Concluído |
+| 7 | KAN-102 | Challenge a friend or group — send flow | KAN-98, KAN-100 | ✅ Concluído |
+| 8 | KAN-103 | Challenge — accept/decline and live progress | KAN-102 | ✅ Concluído |
+
+### 🔵 Medium
+
+| # | Ticket | Summary | Depends on | Status |
+|---|--------|---------|------------|--------|
+| 9 | KAN-99 | Phone contacts friend suggestions | KAN-98 | ⬜ A fazer |
+| 10 | KAN-104 | Challenge — winner achievement and notifications | KAN-103 | ✅ Concluído |
+| 11 | KAN-105 | Compare achievements with friends | KAN-97, KAN-98 | ⬜ A fazer |
+
+### Dependency map
+
+```
+KAN-97 ──▶ KAN-98 ──┬──▶ KAN-87  (inbox)
+                    ├──▶ KAN-100 ──┬──▶ KAN-101
+                    │              └──▶ KAN-102 ──▶ KAN-103 ──▶ KAN-104
+                    ├──▶ KAN-99   (contacts — parallel)
+                    └──▶ KAN-105  (compare — parallel after KAN-97/98)
+
+KAN-36  (standalone — depends only on KAN-35 from Sprint-5)
+```
+
+**Day-one starts:** KAN-97 and KAN-36 can start immediately. Everything else waits for KAN-97 → KAN-98 to land.
+
+### Out of scope for Sprint 6
+
+- iOS Share Extension implementation (KAN-91) — Sprint-6+, after KAN-89 Cloud Function
+- Android Share receiver (KAN-90) — same
+- Import timeout / retry (KAN-92, KAN-93) — backlog
+- Wear OS: Apple Watch / watchOS — Android only
+- Achievement privacy toggle — deferred to a future sprint

@@ -20,6 +20,10 @@ const mockSubscribeToPoiPreferences  = jest.fn();
 const mockSubscribeToCategories      = jest.fn();
 const mockSubscribeLowBatteryPausePref = jest.fn();
 
+jest.mock('../../src/services/sharing', () => ({
+  subscribeToIncomingSharedTasks: jest.fn(() => jest.fn()),
+}));
+
 jest.mock('../../src/services/firestore', () => ({
   setTaskDone:                 (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:                  (...args: unknown[]) => mockAwardPoint(...args),
@@ -35,6 +39,11 @@ const mockCheckAndAwardDailyComplete = jest.fn();
 
 jest.mock('../../src/services/achievements', () => ({
   checkAndAwardDailyComplete: (...args: unknown[]) => mockCheckAndAwardDailyComplete(...args),
+}));
+
+jest.mock('../../src/services/challenges', () => ({
+  getActiveChallengesForUser: jest.fn().mockResolvedValue([]),
+  incrementCompletedCount:    jest.fn().mockResolvedValue(false),
 }));
 
 // ─── Auth mock ────────────────────────────────────────────────────────────────

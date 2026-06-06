@@ -8,7 +8,7 @@
 
 import { Platform } from 'react-native';
 import notifee, { AndroidImportance } from '@notifee/react-native';
-import { awardAchievement, hasAchievement } from './firestore';
+import { awardAchievement, hasAchievement, awardPointsAchievementBonus } from './firestore';
 
 // ─── Android notification channel ─────────────────────────────────────────────
 
@@ -21,6 +21,53 @@ async function ensureChannel(): Promise<void> {
     name:       'Achievements',
     importance: AndroidImportance.HIGH,
     sound:      'default',
+  });
+}
+
+// ─── Challenge winner achievement (KAN-104) ───────────────────────────────────
+
+const CHALLENGE_WINNER_ID    = 'challenge_winner';
+const CHALLENGE_WINNER_TITLE = 'First to do it';
+const CHALLENGE_WINNER_BONUS = 5; // bonus points for winning a challenge
+
+/**
+ * Award the "challenge_winner" achievement to the winner of a challenge.
+ *
+ * Idempotent per challengeId — the document ID is `challenge_winner_{challengeId}`
+ * so winning multiple challenges creates separate achievement records.
+ *
+ * Actions:
+ *  1. Write achievement doc to users/{uid}/achievements/
+ *  2. Award 5 bonus points via achievement_bonus reason
+ *  3. Send a celebration notification to the winner
+ *
+ * @param uid         Firebase user ID of the winner
+ * @param challengeId The challenge that was won
+ */
+export async function awardChallengeWinnerAchievement(
+  uid:         string,
+  challengeId: string,
+): Promise<void> {
+  const achievementId = `${CHALLENGE_WINNER_ID}_${challengeId}`;
+
+  // Idempotency guard — don't double-award for the same challenge.
+  const alreadyAwarded = await hasAchievement(uid, achievementId);
+  if (alreadyAwarded) { return; }
+
+  await awardAchievement(uid, achievementId, 'challenge_winner', { challengeId });
+  await awardPointsAchievementBonus(uid, CHALLENGE_WINNER_ID, CHALLENGE_WINNER_BONUS);
+
+  await ensureChannel();
+  await notifee.displayNotification({
+    title: `🏆 You won the challenge!`,
+    body:  `Achievement unlocked: ${CHALLENGE_WINNER_TITLE}`,
+    data:  { screen: 'ChallengeDetail', challengeId },
+    android: {
+      channelId:   CHANNEL_ID,
+      importance:  AndroidImportance.HIGH,
+      pressAction: { id: 'default' },
+    },
+    ios: { sound: 'default' },
   });
 }
 

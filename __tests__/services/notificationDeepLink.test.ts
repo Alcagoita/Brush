@@ -24,7 +24,8 @@ jest.mock('@notifee/react-native', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Platform: { OS: 'android' },
+  Platform:      { OS: 'android' },
+  NativeModules: { WearNotificationModule: { sendProximityAlert: jest.fn() } },
 }));
 
 jest.mock('../../src/services/firestore', () => ({

@@ -11,7 +11,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { spacing } from '../theme/tokens';
-import { BellIcon } from './AppIcon';
+import { BellIcon, UsersIcon } from './AppIcon';
 import Avatar from './Avatar';
 
 interface Props {
@@ -19,8 +19,11 @@ interface Props {
   /** Firebase Auth photoURL — forwarded to Avatar (dot shown when absent). */
   photoURL?:    string | null;
   hasUnread?: boolean;
+  /** Badge count on the people/social icon (KAN-100). */
+  socialBadge?: number;
   onAvatarPress?: () => void;
   onBellPress?: () => void;
+  onPeoplePress?: () => void;
 }
 
 function greeting(): string {
@@ -31,7 +34,7 @@ function greeting(): string {
   return 'Good night';
 }
 
-export default function Header({ displayName, photoURL, hasUnread = false, onAvatarPress, onBellPress }: Props) {
+export default function Header({ displayName, photoURL, hasUnread = false, socialBadge = 0, onAvatarPress, onBellPress, onPeoplePress }: Props) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -70,6 +73,18 @@ export default function Header({ displayName, photoURL, hasUnread = false, onAva
           {displayName}
         </Text>
       </View>
+
+      {/* People / Social hub */}
+      <TouchableOpacity
+        style={styles.bell}
+        onPress={onPeoplePress}
+        accessibilityRole="button"
+        accessibilityLabel={socialBadge > 0 ? `Social, ${socialBadge} pending` : 'Social'}>
+        <UsersIcon color={palette.text} size={20} />
+        {socialBadge > 0 && (
+          <View style={[styles.dot, { backgroundColor: palette.accent }]} />
+        )}
+      </TouchableOpacity>
 
       {/* Bell */}
       <TouchableOpacity

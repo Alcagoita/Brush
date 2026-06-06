@@ -81,6 +81,19 @@ jest.mock('../src/screens/LoginScreen', () => {
   return () => <View testID="login-screen" />;
 });
 
+jest.mock('../src/screens/UsernameSetupScreen', () => {
+  const { View } = require('react-native');
+  return () => <View testID="username-setup-screen" />;
+});
+
+jest.mock('../src/services/firestore', () => ({
+  getUser: jest.fn().mockResolvedValue(null),
+}));
+
+jest.mock('../src/services/sharing', () => ({
+  subscribeToSharedTaskNotifications: jest.fn(() => jest.fn()),
+}));
+
 // ─── Test ─────────────────────────────────────────────────────────────────────
 
 test('renders correctly', async () => {

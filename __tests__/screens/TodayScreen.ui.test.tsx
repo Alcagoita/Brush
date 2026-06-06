@@ -46,6 +46,10 @@ jest.mock('../../src/hooks/useTodayScreen', () => ({
   useTodayScreen: () => mockHookReturn,
 }));
 
+jest.mock('../../src/services/sharing', () => ({
+  subscribeToIncomingSharedTasks: jest.fn(() => jest.fn()),
+}));
+
 let mockHookReturn = { ...DEFAULT_HOOK_RETURN };
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────

@@ -15,12 +15,27 @@ import { useAuth } from './src/hooks/useAuth';
 import { useFCM } from './src/hooks/useFCM';
 import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
 import LoginScreen from './src/screens/LoginScreen';
+import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import NetworkBanner from './src/components/NetworkBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
+import { getUser } from './src/services/firestore';
+import { subscribeToSharedTaskNotifications } from './src/services/sharing';
+import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
+
+// Deep link config (KAN-97 / KAN-87).
+const LINKING_CONFIG = {
+  prefixes: ['https://brushaway.app', 'brushaway://'],
+  config: {
+    screens: {
+      PublicProfile:   'u/:username',
+      SharedTaskInbox: 'inbox',
+    } as Record<keyof RootStackParamList, unknown>,
+  },
+};
 
 const TRANSITION_MS = 220;
 
@@ -58,6 +73,42 @@ function AppShell() {
       });
   }, [user, loading, displayUser]);
 
+  // ── Username check (KAN-97) ───────────────────────────────────────────────
+  // null = still loading, false = needs setup, true = ready
+  const [hasUsername, setHasUsername] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!displayUser) { setHasUsername(null); return; }
+    let cancelled = false;
+    getUser(displayUser.uid)
+      .then(userData => { if (!cancelled) { setHasUsername(!!userData?.username); } })
+      .catch(() => { if (!cancelled) { setHasUsername(false); } });
+    return () => { cancelled = true; };
+  }, [displayUser]);
+
+  // ── Shared-task notification subscription (KAN-87) ───────────────────────
+  // Fires a local notifee notification when a new pendingNotification arrives.
+  // The data.screen key routes the press handler to SharedTaskInbox.
+  useEffect(() => {
+    if (!displayUser) { return; }
+    const uid = displayUser.uid;
+    return subscribeToSharedTaskNotifications(uid, async n => {
+      try {
+        await notifeeApp.createChannel({
+          id: 'shared_tasks', name: 'Shared Tasks', importance: AppAndroidImportance.HIGH,
+        });
+        await notifeeApp.displayNotification({
+          title: n.title,
+          body:  n.body,
+          data:  { ...n.data, screen: 'SharedTaskInbox' },
+          android: { channelId: 'shared_tasks', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
+        });
+      } catch (e) {
+        console.warn('[AppShell] shared task notification failed', e);
+      }
+    });
+  }, [displayUser]);
+
   // Persist the FCM device token whenever a user is signed in.
   useFCM(user?.uid ?? null);
 
@@ -79,27 +130,28 @@ function AppShell() {
     return unsubscribe;
   }, []);
 
-  // Notifee foreground press handler (KAN-28).
-  // Fires when the user taps a local proximity notification while the app is
-  // in the foreground. Navigates to the screen specified in the data payload.
+  // Notifee foreground press handler (KAN-28 / KAN-103).
+  // Navigates to the screen specified in data.screen, forwarding any extra
+  // params (e.g. challengeId for ChallengeDetail).
   useEffect(() => {
     return notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS) {
-        const screen = (detail.notification?.data?.screen as keyof RootStackParamList) ?? 'Today';
-        navigateTo(screen);
+        const data   = detail.notification?.data ?? {};
+        const screen = (data.screen as keyof RootStackParamList) ?? 'Today';
+        const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
+        navigateTo(screen, params as any);
       }
     });
   }, []);
 
-  // Initial notification handler (KAN-28).
-  // Fires when the user taps a notification that launches the app from quit state.
-  // NavigationContainer is not yet mounted here, so we defer via a short timeout.
+  // Initial notification handler (KAN-28 / KAN-103).
   useEffect(() => {
     notifee.getInitialNotification().then(initial => {
       if (initial?.notification?.data?.screen) {
-        const screen = initial.notification.data.screen as keyof RootStackParamList;
-        // Small delay to ensure NavigationContainer is ready before navigating.
-        setTimeout(() => navigateTo(screen), 300);
+        const data   = initial.notification.data;
+        const screen = data.screen as keyof RootStackParamList;
+        const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
+        setTimeout(() => navigateTo(screen, params as any), 300);
       }
     });
   }, []);
@@ -121,9 +173,19 @@ function AppShell() {
       <NetworkBanner />
       <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
         {displayUser ? (
-          <NavigationContainer ref={navigationRef}>
-            <AppNavigator />
-          </NavigationContainer>
+          hasUsername === null ? (
+            // Still resolving whether username exists — hold on the spinner.
+            <View style={[styles.splash, { backgroundColor: palette.bg }]}>
+              <ActivityIndicator size="large" color={palette.accent} />
+            </View>
+          ) : !hasUsername ? (
+            // New user (or user without a username) — collect it before entering the app.
+            <UsernameSetupScreen onComplete={() => setHasUsername(true)} />
+          ) : (
+            <NavigationContainer ref={navigationRef} linking={LINKING_CONFIG}>
+              <AppNavigator />
+            </NavigationContainer>
+          )
         ) : (
           <LoginScreen />
         )}
