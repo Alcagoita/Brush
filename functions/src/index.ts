@@ -1,0 +1,7 @@
+/**
+ * Brush Cloud Functions — entry point
+ *
+ * All exported functions are picked up by the Firebase CLI on deployment.
+ */
+
+export { parseMessageToTask } from './parseMessageToTask';
