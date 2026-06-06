@@ -258,7 +258,7 @@ export default function SharedTaskInboxScreen() {
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: palette.text }]}>All caught up</Text>
             <Text style={[styles.emptySubtitle, { color: palette.muted }]}>
-              No pending shared tasks.
+              Nothing brushed your way yet.
             </Text>
           </View>
         ) : (

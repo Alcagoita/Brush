@@ -109,12 +109,12 @@ export default function ShareToDoScreen() {
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Share a to-do</Text>
+        <Text style={[styles.title, { color: palette.text }]}>Brush a To-do</Text>
         <View style={styles.navBtn} />
       </View>
 
       <Text style={[styles.subtitle, { color: palette.muted }]}>
-        Pick a task to send to a friend
+        Brush this over to a friend
       </Text>
 
       {loading ? (

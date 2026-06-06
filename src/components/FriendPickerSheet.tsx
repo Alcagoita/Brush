@@ -137,7 +137,9 @@ export default function FriendPickerSheet({
           ) : null}
         </View>
         {isSent ? (
-          <Text style={[styles.sentLabel, { color: palette.accent }]}>Sent ✓</Text>
+          <Text style={[styles.sentLabel, { color: palette.accent }]}>
+            {item.username ? `Brushed to @${item.username}` : 'Brushed ✓'}
+          </Text>
         ) : (
           <View style={[
             styles.checkbox,
@@ -165,7 +167,7 @@ export default function FriendPickerSheet({
 
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: palette.line }]}>
-            <Text style={[styles.title, { color: palette.text }]}>Send to a friend</Text>
+            <Text style={[styles.title, { color: palette.text }]}>Brush this over to…</Text>
             <Pressable onPress={handleClose} hitSlop={12} accessibilityLabel="Close">
               <Text style={[styles.closeBtn, { color: palette.muted }]}>✕</Text>
             </Pressable>
@@ -232,11 +234,11 @@ export default function FriendPickerSheet({
             onPress={handleSend}
             disabled={!canSend}
             accessibilityRole="button"
-            accessibilityLabel={selected.size > 0 ? `Send to ${selected.size} friend${selected.size > 1 ? 's' : ''}` : 'Send'}>
+            accessibilityLabel={selected.size > 0 ? `Brush it over to ${selected.size} friend${selected.size > 1 ? 's' : ''}` : 'Select friends first'}>
             {sending
               ? <ActivityIndicator color={palette.bg} />
               : <Text style={[styles.sendLabel, { color: canSend ? palette.bg : palette.faint }]}>
-                  {selected.size > 0 ? `Send to ${selected.size} friend${selected.size > 1 ? 's' : ''}` : 'Select friends to send'}
+                  {selected.size > 0 ? 'Brush it over' : 'Select friends first'}
                 </Text>
             }
           </Pressable>

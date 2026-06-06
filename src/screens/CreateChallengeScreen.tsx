@@ -357,7 +357,7 @@ export default function CreateChallengeScreen() {
               }}
               ListEmptyComponent={
                 <Text style={[styles.emptyText, { color: palette.muted }]}>
-                  {following.length === 0 ? 'You're not following anyone yet.' : `No friends match "${query}".`}
+                  {following.length === 0 ? "You're not following anyone yet." : `No friends match "${query}".`}
                 </Text>
               }
             />

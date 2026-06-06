@@ -140,9 +140,9 @@ export default function SocialHubScreen() {
             style={[styles.actionBtn, { backgroundColor: palette.text }]}
             onPress={() => navigation.navigate('ShareToDo')}
             accessibilityRole="button"
-            accessibilityLabel="Share a to-do">
+            accessibilityLabel="Brush a To-do with a friend">
             <ShareIcon color={palette.bg} size={18} />
-            <Text style={[styles.actionLabel, { color: palette.bg }]}>Share a to-do</Text>
+            <Text style={[styles.actionLabel, { color: palette.bg }]}>Brush a To-do</Text>
           </TouchableOpacity>
 
           <TouchableOpacity

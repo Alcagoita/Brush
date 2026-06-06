@@ -130,27 +130,28 @@ function AppShell() {
     return unsubscribe;
   }, []);
 
-  // Notifee foreground press handler (KAN-28).
-  // Fires when the user taps a local proximity notification while the app is
-  // in the foreground. Navigates to the screen specified in the data payload.
+  // Notifee foreground press handler (KAN-28 / KAN-103).
+  // Navigates to the screen specified in data.screen, forwarding any extra
+  // params (e.g. challengeId for ChallengeDetail).
   useEffect(() => {
     return notifee.onForegroundEvent(({ type, detail }) => {
       if (type === EventType.PRESS) {
-        const screen = (detail.notification?.data?.screen as keyof RootStackParamList) ?? 'Today';
-        navigateTo(screen);
+        const data   = detail.notification?.data ?? {};
+        const screen = (data.screen as keyof RootStackParamList) ?? 'Today';
+        const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
+        navigateTo(screen, params as any);
       }
     });
   }, []);
 
-  // Initial notification handler (KAN-28).
-  // Fires when the user taps a notification that launches the app from quit state.
-  // NavigationContainer is not yet mounted here, so we defer via a short timeout.
+  // Initial notification handler (KAN-28 / KAN-103).
   useEffect(() => {
     notifee.getInitialNotification().then(initial => {
       if (initial?.notification?.data?.screen) {
-        const screen = initial.notification.data.screen as keyof RootStackParamList;
-        // Small delay to ensure NavigationContainer is ready before navigating.
-        setTimeout(() => navigateTo(screen), 300);
+        const data   = initial.notification.data;
+        const screen = data.screen as keyof RootStackParamList;
+        const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
+        setTimeout(() => navigateTo(screen, params as any), 300);
       }
     });
   }, []);

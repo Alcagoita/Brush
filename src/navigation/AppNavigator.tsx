@@ -22,6 +22,7 @@ import SharedTaskInboxScreen from '../screens/SharedTaskInboxScreen';
 import SocialHubScreen from '../screens/SocialHubScreen';
 import ShareToDoScreen from '../screens/ShareToDoScreen';
 import CreateChallengeScreen from '../screens/CreateChallengeScreen';
+import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -67,7 +68,7 @@ export default function AppNavigator() {
       <Stack.Screen name="SocialHub"  component={SocialHubScreen} />
       <Stack.Screen name="ShareToDo"        component={ShareToDoScreen} />
       <Stack.Screen name="CreateChallenge" component={CreateChallengeScreen} />
-      {/* ChallengeDetail added in KAN-103 */}
+      <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
     </Stack.Navigator>
   );
 }
