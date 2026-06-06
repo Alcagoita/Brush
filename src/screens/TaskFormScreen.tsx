@@ -539,8 +539,8 @@ export default function TaskFormScreen() {
                 pressed && { opacity: 0.6 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Share task with a friend">
-              <Text style={[styles.shareBtnLabel, { color: palette.muted }]}>Send to a friend</Text>
+              accessibilityLabel="Brush this To-do with a friend">
+              <Text style={[styles.shareBtnLabel, { color: palette.muted }]}>Brush a To-do</Text>
             </Pressable>
             <Pressable
               onPress={handleDelete}
