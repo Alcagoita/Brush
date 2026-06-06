@@ -618,7 +618,7 @@ KAN-88                                       (Spike — standalone)
 
 | # | Ticket | Summary | Depends on | Status |
 |---|--------|---------|------------|--------|
-| 3 | KAN-36 | Geo-triggered notifications on Wear OS watch | KAN-35 (Sprint-5) | ⬜ A fazer |
+| 3 | KAN-36 | Geo-triggered notifications on Wear OS watch | KAN-35 (Sprint-5) | ✅ Concluído |
 | 4 | KAN-87 | Task sharing inbox — receive, accept, decline | KAN-97, KAN-98 | ⬜ A fazer |
 | 5 | KAN-100 | Friends & Social hub screen | KAN-97, KAN-98 | ⬜ A fazer |
 | 6 | KAN-101 | Share a To-Do with friends | KAN-98, KAN-100 | ⬜ A fazer |
