@@ -700,7 +700,24 @@ export function subscribeToPointsHistory(
 ): () => void {
   return onSnapshot(
     query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')),
-    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry))); },
+    snap => {
+      if (!snap) { return; }
+
+      // Deduplicate by taskId — keep only the most-recent entry per task.
+      // Docs are already ordered newest-first, so the first occurrence wins.
+      // This handles legacy auto-ID duplicates written before KAN-128 as well
+      // as any edge cases where two entries for the same task+day exist.
+      const seen = new Set<string>();
+      const unique: PointsHistoryEntry[] = [];
+      for (const d of snap.docs) {
+        const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
+        if (!seen.has(entry.taskId)) {
+          seen.add(entry.taskId);
+          unique.push(entry);
+        }
+      }
+      onUpdate(unique);
+    },
     onError,
   );
 }

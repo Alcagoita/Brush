@@ -413,6 +413,60 @@ describe('subscribeToPointsHistory', () => {
     ]);
   });
 
+  it('deduplicates legacy entries — keeps only the latest entry per taskId (KAN-128)', () => {
+    const olderTs = { toDate: () => new Date('2026-05-28') };
+    const newerTs = { toDate: () => new Date('2026-05-29') };
+    mockOnSnapshot.mockImplementation((_ref: unknown, cb: CollSnapshotCallback) => {
+      // Docs arrive ordered newest-first (as Firestore orderBy awardedAt desc guarantees).
+      cb({
+        docs: [
+          // Newest duplicate for task-1 — should be kept.
+          {
+            id:   'task-1_2026-05-29',
+            data: () => ({
+              taskId:    'task-1',
+              taskTitle: 'Buy milk',
+              awardedAt: newerTs,
+              points:    1,
+              reason:    'task_completed',
+            }),
+          },
+          // Older duplicate for task-1 — should be dropped.
+          {
+            id:   'auto-id-legacy',
+            data: () => ({
+              taskId:    'task-1',
+              taskTitle: 'Buy milk',
+              awardedAt: olderTs,
+              points:    1,
+              reason:    'task_completed',
+            }),
+          },
+          // Unique entry — should be kept.
+          {
+            id:   'task-2_2026-05-29',
+            data: () => ({
+              taskId:    'task-2',
+              taskTitle: 'Pick up meds',
+              awardedAt: newerTs,
+              points:    1,
+              reason:    'task_completed',
+            }),
+          },
+        ],
+      });
+      return jest.fn();
+    });
+
+    const onUpdate = jest.fn();
+    subscribeToPointsHistory('uid-1', onUpdate);
+
+    const result = onUpdate.mock.calls[0][0] as unknown[];
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: 'task-1_2026-05-29', taskId: 'task-1' });
+    expect(result[1]).toMatchObject({ id: 'task-2_2026-05-29', taskId: 'task-2' });
+  });
+
   it('returns an unsubscribe function', () => {
     const unsub = jest.fn();
     mockOnSnapshot.mockReturnValue(unsub);
