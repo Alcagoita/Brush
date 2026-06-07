@@ -25,6 +25,7 @@ import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
 import BrushStroke from './BrushStroke';
+import { COPY } from '../constants/copy';
 import { Task, Category } from '../types';
 
 interface TaskRowProps {
@@ -113,7 +114,7 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
         onPress={() => onToggle(task.id, !task.done)}
         hitSlop={8}
         accessibilityRole="checkbox"
-        accessibilityLabel={`Mark ${task.title} as ${task.done ? 'undone' : 'done'}`}
+        accessibilityLabel={task.done ? COPY.taskRow.unbrush(task.title) : COPY.taskRow.brushAway(task.title)}
         accessibilityState={{ checked: task.done }}
         style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
         <View style={[styles.checkbox, { borderColor: task.done ? palette.faint : palette.text }]}>

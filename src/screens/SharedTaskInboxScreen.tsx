@@ -43,6 +43,7 @@ import {
 } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { SharedTask } from '../types';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SharedTaskInbox'>;
 
@@ -258,7 +259,7 @@ export default function SharedTaskInboxScreen() {
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: palette.text }]}>All caught up</Text>
             <Text style={[styles.emptySubtitle, { color: palette.muted }]}>
-              Nothing brushed your way yet.
+              {COPY.emptyState.inboxNoShared}
             </Text>
           </View>
         ) : (

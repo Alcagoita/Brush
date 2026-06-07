@@ -42,6 +42,7 @@ import {
   parseGeofenceId,
   GEOFENCE_ENTRY_EVENT,
 } from './nativeGeofence';
+import { COPY } from '../constants/copy';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -264,8 +265,8 @@ async function fireNotification(
   const poiLabel = task.poi ? placeTypeLabel(task.poi) : 'nearby';
 
   await notifee.displayNotification({
-    title: `${poiLabel} nearby`,
-    body:  `${place.name} is ${distLabel} — you have "${task.title}"`,
+    title: COPY.notification.proximityTitle(poiLabel),
+    body:  COPY.notification.proximityBody(place.name, distLabel, task.title),
     // KAN-28: data payload for deep linking — press handler navigates to Today.
     data: {
       screen: 'Today',

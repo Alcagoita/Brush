@@ -9,6 +9,7 @@
 import { Platform } from 'react-native';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import { awardAchievement, hasAchievement, awardPointsAchievementBonus } from './firestore';
+import { COPY } from '../constants/copy';
 
 // ─── Android notification channel ─────────────────────────────────────────────
 
@@ -27,7 +28,6 @@ async function ensureChannel(): Promise<void> {
 // ─── Challenge winner achievement (KAN-104) ───────────────────────────────────
 
 const CHALLENGE_WINNER_ID    = 'challenge_winner';
-const CHALLENGE_WINNER_TITLE = 'First to do it';
 const CHALLENGE_WINNER_BONUS = 5; // bonus points for winning a challenge
 
 /**
@@ -59,8 +59,8 @@ export async function awardChallengeWinnerAchievement(
 
   await ensureChannel();
   await notifee.displayNotification({
-    title: `🏆 You won the challenge!`,
-    body:  `Achievement unlocked: ${CHALLENGE_WINNER_TITLE}`,
+    title: COPY.achievement.challengeWonNotifTitle,
+    body:  COPY.achievement.challengeWonBody,
     data:  { screen: 'ChallengeDetail', challengeId },
     android: {
       channelId:   CHANNEL_ID,
@@ -106,8 +106,8 @@ export async function checkAndAwardDailyComplete(
 
   await ensureChannel();
   await notifee.displayNotification({
-    title: 'All done for today!',
-    body:  "You've completed every task on your list. Great work!",
+    title: COPY.notification.dailyCompleteTitle,
+    body:  COPY.notification.dailyCompleteBody,
     data:  { screen: 'Today' },
     android: {
       channelId:   CHANNEL_ID,

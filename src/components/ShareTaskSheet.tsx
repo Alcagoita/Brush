@@ -32,6 +32,7 @@ import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { findUserByEmail, sendSharedTask, UserSummary } from '../services/sharing';
 import { Task } from '../types';
+import { COPY } from '../constants/copy';
 
 export interface ShareTaskSheetProps {
   visible:      boolean;
@@ -261,10 +262,10 @@ export default function ShareTaskSheet({
                 { backgroundColor: palette.text, opacity: (isSending || pressed) ? 0.7 : 1 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel={`Send task to ${lookupState.user.displayName}`}>
+              accessibilityLabel={COPY.share.sendButton(lookupState.user.displayName)}>
               {isSending
                 ? <ActivityIndicator size="small" color={palette.bg} />
-                : <Text style={[styles.sendBtnLabel, { color: palette.bg }]}>Send task</Text>
+                : <Text style={[styles.sendBtnLabel, { color: palette.bg }]}>{COPY.share.sendButton(lookupState.user.displayName)}</Text>
               }
             </Pressable>
           )}

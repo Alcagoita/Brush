@@ -25,6 +25,7 @@ import {
 } from '@react-native-firebase/firestore';
 import type { Challenge, ChallengeParticipant, FollowEntry } from '../types';
 import { awardChallengeWinnerAchievement } from './achievements';
+import { COPY } from '../constants/copy';
 
 // ─── Ref helpers ──────────────────────────────────────────────────────────────
 
@@ -108,11 +109,11 @@ export async function createChallenge(params: CreateChallengeParams): Promise<st
 
   // Notify each non-creator participant via pendingNotifications.
   const typeLabel = type === 'goal'
-    ? `First to complete ${goalCount ?? '?'} tasks`
+    ? COPY.challenge.goalTypeLabel(goalCount ?? 0)
     : `Most tasks by deadline`;
 
   const challengerHandle = creatorUsername ? `@${creatorUsername}` : creatorName;
-  const notifTitle = `${challengerHandle} challenged you: [${typeLabel}] 🏆 — Accept?`;
+  const notifTitle = COPY.challenge.inviteTitle(challengerHandle, typeLabel);
 
   await Promise.allSettled(
     participants.map(p =>
@@ -288,8 +289,8 @@ export async function resolveTimeBasedChallenge(
         collection(db, 'pendingNotifications', pUid, 'items'),
         {
           type:      pUid === winnerUid ? 'challenge_won' : 'challenge_ended',
-          title:     pUid === winnerUid ? '🏆 You won the challenge!' : `${winnerHandle} won the challenge!`,
-          body:      pUid === winnerUid ? 'Achievement unlocked: First to do it' : 'Better luck next time!',
+          title:     pUid === winnerUid ? COPY.achievement.challengeWonNotifTitle : `${winnerHandle} won the challenge!`,
+          body:      pUid === winnerUid ? COPY.achievement.challengeWonBody : COPY.achievement.challengeEndedBody,
           data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
           createdAt: serverTimestamp(),
         },
