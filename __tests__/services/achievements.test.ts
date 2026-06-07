@@ -30,6 +30,13 @@
  *     - writes achievement with type challenge_winner and challengeId context
  *     - awards achievement_bonus points
  *     - fires a notification deep-linking to ChallengeDetail
+ *   migratePointsToAchievementDerived (KAN-129)
+ *     - writes the correct computed total when stored value is stale
+ *     - does not call tx.update when stored value already matches
+ *     - writes 0 when there are no earned achievements and stored total is non-zero
+ *     - is a no-op when there is no user document
+ *     - ignores achievements with earnCount 0 in the sum
+ *     - counts repeatable achievements by earnCount × points
  */
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
@@ -460,5 +467,97 @@ describe('awardChallengeWinnerAchievement', () => {
     const ids = mockAwardAchievement.mock.calls.map(([, id]: [unknown, string]) => id);
     expect(ids).toContain('challenge_winner_ch-111');
     expect(ids).toContain('challenge_winner_ch-222');
+  });
+});
+
+// ─── migratePointsToAchievementDerived (KAN-129) ──────────────────────────────
+
+import { migratePointsToAchievementDerived } from '../../src/services/achievements';
+
+describe('migratePointsToAchievementDerived', () => {
+  it('writes the correct computed total when stored value is stale', async () => {
+    // first_brush (earnCount:1 × 5pts) + day_complete (earnCount:2 × 15pts) = 35 pts
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      totalPoints: 99, // stale legacy value
+      achievements: {
+        first_brush:  { earnCount: 1, progress: 1,  target: 1, earnedAt: null },
+        day_complete: { earnCount: 2, progress: 2,  target: 1, earnedAt: null },
+      },
+    }));
+
+    await migratePointsToAchievementDerived('uid-1');
+
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      mockUserDocRef,
+      { totalPoints: 35 },
+    );
+  });
+
+  it('does not call tx.update when stored value already matches', async () => {
+    // early_bird earnCount:1 × 10pts = 10 pts
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      totalPoints: 10,
+      achievements: {
+        early_bird: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      },
+    }));
+
+    await migratePointsToAchievementDerived('uid-1');
+
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('writes 0 when there are no earned achievements and stored total is non-zero', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      totalPoints: 12, // legacy per-task points, no achievements
+      achievements: {},
+    }));
+
+    await migratePointsToAchievementDerived('uid-1');
+
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      mockUserDocRef,
+      { totalPoints: 0 },
+    );
+  });
+
+  it('is a no-op when there is no user document', async () => {
+    mockTxGet.mockResolvedValue({ data: () => undefined });
+
+    await migratePointsToAchievementDerived('uid-1');
+
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('ignores achievements with earnCount 0 in the sum', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      totalPoints: 5,
+      achievements: {
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+        early_bird:  { earnCount: 0, progress: 0, target: 1, earnedAt: null }, // not earned
+      },
+    }));
+
+    // 5 pts matches first_brush only → no update needed
+    await migratePointsToAchievementDerived('uid-1');
+
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('counts repeatable achievements by earnCount × points', async () => {
+    // on_a_roll earned 3 times × 20pts = 60 pts
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      totalPoints: 0,
+      achievements: {
+        on_a_roll: { earnCount: 3, progress: 9, target: 3, earnedAt: null },
+      },
+    }));
+
+    await migratePointsToAchievementDerived('uid-1');
+
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      mockUserDocRef,
+      { totalPoints: 60 },
+    );
   });
 });

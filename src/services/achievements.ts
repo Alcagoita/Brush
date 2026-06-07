@@ -210,6 +210,42 @@ export async function evaluateAchievements(
   });
 }
 
+// ─── One-time migration (KAN-129) ────────────────────────────────────────────
+
+/**
+ * Recomputes `user.totalPoints` from the `achievements` map and writes it
+ * back to Firestore if it differs from the stored value.
+ *
+ * Must be called once on app startup after the user is authenticated.
+ * Fixes accounts that accumulated per-task points under the old model before
+ * KAN-129 switched to achievement-derived points only.
+ *
+ * The function is idempotent — calling it multiple times is safe.
+ */
+export async function migratePointsToAchievementDerived(uid: string): Promise<void> {
+  const db = getFirestore();
+  const userDocRef = db.collection('users').doc(uid);
+
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(userDocRef);
+    const data = snap.data() as (User & { achievements?: AchievementsMap }) | undefined;
+    if (!data) { return; }
+
+    const map: AchievementsMap = (data.achievements ?? {}) as AchievementsMap;
+
+    let computedPoints = 0;
+    for (const [type, entry] of Object.entries(map)) {
+      if (!entry || entry.earnCount <= 0) { continue; }
+      const def = ACHIEVEMENT_DEFS[type];
+      if (def) { computedPoints += def.points * entry.earnCount; }
+    }
+
+    if ((data.totalPoints ?? 0) !== computedPoints) {
+      tx.update(userDocRef, { totalPoints: computedPoints });
+    }
+  });
+}
+
 // ─── Challenge winner achievement (KAN-104) ───────────────────────────────────
 // Uses the old subcollection model — migration is tracked separately.
 
