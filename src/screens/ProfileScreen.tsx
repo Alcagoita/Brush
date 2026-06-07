@@ -1,48 +1,30 @@
 /**
- * ProfileScreen — KAN-18 / KAN-19
+ * ProfileScreen — KAN-112
  *
- * Profile view and edit screen.
+ * Full redesign. Gamification (points + achievements) is the visual centrepiece.
+ * Supersedes KAN-18.
  *
- * Sections (top → bottom):
- *   1. Avatar (amber dot default; photo if set) + "Add photo" affordance
- *   2. Identity: editable Name, read-only Email
- *   3. Points & Achievements — total points (live), earned badges, "See all" → KAN-33
- *   4. Notification Preferences (per-POI radius steppers) — KAN-29
- *   5. Battery — low-battery pause toggle — KAN-52
- *   6. Appearance — dark/light mode toggle
- *   7. Sign out — KAN-20
- *
- * Design decisions (KAN-18 comments):
- *   - Avatar default is the amber dot (palette.accent, 12 px) via Avatar component.
- *     NOT a letter initial. Avatar component is shared with Header (KAN-78).
- *   - Photo upload is deferred to a future sprint. The "Add photo" affordance
- *     is visually present but shows a "coming soon" alert when tapped.
- *   - Name is editable inline: tap → TextInput appears; Save writes to both
- *     Firebase Auth (updateProfile) and Firestore (updateDisplayName).
+ * Sections:
+ *   1. Identity card — avatar (60px, initial letter, camera badge), name/username/email, edit
+ *   2. Share my profile row → Share sheet (KAN-115)
+ *   3. Points hero card — 116px accent ring, next-reward column, streak chip
+ *   4. Achievements card — horizontal medal strip, "See all" → KAN-114
+ *   5. Settings entry row → KAN-113
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  LayoutAnimation,
-  Platform,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
-  TouchableOpacity,
-  UIManager,
   View,
 } from 'react-native';
-
-// Enable LayoutAnimation on Android
-if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true);
-}
+import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -50,111 +32,164 @@ import { getAuth, updateProfile } from '@react-native-firebase/auth/lib/modular'
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, ChevronRightIcon, GridIcon, LogOutIcon, MoonIcon, PoiIcon, SunIcon } from '../components/AppIcon';
-import Avatar from '../components/Avatar';
-import { logout } from '../services/auth';
 import {
-  subscribeToPoiPreferences,
-  setPoiPreference,
-  subscribeToCategories,
-  subscribeLowBatteryPausePref,
-  setLowBatteryPausePref,
-  updateDisplayName,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  FlameIcon,
+  LockIcon,
+  MedalIcon,
+  PencilIcon,
+  SettingsIcon,
+  ShareIcon,
+  CameraIcon,
+} from '../components/AppIcon';
+import Avatar from '../components/Avatar';
+import {
   subscribeToTotalPoints,
+  subscribeToCurrentStreak,
   subscribeToAchievements,
+  updateDisplayName,
   getUser,
   updateUsername,
   checkUsernameAvailable,
   validateUsername,
   USERNAME_COOLDOWN_DAYS,
-  upsertUser,
 } from '../services/firestore';
-import { registerInDiscovery, unregisterFromDiscovery } from '../services/contacts';
-import { placeTypeLabel } from '../services/maps';
-import { Achievement, Category, POI_GEOFENCE_RADIUS } from '../types';
-import ImportTasksSection from '../components/ImportTasksSection';
-import { COPY } from '../constants/copy';
+import type { Achievement } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// ─── Tier ladder ──────────────────────────────────────────────────────────────
 
-const STEP           = 25;
-const MIN_RADIUS     = 25;
-const MAX_RADIUS     = 500;
-const DEFAULT_CUSTOM_RADIUS = 75;
-
-const BUILTIN_POI_TYPES = new Set(['atm', 'pharmacy', 'cafe', 'supermarket']);
-
-const POI_ROWS: { type: string; label: string }[] = [
-  { type: 'atm',         label: 'ATM' },
-  { type: 'pharmacy',    label: 'Pharmacy' },
-  { type: 'cafe',        label: 'Café' },
-  { type: 'supermarket', label: 'Supermarket' },
+const TIER_LADDER = [
+  { name: 'Bronze',   at: 10  },
+  { name: 'Silver',   at: 50  },
+  { name: 'Gold',     at: 100 },
+  { name: 'Platinum', at: 200 },
 ];
 
-// ─── Achievement metadata ─────────────────────────────────────────────────────
-
-const ACHIEVEMENT_META: Record<string, { label: string; icon: string }> = {
-  first_task:        { label: 'First task',       icon: '★' },
-  daily_complete:    { label: 'Day complete',      icon: '✓' },
-  challenge_winner:  { label: COPY.achievement.challengeWinnerTitle, icon: '🏆' },
-};
-
-function getAchievementMeta(type: string) {
-  return ACHIEVEMENT_META[type] ?? { label: type.replace(/_/g, ' '), icon: '•' };
+function getNextTier(points: number): { name: string; at: number } {
+  return TIER_LADDER.find(t => points < t.at) ?? TIER_LADDER[TIER_LADDER.length - 1];
 }
 
-// ─── AchievementBadge ─────────────────────────────────────────────────────────
+// ─── V1 achievement set (aligns with KAN-114) ─────────────────────────────────
 
-interface BadgeProps {
-  achievement: Achievement;
-  palette:     ReturnType<typeof useTheme>['palette'];
+const V1_ACHIEVEMENTS = [
+  { id: 'day_complete', label: 'Day complete' },
+  { id: 'early_bird',   label: 'Early bird'   },
+  { id: 'on_a_roll',    label: 'On a roll'    },
+  { id: 'explorer',     label: 'Explorer'     },
+  { id: 'centurion',    label: 'Centurion'    },
+];
+
+// ─── Points ring ──────────────────────────────────────────────────────────────
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+interface PointsRingProps {
+  progress:    number;
+  size?:       number;
+  strokeWidth?: number;
+  accentColor: string;
+  trackColor:  string;
 }
 
-function AchievementBadge({ achievement, palette }: BadgeProps) {
-  const { label, icon } = getAchievementMeta(achievement.type);
+function PointsRingView({
+  progress,
+  size        = 116,
+  strokeWidth = 11,
+  accentColor,
+  trackColor,
+}: PointsRingProps) {
+  const progressSV = useSharedValue(0);
+  useEffect(() => {
+    progressSV.value = withTiming(Math.min(Math.max(progress, 0), 1), { duration: 600 });
+  }, [progress, progressSV]);
+
+  const r            = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * r;
+  const cx            = size / 2;
+
+  const arcProps = useAnimatedProps(() => ({
+    strokeDasharray:  circumference,
+    strokeDashoffset: circumference * (1 - progressSV.value),
+  }));
+
   return (
-    <View
-      style={[styles.badge, { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder }]}
-      accessibilityLabel={`Achievement: ${label}`}>
-      <Text style={[styles.badgeIcon, { color: palette.accent }]}>{icon}</Text>
-      <Text style={[styles.badgeLabel, { color: palette.nearText }]}>{label}</Text>
-    </View>
+    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
+      <Circle
+        cx={cx} cy={cx} r={r}
+        strokeWidth={strokeWidth} stroke={trackColor} fill="none"
+      />
+      <AnimatedCircle
+        cx={cx} cy={cx} r={r}
+        strokeWidth={strokeWidth} stroke={accentColor} fill="none"
+        strokeLinecap="round"
+        animatedProps={arcProps}
+      />
+    </Svg>
   );
 }
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const DEFAULT_RADII: Record<string, number> = {
-  atm:         POI_GEOFENCE_RADIUS.atm,
-  pharmacy:    POI_GEOFENCE_RADIUS.pharmacy,
-  cafe:        POI_GEOFENCE_RADIUS.cafe,
-  supermarket: POI_GEOFENCE_RADIUS.supermarket,
-};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
-  const { palette, dark, setDark } = useTheme();
-  const navigation = useNavigation<Nav>();
-  const insets = useSafeAreaInsets();
+  const { palette } = useTheme();
+  const navigation  = useNavigation<Nav>();
+  const insets      = useSafeAreaInsets();
 
   const currentUser  = getAuth().currentUser;
   const uid          = currentUser?.uid;
-  const userEmail    = currentUser?.email ?? '';
   const userPhotoURL = currentUser?.photoURL ?? null;
 
-  // ── Name edit ──────────────────────────────────────────────────────────────
-  const [editingName, setEditingName] = useState(false);
-  const [nameValue,   setNameValue]   = useState(currentUser?.displayName ?? '');
-  const [savingName,  setSavingName]  = useState(false);
+  // ── Live data ──────────────────────────────────────────────────────────────
+  const [totalPoints,   setTotalPoints]   = useState(0);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [achievements,  setAchievements]  = useState<Achievement[]>([]);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    const u1 = subscribeToTotalPoints(uid,   setTotalPoints,   err => console.warn('[ProfileScreen] points', err));
+    const u2 = subscribeToCurrentStreak(uid, setCurrentStreak, err => console.warn('[ProfileScreen] streak', err));
+    const u3 = subscribeToAchievements(uid,  setAchievements,  err => console.warn('[ProfileScreen] achievements', err));
+    return () => { u1(); u2(); u3(); };
+  }, [uid]);
+
+  // ── Username ───────────────────────────────────────────────────────────────
+  const [currentUsername, setCurrentUsername] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    getUser(uid).then(u => setCurrentUsername(u?.username));
+  }, [uid]);
+
+  // ── Inline edit ───────────────────────────────────────────────────────────
+  const [editOpen,        setEditOpen]        = useState(false);
+  const [editingField,    setEditingField]    = useState<'name' | 'username' | null>(null);
+
+  // Name edit
+  const [nameValue,    setNameValue]    = useState(currentUser?.displayName ?? '');
+  const [savingName,   setSavingName]   = useState(false);
   const nameInputRef = useRef<TextInput>(null);
 
-  const handleEditName = () => {
-    setEditingName(true);
-    // Focus after next render
+  // Username edit
+  const [usernameValue,   setUsernameValue]   = useState('');
+  const [usernameError,   setUsernameError]   = useState('');
+  const [savingUsername,  setSavingUsername]  = useState(false);
+  const [cooldownDays,    setCooldownDays]    = useState<number | null>(null);
+
+  const openEdit = () => {
+    setNameValue(currentUser?.displayName ?? '');
+    setUsernameValue(currentUsername ?? '');
+    setUsernameError('');
+    setEditOpen(true);
+    setEditingField('name');
     setTimeout(() => nameInputRef.current?.focus(), 50);
+  };
+
+  const closeEdit = () => {
+    setEditOpen(false);
+    setEditingField(null);
   };
 
   const handleSaveName = useCallback(async () => {
@@ -162,56 +197,25 @@ export default function ProfileScreen() {
     if (!trimmed || !uid || !currentUser) { return; }
     setSavingName(true);
     try {
-      // Update Firebase Auth profile
       await updateProfile(currentUser, { displayName: trimmed });
-      // Update Firestore user document
       await updateDisplayName(uid, trimmed);
-      setEditingName(false);
     } catch (err) {
-      console.warn('[ProfileScreen] updateDisplayName failed', err);
+      console.warn('[ProfileScreen] updateDisplayName', err);
     } finally {
       setSavingName(false);
     }
   }, [nameValue, uid, currentUser]);
 
-  const handleCancelName = () => {
-    setNameValue(currentUser?.displayName ?? '');
-    setEditingName(false);
-  };
-
-  // ── Username edit (KAN-97) ────────────────────────────────────────────────
-  const [currentUsername, setCurrentUsername] = useState<string | undefined>(undefined);
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [usernameValue,   setUsernameValue]   = useState('');
-  const [usernameError,   setUsernameError]   = useState('');
-  const [savingUsername,  setSavingUsername]  = useState(false);
-  const [cooldownDays,    setCooldownDays]    = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!uid) { return; }
-    getUser(uid).then(userData => {
-      setCurrentUsername(userData?.username);
-    });
-  }, [uid]);
-
-  const handleEditUsername = () => {
-    setUsernameValue(currentUsername ?? '');
-    setUsernameError('');
-    setEditingUsername(true);
-  };
-
-  // Local format validation only — no API calls while typing.
   const handleUsernameChange = (raw: string) => {
     const v = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsernameValue(v);
     setUsernameError(validateUsername(v) ?? '');
   };
 
-  // Availability checked here, once, on Save tap.
   const handleSaveUsername = async () => {
     if (!uid) { return; }
     const trimmed = usernameValue.trim();
-    const fmtErr = validateUsername(trimmed);
+    const fmtErr  = validateUsername(trimmed);
     if (fmtErr || trimmed === currentUsername) { return; }
     setSavingUsername(true);
     setUsernameError('');
@@ -223,14 +227,14 @@ export default function ProfileScreen() {
       }
       await updateUsername(uid, trimmed);
       setCurrentUsername(trimmed);
-      setEditingUsername(false);
+      closeEdit();
       setCooldownDays(USERNAME_COOLDOWN_DAYS);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : '';
       if (msg.startsWith('username_cooldown:')) {
         const days = parseInt(msg.split(':')[1], 10);
         setCooldownDays(days);
-        setUsernameError(`You can change your username again in ${days} day${days !== 1 ? 's' : ''}.`);
+        setUsernameError(`You can change your username in ${days} day${days !== 1 ? 's' : ''}.`);
       } else {
         setUsernameError('Failed to save. Please try again.');
       }
@@ -239,160 +243,24 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleCancelUsername = () => {
-    setEditingUsername(false);
-    setUsernameError('');
-  };
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const nextTier    = getNextTier(totalPoints);
+  const ringProgress = nextTier.at > 0 ? Math.min(totalPoints / nextTier.at, 1) : 1;
+  const ptsToGo     = Math.max(nextTier.at - totalPoints, 0);
 
-  const handleShareProfile = async () => {
-    if (!currentUsername) { return; }
-    await Share.share({
-      message: `Follow me on Brush Away: https://brushaway.app/u/${currentUsername}`,
-      url: `https://brushaway.app/u/${currentUsername}`,
-    });
-  };
+  const earnedTypeSet = new Set<string>(achievements.map(a => a.type));
+  const earnedCount   = V1_ACHIEVEMENTS.filter(d => earnedTypeSet.has(d.id)).length;
 
-  // ── Points & Achievements (KAN-19) ────────────────────────────────────────
-  const [totalPoints,   setTotalPoints]   = useState(0);
-  const [achievements,  setAchievements]  = useState<Achievement[]>([]);
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToTotalPoints(uid, setTotalPoints, err =>
-      console.warn('[ProfileScreen] totalPoints error', err),
-    );
-  }, [uid]);
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToAchievements(uid, setAchievements, err =>
-      console.warn('[ProfileScreen] achievements error', err),
-    );
-  }, [uid]);
-
-  // ── Notification preferences ───────────────────────────────────────────────
-  const [poiRadii, setPoiRadii] = useState<Record<string, number>>(DEFAULT_RADII);
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToPoiPreferences(uid, prefs => {
-      setPoiRadii(prev => ({ ...prev, ...prefs }));
-    });
-  }, [uid]);
-
-  // ── Custom categories ──────────────────────────────────────────────────────
-  const [customCategories, setCustomCategories] = useState<Category[]>([]);
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToCategories(uid, cats => setCustomCategories(cats));
-  }, [uid]);
-
-  const allPoiRows = useMemo<{ type: string; label: string }[]>(() => {
-    const seen = new Set<string>(BUILTIN_POI_TYPES);
-    const custom: { type: string; label: string }[] = [];
-    for (const cat of customCategories) {
-      if (cat.poi && !seen.has(cat.poi)) {
-        seen.add(cat.poi);
-        custom.push({ type: cat.poi, label: placeTypeLabel(cat.poi) });
-      }
-    }
-    return [...POI_ROWS, ...custom];
-  }, [customCategories]);
-
-  // ── Low-battery pause ──────────────────────────────────────────────────────
-  const [lowBatteryPause, setLowBatteryPause] = useState(false);
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeLowBatteryPausePref(uid, setLowBatteryPause);
-  }, [uid]);
-
-  function handleLowBatteryToggle(value: boolean): void {
-    setLowBatteryPause(value);
-    if (!uid) { return; }
-    setLowBatteryPausePref(uid, value).catch(err =>
-      console.warn('[ProfileScreen] setLowBatteryPausePref failed', err),
-    );
-  }
-
-  // ── Radius stepper ─────────────────────────────────────────────────────────
-  function handleRadiusChange(poiType: string, delta: number): void {
-    const current = poiRadii[poiType] ?? DEFAULT_RADII[poiType] ?? DEFAULT_CUSTOM_RADIUS;
-    const next = Math.min(MAX_RADIUS, Math.max(MIN_RADIUS, current + delta));
-    if (next === current) { return; }
-    setPoiRadii(prev => ({ ...prev, [poiType]: next }));
-    if (!uid) { return; }
-    setPoiPreference(uid, poiType, next).catch(err =>
-      console.warn('[ProfileScreen] setPoiPreference failed', err),
-    );
-  }
-
-  // ── Notification prefs expand/collapse (KAN-80) ───────────────────────────
-  // Default fully collapsed: NO rows visible until the user taps the header.
-  // State is NOT persisted — resets to collapsed on every screen mount.
-  const [prefsExpanded, setPrefsExpanded] = useState(false);
-
-  const visiblePoiRows = prefsExpanded ? allPoiRows : [];
-  const hiddenCount    = allPoiRows.length;
-
-  const togglePrefs = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setPrefsExpanded(prev => !prev);
-  };
-
-  // ── Contact discoverability (KAN-99) ─────────────────────────────────────
-  const [discoverable, setDiscoverable] = useState(true); // default on
-
-  useEffect(() => {
-    if (!uid) { return; }
-    getUser(uid).then(u => {
-      if (u && u.poiPreferences && (u as any).contactDiscoverable !== undefined) {
-        setDiscoverable((u as any).contactDiscoverable);
-      }
-    });
-  }, [uid]);
-
-  const handleDiscoverableToggle = async (value: boolean) => {
-    setDiscoverable(value);
-    if (!uid) { return; }
-    await upsertUser(uid, { ...({ contactDiscoverable: value } as any) });
-    if (value) {
-      // Re-register in discovery index.
-      if (userEmail) { registerInDiscovery(uid, userEmail).catch(() => {}); }
-    } else {
-      // Remove from discovery index.
-      if (userEmail) { unregisterFromDiscovery(userEmail).catch(() => {}); }
-    }
-  };
-
-  // ── Logout ─────────────────────────────────────────────────────────────────
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const handleLogout = useCallback(() => {
-    Alert.alert(
-      'Sign out',
-      'Are you sure you want to sign out?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Sign out',
-          style: 'destructive',
-          onPress: async () => {
-            setLoggingOut(true);
-            try {
-              await logout();
-            } catch (err) {
-              console.warn('[ProfileScreen] logout failed', err);
-              setLoggingOut(false);
-            }
-          },
-        },
-      ],
-    );
-  }, []);
+  // Multiple-earned counts (for future multi-earn badges)
+  const earnedCountMap = achievements.reduce<Record<string, number>>((acc, a) => {
+    const key = a.type as string;
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
 
   // ── Render ─────────────────────────────────────────────────────────────────
+
+  const displayName = currentUser?.displayName ?? '';
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -406,398 +274,313 @@ export default function ProfileScreen() {
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Profile</Text>
+        <Text style={[styles.topBarTitle, { color: palette.text }]}>Profile</Text>
         <View style={styles.navBtn} />
       </View>
 
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 28 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
 
-        {/* ── Avatar section ── */}
-        <View style={styles.avatarSection}>
-          {/* Large amber-dot avatar (photo if set) */}
-          <Avatar
-            photoURL={userPhotoURL}
-            size={72}
-            accessibilityLabel="Profile photo"
-          />
-
-          {/* "Add photo" affordance — deferred to future sprint */}
-          <Pressable
-            onPress={() =>
-              Alert.alert('Coming soon', 'Photo upload will be available in a future update.')
-            }
-            accessibilityRole="button"
-            accessibilityLabel="Add photo">
-            <Text style={[styles.addPhotoLabel, { color: palette.muted }]}>
-              {userPhotoURL ? 'Change photo' : 'Add photo'}
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* ── Identity card ── */}
-        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
-
-          {/* Name row */}
+        {/* ── 1. Identity card ── */}
+        <View style={[styles.identityCard, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           <View style={styles.identityRow}>
-            <Text style={[styles.identityLabel, { color: palette.muted }]}>Name</Text>
-            {editingName ? (
-              <View style={styles.nameEditWrap}>
+            {/* Avatar + camera badge */}
+            <View style={styles.avatarWrap}>
+              <Avatar
+                photoURL={userPhotoURL}
+                displayName={displayName}
+                size={60}
+                accessibilityLabel="Profile photo"
+              />
+              {/* Camera badge — visible, press is no-op for v1 */}
+              <View style={[styles.cameraBadge, { backgroundColor: palette.surface2, borderColor: palette.bg }]}>
+                <CameraIcon color={palette.muted} size={11} />
+              </View>
+            </View>
+
+            {/* Text block */}
+            <View style={styles.identityTextBlock}>
+              {!editOpen ? (
+                <>
+                  <Text style={[styles.identityName, { color: palette.text }]} numberOfLines={1}>
+                    {displayName || '—'}
+                  </Text>
+                  {currentUsername ? (
+                    <Text style={[styles.identityUsername, { color: palette.accent }]} numberOfLines={1}>
+                      @{currentUsername}
+                    </Text>
+                  ) : null}
+                  <Text style={[styles.identityEmail, { color: palette.muted }]} numberOfLines={1}>
+                    {currentUser?.email ?? ''}
+                  </Text>
+                </>
+              ) : (
+                <Text style={[styles.identityEditHint, { color: palette.muted }]}>
+                  Editing profile
+                </Text>
+              )}
+            </View>
+
+            {/* Pencil edit button */}
+            <Pressable
+              style={[styles.editBtn, { backgroundColor: palette.surface2, borderColor: palette.line }]}
+              onPress={editOpen ? closeEdit : openEdit}
+              accessibilityRole="button"
+              accessibilityLabel={editOpen ? 'Close edit' : 'Edit profile'}>
+              <PencilIcon color={editOpen ? palette.accent : palette.muted} size={18} />
+            </Pressable>
+          </View>
+
+          {/* Inline edit panel */}
+          {editOpen ? (
+            <View style={[styles.editPanel, { borderTopColor: palette.line }]}>
+              {/* Name field */}
+              <View style={styles.editField}>
+                <Text style={[styles.editFieldLabel, { color: palette.muted }]}>Name</Text>
                 <TextInput
                   ref={nameInputRef}
-                  style={[styles.nameInput, { color: palette.text, borderBottomColor: palette.accent }]}
+                  style={[styles.editFieldInput, { color: palette.text, borderBottomColor: palette.line }]}
                   value={nameValue}
                   onChangeText={setNameValue}
                   autoCapitalize="words"
-                  returnKeyType="done"
-                  onSubmitEditing={handleSaveName}
+                  returnKeyType="next"
+                  onFocus={() => setEditingField('name')}
                   accessibilityLabel="Edit name"
                   maxLength={80}
                 />
-                <View style={styles.nameActions}>
-                  <Pressable
-                    onPress={handleCancelName}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Cancel name edit">
-                    <Text style={[styles.nameActionLabel, { color: palette.muted }]}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleSaveName}
-                    disabled={savingName || !nameValue.trim()}
-                    hitSlop={8}
-                    accessibilityRole="button"
-                    accessibilityLabel="Save name">
-                    <Text style={[
-                      styles.nameActionLabel,
-                      { color: savingName || !nameValue.trim() ? palette.faint : palette.accent },
-                    ]}>
-                      {savingName ? 'Saving…' : 'Save'}
-                    </Text>
-                  </Pressable>
-                </View>
               </View>
-            ) : (
-              <Pressable
-                onPress={handleEditName}
-                style={styles.identityValueRow}
-                accessibilityRole="button"
-                accessibilityLabel="Edit name">
-                <Text style={[styles.identityValue, { color: palette.text }]}>
-                  {currentUser?.displayName || '—'}
-                </Text>
-                <Text style={[styles.editHint, { color: palette.accent }]}>Edit</Text>
-              </Pressable>
-            )}
-          </View>
 
-          <View style={[styles.identityDivider, { backgroundColor: palette.line }]} />
-
-          {/* Email row — read-only */}
-          <View style={styles.identityRow}>
-            <Text style={[styles.identityLabel, { color: palette.muted }]}>Email</Text>
-            <Text style={[styles.identityValue, { color: palette.text }]} numberOfLines={1}>
-              {userEmail || '—'}
-            </Text>
-          </View>
-
-          <View style={[styles.identityDivider, { backgroundColor: palette.line }]} />
-
-          {/* Username row (KAN-97) */}
-          <View style={styles.identityRow}>
-            <Text style={[styles.identityLabel, { color: palette.muted }]}>Username</Text>
-            {editingUsername ? (
-              <View style={styles.nameEditWrap}>
-                <View style={styles.usernameInputRow}>
-                  <Text style={[styles.usernamePrefix, { color: palette.faint }]}>@</Text>
+              {/* Username field */}
+              <View style={styles.editField}>
+                <Text style={[styles.editFieldLabel, { color: palette.muted }]}>Username</Text>
+                <View style={styles.editFieldRow}>
+                  <Text style={[styles.usernameAt, { color: palette.faint }]}>@</Text>
                   <TextInput
-                    style={[styles.nameInput, { color: palette.text, borderBottomColor: palette.accent, flex: 1 }]}
+                    style={[styles.editFieldInput, { color: palette.text, borderBottomColor: palette.line, flex: 1 }]}
                     value={usernameValue}
                     onChangeText={handleUsernameChange}
                     autoCapitalize="none"
                     autoCorrect={false}
                     returnKeyType="done"
-                    onSubmitEditing={handleSaveUsername}
+                    editable={cooldownDays === null}
+                    onFocus={() => setEditingField('username')}
                     accessibilityLabel="Edit username"
                     maxLength={20}
                   />
-                  {savingUsername && (
-                    <ActivityIndicator size="small" color={palette.muted} style={{ marginLeft: 6 }} />
-                  )}
+                  {savingUsername ? <ActivityIndicator size="small" color={palette.muted} style={{ marginLeft: 6 }} /> : null}
                 </View>
-                {usernameError ? (
-                  <Text style={[styles.usernameHint, { color: '#e05252' }]}>{usernameError}</Text>
-                ) : null}
-                <View style={styles.nameActions}>
-                  <Pressable onPress={handleCancelUsername} hitSlop={8} accessibilityRole="button">
-                    <Text style={[styles.nameActionLabel, { color: palette.muted }]}>Cancel</Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={handleSaveUsername}
-                    disabled={savingUsername || !!usernameError || usernameValue === currentUsername}
-                    hitSlop={8}
-                    accessibilityRole="button">
-                    <Text style={[styles.nameActionLabel, {
-                      color: (savingUsername || !!usernameError || usernameValue === currentUsername)
-                        ? palette.faint : palette.accent,
-                    }]}>
-                      {savingUsername ? 'Saving…' : 'Save'}
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <Pressable
-                onPress={cooldownDays !== null ? undefined : handleEditUsername}
-                style={styles.identityValueRow}
-                accessibilityRole="button"
-                accessibilityLabel="Edit username">
-                <Text style={[styles.identityValue, { color: palette.text }]}>
-                  {currentUsername ? `@${currentUsername}` : '—'}
-                </Text>
-                {cooldownDays === null ? (
-                  <Text style={[styles.editHint, { color: palette.accent }]}>Edit</Text>
-                ) : (
-                  <Text style={[styles.editHint, { color: palette.faint }]}>
-                    {cooldownDays}d cooldown
+                {cooldownDays !== null ? (
+                  <Text style={[styles.editFieldHint, { color: palette.faint }]}>
+                    {cooldownDays}d cooldown remaining
                   </Text>
-                )}
-              </Pressable>
-            )}
-          </View>
+                ) : usernameError ? (
+                  <Text style={[styles.editFieldHint, { color: '#e05252' }]}>{usernameError}</Text>
+                ) : null}
+              </View>
+
+              {/* Save / Cancel row */}
+              <View style={styles.editActions}>
+                <Pressable
+                  onPress={closeEdit}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel">
+                  <Text style={[styles.editActionLabel, { color: palette.muted }]}>Cancel</Text>
+                </Pressable>
+                <Pressable
+                  onPress={async () => {
+                    await handleSaveName();
+                    if (usernameValue !== currentUsername && !usernameError) {
+                      await handleSaveUsername();
+                    }
+                    closeEdit();
+                  }}
+                  disabled={savingName || savingUsername || !nameValue.trim()}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Save profile">
+                  <Text style={[styles.editActionLabel, {
+                    color: (savingName || savingUsername || !nameValue.trim())
+                      ? palette.faint : palette.accent,
+                  }]}>
+                    {savingName || savingUsername ? 'Saving…' : 'Save'}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
         </View>
 
-        {/* Share my profile (KAN-97) */}
-        {currentUsername ? (
-          <TouchableOpacity
-            style={[styles.btn, { backgroundColor: palette.surface2 }]}
-            onPress={handleShareProfile}
-            accessibilityRole="button"
-            accessibilityLabel="Share my profile">
-            <Text style={[styles.btnText, { color: palette.text }]}>Share my profile</Text>
-          </TouchableOpacity>
-        ) : null}
+        {/* ── 2. Share my profile row ── */}
+        <Pressable
+          style={[styles.shareRow, { backgroundColor: palette.surface, borderColor: palette.line }]}
+          onPress={() => Alert.alert('Coming soon', 'Share sheet will be available in a future update.')}
+          accessibilityRole="button"
+          accessibilityLabel="Share my profile">
+          <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
+            <ShareIcon color={palette.muted} size={20} />
+          </View>
+          <Text style={[styles.shareRowLabel, { color: palette.text }]}>Share my profile</Text>
+          <ChevronRightIcon color={palette.faint} size={18} />
+        </Pressable>
 
-        {/* ── Points & Achievements (KAN-19) ── */}
-        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
-          {/* Header row: total points left, "See all" right */}
-          <View style={styles.pointsHeader}>
-            <View>
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>Points</Text>
-              <Text style={[styles.sectionSub, { color: palette.muted }]}>
-                Earned by completing tasks
-              </Text>
+        {/* ── Section label ── */}
+        <Text style={[styles.sectionLabel, { color: palette.muted }]}>
+          POINTS &amp; ACHIEVEMENTS
+        </Text>
+
+        {/* ── 3. Points hero card ── */}
+        <View style={[styles.heroCard, { backgroundColor: palette.surface, overflow: 'hidden' }]}>
+          {/* Decorative halo */}
+          <View
+            style={[styles.heroHalo, { backgroundColor: palette.nearTint }]}
+            pointerEvents="none"
+          />
+
+          {/* Content row */}
+          <View style={styles.heroContentRow}>
+            {/* Ring with centered label */}
+            <View style={styles.ringWrap}>
+              <PointsRingView
+                progress={ringProgress}
+                size={116}
+                strokeWidth={11}
+                accentColor={palette.accent}
+                trackColor={palette.ringTrack}
+              />
+              <View style={styles.ringCenter} pointerEvents="none">
+                <Text
+                  style={[styles.ringPoints, { color: palette.accent }]}
+                  accessibilityLabel={`${totalPoints} points`}>
+                  {totalPoints}
+                </Text>
+                <Text style={[styles.ringPtsLabel, { color: palette.muted }]}>PTS</Text>
+              </View>
             </View>
-            <View style={styles.pointsBadge}>
-              <Text
-                style={[styles.pointsCount, { color: palette.accent }]}
-                accessibilityLabel={`${totalPoints} points`}>
-                {totalPoints}
+
+            {/* Reward column */}
+            <View style={styles.rewardCol}>
+              <Text style={[styles.nextRewardLabel, { color: palette.muted }]}>NEXT REWARD</Text>
+
+              <View style={styles.rewardRow}>
+                <View style={[styles.medalCircleSmall, { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder }]}>
+                  <LockIcon color={palette.faint} size={16} />
+                </View>
+                <Text style={[styles.rewardName, { color: palette.text }]}>
+                  {nextTier.name} badge
+                </Text>
+              </View>
+
+              {/* Progress bar */}
+              <View style={[styles.progressTrack, { backgroundColor: palette.ringTrack }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { backgroundColor: palette.accent, width: `${Math.round(ringProgress * 100)}%` as any },
+                  ]}
+                />
+              </View>
+
+              <Text style={[styles.rewardCaption, { color: palette.muted }]}>
+                <Text style={{ color: palette.text, fontFamily: 'Geist-SemiBold', fontWeight: '600' }}>
+                  {ptsToGo} pts
+                </Text>
+                {' '}to go · earned by brushing away tasks
               </Text>
-              <Text style={[styles.pointsUnit, { color: palette.muted }]}>pts</Text>
             </View>
           </View>
 
-          <View style={[styles.divider, { backgroundColor: palette.line }]} />
+          {/* Streak chip */}
+          {currentStreak > 0 ? (
+            <View style={[styles.streakChip, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}>
+              <FlameIcon color={palette.nearText} size={15} />
+              <Text style={[styles.streakText, { color: palette.nearText }]}>
+                <Text style={{ fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>
+                  {currentStreak}
+                </Text>
+                {'-day streak'}
+              </Text>
+            </View>
+          ) : null}
+        </View>
 
-          {/* Achievements row */}
-          <View style={styles.achievementsRow}>
-            <Text style={[styles.achievementsLabel, { color: palette.muted }]}>
+        {/* ── 4. Achievements card ── */}
+        <View style={[styles.achievementsCard, { backgroundColor: palette.surface }]}>
+          {/* Header */}
+          <View style={styles.achievementsHeader}>
+            <Text style={[styles.achievementsTitle, { color: palette.text }]}>
               Achievements
+              <Text style={{ color: palette.muted }}>{` · ${earnedCount}/${V1_ACHIEVEMENTS.length}`}</Text>
             </Text>
-            {/* "See all" — navigates to KAN-33 when built */}
             <Pressable
-              onPress={() => navigation.navigate('PointsHistory')}
+              onPress={() => Alert.alert('Coming soon', 'Achievements screen will be available in a future update.')}
               accessibilityRole="button"
               accessibilityLabel="See all achievements">
-              <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all</Text>
+              <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all ›</Text>
             </Pressable>
           </View>
 
-          {achievements.length === 0 ? (
-            /* Empty state */
-            <View style={styles.achievementsEmpty}>
-              <Text style={[styles.achievementsEmptyText, { color: palette.faint }]}>
-                Complete tasks to earn achievements
-              </Text>
-            </View>
-          ) : (
-            /* Earned badge chips — horizontal scroll */
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.badgeScroll}>
-              {achievements.map(a => (
-                <AchievementBadge key={a.id} achievement={a} palette={palette} />
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* ── Navigation ── */}
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: palette.surface2 }]}
-          onPress={() => navigation.navigate('Categories')}
-          accessibilityRole="button"
-          accessibilityLabel="Manage categories">
-          <GridIcon color={palette.muted} size={20} />
-          <Text style={[styles.btnText, { color: palette.text }]}>Manage Categories</Text>
-        </TouchableOpacity>
-
-        {/* ── Notification Preferences (KAN-29 / KAN-80 collapsible) ── */}
-        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
-          {/* Tappable header — toggles expand/collapse */}
-          <Pressable
-            onPress={togglePrefs}
-            style={styles.prefHeaderRow}
-            accessibilityRole="button"
-            accessibilityLabel={prefsExpanded ? 'Collapse notification preferences' : 'Expand notification preferences'}
-            accessibilityState={{ expanded: prefsExpanded }}>
-            <View style={styles.prefHeaderText}>
-              <Text style={[styles.sectionTitle, { color: palette.text }]}>
-                Notification Preferences
-              </Text>
-              <Text style={[styles.sectionSub, { color: palette.muted, marginBottom: 0 }]}>
-                Alert radius per location type
-              </Text>
-            </View>
-            <View style={styles.prefHeaderRight}>
-              {!prefsExpanded && hiddenCount > 0 && (
-                <Text style={[styles.moreLabel, { color: palette.muted }]}>
-                  {hiddenCount} items
-                </Text>
-              )}
-              {/* Rotate 90° = chevron-down (collapsed); 270° = chevron-up (expanded) */}
-              <View style={{ transform: [{ rotate: prefsExpanded ? '270deg' : '90deg' }] }}>
-                <ChevronRightIcon color={palette.muted} size={16} />
-              </View>
-            </View>
-          </Pressable>
-
-          {visiblePoiRows.map(({ type, label }, idx) => {
-            const r     = poiRadii[type] ?? DEFAULT_RADII[type] ?? DEFAULT_CUSTOM_RADIUS;
-            const atMin = r <= MIN_RADIUS;
-            const atMax = r >= MAX_RADIUS;
-
-            return (
-              <View key={type}>
-                {idx > 0 && (
-                  <View style={[styles.divider, { backgroundColor: palette.line }]} />
-                )}
-                <View style={styles.poiRow} accessibilityLabel={`${label} notification radius`}>
-                  <View style={[styles.poiIconTile, { backgroundColor: palette.surface2 }]}>
-                    <PoiIcon type={type} color={palette.muted} size={20} />
+          {/* Medal strip */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.medalStrip}>
+            {V1_ACHIEVEMENTS.map(def => {
+              const earned    = earnedTypeSet.has(def.id);
+              const earnCount = earnedCountMap[def.id] ?? 0;
+              return (
+                <View key={def.id} style={styles.medalItem}>
+                  <View style={styles.medalCircleWrap}>
+                    {/* Medal circle */}
+                    <View style={[
+                      styles.medalCircle,
+                      earned
+                        ? { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder }
+                        : { backgroundColor: 'transparent', borderColor: palette.line },
+                    ]}>
+                      {earned
+                        ? <MedalIcon color={palette.nearText} size={24} />
+                        : <LockIcon  color={palette.faint}    size={20} />
+                      }
+                    </View>
+                    {/* Count badge for multi-earned */}
+                    {earnCount > 1 ? (
+                      <View style={[styles.countBadge, { backgroundColor: palette.accent, borderColor: palette.surface }]}>
+                        <Text style={styles.countBadgeText}>×{earnCount}</Text>
+                      </View>
+                    ) : null}
                   </View>
-                  <Text style={[styles.poiLabel, { color: palette.text }]}>{label}</Text>
-
-                  <View style={styles.stepper}>
-                    <TouchableOpacity
-                      style={[styles.stepBtn, { borderColor: palette.line }, atMin && styles.stepBtnDisabled]}
-                      onPress={() => handleRadiusChange(type, -STEP)}
-                      disabled={atMin}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Decrease ${label} radius`}>
-                      <Text style={[styles.stepBtnText, { color: atMin ? palette.faint : palette.text }]}>−</Text>
-                    </TouchableOpacity>
-
-                    <Text style={[styles.radiusLabel, { color: palette.text }]} accessibilityLabel={`${r} metres`}>
-                      {r} m
-                    </Text>
-
-                    <TouchableOpacity
-                      style={[styles.stepBtn, { borderColor: palette.line }, atMax && styles.stepBtnDisabled]}
-                      onPress={() => handleRadiusChange(type, +STEP)}
-                      disabled={atMax}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Increase ${label} radius`}>
-                      <Text style={[styles.stepBtnText, { color: atMax ? palette.faint : palette.text }]}>+</Text>
-                    </TouchableOpacity>
-                  </View>
+                  <Text
+                    style={[styles.medalLabel, { color: earned ? palette.text : palette.faint }]}
+                    numberOfLines={1}>
+                    {def.label}
+                  </Text>
                 </View>
-              </View>
-            );
-          })}
+              );
+            })}
+          </ScrollView>
         </View>
 
-        {/* ── Import tasks (KAN-83) ── */}
-        {uid ? <ImportTasksSection uid={uid} /> : null}
-
-        {/* ── Battery (KAN-52) ── */}
-        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Battery</Text>
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleText}>
-              <Text style={[styles.toggleLabel, { color: palette.text }]}>
-                Pause nearby alerts on low battery
-              </Text>
-              <Text style={[styles.toggleSub, { color: palette.muted }]}>
-                Alerts pause when battery drops below 20%
-              </Text>
-            </View>
-            <Switch
-              value={lowBatteryPause}
-              onValueChange={handleLowBatteryToggle}
-              trackColor={{ false: palette.line, true: palette.accent }}
-              thumbColor={palette.bg}
-              accessibilityLabel="Pause nearby alerts on low battery"
-              accessibilityRole="switch"
-            />
-          </View>
-        </View>
-
-        {/* ── Contact discoverability (KAN-99) ── */}
-        <View style={[styles.section, { backgroundColor: palette.surface2 }]}>
-          <Text style={[styles.sectionTitle, { color: palette.text }]}>Privacy</Text>
-          <View style={styles.toggleRow}>
-            <View style={styles.toggleText}>
-              <Text style={[styles.toggleLabel, { color: palette.text }]}>
-                Discoverable via contacts
-              </Text>
-              <Text style={[styles.toggleSub, { color: palette.muted }]}>
-                Friends can find you when scanning their contacts
-              </Text>
-            </View>
-            <Switch
-              value={discoverable}
-              onValueChange={handleDiscoverableToggle}
-              trackColor={{ false: palette.line, true: palette.accent }}
-              thumbColor={palette.bg}
-              accessibilityLabel="Discoverable via contacts"
-              accessibilityRole="switch"
-            />
-          </View>
-        </View>
-
-        {/* ── Appearance ── */}
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: palette.surface2 }]}
-          onPress={() => setDark(!dark)}
+        {/* ── 5. Settings entry row ── */}
+        <Pressable
+          style={[styles.settingsRow, { borderColor: palette.line }]}
+          onPress={() => Alert.alert('Coming soon', 'Settings screen will be available in a future update.')}
           accessibilityRole="button"
-          accessibilityLabel={dark ? 'Switch to light mode' : 'Switch to dark mode'}>
-          {dark
-            ? <SunIcon  color={palette.muted} size={20} />
-            : <MoonIcon color={palette.muted} size={20} />
-          }
-          <Text style={[styles.btnText, { color: palette.text }]}>
-            {dark ? 'Light mode' : 'Dark mode'}
-          </Text>
-        </TouchableOpacity>
-
-        {/* ── Sign out (KAN-20) ── */}
-        <TouchableOpacity
-          style={[styles.btn, { backgroundColor: palette.surface2 }, loggingOut && { opacity: 0.6 }]}
-          onPress={handleLogout}
-          disabled={loggingOut}
-          accessibilityRole="button"
-          accessibilityLabel="Sign out">
-          <LogOutIcon color={palette.accent} size={20} />
-          <Text style={[styles.btnText, { color: palette.accent }]}>
-            {loggingOut ? 'Signing out…' : 'Sign out'}
-          </Text>
-        </TouchableOpacity>
+          accessibilityLabel="Settings">
+          <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
+            <SettingsIcon color={palette.muted} size={20} />
+          </View>
+          <View style={styles.settingsTextBlock}>
+            <Text style={[styles.settingsTitle, { color: palette.text }]}>Settings</Text>
+            <Text style={[styles.settingsSub, { color: palette.muted }]} numberOfLines={1}>
+              App &amp; account
+            </Text>
+          </View>
+          <ChevronRightIcon color={palette.faint} size={18} />
+        </Pressable>
 
       </ScrollView>
     </View>
@@ -819,279 +602,364 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   navBtn: {
-    width:          36,
-    height:         36,
+    width:          40,
+    height:         40,
     alignItems:     'center',
     justifyContent: 'center',
   },
-  title: {
+  topBarTitle: {
     fontSize:   17,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
   },
 
   // ── Scroll ──
-  scroll: { flex: 1 },
+  scroll:  { flex: 1 },
   content: {
-    gap:               16,
+    gap:               12,
     paddingHorizontal: spacing.page,
-    paddingTop:        24,
-  },
-
-  // ── Avatar section ──
-  avatarSection: {
-    alignItems:   'center',
-    gap:          10,
-    marginBottom: 4,
-  },
-  addPhotoLabel: {
-    fontSize:   14,
-    fontFamily: 'Geist-Regular',
+    paddingTop:        20,
   },
 
   // ── Identity card ──
-  section: {
-    borderRadius:      radii.card,
-    paddingHorizontal: spacing.page,
-    paddingTop:        16,
-    paddingBottom:     16,
+  identityCard: {
+    borderRadius:  18,
+    borderWidth:   StyleSheet.hairlineWidth,
+    paddingHorizontal: 16,
+    paddingVertical:   14,
   },
   identityRow: {
-    paddingVertical: 12,
-    gap:              6,
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           16,
   },
-  identityLabel: {
+  avatarWrap: {
+    position: 'relative',
+  },
+  cameraBadge: {
+    position:       'absolute',
+    bottom:         0,
+    right:          0,
+    width:          22,
+    height:         22,
+    borderRadius:   11,
+    borderWidth:    2,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  identityTextBlock: {
+    flex:     1,
+    minWidth: 0,
+    gap:      2,
+  },
+  identityName: {
+    fontSize:      19,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    letterSpacing: -0.4,
+  },
+  identityUsername: {
+    fontSize:   13.5,
+    fontFamily: 'Geist-Regular',
+  },
+  identityEmail: {
+    fontSize:   12.5,
+    fontFamily: 'Geist-Regular',
+  },
+  identityEditHint: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+  },
+  editBtn: {
+    width:        38,
+    height:       38,
+    borderRadius: 11,
+    borderWidth:  StyleSheet.hairlineWidth,
+    alignItems:   'center',
+    justifyContent: 'center',
+    flexShrink:   0,
+  },
+
+  // ── Edit panel ──
+  editPanel: {
+    marginTop:      14,
+    paddingTop:     14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    gap:            14,
+  },
+  editField: {
+    gap: 6,
+  },
+  editFieldLabel: {
     fontSize:   12,
     fontWeight: '500',
     fontFamily: 'Geist-Medium',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
-  identityValueRow: {
+  editFieldRow: {
     flexDirection: 'row',
     alignItems:    'center',
-    justifyContent: 'space-between',
   },
-  identityValue: {
-    fontSize:   15,
-    fontFamily: 'Geist-Regular',
-    flex: 1,
-  },
-  editHint: {
-    fontSize:   13,
-    fontFamily: 'Geist-Medium',
-    fontWeight: '500',
-  },
-  identityDivider: {
-    height: StyleSheet.hairlineWidth,
-  },
-
-  // Name / Username edit
-  nameEditWrap: {
-    gap: 8,
-  },
-  usernameInputRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
-  },
-  usernamePrefix: {
+  usernameAt: {
     fontSize:   15,
     fontFamily: 'Geist-Regular',
     marginRight: 2,
   },
-  usernameHint: {
-    fontSize:   12,
-    fontFamily: 'Geist-Regular',
-  },
-  nameInput: {
+  editFieldInput: {
     fontSize:          15,
     fontFamily:        'Geist-Regular',
     paddingVertical:   4,
-    borderBottomWidth: 1,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  nameActions: {
-    flexDirection: 'row',
+  editFieldHint: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+    marginTop:  4,
+  },
+  editActions: {
+    flexDirection:  'row',
     justifyContent: 'flex-end',
-    gap: 20,
+    gap:            20,
+    paddingTop:     2,
   },
-  nameActionLabel: {
+  editActionLabel: {
     fontSize:   13,
     fontWeight: '500',
     fontFamily: 'Geist-Medium',
   },
 
-  // ── Generic button row ──
-  btn: {
+  // ── Share row ──
+  shareRow: {
     flexDirection:     'row',
     alignItems:        'center',
-    gap:               12,
+    gap:               14,
+    paddingHorizontal: 16,
     paddingVertical:   14,
-    paddingHorizontal: 20,
-    borderRadius:      radii.ctaBtn,
+    borderRadius:      16,
+    borderWidth:       StyleSheet.hairlineWidth,
   },
-  btnText: {
+  shareRowLabel: {
+    flex:       1,
     fontSize:   15,
-    fontWeight: '500',
-    fontFamily: 'Geist-Medium',
-  },
-
-  // ── Notification preferences ──
-  // ── Notification prefs header (KAN-80) ──
-  prefHeaderRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-  },
-  prefHeaderText: {
-    flex: 1,
-  },
-  prefHeaderRight: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           4,
-  },
-  moreLabel: {
-    fontSize:   12,
     fontFamily: 'Geist-Regular',
   },
 
-  sectionTitle: {
-    fontSize:     15,
-    fontWeight:   '600',
-    fontFamily:   'Geist-SemiBold',
-    marginBottom: 2,
-  },
-  sectionSub: {
-    fontSize:     13,
-    fontFamily:   'Geist-Regular',
-    marginBottom: 12,
-  },
-  divider: {
-    height:         StyleSheet.hairlineWidth,
-    marginVertical: 4,
-  },
-  poiRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    paddingVertical: 10,
-  },
-  poiIconTile: {
-    width:          36,
-    height:         36,
+  // ── Icon tile (shared) ──
+  iconTile: {
+    width:          38,
+    height:         38,
     borderRadius:   radii.listIcon,
     alignItems:     'center',
     justifyContent: 'center',
-    marginRight:    10,
-  },
-  poiLabel: {
-    flex:       1,
-    fontSize:   14,
-    fontFamily: 'Geist-Regular',
+    flexShrink:     0,
   },
 
-  // ── Toggle row (KAN-52) ──
-  toggleRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    paddingVertical: 10,
-    gap:             12,
+  // ── Section label ──
+  sectionLabel: {
+    fontSize:      11,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    letterSpacing: 0.8,
+    marginTop:     14,
+    marginBottom:  -4,
   },
-  toggleText: { flex: 1, gap: 2 },
-  toggleLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
-  toggleSub:   { fontSize: 12, fontFamily: 'Geist-Regular' },
 
-  // ── Stepper ──
-  stepper: {
+  // ── Points hero card ──
+  heroCard: {
+    borderRadius: 20,
+    padding:      18,
+  },
+  heroHalo: {
+    position:      'absolute',
+    width:         160,
+    height:        160,
+    borderRadius:  80,
+    top:           -48,
+    right:         -48,
+  },
+  heroContentRow: {
+    flexDirection: 'row',
+    gap:           18,
+    alignItems:    'center',
+  },
+  ringWrap: {
+    width:          116,
+    height:         116,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
+  },
+  ringCenter: {
+    position:       'absolute',
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  ringPoints: {
+    fontSize:    42,
+    fontWeight:  '500',
+    fontFamily:  'Geist-Medium',
+    fontVariant: ['tabular-nums'],
+    lineHeight:  44,
+  },
+  ringPtsLabel: {
+    fontSize:      11,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    letterSpacing: 0.8,
+  },
+  rewardCol: {
+    flex: 1,
+    gap:  8,
+  },
+  nextRewardLabel: {
+    fontSize:      11,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    letterSpacing: 0.7,
+  },
+  rewardRow: {
     flexDirection: 'row',
     alignItems:    'center',
     gap:           8,
   },
-  stepBtn: {
-    width:          32,
-    height:         32,
-    borderRadius:   8,
+  medalCircleSmall: {
+    width:          30,
+    height:         30,
+    borderRadius:   15,
     borderWidth:    1,
     alignItems:     'center',
     justifyContent: 'center',
+    flexShrink:     0,
   },
-  stepBtnDisabled: { opacity: 0.4 },
-  stepBtnText: {
+  rewardName: {
     fontSize:   18,
-    fontWeight: '400',
-    lineHeight: 22,
-  },
-  radiusLabel: {
-    fontSize:   14,
-    fontFamily: 'Geist-Medium',
     fontWeight: '500',
-    minWidth:   52,
-    textAlign:  'center',
+    fontFamily: 'Geist-Medium',
   },
-
-  // ── Points & Achievements (KAN-19) ──
-  pointsHeader: {
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    alignItems:     'flex-start',
-    marginBottom:   12,
+  progressTrack: {
+    height:       6,
+    borderRadius: 999,
+    overflow:     'hidden',
   },
-  pointsBadge: {
-    flexDirection: 'row',
-    alignItems:    'baseline',
-    gap:           3,
+  progressFill: {
+    height:       6,
+    borderRadius: 999,
   },
-  pointsCount: {
-    fontSize:    32,
-    fontWeight:  '600',
-    fontFamily:  'Geist-SemiBold',
-    fontVariant: ['tabular-nums'],
-    lineHeight:  36,
-  },
-  pointsUnit: {
-    fontSize:   13,
+  rewardCaption: {
+    fontSize:   12.5,
     fontFamily: 'Geist-Regular',
+    lineHeight: 17,
   },
-  achievementsRow: {
+  streakChip: {
     flexDirection:  'row',
     alignItems:     'center',
-    justifyContent: 'space-between',
-    paddingVertical: 10,
+    gap:             5,
+    alignSelf:      'flex-start',
+    marginTop:      16,
+    paddingTop:     7,
+    paddingBottom:  7,
+    paddingLeft:    10,
+    paddingRight:   12,
+    borderRadius:   999,
+    borderWidth:    1,
   },
-  achievementsLabel: {
+  streakText: {
     fontSize:   13,
+    fontFamily: 'Geist-Medium',
+    fontWeight: '500',
+  },
+
+  // ── Achievements card ──
+  achievementsCard: {
+    borderRadius:   20,
+    paddingTop:     16,
+    paddingBottom:  6,
+  },
+  achievementsHeader: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    justifyContent:    'space-between',
+    paddingHorizontal: 18,
+    paddingBottom:     14,
+  },
+  achievementsTitle: {
+    fontSize:   15,
     fontWeight: '500',
     fontFamily: 'Geist-Medium',
   },
   seeAllLabel: {
     fontSize:   13,
-    fontFamily: 'Geist-Regular',
+    fontWeight: '500',
+    fontFamily: 'Geist-Medium',
   },
-  achievementsEmpty: {
-    paddingVertical: 12,
-    alignItems:      'center',
+  medalStrip: {
+    gap:         18,
+    paddingLeft: 18,
+    paddingRight: 18,
+    paddingBottom: 12,
   },
-  achievementsEmptyText: {
-    fontSize:   13,
+  medalItem: {
+    width:      60,
+    alignItems: 'center',
+    gap:        6,
+  },
+  medalCircleWrap: {
+    position: 'relative',
+  },
+  medalCircle: {
+    width:          52,
+    height:         52,
+    borderRadius:   26,
+    borderWidth:    1,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  countBadge: {
+    position:      'absolute',
+    top:           -2,
+    right:         -2,
+    minWidth:      18,
+    height:        18,
+    borderRadius:  9,
+    borderWidth:   2,
+    alignItems:    'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  countBadgeText: {
+    fontSize:   9,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+    color:      '#ffffff',
+  },
+  medalLabel: {
+    fontSize:   11,
     fontFamily: 'Geist-Regular',
     textAlign:  'center',
+    minHeight:  32,
   },
-  badgeScroll: {
-    gap:           8,
-    paddingBottom: 8,
-  },
-  badge: {
+
+  // ── Settings entry row ──
+  settingsRow: {
     flexDirection:     'row',
     alignItems:        'center',
-    gap:                6,
-    paddingHorizontal: 12,
-    paddingVertical:    8,
-    borderRadius:      9999,
-    borderWidth:       1,
+    gap:               14,
+    paddingHorizontal: 16,
+    paddingVertical:   15,
+    borderRadius:      16,
+    borderWidth:       StyleSheet.hairlineWidth,
+    marginTop:         14,
   },
-  badgeIcon: {
-    fontSize:   14,
-    lineHeight: 18,
+  settingsTextBlock: {
+    flex: 1,
+    gap:  2,
   },
-  badgeLabel: {
+  settingsTitle: {
+    fontSize:   15,
+    fontWeight: '500',
+    fontFamily: 'Geist-Medium',
+  },
+  settingsSub: {
     fontSize:   13,
     fontFamily: 'Geist-Regular',
   },

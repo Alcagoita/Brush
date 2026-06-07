@@ -663,6 +663,22 @@ export function subscribeToTotalPoints(
   );
 }
 
+export function subscribeToCurrentStreak(
+  uid: string,
+  onUpdate: (streak: number) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    userRef(uid),
+    snap => {
+      if (!snap) return;
+      const data = snap.data() as { currentStreak?: number } | undefined;
+      onUpdate(data?.currentStreak ?? 0);
+    },
+    onError,
+  );
+}
+
 /**
  * Subscribe to the user's earned achievements, newest first.
  * Returns an unsubscribe function — call on component unmount.
