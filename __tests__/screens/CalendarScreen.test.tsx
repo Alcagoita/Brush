@@ -167,6 +167,25 @@ describe('CalendarScreen', () => {
     expect(screen.getByText('Buy groceries')).toBeTruthy();
   });
 
+  it('shows "brushed" (not "done") in the detail card fraction label (KAN-108)', () => {
+    let capturedSuccess: ((tasks: object[]) => void) | null = null;
+    mockSubscribeToTasksForMonth.mockImplementation(
+      (_uid: string, _ym: string, onSuccess: (tasks: object[]) => void) => {
+        capturedSuccess = onSuccess;
+        return jest.fn();
+      },
+    );
+    renderScreen();
+    act(() => {
+      capturedSuccess!([
+        { id: 't1', title: 'Buy groceries', category: 'errands', done: true,
+          date: new Date().toISOString().slice(0, 10), createdAt: {} },
+      ]);
+    });
+    expect(screen.getByText('brushed')).toBeTruthy();
+    expect(screen.queryByText('done')).toBeNull();
+  });
+
   it('shows retry button on subscription error', () => {
     let capturedError: ((e: Error) => void) | null = null;
     mockSubscribeToTasksForMonth.mockImplementation(

@@ -314,7 +314,7 @@ export default function TodayScreen() {
                 top:  RING_TOP_COLLAPSED + RING_COLLAPSED / 2 - 20,
               },
             ]}
-            accessibilityLabel={`${doneTasks} of ${totalTasks} tasks done`}
+            accessibilityLabel={`${doneTasks} of ${totalTasks} tasks brushed`}
             accessibilityRole="text"
             pointerEvents="none">
             <Text style={[styles.counterDone,  { color: palette.text }]}>

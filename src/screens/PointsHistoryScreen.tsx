@@ -61,7 +61,7 @@ function formatTimestamp(ts: { seconds: number; nanoseconds: number } | undefine
 
 function reasonLabel(reason: string): string {
   switch (reason) {
-    case 'task_completed':     return 'Task completed';
+    case 'task_completed':     return 'Brushed';
     case 'achievement_bonus':  return 'Achievement bonus';
     case 'daily_complete_bonus': return 'Daily complete bonus';
     case 'streak_bonus':       return 'Streak bonus';
