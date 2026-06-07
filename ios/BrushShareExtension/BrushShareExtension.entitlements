@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  BrushShareExtension.entitlements — KAN-91
+
+  Both capabilities must also be enabled on the MAIN APP target (Agenda.entitlements).
+  They are what allow the extension to reuse the user's existing Firebase Auth session:
+
+  1. App Groups — shared NSUserDefaults container (not used for auth, but useful for
+     passing lightweight state between extension and main app in the future).
+
+  2. Keychain Sharing — Firebase Auth stores its tokens in the Keychain. By sharing
+     the same Keychain access group as the main app, the extension can read the user's
+     existing Firebase Auth session without requiring the user to sign in again.
+     The access group must match across both targets and use the same Team ID prefix.
+-->
+<plist version="1.0">
+<dict>
+	<!-- App Group — shared UserDefaults container. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.brush.shared</string>
+	</array>
+
+	<!-- Keychain Sharing — lets Firebase Auth reuse the main app's auth session. -->
+	<!-- Replace YOUR_TEAM_ID with the actual Apple Developer Team ID.            -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.brush</string>
+	</array>
+</dict>
+</plist>
