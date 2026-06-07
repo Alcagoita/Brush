@@ -363,7 +363,7 @@ export default function TodayScreen() {
             </View>
           ) : tasks.length === 0 ? (
             <Text style={[styles.empty, { color: palette.muted }]}>
-              No tasks for today
+              Nothing to brush
             </Text>
           ) : (
             effectiveTasks.map(task => (
