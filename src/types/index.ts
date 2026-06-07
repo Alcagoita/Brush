@@ -31,10 +31,15 @@ export interface User {
   followingCount?: number;
   /** Denormalized count of users following this user (KAN-98). */
   followersCount?: number;
-  /** Denormalized total points (incremented on each award — KAN-31). */
+  /** Sum of points from all earned achievements (KAN-129). */
   totalPoints?: number;
   /** Current consecutive-day task streak. Updated by streak logic. */
   currentStreak?: number;
+  /**
+   * Achievement progress and earn state, keyed by AchievementType (KAN-129).
+   * Embedded on the user doc — replaces the old achievements subcollection.
+   */
+  achievements?: AchievementsMap;
   /**
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
@@ -175,10 +180,36 @@ export type PointsReason =
  *   - Date-scoped (once per day):  '<name>'  — the doc ID carries the date
  *                                              e.g. 'daily_complete_2026-05-29'
  */
+/**
+ * V1 achievement types — KAN-129.
+ * `challenge_winner` is kept for the social challenge flow (KAN-104).
+ */
 export type AchievementType =
-  | 'first_task'        // very first task ever completed
-  | 'daily_complete'    // every task for a calendar day completed (KAN-32)
-  | 'challenge_winner'; // won a challenge against friends (KAN-104)
+  | 'first_brush'      // Brush away your first task
+  | 'early_bird'       // Brush a task away before 9 AM
+  | 'day_complete'     // Brush away every task in a single day
+  | 'on_a_roll'        // 3-day brushing streak
+  | 'explorer'         // Brush away 10 location-based tasks
+  | 'centurion'        // Reach 100 achievement points (meta-achievement)
+  | 'challenge_winner'; // Won a challenge against friends (KAN-104)
+
+/**
+ * Entry inside the `users/{uid}.achievements` map (KAN-129).
+ * The map key is the AchievementType string.
+ */
+export interface AchievementEntry {
+  /** Timestamp of first earn. Null / absent = not yet earned. */
+  earnedAt: FirebaseFirestoreTypes.Timestamp | null;
+  /** How many times this achievement has been earned (0 = not earned). */
+  earnCount: number;
+  /** Current progress toward the unlock condition. */
+  progress: number;
+  /** Condition threshold (e.g. 10 for Explorer, 100 for Centurion). */
+  target: number;
+}
+
+/** The full achievements map embedded on the user document. */
+export type AchievementsMap = Partial<Record<AchievementType, AchievementEntry>>;
 
 /**
  * /users/{uid}/pointsHistory/{id}

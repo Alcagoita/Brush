@@ -40,6 +40,7 @@ import {
   POI_GEOFENCE_RADIUS,
   AchievementType,
   Achievement,
+  AchievementsMap,
   PointsHistoryEntry,
   PointsReason,
 } from '../types';
@@ -680,17 +681,21 @@ export function subscribeToCurrentStreak(
 }
 
 /**
- * Subscribe to the user's earned achievements, newest first.
- * Returns an unsubscribe function — call on component unmount.
+ * Subscribe to the user's achievements map (KAN-129).
+ * Reads from the `achievements` field on the user document — not the old
+ * subcollection. Returns an unsubscribe function.
  */
 export function subscribeToAchievements(
   uid: string,
-  onUpdate: (achievements: Achievement[]) => void,
+  onUpdate: (map: AchievementsMap) => void,
   onError?: (err: Error) => void,
 ): () => void {
   return onSnapshot(
-    query(achievementsRef(uid), orderBy('earnedAt', 'desc')),
-    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement))); },
+    userRef(uid),
+    snap => {
+      const data = snap?.data() as User | undefined;
+      onUpdate((data?.achievements ?? {}) as AchievementsMap);
+    },
     onError,
   );
 }

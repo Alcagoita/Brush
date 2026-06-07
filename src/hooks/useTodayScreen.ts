@@ -13,15 +13,13 @@
 import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Platform, Vibration } from 'react-native';
 import {
-  awardPoint,
-  revokePoint,
   setTaskDone,
   subscribeToCategories,
   subscribeLowBatteryPausePref,
   subscribeToPoiPreferences,
   subscribeToTasksForDate,
 } from '../services/firestore';
-import { checkAndAwardDailyComplete } from '../services/achievements';
+import { evaluateAchievements } from '../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
 import { requestLocationPermission } from '../services/geolocation';
 import {
@@ -263,9 +261,15 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
       if (done) {
         const task = tasks.find(t => t.id === taskId);
+
+        const allOthersDone =
+          tasks.length > 0 &&
+          tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
+
         if (task) {
-          awardPoint(uid, taskId, task.title).catch(err =>
-            console.warn('[useTodayScreen] awardPoint failed (non-critical)', err),
+          // KAN-129: evaluate achievements (replaces per-task awardPoint call).
+          evaluateAchievements(uid, task, { allTasksDone: allOthersDone }).catch(err =>
+            console.warn('[useTodayScreen] evaluateAchievements failed (non-critical)', err),
           );
 
           // KAN-103: increment progress on all active challenges (fire-and-forget).
@@ -277,22 +281,9 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
             );
           }).catch(() => {});
         }
-
-        const allOthersDone =
-          tasks.length > 0 &&
-          tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
-
-        if (allOthersDone) {
-          checkAndAwardDailyComplete(uid, todayISO(), tasks.length, tasks.length).catch(err =>
-            console.warn('[useTodayScreen] daily-complete achievement failed (non-critical)', err),
-          );
-        }
-      } else {
-        // KAN-128: un-completing a task revokes the point awarded today (if any).
-        revokePoint(uid, taskId).catch(err =>
-          console.warn('[useTodayScreen] revokePoint failed (non-critical)', err),
-        );
       }
+      // KAN-129: un-completing a task no longer revokes points — points are
+      // only awarded via achievement unlocks and are permanent once earned.
     } catch (err) {
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     } finally {

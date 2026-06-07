@@ -55,32 +55,23 @@ import {
   validateUsername,
   USERNAME_COOLDOWN_DAYS,
 } from '../services/firestore';
-import type { Achievement } from '../types';
+import type { AchievementsMap } from '../types';
+import { ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
+import { TIER_LADDER, getNextTier as computeNextTier } from '../services/achievements';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-// ─── Tier ladder ──────────────────────────────────────────────────────────────
+// TIER_LADDER and getNextTier imported from services/achievements (KAN-129).
+// ACHIEVEMENT_CATALOGUE imported from AchievementTile.
 
-const TIER_LADDER = [
-  { name: 'Bronze',   at: 10  },
-  { name: 'Silver',   at: 50  },
-  { name: 'Gold',     at: 100 },
-  { name: 'Platinum', at: 200 },
-];
-
+/** Alias so internal usages keep the same call site. */
 function getNextTier(points: number): { name: string; at: number } {
-  return TIER_LADDER.find(t => points < t.at) ?? TIER_LADDER[TIER_LADDER.length - 1];
+  return computeNextTier(points);
 }
 
-// ─── V1 achievement set (aligns with KAN-114) ─────────────────────────────────
+// ─── V1 achievement set derived from catalogue (KAN-129) ──────────────────────
 
-const V1_ACHIEVEMENTS = [
-  { id: 'day_complete', label: 'Day complete' },
-  { id: 'early_bird',   label: 'Early bird'   },
-  { id: 'on_a_roll',    label: 'On a roll'    },
-  { id: 'explorer',     label: 'Explorer'     },
-  { id: 'centurion',    label: 'Centurion'    },
-];
+const V1_ACHIEVEMENTS = ACHIEVEMENT_CATALOGUE;
 
 // ─── Points ring ──────────────────────────────────────────────────────────────
 
@@ -145,7 +136,7 @@ export default function ProfileScreen() {
   // ── Live data ──────────────────────────────────────────────────────────────
   const [totalPoints,   setTotalPoints]   = useState(0);
   const [currentStreak, setCurrentStreak] = useState(0);
-  const [achievements,  setAchievements]  = useState<Achievement[]>([]);
+  const [achievements,  setAchievements]  = useState<AchievementsMap>({});
 
   useEffect(() => {
     if (!uid) { return; }
@@ -248,15 +239,16 @@ export default function ProfileScreen() {
   const ringProgress = nextTier.at > 0 ? Math.min(totalPoints / nextTier.at, 1) : 1;
   const ptsToGo     = Math.max(nextTier.at - totalPoints, 0);
 
-  const earnedTypeSet = new Set<string>(achievements.map(a => a.type));
-  const earnedCount   = V1_ACHIEVEMENTS.filter(d => earnedTypeSet.has(d.id)).length;
+  // KAN-129: achievements is now AchievementsMap — keyed by AchievementType.
+  const earnedCount = V1_ACHIEVEMENTS.filter(
+    d => (achievements[d.type as keyof typeof achievements]?.earnCount ?? 0) > 0,
+  ).length;
 
-  // Multiple-earned counts (for future multi-earn badges)
-  const earnedCountMap = achievements.reduce<Record<string, number>>((acc, a) => {
-    const key = a.type as string;
-    acc[key] = (acc[key] ?? 0) + 1;
-    return acc;
-  }, {});
+  // Multi-earn counts per type (for the ×N badge)
+  const earnedCountMap: Record<string, number> = {};
+  for (const [type, entry] of Object.entries(achievements)) {
+    if (entry && entry.earnCount > 0) { earnedCountMap[type] = entry.earnCount; }
+  }
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -488,7 +480,7 @@ export default function ProfileScreen() {
                 <Text style={{ color: palette.text, fontFamily: 'Geist-SemiBold', fontWeight: '600' }}>
                   {ptsToGo} pts
                 </Text>
-                {' '}to go · earned by brushing away tasks
+                {' '}to go · earned through achievements
               </Text>
             </View>
           </View>
@@ -516,7 +508,7 @@ export default function ProfileScreen() {
               <Text style={{ color: palette.muted }}>{` · ${earnedCount}/${V1_ACHIEVEMENTS.length}`}</Text>
             </Text>
             <Pressable
-              onPress={() => Alert.alert('Coming soon', 'Achievements screen will be available in a future update.')}
+              onPress={() => navigation.navigate('Achievements')}
               accessibilityRole="button"
               accessibilityLabel="See all achievements">
               <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all ›</Text>
@@ -529,10 +521,10 @@ export default function ProfileScreen() {
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.medalStrip}>
             {V1_ACHIEVEMENTS.map(def => {
-              const earned    = earnedTypeSet.has(def.id);
-              const earnCount = earnedCountMap[def.id] ?? 0;
+              const earned    = (achievements[def.type as keyof typeof achievements]?.earnCount ?? 0) > 0;
+              const earnCount = earnedCountMap[def.type] ?? 0;
               return (
-                <View key={def.id} style={styles.medalItem}>
+                <View key={def.type} style={styles.medalItem}>
                   <View style={styles.medalCircleWrap}>
                     {/* Medal circle */}
                     <View style={[
