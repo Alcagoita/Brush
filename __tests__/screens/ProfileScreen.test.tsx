@@ -1,19 +1,22 @@
 /**
- * ProfileScreen tests — KAN-112
+ * ProfileScreen tests — KAN-112 / KAN-129
  *
  * Covers:
  *   - Identity card renders name, email; edit flow opens/closes
  *   - Points ring driven by real totalPoints subscription
- *   - "earned by brushing away tasks" copy (not "completing tasks")
+ *   - "earned through achievements" copy (KAN-129 — not "completing tasks")
  *   - Streak chip shows real streak count; hidden when streak is 0
- *   - "pts to go" caption reflects live points
- *   - Achievement medal strip: earned count, all 5 V1 labels visible
- *   - "See all" achievements, "Settings", and "Share my profile" entries exist
+ *   - "pts to go" caption reflects live points (Bronze tier now at 50 pts)
+ *   - Achievement medal strip: earned count uses AchievementsMap (KAN-129)
+ *   - All 7 catalogue labels visible in the strip
+ *   - "See all" navigates to Achievements screen (KAN-129 — no longer Alert)
+ *   - "Settings" and "Share my profile" entries exist
  *   - All three Firestore subscriptions are cleaned up on unmount
  */
 
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import type { AchievementsMap } from '../../src/types';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -32,6 +35,28 @@ jest.mock('../../src/services/firestore', () => ({
   checkUsernameAvailable:   jest.fn().mockResolvedValue(true),
   validateUsername:         jest.fn(() => null),
   USERNAME_COOLDOWN_DAYS:   30,
+}));
+
+// KAN-129: getNextTier and TIER_LADDER now live in services/achievements.
+jest.mock('../../src/services/achievements', () => ({
+  TIER_LADDER: [
+    { name: 'Bronze', at: 50  },
+    { name: 'Silver', at: 150 },
+    { name: 'Gold',   at: 350 },
+  ],
+  getNextTier: (pts: number) => {
+    if (pts < 50)  { return { name: 'Bronze', at: 50  }; }
+    if (pts < 150) { return { name: 'Silver', at: 150 }; }
+    return           { name: 'Gold',   at: 350 };
+  },
+  ACHIEVEMENT_DEFS: {
+    first_brush:  { id: 'first_brush',  label: 'First brush',  points: 5,  target: 1   },
+    early_bird:   { id: 'early_bird',   label: 'Early bird',   points: 10, target: 1   },
+    day_complete: { id: 'day_complete', label: 'Day complete', points: 15, target: 1   },
+    on_a_roll:    { id: 'on_a_roll',    label: 'On a roll',    points: 20, target: 3   },
+    explorer:     { id: 'explorer',     label: 'Explorer',     points: 25, target: 10  },
+    centurion:    { id: 'centurion',    label: 'Centurion',    points: 30, target: 100 },
+  },
 }));
 
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
@@ -87,9 +112,9 @@ jest.mock('react-native-svg', () => {
 
 jest.mock('react-native-reanimated', () => ({
   ...require('react-native-reanimated/mock'),
-  useSharedValue:         (v: number) => ({ value: v }),
-  useAnimatedProps:       (fn: () => object) => fn(),
-  withTiming:             (v: number) => v,
+  useSharedValue:          (v: number) => ({ value: v }),
+  useAnimatedProps:        (fn: () => object) => fn(),
+  withTiming:              (v: number) => v,
   createAnimatedComponent: (C: React.ComponentType<any>) => C,
 }));
 
@@ -97,12 +122,15 @@ jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
   CameraIcon:       () => null,
+  CheckIcon:        () => null,
   FlameIcon:        () => null,
   LockIcon:         () => null,
   MedalIcon:        () => null,
   PencilIcon:       () => null,
+  PinIcon:          () => null,
   SettingsIcon:     () => null,
   ShareIcon:        () => null,
+  StarIcon:         () => null,
 }));
 
 jest.mock('../../src/components/Avatar', () => {
@@ -119,7 +147,6 @@ import ProfileScreen from '../../src/screens/ProfileScreen';
 
 const noopUnsub = jest.fn();
 
-/** Set all subscriptions to return a no-op unsubscribe (default state). */
 function setupDefaultMocks() {
   mockSubscribeToTotalPoints.mockReturnValue(noopUnsub);
   mockSubscribeToCurrentStreak.mockReturnValue(noopUnsub);
@@ -127,22 +154,20 @@ function setupDefaultMocks() {
   mockGetUser.mockResolvedValue(null);
 }
 
-/** Fire the totalPoints subscription callback after render. */
 function firePoints(value: number) {
   const call = mockSubscribeToTotalPoints.mock.calls[0];
   if (call) { act(() => { call[1](value); }); }
 }
 
-/** Fire the currentStreak subscription callback after render. */
 function fireStreak(value: number) {
   const call = mockSubscribeToCurrentStreak.mock.calls[0];
   if (call) { act(() => { call[1](value); }); }
 }
 
-/** Fire the achievements subscription callback after render. */
-function fireAchievements(items: object[]) {
+/** KAN-129: subscription now delivers AchievementsMap, not Achievement[]. */
+function fireAchievements(map: AchievementsMap) {
   const call = mockSubscribeToAchievements.mock.calls[0];
-  if (call) { act(() => { call[1](items); }); }
+  if (call) { act(() => { call[1](map); }); }
 }
 
 function renderScreen() {
@@ -152,10 +177,7 @@ function renderScreen() {
 // ─── Identity card ────────────────────────────────────────────────────────────
 
 describe('ProfileScreen — KAN-112: identity card', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    setupDefaultMocks();
-  });
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
   it('renders without crashing', () => {
     renderScreen();
@@ -201,11 +223,8 @@ describe('ProfileScreen — KAN-112: identity card', () => {
 
 // ─── Points hero card ─────────────────────────────────────────────────────────
 
-describe('ProfileScreen — KAN-112: points hero card', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    setupDefaultMocks();
-  });
+describe('ProfileScreen — KAN-112 / KAN-129: points hero card', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
   it('subscribes to total points with the correct uid', () => {
     renderScreen();
@@ -232,47 +251,50 @@ describe('ProfileScreen — KAN-112: points hero card', () => {
     expect(screen.getByLabelText('7 points')).toBeTruthy();
   });
 
-  it('shows the next tier name when points < tierAt', () => {
+  it('shows Bronze badge when points < 50 (KAN-129 tier ladder)', () => {
     renderScreen();
     firePoints(4);
     expect(screen.getByText('Bronze badge')).toBeTruthy();
   });
 
-  it('shows "earned by brushing away tasks" — not "completing tasks"', () => {
+  it('shows Silver badge when points are in the 50–149 range', () => {
     renderScreen();
-    expect(screen.queryByText(/completing tasks/)).toBeNull();
-    expect(screen.getByText(/brushing away tasks/)).toBeTruthy();
+    firePoints(60);
+    expect(screen.getByText('Silver badge')).toBeTruthy();
   });
 
-  it('shows correct pts-to-go when totalPoints is updated', () => {
+  it('shows correct pts-to-go — Bronze tier is now at 50 pts (KAN-129)', () => {
     renderScreen();
     firePoints(4);
-    // Bronze tier at 10 pts; 10 − 4 = 6 pts to go
-    expect(screen.getByText('6 pts')).toBeTruthy();
+    // Bronze at 50; 50 − 4 = 46 pts to go
+    expect(screen.getByText('46 pts')).toBeTruthy();
+  });
+
+  it('shows "earned through achievements" copy (KAN-129)', () => {
+    renderScreen();
+    expect(screen.queryByText(/completing tasks/)).toBeNull();
+    expect(screen.queryByText(/brushing away tasks/)).toBeNull();
+    expect(screen.getByText(/earned through achievements/)).toBeTruthy();
   });
 
   it('shows streak chip when streak > 0', () => {
     renderScreen();
     fireStreak(3);
-    // streak chip: nested Text renders "3" + "-day streak" inside one parent
     expect(screen.getByText('3')).toBeTruthy();
-    expect(screen.getByText(/day streak/)).toBeTruthy();
+    expect(screen.getByText(/-day streak/)).toBeTruthy();
   });
 
   it('hides streak chip when streak is 0', () => {
     renderScreen();
     fireStreak(0);
-    expect(screen.queryByText('-day streak')).toBeNull();
+    expect(screen.queryByText(/-day streak/)).toBeNull();
   });
 });
 
 // ─── Achievement medal strip ──────────────────────────────────────────────────
 
-describe('ProfileScreen — KAN-112: achievement medal strip', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    setupDefaultMocks();
-  });
+describe('ProfileScreen — KAN-112 / KAN-129: achievement medal strip', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
   it('subscribes to achievements with the correct uid', () => {
     renderScreen();
@@ -291,38 +313,44 @@ describe('ProfileScreen — KAN-112: achievement medal strip', () => {
     expect(screen.getByLabelText('See all achievements')).toBeTruthy();
   });
 
-  it('shows 0/5 count when no achievements earned', () => {
+  it('"See all" navigates to Achievements screen (KAN-129 — no longer Alert)', () => {
     renderScreen();
-    fireAchievements([]);
-    expect(screen.getByText(' · 0/5')).toBeTruthy();
+    fireEvent.press(screen.getByLabelText('See all achievements'));
+    expect(mockNavigate).toHaveBeenCalledWith('Achievements');
   });
 
-  it('shows correct earned/total count when some achievements are earned', () => {
+  it('shows 0/7 count when no achievements earned (7 catalogue items)', () => {
     renderScreen();
-    fireAchievements([
-      { id: 'day_complete', type: 'day_complete', earnedAt: {} },
-      { id: 'early_bird',   type: 'early_bird',   earnedAt: {} },
-    ]);
-    expect(screen.getByText(' · 2/5')).toBeTruthy();
+    fireAchievements({});
+    expect(screen.getByText(/ · 0\/7/)).toBeTruthy();
   });
 
-  it('shows all 5 V1 achievement labels in the strip', () => {
+  it('shows correct earned count when some achievements are earned', () => {
     renderScreen();
-    expect(screen.getByText('Day complete')).toBeTruthy();
+    fireAchievements({
+      day_complete: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      early_bird:   { earnCount: 2, progress: 2, target: 1, earnedAt: null },
+    });
+    expect(screen.getByText(/ · 2\/7/)).toBeTruthy();
+  });
+
+  it('shows all 7 V1 catalogue labels in the medal strip', () => {
+    renderScreen();
+    expect(screen.getByText('First brush')).toBeTruthy();
     expect(screen.getByText('Early bird')).toBeTruthy();
+    expect(screen.getByText('Day complete')).toBeTruthy();
     expect(screen.getByText('On a roll')).toBeTruthy();
     expect(screen.getByText('Explorer')).toBeTruthy();
     expect(screen.getByText('Centurion')).toBeTruthy();
+    // challenge_winner label from COPY
+    expect(screen.getByText('First to brush it away')).toBeTruthy();
   });
 });
 
 // ─── Navigation entries ───────────────────────────────────────────────────────
 
 describe('ProfileScreen — KAN-112: navigation entries', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    setupDefaultMocks();
-  });
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
   it('renders "Share my profile" row', () => {
     renderScreen();
@@ -338,6 +366,12 @@ describe('ProfileScreen — KAN-112: navigation entries', () => {
   it('renders "App & account" subtitle on Settings row', () => {
     renderScreen();
     expect(screen.getByText('App & account')).toBeTruthy();
+  });
+
+  it('navigates to Settings when Settings row is pressed', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Settings'));
+    expect(mockNavigate).toHaveBeenCalledWith('Settings');
   });
 });
 

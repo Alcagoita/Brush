@@ -11,33 +11,48 @@ import { radius } from '../theme/tokens';
 import type { AchievementType } from '../types';
 import type { useTheme } from '../theme';
 import { COPY } from '../constants/copy';
+import {
+  CheckIcon,
+  SunIcon,
+  FlameIcon,
+  PinIcon,
+  StarIcon,
+  MedalIcon,
+} from './AppIcon';
 
 // ─── Achievement catalogue ────────────────────────────────────────────────────
+
+export type AchievementIconKey = 'check' | 'sun' | 'flame' | 'pin' | 'star' | 'medal';
+
+function AchievementIcon({ icon, color, size }: { icon: AchievementIconKey; color: string; size: number }) {
+  switch (icon) {
+    case 'check': return <CheckIcon  color={color} size={size} />;
+    case 'sun':   return <SunIcon    color={color} size={size} />;
+    case 'flame': return <FlameIcon  color={color} size={size} />;
+    case 'pin':   return <PinIcon    color={color} size={size} />;
+    case 'star':  return <StarIcon   color={color} size={size} />;
+    case 'medal': return <MedalIcon  color={color} size={size} />;
+  }
+}
 
 export interface AchievementDef {
   type:      AchievementType;
   label:     string;
-  icon:      string;
+  icon:      AchievementIconKey;
   condition: string;
 }
 
 export const ACHIEVEMENT_CATALOGUE: AchievementDef[] = [
-  {
-    type:      'first_task',
-    label:     'First task',
-    icon:      '★',
-    condition: 'Complete your very first task',
-  },
-  {
-    type:      'daily_complete',
-    label:     'Day complete',
-    icon:      '✓',
-    condition: 'Complete every task for a day',
-  },
+  { type: 'first_brush',     label: 'First brush',  icon: 'check', condition: 'Brush away your first task'            },
+  { type: 'early_bird',      label: 'Early bird',   icon: 'sun',   condition: 'Brush a task away before 9 AM'         },
+  { type: 'day_complete',    label: 'Day complete', icon: 'check', condition: 'Brush away every task in a single day' },
+  { type: 'on_a_roll',       label: 'On a roll',    icon: 'flame', condition: '3-day brushing streak'                 },
+  { type: 'explorer',        label: 'Explorer',     icon: 'pin',   condition: 'Brush away 10 location-based tasks'   },
+  { type: 'centurion',       label: 'Centurion',    icon: 'star',  condition: 'Reach 100 achievement points'          },
   {
     type:      'challenge_winner',
     label:     COPY.achievement.challengeWinnerTitle,
-    icon:      '◆',
+    icon:      'medal',
     condition: 'Win a challenge against a friend',
   },
 ];
@@ -69,9 +84,11 @@ export default function AchievementTile({ def, earned, earnedAt, palette }: Prop
         styles.iconCircle,
         { backgroundColor: earned ? palette.accent + '22' : palette.surface },
       ]}>
-        <Text style={[styles.iconText, { color: earned ? palette.accent : palette.faint }]}>
-          {def.icon}
-        </Text>
+        <AchievementIcon
+          icon={def.icon}
+          color={earned ? palette.accent : palette.faint}
+          size={22}
+        />
       </View>
 
       <Text style={[styles.label, { color: earned ? palette.nearText : palette.text }]}>
@@ -115,10 +132,6 @@ const styles = StyleSheet.create({
     borderRadius:   26,
     alignItems:     'center',
     justifyContent: 'center',
-  },
-  iconText: {
-    fontSize:   22,
-    lineHeight: 28,
   },
   label: {
     fontSize:   14,

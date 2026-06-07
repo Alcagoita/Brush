@@ -23,6 +23,7 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
 import { getUser } from './src/services/firestore';
+import { migratePointsToAchievementDerived } from './src/services/achievements';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
 import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
 import ShareMenu from 'react-native-share-menu';
@@ -85,6 +86,15 @@ function AppShell() {
       .then(userData => { if (!cancelled) { setHasUsername(!!userData?.username); } })
       .catch(() => { if (!cancelled) { setHasUsername(false); } });
     return () => { cancelled = true; };
+  }, [displayUser]);
+
+  // KAN-129: recompute totalPoints from achievements map on every login.
+  // Fixes legacy accounts that accumulated per-task points before KAN-129.
+  useEffect(() => {
+    if (!displayUser) { return; }
+    migratePointsToAchievementDerived(displayUser.uid).catch(err =>
+      console.warn('[App] migratePointsToAchievementDerived failed (non-critical)', err),
+    );
   }, [displayUser]);
 
   // ── Shared-task notification subscription (KAN-87) ───────────────────────
