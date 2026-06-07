@@ -42,6 +42,18 @@ export type LocationErrorCallback = (error: GeoError) => void;
 
 export type PermissionStatus = 'granted' | 'denied' | 'blocked' | 'unavailable';
 
+/**
+ * The current environment context inferred by the indoor detection service
+ * (KAN-73). Consumed by the indoor proximity engine (KAN-75) and Nearby card.
+ *
+ * outdoor         — normal GPS signal; outdoor geofence engine is active
+ * indoor_unmapped — GPS degraded, indoor context detected but the venue is not
+ *                   confirmed in Places; falls back to the outdoor engine
+ * indoor_mapped   — GPS degraded AND Places confirmed a mapped shopping mall;
+ *                   indoor proximity engine (KAN-75) takes over
+ */
+export type LocationContext = 'outdoor' | 'indoor_unmapped' | 'indoor_mapped';
+
 // ─── Watch options ─────────────────────────────────────────────────────────────
 
 /**
