@@ -26,6 +26,7 @@ import ChallengeDetailScreen from '../screens/ChallengeDetailScreen';
 import ContactSuggestionsScreen from '../screens/ContactSuggestionsScreen';
 import CompareAchievementsScreen from '../screens/CompareAchievementsScreen';
 import ShareReceiveScreen from '../screens/ShareReceiveScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -55,6 +56,8 @@ export type RootStackParamList = {
   CompareAchievements: { friendUid: string; friendUsername: string };
   /** Android Share Intent receiver — confirmation / failure form (KAN-90). */
   ShareReceive: { sharedText: string };
+  /** App & account settings (KAN-113). */
+  Settings: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -85,6 +88,7 @@ export default function AppNavigator() {
         component={ShareReceiveScreen}
         options={{ presentation: 'modal' }}
       />
+      <Stack.Screen name="Settings" component={SettingsScreen} />
     </Stack.Navigator>
   );
 }
