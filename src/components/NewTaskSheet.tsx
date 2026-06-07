@@ -562,13 +562,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   onPress={handleSubmit}
                   disabled={!isValid || submitting}
                   accessibilityRole="button"
-                  accessibilityLabel="Add task"
+                  accessibilityLabel="Add brush"
                   accessibilityState={{ disabled: !isValid || submitting }}>
                   <Text style={[
                     styles.ctaSubmitLabel,
                     { color: isValid && !submitting ? palette.bg : palette.muted },
                   ]}>
-                    {submitting ? 'Adding…' : 'Add task'}
+                    {submitting ? 'Adding…' : 'Add brush'}
                   </Text>
                 </Pressable>
               </View>

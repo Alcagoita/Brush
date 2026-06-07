@@ -346,7 +346,7 @@ export default function TaskFormScreen() {
         </Pressable>
 
         <Text style={[styles.navTitle, { color: palette.text }]}>
-          {isEdit ? 'Edit task' : 'New task'}
+          {isEdit ? 'Edit brush' : 'New brush'}
         </Text>
 
         <Pressable
@@ -354,7 +354,7 @@ export default function TaskFormScreen() {
           disabled={submitting}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel={isEdit ? 'Save changes' : 'Add task'}>
+          accessibilityLabel={isEdit ? 'Save changes' : 'Add brush'}>
           <Text style={[
             styles.navSave,
             { color: submitting ? palette.faint : palette.accent },
@@ -376,7 +376,7 @@ export default function TaskFormScreen() {
         <TextInput
           ref={titleRef}
           style={[styles.titleInput, { color: palette.text, borderBottomColor: palette.line }]}
-          placeholder="Task title"
+          placeholder="Brush title"
           placeholderTextColor={palette.faint}
           value={title}
           onChangeText={v => { setTitle(v); if (titleError) { setTitleError(''); } }}
@@ -550,9 +550,9 @@ export default function TaskFormScreen() {
                 (deleting || pressed) && { opacity: 0.6 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Delete task">
+              accessibilityLabel="Delete brush">
               <Text style={styles.deleteBtnLabel}>
-                {deleting ? 'Deleting…' : 'Delete task'}
+                {deleting ? 'Deleting…' : 'Delete brush'}
               </Text>
             </Pressable>
           </>
