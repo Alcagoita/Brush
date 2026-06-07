@@ -83,10 +83,15 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
 
   // Simulates transformOrigin: 'left center' by compensating for RN's
   // centre-based scaleX with a matching translateX.
+  //
+  // Android note: scaleX: 0 at mount zeroes the GPU layer and can prevent
+  // repaints during animation. Pairing with opacity: s avoids this — the
+  // layer is invisible either way, but opacity keeps it repaint-eligible.
   const animatedStrokeStyle = useAnimatedStyle(() => {
     const s = strokeScale.value;
     const w = titleWidth.value;
     return {
+      opacity: s,
       transform: [
         { translateX: -(w / 2) * (1 - s) },
         { scaleX: s },
@@ -225,7 +230,8 @@ const styles = StyleSheet.create({
     top:      0,
     left:     0,
     right:    0,
-    overflow: 'hidden',
+    // No overflow: 'hidden' — on Android it clips incorrectly when combined
+    // with scaleX/translateX transforms.
   },
   title: {
     fontSize:   15,
