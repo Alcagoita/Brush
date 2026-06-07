@@ -15,7 +15,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -58,6 +57,7 @@ import {
 import type { AchievementsMap } from '../types';
 import { ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
 import { TIER_LADDER, getNextTier as computeNextTier } from '../services/achievements';
+import ShareProfileSheet from '../components/ShareProfileSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -153,6 +153,9 @@ export default function ProfileScreen() {
     if (!uid) { return; }
     getUser(uid).then(u => setCurrentUsername(u?.username));
   }, [uid]);
+
+  // ── Share sheet ───────────────────────────────────────────────────────────
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
 
   // ── Inline edit ───────────────────────────────────────────────────────────
   const [editOpen,        setEditOpen]        = useState(false);
@@ -409,7 +412,7 @@ export default function ProfileScreen() {
         {/* ── 2. Share my profile row ── */}
         <Pressable
           style={[styles.shareRow, { backgroundColor: palette.surface, borderColor: palette.line }]}
-          onPress={() => Alert.alert('Coming soon', 'Share sheet will be available in a future update.')}
+          onPress={() => setShareSheetOpen(true)}
           accessibilityRole="button"
           accessibilityLabel="Share my profile">
           <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
@@ -575,6 +578,16 @@ export default function ProfileScreen() {
         </Pressable>
 
       </ScrollView>
+
+      {/* ── Share profile sheet (KAN-115) ── */}
+      <ShareProfileSheet
+        visible={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        displayName={displayName}
+        username={currentUsername}
+        totalPoints={totalPoints}
+        photoURL={userPhotoURL}
+      />
     </View>
   );
 }

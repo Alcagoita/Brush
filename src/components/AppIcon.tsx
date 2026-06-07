@@ -417,3 +417,48 @@ export function StarIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+// ── Copy (clipboard) ──────────────────────────────────────────────────────────
+export function CopyIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="9" y="9" width="13" height="13" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+      <Path
+        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── Message / Chat ────────────────────────────────────────────────────────────
+export function MessageIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── QR Code ───────────────────────────────────────────────────────────────────
+export function QrCodeIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Finder patterns (outer squares) */}
+      <Rect x="3"  y="3"  width="7" height="7" rx="1.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="14" y="3"  width="7" height="7" rx="1.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="3"  y="14" width="7" height="7" rx="1.5" stroke={color} strokeWidth={1.6} {...S} />
+      {/* Finder inner dots */}
+      <Rect x="5"  y="5"  width="3" height="3" rx="0.5" fill={color} />
+      <Rect x="16" y="5"  width="3" height="3" rx="0.5" fill={color} />
+      <Rect x="5"  y="16" width="3" height="3" rx="0.5" fill={color} />
+      {/* Data area (bottom-right, simplified) */}
+      <Rect x="14" y="14" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="18" y="14" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="18" y="18" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}

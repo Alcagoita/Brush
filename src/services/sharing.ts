@@ -217,6 +217,7 @@ export function subscribeToSharedTaskNotifications(
     collection(getFirestore(), 'pendingNotifications', uid, 'items'),
     { includeMetadataChanges: false },
     snap => {
+      if (!snap) { return; }
       snap.docChanges().forEach(change => {
         if (change.type === 'added') {
           const data = change.doc.data() as Omit<PendingNotification, 'id'>;
