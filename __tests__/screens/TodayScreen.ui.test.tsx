@@ -23,23 +23,27 @@ const mockSetRetryKey  = jest.fn();
 const mockHandleToggle = jest.fn();
 
 const DEFAULT_HOOK_RETURN = {
-  tasksState:       { status: 'loading' as const },
-  retryKey:         0,
-  setRetryKey:      mockSetRetryKey,
-  nearbyPoiType:    null,
-  nearbyPlace:      null,
-  poiPlaces:        {},
-  trackingPaused:   false,
-  sheetVisible:     false,
-  setSheetVisible:  jest.fn(),
-  customCategories: [],
-  tasks:            [],
-  effectiveTasks:   [],
-  totalTasks:       0,
-  doneTasks:        0,
-  progress:         0,
-  nearbyCount:      0,
-  handleToggle:     mockHandleToggle,
+  tasksState:              { status: 'loading' as const },
+  retryKey:                0,
+  setRetryKey:             mockSetRetryKey,
+  nearbyPoiType:           null,
+  nearbyPlace:             null,
+  poiPlaces:               {},
+  trackingPaused:          false,
+  storeTuningActive:       false,
+  showStoreTuningPrompt:   false,
+  onStoreTuningTurnOn:     jest.fn(),
+  onStoreTuningNotNow:     jest.fn(),
+  sheetVisible:            false,
+  setSheetVisible:         jest.fn(),
+  customCategories:        [],
+  tasks:                   [],
+  effectiveTasks:          [],
+  totalTasks:              0,
+  doneTasks:               0,
+  progress:                0,
+  nearbyCount:             0,
+  handleToggle:            mockHandleToggle,
 };
 
 jest.mock('../../src/hooks/useTodayScreen', () => ({
@@ -111,9 +115,10 @@ jest.mock('react-native-reanimated', () => {
 
 // ─── Heavy component stubs ────────────────────────────────────────────────────
 
-jest.mock('../../src/components/Header',       () => () => null);
-jest.mock('../../src/components/ProgressRing', () => () => null);
-jest.mock('../../src/components/NearbyCard',   () => () => null);
+jest.mock('../../src/components/Header',                () => () => null);
+jest.mock('../../src/components/ProgressRing',          () => () => null);
+jest.mock('../../src/components/NearbyCard',            () => () => null);
+jest.mock('../../src/components/StoreTuningPromptSheet',() => ({ __esModule: true, default: () => null }));
 jest.mock('../../src/components/NewTaskSheet', () => {
   const { forwardRef } = require('react');
   return { __esModule: true, default: forwardRef(() => null) };

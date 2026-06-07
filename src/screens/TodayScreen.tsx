@@ -63,6 +63,7 @@ import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import NearbyCard from '../components/NearbyCard';
 import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
+import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
 import { subscribeToIncomingSharedTasks } from '../services/sharing';
@@ -148,6 +149,10 @@ export default function TodayScreen() {
     nearbyPlace,
     poiPlaces,
     trackingPaused,
+    storeTuningActive,
+    showStoreTuningPrompt,
+    onStoreTuningTurnOn,
+    onStoreTuningNotNow,
     sheetVisible,
     setSheetVisible,
     customCategories,
@@ -328,13 +333,14 @@ export default function TodayScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* ── Nearby card (KAN-46 / KAN-52) ── */}
+        {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
         <NearbyCard
           tasks={effectiveTasks}
           nearbyPoiType={nearbyPoiType}
           nearbyPlace={nearbyPlace}
           poiPlaces={poiPlaces}
           trackingPaused={trackingPaused}
+          storeTuningActive={storeTuningActive}
         />
 
         {/* ── Task list ── */}
@@ -403,6 +409,13 @@ export default function TodayScreen() {
         uid={uid ?? ''}
         onClose={() => setSheetVisible(false)}
         customCategories={customCategories}
+      />
+
+      {/* ── Store fine tuning opt-in prompt (KAN-74 / KAN-75) ── */}
+      <StoreTuningPromptSheet
+        visible={showStoreTuningPrompt}
+        onTurnOn={onStoreTuningTurnOn}
+        onNotNow={onStoreTuningNotNow}
       />
     </View>
   );

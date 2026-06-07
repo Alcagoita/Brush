@@ -245,6 +245,18 @@ export async function markPoiAlertSeen(
   await updateDoc(taskRef(uid, taskId), { poiAlertSeenDate: date });
 }
 
+/**
+ * Record that an indoor proximity alert has been shown for `taskId` on `date`.
+ * Updates `store.alertSeenDate` to suppress repeat alerts on the same day (KAN-75).
+ */
+export async function markStoreAlertSeen(
+  uid: string,
+  taskId: string,
+  date: string,
+): Promise<void> {
+  await updateDoc(taskRef(uid, taskId), { 'store.alertSeenDate': date });
+}
+
 // ─── POI preferences ──────────────────────────────────────────────────────────
 
 /**
