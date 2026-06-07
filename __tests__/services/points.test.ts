@@ -1,12 +1,17 @@
 /**
- * Unit tests for points & achievements helpers (KAN-30).
+ * Unit tests for points & achievements helpers (KAN-30 / KAN-128).
  *
  * Covers:
- *   awardPoint
- *     - uses a write batch (atomic — both writes commit or neither does)
- *     - batch.update increments totalPoints on the user document
- *     - batch.set adds a correctly shaped PointsHistoryEntry
- *     - batch.commit is called exactly once
+ *   awardPoint (KAN-31 / KAN-128 — now uses runTransaction for idempotency)
+ *     - uses runTransaction (not writeBatch)
+ *     - writes a correctly shaped PointsHistoryEntry when no entry exists today
+ *     - increments totalPoints on the user document
+ *     - is idempotent: no-ops if the deterministic doc already exists
+ *     - rejects if the transaction rejects
+ *   revokePoint (KAN-128)
+ *     - deletes the history entry and decrements totalPoints when entry exists
+ *     - is a no-op when no entry exists for today
+ *     - rejects if the transaction rejects
  *   hasAchievement
  *     - returns true when the achievement document exists
  *     - returns false when the document does not exist
@@ -33,6 +38,23 @@
 type DocSnapshotCallback  = (snap: { data: () => object | undefined; exists: () => boolean }) => void;
 type CollSnapshotCallback = (snap: { docs: Array<{ id: string; data: () => object }> }) => void;
 
+// Transaction mocks
+const mockTxGet    = jest.fn();
+const mockTxSet    = jest.fn();
+const mockTxUpdate = jest.fn();
+const mockTxDelete = jest.fn();
+
+const mockRunTransaction = jest.fn(async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
+  const tx = {
+    get:    mockTxGet,
+    set:    mockTxSet,
+    update: mockTxUpdate,
+    delete: mockTxDelete,
+  };
+  return fn(tx);
+});
+
+// Batch mocks (still used by awardPointsBatch and the KAN-63 helpers)
 const mockBatchUpdate  = jest.fn();
 const mockBatchSet     = jest.fn();
 const mockBatchCommit  = jest.fn();
@@ -42,10 +64,10 @@ const mockWriteBatch   = jest.fn(() => ({
   commit: mockBatchCommit,
 }));
 
-const mockGetDoc      = jest.fn();
-const mockSetDoc      = jest.fn();
-const mockOnSnapshot  = jest.fn();
-const mockIncrement   = jest.fn((n: number) => ({ _increment: n }));
+const mockGetDoc          = jest.fn();
+const mockSetDoc          = jest.fn();
+const mockOnSnapshot      = jest.fn();
+const mockIncrement       = jest.fn((n: number) => ({ _increment: n }));
 const mockServerTimestamp = jest.fn(() => ({ _serverTimestamp: true }));
 
 jest.mock('@react-native-firebase/firestore', () => ({
@@ -57,6 +79,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   updateDoc:       jest.fn(),
   setDoc:          (...args: unknown[]) => mockSetDoc(...args),
   writeBatch:      () => mockWriteBatch(),
+  runTransaction:  (...args: unknown[]) => mockRunTransaction(...args),
   getDocs:         jest.fn(),
   deleteDoc:       jest.fn(),
   query:           jest.fn((...a: unknown[]) => a[0]),
@@ -72,6 +95,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
 
 import {
   awardPoint,
+  revokePoint,
   hasAchievement,
   awardAchievement,
   subscribeToTotalPoints,
@@ -86,30 +110,26 @@ beforeEach(() => jest.clearAllMocks());
 // ─── awardPoint ───────────────────────────────────────────────────────────────
 
 describe('awardPoint', () => {
+  // Default: no entry exists today — transaction should proceed.
   beforeEach(() => {
-    mockBatchCommit.mockResolvedValue(undefined);
+    mockTxGet.mockResolvedValue({ exists: () => false });
+    mockRunTransaction.mockImplementation(async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
+      const tx = { get: mockTxGet, set: mockTxSet, update: mockTxUpdate, delete: mockTxDelete };
+      return fn(tx);
+    });
   });
 
-  it('uses a write batch (creates one batch per call)', async () => {
+  it('uses runTransaction (not writeBatch)', async () => {
     await awardPoint('uid-1', 'task-abc', 'Buy milk');
-    expect(mockWriteBatch).toHaveBeenCalledTimes(1);
+    expect(mockRunTransaction).toHaveBeenCalledTimes(1);
+    expect(mockWriteBatch).not.toHaveBeenCalled();
   });
 
-  it('batch.update increments totalPoints on the user document', async () => {
+  it('tx.set writes a correctly shaped PointsHistoryEntry', async () => {
     await awardPoint('uid-1', 'task-abc', 'Buy milk');
 
-    expect(mockBatchUpdate).toHaveBeenCalledTimes(1);
-    expect(mockBatchUpdate).toHaveBeenCalledWith(
-      expect.anything(),
-      { totalPoints: expect.objectContaining({ _increment: 1 }) },
-    );
-  });
-
-  it('batch.set adds a correctly shaped PointsHistoryEntry', async () => {
-    await awardPoint('uid-1', 'task-abc', 'Buy milk');
-
-    expect(mockBatchSet).toHaveBeenCalledTimes(1);
-    expect(mockBatchSet).toHaveBeenCalledWith(
+    expect(mockTxSet).toHaveBeenCalledTimes(1);
+    expect(mockTxSet).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         taskId:    'task-abc',
@@ -121,14 +141,73 @@ describe('awardPoint', () => {
     );
   });
 
-  it('calls batch.commit exactly once', async () => {
+  it('tx.update increments totalPoints by 1', async () => {
     await awardPoint('uid-1', 'task-abc', 'Buy milk');
-    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
+
+    expect(mockTxUpdate).toHaveBeenCalledTimes(1);
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: expect.objectContaining({ _increment: 1 }) },
+    );
   });
 
-  it('rejects if batch.commit rejects (atomic — no partial writes)', async () => {
-    mockBatchCommit.mockRejectedValue(new Error('Network error'));
+  it('is idempotent — no-ops if the history entry already exists today', async () => {
+    mockTxGet.mockResolvedValue({ exists: () => true });
+
+    await awardPoint('uid-1', 'task-abc', 'Buy milk');
+
+    expect(mockTxSet).not.toHaveBeenCalled();
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects if the transaction rejects', async () => {
+    mockRunTransaction.mockRejectedValueOnce(new Error('Network error'));
     await expect(awardPoint('uid-1', 'task-abc', 'Buy milk')).rejects.toThrow('Network error');
+  });
+});
+
+// ─── revokePoint ─────────────────────────────────────────────────────────────
+
+describe('revokePoint', () => {
+  beforeEach(() => {
+    mockRunTransaction.mockImplementation(async (_db: unknown, fn: (tx: unknown) => Promise<void>) => {
+      const tx = { get: mockTxGet, set: mockTxSet, update: mockTxUpdate, delete: mockTxDelete };
+      return fn(tx);
+    });
+  });
+
+  it('tx.delete removes the history entry when it exists', async () => {
+    mockTxGet.mockResolvedValue({ exists: () => true });
+
+    await revokePoint('uid-1', 'task-abc');
+
+    expect(mockTxDelete).toHaveBeenCalledTimes(1);
+  });
+
+  it('tx.update decrements totalPoints by 1 when the entry exists', async () => {
+    mockTxGet.mockResolvedValue({ exists: () => true });
+
+    await revokePoint('uid-1', 'task-abc');
+
+    expect(mockTxUpdate).toHaveBeenCalledTimes(1);
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: expect.objectContaining({ _increment: -1 }) },
+    );
+  });
+
+  it('is a no-op when no history entry exists for today', async () => {
+    mockTxGet.mockResolvedValue({ exists: () => false });
+
+    await revokePoint('uid-1', 'task-abc');
+
+    expect(mockTxDelete).not.toHaveBeenCalled();
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rejects if the transaction rejects', async () => {
+    mockRunTransaction.mockRejectedValueOnce(new Error('Network error'));
+    await expect(revokePoint('uid-1', 'task-abc')).rejects.toThrow('Network error');
   });
 });
 
@@ -332,6 +411,60 @@ describe('subscribeToPointsHistory', () => {
       { id: 'hist-2', taskId: 'task-2', taskTitle: 'Pick up meds', awardedAt: fakeTs, points: 1, reason: 'task_completed' },
       { id: 'hist-1', taskId: 'task-1', taskTitle: 'Buy milk',     awardedAt: fakeTs, points: 1, reason: 'task_completed' },
     ]);
+  });
+
+  it('deduplicates legacy entries — keeps only the latest entry per taskId (KAN-128)', () => {
+    const olderTs = { toDate: () => new Date('2026-05-28') };
+    const newerTs = { toDate: () => new Date('2026-05-29') };
+    mockOnSnapshot.mockImplementation((_ref: unknown, cb: CollSnapshotCallback) => {
+      // Docs arrive ordered newest-first (as Firestore orderBy awardedAt desc guarantees).
+      cb({
+        docs: [
+          // Newest duplicate for task-1 — should be kept.
+          {
+            id:   'task-1_2026-05-29',
+            data: () => ({
+              taskId:    'task-1',
+              taskTitle: 'Buy milk',
+              awardedAt: newerTs,
+              points:    1,
+              reason:    'task_completed',
+            }),
+          },
+          // Older duplicate for task-1 — should be dropped.
+          {
+            id:   'auto-id-legacy',
+            data: () => ({
+              taskId:    'task-1',
+              taskTitle: 'Buy milk',
+              awardedAt: olderTs,
+              points:    1,
+              reason:    'task_completed',
+            }),
+          },
+          // Unique entry — should be kept.
+          {
+            id:   'task-2_2026-05-29',
+            data: () => ({
+              taskId:    'task-2',
+              taskTitle: 'Pick up meds',
+              awardedAt: newerTs,
+              points:    1,
+              reason:    'task_completed',
+            }),
+          },
+        ],
+      });
+      return jest.fn();
+    });
+
+    const onUpdate = jest.fn();
+    subscribeToPointsHistory('uid-1', onUpdate);
+
+    const result = onUpdate.mock.calls[0][0] as unknown[];
+    expect(result).toHaveLength(2);
+    expect(result[0]).toMatchObject({ id: 'task-1_2026-05-29', taskId: 'task-1' });
+    expect(result[1]).toMatchObject({ id: 'task-2_2026-05-29', taskId: 'task-2' });
   });
 
   it('returns an unsubscribe function', () => {

@@ -41,6 +41,7 @@ import { subscribeToTasksForMonth } from '../services/firestore';
 import { Task, MonthTasksUiState } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
+import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -259,7 +260,7 @@ function DetailCard({ dateISO, tasks, isToday }: DetailCardProps) {
       {/* Task rows */}
       {total === 0 ? (
         <Text style={[styles.emptyLabel, { color: palette.muted }]}>
-          No tasks for this day
+          {COPY.emptyState.calendarNoTasks}
         </Text>
       ) : (
         tasks.map(task => (

@@ -14,6 +14,7 @@ import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } fr
 import { AppState, Platform, Vibration } from 'react-native';
 import {
   awardPoint,
+  revokePoint,
   setTaskDone,
   subscribeToCategories,
   subscribeLowBatteryPausePref,
@@ -286,6 +287,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
             console.warn('[useTodayScreen] daily-complete achievement failed (non-critical)', err),
           );
         }
+      } else {
+        // KAN-128: un-completing a task revokes the point awarded today (if any).
+        revokePoint(uid, taskId).catch(err =>
+          console.warn('[useTodayScreen] revokePoint failed (non-critical)', err),
+        );
       }
     } catch (err) {
       console.warn('[useTodayScreen] toggle failed — reverting', err);

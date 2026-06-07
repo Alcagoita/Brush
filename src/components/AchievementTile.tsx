@@ -10,6 +10,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { radius } from '../theme/tokens';
 import type { AchievementType } from '../types';
 import type { useTheme } from '../theme';
+import { COPY } from '../constants/copy';
 
 // ─── Achievement catalogue ────────────────────────────────────────────────────
 
@@ -35,7 +36,7 @@ export const ACHIEVEMENT_CATALOGUE: AchievementDef[] = [
   },
   {
     type:      'challenge_winner',
-    label:     'First to do it',
+    label:     COPY.achievement.challengeWinnerTitle,
     icon:      '◆',
     condition: 'Win a challenge against a friend',
   },

@@ -13,9 +13,10 @@
  *   checked   — faint fill, no visible border
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -23,6 +24,8 @@ import Animated, {
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
+import BrushStroke from './BrushStroke';
+import { COPY } from '../constants/copy';
 import { Task, Category } from '../types';
 
 interface TaskRowProps {
@@ -57,6 +60,46 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.done]);
 
+  // ── Brushstroke animation (KAN-109) ──
+  // titleDisplayWidth is regular React state so BrushStroke re-renders with the
+  // correct SVG width after onLayout fires.
+  // titleWidth is the same value as a shared value so the animated-style worklet
+  // (which runs on the UI thread) can read it without JS ↔ UI thread crossing.
+  const [titleDisplayWidth, setTitleDisplayWidth] = useState(0);
+  const titleWidth  = useSharedValue(0);
+  const strokeScale = useSharedValue(task.done ? 1 : 0);
+
+  useEffect(() => {
+    if (task.done) {
+      strokeScale.value = withTiming(1, {
+        duration: 380,
+        easing:   Easing.bezier(0.25, 0.1, 0.25, 1),
+      });
+    } else {
+      // Snap back instantly when un-completing a task
+      strokeScale.value = 0;
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.done]);
+
+  // Simulates transformOrigin: 'left center' by compensating for RN's
+  // centre-based scaleX with a matching translateX.
+  //
+  // Android note: scaleX: 0 at mount zeroes the GPU layer and can prevent
+  // repaints during animation. Pairing with opacity: s avoids this — the
+  // layer is invisible either way, but opacity keeps it repaint-eligible.
+  const animatedStrokeStyle = useAnimatedStyle(() => {
+    const s = strokeScale.value;
+    const w = titleWidth.value;
+    return {
+      opacity: s,
+      transform: [
+        { translateX: -(w / 2) * (1 - s) },
+        { scaleX: s },
+      ],
+    };
+  });
+
   const fillStyle = useAnimatedStyle(() => ({
     opacity: fillProgress.value,
     transform: [{ scale: 0.55 + fillProgress.value * 0.1 }],
@@ -71,7 +114,7 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
         onPress={() => onToggle(task.id, !task.done)}
         hitSlop={8}
         accessibilityRole="checkbox"
-        accessibilityLabel={`Mark ${task.title} as ${task.done ? 'undone' : 'done'}`}
+        accessibilityLabel={task.done ? COPY.taskRow.unbrush(task.title) : COPY.taskRow.brushAway(task.title)}
         accessibilityState={{ checked: task.done }}
         style={({ pressed }) => [{ opacity: pressed ? 0.6 : 1 }]}>
         <View style={[styles.checkbox, { borderColor: task.done ? palette.faint : palette.text }]}>
@@ -89,17 +132,29 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
         accessibilityLabel={onPress ? `Edit ${task.title}` : task.title}>
 
         <View style={styles.content}>
-          <Text
-            style={[
-              styles.title,
-              {
-                color:              task.done ? palette.muted : palette.text,
-                textDecorationLine: task.done ? 'line-through' : 'none',
-              },
-            ]}
-            numberOfLines={2}>
-            {task.title}
-          </Text>
+          {/* Title + brushstroke overlay */}
+          <View style={styles.titleWrapper}>
+            <Text
+              style={[styles.title, { color: task.done ? palette.muted : palette.text }]}
+              numberOfLines={2}
+              onLayout={(e) => {
+                const w = e.nativeEvent.layout.width;
+                titleWidth.value = w;
+                setTitleDisplayWidth(w);
+              }}>
+              {task.title}
+            </Text>
+            {/* Animated brushstroke — replaces text-decoration: line-through.
+                Only mounted when task.done so un-completing causes an instant
+                unmount (no fade-out animation needed per spec). */}
+            {task.done && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.strokeOverlay, animatedStrokeStyle]}>
+                <BrushStroke width={titleDisplayWidth} color={palette.accent} />
+              </Animated.View>
+            )}
+          </View>
 
           <View style={styles.chips}>
             {/* Category chip */}
@@ -167,6 +222,17 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     gap:  6,
+  },
+  titleWrapper: {
+    position: 'relative',
+  },
+  strokeOverlay: {
+    position: 'absolute',
+    top:      0,
+    left:     0,
+    right:    0,
+    // No overflow: 'hidden' — on Android it clips incorrectly when combined
+    // with scaleX/translateX transforms.
   },
   title: {
     fontSize:   15,
