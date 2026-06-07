@@ -274,3 +274,77 @@ export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
       );
   }
 }
+
+// ── Settings / Gear ───────────────────────────────────────────────────────────
+export function SettingsIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="3" stroke={color} strokeWidth={1.6} {...S} />
+      <Path
+        d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── Camera ────────────────────────────────────────────────────────────────────
+export function CameraIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Circle cx="12" cy="13" r="4" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Flame / Streak ────────────────────────────────────────────────────────────
+export function FlameIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── Lock ──────────────────────────────────────────────────────────────────────
+export function LockIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="11" width="18" height="11" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M7 11V7a5 5 0 0 1 10 0v4" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Pencil / Edit ─────────────────────────────────────────────────────────────
+export function PencilIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Path
+        d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── Medal / Achievement ───────────────────────────────────────────────────────
+export function MedalIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="14" r="7" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M7.9 4L6 7l6 2.5L18 7l-1.9-3" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
