@@ -24,6 +24,7 @@ import {
   Image,
   Pressable,
   StyleSheet,
+  Text,
   View,
 } from 'react-native';
 import { useTheme } from '../theme';
@@ -32,6 +33,8 @@ const DOT_SIZE = 12; // px — amber brand dot diameter
 
 interface AvatarProps {
   photoURL?:           string | null;
+  /** When provided and no photo, shows the first character as an initial letter instead of the pulsing dot. */
+  displayName?:        string | null;
   size?:               number;
   onPress?:            () => void;
   accessibilityLabel?: string;
@@ -90,6 +93,7 @@ function PulsingDot({ color }: { color: string }) {
 
 export default function Avatar({
   photoURL,
+  displayName,
   size = 36,
   onPress,
   accessibilityLabel = 'Avatar',
@@ -106,6 +110,8 @@ export default function Avatar({
     },
   ];
 
+  const initial = displayName ? displayName.trim()[0]?.toUpperCase() ?? null : null;
+
   const content = photoURL ? (
     <Image
       source={{ uri: photoURL }}
@@ -113,6 +119,17 @@ export default function Avatar({
       resizeMode="cover"
       accessibilityIgnoresInvertColors
     />
+  ) : initial ? (
+    <Text
+      style={{
+        fontSize:   size * 0.4,
+        fontWeight: '500',
+        fontFamily: 'Geist-Medium',
+        color:      palette.muted,
+      }}
+      accessibilityElementsHidden>
+      {initial}
+    </Text>
   ) : (
     <PulsingDot color={palette.accent} />
   );

@@ -61,79 +61,6 @@ This project follows **standard Gitflow**. Never deviate from these rules.
 
 ---
 
-## Sprint 1: Today Screen — ✅ Complete
-
-Goal: ship a working Today screen that matches the design handoff exactly, backed by real Firebase data and live geolocation.
-
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 1 | KAN-47 | App theme system — design tokens & light/dark mode | ✅ Concluído |
-| 2 | KAN-11 | Define To-Do data model in Firestore | ✅ Concluído |
-| 3 | KAN-17 | Navigation structure and routing | ✅ Concluído |
-| 4 | KAN-45 | Today screen UI — progress ring, sticky header & scroll collapse | ✅ Concluído |
-| 5 | KAN-15 | To-Do list screen UI | ✅ Concluído |
-| 6 | KAN-14 | Mark To-Do item as done or undone | ✅ Concluído |
-| 7 | KAN-21 | Research and select Maps/Places API | ✅ Concluído |
-| 8 | KAN-22 | Background geolocation tracking | ✅ Concluído |
-| 9 | KAN-24 | POI proximity detection and geofencing | ✅ Concluído |
-| 10 | KAN-46 | Nearby card — idle state, hero alert and POI chip | ✅ Concluído |
-
----
-
-## Sprint 2: Points, Auth & Polish — ✅ Complete
-
-Goal: add the points & achievements system, complete auth flows (Google + Apple), polish the login screen, and close remaining notification & category work.
-
-Work the list top-to-bottom. Do not start items ranked 7–9 until their dependencies are merged.
-
-### 🔴 Highest priority
-
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 1 | KAN-51 | Add-task FAB and new-task bottom sheet | ✅ Concluído |
-| 2 | KAN-50 | Calendar screen — month grid, day selection and detail card | ✅ Concluído |
-
-### 🟠 High
-
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 3 | KAN-48 | Login screen UI redesign — match Brush design system | ✅ Concluído |
-| 4 | KAN-16 | Manage categories for to-do items | ✅ Concluído |
-
-### 🔵 Medium
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 5 | KAN-23 | Category-to-POI type mapping logic | KAN-16 | ✅ Concluído |
-| 6 | KAN-25 | Firebase integration for user location and POI preferences | — | ✅ Concluído |
-| 7 | KAN-43 | Login screen polish and UX improvements | KAN-48 | ✅ Concluído |
-| 8 | KAN-39 | Google OAuth login | KAN-48 | ✅ Concluído |
-| 9 | KAN-40 | Apple Sign-In (iOS) | KAN-39 | ✅ Concluído |
-| 10 | KAN-32 | Trigger achievement when entire to-do list is completed | — | ✅ Concluído |
-
-### Additional Sprint-2 tickets (added during sprint)
-
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 11 | KAN-26 | Set up Firebase Cloud Messaging (FCM) for push notifications | ✅ Concluído |
-| 12 | KAN-27 | Geo-triggered local notifications when near a relevant POI | ✅ Concluído |
-| 13 | KAN-28 | Push notification content, deep linking and handling | ✅ Concluído |
-| 14 | KAN-29 | Notification preferences in app settings | ✅ Concluído |
-| 15 | KAN-30 | Points and achievements data model in Firebase | ✅ Concluído |
-| 16 | KAN-31 | Award 1 point per completed To-Do item | ✅ Concluído |
-
-### Out of scope for Sprint 2
-
-- Lock-screen push notification mock
-- Task detail / edit screen
-- Past-day or future-day full task list
-- Settings screen
-- Onboarding / location permission flow
-- Wear OS companion app (Sprint 3+)
-- Battery drain / low-battery mode (backlog, KAN-52)
-
----
-
 ## Design System
 
 All screens must use these tokens. Never hardcode colors or font sizes.
@@ -224,73 +151,7 @@ Sticky header gets `borderBottomWidth: 1, borderBottomColor: line` when fully co
 
 ---
 
-## Today Screen Spec (KAN-45 + KAN-46)
-
-Reference files: `docs/design/screen.jsx` and `docs/design/README.md`
-
-### Screen anatomy (top to bottom)
-
-1. **Sticky header** (`position: sticky / zIndex: 3`) — avatar circle (first letter of name), greeting ("Good morning" / name), notification bell with peach unread dot
-2. **Collapsing ring section** (`position: sticky, top: headerHeight, zIndex: 2`) — scroll-driven A→B collapse
-3. **Nearby card** — location-sorted POI tasks; hero alert when a POI is currently nearby
-4. **To-do list** — all tasks for today
-
-### Progress Ring (KAN-45)
-
-Scroll-driven collapse: `k = clamp(scrollTop / 170, 0, 1)`
-
-| Property | k=0 (rest) | k=1 (collapsed) |
-|----------|-----------|-----------------|
-| Ring diameter | 246px | 112px |
-| Stroke width | 14px | 10px |
-| Ring left offset | 75px (centered) | 22px (left) |
-| Section height | 320px | 150px |
-| Caption opacity | 1 | 0 (fades over k 0→0.625) |
-| Split counter opacity | 0 | 1 (fades over k 0.45→0.91) |
-| Weekday label | "Friday" | "Fri" |
-| Sub-label | "May · 4 nearby" | "May" only |
-
-Ring SVG: two concentric circles — track (`ringTrack`) and progress (`ringFill`). Progress arc starts at 12 o'clock (`rotate(-90deg)`), `strokeLinecap: round`.
-
-### Nearby Card (KAN-46)
-
-**Idle state** (no POI nearby): list of open POI tasks sorted ascending by distance. Each row: 36×36 icon tile (surface2, radius 10), task title (14px/500), place name + distance (12px/muted), chevron.
-
-**Active/hero state** (user inside geofence): header changes to "NEARBY · NOW" with pulsing 6px peach dot. Hero block appears above the list:
-- 16px rounded container, `nearTint` background, `nearBorder` border
-- Decorative halo: 140×140 circle top-right, `nearTint2`, opacity 0.7
-- 46×46 accent icon tile (radius 14) with `scr-halo` animation
-- Distance + place label (11px/600/uppercase/nearText)
-- Task title (17px/500)
-- "Open in Maps" CTA button (full width, bg=text, color=bg, radius 12) — opens Google Maps: `geo:0,0?q={lat},{lng}({label})` on Android, `maps://?daddr=...` on iOS
-
-Remaining POI tasks appear below the hero in an "Also close" subsection.
-
-### POI Chip
-
-Pill on task rows. Two states:
-- **Default**: surface bg, line border, muted text
-- **Active** (its POI is currently nearby): nearTint2 bg, nearBorder border, nearText color, pulsing 6px accent dot prepended
-
-### Animations
-
-```css
-/* inject once globally */
-scr-pulse: 1.6s ease-in-out infinite
-  0%,100% { scale: 1; opacity: 1 }
-  50%     { scale: 0.5; opacity: 0.45 }
-
-scr-halo: 2.2s ease-out infinite
-  0%   { box-shadow: 0 0 0 0   accent }
-  70%  { box-shadow: 0 0 0 10px transparent }
-  100% { box-shadow: 0 0 0 0   transparent }
-```
-
-Use React Native `Animated` API or `react-native-reanimated` for both.
-
----
-
-## Firestore Data Model (KAN-11)
+## Firestore Data Model
 
 ```ts
 // /users/{uid}
@@ -327,7 +188,7 @@ type PoiPreference = {
 
 ---
 
-## Category → POI Type Mapping (KAN-23)
+## Category → POI Type Mapping
 
 ```ts
 const CATEGORY_POI_MAP: Record<string, PoiType[]> = {
@@ -354,7 +215,7 @@ const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
 
 ---
 
-## Geolocation Rules (KAN-22 / KAN-24)
+## Geolocation Rules
 
 - Request `always` location permission (required for background geofencing)
 - Only one POI is "currently nearby" at a time — if multiple geofences overlap, pick the closest
@@ -363,7 +224,7 @@ const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
 
 ---
 
-## Navigation Structure (KAN-17)
+## Navigation Structure
 
 Bottom tab navigator with two tabs for v1.0:
 1. **Today** (home, the main screen)
@@ -447,210 +308,61 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 6. **Create a GitHub release** on the tag with full release notes — group tickets by feature area, include setup/migration notes if relevant
 7. Merge the release branch back into `develop`
 8. Delete the release branch
-9. Report to the user and wait for Sprint N+1 planning
+9. Remove the full sprint detail section from CLAUDE.md and mark it as ✅ Done in the Sprint History list
+10. Report to the user and wait for Sprint N+1 planning
 
 **Never skip the GitHub release.** Release notes are required for every sprint — they are the handoff document for QA, stakeholders, and future contributors.
 
 ---
 
-**Sprint 1 — ✅ Complete.** All 10 tickets shipped.
+## Sprint History
 
-**Sprint 2 — ✅ Complete.** All 16 tickets shipped. Released as v0.2.0.
-
-**Sprint 3 — ✅ Complete.** All 10 tickets shipped. Released as v0.3.0.
-
-**Sprint 4 — ✅ Complete.** All 11 tickets shipped. Released as v0.4.0.
-
-**Sprint 5 — ✅ Complete.** All 9 tickets shipped. Released as v0.5.0.
-
-**Sprint 6 — 🚧 In progress.** 11 tickets: Friends & Social (KAN-96 epic) + final Wear OS geo-alert (KAN-36).
+- **Sprint 1** — ✅ Done (v0.1.0)
+- **Sprint 2** — ✅ Done (v0.2.0)
+- **Sprint 3** — ✅ Done (v0.3.0)
+- **Sprint 4** — ✅ Done (v0.4.0)
+- **Sprint 5** — ✅ Done (v0.5.0)
+- **Sprint 6** — ✅ Done (v0.6.0)
+- **Sprint 7** — 🚧 In progress (v0.7.0)
 
 ---
 
-## Sprint 3: Battery, Architecture & Bug Fixes — ✅ Complete
+## Sprint 7 — Active (v0.7.0)
 
-**Goal:** No new user-facing features. Fix real battery problems, bring the codebase architecture in line with established patterns, and close an active bug.
+10 items across two independent tracks.
 
-### Track A — Battery & GPS (Epic KAN-65)
+- **Track A — Profile & Settings Redesign** (KAN-112, KAN-113, KAN-114, KAN-115)
+- **Track B — Indoor & Mall Mode** (KAN-77, KAN-73, KAN-74, KAN-75, KAN-76)
 
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 1 | KAN-53 | Stop proximity monitoring when no POI tasks are active | ✅ Concluído |
-| 2 | KAN-54 | Tune location watch options for battery efficiency | ✅ Concluído |
-| 3 | KAN-55 | Adaptive GPS accuracy based on distance to nearest cached POI | ✅ Concluído |
-| 4 | KAN-56 | Replace software geofencing with native OS geofences | ✅ Concluído |
-| 5 | KAN-52 | Battery drain — low-battery mode toggle / user setting | ✅ Concluído |
+### Priority order
 
-### Track B — Architecture (Epic KAN-66)
+**Track A:**
+1. KAN-112 — Profile screen redesign *(must land first)*
+2. KAN-113 — Settings screen *(pushed from Profile)*
+3. KAN-114 — Achievements screen *(pushed from Profile)*
+4. KAN-115 — Share sheet *(pushed from Profile)*
 
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 6 | KAN-57 | Introduce formal UiState discriminated union types for screens | ✅ Concluído |
-| 7 | KAN-58 | Handle Firestore subscription errors in screens | ✅ Concluído |
-| 8 | KAN-59 | Extract screen state management into dedicated custom hooks | ✅ Concluído |
-| 9 | KAN-60 | Add UI-layer tests for screens and key components | ✅ Concluído |
+**Track B:**
+1. KAN-77 — POI model redesign spike *(design doc only, no production code)*
+2. KAN-73 — Indoor environment detection *(can start day 1)*
+3. KAN-74 — Store fine tuning mode *(depends on KAN-73)*
+4. KAN-75 — Indoor proximity engine *(depends on KAN-74 + KAN-56)*
+5. KAN-76 — Named store task tagging *(depends on KAN-75)*
 
-### Standalone Bug (Epic KAN-67)
+### Key design constraints
 
-| # | Ticket | Summary | Status |
-|---|--------|---------|--------|
-| 10 | KAN-61 | Custom categories not shown in New Task sheet | ✅ Concluído |
+- **Design file uses green `#4fa866` in some places — always substitute peach `#e8a86a` (accent).**
+- **Brand copy:** "brush away" tasks, not "complete" or "finish".
+- **Achievement copy:** use exact labels/descriptions from KAN-114 spec; do not use design file copy.
+- Settings footer: `"Brush Away · v1.0.0"` — not "Vibe Agenda".
+- `Task.store` (KAN-76) and existing `Task.poi` are independent — a task can have either, both, or neither.
+- Indoor engine (KAN-75) and outdoor engine (KAN-56) must **never run simultaneously**.
 
----
+### Out of scope for Sprint 7
 
-## Sprint 4: Brand, CRUD, Profile & Points Infrastructure — ✅ Complete
-
-**Goal:** Complete the essential v1.0 app loop — sign in, create and manage tasks, view profile, log out — while advancing the points and achievements system.
-
-### 🔴 Highest priority
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 1 | KAN-71 | Sign-in screen redesign — Brush brand | KAN-48 (Sprint-2) | ⬜ A fazer |
-| 2 | KAN-12 | Create a new To-Do item with title, description, due date and category | — | ⬜ A fazer |
-| 3 | KAN-13 | Edit and delete To-Do items | KAN-12 | ⬜ A fazer |
-
-### 🟠 High
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 4 | KAN-20 | Logout functionality | — | ⬜ A fazer |
-| 5 | KAN-18 | Profile view and edit screen | KAN-20 | ⬜ A fazer |
-
-### 🔵 Medium
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 6 | KAN-19 | Achievements and points display in user menu | KAN-18 | ⬜ A fazer |
-| 7 | KAN-33 | Points history and achievements gallery | KAN-19 | ⬜ A fazer |
-| 8 | KAN-80 | Notification Preferences — collapsible section, show first row by default | KAN-18 | ⬜ A fazer |
-| 9 | KAN-64 | Add awardPointsBatch utility for bulk point awards | — | ⬜ A fazer |
-| 10 | KAN-63 | Extend points system with additional reason types | KAN-64 | ⬜ A fazer |
-| 11 | KAN-78 | Avatar component — amber dot default + photo fallback (Header & ProfileScreen) | KAN-18 | ⬜ A fazer |
-
-### Dependency map
-
-```
-KAN-71  (standalone — brand)
-
-KAN-12 ──▶ KAN-13  (CRUD)
-
-KAN-20 ──▶ KAN-18 ──▶ KAN-19 ──▶ KAN-33  (account + engagement)
-                  └──▶ KAN-80              (collapsible notification prefs)
-                  └──▶ KAN-78              (Avatar polish)
-
-KAN-64 ──▶ KAN-63  (points infrastructure)
-```
-
-KAN-71, KAN-12, KAN-20, KAN-64 have no dependencies — all four can start on day one in parallel.
-
-### Out of scope for Sprint 4
-
-- Wear OS (v1.2 backlog)
-- Indoor/mall mode (KAN-72–77, backlog)
-- Smart store matching (KAN-76 future)
-- Streak logic and daily-complete trigger (future — types land in KAN-63, logic is separate)
+- KAN-78 (smart AI-assisted store matching)
+- Photo upload on Profile (camera badge is visible but no-op)
+- QR code in Share sheet (placeholder only)
+- Achievement push notifications (display only)
+- Unmapped mall indoor mode (graceful outdoor fallback)
 - App Store / Play Store submission
-
----
-
-## Sprint 5: Task Import, Sharing & Wear OS Foundation — ✅ Complete
-
-**Goal:** Task import from external sources, in-app task sharing (+ AI message-to-task spike), and the Wear OS foundation. Two items (KAN-34, KAN-88) are spikes — output is a decision document and implementation tickets, not shipping code.
-
-### 🔴 High
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 1 | KAN-34 | Research React Native Wear OS integration libraries (SPIKE) | — | ✅ Concluído |
-| 2 | KAN-88 | SPIKE — message-to-task via Share Extension + AI parsing | — | ✅ Concluído |
-
-### 🔵 Medium
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 3 | KAN-83 | Import UI — button, progress, duplicate handling | — | ✅ Concluído |
-| 4 | KAN-84 | Android import connector — Google Tasks + Calendar | KAN-39 (Sprint-2) | ✅ Concluído |
-| 5 | KAN-85 | iOS import connector — Reminders + Calendar via EventKit | — | ✅ Concluído |
-| 6 | KAN-35 | Wear OS companion app + Wearable Data Layer setup | KAN-34 | ✅ Concluído |
-| 7 | KAN-86 | In-app task sharing — send flow | — | ✅ Concluído |
-| 8 | KAN-37 | View To-Do list on Wear OS watch | KAN-35 | ⬜ A fazer |
-| 9 | KAN-38 | Mark To-Do items as done from Wear OS watch | KAN-37 | ⬜ A fazer |
-
-### Dependency map
-
-```
-KAN-34 ──▶ KAN-35 ──▶ KAN-37 ──▶ KAN-38   (Wear OS track)
-
-KAN-83                                       (Import UI — standalone)
-KAN-84   (depends on KAN-39, already done)   (Android import connector)
-KAN-85                                       (iOS import connector)
-
-KAN-86                                       (Task sharing — send flow)
-
-KAN-88                                       (Spike — standalone)
-```
-
-**Day-one parallel starts:** KAN-34, KAN-88, KAN-83, KAN-85, KAN-86 can all start immediately.
-
-### Out of scope for Sprint 5
-
-- KAN-36: Geo-triggered notifications on Wear OS watch — leads Sprint-6
-- KAN-87: Task sharing receive flow — moved out of Sprint 5; blocked on KAN-97 (username) and KAN-98 (follow system) from the Friends & Social epic (KAN-96)
-- Message-to-task implementation — blocked on KAN-88 spike output
-- Apple Watch / watchOS support — Android/Wear OS only for this track
-- Ongoing sync for imports — one-time import only (button-triggered)
-
----
-
-## Sprint 6: Friends & Social + Wear OS Geo-alerts — 🚧 In progress
-
-**Goal:** Complete the Friends & Social feature set (epic KAN-96) and ship the final Wear OS ticket (KAN-36). By the end, users can follow friends, share to-dos, challenge each other, compare achievements, and receive proximity alerts on their watch.
-
-### 🔴 Highest — must ship first, everything depends on these
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 1 | KAN-97 | Username and profile share link | KAN-18 (Sprint-4) | ✅ Concluído |
-| 2 | KAN-98 | One-way follow system | KAN-97 | ✅ Concluído |
-
-### 🟠 High
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 3 | KAN-36 | Geo-triggered notifications on Wear OS watch | KAN-35 (Sprint-5) | ✅ Concluído |
-| 4 | KAN-87 | Task sharing inbox — receive, accept, decline | KAN-97, KAN-98 | ✅ Concluído |
-| 5 | KAN-100 | Friends & Social hub screen | KAN-97, KAN-98 | ✅ Concluído |
-| 6 | KAN-101 | Share a To-Do with friends | KAN-98, KAN-100 | ✅ Concluído |
-| 7 | KAN-102 | Challenge a friend or group — send flow | KAN-98, KAN-100 | ✅ Concluído |
-| 8 | KAN-103 | Challenge — accept/decline and live progress | KAN-102 | ✅ Concluído |
-
-### 🔵 Medium
-
-| # | Ticket | Summary | Depends on | Status |
-|---|--------|---------|------------|--------|
-| 9 | KAN-99 | Phone contacts friend suggestions | KAN-98 | ⬜ A fazer |
-| 10 | KAN-104 | Challenge — winner achievement and notifications | KAN-103 | ✅ Concluído |
-| 11 | KAN-105 | Compare achievements with friends | KAN-97, KAN-98 | ⬜ A fazer |
-
-### Dependency map
-
-```
-KAN-97 ──▶ KAN-98 ──┬──▶ KAN-87  (inbox)
-                    ├──▶ KAN-100 ──┬──▶ KAN-101
-                    │              └──▶ KAN-102 ──▶ KAN-103 ──▶ KAN-104
-                    ├──▶ KAN-99   (contacts — parallel)
-                    └──▶ KAN-105  (compare — parallel after KAN-97/98)
-
-KAN-36  (standalone — depends only on KAN-35 from Sprint-5)
-```
-
-**Day-one starts:** KAN-97 and KAN-36 can start immediately. Everything else waits for KAN-97 → KAN-98 to land.
-
-### Out of scope for Sprint 6
-
-- iOS Share Extension implementation (KAN-91) — Sprint-6+, after KAN-89 Cloud Function
-- Android Share receiver (KAN-90) — same
-- Import timeout / retry (KAN-92, KAN-93) — backlog
-- Wear OS: Apple Watch / watchOS — Android only
-- Achievement privacy toggle — deferred to a future sprint

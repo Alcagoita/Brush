@@ -1,18 +1,15 @@
 /**
- * KAN-29 — ProfileScreen notification preferences tests.
+ * ProfileScreen tests — KAN-112
  *
  * Covers:
- *   - "Notification Preferences" section renders with all 4 built-in POI types
- *   - Default radii are shown before any Firestore preferences load
- *   - Stored preferences override defaults when the subscription fires
- *   - Pressing "+" increases the radius by 25 m and calls setPoiPreference
- *   - Pressing "−" decreases the radius by 25 m and calls setPoiPreference
- *   - Radius is clamped: "−" disabled at 25 m, "+" disabled at 500 m
- *   - setPoiPreference is NOT called when already at the limit
- *   - Custom categories with a poi field add extra rows
- *   - Custom categories without a poi field are not shown
- *   - Custom categories whose poi type duplicates a built-in are not doubled up
- *   - Two custom categories sharing the same poi type produce only one row
+ *   - Identity card renders name, email; edit flow opens/closes
+ *   - Points ring driven by real totalPoints subscription
+ *   - "earned by brushing away tasks" copy (not "completing tasks")
+ *   - Streak chip shows real streak count; hidden when streak is 0
+ *   - "pts to go" caption reflects live points
+ *   - Achievement medal strip: earned count, all 5 V1 labels visible
+ *   - "See all" achievements, "Settings", and "Share my profile" entries exist
+ *   - All three Firestore subscriptions are cleaned up on unmount
  */
 
 import React from 'react';
@@ -20,610 +17,351 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToPoiPreferences   = jest.fn();
-const mockSetPoiPreference             = jest.fn();
-const mockSubscribeToCategories        = jest.fn();
-const mockSubscribeLowBatteryPausePref = jest.fn();
-const mockSetLowBatteryPausePref       = jest.fn();
-const mockSubscribeToTotalPoints       = jest.fn();
-const mockSubscribeToAchievements      = jest.fn();
-const mockGetUser                      = jest.fn();
-const mockUpdateUsername               = jest.fn();
-const mockCheckUsernameAvailable       = jest.fn();
-
-jest.mock('../../src/services/contacts', () => ({
-  registerInDiscovery:   jest.fn().mockResolvedValue(undefined),
-  unregisterFromDiscovery: jest.fn().mockResolvedValue(undefined),
-}));
-
-jest.mock('react-native-permissions', () => ({
-  check:       jest.fn(),
-  request:     jest.fn(),
-  PERMISSIONS: { IOS: {}, ANDROID: {} },
-  RESULTS:     { GRANTED: 'granted' },
-}));
+const mockSubscribeToTotalPoints   = jest.fn();
+const mockSubscribeToCurrentStreak = jest.fn();
+const mockSubscribeToAchievements  = jest.fn();
+const mockGetUser                  = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToPoiPreferences:    (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
-  setPoiPreference:             (...args: unknown[]) => mockSetPoiPreference(...args),
-  subscribeToCategories:        (...args: unknown[]) => mockSubscribeToCategories(...args),
-  subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
-  setLowBatteryPausePref:       (...args: unknown[]) => mockSetLowBatteryPausePref(...args),
-  subscribeToTotalPoints:       (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
-  subscribeToAchievements:      (...args: unknown[]) => mockSubscribeToAchievements(...args),
-  updateDisplayName:            jest.fn(),
-  getUser:                      (...args: unknown[]) => mockGetUser(...args),
-  updateUsername:               (...args: unknown[]) => mockUpdateUsername(...args),
-  checkUsernameAvailable:       (...args: unknown[]) => mockCheckUsernameAvailable(...args),
-  validateUsername:             jest.fn(() => null),
-  USERNAME_COOLDOWN_DAYS:       30,
-  upsertUser:                   jest.fn().mockResolvedValue(undefined),
+  subscribeToTotalPoints:   (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
+  subscribeToCurrentStreak: (...args: unknown[]) => mockSubscribeToCurrentStreak(...args),
+  subscribeToAchievements:  (...args: unknown[]) => mockSubscribeToAchievements(...args),
+  getUser:                  (...args: unknown[]) => mockGetUser(...args),
+  updateDisplayName:        jest.fn().mockResolvedValue(undefined),
+  updateUsername:           jest.fn().mockResolvedValue(undefined),
+  checkUsernameAvailable:   jest.fn().mockResolvedValue(true),
+  validateUsername:         jest.fn(() => null),
+  USERNAME_COOLDOWN_DAYS:   30,
 }));
 
-// Maps — placeTypeLabel used to label custom poi types
-jest.mock('../../src/services/maps', () => ({
-  placeTypeLabel: (type: string) =>
-    type === 'fitness_center' ? 'Fitness Center' :
-    type === 'restaurant'     ? 'Restaurant'     :
-    type === 'gym'            ? 'Gym'            :
-    type,
-}));
-
-// Auth — return a fixed uid + minimal currentUser
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
-  getAuth:       () => ({ currentUser: { uid: 'test-uid', email: 'test@example.com', displayName: 'Tester', photoURL: null } }),
-  updateProfile: jest.fn(),
+  getAuth: () => ({
+    currentUser: {
+      uid:         'test-uid',
+      email:       'test@example.com',
+      displayName: 'Jane Doe',
+      photoURL:    null,
+    },
+  }),
+  updateProfile: jest.fn().mockResolvedValue(undefined),
 }));
 
-// Navigation
 const mockGoBack   = jest.fn();
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
 }));
 
-// Safe-area
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
-// Theme — minimal palette
 jest.mock('../../src/theme', () => ({
   useTheme: () => ({
     palette: {
       bg:         '#fff',
-      surface2:   '#eee',
-      text:       '#000',
-      muted:      '#999',
-      faint:      '#ccc',
-      line:       '#ddd',
+      surface:    '#f6f5f1',
+      surface2:   '#efeeea',
+      text:       '#1a1a18',
+      muted:      '#8a8a85',
+      faint:      '#bdbdb7',
+      line:       'rgba(20,20,18,0.08)',
       accent:     '#e8a86a',
+      nearTint:   '#fdf7f0',
       nearTint2:  '#f9ede0',
       nearBorder: '#e8c9a0',
       nearText:   '#7a4a20',
+      ringTrack:  'rgba(20,20,18,0.08)',
     },
     dark:    false,
     setDark: jest.fn(),
   }),
 }));
 
-// AppIcon — stub all used icons; PoiIcon renders a testID so row icons are
-// identifiable in tests without depending on SVG rendering.
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const Stub = (props: any) => React.createElement(View, props);
+  return { __esModule: true, default: Stub, Circle: Stub, Path: Stub, Rect: Stub, Line: Stub };
+});
+
+jest.mock('react-native-reanimated', () => ({
+  ...require('react-native-reanimated/mock'),
+  useSharedValue:         (v: number) => ({ value: v }),
+  useAnimatedProps:       (fn: () => object) => fn(),
+  withTiming:             (v: number) => v,
+  createAnimatedComponent: (C: React.ComponentType<any>) => C,
+}));
+
 jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
-  GridIcon:        () => null,
-  LogOutIcon:      () => null,
-  MoonIcon:        () => null,
-  SunIcon:         () => null,
-  PoiIcon:         ({ type }: { type: string }) => {
-    const { View } = require('react-native');
-    return <View testID={`poi-icon-${type}`} />;
-  },
+  CameraIcon:       () => null,
+  FlameIcon:        () => null,
+  LockIcon:         () => null,
+  MedalIcon:        () => null,
+  PencilIcon:       () => null,
+  SettingsIcon:     () => null,
+  ShareIcon:        () => null,
 }));
 
-// Auth service
-jest.mock('../../src/services/auth', () => ({
-  signOut: jest.fn(),
-  logout:  jest.fn(),
-}));
-
-// ImportTasksSection — stub so ProfileScreen tests don't need firestore wired up
-jest.mock('../../src/components/ImportTasksSection', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return () => React.createElement(View, { testID: 'import-tasks-section' });
-});
-
-// Avatar component — stub
 jest.mock('../../src/components/Avatar', () => {
   const React = require('react');
   const { View } = require('react-native');
-  return (props: any) => React.createElement(View, props);
+  return (props: any) => React.createElement(View, { testID: 'avatar', ...props });
 });
 
-// ─── Imports (after mocks) ────────────────────────────────────────────────────
+// ─── Imports ──────────────────────────────────────────────────────────────────
 
 import ProfileScreen from '../../src/screens/ProfileScreen';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Capture the onUpdate callback passed to subscribeToPoiPreferences and return
- * a trigger function so tests can fire a simulated Firestore snapshot.
- */
-function capturePrefsCallback(): (prefs: Record<string, number>) => void {
-  let captured: ((prefs: Record<string, number>) => void) | null = null;
-  mockSubscribeToPoiPreferences.mockImplementation(
-    (_uid: string, onUpdate: (prefs: Record<string, number>) => void) => {
-      captured = onUpdate;
-      return jest.fn();
-    },
-  );
-  return (prefs: Record<string, number>) => {
-    if (captured) { act(() => { captured!(prefs); }); }
-  };
+const noopUnsub = jest.fn();
+
+/** Set all subscriptions to return a no-op unsubscribe (default state). */
+function setupDefaultMocks() {
+  mockSubscribeToTotalPoints.mockReturnValue(noopUnsub);
+  mockSubscribeToCurrentStreak.mockReturnValue(noopUnsub);
+  mockSubscribeToAchievements.mockReturnValue(noopUnsub);
+  mockGetUser.mockResolvedValue(null);
 }
 
-/**
- * Capture the onUpdate callback passed to subscribeToCategories and return
- * a trigger function so tests can fire a simulated Firestore snapshot.
- */
-function captureCategoriesCallback(): (cats: object[]) => void {
-  let captured: ((cats: object[]) => void) | null = null;
-  mockSubscribeToCategories.mockImplementation(
-    (_uid: string, onUpdate: (cats: object[]) => void) => {
-      captured = onUpdate;
-      return jest.fn();
-    },
-  );
-  return (cats: object[]) => {
-    if (captured) { act(() => { captured!(cats); }); }
-  };
+/** Fire the totalPoints subscription callback after render. */
+function firePoints(value: number) {
+  const call = mockSubscribeToTotalPoints.mock.calls[0];
+  if (call) { act(() => { call[1](value); }); }
 }
 
-function makeCategory(overrides: Record<string, unknown> = {}) {
-  return {
-    id:        'cat-1',
-    name:      'Gym',
-    color:     '#ff0000',
-    poi:       'fitness_center',
-    isBuiltIn: false,
-    ...overrides,
-  };
+/** Fire the currentStreak subscription callback after render. */
+function fireStreak(value: number) {
+  const call = mockSubscribeToCurrentStreak.mock.calls[0];
+  if (call) { act(() => { call[1](value); }); }
+}
+
+/** Fire the achievements subscription callback after render. */
+function fireAchievements(items: object[]) {
+  const call = mockSubscribeToAchievements.mock.calls[0];
+  if (call) { act(() => { call[1](items); }); }
 }
 
 function renderScreen() {
   return render(<ProfileScreen />);
 }
 
-/**
- * Render ProfileScreen with notification prefs section pre-expanded.
- * KAN-80: section is collapsed by default; tests that interact with
- * non-first rows must expand it first.
- */
-function renderExpanded() {
-  const result = renderScreen();
-  fireEvent.press(screen.getByLabelText('Expand notification preferences'));
-  return result;
-}
+// ─── Identity card ────────────────────────────────────────────────────────────
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
-
-describe('ProfileScreen — Notification Preferences (KAN-29)', () => {
+describe('ProfileScreen — KAN-112: identity card', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSetPoiPreference.mockResolvedValue(undefined);
-    mockSetLowBatteryPausePref.mockResolvedValue(undefined);
-    mockGetUser.mockResolvedValue(null);
-    // Default: all subscriptions return a no-op unsubscribe with no snapshot.
-    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
-    mockSubscribeToCategories.mockReturnValue(jest.fn());
-    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
-    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
-    mockSubscribeToAchievements.mockReturnValue(jest.fn());
+    setupDefaultMocks();
   });
 
-  // ── Rendering ───────────────────────────────────────────────────────────────
-
-  it('renders the Notification Preferences section heading', () => {
+  it('renders without crashing', () => {
     renderScreen();
-    expect(screen.getByText('Notification Preferences')).toBeTruthy();
+    expect(screen.getByText('Profile')).toBeTruthy();
   });
 
-  it('renders all 4 built-in POI type rows', () => {
-    renderExpanded();
-    expect(screen.getByText('ATM')).toBeTruthy();
-    expect(screen.getByText('Pharmacy')).toBeTruthy();
-    expect(screen.getByText('Café')).toBeTruthy();
-    expect(screen.getByText('Supermarket')).toBeTruthy();
-  });
-
-  it('shows default radii before any Firestore preference loads', () => {
-    renderExpanded();
-    // ATM and Pharmacy default to 50 m; two instances expected.
-    expect(screen.getAllByText('50 m')).toHaveLength(2);
-    // Café and Supermarket default to 75 m; two instances expected.
-    expect(screen.getAllByText('75 m')).toHaveLength(2);
-  });
-
-  // ── Subscription ────────────────────────────────────────────────────────────
-
-  it('subscribes to Firestore preferences with the current user uid', () => {
+  it('shows display name from currentUser', () => {
     renderScreen();
-    expect(mockSubscribeToPoiPreferences).toHaveBeenCalledWith(
-      'test-uid',
-      expect.any(Function),
-    );
+    expect(screen.getByText('Jane Doe')).toBeTruthy();
   });
 
-  it('overrides defaults when Firestore preferences fire', () => {
-    const firePrefs = capturePrefsCallback();
-    renderExpanded();
-    firePrefs({ atm: 100, cafe: 150 });
-
-    expect(screen.getByText('100 m')).toBeTruthy();
-    expect(screen.getByText('150 m')).toBeTruthy();
-    // Unchanged defaults are still shown.
-    expect(screen.getAllByText('50 m')).toHaveLength(1); // pharmacy still 50 m
-    expect(screen.getAllByText('75 m')).toHaveLength(1); // supermarket still 75 m
-  });
-
-  // ── Stepper — increase ───────────────────────────────────────────────────────
-
-  it('increases ATM radius by 25 m when "+" is pressed', () => {
-    renderExpanded();
-    // Before: ATM=50, Pharmacy=50 → two "50 m" labels.
-    expect(screen.getAllByText('50 m')).toHaveLength(2);
-    fireEvent.press(screen.getByLabelText('Increase ATM radius'));
-    // After: only Pharmacy remains at 50 m; ATM moved to 75 m.
-    expect(screen.getAllByText('50 m')).toHaveLength(1);
-    expect(screen.getAllByText('75 m')).toHaveLength(3); // ATM + Café + Supermarket
-  });
-
-  it('calls setPoiPreference with the new radius when "+" is pressed', () => {
-    renderExpanded();
-    fireEvent.press(screen.getByLabelText('Increase ATM radius'));
-    expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'atm', 75);
-  });
-
-  // ── Stepper — decrease ───────────────────────────────────────────────────────
-
-  it('decreases Café radius by 25 m when "−" is pressed', () => {
-    renderExpanded();
-    // Before: Café=75, Supermarket=75 → two "75 m" labels.
-    expect(screen.getAllByText('75 m')).toHaveLength(2);
-    fireEvent.press(screen.getByLabelText('Decrease Café radius'));
-    // After: only Supermarket remains at 75 m; Café moved to 50 m.
-    expect(screen.getAllByText('75 m')).toHaveLength(1);
-    expect(screen.getAllByText('50 m')).toHaveLength(3); // ATM + Pharmacy + Café
-  });
-
-  it('calls setPoiPreference with the new radius when "−" is pressed', () => {
-    renderExpanded();
-    fireEvent.press(screen.getByLabelText('Decrease Café radius'));
-    expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'cafe', 50);
-  });
-
-  // ── Clamping ────────────────────────────────────────────────────────────────
-
-  it('does not decrease ATM below 25 m', () => {
-    const firePrefs = capturePrefsCallback();
-    renderExpanded();
-    firePrefs({ atm: 25 });
-
-    fireEvent.press(screen.getByLabelText('Decrease ATM radius'));
-    // setPoiPreference should NOT be called — already at minimum.
-    expect(mockSetPoiPreference).not.toHaveBeenCalled();
-    expect(screen.getByText('25 m')).toBeTruthy();
-  });
-
-  it('does not increase Supermarket above 500 m', () => {
-    const firePrefs = capturePrefsCallback();
-    renderExpanded();
-    firePrefs({ supermarket: 500 });
-
-    fireEvent.press(screen.getByLabelText('Increase Supermarket radius'));
-    expect(mockSetPoiPreference).not.toHaveBeenCalled();
-    expect(screen.getByText('500 m')).toBeTruthy();
-  });
-
-  // ── Multiple presses ────────────────────────────────────────────────────────
-
-  it('accumulates multiple presses correctly', () => {
-    renderExpanded();
-    // ATM starts at 50 m — press "+" three times → 50 + 75 = 125 m.
-    fireEvent.press(screen.getByLabelText('Increase ATM radius'));
-    fireEvent.press(screen.getByLabelText('Increase ATM radius'));
-    fireEvent.press(screen.getByLabelText('Increase ATM radius'));
-    expect(screen.getByText('125 m')).toBeTruthy();
-    expect(mockSetPoiPreference).toHaveBeenLastCalledWith('test-uid', 'atm', 125);
-    expect(mockSetPoiPreference).toHaveBeenCalledTimes(3);
-  });
-
-  // ── Custom categories ────────────────────────────────────────────────────────
-
-  it('subscribes to categories with the current user uid', () => {
+  it('shows email from currentUser', () => {
     renderScreen();
-    expect(mockSubscribeToCategories).toHaveBeenCalledWith(
-      'test-uid',
-      expect.any(Function),
-    );
+    expect(screen.getByText('test@example.com')).toBeTruthy();
   });
 
-  it('adds a row for a custom category that has a poi type', () => {
-    const fireCategories = captureCategoriesCallback();
-    renderExpanded();
-    fireCategories([makeCategory({ poi: 'fitness_center' })]);
-    // placeTypeLabel('fitness_center') → 'Fitness Center' (mocked above)
-    expect(screen.getByText('Fitness Center')).toBeTruthy();
-  });
-
-  it('does not add a row for a custom category without a poi type', () => {
-    const fireCategories = captureCategoriesCallback();
+  it('shows the edit button', () => {
     renderScreen();
-    fireCategories([makeCategory({ poi: null })]);
-    expect(screen.queryByText('Fitness Center')).toBeNull();
+    expect(screen.getByLabelText('Edit profile')).toBeTruthy();
   });
 
-  it('does not duplicate a built-in row when a custom category shares its poi type', () => {
-    const fireCategories = captureCategoriesCallback();
-    renderExpanded();
-    // 'atm' is already a built-in row — no second ATM row should appear.
-    fireCategories([makeCategory({ poi: 'atm' })]);
-    expect(screen.getAllByText('ATM')).toHaveLength(1);
+  it('opens inline edit panel when pencil button is pressed', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Edit profile'));
+    expect(screen.getByLabelText('Edit name')).toBeTruthy();
+    expect(screen.getByLabelText('Edit username')).toBeTruthy();
   });
 
-  it('shows only one row when two custom categories share the same poi type', () => {
-    const fireCategories = captureCategoriesCallback();
-    renderExpanded();
-    fireCategories([
-      makeCategory({ id: 'cat-1', name: 'Gym',     poi: 'fitness_center' }),
-      makeCategory({ id: 'cat-2', name: 'Pilates', poi: 'fitness_center' }),
-    ]);
-    expect(screen.getAllByText('Fitness Center')).toHaveLength(1);
+  it('shows Cancel and Save in edit mode', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Edit profile'));
+    expect(screen.getByText('Cancel')).toBeTruthy();
+    expect(screen.getByText('Save')).toBeTruthy();
   });
 
-  it('custom category row defaults to 75 m (matching proximity engine default)', () => {
-    const fireCategories = captureCategoriesCallback();
-    renderExpanded();
-    // Before: Café + Supermarket show 75 m → 2 labels.
-    expect(screen.getAllByText('75 m')).toHaveLength(2);
-    fireCategories([makeCategory({ poi: 'restaurant' })]);
-    // After: restaurant row adds a third 75 m label (DEFAULT_CUSTOM_RADIUS).
-    expect(screen.getAllByText('75 m')).toHaveLength(3);
-  });
-
-  it('custom category stepper calls setPoiPreference with the correct poi type', () => {
-    const fireCategories = captureCategoriesCallback();
-    renderExpanded();
-    fireCategories([makeCategory({ poi: 'fitness_center' })]);
-
-    // fitness_center starts at 75 m; pressing + should go to 100 m.
-    fireEvent.press(screen.getByLabelText('Increase Fitness Center radius'));
-    expect(mockSetPoiPreference).toHaveBeenCalledWith('test-uid', 'fitness_center', 100);
+  it('closes edit panel when Cancel is pressed', () => {
+    renderScreen();
+    fireEvent.press(screen.getByLabelText('Edit profile'));
+    fireEvent.press(screen.getByText('Cancel'));
+    expect(screen.queryByLabelText('Edit name')).toBeNull();
   });
 });
 
-// ─── Battery section (KAN-52) ─────────────────────────────────────────────────
+// ─── Points hero card ─────────────────────────────────────────────────────────
 
-/**
- * Capture the onUpdate callback passed to subscribeLowBatteryPausePref and return
- * a trigger function so tests can simulate Firestore updates.
- */
-function captureLowBatteryCallback(): (enabled: boolean) => void {
-  let captured: ((enabled: boolean) => void) | null = null;
-  mockSubscribeLowBatteryPausePref.mockImplementation(
-    (_uid: string, onUpdate: (enabled: boolean) => void) => {
-      captured = onUpdate;
-      return jest.fn();
-    },
-  );
-  return (enabled: boolean) => {
-    if (captured) { act(() => { captured!(enabled); }); }
-  };
-}
-
-describe('ProfileScreen — Battery section (KAN-52)', () => {
+describe('ProfileScreen — KAN-112: points hero card', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockSetPoiPreference.mockResolvedValue(undefined);
-    mockSetLowBatteryPausePref.mockResolvedValue(undefined);
-    mockGetUser.mockResolvedValue(null);
-    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
-    mockSubscribeToCategories.mockReturnValue(jest.fn());
-    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
-    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
-    mockSubscribeToAchievements.mockReturnValue(jest.fn());
-  });
-
-  it('renders the Battery section heading', () => {
-    renderScreen();
-    expect(screen.getByText('Battery')).toBeTruthy();
-  });
-
-  it('renders the toggle label and sub-label', () => {
-    renderScreen();
-    expect(screen.getByText('Pause nearby alerts on low battery')).toBeTruthy();
-    expect(screen.getByText('Alerts pause when battery drops below 20%')).toBeTruthy();
-  });
-
-  it('subscribes to the low-battery pref with the current uid', () => {
-    renderScreen();
-    expect(mockSubscribeLowBatteryPausePref).toHaveBeenCalledWith(
-      'test-uid',
-      expect.any(Function),
-    );
-  });
-
-  it('toggle starts off (false) by default', () => {
-    renderScreen();
-    // The Switch is off when subscribeLowBatteryPausePref fires no update.
-    const toggle = screen.getByLabelText('Pause nearby alerts on low battery');
-    expect(toggle.props.value).toBe(false);
-  });
-
-  it('reflects true when the Firestore subscription fires with true', () => {
-    const firePref = captureLowBatteryCallback();
-    renderScreen();
-    firePref(true);
-    const toggle = screen.getByLabelText('Pause nearby alerts on low battery');
-    expect(toggle.props.value).toBe(true);
-  });
-
-  it('calls setLowBatteryPausePref with true when the toggle is switched on', () => {
-    renderScreen();
-    fireEvent(screen.getByLabelText('Pause nearby alerts on low battery'), 'valueChange', true);
-    expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', true);
-  });
-
-  it('calls setLowBatteryPausePref with false when the toggle is switched off', () => {
-    const firePref = captureLowBatteryCallback();
-    renderScreen();
-    firePref(true); // Start in enabled state
-    fireEvent(screen.getByLabelText('Pause nearby alerts on low battery'), 'valueChange', false);
-    expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', false);
-  });
-});
-
-// ─── KAN-19: Points & Achievements section ────────────────────────────────────
-
-/** Fire the subscribeToTotalPoints callback with a value. */
-function fireTotalPoints(value: number) {
-  const call = mockSubscribeToTotalPoints.mock.calls[0];
-  if (call) { act(() => { call[1](value); }); }
-}
-
-/** Fire the subscribeToAchievements callback with achievements. */
-function fireAchievements(achievements: object[]) {
-  const call = mockSubscribeToAchievements.mock.calls[0];
-  if (call) { act(() => { call[1](achievements); }); }
-}
-
-describe('ProfileScreen — KAN-19: points & achievements', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetUser.mockResolvedValue(null);
-    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
-    mockSubscribeToCategories.mockReturnValue(jest.fn());
-    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
-    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
-    mockSubscribeToAchievements.mockReturnValue(jest.fn());
-  });
-
-  it('renders the Points section heading', () => {
-    renderScreen();
-    expect(screen.getByText('Points')).toBeTruthy();
+    setupDefaultMocks();
   });
 
   it('subscribes to total points with the correct uid', () => {
     renderScreen();
     expect(mockSubscribeToTotalPoints).toHaveBeenCalledWith(
-      'test-uid',
-      expect.any(Function),
-      expect.any(Function),
+      'test-uid', expect.any(Function), expect.any(Function),
     );
   });
 
-  it('displays 0 pts before the subscription fires', () => {
+  it('subscribes to current streak with the correct uid', () => {
+    renderScreen();
+    expect(mockSubscribeToCurrentStreak).toHaveBeenCalledWith(
+      'test-uid', expect.any(Function), expect.any(Function),
+    );
+  });
+
+  it('shows 0 points before subscription fires', () => {
     renderScreen();
     expect(screen.getByLabelText('0 points')).toBeTruthy();
   });
 
-  it('updates the point count when subscription fires', () => {
+  it('updates the displayed point count when subscription fires', () => {
     renderScreen();
-    fireTotalPoints(17);
-    expect(screen.getByLabelText('17 points')).toBeTruthy();
+    firePoints(7);
+    expect(screen.getByLabelText('7 points')).toBeTruthy();
   });
 
-  it('shows the "See all" achievements link', () => {
+  it('shows the next tier name when points < tierAt', () => {
+    renderScreen();
+    firePoints(4);
+    expect(screen.getByText('Bronze badge')).toBeTruthy();
+  });
+
+  it('shows "earned by brushing away tasks" — not "completing tasks"', () => {
+    renderScreen();
+    expect(screen.queryByText(/completing tasks/)).toBeNull();
+    expect(screen.getByText(/brushing away tasks/)).toBeTruthy();
+  });
+
+  it('shows correct pts-to-go when totalPoints is updated', () => {
+    renderScreen();
+    firePoints(4);
+    // Bronze tier at 10 pts; 10 − 4 = 6 pts to go
+    expect(screen.getByText('6 pts')).toBeTruthy();
+  });
+
+  it('shows streak chip when streak > 0', () => {
+    renderScreen();
+    fireStreak(3);
+    // streak chip: nested Text renders "3" + "-day streak" inside one parent
+    expect(screen.getByText('3')).toBeTruthy();
+    expect(screen.getByText(/day streak/)).toBeTruthy();
+  });
+
+  it('hides streak chip when streak is 0', () => {
+    renderScreen();
+    fireStreak(0);
+    expect(screen.queryByText('-day streak')).toBeNull();
+  });
+});
+
+// ─── Achievement medal strip ──────────────────────────────────────────────────
+
+describe('ProfileScreen — KAN-112: achievement medal strip', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('subscribes to achievements with the correct uid', () => {
+    renderScreen();
+    expect(mockSubscribeToAchievements).toHaveBeenCalledWith(
+      'test-uid', expect.any(Function), expect.any(Function),
+    );
+  });
+
+  it('shows the Achievements header', () => {
+    renderScreen();
+    expect(screen.getByText(/Achievements/)).toBeTruthy();
+  });
+
+  it('shows "See all" button', () => {
     renderScreen();
     expect(screen.getByLabelText('See all achievements')).toBeTruthy();
   });
 
-  it('shows the empty-state text when no achievements earned', () => {
+  it('shows 0/5 count when no achievements earned', () => {
     renderScreen();
-    expect(screen.getByText('Complete tasks to earn achievements')).toBeTruthy();
+    fireAchievements([]);
+    expect(screen.getByText(' · 0/5')).toBeTruthy();
   });
 
-  it('renders a badge for each earned achievement', () => {
+  it('shows correct earned/total count when some achievements are earned', () => {
     renderScreen();
     fireAchievements([
-      { id: 'first_task',                    type: 'first_task',     earnedAt: {} },
-      { id: 'daily_complete_2026-06-03',     type: 'daily_complete', earnedAt: {} },
+      { id: 'day_complete', type: 'day_complete', earnedAt: {} },
+      { id: 'early_bird',   type: 'early_bird',   earnedAt: {} },
     ]);
-    expect(screen.getByLabelText('Achievement: First task')).toBeTruthy();
-    expect(screen.getByLabelText('Achievement: Day complete')).toBeTruthy();
+    expect(screen.getByText(' · 2/5')).toBeTruthy();
   });
 
-  it('hides the empty state once achievements arrive', () => {
+  it('shows all 5 V1 achievement labels in the strip', () => {
     renderScreen();
-    fireAchievements([
-      { id: 'first_task', type: 'first_task', earnedAt: {} },
-    ]);
-    expect(screen.queryByText('Complete tasks to earn achievements')).toBeNull();
+    expect(screen.getByText('Day complete')).toBeTruthy();
+    expect(screen.getByText('Early bird')).toBeTruthy();
+    expect(screen.getByText('On a roll')).toBeTruthy();
+    expect(screen.getByText('Explorer')).toBeTruthy();
+    expect(screen.getByText('Centurion')).toBeTruthy();
   });
 });
 
-// ─── KAN-80: Collapsible Notification Preferences ────────────────────────────
+// ─── Navigation entries ───────────────────────────────────────────────────────
 
-describe('ProfileScreen — KAN-80: collapsible notification preferences', () => {
+describe('ProfileScreen — KAN-112: navigation entries', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDefaultMocks();
+  });
+
+  it('renders "Share my profile" row', () => {
+    renderScreen();
+    expect(screen.getByLabelText('Share my profile')).toBeTruthy();
+  });
+
+  it('renders Settings entry row', () => {
+    renderScreen();
+    expect(screen.getByLabelText('Settings')).toBeTruthy();
+    expect(screen.getByText('Settings')).toBeTruthy();
+  });
+
+  it('renders "App & account" subtitle on Settings row', () => {
+    renderScreen();
+    expect(screen.getByText('App & account')).toBeTruthy();
+  });
+});
+
+// ─── Subscription cleanup ─────────────────────────────────────────────────────
+
+describe('ProfileScreen — KAN-112: subscription lifecycle', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetUser.mockResolvedValue(null);
-    mockSubscribeToPoiPreferences.mockReturnValue(jest.fn());
-    mockSubscribeToCategories.mockReturnValue(jest.fn());
-    mockSubscribeLowBatteryPausePref.mockReturnValue(jest.fn());
-    mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
-    mockSubscribeToAchievements.mockReturnValue(jest.fn());
   });
 
-  it('shows no rows by default (fully collapsed)', () => {
-    renderScreen();
-    // No rows at all until the user taps
-    expect(screen.queryByLabelText('ATM notification radius')).toBeNull();
-    expect(screen.queryByLabelText('Pharmacy notification radius')).toBeNull();
-    expect(screen.queryByLabelText('Café notification radius')).toBeNull();
-    expect(screen.queryByLabelText('Supermarket notification radius')).toBeNull();
-  });
+  it('unsubscribes from all three subscriptions on unmount', () => {
+    const unsub1 = jest.fn();
+    const unsub2 = jest.fn();
+    const unsub3 = jest.fn();
+    mockSubscribeToTotalPoints.mockReturnValue(unsub1);
+    mockSubscribeToCurrentStreak.mockReturnValue(unsub2);
+    mockSubscribeToAchievements.mockReturnValue(unsub3);
 
-  it('shows all rows after pressing the header', () => {
-    renderScreen();
-    fireEvent.press(
-      screen.getByLabelText('Expand notification preferences'),
-    );
-    expect(screen.getByLabelText('ATM notification radius')).toBeTruthy();
-    expect(screen.getByLabelText('Pharmacy notification radius')).toBeTruthy();
-    expect(screen.getByLabelText('Café notification radius')).toBeTruthy();
-    expect(screen.getByLabelText('Supermarket notification radius')).toBeTruthy();
-  });
+    const { unmount } = renderScreen();
+    unmount();
 
-  it('collapses back to zero rows after pressing the header a second time', () => {
-    renderScreen();
-    fireEvent.press(screen.getByLabelText('Expand notification preferences'));
-    fireEvent.press(screen.getByLabelText('Collapse notification preferences'));
-    expect(screen.queryByLabelText('ATM notification radius')).toBeNull();
-    expect(screen.queryByLabelText('Pharmacy notification radius')).toBeNull();
-  });
-
-  it('shows "X more" label in collapsed state when there are hidden rows', () => {
-    renderScreen();
-    // 4 built-in rows all hidden → "4 items"
-    expect(screen.getByText('4 items')).toBeTruthy();
-  });
-
-  it('hides "X more" label when expanded', () => {
-    renderScreen();
-    fireEvent.press(screen.getByLabelText('Expand notification preferences'));
-    expect(screen.queryByText('4 items')).toBeNull();
-  });
-
-  it('does not show "X more" when there is only one row', () => {
-    // Override allPoiRows to return just one row by suppressing custom categories
-    // and only having a single built-in. We achieve this by having categories
-    // return empty and checking that "more" text is absent when only 1 POI row exists.
-    // Since built-ins are hardcoded to 4, we can't easily test 1-row scenario
-    // without deeper mocking — skip to avoid false confidence.
-    // The "3 items" test above already validates the label logic.
+    expect(unsub1).toHaveBeenCalledTimes(1);
+    expect(unsub2).toHaveBeenCalledTimes(1);
+    expect(unsub3).toHaveBeenCalledTimes(1);
   });
 });
