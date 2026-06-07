@@ -33,11 +33,14 @@ import {
   subscribeToCategories,
   subscribeLowBatteryPausePref,
   setLowBatteryPausePref,
+  subscribeStoreTuningPref,
+  setStoreTuningPref,
 } from '../services/firestore';
 import { logout } from '../services/auth';
 import {
   BatteryIcon,
   BellIcon,
+  BuildingIcon,
   CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -147,6 +150,8 @@ function ImportRow({ source, uid, isLast }: ImportRowProps) {
 interface SettingsRowProps {
   Icon:     React.FC<{ color: string; size?: number }>;
   label:    string;
+  /** Optional secondary line of text below the label. */
+  sublabel?: string;
   onPress?: () => void;
   trailing?: React.ReactNode;
   danger?:  boolean;
@@ -157,6 +162,7 @@ interface SettingsRowProps {
 function SettingsRow({
   Icon,
   label,
+  sublabel,
   onPress,
   trailing,
   danger = false,
@@ -176,7 +182,14 @@ function SettingsRow({
         <View style={[s.iconTile, { backgroundColor: palette.surface2 }]}>
           <Icon color={danger ? palette.accent : palette.muted} size={19} />
         </View>
-        <Text style={[s.rowLabel, { color: textColor }]}>{label}</Text>
+        <View style={s.rowLabelGroup}>
+          <Text style={[s.rowLabel, { color: textColor }]}>{label}</Text>
+          {sublabel ? (
+            <Text style={[s.rowSublabel, { color: palette.muted }]} numberOfLines={2}>
+              {sublabel}
+            </Text>
+          ) : null}
+        </View>
         <View style={s.trailingSlot}>
           {trailing !== undefined
             ? trailing
@@ -209,14 +222,16 @@ export default function SettingsScreen() {
 
   const uid = getAuth().currentUser?.uid ?? '';
 
-  const [lowBatteryPause, setLowBatteryPause]   = useState(false);
-  const [customCategories, setCustomCategories] = useState<Category[]>([]);
+  const [lowBatteryPause,    setLowBatteryPause]    = useState(false);
+  const [storeTuningEnabled, setStoreTuningEnabled] = useState<boolean | undefined>(undefined);
+  const [customCategories,   setCustomCategories]   = useState<Category[]>([]);
 
   useEffect(() => {
     if (!uid) { return; }
-    const unsubPause = subscribeLowBatteryPausePref(uid, setLowBatteryPause);
-    const unsubCats  = subscribeToCategories(uid, setCustomCategories);
-    return () => { unsubPause(); unsubCats(); };
+    const unsubPause   = subscribeLowBatteryPausePref(uid, setLowBatteryPause);
+    const unsubTuning  = subscribeStoreTuningPref(uid, setStoreTuningEnabled);
+    const unsubCats    = subscribeToCategories(uid, setCustomCategories);
+    return () => { unsubPause(); unsubTuning(); unsubCats(); };
   }, [uid]);
 
   const notifItemCount = (() => {
@@ -239,6 +254,15 @@ export default function SettingsScreen() {
       await setLowBatteryPausePref(uid, value);
     } catch {
       setLowBatteryPause(!value);
+    }
+  }, [uid]);
+
+  const handleStoreTuningToggle = useCallback(async (value: boolean) => {
+    setStoreTuningEnabled(value);
+    try {
+      await setStoreTuningPref(uid, value);
+    } catch {
+      setStoreTuningEnabled(!value);
     }
   }, [uid]);
 
@@ -357,7 +381,6 @@ export default function SettingsScreen() {
           <SettingsRow
             Icon={BatteryIcon}
             label="Pause nearby alerts on low battery"
-            isLast
             trailing={
               <Switch
                 value={lowBatteryPause}
@@ -365,6 +388,21 @@ export default function SettingsScreen() {
                 trackColor={{ false: palette.surface2, true: palette.accent }}
                 thumbColor={palette.bg}
                 accessibilityLabel="Pause nearby alerts on low battery toggle"
+              />
+            }
+          />
+          <SettingsRow
+            Icon={BuildingIcon}
+            label="Store fine tuning"
+            sublabel="Automatically switch to store-level proximity when inside a mall. Uses more battery."
+            isLast
+            trailing={
+              <Switch
+                value={storeTuningEnabled === true}
+                onValueChange={handleStoreTuningToggle}
+                trackColor={{ false: palette.surface2, true: palette.accent }}
+                thumbColor={palette.bg}
+                accessibilityLabel="Store fine tuning toggle"
               />
             }
           />
@@ -464,11 +502,21 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     flexShrink:     0,
   },
+  rowLabelGroup: {
+    flex:    1,
+    gap:     2,
+    minWidth: 0,
+  },
   rowLabel: {
-    flex:       1,
+    flex:       1,     // expands in ImportRow (no rowLabelGroup wrapper)
     fontSize:   15,
     fontWeight: '400',
     fontFamily: 'Geist-Regular',
+  },
+  rowSublabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+    lineHeight: 16,
   },
   trailingSlot: {
     alignItems:     'center',

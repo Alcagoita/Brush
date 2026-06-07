@@ -1025,6 +1025,55 @@ export function subscribeToFollowers(
   );
 }
 
+// ─── Store fine tuning preference (KAN-74) ───────────────────────────────────
+//
+// Stored on the root user document as `poiPreferences.storeTuningEnabled`.
+// Three-state semantics:
+//   absent / undefined → show prompt on first indoor_mapped detection
+//   true               → auto-activate; user has confirmed the feature
+//   false              → user opted out; suppress prompt permanently
+//
+// Use the same `poiPreferences` map as lowBatteryPause to keep all
+// user-controlled feature flags together on the root document.
+
+/**
+ * Persist the user's Store fine tuning preference.
+ *
+ * `true`  — user enabled via prompt or settings toggle
+ * `false` — user explicitly disabled via settings toggle (suppresses prompt)
+ */
+export async function setStoreTuningPref(
+  uid: string,
+  enabled: boolean,
+): Promise<void> {
+  await updateDoc(userRef(uid), { 'poiPreferences.storeTuningEnabled': enabled });
+}
+
+/**
+ * Subscribe to live updates for the user's Store fine tuning preference.
+ *
+ * `onUpdate` receives `true | false | undefined`:
+ *   undefined — field not yet set (first-time user; show prompt on indoor_mapped)
+ *   true      — user has enabled the feature
+ *   false     — user explicitly disabled (suppress prompt)
+ *
+ * Returns an unsubscribe function.
+ */
+export function subscribeStoreTuningPref(
+  uid: string,
+  onUpdate: (enabled: boolean | undefined) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    userRef(uid),
+    snap => {
+      const data = snap?.data() as User | undefined;
+      onUpdate(data?.poiPreferences?.storeTuningEnabled);
+    },
+    onError,
+  );
+}
+
 // ─── Re-exports for convenience ───────────────────────────────────────────────
 
 export { Timestamp, serverTimestamp };
