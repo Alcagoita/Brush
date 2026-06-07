@@ -9,6 +9,17 @@ export function toDateString(value: string): DateString {
   return value as DateString;
 }
 
+// ─── Store fine tuning (KAN-74) ──────────────────────────────────────────────
+
+/**
+ * Session-level state for the Store fine tuning feature.
+ *
+ *   off           — not active; prompt has not been shown (or was shown and dismissed)
+ *   prompt_shown  — the bottom-sheet prompt is visible / pending user response
+ *   active        — user tapped "Turn on"; indoor proximity radius = 10 m
+ */
+export type StoreTuningState = 'off' | 'prompt_shown' | 'active';
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 /** /users/{uid} */
@@ -50,6 +61,17 @@ export interface User {
      * LOW_BATTERY_THRESHOLD (20%). Default: false (opt-in). KAN-52.
      */
     lowBatteryPause?: boolean;
+    /**
+     * Store fine tuning preference (KAN-74).
+     *
+     *   absent / undefined — user has never interacted; prompt is shown on first
+     *                        indoor_mapped detection each session.
+     *   true               — user has activated via prompt or settings toggle;
+     *                        mode auto-activates silently on indoor_mapped.
+     *   false              — user has explicitly disabled via settings toggle;
+     *                        prompt is suppressed permanently.
+     */
+    storeTuningEnabled?: boolean;
   };
 }
 

@@ -462,3 +462,24 @@ export function QrCodeIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+/** Building / store icon — used by KAN-74 Store fine tuning indicator. */
+export function BuildingIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Main building outline */}
+      <Path
+        d="M3 21h18M5 21V5a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v16"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      {/* Left windows */}
+      <Rect x="7"  y="8"  width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      <Rect x="7"  y="13" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      {/* Right windows */}
+      <Rect x="14" y="8"  width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      <Rect x="14" y="13" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      {/* Door */}
+      <Path d="M10 21v-4h4v4" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
