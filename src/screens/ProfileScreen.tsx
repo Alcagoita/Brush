@@ -516,7 +516,7 @@ export default function ProfileScreen() {
               <Text style={{ color: palette.muted }}>{` · ${earnedCount}/${V1_ACHIEVEMENTS.length}`}</Text>
             </Text>
             <Pressable
-              onPress={() => Alert.alert('Coming soon', 'Achievements screen will be available in a future update.')}
+              onPress={() => navigation.navigate('Achievements')}
               accessibilityRole="button"
               accessibilityLabel="See all achievements">
               <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all ›</Text>

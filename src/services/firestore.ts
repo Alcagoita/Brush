@@ -777,6 +777,19 @@ export function subscribeLowBatteryPausePref(
   );
 }
 
+// ─── Achievement progress helpers (KAN-114) ──────────────────────────────────
+
+/**
+ * Returns the count of completed tasks that had a POI attached.
+ * Used to render Explorer achievement progress on the Achievements screen.
+ * One-time read — does not subscribe.
+ */
+export async function getLocationTasksCompletedCount(uid: string): Promise<number> {
+  const q = query(tasksRef(uid), where('done', '==', true), where('poi', '!=', null));
+  const snap = await getDocs(q);
+  return snap.size;
+}
+
 // ─── Usernames (KAN-97) ───────────────────────────────────────────────────────
 //
 // Schema:

@@ -376,6 +376,34 @@ export function ListCheckIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Check ─────────────────────────────────────────────────────────────────────
+export function CheckIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M5 12l5 5L20 7" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Pin / Location ────────────────────────────────────────────────────────────
+export function PinIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 2C8.686 2 6 4.686 6 8c0 4.5 6 12 6 12s6-7.5 6-12c0-3.314-2.686-6-6-6z" stroke={color} strokeWidth={1.6} {...S} />
+      <Circle cx="12" cy="8" r="2" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Star ──────────────────────────────────────────────────────────────────────
+export function StarIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── Medal / Achievement ───────────────────────────────────────────────────────
 export function MedalIcon({ color, size = 24 }: IconProps) {
   return (
