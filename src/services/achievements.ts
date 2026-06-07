@@ -106,8 +106,8 @@ export async function checkAndAwardDailyComplete(
 
   await ensureChannel();
   await notifee.displayNotification({
-    title: 'All done for today!',
-    body:  "You've completed every task on your list. Great work!",
+    title: 'All brushed for today!',
+    body:  "You've brushed every task on your list. Great work!",
     data:  { screen: 'Today' },
     android: {
       channelId:   CHANNEL_ID,

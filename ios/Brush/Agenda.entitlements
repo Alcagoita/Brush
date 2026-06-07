@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Agenda.entitlements — KAN-91
+
+  Added to the main app target so the Brush app and BrushShareExtension share
+  the same App Group and Keychain access group. This allows the extension to
+  reuse the user's existing Firebase Auth session without a separate sign-in.
+
+  SETUP in Xcode:
+    1. Select the Agenda target → Signing & Capabilities
+    2. Click "+" → "App Groups" → add "group.com.brush.shared"
+    3. Click "+" → "Keychain Sharing" → add "com.brush"
+    4. Point "Code Signing Entitlements" build setting to this file (relative path:
+       Agenda/Agenda.entitlements).
+
+  The same two capabilities must be enabled on BrushShareExtension (see
+  BrushShareExtension/BrushShareExtension.entitlements).
+-->
+<plist version="1.0">
+<dict>
+	<!-- Shared App Group (same value in BrushShareExtension.entitlements). -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.brush.shared</string>
+	</array>
+
+	<!-- Keychain Sharing — must match BrushShareExtension.entitlements exactly. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.brush</string>
+	</array>
+</dict>
+</plist>

@@ -143,10 +143,10 @@ describe('PointsHistoryScreen — points history', () => {
     expect(screen.getByText('+1')).toBeTruthy();
   });
 
-  it('renders the reason label for task_completed', () => {
+  it('renders "Brushed" as the reason label for task_completed (KAN-108)', () => {
     render(<PointsHistoryScreen />);
     fireHistory([makeEntry()]);
-    expect(screen.getByText(/Task completed/)).toBeTruthy();
+    expect(screen.getByText(/^Brushed/)).toBeTruthy();
   });
 
   it('does not show "Load more" when entries fit on one page', () => {
