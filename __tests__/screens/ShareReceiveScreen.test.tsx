@@ -109,7 +109,7 @@ it('shows the loading state while parseMessageToTask is pending', async () => {
 
   expect(screen.getByTestId('loading-state')).toBeTruthy();
   // Loading label
-  expect(screen.getByText('Parsing task…')).toBeTruthy();
+  expect(screen.getByText('Parsing message…')).toBeTruthy();
   // Raw shared text shown in card
   expect(screen.getByText('Pick up milk from Whole Foods at 5pm')).toBeTruthy();
 });
@@ -172,7 +172,7 @@ it('shows failure state on low-confidence parse', async () => {
   });
 
   expect(
-    screen.getByText("We couldn't parse a task automatically. Add the details manually."),
+    screen.getByText("We couldn't parse a brush automatically. Add the details manually."),
   ).toBeTruthy();
 });
 
@@ -255,6 +255,37 @@ it('blocks save when title is empty and shows error', async () => {
 
   expect(mockAddTask).not.toHaveBeenCalled();
   expect(screen.getByText('Title is required.')).toBeTruthy();
+});
+
+// ── Retry ─────────────────────────────────────────────────────────────────────
+
+it('shows Try again button in failure state and re-runs parse on press (KAN-108)', async () => {
+  // First call fails, second succeeds
+  mockParseMessageToTask
+    .mockRejectedValueOnce(new Error('Network error'))
+    .mockResolvedValueOnce({
+      title: 'Buy milk', suggestedPoi: null, suggestedTime: null, confidence: 'high',
+    });
+
+  renderScreen();
+
+  await waitFor(() => {
+    expect(screen.getByTestId('failure-note')).toBeTruthy();
+  });
+
+  // Try again button present
+  expect(screen.getByLabelText('Try again')).toBeTruthy();
+
+  // Press Try again → loading → confirmation
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText('Try again'));
+  });
+
+  await waitFor(() => {
+    expect(screen.getByText('AI suggestion — tap to edit')).toBeTruthy();
+  });
+
+  expect(mockParseMessageToTask).toHaveBeenCalledTimes(2);
 });
 
 // ── Discard ────────────────────────────────────────────────────────────────────

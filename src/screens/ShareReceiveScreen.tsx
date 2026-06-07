@@ -121,6 +121,14 @@ export default function ShareReceiveScreen() {
 
   // ── Screen state (loading → confirmation | failure) ─────────────────────────
   const [screenState, setScreenState] = useState<ScreenState>({ kind: 'loading' });
+  // Incrementing retryKey re-runs the parse effect (Try again button).
+  const [retryKey, setRetryKey] = useState(0);
+
+  const handleRetry = useCallback(() => {
+    seeded.current = false;
+    setScreenState({ kind: 'loading' });
+    setRetryKey(k => k + 1);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -144,7 +152,8 @@ export default function ShareReceiveScreen() {
         setScreenState({ kind: 'failure' });
       });
     return () => { cancelled = true; };
-  }, [sharedText]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharedText, retryKey]);
 
   // ── Form state (editable by user once loaded) ───────────────────────────────
   const [title,     setTitle]     = useState('');
@@ -269,7 +278,7 @@ export default function ShareReceiveScreen() {
             </Text>
           </View>
           <ActivityIndicator size="large" color={palette.accent} style={styles.spinner} />
-          <Text style={[styles.loadingLabel, { color: palette.muted }]}>Parsing task…</Text>
+          <Text style={[styles.loadingLabel, { color: palette.muted }]}>Parsing message…</Text>
         </View>
       )}
 
@@ -288,8 +297,16 @@ export default function ShareReceiveScreen() {
             <View style={[styles.failureNote, { backgroundColor: palette.surface, borderColor: palette.line }]}
               testID="failure-note">
               <Text style={[styles.failureNoteText, { color: palette.muted }]}>
-                We couldn't parse a task automatically. Add the details manually.
+                We couldn't parse a brush automatically. Add the details manually.
               </Text>
+              <Pressable
+                onPress={handleRetry}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Try again"
+                testID="retry-btn">
+                <Text style={[styles.retryLabel, { color: palette.accent }]}>Try again</Text>
+              </Pressable>
             </View>
           )}
 
@@ -304,7 +321,7 @@ export default function ShareReceiveScreen() {
           <TextInput
             ref={titleRef}
             style={[styles.titleInput, { color: palette.text, borderBottomColor: palette.line }]}
-            placeholder="Task title"
+            placeholder="Brush title"
             placeholderTextColor={palette.faint}
             value={title}
             onChangeText={v => { setTitle(v); if (titleError) { setTitleError(''); } }}
@@ -480,10 +497,10 @@ export default function ShareReceiveScreen() {
               { backgroundColor: submitting ? palette.faint : palette.text },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Add task"
+            accessibilityLabel="Add brush"
             testID="add-task-btn">
             <Text style={[styles.addBtnLabel, { color: palette.bg }]}>
-              {submitting ? 'Saving…' : 'Add task'}
+              {submitting ? 'Saving…' : 'Add brush'}
             </Text>
           </Pressable>
 
@@ -571,6 +588,11 @@ const styles = StyleSheet.create({
     fontSize:   13,
     fontFamily: 'Geist-Regular',
     lineHeight: 18,
+  },
+  retryLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Medium',
+    marginTop:  10,
   },
 
   // ── AI suggestion label ──
