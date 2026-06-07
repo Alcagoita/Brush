@@ -94,6 +94,28 @@ export interface PoiPreference {
 
 export type CategoryKey = 'work' | 'health' | 'errands' | 'personal';
 
+/**
+ * Named store tag for indoor proximity matching (KAN-76 / KAN-75).
+ *
+ * Stored as a sub-document on `Task.store`. Independent of `Task.poi` — a task
+ * can carry either, both, or neither.
+ *
+ * Match strategy in the indoor engine:
+ *   1. `placeId` equality (Google Places ID — authoritative).
+ *   2. `name` case-insensitive equality (fallback when placeId is unavailable).
+ */
+export interface TaskStore {
+  /** Google Places ID of the target store, if known. */
+  placeId?: string;
+  /** Display name of the store — used as fallback match key. */
+  name: string;
+  /**
+   * Date ("YYYY-MM-DD") when the last indoor proximity alert was fired.
+   * Suppresses repeat alerts on the same day (KAN-75).
+   */
+  alertSeenDate?: string;
+}
+
 /** /users/{uid}/tasks/{taskId} */
 export interface Task {
   id: string;
@@ -123,6 +145,12 @@ export interface Task {
    * fired for this task. Suppresses repeat alerts on the same day (KAN-24).
    */
   poiAlertSeenDate?: string;
+  /**
+   * Named store tag for indoor proximity matching (KAN-76).
+   * Independent of `poi` — a task can have either, both, or neither.
+   * `alertSeenDate` suppresses repeat indoor alerts on the same day (KAN-75).
+   */
+  store?: TaskStore;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */

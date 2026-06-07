@@ -105,6 +105,14 @@ let _pauseContext: PauseContext | null = null;
 let _isPaused = false;
 
 /**
+ * Optional tap into the GPS stream (KAN-75 indoor detection).
+ * When set, every location fix from `startTracking` is forwarded to this
+ * callback so the indoor detection service can receive feeds without
+ * starting a competing GPS watcher.
+ */
+let _locationTap: ((lat: number, lng: number, accuracy: number) => void) | null = null;
+
+/**
  * Distance threshold for switching GPS accuracy mode (KAN-55).
  *
  * When the nearest cached POI is within this distance the engine switches to
@@ -481,6 +489,8 @@ export function startProximityMonitoring(
   startTracking(
     async (coords: Coordinates) => {
       if (!isMonitoring) { return; }
+      // Forward to indoor detection tap (KAN-75) — no-op when null.
+      _locationTap?.(coords.lat, coords.lng, coords.accuracy);
       await checkProximity(uid, coords, latestTasks, onUpdate);
     },
     (err) => {
@@ -620,6 +630,7 @@ export function stopProximityMonitoring(): void {
   isMonitoring = false;
   _isPaused = false;
   _pauseContext = null;
+  _locationTap = null;
   stopTracking();
   placeCache.clear();
   currentNearbyType = null;
@@ -632,4 +643,18 @@ export function stopProximityMonitoring(): void {
   NativeGeofence.removeAllGeofences().catch(err =>
     console.warn('[proximity] failed to remove geofences on stop', err),
   );
+}
+
+/**
+ * Register a callback that receives every GPS fix while the outdoor proximity
+ * engine is running (KAN-75). Used by the indoor detection service to feed
+ * location data without starting a competing GPS watcher.
+ *
+ * The tap is automatically cleared when `stopProximityMonitoring()` is called.
+ * Pass `null` to unregister explicitly.
+ */
+export function setLocationTap(
+  cb: ((lat: number, lng: number, accuracy: number) => void) | null,
+): void {
+  _locationTap = cb;
 }

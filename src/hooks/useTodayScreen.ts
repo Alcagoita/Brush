@@ -16,25 +16,47 @@ import {
   setTaskDone,
   subscribeToCategories,
   subscribeLowBatteryPausePref,
+  subscribeStoreTuningPref,
+  setStoreTuningPref,
   subscribeToPoiPreferences,
   subscribeToTasksForDate,
 } from '../services/firestore';
 import { evaluateAchievements } from '../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
-import { requestLocationPermission } from '../services/geolocation';
+import {
+  requestLocationPermission,
+  LocationContext,
+} from '../services/geolocation';
 import {
   pauseGeofenceMonitoring,
   PlacesMap,
   resumeGeofenceMonitoring,
+  setLocationTap,
   startProximityMonitoring,
   stopProximityMonitoring,
   updateProximityPoiPreferences,
   updateProximityTasks,
 } from '../services/proximity';
+import {
+  startIndoorProximityMonitoring,
+  stopIndoorProximityMonitoring,
+  updateIndoorTasks,
+} from '../services/indoorProximity';
+import {
+  startIndoorDetection,
+  feedLocation,
+  stopIndoorDetection,
+} from '../services/indoorDetection';
+import {
+  startStoreTuning,
+  onLocationContextChange,
+  activateStoreTuning,
+  dismissStoreTuning,
+} from '../services/storeTuning';
 import { getBatteryLevel, shouldPauseForBattery, useBatteryLevel } from '../services/battery';
 import { NearbyPlace } from '../services/maps';
 import { syncTasksToWatch } from '../services/wearSync';
-import { Category, Task, TasksUiState } from '../types';
+import { Category, StoreTuningState, Task, TasksUiState } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -60,6 +82,20 @@ export interface TodayScreenState {
   poiPlaces:        PlacesMap;
   /** True when low-battery mode is active and geofence monitoring is paused (KAN-52). */
   trackingPaused:   boolean;
+  /**
+   * True when Store fine tuning is active (KAN-74 / KAN-75).
+   * Drives the "Store tuning on" badge in NearbyCard.
+   */
+  storeTuningActive:        boolean;
+  /**
+   * True when the Store fine tuning opt-in prompt should be visible (KAN-75).
+   * The prompt fires once per session when indoor_mapped is detected.
+   */
+  showStoreTuningPrompt:    boolean;
+  /** Call when the user taps "Turn on" in the StoreTuningPromptSheet. */
+  onStoreTuningTurnOn:      () => void;
+  /** Call when the user taps "Not now" in the StoreTuningPromptSheet. */
+  onStoreTuningNotNow:      () => void;
   /** Controls the new-task bottom sheet. */
   sheetVisible:     boolean;
   setSheetVisible:  Dispatch<SetStateAction<boolean>>;
@@ -132,6 +168,70 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       console.warn('[useTodayScreen] lowBatteryPausePref error', err);
     });
   }, [uid]);
+
+  // ── Store fine tuning (KAN-74 / KAN-75) ────────────────────────────────────
+
+  const [storeTuningEnabled,  setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
+  const [storeTuningState,    setStoreTuningState]     = useState<StoreTuningState>('off');
+  const [locationContext,     setLocationContext]       = useState<LocationContext>('outdoor');
+
+  // Refs for indoor engine lifecycle
+  const isIndoorMonitoringRef   = useRef(false);
+  const stopIndoorMonitoringRef = useRef<(() => void) | null>(null);
+
+  // Subscribe to the Firestore store tuning preference.
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeStoreTuningPref(uid, setStoreTuningEnabled, (err) => {
+      console.warn('[useTodayScreen] storeTuningPref error', err);
+    });
+  }, [uid]);
+
+  // Start the indoor detection service (KAN-73) and store tuning state machine
+  // (KAN-74) when the user grants location permission.
+  useEffect(() => {
+    if (!uid || !permissionGranted) { return; }
+
+    // Indoor detection: receives location feeds and fires onContextChange.
+    const stopDetection = startIndoorDetection((ctx) => {
+      setLocationContext(ctx);
+    });
+
+    // Store tuning state machine: listens to context changes.
+    const stopTuning = startStoreTuning({
+      onStateChange:       setStoreTuningState,
+      onLowBatterySuppress: () => {
+        // Low-battery suppression — toast not yet wired in v0.7; no-op here.
+        console.log('[useTodayScreen] store tuning suppressed — low battery');
+      },
+    });
+
+    // While the outdoor engine is running, tap its GPS stream and feed indoor
+    // detection (KAN-75). The tap is cleared automatically when the outdoor
+    // engine stops.
+    setLocationTap((lat, lng, accuracy) => {
+      feedLocation(lat, lng, accuracy);
+    });
+
+    return () => {
+      setLocationTap(null);
+      stopTuning();
+      stopDetection();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, permissionGranted]);
+
+  // Propagate context changes to the store tuning state machine.
+  // All inputs are explicit so the machine stays in sync on every render.
+  useEffect(() => {
+    if (!uid || !permissionGranted) { return; }
+    onLocationContextChange(
+      locationContext,
+      storeTuningEnabled,
+      lowBatteryPausePref,
+      batteryLevel,
+    );
+  }, [uid, permissionGranted, locationContext, storeTuningEnabled, lowBatteryPausePref, batteryLevel]);
 
   const trackingPaused = shouldPauseForBattery(batteryLevel, lowBatteryPausePref);
   useEffect(() => {
@@ -207,15 +307,35 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     });
   }, [uid]);
 
-  // ── Proximity engine management (KAN-24 / KAN-53) ──────────────────────────
+  // ── Outdoor proximity engine management (KAN-24 / KAN-53) ────────────────
   //
+  // The outdoor engine runs ONLY when Store fine tuning is NOT active.
+  // When storeTuningState === 'active', the indoor engine takes over and the
+  // outdoor engine must be fully stopped (mutual exclusion — KAN-75 spec).
+  //
+  //   Gate:  store tuning active → stop outdoor engine, stay stopped
   //   Gate:  0 undone POI tasks && not monitoring → stay idle
   //   Start: >0 undone POI tasks && not monitoring → start engine
   //   Stop:  0 undone POI tasks  && monitoring     → stop engine
   //   Sync:  >0 undone POI tasks && monitoring     → push task list
 
+  const isStoreTuningActive = storeTuningState === 'active';
+
   useEffect(() => {
     if (!uid || !permissionGranted) { return; }
+
+    // Outdoor engine must NOT run while indoor engine is active.
+    if (isStoreTuningActive) {
+      if (isMonitoringRef.current) {
+        stopMonitoringRef.current?.();
+        stopMonitoringRef.current = null;
+        stopProximityMonitoring();
+        isMonitoringRef.current = false;
+        setNearbyPoiType(null);
+        setNearbyPlace(null);
+      }
+      return;
+    }
 
     const activePoiCount = effectiveTasks.filter(t => !t.done && t.poi).length;
 
@@ -246,7 +366,53 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       stopMonitoringRef.current?.();
       stopMonitoringRef.current = null;
     };
-  }, [effectiveTasks, uid, permissionGranted]);
+  }, [effectiveTasks, uid, permissionGranted, isStoreTuningActive]);
+
+  // ── Indoor proximity engine management (KAN-75) ────────────────────────────
+  //
+  // Runs ONLY when storeTuningState === 'active'.
+  // Started when store tuning activates; stopped when it deactivates.
+  // Task list is kept in sync via updateIndoorTasks() while active.
+
+  useEffect(() => {
+    if (!uid || !permissionGranted) { return; }
+
+    if (!isStoreTuningActive) {
+      // Indoor engine should not be running — stop it if it somehow is.
+      if (isIndoorMonitoringRef.current) {
+        stopIndoorMonitoringRef.current?.();
+        stopIndoorMonitoringRef.current = null;
+        stopIndoorProximityMonitoring();
+        isIndoorMonitoringRef.current = false;
+      }
+      return;
+    }
+
+    // Store tuning is active — start the indoor engine if not already running.
+    if (!isIndoorMonitoringRef.current) {
+      const stop = startIndoorProximityMonitoring(
+        uid,
+        effectiveTasks,
+        (task, place) => {
+          // Indoor engine reports the matched task / place pair.
+          // Map to the same nearbyPoiType / nearbyPlace fields so NearbyCard
+          // can render it without knowing which engine is active.
+          setNearbyPoiType(task?.poi ?? null);
+          setNearbyPlace(place);
+        },
+      );
+      isIndoorMonitoringRef.current   = true;
+      stopIndoorMonitoringRef.current = stop;
+    } else {
+      // Already running — push updated task list.
+      updateIndoorTasks(effectiveTasks);
+    }
+
+    return () => {
+      stopIndoorMonitoringRef.current?.();
+      stopIndoorMonitoringRef.current = null;
+    };
+  }, [effectiveTasks, uid, permissionGranted, isStoreTuningActive]);
 
   // ── Optimistic toggle (KAN-14 / KAN-31 / KAN-32) ───────────────────────────
 
@@ -295,6 +461,22 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     }
   }, [uid, tasks, optimisticDone]);
 
+  // ── Store tuning handlers ───────────────────────────────────────────────────
+
+  const onStoreTuningTurnOn = useCallback(() => {
+    activateStoreTuning();
+    // Persist the preference so the user doesn't see the prompt again.
+    if (uid) {
+      setStoreTuningPref(uid, true).catch(err =>
+        console.warn('[useTodayScreen] setStoreTuningPref failed', err),
+      );
+    }
+  }, [uid]);
+
+  const onStoreTuningNotNow = useCallback(() => {
+    dismissStoreTuning();
+  }, []);
+
   // ── Progress derived values ─────────────────────────────────────────────────
 
   const totalTasks  = effectiveTasks.length;
@@ -312,6 +494,10 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     nearbyPlace,
     poiPlaces,
     trackingPaused,
+    storeTuningActive:     isStoreTuningActive,
+    showStoreTuningPrompt: storeTuningState === 'prompt_shown',
+    onStoreTuningTurnOn,
+    onStoreTuningNotNow,
     sheetVisible,
     setSheetVisible,
     customCategories,
