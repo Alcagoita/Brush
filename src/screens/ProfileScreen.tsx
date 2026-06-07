@@ -567,7 +567,7 @@ export default function ProfileScreen() {
         {/* ── 5. Settings entry row ── */}
         <Pressable
           style={[styles.settingsRow, { borderColor: palette.line }]}
-          onPress={() => Alert.alert('Coming soon', 'Settings screen will be available in a future update.')}
+          onPress={() => navigation.navigate('Settings')}
           accessibilityRole="button"
           accessibilityLabel="Settings">
           <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
