@@ -21,6 +21,7 @@ import {
   deleteDoc,
   setDoc,
   writeBatch,
+  runTransaction,
   query,
   where,
   orderBy,
@@ -417,37 +418,70 @@ function achievementRef(uid: string, achievementId: string) {
   return doc(getFirestore(), 'users', uid, 'achievements', achievementId);
 }
 
+/** Returns today's date as "YYYY-MM-DD" in the device's local timezone. */
+function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /**
- * Award 1 point for completing a task (KAN-31).
+ * Award 1 point for completing a task (KAN-31 / KAN-128).
  *
- * Uses a write batch so both operations are atomic — if either write fails,
- * neither is committed. This prevents totalPoints from incrementing without
- * a corresponding history entry (or vice-versa).
+ * Idempotent: uses a deterministic document ID `{taskId}_{dateISO}` so that
+ * calling this function more than once for the same task on the same day is a
+ * no-op — no duplicate history entries and no double-increment of totalPoints.
  *
- *   1. Increments `totalPoints` on /users/{uid} (server-side, no read needed).
- *   2. Adds a PointsHistoryEntry to /users/{uid}/pointsHistory.
+ * Uses a Firestore transaction so the existence check and both writes are
+ * atomic: if the doc already exists the transaction returns early without
+ * writing anything.
  */
 export async function awardPoint(
   uid: string,
   taskId: string,
   taskTitle: string,
 ): Promise<void> {
-  const db = getFirestore();
-  const batch = writeBatch(db);
+  const db      = getFirestore();
+  const dateISO = todayISO();
+  const histRef = doc(pointsHistoryRef(uid), `${taskId}_${dateISO}`);
 
-  // Pre-generate an auto-ID ref so we can use batch.set instead of addDoc.
-  const histRef = doc(pointsHistoryRef(uid));
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(histRef);
+    if (snap.exists()) { return; } // Already awarded today — skip
 
-  batch.update(userRef(uid), { totalPoints: increment(1) });
-  batch.set(histRef, {
-    taskId,
-    taskTitle,
-    awardedAt: serverTimestamp(),
-    points: 1,
-    reason: 'task_completed',
+    tx.set(histRef, {
+      taskId,
+      taskTitle,
+      awardedAt: serverTimestamp(),
+      points:    1,
+      reason:    'task_completed',
+    });
+    tx.update(userRef(uid), { totalPoints: increment(1) });
   });
+}
 
-  await batch.commit();
+/**
+ * Reverse a task-completion point award (KAN-128).
+ *
+ * Called when the user un-completes a task. Deletes the history entry for
+ * today (if it exists) and decrements totalPoints atomically.
+ * If no entry exists for today (e.g. the task was completed on a prior day)
+ * this is a no-op — historical points are never removed.
+ */
+export async function revokePoint(
+  uid:    string,
+  taskId: string,
+): Promise<void> {
+  const db      = getFirestore();
+  const dateISO = todayISO();
+  const histRef = doc(pointsHistoryRef(uid), `${taskId}_${dateISO}`);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(histRef);
+    if (!snap.exists()) { return; } // Nothing to revoke
+
+    tx.delete(histRef);
+    tx.update(userRef(uid), { totalPoints: increment(-1) });
+  });
 }
 
 /**
@@ -666,7 +700,24 @@ export function subscribeToPointsHistory(
 ): () => void {
   return onSnapshot(
     query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')),
-    snap => { if (!snap) return; onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as PointsHistoryEntry))); },
+    snap => {
+      if (!snap) { return; }
+
+      // Deduplicate by taskId — keep only the most-recent entry per task.
+      // Docs are already ordered newest-first, so the first occurrence wins.
+      // This handles legacy auto-ID duplicates written before KAN-128 as well
+      // as any edge cases where two entries for the same task+day exist.
+      const seen = new Set<string>();
+      const unique: PointsHistoryEntry[] = [];
+      for (const d of snap.docs) {
+        const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
+        if (!seen.has(entry.taskId)) {
+          seen.add(entry.taskId);
+          unique.push(entry);
+        }
+      }
+      onUpdate(unique);
+    },
     onError,
   );
 }
