@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-share-menu/android/build.gradle b/node_modules/react-native-share-menu/android/build.gradle
+index 9557fdb..757dc04 100644
+--- a/node_modules/react-native-share-menu/android/build.gradle
++++ b/node_modules/react-native-share-menu/android/build.gradle
+@@ -1,12 +1,11 @@
+ apply plugin: 'com.android.library'
+ 
+ android {
+-    compileSdkVersion 29
+-    buildToolsVersion "29.0.2"
++    compileSdkVersion 36
+ 
+     defaultConfig {
+-        minSdkVersion 16
+-        targetSdkVersion 29
++        minSdkVersion 24
++        targetSdkVersion 36
+         versionCode 1
+         versionName "1.0"
+         ndk {
+@@ -16,6 +15,7 @@ android {
+     lintOptions {
+        warning 'InvalidPackage'
+     }
++    namespace 'com.meedan.shareMenu'
+ }
+ 
+ dependencies {
