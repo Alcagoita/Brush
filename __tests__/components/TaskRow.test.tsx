@@ -257,13 +257,15 @@ describe('TaskRow — done state (KAN-109: brushstroke replaces strikethrough)',
 describe('TaskRow — interaction', () => {
   it('calls onToggle with taskId and toggled done value when pressed', () => {
     render(<TaskRow task={BASE_TASK} onToggle={onToggle} />);
-    fireEvent.press(screen.getByRole('checkbox', { name: 'Mark Buy groceries as done' }));
+    // KAN-110: accessibility label uses "Brush away X" for undone tasks
+    fireEvent.press(screen.getByRole('checkbox', { name: 'Brush away Buy groceries' }));
     expect(onToggle).toHaveBeenCalledWith('task-1', true);
   });
 
   it('calls onToggle with false when task is already done', () => {
     render(<TaskRow task={{ ...BASE_TASK, done: true }} onToggle={onToggle} />);
-    fireEvent.press(screen.getByRole('checkbox', { name: 'Mark Buy groceries as undone' }));
+    // KAN-110: accessibility label uses "Unbrush X" for done tasks
+    fireEvent.press(screen.getByRole('checkbox', { name: 'Unbrush Buy groceries' }));
     expect(onToggle).toHaveBeenCalledWith('task-1', false);
   });
 });

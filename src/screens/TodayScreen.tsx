@@ -66,6 +66,7 @@ import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
 import { subscribeToIncomingSharedTasks } from '../services/sharing';
+import { COPY } from '../constants/copy';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -314,7 +315,7 @@ export default function TodayScreen() {
                 top:  RING_TOP_COLLAPSED + RING_COLLAPSED / 2 - 20,
               },
             ]}
-            accessibilityLabel={`${doneTasks} of ${totalTasks} tasks done`}
+            accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}
             accessibilityRole="text"
             pointerEvents="none">
             <Text style={[styles.counterDone,  { color: palette.text }]}>
@@ -363,7 +364,7 @@ export default function TodayScreen() {
             </View>
           ) : tasks.length === 0 ? (
             <Text style={[styles.empty, { color: palette.muted }]}>
-              No tasks for today
+              {COPY.emptyState.todayNoTasks}
             </Text>
           ) : (
             effectiveTasks.map(task => (

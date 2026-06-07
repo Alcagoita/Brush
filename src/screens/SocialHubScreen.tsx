@@ -33,6 +33,7 @@ import { subscribeToIncomingSharedTasks } from '../services/sharing';
 import { subscribeToFollowing, subscribeToFollowers } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { SharedTask, FollowEntry } from '../types';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SocialHub'>;
 
@@ -190,7 +191,7 @@ export default function SocialHubScreen() {
                 <View style={styles.feedText}>
                   <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
                     <Text style={{ fontFamily: 'Geist-Medium' }}>{task.sentByName}</Text>
-                    {' sent you a task'}
+                    {' brushed a to-do your way'}
                   </Text>
                   <Text style={[styles.feedSub, { color: palette.muted }]} numberOfLines={1}>
                     {task.title}

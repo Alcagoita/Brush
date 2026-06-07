@@ -28,6 +28,7 @@ import FriendPickerSheet from '../components/FriendPickerSheet';
 import { getTasksForDate, getUser } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Task } from '../types';
+import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'ShareToDo'>;
 type Route = RouteProp<RootStackParamList, 'ShareToDo'>;
@@ -109,7 +110,7 @@ export default function ShareToDoScreen() {
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Brush a To-do</Text>
+        <Text style={[styles.title, { color: palette.text }]}>{COPY.share.screenTitle}</Text>
         <View style={styles.navBtn} />
       </View>
 

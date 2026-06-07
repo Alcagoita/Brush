@@ -31,6 +31,7 @@ import {
 } from '../services/challenges';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Challenge, ChallengeParticipant } from '../types';
+import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'ChallengeDetail'>;
 type Route = RouteProp<RootStackParamList, 'ChallengeDetail'>;
@@ -44,7 +45,7 @@ function formatDeadline(ts: Challenge['deadline']): string {
 }
 
 function typeLabel(c: Challenge): string {
-  if (c.type === 'goal') { return `First to complete ${c.goalCount} tasks`; }
+  if (c.type === 'goal') { return COPY.challenge.goalTypeLabel(c.goalCount ?? 0); }
   return `Most tasks by ${formatDeadline(c.deadline)}`;
 }
 

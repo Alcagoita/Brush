@@ -73,6 +73,7 @@ import { registerInDiscovery, unregisterFromDiscovery } from '../services/contac
 import { placeTypeLabel } from '../services/maps';
 import { Achievement, Category, POI_GEOFENCE_RADIUS } from '../types';
 import ImportTasksSection from '../components/ImportTasksSection';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
@@ -97,7 +98,7 @@ const POI_ROWS: { type: string; label: string }[] = [
 const ACHIEVEMENT_META: Record<string, { label: string; icon: string }> = {
   first_task:        { label: 'First task',       icon: '★' },
   daily_complete:    { label: 'Day complete',      icon: '✓' },
-  challenge_winner:  { label: 'First to do it',   icon: '🏆' },
+  challenge_winner:  { label: COPY.achievement.challengeWinnerTitle, icon: '🏆' },
 };
 
 function getAchievementMeta(type: string) {
