@@ -123,20 +123,29 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
 
   useEffect(() => {
     if (task.done && !prevDoneRef.current) {
-      AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
-        if (reduced) {
-          prevDoneRef.current = task.done;
-          return;
-        }
-        setSweeping(true);
-        sweepProgress.value = 0;
-        sweepProgress.value = withTiming(1, {
-          duration: 660,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-        }, (finished) => {
-          if (finished) { runOnJS(setSweeping)(false); }
+      AccessibilityInfo.isReduceMotionEnabled()
+        .then(reduced => {
+          if (reduced) { return; }
+          setSweeping(true);
+          sweepProgress.value = 0;
+          sweepProgress.value = withTiming(1, {
+            duration: 660,
+            easing: Easing.bezier(0.4, 0, 0.2, 1),
+          }, (finished) => {
+            if (finished) { runOnJS(setSweeping)(false); }
+          });
+        })
+        .catch(() => {
+          // If the accessibility API is unavailable, run the animation anyway.
+          setSweeping(true);
+          sweepProgress.value = 0;
+          sweepProgress.value = withTiming(1, {
+            duration: 660,
+            easing: Easing.bezier(0.4, 0, 0.2, 1),
+          }, (finished) => {
+            if (finished) { runOnJS(setSweeping)(false); }
+          });
         });
-      });
     }
     prevDoneRef.current = task.done;
   // eslint-disable-next-line react-hooks/exhaustive-deps

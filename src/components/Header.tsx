@@ -5,8 +5,8 @@
  *
  * The unread dot on the bell is peach (palette.accent).
  * Greeting adapts to the time of day.
- * The points chip (KAN-134) renders inline after the name when points > 0,
- * showing the user's total achievement points to drive engagement.
+ * The points chip (KAN-134) is always shown inline after the name (even at 0),
+ * displaying the user's total achievement points to drive engagement.
  */
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -88,8 +88,7 @@ export default function Header({
           <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
             {displayName}
           </Text>
-          {(
-            <TouchableOpacity
+          <TouchableOpacity
               style={[styles.streakChip, { backgroundColor: palette.nearTint }]}
               onPress={onAchievementsPress}
               accessibilityRole="button"
@@ -100,7 +99,6 @@ export default function Header({
                 {`${points} pts`}
               </Text>
             </TouchableOpacity>
-          )}
         </View>
       </View>
 

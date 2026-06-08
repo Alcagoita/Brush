@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { render, screen, act } from '@testing-library/react-native';
+import { render, screen, act, waitFor } from '@testing-library/react-native';
 import TaskRow from '../../src/components/TaskRow';
 import { AccessibilityInfo } from 'react-native';
 
@@ -67,10 +67,14 @@ jest.mock('react-native-svg', () => {
   };
 });
 
-// Reanimated shims — use the official mock
+// Reanimated shims — use the official mock.
+// withTiming is overridden to NOT invoke its callback synchronously; the real
+// mock fires callback(true) immediately which would call setSweeping(false)
+// before React re-renders, collapsing the overlay before we can assert on it.
 jest.mock('react-native-reanimated', () => {
   const Reanimated = require('react-native-reanimated/mock');
   Reanimated.default.call = () => {};
+  Reanimated.withTiming = (toValue: any) => toValue;
   return Reanimated;
 });
 
@@ -134,6 +138,23 @@ describe('TaskRow — KAN-134 brush-away sweep', () => {
     expect(isReduceMotionSpy).not.toHaveBeenCalled();
   });
 
+  it('mounts sweep overlay when reduce-motion is disabled and task completes', async () => {
+    // isReduceMotionSpy already resolves false from beforeEach
+    const { rerender } = render(
+      <TaskRow task={{ ...BASE_TASK, done: false }} onToggle={jest.fn()} />,
+    );
+
+    await act(async () => {
+      rerender(<TaskRow task={{ ...BASE_TASK, done: true }} onToggle={jest.fn()} />);
+    });
+
+    // waitFor polls until the async promise chain settles and setSweeping(true)
+    // triggers a re-render that mounts the overlay
+    await waitFor(() => {
+      expect(screen.queryByTestId('brushSweepRect')).not.toBeNull();
+    });
+  });
+
   it('does not mount sweep overlay when reduce-motion is enabled', async () => {
     isReduceMotionSpy.mockResolvedValue(true);
 
@@ -143,6 +164,7 @@ describe('TaskRow — KAN-134 brush-away sweep', () => {
 
     await act(async () => {
       rerender(<TaskRow task={{ ...BASE_TASK, done: true }} onToggle={jest.fn()} />);
+      await Promise.resolve();
     });
 
     // With reduce-motion on, the sweep overlay (Animated.View + Svg) never mounts
