@@ -1,11 +1,12 @@
 /**
  * Header — sticky top bar (zIndex 3).
  *
- * Layout: [Avatar] [Greeting · Name [StreakChip?]]  [People] [Bell]
+ * Layout: [Avatar] [Greeting · Name [PointsChip?]]  [People] [Bell]
  *
  * The unread dot on the bell is peach (palette.accent).
  * Greeting adapts to the time of day.
- * The streak chip (KAN-134) renders inline after the name when streak > 0.
+ * The points chip (KAN-134) renders inline after the name when points > 0,
+ * showing the user's total achievement points to drive engagement.
  */
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
@@ -21,8 +22,8 @@ interface Props {
   hasUnread?: boolean;
   /** Badge count on the people/social icon (KAN-100). */
   socialBadge?: number;
-  /** Current consecutive-day streak (KAN-134). Chip hidden when 0. */
-  streak?: number;
+  /** Total achievement points (KAN-134). Always visible, even at 0. */
+  points?: number;
   onAvatarPress?: () => void;
   onBellPress?: () => void;
   onPeoplePress?: () => void;
@@ -43,7 +44,7 @@ export default function Header({
   photoURL,
   hasUnread = false,
   socialBadge = 0,
-  streak = 0,
+  points = 0,
   onAvatarPress,
   onBellPress,
   onPeoplePress,
@@ -87,16 +88,16 @@ export default function Header({
           <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
             {displayName}
           </Text>
-          {streak > 0 && (
+          {(
             <TouchableOpacity
               style={[styles.streakChip, { backgroundColor: palette.nearTint }]}
               onPress={onAchievementsPress}
               accessibilityRole="button"
-              accessibilityLabel={`${streak} day streak · achievements`}
+              accessibilityLabel={`${points} achievement points · view achievements`}
               hitSlop={6}>
               <FilledFlameIcon color={palette.accent} size={12} />
               <Text style={[styles.streakCount, { color: palette.nearText }]}>
-                {streak}
+                {points}
               </Text>
             </TouchableOpacity>
           )}

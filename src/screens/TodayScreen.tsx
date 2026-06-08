@@ -67,7 +67,7 @@ import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
 import { subscribeToIncomingSharedTasks } from '../services/sharing';
-import { subscribeToCurrentStreak } from '../services/firestore';
+import { subscribeToTotalPoints } from '../services/firestore';
 import { COPY } from '../constants/copy';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -177,14 +177,14 @@ export default function TodayScreen() {
     );
   }, [uid]);
 
-  // ── Current streak (KAN-134) — drives streak chip in header ──────────────────
-  const [streak, setStreak] = useState(0);
+  // ── Total achievement points (KAN-134) — drives points chip in header ─────────
+  const [totalPoints, setTotalPoints] = useState(0);
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToCurrentStreak(
+    return subscribeToTotalPoints(
       uid,
-      s => setStreak(s),
-      err => console.warn('[TodayScreen] streak subscription error', err),
+      pts => setTotalPoints(pts),
+      err => console.warn('[TodayScreen] totalPoints subscription error', err),
     );
   }, [uid]);
 
@@ -274,7 +274,7 @@ export default function TodayScreen() {
           photoURL={user?.photoURL}
           hasUnread={inboxCount > 0}
           socialBadge={inboxCount}
-          streak={streak}
+          points={totalPoints}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
           onPeoplePress={() => navigation.navigate('SocialHub')}

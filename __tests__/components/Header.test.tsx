@@ -1,10 +1,9 @@
 /**
- * KAN-134 — Header: streak chip.
+ * KAN-134 — Header: achievement points chip.
  *
  * Verifies:
- *  - Chip renders when streak > 0
- *  - Chip is absent when streak === 0 (or omitted)
- *  - Chip shows the correct streak number
+ *  - Chip always renders (even when points === 0)
+ *  - Chip shows the correct points number
  *  - Tapping chip calls onAchievementsPress
  */
 
@@ -38,47 +37,39 @@ jest.mock('../../src/components/AppIcon', () => ({
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('Header — KAN-134 streak chip', () => {
-  it('renders the streak number when streak > 0', () => {
-    render(
-      <Header displayName="Manel" streak={7} />,
-    );
-    expect(screen.getByText('7')).toBeTruthy();
+describe('Header — KAN-134 achievement points chip', () => {
+  it('renders the points number when points > 0', () => {
+    render(<Header displayName="Manel" points={42} />);
+    expect(screen.getByText('42')).toBeTruthy();
   });
 
-  it('does NOT render a streak number when streak is 0', () => {
-    render(
-      <Header displayName="Manel" streak={0} />,
-    );
-    expect(screen.queryByText('0')).toBeNull();
+  it('renders 0 when points is 0 (chip always visible)', () => {
+    render(<Header displayName="Manel" points={0} />);
+    expect(screen.getByText('0')).toBeTruthy();
   });
 
-  it('does NOT render a streak chip when streak prop is omitted', () => {
-    render(
-      <Header displayName="Manel" />,
-    );
-    // No digit should appear in the streak position
-    expect(screen.queryByText(/^\d+$/)).toBeNull();
+  it('renders 0 when points prop is omitted (defaults to 0)', () => {
+    render(<Header displayName="Manel" />);
+    expect(screen.getByText('0')).toBeTruthy();
   });
 
-  it('calls onAchievementsPress when streak chip is tapped', () => {
+  it('calls onAchievementsPress when chip is tapped', () => {
     const onAchievements = jest.fn();
     render(
       <Header
         displayName="Manel"
-        streak={5}
+        points={5}
         onAchievementsPress={onAchievements}
       />,
     );
-    // RNTL 12+ uses getByLabelText instead of getByAccessibilityLabel
-    fireEvent.press(screen.getByLabelText('5 day streak · achievements'));
+    fireEvent.press(screen.getByLabelText('5 achievement points · view achievements'));
     expect(onAchievements).toHaveBeenCalledTimes(1);
   });
 
-  it('chip accessibility label includes streak count', () => {
+  it('chip accessibility label includes points count', () => {
     render(
-      <Header displayName="Manel" streak={12} onAchievementsPress={jest.fn()} />,
+      <Header displayName="Manel" points={100} onAchievementsPress={jest.fn()} />,
     );
-    expect(screen.getByLabelText('12 day streak · achievements')).toBeTruthy();
+    expect(screen.getByLabelText('100 achievement points · view achievements')).toBeTruthy();
   });
 });
