@@ -148,14 +148,19 @@ function HaloIcon({
 function IdleRow({
   task,
   place,
+  isFirst,
 }: {
-  task:  Task;
-  place: NearbyPlace | undefined;
+  task:    Task;
+  place:   NearbyPlace | undefined;
+  isFirst: boolean;
 }) {
   const { palette } = useTheme();
 
   return (
-    <View style={[styles.idleRow, { borderBottomColor: palette.line }]}>
+    <View style={[
+      styles.idleRow,
+      !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
+    ]}>
       {/* Icon tile */}
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
         {task.poi
@@ -171,15 +176,23 @@ function IdleRow({
           numberOfLines={1}>
           {task.title}
         </Text>
-        <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
-          {place
-            ? `${place.name} · ${formatDistance(place.distanceMeters)}`
-            : task.poi ? placeTypeLabel(task.poi) : ''}
-        </Text>
+        {place ? (
+          <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
+            {place.name}
+            {' · '}
+            <Text style={styles.idleDistance}>
+              {formatDistance(place.distanceMeters)}
+            </Text>
+          </Text>
+        ) : (
+          <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
+            {task.poi ? placeTypeLabel(task.poi) : ''}
+          </Text>
+        )}
       </View>
 
       {/* Chevron */}
-      <ChevronRightIcon color={palette.faint} size={18} />
+      <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
     </View>
   );
 }
@@ -244,24 +257,34 @@ export default function NearbyCard({
   });
 
   return (
-    <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 16 }]}>
+    <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 14 }]}>
 
       {/* ── Header ── */}
       <View style={styles.header}>
-        {isHero && <PulsingDot color={palette.accent} />}
-        <Text style={[styles.headerLabel, { color: palette.muted }]}>
-          {isHero ? 'NEARBY · NOW' : 'NEARBY'}
-        </Text>
+        <View style={styles.headerLeft}>
+          {isHero && <PulsingDot color={palette.accent} />}
+          <Text style={[styles.headerLabel, { color: palette.muted }]}>
+            {isHero ? 'NEARBY · NOW' : 'NEARBY'}
+          </Text>
+        </View>
 
-        {/* Store fine tuning indicator (KAN-74) */}
-        {storeTuningActive && (
-          <View style={styles.tuningBadge}>
-            <BuildingIcon color={palette.accent} size={12} />
-            <Text style={[styles.tuningBadgeLabel, { color: palette.accent }]}>
-              Store tuning on
+        <View style={styles.headerRight}>
+          {/* Places count (idle only) */}
+          {!isHero && (
+            <Text style={[styles.headerCount, { color: palette.muted }]}>
+              {sortedAlsoClose.length} {sortedAlsoClose.length === 1 ? 'place' : 'places'}
             </Text>
-          </View>
-        )}
+          )}
+          {/* Store fine tuning indicator (KAN-74) */}
+          {storeTuningActive && (
+            <View style={styles.tuningBadge}>
+              <BuildingIcon color={palette.accent} size={12} />
+              <Text style={[styles.tuningBadgeLabel, { color: palette.accent }]}>
+                Store tuning on
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       {/* ── Hero block ── */}
@@ -337,11 +360,12 @@ export default function NearbyCard({
               ALSO CLOSE
             </Text>
           )}
-          {sortedAlsoClose.map(task => (
+          {sortedAlsoClose.map((task, index) => (
             <IdleRow
               key={task.id}
               task={task}
               place={task.poi ? poiPlaces[task.poi] : undefined}
+              isFirst={index === 0}
             />
           ))}
         </View>
@@ -360,15 +384,29 @@ const styles = StyleSheet.create({
   // ── Header ──
   header: {
     flexDirection:  'row',
-    alignItems:     'center',
-    gap:            6,
+    alignItems:     'baseline',
+    justifyContent: 'space-between',
     marginBottom:   10,
+  },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           6,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           8,
   },
   headerLabel: {
     fontSize:     11,
-    fontWeight:   '600',
-    fontFamily:   'Geist-SemiBold',
-    letterSpacing: 1.2,
+    fontWeight:   '500',
+    fontFamily:   'Geist-Medium',
+    letterSpacing: 1.76,
+  },
+  headerCount: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Store tuning badge (KAN-74) ──
@@ -486,12 +524,11 @@ const styles = StyleSheet.create({
     marginBottom:   8,
   },
   idleRow: {
-    flexDirection:    'row',
-    alignItems:       'center',
+    flexDirection:     'row',
+    alignItems:        'center',
     paddingHorizontal: 16,
     paddingVertical:   12,
     gap:               14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   idleIconTile: {
     width:          36,
@@ -512,5 +549,9 @@ const styles = StyleSheet.create({
   idleSub: {
     fontSize:   12,
     fontFamily: 'Geist-Regular',
+    marginTop:  1,
+  },
+  idleDistance: {
+    fontVariant: ['tabular-nums'],
   },
 });
