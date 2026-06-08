@@ -25,12 +25,14 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
@@ -38,7 +40,8 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
-import { addTask, updateTask, deleteTask, subscribeToCategories } from '../services/firestore';
+import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } from '../services/firestore';
+import { CATEGORY_COLORS } from './CategoriesScreen';
 import { getCurrentUser } from '../services/auth';
 import { ClockIcon, PoiIcon } from '../components/AppIcon';
 // ShareTaskSheet (KAN-86 email-based) replaced by ShareToDoScreen (KAN-101 follow-based)
@@ -239,6 +242,37 @@ export default function TaskFormScreen() {
     }, err => console.warn('[TaskFormScreen] categories error', err));
   }, [uid]);
 
+  // New custom category modal
+  const [showNewCatModal, setShowNewCatModal] = useState(false);
+  const [newCatName,      setNewCatName]      = useState('');
+  const [newCatColor,     setNewCatColor]     = useState<string>(CATEGORY_COLORS[0]);
+  const [newCatSaving,    setNewCatSaving]    = useState(false);
+  const [newCatError,     setNewCatError]     = useState('');
+
+  const handleOpenNewCat = useCallback(() => {
+    setNewCatName('');
+    setNewCatColor(CATEGORY_COLORS[0]);
+    setNewCatError('');
+    setNewCatSaving(false);
+    setShowNewCatModal(true);
+  }, []);
+
+  const handleSaveNewCat = useCallback(async () => {
+    const trimmed = newCatName.trim();
+    if (!trimmed) { setNewCatError('Name is required.'); return; }
+    setNewCatSaving(true);
+    try {
+      const id = await addCategory(uid, { name: trimmed, color: newCatColor, poi: null });
+      setCategory(id);
+      setShowNewCatModal(false);
+    } catch (err) {
+      console.warn('[TaskFormScreen] addCategory error', err);
+      setNewCatError('Could not save. Please try again.');
+    } finally {
+      setNewCatSaving(false);
+    }
+  }, [uid, newCatName, newCatColor]);
+
   // ── Submit ──────────────────────────────────────────────────────────────────
 
   const [submitting, setSubmitting] = useState(false);
@@ -346,7 +380,7 @@ export default function TaskFormScreen() {
         </Pressable>
 
         <Text style={[styles.navTitle, { color: palette.text }]}>
-          {isEdit ? 'Edit brush' : 'New brush'}
+          {isEdit ? 'Edit task' : 'New task'}
         </Text>
 
         <Pressable
@@ -354,7 +388,7 @@ export default function TaskFormScreen() {
           disabled={submitting}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel={isEdit ? 'Save changes' : 'Add brush'}>
+          accessibilityLabel={isEdit ? 'Save changes' : 'Add task'}>
           <Text style={[
             styles.navSave,
             { color: submitting ? palette.faint : palette.accent },
@@ -376,7 +410,7 @@ export default function TaskFormScreen() {
         <TextInput
           ref={titleRef}
           style={[styles.titleInput, { color: palette.text, borderBottomColor: palette.line }]}
-          placeholder="Brush title"
+          placeholder="Task title"
           placeholderTextColor={palette.faint}
           value={title}
           onChangeText={v => { setTitle(v); if (titleError) { setTitleError(''); } }}
@@ -501,8 +535,92 @@ export default function TaskFormScreen() {
                 bgColor={palette.surface}
               />
             ))}
+            {/* New custom category */}
+            <Pressable
+              onPress={handleOpenNewCat}
+              style={[styles.addCatBtn, { borderColor: palette.line, backgroundColor: palette.surface }]}
+              accessibilityRole="button"
+              accessibilityLabel="Create new category">
+              <Text style={[styles.addCatLabel, { color: palette.muted }]}>+ New</Text>
+            </Pressable>
           </View>
         </View>
+
+        {/* ── New category modal ── */}
+        <Modal
+          visible={showNewCatModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowNewCatModal(false)}>
+          <TouchableOpacity
+            style={styles.modalScrim}
+            activeOpacity={1}
+            onPress={() => setShowNewCatModal(false)}
+          />
+          <View style={[styles.modalCard, { backgroundColor: palette.bg, borderColor: palette.line }]}>
+            <Text style={[styles.modalTitle, { color: palette.text }]}>New category</Text>
+
+            <TextInput
+              style={[styles.modalInput, { color: palette.text, borderColor: palette.line }]}
+              placeholder="Category name"
+              placeholderTextColor={palette.faint}
+              value={newCatName}
+              onChangeText={v => { setNewCatName(v); if (newCatError) { setNewCatError(''); } }}
+              autoFocus
+              maxLength={40}
+              returnKeyType="done"
+              onSubmitEditing={handleSaveNewCat}
+            />
+            {!!newCatError && (
+              <Text style={[styles.modalError, { color: '#d44' }]}>{newCatError}</Text>
+            )}
+
+            {/* Color swatches */}
+            <View style={styles.swatchRow}>
+              {CATEGORY_COLORS.map(c => (
+                <Pressable
+                  key={c}
+                  onPress={() => setNewCatColor(c)}
+                  style={[
+                    styles.swatch,
+                    { backgroundColor: c },
+                    newCatColor === c && styles.swatchSelected,
+                  ]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: newCatColor === c }}
+                />
+              ))}
+            </View>
+
+            {/* Preview chip */}
+            <View style={[styles.swatchPreview, { backgroundColor: newCatColor + '22', borderColor: newCatColor + '55' }]}>
+              <View style={[styles.swatchDot, { backgroundColor: newCatColor }]} />
+              <Text style={[styles.swatchPreviewLabel, { color: newCatColor }]} numberOfLines={1}>
+                {newCatName.trim() || 'Category name'}
+              </Text>
+            </View>
+
+            <View style={styles.modalActions}>
+              <Pressable
+                onPress={() => setShowNewCatModal(false)}
+                style={[styles.modalBtn, { borderColor: palette.line }]}
+                accessibilityRole="button"
+                accessibilityLabel="Cancel">
+                <Text style={[styles.modalBtnLabel, { color: palette.muted }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveNewCat}
+                disabled={newCatSaving}
+                style={[styles.modalBtn, styles.modalBtnPrimary, { backgroundColor: palette.text }]}
+                accessibilityRole="button"
+                accessibilityLabel="Save category">
+                <Text style={[styles.modalBtnLabel, { color: palette.bg }]}>
+                  {newCatSaving ? 'Saving…' : 'Save'}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
 
         <View style={[styles.divider, { backgroundColor: palette.line }]} />
 
@@ -695,6 +813,109 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap:      'wrap',
     gap:           8,
+  },
+  addCatBtn: {
+    borderRadius:      radius.chip,
+    borderWidth:       1,
+    paddingHorizontal: 14,
+    paddingVertical:   8,
+  },
+  addCatLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Medium',
+    fontWeight: '500',
+  },
+
+  // ── New category modal ──
+  modalScrim: {
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  modalCard: {
+    position:     'absolute',
+    bottom:       0,
+    left:         0,
+    right:        0,
+    borderTopLeftRadius:  20,
+    borderTopRightRadius: 20,
+    borderTopWidth:       1,
+    padding:      24,
+    gap:          16,
+  },
+  modalTitle: {
+    fontSize:   17,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+  },
+  modalInput: {
+    fontSize:          15,
+    fontFamily:        'Geist-Regular',
+    borderWidth:       1,
+    borderRadius:      radius.ctaBtn,
+    paddingHorizontal: 14,
+    paddingVertical:   11,
+  },
+  modalError: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+    marginTop:  -8,
+  },
+  swatchRow: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:           8,
+  },
+  swatch: {
+    width:        28,
+    height:       28,
+    borderRadius: 14,
+  },
+  swatchSelected: {
+    transform:   [{ scale: 1.22 }],
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius:  4,
+    shadowOffset:  { width: 0, height: 2 },
+    elevation:   3,
+  },
+  swatchPreview: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              8,
+    borderWidth:      1,
+    borderRadius:     radius.chip,
+    paddingHorizontal: 12,
+    paddingVertical:   8,
+    alignSelf:        'flex-start',
+  },
+  swatchDot: {
+    width:        10,
+    height:       10,
+    borderRadius: 5,
+  },
+  swatchPreviewLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-Medium',
+    fontWeight: '500',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap:           10,
+  },
+  modalBtn: {
+    flex:              1,
+    borderWidth:       1,
+    borderRadius:      radius.ctaBtn,
+    paddingVertical:   13,
+    alignItems:        'center',
+  },
+  modalBtnPrimary: {
+    borderWidth: 0,
+  },
+  modalBtnLabel: {
+    fontSize:   15,
+    fontFamily: 'Geist-Medium',
+    fontWeight: '500',
   },
   pill: {
     flexDirection:     'row',
