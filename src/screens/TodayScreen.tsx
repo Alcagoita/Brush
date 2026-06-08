@@ -299,7 +299,20 @@ export default function TodayScreen() {
 
           {/* ── Task list ── */}
           <View style={[styles.section, { borderTopColor: palette.line }]}>
-            <Text style={[styles.sectionTitle, { color: palette.muted }]}>TODAY</Text>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: palette.muted }]}>
+                {`TODAY · `}
+                <Text style={[styles.sectionTitleCount, { color: palette.text }]}
+                  accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
+                  {`${doneTasks}/${totalTasks}`}
+                </Text>
+              </Text>
+              {remaining > 0 && (
+                <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
+                  {`${remaining} left`}
+                </Text>
+              )}
+            </View>
 
             {tasksState.status === 'loading' ? (
               // Skeleton rows while Firestore loads
@@ -586,12 +599,26 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     letterSpacing: 1,
-    marginBottom: 12,
+  },
+  sectionTitleCount: {
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0,
+  },
+  sectionTitleRight: {
+    fontSize: 11,
+    fontFamily: 'Geist-Regular',
+    fontVariant: ['tabular-nums'],
   },
   empty: {
     fontSize: 14,
