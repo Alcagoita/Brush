@@ -324,7 +324,14 @@ export default function NearbyCard({
 
       {/* ── Idle rows / "Also close" ── */}
       {sortedAlsoClose.length > 0 && (
-        <View style={[styles.idleSection, isHero ? styles.alsoCloseSection : undefined]}>
+        <View
+          style={[
+            styles.idleSection,
+            isHero
+              ? styles.alsoCloseSection
+              : [styles.listContainer, { backgroundColor: palette.surface, borderColor: palette.line }],
+          ]}
+        >
           {isHero && (
             <Text style={[styles.alsoCloseLabel, { color: palette.muted }]}>
               ALSO CLOSE
@@ -465,6 +472,11 @@ const styles = StyleSheet.create({
 
   // ── Idle rows ──
   idleSection:      {},
+  listContainer: {
+    borderRadius: 16,
+    borderWidth:  1,
+    overflow:     'hidden',
+  },
   alsoCloseSection: { marginTop: 4 },
   alsoCloseLabel: {
     fontSize:      11,
