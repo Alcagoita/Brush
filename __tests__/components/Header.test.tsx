@@ -30,27 +30,27 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('../../src/components/Avatar', () => () => null);
 
 jest.mock('../../src/components/AppIcon', () => ({
-  BellIcon:         () => null,
-  UsersIcon:        () => null,
-  FilledFlameIcon:  () => null,
+  BellIcon:        () => null,
+  UsersIcon:       () => null,
+  FilledStarIcon:  () => null,
 }));
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('Header — KAN-134 achievement points chip', () => {
-  it('renders the points number when points > 0', () => {
+  it('renders "N pts" when points > 0', () => {
     render(<Header displayName="Manel" points={42} />);
-    expect(screen.getByText('42')).toBeTruthy();
+    expect(screen.getByText('42 pts')).toBeTruthy();
   });
 
-  it('renders 0 when points is 0 (chip always visible)', () => {
+  it('renders "0 pts" when points is 0 (chip always visible)', () => {
     render(<Header displayName="Manel" points={0} />);
-    expect(screen.getByText('0')).toBeTruthy();
+    expect(screen.getByText('0 pts')).toBeTruthy();
   });
 
-  it('renders 0 when points prop is omitted (defaults to 0)', () => {
+  it('renders "0 pts" when points prop is omitted (defaults to 0)', () => {
     render(<Header displayName="Manel" />);
-    expect(screen.getByText('0')).toBeTruthy();
+    expect(screen.getByText('0 pts')).toBeTruthy();
   });
 
   it('calls onAchievementsPress when chip is tapped', () => {

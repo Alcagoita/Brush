@@ -12,7 +12,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { BellIcon, FilledFlameIcon, UsersIcon } from './AppIcon';
+import { BellIcon, FilledStarIcon, UsersIcon } from './AppIcon';
 import Avatar from './Avatar';
 
 interface Props {
@@ -95,9 +95,9 @@ export default function Header({
               accessibilityRole="button"
               accessibilityLabel={`${points} achievement points · view achievements`}
               hitSlop={6}>
-              <FilledFlameIcon color={palette.accent} size={12} />
+              <FilledStarIcon color={palette.accent} size={12} />
               <Text style={[styles.streakCount, { color: palette.nearText }]}>
-                {points}
+                {`${points} pts`}
               </Text>
             </TouchableOpacity>
           )}
