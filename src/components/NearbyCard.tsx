@@ -486,10 +486,11 @@ const styles = StyleSheet.create({
     marginBottom:   8,
   },
   idleRow: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    paddingVertical: 10,
-    gap:             12,
+    flexDirection:    'row',
+    alignItems:       'center',
+    paddingHorizontal: 16,
+    paddingVertical:   12,
+    gap:               14,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   idleIconTile: {
