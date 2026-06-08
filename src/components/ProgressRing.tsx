@@ -68,6 +68,32 @@ export default function ProgressRing({ progress, diameter, strokeWidth }: Props)
     };
   });
 
+  // Brand dot — halo (soft glow ring) behind the tip dot.
+  const haloDotProps = useAnimatedProps(() => {
+    const d       = diameter.value;
+    const s       = strokeWidth.value;
+    const r       = (d - s) / 2;
+    const pct     = Math.min(Math.max(progressSV.value, 0), 1);
+    const angle   = 2 * Math.PI * pct;
+    const cx      = d / 2 + r * Math.cos(angle);
+    const cy      = d / 2 + r * Math.sin(angle);
+    const tipR    = s * 0.72;
+    return { cx, cy, r: tipR + 3 };
+  });
+
+  // Brand dot — solid core circle at the arc's leading tip.
+  const coreDotProps = useAnimatedProps(() => {
+    const d       = diameter.value;
+    const s       = strokeWidth.value;
+    const r       = (d - s) / 2;
+    const pct     = Math.min(Math.max(progressSV.value, 0), 1);
+    const angle   = 2 * Math.PI * pct;
+    const cx      = d / 2 + r * Math.cos(angle);
+    const cy      = d / 2 + r * Math.sin(angle);
+    const tipR    = s * 0.72;
+    return { cx, cy, r: tipR };
+  });
+
   return (
     <AnimatedSvg
       animatedProps={svgProps}
@@ -84,6 +110,17 @@ export default function ProgressRing({ progress, diameter, strokeWidth }: Props)
         fill="none"
         strokeLinecap="round"
         animatedProps={arcProps}
+      />
+      {/* Brand dot — soft halo behind the tip */}
+      <AnimatedCircle
+        fill={palette.ringFill}
+        opacity={0.15}
+        animatedProps={haloDotProps}
+      />
+      {/* Brand dot — solid core at the arc's leading tip */}
+      <AnimatedCircle
+        fill={palette.ringFill}
+        animatedProps={coreDotProps}
       />
     </AnimatedSvg>
   );

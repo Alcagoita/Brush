@@ -10,7 +10,6 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { spacing } from '../theme/tokens';
 import { BellIcon, UsersIcon } from './AppIcon';
 import Avatar from './Avatar';
 
@@ -76,25 +75,25 @@ export default function Header({ displayName, photoURL, hasUnread = false, socia
 
       {/* People / Social hub */}
       <TouchableOpacity
-        style={styles.bell}
+        style={styles.iconBtn}
         onPress={onPeoplePress}
         accessibilityRole="button"
         accessibilityLabel={socialBadge > 0 ? `Social, ${socialBadge} pending` : 'Social'}>
         <UsersIcon color={palette.text} size={20} />
         {socialBadge > 0 && (
-          <View style={[styles.dot, { backgroundColor: palette.accent }]} />
+          <View style={[styles.dot, { backgroundColor: palette.accent, shadowColor: palette.bg }]} />
         )}
       </TouchableOpacity>
 
       {/* Bell */}
       <TouchableOpacity
-        style={styles.bell}
+        style={styles.iconBtn}
         onPress={onBellPress}
         accessibilityRole="button"
         accessibilityLabel={hasUnread ? 'Notifications, unread' : 'Notifications'}>
         <BellIcon color={palette.text} size={20} />
         {hasUnread && (
-          <View style={[styles.dot, { backgroundColor: palette.accent }]} />
+          <View style={[styles.dot, { backgroundColor: palette.accent, shadowColor: palette.bg }]} />
         )}
       </TouchableOpacity>
     </View>
@@ -105,8 +104,8 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.page,
-    paddingBottom: 14,
+    paddingHorizontal: 18,
+    paddingBottom: 8,
     zIndex: 3,
   },
   greetingWrap: {
@@ -123,18 +122,24 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
   },
-  bell: {
-    width: 36,
-    height: 36,
+  iconBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
   },
   dot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 6,
-    height: 6,
+    top: 7,
+    right: 8,
+    width: 7,
+    height: 7,
     borderRadius: 9999,
+    shadowOffset: { width: 0, height: 0 },
+    shadowRadius: 2,
+    shadowOpacity: 1,
+    elevation: 0,
   },
 });
