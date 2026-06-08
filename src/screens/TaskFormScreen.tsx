@@ -45,7 +45,8 @@ import { CATEGORY_COLORS } from './CategoriesScreen';
 import { getCurrentUser } from '../services/auth';
 import { ClockIcon, PoiIcon } from '../components/AppIcon';
 // ShareTaskSheet (KAN-86 email-based) replaced by ShareToDoScreen (KAN-101 follow-based)
-import type { Category, PoiType, Task } from '../types';
+import type { Category, PoiType, Task, TaskStore } from '../types';
+import StorePickerField, { StoreSelection } from '../components/StorePickerField';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -217,6 +218,11 @@ export default function TaskFormScreen() {
   const [poi,         setPoi]         = useState<PoiType | null>(
     (existingTask?.poi as PoiType | undefined) ?? null,
   );
+  const [store,       setStore]       = useState<StoreSelection | null>(() => {
+    const s = existingTask?.store;
+    if (!s?.placeId) { return null; }
+    return { placeId: s.placeId, name: s.name, address: s.address ?? '' };
+  });
 
   // Due date
   const [dueDate,     setDueDate]     = useState<Date | null>(() => {
@@ -293,12 +299,17 @@ export default function TaskFormScreen() {
         ? `${dueDate.getFullYear()}-${String(dueDate.getMonth() + 1).padStart(2, '0')}-${String(dueDate.getDate()).padStart(2, '0')}`
         : (initialDate ?? todayISO());
 
+      const storeField: TaskStore | undefined = store
+        ? { placeId: store.placeId, name: store.name, address: store.address }
+        : undefined;
+
       const payload: Omit<Task, 'id' | 'createdAt' | 'completedAt'> = {
         title:       trimmed,
         description: description.trim() || undefined,
         category,
         done:        existingTask?.done ?? false,
         poi:         poi ?? undefined,
+        store:       storeField,
         time:        time ?? undefined,
         date:        dateStr,
       };
@@ -642,6 +653,17 @@ export default function TaskFormScreen() {
               />
             ))}
           </View>
+        </View>
+
+        <View style={[styles.divider, { backgroundColor: palette.line }]} />
+
+        {/* ── Specific store (optional) ── */}
+        <View style={styles.section}>
+          <Text style={[styles.sectionLabel, { color: palette.muted }]}>
+            SPECIFIC STORE
+            <Text style={{ color: palette.faint }}>{' '}(OPTIONAL)</Text>
+          </Text>
+          <StorePickerField value={store} onChange={setStore} />
         </View>
 
         {/* ── Share / Delete buttons (edit mode only) ── */}
