@@ -97,6 +97,7 @@ export default function ProgressRing({ progress, diameter, strokeWidth }: Props)
   return (
     <AnimatedSvg
       animatedProps={svgProps}
+      overflow="visible"
       style={{ transform: [{ rotate: '-90deg' }] }}>
       {/* Track */}
       <AnimatedCircle
