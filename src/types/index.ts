@@ -109,6 +109,8 @@ export interface TaskStore {
   placeId?: string;
   /** Display name of the store — used as fallback match key. */
   name: string;
+  /** Human-readable address or floor/wing hint — display only. */
+  address?: string;
   /**
    * Date ("YYYY-MM-DD") when the last indoor proximity alert was fired.
    * Suppresses repeat alerts on the same day (KAN-75).
