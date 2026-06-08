@@ -108,8 +108,9 @@ describe('ProgressRing — KAN-133 brand dot', () => {
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });
     expect(circles[3]).toBeDefined();
     // animatedProps contains the geometry from useAnimatedProps
-    // At 0%: angle=0 → cos(0)=1, cx = size/2 + r = 60 + (120-10)/2 = 60 + 55 = 115
+    // At 0%: angle=0 → cos(0)=1
+    // cx = d/2 + DOT_PADDING + r*cos(0) = 60 + 12 + 55 = 127
     const dotProps = circles[3].props.animatedProps as { cx: number; cy: number; r: number };
-    expect(dotProps.cx).toBeCloseTo(115, 0);
+    expect(dotProps.cx).toBeCloseTo(127, 0);
   });
 });
