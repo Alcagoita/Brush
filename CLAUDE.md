@@ -291,6 +291,7 @@ docs/
     - Tests live in `__tests__/` mirroring the `src/` structure (e.g. `src/services/auth.ts` → `__tests__/services/auth.test.ts`).
 12. **One ticket at a time.** Never start a new ticket until the PR for the current one has been reviewed and merged into **develop**. After opening a PR, stop and wait for explicit confirmation before picking up the next ticket. PRs merge into develop during the sprint; develop merges into main only at sprint end.
 13. **Never merge without explicit user consent.** Do not merge any PR — even with `--admin` — unless the user has explicitly said to merge in that conversation turn.
+14. **Never display raw MCP tool responses.** After calling any Jira (or other MCP) tool, only report the outcome in plain text (e.g. "KAN-129 → Testing"). Never paste the raw JSON response into the conversation.
 
 ---
 
@@ -323,46 +324,4 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 - **Sprint 4** — ✅ Done (v0.4.0)
 - **Sprint 5** — ✅ Done (v0.5.0)
 - **Sprint 6** — ✅ Done (v0.6.0)
-- **Sprint 7** — 🚧 In progress (v0.7.0)
-
----
-
-## Sprint 7 — Active (v0.7.0)
-
-10 items across two independent tracks.
-
-- **Track A — Profile & Settings Redesign** (KAN-112, KAN-113, KAN-114, KAN-115)
-- **Track B — Indoor & Mall Mode** (KAN-77, KAN-73, KAN-74, KAN-75, KAN-76)
-
-### Priority order
-
-**Track A:**
-1. KAN-112 — Profile screen redesign *(must land first)*
-2. KAN-113 — Settings screen *(pushed from Profile)*
-3. KAN-114 — Achievements screen *(pushed from Profile)*
-4. KAN-115 — Share sheet *(pushed from Profile)*
-
-**Track B:**
-1. KAN-77 — POI model redesign spike *(design doc only, no production code)*
-2. KAN-73 — Indoor environment detection *(can start day 1)*
-3. KAN-74 — Store fine tuning mode *(depends on KAN-73)*
-4. KAN-75 — Indoor proximity engine *(depends on KAN-74 + KAN-56)*
-5. KAN-76 — Named store task tagging *(depends on KAN-75)*
-
-### Key design constraints
-
-- **Design file uses green `#4fa866` in some places — always substitute peach `#e8a86a` (accent).**
-- **Brand copy:** "brush away" tasks, not "complete" or "finish".
-- **Achievement copy:** use exact labels/descriptions from KAN-114 spec; do not use design file copy.
-- Settings footer: `"Brush Away · v1.0.0"` — not "Vibe Agenda".
-- `Task.store` (KAN-76) and existing `Task.poi` are independent — a task can have either, both, or neither.
-- Indoor engine (KAN-75) and outdoor engine (KAN-56) must **never run simultaneously**.
-
-### Out of scope for Sprint 7
-
-- KAN-78 (smart AI-assisted store matching)
-- Photo upload on Profile (camera badge is visible but no-op)
-- QR code in Share sheet (placeholder only)
-- Achievement push notifications (display only)
-- Unmapped mall indoor mode (graceful outdoor fallback)
-- App Store / Play Store submission
+- **Sprint 7** — ✅ Done (v0.7.0)

@@ -211,6 +211,10 @@ export default function TodayScreen() {
     interpolate(scrollY.value, [0, SCROLL_RANGE], [STROKE_REST, STROKE_COLLAPSED], Extrapolation.CLAMP),
   );
 
+  // ── Progress counters ─────────────────────────────────────────────────────────
+  const pct       = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
+  const remaining = totalTasks - doneTasks;
+
   // ── Animated styles (UI thread) ───────────────────────────────────────────────
   const sectionStyle = useAnimatedStyle(() => ({
     height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
@@ -226,6 +230,7 @@ export default function TodayScreen() {
     opacity: interpolate(scrollY.value, [0, CAPTION_FADE_END], [1, 0], Extrapolation.CLAMP),
   }));
 
+  // Both the compact ring caption and the progress panel fade in together.
   const counterStyle = useAnimatedStyle(() => ({
     opacity: interpolate(scrollY.value, [COUNTER_FADE_START, COUNTER_FADE_END], [0, 1], Extrapolation.CLAMP),
   }));
@@ -263,14 +268,95 @@ export default function TodayScreen() {
         />
       </View>
 
-      {/* ── Scrollable content ── */}
-      <Animated.ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={1}
-        onScroll={scrollHandler}>
+      {/* ── Scroll area — ring section overlaid on ScrollView ── */}
+      <View style={styles.scrollArea}>
 
-        {/* ── Collapsible ring section ── */}
+        {/*
+          The ScrollView fills the entire scrollArea (absoluteFill).
+          paddingTop = SECTION_H_REST means content always starts 320px down,
+          directly below where the ring section sits at rest. As the ring
+          section collapses by SCROLL_RANGE (170px), content scrolls up the
+          same distance — they stay in perfect alignment throughout.
+          Content height is now STABLE (ring section is outside ScrollView),
+          so scrollY can always reach SCROLL_RANGE.
+        */}
+        <Animated.ScrollView
+          style={StyleSheet.absoluteFill}
+          contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.bg }]}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={1}
+          onScroll={scrollHandler}>
+
+          {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
+          <NearbyCard
+            tasks={effectiveTasks}
+            nearbyPoiType={nearbyPoiType}
+            nearbyPlace={nearbyPlace}
+            poiPlaces={poiPlaces}
+            trackingPaused={trackingPaused}
+            storeTuningActive={storeTuningActive}
+          />
+
+          {/* ── Task list ── */}
+          <View style={[styles.section, { borderTopColor: palette.line }]}>
+            <View style={styles.sectionHeader}>
+              <Text style={[styles.sectionTitle, { color: palette.muted }]}>
+                {`TODAY · `}
+                <Text style={[styles.sectionTitleCount, { color: palette.text }]}
+                  accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
+                  {`${doneTasks}/${totalTasks}`}
+                </Text>
+              </Text>
+              {remaining > 0 && (
+                <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
+                  {`${remaining} left`}
+                </Text>
+              )}
+            </View>
+
+            {tasksState.status === 'loading' ? (
+              // Skeleton rows while Firestore loads
+              [0, 1, 2].map(i => (
+                <SkeletonRow key={i} index={i} faint={palette.faint} />
+              ))
+            ) : tasksState.status === 'error' ? (
+              // Error state — show message + retry button (KAN-58)
+              <View style={styles.errorWrap}>
+                <Text
+                  style={[styles.empty, { color: palette.muted }]}
+                  accessibilityRole="alert">
+                  {tasksState.message || 'Could not load tasks. Please try again.'}
+                </Text>
+                <Pressable
+                  onPress={() => setRetryKey(k => k + 1)}
+                  style={[styles.retryBtn, { borderColor: palette.line }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again">
+                  <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : tasks.length === 0 ? (
+              <Text style={[styles.empty, { color: palette.muted }]}>
+                {COPY.emptyState.todayNoTasks}
+              </Text>
+            ) : (
+              effectiveTasks.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  nearbyPoiType={nearbyPoiType}
+                  onToggle={handleToggle}
+                  onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
+                  customCategories={customCategories}
+                />
+              ))
+            )}
+          </View>
+
+          <View style={styles.bottomPad} />
+        </Animated.ScrollView>
+
+        {/* ── Collapsible ring section — absolutely positioned ON TOP of ScrollView ── */}
         <Animated.View
           style={[
             styles.ringSection,
@@ -278,7 +364,7 @@ export default function TodayScreen() {
             { backgroundColor: palette.bg, borderBottomColor: palette.line },
           ]}>
 
-          {/* Ring — absolutely positioned, animates left/top/size */}
+          {/* Ring — absolutely positioned within section, animates left/top/size */}
           <Animated.View style={ringWrapStyle}>
             <ProgressRing
               progress={progress}
@@ -310,84 +396,46 @@ export default function TodayScreen() {
             </Text>
           </Animated.View>
 
-          {/* Split counter — fades in over k 0.45→0.91 */}
+          {/* Compact ring caption — fades in with the progress panel */}
           <Animated.View
-            style={[
-              styles.counterWrap,
-              counterStyle,
-              {
-                left: RING_LEFT_COLLAPSED + RING_COLLAPSED + 16,
-                top:  RING_TOP_COLLAPSED + RING_COLLAPSED / 2 - 20,
-              },
-            ]}
+            style={[styles.ringCaption, counterStyle]}
+            pointerEvents="none">
+            <Text style={[styles.ringCaptionDay3, { color: palette.muted }]}>
+              {weekday.slice(0, 3).toUpperCase()}
+            </Text>
+            <Text style={[styles.ringCaptionNum, { color: palette.text }]}>
+              {day}
+            </Text>
+            <Text style={[styles.ringCaptionMonth, { color: palette.muted }]}>
+              {month}
+            </Text>
+          </Animated.View>
+
+          {/* Progress panel — fades in over k 0.45→0.91 */}
+          <Animated.View
+            style={[styles.progressWrap, counterStyle]}
             accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}
             accessibilityRole="text"
             pointerEvents="none">
-            <Text style={[styles.counterDone,  { color: palette.text }]}>
-              {doneTasks}
+            <Text style={[styles.progressLabel, { color: palette.muted }]}>
+              PROGRESS
             </Text>
-            <Text style={[styles.counterSep,   { color: palette.faint }]}>/</Text>
-            <Text style={[styles.counterTotal,  { color: palette.muted }]}>
-              {totalTasks}
+            <View style={styles.fractionRow}>
+              <Text style={[styles.counterDone, { color: palette.text }]}>
+                {doneTasks}
+              </Text>
+              <Text style={[styles.counterSep, { color: palette.faint }]}>/</Text>
+              <Text style={[styles.counterTotal, { color: palette.muted }]}>
+                {totalTasks}
+              </Text>
+            </View>
+            <Text style={[styles.progressSub, { color: palette.muted }]}>
+              {`${pct}% complete · ${remaining} left`}
             </Text>
           </Animated.View>
         </Animated.View>
 
-        {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
-        <NearbyCard
-          tasks={effectiveTasks}
-          nearbyPoiType={nearbyPoiType}
-          nearbyPlace={nearbyPlace}
-          poiPlaces={poiPlaces}
-          trackingPaused={trackingPaused}
-          storeTuningActive={storeTuningActive}
-        />
-
-        {/* ── Task list ── */}
-        <View style={[styles.section, { borderTopColor: palette.line }]}>
-          <Text style={[styles.sectionTitle, { color: palette.muted }]}>TODAY</Text>
-
-          {tasksState.status === 'loading' ? (
-            // Skeleton rows while Firestore loads
-            [0, 1, 2].map(i => (
-              <SkeletonRow key={i} index={i} faint={palette.faint} />
-            ))
-          ) : tasksState.status === 'error' ? (
-            // Error state — show message + retry button (KAN-58)
-            <View style={styles.errorWrap}>
-              <Text
-                style={[styles.empty, { color: palette.muted }]}
-                accessibilityRole="alert">
-                {tasksState.message || 'Could not load tasks. Please try again.'}
-              </Text>
-              <Pressable
-                onPress={() => setRetryKey(k => k + 1)}
-                style={[styles.retryBtn, { borderColor: palette.line }]}
-                accessibilityRole="button"
-                accessibilityLabel="Try again">
-                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
-              </Pressable>
-            </View>
-          ) : tasks.length === 0 ? (
-            <Text style={[styles.empty, { color: palette.muted }]}>
-              {COPY.emptyState.todayNoTasks}
-            </Text>
-          ) : (
-            effectiveTasks.map(task => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                nearbyPoiType={nearbyPoiType}
-                onToggle={handleToggle}
-                onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
-                customCategories={customCategories}
-              />
-            ))
-          )}
-        </View>
-
-        <View style={styles.bottomPad} />
-      </Animated.ScrollView>
+      </View>
 
       {/* ── Add-task FAB (KAN-51) ── */}
       <Pressable
@@ -426,10 +474,22 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   stickyHeader: { zIndex: 3 },
-  scrollContent: { paddingTop: 0 },
+  // scrollArea fills all space below the sticky header. The ring section
+  // is absolutely positioned at top:0 of scrollArea (zIndex 2), and the
+  // ScrollView is absoluteFill behind it with paddingTop = SECTION_H_REST.
+  scrollArea:   { flex: 1 },
+  scrollContent: {
+    // paddingTop = SECTION_H_REST ensures content always starts exactly where
+    // the ring section ends at rest. As the ring section collapses by
+    // SCROLL_RANGE (= 170), content scrolls up the same distance → perfect sync.
+    paddingTop: SECTION_H_REST,
+  },
   ringSection: {
-    position: 'relative',
-    overflow: 'hidden',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   captionWrap: {
@@ -462,8 +522,52 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
   },
-  counterWrap: {
+  // ── Compact ring caption (fades in when collapsed) ──
+  ringCaption: {
     position: 'absolute',
+    left: RING_LEFT_COLLAPSED,
+    top:  RING_TOP_COLLAPSED,
+    width:  RING_COLLAPSED,
+    height: RING_COLLAPSED,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringCaptionDay3: {
+    fontSize: 9,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+    letterSpacing: 1.2,
+  },
+  ringCaptionNum: {
+    fontSize: 32,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+    fontVariant: ['tabular-nums'],
+    letterSpacing: -1.5,
+    lineHeight: 36,
+    marginTop: 1,
+  },
+  ringCaptionMonth: {
+    fontSize: 9,
+    fontFamily: 'Geist-Regular',
+    marginTop: 1,
+  },
+  // ── Progress panel (fades in when collapsed) ──
+  progressWrap: {
+    position: 'absolute',
+    left: RING_LEFT_COLLAPSED + RING_COLLAPSED + 16,
+    top:  RING_TOP_COLLAPSED,
+    height: RING_COLLAPSED,
+    justifyContent: 'center',
+  },
+  progressLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  fractionRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 2,
@@ -484,18 +588,37 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     fontVariant: ['tabular-nums'],
   },
+  progressSub: {
+    fontSize: 12,
+    fontFamily: 'Geist-Regular',
+    marginTop: 3,
+  },
   section: {
     marginTop: 24,
     paddingHorizontal: spacing.page,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     letterSpacing: 1,
-    marginBottom: 12,
+  },
+  sectionTitleCount: {
+    fontVariant: ['tabular-nums'],
+    letterSpacing: 0,
+  },
+  sectionTitleRight: {
+    fontSize: 11,
+    fontFamily: 'Geist-Regular',
+    fontVariant: ['tabular-nums'],
   },
   empty: {
     fontSize: 14,
@@ -534,7 +657,9 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  bottomPad: { height: 100 },
+  // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (170px)
+  // even with a short task list.
+  bottomPad: { height: 220 },
   // ── Add-task FAB ──
   fab: {
     position:     'absolute',

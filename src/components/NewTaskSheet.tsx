@@ -55,11 +55,10 @@ import Animated, {
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
-import { PoiType, CategoryKey, Category, TaskStore } from '../types';
+import { PoiType, CategoryKey, Category } from '../types';
 import { addTask } from '../services/firestore';
 import { CloseIcon, ClockIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
-import StorePickerField, { StoreSelection } from './StorePickerField';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -103,7 +102,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [title,    setTitle]    = useState('');
     const [category, setCategory] = useState<string>('personal');
     const [poi,      setPoi]      = useState<PoiType | null>(null);
-    const [store,    setStore]    = useState<StoreSelection | null>(null);
     const [time,     setTime]     = useState('');
     const [submitting, setSubmitting] = useState(false);
 
@@ -143,7 +141,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setTitle('');
       setCategory('personal');
       setPoi(null);
-      setStore(null);
       setTime('');
       setSubmitting(false);
       setShowTimePicker(false);
@@ -239,20 +236,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
       setSubmitting(true);
       try {
-        // Build the optional store field — only include it when the user picked
-        // a specific store. alertSeenDate starts undefined (no alert yet).
-        const storeField: TaskStore | undefined = store
-          ? { placeId: store.placeId, name: store.name, address: store.address }
-          : undefined;
-
         await addTask(uid, {
           title:    trimmed,
           category,
           done:     false,
           date:     todayISO(),
-          ...(poi        ? { poi }               : {}),
-          ...(storeField ? { store: storeField } : {}),
-          ...(time.trim() ? { time: time.trim() } : {}),
+          ...(poi             ? { poi }               : {}),
+          ...(time.trim()     ? { time: time.trim() } : {}),
         });
         // Confirmed — hide immediately.
         setMounted(false);
@@ -262,7 +252,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
       }
-    }, [title, category, poi, store, time, uid, submitting, resetForm]);
+    }, [title, category, poi, time, uid, submitting, resetForm]);
 
     if (!mounted) { return null; }
 
@@ -436,20 +426,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 })}
               </View>
 
-              {/* ── Specific store (optional) — KAN-76 ── */}
-              <Text style={[styles.fieldLabel, { color: palette.muted }]}>
-                SPECIFIC STORE
-                <Text style={[styles.fieldLabelOptional, { color: palette.faint }]}>
-                  {' '}(OPTIONAL)
-                </Text>
-              </Text>
-              <View style={styles.fieldPad}>
-                <StorePickerField
-                  value={store}
-                  onChange={setStore}
-                />
-              </View>
-
               {/* ── Time (optional) ── */}
               <Text style={[styles.fieldLabel, { color: palette.muted }]}>
                 TIME
@@ -586,13 +562,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   onPress={handleSubmit}
                   disabled={!isValid || submitting}
                   accessibilityRole="button"
-                  accessibilityLabel="Add brush"
+                  accessibilityLabel="Add task"
                   accessibilityState={{ disabled: !isValid || submitting }}>
                   <Text style={[
                     styles.ctaSubmitLabel,
                     { color: isValid && !submitting ? palette.bg : palette.muted },
                   ]}>
-                    {submitting ? 'Adding…' : 'Add brush'}
+                    {submitting ? 'Adding…' : 'Add task'}
                   </Text>
                 </Pressable>
               </View>

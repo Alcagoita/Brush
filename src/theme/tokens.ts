@@ -9,15 +9,15 @@
 // ─── Color palettes ───────────────────────────────────────────────────────────
 
 export const lightPalette = {
-  bg:         '#fdfdfb',
-  surface:    '#f6f5f1',
-  surface2:   '#efeeea',
-  line:       'rgba(20,20,18,0.08)',
-  text:       '#1a1a18',
-  muted:      '#8a8a85',
-  faint:      '#bdbdb7',
+  bg:         '#fdfcfa',
+  surface:    '#f4f2ed',
+  surface2:   '#ece9e2',
+  line:       'rgba(40,33,20,0.08)',
+  text:       '#1f1c16',
+  muted:      '#8b857a',
+  faint:      '#c1bbac',
   ringTrack:  'rgba(20,20,18,0.08)',
-  ringFill:   '#1a1a18',
+  ringFill:   '#db9657',   // oklch(0.73 0.115 62) soft peach
   accent:     '#e8a86a',   // oklch(0.66 0.13 65)
   nearTint:   '#fdf7f0',   // oklch(0.97 0.028 65)
   nearTint2:  '#f9ede0',   // oklch(0.94 0.05 65)

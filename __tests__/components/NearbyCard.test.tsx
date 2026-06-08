@@ -196,6 +196,90 @@ describe('NearbyCard — hero state', () => {
   });
 });
 
+describe('NearbyCard — KAN-131: idle list container border', () => {
+  it('applies borderWidth:1 and borderColor:palette.line to the idle container', () => {
+    const { UNSAFE_getAllByType } = render(
+      <NearbyCard
+        tasks={[makeTask()]}
+        nearbyPoiType={null}
+        nearbyPlace={null}
+        poiPlaces={PLACES_MAP}
+      />,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { View } = require('react-native');
+    const allViews = UNSAFE_getAllByType(View);
+
+    // Find the container that has both the line border colour and the surface background
+    // (set via inline style — palette values come from the mock: line=#ddd, surface=#f6f5f1)
+    const container = allViews.find(v => {
+      const flat = [v.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
+      return (
+        flat.some(s => s.borderColor === '#ddd') &&
+        flat.some(s => s.backgroundColor === '#f6f5f1')
+      );
+    });
+
+    expect(container).toBeDefined();
+  });
+
+  it('idle container also has borderRadius:16 and overflow:hidden', () => {
+    const { UNSAFE_getAllByType } = render(
+      <NearbyCard
+        tasks={[makeTask()]}
+        nearbyPoiType={null}
+        nearbyPlace={null}
+        poiPlaces={PLACES_MAP}
+      />,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { View } = require('react-native');
+    const allViews = UNSAFE_getAllByType(View);
+
+    // StyleSheet.create values are resolved in the test renderer — find the view
+    // that carries the listContainer static styles together with the inline border colour
+    const container = allViews.find(v => {
+      const flat = [v.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
+      return flat.some(s => s.borderColor === '#ddd');
+    });
+
+    expect(container).toBeDefined();
+    // The StyleSheet entry includes borderRadius and overflow
+    const flat = [container!.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
+    const merged = Object.assign({}, ...flat);
+    expect(merged.borderRadius).toBe(16);
+    expect(merged.overflow).toBe('hidden');
+  });
+
+  it('hero "also close" section does NOT receive the idle border container', () => {
+    const heroTask  = makeTask({ id: 'hero',  poi: 'pharmacy' });
+    const alsoClose = makeTask({ id: 'also',  poi: 'supermarket', title: 'Buy groceries' });
+
+    const { UNSAFE_getAllByType } = render(
+      <NearbyCard
+        tasks={[heroTask, alsoClose]}
+        nearbyPoiType="pharmacy"
+        nearbyPlace={NEARBY_PLACE}
+        poiPlaces={{ pharmacy: NEARBY_PLACE }}
+      />,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { View } = require('react-native');
+    const allViews = UNSAFE_getAllByType(View);
+
+    // In hero mode no view should combine surface background + line border (listContainer)
+    const hasIdleContainer = allViews.some(v => {
+      const flat = [v.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
+      return (
+        flat.some(s => s.borderColor === '#ddd') &&
+        flat.some(s => s.backgroundColor === '#f6f5f1')
+      );
+    });
+
+    expect(hasIdleContainer).toBe(false);
+  });
+});
+
 describe('NearbyCard — paused state (KAN-52)', () => {
   it('renders the low-battery paused banner when trackingPaused is true', () => {
     render(

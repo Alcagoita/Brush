@@ -73,10 +73,10 @@ export function CloseIcon({ color, size = 24 }: IconProps) {
 }
 
 // ── Chevron right (list row affordance) ────────────────────────────────────────
-export function ChevronRightIcon({ color, size = 24 }: IconProps) {
+export function ChevronRightIcon({ color, size = 24, strokeWidth = 1.6 }: IconProps & { strokeWidth?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M9 18l6-6-6-6" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M9 18l6-6-6-6" stroke={color} strokeWidth={strokeWidth} {...S} />
     </Svg>
   );
 }
