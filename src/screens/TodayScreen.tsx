@@ -268,14 +268,82 @@ export default function TodayScreen() {
         />
       </View>
 
-      {/* ── Scrollable content ── */}
-      <Animated.ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        scrollEventThrottle={1}
-        onScroll={scrollHandler}>
+      {/* ── Scroll area — ring section overlaid on ScrollView ── */}
+      <View style={styles.scrollArea}>
 
-        {/* ── Collapsible ring section ── */}
+        {/*
+          The ScrollView fills the entire scrollArea (absoluteFill).
+          paddingTop = SECTION_H_REST means content always starts 320px down,
+          directly below where the ring section sits at rest. As the ring
+          section collapses by SCROLL_RANGE (170px), content scrolls up the
+          same distance — they stay in perfect alignment throughout.
+          Content height is now STABLE (ring section is outside ScrollView),
+          so scrollY can always reach SCROLL_RANGE.
+        */}
+        <Animated.ScrollView
+          style={StyleSheet.absoluteFill}
+          contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.bg }]}
+          showsVerticalScrollIndicator={false}
+          scrollEventThrottle={1}
+          onScroll={scrollHandler}>
+
+          {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
+          <NearbyCard
+            tasks={effectiveTasks}
+            nearbyPoiType={nearbyPoiType}
+            nearbyPlace={nearbyPlace}
+            poiPlaces={poiPlaces}
+            trackingPaused={trackingPaused}
+            storeTuningActive={storeTuningActive}
+          />
+
+          {/* ── Task list ── */}
+          <View style={[styles.section, { borderTopColor: palette.line }]}>
+            <Text style={[styles.sectionTitle, { color: palette.muted }]}>TODAY</Text>
+
+            {tasksState.status === 'loading' ? (
+              // Skeleton rows while Firestore loads
+              [0, 1, 2].map(i => (
+                <SkeletonRow key={i} index={i} faint={palette.faint} />
+              ))
+            ) : tasksState.status === 'error' ? (
+              // Error state — show message + retry button (KAN-58)
+              <View style={styles.errorWrap}>
+                <Text
+                  style={[styles.empty, { color: palette.muted }]}
+                  accessibilityRole="alert">
+                  {tasksState.message || 'Could not load tasks. Please try again.'}
+                </Text>
+                <Pressable
+                  onPress={() => setRetryKey(k => k + 1)}
+                  style={[styles.retryBtn, { borderColor: palette.line }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Try again">
+                  <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+                </Pressable>
+              </View>
+            ) : tasks.length === 0 ? (
+              <Text style={[styles.empty, { color: palette.muted }]}>
+                {COPY.emptyState.todayNoTasks}
+              </Text>
+            ) : (
+              effectiveTasks.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  nearbyPoiType={nearbyPoiType}
+                  onToggle={handleToggle}
+                  onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
+                  customCategories={customCategories}
+                />
+              ))
+            )}
+          </View>
+
+          <View style={styles.bottomPad} />
+        </Animated.ScrollView>
+
+        {/* ── Collapsible ring section — absolutely positioned ON TOP of ScrollView ── */}
         <Animated.View
           style={[
             styles.ringSection,
@@ -283,7 +351,7 @@ export default function TodayScreen() {
             { backgroundColor: palette.bg, borderBottomColor: palette.line },
           ]}>
 
-          {/* Ring — absolutely positioned, animates left/top/size */}
+          {/* Ring — absolutely positioned within section, animates left/top/size */}
           <Animated.View style={ringWrapStyle}>
             <ProgressRing
               progress={progress}
@@ -354,61 +422,7 @@ export default function TodayScreen() {
           </Animated.View>
         </Animated.View>
 
-        {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
-        <NearbyCard
-          tasks={effectiveTasks}
-          nearbyPoiType={nearbyPoiType}
-          nearbyPlace={nearbyPlace}
-          poiPlaces={poiPlaces}
-          trackingPaused={trackingPaused}
-          storeTuningActive={storeTuningActive}
-        />
-
-        {/* ── Task list ── */}
-        <View style={[styles.section, { borderTopColor: palette.line }]}>
-          <Text style={[styles.sectionTitle, { color: palette.muted }]}>TODAY</Text>
-
-          {tasksState.status === 'loading' ? (
-            // Skeleton rows while Firestore loads
-            [0, 1, 2].map(i => (
-              <SkeletonRow key={i} index={i} faint={palette.faint} />
-            ))
-          ) : tasksState.status === 'error' ? (
-            // Error state — show message + retry button (KAN-58)
-            <View style={styles.errorWrap}>
-              <Text
-                style={[styles.empty, { color: palette.muted }]}
-                accessibilityRole="alert">
-                {tasksState.message || 'Could not load tasks. Please try again.'}
-              </Text>
-              <Pressable
-                onPress={() => setRetryKey(k => k + 1)}
-                style={[styles.retryBtn, { borderColor: palette.line }]}
-                accessibilityRole="button"
-                accessibilityLabel="Try again">
-                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
-              </Pressable>
-            </View>
-          ) : tasks.length === 0 ? (
-            <Text style={[styles.empty, { color: palette.muted }]}>
-              {COPY.emptyState.todayNoTasks}
-            </Text>
-          ) : (
-            effectiveTasks.map(task => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                nearbyPoiType={nearbyPoiType}
-                onToggle={handleToggle}
-                onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
-                customCategories={customCategories}
-              />
-            ))
-          )}
-        </View>
-
-        <View style={styles.bottomPad} />
-      </Animated.ScrollView>
+      </View>
 
       {/* ── Add-task FAB (KAN-51) ── */}
       <Pressable
@@ -447,9 +461,22 @@ export default function TodayScreen() {
 const styles = StyleSheet.create({
   root:         { flex: 1 },
   stickyHeader: { zIndex: 3 },
-  scrollContent: { paddingTop: 0 },
+  // scrollArea fills all space below the sticky header. The ring section
+  // is absolutely positioned at top:0 of scrollArea (zIndex 2), and the
+  // ScrollView is absoluteFill behind it with paddingTop = SECTION_H_REST.
+  scrollArea:   { flex: 1 },
+  scrollContent: {
+    // paddingTop = SECTION_H_REST ensures content always starts exactly where
+    // the ring section ends at rest. As the ring section collapses by
+    // SCROLL_RANGE (= 170), content scrolls up the same distance → perfect sync.
+    paddingTop: SECTION_H_REST,
+  },
   ringSection: {
-    position: 'relative',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   captionWrap: {
@@ -603,7 +630,9 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  bottomPad: { height: 100 },
+  // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (170px)
+  // even with a short task list.
+  bottomPad: { height: 220 },
   // ── Add-task FAB ──
   fab: {
     position:     'absolute',
