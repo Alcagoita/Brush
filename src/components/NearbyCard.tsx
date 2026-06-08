@@ -44,7 +44,7 @@ import { spacing, radius } from '../theme/tokens';
 import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
 import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
-import { ChevronRightIcon, PoiIcon } from './AppIcon';
+import { BuildingIcon, ChevronRightIcon, PoiIcon } from './AppIcon';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +60,11 @@ interface NearbyCardProps {
    * is hidden to avoid showing stale place data while monitoring is off.
    */
   trackingPaused?: boolean;
+  /**
+   * When true Store fine tuning is active (KAN-74).
+   * A small building icon + "Store tuning on" label appears in the header.
+   */
+  storeTuningActive?: boolean;
 }
 
 // ─── Pulsing dot (header) ─────────────────────────────────────────────────────
@@ -186,7 +191,8 @@ export default function NearbyCard({
   nearbyPoiType,
   nearbyPlace,
   poiPlaces,
-  trackingPaused = false,
+  trackingPaused    = false,
+  storeTuningActive = false,
 }: NearbyCardProps) {
   const { palette } = useTheme();
 
@@ -246,6 +252,16 @@ export default function NearbyCard({
         <Text style={[styles.headerLabel, { color: palette.muted }]}>
           {isHero ? 'NEARBY · NOW' : 'NEARBY'}
         </Text>
+
+        {/* Store fine tuning indicator (KAN-74) */}
+        {storeTuningActive && (
+          <View style={styles.tuningBadge}>
+            <BuildingIcon color={palette.accent} size={12} />
+            <Text style={[styles.tuningBadgeLabel, { color: palette.accent }]}>
+              Store tuning on
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* ── Hero block ── */}
@@ -346,6 +362,20 @@ const styles = StyleSheet.create({
     fontWeight:   '600',
     fontFamily:   'Geist-SemiBold',
     letterSpacing: 1.2,
+  },
+
+  // ── Store tuning badge (KAN-74) ──
+  tuningBadge: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:            4,
+    marginLeft:     'auto',
+  },
+  tuningBadgeLabel: {
+    fontSize:     10,
+    fontWeight:   '500',
+    fontFamily:   'Geist-Medium',
+    letterSpacing: 0.5,
   },
   pulsingDot: {
     width:        6,

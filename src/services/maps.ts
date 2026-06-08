@@ -355,3 +355,92 @@ export async function searchPlaceTypes(query: string): Promise<PlaceTypeSuggesti
 
   return results;
 }
+
+// ─── Places Autocomplete (KAN-76) ─────────────────────────────────────────────
+
+const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
+
+/** A single autocomplete suggestion returned by the Places Autocomplete API. */
+export interface PlaceAutocompleteSuggestion {
+  /** Google Places ID — stored on `Task.store.placeId` for authoritative matching. */
+  placeId: string;
+  /** Display name of the establishment (e.g. "Nike Store"). */
+  name: string;
+  /** Formatted secondary address line (e.g. "Oxford Street, London"). */
+  address: string;
+}
+
+/**
+ * Search for establishments matching the user-typed `query` string.
+ * Results are optionally biased towards `lat`/`lng` when the device location
+ * is available (50 km radius — covers most metro areas).
+ *
+ * Returns up to 5 establishment suggestions, sorted by relevance.
+ * Returns an empty array on API error (search is best-effort).
+ *
+ * Uses the Places Autocomplete (New) API:
+ *   POST https://places.googleapis.com/v1/places:autocomplete
+ */
+export async function searchPlacesAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  if (!query.trim()) { return []; }
+
+  const body: Record<string, unknown> = {
+    input:                query,
+    includedPrimaryTypes: ['establishment'],
+  };
+
+  if (lat != null && lng != null) {
+    body.locationBias = {
+      circle: {
+        center: { latitude: lat, longitude: lng },
+        radius: 50_000,
+      },
+    };
+  }
+
+  interface AutocompleteResponse {
+    suggestions?: Array<{
+      placePrediction?: {
+        placeId?: string;
+        structuredFormat?: {
+          mainText?:      { text?: string };
+          secondaryText?: { text?: string };
+        };
+      };
+    }>;
+  }
+
+  let data: AutocompleteResponse;
+  try {
+    const response = await fetch(PLACES_AUTOCOMPLETE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type':    'application/json',
+        'X-Goog-Api-Key':  GOOGLE_PLACES_API_KEY,
+        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!response.ok) { return []; }
+    data = (await response.json()) as AutocompleteResponse;
+  } catch {
+    return [];
+  }
+
+  const results: PlaceAutocompleteSuggestion[] = [];
+  for (const s of data.suggestions ?? []) {
+    const pred = s.placePrediction;
+    if (!pred?.placeId) { continue; }
+    results.push({
+      placeId: pred.placeId,
+      name:    pred.structuredFormat?.mainText?.text      ?? pred.placeId,
+      address: pred.structuredFormat?.secondaryText?.text ?? '',
+    });
+    if (results.length >= 5) { break; }
+  }
+  return results;
+}

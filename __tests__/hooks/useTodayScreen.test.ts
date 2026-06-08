@@ -25,6 +25,8 @@ jest.mock('../../src/services/firestore', () => ({
   subscribeToPoiPreferences:    (...args: unknown[]) => mockSubscribeToPoiPreferences(...args),
   subscribeToCategories:        (...args: unknown[]) => mockSubscribeToCategories(...args),
   subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
+  subscribeStoreTuningPref:     jest.fn().mockReturnValue(jest.fn()),
+  setStoreTuningPref:           jest.fn().mockResolvedValue(undefined),
   setTaskDone:                  (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:                   (...args: unknown[]) => mockAwardPoint(...args),
 }));
@@ -40,6 +42,7 @@ jest.mock('../../src/services/challenges', () => ({
 
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
+  LocationContext:           {},
 }));
 
 const mockStartProximityMonitoring = jest.fn();
@@ -52,6 +55,26 @@ jest.mock('../../src/services/proximity', () => ({
   updateProximityPoiPreferences: jest.fn(),
   pauseGeofenceMonitoring:       jest.fn(),
   resumeGeofenceMonitoring:      jest.fn(),
+  setLocationTap:                jest.fn(),
+}));
+
+jest.mock('../../src/services/indoorProximity', () => ({
+  startIndoorProximityMonitoring: jest.fn().mockReturnValue(jest.fn()),
+  stopIndoorProximityMonitoring:  jest.fn(),
+  updateIndoorTasks:              jest.fn(),
+}));
+
+jest.mock('../../src/services/indoorDetection', () => ({
+  startIndoorDetection: jest.fn().mockReturnValue(jest.fn()),
+  feedLocation:         jest.fn(),
+  stopIndoorDetection:  jest.fn(),
+}));
+
+jest.mock('../../src/services/storeTuning', () => ({
+  startStoreTuning:         jest.fn().mockReturnValue(jest.fn()),
+  onLocationContextChange:  jest.fn(),
+  activateStoreTuning:      jest.fn(),
+  dismissStoreTuning:       jest.fn(),
 }));
 
 jest.mock('../../src/services/battery', () => ({

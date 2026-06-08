@@ -9,6 +9,17 @@ export function toDateString(value: string): DateString {
   return value as DateString;
 }
 
+// ─── Store fine tuning (KAN-74) ──────────────────────────────────────────────
+
+/**
+ * Session-level state for the Store fine tuning feature.
+ *
+ *   off           — not active; prompt has not been shown (or was shown and dismissed)
+ *   prompt_shown  — the bottom-sheet prompt is visible / pending user response
+ *   active        — user tapped "Turn on"; indoor proximity radius = 10 m
+ */
+export type StoreTuningState = 'off' | 'prompt_shown' | 'active';
+
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 /** /users/{uid} */
@@ -31,10 +42,15 @@ export interface User {
   followingCount?: number;
   /** Denormalized count of users following this user (KAN-98). */
   followersCount?: number;
-  /** Denormalized total points (incremented on each award — KAN-31). */
+  /** Sum of points from all earned achievements (KAN-129). */
   totalPoints?: number;
   /** Current consecutive-day task streak. Updated by streak logic. */
   currentStreak?: number;
+  /**
+   * Achievement progress and earn state, keyed by AchievementType (KAN-129).
+   * Embedded on the user doc — replaces the old achievements subcollection.
+   */
+  achievements?: AchievementsMap;
   /**
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
@@ -45,6 +61,17 @@ export interface User {
      * LOW_BATTERY_THRESHOLD (20%). Default: false (opt-in). KAN-52.
      */
     lowBatteryPause?: boolean;
+    /**
+     * Store fine tuning preference (KAN-74).
+     *
+     *   absent / undefined — user has never interacted; prompt is shown on first
+     *                        indoor_mapped detection each session.
+     *   true               — user has activated via prompt or settings toggle;
+     *                        mode auto-activates silently on indoor_mapped.
+     *   false              — user has explicitly disabled via settings toggle;
+     *                        prompt is suppressed permanently.
+     */
+    storeTuningEnabled?: boolean;
   };
 }
 
@@ -66,6 +93,30 @@ export interface PoiPreference {
 // ─── Task ─────────────────────────────────────────────────────────────────────
 
 export type CategoryKey = 'work' | 'health' | 'errands' | 'personal';
+
+/**
+ * Named store tag for indoor proximity matching (KAN-76 / KAN-75).
+ *
+ * Stored as a sub-document on `Task.store`. Independent of `Task.poi` — a task
+ * can carry either, both, or neither.
+ *
+ * Match strategy in the indoor engine:
+ *   1. `placeId` equality (Google Places ID — authoritative).
+ *   2. `name` case-insensitive equality (fallback when placeId is unavailable).
+ */
+export interface TaskStore {
+  /** Google Places ID of the target store, if known. */
+  placeId?: string;
+  /** Display name of the store — used as fallback match key. */
+  name: string;
+  /** Human-readable address or floor/wing hint — display only. */
+  address?: string;
+  /**
+   * Date ("YYYY-MM-DD") when the last indoor proximity alert was fired.
+   * Suppresses repeat alerts on the same day (KAN-75).
+   */
+  alertSeenDate?: string;
+}
 
 /** /users/{uid}/tasks/{taskId} */
 export interface Task {
@@ -96,6 +147,12 @@ export interface Task {
    * fired for this task. Suppresses repeat alerts on the same day (KAN-24).
    */
   poiAlertSeenDate?: string;
+  /**
+   * Named store tag for indoor proximity matching (KAN-76).
+   * Independent of `poi` — a task can have either, both, or neither.
+   * `alertSeenDate` suppresses repeat indoor alerts on the same day (KAN-75).
+   */
+  store?: TaskStore;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
@@ -175,10 +232,36 @@ export type PointsReason =
  *   - Date-scoped (once per day):  '<name>'  — the doc ID carries the date
  *                                              e.g. 'daily_complete_2026-05-29'
  */
+/**
+ * V1 achievement types — KAN-129.
+ * `challenge_winner` is kept for the social challenge flow (KAN-104).
+ */
 export type AchievementType =
-  | 'first_task'        // very first task ever completed
-  | 'daily_complete'    // every task for a calendar day completed (KAN-32)
-  | 'challenge_winner'; // won a challenge against friends (KAN-104)
+  | 'first_brush'      // Brush away your first task
+  | 'early_bird'       // Brush a task away before 9 AM
+  | 'day_complete'     // Brush away every task in a single day
+  | 'on_a_roll'        // 3-day brushing streak
+  | 'explorer'         // Brush away 10 location-based tasks
+  | 'centurion'        // Reach 100 achievement points (meta-achievement)
+  | 'challenge_winner'; // Won a challenge against friends (KAN-104)
+
+/**
+ * Entry inside the `users/{uid}.achievements` map (KAN-129).
+ * The map key is the AchievementType string.
+ */
+export interface AchievementEntry {
+  /** Timestamp of first earn. Null / absent = not yet earned. */
+  earnedAt: FirebaseFirestoreTypes.Timestamp | null;
+  /** How many times this achievement has been earned (0 = not earned). */
+  earnCount: number;
+  /** Current progress toward the unlock condition. */
+  progress: number;
+  /** Condition threshold (e.g. 10 for Explorer, 100 for Centurion). */
+  target: number;
+}
+
+/** The full achievements map embedded on the user document. */
+export type AchievementsMap = Partial<Record<AchievementType, AchievementEntry>>;
 
 /**
  * /users/{uid}/pointsHistory/{id}

@@ -339,12 +339,147 @@ export function PencilIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Battery ───────────────────────────────────────────────────────────────────
+export function BatteryIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="2" y="7" width="17" height="10" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M22 11v2" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+      <Line x1="5.5" y1="12" x2="9.5" y2="12" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────────
+export function CalendarIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="4" width="18" height="18" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="16" y1="2" x2="16" y2="6" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="8"  y1="2" x2="8"  y2="6" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="3"  y1="10" x2="21" y2="10" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── ListCheck (import tasks) ──────────────────────────────────────────────────
+export function ListCheckIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Line x1="10" y1="6"  x2="21" y2="6"  stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="10" y1="12" x2="21" y2="12" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="10" y1="18" x2="21" y2="18" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M3 6l1.5 1.5L7 3.5"  stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M3 12l1.5 1.5L7 9.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M3 18l1.5 1.5L7 15.5" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── Medal / Achievement ───────────────────────────────────────────────────────
 export function MedalIcon({ color, size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="14" r="7" stroke={color} strokeWidth={1.6} {...S} />
       <Path d="M7.9 4L6 7l6 2.5L18 7l-1.9-3" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Check (achievement) ───────────────────────────────────────────────────────
+export function CheckIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M5 12l5 5L20 7" stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// ── Pin / Location ────────────────────────────────────────────────────────────
+export function PinIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2C8.69 2 6 4.69 6 8c0 4.5 6 12 6 12s6-7.5 6-12c0-3.31-2.69-6-6-6z"
+        stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <Circle cx="12" cy="8" r="2" stroke={color} strokeWidth={1.6} />
+    </Svg>
+  );
+}
+
+// ── Star ──────────────────────────────────────────────────────────────────────
+export function StarIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+        stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
+// ── Copy (clipboard) ──────────────────────────────────────────────────────────
+export function CopyIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="9" y="9" width="13" height="13" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+      <Path
+        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── Message / Chat ────────────────────────────────────────────────────────────
+export function MessageIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
+// ── QR Code ───────────────────────────────────────────────────────────────────
+export function QrCodeIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Finder patterns (outer squares) */}
+      <Rect x="3"  y="3"  width="7" height="7" rx="1.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="14" y="3"  width="7" height="7" rx="1.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="3"  y="14" width="7" height="7" rx="1.5" stroke={color} strokeWidth={1.6} {...S} />
+      {/* Finder inner dots */}
+      <Rect x="5"  y="5"  width="3" height="3" rx="0.5" fill={color} />
+      <Rect x="16" y="5"  width="3" height="3" rx="0.5" fill={color} />
+      <Rect x="5"  y="16" width="3" height="3" rx="0.5" fill={color} />
+      {/* Data area (bottom-right, simplified) */}
+      <Rect x="14" y="14" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="18" y="14" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.6} {...S} />
+      <Rect x="18" y="18" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+/** Building / store icon — used by KAN-74 Store fine tuning indicator. */
+export function BuildingIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Main building outline */}
+      <Path
+        d="M3 21h18M5 21V5a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v16"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      {/* Left windows */}
+      <Rect x="7"  y="8"  width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      <Rect x="7"  y="13" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      {/* Right windows */}
+      <Rect x="14" y="8"  width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      <Rect x="14" y="13" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
+      {/* Door */}
+      <Path d="M10 21v-4h4v4" stroke={color} strokeWidth={1.6} {...S} />
     </Svg>
   );
 }
