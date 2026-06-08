@@ -13,14 +13,22 @@
  *   checked   — faint fill, no visible border
  */
 
-import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AccessibilityInfo, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  interpolate,
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import Svg, {
+  Defs,
+  LinearGradient as SvgLinearGradient,
+  Rect,
+  Stop,
+} from 'react-native-svg';
 import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
@@ -106,9 +114,52 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
     transform: [{ scale: 0.55 + fillProgress.value * 0.1 }],
   }));
 
+  // ── Brush-away wash animation (KAN-134) ──────────────────────────────────────
+  // Fires only on false → true transition. Skipped if reduce-motion is on.
+  const sweepProgress = useSharedValue(0);
+  const rowWidth      = useSharedValue(0);
+  const [sweeping, setSweeping] = useState(false);
+  const prevDoneRef   = useRef(task.done);
+
+  useEffect(() => {
+    if (task.done && !prevDoneRef.current) {
+      AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
+        if (reduced) {
+          prevDoneRef.current = task.done;
+          return;
+        }
+        setSweeping(true);
+        sweepProgress.value = 0;
+        sweepProgress.value = withTiming(1, {
+          duration: 660,
+          easing: Easing.bezier(0.4, 0, 0.2, 1),
+        }, (finished) => {
+          if (finished) { runOnJS(setSweeping)(false); }
+        });
+      });
+    }
+    prevDoneRef.current = task.done;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [task.done]);
+
+  // scaleX anchored to left edge via translateX compensation.
+  const sweepStyle = useAnimatedStyle(() => {
+    const p     = sweepProgress.value;
+    const scale = interpolate(p, [0, 0.58, 1], [0, 1, 1]);
+    const w     = rowWidth.value;
+    return {
+      opacity:   interpolate(p, [0, 0.01, 0.58, 1], [0, 0.9, 0.9, 0]),
+      transform: [
+        { translateX: -(w / 2) * (1 - scale) },
+        { scaleX: scale },
+      ],
+    };
+  });
+
   return (
     <View
-      style={[styles.row, { borderBottomColor: palette.line }]}>
+      style={[styles.row, { borderBottomColor: palette.line }]}
+      onLayout={e => { rowWidth.value = e.nativeEvent.layout.width; }}>
 
       {/* ── Checkbox — toggles done ── */}
       <Pressable
@@ -205,6 +256,24 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
           </Text>
         ) : null}
       </Pressable>
+
+      {/* Brush-away wash — peach gradient sweep L→R on task completion (KAN-134) */}
+      {sweeping && (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, { zIndex: 3 }, sweepStyle]}>
+          <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none">
+            <Defs>
+              <SvgLinearGradient id={`brushSweep_${task.id}`} x1="0" y1="0" x2="1" y2="0">
+                <Stop offset="0"   stopColor={palette.nearTint}  stopOpacity="1" />
+                <Stop offset="0.6" stopColor={palette.nearTint2} stopOpacity="1" />
+                <Stop offset="1"   stopColor={palette.accent}    stopOpacity="1" />
+              </SvgLinearGradient>
+            </Defs>
+            <Rect x="0" y="0" width="100%" height="100%" fill={`url(#brushSweep_${task.id})`} />
+          </Svg>
+        </Animated.View>
+      )}
     </View>
   );
 }

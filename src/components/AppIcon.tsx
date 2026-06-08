@@ -313,6 +313,18 @@ export function FlameIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+/** Filled flame — used in the streak chip. Fill-only, no stroke. */
+export function FilledFlameIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path
+        d="M13.4 2.2c.4 2.6-.7 4.1-2 5.5-1.3 1.4-2.9 2.8-2.9 5.4a5.6 5.6 0 0 0 8.4 4.9c2-1.2 3.1-3.4 3.1-5.8 0-2.2-.9-3.8-1.9-5-.3 1-1 1.7-1.9 2 .4-2.4-.6-5.1-2.9-7z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
 // ── Lock ──────────────────────────────────────────────────────────────────────
 export function LockIcon({ color, size = 24 }: IconProps) {
   return (
