@@ -280,10 +280,13 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   const tasks = tasksState.status === 'success' ? tasksState.tasks : [];
 
-  const effectiveTasks = tasks.map(t => ({
-    ...t,
-    done: optimisticDone[t.id] ?? t.done,
-  }));
+  const effectiveTasks = tasks
+    .map(t => ({ ...t, done: optimisticDone[t.id] ?? t.done }))
+    .sort((a, b) => {
+      // Done tasks sink to the bottom; within each group original order is preserved
+      if (a.done === b.done) { return 0; }
+      return a.done ? 1 : -1;
+    });
 
   // ── POI radius preferences (KAN-25) ────────────────────────────────────────
 
