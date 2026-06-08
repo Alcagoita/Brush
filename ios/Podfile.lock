@@ -1216,6 +1216,9 @@ PODS:
   - Firebase/Firestore (12.10.0):
     - Firebase/CoreOnly
     - FirebaseFirestore (~> 12.10.0)
+  - Firebase/Functions (12.10.0):
+    - Firebase/CoreOnly
+    - FirebaseFunctions (~> 12.10.0)
   - Firebase/Messaging (12.10.0):
     - Firebase/CoreOnly
     - FirebaseMessaging (~> 12.10.0)
@@ -3451,6 +3454,30 @@ PODS:
     - ReactNativeDependencies
     - RNFBApp
     - Yoga
+  - RNFBFunctions (24.1.0):
+    - Firebase/Functions (= 12.10.0)
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-Core-prebuilt
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - RNFBApp
+    - Yoga
   - RNFBMessaging (24.0.0):
     - Firebase/Messaging (= 12.10.0)
     - FirebaseCoreExtension
@@ -3716,6 +3743,8 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
+  - RNShareMenu (4.1.4):
+    - React
   - RNSVG (15.15.5):
     - hermes-engine
     - RCTRequired
@@ -3852,6 +3881,7 @@ DEPENDENCIES:
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
   - "RNFBCrashlytics (from `../node_modules/@react-native-firebase/crashlytics`)"
   - "RNFBFirestore (from `../node_modules/@react-native-firebase/firestore`)"
+  - "RNFBFunctions (from `../node_modules/@react-native-firebase/functions`)"
   - "RNFBMessaging (from `../node_modules/@react-native-firebase/messaging`)"
   - "RNFBStorage (from `../node_modules/@react-native-firebase/storage`)"
   - "RNGoogleSignin (from `../node_modules/@react-native-google-signin/google-signin`)"
@@ -3859,6 +3889,7 @@ DEPENDENCIES:
   - RNPermissions (from `../node_modules/react-native-permissions`)
   - RNReanimated (from `../node_modules/react-native-reanimated`)
   - RNScreens (from `../node_modules/react-native-screens`)
+  - RNShareMenu (from `../node_modules/react-native-share-menu`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
@@ -4067,6 +4098,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/@react-native-firebase/crashlytics"
   RNFBFirestore:
     :path: "../node_modules/@react-native-firebase/firestore"
+  RNFBFunctions:
+    :path: "../node_modules/@react-native-firebase/functions"
   RNFBMessaging:
     :path: "../node_modules/@react-native-firebase/messaging"
   RNFBStorage:
@@ -4081,6 +4114,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-reanimated"
   RNScreens:
     :path: "../node_modules/react-native-screens"
+  RNShareMenu:
+    :path: "../node_modules/react-native-share-menu"
   RNSVG:
     :path: "../node_modules/react-native-svg"
   Yoga:
@@ -4204,6 +4239,7 @@ SPEC CHECKSUMS:
   RNFBAuth: 0db5e726741dfaa537fd6fff68010c591b7fd56e
   RNFBCrashlytics: 4b15ed59e869d06f8c181e63a3297548ed790d82
   RNFBFirestore: b9d803961f168e9385d15fcd48bdbe02204ace4c
+  RNFBFunctions: 13fa0dcb7a5fd28bd12d3db901ab681fbbb61e5d
   RNFBMessaging: b82ba0933288d710f5371f57d3115092abf64903
   RNFBStorage: 99301df08b112f415150c7b0e5f46e6aa2d8f19b
   RNGoogleSignin: 6fa1cf7f7fb24d68cc41a89bd6370f302bbe2dcc
@@ -4211,6 +4247,7 @@ SPEC CHECKSUMS:
   RNPermissions: d1bab2bcd95b737c313ae0f2f6cad9d821e23405
   RNReanimated: 94f58f9cdd4f718048d9a5056c18925ab1e4fa6d
   RNScreens: 8d318eb8905fa1d3439a1ce5d567f82ae8245657
+  RNShareMenu: 7cf5fec1ffa692e9ce359e407706a87b7e0be9e0
   RNSVG: 8efa5ad14ceb98fe56c03793bd55bc4bd30ad84b
   Yoga: e240fec777ff1f21ef42ccebbb44b6d262125855
 

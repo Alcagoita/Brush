@@ -239,7 +239,7 @@ function DetailCard({ dateISO, tasks, isToday }: DetailCardProps) {
             <Text style={{ color: palette.faint }}> / </Text>
             <Text style={{ color: palette.muted }}>{total}</Text>
             <Text style={[styles.detailFractionSuffix, { color: palette.muted }]}>
-              {' '}done
+              {' '}brushed
             </Text>
           </Text>
         </View>
