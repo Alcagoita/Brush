@@ -1,16 +1,18 @@
 /**
  * Header — sticky top bar (zIndex 3).
  *
- * Layout: [Avatar] [Greeting · Name]  [Bell 🔔]
+ * Layout: [Avatar] [Greeting · Name [PointsChip?]]  [People] [Bell]
  *
  * The unread dot on the bell is peach (palette.accent).
  * Greeting adapts to the time of day.
+ * The points chip (KAN-134) is always shown inline after the name (even at 0),
+ * displaying the user's total achievement points to drive engagement.
  */
 import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { BellIcon, UsersIcon } from './AppIcon';
+import { BellIcon, FilledStarIcon, UsersIcon } from './AppIcon';
 import Avatar from './Avatar';
 
 interface Props {
@@ -20,9 +22,13 @@ interface Props {
   hasUnread?: boolean;
   /** Badge count on the people/social icon (KAN-100). */
   socialBadge?: number;
+  /** Total achievement points (KAN-134). Always visible, even at 0. */
+  points?: number;
   onAvatarPress?: () => void;
   onBellPress?: () => void;
   onPeoplePress?: () => void;
+  /** Navigate to Achievements when streak chip is tapped (KAN-134). */
+  onAchievementsPress?: () => void;
 }
 
 function greeting(): string {
@@ -33,7 +39,17 @@ function greeting(): string {
   return 'Good night';
 }
 
-export default function Header({ displayName, photoURL, hasUnread = false, socialBadge = 0, onAvatarPress, onBellPress, onPeoplePress }: Props) {
+export default function Header({
+  displayName,
+  photoURL,
+  hasUnread = false,
+  socialBadge = 0,
+  points = 0,
+  onAvatarPress,
+  onBellPress,
+  onPeoplePress,
+  onAchievementsPress,
+}: Props) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
 
@@ -63,14 +79,29 @@ export default function Header({ displayName, photoURL, hasUnread = false, socia
         accessibilityLabel="Open profile"
       />
 
-      {/* Greeting */}
+      {/* Greeting + name row + optional streak chip */}
       <View style={styles.greetingWrap}>
         <Text style={[styles.greeting, { color: palette.muted }]} numberOfLines={1}>
           {greet}
         </Text>
-        <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
-          {displayName}
-        </Text>
+        <View style={styles.nameRow}>
+          <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <TouchableOpacity
+              style={[styles.streakChip, { backgroundColor: palette.nearTint }]}
+              onPress={onAchievementsPress}
+              disabled={!onAchievementsPress}
+              accessibilityRole={onAchievementsPress ? 'button' : 'text'}
+              accessibilityLabel={`${points} achievement points · view achievements`}
+              accessibilityState={{ disabled: !onAchievementsPress }}
+              hitSlop={onAchievementsPress ? 6 : undefined}>
+              <FilledStarIcon color={palette.accent} size={12} />
+              <Text style={[styles.streakCount, { color: palette.nearText }]}>
+                {`${points} pts`}
+              </Text>
+            </TouchableOpacity>
+        </View>
       </View>
 
       {/* People / Social hub */}
@@ -111,16 +142,41 @@ const styles = StyleSheet.create({
   greetingWrap: {
     flex: 1,
     marginLeft: 12,
+    minWidth: 0,
   },
   greeting: {
     fontSize: 11,
     fontFamily: 'Geist-Regular',
     letterSpacing: 0.2,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    minWidth: 0,
+  },
   name: {
     fontSize: 15,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
+    flexShrink: 1,
+  },
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    height: 19,
+    paddingLeft: 6,
+    paddingRight: 7,
+    borderRadius: 999,
+    flexShrink: 0,
+  },
+  streakCount: {
+    fontSize: 12,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+    letterSpacing: -0.12,
+    fontVariant: ['tabular-nums'],
   },
   iconBtn: {
     width: 38,
