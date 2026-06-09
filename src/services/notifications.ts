@@ -21,11 +21,13 @@ import type { TimestampTrigger } from '@notifee/react-native';
 
 export const CHANNEL_EOD    = 'eod-checkin';
 export const CHANNEL_STREAK = 'streak-at-risk';
+export const CHANNEL_WEEKLY = 'weekly-recap';
 
 // ─── Notification IDs ─────────────────────────────────────────────────────────
 
 const NOTIF_ID_EOD    = 'eod-checkin';
 const NOTIF_ID_STREAK = 'streak-at-risk';
+const NOTIF_ID_WEEKLY = 'weekly-recap';
 
 // ─── Fixed fire time for streak-at-risk (8 PM, not user-configurable) ─────────
 
@@ -198,4 +200,108 @@ export async function scheduleStreakReminder(options: {
 /** Cancel any pending streak-at-risk notification. */
 export async function cancelStreakReminder(): Promise<void> {
   await notifee.cancelNotification(NOTIF_ID_STREAK);
+}
+
+// ─── Weekly recap (KAN-123) ───────────────────────────────────────────────────
+
+const WEEKLY_FIRE_HOUR   = 19; // 19:00 (7 PM)
+const WEEKLY_FIRE_MINUTE = 0;
+
+/**
+ * Returns the notification body for the Sunday weekly recap.
+ *
+ * Rules:
+ *   - 0 tasks: "Fresh week ahead — time to start brushing."
+ *   - ≥ 1 task, streak ≥ 3: "You brushed away X tasks this week. N-day streak going strong."
+ *   - ≥ 1 task, streak < 3:  "You brushed away X tasks this week. Keep it brushing."
+ */
+export function buildWeeklyBody(weeklyCount: number, streakDays: number): string {
+  if (weeklyCount === 0) {
+    return 'Fresh week ahead — time to start brushing.';
+  }
+  const taskPart = `You brushed away ${weeklyCount} task${weeklyCount === 1 ? '' : 's'} this week.`;
+  const streakPart = streakDays >= 3
+    ? ` ${streakDays}-day streak going strong.`
+    : ' Keep it brushing.';
+  return taskPart + streakPart;
+}
+
+/**
+ * Returns a Date set to the next Sunday at 7 PM (local time).
+ * If today IS Sunday and 7 PM has not yet passed, returns today at 7 PM.
+ * Otherwise returns the following Sunday.
+ *
+ * @param now  Current time (defaults to `new Date()`). Injectable for tests.
+ */
+export function nextSundayAt7PM(now: Date = new Date()): Date {
+  const dayOfWeek = now.getDay(); // 0 = Sunday
+
+  const candidate = new Date(now);
+  candidate.setHours(WEEKLY_FIRE_HOUR, WEEKLY_FIRE_MINUTE, 0, 0);
+
+  if (dayOfWeek === 0 && candidate.getTime() > now.getTime()) {
+    // Today is Sunday and 7 PM hasn't passed yet
+    return candidate;
+  }
+
+  // Advance to next Sunday
+  const daysUntilSunday = dayOfWeek === 0 ? 7 : 7 - dayOfWeek;
+  candidate.setDate(now.getDate() + daysUntilSunday);
+  return candidate;
+}
+
+/**
+ * Schedule (or re-schedule) the next Sunday weekly-recap notification.
+ *
+ * Cancels any existing weekly recap first (idempotent).
+ * Silent no-ops when:
+ *   - `enabled` is false
+ *   - `appOpenedThisWeek` is false (user hasn't opened the app this week)
+ */
+export async function scheduleWeeklyRecap(options: {
+  enabled:           boolean;
+  weeklyCount:       number;
+  streakDays:        number;
+  appOpenedThisWeek: boolean;
+}): Promise<void> {
+  const { enabled, weeklyCount, streakDays, appOpenedThisWeek } = options;
+
+  await cancelWeeklyRecap();
+
+  if (!enabled || !appOpenedThisWeek) { return; }
+
+  await notifee.createChannel({
+    id:         CHANNEL_WEEKLY,
+    name:       'Weekly recap',
+    importance: AndroidImportance.DEFAULT,
+    vibration:  false,
+    visibility: AndroidVisibility.PUBLIC,
+  });
+
+  const trigger: TimestampTrigger = {
+    type:      TriggerType.TIMESTAMP,
+    timestamp: nextSundayAt7PM().getTime(),
+  };
+
+  await notifee.createTriggerNotification(
+    {
+      id:    NOTIF_ID_WEEKLY,
+      title: 'Brush',
+      body:  buildWeeklyBody(weeklyCount, streakDays),
+      android: {
+        channelId:   CHANNEL_WEEKLY,
+        importance:  AndroidImportance.DEFAULT,
+        pressAction: { id: 'default', launchActivity: 'default' },
+        visibility:  AndroidVisibility.PUBLIC,
+        smallIcon:   'ic_notification',
+      },
+      data: { screen: 'Today' },
+    },
+    trigger,
+  );
+}
+
+/** Cancel any pending weekly recap notification. */
+export async function cancelWeeklyRecap(): Promise<void> {
+  await notifee.cancelNotification(NOTIF_ID_WEEKLY);
 }

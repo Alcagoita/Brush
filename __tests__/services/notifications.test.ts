@@ -15,6 +15,11 @@
  *  - scheduleStreakReminder: schedules at 8 PM when all conditions met
  *  - scheduleStreakReminder: rolls forward when 8 PM already passed
  *  - cancelStreakReminder: delegates to notifee.cancelNotification
+ *  - buildWeeklyBody: 0-task, ≥1-task, streak suffix variants
+ *  - nextSundayAt7PM: returns correct upcoming Sunday at 19:00
+ *  - scheduleWeeklyRecap: no-ops when disabled or not opened this week
+ *  - scheduleWeeklyRecap: schedules correctly when conditions met
+ *  - cancelWeeklyRecap: delegates to notifee.cancelNotification
  */
 
 import {
@@ -24,6 +29,10 @@ import {
   buildStreakBody,
   scheduleStreakReminder,
   cancelStreakReminder,
+  buildWeeklyBody,
+  nextSundayAt7PM,
+  scheduleWeeklyRecap,
+  cancelWeeklyRecap,
 } from '../../src/services/notifications';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -222,5 +231,138 @@ describe('cancelStreakReminder', () => {
   it('calls notifee.cancelNotification with the streak id', async () => {
     await cancelStreakReminder();
     expect(mockCancelNotification).toHaveBeenCalledWith('streak-at-risk');
+  });
+});
+
+// ─── Weekly recap (KAN-123) ───────────────────────────────────────────────────
+
+describe('buildWeeklyBody', () => {
+  it('returns zero-task copy when weeklyCount is 0', () => {
+    expect(buildWeeklyBody(0, 0)).toBe('Fresh week ahead — time to start brushing.');
+  });
+
+  it('returns zero-task copy regardless of streak when count is 0', () => {
+    expect(buildWeeklyBody(0, 10)).toBe('Fresh week ahead — time to start brushing.');
+  });
+
+  it('includes streak suffix when count ≥ 1 and streak ≥ 3', () => {
+    expect(buildWeeklyBody(5, 7)).toBe('You brushed away 5 tasks this week. 7-day streak going strong.');
+  });
+
+  it('uses "Keep it brushing" suffix when count ≥ 1 and streak < 3', () => {
+    expect(buildWeeklyBody(3, 2)).toBe('You brushed away 3 tasks this week. Keep it brushing.');
+  });
+
+  it('uses singular "task" when count is 1', () => {
+    expect(buildWeeklyBody(1, 0)).toBe('You brushed away 1 task this week. Keep it brushing.');
+  });
+
+  it('uses streak suffix at exactly streak === 3', () => {
+    expect(buildWeeklyBody(4, 3)).toContain('3-day streak going strong.');
+  });
+});
+
+describe('nextSundayAt7PM', () => {
+  /** Returns a Date set to the given day-of-week and hour (this week). */
+  function makeDayTime(day: 0 | 1 | 2 | 3 | 4 | 5 | 6, hour: number): Date {
+    const d = new Date();
+    // Advance/rewind to the target day within ±7 days
+    const diff = day - d.getDay();
+    d.setDate(d.getDate() + diff);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  }
+
+  it('always returns a Date at 19:00', () => {
+    const result = nextSundayAt7PM();
+    expect(result.getHours()).toBe(19);
+    expect(result.getMinutes()).toBe(0);
+    expect(result.getSeconds()).toBe(0);
+  });
+
+  it('always returns day-of-week 0 (Sunday)', () => {
+    const result = nextSundayAt7PM();
+    expect(result.getDay()).toBe(0);
+  });
+
+  it('returns today at 7 PM when today is Sunday before 7 PM', () => {
+    const sundayAt3PM = makeDayTime(0, 15);
+    const result = nextSundayAt7PM(sundayAt3PM);
+    expect(result.getDay()).toBe(0);
+    expect(result.getDate()).toBe(sundayAt3PM.getDate()); // same day
+    expect(result.getHours()).toBe(19);
+  });
+
+  it('returns next Sunday when today is Sunday after 7 PM', () => {
+    const sundayAt8PM = makeDayTime(0, 20);
+    const result = nextSundayAt7PM(sundayAt8PM);
+    // Should be 7 days later
+    expect(result.getDate()).toBe(sundayAt8PM.getDate() + 7);
+    expect(result.getHours()).toBe(19);
+  });
+
+  it('returns next Sunday when today is a weekday', () => {
+    const wednesday = makeDayTime(3, 10); // Wednesday 10:00
+    const result = nextSundayAt7PM(wednesday);
+    expect(result.getDay()).toBe(0);
+    // 4 days until Sunday from Wednesday
+    expect(result.getDate()).toBe(wednesday.getDate() + 4);
+  });
+});
+
+describe('scheduleWeeklyRecap', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('cancels any existing notification before scheduling', async () => {
+    await scheduleWeeklyRecap({ enabled: true, weeklyCount: 3, streakDays: 0, appOpenedThisWeek: true });
+    expect(mockCancelNotification).toHaveBeenCalledWith('weekly-recap');
+  });
+
+  it('does NOT schedule when disabled', async () => {
+    await scheduleWeeklyRecap({ enabled: false, weeklyCount: 3, streakDays: 0, appOpenedThisWeek: true });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT schedule when app not opened this week', async () => {
+    await scheduleWeeklyRecap({ enabled: true, weeklyCount: 0, streakDays: 0, appOpenedThisWeek: false });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('schedules when enabled and app opened this week', async () => {
+    await scheduleWeeklyRecap({ enabled: true, weeklyCount: 5, streakDays: 0, appOpenedThisWeek: true });
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(1);
+    const [notif, trigger] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.id).toBe('weekly-recap');
+    expect(trigger.type).toBe(0); // TriggerType.TIMESTAMP
+    expect(trigger.timestamp).toBeGreaterThan(Date.now());
+  });
+
+  it('notification body reflects weeklyCount and streak', async () => {
+    await scheduleWeeklyRecap({ enabled: true, weeklyCount: 8, streakDays: 5, appOpenedThisWeek: true });
+    const [notif] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.body).toContain('8 tasks');
+    expect(notif.body).toContain('5-day streak');
+  });
+
+  it('notification data contains screen:Today for tap routing', async () => {
+    await scheduleWeeklyRecap({ enabled: true, weeklyCount: 2, streakDays: 0, appOpenedThisWeek: true });
+    const [notif] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.data?.screen).toBe('Today');
+  });
+
+  it('schedules 0-task variant when app opened but 0 tasks completed', async () => {
+    await scheduleWeeklyRecap({ enabled: true, weeklyCount: 0, streakDays: 0, appOpenedThisWeek: true });
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(1);
+    const [notif] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.body).toBe('Fresh week ahead — time to start brushing.');
+  });
+});
+
+describe('cancelWeeklyRecap', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls notifee.cancelNotification with the weekly recap id', async () => {
+    await cancelWeeklyRecap();
+    expect(mockCancelNotification).toHaveBeenCalledWith('weekly-recap');
   });
 });

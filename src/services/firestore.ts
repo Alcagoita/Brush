@@ -1145,6 +1145,34 @@ export async function markLastOpenedAt(uid: string): Promise<void> {
   );
 }
 
+/**
+ * Returns the number of tasks completed during the current calendar week
+ * (Monday 00:00 – Sunday 23:59:59 local time).
+ *
+ * Used by KAN-123 to build the weekly-recap notification copy.
+ */
+export async function getWeeklyCompletedCount(uid: string): Promise<number> {
+  const now      = new Date();
+  // ISO week: Monday = 1 … Sunday = 0 (adjusted to 7)
+  const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay(); // 1–7 Mon–Sun
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - (dayOfWeek - 1));
+  monday.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+
+  const q = query(
+    tasksRef(uid),
+    where('completedAt', '>=', Timestamp.fromDate(monday)),
+    where('completedAt', '<=', Timestamp.fromDate(sunday)),
+  );
+
+  const snap = await getDocs(q);
+  return snap.docs.length;
+}
+
 // ─── Re-exports for convenience ───────────────────────────────────────────────
 
 export { Timestamp, serverTimestamp };
