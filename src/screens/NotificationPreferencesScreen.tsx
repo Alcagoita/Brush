@@ -53,23 +53,9 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
+import { isThisWeek } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-// ─── Utility ──────────────────────────────────────────────────────────────────
-
-/** Returns true if `date` falls within the current Mon–Sun calendar week. */
-function isThisWeek(date: Date): boolean {
-  const now       = new Date();
-  const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay(); // 1–7
-  const monday    = new Date(now);
-  monday.setDate(now.getDate() - (dayOfWeek - 1));
-  monday.setHours(0, 0, 0, 0);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return date >= monday && date <= sunday;
-}
 
 // ─── Time options for the EOD picker (30-min increments, 6 PM – midnight) ─────
 

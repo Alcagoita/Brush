@@ -30,6 +30,7 @@ import {
   increment,
   Timestamp,
 } from '@react-native-firebase/firestore';
+import { getCurrentWeekBoundaries } from '../utils/date';
 import {
   Task,
   User,
@@ -1152,16 +1153,7 @@ export async function markLastOpenedAt(uid: string): Promise<void> {
  * Used by KAN-123 to build the weekly-recap notification copy.
  */
 export async function getWeeklyCompletedCount(uid: string): Promise<number> {
-  const now      = new Date();
-  // ISO week: Monday = 1 … Sunday = 0 (adjusted to 7)
-  const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay(); // 1–7 Mon–Sun
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (dayOfWeek - 1));
-  monday.setHours(0, 0, 0, 0);
-
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
+  const { monday, sunday } = getCurrentWeekBoundaries();
 
   const q = query(
     tasksRef(uid),
