@@ -339,20 +339,7 @@ export default function SettingsScreen() {
           <SettingsRow
             Icon={BellIcon}
             label="Notification Preferences"
-            onPress={() =>
-              Alert.alert(
-                'Coming soon',
-                'Notification preferences will be available in an upcoming update.',
-              )
-            }
-            trailing={
-              <View style={s.trailingGroup}>
-                <Text style={[s.trailingText, { color: palette.muted }]}>
-                  {notifItemCount} items
-                </Text>
-                <ChevronRightIcon color={palette.faint} size={16} />
-              </View>
-            }
+            onPress={() => navigation.navigate('NotificationPreferences')}
             isLast
             accessibilityLabel="Notification Preferences"
           />

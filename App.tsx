@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  AppState,
   StyleSheet,
   View,
   StatusBar,
@@ -22,7 +23,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
-import { getUser } from './src/services/firestore';
+import { getUser, markLastOpenedAt } from './src/services/firestore';
 import { migratePointsToAchievementDerived } from './src/services/achievements';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
 import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
@@ -166,6 +167,20 @@ function AppShell() {
       }
     });
   }, []);
+
+  // Stamp lastOpenedAt on every foreground event (KAN-124 dependency).
+  useEffect(() => {
+    if (!displayUser) { return; }
+    const uid = displayUser.uid;
+    // Stamp immediately on mount (cold start counts as a foreground event).
+    markLastOpenedAt(uid).catch(() => {});
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') {
+        markLastOpenedAt(uid).catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, [displayUser]);
 
   // ── Android Share Intent (KAN-90) ────────────────────────────────────────
   // Only active once the user is fully logged in and the navigation container

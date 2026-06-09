@@ -27,6 +27,7 @@ import ContactSuggestionsScreen from '../screens/ContactSuggestionsScreen';
 import CompareAchievementsScreen from '../screens/CompareAchievementsScreen';
 import ShareReceiveScreen from '../screens/ShareReceiveScreen';
 import SettingsScreen from '../screens/SettingsScreen';
+import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 
 export type RootStackParamList = {
@@ -59,6 +60,8 @@ export type RootStackParamList = {
   ShareReceive: { sharedText: string };
   /** App & account settings (KAN-113). */
   Settings: undefined;
+  /** Notification toggles and scheduling (KAN-80). */
+  NotificationPreferences: undefined;
   /** Full achievements list with progress and point values (KAN-114 / KAN-129). */
   Achievements: undefined;
 };
@@ -91,8 +94,9 @@ export default function AppNavigator() {
         component={ShareReceiveScreen}
         options={{ presentation: 'modal' }}
       />
-      <Stack.Screen name="Settings"      component={SettingsScreen} />
-      <Stack.Screen name="Achievements"  component={AchievementsScreen} />
+      <Stack.Screen name="Settings"                   component={SettingsScreen} />
+      <Stack.Screen name="NotificationPreferences"    component={NotificationPreferencesScreen} />
+      <Stack.Screen name="Achievements"               component={AchievementsScreen} />
     </Stack.Navigator>
   );
 }
