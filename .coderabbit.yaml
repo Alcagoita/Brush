@@ -1,23 +1,38 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # CodeRabbit configuration for Brush
 # https://docs.coderabbit.ai/configure-coderabbit
 
 language: "en-US"
 
+early_access: true
+
+chat:
+  auto_reply: true
+
 reviews:
-  # Review PRs targeting develop (feature branches) and main (release/hotfix)
-  base_branches:
-    - "develop"
-    - "main"
+  auto_review:
+    enabled: true
+    drafts: false
+    # Skip auto-review if PR title contains these keywords
+    ignore_title_keywords:
+      - "WIP"
+    # Only auto-review PRs targeting these branches
+    base_branches:
+      - "develop"
+      - "main"
 
   profile: "assertive"
   request_changes_workflow: false
   high_level_summary: true
+  sequence_diagrams: true
   poem: false
   review_status: true
   collapse_walkthrough: false
-  auto_review:
-    enabled: true
-    drafts: false
+  changed_files_summary: true
+
+  pre_merge_checks:
+    description:
+      mode: warning
 
   path_filters:
     - "!node_modules/**"
@@ -25,9 +40,21 @@ reviews:
     - "!android/.gradle/**"
     - "!builds/**"
     - "!**/*.lock"
-    - "!patch/**"
+    - "!patches/**"
 
   path_instructions:
+    - path: "**/*.{ts,tsx}"
+      instructions: |
+        React Native best practices:
+        - Use FlatList/SectionList for lists — never ScrollView with .map()
+        - StyleSheet.create instead of inline styles
+        - React.memo, useMemo, useCallback where appropriate to avoid unnecessary re-renders
+        - Clean up useEffect subscriptions, listeners and timers on unmount
+        - Avoid 'any' — use explicit TypeScript types. Prefer 'import type' for type-only imports
+        - Accessibility: touch targets min 44×44, screen reader support
+        - Safe area handling and platform-specific code (iOS vs Android)
+        - No exposed API keys or sensitive data in source
+
     - path: "src/theme/**"
       instructions: >
         Enforce design token usage. Flag any hardcoded color hex, rgba, font size,
@@ -67,12 +94,15 @@ reviews:
         Flag tests that mock the database — integration tests must hit a real Firestore
         emulator, not mocks.
 
+    - path: "metro.config.js"
+      instructions: >
+        Review Metro bundler configuration for: asset extensions are properly registered,
+        transformer configuration is optimal for project needs, source map generation is
+        appropriate for environment, no security issues with resolver configuration.
+
   tone_instructions: >
     This is a React Native app (iOS + Android) with Firebase backend following
     Gitflow. Be precise about React Native performance concerns (re-renders, JS thread
     blocking, Animated vs Reanimated). Call out Firebase security rule gaps and
     Firestore query inefficiencies. Reference the design system (tokens, no shadows,
     Geist font, tabular numerals) when reviewing UI code.
-
-chat:
-  auto_reply: true
