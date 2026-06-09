@@ -5,3 +5,4 @@
  */
 
 export { parseMessageToTask } from './parseMessageToTask';
+export { onUserInactive } from './onUserInactive';
