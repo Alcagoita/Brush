@@ -327,6 +327,12 @@ export interface UserPreferences {
   lastReengagementNudge?:   FirebaseFirestoreTypes.Timestamp;
   /** "YYYY-MM-DD" — prevents more than one achievement nudge per day (KAN-122). */
   lastAchievementNudgeDate?: string;
+  /**
+   * Per-actor last-nudge timestamps for friend activity (KAN-125).
+   * Key = actor UID; value = last time a friend-activity nudge was sent from that actor.
+   * Written by the onFriendActivity Cloud Function — not read by the RN app.
+   */
+  lastFriendNudgeFrom?: Record<string, FirebaseFirestoreTypes.Timestamp>;
 }
 
 /** Sensible defaults applied before a user has ever saved preferences. */
