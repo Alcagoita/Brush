@@ -77,8 +77,11 @@ export async function scheduleEodReminder(options: {
   const fireAt = new Date();
   fireAt.setHours(hours, minutes, 0, 0);
 
-  // Don't schedule in the past.
-  if (fireAt.getTime() <= Date.now()) { return; }
+  // If the time has already passed today, roll forward to tomorrow so the
+  // user still gets the reminder (e.g. they change preferences after 9 PM).
+  if (fireAt.getTime() <= Date.now()) {
+    fireAt.setDate(fireAt.getDate() + 1);
+  }
 
   await createEodChannel();
 

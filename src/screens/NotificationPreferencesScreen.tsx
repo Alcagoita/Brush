@@ -393,7 +393,7 @@ const s = StyleSheet.create({
   },
   content: {
     paddingTop:        24,
-    paddingHorizontal: spacing[5],
+    paddingHorizontal: spacing.page,
     gap:               24,
   },
   sectionWrapper: {

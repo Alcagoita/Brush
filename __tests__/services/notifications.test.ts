@@ -5,7 +5,7 @@
  *  - buildEodBody returns correct singular / plural copy
  *  - scheduleEodReminder: no-ops when disabled
  *  - scheduleEodReminder: no-ops when incompleteCount is 0
- *  - scheduleEodReminder: no-ops when time has already passed today
+ *  - scheduleEodReminder: rolls forward to tomorrow when time has already passed
  *  - scheduleEodReminder: calls createTriggerNotification when conditions met
  *  - cancelEodReminder: delegates to notifee.cancelNotification
  */
@@ -32,20 +32,22 @@ jest.mock('@notifee/react-native', () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Returns a future HH:MM time (1 hour from now). */
+/**
+ * Returns a future HH:00 time (+2 h, wrapping via modulo so it always
+ * maps to a valid same-day or same-context hour — no midnight overflow).
+ */
 function futureTime(): string {
-  const d = new Date(Date.now() + 60 * 60 * 1000);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const safeHour = (new Date().getHours() + 2) % 24;
+  return `${String(safeHour).padStart(2, '0')}:00`;
 }
 
-/** Returns a past HH:MM time (1 hour ago). */
+/**
+ * Returns a past HH:00 time (−1 h, clamped so it never goes negative).
+ */
 function pastTime(): string {
-  const d = new Date(Date.now() - 60 * 60 * 1000);
-  const h = d.getHours();
-  const m = d.getMinutes();
-  // Clamp to valid time range
-  if (h < 0) { return '00:00'; }
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+  const h = new Date().getHours();
+  const safeHour = h === 0 ? 23 : h - 1;
+  return `${String(safeHour).padStart(2, '0')}:00`;
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -86,9 +88,12 @@ describe('scheduleEodReminder', () => {
     expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
   });
 
-  it('does NOT call createTriggerNotification when time has already passed', async () => {
+  it('rolls forward to tomorrow and still schedules when time has already passed today', async () => {
     await scheduleEodReminder({ enabled: true, time: pastTime(), incompleteCount: 2 });
-    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(1);
+    const [, trigger] = mockCreateTriggerNotification.mock.calls[0];
+    // Timestamp should be in the future (tomorrow)
+    expect(trigger.timestamp).toBeGreaterThan(Date.now());
   });
 
   it('schedules a notification when enabled, count > 0, and time is in the future', async () => {
