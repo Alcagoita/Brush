@@ -23,9 +23,11 @@ import {
   serverTimestamp,
   increment,
 } from '@react-native-firebase/firestore';
-import { awardAchievement, hasAchievement, awardPointsAchievementBonus } from './firestore';
+import { awardAchievement, hasAchievement, awardPointsAchievementBonus, getUserPreferences, updateUserPreferences } from './firestore';
 import type { Task, AchievementType, AchievementEntry, AchievementsMap, User } from '../types';
+import { DEFAULT_USER_PREFERENCES } from '../types';
 import { COPY } from '../constants/copy';
+import { fireAchievementNudge } from './notifications';
 
 // ─── Tier ladder (KAN-129) ────────────────────────────────────────────────────
 
@@ -82,16 +84,26 @@ export const ACHIEVEMENT_DEFS: Record<string, AchievementDef> = {
  * @param task         The task that was just completed
  * @param ctx.allTasksDone  True if every task for today is now done
  */
+/**
+ * Describes a "1 away" achievement that may trigger a nudge notification.
+ * Returned by `evaluateAchievements` so the caller can decide whether to fire.
+ */
+export interface AchievementNudgeCandidate {
+  achievementId: AchievementType;
+  /** Completions / points still needed to unlock. */
+  remaining: number;
+}
+
 export async function evaluateAchievements(
   uid:  string,
   task: Task,
-  ctx:  { allTasksDone: boolean },
-): Promise<void> {
+  ctx:  { allTasksDone: boolean; remainingTaskCount?: number },
+): Promise<{ nudgeCandidate: AchievementNudgeCandidate | null }> {
   const db = getFirestore();
   const userDocRef = db.collection('users').doc(uid);
   const completedHour = new Date().getHours();
 
-  await runTransaction(db, async tx => {
+  const nudgeCandidate = await runTransaction(db, async tx => {
     const snap = await tx.get(userDocRef);
     const data = snap.data() as (User & { achievements?: AchievementsMap }) | undefined;
 
@@ -207,7 +219,88 @@ export async function evaluateAchievements(
     if (Object.keys(updates).length > 0) {
       tx.update(userDocRef, updates);
     }
+
+    // ── "1 away" nudge detection (KAN-122) ────────────────────────────────────
+    // Compute candidate AFTER all awards so projectedPoints is final.
+    // Only considers achievements not awarded in this transaction.
+    const candidates: AchievementNudgeCandidate[] = [];
+
+    // day_complete: 1 task left today (context-based, target=1 repeatable)
+    if (!ctx.allTasksDone && (ctx.remainingTaskCount ?? 0) === 1) {
+      candidates.push({ achievementId: 'day_complete', remaining: 1 });
+    }
+
+    // early_bird: still before 9 AM (time-gated)
+    if (completedHour < 9) {
+      candidates.push({ achievementId: 'early_bird', remaining: 1 });
+    }
+
+    // on_a_roll: streak is 1 away from target (3-day), not yet earned
+    {
+      const onARollEarned = (map['on_a_roll']?.earnCount ?? 0) > 0;
+      const awardedNow    = !!(updates['achievements.on_a_roll'] as any)?.earnCount;
+      const remaining     = ACHIEVEMENT_DEFS['on_a_roll'].target - currentStreak;
+      if (!onARollEarned && !awardedNow && remaining === 1) {
+        candidates.push({ achievementId: 'on_a_roll', remaining: 1 });
+      }
+    }
+
+    // explorer: after this task, progress is 1 away from target (10)
+    if (task.poi) {
+      const newProgress   = (map['explorer']?.progress ?? 0) + 1;
+      const explorerEarned  = (map['explorer']?.earnCount ?? 0) > 0;
+      const awardedNow    = !!(updates['achievements.explorer'] as any)?.earnCount;
+      const remaining     = ACHIEVEMENT_DEFS['explorer'].target - newProgress;
+      if (!explorerEarned && !awardedNow && remaining === 1) {
+        candidates.push({ achievementId: 'explorer', remaining: 1 });
+      }
+    }
+
+    // centurion: final projected points are 1 away from target (100)
+    {
+      const projectedFinal  = currentPoints + pointsGained;
+      const centurionEarned = (map['centurion']?.earnCount ?? 0) > 0;
+      const awardedNow      = !!(updates['achievements.centurion'] as any)?.earnCount;
+      const remaining       = ACHIEVEMENT_DEFS['centurion'].target - projectedFinal;
+      if (!centurionEarned && !awardedNow && remaining === 1) {
+        candidates.push({ achievementId: 'centurion', remaining: 1 });
+      }
+    }
+
+    // Return the candidate with the smallest remaining gap (most attainable first)
+    candidates.sort((a, b) => a.remaining - b.remaining);
+    return candidates[0] ?? null;
   });
+
+  return { nudgeCandidate: nudgeCandidate ?? null };
+}
+
+/**
+ * Read the user's notification preferences and, if the daily limit hasn't been
+ * hit and the `achievementNudges` toggle is on, fire the nudge notification
+ * and stamp `lastAchievementNudgeDate` to prevent a second nudge today.
+ *
+ * Call this fire-and-forget after `evaluateAchievements` returns a candidate.
+ */
+export async function checkAndFireAchievementNudge(
+  uid:       string,
+  candidate: AchievementNudgeCandidate,
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+
+  const prefs = await getUserPreferences(uid);
+
+  // Respect the "achievementNudges" toggle (default true).
+  if (!(prefs.achievementNudges ?? DEFAULT_USER_PREFERENCES.achievementNudges)) { return; }
+
+  // Max 1 nudge per day.
+  if (prefs.lastAchievementNudgeDate === today) { return; }
+
+  await fireAchievementNudge({
+    achievementId: candidate.achievementId,
+    remaining:     candidate.remaining,
+  });
+  await updateUserPreferences(uid, { lastAchievementNudgeDate: today });
 }
 
 // ─── One-time migration (KAN-129) ────────────────────────────────────────────

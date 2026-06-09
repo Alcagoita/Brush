@@ -16,13 +16,15 @@ import notifee, {
   TriggerType,
 } from '@notifee/react-native';
 import type { TimestampTrigger } from '@notifee/react-native';
+import type { AchievementType } from '../types';
 
 // ─── Channel IDs ──────────────────────────────────────────────────────────────
 
-export const CHANNEL_EOD    = 'eod-checkin';
-export const CHANNEL_STREAK = 'streak-at-risk';
-export const CHANNEL_WEEKLY = 'weekly-recap';
-export const CHANNEL_EXIT   = 'exit-prompt';
+export const CHANNEL_EOD         = 'eod-checkin';
+export const CHANNEL_STREAK      = 'streak-at-risk';
+export const CHANNEL_WEEKLY      = 'weekly-recap';
+export const CHANNEL_EXIT        = 'exit-prompt';
+export const CHANNEL_ACHIEVEMENT = 'achievement-nudge';
 
 // ─── Notification IDs ─────────────────────────────────────────────────────────
 
@@ -391,5 +393,65 @@ export async function fireExitPrompt(options: {
     },
     // taskId is forwarded to the action handler in App.tsx.
     data: { screen: 'Today', taskId, taskTitle },
+  });
+}
+
+// ─── KAN-122: Achievement nudge ───────────────────────────────────────────────
+
+/**
+ * Returns the achievement-specific notification body for the "1 away" nudge.
+ *
+ * `remaining` is the number of completions/points still needed to unlock the
+ * achievement — used for variable copy on Explorer and Centurion.
+ */
+export function buildAchievementNudgeBody(id: AchievementType, remaining: number): string {
+  switch (id) {
+    case 'day_complete':
+      return '1 task from a clean day — brush it away.';
+    case 'early_bird':
+      return '1 task from unlocking Early Bird — brush one away before 9 AM.';
+    case 'on_a_roll':
+      return '1 more day of brushing to unlock On a Roll.';
+    case 'explorer':
+      return `${remaining} location task${remaining === 1 ? '' : 's'} from unlocking Explorer — brush something away nearby.`;
+    case 'centurion':
+      return `${remaining} point${remaining === 1 ? '' : 's'} from Centurion — brush a task away to close the gap.`;
+    default:
+      return `${remaining} away from unlocking a new badge.`;
+  }
+}
+
+/**
+ * Fire an immediate achievement-nudge notification.
+ *
+ * Tapping navigates to the Achievements screen with `achievementId` in the
+ * payload so the screen can scroll to the relevant badge.
+ *
+ * Deduplication (max 1 per day) must be enforced by the caller via
+ * `userPreferences.lastAchievementNudgeDate`.
+ */
+export async function fireAchievementNudge(options: {
+  achievementId: AchievementType;
+  remaining:     number;
+}): Promise<void> {
+  const { achievementId, remaining } = options;
+
+  await notifee.createChannel({
+    id:         CHANNEL_ACHIEVEMENT,
+    name:       'Achievement nudges',
+    importance: AndroidImportance.DEFAULT,
+  });
+
+  await notifee.displayNotification({
+    title: 'Brush',
+    body:  buildAchievementNudgeBody(achievementId, remaining),
+    android: {
+      channelId:   CHANNEL_ACHIEVEMENT,
+      importance:  AndroidImportance.DEFAULT,
+      pressAction: { id: 'default', launchActivity: 'default' },
+      smallIcon:   'ic_notification',
+    },
+    // achievementId is forwarded so the Achievements screen can scroll to the badge.
+    data: { screen: 'Achievements', achievementId },
   });
 }

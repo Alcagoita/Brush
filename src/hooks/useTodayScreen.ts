@@ -21,7 +21,7 @@ import {
   subscribeToPoiPreferences,
   subscribeToTasksForDate,
 } from '../services/firestore';
-import { evaluateAchievements } from '../services/achievements';
+import { evaluateAchievements, checkAndFireAchievementNudge } from '../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
 import {
   requestLocationPermission,
@@ -437,9 +437,23 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
         if (task) {
           // KAN-129: evaluate achievements (replaces per-task awardPoint call).
-          evaluateAchievements(uid, task, { allTasksDone: allOthersDone }).catch(err =>
-            console.warn('[useTodayScreen] evaluateAchievements failed (non-critical)', err),
-          );
+          // KAN-122: evaluateAchievements returns a nudge candidate when an
+          // achievement is 1 away — fire the nudge notification if eligible.
+          const remainingTaskCount = tasks.filter(
+            t => t.id !== taskId && !(optimisticDone[t.id] ?? t.done),
+          ).length;
+
+          evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount })
+            .then(({ nudgeCandidate }) => {
+              if (nudgeCandidate) {
+                checkAndFireAchievementNudge(uid, nudgeCandidate).catch(err =>
+                  console.warn('[useTodayScreen] achievement nudge failed (non-critical)', err),
+                );
+              }
+            })
+            .catch(err =>
+              console.warn('[useTodayScreen] evaluateAchievements failed (non-critical)', err),
+            );
 
           // KAN-103: increment progress on all active challenges (fire-and-forget).
           getActiveChallengesForUser(uid).then(challenges => {

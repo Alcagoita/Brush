@@ -62,8 +62,8 @@ export type RootStackParamList = {
   Settings: undefined;
   /** Notification toggles and scheduling (KAN-80). */
   NotificationPreferences: undefined;
-  /** Full achievements list with progress and point values (KAN-114 / KAN-129). */
-  Achievements: undefined;
+  /** Full achievements list with progress and point values (KAN-114 / KAN-129 / KAN-122). */
+  Achievements: { achievementId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
