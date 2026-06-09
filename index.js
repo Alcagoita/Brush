@@ -9,7 +9,7 @@ import App from './App';
 import { name as appName } from './app.json';
 import { navigateTo } from './src/navigation/navigationRef';
 import { EXIT_ACTION_MARK_DONE } from './src/services/notifications';
-import { setTaskDone, getUserPreferences } from './src/services/firestore';
+import { setTaskDone } from './src/services/firestore';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 
 /**
@@ -31,7 +31,9 @@ notifee.onBackgroundEvent(async ({ type, detail }) => {
       const taskId = detail.notification?.data?.taskId;
       const uid    = getAuth().currentUser?.uid;
       if (taskId && uid) {
-        await setTaskDone(uid, taskId, true).catch(() => {});
+        await setTaskDone(uid, taskId, true).catch(err =>
+          console.warn('[index] exit action: failed to mark task done', err, 'taskId:', taskId, 'uid:', uid),
+        );
       }
     }
     return;

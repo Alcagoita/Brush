@@ -335,14 +335,13 @@ export function buildExitBody(storeName?: string): string {
  * immediately. The deduplication guard (`exitPromptSeenDate`) must be checked
  * by the caller before invoking this function.
  */
-export async function fireExitPrompt(options: {
-  taskId:    string;
-  taskTitle: string;
-  storeName?: string;
-}): Promise<void> {
-  const { taskId, taskTitle, storeName } = options;
-
-  // Register a notification category on iOS so the action button appears.
+/**
+ * Register the iOS notification category for the exit prompt quick-action.
+ *
+ * Must be called once at app startup (App.tsx) before any exit prompt can fire.
+ * Idempotent — safe to call on every launch.
+ */
+export async function registerExitPromptCategory(): Promise<void> {
   await notifee.setNotificationCategories([
     {
       id: 'exit_prompt',
@@ -354,11 +353,19 @@ export async function fireExitPrompt(options: {
       ],
     },
   ]);
+}
+
+export async function fireExitPrompt(options: {
+  taskId:    string;
+  taskTitle: string;
+  storeName?: string;
+}): Promise<void> {
+  const { taskId, taskTitle, storeName } = options;
 
   await notifee.createChannel({
     id:         CHANNEL_EXIT,
     name:       'Location exit prompts',
-    importance: AndroidImportance.HIGH,
+    importance: AndroidImportance.DEFAULT,
     vibration:  true,
     visibility: AndroidVisibility.PUBLIC,
   });
@@ -368,7 +375,7 @@ export async function fireExitPrompt(options: {
     body:  buildExitBody(storeName),
     android: {
       channelId:   CHANNEL_EXIT,
-      importance:  AndroidImportance.HIGH,
+      importance:  AndroidImportance.DEFAULT,
       pressAction: { id: 'default', launchActivity: 'default' },
       visibility:  AndroidVisibility.PUBLIC,
       smallIcon:   'ic_notification',

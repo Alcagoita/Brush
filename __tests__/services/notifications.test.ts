@@ -37,6 +37,7 @@ import {
   cancelWeeklyRecap,
   buildExitBody,
   fireExitPrompt,
+  registerExitPromptCategory,
   EXIT_ACTION_MARK_DONE,
 } from '../../src/services/notifications';
 
@@ -435,20 +436,37 @@ describe('fireExitPrompt', () => {
     expect(markDone.title).toContain('brushed');
   });
 
-  it('registers the iOS exit_prompt notification category', async () => {
+  it('does NOT call setNotificationCategories (category registered at startup)', async () => {
     await fireExitPrompt({ taskId: 'task-4', taskTitle: 'Drop off package' });
-    expect(mockSetNotificationCategories).toHaveBeenCalledTimes(1);
-    const [cats] = mockSetNotificationCategories.mock.calls[0];
-    const exitCat = cats.find((c: any) => c.id === 'exit_prompt');
-    expect(exitCat).toBeDefined();
-    const markDoneAction = exitCat.actions.find((a: any) => a.id === EXIT_ACTION_MARK_DONE);
-    expect(markDoneAction).toBeDefined();
+    expect(mockSetNotificationCategories).not.toHaveBeenCalled();
   });
 
-  it('creates the exit-prompt notification channel', async () => {
+  it('creates the exit-prompt channel with DEFAULT importance', async () => {
     await fireExitPrompt({ taskId: 'task-5', taskTitle: 'ATM errand' });
     expect(mockCreateChannel).toHaveBeenCalledTimes(1);
     const [channel] = mockCreateChannel.mock.calls[0];
     expect(channel.id).toBe('exit-prompt');
+    expect(channel.importance).toBe(3); // AndroidImportance.DEFAULT
+  });
+});
+
+describe('registerExitPromptCategory', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls setNotificationCategories with exit_prompt category', async () => {
+    await registerExitPromptCategory();
+    expect(mockSetNotificationCategories).toHaveBeenCalledTimes(1);
+    const [cats] = mockSetNotificationCategories.mock.calls[0];
+    const exitCat = cats.find((c: any) => c.id === 'exit_prompt');
+    expect(exitCat).toBeDefined();
+  });
+
+  it('includes the mark-done action in the category', async () => {
+    await registerExitPromptCategory();
+    const [cats] = mockSetNotificationCategories.mock.calls[0];
+    const exitCat = cats.find((c: any) => c.id === 'exit_prompt');
+    const action = exitCat.actions.find((a: any) => a.id === EXIT_ACTION_MARK_DONE);
+    expect(action).toBeDefined();
+    expect(action.title).toContain('brushed');
   });
 });

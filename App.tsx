@@ -26,7 +26,7 @@ import type { RootStackParamList } from './src/navigation/AppNavigator';
 import { getUser, markLastOpenedAt, setTaskDone, subscribeToUserPreferences } from './src/services/firestore';
 import { migratePointsToAchievementDerived } from './src/services/achievements';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
-import { EXIT_ACTION_MARK_DONE } from './src/services/notifications';
+import { EXIT_ACTION_MARK_DONE, registerExitPromptCategory } from './src/services/notifications';
 import { updateExitPromptPref } from './src/services/proximity';
 import { updateIndoorExitPromptPref } from './src/services/indoorProximity';
 import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
@@ -155,7 +155,9 @@ function AppShell() {
       if (type === EventType.ACTION_PRESS) {
         // Exit prompt quick-action: mark task done directly from notification.
         if (detail.pressAction?.id === EXIT_ACTION_MARK_DONE && data.taskId && displayUser) {
-          setTaskDone(displayUser.uid, data.taskId as string, true).catch(() => {});
+          setTaskDone(displayUser.uid, data.taskId as string, true).catch(err =>
+            console.warn('[App] exit action: failed to mark task done', err, 'taskId:', data.taskId),
+          );
         }
         return;
       }
@@ -176,6 +178,14 @@ function AppShell() {
       updateIndoorExitPromptPref(enabled);
     });
   }, [displayUser]);
+
+  // Register iOS notification categories once at startup (KAN-119).
+  // Idempotent — safe to call on every launch. Must run before any exit prompt fires.
+  useEffect(() => {
+    registerExitPromptCategory().catch(err =>
+      console.warn('[App] registerExitPromptCategory failed', err),
+    );
+  }, []);
 
   // Initial notification handler (KAN-28 / KAN-103).
   useEffect(() => {
