@@ -9,10 +9,10 @@
  *   STREAKS    — Streak at risk (KAN-121): toggle
  *   SUMMARY    — Weekly recap (KAN-123): toggle
  *   ENGAGEMENT — Re-engagement reminders (KAN-124): toggle
- *   LOCATION   — Exit prompt (KAN-119): toggle
+ *   LOCATION     — Exit prompt (KAN-119): toggle
+ *   ACHIEVEMENTS — Achievement nudges (KAN-122): toggle
  *
- * Rows for KAN-122 (achievement nudge) and KAN-125 (friend activity)
- * are added by those tickets respectively.
+ * Row for KAN-125 (friend activity) is added by that ticket.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -213,7 +213,8 @@ export default function NotificationPreferencesScreen() {
   const streakOn    = prefs.streakReminder         ?? DEFAULT_USER_PREFERENCES.streakReminder;
   const weeklyOn    = prefs.weeklyRecap            ?? DEFAULT_USER_PREFERENCES.weeklyRecap;
   const reengageOn  = prefs.reengagementReminders  ?? DEFAULT_USER_PREFERENCES.reengagementReminders;
-  const exitPromptOn = prefs.exitPrompt            ?? DEFAULT_USER_PREFERENCES.exitPrompt;
+  const exitPromptOn      = prefs.exitPrompt           ?? DEFAULT_USER_PREFERENCES.exitPrompt;
+  const achievementNudgesOn = prefs.achievementNudges  ?? DEFAULT_USER_PREFERENCES.achievementNudges;
 
   // ── Task counts — drive EOD + streak + weekly scheduling ─────────────────
   const [incompletePoiCount,    setIncompletePoiCount]    = useState(0);
@@ -336,6 +337,15 @@ export default function NotificationPreferencesScreen() {
     }
   }, [uid]);
 
+  const handleAchievementNudgesToggle = useCallback(async (value: boolean) => {
+    setPrefs(p => ({ ...p, achievementNudges: value }));
+    try {
+      await updateUserPreferences(uid, { achievementNudges: value });
+    } catch {
+      setPrefs(p => ({ ...p, achievementNudges: !value }));
+    }
+  }, [uid]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -425,6 +435,18 @@ export default function NotificationPreferencesScreen() {
             sublabel="Asks if you completed a task after leaving a tagged location."
             value={exitPromptOn}
             onToggle={handleExitPromptToggle}
+            isLast
+          />
+        </Section>
+
+        {/* ACHIEVEMENTS */}
+        <Section title="ACHIEVEMENTS">
+          <PrefRow
+            Icon={BellIcon}
+            label="Achievement nudges"
+            sublabel="Notifies you when you're 1 step away from unlocking a badge."
+            value={achievementNudgesOn}
+            onToggle={handleAchievementNudgesToggle}
             isLast
           />
         </Section>

@@ -163,7 +163,11 @@ function AppShell() {
       }
       if (type === EventType.PRESS) {
         const screen = (data.screen as keyof RootStackParamList) ?? 'Today';
-        const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
+        const params = data.challengeId
+          ? { challengeId: data.challengeId as string }
+          : data.achievementId
+            ? { achievementId: data.achievementId as string }
+            : undefined;
         navigateTo(screen, params as any);
       }
     });
@@ -193,7 +197,11 @@ function AppShell() {
       if (initial?.notification?.data?.screen) {
         const data   = initial.notification.data;
         const screen = data.screen as keyof RootStackParamList;
-        const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
+        const params = data.challengeId
+          ? { challengeId: data.challengeId as string }
+          : data.achievementId
+            ? { achievementId: data.achievementId as string }
+            : undefined;
         setTimeout(() => navigateTo(screen, params as any), 300);
       }
     });
