@@ -187,7 +187,11 @@ describe('evaluateAchievements — nudgeCandidate', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockTxUpdate.mockReturnValue(undefined);
+    // Pin baseline to 10 AM so early_bird (< 9 AM) never fires unexpectedly.
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2024-06-09T10:00:00'));
   });
+  afterEach(() => jest.useRealTimers());
 
   it('returns nudgeCandidate on_a_roll when streak === 2', async () => {
     setupTxDoc({
@@ -298,10 +302,7 @@ describe('evaluateAchievements — nudgeCandidate', () => {
   });
 
   describe('early_bird (time-gated)', () => {
-    afterEach(() => jest.useRealTimers());
-
     it('returns early_bird nudge when completed before 9 AM', async () => {
-      jest.useFakeTimers();
       jest.setSystemTime(new Date('2024-06-09T08:00:00'));  // 8 AM
       setupTxDoc({ totalPoints: 0, currentStreak: 0, achievements: {} });
       const { nudgeCandidate } = await evaluateAchievements(
@@ -311,7 +312,6 @@ describe('evaluateAchievements — nudgeCandidate', () => {
     });
 
     it('does not return early_bird nudge when completed at or after 9 AM', async () => {
-      jest.useFakeTimers();
       jest.setSystemTime(new Date('2024-06-09T10:00:00'));  // 10 AM
       setupTxDoc({ totalPoints: 0, currentStreak: 0, achievements: {} });
       const { nudgeCandidate } = await evaluateAchievements(
