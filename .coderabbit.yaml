@@ -1,0 +1,78 @@
+# CodeRabbit configuration for Brush
+# https://docs.coderabbit.ai/configure-coderabbit
+
+language: "en-US"
+
+reviews:
+  # Review PRs targeting develop (feature branches) and main (release/hotfix)
+  base_branches:
+    - "develop"
+    - "main"
+
+  profile: "assertive"
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: false
+  auto_review:
+    enabled: true
+    drafts: false
+
+  path_filters:
+    - "!node_modules/**"
+    - "!ios/Pods/**"
+    - "!android/.gradle/**"
+    - "!builds/**"
+    - "!**/*.lock"
+    - "!patch/**"
+
+  path_instructions:
+    - path: "src/theme/**"
+      instructions: >
+        Enforce design token usage. Flag any hardcoded color hex, rgba, font size,
+        spacing value, or border radius. All values must come from useTheme() tokens
+        or the radius/spacing constants in src/theme/tokens.ts.
+
+    - path: "src/components/**"
+      instructions: >
+        Check that useTheme() is used for all colors. No drop shadows allowed —
+        elevation and shadowColor props are forbidden. Dividers must use 1px solid
+        line token. Ensure Geist font is referenced and fontVariant: ['tabular-nums']
+        is applied on any numeric display. Never use emoji as icons; verify PoiIcon
+        or AppIcon components are used instead.
+
+    - path: "src/screens/**"
+      instructions: >
+        Verify horizontal page margin is 22. Confirm useTheme() for all colors.
+        Check navigation flows match the defined structure (Today + Profile tabs).
+
+    - path: "src/services/firestore.ts"
+      instructions: >
+        All Firestore reads and writes must be scoped to /users/{uid}/... — never
+        access another user's data. Verify PointsHistoryEntry.reason is a
+        discriminated union value. New point types must use a dedicated awardPoint*
+        function; do not repurpose awardPoint(uid, taskId, taskTitle).
+
+    - path: "src/services/**"
+      instructions: >
+        Firebase service calls must handle errors gracefully at system boundaries.
+        No secrets or API keys in source. Geolocation logic must request 'always'
+        permission and suppress duplicate notifications (once per geofence entry per day).
+
+    - path: "__tests__/**"
+      instructions: >
+        Unit tests are required for all business logic. Components and screens use
+        @testing-library/react-native; services and utilities use plain Jest.
+        Flag tests that mock the database — integration tests must hit a real Firestore
+        emulator, not mocks.
+
+  tone_instructions: >
+    This is a React Native app (iOS + Android) with Firebase backend following
+    Gitflow. Be precise about React Native performance concerns (re-renders, JS thread
+    blocking, Animated vs Reanimated). Call out Firebase security rule gaps and
+    Firestore query inefficiencies. Reference the design system (tokens, no shadows,
+    Geist font, tabular numerals) when reviewing UI code.
+
+chat:
+  auto_reply: true
