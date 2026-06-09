@@ -38,10 +38,12 @@ import {
 import {
   scheduleEodReminder,
   scheduleStreakReminder,
+  scheduleWeeklyRecap,
 } from '../services/notifications';
 import {
   subscribeToTasksForDate,
   subscribeToCurrentStreak,
+  getWeeklyCompletedCount,
 } from '../services/firestore';
 import {
   BellIcon,
@@ -51,6 +53,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
+import { isThisWeek } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -210,10 +213,11 @@ export default function NotificationPreferencesScreen() {
   const weeklyOn    = prefs.weeklyRecap            ?? DEFAULT_USER_PREFERENCES.weeklyRecap;
   const reengageOn  = prefs.reengagementReminders  ?? DEFAULT_USER_PREFERENCES.reengagementReminders;
 
-  // ── Task counts — drive EOD + streak scheduling ───────────────────────────
+  // ── Task counts — drive EOD + streak + weekly scheduling ─────────────────
   const [incompletePoiCount,    setIncompletePoiCount]    = useState(0);
   const [tasksCompletedToday,   setTasksCompletedToday]   = useState(0);
   const [currentStreak,         setCurrentStreak]         = useState(0);
+  const [weeklyCount,           setWeeklyCount]           = useState(0);
 
   useEffect(() => {
     if (!uid) { return; }
@@ -227,6 +231,15 @@ export default function NotificationPreferencesScreen() {
   useEffect(() => {
     if (!uid) { return; }
     return subscribeToCurrentStreak(uid, setCurrentStreak);
+  }, [uid]);
+
+  // Fetch weekly count once on mount (one-time read is sufficient — the
+  // notification fires on Sunday so daily precision is acceptable).
+  useEffect(() => {
+    if (!uid) { return; }
+    getWeeklyCompletedCount(uid)
+      .then(setWeeklyCount)
+      .catch(err => console.warn('[NotifPrefs] weeklyCount error', err));
   }, [uid]);
 
   // ── Re-schedule EOD whenever relevant prefs or task count changes ──────────
@@ -248,6 +261,20 @@ export default function NotificationPreferencesScreen() {
       tasksCompletedToday,
     }).catch(err => console.warn('[NotifPrefs] scheduleStreak error', err));
   }, [streakOn, currentStreak, tasksCompletedToday, loading]);
+
+  // ── Re-schedule weekly recap whenever prefs or counts change ──────────────
+  useEffect(() => {
+    if (loading) { return; }
+    // "app opened this week" — lastOpenedAt is written on every foreground
+    const lastOpened = prefs.lastOpenedAt?.toDate?.() ?? null;
+    const appOpenedThisWeek = lastOpened !== null && isThisWeek(lastOpened);
+    scheduleWeeklyRecap({
+      enabled: weeklyOn,
+      weeklyCount,
+      streakDays: currentStreak,
+      appOpenedThisWeek,
+    }).catch(err => console.warn('[NotifPrefs] scheduleWeekly error', err));
+  }, [weeklyOn, weeklyCount, currentStreak, prefs.lastOpenedAt, loading]);
 
   // ── Toggle handlers ────────────────────────────────────────────────────────
 
