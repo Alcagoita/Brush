@@ -1,5 +1,5 @@
 /**
- * KAN-120 — notifications service: EOD check-in logic.
+ * KAN-120 / KAN-121 — notifications service: EOD check-in + streak-at-risk.
  *
  * Verifies:
  *  - buildEodBody returns correct singular / plural copy
@@ -8,9 +8,23 @@
  *  - scheduleEodReminder: rolls forward to tomorrow when time has already passed
  *  - scheduleEodReminder: calls createTriggerNotification when conditions met
  *  - cancelEodReminder: delegates to notifee.cancelNotification
+ *  - buildStreakBody returns correct copy
+ *  - scheduleStreakReminder: no-ops when disabled
+ *  - scheduleStreakReminder: no-ops when streak < 3
+ *  - scheduleStreakReminder: no-ops when tasksCompletedToday > 0
+ *  - scheduleStreakReminder: schedules at 8 PM when all conditions met
+ *  - scheduleStreakReminder: rolls forward when 8 PM already passed
+ *  - cancelStreakReminder: delegates to notifee.cancelNotification
  */
 
-import { buildEodBody, scheduleEodReminder, cancelEodReminder } from '../../src/services/notifications';
+import {
+  buildEodBody,
+  scheduleEodReminder,
+  cancelEodReminder,
+  buildStreakBody,
+  scheduleStreakReminder,
+  cancelStreakReminder,
+} from '../../src/services/notifications';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -119,5 +133,94 @@ describe('cancelEodReminder', () => {
   it('calls notifee.cancelNotification with the EOD id', async () => {
     await cancelEodReminder();
     expect(mockCancelNotification).toHaveBeenCalledWith('eod-checkin');
+  });
+});
+
+// ─── Streak at risk (KAN-121) ─────────────────────────────────────────────────
+
+describe('buildStreakBody', () => {
+  it('embeds the streak count in the copy', () => {
+    expect(buildStreakBody(7)).toBe(
+      'Your 7-day streak ends at midnight — brush something away.',
+    );
+  });
+
+  it('works for large streaks', () => {
+    expect(buildStreakBody(30)).toContain('30-day streak');
+  });
+});
+
+describe('scheduleStreakReminder', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('cancels any existing streak notification first', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 5, tasksCompletedToday: 0 });
+    expect(mockCancelNotification).toHaveBeenCalledWith('streak-at-risk');
+  });
+
+  it('does NOT schedule when disabled', async () => {
+    await scheduleStreakReminder({ enabled: false, streakDays: 5, tasksCompletedToday: 0 });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT schedule when streak < 3', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 2, tasksCompletedToday: 0 });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT schedule when streak === 0', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 0, tasksCompletedToday: 0 });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT schedule when tasksCompletedToday > 0', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 7, tasksCompletedToday: 1 });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('schedules when enabled, streak ≥ 3, and 0 tasks completed today', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 7, tasksCompletedToday: 0 });
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(1);
+    const [notif, trigger] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.id).toBe('streak-at-risk');
+    expect(notif.body).toContain('7-day streak');
+    expect(trigger.type).toBe(0); // TriggerType.TIMESTAMP
+    expect(trigger.timestamp).toBeGreaterThan(Date.now());
+  });
+
+  it('rolls forward to tomorrow when 8 PM has already passed today', async () => {
+    // Fake Date.now() to be 21:00 so the 20:00 fire time is in the past
+    const fakeNow = new Date();
+    fakeNow.setHours(21, 0, 0, 0);
+    jest.spyOn(Date, 'now').mockReturnValue(fakeNow.getTime());
+
+    await scheduleStreakReminder({ enabled: true, streakDays: 5, tasksCompletedToday: 0 });
+
+    const [, trigger] = mockCreateTriggerNotification.mock.calls[0];
+    // Tomorrow at 8 PM is definitely after our faked "now" of 9 PM today
+    expect(trigger.timestamp).toBeGreaterThan(fakeNow.getTime());
+
+    jest.restoreAllMocks();
+  });
+
+  it('notification body contains correct streak count', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 14, tasksCompletedToday: 0 });
+    const [notif] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.body).toBe('Your 14-day streak ends at midnight — brush something away.');
+  });
+
+  it('notification data contains screen:Today for tap routing', async () => {
+    await scheduleStreakReminder({ enabled: true, streakDays: 5, tasksCompletedToday: 0 });
+    const [notif] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.data?.screen).toBe('Today');
+  });
+});
+
+describe('cancelStreakReminder', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls notifee.cancelNotification with the streak id', async () => {
+    await cancelStreakReminder();
+    expect(mockCancelNotification).toHaveBeenCalledWith('streak-at-risk');
   });
 });

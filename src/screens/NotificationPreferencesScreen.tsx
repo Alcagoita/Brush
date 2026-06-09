@@ -35,8 +35,14 @@ import {
   subscribeToUserPreferences,
   updateUserPreferences,
 } from '../services/firestore';
-import { scheduleEodReminder, cancelEodReminder } from '../services/notifications';
-import { subscribeToTasksForDate } from '../services/firestore';
+import {
+  scheduleEodReminder,
+  scheduleStreakReminder,
+} from '../services/notifications';
+import {
+  subscribeToTasksForDate,
+  subscribeToCurrentStreak,
+} from '../services/firestore';
 import {
   BellIcon,
   CalendarIcon,
@@ -204,16 +210,23 @@ export default function NotificationPreferencesScreen() {
   const weeklyOn    = prefs.weeklyRecap            ?? DEFAULT_USER_PREFERENCES.weeklyRecap;
   const reengageOn  = prefs.reengagementReminders  ?? DEFAULT_USER_PREFERENCES.reengagementReminders;
 
-  // ── Incomplete POI task count — drives EOD scheduling ─────────────────────
-  const [incompletePoiCount, setIncompletePoiCount] = useState(0);
+  // ── Task counts — drive EOD + streak scheduling ───────────────────────────
+  const [incompletePoiCount,    setIncompletePoiCount]    = useState(0);
+  const [tasksCompletedToday,   setTasksCompletedToday]   = useState(0);
+  const [currentStreak,         setCurrentStreak]         = useState(0);
 
   useEffect(() => {
     if (!uid) { return; }
     const today = new Date().toISOString().split('T')[0];
     return subscribeToTasksForDate(uid, today, tasks => {
-      const count = tasks.filter(t => !t.done && t.poi).length;
-      setIncompletePoiCount(count);
+      setIncompletePoiCount(tasks.filter(t => !t.done && t.poi).length);
+      setTasksCompletedToday(tasks.filter(t => t.done).length);
     });
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToCurrentStreak(uid, setCurrentStreak);
   }, [uid]);
 
   // ── Re-schedule EOD whenever relevant prefs or task count changes ──────────
@@ -225,6 +238,16 @@ export default function NotificationPreferencesScreen() {
       incompleteCount: incompletePoiCount,
     }).catch(err => console.warn('[NotifPrefs] scheduleEod error', err));
   }, [eodEnabled, eodTime, incompletePoiCount, loading]);
+
+  // ── Re-schedule streak reminder whenever relevant state changes ────────────
+  useEffect(() => {
+    if (loading) { return; }
+    scheduleStreakReminder({
+      enabled:             streakOn,
+      streakDays:          currentStreak,
+      tasksCompletedToday,
+    }).catch(err => console.warn('[NotifPrefs] scheduleStreak error', err));
+  }, [streakOn, currentStreak, tasksCompletedToday, loading]);
 
   // ── Toggle handlers ────────────────────────────────────────────────────────
 
