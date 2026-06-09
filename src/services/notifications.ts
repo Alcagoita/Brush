@@ -416,8 +416,11 @@ export function buildAchievementNudgeBody(id: AchievementType, remaining: number
       return `${remaining} location task${remaining === 1 ? '' : 's'} from unlocking Explorer — brush something away nearby.`;
     case 'centurion':
       return `${remaining} point${remaining === 1 ? '' : 's'} from Centurion — brush a task away to close the gap.`;
-    default:
-      return `${remaining} away from unlocking a new badge.`;
+    default: {
+      const n = Number.isFinite(remaining) && remaining > 0 ? Math.round(remaining) : 0;
+      if (n <= 0) { return "You've unlocked a new badge!"; }
+      return n === 1 ? '1 step away from unlocking a new badge.' : `${n} steps away from unlocking a new badge.`;
+    }
   }
 }
 
@@ -440,6 +443,7 @@ export async function fireAchievementNudge(options: {
     id:         CHANNEL_ACHIEVEMENT,
     name:       'Achievement nudges',
     importance: AndroidImportance.DEFAULT,
+    visibility: AndroidVisibility.PUBLIC,
   });
 
   await notifee.displayNotification({

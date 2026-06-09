@@ -171,12 +171,13 @@ describe('fireAchievementNudge', () => {
     expect(notif.data?.screen).toBe('Achievements');
   });
 
-  it('creates the achievement-nudge channel with DEFAULT importance', async () => {
+  it('creates the achievement-nudge channel with DEFAULT importance and PUBLIC visibility', async () => {
     await fireAchievementNudge({ achievementId: 'day_complete', remaining: 1 });
     expect(mockCreateChannel).toHaveBeenCalledTimes(1);
     const [ch] = mockCreateChannel.mock.calls[0];
     expect(ch.id).toBe('achievement-nudge');
-    expect(ch.importance).toBe(3); // AndroidImportance.DEFAULT
+    expect(ch.importance).toBe(3);  // AndroidImportance.DEFAULT
+    expect(ch.visibility).toBe(1);  // AndroidVisibility.PUBLIC
   });
 });
 
@@ -202,12 +203,12 @@ describe('evaluateAchievements — nudgeCandidate', () => {
     expect(nudgeCandidate?.achievementId).toBe('on_a_roll');
   });
 
-  it('returns null for on_a_roll when streak !== 2', async () => {
+  it('does not return on_a_roll nudge when streak is not 1-away (streak=1)', async () => {
     setupTxDoc({ totalPoints: 0, currentStreak: 1, achievements: {} });
     const { nudgeCandidate } = await evaluateAchievements(
       UID, makeTask(), { allTasksDone: false, remainingTaskCount: 3 },
     );
-    expect(nudgeCandidate?.achievementId).not.toBe('on_a_roll');
+    expect(nudgeCandidate?.achievementId ?? null).toBeNull();
   });
 
   it('returns nudgeCandidate explorer when new progress === 9', async () => {
@@ -226,7 +227,7 @@ describe('evaluateAchievements — nudgeCandidate', () => {
     expect(nudgeCandidate?.achievementId).toBe('explorer');
   });
 
-  it('returns null for explorer when task has no POI', async () => {
+  it('does not return explorer nudge when task has no POI', async () => {
     setupTxDoc({
       totalPoints: 0,
       currentStreak: 0,
@@ -239,7 +240,24 @@ describe('evaluateAchievements — nudgeCandidate', () => {
       makeTask(),   // no poi
       { allTasksDone: false, remainingTaskCount: 3 },
     );
-    expect(nudgeCandidate?.achievementId).not.toBe('explorer');
+    expect(nudgeCandidate?.achievementId ?? null).toBeNull();
+  });
+
+  it('does not return explorer nudge when explorer is awarded in the same tx (progress 9→10)', async () => {
+    // progress=9 + poi task → progress reaches 10 → awarded in tx → NOT a nudge candidate
+    setupTxDoc({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: {
+        explorer: { progress: 9, target: 10, earnCount: 0, earnedAt: null },
+      },
+    });
+    const { nudgeCandidate } = await evaluateAchievements(
+      UID,
+      makeTask({ poi: 'supermarket' as any }),
+      { allTasksDone: false, remainingTaskCount: 3 },
+    );
+    expect(nudgeCandidate?.achievementId ?? null).toBeNull();
   });
 
   it('returns nudgeCandidate centurion when projectedPoints === 99', async () => {
@@ -279,7 +297,31 @@ describe('evaluateAchievements — nudgeCandidate', () => {
     expect(nudgeCandidate).toBeNull();
   });
 
-  it('returns null for on_a_roll when already earned', async () => {
+  describe('early_bird (time-gated)', () => {
+    afterEach(() => jest.useRealTimers());
+
+    it('returns early_bird nudge when completed before 9 AM', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-06-09T08:00:00'));  // 8 AM
+      setupTxDoc({ totalPoints: 0, currentStreak: 0, achievements: {} });
+      const { nudgeCandidate } = await evaluateAchievements(
+        UID, makeTask(), { allTasksDone: false, remainingTaskCount: 3 },
+      );
+      expect(nudgeCandidate?.achievementId).toBe('early_bird');
+    });
+
+    it('does not return early_bird nudge when completed at or after 9 AM', async () => {
+      jest.useFakeTimers();
+      jest.setSystemTime(new Date('2024-06-09T10:00:00'));  // 10 AM
+      setupTxDoc({ totalPoints: 0, currentStreak: 0, achievements: {} });
+      const { nudgeCandidate } = await evaluateAchievements(
+        UID, makeTask(), { allTasksDone: false, remainingTaskCount: 3 },
+      );
+      expect(nudgeCandidate?.achievementId ?? null).toBeNull();
+    });
+  });
+
+  it('does not return on_a_roll nudge when already earned', async () => {
     setupTxDoc({
       totalPoints: 20,
       currentStreak: 2,
@@ -290,7 +332,7 @@ describe('evaluateAchievements — nudgeCandidate', () => {
     const { nudgeCandidate } = await evaluateAchievements(
       UID, makeTask(), { allTasksDone: false, remainingTaskCount: 5 },
     );
-    expect(nudgeCandidate?.achievementId).not.toBe('on_a_roll');
+    expect(nudgeCandidate?.achievementId ?? null).toBeNull();
   });
 });
 
@@ -325,7 +367,10 @@ describe('checkAndFireAchievementNudge', () => {
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
 
-  it('stamps lastAchievementNudgeDate after firing', async () => {
+  it('stamps lastAchievementNudgeDate before firing (atomicity)', async () => {
+    const callOrder: string[] = [];
+    mockUpdateUserPreferences.mockImplementation(async () => { callOrder.push('stamp'); });
+    mockDisplayNotification.mockImplementation(async () => { callOrder.push('fire'); });
     mockGetUserPreferences.mockResolvedValue({
       achievementNudges: true,
       lastAchievementNudgeDate: '2000-01-01',
@@ -334,6 +379,7 @@ describe('checkAndFireAchievementNudge', () => {
     expect(mockUpdateUserPreferences).toHaveBeenCalledWith(UID, {
       lastAchievementNudgeDate: TODAY,
     });
+    expect(callOrder).toEqual(['stamp', 'fire']);
   });
 
   it('fires when achievementNudges is absent (defaults to true)', async () => {

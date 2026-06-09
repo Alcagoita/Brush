@@ -223,9 +223,23 @@ export async function evaluateAchievements(
     // ── "1 away" nudge detection (KAN-122) ────────────────────────────────────
     // Compute candidate AFTER all awards so projectedPoints is final.
     // Only considers achievements not awarded in this transaction.
+
+    /** Returns true when the updates entry for an achievement is a full award object
+     *  (i.e. written by `tryAward` during this transaction). */
+    const wasAwardedInTx = (key: string): boolean => {
+      const v = updates[`achievements.${key}`];
+      return typeof v === 'object' && v !== null && 'earnCount' in v &&
+        typeof (v as { earnCount: unknown }).earnCount === 'number' &&
+        (v as { earnCount: number }).earnCount > 0;
+    };
+
     const candidates: AchievementNudgeCandidate[] = [];
 
-    // day_complete: 1 task left today (context-based, target=1 repeatable)
+    // day_complete: 1 task left today (context-based, target=1 repeatable).
+    // NOTE: ctx.remainingTaskCount comes from the caller's optimistic UI state —
+    // it is not transactional. A concurrent completion could produce a stale
+    // count. This is best-effort; the daily stamp in checkAndFireAchievementNudge
+    // prevents duplicate nudges from reaching the user.
     if (!ctx.allTasksDone && (ctx.remainingTaskCount ?? 0) === 1) {
       candidates.push({ achievementId: 'day_complete', remaining: 1 });
     }
@@ -238,7 +252,7 @@ export async function evaluateAchievements(
     // on_a_roll: streak is 1 away from target (3-day), not yet earned
     {
       const onARollEarned = (map['on_a_roll']?.earnCount ?? 0) > 0;
-      const awardedNow    = !!(updates['achievements.on_a_roll'] as any)?.earnCount;
+      const awardedNow    = wasAwardedInTx('on_a_roll');
       const remaining     = ACHIEVEMENT_DEFS['on_a_roll'].target - currentStreak;
       if (!onARollEarned && !awardedNow && remaining === 1) {
         candidates.push({ achievementId: 'on_a_roll', remaining: 1 });
@@ -249,7 +263,7 @@ export async function evaluateAchievements(
     if (task.poi) {
       const newProgress   = (map['explorer']?.progress ?? 0) + 1;
       const explorerEarned  = (map['explorer']?.earnCount ?? 0) > 0;
-      const awardedNow    = !!(updates['achievements.explorer'] as any)?.earnCount;
+      const awardedNow    = wasAwardedInTx('explorer');
       const remaining     = ACHIEVEMENT_DEFS['explorer'].target - newProgress;
       if (!explorerEarned && !awardedNow && remaining === 1) {
         candidates.push({ achievementId: 'explorer', remaining: 1 });
@@ -260,7 +274,7 @@ export async function evaluateAchievements(
     {
       const projectedFinal  = currentPoints + pointsGained;
       const centurionEarned = (map['centurion']?.earnCount ?? 0) > 0;
-      const awardedNow      = !!(updates['achievements.centurion'] as any)?.earnCount;
+      const awardedNow      = wasAwardedInTx('centurion');
       const remaining       = ACHIEVEMENT_DEFS['centurion'].target - projectedFinal;
       if (!centurionEarned && !awardedNow && remaining === 1) {
         candidates.push({ achievementId: 'centurion', remaining: 1 });
@@ -296,11 +310,13 @@ export async function checkAndFireAchievementNudge(
   // Max 1 nudge per day.
   if (prefs.lastAchievementNudgeDate === today) { return; }
 
+  // Stamp FIRST so that if the notification call fails the daily limit is
+  // already consumed — preventing a second nudge on the next task completion.
+  await updateUserPreferences(uid, { lastAchievementNudgeDate: today });
   await fireAchievementNudge({
     achievementId: candidate.achievementId,
     remaining:     candidate.remaining,
   });
-  await updateUserPreferences(uid, { lastAchievementNudgeDate: today });
 }
 
 // ─── One-time migration (KAN-129) ────────────────────────────────────────────
