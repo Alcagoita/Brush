@@ -300,6 +300,44 @@ export interface PointsHistoryEntry {
  * Using the ID as the natural key makes writes idempotent — awarding the same
  * achievement twice simply overwrites with identical data.
  */
+// ─── Notification / User Preferences (KAN-120 / Track B) ─────────────────────
+
+/**
+ * Firestore: users/{uid}/userPreferences/prefs
+ *
+ * Single document that stores all per-user notification toggles and related
+ * metadata. Merged-write safe — use `setDoc(..., { merge: true })`.
+ */
+export interface UserPreferences {
+  exitPrompt:               boolean;                             // KAN-119
+  eodReminder:              { enabled: boolean; time: string };  // KAN-120 — "21:00"
+  streakReminder:           boolean;                             // KAN-121
+  achievementNudges:        boolean;                             // KAN-122
+  weeklyRecap:              boolean;                             // KAN-123
+  reengagementReminders:    boolean;                             // KAN-124
+  friendActivity:           boolean;                             // KAN-125
+  /** Updated on every app foreground — used by re-engagement logic (KAN-124). */
+  lastOpenedAt?:            FirebaseFirestoreTypes.Timestamp;
+  /** Set after a re-engagement nudge fires — prevents duplicate sends. */
+  lastReengagementNudge?:   FirebaseFirestoreTypes.Timestamp;
+  /** "YYYY-MM-DD" — prevents more than one achievement nudge per day (KAN-122). */
+  lastAchievementNudgeDate?: string;
+}
+
+/** Sensible defaults applied before a user has ever saved preferences. */
+export const DEFAULT_USER_PREFERENCES: Omit<
+  UserPreferences,
+  'lastOpenedAt' | 'lastReengagementNudge' | 'lastAchievementNudgeDate'
+> = {
+  exitPrompt:            true,
+  eodReminder:           { enabled: true, time: '21:00' },
+  streakReminder:        true,
+  achievementNudges:     true,
+  weeklyRecap:           true,
+  reengagementReminders: true,
+  friendActivity:        true,
+};
+
 export interface Achievement {
   /**
    * Firestore document ID.

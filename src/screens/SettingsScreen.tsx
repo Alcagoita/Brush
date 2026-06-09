@@ -30,7 +30,6 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import {
-  subscribeToCategories,
   subscribeLowBatteryPausePref,
   setLowBatteryPausePref,
   subscribeStoreTuningPref,
@@ -51,7 +50,7 @@ import {
   SunIcon,
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { Category, ImportResult } from '../types';
+import { ImportResult } from '../types';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -72,7 +71,6 @@ type ImportStatus =
   | { kind: 'success'; result: ImportResult }
   | { kind: 'error'; message: string };
 
-const BUILTIN_POI_COUNT = 4; // supermarket, atm, pharmacy, cafe
 
 // ─── Import row ───────────────────────────────────────────────────────────────
 
@@ -224,25 +222,13 @@ export default function SettingsScreen() {
 
   const [lowBatteryPause,    setLowBatteryPause]    = useState(false);
   const [storeTuningEnabled, setStoreTuningEnabled] = useState<boolean | undefined>(undefined);
-  const [customCategories,   setCustomCategories]   = useState<Category[]>([]);
 
   useEffect(() => {
     if (!uid) { return; }
     const unsubPause   = subscribeLowBatteryPausePref(uid, setLowBatteryPause);
     const unsubTuning  = subscribeStoreTuningPref(uid, setStoreTuningEnabled);
-    const unsubCats    = subscribeToCategories(uid, setCustomCategories);
-    return () => { unsubPause(); unsubTuning(); unsubCats(); };
+    return () => { unsubPause(); unsubTuning(); };
   }, [uid]);
-
-  const notifItemCount = (() => {
-    const builtinPois = new Set(['supermarket', 'atm', 'pharmacy', 'cafe']);
-    const customPois  = new Set(
-      customCategories
-        .filter(c => c.poi != null && !builtinPois.has(c.poi))
-        .map(c => c.poi as string),
-    );
-    return BUILTIN_POI_COUNT + customPois.size;
-  })();
 
   const handleDarkToggle = useCallback((value: boolean) => {
     setDark(value);
@@ -339,20 +325,7 @@ export default function SettingsScreen() {
           <SettingsRow
             Icon={BellIcon}
             label="Notification Preferences"
-            onPress={() =>
-              Alert.alert(
-                'Coming soon',
-                'Notification preferences will be available in an upcoming update.',
-              )
-            }
-            trailing={
-              <View style={s.trailingGroup}>
-                <Text style={[s.trailingText, { color: palette.muted }]}>
-                  {notifItemCount} items
-                </Text>
-                <ChevronRightIcon color={palette.faint} size={16} />
-              </View>
-            }
+            onPress={() => navigation.navigate('NotificationPreferences')}
             isLast
             accessibilityLabel="Notification Preferences"
           />
