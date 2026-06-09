@@ -126,9 +126,14 @@ export async function processUser(
 
 // ─── Scheduled function ───────────────────────────────────────────────────────
 
-export const onUserInactive = onSchedule('every 24 hours', async () => {
+// Cron anchored to 10 AM UTC — well inside the 8 AM–10 PM active window.
+// 'every 24 hours' is intentionally avoided: an interval-based schedule can
+// drift and consistently land inside the quiet window, making the job a
+// perpetual no-op. A fixed UTC cron guarantees a non-quiet daily execution.
+export const onUserInactive = onSchedule('0 10 * * *', async () => {
   const now = new Date();
 
+  // Extra guard: abort if somehow invoked during quiet hours (e.g., manual trigger).
   if (isQuietHour(now)) {
     console.log('[onUserInactive] skipped — quiet hours (UTC hour:', now.getUTCHours(), ')');
     return;
@@ -140,18 +145,25 @@ export const onUserInactive = onSchedule('every 24 hours', async () => {
   const threeAgo = admin.firestore.Timestamp.fromMillis(now.getTime() - THREE_DAYS_MS);
   const fourAgo  = admin.firestore.Timestamp.fromMillis(now.getTime() - FOUR_DAYS_MS);
 
-  const snap = await db.collection('users')
+  // lastOpenedAt is stored in users/{uid}/userPreferences/prefs, not the root
+  // user document. Use collectionGroup to query across all prefs documents.
+  const prefsSnap = await db.collectionGroup('userPreferences')
     .where('lastOpenedAt', '<=', threeAgo)
     .where('lastOpenedAt', '>', fourAgo)
     .get();
 
-  if (snap.empty) {
+  const uids = prefsSnap.docs
+    .filter(d => d.id === 'prefs')
+    .map(d => d.ref.parent.parent?.id)
+    .filter((id): id is string => Boolean(id));
+
+  if (uids.length === 0) {
     console.log('[onUserInactive] no inactive users in window');
     return;
   }
 
   const results = await Promise.allSettled(
-    snap.docs.map(userDoc => processUser(userDoc.id, db, messaging, now)),
+    uids.map(uid => processUser(uid, db, messaging, now)),
   );
 
   const sent   = results.filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<boolean>).value).length;
