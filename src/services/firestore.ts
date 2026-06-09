@@ -253,6 +253,19 @@ export async function markPoiAlertSeen(
 }
 
 /**
+ * Record that a geofence-exit prompt was shown for `taskId` on `date`.
+ * Updates `exitPromptSeenDate` to suppress repeat exit prompts on the same
+ * day (KAN-119).
+ */
+export async function markExitPromptSeen(
+  uid: string,
+  taskId: string,
+  date: string,
+): Promise<void> {
+  await updateDoc(taskRef(uid, taskId), { exitPromptSeenDate: date });
+}
+
+/**
  * Record that an indoor proximity alert has been shown for `taskId` on `date`.
  * Updates `store.alertSeenDate` to suppress repeat alerts on the same day (KAN-75).
  */

@@ -5,13 +5,14 @@
  * Each row reads from / writes to users/{uid}/userPreferences/prefs.
  *
  * Sections:
- *   DAILY     — End-of-day check-in (KAN-120): toggle + time picker
- *   STREAKS   — Streak at risk (KAN-121): toggle
- *   SUMMARY   — Weekly recap (KAN-123): toggle
+ *   DAILY      — End-of-day check-in (KAN-120): toggle + time picker
+ *   STREAKS    — Streak at risk (KAN-121): toggle
+ *   SUMMARY    — Weekly recap (KAN-123): toggle
  *   ENGAGEMENT — Re-engagement reminders (KAN-124): toggle
+ *   LOCATION   — Exit prompt (KAN-119): toggle
  *
- * Rows for KAN-119 (exit prompt), KAN-122 (achievement nudge), and
- * KAN-125 (friend activity) are added by those tickets respectively.
+ * Rows for KAN-122 (achievement nudge) and KAN-125 (friend activity)
+ * are added by those tickets respectively.
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -212,6 +213,7 @@ export default function NotificationPreferencesScreen() {
   const streakOn    = prefs.streakReminder         ?? DEFAULT_USER_PREFERENCES.streakReminder;
   const weeklyOn    = prefs.weeklyRecap            ?? DEFAULT_USER_PREFERENCES.weeklyRecap;
   const reengageOn  = prefs.reengagementReminders  ?? DEFAULT_USER_PREFERENCES.reengagementReminders;
+  const exitPromptOn = prefs.exitPrompt            ?? DEFAULT_USER_PREFERENCES.exitPrompt;
 
   // ── Task counts — drive EOD + streak + weekly scheduling ─────────────────
   const [incompletePoiCount,    setIncompletePoiCount]    = useState(0);
@@ -325,6 +327,15 @@ export default function NotificationPreferencesScreen() {
     }
   }, [uid]);
 
+  const handleExitPromptToggle = useCallback(async (value: boolean) => {
+    setPrefs(p => ({ ...p, exitPrompt: value }));
+    try {
+      await updateUserPreferences(uid, { exitPrompt: value });
+    } catch {
+      setPrefs(p => ({ ...p, exitPrompt: !value }));
+    }
+  }, [uid]);
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   if (loading) {
@@ -402,6 +413,18 @@ export default function NotificationPreferencesScreen() {
             sublabel="A nudge after 3 days away from the app."
             value={reengageOn}
             onToggle={handleReengageToggle}
+            isLast
+          />
+        </Section>
+
+        {/* LOCATION */}
+        <Section title="LOCATION">
+          <PrefRow
+            Icon={BellIcon}
+            label="Exit prompt"
+            sublabel="Asks if you completed a task after leaving a tagged location."
+            value={exitPromptOn}
+            onToggle={handleExitPromptToggle}
             isLast
           />
         </Section>

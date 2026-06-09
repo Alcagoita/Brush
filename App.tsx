@@ -23,9 +23,12 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
-import { getUser, markLastOpenedAt } from './src/services/firestore';
+import { getUser, markLastOpenedAt, setTaskDone, subscribeToUserPreferences } from './src/services/firestore';
 import { migratePointsToAchievementDerived } from './src/services/achievements';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
+import { EXIT_ACTION_MARK_DONE } from './src/services/notifications';
+import { updateExitPromptPref } from './src/services/proximity';
+import { updateIndoorExitPromptPref } from './src/services/indoorProximity';
 import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
 import ShareMenu from 'react-native-share-menu';
 
@@ -142,19 +145,37 @@ function AppShell() {
     return unsubscribe;
   }, []);
 
-  // Notifee foreground press handler (KAN-28 / KAN-103).
+  // Notifee foreground press + action handler (KAN-28 / KAN-103 / KAN-119).
   // Navigates to the screen specified in data.screen, forwarding any extra
   // params (e.g. challengeId for ChallengeDetail).
+  // Also handles the "Yes, brushed ✓" quick-action from the exit prompt.
   useEffect(() => {
     return notifee.onForegroundEvent(({ type, detail }) => {
+      const data = detail.notification?.data ?? {};
+      if (type === EventType.ACTION_PRESS) {
+        // Exit prompt quick-action: mark task done directly from notification.
+        if (detail.pressAction?.id === EXIT_ACTION_MARK_DONE && data.taskId && displayUser) {
+          setTaskDone(displayUser.uid, data.taskId as string, true).catch(() => {});
+        }
+        return;
+      }
       if (type === EventType.PRESS) {
-        const data   = detail.notification?.data ?? {};
         const screen = (data.screen as keyof RootStackParamList) ?? 'Today';
         const params = data.challengeId ? { challengeId: data.challengeId as string } : undefined;
         navigateTo(screen, params as any);
       }
     });
-  }, []);
+  }, [displayUser]);
+
+  // Subscribe to exitPrompt preference and propagate to both proximity engines.
+  useEffect(() => {
+    if (!displayUser) { return; }
+    return subscribeToUserPreferences(displayUser.uid, prefs => {
+      const enabled = prefs.exitPrompt ?? true;
+      updateExitPromptPref(enabled);
+      updateIndoorExitPromptPref(enabled);
+    });
+  }, [displayUser]);
 
   // Initial notification handler (KAN-28 / KAN-103).
   useEffect(() => {

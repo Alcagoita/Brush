@@ -1,5 +1,5 @@
 /**
- * KAN-120 / KAN-121 — notifications service: EOD check-in + streak-at-risk.
+ * KAN-120 / KAN-121 / KAN-123 / KAN-119 — notifications service.
  *
  * Verifies:
  *  - buildEodBody returns correct singular / plural copy
@@ -20,6 +20,8 @@
  *  - scheduleWeeklyRecap: no-ops when disabled or not opened this week
  *  - scheduleWeeklyRecap: schedules correctly when conditions met
  *  - cancelWeeklyRecap: delegates to notifee.cancelNotification
+ *  - buildExitBody: with / without store name (KAN-119)
+ *  - fireExitPrompt: calls displayNotification with correct body + actions (KAN-119)
  */
 
 import {
@@ -33,20 +35,27 @@ import {
   nextSundayAt7PM,
   scheduleWeeklyRecap,
   cancelWeeklyRecap,
+  buildExitBody,
+  fireExitPrompt,
+  EXIT_ACTION_MARK_DONE,
 } from '../../src/services/notifications';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockCreateChannel           = jest.fn().mockResolvedValue(undefined);
-const mockCreateTriggerNotification = jest.fn().mockResolvedValue(undefined);
-const mockCancelNotification      = jest.fn().mockResolvedValue(undefined);
+const mockCreateChannel              = jest.fn().mockResolvedValue(undefined);
+const mockCreateTriggerNotification  = jest.fn().mockResolvedValue(undefined);
+const mockCancelNotification         = jest.fn().mockResolvedValue(undefined);
+const mockDisplayNotification        = jest.fn().mockResolvedValue(undefined);
+const mockSetNotificationCategories  = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
   default: {
-    createChannel:            (...args: any[]) => mockCreateChannel(...args),
-    createTriggerNotification: (...args: any[]) => mockCreateTriggerNotification(...args),
-    cancelNotification:        (...args: any[]) => mockCancelNotification(...args),
+    createChannel:              (...args: any[]) => mockCreateChannel(...args),
+    createTriggerNotification:  (...args: any[]) => mockCreateTriggerNotification(...args),
+    cancelNotification:          (...args: any[]) => mockCancelNotification(...args),
+    displayNotification:         (...args: any[]) => mockDisplayNotification(...args),
+    setNotificationCategories:   (...args: any[]) => mockSetNotificationCategories(...args),
   },
   AndroidImportance: { DEFAULT: 3, HIGH: 4 },
   AndroidVisibility: { PUBLIC: 1 },
@@ -364,5 +373,82 @@ describe('cancelWeeklyRecap', () => {
   it('calls notifee.cancelNotification with the weekly recap id', async () => {
     await cancelWeeklyRecap();
     expect(mockCancelNotification).toHaveBeenCalledWith('weekly-recap');
+  });
+});
+
+// ─── KAN-119: Exit prompt ─────────────────────────────────────────────────────
+
+describe('buildExitBody', () => {
+  it('returns store-name copy when storeName is provided', () => {
+    expect(buildExitBody('Whole Foods')).toBe(
+      'Left Whole Foods — did you brush it away?',
+    );
+  });
+
+  it('returns generic copy when storeName is omitted', () => {
+    expect(buildExitBody()).toBe(
+      'Did you brush it away while you were there?',
+    );
+  });
+
+  it('returns generic copy when storeName is undefined', () => {
+    expect(buildExitBody(undefined)).toBe(
+      'Did you brush it away while you were there?',
+    );
+  });
+});
+
+describe('fireExitPrompt', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls displayNotification with the correct body (with store name)', async () => {
+    await fireExitPrompt({ taskId: 'task-1', taskTitle: 'Buy milk', storeName: 'Whole Foods' });
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+    const [notif] = mockDisplayNotification.mock.calls[0];
+    expect(notif.body).toBe('Left Whole Foods — did you brush it away?');
+  });
+
+  it('calls displayNotification with generic body when no store name', async () => {
+    await fireExitPrompt({ taskId: 'task-2', taskTitle: 'Pick up meds' });
+    const [notif] = mockDisplayNotification.mock.calls[0];
+    expect(notif.body).toBe('Did you brush it away while you were there?');
+  });
+
+  it('includes taskId in notification data', async () => {
+    await fireExitPrompt({ taskId: 'task-abc', taskTitle: 'Get coffee' });
+    const [notif] = mockDisplayNotification.mock.calls[0];
+    expect(notif.data?.taskId).toBe('task-abc');
+  });
+
+  it('includes screen:Today in notification data for tap routing', async () => {
+    await fireExitPrompt({ taskId: 'task-abc', taskTitle: 'Get coffee' });
+    const [notif] = mockDisplayNotification.mock.calls[0];
+    expect(notif.data?.screen).toBe('Today');
+  });
+
+  it('android actions include the mark-done quick-action', async () => {
+    await fireExitPrompt({ taskId: 'task-3', taskTitle: 'Grab groceries' });
+    const [notif] = mockDisplayNotification.mock.calls[0];
+    const actions: any[] = notif.android?.actions ?? [];
+    const markDone = actions.find((a: any) => a.pressAction?.id === EXIT_ACTION_MARK_DONE);
+    expect(markDone).toBeDefined();
+    expect(markDone.title).toContain('brushed');
+  });
+
+  it('registers the iOS exit_prompt notification category', async () => {
+    await fireExitPrompt({ taskId: 'task-4', taskTitle: 'Drop off package' });
+    expect(mockSetNotificationCategories).toHaveBeenCalledTimes(1);
+    const [cats] = mockSetNotificationCategories.mock.calls[0];
+    const exitCat = cats.find((c: any) => c.id === 'exit_prompt');
+    expect(exitCat).toBeDefined();
+    const markDoneAction = exitCat.actions.find((a: any) => a.id === EXIT_ACTION_MARK_DONE);
+    expect(markDoneAction).toBeDefined();
+  });
+
+  it('creates the exit-prompt notification channel', async () => {
+    await fireExitPrompt({ taskId: 'task-5', taskTitle: 'ATM errand' });
+    expect(mockCreateChannel).toHaveBeenCalledTimes(1);
+    const [channel] = mockCreateChannel.mock.calls[0];
+    expect(channel.id).toBe('exit-prompt');
   });
 });
