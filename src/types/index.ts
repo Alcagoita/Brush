@@ -148,6 +148,11 @@ export interface Task {
    */
   poiAlertSeenDate?: string;
   /**
+   * The date (YYYY-MM-DD) on which a geofence-exit prompt was last fired for
+   * this task. Suppresses repeat exit prompts on the same day (KAN-119).
+   */
+  exitPromptSeenDate?: string;
+  /**
    * Named store tag for indoor proximity matching (KAN-76).
    * Independent of `poi` — a task can have either, both, or neither.
    * `alertSeenDate` suppresses repeat indoor alerts on the same day (KAN-75).

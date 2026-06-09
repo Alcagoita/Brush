@@ -22,6 +22,7 @@ import type { TimestampTrigger } from '@notifee/react-native';
 export const CHANNEL_EOD    = 'eod-checkin';
 export const CHANNEL_STREAK = 'streak-at-risk';
 export const CHANNEL_WEEKLY = 'weekly-recap';
+export const CHANNEL_EXIT   = 'exit-prompt';
 
 // ─── Notification IDs ─────────────────────────────────────────────────────────
 
@@ -304,4 +305,91 @@ export async function scheduleWeeklyRecap(options: {
 /** Cancel any pending weekly recap notification. */
 export async function cancelWeeklyRecap(): Promise<void> {
   await notifee.cancelNotification(NOTIF_ID_WEEKLY);
+}
+
+// ─── Location exit prompt (KAN-119) ───────────────────────────────────────────
+
+/** Stable action ID for the "Yes, brushed ✓" quick-action. */
+export const EXIT_ACTION_MARK_DONE = 'exit_mark_done';
+
+/**
+ * Returns the notification body for the exit prompt.
+ *
+ *   With store name:   "Left [Store Name] — did you brush it away?"
+ *   Without:           "Did you brush it away while you were there?"
+ */
+export function buildExitBody(storeName?: string): string {
+  if (storeName) {
+    return `Left ${storeName} — did you brush it away?`;
+  }
+  return 'Did you brush it away while you were there?';
+}
+
+/**
+ * Fire an immediate exit-prompt notification for the given task.
+ *
+ * Includes a "Yes, brushed ✓" quick-action that carries `taskId` in its
+ * payload so App.tsx can mark the task complete directly from the lock screen.
+ *
+ * This is a fire-and-forget notification (not scheduled) — it displays
+ * immediately. The deduplication guard (`exitPromptSeenDate`) must be checked
+ * by the caller before invoking this function.
+ */
+/**
+ * Register the iOS notification category for the exit prompt quick-action.
+ *
+ * Must be called once at app startup (App.tsx) before any exit prompt can fire.
+ * Idempotent — safe to call on every launch.
+ */
+export async function registerExitPromptCategory(): Promise<void> {
+  await notifee.setNotificationCategories([
+    {
+      id: 'exit_prompt',
+      actions: [
+        {
+          id:    EXIT_ACTION_MARK_DONE,
+          title: 'Yes, brushed ✓',
+        },
+      ],
+    },
+  ]);
+}
+
+export async function fireExitPrompt(options: {
+  taskId:    string;
+  taskTitle: string;
+  storeName?: string;
+}): Promise<void> {
+  const { taskId, taskTitle, storeName } = options;
+
+  await notifee.createChannel({
+    id:         CHANNEL_EXIT,
+    name:       'Location exit prompts',
+    importance: AndroidImportance.DEFAULT,
+    vibration:  true,
+    visibility: AndroidVisibility.PUBLIC,
+  });
+
+  await notifee.displayNotification({
+    title: 'Brush',
+    body:  buildExitBody(storeName),
+    android: {
+      channelId:   CHANNEL_EXIT,
+      importance:  AndroidImportance.DEFAULT,
+      pressAction: { id: 'default', launchActivity: 'default' },
+      visibility:  AndroidVisibility.PUBLIC,
+      smallIcon:   'ic_notification',
+      actions: [
+        {
+          title:       'Yes, brushed ✓',
+          pressAction: { id: EXIT_ACTION_MARK_DONE },
+        },
+      ],
+    },
+    ios: {
+      categoryId: 'exit_prompt',
+    },
+    // taskId is forwarded to the action handler in App.tsx.
+    data: { screen: 'Today', taskId, taskTitle },
+  });
 }

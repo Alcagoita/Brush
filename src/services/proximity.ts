@@ -41,7 +41,10 @@ import {
   buildGeofenceId,
   parseGeofenceId,
   GEOFENCE_ENTRY_EVENT,
+  GEOFENCE_EXIT_EVENT,
 } from './nativeGeofence';
+import { fireExitPrompt } from './notifications';
+import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
@@ -128,6 +131,75 @@ const FINE_ACCURACY_THRESHOLD_M = 500;
 
 /** Subscription for the native geofence entry event emitter. */
 let geofenceEntrySubscription: ReturnType<NonNullable<typeof geofenceEmitter>['addListener']> | null = null;
+/** Subscription for the native geofence exit event emitter. */
+let geofenceExitSubscription:  ReturnType<NonNullable<typeof geofenceEmitter>['addListener']> | null = null;
+
+/**
+ * Tracks the Unix timestamp (ms) at which the device entered each geofence.
+ * Used to enforce the 5-minute dwell requirement before firing an exit prompt.
+ * Key: geofenceId. Cleared on geofence exit or when monitoring stops.
+ */
+const geofenceEntryTimes = new Map<string, number>();
+
+/** Minimum dwell time inside a geofence before an exit prompt may fire (ms). */
+const EXIT_PROMPT_MIN_DWELL_MS = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Whether the exit-prompt notification is enabled.
+ * Updated via updateExitPromptPref() when userPreferences changes.
+ */
+let exitPromptEnabled = true;
+
+/** Update the exit-prompt enabled flag from a userPreferences subscription. */
+export function updateExitPromptPref(enabled: boolean): void {
+  exitPromptEnabled = enabled;
+}
+
+/**
+ * Handles a geofence exit event from the native layer.
+ *
+ * Guards:
+ *   1. exitPromptEnabled — setting is off
+ *   2. dwell < 5 min     — brief drive-by, not a meaningful visit
+ *   3. No undone task    — nothing to prompt about
+ *   4. Task already done — user brushed while inside
+ *   5. exitPromptSeenDate === today — already prompted once today
+ */
+export async function handleGeofenceExit(
+  geofenceId: string,
+  uid: string,
+  tasks: Task[],
+): Promise<void> {
+  const entryTime = geofenceEntryTimes.get(geofenceId);
+  geofenceEntryTimes.delete(geofenceId);
+
+  if (!exitPromptEnabled) { return; }
+
+  // Enforce minimum dwell time.
+  if (!entryTime || Date.now() - entryTime < EXIT_PROMPT_MIN_DWELL_MS) { return; }
+
+  const parsed = parseGeofenceId(geofenceId);
+  if (!parsed) { return; }
+
+  const { poiType } = parsed;
+  const today = new Date().toISOString().split('T')[0];
+
+  const task = tasks.find(
+    t => !t.done && t.poi === poiType && t.exitPromptSeenDate !== today,
+  );
+  if (!task) { return; }
+
+  // Resolve store name from the place cache for richer copy (optional).
+  const cached    = placeCache.get(poiType);
+  const storeName = cached?.places[0]?.name;
+
+  try {
+    await fireExitPrompt({ taskId: task.id, taskTitle: task.title, storeName });
+    await markExitPromptSeen(uid, task.id, today);
+  } catch (err) {
+    console.warn('[proximity] exit prompt failed', err);
+  }
+}
 
 /**
  * Register native OS geofences for all active undone POI tasks.
@@ -475,8 +547,20 @@ export function startProximityMonitoring(
     geofenceEntrySubscription = geofenceEmitter.addListener(
       GEOFENCE_ENTRY_EVENT,
       ({ geofenceId }: { geofenceId: string }) => {
+        // Stamp dwell start time for exit-prompt debounce (KAN-119).
+        geofenceEntryTimes.set(geofenceId, Date.now());
         handleGeofenceEntry(geofenceId, uid, latestTasks, onUpdate).catch(err =>
           console.warn('[proximity] geofence entry handler failed', err),
+        );
+      },
+    );
+
+    // ── Native geofence exit listener (KAN-119) ──────────────────────────
+    geofenceExitSubscription = geofenceEmitter.addListener(
+      GEOFENCE_EXIT_EVENT,
+      ({ geofenceId }: { geofenceId: string }) => {
+        handleGeofenceExit(geofenceId, uid, latestTasks).catch(err =>
+          console.warn('[proximity] geofence exit handler failed', err),
         );
       },
     );
@@ -572,6 +656,9 @@ export function pauseGeofenceMonitoring(): void {
 
   geofenceEntrySubscription?.remove();
   geofenceEntrySubscription = null;
+  geofenceExitSubscription?.remove();
+  geofenceExitSubscription = null;
+  geofenceEntryTimes.clear();
 
   NativeGeofence.removeAllGeofences().catch(err =>
     console.warn('[proximity] pauseGeofenceMonitoring: removeAllGeofences failed', err),
@@ -601,8 +688,17 @@ export function resumeGeofenceMonitoring(): void {
     geofenceEntrySubscription = geofenceEmitter.addListener(
       GEOFENCE_ENTRY_EVENT,
       ({ geofenceId }: { geofenceId: string }) => {
+        geofenceEntryTimes.set(geofenceId, Date.now());
         handleGeofenceEntry(geofenceId, uid, getLatestTasks(), onUpdate).catch(err =>
           console.warn('[proximity] geofence entry handler failed', err),
+        );
+      },
+    );
+    geofenceExitSubscription = geofenceEmitter.addListener(
+      GEOFENCE_EXIT_EVENT,
+      ({ geofenceId }: { geofenceId: string }) => {
+        handleGeofenceExit(geofenceId, uid, getLatestTasks()).catch(err =>
+          console.warn('[proximity] geofence exit handler failed', err),
         );
       },
     );
@@ -637,9 +733,12 @@ export function stopProximityMonitoring(): void {
   _latestTasksUpdater = null;
   poiRadiusPrefs = {};
 
-  // ── Native geofence cleanup (KAN-56) ───────────────────────────────────────
+  // ── Native geofence cleanup (KAN-56 / KAN-119) ────────────────────────────
   geofenceEntrySubscription?.remove();
   geofenceEntrySubscription = null;
+  geofenceExitSubscription?.remove();
+  geofenceExitSubscription = null;
+  geofenceEntryTimes.clear();
   NativeGeofence.removeAllGeofences().catch(err =>
     console.warn('[proximity] failed to remove geofences on stop', err),
   );
@@ -657,4 +756,22 @@ export function setLocationTap(
   cb: ((lat: number, lng: number, accuracy: number) => void) | null,
 ): void {
   _locationTap = cb;
+}
+
+// ─── Test helpers (prefix __ — test files only) ───────────────────────────────
+
+/**
+ * Seed the geofence entry timestamp for a given geofence ID.
+ * Only for use in Jest tests — simulates the GEOFENCE_ENTRY_EVENT stamp.
+ */
+export function __setGeofenceEntryTime(geofenceId: string, timestamp: number): void {
+  geofenceEntryTimes.set(geofenceId, timestamp);
+}
+
+/**
+ * Clear the geofenceEntryTimes map.
+ * Only for use in Jest tests.
+ */
+export function __clearGeofenceEntryTimes(): void {
+  geofenceEntryTimes.clear();
 }
