@@ -91,9 +91,11 @@ export default function Header({
           <TouchableOpacity
               style={[styles.streakChip, { backgroundColor: palette.nearTint }]}
               onPress={onAchievementsPress}
-              accessibilityRole="button"
+              disabled={!onAchievementsPress}
+              accessibilityRole={onAchievementsPress ? 'button' : 'text'}
               accessibilityLabel={`${points} achievement points · view achievements`}
-              hitSlop={6}>
+              accessibilityState={{ disabled: !onAchievementsPress }}
+              hitSlop={onAchievementsPress ? 6 : undefined}>
               <FilledStarIcon color={palette.accent} size={12} />
               <Text style={[styles.streakCount, { color: palette.nearText }]}>
                 {`${points} pts`}
