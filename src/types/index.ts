@@ -323,8 +323,13 @@ export interface UserPreferences {
   friendActivity:           boolean;                             // KAN-125
   /** Updated on every app foreground — used by re-engagement logic (KAN-124). */
   lastOpenedAt?:            FirebaseFirestoreTypes.Timestamp;
-  /** Set after a re-engagement nudge fires — prevents duplicate sends. */
+  /** Set after the 3-day re-engagement nudge fires (KAN-124) — prevents duplicate sends. */
   lastReengagementNudge?:   FirebaseFirestoreTypes.Timestamp;
+  /**
+   * Set to true after the 7-day lapse nudge fires (KAN-127).
+   * Prevents further re-engagement nudges for this lapse episode.
+   */
+  reengagementChurned?:     boolean;
   /** "YYYY-MM-DD" — prevents more than one achievement nudge per day (KAN-122). */
   lastAchievementNudgeDate?: string;
   /**
