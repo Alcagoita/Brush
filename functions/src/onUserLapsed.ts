@@ -39,11 +39,11 @@ export const EIGHT_DAYS_MS = 8 * 24 * 60 * 60 * 1000;
  */
 export function shouldSendLapseNudge(prefs: {
   reengagementReminders?: boolean;
-  reengagementChurned?: boolean;
+  reengagementChurned?: unknown;
   lastReengagementNudge?: { toMillis(): number } | null;
 }): boolean {
   if (prefs.reengagementReminders === false) { return false; }
-  if (prefs.reengagementChurned === true) { return false; }
+  if (prefs.reengagementChurned) { return false; }
   if (!prefs.lastReengagementNudge) { return false; }
   return true;
 }
@@ -104,7 +104,7 @@ export async function processLapsedUser(
   // even if the user returns briefly and lapses again. Uses merge so other
   // pref fields are untouched.
   await prefsRef.set(
-    { reengagementChurned: true },
+    { reengagementChurned: admin.firestore.FieldValue.serverTimestamp() },
     { merge: true },
   );
 

@@ -18,9 +18,9 @@ import {
 describe('shouldSendLapseNudge', () => {
   const nudgeTimestamp = { toMillis: () => Date.now() - 4 * 24 * 60 * 60 * 1000 };
 
-  it('returns false when reengagementChurned is true', () => {
+  it('returns false when reengagementChurned is set (Timestamp present)', () => {
     expect(shouldSendLapseNudge({
-      reengagementChurned: true,
+      reengagementChurned: { toMillis: () => Date.now() - 1000 },
       lastReengagementNudge: nudgeTimestamp,
     })).toBe(false);
   });
@@ -94,10 +94,11 @@ describe('processLapsedUser', () => {
     mockSend.mockResolvedValue('msg-id');
   });
 
-  it('returns false when reengagementChurned is true', async () => {
+  it('returns false when reengagementChurned is set', async () => {
+    const churnTs = { toMillis: () => Date.now() - 1000 };
     const result = await processLapsedUser(
       UID,
-      makeDb({ reengagementChurned: true, lastReengagementNudge: nudgeTimestamp }, ['tok']),
+      makeDb({ reengagementChurned: churnTs, lastReengagementNudge: nudgeTimestamp }, ['tok']),
       makeMessaging(),
     );
     expect(result).toBe(false);
@@ -158,7 +159,7 @@ describe('processLapsedUser', () => {
     expect(msg.data.filterToday).toBe('true');
   });
 
-  it('stamps reengagementChurned: true with merge:true after sending', async () => {
+  it('stamps reengagementChurned as serverTimestamp with merge:true after sending', async () => {
     await processLapsedUser(
       UID,
       makeDb({ lastReengagementNudge: nudgeTimestamp }, ['tok']),
@@ -166,7 +167,7 @@ describe('processLapsedUser', () => {
     );
     expect(mockSet).toHaveBeenCalledTimes(1);
     const [data, opts] = mockSet.mock.calls[0];
-    expect(data).toEqual({ reengagementChurned: true });
+    expect(data).toHaveProperty('reengagementChurned');
     expect(opts).toEqual({ merge: true });
   });
 

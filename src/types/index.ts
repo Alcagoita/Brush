@@ -326,10 +326,10 @@ export interface UserPreferences {
   /** Set after the 3-day re-engagement nudge fires (KAN-124) — prevents duplicate sends. */
   lastReengagementNudge?:   FirebaseFirestoreTypes.Timestamp;
   /**
-   * Set to true after the 7-day lapse nudge fires (KAN-127).
+   * Timestamp when the 7-day lapse nudge fired (KAN-127).
    * Prevents further re-engagement nudges for this lapse episode.
    */
-  reengagementChurned?:     boolean;
+  reengagementChurned?:     FirebaseFirestoreTypes.Timestamp;
   /** "YYYY-MM-DD" — prevents more than one achievement nudge per day (KAN-122). */
   lastAchievementNudgeDate?: string;
   /**
