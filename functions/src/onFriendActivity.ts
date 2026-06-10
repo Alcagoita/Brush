@@ -227,11 +227,12 @@ export const onFriendActivity = onDocumentWritten(
       ),
     );
 
-    const sent   = results.filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<boolean>).value).length;
-    const failed = results.filter(r => r.status === 'rejected').length;
+    const sent    = results.filter(r => r.status === 'fulfilled' && (r as PromiseFulfilledResult<boolean>).value).length;
+    const skipped = results.filter(r => r.status === 'fulfilled' && !(r as PromiseFulfilledResult<boolean>).value).length;
+    const failed  = results.filter(r => r.status === 'rejected').length;
     console.log(
       `[onFriendActivity] actor=${actorUid} isFullList=${isFullList}` +
-      ` followers=${followerUids.length} sent=${sent} failed=${failed}`,
+      ` followers=${followerUids.length} sent=${sent} skipped=${skipped} failed=${failed}`,
     );
   },
 );
