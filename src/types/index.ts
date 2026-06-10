@@ -343,7 +343,11 @@ export interface UserPreferences {
 /** Sensible defaults applied before a user has ever saved preferences. */
 export const DEFAULT_USER_PREFERENCES: Omit<
   UserPreferences,
-  'lastOpenedAt' | 'lastReengagementNudge' | 'lastAchievementNudgeDate'
+  | 'lastOpenedAt'
+  | 'lastReengagementNudge'
+  | 'lastAchievementNudgeDate'
+  | 'lastFriendNudgeFrom'
+  | 'reengagementChurned'
 > = {
   exitPrompt:            true,
   eodReminder:           { enabled: true, time: '21:00' },

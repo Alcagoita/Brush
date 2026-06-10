@@ -38,9 +38,11 @@ export const EIGHT_DAYS_MS = 8 * 24 * 60 * 60 * 1000;
  *      escalation path.
  */
 export function shouldSendLapseNudge(prefs: {
+  reengagementReminders?: boolean;
   reengagementChurned?: boolean;
   lastReengagementNudge?: { toMillis(): number } | null;
 }): boolean {
+  if (prefs.reengagementReminders === false) { return false; }
   if (prefs.reengagementChurned === true) { return false; }
   if (!prefs.lastReengagementNudge) { return false; }
   return true;

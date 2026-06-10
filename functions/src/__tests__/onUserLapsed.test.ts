@@ -37,6 +37,13 @@ describe('shouldSendLapseNudge', () => {
     expect(shouldSendLapseNudge({ lastReengagementNudge: nudgeTimestamp })).toBe(true);
   });
 
+  it('returns false when reengagementReminders is explicitly false', () => {
+    expect(shouldSendLapseNudge({
+      reengagementReminders: false,
+      lastReengagementNudge: nudgeTimestamp,
+    })).toBe(false);
+  });
+
   it('returns true when reengagementChurned is explicitly false', () => {
     expect(shouldSendLapseNudge({
       reengagementChurned: false,
