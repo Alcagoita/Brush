@@ -323,21 +323,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 </Text>
               </View>
 
-              {/* ── Map-search entry ── */}
-              <Pressable
-                style={[
-                  styles.mapSearchEntry,
-                  { backgroundColor: palette.surface, borderColor: palette.line },
-                ]}
-                onPress={handleMoreDetails}
-                accessibilityRole="button"
-                accessibilityLabel="Search a place on the map">
-                <PoiIcon type="store" color={palette.faint} size={16} />
-                <Text style={[styles.mapSearchText, { color: palette.muted }]}>
-                  Search a place on the map…
-                </Text>
-              </Pressable>
-
               {/* ── Quick picks header ── */}
               <View style={styles.quickPicksHeader}>
                 <Text style={[styles.quickPicksTitle, { color: palette.muted }]}>Quick picks</Text>
@@ -557,22 +542,6 @@ const styles = StyleSheet.create({
     fontWeight:    '400',
     fontFamily:    'Geist-Regular',
     letterSpacing:  0,
-  },
-  mapSearchEntry: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               10,
-    marginHorizontal:  22,
-    paddingHorizontal: 14,
-    paddingVertical:   11,
-    borderRadius:      12,
-    borderWidth:        1,
-    marginBottom:      12,
-  },
-  mapSearchText: {
-    fontSize:   14,
-    fontFamily: 'Geist-Regular',
-    flex:        1,
   },
   quickPicksHeader: {
     flexDirection:     'row',
