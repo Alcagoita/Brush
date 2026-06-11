@@ -5,8 +5,8 @@
  * "Add task" is enabled. In edit mode: pre-populated, same layout.
  *
  * POI sources are mutually exclusive:
- *   (a) Google Maps text search → selected place card
- *   (b) 4-column quick-pick grid
+ *   (a) Free-text POI type (e.g. "bakery", "florist") → becomes task.poi
+ *   (b) 4-column quick-pick grid of built-in POI types
  * Choosing one clears the other.
  *
  * Layout: sticky top bar + scrollable body + sticky bottom CTA.
@@ -32,6 +32,7 @@ import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } f
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../components/AppIcon';
 import type { Category, PoiType, Task } from '../types';
 import { POI_CATALOG } from '../types';
+import { PLACE_TYPE_LABELS } from '../services/maps';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -44,39 +45,27 @@ export interface TaskFormParams {
   initialPoi?: PoiType;
 }
 
-// ─── Mock Places data (replace with Google Places API in production) ──────────
-
-interface PlaceSuggestion {
-  name: string;
-  type: string;
-  address: string;
-  distanceMeters: number;
-  iconKey: string;
-}
-
-const NTD_PLACES: PlaceSuggestion[] = [
-  { name: 'Pingo Doce',        type: 'supermarket', address: 'R. Augusta 12',       distanceMeters: 180, iconKey: 'supermarket' },
-  { name: 'Continente',        type: 'supermarket', address: 'Av. República 45',    distanceMeters: 340, iconKey: 'supermarket' },
-  { name: 'Delta Café',        type: 'cafe',        address: 'Praça do Comércio 3', distanceMeters: 220, iconKey: 'cafe'        },
-  { name: 'Farmácia Saúde',    type: 'pharmacy',    address: 'R. do Ouro 78',       distanceMeters: 130, iconKey: 'pharmacy'    },
-  { name: 'Banco de Portugal', type: 'bank',        address: 'R. Áurea 27',         distanceMeters: 260, iconKey: 'bank'        },
-  { name: 'CTT Correios',      type: 'post',        address: 'R. do Arsenal 5',     distanceMeters: 410, iconKey: 'post'        },
-];
-
-function getFilteredPlaces(query: string): PlaceSuggestion[] {
-  if (!query.trim()) { return []; }
-  const q = query.toLowerCase();
-  return NTD_PLACES
-    .filter(p => p.name.toLowerCase().includes(q) || p.type.includes(q))
-    .slice(0, 6);
-}
-
-function formatDist(m: number): string {
-  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
-}
-
 function todayISO(): string {
   return new Date().toISOString().split('T')[0];
+}
+
+// ─── POI type suggestion catalog ──────────────────────────────────────────────
+
+const ALL_TYPE_SUGGESTIONS = Object.entries(PLACE_TYPE_LABELS).map(
+  ([type, label]) => ({ type, label }),
+);
+
+function getTypeSuggestions(q: string): { type: string; label: string }[] {
+  if (!q.trim()) { return []; }
+  // Split query into words; every query word must match the START of some label word.
+  // "bus" → matches "Bus Station"; "b" → matches "Bank" but not "Library" or "Night Club".
+  const queryWords = q.toLowerCase().replace(/_/g, ' ').trim().split(/\s+/);
+  return ALL_TYPE_SUGGESTIONS
+    .filter(s => {
+      const labelWords = s.label.toLowerCase().split(/\s+/);
+      return queryWords.every(qw => labelWords.some(lw => lw.startsWith(qw)));
+    })
+    .slice(0, 6);
 }
 
 const COLOR_DESTRUCTIVE = '#e05252';
@@ -155,16 +144,13 @@ export default function TaskFormScreen() {
   const [poiKey,   setPoiKey]   = useState<PoiType | null>(
     (existingTask?.poi as PoiType | undefined) ?? initialPoi ?? null,
   );
-  const [place,    setPlace]    = useState<PlaceSuggestion | null>(null);
 
-  // Google Maps search
-  const [query,     setQuery]    = useState('');
-  const [focused,   setFocused]  = useState(false);
-  const [results,   setResults]  = useState<PlaceSuggestion[]>([]);
-
-  useEffect(() => {
-    setResults(getFilteredPlaces(query));
-  }, [query]);
+  // Free-text POI type — mutually exclusive with poiKey.
+  // query    = display text in the input (friendly label after a suggestion is picked)
+  // customPoiType = resolved type key to save (e.g. "bus_station"); null while still typing
+  const [query,         setQuery]         = useState('');
+  const [customPoiType, setCustomPoiType] = useState<string | null>(null);
+  const [focused,       setFocused]       = useState(false);
 
   // Custom categories
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
@@ -207,8 +193,11 @@ export default function TaskFormScreen() {
   const [submitting, setSubmitting] = useState(false);
   const titleRef = useRef<TextInput>(null);
 
-  // poi is required: either a quick-pick key or a searched place
-  const effectivePoi: string | null = poiKey ?? place?.type ?? null;
+  // poi is required: quick-pick key → customPoiType (from suggestion) → raw query text
+  const effectivePoi: string | null = poiKey ?? customPoiType ?? (query.trim() || null);
+
+  // Suggestions shown while the user is actively typing (hidden once a suggestion is selected)
+  const suggestions = !customPoiType && query.trim() ? getTypeSuggestions(query) : [];
   const canSubmit = title.trim().length > 0 && effectivePoi !== null;
 
   const handleSave = useCallback(async () => {
@@ -222,8 +211,8 @@ export default function TaskFormScreen() {
         category: category ?? 'personal',
         done:     existingTask?.done ?? false,
         poi:      effectivePoi,
-        time:     time.trim() || undefined,
         date,
+        ...(time.trim() ? { time: time.trim() } : {}),
       };
 
       if (notes.trim()) {
@@ -370,20 +359,21 @@ export default function TaskFormScreen() {
             <PoiIcon type="store" color={palette.faint} size={16} />
             <TextInput
               style={[styles.searchInput, { color: palette.text }]}
-              placeholder="Search places on Google Maps…"
+              placeholder="bakery, florist, gym…"
               placeholderTextColor={palette.muted}
               value={query}
               onChangeText={v => {
                 setQuery(v);
-                if (v) { setPoiKey(null); } // clear quick-pick
+                setCustomPoiType(null); // user is typing freely again
+                if (v) { setPoiKey(null); }
               }}
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
-              returnKeyType="search"
+              returnKeyType="done"
             />
             {!!query && (
               <Pressable
-                onPress={() => { setQuery(''); setResults([]); setPlace(null); }}
+                onPress={() => { setQuery(''); setCustomPoiType(null); }}
                 hitSlop={8}
                 accessibilityLabel="Clear search">
                 <CloseIcon color={palette.muted} size={16} />
@@ -391,69 +381,25 @@ export default function TaskFormScreen() {
             )}
           </View>
 
-          {/* Search results dropdown */}
-          {results.length > 0 && !place && (
-            <View style={[
-              styles.dropdown,
-              { backgroundColor: palette.bg, borderColor: palette.line },
-            ]}>
-              {results.map((r, i) => (
+          {/* Type suggestions dropdown */}
+          {suggestions.length > 0 && (
+            <View style={[styles.dropdown, { backgroundColor: palette.bg, borderColor: palette.line }]}>
+              {suggestions.map((s, i) => (
                 <Pressable
-                  key={i}
+                  key={s.type}
                   style={[
                     styles.dropdownRow,
-                    i < results.length - 1 && { borderBottomWidth: 1, borderBottomColor: palette.line },
+                    i < suggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: palette.line },
                   ]}
                   onPress={() => {
-                    setPlace(r);
-                    setQuery('');
-                    setResults([]);
+                    setQuery(s.label);
+                    setCustomPoiType(s.type);
                     setPoiKey(null);
                   }}>
-                  <PoiIcon type={r.iconKey as PoiType} color={palette.muted} size={18} />
-                  <View style={styles.dropdownText}>
-                    <Text style={[styles.dropdownName, { color: palette.text }]} numberOfLines={1}>
-                      {r.name}
-                    </Text>
-                    <Text style={[styles.dropdownSub, { color: palette.muted }]} numberOfLines={1}>
-                      {r.type} · {r.address}
-                    </Text>
-                  </View>
-                  <Text style={[styles.dropdownDist, { color: palette.faint }]}>
-                    {formatDist(r.distanceMeters)}
-                  </Text>
+                  <PoiIcon type={s.type} color={palette.muted} size={18} />
+                  <Text style={[styles.dropdownLabel, { color: palette.text }]}>{s.label}</Text>
                 </Pressable>
               ))}
-              {/* Google attribution — required by Google TOS */}
-              <View style={styles.attribution}>
-                <Text style={[styles.attributionLabel, { color: palette.faint }]}>
-                  <Text style={{ fontWeight: '700' }}>Google</Text> Maps Places
-                </Text>
-              </View>
-            </View>
-          )}
-
-          {/* Selected place card */}
-          {place && (
-            <View style={[
-              styles.placeCard,
-              { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder },
-            ]}>
-              <PoiIcon type={place.iconKey as PoiType} color={palette.nearText} size={18} />
-              <View style={styles.placeCardText}>
-                <Text style={[styles.placeCardName, { color: palette.nearText }]} numberOfLines={1}>
-                  {place.name}
-                </Text>
-                <Text style={[styles.placeCardSub, { color: palette.nearText }]} numberOfLines={1}>
-                  {place.type} · {formatDist(place.distanceMeters)} away
-                </Text>
-              </View>
-              <Pressable
-                onPress={() => setPlace(null)}
-                hitSlop={8}
-                accessibilityLabel="Remove place">
-                <CloseIcon color={palette.nearText} size={16} />
-              </Pressable>
             </View>
           )}
 
@@ -468,7 +414,7 @@ export default function TaskFormScreen() {
                 onPress={() => {
                   const next = poiKey === type ? null : type;
                   setPoiKey(next);
-                  if (next) { setPlace(null); setQuery(''); setResults([]); }
+                  if (next) { setQuery(''); setCustomPoiType(null); }
                 }}
                 palette={palette}
               />
@@ -795,7 +741,7 @@ const styles = StyleSheet.create({
     padding:     0,
   },
 
-  // ── Dropdown ──
+  // ── Type suggestion dropdown ──
   dropdown: {
     borderRadius: 14,
     borderWidth:   1,
@@ -808,56 +754,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical:   11,
   },
-  dropdownText: {
-    flex: 1,
-    gap:   2,
-  },
-  dropdownName: {
+  dropdownLabel: {
+    flex:       1,
     fontSize:   14,
-    fontWeight: '500',
-    fontFamily: 'Geist-Medium',
-  },
-  dropdownSub: {
-    fontSize:   12,
     fontFamily: 'Geist-Regular',
-  },
-  dropdownDist: {
-    fontSize:    12,
-    fontFamily:  'Geist-Regular',
-    fontVariant: ['tabular-nums'],
-  },
-  attribution: {
-    alignItems:      'center',
-    paddingVertical:  8,
-  },
-  attributionLabel: {
-    fontSize:   10.5,
-    fontFamily: 'Geist-Regular',
-  },
-
-  // ── Selected place card ──
-  placeCard: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               10,
-    paddingHorizontal: 14,
-    paddingVertical:   12,
-    borderRadius:      12,
-    borderWidth:        1,
-  },
-  placeCardText: {
-    flex: 1,
-    gap:   2,
-  },
-  placeCardName: {
-    fontSize:   14.5,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
-  },
-  placeCardSub: {
-    fontSize:   12,
-    fontFamily: 'Geist-Regular',
-    opacity:     0.8,
   },
 
   // ── POI grid (4 columns) ──
