@@ -44,9 +44,9 @@ describe('shouldSendLapseNudge', () => {
     })).toBe(false);
   });
 
-  it('returns true when reengagementChurned is explicitly false', () => {
+  it('returns true when reengagementChurned is null (not yet churned)', () => {
     expect(shouldSendLapseNudge({
-      reengagementChurned: false,
+      reengagementChurned: null,
       lastReengagementNudge: nudgeTimestamp,
     })).toBe(true);
   });
