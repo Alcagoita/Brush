@@ -717,7 +717,7 @@ const styles = StyleSheet.create({
   bottomPad: { height: 220 },
   // ── Empty state CTA ──
   emptyCTAWrap: {
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.page,
     paddingBottom:     26,
   },
   emptyCTABtn: {
