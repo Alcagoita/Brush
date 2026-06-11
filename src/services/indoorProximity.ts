@@ -29,7 +29,7 @@
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import { feedLocation } from './indoorDetection';
-import { markStoreAlertSeen, markExitPromptSeen } from './firestore';
+import { markExitPromptSeen } from './firestore';
 import { searchNearbyPlaces, getDistanceMeters, NearbyPlace } from './maps';
 import { getCurrentPosition } from './geolocation';
 import { fireExitPrompt } from './notifications';
@@ -78,7 +78,7 @@ let _getPosition:   GetCurrentPositionFn = async () => {
 };
 let _searchPlaces:  SearchPlacesFn       = searchNearbyPlaces;
 let _fireNotif:     FireNotifFn          = _defaultFireNotif;
-let _markSeen:      MarkSeenFn           = markStoreAlertSeen;
+let _markSeen:      MarkSeenFn           = async () => {}; // store field removed — KAN-143
 let _getToday:      GetTodayFn           = () => new Date().toISOString().slice(0, 10);
 
 async function _defaultFireNotif(task: Task, place: NearbyPlace): Promise<void> {
@@ -159,31 +159,11 @@ async function _pollTick(): Promise<void> {
     }
   }
 
-  // ── 4. Match nearest store against undone tasks ──────────────────────────
-  const today           = _getToday();
-  const undoneWithStore = _latestTasks.filter(t => !t.done && t.store != null);
-
-  let matchedTask:  Task | null        = null;
-  let matchedPlace: NearbyPlace | null = null;
-
-  for (const place of _cachedPlaces) {
-    if (place.distanceMeters > INDOOR_MATCH_RADIUS_M) { continue; }
-
-    const task = undoneWithStore.find(t => {
-      if (!t.store) { return false; }
-      // placeId is authoritative — when present, name is NOT used as a fallback.
-      const idMatch   = t.store.placeId != null && t.store.placeId === place.placeId;
-      const nameMatch = t.store.placeId == null &&
-                        t.store.name.toLowerCase() === place.name.toLowerCase();
-      return (idMatch || nameMatch) && t.store.alertSeenDate !== today;
-    });
-
-    if (task) {
-      matchedTask  = task;
-      matchedPlace = place;
-      break; // One alert at a time — first (closest) match wins
-    }
-  }
+  // ── 4. Store-based matching removed (KAN-143 — Task.store field deleted).
+  //       POI-type proximity will be rebuilt in KAN-142.
+  const today        = _getToday();
+  const matchedTask:  Task | null        = null;
+  const matchedPlace: NearbyPlace | null = null;
 
   // ── 5. Notify callback ───────────────────────────────────────────────────
   _onNearby?.(matchedTask, matchedPlace);
@@ -194,13 +174,6 @@ async function _pollTick(): Promise<void> {
       await _fireNotif(matchedTask, matchedPlace);
       await _markSeen(_uid, matchedTask.id, today);
 
-      // Optimistically stamp alertSeenDate in-memory so the next tick won't
-      // double-alert before the Firestore snapshot propagates back.
-      _latestTasks = _latestTasks.map(t =>
-        t.id === matchedTask!.id && t.store
-          ? { ...t, store: { ...t.store, alertSeenDate: today } }
-          : t,
-      );
     } catch (err) {
       console.warn('[indoorProximity] notification failed', err);
     }
@@ -241,8 +214,7 @@ async function _pollTick(): Promise<void> {
         );
 
         if (exitedTask) {
-          const storeName = exitedTask.store?.name;
-          fireExitPrompt({ taskId: exitedTask.id, taskTitle: exitedTask.title, storeName })
+          fireExitPrompt({ taskId: exitedTask.id, taskTitle: exitedTask.title, storeName: undefined })
             .then(() => markExitPromptSeen(_uid, exitedTask.id, today))
             .catch(err => console.warn('[indoorProximity] exit prompt failed', err));
         }
@@ -327,7 +299,7 @@ export function __setSearchPlaces(fn: SearchPlacesFn): void {
 export function __setFireNotif(fn: FireNotifFn): void {
   _fireNotif = fn;
 }
-/** Override the Firestore write (default: `markStoreAlertSeen`). */
+/** Override the Firestore write (no-op default since store field was removed in KAN-143). */
 export function __setMarkSeen(fn: MarkSeenFn): void {
   _markSeen = fn;
 }
@@ -340,7 +312,7 @@ export function __resetDeps(): void {
   _getPosition  = async () => { const c = await getCurrentPosition(); return { lat: c.lat, lng: c.lng, accuracy: c.accuracy }; };
   _searchPlaces = searchNearbyPlaces;
   _fireNotif    = _defaultFireNotif;
-  _markSeen     = markStoreAlertSeen;
+  _markSeen     = async () => {};
   _getToday     = () => new Date().toISOString().slice(0, 10);
 }
 /** Expose the current monitoring flag (for assertions). */

@@ -33,7 +33,6 @@ import { useTheme } from '../theme';
 import { categories } from '../theme/tokens';
 import PoiChip from './PoiChip';
 import BrushStroke from './BrushStroke';
-import { BuildingIcon } from './AppIcon';
 import { COPY } from '../constants/copy';
 import { Task, Category } from '../types';
 
@@ -240,21 +239,6 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
               />
             )}
 
-            {/* Store chip (KAN-76) — shown when a specific store is tagged */}
-            {task.store && (
-              <View
-                style={[
-                  styles.storeChip,
-                  { backgroundColor: palette.surface, borderColor: palette.line },
-                ]}>
-                <BuildingIcon color={palette.accent} size={10} />
-                <Text
-                  style={[styles.storeChipLabel, { color: palette.muted }]}
-                  numberOfLines={1}>
-                  {task.store.name}
-                </Text>
-              </View>
-            )}
           </View>
         </View>
 
@@ -357,22 +341,5 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     alignSelf:   'flex-start',
     paddingTop:  1,
-  },
-  // ── Store chip (KAN-76) ──
-  storeChip: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    gap:               3,
-    paddingHorizontal: 7,
-    paddingVertical:   3,
-    borderRadius:      9999,
-    borderWidth:       StyleSheet.hairlineWidth,
-    maxWidth:          140,
-  },
-  storeChipLabel: {
-    fontSize:   11,
-    fontWeight: '500',
-    fontFamily: 'Geist-Regular',
-    flexShrink: 1,
   },
 });

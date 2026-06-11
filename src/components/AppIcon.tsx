@@ -261,6 +261,126 @@ export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
         </Svg>
       );
 
+    case 'gas':
+      return (
+        <Svg {...p}>
+          <Path d="M3 22V8a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v14" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="2" y1="22" x2="14" y2="22" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M13 8h2a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2V9l-3-3" stroke={color} strokeWidth={1.6} {...S} />
+          <Rect x="6" y="11" width="6" height="4" rx="1" stroke={color} strokeWidth={1.4} {...S} />
+        </Svg>
+      );
+
+    case 'gym':
+      return (
+        <Svg {...p}>
+          <Line x1="6.5" y1="12" x2="17.5" y2="12" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M3 12h2.5M18.5 12H21" stroke={color} strokeWidth={2} {...S} />
+          <Rect x="4" y="9" width="2" height="6" rx="1" stroke={color} strokeWidth={1.6} {...S} />
+          <Rect x="18" y="9" width="2" height="6" rx="1" stroke={color} strokeWidth={1.6} {...S} />
+          <Rect x="2" y="10.5" width="2" height="3" rx="0.8" stroke={color} strokeWidth={1.6} {...S} />
+          <Rect x="20" y="10.5" width="2" height="3" rx="0.8" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'bank':
+      return (
+        <Svg {...p}>
+          <Path d="M3 10h18M12 3l9 7H3l9-7z" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="6"  y1="10" x2="6"  y2="18" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="12" y1="10" x2="12" y2="18" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="18" y1="10" x2="18" y2="18" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="3"  y1="18" x2="21" y2="18" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="2"  y1="21" x2="22" y2="21" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'restaurant':
+      return (
+        <Svg {...p}>
+          <Path d="M3 3v6a4 4 0 0 0 4 4h0a4 4 0 0 0 4-4V3" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="7" y1="13" x2="7" y2="21" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M17 3v5" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M17 12a4 4 0 0 1-4-4V3h8v5a4 4 0 0 1-4 4z" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="17" y1="12" x2="17" y2="21" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'park':
+      return (
+        <Svg {...p}>
+          <Path d="M12 2C8 2 5 6 7 10H5l7 8 7-8h-2c2-4-1-8-5-8z" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="12" y1="18" x2="12" y2="22" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'library':
+      return (
+        <Svg {...p}>
+          <Path d="M4 19V7a2 2 0 0 1 2-2h1v14H6a2 2 0 0 1-2-2z" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M9 5h2a2 2 0 0 1 2 2v12H9V5z" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M15.5 5.5l1.9-.7a2 2 0 0 1 2.5 1.2l3.5 9.6a2 2 0 0 1-1.2 2.5l-2 .7-4.7-13.3z" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'post':
+      return (
+        <Svg {...p}>
+          <Rect x="2" y="4" width="20" height="16" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M2 6l10 7 10-7" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'store':
+      return (
+        <Svg {...p}>
+          <Path d="M6 2 3 6v2a4 4 0 0 0 8 0V6M13 8a4 4 0 0 0 8 0V6l-3-4" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M5 10v10a1 1 0 0 0 1 1h4v-5h4v5h4a1 1 0 0 0 1-1V10" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'clinic':
+      return (
+        <Svg {...p}>
+          <Rect x="3" y="3" width="18" height="18" rx="3" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="12" y1="7" x2="12" y2="17" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="7"  y1="12" x2="17" y2="12" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'salon':
+      return (
+        <Svg {...p}>
+          <Circle cx="6"  cy="6"  r="2.5" stroke={color} strokeWidth={1.6} {...S} />
+          <Circle cx="18" cy="6"  r="2.5" stroke={color} strokeWidth={1.6} {...S} />
+          <Circle cx="6"  cy="20" r="2"   stroke={color} strokeWidth={1.6} {...S} />
+          <Circle cx="18" cy="20" r="2"   stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="6.5" y1="7.5" x2="17.5" y2="18.5" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="17.5" y1="7.5" x2="6.5" y2="18.5" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
+    case 'bus':
+      return (
+        <Svg {...p}>
+          <Rect x="3" y="3" width="18" height="14" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M3 9h18" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="12" y1="3" x2="12" y2="9" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M7 17v2M17 17v2" stroke={color} strokeWidth={1.6} {...S} />
+          <Circle cx="7.5"  cy="17" r="1.5" fill={color} stroke="none" />
+          <Circle cx="16.5" cy="17" r="1.5" fill={color} stroke="none" />
+        </Svg>
+      );
+
+    case 'school':
+      return (
+        <Svg {...p}>
+          <Path d="M12 3L2 9l10 6 10-6-10-6z" stroke={color} strokeWidth={1.6} {...S} />
+          <Path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5" stroke={color} strokeWidth={1.6} {...S} />
+          <Line x1="22" y1="9" x2="22" y2="14" stroke={color} strokeWidth={1.6} {...S} />
+        </Svg>
+      );
+
     default:
       // Generic map-pin for custom (non-built-in) place types.
       return (
