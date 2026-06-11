@@ -39,7 +39,7 @@ export const EIGHT_DAYS_MS = 8 * 24 * 60 * 60 * 1000;
  */
 export function shouldSendLapseNudge(prefs: {
   reengagementReminders?: boolean;
-  reengagementChurned?: unknown;
+  reengagementChurned?: { toMillis(): number } | null;
   lastReengagementNudge?: { toMillis(): number } | null;
 }): boolean {
   if (prefs.reengagementReminders === false) { return false; }

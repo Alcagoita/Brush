@@ -1142,7 +1142,7 @@ export function subscribeToUserPreferences(
 ): () => void {
   return onSnapshot(
     userPrefsRef(uid),
-    snap => onUpdate((snap.data() as Partial<UserPreferences>) ?? {}),
+    snap => onUpdate((snap?.data() as Partial<UserPreferences>) ?? {}),
     onError,
   );
 }
