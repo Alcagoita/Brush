@@ -362,7 +362,7 @@ const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocom
 
 /** A single autocomplete suggestion returned by the Places Autocomplete API. */
 export interface PlaceAutocompleteSuggestion {
-  /** Google Places ID — stored on `Task.store.placeId` for authoritative matching. */
+  /** Google Places ID. */
   placeId: string;
   /** Display name of the establishment (e.g. "Nike Store"). */
   name: string;

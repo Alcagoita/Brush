@@ -208,8 +208,9 @@ describe('getPoiPreference', () => {
   it('returns 75 m default for unknown custom type with no stored preference', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
 
-    const pref = await getPoiPreference('uid-1', 'gym');
-    expect(pref).toEqual({ type: 'gym', radiusMeters: 75 });
+    // 'yoga_studio' is not in POI_GEOFENCE_RADIUS so it falls back to DEFAULT_GEOFENCE_RADIUS (75 m)
+    const pref = await getPoiPreference('uid-1', 'yoga_studio');
+    expect(pref).toEqual({ type: 'yoga_studio', radiusMeters: 75 });
   });
 });
 

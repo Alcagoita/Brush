@@ -1,11 +1,9 @@
 /**
- * indoorProximity.test.ts — KAN-75
+ * indoorProximity.test.ts — KAN-75 / updated KAN-143
  *
  * Unit tests for the indoor proximity engine.
- *
- * All external I/O is replaced with injected mocks via __set* helpers so
- * tests run without native modules or timers. __pollOnce() drives individual
- * tick executions synchronously.
+ * Store-based matching tests removed (KAN-143 — Task.store deleted).
+ * POI-type proximity will be rebuilt in KAN-142.
  */
 
 import {
@@ -20,7 +18,6 @@ import {
   __resetDeps,
   __isMonitoring,
   __pollOnce,
-  INDOOR_MATCH_RADIUS_M,
   INDOOR_STATIONARY_THRESHOLD_M,
 } from '../../src/services/indoorProximity';
 import type { Task } from '../../src/types';
@@ -39,7 +36,6 @@ jest.mock('@notifee/react-native', () => ({
 jest.mock('../../src/services/maps', () => ({
   searchNearbyPlaces: jest.fn(),
   getDistanceMeters:  jest.fn((lat1: number, lng1: number, lat2: number, lng2: number) => {
-    // Real haversine is overkill in tests — use Euclidean distance scaled to metres.
     const dlat = (lat2 - lat1) * 111_320;
     const dlng = (lng2 - lng1) * 111_320 * Math.cos((lat1 * Math.PI) / 180);
     return Math.sqrt(dlat * dlat + dlng * dlng);
@@ -49,19 +45,14 @@ jest.mock('../../src/services/geolocation', () => ({
   getCurrentPosition: jest.fn(),
 }));
 jest.mock('../../src/services/firestore', () => ({
-  markStoreAlertSeen: jest.fn(),
+  markExitPromptSeen: jest.fn(),
 }));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const TODAY = '2026-06-08';
 
-/** Build a minimal Task with a `store` tag. */
-function makeTask(
-  id: string,
-  overrides: Partial<Task> & { storeName?: string; storePlaceId?: string; storeSeenDate?: string } = {},
-): Task {
-  const { storeName = 'Test Store', storePlaceId, storeSeenDate, ...rest } = overrides;
+function makeTask(id: string, overrides: Partial<Task> = {}): Task {
   return {
     id,
     title:     `Task ${id}`,
@@ -69,19 +60,11 @@ function makeTask(
     done:      false,
     date:      TODAY,
     createdAt: { seconds: 0, nanoseconds: 0 } as any,
-    store: {
-      name:          storeName,
-      placeId:       storePlaceId,
-      alertSeenDate: storeSeenDate,
-    },
-    ...rest,
+    ...overrides,
   };
 }
 
-/** Build a NearbyPlace fixture. */
-function makePlace(
-  overrides: Partial<NearbyPlace> = {},
-): NearbyPlace {
+function makePlace(overrides: Partial<NearbyPlace> = {}): NearbyPlace {
   return {
     placeId:        'place-1',
     name:           'Test Store',
@@ -92,7 +75,6 @@ function makePlace(
   };
 }
 
-/** Position fixture — simulates GPS at the store location. */
 const AT_STORE = { lat: 51.5, lng: -0.1, accuracy: 8 };
 
 // ─── Setup / teardown ─────────────────────────────────────────────────────────
@@ -149,185 +131,19 @@ describe('lifecycle', () => {
   });
 });
 
-// ─── Match logic: placeId ─────────────────────────────────────────────────────
+// ─── Matching now always returns null (KAN-143) ───────────────────────────────
 
-describe('match by placeId', () => {
-  it('fires callback when task placeId matches place placeId', async () => {
-    const place = makePlace({ placeId: 'gpl-123', distanceMeters: INDOOR_MATCH_RADIUS_M - 1 });
-    const task  = makeTask('t1', { storePlaceId: 'gpl-123' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(task, place);
-  });
-
-  it('does not match when placeId differs', async () => {
-    const place = makePlace({ placeId: 'gpl-999', distanceMeters: 5 });
-    const task  = makeTask('t1', { storePlaceId: 'gpl-123' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(null, null);
-  });
-});
-
-// ─── Match logic: name (fallback) ─────────────────────────────────────────────
-
-describe('match by name (case-insensitive)', () => {
-  it('matches when names are equal (exact case)', async () => {
-    const place = makePlace({ placeId: 'gpl-x', name: 'Whole Foods', distanceMeters: 5 });
-    const task  = makeTask('t1', { storeName: 'Whole Foods' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(task, place);
-  });
-
-  it('matches case-insensitively', async () => {
-    const place = makePlace({ placeId: 'gpl-x', name: 'WHOLE FOODS', distanceMeters: 5 });
-    const task  = makeTask('t1', { storeName: 'whole foods' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(task, place);
-  });
-
-  it('does not match when names differ', async () => {
-    const place = makePlace({ name: 'Whole Foods', distanceMeters: 5 });
-    const task  = makeTask('t1', { storeName: 'Boots Pharmacy' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(null, null);
-  });
-});
-
-// ─── Distance threshold ────────────────────────────────────────────────────────
-
-describe('distance threshold', () => {
-  it('does not match when place is beyond INDOOR_MATCH_RADIUS_M', async () => {
-    const place = makePlace({ distanceMeters: INDOOR_MATCH_RADIUS_M + 1 });
-    const task  = makeTask('t1');
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(null, null);
-  });
-
-  it('matches when place is exactly at INDOOR_MATCH_RADIUS_M', async () => {
-    const place = makePlace({ distanceMeters: INDOOR_MATCH_RADIUS_M });
-    const task  = makeTask('t1');
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(task, place);
-  });
-});
-
-// ─── Deduplication (alertSeenDate) ────────────────────────────────────────────
-
-describe('deduplication via alertSeenDate', () => {
-  it('skips a task whose alertSeenDate matches today', async () => {
+describe('matching (store-based matching removed in KAN-143)', () => {
+  it('always fires callback with (null, null) — POI proximity rebuilt in KAN-142', async () => {
     const place = makePlace({ distanceMeters: 5 });
-    const task  = makeTask('t1', { storeSeenDate: TODAY });
     mockSearch.mockResolvedValue([place]);
 
     const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
+    startIndoorProximityMonitoring('uid-1', [makeTask('t1')], onNearby);
     await __pollOnce();
 
     expect(onNearby).toHaveBeenCalledWith(null, null);
     expect(mockFireNotif).not.toHaveBeenCalled();
-  });
-
-  it('alerts when alertSeenDate is yesterday', async () => {
-    const place = makePlace({ distanceMeters: 5 });
-    const task  = makeTask('t1', { storeSeenDate: '2026-06-07' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(task, place);
-    expect(mockFireNotif).toHaveBeenCalledWith(task, place);
-  });
-
-  it('optimistically stamps alertSeenDate in memory to prevent double-alert on next tick', async () => {
-    const place = makePlace({ distanceMeters: 5 });
-    const task  = makeTask('t1');
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-
-    // First tick — should alert.
-    await __pollOnce();
-    expect(mockFireNotif).toHaveBeenCalledTimes(1);
-
-    // Second tick — memory stamp suppresses.
-    await __pollOnce();
-    expect(mockFireNotif).toHaveBeenCalledTimes(1);
-  });
-
-  it('writes alertSeenDate to Firestore via markStoreAlertSeen', async () => {
-    const place = makePlace({ distanceMeters: 5 });
-    const task  = makeTask('t1');
-    mockSearch.mockResolvedValue([place]);
-
-    startIndoorProximityMonitoring('uid-1', [task], jest.fn());
-    await __pollOnce();
-
-    expect(mockMarkSeen).toHaveBeenCalledWith('uid-1', 't1', TODAY);
-  });
-});
-
-// ─── Skips done tasks ─────────────────────────────────────────────────────────
-
-describe('done tasks', () => {
-  it('ignores done tasks', async () => {
-    const place = makePlace({ distanceMeters: 5 });
-    const task  = makeTask('t1', { done: true } as any);
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(null, null);
-  });
-
-  it('ignores tasks without a store field', async () => {
-    const place = makePlace({ distanceMeters: 5 });
-    const task = { ...makeTask('t1'), store: undefined };
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [task], onNearby);
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(null, null);
   });
 });
 
@@ -335,45 +151,33 @@ describe('done tasks', () => {
 
 describe('stationary optimisation', () => {
   it('calls Places API on the first tick', async () => {
-    const task = makeTask('t1');
-    mockSearch.mockResolvedValue([]);
-
-    startIndoorProximityMonitoring('uid-1', [task], jest.fn());
+    startIndoorProximityMonitoring('uid-1', [makeTask('t1')], jest.fn());
     await __pollOnce();
-
     expect(mockSearch).toHaveBeenCalledTimes(1);
   });
 
   it('skips Places API call when user moved less than INDOOR_STATIONARY_THRESHOLD_M', async () => {
-    const task = makeTask('t1');
-    mockSearch.mockResolvedValue([]);
-
-    // First tick — establishes lastPos.
     mockGetPos.mockResolvedValue(AT_STORE);
-    startIndoorProximityMonitoring('uid-1', [task], jest.fn());
+    startIndoorProximityMonitoring('uid-1', [makeTask('t1')], jest.fn());
     await __pollOnce();
     expect(mockSearch).toHaveBeenCalledTimes(1);
 
-    // Second tick — tiny movement (0.000001° ≈ 0.11m, well under threshold).
+    // Tiny movement — well under threshold.
     mockGetPos.mockResolvedValue({
       lat: AT_STORE.lat + 0.000001,
       lng: AT_STORE.lng,
       accuracy: AT_STORE.accuracy,
     });
     await __pollOnce();
-    expect(mockSearch).toHaveBeenCalledTimes(1); // still once
+    expect(mockSearch).toHaveBeenCalledTimes(1);
   });
 
-  it('calls Places API again when user moves enough', async () => {
-    const task = makeTask('t1');
-    mockSearch.mockResolvedValue([]);
-
+  it('calls Places API again when user moves past INDOOR_STATIONARY_THRESHOLD_M', async () => {
     mockGetPos.mockResolvedValue(AT_STORE);
-    startIndoorProximityMonitoring('uid-1', [task], jest.fn());
+    startIndoorProximityMonitoring('uid-1', [makeTask('t1')], jest.fn());
     await __pollOnce();
     expect(mockSearch).toHaveBeenCalledTimes(1);
 
-    // Move 5m north (≈ 0.000045° latitude).
     const movedPos = {
       lat: AT_STORE.lat + (INDOOR_STATIONARY_THRESHOLD_M + 3) / 111_320,
       lng: AT_STORE.lng,
@@ -395,7 +199,6 @@ describe('GPS error handling', () => {
     startIndoorProximityMonitoring('uid-1', [makeTask('t1')], onNearby);
     await __pollOnce();
 
-    // No crash; callback not called; no Places search attempted.
     expect(onNearby).not.toHaveBeenCalled();
     expect(mockSearch).not.toHaveBeenCalled();
   });
@@ -404,21 +207,9 @@ describe('GPS error handling', () => {
 // ─── updateIndoorTasks ────────────────────────────────────────────────────────
 
 describe('updateIndoorTasks', () => {
-  it('updates the task list consumed by subsequent ticks', async () => {
-    const place    = makePlace({ distanceMeters: 5 });
-    const task     = makeTask('t1');
-    const noopTask = makeTask('t2', { storeName: 'Other Store' });
-    mockSearch.mockResolvedValue([place]);
-
-    const onNearby = jest.fn();
-    startIndoorProximityMonitoring('uid-1', [noopTask], onNearby);
-
-    // Replace task list so t1 is now visible.
-    updateIndoorTasks([noopTask, task]);
-
-    await __pollOnce();
-
-    expect(onNearby).toHaveBeenCalledWith(task, place);
+  it('does not throw when updating the task list', async () => {
+    startIndoorProximityMonitoring('uid-1', [makeTask('t1')], jest.fn());
+    expect(() => updateIndoorTasks([makeTask('t1'), makeTask('t2')])).not.toThrow();
   });
 
   it('is a no-op when engine is not running', () => {

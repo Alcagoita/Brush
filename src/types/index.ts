@@ -77,46 +77,46 @@ export interface User {
 
 // ─── POI ──────────────────────────────────────────────────────────────────────
 
-export type PoiType = 'atm' | 'cafe' | 'supermarket' | 'pharmacy';
+export type PoiType =
+  | 'atm' | 'cafe' | 'supermarket' | 'pharmacy'
+  | 'gas' | 'gym' | 'bank' | 'restaurant' | 'park'
+  | 'library' | 'post' | 'store' | 'clinic' | 'salon'
+  | 'bus' | 'school';
+
+/** Display label for each POI type. */
+export const POI_CATALOG: { type: PoiType; label: string }[] = [
+  { type: 'atm',         label: 'ATM'        },
+  { type: 'cafe',        label: 'Café'       },
+  { type: 'supermarket', label: 'Market'     },
+  { type: 'pharmacy',    label: 'Pharmacy'   },
+  { type: 'gas',         label: 'Gas'        },
+  { type: 'gym',         label: 'Gym'        },
+  { type: 'bank',        label: 'Bank'       },
+  { type: 'restaurant',  label: 'Restaurant' },
+  { type: 'park',        label: 'Park'       },
+  { type: 'library',     label: 'Library'    },
+  { type: 'post',        label: 'Post'       },
+  { type: 'store',       label: 'Store'      },
+  { type: 'clinic',      label: 'Clinic'     },
+  { type: 'salon',       label: 'Salon'      },
+  { type: 'bus',         label: 'Bus'        },
+  { type: 'school',      label: 'School'     },
+];
 
 /** /users/{uid}/pois/{poiType} */
 export interface PoiPreference {
   /**
-   * Google Places primary type string. Built-in categories use one of the four
+   * Google Places primary type string. Built-in categories use one of the
    * PoiType values; custom categories may use any Places type (e.g. "gym").
    */
   type: string;
-  /** Geofence radius in metres. Defaults: ATM/pharmacy = 50 m, café/supermarket = 75 m. */
+  /** Geofence radius in metres. */
   radiusMeters: number;
 }
 
 // ─── Task ─────────────────────────────────────────────────────────────────────
 
 export type CategoryKey = 'work' | 'health' | 'errands' | 'personal';
-
-/**
- * Named store tag for indoor proximity matching (KAN-76 / KAN-75).
- *
- * Stored as a sub-document on `Task.store`. Independent of `Task.poi` — a task
- * can carry either, both, or neither.
- *
- * Match strategy in the indoor engine:
- *   1. `placeId` equality (Google Places ID — authoritative).
- *   2. `name` case-insensitive equality (fallback when placeId is unavailable).
- */
-export interface TaskStore {
-  /** Google Places ID of the target store, if known. */
-  placeId?: string;
-  /** Display name of the store — used as fallback match key. */
-  name: string;
-  /** Human-readable address or floor/wing hint — display only. */
-  address?: string;
-  /**
-   * Date ("YYYY-MM-DD") when the last indoor proximity alert was fired.
-   * Suppresses repeat alerts on the same day (KAN-75).
-   */
-  alertSeenDate?: string;
-}
 
 /** /users/{uid}/tasks/{taskId} */
 export interface Task {
@@ -152,12 +152,6 @@ export interface Task {
    * this task. Suppresses repeat exit prompts on the same day (KAN-119).
    */
   exitPromptSeenDate?: string;
-  /**
-   * Named store tag for indoor proximity matching (KAN-76).
-   * Independent of `poi` — a task can have either, both, or neither.
-   * `alertSeenDate` suppresses repeat indoor alerts on the same day (KAN-75).
-   */
-  store?: TaskStore;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
@@ -194,18 +188,30 @@ export interface Category {
 
 /** Which POI types can appear on tasks of each category. */
 export const CATEGORY_POI_MAP: Record<CategoryKey, PoiType[]> = {
-  errands:  ['supermarket', 'atm', 'pharmacy'],
-  health:   ['pharmacy'],
-  personal: ['cafe'],
-  work:     [],
+  errands:  ['supermarket', 'atm', 'pharmacy', 'bank', 'post', 'store'],
+  health:   ['pharmacy', 'clinic', 'gym'],
+  personal: ['cafe', 'restaurant', 'park', 'salon'],
+  work:     ['library', 'school'],
 };
 
 /** Maps our PoiType to the corresponding Google Places type string. */
 export const POI_GOOGLE_TYPES: Record<PoiType, string> = {
-  supermarket: 'supermarket',
   atm:         'atm',
-  pharmacy:    'pharmacy',
-  cafe:        'cafe',
+  cafe:         'cafe',
+  supermarket:  'supermarket',
+  pharmacy:     'pharmacy',
+  gas:          'gas_station',
+  gym:          'gym',
+  bank:         'bank',
+  restaurant:   'restaurant',
+  park:         'park',
+  library:      'library',
+  post:         'post_office',
+  store:        'store',
+  clinic:       'doctor',
+  salon:        'hair_care',
+  bus:          'bus_station',
+  school:       'school',
 };
 
 /** Default geofence radius in metres per POI type. */
@@ -214,6 +220,18 @@ export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
   pharmacy:    50,
   cafe:        75,
   supermarket: 75,
+  gas:         75,
+  gym:         100,
+  bank:        50,
+  restaurant:  75,
+  park:        150,
+  library:     75,
+  post:        50,
+  store:       75,
+  clinic:      75,
+  salon:       50,
+  bus:         100,
+  school:      100,
 };
 
 // ─── Points & Achievements ────────────────────────────────────────────────────
