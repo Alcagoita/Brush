@@ -144,6 +144,7 @@ describe('matching (store-based matching removed in KAN-143)', () => {
 
     expect(onNearby).toHaveBeenCalledWith(null, null);
     expect(mockFireNotif).not.toHaveBeenCalled();
+    expect(mockMarkSeen).not.toHaveBeenCalled();
   });
 });
 

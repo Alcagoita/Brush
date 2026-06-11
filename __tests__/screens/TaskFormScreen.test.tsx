@@ -189,6 +189,17 @@ describe('TaskFormScreen — edit mode', () => {
     render(<TaskFormScreen />);
     expect(screen.getByText('Ready to add')).toBeTruthy();
   });
+
+  it('pre-populates the notes field from existing description', () => {
+    setRouteParams({
+      uid:  'user-123',
+      task: makeTask({ description: 'Remember to check expiry dates' }),
+    });
+    render(<TaskFormScreen />);
+    expect(
+      screen.getByPlaceholderText('Add a note, link, or reminder…').props.value,
+    ).toBe('Remember to check expiry dates');
+  });
 });
 
 // ── canSubmit logic ──────────────────────────────────────────────────────────

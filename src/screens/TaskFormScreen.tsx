@@ -29,7 +29,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
 import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } from '../services/firestore';
-import { CATEGORY_COLORS } from './CategoriesScreen';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../components/AppIcon';
 import type { Category, PoiType, Task } from '../types';
 import { POI_CATALOG } from '../types';
@@ -80,10 +79,7 @@ function todayISO(): string {
   return new Date().toISOString().split('T')[0];
 }
 
-function parseDateString(s: string): Date {
-  const [y, m, d] = s.split('-').map(Number);
-  return new Date(y, m - 1, d, 12, 0, 0);
-}
+const COLOR_DESTRUCTIVE = '#e05252';
 
 // ─── Category hues for custom categories ─────────────────────────────────────
 
@@ -143,7 +139,7 @@ export default function TaskFormScreen() {
 
   const [title,    setTitle]    = useState(existingTask?.title    ?? initialTitle ?? '');
   const [category, setCategory] = useState<string | null>(existingTask?.category ?? null);
-  const [notes,    setNotes]    = useState('');
+  const [notes,    setNotes]    = useState(existingTask?.description ?? '');
 
   // Due date
   const [date, setDate] = useState<string>(() => {
@@ -595,7 +591,7 @@ export default function TaskFormScreen() {
             <View style={[styles.scheduleField, { backgroundColor: palette.surface, borderColor: palette.line }]}>
               <CalendarIcon color={palette.faint} size={16} />
               <TextInput
-                style={[styles.scheduleInput, { color: palette.text }]}
+                style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}
                 placeholder={`Today · ${todayISO()}`}
                 placeholderTextColor={palette.muted}
                 value={date === todayISO() ? '' : date}
@@ -658,7 +654,7 @@ export default function TaskFormScreen() {
             ]}
             accessibilityRole="button"
             accessibilityLabel="Delete task">
-            <Text style={styles.deleteBtnLabel}>
+            <Text style={[styles.deleteBtnLabel, { color: COLOR_DESTRUCTIVE }]}>
               {deleting ? 'Deleting…' : 'Delete task'}
             </Text>
           </Pressable>
@@ -804,11 +800,6 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth:   1,
     overflow:     'hidden',
-    shadowColor:  '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.16,
-    shadowRadius:  30,
-    elevation:    12,
   },
   dropdownRow: {
     flexDirection:     'row',
@@ -966,11 +957,8 @@ const styles = StyleSheet.create({
   },
   swatchSelected: {
     transform:   [{ scale: 1.2 }],
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius:  4,
-    shadowOffset:  { width: 0, height: 2 },
-    elevation:    3,
+    borderWidth:  2,
+    borderColor: 'rgba(0,0,0,0.25)',
   },
   catEditorActions: {
     flexDirection: 'row',
@@ -1035,7 +1023,6 @@ const styles = StyleSheet.create({
   deleteBtnLabel: {
     fontSize:   16,
     fontFamily: 'Geist-Regular',
-    color:      '#e05252',
   },
 
   // ── Sticky bottom CTA ──

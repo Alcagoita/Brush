@@ -12,7 +12,7 @@
  */
 
 import React from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import NewTaskSheet from '../../src/components/NewTaskSheet';
 import type { Category } from '../../src/types';
 
@@ -208,6 +208,41 @@ describe('addTask submission', () => {
       fireEvent.press(screen.getByLabelText('Add task'));
     });
     expect(mockAddTask).not.toHaveBeenCalled();
+  });
+});
+
+describe('"More details" navigation', () => {
+  it('navigates to TaskForm with initialTitle and initialPoi when "More details ›" is pressed', async () => {
+    renderSheet();
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('What do you need to do?'),
+      'Buy groceries',
+    );
+    fireEvent.press(screen.getByLabelText('Market')); // poi: 'supermarket'
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    // navigateTo fires after an 80 ms setTimeout inside handleMoreDetails
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
+        uid:          'test-uid',
+        initialTitle: 'Buy groceries',
+        initialPoi:   'supermarket',
+      });
+    }, { timeout: 500 });
+  });
+
+  it('navigates to TaskForm with only uid when title and POI are empty', async () => {
+    renderSheet();
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
+        uid:          'test-uid',
+        initialTitle: undefined,
+        initialPoi:   undefined,
+      });
+    }, { timeout: 500 });
   });
 });
 

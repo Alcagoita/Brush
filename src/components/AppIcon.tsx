@@ -19,7 +19,7 @@
  */
 
 import React from 'react';
-import Svg, { Circle, Line, Path, Polygon, Rect } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
 // PoiType import removed — PoiIcon now accepts the broader `string` type (KAN-23).
 
 // ─── Shared stroke props ──────────────────────────────────────────────────────
