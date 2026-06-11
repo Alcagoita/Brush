@@ -6,4 +6,5 @@
 
 export { parseMessageToTask } from './parseMessageToTask';
 export { onUserInactive } from './onUserInactive';
+export { onUserLapsed } from './onUserLapsed';
 export { onFriendActivity } from './onFriendActivity';
