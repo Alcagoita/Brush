@@ -148,6 +148,11 @@ export interface Task {
    */
   poiAlertSeenDate?: string;
   /**
+   * The date (YYYY-MM-DD) on which a geofence-exit prompt was last fired for
+   * this task. Suppresses repeat exit prompts on the same day (KAN-119).
+   */
+  exitPromptSeenDate?: string;
+  /**
    * Named store tag for indoor proximity matching (KAN-76).
    * Independent of `poi` — a task can have either, both, or neither.
    * `alertSeenDate` suppresses repeat indoor alerts on the same day (KAN-75).
@@ -300,6 +305,59 @@ export interface PointsHistoryEntry {
  * Using the ID as the natural key makes writes idempotent — awarding the same
  * achievement twice simply overwrites with identical data.
  */
+// ─── Notification / User Preferences (KAN-120 / Track B) ─────────────────────
+
+/**
+ * Firestore: users/{uid}/userPreferences/prefs
+ *
+ * Single document that stores all per-user notification toggles and related
+ * metadata. Merged-write safe — use `setDoc(..., { merge: true })`.
+ */
+export interface UserPreferences {
+  exitPrompt:               boolean;                             // KAN-119
+  eodReminder:              { enabled: boolean; time: string };  // KAN-120 — "21:00"
+  streakReminder:           boolean;                             // KAN-121
+  achievementNudges:        boolean;                             // KAN-122
+  weeklyRecap:              boolean;                             // KAN-123
+  reengagementReminders:    boolean;                             // KAN-124
+  friendActivity:           boolean;                             // KAN-125
+  /** Updated on every app foreground — used by re-engagement logic (KAN-124). */
+  lastOpenedAt?:            FirebaseFirestoreTypes.Timestamp;
+  /** Set after the 3-day re-engagement nudge fires (KAN-124) — prevents duplicate sends. */
+  lastReengagementNudge?:   FirebaseFirestoreTypes.Timestamp;
+  /**
+   * Timestamp when the 7-day lapse nudge fired (KAN-127).
+   * Prevents further re-engagement nudges for this lapse episode.
+   */
+  reengagementChurned?:     FirebaseFirestoreTypes.Timestamp;
+  /** "YYYY-MM-DD" — prevents more than one achievement nudge per day (KAN-122). */
+  lastAchievementNudgeDate?: string;
+  /**
+   * Per-actor last-nudge timestamps for friend activity (KAN-125).
+   * Key = actor UID; value = last time a friend-activity nudge was sent from that actor.
+   * Written by the onFriendActivity Cloud Function — not read by the RN app.
+   */
+  lastFriendNudgeFrom?: Record<string, FirebaseFirestoreTypes.Timestamp>;
+}
+
+/** Sensible defaults applied before a user has ever saved preferences. */
+export const DEFAULT_USER_PREFERENCES: Omit<
+  UserPreferences,
+  | 'lastOpenedAt'
+  | 'lastReengagementNudge'
+  | 'lastAchievementNudgeDate'
+  | 'lastFriendNudgeFrom'
+  | 'reengagementChurned'
+> = {
+  exitPrompt:            true,
+  eodReminder:           { enabled: true, time: '21:00' },
+  streakReminder:        true,
+  achievementNudges:     true,
+  weeklyRecap:           true,
+  reengagementReminders: true,
+  friendActivity:        true,
+};
+
 export interface Achievement {
   /**
    * Firestore document ID.

@@ -30,6 +30,7 @@ import {
   increment,
   Timestamp,
 } from '@react-native-firebase/firestore';
+import { getCurrentWeekBoundaries } from '../utils/date';
 import {
   Task,
   User,
@@ -43,6 +44,7 @@ import {
   AchievementsMap,
   PointsHistoryEntry,
   PointsReason,
+  UserPreferences,
 } from '../types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -57,6 +59,11 @@ function taskRef(uid: string, taskId: string) {
 
 function userRef(uid: string) {
   return doc(getFirestore(), 'users', uid);
+}
+
+/** users/{uid}/userPreferences/prefs — single preferences document. */
+function userPrefsRef(uid: string) {
+  return doc(getFirestore(), 'users', uid, 'userPreferences', 'prefs');
 }
 
 function poisRef(uid: string) {
@@ -243,6 +250,19 @@ export async function markPoiAlertSeen(
   date: string,
 ): Promise<void> {
   await updateDoc(taskRef(uid, taskId), { poiAlertSeenDate: date });
+}
+
+/**
+ * Record that a geofence-exit prompt was shown for `taskId` on `date`.
+ * Updates `exitPromptSeenDate` to suppress repeat exit prompts on the same
+ * day (KAN-119).
+ */
+export async function markExitPromptSeen(
+  uid: string,
+  taskId: string,
+  date: string,
+): Promise<void> {
+  await updateDoc(taskRef(uid, taskId), { exitPromptSeenDate: date });
 }
 
 /**
@@ -1084,6 +1104,78 @@ export function subscribeStoreTuningPref(
     },
     onError,
   );
+}
+
+// ─── User Preferences (KAN-120) ───────────────────────────────────────────────
+
+/**
+ * Read preferences once. Returns a partial object — missing fields mean the
+ * user has never saved that preference; callers should fall back to
+ * DEFAULT_USER_PREFERENCES for any missing key.
+ */
+export async function getUserPreferences(
+  uid: string,
+): Promise<Partial<UserPreferences>> {
+  const snap = await getDoc(userPrefsRef(uid));
+  return (snap.data() as Partial<UserPreferences>) ?? {};
+}
+
+/**
+ * Merge-write any subset of preferences. Safe to call with partial objects;
+ * keys not present in `prefs` are left untouched.
+ */
+export async function updateUserPreferences(
+  uid: string,
+  prefs: Partial<UserPreferences>,
+): Promise<void> {
+  await setDoc(userPrefsRef(uid), prefs, { merge: true });
+}
+
+/**
+ * Live subscription to the user's preferences document.
+ * Returns an unsubscribe function.
+ */
+export function subscribeToUserPreferences(
+  uid: string,
+  onUpdate: (prefs: Partial<UserPreferences>) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  return onSnapshot(
+    userPrefsRef(uid),
+    snap => onUpdate((snap?.data() as Partial<UserPreferences>) ?? {}),
+    onError,
+  );
+}
+
+/**
+ * Stamp lastOpenedAt on every foreground event.
+ * Called from App.tsx AppState listener (KAN-124 dependency).
+ */
+export async function markLastOpenedAt(uid: string): Promise<void> {
+  await setDoc(
+    userPrefsRef(uid),
+    { lastOpenedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+/**
+ * Returns the number of tasks completed during the current calendar week
+ * (Monday 00:00 – Sunday 23:59:59 local time).
+ *
+ * Used by KAN-123 to build the weekly-recap notification copy.
+ */
+export async function getWeeklyCompletedCount(uid: string): Promise<number> {
+  const { monday, sunday } = getCurrentWeekBoundaries();
+
+  const q = query(
+    tasksRef(uid),
+    where('completedAt', '>=', Timestamp.fromDate(monday)),
+    where('completedAt', '<=', Timestamp.fromDate(sunday)),
+  );
+
+  const snap = await getDocs(q);
+  return snap.docs.length;
 }
 
 // ─── Re-exports for convenience ───────────────────────────────────────────────

@@ -67,6 +67,7 @@ import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
 import { subscribeToIncomingSharedTasks } from '../services/sharing';
+import { subscribeToTotalPoints } from '../services/firestore';
 import { COPY } from '../constants/copy';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -176,6 +177,17 @@ export default function TodayScreen() {
     );
   }, [uid]);
 
+  // ── Total achievement points (KAN-134) — drives points chip in header ─────────
+  const [totalPoints, setTotalPoints] = useState(0);
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToTotalPoints(
+      uid,
+      pts => setTotalPoints(pts),
+      err => console.warn('[TodayScreen] totalPoints subscription error', err),
+    );
+  }, [uid]);
+
   // ── Sheet ref + auto-close on new task ────────────────────────────────────────
   // Kept in the screen because sheetRef is a UI element ref, not data state.
   const sheetRef        = useRef<NewTaskSheetHandle>(null);
@@ -262,9 +274,11 @@ export default function TodayScreen() {
           photoURL={user?.photoURL}
           hasUnread={inboxCount > 0}
           socialBadge={inboxCount}
+          points={totalPoints}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
           onPeoplePress={() => navigation.navigate('SocialHub')}
+          onAchievementsPress={() => navigation.navigate('Achievements')}
         />
       </View>
 

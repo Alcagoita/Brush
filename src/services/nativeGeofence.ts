@@ -94,6 +94,8 @@ export interface GeofenceEntryEvent {
 }
 
 export const GEOFENCE_ENTRY_EVENT = 'onGeofenceEntry';
+/** Fired by the native layer when the device exits a registered geofence. */
+export const GEOFENCE_EXIT_EVENT  = 'onGeofenceExit';
 
 // ─── Module access ────────────────────────────────────────────────────────────
 

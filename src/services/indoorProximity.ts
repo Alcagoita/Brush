@@ -29,9 +29,10 @@
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import { feedLocation } from './indoorDetection';
-import { markStoreAlertSeen } from './firestore';
+import { markStoreAlertSeen, markExitPromptSeen } from './firestore';
 import { searchNearbyPlaces, getDistanceMeters, NearbyPlace } from './maps';
 import { getCurrentPosition } from './geolocation';
+import { fireExitPrompt } from './notifications';
 import { Task } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -105,6 +106,25 @@ let _latestTasks:    Task[]                       = [];
 let _onNearby:       IndoorProximityCallback | null = null;
 let _lastPos:        { lat: number; lng: number } | null = null;
 let _cachedPlaces:   NearbyPlace[]                = [];
+
+// ── Exit prompt state (KAN-119) ──────────────────────────────────────────────
+/** Whether the exit-prompt notification is enabled (mirrors userPreferences). */
+let _exitPromptEnabled        = true;
+/** Task ID of the last indoor match, used to detect the transition to "no match". */
+let _lastMatchedTaskId:       string | null = null;
+/** Timestamp (ms) when the current indoor match was first detected. */
+let _indoorMatchEntryTime:    number | null = null;
+/** Number of consecutive poll ticks with no match after having had a match. */
+let _indoorConsecutiveMisses  = 0;
+/** Polls with no match required before treating it as an exit (3 × 15 s = 45 s). */
+const INDOOR_EXIT_MISS_COUNT  = 3;
+/** Minimum dwell time (ms) before an indoor exit prompt may fire. */
+const INDOOR_EXIT_MIN_DWELL_MS = 5 * 60 * 1000; // 5 minutes
+
+/** Update the exit-prompt enabled flag from a userPreferences subscription. */
+export function updateIndoorExitPromptPref(enabled: boolean): void {
+  _exitPromptEnabled = enabled;
+}
 
 // ─── Core poll tick ───────────────────────────────────────────────────────────
 
@@ -185,6 +205,50 @@ async function _pollTick(): Promise<void> {
       console.warn('[indoorProximity] notification failed', err);
     }
   }
+
+  // ── 7. Indoor exit prompt tracking (KAN-119) ─────────────────────────────
+  if (matchedTask) {
+    // New or continuing match.
+    if (_lastMatchedTaskId !== matchedTask.id) {
+      // First tick matching this task — record dwell start.
+      _lastMatchedTaskId    = matchedTask.id;
+      _indoorMatchEntryTime = Date.now();
+    }
+    _indoorConsecutiveMisses = 0;
+  } else if (_lastMatchedTaskId !== null) {
+    // We had a match but it's gone now — count consecutive misses.
+    _indoorConsecutiveMisses += 1;
+
+    if (_indoorConsecutiveMisses >= INDOOR_EXIT_MISS_COUNT) {
+      // Enough consecutive misses — treat as a store exit.
+      const exitedTaskId   = _lastMatchedTaskId;
+      const entryTime      = _indoorMatchEntryTime;
+
+      // Reset state before any async work to prevent double-firing.
+      _lastMatchedTaskId      = null;
+      _indoorMatchEntryTime   = null;
+      _indoorConsecutiveMisses = 0;
+
+      if (
+        _exitPromptEnabled &&
+        entryTime !== null &&
+        Date.now() - entryTime >= INDOOR_EXIT_MIN_DWELL_MS
+      ) {
+        const exitedTask = _latestTasks.find(
+          t => t.id === exitedTaskId &&
+               !t.done &&
+               t.exitPromptSeenDate !== today,
+        );
+
+        if (exitedTask) {
+          const storeName = exitedTask.store?.name;
+          fireExitPrompt({ taskId: exitedTask.id, taskTitle: exitedTask.title, storeName })
+            .then(() => markExitPromptSeen(_uid, exitedTask.id, today))
+            .catch(err => console.warn('[indoorProximity] exit prompt failed', err));
+        }
+      }
+    }
+  }
 }
 
 // ─── Public API ───────────────────────────────────────────────────────────────
@@ -233,11 +297,14 @@ export function updateIndoorTasks(tasks: Task[]): void {
 
 /** Stop the indoor proximity engine and reset all module state. */
 export function stopIndoorProximityMonitoring(): void {
-  _isMonitoring = false;
-  _onNearby     = null;
-  _uid          = '';
-  _lastPos      = null;
-  _cachedPlaces = [];
+  _isMonitoring             = false;
+  _onNearby                 = null;
+  _uid                      = '';
+  _lastPos                  = null;
+  _cachedPlaces             = [];
+  _lastMatchedTaskId        = null;
+  _indoorMatchEntryTime     = null;
+  _indoorConsecutiveMisses  = 0;
 
   if (_pollTimer != null) {
     clearInterval(_pollTimer);
