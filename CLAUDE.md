@@ -327,6 +327,7 @@ Three parallel tracks. Build order within each track must be respected.
 | KAN-143 | New Task flow redesign — POI-first bottom sheet + More Details screen | ✅ Done |
 | KAN-139 | Today Screen: empty state with rotating atmospheric nudges | 🔲 Next |
 | KAN-142 | POI-based proximity detection | 🔲 Blocked by KAN-143 ✅ unblocked |
+| KAN-144 | POI proximity verification — distance calculations + persistent tracking | 🔲 Blocked by KAN-142 |
 | KAN-140 | Guided first-run onboarding | 🔲 Blocked by KAN-139 |
 
 ### Track B — Tier System Redesign (KAN-111 epic)
@@ -393,6 +394,29 @@ Nearby card, header ring sublabel, and background alerts all use the same filter
 - **Rate-limit:** once per POI type per day. Suppress if all tasks for that POI already done.
 - **Quiet hours:** no delivery 10pm–8am local.
 - **Preference:** `userPreferences/{uid}.notif_nearby_enabled: boolean` + toggle in Notification prefs screen (KAN-119).
+
+---
+
+### KAN-144 — POI proximity verification
+
+**Blocked by:** KAN-142 | **Also depends on:** KAN-143 ✅
+
+Verify that distance calculations and geofence lifecycle are correct end-to-end.
+
+**Distance accuracy:** Test `NEARBY_RADIUS = 400 m` at exact boundary (400 m), inside (390 m), and outside (410 m). The same Haversine calculation must be used consistently across the Nearby card, the "N nearby" ring sublabel, and background geofence alerts.
+
+**Geofence lifecycle:**
+- Register geofence when a task with a `poi` field is created and undone.
+- Keep geofence active after the first proximity alert fires (task still undone).
+- Fire again on next entry into radius — daily rate-limit (KAN-142) applies per entry.
+- Deregister only when **all** tasks for that POI type are done.
+- If multiple tasks share the same POI type, deregister only when all are done.
+
+**No `store` field leakage:** Confirm old `store: { placeId, name, address? }` is fully removed from all proximity code paths after KAN-143.
+
+**Edge cases:** Tasks for same POI type on different days (geofence stays active across days); completing a task while inside radius (deregisters immediately); app relaunch mid-session (re-registers from Firestore state).
+
+**Approach:** Integration tests with location mock — assert proximity filter, notification fires on entry, does not fire again same day, fires again next day if still undone, stops when done. Manual QA with physical device also required before marking done.
 
 ---
 
