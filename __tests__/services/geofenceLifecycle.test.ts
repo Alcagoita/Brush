@@ -113,6 +113,10 @@ const ORIGIN = { lat: 0, lng: 0 };
  */
 const LAT_PER_METRE = 1 / 111_195;
 
+/** Minimal Firestore Timestamp shape required by the Task type in tests. */
+type MockTimestamp = { toDate: () => Date };
+const MOCK_TIMESTAMP: MockTimestamp = { toDate: () => new Date() };
+
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id:        'task-1',
@@ -121,7 +125,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     done:      false,
     poi:       'atm',
     date:      '2026-06-12',
-    createdAt: { toDate: () => new Date() } as any,
+    createdAt: MOCK_TIMESTAMP as Task['createdAt'],
     ...overrides,
   };
 }
@@ -655,7 +659,7 @@ describe('no store field leakage after KAN-143', () => {
       done:      false,
       poi:       'cafe',
       date:      '2026-06-12',
-      createdAt: { toDate: () => new Date() } as any,
+      createdAt: MOCK_TIMESTAMP as Task['createdAt'],
     };
 
     startProximityMonitoring('uid-1', [task], onUpdate);
