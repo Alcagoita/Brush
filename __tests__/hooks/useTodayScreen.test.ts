@@ -26,6 +26,7 @@ jest.mock('../../src/services/firestore', () => ({
   subscribeToCategories:        (...args: unknown[]) => mockSubscribeToCategories(...args),
   subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
   subscribeStoreTuningPref:     jest.fn().mockReturnValue(jest.fn()),
+  subscribeToUserPreferences:   jest.fn().mockReturnValue(jest.fn()),
   setStoreTuningPref:           jest.fn().mockResolvedValue(undefined),
   setTaskDone:                  (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:                   (...args: unknown[]) => mockAwardPoint(...args),
@@ -56,6 +57,7 @@ jest.mock('../../src/services/proximity', () => ({
   pauseGeofenceMonitoring:       jest.fn(),
   resumeGeofenceMonitoring:      jest.fn(),
   setLocationTap:                jest.fn(),
+  updateNotifNearbyEnabled:      jest.fn(),
 }));
 
 jest.mock('../../src/services/indoorProximity', () => ({

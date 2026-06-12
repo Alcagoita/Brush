@@ -52,7 +52,8 @@ jest.mock('../../src/services/nativeGeofence', () => ({
 }));
 
 jest.mock('../../src/services/firestore', () => ({
-  markPoiAlertSeen: jest.fn().mockResolvedValue(undefined),
+  markPoiAlertSeen:     jest.fn().mockResolvedValue(undefined),
+  markAllPoiAlertsSeen: jest.fn().mockResolvedValue(undefined),
 }));
 
 // ─── fetch mock ───────────────────────────────────────────────────────────────
@@ -226,12 +227,77 @@ describe('proximity engine — custom POI types', () => {
     );
   });
 
-  it('does not fire a geofence alert when custom-type place is outside DEFAULT_GEOFENCE_RADIUS', async () => {
-    // Gym 200 m away — well outside 75 m default radius.
+  it('alerts for a built-in POI (ATM) at 100 m — inside 400 m but outside old 50 m threshold', async () => {
+    // This distance would have been suppressed under the old per-type 50 m radius,
+    // proving the new 400 m threshold is actually in effect.
+    const atmTask = {
+      id:        'task-atm',
+      title:     'Get cash',
+      category:  'errands' as const,
+      done:      false,
+      poi:       'atm',
+      date:      '2026-05-26',
+      createdAt: { toDate: () => new Date() } as any,
+    };
+
+    mockPlacesResponse([{
+      id:          'atm-100m',
+      displayName: { text: 'Mid-range ATM' },
+      location:    { latitude: 0.0009, longitude: 0 }, // ~100 m north
+    }]);
+
+    const onUpdate = jest.fn();
+    startProximityMonitoring('uid-1', [atmTask], onUpdate);
+
+    const locationCb = mockStartTracking.mock.calls[0][0];
+    await locationCb(ORIGIN);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ name: 'Mid-range ATM' }),
+      expect.any(Object),
+    );
+  });
+
+  it('alerts for a custom/unknown POI (spa) at 200 m — inside 400 m but outside old 75 m default', async () => {
+    // This distance would have been suppressed under the old DEFAULT_GEOFENCE_RADIUS (75 m),
+    // proving the new 400 m threshold is actually in effect for unknown types.
+    const spaTask = {
+      id:        'task-spa-200',
+      title:     'Spa day',
+      category:  'personal' as const,
+      done:      false,
+      poi:       'spa',
+      date:      '2026-05-26',
+      createdAt: { toDate: () => new Date() } as any,
+    };
+
+    mockPlacesResponse([{
+      id:          'spa-200m',
+      displayName: { text: 'City Spa' },
+      location:    { latitude: 0.0018, longitude: 0 }, // ~200 m north
+    }]);
+
+    const onUpdate = jest.fn();
+    startProximityMonitoring('uid-1', [spaTask], onUpdate);
+
+    const locationCb = mockStartTracking.mock.calls[0][0];
+    await locationCb(ORIGIN);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'spa',
+      expect.objectContaining({ name: 'City Spa' }),
+      expect.any(Object),
+    );
+  });
+
+  it('does not fire a geofence alert when custom-type place is outside NEARBY_RADIUS (400 m)', async () => {
+    // KAN-142: display threshold is now NEARBY_RADIUS=400 m for all POI types.
+    // Gym 550 m away — outside 400 m NEARBY_RADIUS.
     mockPlacesResponse([{
       id:          'gym-far',
       displayName: { text: 'Faraway Gym' },
-      location:    { latitude: 0.002, longitude: 0 }, // ~222 m north
+      location:    { latitude: 0.005, longitude: 0 }, // ~556 m north
     }]);
 
     const onUpdate = jest.fn();
@@ -259,13 +325,13 @@ describe('proximity engine — custom POI types', () => {
       createdAt: { toDate: () => new Date() } as any,
     };
 
-    // ATM: 30 m away (inside 50 m radius) — wins.
+    // ATM: 30 m away — closest, wins.
     mockPlacesResponse([{
       id:          'atm-1',
       displayName: { text: 'Nearby ATM' },
       location:    { latitude: 0.00027, longitude: 0 }, // ~30 m
     }]);
-    // Gym: 200 m away (outside 75 m radius) — doesn't win.
+    // Gym: 222 m away — also within 400 m, but ATM is closer so ATM wins.
     mockPlacesResponse([{
       id:          'gym-1',
       displayName: { text: 'Far Gym' },
@@ -278,14 +344,14 @@ describe('proximity engine — custom POI types', () => {
     const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
 
-    // ATM is the only one inside its geofence.
+    // ATM wins (30 m < 222 m) — rule: closest POI when multiple are within NEARBY_RADIUS.
     const lastCall = onUpdate.mock.calls[onUpdate.mock.calls.length - 1];
     expect(lastCall[0]).toBe('atm');
     expect(lastCall[1]).toMatchObject({ name: 'Nearby ATM' });
   });
 
-  it('uses DEFAULT_GEOFENCE_RADIUS (75 m) for unknown types, not ATM radius (50 m)', async () => {
-    // A task with a made-up place type.
+  it('alerts for unknown POI types (spa) when within NEARBY_RADIUS (400 m)', async () => {
+    // KAN-142: all POI types use the same 400 m display threshold.
     const spaTask = {
       id:        'task-spa',
       title:     'Spa day',
@@ -296,7 +362,7 @@ describe('proximity engine — custom POI types', () => {
       createdAt: { toDate: () => new Date() } as any,
     };
 
-    // Place is 60 m away — inside 75 m default but would be outside 50 m ATM radius.
+    // Place is 60 m away — well within NEARBY_RADIUS (400 m).
     mockPlacesResponse([{
       id:          'spa-1',
       displayName: { text: 'Urban Spa' },
@@ -309,7 +375,6 @@ describe('proximity engine — custom POI types', () => {
     const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
 
-    // Should be reported as nearby because 60 m ≤ 75 m (DEFAULT).
     expect(onUpdate).toHaveBeenCalledWith(
       'spa',
       expect.objectContaining({ name: 'Urban Spa' }),

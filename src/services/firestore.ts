@@ -253,6 +253,25 @@ export async function markPoiAlertSeen(
 }
 
 /**
+ * Mark ALL undone tasks of a given POI type as having seen a proximity alert
+ * today (KAN-142). Ensures at most one notification fires per POI type per day,
+ * even when multiple tasks share the same type.
+ */
+export async function markAllPoiAlertsSeen(
+  uid: string,
+  taskIds: string[],
+  date: string,
+): Promise<void> {
+  if (taskIds.length === 0) { return; }
+  const db    = getFirestore();
+  const batch = writeBatch(db);
+  for (const id of taskIds) {
+    batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
+  }
+  await batch.commit();
+}
+
+/**
  * Record that a geofence-exit prompt was shown for `taskId` on `date`.
  * Updates `exitPromptSeenDate` to suppress repeat exit prompts on the same
  * day (KAN-119).

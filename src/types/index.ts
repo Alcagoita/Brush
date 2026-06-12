@@ -339,6 +339,8 @@ export interface UserPreferences {
   weeklyRecap:              boolean;                             // KAN-123
   reengagementReminders:    boolean;                             // KAN-124
   friendActivity:           boolean;                             // KAN-125
+  /** Whether to fire local proximity alerts when near a POI type with pending tasks. KAN-142. */
+  notif_nearby_enabled:     boolean;
   /** Updated on every app foreground — used by re-engagement logic (KAN-124). */
   lastOpenedAt?:            FirebaseFirestoreTypes.Timestamp;
   /** Set after the 3-day re-engagement nudge fires (KAN-124) — prevents duplicate sends. */
@@ -374,6 +376,7 @@ export const DEFAULT_USER_PREFERENCES: Omit<
   weeklyRecap:           true,
   reengagementReminders: true,
   friendActivity:        true,
+  notif_nearby_enabled:  true,
 };
 
 export interface Achievement {
