@@ -210,14 +210,115 @@ export function LogOutIcon({ color, size = 24 }: IconProps) {
 
 interface PoiIconProps extends IconProps {
   /** Google Places primary type string. Built-in types render a specific icon;
-   *  all other strings (custom category types) render a generic map-pin. */
+   *  Google-mapped types fall back to the nearest semantic icon;
+   *  truly unknown strings render a generic map-pin. */
   type: string;
 }
 
+/**
+ * Maps Google Places API type strings (and common free-text equivalents) to
+ * the nearest built-in icon key. Only types NOT already handled by the switch
+ * cases below need to be listed here.
+ */
+const GOOGLE_TYPE_ICON: Record<string, string> = {
+  // Food & drink
+  bakery:               'store',
+  bar:                  'cafe',
+  coffee_shop:          'cafe',
+  food:                 'restaurant',
+  meal_delivery:        'restaurant',
+  meal_takeaway:        'restaurant',
+  night_club:           'restaurant',
+
+  // Health
+  dentist:              'clinic',
+  doctor:               'clinic',
+  drugstore:            'pharmacy',
+  hospital:             'clinic',
+  physiotherapist:      'clinic',
+  veterinary_care:      'clinic',
+
+  // Shopping & retail
+  bicycle_store:        'store',
+  book_store:           'library',
+  car_dealer:           'store',
+  car_rental:           'store',
+  clothing_store:       'store',
+  convenience_store:    'store',
+  department_store:     'store',
+  electronics_store:    'store',
+  florist:              'park',
+  furniture_store:      'store',
+  grocery_or_supermarket: 'supermarket',
+  hardware_store:       'store',
+  home_goods_store:     'store',
+  jewelry_store:        'store',
+  laundry:              'store',
+  liquor_store:         'store',
+  locksmith:            'store',
+  moving_company:       'store',
+  pet_store:            'store',
+  shoe_store:           'store',
+  shopping_mall:        'store',
+  storage:              'store',
+
+  // Finance / official
+  accounting:           'bank',
+  city_hall:            'bank',
+  courthouse:           'bank',
+  embassy:              'bank',
+  insurance_agency:     'bank',
+  local_government_office: 'bank',
+  real_estate_agency:   'bank',
+
+  // Transport
+  airport:              'bus',
+  bus_station:          'bus',
+  light_rail_station:   'bus',
+  subway_station:       'bus',
+  taxi_stand:           'bus',
+  train_station:        'bus',
+  transit_station:      'bus',
+
+  // Education & culture
+  art_gallery:          'library',
+  museum:               'library',
+  primary_school:       'school',
+  secondary_school:     'school',
+  university:           'school',
+
+  // Outdoor & leisure
+  amusement_park:       'park',
+  aquarium:             'park',
+  campground:           'park',
+  natural_feature:      'park',
+  rv_park:              'park',
+  stadium:              'park',
+  tourist_attraction:   'park',
+  zoo:                  'park',
+
+  // Auto & fuel
+  car_repair:           'gas',
+  car_wash:             'gas',
+  gas_station:          'gas',
+
+  // Beauty & wellness
+  beauty_salon:         'salon',
+  hair_care:            'salon',
+  spa:                  'salon',
+
+  // Post & lodging
+  lodging:              'store',
+  post_office:          'post',
+};
+
 export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
+  // If the type isn't a built-in case, check the Google mapping before the pin fallback.
+  const resolved = GOOGLE_TYPE_ICON[type] ?? type;
+
   const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none' };
 
-  switch (type) {
+  switch (resolved) {
     case 'atm':
       return (
         <Svg {...p}>

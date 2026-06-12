@@ -57,12 +57,7 @@ import { getBatteryLevel, shouldPauseForBattery, useBatteryLevel } from '../serv
 import { NearbyPlace } from '../services/maps';
 import { syncTasksToWatch } from '../services/wearSync';
 import { Category, StoreTuningState, Task, TasksUiState } from '../types';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
+import { todayISO } from '../utils/date';
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 

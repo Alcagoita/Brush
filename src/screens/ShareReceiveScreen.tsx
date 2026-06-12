@@ -37,6 +37,7 @@ import { parseMessageToTask } from '../services/functions';
 import { getCurrentUser } from '../services/auth';
 import { PoiIcon } from '../components/AppIcon';
 import type { PoiType } from '../types';
+import { todayISO } from '../utils/date';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -52,10 +53,6 @@ const POI_OPTIONS: { type: PoiType; label: string }[] = [
   { type: 'supermarket', label: 'Market'   },
   { type: 'pharmacy',    label: 'Pharmacy' },
 ];
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 function formatDueDate(d: Date): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });

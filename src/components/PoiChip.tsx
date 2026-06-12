@@ -23,6 +23,7 @@ import Animated, {
 import { useTheme } from '../theme';
 import { radius } from '../theme/tokens';
 import { placeTypeLabel } from '../services/maps';
+import { PoiIcon } from './AppIcon';
 
 interface PoiChipProps {
   /** Google Places primary type string (built-in PoiType or custom type). */
@@ -72,6 +73,7 @@ export default function PoiChip({ poi, isNearby = false }: PoiChipProps) {
   return (
     <View style={[styles.chip, { backgroundColor: bgColor, borderColor }]}>
       {isNearby && <PulsingDot color={palette.accent} />}
+      <PoiIcon type={poi} color={textColor} size={12} />
       <Text style={[styles.label, { color: textColor }]}>
         {placeTypeLabel(poi)}
       </Text>

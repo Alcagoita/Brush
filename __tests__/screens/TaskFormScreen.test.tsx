@@ -247,6 +247,88 @@ describe('TaskFormScreen — canSubmit', () => {
   });
 });
 
+// ── POI free-text type ────────────────────────────────────────────────────────
+
+describe('TaskFormScreen — POI free-text type', () => {
+  it('renders the POI type input with the correct placeholder', () => {
+    render(<TaskFormScreen />);
+    expect(screen.getByPlaceholderText('bakery, florist, gym…')).toBeTruthy();
+  });
+
+  it('enables submit when title + typed POI type are both set', () => {
+    render(<TaskFormScreen />);
+    fireEvent.changeText(
+      screen.getByPlaceholderText('What do you need to do?'),
+      'Get a croissant',
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText('bakery, florist, gym…'),
+      'bakery',
+    );
+    expect(
+      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+    ).toBe(false);
+  });
+
+  it('uses the typed type string as the poi in the addTask payload', async () => {
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(
+      screen.getByPlaceholderText('What do you need to do?'),
+      'Pick up sushi',
+    );
+    fireEvent.changeText(
+      screen.getByPlaceholderText('bakery, florist, gym…'),
+      'sushi restaurant',
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add task'));
+    });
+    await waitFor(() => {
+      expect(mockAddTask).toHaveBeenCalledWith(
+        'user-123',
+        expect.objectContaining({ poi: 'sushi restaurant' }),
+      );
+    });
+  });
+
+  it('selecting a quick-pick tile clears the typed text', () => {
+    render(<TaskFormScreen />);
+    fireEvent.changeText(
+      screen.getByPlaceholderText('bakery, florist, gym…'),
+      'florist',
+    );
+    fireEvent.press(screen.getByText('ATM')); // pick a quick-pick
+    expect(
+      screen.getByPlaceholderText('bakery, florist, gym…').props.value,
+    ).toBe('');
+  });
+
+  it('typing in the free-text field deselects any quick-pick tile', async () => {
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(
+      screen.getByPlaceholderText('What do you need to do?'),
+      'Task',
+    );
+    fireEvent.press(screen.getByText('ATM')); // select quick-pick
+    fireEvent.changeText(
+      screen.getByPlaceholderText('bakery, florist, gym…'),
+      'bakery',
+    );
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add task'));
+    });
+    await waitFor(() => {
+      // typed type wins — NOT 'atm'
+      expect(mockAddTask).toHaveBeenCalledWith(
+        'user-123',
+        expect.objectContaining({ poi: 'bakery' }),
+      );
+    });
+  });
+});
+
 // ── POI quick-pick ────────────────────────────────────────────────────────────
 
 describe('TaskFormScreen — POI quick-pick', () => {

@@ -2,6 +2,12 @@
  * date.ts — Shared date utilities.
  */
 
+/** Returns today's date as a YYYY-MM-DD string in the device's local timezone. */
+export function todayISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 /**
  * Returns the Monday 00:00:00.000 and Sunday 23:59:59.999 boundaries of the
  * current local calendar week (ISO week: Mon–Sun).

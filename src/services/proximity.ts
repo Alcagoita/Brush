@@ -46,6 +46,7 @@ import {
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
+import { todayISO } from '../utils/date';
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -303,11 +304,6 @@ function getGeofenceRadius(poiType: string): number {
     ?? DEFAULT_GEOFENCE_RADIUS;
 }
 
-// ─── Date helper ──────────────────────────────────────────────────────────────
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 // ─── Notification setup ───────────────────────────────────────────────────────
 

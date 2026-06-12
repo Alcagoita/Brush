@@ -30,7 +30,7 @@ import {
   increment,
   Timestamp,
 } from '@react-native-firebase/firestore';
-import { getCurrentWeekBoundaries } from '../utils/date';
+import { getCurrentWeekBoundaries, todayISO } from '../utils/date';
 import {
   Task,
   User,
@@ -451,11 +451,6 @@ function achievementRef(uid: string, achievementId: string) {
   return doc(getFirestore(), 'users', uid, 'achievements', achievementId);
 }
 
-/** Returns today's date as "YYYY-MM-DD" in the device's local timezone. */
-function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 
 /**
  * Award 1 point for completing a task (KAN-31 / KAN-128).
