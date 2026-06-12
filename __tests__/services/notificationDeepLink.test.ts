@@ -112,7 +112,7 @@ function mockNearbyPlace(lat = 0.00027, lng = 0) {
 
 async function fireGeofenceEntry(geofenceId: string): Promise<void> {
   mockGeofenceEmitter.emit('onGeofenceEntry', { geofenceId });
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await new Promise<void>(resolve => setImmediate(resolve));
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

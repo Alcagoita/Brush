@@ -163,11 +163,15 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 /**
  * Emit a native geofence entry event and let the async handler complete.
  * This calls handleGeofenceEntry() (the background notification path).
+ *
+ * Uses setImmediate (not a fixed sleep) — Node.js guarantees it runs after all
+ * pending microtasks, so the mocked async chain (createChannel → displayNotification
+ * → markAllPoiAlertsSeen) is fully settled before assertions run, regardless of
+ * whether the notification fired or was suppressed.
  */
 async function fireGeofenceEntry(geofenceId: string): Promise<void> {
   mockGeofenceEmitter.emit('onGeofenceEntry', { geofenceId });
-  // Allow the async handler to complete.
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await new Promise<void>(resolve => setImmediate(resolve));
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
