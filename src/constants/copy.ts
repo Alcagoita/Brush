@@ -36,10 +36,10 @@ export const COPY = {
 
   // ─── Push / local notifications ───────────────────────────────────────────
   notification: {
-    /** Proximity alert — shown when user enters a POI geofence. */
-    proximityTitle: (poiLabel: string) => `${poiLabel} nearby`,
-    proximityBody:  (placeName: string, dist: string, taskTitle: string) =>
-      `${placeName} is ${dist} — tasks to brush away nearby`,
+    /** Proximity alert — fires when within NEARBY_RADIUS of a POI type with pending tasks. KAN-142. */
+    proximityTitle: (poiLabel: string) => `You're near a ${poiLabel}`,
+    proximityBody:  (count: number) =>
+      `You have ${count} thing${count === 1 ? '' : 's'} to brush away.`,
 
     /** Daily complete celebration. */
     dailyCompleteTitle: "You've brushed it all away today 🖌",

@@ -1,11 +1,13 @@
 /**
- * KAN-28 — Notification deep-link data payload tests.
+ * KAN-28 / KAN-142 — Notification deep-link data payload tests.
+ *
+ * KAN-142 changed proximity notifications from per-task to per-POI-type.
+ * The data payload now contains only `{ screen: 'Today' }` — there is no
+ * single taskId or date because one notification covers all tasks of a type.
  *
  * Covers:
- *   - proximity.ts fireNotification includes screen, taskId, date in data payload
- *   - data.screen is always 'Today' (proximity notifications target the Today screen)
- *   - data.taskId matches the task's id
- *   - data.date matches the task's date
+ *   - data.screen is always 'Today' (navigates to the Today screen)
+ *   - No taskId or date in the payload (per-type notification, not per-task)
  */
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -29,7 +31,8 @@ jest.mock('react-native', () => ({
 }));
 
 jest.mock('../../src/services/firestore', () => ({
-  markPoiAlertSeen: jest.fn().mockResolvedValue(undefined),
+  markAllPoiAlertsSeen: jest.fn().mockResolvedValue(undefined),
+  markPoiAlertSeen:     jest.fn().mockResolvedValue(undefined),
 }));
 
 const mockStartTracking = jest.fn();
@@ -100,56 +103,39 @@ describe('notification deep-link data payload', () => {
     stopProximityMonitoring();
   });
 
-  it('includes screen, taskId and date in the notification data payload', async () => {
-    const task = makeTask({ id: 'task-abc', date: '2026-05-29' });
-    mockNearbyPlace(); // ATM ~30 m away — inside 50 m geofence
-
-    startProximityMonitoring('uid-1', [task], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
-    const payload = mockDisplayNotification.mock.calls[0][0];
-
-    expect(payload.data).toEqual({
-      screen: 'Today',
-      taskId: 'task-abc',
-      date:   '2026-05-29',
-    });
-  });
-
-  it('always sets data.screen to "Today"', async () => {
+  it('data payload contains screen: "Today" (navigates to Today screen)', async () => {
     mockNearbyPlace();
 
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
     const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
 
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
     const payload = mockDisplayNotification.mock.calls[0][0];
     expect(payload.data.screen).toBe('Today');
   });
 
-  it('sets data.taskId to the task id that triggered the notification', async () => {
-    const task = makeTask({ id: 'unique-task-id-999' });
+  it('data payload does NOT include taskId (per-type notification, not per-task)', async () => {
+    // KAN-142: one notification covers all tasks of the POI type, so there
+    // is no single taskId to embed in the deep-link payload.
     mockNearbyPlace();
 
-    startProximityMonitoring('uid-1', [task], jest.fn());
+    startProximityMonitoring('uid-1', [makeTask({ id: 'task-abc' })], jest.fn());
     const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
 
     const payload = mockDisplayNotification.mock.calls[0][0];
-    expect(payload.data.taskId).toBe('unique-task-id-999');
+    expect(payload.data.taskId).toBeUndefined();
   });
 
-  it('sets data.date to the task date', async () => {
-    const task = makeTask({ date: '2026-06-15' });
+  it('data payload does NOT include date', async () => {
     mockNearbyPlace();
 
-    startProximityMonitoring('uid-1', [task], jest.fn());
+    startProximityMonitoring('uid-1', [makeTask({ date: '2026-06-15' })], jest.fn());
     const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
 
     const payload = mockDisplayNotification.mock.calls[0][0];
-    expect(payload.data.date).toBe('2026-06-15');
+    expect(payload.data.date).toBeUndefined();
   });
 });

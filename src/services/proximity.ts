@@ -33,7 +33,7 @@ import { Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, startTracking, stopTracking, setTrackingAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
-import { markPoiAlertSeen } from './firestore';
+import { markPoiAlertSeen, markAllPoiAlertsSeen } from './firestore';
 import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
 import {
   NativeGeofence,
@@ -72,9 +72,16 @@ export type ProximityCallback = (
 const CACHE_INVALIDATION_DISTANCE = 200; // metres
 
 /**
+ * Unified proximity threshold for both foreground display (NearbyCard / ring
+ * sublabel) and background geofence registration. KAN-142.
+ */
+export const NEARBY_RADIUS = 400; // metres
+
+/**
  * Default geofence radius in metres for custom (non-built-in) POI types.
  * Custom category types (e.g. "gym", "restaurant") don't appear in
  * POI_GEOFENCE_RADIUS, so we fall back to the larger café/supermarket radius.
+ * Used only when NEARBY_RADIUS is not applicable (e.g. exit-prompt geofences).
  */
 const DEFAULT_GEOFENCE_RADIUS = 75; // metres
 
@@ -115,6 +122,27 @@ let _isPaused = false;
  * starting a competing GPS watcher.
  */
 let _locationTap: ((lat: number, lng: number, accuracy: number) => void) | null = null;
+
+/**
+ * Whether nearby-POI notifications are enabled (KAN-142).
+ * Controlled by `userPreferences/{uid}.notif_nearby_enabled`.
+ * Defaults to true so notifications fire before the user has saved a pref.
+ */
+let notifNearbyEnabled = true;
+
+/** Update the nearby-notification enabled flag from a preferences subscription. */
+export function updateNotifNearbyEnabled(enabled: boolean): void {
+  notifNearbyEnabled = enabled;
+}
+
+/**
+ * Returns true when local time is in the quiet window (10pm–8am).
+ * No proximity notifications are delivered during this period (KAN-142).
+ */
+export function isQuietHours(): boolean {
+  const hour = new Date().getHours();
+  return hour >= 22 || hour < 8;
+}
 
 /**
  * Distance threshold for switching GPS accuracy mode (KAN-55).
@@ -227,11 +255,10 @@ async function syncNativeGeofences(
     if (!cached?.places.length) { continue; }
 
     const nearest = cached.places[0];
-    const radius  = getGeofenceRadius(poiType);
     const geoId   = buildGeofenceId(poiType, nearest.placeId);
 
     try {
-      await NativeGeofence.registerGeofence(geoId, nearest.lat, nearest.lng, radius);
+      await NativeGeofence.registerGeofence(geoId, nearest.lat, nearest.lng, NEARBY_RADIUS);
     } catch (err) {
       console.warn('[proximity] failed to register geofence', geoId, err);
     }
@@ -239,11 +266,11 @@ async function syncNativeGeofences(
 }
 
 /**
- * Handle a native geofence entry event (KAN-56).
+ * Handle a native geofence entry event (KAN-56 / KAN-142).
  *
- * Called when the OS fires a boundary-crossing event. Looks up the POI type
- * from the geofence ID, finds the first eligible undone task, fires a
- * notification, and writes poiAlertSeenDate to Firestore.
+ * Fires one notification per POI type per day. Suppressed during quiet hours
+ * (10pm–8am) or when notif_nearby_enabled is off. Marks ALL undone tasks of
+ * the POI type as alerted so the limit is per-type, not per-task.
  */
 async function handleGeofenceEntry(
   geofenceId: string,
@@ -258,12 +285,13 @@ async function handleGeofenceEntry(
   }
 
   const { poiType } = parsed;
-  const today = new Date().toISOString().split('T')[0];
+  const today = todayISO();
 
-  const matchingTask = tasks.find(
+  // Find all undone tasks of this type that haven't been alerted today.
+  const eligibleTasks = tasks.filter(
     t => !t.done && t.poi === poiType && t.poiAlertSeenDate !== today,
   );
-  if (!matchingTask) { return; }
+  if (eligibleTasks.length === 0) { return; }
 
   // Find the nearest cached place for UI context (NearbyCard hero state).
   const cached = placeCache.get(poiType);
@@ -273,9 +301,13 @@ async function handleGeofenceEntry(
     onUpdate(poiType, place, buildPlacesMap());
   }
 
+  // Suppress during quiet hours or when the user has disabled nearby alerts.
+  if (!notifNearbyEnabled || isQuietHours()) { return; }
+
   try {
-    await fireNotification(matchingTask, place!, 0);
-    await markPoiAlertSeen(uid, matchingTask.id, today);
+    const poiLabel = placeTypeLabel(poiType);
+    await fireNotification(poiLabel, eligibleTasks.length);
+    await markAllPoiAlertsSeen(uid, eligibleTasks.map(t => t.id), today);
   } catch (err) {
     console.warn('[proximity] geofence notification failed', err);
   }
@@ -326,36 +358,19 @@ async function ensureChannel(): Promise<void> {
 // ─── Notification ──────────────────────────────────────────────────────────────
 
 async function fireNotification(
-  task: Task,
-  place: NearbyPlace,
-  distanceMeters: number,
+  poiLabel: string,
+  taskCount: number,
 ): Promise<void> {
   await ensureChannel();
 
-  const distLabel = distanceMeters < 1000
-    ? `${Math.round(distanceMeters)} m away`
-    : `${(distanceMeters / 1000).toFixed(1)} km away`;
-
-  // placeTypeLabel handles both built-in PoiType values and custom Google
-  // Places type strings (e.g. "gym" → "Gym").
-  const poiLabel = task.poi ? placeTypeLabel(task.poi) : 'nearby';
-
   await notifee.displayNotification({
     title: COPY.notification.proximityTitle(poiLabel),
-    body:  COPY.notification.proximityBody(place.name, distLabel, task.title),
+    body:  COPY.notification.proximityBody(taskCount),
     // KAN-28: data payload for deep linking — press handler navigates to Today.
-    data: {
-      screen: 'Today',
-      taskId: task.id,
-      date:   task.date,
-    },
+    data: { screen: 'Today' },
     android: {
       channelId:   CHANNEL_ID,
       importance:  AndroidImportance.HIGH,
-      style: {
-        type: AndroidStyle.BIGTEXT,
-        text: `${place.name} is ${distLabel}.\nTask: "${task.title}"`,
-      },
       pressAction: { id: 'default' },
     },
     ios: {
@@ -364,12 +379,11 @@ async function fireNotification(
   });
 
   // KAN-36: forward the alert to the paired Wear OS watch (Android only).
-  // Fire-and-forget — never block the phone notification path.
   if (Platform.OS === 'android') {
     WearNotificationModule?.sendProximityAlert(
-      task.title,
-      place.name,
-      `${Math.round(distanceMeters)}m`,
+      COPY.notification.proximityTitle(poiLabel),
+      COPY.notification.proximityBody(taskCount),
+      '',
     );
   }
 }
@@ -390,7 +404,7 @@ async function getNearestPlace(
 ): Promise<NearbyPlace | null> {
   if (!isCacheValid(poiType, lat, lng)) {
     try {
-      const radius = getGeofenceRadius(poiType) * 4; // search in a larger bubble
+      const radius = NEARBY_RADIUS * 2; // search bubble wider than the display threshold
       const places = await searchNearbyPlaces(lat, lng, poiType, radius);
       placeCache.set(poiType, { origin: { lat, lng }, places });
     } catch {
@@ -448,7 +462,7 @@ async function checkProximity(
       const distance = getDistanceMeters(
         coords.lat, coords.lng, place.lat, place.lng,
       );
-      if (distance <= getGeofenceRadius(poiType)) {
+      if (distance <= NEARBY_RADIUS) {
         candidates.push({ poiType, place, distance });
       }
     }),
@@ -477,18 +491,17 @@ async function checkProximity(
     currentNearbyType = newNearbyType;
 
     // Fire a notification on entry (null → type, or type switch).
-    if (winner) {
+    if (winner && notifNearbyEnabled && !isQuietHours()) {
       const today = todayISO();
-      // Find the highest-priority task for this POI type (first undone one).
-      const matchingTask = undonePoiTasks.find(t => t.poi === winner.poiType);
-      if (
-        matchingTask &&
-        !matchingTask.done &&
-        matchingTask.poiAlertSeenDate !== today
-      ) {
+      // Collect all undone tasks of this type that haven't been alerted today.
+      const eligibleTasks = undonePoiTasks.filter(
+        t => t.poi === winner.poiType && t.poiAlertSeenDate !== today,
+      );
+      if (eligibleTasks.length > 0) {
         try {
-          await fireNotification(matchingTask, winner.place, winner.distance);
-          await markPoiAlertSeen(uid, matchingTask.id, today);
+          const poiLabel = placeTypeLabel(winner.poiType);
+          await fireNotification(poiLabel, eligibleTasks.length);
+          await markAllPoiAlertsSeen(uid, eligibleTasks.map(t => t.id), today);
         } catch (err) {
           console.warn('[proximity] notification failed', err);
         }

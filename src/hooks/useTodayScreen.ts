@@ -20,6 +20,7 @@ import {
   setStoreTuningPref,
   subscribeToPoiPreferences,
   subscribeToTasksForDate,
+  subscribeToUserPreferences,
 } from '../services/firestore';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
@@ -34,6 +35,7 @@ import {
   setLocationTap,
   startProximityMonitoring,
   stopProximityMonitoring,
+  updateNotifNearbyEnabled,
   updateProximityPoiPreferences,
   updateProximityTasks,
 } from '../services/proximity';
@@ -291,6 +293,17 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       updateProximityPoiPreferences(prefs);
     }, (err) => {
       console.warn('[useTodayScreen] poiPreferences subscription error', err);
+    });
+  }, [uid]);
+
+  // ── Nearby-notification preference (KAN-142) ────────────────────────────────
+
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToUserPreferences(uid, prefs => {
+      updateNotifNearbyEnabled(prefs.notif_nearby_enabled ?? true);
+    }, (err) => {
+      console.warn('[useTodayScreen] userPreferences subscription error', err);
     });
   }, [uid]);
 
