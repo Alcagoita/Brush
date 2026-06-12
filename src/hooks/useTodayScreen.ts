@@ -297,9 +297,14 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   }, [uid]);
 
   // ── Nearby-notification preference (KAN-142) ────────────────────────────────
+  // Reset to false on sign-out / uid change so the previous user's setting
+  // never leaks into a new session or a cold start before the snapshot fires.
 
   useEffect(() => {
-    if (!uid) { return; }
+    if (!uid) {
+      updateNotifNearbyEnabled(false);
+      return;
+    }
     return subscribeToUserPreferences(uid, prefs => {
       updateNotifNearbyEnabled(prefs.notif_nearby_enabled ?? true);
     }, (err) => {

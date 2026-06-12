@@ -33,7 +33,7 @@ import { Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, startTracking, stopTracking, setTrackingAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
-import { markPoiAlertSeen, markAllPoiAlertsSeen } from './firestore';
+import { markAllPoiAlertsSeen } from './firestore';
 import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
 import {
   NativeGeofence,
@@ -486,27 +486,12 @@ async function checkProximity(
   );
   setTrackingAccuracy(nearestCachedDist <= FINE_ACCURACY_THRESHOLD_M ? 'fine' : 'coarse');
 
-  // Notification + Firestore write only on entry transition.
+  // Update the current nearby type for display state.
+  // Notification delivery is handled exclusively by handleGeofenceEntry()
+  // (native OS geofence boundary crossing) to avoid duplicate alerts when
+  // both the foreground ticker and the background geofence path trigger.
   if (newNearbyType !== currentNearbyType) {
     currentNearbyType = newNearbyType;
-
-    // Fire a notification on entry (null → type, or type switch).
-    if (winner && notifNearbyEnabled && !isQuietHours()) {
-      const today = todayISO();
-      // Collect all undone tasks of this type that haven't been alerted today.
-      const eligibleTasks = undonePoiTasks.filter(
-        t => t.poi === winner.poiType && t.poiAlertSeenDate !== today,
-      );
-      if (eligibleTasks.length > 0) {
-        try {
-          const poiLabel = placeTypeLabel(winner.poiType);
-          await fireNotification(poiLabel, eligibleTasks.length);
-          await markAllPoiAlertsSeen(uid, eligibleTasks.map(t => t.id), today);
-        } catch (err) {
-          console.warn('[proximity] notification failed', err);
-        }
-      }
-    }
   }
 }
 

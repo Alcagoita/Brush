@@ -227,6 +227,70 @@ describe('proximity engine — custom POI types', () => {
     );
   });
 
+  it('alerts for a built-in POI (ATM) at 100 m — inside 400 m but outside old 50 m threshold', async () => {
+    // This distance would have been suppressed under the old per-type 50 m radius,
+    // proving the new 400 m threshold is actually in effect.
+    const atmTask = {
+      id:        'task-atm',
+      title:     'Get cash',
+      category:  'errands' as const,
+      done:      false,
+      poi:       'atm',
+      date:      '2026-05-26',
+      createdAt: { toDate: () => new Date() } as any,
+    };
+
+    mockPlacesResponse([{
+      id:          'atm-100m',
+      displayName: { text: 'Mid-range ATM' },
+      location:    { latitude: 0.0009, longitude: 0 }, // ~100 m north
+    }]);
+
+    const onUpdate = jest.fn();
+    startProximityMonitoring('uid-1', [atmTask], onUpdate);
+
+    const locationCb = mockStartTracking.mock.calls[0][0];
+    await locationCb(ORIGIN);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ name: 'Mid-range ATM' }),
+      expect.any(Object),
+    );
+  });
+
+  it('alerts for a custom/unknown POI (spa) at 200 m — inside 400 m but outside old 75 m default', async () => {
+    // This distance would have been suppressed under the old DEFAULT_GEOFENCE_RADIUS (75 m),
+    // proving the new 400 m threshold is actually in effect for unknown types.
+    const spaTask = {
+      id:        'task-spa-200',
+      title:     'Spa day',
+      category:  'personal' as const,
+      done:      false,
+      poi:       'spa',
+      date:      '2026-05-26',
+      createdAt: { toDate: () => new Date() } as any,
+    };
+
+    mockPlacesResponse([{
+      id:          'spa-200m',
+      displayName: { text: 'City Spa' },
+      location:    { latitude: 0.0018, longitude: 0 }, // ~200 m north
+    }]);
+
+    const onUpdate = jest.fn();
+    startProximityMonitoring('uid-1', [spaTask], onUpdate);
+
+    const locationCb = mockStartTracking.mock.calls[0][0];
+    await locationCb(ORIGIN);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'spa',
+      expect.objectContaining({ name: 'City Spa' }),
+      expect.any(Object),
+    );
+  });
+
   it('does not fire a geofence alert when custom-type place is outside NEARBY_RADIUS (400 m)', async () => {
     // KAN-142: display threshold is now NEARBY_RADIUS=400 m for all POI types.
     // Gym 550 m away — outside 400 m NEARBY_RADIUS.

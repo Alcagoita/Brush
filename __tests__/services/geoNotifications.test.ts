@@ -1,20 +1,35 @@
 /**
  * KAN-27 / KAN-142 — Geo-triggered local notification tests.
  *
+ * Architecture after KAN-142:
+ *   - checkProximity() is display-only (updates NearbyCard / ring sublabel).
+ *   - All notification delivery happens via handleGeofenceEntry() — called by
+ *     the native OS geofence boundary crossing event.
+ *
+ * Test strategy:
+ *   1. Start monitoring.
+ *   2. Fire a location tick (populates the place cache via checkProximity).
+ *   3. Emit a native geofence entry event via the mock emitter to trigger
+ *      handleGeofenceEntry() and assert notification behaviour.
+ *
  * Covers:
- *   - Notification fires on geofence entry (null → poiType transition)
- *   - Notification does NOT fire for tasks that are already done
- *   - Notification does NOT fire when poiAlertSeenDate === today
- *   - Notification fires on POI type switch (typeA → typeB transition)
- *   - markAllPoiAlertsSeen is called for ALL eligible tasks of the POI type
- *   - Android notification channel is created before displayNotification
- *   - Closest POI wins when multiple POIs are simultaneously in range
- *   - No notification on repeated location ticks within the same geofence
- *   - NEARBY_RADIUS = 400 m — places within 400 m trigger, outside do not
- *   - Quiet hours (10pm–8am): notifications suppressed
- *   - notif_nearby_enabled = false: notifications suppressed
- *   - Multiple tasks same POI type: one notification, all tasks marked seen
+ *   - Notification fires on geofence entry
+ *   - Notification does NOT fire for done tasks / seen-today tasks
+ *   - markAllPoiAlertsSeen called for ALL eligible tasks of the POI type
+ *   - Android channel created before displayNotification
+ *   - NEARBY_RADIUS = 400 m (display threshold exported constant)
+ *   - checkProximity does NOT fire notifications (display-only)
+ *   - notif_nearby_enabled = false → no notification
+ *   - Quiet hours (10pm–8am) → no notification
+ *   - Multiple tasks same POI → one notification, all marked seen
+ *   - Singular/plural "thing(s)" in body copy
+ *   - a/an article in title ("an ATM" not "a ATM")
  */
+
+// ─── Emitter mock (lets tests trigger native geofence entry events) ─────────
+
+import { EventEmitter } from 'events';
+const mockGeofenceEmitter = new EventEmitter();
 
 // ─── Notifee mock ─────────────────────────────────────────────────────────────
 
@@ -52,17 +67,27 @@ jest.mock('../../src/services/geolocation', () => ({
   setTrackingAccuracy:  jest.fn(),
 }));
 
-// Mock the native geofence module (KAN-56) so tests don't require native modules.
+// Mock the native geofence module with a real emitter so tests can trigger
+// boundary-crossing events via mockGeofenceEmitter.emit(GEOFENCE_ENTRY_EVENT).
 jest.mock('../../src/services/nativeGeofence', () => ({
   NativeGeofence: {
     registerGeofence:   jest.fn().mockResolvedValue(undefined),
     removeGeofence:     jest.fn().mockResolvedValue(undefined),
     removeAllGeofences: jest.fn().mockResolvedValue(undefined),
   },
-  geofenceEmitter:         null,
+  geofenceEmitter: {
+    addListener: (event: string, cb: (...args: unknown[]) => void) => {
+      mockGeofenceEmitter.on(event, cb);
+      return { remove: () => mockGeofenceEmitter.removeListener(event, cb) };
+    },
+  },
   buildGeofenceId:         (poiType: string, placeId: string) => `brush_geo_${poiType}_${placeId}`,
-  parseGeofenceId:         jest.fn().mockReturnValue(null),
+  parseGeofenceId:         jest.fn().mockImplementation((id: string) => {
+    const m = id.match(/^brush_geo_([^_]+(?:_[^_]+)*)_(.+)$/);
+    return m ? { poiType: m[1], placeId: m[2] } : null;
+  }),
   GEOFENCE_ENTRY_EVENT:    'onGeofenceEntry',
+  GEOFENCE_EXIT_EVENT:     'onGeofenceExit',
   supportsNativeGeofences: true,
 }));
 
@@ -135,14 +160,24 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   };
 }
 
+/**
+ * Emit a native geofence entry event and let the async handler complete.
+ * This calls handleGeofenceEntry() (the background notification path).
+ */
+async function fireGeofenceEntry(geofenceId: string): Promise<void> {
+  mockGeofenceEmitter.emit('onGeofenceEntry', { geofenceId });
+  // Allow the async handler to complete.
+  await new Promise(resolve => setTimeout(resolve, 20));
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('geo-triggered notifications', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockReset();
+    mockGeofenceEmitter.removeAllListeners();
     stopProximityMonitoring();
-    // Reset to defaults between tests.
     updateNotifNearbyEnabled(true);
   });
 
@@ -152,14 +187,29 @@ describe('geo-triggered notifications', () => {
     expect(NEARBY_RADIUS).toBe(400);
   });
 
-  // ── Entry transition (null → type) ──────────────────────────────────────────
+  // ── checkProximity is display-only ──────────────────────────────────────────
 
-  it('fires a notification when the user enters within NEARBY_RADIUS', async () => {
+  it('checkProximity does NOT fire a notification — it is display-only (KAN-142)', async () => {
     mockPlacesResponse([ATM_NEARBY]);
 
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
     const locationCb = mockStartTracking.mock.calls[0][0];
+    await locationCb(ORIGIN); // foreground tick — updates NearbyCard, NOT notifications
+
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  // ── Geofence entry fires notification ────────────────────────────────────────
+
+  it('fires a notification when the OS triggers a geofence entry event', async () => {
+    // Step 1: location tick populates the place cache.
+    mockPlacesResponse([ATM_NEARBY]);
+    startProximityMonitoring('uid-1', [makeTask()], jest.fn());
+    const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
+
+    // Step 2: OS fires the geofence boundary-crossing event.
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
     const call = mockDisplayNotification.mock.calls[0][0];
@@ -169,10 +219,10 @@ describe('geo-triggered notifications', () => {
 
   it('creates the Android notification channel before firing', async () => {
     mockPlacesResponse([ATM_NEARBY]);
-
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     const createOrder  = mockCreateChannel.mock.invocationCallOrder[0];
     const displayOrder = mockDisplayNotification.mock.invocationCallOrder[0];
@@ -181,10 +231,12 @@ describe('geo-triggered notifications', () => {
 
   // ── Suppression: done task ───────────────────────────────────────────────────
 
-  it('does NOT fire when the matching task is already done', async () => {
+  it('does NOT fire when all tasks for the POI type are done', async () => {
+    mockPlacesResponse([ATM_NEARBY]);
     startProximityMonitoring('uid-1', [makeTask({ done: true })], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockDisplayNotification).not.toHaveBeenCalled();
   });
@@ -200,8 +252,9 @@ describe('geo-triggered notifications', () => {
       [makeTask({ poiAlertSeenDate: today })],
       jest.fn(),
     );
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockDisplayNotification).not.toHaveBeenCalled();
   });
@@ -218,8 +271,9 @@ describe('geo-triggered notifications', () => {
     ];
 
     startProximityMonitoring('uid-1', tasks, jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockMarkAllPoiAlertsSeen).toHaveBeenCalledTimes(1);
     expect(mockMarkAllPoiAlertsSeen).toHaveBeenCalledWith(
@@ -229,43 +283,38 @@ describe('geo-triggered notifications', () => {
     );
   });
 
-  // ── No repeat on same geofence ───────────────────────────────────────────────
-
-  it('does NOT fire a second notification on repeated ticks inside the same geofence', async () => {
-    mockPlacesResponse([ATM_NEARBY]);
-
-    startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-
-    await locationCb(ORIGIN); // enters
-    await locationCb(ORIGIN); // still inside — should NOT re-notify
-
-    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
-  });
-
   // ── Notification copy format ─────────────────────────────────────────────────
 
-  it('notification title says "You\'re near a [POI type]"', async () => {
+  it('uses "an" before vowel-starting POI labels (e.g. "an ATM")', async () => {
     mockPlacesResponse([ATM_NEARBY]);
-
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     const call = mockDisplayNotification.mock.calls[0][0];
-    expect(call.title).toBe("You're near a ATM");
+    expect(call.title).toBe("You're near an ATM");
+  });
+
+  it('uses "a" before consonant-starting POI labels (e.g. "a Supermarket")', async () => {
+    const supermarketTask = makeTask({ id: 'sm', poi: 'supermarket', category: 'errands' });
+    mockPlacesResponse([SUPERMARKET_NEARBY]);
+    startProximityMonitoring('uid-1', [supermarketTask], jest.fn());
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_supermarket_sm-1');
+
+    const call = mockDisplayNotification.mock.calls[0][0];
+    expect(call.title).toBe("You're near a Supermarket");
   });
 
   it('notification body says "You have N thing(s) to brush away."', async () => {
     mockPlacesResponse([ATM_NEARBY]);
+    const tasks = [makeTask({ id: 'a' }), makeTask({ id: 'b' })];
+    startProximityMonitoring('uid-1', tasks, jest.fn());
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
 
-    startProximityMonitoring(
-      'uid-1',
-      [makeTask({ id: 'a' }), makeTask({ id: 'b' })],
-      jest.fn(),
-    );
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     const call = mockDisplayNotification.mock.calls[0][0];
     expect(call.body).toBe('You have 2 things to brush away.');
@@ -273,65 +322,52 @@ describe('geo-triggered notifications', () => {
 
   it('uses singular "thing" when there is exactly 1 task', async () => {
     mockPlacesResponse([ATM_NEARBY]);
-
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     const call = mockDisplayNotification.mock.calls[0][0];
     expect(call.body).toBe('You have 1 thing to brush away.');
   });
 
-  // ── POI type label in title ─────────────────────────────────────────────────
+  // ── Deep-link payload ────────────────────────────────────────────────────────
 
-  it('uses the POI type label in the notification title', async () => {
-    const supermarketTask = makeTask({
-      id:       'sm-task',
-      poi:      'supermarket',
-      title:    'Buy groceries',
-      category: 'errands',
-    });
-
-    mockPlacesResponse([SUPERMARKET_NEARBY]);
-
-    startProximityMonitoring('uid-1', [supermarketTask], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
-    const call = mockDisplayNotification.mock.calls[0][0];
-    expect(call.title).toContain('Supermarket');
-  });
-
-  // ── Closest POI wins ────────────────────────────────────────────────────────
-
-  it('fires a notification for the closest POI when multiple are in range', async () => {
-    const atmTask         = makeTask({ id: 'atm-task', poi: 'atm',         title: 'Get cash' });
-    const supermarketTask = makeTask({ id: 'sm-task',  poi: 'supermarket', title: 'Buy groceries', category: 'errands' });
-
-    // ATM 30 m, supermarket 55 m — both within NEARBY_RADIUS; ATM wins.
+  it('data payload is exactly { screen: "Today" } — no taskId or date', async () => {
     mockPlacesResponse([ATM_NEARBY]);
-    mockPlacesResponse([SUPERMARKET_NEARBY]);
+    startProximityMonitoring('uid-1', [makeTask({ id: 'task-abc', date: '2026-06-15' })], jest.fn());
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
 
-    startProximityMonitoring('uid-1', [atmTask, supermarketTask], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
-    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
-    const title = mockDisplayNotification.mock.calls[0][0].title as string;
-    expect(title).toContain('ATM'); // ATM wins (30 m < 55 m)
+    const call = mockDisplayNotification.mock.calls[0][0];
+    expect(call.data).toEqual({ screen: 'Today' });
   });
 
-  // ── Place outside NEARBY_RADIUS ─────────────────────────────────────────────
+  // ── NEARBY_RADIUS = 400 m (display threshold) ────────────────────────────────
 
-  it('does NOT fire when the nearest place is beyond NEARBY_RADIUS (400 m)', async () => {
-    mockPlacesResponse([ATM_FAR]); // ~556 m — outside 400 m
+  it('checkProximity marks a place as nearby when within 400 m and updates onUpdate', async () => {
+    const onUpdate = jest.fn();
+    mockPlacesResponse([ATM_NEARBY]); // ~30 m
 
-    startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    startProximityMonitoring('uid-1', [makeTask()], onUpdate);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
 
-    expect(mockDisplayNotification).not.toHaveBeenCalled();
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ name: 'Corner ATM' }),
+      expect.any(Object),
+    );
+  });
+
+  it('checkProximity does NOT mark a place as nearby when beyond 400 m', async () => {
+    const onUpdate = jest.fn();
+    mockPlacesResponse([ATM_FAR]); // ~556 m
+
+    startProximityMonitoring('uid-1', [makeTask()], onUpdate);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    expect(onUpdate).toHaveBeenCalledWith(null, null, expect.any(Object));
   });
 
   // ── notif_nearby_enabled = false ────────────────────────────────────────────
@@ -341,84 +377,49 @@ describe('geo-triggered notifications', () => {
     updateNotifNearbyEnabled(false);
 
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockDisplayNotification).not.toHaveBeenCalled();
-  });
-
-  it('fires again after notif_nearby_enabled is re-enabled', async () => {
-    mockPlacesResponse([ATM_NEARBY]);
-    updateNotifNearbyEnabled(false);
-
-    startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-    expect(mockDisplayNotification).not.toHaveBeenCalled();
-
-    // Re-enable and simulate a new proximity entry.
-    updateNotifNearbyEnabled(true);
-    stopProximityMonitoring();
-    mockFetch.mockReset();
-    mockPlacesResponse([ATM_NEARBY]);
-
-    startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb2 = mockStartTracking.mock.calls[1][0];
-    await locationCb2(ORIGIN);
-    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
 
   // ── Quiet hours ─────────────────────────────────────────────────────────────
 
   describe('isQuietHours()', () => {
-    const RealDate = global.Date;
+    afterEach(() => { jest.restoreAllMocks(); });
 
-    afterEach(() => {
-      global.Date = RealDate;
-    });
-
-    it('returns true at 22:00 (10pm)', () => {
-      jest.spyOn(global, 'Date').mockImplementation(() =>
-        ({ getHours: () => 22 } as any),
-      );
+    it('returns true at 22:00', () => {
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(22);
       expect(isQuietHours()).toBe(true);
     });
 
-    it('returns true at 03:00 (3am)', () => {
-      jest.spyOn(global, 'Date').mockImplementation(() =>
-        ({ getHours: () => 3 } as any),
-      );
+    it('returns true at 03:00', () => {
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(3);
       expect(isQuietHours()).toBe(true);
     });
 
     it('returns false at 09:00', () => {
-      jest.spyOn(global, 'Date').mockImplementation(() =>
-        ({ getHours: () => 9 } as any),
-      );
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(9);
       expect(isQuietHours()).toBe(false);
     });
 
     it('returns false at 20:00', () => {
-      jest.spyOn(global, 'Date').mockImplementation(() =>
-        ({ getHours: () => 20 } as any),
-      );
+      jest.spyOn(Date.prototype, 'getHours').mockReturnValue(20);
       expect(isQuietHours()).toBe(false);
     });
   });
 
-  it('does NOT fire a notification during quiet hours (10pm–8am)', async () => {
+  it('does NOT fire during quiet hours (10pm–8am)', async () => {
     mockPlacesResponse([ATM_NEARBY]);
-
-    // Stub Date.getHours() to return 23 (11pm — inside quiet window).
-    const mockedDate = { getHours: () => 23 } as any;
-    jest.spyOn(global, 'Date').mockImplementation(() => mockedDate);
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(23);
 
     startProximityMonitoring('uid-1', [makeTask()], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await mockStartTracking.mock.calls[0][0](ORIGIN);
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockDisplayNotification).not.toHaveBeenCalled();
-
     jest.restoreAllMocks();
   });
 });

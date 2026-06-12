@@ -5,10 +5,18 @@
  * The data payload now contains only `{ screen: 'Today' }` — there is no
  * single taskId or date because one notification covers all tasks of a type.
  *
+ * Notifications fire exclusively from handleGeofenceEntry() (the native OS
+ * boundary-crossing path). checkProximity() is display-only.
+ *
  * Covers:
  *   - data.screen is always 'Today' (navigates to the Today screen)
  *   - No taskId or date in the payload (per-type notification, not per-task)
  */
+
+// ─── Emitter mock ─────────────────────────────────────────────────────────────
+
+import { EventEmitter } from 'events';
+const mockGeofenceEmitter = new EventEmitter();
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -49,9 +57,17 @@ jest.mock('../../src/services/nativeGeofence', () => ({
     removeGeofence:     jest.fn().mockResolvedValue(undefined),
     removeAllGeofences: jest.fn().mockResolvedValue(undefined),
   },
-  geofenceEmitter:        null,
+  geofenceEmitter: {
+    addListener: (event: string, cb: (...args: unknown[]) => void) => {
+      mockGeofenceEmitter.on(event, cb);
+      return { remove: () => mockGeofenceEmitter.removeListener(event, cb) };
+    },
+  },
   buildGeofenceId:        (poiType: string, placeId: string) => `brush_geo_${poiType}_${placeId}`,
-  parseGeofenceId:        jest.fn().mockReturnValue(null),
+  parseGeofenceId:        jest.fn().mockImplementation((id: string) => {
+    const m = id.match(/^brush_geo_([^_]+)_(.+)$/);
+    return m ? { poiType: m[1], placeId: m[2] } : null;
+  }),
   GEOFENCE_ENTRY_EVENT:   'onGeofenceEntry',
   supportsNativeGeofences: true,
 }));
@@ -89,9 +105,14 @@ function mockNearbyPlace(lat = 0.00027, lng = 0) {
   mockFetch.mockResolvedValueOnce({
     ok:   true,
     json: async () => ({
-      places: [{ id: 'p1', displayName: { text: 'Corner ATM' }, location: { latitude: lat, longitude: lng } }],
+      places: [{ id: 'atm-1', displayName: { text: 'Corner ATM' }, location: { latitude: lat, longitude: lng } }],
     }),
   });
+}
+
+async function fireGeofenceEntry(geofenceId: string): Promise<void> {
+  mockGeofenceEmitter.emit('onGeofenceEntry', { geofenceId });
+  await new Promise(resolve => setTimeout(resolve, 20));
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -100,42 +121,24 @@ describe('notification deep-link data payload', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFetch.mockReset();
+    mockGeofenceEmitter.removeAllListeners();
     stopProximityMonitoring();
   });
 
-  it('data payload contains screen: "Today" (navigates to Today screen)', async () => {
+  it('data payload is exactly { screen: "Today" } — no taskId or date', async () => {
+    // KAN-142: one notification covers all tasks of the POI type; the
+    // deep-link payload must be exactly { screen: 'Today' } so any drift
+    // (new unexpected keys, missing keys) fails this test immediately.
     mockNearbyPlace();
 
-    startProximityMonitoring('uid-1', [makeTask()], jest.fn());
+    startProximityMonitoring('uid-1', [makeTask({ id: 'task-abc', date: '2026-06-15' })], jest.fn());
     const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await locationCb(ORIGIN); // populates place cache
+
+    await fireGeofenceEntry('brush_geo_atm_atm-1');
 
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
     const payload = mockDisplayNotification.mock.calls[0][0];
-    expect(payload.data.screen).toBe('Today');
-  });
-
-  it('data payload does NOT include taskId (per-type notification, not per-task)', async () => {
-    // KAN-142: one notification covers all tasks of the POI type, so there
-    // is no single taskId to embed in the deep-link payload.
-    mockNearbyPlace();
-
-    startProximityMonitoring('uid-1', [makeTask({ id: 'task-abc' })], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    const payload = mockDisplayNotification.mock.calls[0][0];
-    expect(payload.data.taskId).toBeUndefined();
-  });
-
-  it('data payload does NOT include date', async () => {
-    mockNearbyPlace();
-
-    startProximityMonitoring('uid-1', [makeTask({ date: '2026-06-15' })], jest.fn());
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    const payload = mockDisplayNotification.mock.calls[0][0];
-    expect(payload.data.date).toBeUndefined();
+    expect(payload.data).toEqual({ screen: 'Today' });
   });
 });

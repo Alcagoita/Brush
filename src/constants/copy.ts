@@ -37,8 +37,11 @@ export const COPY = {
   // ─── Push / local notifications ───────────────────────────────────────────
   notification: {
     /** Proximity alert — fires when within NEARBY_RADIUS of a POI type with pending tasks. KAN-142. */
-    proximityTitle: (poiLabel: string) => `You're near a ${poiLabel}`,
-    proximityBody:  (count: number) =>
+    proximityTitle: (poiLabel: string) => {
+      const article = /^[aeiou]/i.test(poiLabel) ? 'an' : 'a';
+      return `You're near ${article} ${poiLabel}`;
+    },
+    proximityBody: (count: number) =>
       `You have ${count} thing${count === 1 ? '' : 's'} to brush away.`,
 
     /** Daily complete celebration. */
