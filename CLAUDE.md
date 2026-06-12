@@ -325,7 +325,7 @@ Three parallel tracks. Build order within each track must be respected.
 | Ticket | Title | Status |
 |--------|-------|--------|
 | KAN-143 | New Task flow redesign — POI-first bottom sheet + More Details screen | ✅ Done |
-| KAN-139 | Today Screen: empty state with rotating atmospheric nudges | 🔲 Next |
+| KAN-139 | Today Screen: empty state with rotating atmospheric nudges | ✅ Done |
 | KAN-142 | POI-based proximity detection | 🔲 Blocked by KAN-143 ✅ unblocked |
 | KAN-144 | POI proximity verification — distance calculations + persistent tracking | 🔲 Blocked by KAN-142 |
 | KAN-140 | Guided first-run onboarding | 🔲 Blocked by KAN-139 |
