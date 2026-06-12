@@ -42,6 +42,7 @@ import { Task, MonthTasksUiState } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
 import { COPY } from '../constants/copy';
+import { todayISO } from '../utils/date';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -61,10 +62,6 @@ const MONTH_NAMES = [
 const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 /** YYYY-MM string from year + 1-based month. */
 function toYearMonth(year: number, month: number): string {

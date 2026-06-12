@@ -33,6 +33,7 @@ import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../components/AppIc
 import type { Category, PoiType, Task } from '../types';
 import { POI_CATALOG } from '../types';
 import { PLACE_TYPE_LABELS } from '../services/maps';
+import { todayISO } from '../utils/date';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -43,10 +44,6 @@ export interface TaskFormParams {
   initialDate?: string;
   initialTitle?: string;
   initialPoi?: PoiType;
-}
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
 }
 
 // ─── POI type suggestion catalog ──────────────────────────────────────────────

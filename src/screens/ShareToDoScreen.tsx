@@ -29,13 +29,11 @@ import { getTasksForDate, getUser } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Task } from '../types';
 import { COPY } from '../constants/copy';
+import { todayISO } from '../utils/date';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'ShareToDo'>;
 type Route = RouteProp<RootStackParamList, 'ShareToDo'>;
 
-function todayISO() {
-  return new Date().toISOString().split('T')[0];
-}
 
 export default function ShareToDoScreen() {
   const { palette }  = useTheme();

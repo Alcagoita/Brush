@@ -70,6 +70,7 @@ import { useTodayScreen } from '../hooks/useTodayScreen';
 import { subscribeToIncomingSharedTasks } from '../services/sharing';
 import { subscribeToTotalPoints } from '../services/firestore';
 import { COPY } from '../constants/copy';
+import { todayISO } from '../utils/date';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -111,10 +112,6 @@ const EMPTY_MESSAGES: NudgeMessage[] = [
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS   = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 
