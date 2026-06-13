@@ -328,7 +328,7 @@ Three parallel tracks. Build order within each track must be respected.
 | KAN-139 | Today Screen: empty state with rotating atmospheric nudges | ✅ Done |
 | KAN-142 | POI-based proximity detection | ✅ Done |
 | KAN-144 | POI proximity verification — distance calculations + persistent tracking | ✅ Done |
-| KAN-140 | Guided first-run onboarding | 🔲 Blocked by KAN-139 |
+| KAN-140 | Guided first-run onboarding | ✅ Done |
 
 ### Track B — Tier System Redesign (KAN-111 epic)
 
