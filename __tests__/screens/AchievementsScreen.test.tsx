@@ -35,10 +35,12 @@ jest.mock('../../src/services/achievements', () => ({
 
 jest.mock('../../src/constants/tiers', () => ({
   deriveTierStanding: (pts: number) => {
-    if (pts < 50)   { return { nextTier: { name: 'Bronze', at: 50,  color: '#b3793f' }, maxed: false, bandPct: pts / 50,         toGo: 50  - pts }; }
-    if (pts < 200)  { return { nextTier: { name: 'Silver', at: 200, color: '#7d93a4' }, maxed: false, bandPct: (pts-50)  / 150,  toGo: 200 - pts }; }
-    if (pts < 3000) { return { nextTier: { name: 'Gold',   at: 500, color: '#c0972d' }, maxed: false, bandPct: (pts-200) / 300,  toGo: 500 - pts }; }
-    return           { nextTier: { name: 'Vibranium', at: 3000, color: '#7256a6' }, maxed: true,  bandPct: 1,            toGo: 0           };
+    if (pts < 50)   { return { nextTier: { name: 'Bronze',     at: 50,   color: '#b3793f' }, maxed: false, bandPct: pts        / 50,  toGo: 50   - pts }; }
+    if (pts < 200)  { return { nextTier: { name: 'Silver',     at: 200,  color: '#7d93a4' }, maxed: false, bandPct: (pts-50)  / 150,  toGo: 200  - pts }; }
+    if (pts < 500)  { return { nextTier: { name: 'Gold',       at: 500,  color: '#c0972d' }, maxed: false, bandPct: (pts-200) / 300,  toGo: 500  - pts }; }
+    if (pts < 1200) { return { nextTier: { name: 'Adamantium', at: 1200, color: '#5e788c' }, maxed: false, bandPct: (pts-500) / 700,  toGo: 1200 - pts }; }
+    if (pts < 3000) { return { nextTier: { name: 'Vibranium',  at: 3000, color: '#7256a6' }, maxed: false, bandPct: (pts-1200)/1800,  toGo: 3000 - pts }; }
+    return           { nextTier: { name: 'Vibranium', at: 3000, color: '#7256a6' }, maxed: true,  bandPct: 1, toGo: 0 };
   },
 }));
 
@@ -83,7 +85,7 @@ jest.mock('../../src/theme', () => ({
 jest.mock('react-native-svg', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const Stub = (props: any) => React.createElement(View, props);
+  const Stub = (props: React.ComponentProps<typeof View>) => React.createElement(View, props);
   return { __esModule: true, default: Stub, Circle: Stub, Path: Stub };
 });
 
@@ -252,9 +254,8 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
   it('hides LOCKED section when everything earned', () => {
     renderScreen();
     const allEarned: AchievementsMap = {};
-    ['first_brush', 'early_bird', 'day_complete', 'on_a_roll', 'explorer', 'centurion', 'challenge_winner'].forEach(t => {
-      allEarned[t as any] = { earnCount: 1, progress: 1, target: 1, earnedAt: null };
-    });
+    const keys: (keyof AchievementsMap)[] = ['first_brush', 'early_bird', 'day_complete', 'on_a_roll', 'explorer', 'centurion', 'challenge_winner'];
+    keys.forEach(t => { allEarned[t] = { earnCount: 1, progress: 1, target: 1, earnedAt: null }; });
     fireAchievements(allEarned);
     expect(screen.queryByText(/LOCKED ·/)).toBeNull();
   });

@@ -121,7 +121,7 @@ function AchievementCard({
               styles.progressFill,
               {
                 backgroundColor: earned ? palette.accent : palette.faint,
-                width: `${Math.round(fillRatio * 100)}%` as any,
+                width: `${Math.round(fillRatio * 100)}%`,
               },
             ]}
           />
@@ -142,8 +142,8 @@ function AchievementCard({
         { backgroundColor: earned ? palette.accent + '22' : palette.surface },
       ]}>
         {earned
-          ? <LockIcon color={palette.accent} size={10} />
-          : <LockIcon color={palette.faint}  size={10} />
+          ? <CheckIcon color={palette.accent} size={10} />
+          : <LockIcon  color={palette.faint}  size={10} />
         }
         <Text style={[
           styles.pointBadgeText,
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
 
   // ── Tier header card ──
   tierCard: {
-    borderRadius: 20,
+    borderRadius: radius.card,
     padding:      18,
     borderWidth:  1,
   },
