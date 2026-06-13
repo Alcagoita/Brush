@@ -110,11 +110,11 @@ function FlameIcon({ size = 24 }: { size?: number }) {
 }
 
 /** Down-arrow bobbing hint. */
-function BobbingArrow({ visible }: { visible: boolean }) {
+function BobbingArrow({ visible, reduceMotion }: { visible: boolean; reduceMotion: boolean }) {
   const bobY = useSharedValue(0);
 
   useEffect(() => {
-    if (!visible) { return; }
+    if (!visible || reduceMotion) { bobY.value = 0; return; }
     bobY.value = withRepeat(
       withSequence(
         withTiming( 4, { duration: 900, easing: Easing.inOut(Easing.ease) }),
@@ -123,9 +123,11 @@ function BobbingArrow({ visible }: { visible: boolean }) {
       -1,
       false,
     );
-  }, [visible, bobY]);
+  }, [visible, reduceMotion, bobY]);
 
-  const style = useAnimatedStyle(() => ({ transform: [{ translateY: bobY.value }] }));
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: reduceMotion ? 0 : bobY.value }],
+  }));
 
   if (!visible) { return null; }
 
@@ -265,7 +267,6 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
       const id = await addTask(uid, {
         title:    taskTitle.trim(),
         category: 'errands',
-        done:     false,
         date:     todayISO(),
       });
       setCreatedTaskId(id);
@@ -277,9 +278,11 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
   }, [taskTitle, uid, closeSheet]);
 
   const handleBrushAway = useCallback(async () => {
-    if (taskDone || reduceMotion) {
+    if (taskDone) { return; }
+
+    if (reduceMotion) {
       setTaskDone(true);
-      setTimeout(showReward, reduceMotion ? 200 : 640);
+      setTimeout(showReward, 200);
       return;
     }
 
@@ -301,8 +304,6 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
         awardPoint(uid, createdTaskId, taskTitle).catch(() => {});
       }
     }, 640);
-
-    setTaskDone(true);
   }, [taskDone, reduceMotion, sweepProgress, fillProgress, strokeScale, showReward, uid, createdTaskId, taskTitle]);
 
   const handleComplete = useCallback(async () => {
@@ -394,7 +395,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                   <TextInput
                     ref={inputRef}
                     style={styles.sheetInput}
-                    placeholder="Bread? A call? A long walk?"
+                    placeholder="Buy bread? Coffee outside? Go for a run?"
                     placeholderTextColor={T.faint}
                     value={taskTitle}
                     onChangeText={setTaskTitle}
@@ -517,7 +518,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
         {/* Bobbing hint */}
         {!taskDone && (
           <View style={styles.hintRow}>
-            <BobbingArrow visible />
+            <BobbingArrow visible reduceMotion={reduceMotion} />
             <Text style={styles.hintText}>
               Tap the circle to <Text style={{ color: T.text, fontFamily: 'Geist-Medium' }}>brush it away.</Text>
             </Text>

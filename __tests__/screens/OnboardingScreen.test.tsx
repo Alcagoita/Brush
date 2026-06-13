@@ -50,9 +50,6 @@ jest.mock('../../src/components/ScrRotatingNudge', () => {
 
 jest.mock('../../src/components/BrushStroke', () => () => null);
 
-jest.mock('../../src/theme', () => ({
-  useTheme: () => ({ palette: { muted: '#888', accent: '#e8a86a', faint: '#c1bbac' } }),
-}));
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -96,12 +93,13 @@ describe('OnboardingScreen — Stage 2 (Empty)', () => {
   });
 
   it('"Add it" button is disabled when input is empty', async () => {
-    const { getByText, getByRole } = await getStage2();
-    fireEvent.press(getByText(/Add your first thing/i));
-    await waitFor(() => getByText(/The first thing on your mind/i));
-    const addBtn = getByText('Add it');
-    expect(addBtn).toBeTruthy();
-    // Disabled via accessibilityState — button parent should be non-interactive
+    mockAddTask.mockClear();
+    const utils = await getStage2();
+    fireEvent.press(utils.getByText(/Add your first thing/i));
+    await waitFor(() => utils.getByText(/The first thing on your mind/i));
+    // Press "Add it" with empty input — handler should be a no-op
+    fireEvent.press(utils.getByText('Add it'));
+    expect(mockAddTask).not.toHaveBeenCalled();
   });
 
   it('fills input when a suggestion chip is tapped', async () => {
@@ -121,8 +119,8 @@ describe('OnboardingScreen — Stage 3 → 4 (Create → Payoff)', () => {
     fireEvent.press(utils.getByText(/Let.*begin/i));
     await waitFor(() => utils.getByText(/Add your first thing/i));
     fireEvent.press(utils.getByText(/Add your first thing/i));
-    await waitFor(() => utils.getByPlaceholderText(/Bread\?/i));
-    fireEvent.changeText(utils.getByPlaceholderText(/Bread\?/i), 'Buy milk');
+    await waitFor(() => utils.getByPlaceholderText(/Buy bread\?/i));
+    fireEvent.changeText(utils.getByPlaceholderText(/Buy bread\?/i), 'Buy milk');
     await act(async () => {
       fireEvent.press(utils.getByText('Add it'));
       // Allow the addTask promise to resolve
@@ -139,7 +137,6 @@ describe('OnboardingScreen — Stage 3 → 4 (Create → Payoff)', () => {
     expect(mockAddTask).toHaveBeenCalledWith('uid-1', expect.objectContaining({
       title:    'Buy milk',
       category: 'errands',
-      done:     false,
       date:     '2026-06-13',
     }));
   });
@@ -169,8 +166,8 @@ describe('OnboardingScreen — completion', () => {
     fireEvent.press(utils.getByText(/Let.*begin/i));
     await waitFor(() => utils.getByText(/Add your first thing/i));
     fireEvent.press(utils.getByText(/Add your first thing/i));
-    await waitFor(() => utils.getByPlaceholderText(/Bread\?/i));
-    fireEvent.changeText(utils.getByPlaceholderText(/Bread\?/i), 'Test task');
+    await waitFor(() => utils.getByPlaceholderText(/Buy bread\?/i));
+    fireEvent.changeText(utils.getByPlaceholderText(/Buy bread\?/i), 'Test task');
     await act(async () => {
       fireEvent.press(utils.getByText('Add it'));
       await Promise.resolve();

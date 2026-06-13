@@ -283,7 +283,7 @@ function AppShell() {
           ) : !onboardingDone ? (
             // First-run: guided onboarding before landing on Today (KAN-140).
             <OnboardingScreen
-              uid={displayUser!.uid}
+              uid={displayUser.uid}
               onComplete={() => setOnboardingDone(true)}
             />
           ) : (
