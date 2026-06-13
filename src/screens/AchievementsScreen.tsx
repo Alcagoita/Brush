@@ -339,8 +339,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   navBtn: {
-    width:          40,
-    height:         40,
+    width:          44,
+    height:         44,
     alignItems:     'center',
     justifyContent: 'center',
   },
