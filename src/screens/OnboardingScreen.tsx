@@ -40,8 +40,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import BrushStroke from '../components/BrushStroke';
-import { awardPoint, upsertUser } from '../services/firestore';
-import { addTask } from '../services/firestore';
+import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
 import { todayISO } from '../utils/date';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
@@ -277,11 +276,18 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
     setTimeout(() => setStage('post'), 350);
   }, [taskTitle, uid, closeSheet]);
 
-  const handleBrushAway = useCallback(async () => {
+  const completeOnboardingTask = useCallback(() => {
+    if (createdTaskId) {
+      awardPointsOnboardingBonus(uid, createdTaskId, taskTitle).catch(() => {});
+    }
+  }, [uid, createdTaskId, taskTitle]);
+
+  const handleBrushAway = useCallback(() => {
     if (taskDone) { return; }
 
     if (reduceMotion) {
       setTaskDone(true);
+      completeOnboardingTask();
       setTimeout(showReward, 200);
       return;
     }
@@ -299,12 +305,10 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
     }, 120);
 
     setTimeout(() => {
+      completeOnboardingTask();
       showReward();
-      if (createdTaskId) {
-        awardPoint(uid, createdTaskId, taskTitle).catch(() => {});
-      }
     }, 640);
-  }, [taskDone, reduceMotion, sweepProgress, fillProgress, strokeScale, showReward, uid, createdTaskId, taskTitle]);
+  }, [taskDone, reduceMotion, sweepProgress, fillProgress, strokeScale, showReward, completeOnboardingTask]);
 
   const handleComplete = useCallback(async () => {
     try {
@@ -488,9 +492,9 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
 
           <Pressable
             onPress={handleBrushAway}
-            hitSlop={8}
             accessibilityRole="checkbox"
-            accessibilityState={{ checked: taskDone }}>
+            accessibilityState={{ checked: taskDone }}
+            style={styles.checkboxTouchTarget}>
             <View style={[styles.checkbox, { borderColor: taskDone ? T.faint : T.text }]}>
               <Animated.View style={[styles.checkboxFill, fillStyle]} />
             </View>
@@ -544,7 +548,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
             </View>
 
             <View style={styles.pointsPill}>
-              <Text style={[styles.pointsText, { fontVariant: ['tabular-nums'] }]}>+10</Text>
+              <Text style={[styles.pointsText, { fontVariant: ['tabular-nums'] }]}>{`+${ONBOARDING_BONUS_POINTS}`}</Text>
             </View>
           </Animated.View>
         )}
@@ -800,12 +804,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     overflow:          'hidden',
   },
+  checkboxTouchTarget: {
+    width:          44,
+    height:         44,
+    marginRight:    6,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
   checkbox: {
     width:        22,
     height:       22,
     borderRadius: 11,
     borderWidth:  1.5,
-    marginRight:  14,
     alignItems:   'center',
     justifyContent: 'center',
     overflow:     'hidden',

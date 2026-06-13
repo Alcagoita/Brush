@@ -247,7 +247,8 @@ export type PointsReason =
   | 'task_completed'       // 1 point per completed task (KAN-31)
   | 'achievement_bonus'    // bonus when an achievement is unlocked
   | 'daily_complete_bonus' // bonus for completing the full daily list
-  | 'streak_bonus';        // extra point for consecutive days
+  | 'streak_bonus'         // extra point for consecutive days
+  | 'onboarding_bonus';    // Day-1 first-brush reward (KAN-140)
 
 /**
  * All achievement types the app can award.

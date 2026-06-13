@@ -31,14 +31,15 @@ jest.mock('react-native-svg', () => {
   };
 });
 
-const mockAddTask    = jest.fn().mockResolvedValue('task-123');
-const mockAwardPoint = jest.fn().mockResolvedValue(undefined);
-const mockUpsertUser = jest.fn().mockResolvedValue(undefined);
+const mockAddTask                   = jest.fn().mockResolvedValue('task-123');
+const mockAwardPointsOnboardingBonus = jest.fn().mockResolvedValue(undefined);
+const mockUpsertUser                = jest.fn().mockResolvedValue(undefined);
 
 jest.mock('../../src/services/firestore', () => ({
-  addTask:    (...args: unknown[]) => mockAddTask(...args),
-  awardPoint: (...args: unknown[]) => mockAwardPoint(...args),
-  upsertUser: (...args: unknown[]) => mockUpsertUser(...args),
+  addTask:                    (...args: unknown[]) => mockAddTask(...args),
+  awardPointsOnboardingBonus: (...args: unknown[]) => mockAwardPointsOnboardingBonus(...args),
+  upsertUser:                 (...args: unknown[]) => mockUpsertUser(...args),
+  ONBOARDING_BONUS_POINTS:    10,
 }));
 
 jest.mock('../../src/utils/date', () => ({ todayISO: () => '2026-06-13' }));
@@ -155,14 +156,14 @@ describe('OnboardingScreen — Stage 3 → 4 (Create → Payoff)', () => {
 });
 
 describe('OnboardingScreen — completion', () => {
-  beforeEach(() => jest.useFakeTimers());
+  beforeEach(() => {
+    jest.useFakeTimers();
+    mockAwardPointsOnboardingBonus.mockClear();
+    mockUpsertUser.mockClear();
+  });
   afterEach(() => jest.useRealTimers());
 
-  it('calls upsertUser with onboardingDone: true and then onComplete', async () => {
-    const onComplete = jest.fn();
-    const utils = renderScreen(onComplete);
-
-    // Advance to stage 4
+  async function advanceToStage4Full(utils: ReturnType<typeof renderScreen>) {
     fireEvent.press(utils.getByText(/Let.*begin/i));
     await waitFor(() => utils.getByText(/Add your first thing/i));
     fireEvent.press(utils.getByText(/Add your first thing/i));
@@ -174,18 +175,44 @@ describe('OnboardingScreen — completion', () => {
       jest.advanceTimersByTime(400);
     });
     await waitFor(() => utils.getByText('Test task'));
+  }
 
-    // Brush away (reduceMotion = false so we get the animated path, but timers are fake)
+  it('animated path: awards onboarding bonus and calls onComplete', async () => {
+    const onComplete = jest.fn();
+    const utils = renderScreen(onComplete);
+    await advanceToStage4Full(utils);
+
+    // Brush away — animated path (reduceMotion = false)
     await act(async () => {
       fireEvent.press(utils.getAllByRole('checkbox')[0]);
       jest.advanceTimersByTime(700);
     });
 
-    // Wait for reward CTA
     await waitFor(() => utils.getByText(/See a full day/i));
     await act(async () => { fireEvent.press(utils.getByText(/See a full day/i)); });
 
+    expect(mockAwardPointsOnboardingBonus).toHaveBeenCalledWith('uid-1', 'task-123', 'Test task');
     expect(mockUpsertUser).toHaveBeenCalledWith('uid-1', { onboardingDone: true });
     expect(onComplete).toHaveBeenCalled();
+  });
+
+  it('reduce-motion path: awards onboarding bonus without animation', async () => {
+    // Simulate reduce-motion by mocking AccessibilityInfo before render
+    const AccessibilityInfo = require('react-native').AccessibilityInfo;
+    jest.spyOn(AccessibilityInfo, 'isReduceMotionEnabled').mockResolvedValue(true);
+
+    const utils = renderScreen();
+    await advanceToStage4Full(utils);
+
+    await act(async () => {
+      fireEvent.press(utils.getAllByRole('checkbox')[0]);
+      jest.advanceTimersByTime(300);
+    });
+
+    await waitFor(() => utils.getByText(/See a full day/i));
+
+    expect(mockAwardPointsOnboardingBonus).toHaveBeenCalledWith('uid-1', 'task-123', 'Test task');
+
+    jest.restoreAllMocks();
   });
 });
