@@ -55,6 +55,8 @@ export interface User {
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
    */
+  /** Set to true once the user completes the guided first-run onboarding (KAN-140). */
+  onboardingDone?: boolean;
   poiPreferences?: {
     /**
      * When true, geofence monitoring is paused whenever battery drops below
@@ -245,7 +247,8 @@ export type PointsReason =
   | 'task_completed'       // 1 point per completed task (KAN-31)
   | 'achievement_bonus'    // bonus when an achievement is unlocked
   | 'daily_complete_bonus' // bonus for completing the full daily list
-  | 'streak_bonus';        // extra point for consecutive days
+  | 'streak_bonus'         // extra point for consecutive days
+  | 'onboarding_bonus';    // Day-1 first-brush reward (KAN-140)
 
 /**
  * All achievement types the app can award.

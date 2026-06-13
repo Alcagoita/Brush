@@ -650,6 +650,44 @@ export async function awardPointsStreakBonus(
 }
 
 /**
+ * Award the Day-1 first-brush onboarding bonus (KAN-140).
+ *
+ * Distinct from `awardPoint` (1-pt task completion) — this awards the full
+ * onboarding bonus amount atomically and records it with reason 'onboarding_bonus'.
+ * Idempotent: the history doc key is `onboarding_<uid>` so a second call is a no-op.
+ *
+ * @param uid       Firebase user ID.
+ * @param taskId    The first task the user created during onboarding.
+ * @param taskTitle Title of that task (for the history label).
+ * @param points    Bonus amount (default: ONBOARDING_BONUS_POINTS = 10).
+ */
+export const ONBOARDING_BONUS_POINTS = 10;
+
+export async function awardPointsOnboardingBonus(
+  uid: string,
+  taskId: string,
+  taskTitle: string,
+  points: number = ONBOARDING_BONUS_POINTS,
+): Promise<void> {
+  const db     = getFirestore();
+  const histRef = doc(pointsHistoryRef(uid), `onboarding_${uid}`);
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(histRef);
+    if (snap.exists()) { return; } // Already awarded — idempotent
+
+    tx.set(histRef, {
+      taskId,
+      taskTitle,
+      awardedAt: serverTimestamp(),
+      points,
+      reason: 'onboarding_bonus',
+    });
+    tx.update(userRef(uid), { totalPoints: increment(points) });
+  });
+}
+
+/**
  * Check whether an achievement has already been awarded.
  * Useful for guarding idempotency-sensitive callers before calling awardAchievement.
  */
