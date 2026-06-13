@@ -1,17 +1,10 @@
 /**
- * AchievementsScreen — KAN-114 / KAN-129
+ * AchievementsScreen — KAN-114 / KAN-129 / KAN-136
  *
- * Full achievements list with progress bars, point values, and tier ladder.
- * Points are achievement-derived only (KAN-129). Progress data comes from
- * the `users/{uid}.achievements` map and `users/{uid}.totalPoints`.
+ * Tier header (KAN-136): flat card with lifetime total, TierMedal (96px),
+ * TierLadder scroll strip. Replaces the old ring-based summary card.
  *
- * Layout:
- *   - Sticky header + "EARNED · N" counter
- *   - Progress ring (totalPoints toward next tier)
- *   - 2-column grid of AchievementCard tiles
- *     - Earned: accent tint, point badge "N pts earned"
- *     - Locked:  surface2,   point badge "N pts available"
- *     - Progress bar for multi-step achievements
+ * Achievement gallery: "EARNED · N" + "LOCKED · N" sections, 2-col grid.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -22,8 +15,6 @@ import {
   Text,
   View,
 } from 'react-native';
-import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
@@ -34,7 +25,10 @@ import {
   subscribeToTotalPoints,
   subscribeToAchievements,
 } from '../services/firestore';
-import { ACHIEVEMENT_DEFS, TIER_LADDER, getNextTier } from '../services/achievements';
+import { ACHIEVEMENT_DEFS } from '../services/achievements';
+import { deriveTierStanding } from '../constants/tiers';
+import TierMedal from '../components/TierMedal';
+import TierLadder from '../components/TierLadder';
 import type { AchievementsMap, AchievementType } from '../types';
 import {
   ACHIEVEMENT_CATALOGUE,
@@ -49,52 +43,6 @@ import {
   MedalIcon,
   LockIcon,
 } from '../components/AppIcon';
-
-// ─── Mini animated ring ───────────────────────────────────────────────────────
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-interface TierRingProps {
-  progress:    number; // 0–1
-  size?:       number;
-  strokeWidth?: number;
-  accentColor: string;
-  trackColor:  string;
-}
-
-function TierRing({
-  progress,
-  size        = 64,
-  strokeWidth = 7,
-  accentColor,
-  trackColor,
-}: TierRingProps) {
-  const sv = useSharedValue(0);
-  useEffect(() => {
-    sv.value = withTiming(Math.min(Math.max(progress, 0), 1), { duration: 600 });
-  }, [progress, sv]);
-
-  const r            = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * r;
-  const cx            = size / 2;
-
-  const arcProps = useAnimatedProps(() => ({
-    strokeDasharray:  circumference,
-    strokeDashoffset: circumference * (1 - sv.value),
-  }));
-
-  return (
-    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
-      <Circle cx={cx} cy={cx} r={r} strokeWidth={strokeWidth} stroke={trackColor} fill="none" />
-      <AnimatedCircle
-        cx={cx} cy={cx} r={r}
-        strokeWidth={strokeWidth} stroke={accentColor} fill="none"
-        strokeLinecap="round"
-        animatedProps={arcProps}
-      />
-    </Svg>
-  );
-}
 
 // ─── Icon mapper ──────────────────────────────────────────────────────────────
 
@@ -219,29 +167,28 @@ export default function AchievementsScreen() {
   const insets       = useSafeAreaInsets();
   const uid          = getAuth().currentUser?.uid;
 
-  const [totalPoints,   setTotalPoints]   = useState(0);
+  const [totalPoints,     setTotalPoints]     = useState(0);
   const [achievementsMap, setAchievementsMap] = useState<AchievementsMap>({});
 
   useEffect(() => {
     if (!uid) { return; }
-    const u1 = subscribeToTotalPoints(uid, setTotalPoints,     err => console.warn('[AchievementsScreen] points', err));
+    const u1 = subscribeToTotalPoints(uid, setTotalPoints,      err => console.warn('[AchievementsScreen] points', err));
     const u2 = subscribeToAchievements(uid, setAchievementsMap, err => console.warn('[AchievementsScreen] achievements', err));
     return () => { u1(); u2(); };
   }, [uid]);
 
-  // ── Derived ──────────────────────────────────────────────────────────────────
-  const nextTier     = getNextTier(totalPoints);
-  const tierIdx      = TIER_LADDER.findIndex(t => t.at === nextTier.at);
-  const prevTierAt   = tierIdx > 0 ? TIER_LADDER[tierIdx - 1].at : 0;
-  const ringProgress = nextTier.at > prevTierAt
-    ? Math.min((totalPoints - prevTierAt) / (nextTier.at - prevTierAt), 1)
-    : 1;
+  // ── Tier standing ─────────────────────────────────────────────────────────────
+  const { nextTier, maxed, bandPct, toGo } = deriveTierStanding(totalPoints);
 
-  const earnedCount = ACHIEVEMENT_CATALOGUE.filter(
+  // ── Achievement lists ─────────────────────────────────────────────────────────
+  const earnedDefs = ACHIEVEMENT_CATALOGUE.filter(
     d => (achievementsMap[d.type as AchievementType]?.earnCount ?? 0) > 0,
-  ).length;
+  );
+  const lockedDefs = ACHIEVEMENT_CATALOGUE.filter(
+    d => (achievementsMap[d.type as AchievementType]?.earnCount ?? 0) === 0,
+  );
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -264,65 +211,114 @@ export default function AchievementsScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}>
 
-        {/* ── Points + tier summary card ── */}
-        <View style={[styles.tierCard, { backgroundColor: palette.surface }]}>
-          <TierRing
-            progress={ringProgress}
-            accentColor={palette.accent}
-            trackColor={palette.ringTrack}
-          />
-          <View style={styles.tierTextBlock}>
-            <Text style={[styles.tierPts, { color: palette.accent }]}>
-              <Text style={{ fontVariant: ['tabular-nums'] }}>{totalPoints}</Text>
-              {' pts'}
-            </Text>
-            <Text style={[styles.tierName, { color: palette.text }]}>
-              {totalPoints >= TIER_LADDER[TIER_LADDER.length - 1].at
-                ? 'Gold tier'
-                : `${Math.max(nextTier.at - totalPoints, 0)} pts to ${nextTier.name}`}
-            </Text>
-            <Text style={[styles.tierEarned, { color: palette.muted }]}>
-              <Text style={{ fontVariant: ['tabular-nums'] }}>{earnedCount}</Text>
-              {` / ${ACHIEVEMENT_CATALOGUE.length} earned`}
-            </Text>
-          </View>
-        </View>
+        {/* ── Tier header card ── */}
+        <View style={[styles.tierCard, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+          <View style={styles.tierRow}>
 
-        {/* ── Section label ── */}
-        <Text style={[styles.sectionLabel, { color: palette.muted }]}>ACHIEVEMENTS</Text>
+            {/* Left: total points */}
+            <View style={styles.tierLeft}>
+              <Text style={[styles.totalLabel, { color: palette.muted }]}>TOTAL POINTS</Text>
+              <Text style={[styles.totalNumber, { color: palette.text }]}>
+                <Text style={{ fontVariant: ['tabular-nums'] }}>{totalPoints}</Text>
+              </Text>
+              <Text style={[styles.totalCaption, { color: palette.muted }]}>points earned so far</Text>
+            </View>
 
-        {/* ── 2-column grid ── */}
-        <View style={styles.grid}>
-          {ACHIEVEMENT_CATALOGUE.map(catDef => {
-            const type      = catDef.type as AchievementType;
-            const entry     = achievementsMap[type];
-            const earned    = (entry?.earnCount ?? 0) > 0;
-            const earnCount = entry?.earnCount ?? 0;
-
-            // Centurion progress = totalPoints (meta-achievement)
-            const rawProgress = type === 'centurion'
-              ? totalPoints
-              : (entry?.progress ?? 0);
-
-            // Look up point value from ACHIEVEMENT_DEFS
-            const def    = ACHIEVEMENT_DEFS[type];
-            const points = def?.points ?? 0;
-            const target = def?.target ?? 1;
-
-            return (
-              <AchievementCard
-                key={type}
-                catalogueDef={catDef}
-                earned={earned}
-                earnCount={earnCount}
-                progress={rawProgress}
-                target={target}
-                points={points}
-                palette={palette}
+            {/* Right: medal + caption */}
+            <View style={styles.tierRight}>
+              <TierMedal
+                tier={nextTier}
+                earned={maxed}
+                pct={maxed ? null : bandPct}
+                size={96}
               />
-            );
-          })}
+              {maxed ? (
+                <Text style={[styles.medalCaption, { color: palette.muted }]}>
+                  {'Top tier · '}
+                  <Text style={{ color: nextTier.color, fontWeight: '600' }}>{nextTier.name}</Text>
+                </Text>
+              ) : (
+                <Text style={[styles.medalCaption, { color: palette.muted }]}>
+                  <Text style={{ color: nextTier.color, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
+                    {toGo} pts
+                  </Text>
+                  {' to '}{nextTier.name}
+                </Text>
+              )}
+            </View>
+
+          </View>
+
+          {/* Divider */}
+          <View style={[styles.tierDivider, { backgroundColor: palette.line }]} />
+
+          {/* Ladder */}
+          <TierLadder points={totalPoints} />
         </View>
+
+        {/* ── Earned achievements ── */}
+        {earnedDefs.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { color: palette.muted }]}>
+              {`EARNED · ${earnedDefs.length}`}
+            </Text>
+            <View style={styles.grid}>
+              {earnedDefs.map(catDef => {
+                const type      = catDef.type as AchievementType;
+                const entry     = achievementsMap[type];
+                const earnCount = entry?.earnCount ?? 0;
+                const rawProgress = type === 'centurion' ? totalPoints : (entry?.progress ?? 0);
+                const def    = ACHIEVEMENT_DEFS[type];
+                const points = def?.points ?? 0;
+                const target = def?.target ?? 1;
+                return (
+                  <AchievementCard
+                    key={type}
+                    catalogueDef={catDef}
+                    earned={true}
+                    earnCount={earnCount}
+                    progress={rawProgress}
+                    target={target}
+                    points={points}
+                    palette={palette}
+                  />
+                );
+              })}
+            </View>
+          </>
+        )}
+
+        {/* ── Locked achievements ── */}
+        {lockedDefs.length > 0 && (
+          <>
+            <Text style={[styles.sectionLabel, { color: palette.muted }]}>
+              {`LOCKED · ${lockedDefs.length}`}
+            </Text>
+            <View style={styles.grid}>
+              {lockedDefs.map(catDef => {
+                const type      = catDef.type as AchievementType;
+                const entry     = achievementsMap[type];
+                const rawProgress = type === 'centurion' ? totalPoints : (entry?.progress ?? 0);
+                const def    = ACHIEVEMENT_DEFS[type];
+                const points = def?.points ?? 0;
+                const target = def?.target ?? 1;
+                return (
+                  <AchievementCard
+                    key={type}
+                    catalogueDef={catDef}
+                    earned={false}
+                    earnCount={0}
+                    progress={rawProgress}
+                    target={target}
+                    points={points}
+                    palette={palette}
+                  />
+                );
+              })}
+            </View>
+          </>
+        )}
+
       </ScrollView>
     </View>
   );
@@ -358,35 +354,59 @@ const styles = StyleSheet.create({
   scroll:  { flex: 1 },
   content: {
     paddingHorizontal: spacing.page,
-    paddingTop:        20,
+    paddingTop:        4,
     gap:               16,
   },
 
-  // ── Tier summary card ──
+  // ── Tier header card ──
   tierCard: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            16,
-    borderRadius:   radius.card,
-    padding:        18,
+    borderRadius: 20,
+    padding:      18,
+    borderWidth:  1,
   },
-  tierTextBlock: {
-    flex: 1,
-    gap:  4,
+  tierRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           16,
   },
-  tierPts: {
-    fontSize:   22,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
+  tierLeft: {
+    flex:     1,
+    minWidth: 0,
   },
-  tierName: {
-    fontSize:   14,
-    fontWeight: '500',
-    fontFamily: 'Geist-Medium',
+  totalLabel: {
+    fontSize:      11,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    letterSpacing: 0.15 * 11,
+    textTransform: 'uppercase',
   },
-  tierEarned: {
-    fontSize:   13,
+  totalNumber: {
+    fontSize:      58,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    lineHeight:    58,
+    letterSpacing: -0.04 * 58,
+    marginTop:     8,
+  },
+  totalCaption: {
+    fontSize:   12.5,
     fontFamily: 'Geist-Regular',
+    marginTop:  8,
+  },
+  tierRight: {
+    alignItems: 'center',
+    gap:        10,
+  },
+  medalCaption: {
+    fontSize:  12.5,
+    fontFamily: 'Geist-Regular',
+    textAlign: 'center',
+  },
+  tierDivider: {
+    height:           1,
+    marginHorizontal: -18,
+    marginTop:        16,
+    marginBottom:     14,
   },
 
   // ── Section label ──
@@ -395,7 +415,7 @@ const styles = StyleSheet.create({
     fontWeight:    '500',
     fontFamily:    'Geist-Medium',
     letterSpacing: 0.8,
-    marginTop:     4,
+    paddingTop:    24,
     marginBottom:  -4,
   },
 

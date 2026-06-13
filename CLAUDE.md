@@ -334,8 +334,8 @@ Three parallel tracks. Build order within each track must be respected.
 
 | Ticket | Title | Status |
 |--------|-------|--------|
-| KAN-135 | Shared components: TierMedal + TierLadder + 6-tier data model | 🔲 Ready |
-| KAN-136 | Achievements screen: tier header redesign | 🔲 Blocked by KAN-135 |
+| KAN-135 | Shared components: TierMedal + TierLadder + 6-tier data model | ✅ Done |
+| KAN-136 | Achievements screen: tier header redesign | ✅ Done |
 | KAN-137 | Profile screen: Points & Achievements card redesign | 🔲 Blocked by KAN-135 |
 
 ---
