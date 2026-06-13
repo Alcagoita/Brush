@@ -55,6 +55,8 @@ export interface User {
    * User-controlled feature preferences stored on the root user document.
    * Using a nested object keeps the root document flat for other flags.
    */
+  /** Set to true once the user completes the guided first-run onboarding (KAN-140). */
+  onboardingDone?: boolean;
   poiPreferences?: {
     /**
      * When true, geofence monitoring is paused whenever battery drops below

@@ -17,6 +17,7 @@ import { useFCM } from './src/hooks/useFCM';
 import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
 import LoginScreen from './src/screens/LoginScreen';
 import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 import NetworkBanner from './src/components/NetworkBanner';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
@@ -79,16 +80,24 @@ function AppShell() {
       });
   }, [user, loading, displayUser]);
 
-  // ── Username check (KAN-97) ───────────────────────────────────────────────
+  // ── Username + onboarding check (KAN-97 / KAN-140) ──────────────────────
   // null = still loading, false = needs setup, true = ready
-  const [hasUsername, setHasUsername] = useState<boolean | null>(null);
+  const [hasUsername,    setHasUsername]    = useState<boolean | null>(null);
+  const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (!displayUser) { setHasUsername(null); return; }
+    if (!displayUser) { setHasUsername(null); setOnboardingDone(null); return; }
     let cancelled = false;
     getUser(displayUser.uid)
-      .then(userData => { if (!cancelled) { setHasUsername(!!userData?.username); } })
-      .catch(() => { if (!cancelled) { setHasUsername(false); } });
+      .then(userData => {
+        if (!cancelled) {
+          setHasUsername(!!userData?.username);
+          setOnboardingDone(!!userData?.onboardingDone);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) { setHasUsername(false); setOnboardingDone(false); }
+      });
     return () => { cancelled = true; };
   }, [displayUser]);
 
@@ -263,14 +272,20 @@ function AppShell() {
       <NetworkBanner />
       <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
         {displayUser ? (
-          hasUsername === null ? (
-            // Still resolving whether username exists — hold on the spinner.
+          hasUsername === null || onboardingDone === null ? (
+            // Still resolving user state — hold on the spinner.
             <View style={[styles.splash, { backgroundColor: palette.bg }]}>
               <ActivityIndicator size="large" color={palette.accent} />
             </View>
           ) : !hasUsername ? (
             // New user (or user without a username) — collect it before entering the app.
             <UsernameSetupScreen onComplete={() => setHasUsername(true)} />
+          ) : !onboardingDone ? (
+            // First-run: guided onboarding before landing on Today (KAN-140).
+            <OnboardingScreen
+              uid={displayUser!.uid}
+              onComplete={() => setOnboardingDone(true)}
+            />
           ) : (
             <NavigationContainer ref={navigationRef} linking={LINKING_CONFIG}>
               <AppNavigator />
