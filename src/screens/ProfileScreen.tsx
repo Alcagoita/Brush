@@ -1,13 +1,10 @@
 /**
- * ProfileScreen — KAN-112
- *
- * Full redesign. Gamification (points + achievements) is the visual centrepiece.
- * Supersedes KAN-18.
+ * ProfileScreen — KAN-112 / KAN-137
  *
  * Sections:
  *   1. Identity card — avatar (60px, initial letter, camera badge), name/username/email, edit
  *   2. Share my profile row → Share sheet (KAN-115)
- *   3. Points hero card — 116px accent ring, next-reward column, streak chip
+ *   3. Points hero card — TierMedal(92px) + lifetime total + streak chip (KAN-137)
  *   4. Achievements card — horizontal medal strip, "See all" → KAN-114
  *   5. Settings entry row → KAN-113
  */
@@ -22,8 +19,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { useAnimatedProps, useSharedValue, withTiming } from 'react-native-reanimated';
-import Svg, { Circle } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -56,71 +51,13 @@ import {
 } from '../services/firestore';
 import type { AchievementsMap } from '../types';
 import { ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
-import { TIER_LADDER, getNextTier as computeNextTier } from '../services/achievements';
+import { deriveTierStanding } from '../constants/tiers';
+import TierMedal from '../components/TierMedal';
 import ShareProfileSheet from '../components/ShareProfileSheet';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-// TIER_LADDER and getNextTier imported from services/achievements (KAN-129).
-// ACHIEVEMENT_CATALOGUE imported from AchievementTile.
-
-/** Alias so internal usages keep the same call site. */
-function getNextTier(points: number): { name: string; at: number } {
-  return computeNextTier(points);
-}
-
-// ─── V1 achievement set derived from catalogue (KAN-129) ──────────────────────
-
 const V1_ACHIEVEMENTS = ACHIEVEMENT_CATALOGUE;
-
-// ─── Points ring ──────────────────────────────────────────────────────────────
-
-const AnimatedCircle = Animated.createAnimatedComponent(Circle);
-
-interface PointsRingProps {
-  progress:    number;
-  size?:       number;
-  strokeWidth?: number;
-  accentColor: string;
-  trackColor:  string;
-}
-
-function PointsRingView({
-  progress,
-  size        = 116,
-  strokeWidth = 11,
-  accentColor,
-  trackColor,
-}: PointsRingProps) {
-  const progressSV = useSharedValue(0);
-  useEffect(() => {
-    progressSV.value = withTiming(Math.min(Math.max(progress, 0), 1), { duration: 600 });
-  }, [progress, progressSV]);
-
-  const r            = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * r;
-  const cx            = size / 2;
-
-  const arcProps = useAnimatedProps(() => ({
-    strokeDasharray:  circumference,
-    strokeDashoffset: circumference * (1 - progressSV.value),
-  }));
-
-  return (
-    <Svg width={size} height={size} style={{ transform: [{ rotate: '-90deg' }] }}>
-      <Circle
-        cx={cx} cy={cx} r={r}
-        strokeWidth={strokeWidth} stroke={trackColor} fill="none"
-      />
-      <AnimatedCircle
-        cx={cx} cy={cx} r={r}
-        strokeWidth={strokeWidth} stroke={accentColor} fill="none"
-        strokeLinecap="round"
-        animatedProps={arcProps}
-      />
-    </Svg>
-  );
-}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -238,9 +175,7 @@ export default function ProfileScreen() {
   };
 
   // ── Derived ────────────────────────────────────────────────────────────────
-  const nextTier    = getNextTier(totalPoints);
-  const ringProgress = nextTier.at > 0 ? Math.min(totalPoints / nextTier.at, 1) : 1;
-  const ptsToGo     = Math.max(nextTier.at - totalPoints, 0);
+  const { nextTier, maxed, bandPct, toGo } = deriveTierStanding(totalPoints);
 
   // KAN-129: achievements is now AchievementsMap — keyed by AchievementType.
   const earnedCount = V1_ACHIEVEMENTS.filter(
@@ -427,79 +362,47 @@ export default function ProfileScreen() {
           POINTS &amp; ACHIEVEMENTS
         </Text>
 
-        {/* ── 3. Points hero card ── */}
-        <View style={[styles.heroCard, { backgroundColor: palette.surface, overflow: 'hidden' }]}>
-          {/* Decorative halo */}
-          <View
-            style={[styles.heroHalo, { backgroundColor: palette.nearTint }]}
-            pointerEvents="none"
-          />
-
-          {/* Content row */}
+        {/* ── 3. Points hero card (KAN-137) ── */}
+        <View style={[styles.heroCard, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           <View style={styles.heroContentRow}>
-            {/* Ring with centered label */}
-            <View style={styles.ringWrap}>
-              <PointsRingView
-                progress={ringProgress}
-                size={116}
-                strokeWidth={11}
-                accentColor={palette.accent}
-                trackColor={palette.ringTrack}
-              />
-              <View style={styles.ringCenter} pointerEvents="none">
-                <Text
-                  style={[styles.ringPoints, { color: palette.accent }]}
-                  accessibilityLabel={`${totalPoints} points`}>
-                  {totalPoints}
-                </Text>
-                <Text style={[styles.ringPtsLabel, { color: palette.muted }]}>PTS</Text>
-              </View>
-            </View>
 
-            {/* Reward column */}
-            <View style={styles.rewardCol}>
-              <Text style={[styles.nextRewardLabel, { color: palette.muted }]}>NEXT REWARD</Text>
+            {/* Left column */}
+            <View style={styles.heroLeft}>
+              <Text style={[styles.totalPtsLabel, { color: palette.muted }]}>TOTAL POINTS</Text>
+              <Text
+                style={[styles.totalPtsNumber, { color: palette.text }]}
+                accessibilityLabel={`${totalPoints} points`}>
+                {totalPoints}
+              </Text>
+              <Text style={[styles.toGoCaption, { color: palette.muted }]}>
+                {maxed ? (
+                  <>{'Top tier · '}<Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>{nextTier.name}</Text></>
+                ) : (
+                  <><Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>{toGo} pts</Text>{` to ${nextTier.name}`}</>
+                )}
+              </Text>
 
-              <View style={styles.rewardRow}>
-                <View style={[styles.medalCircleSmall, { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder }]}>
-                  <LockIcon color={palette.faint} size={16} />
+              {currentStreak > 0 ? (
+                <View style={[styles.streakChip, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}>
+                  <FlameIcon color={palette.nearText} size={16} />
+                  <Text style={[styles.streakText, { color: palette.nearText }]}>
+                    <Text style={{ fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>
+                      {currentStreak}
+                    </Text>
+                    {'-day streak'}
+                  </Text>
                 </View>
-                <Text style={[styles.rewardName, { color: palette.text }]}>
-                  {nextTier.name} badge
-                </Text>
-              </View>
-
-              {/* Progress bar */}
-              <View style={[styles.progressTrack, { backgroundColor: palette.ringTrack }]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    { backgroundColor: palette.accent, width: `${Math.round(ringProgress * 100)}%` as any },
-                  ]}
-                />
-              </View>
-
-              <Text style={[styles.rewardCaption, { color: palette.muted }]}>
-                <Text style={{ color: palette.text, fontFamily: 'Geist-SemiBold', fontWeight: '600' }}>
-                  {ptsToGo} pts
-                </Text>
-                {' '}to go · earned through achievements
-              </Text>
+              ) : null}
             </View>
+
+            {/* Right column — TierMedal */}
+            <TierMedal
+              tier={nextTier}
+              earned={maxed}
+              pct={maxed ? null : bandPct}
+              size={92}
+            />
           </View>
-
-          {/* Streak chip */}
-          {currentStreak > 0 ? (
-            <View style={[styles.streakChip, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}>
-              <FlameIcon color={palette.nearText} size={15} />
-              <Text style={[styles.streakText, { color: palette.nearText }]}>
-                <Text style={{ fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>
-                  {currentStreak}
-                </Text>
-                {'-day streak'}
-              </Text>
-            </View>
-          ) : null}
         </View>
 
         {/* ── 4. Achievements card ── */}
@@ -607,8 +510,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   navBtn: {
-    width:          40,
-    height:         40,
+    width:          44,
+    height:         44,
     alignItems:     'center',
     justifyContent: 'center',
   },
@@ -769,104 +672,54 @@ const styles = StyleSheet.create({
     marginBottom:  -4,
   },
 
-  // ── Points hero card ──
+  // ── Points hero card (KAN-137) ──
   heroCard: {
     borderRadius: 20,
     padding:      18,
-  },
-  heroHalo: {
-    position:      'absolute',
-    width:         160,
-    height:        160,
-    borderRadius:  80,
-    top:           -48,
-    right:         -48,
+    borderWidth:  1,
   },
   heroContentRow: {
     flexDirection: 'row',
-    gap:           18,
+    gap:           16,
     alignItems:    'center',
   },
-  ringWrap: {
-    width:          116,
-    height:         116,
-    alignItems:     'center',
-    justifyContent: 'center',
-    flexShrink:     0,
+  heroLeft: {
+    flex:     1,
+    minWidth: 0,
   },
-  ringCenter: {
-    position:       'absolute',
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  ringPoints: {
-    fontSize:    42,
-    fontWeight:  '500',
-    fontFamily:  'Geist-Medium',
-    fontVariant: ['tabular-nums'],
-    lineHeight:  44,
-  },
-  ringPtsLabel: {
+  totalPtsLabel: {
     fontSize:      11,
     fontWeight:    '500',
     fontFamily:    'Geist-Medium',
-    letterSpacing: 0.8,
+    letterSpacing: 1.65,
+    textTransform: 'uppercase',
   },
-  rewardCol: {
-    flex: 1,
-    gap:  8,
-  },
-  nextRewardLabel: {
-    fontSize:      11,
+  totalPtsNumber: {
+    fontSize:      56,
     fontWeight:    '500',
     fontFamily:    'Geist-Medium',
-    letterSpacing: 0.7,
+    lineHeight:    56,
+    letterSpacing: -2.24,
+    fontVariant:   ['tabular-nums'],
+    marginTop:     8,
   },
-  rewardRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           8,
-  },
-  medalCircleSmall: {
-    width:          30,
-    height:         30,
-    borderRadius:   15,
-    borderWidth:    1,
-    alignItems:     'center',
-    justifyContent: 'center',
-    flexShrink:     0,
-  },
-  rewardName: {
-    fontSize:   18,
-    fontWeight: '500',
-    fontFamily: 'Geist-Medium',
-  },
-  progressTrack: {
-    height:       6,
-    borderRadius: 999,
-    overflow:     'hidden',
-  },
-  progressFill: {
-    height:       6,
-    borderRadius: 999,
-  },
-  rewardCaption: {
+  toGoCaption: {
     fontSize:   12.5,
     fontFamily: 'Geist-Regular',
-    lineHeight: 17,
+    marginTop:  8,
   },
   streakChip: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:             5,
-    alignSelf:      'flex-start',
-    marginTop:      16,
-    paddingTop:     7,
-    paddingBottom:  7,
-    paddingLeft:    10,
-    paddingRight:   12,
-    borderRadius:   999,
-    borderWidth:    1,
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:            8,
+    alignSelf:     'flex-start',
+    marginTop:     14,
+    paddingTop:    7,
+    paddingBottom: 7,
+    paddingLeft:   10,
+    paddingRight:  12,
+    borderRadius:  999,
+    borderWidth:   1,
   },
   streakText: {
     fontSize:   13,
