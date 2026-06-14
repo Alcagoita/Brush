@@ -38,6 +38,7 @@ import {
   View,
 } from 'react-native';
 import { PlusIcon } from '../components/AppIcon';
+import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import Animated, {
   Extrapolation,
   interpolate,
@@ -69,6 +70,7 @@ import { useTodayScreen } from '../hooks/useTodayScreen';
 import { subscribeToIncomingSharedTasks } from '../services/sharing';
 import { subscribeToTotalPoints } from '../services/firestore';
 import { COPY } from '../constants/copy';
+import { todayISO } from '../utils/date';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
@@ -93,14 +95,23 @@ const CAPTION_FADE_END = SCROLL_RANGE * 0.625;
 const COUNTER_FADE_START = SCROLL_RANGE * 0.45;
 const COUNTER_FADE_END   = SCROLL_RANGE * 0.91;
 
+// ─── Empty-state message set (KAN-139) ───────────────────────────────────────
+
+const EMPTY_MESSAGES: NudgeMessage[] = [
+  { text: "Nothing on today. That doesn’t mean nothing matters." },
+  { text: "Don’t you feel the need for bread?",                  poi: "supermarket", color: "#8b6bc4" },
+  { text: "Maybe today’s a good day for coffee outside.",        poi: "cafe",        color: "#e8a86a" },
+  { text: "Might be worth grabbing some cash while you’re out.", poi: "atm",         color: "#8b6bc4" },
+  { text: "Anything in the cabinet running low?",                     poi: "pharmacy",    color: "#5ba87a" },
+  { text: "Something in the fridge is probably asking to be replaced.", poi: "supermarket", color: "#8b6bc4" },
+  { text: "A clear day is a gift. What will you do with it?" },
+  { text: "What’s the one thing future-you will thank you for?" },
+];
+
 // ─── Date helpers ─────────────────────────────────────────────────────────────
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MONTHS   = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
 
 // ─── Skeleton row ─────────────────────────────────────────────────────────────
 
@@ -227,6 +238,9 @@ export default function TodayScreen() {
   const pct       = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const remaining = totalTasks - doneTasks;
 
+  // ── Empty state flag ──────────────────────────────────────────────────────────
+  const isEmpty = tasksState.status === 'success' && tasks.length === 0;
+
   // ── Animated styles (UI thread) ───────────────────────────────────────────────
   const sectionStyle = useAnimatedStyle(() => ({
     height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
@@ -282,95 +296,113 @@ export default function TodayScreen() {
         />
       </View>
 
-      {/* ── Scroll area — ring section overlaid on ScrollView ── */}
+      {/* ── Scroll area — ring section overlaid on content ── */}
       <View style={styles.scrollArea}>
 
-        {/*
-          The ScrollView fills the entire scrollArea (absoluteFill).
-          paddingTop = SECTION_H_REST means content always starts 320px down,
-          directly below where the ring section sits at rest. As the ring
-          section collapses by SCROLL_RANGE (170px), content scrolls up the
-          same distance — they stay in perfect alignment throughout.
-          Content height is now STABLE (ring section is outside ScrollView),
-          so scrollY can always reach SCROLL_RANGE.
-        */}
-        <Animated.ScrollView
-          style={StyleSheet.absoluteFill}
-          contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.bg }]}
-          showsVerticalScrollIndicator={false}
-          scrollEventThrottle={1}
-          onScroll={scrollHandler}>
-
-          {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
-          <NearbyCard
-            tasks={effectiveTasks}
-            nearbyPoiType={nearbyPoiType}
-            nearbyPlace={nearbyPlace}
-            poiPlaces={poiPlaces}
-            trackingPaused={trackingPaused}
-            storeTuningActive={storeTuningActive}
-          />
-
-          {/* ── Task list ── */}
-          <View style={[styles.section, { borderTopColor: palette.line }]}>
-            <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionTitle, { color: palette.muted }]}>
-                {`TODAY · `}
-                <Text style={[styles.sectionTitleCount, { color: palette.text }]}
-                  accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
-                  {`${doneTasks}/${totalTasks}`}
+        {isEmpty ? (
+          /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
+          <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
+            <ScrRotatingNudge messages={EMPTY_MESSAGES} pace={5} showCategoryIcon />
+            <View style={styles.emptyCTAWrap}>
+              <Pressable
+                style={({ pressed }) => [
+                  styles.emptyCTABtn,
+                  { backgroundColor: palette.accent },
+                  pressed && styles.emptyCTABtnPressed,
+                ]}
+                onPress={() => setSheetVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Add something">
+                <PlusIcon color={palette.text} size={20} />
+                <Text style={[styles.emptyCTALabel, { color: palette.text }]}>
+                  Add something
                 </Text>
+              </Pressable>
+              <Text style={[styles.emptyCTAHelper, { color: palette.faint }]}>
+                {'Those are just passing thoughts. Add what’s actually yours.'}
               </Text>
-              {remaining > 0 && (
-                <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
-                  {`${remaining} left`}
+            </View>
+          </View>
+        ) : (
+          /*
+            The ScrollView fills the entire scrollArea (absoluteFill).
+            paddingTop = SECTION_H_REST means content always starts 320px down,
+            directly below where the ring section sits at rest. As the ring
+            section collapses by SCROLL_RANGE (170px), content scrolls up the
+            same distance — they stay in perfect alignment throughout.
+          */
+          <Animated.ScrollView
+            style={StyleSheet.absoluteFill}
+            contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.bg }]}
+            showsVerticalScrollIndicator={false}
+            scrollEventThrottle={1}
+            onScroll={scrollHandler}>
+
+            {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
+            <NearbyCard
+              tasks={effectiveTasks}
+              nearbyPoiType={nearbyPoiType}
+              nearbyPlace={nearbyPlace}
+              poiPlaces={poiPlaces}
+              trackingPaused={trackingPaused}
+              storeTuningActive={storeTuningActive}
+            />
+
+            {/* ── Task list ── */}
+            <View style={[styles.section, { borderTopColor: palette.line }]}>
+              <View style={styles.sectionHeader}>
+                <Text style={[styles.sectionTitle, { color: palette.muted }]}>
+                  {`TODAY · `}
+                  <Text style={[styles.sectionTitleCount, { color: palette.text }]}
+                    accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
+                    {`${doneTasks}/${totalTasks}`}
+                  </Text>
                 </Text>
+                {remaining > 0 && (
+                  <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
+                    {`${remaining} left`}
+                  </Text>
+                )}
+              </View>
+
+              {tasksState.status === 'loading' ? (
+                [0, 1, 2].map(i => (
+                  <SkeletonRow key={i} index={i} faint={palette.faint} />
+                ))
+              ) : tasksState.status === 'error' ? (
+                <View style={styles.errorWrap}>
+                  <Text
+                    style={[styles.empty, { color: palette.muted }]}
+                    accessibilityRole="alert">
+                    {tasksState.message || 'Could not load tasks. Please try again.'}
+                  </Text>
+                  <Pressable
+                    onPress={() => setRetryKey(k => k + 1)}
+                    style={[styles.retryBtn, { borderColor: palette.line }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Try again">
+                    <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                effectiveTasks.map(task => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    nearbyPoiType={nearbyPoiType}
+                    onToggle={handleToggle}
+                    onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
+                    customCategories={customCategories}
+                  />
+                ))
               )}
             </View>
 
-            {tasksState.status === 'loading' ? (
-              // Skeleton rows while Firestore loads
-              [0, 1, 2].map(i => (
-                <SkeletonRow key={i} index={i} faint={palette.faint} />
-              ))
-            ) : tasksState.status === 'error' ? (
-              // Error state — show message + retry button (KAN-58)
-              <View style={styles.errorWrap}>
-                <Text
-                  style={[styles.empty, { color: palette.muted }]}
-                  accessibilityRole="alert">
-                  {tasksState.message || 'Could not load tasks. Please try again.'}
-                </Text>
-                <Pressable
-                  onPress={() => setRetryKey(k => k + 1)}
-                  style={[styles.retryBtn, { borderColor: palette.line }]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Try again">
-                  <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
-                </Pressable>
-              </View>
-            ) : tasks.length === 0 ? (
-              <Text style={[styles.empty, { color: palette.muted }]}>
-                {COPY.emptyState.todayNoTasks}
-              </Text>
-            ) : (
-              effectiveTasks.map(task => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  nearbyPoiType={nearbyPoiType}
-                  onToggle={handleToggle}
-                  onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
-                  customCategories={customCategories}
-                />
-              ))
-            )}
-          </View>
+            <View style={styles.bottomPad} />
+          </Animated.ScrollView>
+        )}
 
-          <View style={styles.bottomPad} />
-        </Animated.ScrollView>
-
-        {/* ── Collapsible ring section — absolutely positioned ON TOP of ScrollView ── */}
+        {/* ── Collapsible ring section — absolutely positioned ON TOP of content ── */}
         <Animated.View
           style={[
             styles.ringSection,
@@ -402,12 +434,16 @@ export default function TodayScreen() {
                 {day}
               </Text>
             </Pressable>
-            <Text style={[styles.captionSub, { color: palette.muted }]}>
-              {`${month} · `}
-              <Text style={[styles.captionSubBold, { color: palette.text }]}>
-                {`${nearbyCount} nearby`}
+            {isEmpty ? (
+              <Text style={[styles.captionSub, { color: palette.muted }]}>{month}</Text>
+            ) : (
+              <Text style={[styles.captionSub, { color: palette.muted }]}>
+                {`${month} · `}
+                <Text style={[styles.captionSubBold, { color: palette.text }]}>
+                  {`${nearbyCount} nearby`}
+                </Text>
               </Text>
-            </Text>
+            )}
           </Animated.View>
 
           {/* Compact ring caption — fades in with the progress panel */}
@@ -451,18 +487,20 @@ export default function TodayScreen() {
 
       </View>
 
-      {/* ── Add-task FAB (KAN-51) ── */}
-      <Pressable
-        style={({ pressed }) => [
-          styles.fab,
-          { backgroundColor: palette.accent },
-          pressed && styles.fabPressed,
-        ]}
-        onPress={() => setSheetVisible(true)}
-        accessibilityRole="button"
-        accessibilityLabel="Add task">
-        <PlusIcon color="#FFFFFF" size={24} />
-      </Pressable>
+      {/* ── Add-task FAB (KAN-51) — hidden on empty state (CTA replaces it) ── */}
+      {!isEmpty && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.fab,
+            { backgroundColor: palette.accent },
+            pressed && styles.fabPressed,
+          ]}
+          onPress={() => setSheetVisible(true)}
+          accessibilityRole="button"
+          accessibilityLabel="Add task">
+          <PlusIcon color="#FFFFFF" size={24} />
+        </Pressable>
+      )}
 
       {/* ── New-task bottom sheet (KAN-51) ── */}
       <NewTaskSheet
@@ -674,6 +712,34 @@ const styles = StyleSheet.create({
   // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (170px)
   // even with a short task list.
   bottomPad: { height: 220 },
+  // ── Empty state CTA ──
+  emptyCTAWrap: {
+    paddingHorizontal: spacing.page,
+    paddingBottom:     26,
+  },
+  emptyCTABtn: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'center',
+    height:         54,
+    borderRadius:   16,
+    gap:            8,
+  },
+  emptyCTABtnPressed: {
+    transform: [{ scale: 0.985 }],
+  },
+  emptyCTALabel: {
+    fontSize:      16,
+    fontWeight:    '600',
+    fontFamily:    'Geist-SemiBold',
+    letterSpacing: -0.16,
+  },
+  emptyCTAHelper: {
+    fontSize:   12.5,
+    fontFamily: 'Geist-Regular',
+    textAlign:  'center',
+    marginTop:  12,
+  },
   // ── Add-task FAB ──
   fab: {
     position:     'absolute',

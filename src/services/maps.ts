@@ -217,58 +217,94 @@ const GENERIC_PLACE_TYPES = new Set([
  * category location types.
  */
 export const PLACE_TYPE_LABELS: Record<string, string> = {
+  // Food & drink
   atm:                  'ATM',
+  bakery:               'Bakery',
   bank:                 'Bank',
   bar:                  'Bar',
-  beauty_salon:         'Beauty Salon',
-  book_store:           'Book Store',
   cafe:                 'Café',
-  car_repair:           'Car Repair',
-  car_wash:             'Car Wash',
-  clothing_store:       'Clothing Store',
-  convenience_store:    'Convenience Store',
+  fast_food_restaurant: 'Fast Food',
+  night_club:           'Night Club',
+  restaurant:           'Restaurant',
+
+  // Health
   dentist:              'Dentist',
-  department_store:     'Department Store',
   doctor:               'Doctor',
   drugstore:            'Drugstore',
-  electronics_store:    'Electronics Store',
-  fast_food_restaurant: 'Fast Food',
-  fitness_center:       'Fitness Center',
-  florist:              'Florist',
-  gas_station:          'Gas Station',
-  grocery_store:        'Grocery Store',
   gym:                  'Gym',
+  fitness_center:       'Fitness Center',
+  hospital:             'Hospital',
+  pharmacy:             'Pharmacy',
+  physiotherapist:      'Physiotherapist',
+  spa:                  'Spa',
+  sports_complex:       'Sports Complex',
+  veterinary_care:      'Veterinary',
+
+  // Shopping & retail
+  beauty_salon:         'Beauty Salon',
+  bicycle_store:        'Bicycle Store',
+  book_store:           'Book Store',
+  car_dealer:           'Car Dealer',
+  car_rental:           'Car Rental',
+  clothing_store:       'Clothing Store',
+  convenience_store:    'Convenience Store',
+  department_store:     'Department Store',
+  electronics_store:    'Electronics Store',
+  florist:              'Florist',
+  grocery_store:        'Grocery Store',
   hair_care:            'Hair Salon',
   hardware_store:       'Hardware Store',
   home_goods_store:     'Home Goods',
-  hospital:             'Hospital',
   jewelry_store:        'Jewelry Store',
   laundry:              'Laundry',
-  library:              'Library',
   liquor_store:         'Liquor Store',
+  locksmith:            'Locksmith',
   meal_delivery:        'Delivery',
   meal_takeaway:        'Takeaway',
-  movie_theater:        'Movie Theater',
-  museum:               'Museum',
-  night_club:           'Night Club',
-  park:                 'Park',
   pet_store:            'Pet Store',
-  pharmacy:             'Pharmacy',
-  physiotherapist:      'Physiotherapist',
-  post_office:          'Post Office',
-  restaurant:           'Restaurant',
-  school:               'School',
+  shoe_store:           'Shoe Store',
   shopping_mall:        'Shopping Mall',
-  spa:                  'Spa',
-  sports_complex:       'Sports Complex',
-  stadium:              'Stadium',
   storage:              'Storage',
-  subway_station:       'Subway Station',
   supermarket:          'Supermarket',
-  tourist_attraction:   'Tourist Attraction',
+
+  // Services & finance
+  accounting:           'Accounting',
+  car_repair:           'Car Repair',
+  car_wash:             'Car Wash',
+  city_hall:            'City Hall',
+  gas_station:          'Gas Station',
+  insurance_agency:     'Insurance',
+  post_office:          'Post Office',
+  real_estate_agency:   'Real Estate',
+
+  // Transport
+  airport:              'Airport',
+  bus_station:          'Bus Station',
+  light_rail_station:   'Light Rail',
+  subway_station:       'Subway Station',
+  taxi_stand:           'Taxi',
   train_station:        'Train Station',
+  transit_station:      'Transit Station',
+
+  // Education & culture
+  art_gallery:          'Art Gallery',
+  library:              'Library',
+  museum:               'Museum',
+  primary_school:       'Primary School',
+  school:               'School',
+  secondary_school:     'Secondary School',
   university:           'University',
-  veterinary_care:      'Veterinary',
+
+  // Outdoor & leisure
+  amusement_park:       'Amusement Park',
+  aquarium:             'Aquarium',
+  campground:           'Campground',
+  lodging:              'Hotel',
+  movie_theater:        'Movie Theater',
+  park:                 'Park',
+  stadium:              'Stadium',
+  tourist_attraction:   'Tourist Attraction',
+  zoo:                  'Zoo',
 };
 
 /**
@@ -362,7 +398,7 @@ const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocom
 
 /** A single autocomplete suggestion returned by the Places Autocomplete API. */
 export interface PlaceAutocompleteSuggestion {
-  /** Google Places ID — stored on `Task.store.placeId` for authoritative matching. */
+  /** Google Places ID. */
   placeId: string;
   /** Display name of the establishment (e.g. "Nike Store"). */
   name: string;

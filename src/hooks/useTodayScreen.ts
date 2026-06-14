@@ -20,6 +20,7 @@ import {
   setStoreTuningPref,
   subscribeToPoiPreferences,
   subscribeToTasksForDate,
+  subscribeToUserPreferences,
 } from '../services/firestore';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
@@ -34,6 +35,7 @@ import {
   setLocationTap,
   startProximityMonitoring,
   stopProximityMonitoring,
+  updateNotifNearbyEnabled,
   updateProximityPoiPreferences,
   updateProximityTasks,
 } from '../services/proximity';
@@ -57,12 +59,7 @@ import { getBatteryLevel, shouldPauseForBattery, useBatteryLevel } from '../serv
 import { NearbyPlace } from '../services/maps';
 import { syncTasksToWatch } from '../services/wearSync';
 import { Category, StoreTuningState, Task, TasksUiState } from '../types';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function todayISO(): string {
-  return new Date().toISOString().split('T')[0];
-}
+import { todayISO } from '../utils/date';
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 
@@ -296,6 +293,22 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       updateProximityPoiPreferences(prefs);
     }, (err) => {
       console.warn('[useTodayScreen] poiPreferences subscription error', err);
+    });
+  }, [uid]);
+
+  // ── Nearby-notification preference (KAN-142) ────────────────────────────────
+  // Reset to false on sign-out / uid change so the previous user's setting
+  // never leaks into a new session or a cold start before the snapshot fires.
+
+  useEffect(() => {
+    if (!uid) {
+      updateNotifNearbyEnabled(false);
+      return;
+    }
+    return subscribeToUserPreferences(uid, prefs => {
+      updateNotifNearbyEnabled(prefs.notif_nearby_enabled ?? true);
+    }, (err) => {
+      console.warn('[useTodayScreen] userPreferences subscription error', err);
     });
   }, [uid]);
 

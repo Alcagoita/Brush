@@ -25,6 +25,9 @@ const mockGetDoc      = jest.fn();
 const mockGetDocs     = jest.fn();
 const mockSetDoc      = jest.fn();
 
+const mockBatchUpdate = jest.fn();
+const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
+
 jest.mock('@react-native-firebase/firestore', () => {
   const col  = jest.fn(() => ({ _type: 'collection' }));
   const docFn = jest.fn(() => ({ _type: 'doc' }));
@@ -38,6 +41,7 @@ jest.mock('@react-native-firebase/firestore', () => {
     updateDoc:       jest.fn(),
     deleteDoc:       jest.fn(),
     setDoc:          (...args: unknown[]) => mockSetDoc(...args),
+    writeBatch:      jest.fn(() => ({ update: mockBatchUpdate, commit: mockBatchCommit })),
     query:           jest.fn((...a: unknown[]) => a[0]),
     where:           jest.fn(),
     orderBy:         jest.fn(),
@@ -208,8 +212,9 @@ describe('getPoiPreference', () => {
   it('returns 75 m default for unknown custom type with no stored preference', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
 
-    const pref = await getPoiPreference('uid-1', 'gym');
-    expect(pref).toEqual({ type: 'gym', radiusMeters: 75 });
+    // 'yoga_studio' is not in POI_GEOFENCE_RADIUS so it falls back to DEFAULT_GEOFENCE_RADIUS (75 m)
+    const pref = await getPoiPreference('uid-1', 'yoga_studio');
+    expect(pref).toEqual({ type: 'yoga_studio', radiusMeters: 75 });
   });
 });
 
@@ -308,11 +313,12 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
     );
   });
 
-  it('does NOT alert when user-saved radius is smaller and place is outside it', async () => {
-    // User tightened ATM radius to 25 m.
+  it('alerts when place is within NEARBY_RADIUS (400 m), regardless of user-saved radius (KAN-142)', async () => {
+    // KAN-142 unified the display threshold to NEARBY_RADIUS=400 m.
+    // User preferences no longer gate what appears in the NearbyCard.
     updateProximityPoiPreferences({ atm: 25 });
 
-    // ATM is 40 m away — inside 50 m default but outside 25 m pref.
+    // ATM is 40 m away — beyond the 25 m user pref but within the 400 m threshold.
     mockPlacesResponse([{
       id:          'atm-close',
       displayName: { text: 'Nearby ATM' },
@@ -325,15 +331,18 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
     const locationCb = mockStartTracking.mock.calls[0][0];
     await locationCb(ORIGIN);
 
-    // 40 m > 25 m pref → should NOT be nearby.
-    expect(onUpdate).toHaveBeenCalledWith(null, null, expect.any(Object));
+    // 40 m < NEARBY_RADIUS (400 m) → should be nearby, pref ignored for display.
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ name: 'Nearby ATM' }),
+      expect.any(Object),
+    );
   });
 
-  it('falls back to built-in default when no user pref is stored', async () => {
-    // No prefs set → ATM uses built-in 50 m.
+  it('alerts when place is within NEARBY_RADIUS and no user pref is stored', async () => {
     updateProximityPoiPreferences({});
 
-    // ATM is 30 m away — inside 50 m built-in.
+    // ATM is 30 m away — well within NEARBY_RADIUS (400 m).
     mockPlacesResponse([{
       id:          'atm-near',
       displayName: { text: 'Corner ATM' },
@@ -353,7 +362,7 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
     );
   });
 
-  it('uses DEFAULT_GEOFENCE_RADIUS (75 m) for custom types with no pref stored', async () => {
+  it('alerts for custom POI types (gym) when within NEARBY_RADIUS (400 m)', async () => {
     const gymTask = {
       id:        'task-gym',
       title:     'Workout',
@@ -366,7 +375,7 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
 
     updateProximityPoiPreferences({}); // no gym pref
 
-    // Gym is 60 m away — inside DEFAULT 75 m.
+    // Gym is 60 m away — within NEARBY_RADIUS (400 m).
     mockPlacesResponse([{
       id:          'gym-1',
       displayName: { text: 'Downtown Gym' },
