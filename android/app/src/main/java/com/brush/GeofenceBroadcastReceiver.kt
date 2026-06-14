@@ -12,6 +12,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.facebook.react.ReactApplication
+import com.facebook.react.bridge.ReactContext
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofenceStatusCodes
 import com.google.android.gms.location.GeofencingEvent
@@ -37,9 +38,9 @@ class GeofenceBroadcastReceiver : BroadcastReceiver() {
         val triggeredGeofences = geofencingEvent.triggeringGeofences ?: return
 
         // Forward each triggered geofence to the JS layer via BrushGeofenceModule.
+        // New Architecture uses ReactHost (not ReactNativeHost) to get the context.
         val reactApp = context.applicationContext as? ReactApplication ?: return
-        val reactContext = reactApp.reactNativeHost.reactInstanceManager.currentReactContext
-            ?: return
+        val reactContext: ReactContext = reactApp.reactHost?.currentReactContext ?: return
 
         val geofenceModule = reactContext
             .getNativeModule(BrushGeofenceModule::class.java)

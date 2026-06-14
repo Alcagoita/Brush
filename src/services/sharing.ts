@@ -161,6 +161,28 @@ export function subscribeToIncomingSharedTasks(
   );
 }
 
+/** One-shot fetch of pending incoming shared tasks. */
+export async function getIncomingSharedTasks(uid: string): Promise<SharedTask[]> {
+  const snap = await getDocs(
+    query(
+      collection(getFirestore(), 'sharedTasks', uid, 'incoming'),
+      where('status', '==', 'pending'),
+    ),
+  );
+  return snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<SharedTask, 'id'>) }));
+}
+
+/** One-shot count of pending incoming shared tasks (for badge). */
+export async function getIncomingSharedTasksCount(uid: string): Promise<number> {
+  const snap = await getDocs(
+    query(
+      collection(getFirestore(), 'sharedTasks', uid, 'incoming'),
+      where('status', '==', 'pending'),
+    ),
+  );
+  return snap.size;
+}
+
 /**
  * Accept a shared task: copy it into the recipient's own task collection
  * and remove it from incoming.

@@ -1087,6 +1087,12 @@ export function subscribeToFollowing(
   );
 }
 
+/** One-shot fetch of the users that uid is following, newest first. */
+export async function getFollowing(uid: string): Promise<FollowEntry[]> {
+  const snap = await getDocs(query(followingRef(uid), orderBy('followedAt', 'desc')));
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry));
+}
+
 /**
  * Subscribe to the list of users that follow uid, newest first.
  * Returns an unsubscribe function.
@@ -1107,6 +1113,17 @@ export function subscribeToFollowers(
     },
     onError,
   );
+}
+
+/** One-shot fetch of the users that follow uid, newest first. */
+export async function getFollowers(uid: string): Promise<FollowEntry[]> {
+  const snap = await getDocs(
+    query(
+      collection(getFirestore(), 'users', uid, 'followers'),
+      orderBy('followedAt', 'desc'),
+    ),
+  );
+  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry));
 }
 
 // ─── Store fine tuning preference (KAN-74) ───────────────────────────────────
@@ -1228,6 +1245,18 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
 
   const snap = await getDocs(q);
   return snap.docs.length;
+}
+
+// ─── One-shot getters (non-subscribing) ──────────────────────────────────────
+
+export async function getCategories(uid: string): Promise<Category[]> {
+  const snap = await getDocs(query(categoriesRef(uid), orderBy('name', 'asc')));
+  return snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
+}
+
+export async function getTotalPoints(uid: string): Promise<number> {
+  const snap = await getDoc(userRef(uid));
+  return (snap.data() as { totalPoints?: number } | undefined)?.totalPoints ?? 0;
 }
 
 // ─── Re-exports for convenience ───────────────────────────────────────────────

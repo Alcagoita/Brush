@@ -61,7 +61,9 @@ jest.mock('../../src/services/firestore', () => ({
 const mockFetch = jest.fn();
 global.fetch    = mockFetch as unknown as typeof fetch;
 
-function mockPlacesResponse(places: Array<{ id: string; displayName: { text: string }; location: { latitude: number; longitude: number } }>) {
+function mockPlacesResponse(
+  places: Array<{ id: string; displayName: { text: string }; location: { latitude: number; longitude: number }; types?: string[] }>,
+) {
   mockFetch.mockResolvedValueOnce({
     ok:   true,
     json: async () => ({ places }),
@@ -139,41 +141,41 @@ describe('searchNearbyPlaces — custom type', () => {
 
   it('passes a built-in type to the Places API via POI_GOOGLE_TYPES mapping', async () => {
     mockPlacesResponse([
-      { id: 'p1', displayName: { text: 'Corner ATM' }, location: { latitude: 1.0, longitude: 2.0 } },
+      { id: 'p1', displayName: { text: 'Corner ATM' }, location: { latitude: 1.0, longitude: 2.0 }, types: ['atm'] },
     ]);
 
-    const results = await searchNearbyPlaces(1.0, 2.0, 'atm', 50);
+    const results = await searchNearbyPlaces(1.0, 2.0, ['atm'], 50);
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string);
     expect(body.includedTypes).toEqual(['atm']); // POI_GOOGLE_TYPES['atm'] = 'atm'
-    expect(results).toHaveLength(1);
-    expect(results[0].name).toBe('Corner ATM');
+    expect(results['atm']).toHaveLength(1);
+    expect(results['atm'][0].name).toBe('Corner ATM');
   });
 
   it('passes a custom type directly to the Places API', async () => {
     mockPlacesResponse([
-      { id: 'g1', displayName: { text: 'City Gym' }, location: { latitude: 10.0, longitude: 20.0 } },
+      { id: 'g1', displayName: { text: 'City Gym' }, location: { latitude: 10.0, longitude: 20.0 }, types: ['gym'] },
     ]);
 
-    const results = await searchNearbyPlaces(10.0, 20.0, 'gym', 75);
+    const results = await searchNearbyPlaces(10.0, 20.0, ['gym'], 75);
 
     const body = JSON.parse((mockFetch.mock.calls[0][1] as RequestInit).body as string);
     // 'gym' has no mapping in POI_GOOGLE_TYPES — it must be passed as-is.
     expect(body.includedTypes).toEqual(['gym']);
-    expect(results[0].name).toBe('City Gym');
+    expect(results['gym'][0].name).toBe('City Gym');
   });
 
   it('returns sorted results for a custom restaurant type', async () => {
     mockPlacesResponse([
-      { id: 'r2', displayName: { text: 'Far Bistro' },  location: { latitude: 10.001, longitude: 20.001 } },
-      { id: 'r1', displayName: { text: 'Near Bistro' }, location: { latitude: 10.0002, longitude: 20.0002 } },
+      { id: 'r2', displayName: { text: 'Far Bistro' },  location: { latitude: 10.001, longitude: 20.001 }, types: ['restaurant'] },
+      { id: 'r1', displayName: { text: 'Near Bistro' }, location: { latitude: 10.0002, longitude: 20.0002 }, types: ['restaurant'] },
     ]);
 
-    const results = await searchNearbyPlaces(10.0, 20.0, 'restaurant', 75);
+    const results = await searchNearbyPlaces(10.0, 20.0, ['restaurant'], 75);
 
-    expect(results[0].name).toBe('Near Bistro');
-    expect(results[1].name).toBe('Far Bistro');
+    expect(results['restaurant'][0].name).toBe('Near Bistro');
+    expect(results['restaurant'][1].name).toBe('Far Bistro');
   });
 });
 

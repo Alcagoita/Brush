@@ -181,9 +181,12 @@ export type AccuracyMode = 'coarse' | 'fine';
 
 const COARSE_OPTIONS: GeoWatchOptions = {
   enableHighAccuracy: false,
-  distanceFilter: 50,          // coarser filter — no need for precision when far away
-  interval: 15_000,            // Android: longer interval saves battery in coarse mode
-  fastestInterval: 8_000,      // Android: floor in coarse mode
+  // 100 m filter + 30 s interval: when all POIs are > 500 m away the display
+  // distance rows don't need frequent updates. Halves Android wakeups vs. the
+  // previous 50 m / 15 s settings and eliminates most stationary callbacks.
+  distanceFilter: 100,
+  interval: 30_000,
+  fastestInterval: 15_000,
   showsBackgroundLocationIndicator: true,
   forceRequestLocation: false,
   accuracy: {
@@ -275,8 +278,9 @@ export function setTrackingAccuracy(mode: AccuracyMode): void {
 }
 
 /**
- * One-shot current position query.
+ * One-shot current position query (high accuracy — GPS).
  * Resolves with the device's current coordinates or rejects with a GeoError.
+ * Use only when GPS-level accuracy is required (e.g. turn-by-turn).
  */
 export function getCurrentPosition(): Promise<Coordinates> {
   return new Promise((resolve, reject) => {
@@ -291,9 +295,40 @@ export function getCurrentPosition(): Promise<Coordinates> {
       reject,
       {
         enableHighAccuracy: true,
-        timeout: 15_000,
-        maximumAge: 10_000,
+        timeout: 5_000,
+        maximumAge: 60_000,
         accuracy: { android: 'high', ios: 'best' }, // was 'bestForNavigation' — KAN-54
+      },
+    );
+  });
+}
+
+/**
+ * One-shot position query using network/cell location only.
+ *
+ * Does NOT wake the GPS hardware. Returns in < 100 ms using a cached or
+ * network-derived fix. Accuracy is 50–200 m, which is sufficient for
+ * proximity detection at 100 m / 400 m thresholds.
+ *
+ * Use this for all background proximity checks to avoid GPS cold-start
+ * latency and the associated system slowdown.
+ */
+export function getPositionLowAccuracy(): Promise<Coordinates> {
+  return new Promise((resolve, reject) => {
+    Geolocation.getCurrentPosition(
+      (position: GeoPosition) =>
+        resolve({
+          lat:       position.coords.latitude,
+          lng:       position.coords.longitude,
+          accuracy:  position.coords.accuracy ?? 999,
+          timestamp: position.timestamp,
+        }),
+      reject,
+      {
+        enableHighAccuracy: false,
+        timeout:    3_000,
+        maximumAge: 5 * 60 * 1_000, // accept a cached fix up to 5 min old
+        accuracy:   { android: 'balanced' as const, ios: 'kilometer' as const },
       },
     );
   });

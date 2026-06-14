@@ -687,6 +687,22 @@ export function MessageIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Refresh (circular arrow) ──────────────────────────────────────────────────
+export function RefreshIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M1 4v6h6"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Path
+        d="M3.51 15a9 9 0 1 0 .49-4"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+    </Svg>
+  );
+}
+
 // ── QR Code ───────────────────────────────────────────────────────────────────
 export function QrCodeIcon({ color, size = 24 }: IconProps) {
   return (
