@@ -44,8 +44,8 @@ export async function logout(): Promise<void> {
   // Lazy require so Jest (CommonJS) and Metro (ESM) both resolve correctly,
   // and to avoid a potential circular-dependency at module load time.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { stopProximityMonitoring } = require('./proximity') as typeof import('./proximity');
-  stopProximityMonitoring();
+  const { resetProximityState } = require('./proximity') as typeof import('./proximity');
+  resetProximityState();
   await firebaseSignOut(getAuth());
 }
 

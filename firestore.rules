@@ -68,6 +68,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ─── User preferences (exitPrompt, lastOpenedAt, etc.) ───────────────────
+      match /userPreferences/{doc} {
+        allow read, write: if isOwner(userId);
+      }
+
       // ─── Following (KAN-98) ──────────────────────────────────────────────────
       // The owner controls their own following list (who they choose to follow).
       // Any authenticated user may read (needed for friend pickers in KAN-101/102).

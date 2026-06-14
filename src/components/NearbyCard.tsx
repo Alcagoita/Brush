@@ -1,13 +1,10 @@
 /**
  * NearbyCard — KAN-46
  *
- * Two states driven by `nearbyPoiType`:
+ * Pure visual component. Rendered by TodayScreen when the proximity service
+ * (useTodayScreen) sets nearbyPoiType via a geofence entry event.
  *
- * IDLE (nearbyPoiType === null)
- *   Header: "NEARBY"
- *   Body:   List of undone POI tasks sorted by distance (ascending).
- *           Each row: 36×36 surface2 icon tile | title + place/distance | chevron
- *           Shows nothing if the user has no open POI tasks today.
+ * Renders null when nearbyPoiType is null — the service decides when to show.
  *
  * HERO (nearbyPoiType !== null)
  *   Header: "NEARBY · NOW" + pulsing 6 px accent dot
@@ -17,14 +14,19 @@
  *     - Distance + place name (11 px / 600 / uppercase / nearText)
  *     - Task title (17 px / 500)
  *     - "Open in Maps" CTA (full-width, bg=text, color=bg, radius 12)
- *   "Also close" subsection: remaining undone POI tasks (same idle-row style)
+ *   "Also close" subsection: remaining undone POI tasks
  *
- * Animations (reanimated):
+ * Animations (Reanimated 3 — runs on UI thread via JSI, zero JS involvement):
  *   scr-pulse: dot scales 1→0.5→1, opacity 1→0.45→1, 1.6 s ease-in-out ∞
  *   scr-halo:  expanding ring around icon tile, 2.2 s ease-out ∞
+ *
+ * NOTE: RN Animated.loop with useNativeDriver:true was the original
+ * implementation but caused the JS thread to freeze in New Architecture
+ * (Bridgeless mode). Reanimated 3 withRepeat runs on the UI thread and
+ * does not involve JS at all after setup.
  */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import {
   Pressable,
   StyleSheet,
@@ -44,25 +46,19 @@ import { spacing, radius } from '../theme/tokens';
 import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
 import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
-import { BuildingIcon, ChevronRightIcon, PoiIcon } from './AppIcon';
+import { ChevronRightIcon, PoiIcon } from './AppIcon';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface NearbyCardProps {
-  tasks:          Task[];
-  /** Google Places primary type string (built-in or custom), or null. */
-  nearbyPoiType:  string | null;
-  nearbyPlace:    NearbyPlace | null;
-  poiPlaces:      PlacesMap;
-  /**
-   * When true the proximity engine is paused due to low battery (KAN-52).
-   * The card header changes to reflect the paused state; the idle/hero body
-   * is hidden to avoid showing stale place data while monitoring is off.
-   */
-  trackingPaused?: boolean;
+  tasks:         Task[];
+  nearbyPoiType: string | null;
+  nearbyPlace:   NearbyPlace | null;
+  /** Nearest known place per POI type from the proximity service. */
+  poiPlaces:     PlacesMap;
   /**
    * When true Store fine tuning is active (KAN-74).
-   * A small building icon + "Store tuning on" label appears in the header.
+   * A small indicator appears in the header.
    */
   storeTuningActive?: boolean;
 }
@@ -73,10 +69,17 @@ function PulsingDot({ color }: { color: string }) {
   const scale   = useSharedValue(1);
   const opacity = useSharedValue(1);
 
-  useEffect(() => {
-    const cfg = { duration: 800, easing: Easing.inOut(Easing.ease) };
-    scale.value   = withRepeat(withSequence(withTiming(1, cfg), withTiming(0.5, cfg)), -1);
-    opacity.value = withRepeat(withSequence(withTiming(1, cfg), withTiming(0.45, cfg)), -1);
+  React.useEffect(() => {
+    const duration = 800;
+    const easing   = Easing.inOut(Easing.ease);
+    scale.value   = withRepeat(withSequence(
+      withTiming(0.5, { duration, easing }),
+      withTiming(1,   { duration, easing }),
+    ), -1);
+    opacity.value = withRepeat(withSequence(
+      withTiming(0.45, { duration, easing }),
+      withTiming(1,    { duration, easing }),
+    ), -1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -90,7 +93,7 @@ function PulsingDot({ color }: { color: string }) {
   );
 }
 
-// ─── Halo animation (hero icon) ───────────────────────────────────────────────
+// ─── Halo icon tile with expanding ring ──────────────────────────────────────
 
 function HaloIcon({
   poiType,
@@ -99,43 +102,42 @@ function HaloIcon({
   poiType:     string;
   accentColor: string;
 }) {
-  const { palette } = useTheme();
-  const ringScale   = useSharedValue(0.8);
-  const ringOpacity = useSharedValue(0.8);
+  const ringScale   = useSharedValue(1);
+  const ringOpacity = useSharedValue(0.6);
 
-  useEffect(() => {
-    ringScale.value   = withRepeat(
-      withTiming(1.6, { duration: 2200, easing: Easing.out(Easing.ease) }),
-      -1,
-    );
-    ringOpacity.value = withRepeat(
-      withSequence(
-        withTiming(0.7, { duration: 0 }),
-        withTiming(0,   { duration: 2200, easing: Easing.out(Easing.ease) }),
-      ),
-      -1,
-    );
+  React.useEffect(() => {
+    const duration = 2200;
+    const easing   = Easing.out(Easing.ease);
+    ringScale.value   = withRepeat(withSequence(
+      withTiming(1.55, { duration, easing }),
+      withTiming(1,    { duration: 0 }),
+    ), -1);
+    ringOpacity.value = withRepeat(withSequence(
+      withTiming(0, { duration, easing }),
+      withTiming(0, { duration: 0 }),
+    ), -1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const ringStyle = useAnimatedStyle(() => ({
-    position:  'absolute' as const,
-    width:     46,
-    height:    46,
-    borderRadius: radius.heroIcon,
-    borderWidth: 2,
-    borderColor: accentColor,
     transform: [{ scale: ringScale.value }],
     opacity:   ringOpacity.value,
   }));
 
   return (
     <View style={styles.haloWrapper}>
-      <Animated.View style={ringStyle} />
+      <Animated.View
+        style={[
+          styles.haloRing,
+          { borderColor: accentColor },
+          ringStyle,
+        ]}
+        pointerEvents="none"
+      />
       <View
         style={[
           styles.heroIconTile,
-          { backgroundColor: accentColor + '33' }, // ~20% opacity tint
+          { backgroundColor: accentColor + '33' },
         ]}>
         <PoiIcon type={poiType} color={accentColor} size={22} />
       </View>
@@ -143,9 +145,9 @@ function HaloIcon({
   );
 }
 
-// ─── Idle row ─────────────────────────────────────────────────────────────────
+// ─── Also-close row ───────────────────────────────────────────────────────────
 
-function IdleRow({
+function AlsoCloseRow({
   task,
   place,
   isFirst,
@@ -161,37 +163,21 @@ function IdleRow({
       styles.idleRow,
       !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
     ]}>
-      {/* Icon tile */}
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
-        {task.poi
-          ? <PoiIcon type={task.poi} color={palette.muted} size={20} />
-          : <PoiIcon type="atm"      color={palette.muted} size={20} />
-        }
+        <PoiIcon type={task.poi ?? 'atm'} color={palette.muted} size={20} />
       </View>
 
-      {/* Text */}
       <View style={styles.idleContent}>
-        <Text
-          style={[styles.idleTitle, { color: palette.text }]}
-          numberOfLines={1}>
+        <Text style={[styles.idleTitle, { color: palette.text }]} numberOfLines={1}>
           {task.title}
         </Text>
-        {place ? (
-          <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
-            {place.name}
-            {' · '}
-            <Text style={styles.idleDistance}>
-              {formatDistance(place.distanceMeters)}
-            </Text>
-          </Text>
-        ) : (
-          <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
-            {task.poi ? placeTypeLabel(task.poi) : ''}
-          </Text>
-        )}
+        <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
+          {place
+            ? `${place.name} · ${formatDistance(place.distanceMeters)}`
+            : task.poi ? placeTypeLabel(task.poi) : ''}
+        </Text>
       </View>
 
-      {/* Chevron */}
       <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
     </View>
   );
@@ -204,57 +190,28 @@ export default function NearbyCard({
   nearbyPoiType,
   nearbyPlace,
   poiPlaces,
-  trackingPaused    = false,
   storeTuningActive = false,
 }: NearbyCardProps) {
   const { palette } = useTheme();
 
-  // Only undone tasks with a POI field.
   const poiTasks = tasks.filter(t => !t.done && t.poi != null);
-
-  // Nothing to show — no POI tasks today.
   if (poiTasks.length === 0) { return null; }
 
-  // ── Low-battery paused state (KAN-52) ──────────────────────────────────────
-  // Show a subtle indicator instead of the normal card body so the user knows
-  // why nearby alerts are not firing. Do not show stale place distances.
-  if (trackingPaused) {
-    return (
-      <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 16 }]}>
-        <View style={styles.header}>
-          <Text style={[styles.headerLabel, { color: palette.muted }]}>NEARBY</Text>
-        </View>
-        <View
-          style={[
-            styles.pausedBanner,
-            { backgroundColor: palette.surface, borderColor: palette.line },
-          ]}>
-          <Text style={[styles.pausedText, { color: palette.muted }]}>
-            Nearby alerts paused — low battery
-          </Text>
-        </View>
-      </View>
-    );
-  }
+  const isHero  = nearbyPoiType !== null;
+  const heroTask = isHero ? (poiTasks.find(t => t.poi === nearbyPoiType) ?? null) : null;
 
-  const isHero = nearbyPoiType !== null && nearbyPlace !== null;
+  // Hero POI type set but no matching undone task — hide card.
+  if (isHero && !heroTask) { return null; }
 
-  // Hero task: the one matching the active POI type.
-  const heroTask = isHero
-    ? poiTasks.find(t => t.poi === nearbyPoiType) ?? null
-    : null;
+  // Show only when at least one approaching place is in the grey zone.
+  const hasNearbyData = isHero || poiTasks.some(t => t.poi && poiPlaces[t.poi]);
+  if (!hasNearbyData) { return null; }
 
-  // "Also close" list: remaining undone POI tasks (everything except the hero).
-  const alsoClose = isHero
+  // Hero mode: all tasks except the hero go in "Also Close".
+  // Grey-only mode: all POI tasks that have a known nearby place.
+  const listTasks = isHero
     ? poiTasks.filter(t => t !== heroTask)
-    : poiTasks;
-
-  // Sort idle/also-close rows by known distance ascending; unknowns at end.
-  const sortedAlsoClose = [...alsoClose].sort((a, b) => {
-    const da = a.poi ? poiPlaces[a.poi]?.distanceMeters ?? Infinity : Infinity;
-    const db = b.poi ? poiPlaces[b.poi]?.distanceMeters ?? Infinity : Infinity;
-    return da - db;
-  });
+    : poiTasks.filter(t => t.poi && poiPlaces[t.poi]);
 
   return (
     <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 14 }]}>
@@ -268,27 +225,15 @@ export default function NearbyCard({
           </Text>
         </View>
 
-        <View style={styles.headerRight}>
-          {/* Places count (idle only) */}
-          {!isHero && (
-            <Text style={[styles.headerCount, { color: palette.muted }]}>
-              {sortedAlsoClose.length} {sortedAlsoClose.length === 1 ? 'place' : 'places'}
-            </Text>
-          )}
-          {/* Store fine tuning indicator (KAN-74) */}
-          {storeTuningActive && (
-            <View style={styles.tuningBadge}>
-              <BuildingIcon color={palette.accent} size={12} />
-              <Text style={[styles.tuningBadgeLabel, { color: palette.accent }]}>
-                Store tuning on
-              </Text>
-            </View>
-          )}
-        </View>
+        {storeTuningActive && (
+          <Text style={[styles.tuningLabel, { color: palette.accent }]}>
+            Store tuning on
+          </Text>
+        )}
       </View>
 
-      {/* ── Hero block ── */}
-      {isHero && heroTask && nearbyPlace && (
+      {/* ── Hero block (orange, < 100 m) ── */}
+      {isHero && heroTask && (
         <View
           style={[
             styles.heroBlock,
@@ -300,25 +245,24 @@ export default function NearbyCard({
 
           {/* Decorative halo circle — top-right */}
           <View
-            style={[
-              styles.decHalo,
-              { backgroundColor: palette.nearTint2 },
-            ]}
+            style={[styles.decHalo, { backgroundColor: palette.nearTint2 }]}
             pointerEvents="none"
           />
 
           {/* Icon + text row */}
           <View style={styles.heroRow}>
-            <HaloIcon poiType={nearbyPoiType} accentColor={palette.accent} />
+            <HaloIcon poiType={nearbyPoiType!} accentColor={palette.accent} />
 
             <View style={styles.heroText}>
-              <Text style={[styles.heroDistance, { color: palette.nearText }]}>
-                {formatDistance(nearbyPlace.distanceMeters).toUpperCase()}
-                {'  '}
-                <Text style={styles.heroPlaceName}>
-                  {nearbyPlace.name.toUpperCase()}
+              {nearbyPlace && (
+                <Text style={[styles.heroDistance, { color: palette.nearText }]}>
+                  {formatDistance(nearbyPlace.distanceMeters).toUpperCase()}
+                  {'  '}
+                  <Text style={styles.heroPlaceName}>
+                    {nearbyPlace.name.toUpperCase()}
+                  </Text>
                 </Text>
-              </Text>
+              )}
               <Text
                 style={[styles.heroTitle, { color: palette.text }]}
                 numberOfLines={2}>
@@ -327,41 +271,30 @@ export default function NearbyCard({
             </View>
           </View>
 
-          {/* Open in Maps CTA */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.ctaButton,
-              { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
-            ]}
-            onPress={() =>
-              openInMaps(nearbyPlace.lat, nearbyPlace.lng, nearbyPlace.name)
-            }
-            accessibilityRole="button"
-            accessibilityLabel={`Open ${nearbyPlace.name} in Maps`}>
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>
-              Open in Maps
-            </Text>
-          </Pressable>
+          {/* Open in Maps CTA — only when coordinates available */}
+          {nearbyPlace && (
+            <Pressable
+              style={({ pressed }) => [
+                styles.ctaButton,
+                { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
+              ]}
+              onPress={() => openInMaps(nearbyPlace.lat, nearbyPlace.lng, nearbyPlace.name)}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${nearbyPlace.name} in Maps`}>
+              <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
+            </Pressable>
+          )}
         </View>
       )}
 
-      {/* ── Idle rows / "Also close" ── */}
-      {sortedAlsoClose.length > 0 && (
-        <View
-          style={[
-            styles.idleSection,
-            isHero
-              ? styles.alsoCloseSection
-              : [styles.listContainer, { backgroundColor: palette.surface, borderColor: palette.line }],
-          ]}
-        >
+      {/* ── Grey rows: "Also Close" in hero mode, all results in grey-only mode ── */}
+      {listTasks.length > 0 && (
+        <View style={[styles.listSection, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           {isHero && (
-            <Text style={[styles.alsoCloseLabel, { color: palette.muted }]}>
-              ALSO CLOSE
-            </Text>
+            <Text style={[styles.listSectionLabel, { color: palette.muted }]}>ALSO CLOSE</Text>
           )}
-          {sortedAlsoClose.map((task, index) => (
-            <IdleRow
+          {listTasks.map((task, index) => (
+            <AlsoCloseRow
               key={task.id}
               task={task}
               place={task.poi ? poiPlaces[task.poi] : undefined}
@@ -377,14 +310,12 @@ export default function NearbyCard({
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  card: {
-    // No background/border — sections within have their own styling
-  },
+  card: {},
 
   // ── Header ──
   header: {
     flexDirection:  'row',
-    alignItems:     'baseline',
+    alignItems:     'center',
     justifyContent: 'space-between',
     marginBottom:   10,
   },
@@ -393,33 +324,16 @@ const styles = StyleSheet.create({
     alignItems:    'center',
     gap:           6,
   },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           8,
-  },
   headerLabel: {
-    fontSize:     11,
-    fontWeight:   '500',
-    fontFamily:   'Geist-Medium',
+    fontSize:      11,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
     letterSpacing: 1.76,
   },
-  headerCount: {
-    fontSize:   12,
-    fontFamily: 'Geist-Regular',
-  },
-
-  // ── Store tuning badge (KAN-74) ──
-  tuningBadge: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    gap:            4,
-    marginLeft:     'auto',
-  },
-  tuningBadgeLabel: {
-    fontSize:     10,
-    fontWeight:   '500',
-    fontFamily:   'Geist-Medium',
+  tuningLabel: {
+    fontSize:      10,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
     letterSpacing: 0.5,
   },
   pulsingDot: {
@@ -457,6 +371,13 @@ const styles = StyleSheet.create({
     alignItems:     'center',
     justifyContent: 'center',
   },
+  haloRing: {
+    position:     'absolute',
+    width:        46,
+    height:       46,
+    borderRadius: radius.heroIcon,
+    borderWidth:  1.5,
+  },
   heroIconTile: {
     width:          46,
     height:         46,
@@ -469,14 +390,15 @@ const styles = StyleSheet.create({
     gap:  4,
   },
   heroDistance: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  0.8,
+    fontSize:        11,
+    fontWeight:      '600',
+    fontFamily:      'Geist-SemiBold',
+    letterSpacing:   0.8,
+    fontVariant:     ['tabular-nums'],
   },
   heroPlaceName: {
-    fontWeight:   '600',
-    fontFamily:   'Geist-SemiBold',
+    fontWeight:    '600',
+    fontFamily:    'Geist-SemiBold',
     letterSpacing: 0.8,
   },
   heroTitle: {
@@ -486,9 +408,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   ctaButton: {
-    borderRadius:   radius.ctaBtn,
+    borderRadius:    radius.ctaBtn,
     paddingVertical: 12,
-    alignItems:     'center',
+    alignItems:      'center',
   },
   ctaLabel: {
     fontSize:   15,
@@ -496,39 +418,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-SemiBold',
   },
 
-  // ── Low-battery paused banner (KAN-52) ──
-  pausedBanner: {
-    borderRadius:    radius.card,
-    borderWidth:     StyleSheet.hairlineWidth,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  pausedText: {
-    fontSize:   13,
-    fontFamily: 'Geist-Regular',
-  },
-
-  // ── Idle rows ──
-  idleSection:      {},
-  listContainer: {
-    borderRadius: 16,
+  // ── Grey rows (also close / approaching) ──
+  listSection: {
+    borderRadius: radius.card,
     borderWidth:  1,
     overflow:     'hidden',
+    paddingTop:   12,
+    paddingHorizontal: 16,
+    paddingBottom: 4,
   },
-  alsoCloseSection: { marginTop: 4 },
-  alsoCloseLabel: {
+  listSectionLabel: {
     fontSize:      11,
     fontWeight:    '600',
     fontFamily:    'Geist-SemiBold',
-    letterSpacing:  1,
-    marginBottom:   8,
+    letterSpacing: 1,
+    marginBottom:  8,
   },
   idleRow: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    paddingHorizontal: 16,
-    paddingVertical:   12,
-    gap:               14,
+    flexDirection:  'row',
+    alignItems:     'center',
+    paddingVertical: 12,
+    gap:            14,
   },
   idleIconTile: {
     width:          36,
@@ -550,8 +460,5 @@ const styles = StyleSheet.create({
     fontSize:   12,
     fontFamily: 'Geist-Regular',
     marginTop:  1,
-  },
-  idleDistance: {
-    fontVariant: ['tabular-nums'],
   },
 });

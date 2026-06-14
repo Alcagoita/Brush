@@ -1,27 +1,28 @@
 /**
  * useTodayScreen — KAN-59
  *
- * ViewModel-layer hook for TodayScreen. Owns all data state, Firestore
- * subscriptions, proximity engine wiring, battery monitoring, and the
- * optimistic task-toggle callback. No JSX — independently testable with
- * renderHook.
+ * ViewModel-layer hook for TodayScreen. Owns all data state, one-shot
+ * Firestore fetches, proximity engine wiring, battery monitoring, and the
+ * task-toggle callback. No JSX — independently testable with renderHook.
  *
- * TodayScreen becomes a pure rendering component: it calls this hook,
- * then renders JSX based on the returned state and callbacks.
+ * Data strategy: one-shot fetch on mount (no real-time subscriptions).
+ * Pull-to-refresh re-runs the fetch. Writes update local state immediately
+ * and persist to Firestore in the background; on failure, local state reverts.
  */
 
-import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, Platform, Vibration } from 'react-native';
 import {
   setTaskDone,
-  subscribeToCategories,
-  subscribeLowBatteryPausePref,
-  subscribeStoreTuningPref,
   setStoreTuningPref,
-  subscribeToPoiPreferences,
-  subscribeToTasksForDate,
-  subscribeToUserPreferences,
+  getCategories,
+  getTasksForDate,
+  getUserPreferences,
+  getPoiPreferencesMap,
+  getUser,
+  getTotalPoints,
 } from '../services/firestore';
+import { getIncomingSharedTasksCount } from '../services/sharing';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../services/challenges';
 import {
@@ -29,16 +30,14 @@ import {
   LocationContext,
 } from '../services/geolocation';
 import {
-  pauseGeofenceMonitoring,
   PlacesMap,
-  resumeGeofenceMonitoring,
+  runProximitySearch,
+  getLastSearchCoords,
   setLocationTap,
-  startProximityMonitoring,
-  stopProximityMonitoring,
   updateNotifNearbyEnabled,
   updateProximityPoiPreferences,
-  updateProximityTasks,
 } from '../services/proximity';
+import { getDistanceMeters } from '../services/maps';
 import {
   startIndoorProximityMonitoring,
   stopIndoorProximityMonitoring,
@@ -55,102 +54,103 @@ import {
   activateStoreTuning,
   dismissStoreTuning,
 } from '../services/storeTuning';
-import { getBatteryLevel, shouldPauseForBattery, useBatteryLevel } from '../services/battery';
+import { updateExitPromptPref } from '../services/proximity';
+import { updateIndoorExitPromptPref } from '../services/indoorProximity';
+import { getBatteryLevel, useBatteryLevel } from '../services/battery';
 import { NearbyPlace } from '../services/maps';
 import { syncTasksToWatch } from '../services/wearSync';
-import { Category, StoreTuningState, Task, TasksUiState } from '../types';
+import { Category, StoreTuningState, Task } from '../types';
 import { todayISO } from '../utils/date';
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 
 export interface TodayScreenState {
-  /** UiState for today's task list — loading / success / error (KAN-57). */
-  tasksState:       TasksUiState;
-  /**
-   * Incremented by the "Try again" button to re-trigger the subscription
-   * without unmounting the screen (KAN-58).
-   */
-  retryKey:         number;
-  setRetryKey:      Dispatch<SetStateAction<number>>;
+  /** Today's tasks. Empty while loading. */
+  tasks:            Task[];
+  /** True while the initial data fetch is in-flight. */
+  isLoading:        boolean;
+  /** True while a pull-to-refresh fetch is in-flight. */
+  isRefreshing:     boolean;
+  /** Non-null when the fetch failed. Cleared on next successful fetch. */
+  error:            string | null;
+  /** Call to re-run the full data fetch (pull-to-refresh or error retry). */
+  refresh:          () => void;
   /** Active nearby POI type from the proximity engine. Null when none nearby. */
   nearbyPoiType:    string | null;
   nearbyPlace:      NearbyPlace | null;
-  /** All known nearest places per POI type — drives NearbyCard idle rows. */
+  /** Nearest known place per POI type — drives NearbyCard "Also close" rows. */
   poiPlaces:        PlacesMap;
-  /** True when low-battery mode is active and geofence monitoring is paused (KAN-52). */
-  trackingPaused:   boolean;
-  /**
-   * True when Store fine tuning is active (KAN-74 / KAN-75).
-   * Drives the "Store tuning on" badge in NearbyCard.
-   */
   storeTuningActive:        boolean;
-  /**
-   * True when the Store fine tuning opt-in prompt should be visible (KAN-75).
-   * The prompt fires once per session when indoor_mapped is detected.
-   */
   showStoreTuningPrompt:    boolean;
-  /** Call when the user taps "Turn on" in the StoreTuningPromptSheet. */
   onStoreTuningTurnOn:      () => void;
-  /** Call when the user taps "Not now" in the StoreTuningPromptSheet. */
   onStoreTuningNotNow:      () => void;
   /** Controls the new-task bottom sheet. */
   sheetVisible:     boolean;
-  setSheetVisible:  Dispatch<SetStateAction<boolean>>;
+  setSheetVisible:  (v: boolean) => void;
   /** Custom categories from Firestore — passed to NewTaskSheet. */
   customCategories: Category[];
-  /**
-   * Today's tasks as stored in Firestore.
-   * Falls back to [] when tasksState is loading or error so downstream
-   * logic never has to null-check.
-   */
-  tasks:            Task[];
-  /**
-   * Tasks with optimistic done-state applied. Used everywhere the screen
-   * needs to reflect an in-flight toggle instantly.
-   */
-  effectiveTasks:   Task[];
   totalTasks:   number;
   doneTasks:    number;
   progress:     number;
   nearbyCount:  number;
-  /** Optimistic task-done toggle with haptic feedback (KAN-14 / KAN-31 / KAN-32). */
+  /** Total gamification points for the header badge. */
+  totalPoints:  number;
+  /** Count of pending shared tasks for the inbox bell badge. */
+  inboxCount:   number;
+  /** Task-done toggle — updates local state immediately, persists to Firestore. */
   handleToggle: (taskId: string, done: boolean) => Promise<void>;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const DATA_FETCH_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Data fetch timed out')), ms),
+    ),
+  ]);
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-/**
- * @param uid Firebase user ID. Pass `undefined` when the user is signed out —
- *            the hook will surface an empty success state immediately.
- */
 export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
-  // ── Primary data state ─────────────────────────────────────────────────────
+  // ── Task + screen data state ───────────────────────────────────────────────
 
-  const [tasksState,        setTasksState]        = useState<TasksUiState>({ status: 'loading' });
-  const [retryKey,          setRetryKey]          = useState(0);
-  const [nearbyPoiType,     setNearbyPoiType]     = useState<string | null>(null);
-  const [nearbyPlace,       setNearbyPlace]       = useState<NearbyPlace | null>(null);
-  const [poiPlaces,         setPoiPlaces]         = useState<PlacesMap>({});
-  const [optimisticDone,    setOptimisticDone]    = useState<Record<string, boolean>>({});
-  const [sheetVisible,      setSheetVisible]      = useState(false);
-  const [customCategories,  setCustomCategories]  = useState<Category[]>([]);
+  const [tasks,           setTasks]           = useState<Task[]>([]);
+  const [isLoading,       setIsLoading]       = useState(true);
+  const [isRefreshing,    setIsRefreshing]    = useState(false);
+  const [error,           setError]           = useState<string | null>(null);
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
+  const [totalPoints,     setTotalPoints]     = useState(0);
+  const [inboxCount,      setInboxCount]      = useState(0);
+  const [sheetVisible,    setSheetVisible]    = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
-  // ── Proximity engine refs (KAN-53) ──────────────────────────────────────────
+  // ── Proximity refs — all mutable values as refs so effects never go stale ───
 
-  const isMonitoringRef   = useRef(false);
-  const stopMonitoringRef = useRef<(() => void) | null>(null);
+  /** True while a proximity search Promise is in-flight. */
+  const isSearchingRef    = useRef(false);
+  /** Count of undone POI tasks from the last effect run — detects new tasks. */
+  const prevPoiCountRef   = useRef(0);
+  /** Keeps the latest tasks available to the interval callback without adding
+   *  tasks to the interval effect's dependency array (avoids restart on toggle). */
+  const latestTasksRef    = useRef<Task[]>([]);
 
-  // ── Battery / low-battery pause (KAN-52) ───────────────────────────────────
+  // ── Nearby state ───────────────────────────────────────────────────────────
+
+  const [nearbyPoiType, setNearbyPoiType] = useState<string | null>(null);
+  const [nearbyPlace,   setNearbyPlace]   = useState<NearbyPlace | null>(null);
+  const [poiPlaces,     setPoiPlaces]     = useState<PlacesMap>({});
+
+  // ── Battery level (KAN-52) — read on foreground only; not used for pausing ──
 
   const hookBatteryLevel = useBatteryLevel();
   const [batteryLevel, setBatteryLevel] = useState(hookBatteryLevel);
-
-  // Sync hook (event-driven path) into local state.
   useEffect(() => { setBatteryLevel(hookBatteryLevel); }, [hookBatteryLevel]);
-
-  // Re-read on app foreground — belt-and-suspenders per KAN-52 spec.
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (nextState) => {
       if (nextState === 'active') { setBatteryLevel(await getBatteryLevel()); }
@@ -159,160 +159,94 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   }, []);
 
   const [lowBatteryPausePref, setLowBatteryPausePref] = useState(false);
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeLowBatteryPausePref(uid, setLowBatteryPausePref, (err) => {
-      console.warn('[useTodayScreen] lowBatteryPausePref error', err);
-    });
-  }, [uid]);
 
   // ── Store fine tuning (KAN-74 / KAN-75) ────────────────────────────────────
 
-  const [storeTuningEnabled,  setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
-  const [storeTuningState,    setStoreTuningState]     = useState<StoreTuningState>('off');
-  const [locationContext,     setLocationContext]       = useState<LocationContext>('outdoor');
+  const [storeTuningEnabled, setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
+  const [storeTuningState,   setStoreTuningState]    = useState<StoreTuningState>('off');
+  const [locationContext,    setLocationContext]      = useState<LocationContext>('outdoor');
 
-  // Refs for indoor engine lifecycle
   const isIndoorMonitoringRef   = useRef(false);
   const stopIndoorMonitoringRef = useRef<(() => void) | null>(null);
+  const positionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Subscribe to the Firestore store tuning preference.
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeStoreTuningPref(uid, setStoreTuningEnabled, (err) => {
-      console.warn('[useTodayScreen] storeTuningPref error', err);
-    });
-  }, [uid]);
+  // ── One-shot data fetch ────────────────────────────────────────────────────
+  //
+  // Replaces all onSnapshot subscriptions. Called once on mount and again
+  // on pull-to-refresh or error retry. No background watchers.
 
-  // Start the indoor detection service (KAN-73) and store tuning state machine
-  // (KAN-74) when the user grants location permission.
-  useEffect(() => {
-    if (!uid || !permissionGranted) { return; }
-
-    // Indoor detection: receives location feeds and fires onContextChange.
-    const stopDetection = startIndoorDetection((ctx) => {
-      setLocationContext(ctx);
-    });
-
-    // Store tuning state machine: listens to context changes.
-    const stopTuning = startStoreTuning({
-      onStateChange:       setStoreTuningState,
-      onLowBatterySuppress: () => {
-        // Low-battery suppression — toast not yet wired in v0.7; no-op here.
-        console.log('[useTodayScreen] store tuning suppressed — low battery');
-      },
-    });
-
-    // While the outdoor engine is running, tap its GPS stream and feed indoor
-    // detection (KAN-75). The tap is cleared automatically when the outdoor
-    // engine stops.
-    setLocationTap((lat, lng, accuracy) => {
-      feedLocation(lat, lng, accuracy);
-    });
-
-    return () => {
-      setLocationTap(null);
-      stopTuning();
-      stopDetection();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, permissionGranted]);
-
-  // Propagate context changes to the store tuning state machine.
-  // All inputs are explicit so the machine stays in sync on every render.
-  useEffect(() => {
-    if (!uid || !permissionGranted) { return; }
-    onLocationContextChange(
-      locationContext,
-      storeTuningEnabled,
-      lowBatteryPausePref,
-      batteryLevel,
-    );
-  }, [uid, permissionGranted, locationContext, storeTuningEnabled, lowBatteryPausePref, batteryLevel]);
-
-  const trackingPaused = shouldPauseForBattery(batteryLevel, lowBatteryPausePref);
-  useEffect(() => {
-    if (trackingPaused) { pauseGeofenceMonitoring(); }
-    else                { resumeGeofenceMonitoring(); }
-  }, [trackingPaused]);
-
-  // ── Task subscription (KAN-57 / KAN-58) ────────────────────────────────────
-
-  useEffect(() => {
+  const loadData = useCallback(async (isRefresh: boolean = false) => {
     if (!uid) {
-      // Signed-out: surface empty success so the screen doesn't spin indefinitely.
-      setTasksState({ status: 'success', tasks: [] });
+      setTasks([]);
+      setIsLoading(false);
       return;
     }
-    setTasksState({ status: 'loading' });
-    return subscribeToTasksForDate(uid, todayISO(), (newTasks) => {
-      setTasksState({ status: 'success', tasks: newTasks });
-    }, (err) => {
-      console.warn('[useTodayScreen] tasks subscription error', err);
-      setTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, retryKey]);
+
+    if (isRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+
+    try {
+      const [
+        fetchedTasks,
+        userData,
+        userPrefs,
+        poiPrefsMap,
+        categories,
+        points,
+        inbox,
+      ] = await withTimeout(
+        Promise.all([
+          getTasksForDate(uid, todayISO()),
+          getUser(uid),
+          getUserPreferences(uid),
+          getPoiPreferencesMap(uid),
+          getCategories(uid),
+          getTotalPoints(uid),
+          getIncomingSharedTasksCount(uid),
+        ]),
+        DATA_FETCH_TIMEOUT_MS,
+      );
+
+      setTasks(fetchedTasks);
+      setCustomCategories(categories.filter(c => !c.isBuiltIn));
+      setTotalPoints(points);
+      setInboxCount(inbox);
+
+      if (userData) {
+        setLowBatteryPausePref(userData.poiPreferences?.lowBatteryPause ?? false);
+        setStoreTuningEnabled(userData.poiPreferences?.storeTuningEnabled);
+      }
+
+      updateNotifNearbyEnabled(userPrefs.notif_nearby_enabled ?? true);
+      updateExitPromptPref(userPrefs.exitPrompt ?? true);
+      updateIndoorExitPromptPref(userPrefs.exitPrompt ?? true);
+      updateProximityPoiPreferences(poiPrefsMap);
+
+    } catch (err) {
+      setError('Could not load tasks. Check your connection.');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [uid]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const refresh = useCallback(() => { loadData(true); }, [loadData]);
 
   // ── Wear OS sync (KAN-35) ──────────────────────────────────────────────────
-  // Push the task list to the watch each time it updates. No-ops on iOS or
-  // when the native module is unavailable.
 
   useEffect(() => {
     syncTasksToWatch(tasks);
   }, [tasks]);
 
-  // ── Custom categories subscription ─────────────────────────────────────────
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToCategories(uid, cats => {
-      setCustomCategories(cats.filter(c => !c.isBuiltIn));
-    }, (err) => {
-      console.warn('[useTodayScreen] categories subscription error', err);
-    });
-  }, [uid]);
-
-  // ── Derived task arrays ─────────────────────────────────────────────────────
-
-  const tasks = tasksState.status === 'success' ? tasksState.tasks : [];
-
-  const effectiveTasks = tasks
-    .map(t => ({ ...t, done: optimisticDone[t.id] ?? t.done }))
-    .sort((a, b) => {
-      // Done tasks sink to the bottom; within each group original order is preserved
-      if (a.done === b.done) { return 0; }
-      return a.done ? 1 : -1;
-    });
-
-  // ── POI radius preferences (KAN-25) ────────────────────────────────────────
-
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToPoiPreferences(uid, prefs => {
-      updateProximityPoiPreferences(prefs);
-    }, (err) => {
-      console.warn('[useTodayScreen] poiPreferences subscription error', err);
-    });
-  }, [uid]);
-
-  // ── Nearby-notification preference (KAN-142) ────────────────────────────────
-  // Reset to false on sign-out / uid change so the previous user's setting
-  // never leaks into a new session or a cold start before the snapshot fires.
-
-  useEffect(() => {
-    if (!uid) {
-      updateNotifNearbyEnabled(false);
-      return;
-    }
-    return subscribeToUserPreferences(uid, prefs => {
-      updateNotifNearbyEnabled(prefs.notif_nearby_enabled ?? true);
-    }, (err) => {
-      console.warn('[useTodayScreen] userPreferences subscription error', err);
-    });
-  }, [uid]);
-
-  // ── Location permission (KAN-53) ─────────────────────────────────────────────
+  // ── Location permission (KAN-53) ──────────────────────────────────────────
 
   useEffect(() => {
     if (!uid) { return; }
@@ -323,78 +257,135 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     });
   }, [uid]);
 
-  // ── Outdoor proximity engine management (KAN-24 / KAN-53) ────────────────
-  //
-  // The outdoor engine runs ONLY when Store fine tuning is NOT active.
-  // When storeTuningState === 'active', the indoor engine takes over and the
-  // outdoor engine must be fully stopped (mutual exclusion — KAN-75 spec).
-  //
-  //   Gate:  store tuning active → stop outdoor engine, stay stopped
-  //   Gate:  0 undone POI tasks && not monitoring → stay idle
-  //   Start: >0 undone POI tasks && not monitoring → start engine
-  //   Stop:  0 undone POI tasks  && monitoring     → stop engine
-  //   Sync:  >0 undone POI tasks && monitoring     → push task list
-
-  const isStoreTuningActive = storeTuningState === 'active';
+  // ── Indoor detection + store tuning (KAN-73 / KAN-74) ─────────────────────
 
   useEffect(() => {
     if (!uid || !permissionGranted) { return; }
 
-    // Outdoor engine must NOT run while indoor engine is active.
-    if (isStoreTuningActive) {
-      if (isMonitoringRef.current) {
-        stopMonitoringRef.current?.();
-        stopMonitoringRef.current = null;
-        stopProximityMonitoring();
-        isMonitoringRef.current = false;
+    const stopDetection = startIndoorDetection((ctx) => {
+      setLocationContext(ctx);
+    });
+
+    const stopTuning = startStoreTuning({
+      onStateChange: setStoreTuningState,
+      onLowBatterySuppress: () => {},
+    });
+
+    setLocationTap((lat, lng, accuracy) => { feedLocation(lat, lng, accuracy); });
+
+    return () => {
+      setLocationTap(null);
+      stopTuning();
+      stopDetection();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, permissionGranted]);
+
+  useEffect(() => {
+    if (!uid || !permissionGranted) { return; }
+    onLocationContextChange(
+      locationContext,
+      storeTuningEnabled,
+      lowBatteryPausePref,
+      batteryLevel,
+    );
+  }, [uid, permissionGranted, locationContext, storeTuningEnabled, lowBatteryPausePref, batteryLevel]);
+
+  // ── Derived: are there any undone POI tasks? ───────────────────────────────
+  // Stable boolean dep — proximity effect only restarts when this crosses the
+  // 0 boundary, not on every task toggle or completion.
+
+  const hasPOITasks = useMemo(
+    () => tasks.some(t => !t.done && t.poi),
+    [tasks],
+  );
+
+  const isStoreTuningActive = storeTuningState === 'active';
+
+  // ── Keep latestTasksRef in sync so the interval always uses fresh tasks ────
+
+  useEffect(() => { latestTasksRef.current = tasks; }, [tasks]);
+
+  // ── Stable onUpdate callback — state setters never change, no deps needed ──
+
+  const onNearbyUpdate = useCallback(
+    (poiType: string | null, place: import('../services/maps').NearbyPlace | null, allPlaces: PlacesMap) => {
+      setNearbyPoiType(poiType);
+      setNearbyPlace(place);
+      setPoiPlaces(allPlaces);
+    },
+    [],
+  );
+
+  // ── Outdoor proximity lifecycle (KAN-24 / KAN-53) ─────────────────────────
+  //
+  // No global service state. All timing (initial search, 3-min poll) is owned
+  // here via plain setInterval/clearInterval so cleanup is always exact.
+  //
+  // Deps: uid + permissionGranted + hasPOITasks + isStoreTuningActive
+  // A task toggle that doesn't cross the 0-boundary never restarts this effect.
+
+  useEffect(() => {
+    if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) {
+      if (!hasPOITasks || isStoreTuningActive) {
         setNearbyPoiType(null);
         setNearbyPlace(null);
+        setPoiPlaces({});
       }
       return;
     }
 
-    const activePoiCount = effectiveTasks.filter(t => !t.done && t.poi).length;
+    // Fire the first search immediately (non-blocking — guarded by isSearchingRef).
+    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(() => {});
+    prevPoiCountRef.current = latestTasksRef.current.filter(t => !t.done && t.poi).length;
 
-    if (activePoiCount > 0 && !isMonitoringRef.current) {
-      const stop = startProximityMonitoring(
-        uid,
-        effectiveTasks,
-        (poiType, place, allPlaces) => {
-          setNearbyPoiType(poiType);
-          setNearbyPlace(place);
-          setPoiPlaces(allPlaces);
-        },
-      );
-      isMonitoringRef.current   = true;
-      stopMonitoringRef.current = stop;
-    } else if (activePoiCount === 0 && isMonitoringRef.current) {
-      stopMonitoringRef.current?.();
-      stopMonitoringRef.current = null;
-      stopProximityMonitoring();
-      isMonitoringRef.current = false;
-      setNearbyPoiType(null);
-      setNearbyPlace(null);
-    } else {
-      updateProximityTasks(effectiveTasks);
-    }
+    // Movement-gated 3-minute position check.
+    positionTimerRef.current = setInterval(async () => {
+      try {
+        const coords = await (await import('../services/geolocation')).getPositionLowAccuracy();
+        const last = getLastSearchCoords();
+        if (!last) {
+          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(() => {});
+          return;
+        }
+        const moved = getDistanceMeters(coords.lat, coords.lng, last.lat, last.lng);
+        if (moved >= 200) {
+          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(() => {});
+        }
+      } catch { /* location unavailable — skip tick */ }
+    }, 3 * 60 * 1_000);
 
     return () => {
-      stopMonitoringRef.current?.();
-      stopMonitoringRef.current = null;
+      if (positionTimerRef.current) {
+        clearInterval(positionTimerRef.current);
+        positionTimerRef.current = null;
+      }
     };
-  }, [effectiveTasks, uid, permissionGranted, isStoreTuningActive]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
 
-  // ── Indoor proximity engine management (KAN-75) ────────────────────────────
+  // ── Re-search when a new POI task is added ─────────────────────────────────
   //
-  // Runs ONLY when storeTuningState === 'active'.
-  // Started when store tuning activates; stopped when it deactivates.
-  // Task list is kept in sync via updateIndoorTasks() while active.
+  // Separate from the lifecycle effect so that adding a task (which changes
+  // tasks but NOT hasPOITasks-boolean if it was already true) still triggers
+  // an immediate search.
+
+  useEffect(() => {
+    if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return; }
+    const count = tasks.filter(t => !t.done && t.poi).length;
+    if (count > prevPoiCountRef.current) {
+      runProximitySearch(uid, tasks, onNearbyUpdate).catch(() => {});
+    }
+    prevPoiCountRef.current = count;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
+
+  // ── Indoor proximity engine lifecycle (KAN-75) ─────────────────────────────
 
   useEffect(() => {
     if (!uid || !permissionGranted) { return; }
 
     if (!isStoreTuningActive) {
-      // Indoor engine should not be running — stop it if it somehow is.
       if (isIndoorMonitoringRef.current) {
         stopIndoorMonitoringRef.current?.();
         stopIndoorMonitoringRef.current = null;
@@ -404,126 +395,110 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       return;
     }
 
-    // Store tuning is active — start the indoor engine if not already running.
     if (!isIndoorMonitoringRef.current) {
       const stop = startIndoorProximityMonitoring(
         uid,
-        effectiveTasks,
+        tasks,
         (task, place) => {
-          // Indoor engine reports the matched task / place pair.
-          // Map to the same nearbyPoiType / nearbyPlace fields so NearbyCard
-          // can render it without knowing which engine is active.
           setNearbyPoiType(task?.poi ?? null);
           setNearbyPlace(place);
         },
       );
       isIndoorMonitoringRef.current   = true;
       stopIndoorMonitoringRef.current = stop;
-    } else {
-      // Already running — push updated task list.
-      updateIndoorTasks(effectiveTasks);
     }
 
     return () => {
       stopIndoorMonitoringRef.current?.();
       stopIndoorMonitoringRef.current = null;
     };
-  }, [effectiveTasks, uid, permissionGranted, isStoreTuningActive]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uid, permissionGranted, isStoreTuningActive]);
 
-  // ── Optimistic toggle (KAN-14 / KAN-31 / KAN-32) ───────────────────────────
+  // Sync task list to running indoor engine.
+  useEffect(() => {
+    if (!isIndoorMonitoringRef.current) { return; }
+    updateIndoorTasks(tasks);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
+
+  // ── Task toggle (KAN-14 / KAN-31 / KAN-32) ─────────────────────────────────
+  //
+  // Updates local task state immediately (instant UI feedback), then persists
+  // to Firestore. On failure, reverts the local change.
 
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     if (!uid) { return; }
 
-    setOptimisticDone(prev => ({ ...prev, [taskId]: done }));
     Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
+
+    // Instant local update.
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done } : t));
 
     try {
       await setTaskDone(uid, taskId, done);
 
       if (done) {
         const task = tasks.find(t => t.id === taskId);
-
         const allOthersDone =
           tasks.length > 0 &&
-          tasks.filter(t => t.id !== taskId).every(t => optimisticDone[t.id] ?? t.done);
+          tasks.filter(t => t.id !== taskId).every(t => t.done);
+        const remainingTaskCount = tasks.filter(
+          t => t.id !== taskId && !t.done,
+        ).length;
 
         if (task) {
-          // KAN-129: evaluate achievements (replaces per-task awardPoint call).
-          // KAN-122: evaluateAchievements returns a nudge candidate when an
-          // achievement is 1 away — fire the nudge notification if eligible.
-          const remainingTaskCount = tasks.filter(
-            t => t.id !== taskId && !(optimisticDone[t.id] ?? t.done),
-          ).length;
-
           evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount })
             .then(({ nudgeCandidate }) => {
               if (nudgeCandidate) {
-                checkAndFireAchievementNudge(uid, nudgeCandidate).catch(err =>
-                  console.warn('[useTodayScreen] achievement nudge failed (non-critical)', err),
-                );
+                checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
               }
             })
-            .catch(err =>
-              console.warn('[useTodayScreen] evaluateAchievements failed (non-critical)', err),
-            );
+            .catch(() => {});
 
-          // KAN-103: increment progress on all active challenges (fire-and-forget).
           getActiveChallengesForUser(uid).then(challenges => {
             challenges.forEach(c =>
-              incrementCompletedCount(c.id, uid, c).catch(err =>
-                console.warn('[useTodayScreen] challenge increment failed', err),
-              ),
+              incrementCompletedCount(c.id, uid, c).catch(() => {}),
             );
           }).catch(() => {});
         }
       }
-      // KAN-129: un-completing a task no longer revokes points — points are
-      // only awarded via achievement unlocks and are permanent once earned.
     } catch (err) {
+      // Revert on failure.
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done } : t));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
-    } finally {
-      setOptimisticDone(prev => {
-        const next = { ...prev };
-        delete next[taskId];
-        return next;
-      });
     }
-  }, [uid, tasks, optimisticDone]);
+  }, [uid, tasks]);
 
   // ── Store tuning handlers ───────────────────────────────────────────────────
 
   const onStoreTuningTurnOn = useCallback(() => {
     activateStoreTuning();
-    // Persist the preference so the user doesn't see the prompt again.
     if (uid) {
-      setStoreTuningPref(uid, true).catch(err =>
-        console.warn('[useTodayScreen] setStoreTuningPref failed', err),
-      );
+      setStoreTuningPref(uid, true).catch(() => {});
     }
   }, [uid]);
 
-  const onStoreTuningNotNow = useCallback(() => {
-    dismissStoreTuning();
-  }, []);
+  const onStoreTuningNotNow = useCallback(() => { dismissStoreTuning(); }, []);
 
   // ── Progress derived values ─────────────────────────────────────────────────
 
-  const totalTasks  = effectiveTasks.length;
-  const doneTasks   = effectiveTasks.filter(t => t.done).length;
+  const totalTasks  = tasks.length;
+  const doneTasks   = tasks.filter(t => t.done).length;
   const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
-  const nearbyCount = effectiveTasks.filter(t => t.poi).length;
+  const nearbyCount = tasks.filter(t => t.poi).length;
 
   // ── Return ──────────────────────────────────────────────────────────────────
 
   return {
-    tasksState,
-    retryKey,
-    setRetryKey,
+    tasks,
+    isLoading,
+    isRefreshing,
+    error,
+    refresh,
     nearbyPoiType,
     nearbyPlace,
     poiPlaces,
-    trackingPaused,
     storeTuningActive:     isStoreTuningActive,
     showStoreTuningPrompt: storeTuningState === 'prompt_shown',
     onStoreTuningTurnOn,
@@ -531,12 +506,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     sheetVisible,
     setSheetVisible,
     customCategories,
-    tasks,
-    effectiveTasks,
     totalTasks,
     doneTasks,
     progress,
     nearbyCount,
+    totalPoints,
+    inboxCount,
     handleToggle,
   };
 }

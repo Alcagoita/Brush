@@ -68,12 +68,10 @@ jest.mock('react-native', () => ({
   NativeModules: { WearNotificationModule: { sendProximityAlert: jest.fn() } },
 }));
 
-const mockStartTracking = jest.fn();
-const mockStopTracking  = jest.fn();
+const mockGetPosition = jest.fn();
 jest.mock('../../src/services/geolocation', () => ({
-  startTracking:        (...args: unknown[]) => mockStartTracking(...args),
-  stopTracking:         ()                   => mockStopTracking(),
-  setTrackingAccuracy:  jest.fn(),
+  getPositionLowAccuracy: (...args: unknown[]) => mockGetPosition(...args),
+  requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));
 
 jest.mock('../../src/services/nativeGeofence', () => ({
@@ -87,6 +85,23 @@ jest.mock('../../src/services/nativeGeofence', () => ({
   parseGeofenceId:        jest.fn().mockReturnValue(null),
   GEOFENCE_ENTRY_EVENT:   'onGeofenceEntry',
   supportsNativeGeofences: true,
+}));
+
+jest.mock('../../src/services/notifications', () => ({
+  fireExitPrompt: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../../src/native/WearNotificationModule', () => ({
+  sendProximityAlert: jest.fn(),
+}));
+
+jest.mock('../../src/constants/copy', () => ({
+  COPY: {
+    notification: {
+      proximityTitle: (label: string) => `You're near ${label}`,
+      proximityBody:  (count: number) => `${count} task(s) nearby`,
+    },
+  },
 }));
 
 const mockFetch = jest.fn();
@@ -108,8 +123,8 @@ import {
   getPoiPreferencesMap,
 } from '../../src/services/firestore';
 import {
-  startProximityMonitoring,
-  stopProximityMonitoring,
+  runProximitySearch,
+  resetProximityState,
   updateProximityPoiPreferences,
 } from '../../src/services/proximity';
 
@@ -269,7 +284,7 @@ describe('getPoiPreferencesMap', () => {
 
 // ─── Proximity engine — user pref radius integration ─────────────────────────
 
-const ORIGIN = { lat: 0, lng: 0 };
+const ORIGIN = { lat: 0, lng: 0, accuracy: 10 };
 
 const atmTask = {
   id:        'task-atm',
@@ -283,29 +298,28 @@ const atmTask = {
 
 beforeEach(() => {
   mockFetch.mockClear();
-  mockStartTracking.mockClear();
-  stopProximityMonitoring(); // reset module state between tests
+  mockGetPosition.mockClear();
+  mockGetPosition.mockResolvedValue(ORIGIN);
+  resetProximityState();
 });
 
 describe('proximity engine — user pref radius (KAN-25)', () => {
-  it('uses user-saved radius when it is larger than the built-in default', async () => {
-    // User saved ATM radius = 100 m (vs. built-in 50 m).
+  it('places within HERO_RADIUS_M (100 m) become the hero type', async () => {
+    // ATM is 80 m away — inside HERO_RADIUS_M (100 m).
+    // updateProximityPoiPreferences still accepted but display threshold is
+    // always HERO_RADIUS_M for hero and NEARBY_RADIUS for grey zone.
     updateProximityPoiPreferences({ atm: 100 });
 
-    // ATM is 80 m away — inside 100 m pref but outside 50 m default.
     mockPlacesResponse([{
       id:          'atm-1',
       displayName: { text: 'City ATM' },
       location:    { latitude: 0.00072, longitude: 0 }, // ~80 m
+      types:       ['atm'],
     }]);
 
     const onUpdate = jest.fn();
-    startProximityMonitoring('uid-1', [atmTask], onUpdate);
+    await runProximitySearch('uid-1', [atmTask], onUpdate);
 
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    // Should alert because 80 m ≤ 100 m user pref.
     expect(onUpdate).toHaveBeenCalledWith(
       'atm',
       expect.objectContaining({ name: 'City ATM' }),
@@ -316,22 +330,19 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
   it('alerts when place is within NEARBY_RADIUS (400 m), regardless of user-saved radius (KAN-142)', async () => {
     // KAN-142 unified the display threshold to NEARBY_RADIUS=400 m.
     // User preferences no longer gate what appears in the NearbyCard.
+    // 40 m < HERO_RADIUS_M (100 m) → hero type.
     updateProximityPoiPreferences({ atm: 25 });
 
-    // ATM is 40 m away — beyond the 25 m user pref but within the 400 m threshold.
     mockPlacesResponse([{
       id:          'atm-close',
       displayName: { text: 'Nearby ATM' },
       location:    { latitude: 0.00036, longitude: 0 }, // ~40 m
+      types:       ['atm'],
     }]);
 
     const onUpdate = jest.fn();
-    startProximityMonitoring('uid-1', [atmTask], onUpdate);
+    await runProximitySearch('uid-1', [atmTask], onUpdate);
 
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    // 40 m < NEARBY_RADIUS (400 m) → should be nearby, pref ignored for display.
     expect(onUpdate).toHaveBeenCalledWith(
       'atm',
       expect.objectContaining({ name: 'Nearby ATM' }),
@@ -342,18 +353,15 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
   it('alerts when place is within NEARBY_RADIUS and no user pref is stored', async () => {
     updateProximityPoiPreferences({});
 
-    // ATM is 30 m away — well within NEARBY_RADIUS (400 m).
     mockPlacesResponse([{
       id:          'atm-near',
       displayName: { text: 'Corner ATM' },
       location:    { latitude: 0.00027, longitude: 0 }, // ~30 m
+      types:       ['atm'],
     }]);
 
     const onUpdate = jest.fn();
-    startProximityMonitoring('uid-1', [atmTask], onUpdate);
-
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await runProximitySearch('uid-1', [atmTask], onUpdate);
 
     expect(onUpdate).toHaveBeenCalledWith(
       'atm',
@@ -375,54 +383,21 @@ describe('proximity engine — user pref radius (KAN-25)', () => {
 
     updateProximityPoiPreferences({}); // no gym pref
 
-    // Gym is 60 m away — within NEARBY_RADIUS (400 m).
+    // Gym is 60 m away — inside HERO_RADIUS_M (100 m) → hero.
     mockPlacesResponse([{
       id:          'gym-1',
       displayName: { text: 'Downtown Gym' },
       location:    { latitude: 0.00054, longitude: 0 }, // ~60 m
+      types:       ['gym'],
     }]);
 
     const onUpdate = jest.fn();
-    startProximityMonitoring('uid-1', [gymTask], onUpdate);
-
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
+    await runProximitySearch('uid-1', [gymTask], onUpdate);
 
     expect(onUpdate).toHaveBeenCalledWith(
       'gym',
       expect.objectContaining({ name: 'Downtown Gym' }),
       expect.any(Object),
     );
-  });
-
-  it('updateProximityPoiPreferences invalidates place cache (forces re-search)', async () => {
-    updateProximityPoiPreferences({});
-
-    // First location ping — ATM found 30 m away.
-    mockPlacesResponse([{
-      id:          'atm-1',
-      displayName: { text: 'Old ATM' },
-      location:    { latitude: 0.00027, longitude: 0 },
-    }]);
-
-    const onUpdate = jest.fn();
-    startProximityMonitoring('uid-1', [atmTask], onUpdate);
-    const locationCb = mockStartTracking.mock.calls[0][0];
-    await locationCb(ORIGIN);
-
-    const firstCallCount = mockFetch.mock.calls.length;
-
-    // Update prefs — should clear cache.
-    updateProximityPoiPreferences({ atm: 100 });
-
-    // Second ping at same location — cache was cleared, so a new API call fires.
-    mockPlacesResponse([{
-      id:          'atm-2',
-      displayName: { text: 'New ATM' },
-      location:    { latitude: 0.00027, longitude: 0 },
-    }]);
-    await locationCb(ORIGIN);
-
-    expect(mockFetch.mock.calls.length).toBeGreaterThan(firstCallCount);
   });
 });

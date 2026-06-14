@@ -108,8 +108,10 @@ let _lastLng = 0;
 let _mallLookupInFlight = false;
 
 /** Production implementation — replaced in tests via __setMallLookup. */
-let _mallLookup: MallLookupFn = (lat, lng, type, radius) =>
-  searchNearbyPlaces(lat, lng, type, radius);
+let _mallLookup: MallLookupFn = async (lat, lng, type, radius) => {
+  const results = await searchNearbyPlaces(lat, lng, [type], radius);
+  return results[type] ?? [];
+};
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
@@ -236,8 +238,10 @@ function _reset(): void {
   _mallLookupInFlight = false;
   // Restore production mall lookup so __setMallLookup from a prior test
   // doesn't leak into a fresh startIndoorDetection call.
-  _mallLookup = (lat, lng, type, radius) =>
-    searchNearbyPlaces(lat, lng, type, radius);
+  _mallLookup = async (lat, lng, type, radius) => {
+    const results = await searchNearbyPlaces(lat, lng, [type], radius);
+    return results[type] ?? [];
+  };
 }
 
 function _commitTransition(target: LocationContext, lat: number, lng: number): void {

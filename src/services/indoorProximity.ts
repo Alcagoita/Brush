@@ -76,7 +76,10 @@ let _getPosition:   GetCurrentPositionFn = async () => {
   const c = await getCurrentPosition();
   return { lat: c.lat, lng: c.lng, accuracy: c.accuracy };
 };
-let _searchPlaces:  SearchPlacesFn       = searchNearbyPlaces;
+let _searchPlaces:  SearchPlacesFn       = async (lat, lng, type, radius) => {
+  const results = await searchNearbyPlaces(lat, lng, [type], radius);
+  return results[type] ?? [];
+};
 let _fireNotif:     FireNotifFn          = _defaultFireNotif;
 let _markSeen:      MarkSeenFn           = async () => {}; // store field removed — KAN-143
 let _getToday:      GetTodayFn           = () => new Date().toISOString().slice(0, 10);
@@ -310,7 +313,10 @@ export function __setGetToday(fn: GetTodayFn): void {
 /** Restore all dependencies to their production defaults. */
 export function __resetDeps(): void {
   _getPosition  = async () => { const c = await getCurrentPosition(); return { lat: c.lat, lng: c.lng, accuracy: c.accuracy }; };
-  _searchPlaces = searchNearbyPlaces;
+  _searchPlaces = async (lat, lng, type, radius) => {
+    const results = await searchNearbyPlaces(lat, lng, [type], radius);
+    return results[type] ?? [];
+  };
   _fireNotif    = _defaultFireNotif;
   _markSeen     = async () => {};
   _getToday     = () => new Date().toISOString().slice(0, 10);
