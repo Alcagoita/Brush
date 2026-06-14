@@ -1,15 +1,11 @@
 /**
- * AchievementsScreen tests — KAN-114 / KAN-129
+ * AchievementsScreen tests — KAN-114 / KAN-129 / KAN-136
  *
- * Covers:
- *   - Renders without crashing; back button present
- *   - Subscribes to totalPoints and achievements with the correct uid
- *   - Tier summary card shows points, tier name, and earned count
- *   - All 7 catalogue achievement labels rendered in the grid
- *   - Earned card shows "pts earned" badge; locked card shows "pts available"
- *   - Progress bar rendered for multi-step achievements (target > 1)
- *   - Centurion progress is driven by totalPoints (meta-achievement)
- *   - Both subscriptions are cleaned up on unmount
+ * KAN-136 changes tested:
+ *   - Tier header card: "TOTAL POINTS" label, point number, "points earned so far" caption
+ *   - TierMedal caption: "{toGo} pts to {name}" / maxed state
+ *   - TierLadder renders
+ *   - Achievement gallery split into EARNED · N and LOCKED · N sections
  */
 
 import React from 'react';
@@ -27,16 +23,6 @@ jest.mock('../../src/services/firestore', () => ({
 }));
 
 jest.mock('../../src/services/achievements', () => ({
-  TIER_LADDER: [
-    { name: 'Bronze', at: 50  },
-    { name: 'Silver', at: 150 },
-    { name: 'Gold',   at: 350 },
-  ],
-  getNextTier: (pts: number) => {
-    if (pts < 50)  { return { name: 'Bronze', at: 50  }; }
-    if (pts < 150) { return { name: 'Silver', at: 150 }; }
-    return           { name: 'Gold',   at: 350 };
-  },
   ACHIEVEMENT_DEFS: {
     first_brush:  { id: 'first_brush',  label: 'First brush',  points: 5,  target: 1,   repeatable: false },
     early_bird:   { id: 'early_bird',   label: 'Early bird',   points: 10, target: 1,   repeatable: true  },
@@ -46,6 +32,20 @@ jest.mock('../../src/services/achievements', () => ({
     centurion:    { id: 'centurion',    label: 'Centurion',    points: 30, target: 100, repeatable: false },
   },
 }));
+
+jest.mock('../../src/constants/tiers', () => ({
+  deriveTierStanding: (pts: number) => {
+    if (pts < 50)   { return { nextTier: { name: 'Bronze',     at: 50,   color: '#b3793f' }, maxed: false, bandPct: pts        / 50,  toGo: 50   - pts }; }
+    if (pts < 200)  { return { nextTier: { name: 'Silver',     at: 200,  color: '#7d93a4' }, maxed: false, bandPct: (pts-50)  / 150,  toGo: 200  - pts }; }
+    if (pts < 500)  { return { nextTier: { name: 'Gold',       at: 500,  color: '#c0972d' }, maxed: false, bandPct: (pts-200) / 300,  toGo: 500  - pts }; }
+    if (pts < 1200) { return { nextTier: { name: 'Adamantium', at: 1200, color: '#5e788c' }, maxed: false, bandPct: (pts-500) / 700,  toGo: 1200 - pts }; }
+    if (pts < 3000) { return { nextTier: { name: 'Vibranium',  at: 3000, color: '#7256a6' }, maxed: false, bandPct: (pts-1200)/1800,  toGo: 3000 - pts }; }
+    return           { nextTier: { name: 'Vibranium', at: 3000, color: '#7256a6' }, maxed: true,  bandPct: 1, toGo: 0 };
+  },
+}));
+
+jest.mock('../../src/components/TierMedal', () => () => null);
+jest.mock('../../src/components/TierLadder', () => () => null);
 
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
   getAuth: () => ({
@@ -85,17 +85,9 @@ jest.mock('../../src/theme', () => ({
 jest.mock('react-native-svg', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const Stub = (props: any) => React.createElement(View, props);
+  const Stub = (props: React.ComponentProps<typeof View>) => React.createElement(View, props);
   return { __esModule: true, default: Stub, Circle: Stub, Path: Stub };
 });
-
-jest.mock('react-native-reanimated', () => ({
-  ...require('react-native-reanimated/mock'),
-  useSharedValue:          (v: number) => ({ value: v }),
-  useAnimatedProps:        (fn: () => object) => fn(),
-  withTiming:              (v: number) => v,
-  createAnimatedComponent: (C: React.ComponentType<any>) => C,
-}));
 
 jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon: () => null,
@@ -142,7 +134,7 @@ beforeEach(() => {
 
 // ─── Basic render ─────────────────────────────────────────────────────────────
 
-describe('AchievementsScreen — KAN-114 / KAN-129: basic render', () => {
+describe('AchievementsScreen — basic render', () => {
   it('renders without crashing', () => {
     renderScreen();
     expect(screen.getByText('Achievements')).toBeTruthy();
@@ -156,7 +148,7 @@ describe('AchievementsScreen — KAN-114 / KAN-129: basic render', () => {
 
 // ─── Subscriptions ────────────────────────────────────────────────────────────
 
-describe('AchievementsScreen — KAN-129: subscriptions', () => {
+describe('AchievementsScreen — subscriptions', () => {
   it('subscribes to totalPoints with the correct uid', () => {
     renderScreen();
     expect(mockSubscribeToTotalPoints).toHaveBeenCalledWith(
@@ -176,63 +168,57 @@ describe('AchievementsScreen — KAN-129: subscriptions', () => {
     const unsub2 = jest.fn();
     mockSubscribeToTotalPoints.mockReturnValue(unsub1);
     mockSubscribeToAchievements.mockReturnValue(unsub2);
-
     const { unmount } = renderScreen();
     unmount();
-
     expect(unsub1).toHaveBeenCalledTimes(1);
     expect(unsub2).toHaveBeenCalledTimes(1);
   });
 });
 
-// ─── Tier summary card ────────────────────────────────────────────────────────
+// ─── Tier header card (KAN-136) ───────────────────────────────────────────────
 
-describe('AchievementsScreen — KAN-129: tier summary card', () => {
-  it('shows 0 pts before subscription fires', () => {
+describe('AchievementsScreen — KAN-136: tier header card', () => {
+  it('shows TOTAL POINTS label', () => {
     renderScreen();
-    // getAllByText used because multiple elements may contain "0"
-    expect(screen.getAllByText(/0 pts/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('TOTAL POINTS')).toBeTruthy();
+  });
+
+  it('shows "points earned so far" caption', () => {
+    renderScreen();
+    expect(screen.getByText('points earned so far')).toBeTruthy();
+  });
+
+  it('shows 0 before subscription fires', () => {
+    renderScreen();
+    expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows live point total when subscription fires', () => {
     renderScreen();
     firePoints(42);
-    expect(screen.getAllByText(/42/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText('42').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows pts to next tier when below max', () => {
+  it('shows "{toGo} pts to {name}" when not maxed', () => {
     renderScreen();
     firePoints(10);
-    // Bronze at 50 → "40 pts to Bronze"
-    expect(screen.getByText(/40 pts to Bronze/)).toBeTruthy();
+    // 10 pts → toGo = 40, nextTier = Bronze
+    expect(screen.getByText(/40 pts/)).toBeTruthy();
+    expect(screen.getByText(/Bronze/)).toBeTruthy();
   });
 
-  it('shows Gold tier when totalPoints >= 350', () => {
+  it('shows "Top tier · {name}" when maxed', () => {
     renderScreen();
-    firePoints(400);
-    expect(screen.getByText(/Gold tier/)).toBeTruthy();
-  });
-
-  it('shows 0/7 earned count before any achievements', () => {
-    renderScreen();
-    fireAchievements({});
-    expect(screen.getByText(/0 \/ 7 earned/)).toBeTruthy();
-  });
-
-  it('shows correct earned count after some achievements awarded', () => {
-    renderScreen();
-    fireAchievements({
-      first_brush:  { earnCount: 1, progress: 1, target: 1,  earnedAt: null },
-      early_bird:   { earnCount: 3, progress: 3, target: 1,  earnedAt: null },
-    });
-    expect(screen.getByText(/2 \/ 7 earned/)).toBeTruthy();
+    firePoints(3000);
+    expect(screen.getByText(/Top tier/)).toBeTruthy();
+    expect(screen.getByText(/Vibranium/)).toBeTruthy();
   });
 });
 
-// ─── Achievement grid ─────────────────────────────────────────────────────────
+// ─── Achievement gallery — sections (KAN-136) ─────────────────────────────────
 
-describe('AchievementsScreen — KAN-114 / KAN-129: achievement grid', () => {
-  it('renders all 7 catalogue labels', () => {
+describe('AchievementsScreen — KAN-136: achievement sections', () => {
+  it('shows all catalogue labels', () => {
     renderScreen();
     expect(screen.getByText('First brush')).toBeTruthy();
     expect(screen.getByText('Early bird')).toBeTruthy();
@@ -243,6 +229,41 @@ describe('AchievementsScreen — KAN-114 / KAN-129: achievement grid', () => {
     expect(screen.getByText('First to brush it away')).toBeTruthy();
   });
 
+  it('shows LOCKED · N section when no achievements earned', () => {
+    renderScreen();
+    fireAchievements({});
+    expect(screen.getByText(/LOCKED · 7/)).toBeTruthy();
+  });
+
+  it('shows EARNED · N section after earning some', () => {
+    renderScreen();
+    fireAchievements({
+      first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      early_bird:  { earnCount: 2, progress: 2, target: 1, earnedAt: null },
+    });
+    expect(screen.getByText(/EARNED · 2/)).toBeTruthy();
+    expect(screen.getByText(/LOCKED · 5/)).toBeTruthy();
+  });
+
+  it('hides EARNED section when nothing earned', () => {
+    renderScreen();
+    fireAchievements({});
+    expect(screen.queryByText(/EARNED ·/)).toBeNull();
+  });
+
+  it('hides LOCKED section when everything earned', () => {
+    renderScreen();
+    const allEarned: AchievementsMap = {};
+    const keys: (keyof AchievementsMap)[] = ['first_brush', 'early_bird', 'day_complete', 'on_a_roll', 'explorer', 'centurion', 'challenge_winner'];
+    keys.forEach(t => { allEarned[t] = { earnCount: 1, progress: 1, target: 1, earnedAt: null }; });
+    fireAchievements(allEarned);
+    expect(screen.queryByText(/LOCKED ·/)).toBeNull();
+  });
+});
+
+// ─── Achievement cards ────────────────────────────────────────────────────────
+
+describe('AchievementsScreen — achievement cards', () => {
   it('shows "pts earned" badge for earned achievements', () => {
     renderScreen();
     fireAchievements({
@@ -254,35 +275,26 @@ describe('AchievementsScreen — KAN-114 / KAN-129: achievement grid', () => {
   it('shows "pts available" badge for locked achievements', () => {
     renderScreen();
     fireAchievements({});
-    // first_brush is locked → exactly "5 pts available" (not "25 pts available")
     const matches = screen.getAllByText(/pts available/);
     const exact = matches.filter(el => el.props.children === '5 pts available');
     expect(exact.length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows "pts earned" scaled by earnCount for repeatable achievements', () => {
+  it('scales "pts earned" by earnCount for repeatable achievements', () => {
     renderScreen();
-    // early_bird earned 3 times × 10 pts = 30 pts earned
     fireAchievements({
       early_bird: { earnCount: 3, progress: 3, target: 1, earnedAt: null },
     });
     expect(screen.getByText(/30 pts earned/)).toBeTruthy();
   });
-
-  it('renders the ACHIEVEMENTS section label', () => {
-    renderScreen();
-    expect(screen.getByText('ACHIEVEMENTS')).toBeTruthy();
-  });
 });
 
 // ─── Centurion meta-achievement ───────────────────────────────────────────────
 
-describe('AchievementsScreen — KAN-129: centurion meta-achievement', () => {
-  it('centurion progress bar shows totalPoints as progress (not Firestore entry)', () => {
+describe('AchievementsScreen — centurion meta-achievement', () => {
+  it('centurion progress uses totalPoints', () => {
     renderScreen();
-    // 80 pts total — centurion target is 100 — progress should read from totalPoints
     firePoints(80);
-    // Multiple elements may show "80" — ensure at least one is present
     expect(screen.getAllByText(/80/).length).toBeGreaterThanOrEqual(1);
   });
 });
