@@ -114,8 +114,6 @@ let poiRadiusPrefs: Record<string, number> = {};
 
 // ─── Native geofence state (exit-prompt only, KAN-119) ───────────────────────
 
-let geofenceEntrySubscription: ReturnType<NonNullable<typeof geofenceEmitter>['addListener']> | null = null;
-let geofenceExitSubscription:  ReturnType<NonNullable<typeof geofenceEmitter>['addListener']> | null = null;
 const geofenceEntryTimes = new Map<string, number>();
 const EXIT_PROMPT_MIN_DWELL_MS = 5 * 60 * 1_000;
 
@@ -380,10 +378,6 @@ export function resetProximityState(): void {
   _alertedTodayTypes.clear();
   poiRadiusPrefs = {};
 
-  geofenceEntrySubscription?.remove();
-  geofenceEntrySubscription = null;
-  geofenceExitSubscription?.remove();
-  geofenceExitSubscription = null;
   geofenceEntryTimes.clear();
   NativeGeofence.removeAllGeofences().catch(() => {});
 }

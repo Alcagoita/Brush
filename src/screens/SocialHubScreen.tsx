@@ -85,7 +85,14 @@ export default function SocialHubScreen() {
   const [recentFollowers, setRecentFollowers] = useState<FollowEntry[]>([]);
 
   const loadData = useCallback(async () => {
-    if (!uid) { return; }
+    if (!uid) {
+      setLoading(false);
+      setError(false);
+      setPendingTasks([]);
+      setFollowing([]);
+      setRecentFollowers([]);
+      return;
+    }
     setLoading(true);
     setError(false);
     try {
@@ -299,7 +306,7 @@ const styles = StyleSheet.create({
     paddingVertical:   12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  navBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  navBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title:  { fontSize: 17, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 
   loadingCenter: {
@@ -379,7 +386,7 @@ const styles = StyleSheet.create({
   feedText: { flex: 1 },
   feedMain: { fontSize: 14, fontFamily: 'Geist-Regular' },
   feedSub:  { fontSize: 12, fontFamily: 'Geist-Regular', marginTop: 2 },
-  feedTime: { fontSize: 11, fontFamily: 'Geist-Regular' },
+  feedTime: { fontSize: 11, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   // ── Empty card ──
   emptyCard: {
@@ -406,7 +413,7 @@ const styles = StyleSheet.create({
   findMoreChip: {
     height:            44,
     paddingHorizontal: 16,
-    borderRadius:      9999,
+    borderRadius:      radii.chip,
     borderWidth:       1,
     alignSelf:         'center',
     alignItems:        'center',

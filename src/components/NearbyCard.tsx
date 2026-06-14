@@ -200,7 +200,10 @@ export default function NearbyCard({
   const isHero  = nearbyPoiType !== null;
   const heroTask = isHero ? (poiTasks.find(t => t.poi === nearbyPoiType) ?? null) : null;
 
-  // Show only when the proximity service found at least one place in range.
+  // Hero POI type set but no matching undone task — hide card.
+  if (isHero && !heroTask) { return null; }
+
+  // Show only when at least one approaching place is in the grey zone.
   const hasNearbyData = isHero || poiTasks.some(t => t.poi && poiPlaces[t.poi]);
   if (!hasNearbyData) { return null; }
 
@@ -387,10 +390,11 @@ const styles = StyleSheet.create({
     gap:  4,
   },
   heroDistance: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing: 0.8,
+    fontSize:        11,
+    fontWeight:      '600',
+    fontFamily:      'Geist-SemiBold',
+    letterSpacing:   0.8,
+    fontVariant:     ['tabular-nums'],
   },
   heroPlaceName: {
     fontWeight:    '600',

@@ -185,11 +185,15 @@ function AppShell() {
   // Fetch exitPrompt preference once on login and propagate to proximity engines.
   useEffect(() => {
     if (!displayUser) { return; }
-    getUserPreferences(displayUser.uid).then(prefs => {
+    let cancelled = false;
+    const activeUid = displayUser.uid;
+    getUserPreferences(activeUid).then(prefs => {
+      if (cancelled) { return; }
       const enabled = prefs.exitPrompt ?? true;
       updateExitPromptPref(enabled);
       updateIndoorExitPromptPref(enabled);
     }).catch(() => {});
+    return () => { cancelled = true; };
   }, [displayUser]);
 
   // Register iOS notification categories once at startup (KAN-119).
@@ -220,7 +224,10 @@ function AppShell() {
   // Debounced to 10s to prevent rapid double-fires from Android AppState on launch.
   const lastOpenedStampRef = useRef<number>(0);
   useEffect(() => {
-    if (!displayUser) { return; }
+    if (!displayUser) {
+      lastOpenedStampRef.current = 0;
+      return;
+    }
     const uid = displayUser.uid;
     const stamp = () => {
       const now = Date.now();
