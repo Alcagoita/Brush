@@ -2,11 +2,10 @@
  * KAN-60 — NearbyCard component tests.
  *
  * Covers:
- *   - Returns null when there are no undone POI tasks (nothing to show)
- *   - Idle state: renders "NEARBY" header, idle task rows
- *   - Hero state: renders "NEARBY · NOW", place name, task title
- *   - Paused state: renders the low-battery banner (trackingPaused=true)
- *   - "Open in Maps" CTA present in hero state
+ *   - Returns null when nearbyPoiType is null (service decides when to show)
+ *   - Returns null when no matching hero task is found
+ *   - Hero state: renders "NEARBY · NOW", place name, task title, CTA
+ *   - "Also close" subsection shows remaining POI tasks
  */
 
 import React from 'react';
@@ -81,11 +80,11 @@ const PLACES_MAP   = { pharmacy: NEARBY_PLACE };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('NearbyCard — no POI tasks', () => {
-  it('renders nothing when there are no undone POI tasks', () => {
+describe('NearbyCard — hidden when service has not triggered', () => {
+  it('renders nothing when nearbyPoiType is null', () => {
     const { toJSON } = render(
       <NearbyCard
-        tasks={[makeTask({ poi: undefined })]}
+        tasks={[makeTask()]}
         nearbyPoiType={null}
         nearbyPlace={null}
         poiPlaces={EMPTY_PLACES}
@@ -94,54 +93,28 @@ describe('NearbyCard — no POI tasks', () => {
     expect(toJSON()).toBeNull();
   });
 
-  it('renders nothing when all POI tasks are done', () => {
+  it('renders nothing when all POI tasks are done (no hero task match)', () => {
     const { toJSON } = render(
       <NearbyCard
         tasks={[makeTask({ done: true })]}
-        nearbyPoiType={null}
+        nearbyPoiType="pharmacy"
         nearbyPlace={null}
         poiPlaces={EMPTY_PLACES}
       />,
     );
     expect(toJSON()).toBeNull();
   });
-});
 
-describe('NearbyCard — idle state', () => {
-  it('renders the "NEARBY" header when no POI is active', () => {
-    render(
+  it('renders nothing when the active POI type has no matching task', () => {
+    const { toJSON } = render(
       <NearbyCard
-        tasks={[makeTask()]}
-        nearbyPoiType={null}
+        tasks={[makeTask({ poi: 'supermarket' })]}
+        nearbyPoiType="pharmacy"
         nearbyPlace={null}
-        poiPlaces={PLACES_MAP}
+        poiPlaces={EMPTY_PLACES}
       />,
     );
-    expect(screen.getByText('NEARBY')).toBeTruthy();
-  });
-
-  it('renders the task title as an idle row', () => {
-    render(
-      <NearbyCard
-        tasks={[makeTask()]}
-        nearbyPoiType={null}
-        nearbyPlace={null}
-        poiPlaces={PLACES_MAP}
-      />,
-    );
-    expect(screen.getByText('Pick up prescription')).toBeTruthy();
-  });
-
-  it('does NOT render "NEARBY · NOW" in idle state', () => {
-    render(
-      <NearbyCard
-        tasks={[makeTask()]}
-        nearbyPoiType={null}
-        nearbyPlace={null}
-        poiPlaces={PLACES_MAP}
-      />,
-    );
-    expect(screen.queryByText('NEARBY · NOW')).toBeNull();
+    expect(toJSON()).toBeNull();
   });
 });
 
@@ -167,7 +140,6 @@ describe('NearbyCard — hero state', () => {
         poiPlaces={PLACES_MAP}
       />,
     );
-    // Place name appears in the hero distance label (uppercased)
     expect(screen.getByText(/WHOLE FOODS/i)).toBeTruthy();
   });
 
@@ -183,7 +155,7 @@ describe('NearbyCard — hero state', () => {
     expect(screen.getByText('Pick up prescription')).toBeTruthy();
   });
 
-  it('renders the "Open in Maps" CTA button', () => {
+  it('renders the "Open in Maps" CTA button when place is known', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -194,68 +166,26 @@ describe('NearbyCard — hero state', () => {
     );
     expect(screen.getByLabelText('Open Whole Foods in Maps')).toBeTruthy();
   });
+
+  it('omits the "Open in Maps" CTA when nearbyPlace is null', () => {
+    render(
+      <NearbyCard
+        tasks={[makeTask()]}
+        nearbyPoiType="pharmacy"
+        nearbyPlace={null}
+        poiPlaces={EMPTY_PLACES}
+      />,
+    );
+    expect(screen.queryByText('Open in Maps')).toBeNull();
+  });
 });
 
-describe('NearbyCard — KAN-131: idle list container border', () => {
-  it('applies borderWidth:1 and borderColor:palette.line to the idle container', () => {
-    const { UNSAFE_getAllByType } = render(
-      <NearbyCard
-        tasks={[makeTask()]}
-        nearbyPoiType={null}
-        nearbyPlace={null}
-        poiPlaces={PLACES_MAP}
-      />,
-    );
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { View } = require('react-native');
-    const allViews = UNSAFE_getAllByType(View);
+describe('NearbyCard — also close section', () => {
+  it('renders "ALSO CLOSE" label and the secondary task title', () => {
+    const heroTask  = makeTask({ id: 'hero', poi: 'pharmacy' });
+    const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Buy groceries' });
 
-    // Find the container that has both the line border colour and the surface background
-    // (set via inline style — palette values come from the mock: line=#ddd, surface=#f6f5f1)
-    const container = allViews.find(v => {
-      const flat = [v.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
-      return (
-        flat.some(s => s.borderColor === '#ddd') &&
-        flat.some(s => s.backgroundColor === '#f6f5f1')
-      );
-    });
-
-    expect(container).toBeDefined();
-  });
-
-  it('idle container also has borderRadius:16 and overflow:hidden', () => {
-    const { UNSAFE_getAllByType } = render(
-      <NearbyCard
-        tasks={[makeTask()]}
-        nearbyPoiType={null}
-        nearbyPlace={null}
-        poiPlaces={PLACES_MAP}
-      />,
-    );
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { View } = require('react-native');
-    const allViews = UNSAFE_getAllByType(View);
-
-    // StyleSheet.create values are resolved in the test renderer — find the view
-    // that carries the listContainer static styles together with the inline border colour
-    const container = allViews.find(v => {
-      const flat = [v.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
-      return flat.some(s => s.borderColor === '#ddd');
-    });
-
-    expect(container).toBeDefined();
-    // The StyleSheet entry includes borderRadius and overflow
-    const flat = [container!.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
-    const merged = Object.assign({}, ...flat);
-    expect(merged.borderRadius).toBe(16);
-    expect(merged.overflow).toBe('hidden');
-  });
-
-  it('hero "also close" section does NOT receive the idle border container', () => {
-    const heroTask  = makeTask({ id: 'hero',  poi: 'pharmacy' });
-    const alsoClose = makeTask({ id: 'also',  poi: 'supermarket', title: 'Buy groceries' });
-
-    const { UNSAFE_getAllByType } = render(
+    render(
       <NearbyCard
         tasks={[heroTask, alsoClose]}
         nearbyPoiType="pharmacy"
@@ -263,47 +193,20 @@ describe('NearbyCard — KAN-131: idle list container border', () => {
         poiPlaces={{ pharmacy: NEARBY_PLACE }}
       />,
     );
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const { View } = require('react-native');
-    const allViews = UNSAFE_getAllByType(View);
 
-    // In hero mode no view should combine surface background + line border (listContainer)
-    const hasIdleContainer = allViews.some(v => {
-      const flat = [v.props.style].flat(Infinity).filter(Boolean) as Record<string, unknown>[];
-      return (
-        flat.some(s => s.borderColor === '#ddd') &&
-        flat.some(s => s.backgroundColor === '#f6f5f1')
-      );
-    });
-
-    expect(hasIdleContainer).toBe(false);
+    expect(screen.getByText('ALSO CLOSE')).toBeTruthy();
+    expect(screen.getByText('Buy groceries')).toBeTruthy();
   });
-});
 
-describe('NearbyCard — paused state (KAN-52)', () => {
-  it('renders the low-battery paused banner when trackingPaused is true', () => {
+  it('does not render "ALSO CLOSE" when only one POI task exists', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
-        nearbyPoiType={null}
-        nearbyPlace={null}
-        poiPlaces={EMPTY_PLACES}
-        trackingPaused
+        nearbyPoiType="pharmacy"
+        nearbyPlace={NEARBY_PLACE}
+        poiPlaces={PLACES_MAP}
       />,
     );
-    expect(screen.getByText('Nearby alerts paused — low battery')).toBeTruthy();
-  });
-
-  it('does NOT show idle rows when paused', () => {
-    render(
-      <NearbyCard
-        tasks={[makeTask()]}
-        nearbyPoiType={null}
-        nearbyPlace={null}
-        poiPlaces={EMPTY_PLACES}
-        trackingPaused
-      />,
-    );
-    expect(screen.queryByText('Pick up prescription')).toBeNull();
+    expect(screen.queryByText('ALSO CLOSE')).toBeNull();
   });
 });

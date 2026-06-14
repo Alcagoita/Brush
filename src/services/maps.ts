@@ -41,10 +41,22 @@ interface PlacesApiPlace {
   id: string;
   displayName?: { text: string; languageCode?: string };
   location?: { latitude: number; longitude: number };
+  types?: string[];
 }
 
 interface PlacesApiResponse {
   places?: PlacesApiPlace[];
+}
+
+// ─── Fetch with timeout ────────────────────────────────────────────────────────
+
+const FETCH_TIMEOUT_MS = 8_000;
+
+function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
 }
 
 // ─── Haversine distance ────────────────────────────────────────────────────────
@@ -74,27 +86,35 @@ export function getDistanceMeters(
 const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 /**
- * Search for places of the given POI type within `radiusMeters` of `lat`/`lng`.
+ * Search for places of all given POI types within `radiusMeters` of `lat`/`lng`
+ * in a SINGLE Places API call.
  *
- * `poiType` accepts either one of the four built-in PoiType values or any
- * arbitrary Google Places primary type string (e.g. "gym", "restaurant").
- * Built-in types are mapped through POI_GOOGLE_TYPES; all others are passed
- * directly to the Places API as-is.
+ * `poiTypes` accepts our internal PoiType keys (mapped via POI_GOOGLE_TYPES) or
+ * arbitrary Google Places primary type strings for custom categories. All types
+ * are sent together in `includedTypes` so the API returns matches for any of
+ * them in one round-trip.
  *
- * Results are sorted ascending by straight-line distance from the origin.
- * Returns up to 5 candidates (we only ever show the closest one per type).
+ * Returns a map keyed by the original poiType, each entry sorted ascending by
+ * straight-line distance (up to 5 candidates per type).
  *
- * Throws on network error or non-200 response so callers can handle gracefully.
+ * Throws on network error, timeout (8 s), or non-200 response.
  */
 export async function searchNearbyPlaces(
   lat: number,
   lng: number,
-  poiType: string,
+  poiTypes: string[],
   radiusMeters: number,
-): Promise<NearbyPlace[]> {
-  // For the four legacy PoiType values, use the mapped Google type.
-  // All other strings (custom category types) are already Google Places types.
-  const googleType = POI_GOOGLE_TYPES[poiType as PoiType] ?? poiType;
+): Promise<Record<string, NearbyPlace[]>> {
+  if (poiTypes.length === 0) { return {}; }
+
+  // Map internal type keys → Google Places primary type strings.
+  const googleTypes = poiTypes.map(t => POI_GOOGLE_TYPES[t as PoiType] ?? t);
+
+  // Reverse map for grouping results back by our internal key.
+  const googleToInternal: Record<string, string> = {};
+  for (let i = 0; i < poiTypes.length; i++) {
+    googleToInternal[googleTypes[i]] = poiTypes[i];
+  }
 
   const body = {
     locationRestriction: {
@@ -103,18 +123,17 @@ export async function searchNearbyPlaces(
         radius: radiusMeters,
       },
     },
-    includedTypes: [googleType],
-    maxResultCount: 5,
+    includedTypes: googleTypes,
+    maxResultCount: 20,
     rankPreference: 'DISTANCE',
   };
 
-  const response = await fetch(PLACES_NEARBY_URL, {
+  const response = await fetchWithTimeout(PLACES_NEARBY_URL, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-      // Request only the fields we use — avoids billing for unused field sets.
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.location',
+      'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.types',
     },
     body: JSON.stringify(body),
   });
@@ -125,22 +144,40 @@ export async function searchNearbyPlaces(
   }
 
   const data = (await response.json()) as PlacesApiResponse;
-  const places = data.places ?? [];
 
-  return places
-    .filter(p => p.location != null)
-    .map(p => {
-      const placeLat = p.location!.latitude;
-      const placeLng = p.location!.longitude;
-      return {
-        placeId:        p.id,
-        name:           p.displayName?.text ?? 'Unknown',
-        lat:            placeLat,
-        lng:            placeLng,
-        distanceMeters: getDistanceMeters(lat, lng, placeLat, placeLng),
-      };
-    })
-    .sort((a, b) => a.distanceMeters - b.distanceMeters);
+  // Initialise result buckets for every requested type.
+  const result: Record<string, NearbyPlace[]> = {};
+  for (const poiType of poiTypes) { result[poiType] = []; }
+
+  for (const p of data.places ?? []) {
+    if (!p.location) { continue; }
+    const placeLat = p.location.latitude;
+    const placeLng = p.location.longitude;
+    const nearbyPlace: NearbyPlace = {
+      placeId:        p.id,
+      name:           p.displayName?.text ?? 'Unknown',
+      lat:            placeLat,
+      lng:            placeLng,
+      distanceMeters: getDistanceMeters(lat, lng, placeLat, placeLng),
+    };
+
+    // Assign this place to the first requested type it matches.
+    for (const placeType of (p.types ?? [])) {
+      const internalType = googleToInternal[placeType];
+      if (internalType && result[internalType]) {
+        result[internalType].push(nearbyPlace);
+        break;
+      }
+    }
+  }
+
+  // Sort and cap each bucket.
+  for (const poiType of poiTypes) {
+    result[poiType].sort((a, b) => a.distanceMeters - b.distanceMeters);
+    if (result[poiType].length > 5) { result[poiType] = result[poiType].slice(0, 5); }
+  }
+
+  return result;
 }
 
 // ─── Deep-link to native Maps ─────────────────────────────────────────────────
@@ -354,7 +391,7 @@ export function resolveCategoryPlaceType(category: Category): string | null {
  * Throws on network error or non-200 response.
  */
 export async function searchPlaceTypes(query: string): Promise<PlaceTypeSuggestion[]> {
-  const response = await fetch(PLACES_TEXT_SEARCH_URL, {
+  const response = await fetchWithTimeout(PLACES_TEXT_SEARCH_URL, {
     method: 'POST',
     headers: {
       'Content-Type':     'application/json',
@@ -452,7 +489,7 @@ export async function searchPlacesAutocomplete(
 
   let data: AutocompleteResponse;
   try {
-    const response = await fetch(PLACES_AUTOCOMPLETE_URL, {
+    const response = await fetchWithTimeout(PLACES_AUTOCOMPLETE_URL, {
       method: 'POST',
       headers: {
         'Content-Type':    'application/json',

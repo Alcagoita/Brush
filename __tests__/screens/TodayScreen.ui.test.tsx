@@ -29,7 +29,6 @@ const DEFAULT_HOOK_RETURN = {
   nearbyPoiType:           null,
   nearbyPlace:             null,
   poiPlaces:               {},
-  trackingPaused:          false,
   storeTuningActive:       false,
   showStoreTuningPrompt:   false,
   onStoreTuningTurnOn:     jest.fn(),

@@ -24,7 +24,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
-import { getUser, markLastOpenedAt, setTaskDone, subscribeToUserPreferences } from './src/services/firestore';
+import { getUser, markLastOpenedAt, setTaskDone, getUserPreferences } from './src/services/firestore';
 import { migratePointsToAchievementDerived } from './src/services/achievements';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
 import { EXIT_ACTION_MARK_DONE, registerExitPromptCategory } from './src/services/notifications';
@@ -182,14 +182,14 @@ function AppShell() {
     });
   }, [displayUser]);
 
-  // Subscribe to exitPrompt preference and propagate to both proximity engines.
+  // Fetch exitPrompt preference once on login and propagate to proximity engines.
   useEffect(() => {
     if (!displayUser) { return; }
-    return subscribeToUserPreferences(displayUser.uid, prefs => {
+    getUserPreferences(displayUser.uid).then(prefs => {
       const enabled = prefs.exitPrompt ?? true;
       updateExitPromptPref(enabled);
       updateIndoorExitPromptPref(enabled);
-    });
+    }).catch(() => {});
   }, [displayUser]);
 
   // Register iOS notification categories once at startup (KAN-119).
@@ -217,15 +217,20 @@ function AppShell() {
   }, []);
 
   // Stamp lastOpenedAt on every foreground event (KAN-124 dependency).
+  // Debounced to 10s to prevent rapid double-fires from Android AppState on launch.
+  const lastOpenedStampRef = useRef<number>(0);
   useEffect(() => {
     if (!displayUser) { return; }
     const uid = displayUser.uid;
-    // Stamp immediately on mount (cold start counts as a foreground event).
-    markLastOpenedAt(uid).catch(() => {});
+    const stamp = () => {
+      const now = Date.now();
+      if (now - lastOpenedStampRef.current < 10_000) { return; }
+      lastOpenedStampRef.current = now;
+      markLastOpenedAt(uid).catch(() => {});
+    };
+    stamp();
     const sub = AppState.addEventListener('change', state => {
-      if (state === 'active') {
-        markLastOpenedAt(uid).catch(() => {});
-      }
+      if (state === 'active') { stamp(); }
     });
     return () => sub.remove();
   }, [displayUser]);

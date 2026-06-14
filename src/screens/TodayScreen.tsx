@@ -29,6 +29,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   Platform,
   Pressable,
@@ -40,6 +41,7 @@ import {
 import { PlusIcon } from '../components/AppIcon';
 import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import Animated, {
+  cancelAnimation,
   Extrapolation,
   interpolate,
   runOnJS,
@@ -67,15 +69,12 @@ import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
 import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
-import { subscribeToIncomingSharedTasks } from '../services/sharing';
-import { subscribeToTotalPoints } from '../services/firestore';
 import { COPY } from '../constants/copy';
-import { todayISO } from '../utils/date';
-
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const SCREEN_W = Dimensions.get('window').width;
-const SCROLL_RANGE = 170;
+const SCREEN_H = Dimensions.get('window').height;
+const SCROLL_RANGE = 170; // SECTION_H_REST − SECTION_H_COLLAPSED (declared below)
 
 const RING_REST      = 246;
 const RING_COLLAPSED = 112;
@@ -126,6 +125,7 @@ function SkeletonRow({ index, faint }: { index: number; faint: string }) {
       ),
       -1,
     );
+    return () => { cancelAnimation(opacity); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -154,13 +154,13 @@ export default function TodayScreen() {
 
   // ── ViewModel hook (KAN-59) ──────────────────────────────────────────────────
   const {
-    tasksState,
-    retryKey: _retryKey,   // consumed by the hook; exposed only for error UI
-    setRetryKey,
+    tasks,
+    isLoading,
+    error,
+    refresh,
     nearbyPoiType,
     nearbyPlace,
     poiPlaces,
-    trackingPaused,
     storeTuningActive,
     showStoreTuningPrompt,
     onStoreTuningTurnOn,
@@ -168,36 +168,14 @@ export default function TodayScreen() {
     sheetVisible,
     setSheetVisible,
     customCategories,
-    tasks,
-    effectiveTasks,
     totalTasks,
     doneTasks,
     progress,
     nearbyCount,
+    totalPoints,
+    inboxCount,
     handleToggle,
   } = useTodayScreen(uid);
-
-  // ── Shared-task inbox count (KAN-87) — drives bell badge ────────────────────
-  const [inboxCount, setInboxCount] = useState(0);
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToIncomingSharedTasks(
-      uid,
-      tasks => setInboxCount(tasks.length),
-      err => console.warn('[TodayScreen] inbox subscription error', err),
-    );
-  }, [uid]);
-
-  // ── Total achievement points (KAN-134) — drives points chip in header ─────────
-  const [totalPoints, setTotalPoints] = useState(0);
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToTotalPoints(
-      uid,
-      pts => setTotalPoints(pts),
-      err => console.warn('[TodayScreen] totalPoints subscription error', err),
-    );
-  }, [uid]);
 
   // ── Sheet ref + auto-close on new task ────────────────────────────────────────
   // Kept in the screen because sheetRef is a UI element ref, not data state.
@@ -216,6 +194,11 @@ export default function TodayScreen() {
   const weekday = WEEKDAYS[now.getDay()];
   const month   = MONTHS[now.getMonth()];
   const day     = now.getDate();
+
+  // ── ScrollView viewport height (for minHeight calculation) ───────────────────
+  // Measured via onLayout so the content is always tall enough to allow the
+  // full SCROLL_RANGE (170px) of scroll, even with very few tasks.
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
   // ── Reanimated scroll value ───────────────────────────────────────────────────
   const scrollY = useSharedValue(0);
@@ -238,11 +221,19 @@ export default function TodayScreen() {
   const pct       = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const remaining = totalTasks - doneTasks;
 
+  // ── Task display order: undone first, done at bottom ─────────────────────────
+  const sortedTasks = [...tasks].sort((a, b) => {
+    if (a.done === b.done) { return 0; }
+    return a.done ? 1 : -1;
+  });
+
   // ── Empty state flag ──────────────────────────────────────────────────────────
-  const isEmpty = tasksState.status === 'success' && tasks.length === 0;
+  const isEmpty = !isLoading && !error && tasks.length === 0;
 
   // ── Animated styles (UI thread) ───────────────────────────────────────────────
-  const sectionStyle = useAnimatedStyle(() => ({
+  // bgStyle drives the inner background only — the outer ring container has a
+  // fixed height so animating it never triggers a native layout pass.
+  const bgStyle = useAnimatedStyle(() => ({
     height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
   }));
 
@@ -333,18 +324,24 @@ export default function TodayScreen() {
           */
           <Animated.ScrollView
             style={StyleSheet.absoluteFill}
-            contentContainerStyle={[styles.scrollContent, { backgroundColor: palette.bg }]}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                backgroundColor: palette.bg,
+                minHeight: (scrollViewHeight || SCREEN_H) + SCROLL_RANGE,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
-            scrollEventThrottle={1}
+            scrollEventThrottle={16}
+            onLayout={e => setScrollViewHeight(e.nativeEvent.layout.height)}
             onScroll={scrollHandler}>
 
             {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
             <NearbyCard
-              tasks={effectiveTasks}
+              tasks={sortedTasks}
               nearbyPoiType={nearbyPoiType}
               nearbyPlace={nearbyPlace}
               poiPlaces={poiPlaces}
-              trackingPaused={trackingPaused}
               storeTuningActive={storeTuningActive}
             />
 
@@ -365,19 +362,19 @@ export default function TodayScreen() {
                 )}
               </View>
 
-              {tasksState.status === 'loading' ? (
+              {isLoading ? (
                 [0, 1, 2].map(i => (
                   <SkeletonRow key={i} index={i} faint={palette.faint} />
                 ))
-              ) : tasksState.status === 'error' ? (
+              ) : error ? (
                 <View style={styles.errorWrap}>
                   <Text
                     style={[styles.empty, { color: palette.muted }]}
                     accessibilityRole="alert">
-                    {tasksState.message || 'Could not load tasks. Please try again.'}
+                    {error}
                   </Text>
                   <Pressable
-                    onPress={() => setRetryKey(k => k + 1)}
+                    onPress={refresh}
                     style={[styles.retryBtn, { borderColor: palette.line }]}
                     accessibilityRole="button"
                     accessibilityLabel="Try again">
@@ -385,7 +382,7 @@ export default function TodayScreen() {
                   </Pressable>
                 </View>
               ) : (
-                effectiveTasks.map(task => (
+                sortedTasks.map(task => (
                   <TaskRow
                     key={task.id}
                     task={task}
@@ -403,15 +400,32 @@ export default function TodayScreen() {
         )}
 
         {/* ── Collapsible ring section — absolutely positioned ON TOP of content ── */}
-        <Animated.View
-          style={[
-            styles.ringSection,
-            sectionStyle,
-            { backgroundColor: palette.bg, borderBottomColor: palette.line },
-          ]}>
+        {/*                                                                         */}
+        {/* ARCHITECTURE: outer container has a FIXED height (never animates).     */}
+        {/* Only the inner ringBg child animates its height — because it is        */}
+        {/* position:absolute it does not affect sibling layout and never triggers */}
+        {/* a native layout pass. This eliminates the touch-blocking glitch that   */}
+        {/* occurred when animating layout properties on the outer container.      */}
+        {/*                                                                         */}
+        {/* pointerEvents="box-none" lets scroll gestures pass through to the      */}
+        {/* ScrollView while still allowing the day-number Pressable to work.      */}
+        {/* The SVG ring and background have explicit "none" so they never block.  */}
+        <View
+          pointerEvents="box-none"
+          style={styles.ringSection}>
+
+          {/* Background fill + bottom border — only this animates height */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.ringBg,
+              bgStyle,
+              { backgroundColor: palette.bg, borderBottomColor: palette.line },
+            ]}
+          />
 
           {/* Ring — absolutely positioned within section, animates left/top/size */}
-          <Animated.View style={ringWrapStyle}>
+          <Animated.View style={ringWrapStyle} pointerEvents="none">
             <ProgressRing
               progress={progress}
               diameter={ringSize}
@@ -420,16 +434,15 @@ export default function TodayScreen() {
           </Animated.View>
 
           {/* Caption — fades out over k 0→0.625 */}
-          <Animated.View
-            style={[styles.captionWrap, captionStyle]}
-            pointerEvents="box-none">
+          <Animated.View style={[styles.captionWrap, captionStyle]} pointerEvents="box-none">
             <Text style={[styles.captionLabel, { color: palette.muted }]}>
               {weekday.toUpperCase()}
             </Text>
             <Pressable
-              onPress={() => navigation.navigate('Calendar', { initialDate: todayISO() })}
+              onPress={() => navigation.navigate('Calendar')}
               accessibilityRole="button"
-              accessibilityLabel="Open calendar">
+              accessibilityLabel={`Open calendar for ${weekday} ${day}`}
+              hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}>
               <Text style={[styles.captionDay, { color: palette.text }]}>
                 {day}
               </Text>
@@ -483,7 +496,7 @@ export default function TodayScreen() {
               {`${pct}% complete · ${remaining} left`}
             </Text>
           </Animated.View>
-        </Animated.View>
+        </View>
 
       </View>
 
@@ -517,6 +530,13 @@ export default function TodayScreen() {
         onTurnOn={onStoreTuningTurnOn}
         onNotNow={onStoreTuningNotNow}
       />
+
+      {/* ── Loading overlay — blocks touches until initial fetch completes ── */}
+      {isLoading && (
+        <View style={styles.loadingOverlay} pointerEvents="box-only">
+          <ActivityIndicator size="large" color={palette.accent} />
+        </View>
+      )}
     </View>
   );
 }
@@ -525,6 +545,14 @@ export default function TodayScreen() {
 
 const styles = StyleSheet.create({
   root:         { flex: 1 },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
   stickyHeader: { zIndex: 3 },
   // scrollArea fills all space below the sticky header. The ring section
   // is absolutely positioned at top:0 of scrollArea (zIndex 2), and the
@@ -541,7 +569,17 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    height: SECTION_H_REST,
     zIndex: 2,
+    overflow: 'visible',
+  },
+  // Inner background — position:absolute so its animated height never causes
+  // the outer ringSection (fixed height) to remeasure or block touches.
+  ringBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   captionWrap: {

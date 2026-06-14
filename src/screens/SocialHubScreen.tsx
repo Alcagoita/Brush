@@ -11,7 +11,7 @@
  *      "Find more" chip → contacts suggestions (KAN-99)
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -27,15 +27,26 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, ShareIcon, TrophyIcon, UsersIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, RefreshIcon, ShareIcon, TrophyIcon, UsersIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
-import { subscribeToIncomingSharedTasks } from '../services/sharing';
-import { subscribeToFollowing, subscribeToFollowers } from '../services/firestore';
+import { getIncomingSharedTasks } from '../services/sharing';
+import { getFollowing, getFollowers } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { SharedTask, FollowEntry } from '../types';
 import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SocialHub'>;
+
+const LOAD_TIMEOUT_MS = 5_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('Load timed out')), ms),
+    ),
+  ]);
+}
 
 // ─── Relative time ────────────────────────────────────────────────────────────
 
@@ -67,53 +78,38 @@ export default function SocialHubScreen() {
 
   const uid = getAuth().currentUser?.uid ?? '';
 
-  // loading: null = not yet resolved, true = in flight, false = settled
-  const [loadingTasks,     setLoadingTasks]     = useState(true);
-  const [loadingFollowing, setLoadingFollowing] = useState(true);
-  const [loadingFollowers, setLoadingFollowers] = useState(true);
-
-  const [pendingTasks,    setPendingTasks]    = useState<SharedTask[]>([]);
-  const [following,       setFollowing]       = useState<FollowEntry[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState(false);
+  const [pendingTasks,   setPendingTasks]   = useState<SharedTask[]>([]);
+  const [following,      setFollowing]      = useState<FollowEntry[]>([]);
   const [recentFollowers, setRecentFollowers] = useState<FollowEntry[]>([]);
 
-  const [tasksError,     setTasksError]     = useState(false);
-  const [followingError, setFollowingError] = useState(false);
-  const [followersError, setFollowersError] = useState(false);
-
-  // Pending shared tasks
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!uid) { return; }
-    return subscribeToIncomingSharedTasks(
-      uid,
-      tasks => { setPendingTasks(tasks); setLoadingTasks(false); setTasksError(false); },
-      _err  => { setLoadingTasks(false); setTasksError(true); },
-    );
+    setLoading(true);
+    setError(false);
+    try {
+      const [tasks, followingList, followersList] = await withTimeout(
+        Promise.all([
+          getIncomingSharedTasks(uid),
+          getFollowing(uid),
+          getFollowers(uid),
+        ]),
+        LOAD_TIMEOUT_MS,
+      );
+      setPendingTasks(tasks);
+      setFollowing(followingList);
+      setRecentFollowers(followersList.slice(0, 5));
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [uid]);
 
-  // Following list
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToFollowing(
-      uid,
-      entries => { setFollowing(entries); setLoadingFollowing(false); setFollowingError(false); },
-      _err    => { setLoadingFollowing(false); setFollowingError(true); },
-    );
-  }, [uid]);
+  useEffect(() => { loadData(); }, [loadData]);
 
-  // Recent followers (last 5 for activity feed)
-  useEffect(() => {
-    if (!uid) { return; }
-    return subscribeToFollowers(
-      uid,
-      followers => { setRecentFollowers(followers.slice(0, 5)); setLoadingFollowers(false); setFollowersError(false); },
-      _err      => { setLoadingFollowers(false); setFollowersError(true); },
-    );
-  }, [uid]);
-
-  const isLoadingActivity  = loadingTasks || loadingFollowers;
-  const isLoadingFollowing = loadingFollowing;
-  const activityError      = tasksError || followersError;
-  const hasActivity        = pendingTasks.length > 0 || recentFollowers.length > 0;
+  const hasActivity = pendingTasks.length > 0 || recentFollowers.length > 0;
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -128,158 +124,164 @@ export default function SocialHubScreen() {
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>Friends</Text>
-        <View style={styles.navBtn} />
+        {/* Refresh button */}
+        <Pressable
+          style={styles.navBtn}
+          onPress={loadData}
+          disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Refresh">
+          <RefreshIcon color={loading ? palette.faint : palette.text} size={20} />
+        </Pressable>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
-        showsVerticalScrollIndicator={false}>
-
-        {/* ── Section 1: Quick actions ── */}
-        <View style={styles.quickActions}>
+      {loading ? (
+        <View style={styles.loadingCenter}>
+          <ActivityIndicator color={palette.accent} />
+        </View>
+      ) : error ? (
+        <View style={styles.errorCenter}>
+          <Text style={[styles.errorText, { color: palette.muted }]}>
+            {'Could not load Friends. Check your connection.'}
+          </Text>
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: palette.text }]}
-            onPress={() => navigation.navigate('ShareToDo')}
+            style={[styles.retryBtn, { backgroundColor: palette.text }]}
+            onPress={loadData}
             accessibilityRole="button"
-            accessibilityLabel="Brush a To-do with a friend">
-            <ShareIcon color={palette.bg} size={18} />
-            <Text style={[styles.actionLabel, { color: palette.bg }]}>Brush a To-do</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: palette.surface2 }]}
-            onPress={() => navigation.navigate('CreateChallenge')}
-            accessibilityRole="button"
-            accessibilityLabel="Challenge a friend">
-            <TrophyIcon color={palette.text} size={18} />
-            <Text style={[styles.actionLabel, { color: palette.text }]}>Challenge</Text>
+            accessibilityLabel="Retry">
+            <Text style={[styles.retryLabel, { color: palette.bg }]}>Retry</Text>
           </TouchableOpacity>
         </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+          showsVerticalScrollIndicator={false}>
 
-        {/* ── Section 2: Activity feed ── */}
-        <SectionHeader title="ACTIVITY" palette={palette} />
-
-        {isLoadingActivity ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-            <ActivityIndicator color={palette.accent} />
-          </View>
-        ) : activityError ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-            <Text style={[styles.emptyText, { color: palette.muted }]}>
-              Activity unavailable. Pull to refresh.
-            </Text>
-          </View>
-        ) : !hasActivity ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-            <UsersIcon color={palette.faint} size={28} />
-            <Text style={[styles.emptyText, { color: palette.muted }]}>
-              No activity yet — follow friends to get started.
-            </Text>
-          </View>
-        ) : (
-          // hasActivity === true
-          <View style={styles.feedList}>
-            {/* Pending shared tasks */}
-            {pendingTasks.map(task => (
-              <TouchableOpacity
-                key={task.id}
-                style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
-                onPress={() => navigation.navigate('SharedTaskInbox')}
-                accessibilityRole="button"
-                accessibilityLabel={`Shared task from ${task.sentByName}`}>
-                <Avatar photoURL={null} size={32} accessibilityLabel={task.sentByName} />
-                <View style={styles.feedText}>
-                  <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
-                    <Text style={{ fontFamily: 'Geist-Medium' }}>{task.sentByName}</Text>
-                    {' brushed a to-do your way'}
-                  </Text>
-                  <Text style={[styles.feedSub, { color: palette.muted }]} numberOfLines={1}>
-                    {task.title}
-                  </Text>
-                </View>
-                <Text style={[styles.feedTime, { color: palette.faint }]}>
-                  {relativeTime(task.sentAt as any)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            {/* Recent followers */}
-            {recentFollowers.map(f => (
-              <TouchableOpacity
-                key={f.uid}
-                style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
-                onPress={() => f.username && navigation.navigate('PublicProfile', { username: f.username })}
-                accessibilityRole="button"
-                accessibilityLabel={`${f.displayName} started following you`}>
-                <Avatar photoURL={null} size={32} accessibilityLabel={f.displayName} />
-                <View style={styles.feedText}>
-                  <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
-                    <Text style={{ fontFamily: 'Geist-Medium' }}>
-                      {f.username ? `@${f.username}` : f.displayName}
-                    </Text>
-                    {' started following you'}
-                  </Text>
-                </View>
-                <Text style={[styles.feedTime, { color: palette.faint }]}>
-                  {relativeTime(f.followedAt as any)}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        )}
-
-        {/* ── Section 3: Following list ── */}
-        <SectionHeader
-          title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
-          palette={palette}
-        />
-
-        {isLoadingFollowing ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-            <ActivityIndicator color={palette.accent} />
-          </View>
-        ) : followingError ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-            <Text style={[styles.emptyText, { color: palette.muted }]}>
-              Could not load following list.
-            </Text>
-          </View>
-        ) : following.length === 0 ? (
-          <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-            <Text style={[styles.emptyText, { color: palette.muted }]}>
-              You're not following anyone yet.
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.followingScroll}>
-            {following.map(entry => (
-              <TouchableOpacity
-                key={entry.uid}
-                style={styles.followingItem}
-                onPress={() => entry.username && navigation.navigate('PublicProfile', { username: entry.username })}
-                accessibilityRole="button"
-                accessibilityLabel={entry.displayName}>
-                <Avatar photoURL={null} size={44} accessibilityLabel={entry.displayName} />
-                <Text style={[styles.followingHandle, { color: palette.muted }]} numberOfLines={1}>
-                  {entry.username ? `@${entry.username}` : entry.displayName}
-                </Text>
-              </TouchableOpacity>
-            ))}
-
-            {/* "Find more" chip → KAN-99 contacts suggestions */}
+          {/* ── Section 1: Quick actions ── */}
+          <View style={styles.quickActions}>
             <TouchableOpacity
-              style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}
-              onPress={() => navigation.navigate('ContactSuggestions')}
+              style={[styles.actionBtn, { backgroundColor: palette.text }]}
+              onPress={() => navigation.navigate('ShareToDo')}
               accessibilityRole="button"
-              accessibilityLabel="Find more friends">
-              <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
+              accessibilityLabel="Brush a To-do with a friend">
+              <ShareIcon color={palette.bg} size={18} />
+              <Text style={[styles.actionLabel, { color: palette.bg }]}>Brush a To-do</Text>
             </TouchableOpacity>
-          </ScrollView>
-        )}
-      </ScrollView>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, { backgroundColor: palette.surface2 }]}
+              onPress={() => navigation.navigate('CreateChallenge')}
+              accessibilityRole="button"
+              accessibilityLabel="Challenge a friend">
+              <TrophyIcon color={palette.text} size={18} />
+              <Text style={[styles.actionLabel, { color: palette.text }]}>Challenge</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* ── Section 2: Activity feed ── */}
+          <SectionHeader title="ACTIVITY" palette={palette} />
+
+          {!hasActivity ? (
+            <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+              <UsersIcon color={palette.faint} size={28} />
+              <Text style={[styles.emptyText, { color: palette.muted }]}>
+                No activity yet — follow friends to get started.
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.feedList}>
+              {/* Pending shared tasks */}
+              {pendingTasks.map(task => (
+                <TouchableOpacity
+                  key={task.id}
+                  style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
+                  onPress={() => navigation.navigate('SharedTaskInbox')}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Shared task from ${task.sentByName}`}>
+                  <Avatar photoURL={null} size={32} accessibilityLabel={task.sentByName} />
+                  <View style={styles.feedText}>
+                    <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
+                      <Text style={{ fontFamily: 'Geist-Medium' }}>{task.sentByName}</Text>
+                      {' brushed a to-do your way'}
+                    </Text>
+                    <Text style={[styles.feedSub, { color: palette.muted }]} numberOfLines={1}>
+                      {task.title}
+                    </Text>
+                  </View>
+                  <Text style={[styles.feedTime, { color: palette.faint }]}>
+                    {relativeTime(task.sentAt as any)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* Recent followers */}
+              {recentFollowers.map(f => (
+                <TouchableOpacity
+                  key={f.uid}
+                  style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
+                  onPress={() => f.username && navigation.navigate('PublicProfile', { username: f.username })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${f.displayName} started following you`}>
+                  <Avatar photoURL={null} size={32} accessibilityLabel={f.displayName} />
+                  <View style={styles.feedText}>
+                    <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
+                      <Text style={{ fontFamily: 'Geist-Medium' }}>
+                        {f.username ? `@${f.username}` : f.displayName}
+                      </Text>
+                      {' started following you'}
+                    </Text>
+                  </View>
+                  <Text style={[styles.feedTime, { color: palette.faint }]}>
+                    {relativeTime(f.followedAt as any)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {/* ── Section 3: Following list ── */}
+          <SectionHeader
+            title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
+            palette={palette}
+          />
+
+          {following.length === 0 ? (
+            <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+              <Text style={[styles.emptyText, { color: palette.muted }]}>
+                You're not following anyone yet.
+              </Text>
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.followingScroll}>
+              {following.map(entry => (
+                <TouchableOpacity
+                  key={entry.uid}
+                  style={styles.followingItem}
+                  onPress={() => entry.username && navigation.navigate('PublicProfile', { username: entry.username })}
+                  accessibilityRole="button"
+                  accessibilityLabel={entry.displayName}>
+                  <Avatar photoURL={null} size={44} accessibilityLabel={entry.displayName} />
+                  <Text style={[styles.followingHandle, { color: palette.muted }]} numberOfLines={1}>
+                    {entry.username ? `@${entry.username}` : entry.displayName}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+
+              {/* "Find more" chip → KAN-99 contacts suggestions */}
+              <TouchableOpacity
+                style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}
+                onPress={() => navigation.navigate('ContactSuggestions')}
+                accessibilityRole="button"
+                accessibilityLabel="Find more friends">
+                <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 }
@@ -299,6 +301,36 @@ const styles = StyleSheet.create({
   },
   navBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   title:  { fontSize: 17, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
+
+  loadingCenter: {
+    flex:           1,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+
+  errorCenter: {
+    flex:           1,
+    alignItems:     'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.page,
+    gap:            16,
+  },
+  errorText: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+    textAlign:  'center',
+    lineHeight: 20,
+  },
+  retryBtn: {
+    paddingHorizontal: 24,
+    paddingVertical:   12,
+    borderRadius:      radii.ctaBtn,
+  },
+  retryLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Medium',
+    fontWeight: '500',
+  },
 
   content: {
     paddingHorizontal: spacing.page,
@@ -372,13 +404,13 @@ const styles = StyleSheet.create({
     textAlign:  'center',
   },
   findMoreChip: {
-    height:         44,
+    height:            44,
     paddingHorizontal: 16,
-    borderRadius:   9999,
-    borderWidth:    1,
-    alignSelf:      'center',
-    alignItems:     'center',
-    justifyContent: 'center',
+    borderRadius:      9999,
+    borderWidth:       1,
+    alignSelf:         'center',
+    alignItems:        'center',
+    justifyContent:    'center',
   },
   findMoreLabel: {
     fontSize:   13,
