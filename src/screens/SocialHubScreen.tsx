@@ -216,7 +216,7 @@ export default function SocialHubScreen() {
                     </Text>
                   </View>
                   <Text style={[styles.feedTime, { color: palette.faint }]}>
-                    {relativeTime(task.sentAt as any)}
+                    {relativeTime(task.sentAt)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -239,7 +239,7 @@ export default function SocialHubScreen() {
                     </Text>
                   </View>
                   <Text style={[styles.feedTime, { color: palette.faint }]}>
-                    {relativeTime(f.followedAt as any)}
+                    {relativeTime(f.followedAt)}
                   </Text>
                 </TouchableOpacity>
               ))}
