@@ -75,23 +75,51 @@ const SUGGESTION_CHIPS = ['Buy bread', 'Coffee outside', 'Post office', 'Groceri
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-/** Amber swipe underline beneath the wordmark. */
-function BrushWordmark({ size = 66 }: { size?: number }) {
-  const lineH = size * 0.06;
+/** "brus" + custom SVG "h" glyph + amber dot — matches the LoginScreen logo lockup. */
+function BrushLogo({ size = 66 }: { size?: number }) {
+  const sw     = size * 0.153;
+  const dotSz  = Math.max(size * 0.113, 4);
   return (
-    <View style={{ alignItems: 'center' }}>
-      <Text style={{ fontFamily: 'Geist-SemiBold', fontSize: size, color: T.text, letterSpacing: -size * 0.03 }}>
-        Brush
+    <View style={{ flexDirection: 'row', alignItems: 'flex-end' }}>
+      <Text style={{
+        fontFamily:         'Geist-SemiBold',
+        fontSize:           size,
+        fontWeight:         '600',
+        color:              T.text,
+        letterSpacing:      size * -0.06,
+        lineHeight:         size * 1.1,
+        includeFontPadding: false,
+      }}>
+        brus
       </Text>
-      <Svg width={size * 0.9} height={lineH + 4} viewBox={`0 0 ${size * 0.9} ${lineH + 4}`} style={{ marginTop: -4 }}>
+      {/* Custom "h" glyph — same path as LoginScreen's CustomH */}
+      <Svg
+        width={size * 0.72}
+        height={size}
+        viewBox="0 0 72 100"
+        style={{ overflow: 'visible', marginLeft: -(size * 0.085) }}>
         <Path
-          d={`M 2 ${lineH} Q ${size * 0.45} 2 ${size * 0.9 - 2} ${lineH}`}
-          stroke={T.accent}
-          strokeWidth={lineH}
-          strokeLinecap="round"
-          fill="none"
+          d="M 9 6 L 9 76"
+          stroke={T.text} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" fill="none"
+        />
+        <Path
+          d="M 9 40 C 9 30 18 24 30 24 C 42 24 49 31 49 42 L 49 68 C 49 74.5 53.5 77 60 74 C 64 72 66.5 68.5 68 64"
+          stroke={T.text} strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round" fill="none"
         />
       </Svg>
+      {/* Amber dot */}
+      <View
+        style={{
+          position:      'absolute',
+          right:         -(size * 0.05),
+          top:           size * 0.28,
+          width:         dotSz,
+          height:        dotSz,
+          borderRadius:  dotSz / 2,
+          backgroundColor: T.accent,
+        }}
+        pointerEvents="none"
+      />
     </View>
   );
 }
@@ -326,8 +354,8 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
       <View style={[styles.fill, { backgroundColor: T.bg, paddingTop: insets.top }]}>
         <View style={styles.centerContent}>
           <Animated.View style={[{ alignItems: 'center' }, welcomeStyle]}>
+            <BrushLogo size={66} />
             <Text style={styles.eyebrow}>BRUSH AWAY</Text>
-            <BrushWordmark size={66} />
             <Text style={styles.tagline}>
               A calm home for the things your days keep quietly asking for.
             </Text>
@@ -353,7 +381,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
       <View style={[styles.fill, { backgroundColor: T.bg, paddingTop: insets.top }]}>
         {/* Header */}
         <View style={styles.stage2Header}>
-          <BrushWordmark size={23} />
+          <BrushLogo size={23} />
           <Text style={[styles.dateText, { fontVariant: ['tabular-nums'] }]}>
             {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </Text>
@@ -468,7 +496,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
             </Text>
           </View>
-          <BrushWordmark size={23} />
+          <BrushLogo size={23} />
         </View>
 
         {/* Section label */}
@@ -529,41 +557,40 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
           </View>
         )}
 
-        {/* Reward card */}
+        {/* Reward card — flame row + CTA inside one card */}
         {rewardVisible && (
           <Animated.View
             style={[styles.rewardCard, { bottom: insets.bottom + 22 }, rewardCardStyle]}>
             {/* Soft bleed circle */}
             <View style={styles.rewardBleed} />
 
-            <Animated.View style={[styles.flameBox, flameStyle]}>
-              <FlameIcon size={24} />
-            </Animated.View>
+            {/* Top row: flame | text | +10 */}
+            <View style={styles.rewardRow}>
+              <Animated.View style={[styles.flameBox, flameStyle]}>
+                <FlameIcon size={24} />
+              </Animated.View>
 
-            <View style={styles.rewardBody}>
-              <Text style={styles.rewardHeadline}>That’s one. Brushed away.</Text>
-              <Text style={styles.rewardCaption}>
-                Day 1 of your streak starts here. That’s the whole app, really — see it, pass it, let it go.
-              </Text>
+              <View style={styles.rewardBody}>
+                <Text style={styles.rewardHeadline}>That’s one. Brushed away.</Text>
+                <Text style={styles.rewardCaption}>
+                  Day 1 of your streak starts here. That’s the whole app, really — see it, pass it, let it go.
+                </Text>
+              </View>
+
+              <View style={styles.pointsPill}>
+                <Text style={[styles.pointsText, { fontVariant: ['tabular-nums'] }]}>{`+${ONBOARDING_BONUS_POINTS}`}</Text>
+              </View>
             </View>
 
-            <View style={styles.pointsPill}>
-              <Text style={[styles.pointsText, { fontVariant: ['tabular-nums'] }]}>{`+${ONBOARDING_BONUS_POINTS}`}</Text>
-            </View>
-          </Animated.View>
-        )}
-
-        {/* CTA once reward is visible */}
-        {rewardVisible && (
-          <View style={[styles.fullDayCta, { bottom: insets.bottom + 22 + 110 }]}>
+            {/* CTA button */}
             <Pressable
-              style={styles.inkBtn}
+              style={[styles.inkBtn, { marginTop: 14 }]}
               onPress={handleComplete}
               accessibilityRole="button"
               accessibilityLabel="See a full day">
               <Text style={styles.inkBtnText}>See a full day →</Text>
             </Pressable>
-          </View>
+          </Animated.View>
         )}
       </View>
     );
@@ -587,11 +614,12 @@ const styles = StyleSheet.create({
   bottomPad:     { paddingHorizontal: 22 },
 
   eyebrow: {
-    fontFamily:    'Geist-Medium',
-    fontSize:      12.5,
+    fontFamily:   'Geist-Medium',
+    fontSize:     12.5,
     letterSpacing: 0.3 * 12.5,
-    color:         T.muted,
-    marginBottom:  18,
+    color:        T.muted,
+    marginTop:    14,
+    marginBottom: 18,
   },
   tagline: {
     fontFamily: 'Geist-Regular',
@@ -633,7 +661,7 @@ const styles = StyleSheet.create({
   accentBtnText: {
     fontFamily: 'Geist-SemiBold',
     fontSize:   16,
-    color:      T.bg,
+    color:      T.text,
   },
   helperText: {
     fontFamily: 'Geist-Regular',
@@ -865,10 +893,13 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     borderColor:     T.nearBorder,
     borderRadius:    22,
-    flexDirection:   'row',
-    alignItems:      'center',
+    flexDirection:   'column',
     padding:         16,
     overflow:        'hidden',
+  },
+  rewardRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
   },
   rewardBleed: {
     position:        'absolute',
@@ -917,10 +948,5 @@ const styles = StyleSheet.create({
     fontFamily:  'Geist-SemiBold',
     fontSize:    13,
     color:       T.nearText,
-  },
-  fullDayCta: {
-    position:        'absolute',
-    left:            22,
-    right:           22,
   },
 });
