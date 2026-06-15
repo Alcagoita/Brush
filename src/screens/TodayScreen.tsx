@@ -521,6 +521,7 @@ export default function TodayScreen() {
         visible={sheetVisible}
         uid={uid ?? ''}
         onClose={() => setSheetVisible(false)}
+        onTaskAdded={refresh}
         customCategories={customCategories}
       />
 
