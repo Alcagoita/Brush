@@ -17,8 +17,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -251,32 +251,32 @@ export default function SharedTaskInboxScreen() {
         <View style={styles.navBtn} />
       </View>
 
-      <ScrollView
+      <FlatList<SharedTask>
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
-        showsVerticalScrollIndicator={false}>
-
-        {items.length === 0 ? (
+        showsVerticalScrollIndicator={false}
+        data={items}
+        keyExtractor={item => item.id}
+        renderItem={({ item }) => (
+          <InboxRow
+            item={item}
+            currentUid={currentUid}
+            currentUsername={currentUsername}
+            currentName={currentName}
+            onAccept={handleAccept}
+            onDecline={handleDecline}
+            palette={palette}
+          />
+        )}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[styles.emptyTitle, { color: palette.text }]}>All caught up</Text>
             <Text style={[styles.emptySubtitle, { color: palette.muted }]}>
               {COPY.emptyState.inboxNoShared}
             </Text>
           </View>
-        ) : (
-          items.map(item => (
-            <InboxRow
-              key={item.id}
-              item={item}
-              currentUid={currentUid}
-              currentUsername={currentUsername}
-              currentName={currentName}
-              onAccept={handleAccept}
-              onDecline={handleDecline}
-              palette={palette}
-            />
-          ))
-        )}
-      </ScrollView>
+        }
+      />
     </View>
   );
 }
@@ -305,8 +305,8 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.page,
     paddingTop:        20,
-    gap:               12,
   },
+  separator: { height: 12 },
 
   // ── Row ──
   row: {

@@ -12,6 +12,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -244,17 +245,22 @@ export default function ChallengeDetailScreen() {
               <Text style={[styles.lbTitle, { color: palette.muted }]}>
                 {challenge.status === 'completed' ? 'FINAL RESULTS' : 'LIVE'}
               </Text>
-              {leaderboard.map(([pUid, p]) => (
-                <LeaderboardRow
-                  key={pUid}
-                  uid={pUid}
-                  p={p}
-                  goal={challenge.type === 'goal' ? challenge.goalCount : undefined}
-                  isMe={pUid === uid}
-                  isWinner={p.won}
-                  palette={palette}
-                />
-              ))}
+              <FlatList<[string, ChallengeParticipant]>
+                data={leaderboard}
+                keyExtractor={([pUid]) => pUid}
+                renderItem={({ item: [pUid, p] }) => (
+                  <LeaderboardRow
+                    uid={pUid}
+                    p={p}
+                    goal={challenge.type === 'goal' ? challenge.goalCount : undefined}
+                    isMe={pUid === uid}
+                    isWinner={p.won}
+                    palette={palette}
+                  />
+                )}
+                ItemSeparatorComponent={() => <View style={styles.lbSeparator} />}
+                scrollEnabled={false}
+              />
             </View>
           )}
 
@@ -262,19 +268,25 @@ export default function ChallengeDetailScreen() {
           {challenge.status === 'pending' && (
             <View style={[styles.pendingList, { backgroundColor: palette.surface2 }]}>
               <Text style={[styles.lbTitle, { color: palette.muted }]}>PARTICIPANTS</Text>
-              {Object.entries(challenge.participants).map(([pUid, p]) => (
-                <View key={pUid} style={styles.pendingRow}>
-                  <Text style={[styles.pendingName, { color: palette.text }]}>
-                    {p.username ? `@${p.username}` : p.displayName}
-                    {pUid === uid ? ' (you)' : ''}
-                  </Text>
-                  <Text style={[styles.pendingStatus, {
-                    color: p.status === 'accepted' ? '#4caf7d' : p.status === 'declined' ? '#e05252' : palette.muted,
-                  }]}>
-                    {p.status}
-                  </Text>
-                </View>
-              ))}
+              <FlatList<[string, ChallengeParticipant]>
+                data={Object.entries(challenge.participants)}
+                keyExtractor={([pUid]) => pUid}
+                renderItem={({ item: [pUid, p] }) => (
+                  <View style={styles.pendingRow}>
+                    <Text style={[styles.pendingName, { color: palette.text }]}>
+                      {p.username ? `@${p.username}` : p.displayName}
+                      {pUid === uid ? ' (you)' : ''}
+                    </Text>
+                    <Text style={[styles.pendingStatus, {
+                      color: p.status === 'accepted' ? '#4caf7d' : p.status === 'declined' ? '#e05252' : palette.muted,
+                    }]}>
+                      {p.status}
+                    </Text>
+                  </View>
+                )}
+                ItemSeparatorComponent={() => <View style={styles.pendingSeparator} />}
+                scrollEnabled={false}
+              />
             </View>
           )}
 
@@ -319,8 +331,9 @@ const styles = StyleSheet.create({
   btnLabel:     { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
   declineLabel: { fontSize: 14, fontFamily: 'Geist-Regular', textDecorationLine: 'underline' },
 
-  leaderboard: { borderRadius: radii.card, padding: 16, gap: 14 },
-  lbTitle:     { fontSize: 11, fontFamily: 'Geist-Medium', fontWeight: '500', letterSpacing: 0.8 },
+  leaderboard:  { borderRadius: radii.card, padding: 16, gap: 14 },
+  lbSeparator:  { height: 14 },
+  lbTitle:      { fontSize: 11, fontFamily: 'Geist-Medium', fontWeight: '500', letterSpacing: 0.8 },
   lbRow:       { flexDirection: 'row', alignItems: 'center', gap: 10 },
   lbLeft:      { width: 90 },
   lbHandle:    { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500' },
@@ -331,8 +344,9 @@ const styles = StyleSheet.create({
   lbRight:     { flexDirection: 'row', alignItems: 'center', gap: 4, width: 48, justifyContent: 'flex-end' },
   lbCount:     { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500', fontVariant: ['tabular-nums'] },
 
-  pendingList: { borderRadius: radii.card, padding: 16, gap: 12 },
-  pendingRow:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  pendingList:      { borderRadius: radii.card, padding: 16, gap: 12 },
+  pendingSeparator: { height: 12 },
+  pendingRow:       { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pendingName:   { fontSize: 14, fontFamily: 'Geist-Regular' },
   pendingStatus: { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500', textTransform: 'capitalize' },
 
