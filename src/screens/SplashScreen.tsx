@@ -81,8 +81,9 @@ const SPLASH_TEXT   = '#1f1c16';
 const SPLASH_ACCENT = '#e8a86a';
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
-// Shifts the wordmark below true center to match the native launch screen position.
-const VERTICAL_OFFSET = 60;
+// The iOS launch screen places content at screen.height * 1/3 from the top.
+// paddingBottom shifts the flex-center point upward to match that position.
+const VERTICAL_OFFSET = 120;
 
 // ─── Logo constants ───────────────────────────────────────────────────────────
 
@@ -442,7 +443,7 @@ const styles = StyleSheet.create({
     backgroundColor: SPLASH_BG,
     alignItems:      'center',
     justifyContent:  'center',
-    paddingTop:      VERTICAL_OFFSET,
+    paddingBottom:   VERTICAL_OFFSET,
     zIndex:          999,
   },
   wordmarkContainer: {
