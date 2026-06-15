@@ -6,8 +6,9 @@
  * task-toggle callback. No JSX — independently testable with renderHook.
  *
  * Data strategy: one-shot fetch on mount (no real-time subscriptions).
- * Pull-to-refresh re-runs the fetch. Writes update local state immediately
- * and persist to Firestore in the background; on failure, local state reverts.
+ * Pull-to-refresh or onTaskAdded re-runs the full fetch. Writes update local
+ * state immediately and persist to Firestore in the background; on failure,
+ * local state reverts.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -74,7 +75,7 @@ export interface TodayScreenState {
   isRefreshing:     boolean;
   /** Non-null when the fetch failed. Cleared on next successful fetch. */
   error:            string | null;
-  /** Call to re-run the full data fetch (pull-to-refresh or error retry). */
+  /** Call to re-run the full data fetch (pull-to-refresh, error retry, or after task creation). */
   refresh:          () => void;
   /** Active nearby POI type from the proximity engine. Null when none nearby. */
   nearbyPoiType:    string | null;
@@ -100,6 +101,12 @@ export interface TodayScreenState {
   inboxCount:   number;
   /** Task-done toggle — updates local state immediately, persists to Firestore. */
   handleToggle: (taskId: string, done: boolean) => Promise<void>;
+  /** True when location permission has been granted. */
+  permissionGranted: boolean;
+  /** Re-runs the proximity search immediately — useful for a manual "refresh location" tap. */
+  refreshProximity: () => void;
+  /** True when the last proximity search failed because the device GPS toggle is off. */
+  locationUnavailable: boolean;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -135,6 +142,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const [sheetVisible,    setSheetVisible]    = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
+  // Refs so the AppState closure always reads the latest values without
+  // needing them as dependencies (which would recreate the listener on every render).
+  const permissionGrantedRef = useRef(false);
+  const refreshProximityRef  = useRef<() => void>(() => {});
+  useEffect(() => { permissionGrantedRef.current = permissionGranted; }, [permissionGranted]);
+
   // ── Proximity refs — all mutable values as refs so effects never go stale ───
 
   /** True while a proximity search Promise is in-flight. */
@@ -147,9 +160,10 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // ── Nearby state ───────────────────────────────────────────────────────────
 
-  const [nearbyPoiType, setNearbyPoiType] = useState<string | null>(null);
-  const [nearbyPlace,   setNearbyPlace]   = useState<NearbyPlace | null>(null);
-  const [poiPlaces,     setPoiPlaces]     = useState<PlacesMap>({});
+  const [nearbyPoiType,       setNearbyPoiType]       = useState<string | null>(null);
+  const [nearbyPlace,         setNearbyPlace]         = useState<NearbyPlace | null>(null);
+  const [poiPlaces,           setPoiPlaces]           = useState<PlacesMap>({});
+  const [locationUnavailable, setLocationUnavailable] = useState(false);
 
   // ── Battery level (KAN-52) — read on foreground only; not used for pausing ──
 
@@ -158,7 +172,19 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   useEffect(() => { setBatteryLevel(hookBatteryLevel); }, [hookBatteryLevel]);
   useEffect(() => {
     const sub = AppState.addEventListener('change', async (nextState) => {
-      if (nextState === 'active') { setBatteryLevel(await getBatteryLevel()); }
+      if (nextState === 'active') {
+        setBatteryLevel(await getBatteryLevel());
+        if (permissionGrantedRef.current) {
+          // User may have toggled GPS back on — re-run immediately rather than
+          // waiting for the next 3-minute interval tick.
+          refreshProximityRef.current();
+        } else {
+          // Re-check in case the user granted permission in Settings while away.
+          requestLocationPermission()
+            .then(status => { if (status === 'granted') { setPermissionGranted(true); } })
+            .catch(() => {});
+        }
+      }
     });
     return () => sub.remove();
   }, []);
@@ -177,8 +203,8 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // ── One-shot data fetch ────────────────────────────────────────────────────
   //
-  // Replaces all onSnapshot subscriptions. Called once on mount and again
-  // on pull-to-refresh or error retry. No background watchers.
+  // No background watchers. Called once on mount and again on pull-to-refresh,
+  // error retry, or when onTaskAdded fires after a new task is created.
 
   const loadData = useCallback(async (isRefresh: boolean = false) => {
     if (!uid) {
@@ -321,8 +347,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   }, [uid, permissionGranted, locationContext, storeTuningEnabled, lowBatteryPausePref, batteryLevel]);
 
   // ── Derived: are there any undone POI tasks? ───────────────────────────────
-  // Stable boolean dep — proximity effect only restarts when this crosses the
-  // 0 boundary, not on every task toggle or completion.
 
   const hasPOITasks = useMemo(
     () => tasks.some(t => !t.done && t.poi),
@@ -331,28 +355,23 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   const isStoreTuningActive = storeTuningState === 'active';
 
-  // ── Keep latestTasksRef in sync so the interval always uses fresh tasks ────
+  // ── Keep latestTasksRef in sync ────────────────────────────────────────────
 
   useEffect(() => { latestTasksRef.current = tasks; }, [tasks]);
 
-  // ── Stable onUpdate callback — state setters never change, no deps needed ──
+  // ── Stable onUpdate callback ───────────────────────────────────────────────
 
   const onNearbyUpdate = useCallback(
     (poiType: string | null, place: import('../services/maps').NearbyPlace | null, allPlaces: PlacesMap) => {
       setNearbyPoiType(poiType);
       setNearbyPlace(place);
       setPoiPlaces(allPlaces);
+      setLocationUnavailable(false);
     },
     [],
   );
 
   // ── Outdoor proximity lifecycle (KAN-24 / KAN-53) ─────────────────────────
-  //
-  // No global service state. All timing (initial search, 3-min poll) is owned
-  // here via plain setInterval/clearInterval so cleanup is always exact.
-  //
-  // Deps: uid + permissionGranted + hasPOITasks + isStoreTuningActive
-  // A task toggle that doesn't cross the 0-boundary never restarts this effect.
 
   useEffect(() => {
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) {
@@ -364,24 +383,24 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       return;
     }
 
-    // Fire the first search immediately (non-blocking — guarded by isSearchingRef).
-    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(() => {});
+    const onSearchError = () => setLocationUnavailable(true);
+
+    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
     prevPoiCountRef.current = latestTasksRef.current.filter(t => !t.done && t.poi).length;
 
-    // Movement-gated 3-minute position check.
     positionTimerRef.current = setInterval(async () => {
       try {
         const coords = await (await import('../services/geolocation')).getPositionLowAccuracy();
         const last = getLastSearchCoords();
         if (!last) {
-          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(() => {});
+          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
           return;
         }
         const moved = getDistanceMeters(coords.lat, coords.lng, last.lat, last.lng);
         if (moved >= 200) {
-          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(() => {});
+          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
         }
-      } catch { /* location unavailable — skip tick */ }
+      } catch { setLocationUnavailable(true); }
     }, 3 * 60 * 1_000);
 
     return () => {
@@ -395,15 +414,14 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // ── Re-search when a new POI task is added ─────────────────────────────────
   //
-  // Separate from the lifecycle effect so that adding a task (which changes
-  // tasks but NOT hasPOITasks-boolean if it was already true) still triggers
-  // an immediate search.
+  // tasks changes when refresh() re-fetches after onTaskAdded. This effect
+  // fires an immediate proximity search when the undone POI count increases.
 
   useEffect(() => {
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return; }
     const count = tasks.filter(t => !t.done && t.poi).length;
     if (count > prevPoiCountRef.current) {
-      runProximitySearch(uid, tasks, onNearbyUpdate).catch(() => {});
+      runProximitySearch(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
     }
     prevPoiCountRef.current = count;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -444,7 +462,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, permissionGranted, isStoreTuningActive]);
 
-  // Sync task list to running indoor engine.
   useEffect(() => {
     if (!isIndoorMonitoringRef.current) { return; }
     updateIndoorTasks(tasks);
@@ -452,16 +469,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   }, [tasks]);
 
   // ── Task toggle (KAN-14 / KAN-31 / KAN-32) ─────────────────────────────────
-  //
-  // Updates local task state immediately (instant UI feedback), then persists
-  // to Firestore. On failure, reverts the local change.
 
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     if (!uid) { return; }
 
     Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
 
-    // Instant local update.
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done } : t));
 
     try {
@@ -493,7 +506,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         }
       }
     } catch (err) {
-      // Revert on failure.
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done } : t));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
@@ -509,6 +521,16 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   }, [uid]);
 
   const onStoreTuningNotNow = useCallback(() => { dismissStoreTuning(); }, []);
+
+  // ── Manual proximity refresh ────────────────────────────────────────────────
+
+  const refreshProximity = useCallback(() => {
+    if (!uid || !permissionGranted || !hasPOITasks) { return; }
+    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate)
+      .catch(() => setLocationUnavailable(true));
+  }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
+
+  useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);
 
   // ── Progress derived values ─────────────────────────────────────────────────
 
@@ -542,5 +564,8 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     totalPoints,
     inboxCount,
     handleToggle,
+    permissionGranted,
+    refreshProximity,
+    locationUnavailable,
   };
 }

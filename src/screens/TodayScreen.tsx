@@ -175,6 +175,9 @@ export default function TodayScreen() {
     totalPoints,
     inboxCount,
     handleToggle,
+    permissionGranted,
+    refreshProximity,
+    locationUnavailable,
   } = useTodayScreen(uid);
 
   // ── Sheet ref + auto-close on new task ────────────────────────────────────────
@@ -344,6 +347,36 @@ export default function TodayScreen() {
               poiPlaces={poiPlaces}
               storeTuningActive={storeTuningActive}
             />
+
+            {/* ── Location status row — shown when there are POI tasks but
+                 no nearby place is detected. Two states:
+                 · GPS off  → error message + Retry
+                 · GPS on   → subtle "Refresh location" tap target             ── */}
+            {permissionGranted && nearbyCount > 0 && !nearbyPoiType && !isLoading && (
+              locationUnavailable ? (
+                <View style={[styles.locationErrorRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+                  <Text style={[styles.locationErrorText, { color: palette.muted }]}>
+                    Location unavailable. Turn on GPS to see nearby places.
+                  </Text>
+                  <Pressable
+                    onPress={refreshProximity}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry location">
+                    <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={refreshProximity}
+                  style={[styles.refreshRow, { borderBottomColor: palette.line }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Refresh location">
+                  <Text style={[styles.refreshLabel, { color: palette.muted }]}>
+                    Refresh location
+                  </Text>
+                </Pressable>
+              )
+            )}
 
             {/* ── Task list ── */}
             <View style={[styles.section, { borderTopColor: palette.line }]}>
@@ -730,6 +763,38 @@ const styles = StyleSheet.create({
   retryLabel: {
     fontSize:   14,
     fontFamily: 'Geist-Regular',
+  },
+  refreshRow: {
+    paddingHorizontal: spacing.page,
+    paddingVertical:   10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    alignItems:        'flex-end',
+  },
+  refreshLabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+  locationErrorRow: {
+    marginHorizontal: spacing.page,
+    marginBottom:     12,
+    paddingHorizontal: 14,
+    paddingVertical:   12,
+    borderRadius:     radius.card,
+    borderWidth:      StyleSheet.hairlineWidth,
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              12,
+  },
+  locationErrorText: {
+    flex:       1,
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+    lineHeight: 18,
+  },
+  locationRetryLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-SemiBold',
+    fontWeight: '600',
   },
   // ── Skeleton ──
   skeletonRow: {
