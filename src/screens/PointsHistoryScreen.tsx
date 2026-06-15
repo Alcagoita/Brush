@@ -41,6 +41,7 @@ import {
   subscribeToPointsHistory,
   subscribeToAchievements,
 } from '../services/firestore';
+import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import type { Achievement, PointsHistoryEntry } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ const PAGE_SIZE = 20;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTimestamp(ts: { seconds: number; nanoseconds: number } | undefined): string {
+function formatTimestamp(ts: FirebaseFirestoreTypes.Timestamp | null | undefined): string {
   if (!ts) { return ''; }
   return new Date(ts.seconds * 1000).toLocaleDateString('en-GB', {
     day:   'numeric',
@@ -94,7 +95,7 @@ function HistoryRow({
           {entry.taskTitle}
         </Text>
         <Text style={[styles.historyReason, { color: palette.muted }]}>
-          {reasonLabel(entry.reason)} · {formatTimestamp(entry.awardedAt as any)}
+          {reasonLabel(entry.reason)} · {formatTimestamp(entry.awardedAt)}
         </Text>
       </View>
       <Text style={[styles.historyPoints, { color: palette.accent }]}>
@@ -219,7 +220,7 @@ export default function PointsHistoryScreen() {
             <View style={achievementsGridStyle}>
               {ACHIEVEMENT_CATALOGUE.map(def => {
                 const earned   = earnedMap[def.type];
-                const earnedAt = earned ? formatTimestamp(earned.earnedAt as any) : undefined;
+                const earnedAt = earned ? formatTimestamp(earned.earnedAt) : undefined;
                 return (
                   <AchievementTile
                     key={def.type}
