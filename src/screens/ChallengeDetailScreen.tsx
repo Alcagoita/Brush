@@ -192,10 +192,6 @@ export default function ChallengeDetailScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={palette.accent} />
         </View>
-      ) : error ? (
-        <View style={styles.center}>
-          <Text style={[styles.errorText, { color: palette.muted }]}>{error}</Text>
-        </View>
       ) : challenge ? (
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}
@@ -297,6 +293,10 @@ export default function ChallengeDetailScreen() {
             <Text style={[styles.errorText, { color: COLOR_STATUS_DECLINED, textAlign: 'center' }]}>{error}</Text>
           ) : null}
         </ScrollView>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={[styles.errorText, { color: palette.muted }]}>{error}</Text>
+        </View>
       ) : null}
     </View>
   );
