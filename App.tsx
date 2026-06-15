@@ -25,6 +25,8 @@ import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
 import { getUser, markLastOpenedAt, setTaskDone, getUserPreferences } from './src/services/firestore';
+import SplashScreen from './src/screens/SplashScreen';
+import { useAppStore } from './src/store/appStore';
 import { migratePointsToAchievementDerived } from './src/services/achievements';
 import { subscribeToSharedTaskNotifications } from './src/services/sharing';
 import { EXIT_ACTION_MARK_DONE, registerExitPromptCategory } from './src/services/notifications';
@@ -47,6 +49,8 @@ const LINKING_CONFIG = {
 const TRANSITION_MS = 220;
 
 function AppShell() {
+  const [splashDone, setSplashDone] = useState(false);
+
   const { user, loading } = useAuth();
   const { palette, dark } = useTheme();
 
@@ -87,6 +91,15 @@ function AppShell() {
 
   useEffect(() => {
     if (!displayUser) { setHasUsername(null); setOnboardingDone(null); return; }
+
+    // Fast path: SplashScreen already fetched the user doc — use it directly.
+    const { bootData } = useAppStore.getState();
+    if (bootData?.userData && bootData.ownerUid === displayUser.uid) {
+      setHasUsername(!!bootData.userData.username);
+      setOnboardingDone(!!bootData.userData.onboardingDone);
+      return;
+    }
+
     let cancelled = false;
     getUser(displayUser.uid)
       .then(userData => {
@@ -266,6 +279,12 @@ function AppShell() {
     const sub = ShareMenu.addNewShareListener(handleShare);
     return () => sub.remove();
   }, [displayUser, hasUsername]);
+
+  // Show SplashScreen until auth + Today data are pre-loaded.
+  // All hooks above still run normally; only the rendered UI changes.
+  if (!splashDone) {
+    return <SplashScreen onExit={() => setSplashDone(true)} />;
+  }
 
   if (loading) {
     return (
