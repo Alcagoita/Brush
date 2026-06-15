@@ -186,7 +186,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     // Fast path — use data pre-loaded by SplashScreen (initial mount only).
     if (!isRefresh) {
       const { bootData, clearBootData } = useAppStore.getState();
-      if (bootData) {
+      if (bootData && bootData.ownerUid === uid) {
         setTasks(bootData.tasks);
         setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
         setTotalPoints(bootData.totalPoints);

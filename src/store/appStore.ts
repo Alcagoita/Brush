@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Task, Category, User, UserPreferences } from '../types';
 
 export interface BootData {
+  ownerUid:         string;
   tasks:            Task[];
   customCategories: Category[];
   totalPoints:      number;

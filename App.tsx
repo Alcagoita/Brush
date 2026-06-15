@@ -94,7 +94,7 @@ function AppShell() {
 
     // Fast path: SplashScreen already fetched the user doc — use it directly.
     const { bootData } = useAppStore.getState();
-    if (bootData?.userData) {
+    if (bootData?.userData && bootData.ownerUid === displayUser.uid) {
       setHasUsername(!!bootData.userData.username);
       setOnboardingDone(!!bootData.userData.onboardingDone);
       return;

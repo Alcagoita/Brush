@@ -2,6 +2,7 @@ import { useAppStore } from '../../src/store/appStore';
 import type { BootData } from '../../src/store/appStore';
 
 const makeBootData = (overrides?: Partial<BootData>): BootData => ({
+  ownerUid:         'uid-test',
   tasks:            [],
   customCategories: [],
   totalPoints:      0,

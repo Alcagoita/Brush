@@ -99,6 +99,7 @@ describe('SplashScreen', () => {
 
       const boot = useAppStore.getState().bootData;
       expect(boot).not.toBeNull();
+      expect(boot?.ownerUid).toBe('u1');
       expect(boot?.totalPoints).toBe(5);
       expect(boot?.inboxCount).toBe(2);
       expect(boot?.userData?.username).toBe('alice');

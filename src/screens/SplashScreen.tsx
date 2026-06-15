@@ -309,9 +309,11 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
   useEffect(() => {
     if (authLoading) { return; }
 
+    let cancelled = false;
+
     if (!user) {
       markReady();
-      return;
+      return () => { cancelled = true; };
     }
 
     const uid = user.uid;
@@ -325,7 +327,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
       getIncomingSharedTasksCount(uid),
     ])
       .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount]) => {
+        if (cancelled) { return; }
         useAppStore.getState().setBootData({
+          ownerUid: uid,
           tasks,
           userData,
           customCategories: categories,
@@ -337,9 +341,11 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         markReady();
       })
       .catch(() => {
+        if (cancelled) { return; }
         // Data failed — proceed anyway; Today screen will retry its own fetch.
         markReady();
       });
+    return () => { cancelled = true; };
   }, [authLoading, user, markReady]);
 
   // ── Timer cleanup ─────────────────────────────────────────────────────────
