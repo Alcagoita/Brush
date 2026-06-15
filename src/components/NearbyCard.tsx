@@ -2,37 +2,37 @@
  * NearbyCard — KAN-46
  *
  * Pure visual component. Rendered by TodayScreen when the proximity service
- * (useTodayScreen) sets nearbyPoiType via a geofence entry event.
+ * sets nearbyPoiType via a geofence entry event.
  *
- * Renders null when nearbyPoiType is null — the service decides when to show.
- *
- * HERO (nearbyPoiType !== null)
+ * HERO (any POI place is < HERO_RADIUS_M away)
  *   Header: "NEARBY · NOW" + pulsing 6 px accent dot
- *   Hero block (nearTint bg, nearBorder border):
+ *   Horizontal paging carousel — one card per POI type in the hero zone:
  *     - Decorative halo circle (top-right, nearTint2, opacity 0.7)
  *     - 46×46 accent icon tile with expanding-ring halo animation
  *     - Distance + place name (11 px / 600 / uppercase / nearText)
  *     - Task title (17 px / 500)
  *     - "Open in Maps" CTA (full-width, bg=text, color=bg, radius 12)
- *   "Also close" subsection: remaining undone POI tasks
+ *   "Also close" subsection: remaining undone POI tasks in grey zone
+ *
+ * GREY-ONLY (places between 100 m and 400 m, none in hero zone)
+ *   Header: "NEARBY"
+ *   List of approaching POI tasks with place + distance
  *
  * Animations (Reanimated 3 — runs on UI thread via JSI, zero JS involvement):
  *   scr-pulse: dot scales 1→0.5→1, opacity 1→0.45→1, 1.6 s ease-in-out ∞
  *   scr-halo:  expanding ring around icon tile, 2.2 s ease-out ∞
- *
- * NOTE: RN Animated.loop with useNativeDriver:true was the original
- * implementation but caused the JS thread to freeze in New Architecture
- * (Bridgeless mode). Reanimated 3 withRepeat runs on the UI thread and
- * does not involve JS at all after setup.
  */
 
 import React from 'react';
 import {
+  Dimensions,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -43,10 +43,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
+
 import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
 import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
 import { ChevronRightIcon, PoiIcon } from './AppIcon';
+
+// Distance threshold that separates the orange hero zone from the grey zone.
+const HERO_RADIUS_M = 100;
+const SLIDE_WIDTH = Dimensions.get('window').width - spacing.page * 2;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -145,6 +150,70 @@ function HaloIcon({
   );
 }
 
+// ─── Single hero card (one slide in the carousel) ────────────────────────────
+
+function HeroCard({
+  poiType,
+  task,
+  place,
+}: {
+  poiType: string;
+  task:    Task;
+  place:   NearbyPlace;
+}) {
+  const { palette } = useTheme();
+
+  return (
+    <View
+      style={[
+        styles.heroBlock,
+        {
+          backgroundColor: palette.nearTint,
+          borderColor:     palette.nearBorder,
+        },
+      ]}>
+
+      {/* Decorative halo circle — top-right */}
+      <View
+        style={[styles.decHalo, { backgroundColor: palette.nearTint2 }]}
+        pointerEvents="none"
+      />
+
+      {/* Icon + text row */}
+      <View style={styles.heroRow}>
+        <HaloIcon poiType={poiType} accentColor={palette.accent} />
+
+        <View style={styles.heroText}>
+          <Text style={[styles.heroDistance, { color: palette.nearText }]}>
+            {formatDistance(place.distanceMeters).toUpperCase()}
+            {'  '}
+            <Text style={styles.heroPlaceName}>
+              {place.name.toUpperCase()}
+            </Text>
+          </Text>
+          <Text
+            style={[styles.heroTitle, { color: palette.text }]}
+            numberOfLines={2}>
+            {task.title}
+          </Text>
+        </View>
+      </View>
+
+      {/* Open in Maps CTA */}
+      <Pressable
+        style={({ pressed }) => [
+          styles.ctaButton,
+          { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
+        ]}
+        onPress={() => openInMaps(place.lat, place.lng, place.name)}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${place.name} in Maps`}>
+        <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 // ─── Also-close row ───────────────────────────────────────────────────────────
 
 function AlsoCloseRow({
@@ -188,7 +257,6 @@ function AlsoCloseRow({
 export default function NearbyCard({
   tasks,
   nearbyPoiType,
-  nearbyPlace,
   poiPlaces,
   storeTuningActive = false,
 }: NearbyCardProps) {
@@ -197,21 +265,31 @@ export default function NearbyCard({
   const poiTasks = tasks.filter(t => !t.done && t.poi != null);
   if (poiTasks.length === 0) { return null; }
 
-  const isHero  = nearbyPoiType !== null;
-  const heroTask = isHero ? (poiTasks.find(t => t.poi === nearbyPoiType) ?? null) : null;
+  // One carousel entry per POI type that has a place within the hero zone.
+  // First undone task for each type wins the card.
+  const heroEntries = poiTasks.reduce<Array<{ task: Task; place: NearbyPlace; poiType: string }>>(
+    (acc, t) => {
+      if (!t.poi) { return acc; }
+      const place = poiPlaces[t.poi];
+      if (!place || place.distanceMeters >= HERO_RADIUS_M) { return acc; }
+      if (acc.find(e => e.poiType === t.poi)) { return acc; }
+      acc.push({ task: t, place, poiType: t.poi });
+      return acc;
+    },
+    [],
+  );
 
-  // Hero POI type set but no matching undone task — hide card.
-  if (isHero && !heroTask) { return null; }
+  const isHero = heroEntries.length > 0 || nearbyPoiType !== null;
 
-  // Show only when at least one approaching place is in the grey zone.
-  const hasNearbyData = isHero || poiTasks.some(t => t.poi && poiPlaces[t.poi]);
-  if (!hasNearbyData) { return null; }
+  // Grey-zone tasks: have a known nearby place but are NOT already in the hero carousel.
+  const heroPoiTypes = new Set(heroEntries.map(e => e.poiType));
+  const greyTasks = poiTasks.filter(t => {
+    if (!t.poi || heroPoiTypes.has(t.poi)) { return false; }
+    return !!poiPlaces[t.poi];
+  });
 
-  // Hero mode: all tasks except the hero go in "Also Close".
-  // Grey-only mode: all POI tasks that have a known nearby place.
-  const listTasks = isHero
-    ? poiTasks.filter(t => t !== heroTask)
-    : poiTasks.filter(t => t.poi && poiPlaces[t.poi]);
+  // Nothing to show at all — hide.
+  if (!isHero && greyTasks.length === 0) { return null; }
 
   return (
     <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 14 }]}>
@@ -232,68 +310,30 @@ export default function NearbyCard({
         )}
       </View>
 
-      {/* ── Hero block (orange, < 100 m) ── */}
-      {isHero && heroTask && (
-        <View
-          style={[
-            styles.heroBlock,
-            {
-              backgroundColor: palette.nearTint,
-              borderColor:     palette.nearBorder,
-            },
-          ]}>
-
-          {/* Decorative halo circle — top-right */}
-          <View
-            style={[styles.decHalo, { backgroundColor: palette.nearTint2 }]}
-            pointerEvents="none"
-          />
-
-          {/* Icon + text row */}
-          <View style={styles.heroRow}>
-            <HaloIcon poiType={nearbyPoiType!} accentColor={palette.accent} />
-
-            <View style={styles.heroText}>
-              {nearbyPlace && (
-                <Text style={[styles.heroDistance, { color: palette.nearText }]}>
-                  {formatDistance(nearbyPlace.distanceMeters).toUpperCase()}
-                  {'  '}
-                  <Text style={styles.heroPlaceName}>
-                    {nearbyPlace.name.toUpperCase()}
-                  </Text>
-                </Text>
-              )}
-              <Text
-                style={[styles.heroTitle, { color: palette.text }]}
-                numberOfLines={2}>
-                {heroTask.title}
-              </Text>
+      {/* ── Hero carousel (orange, < 100 m) ── */}
+      {heroEntries.length > 0 && (
+        <ScrollView
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          decelerationRate="fast"
+          style={styles.carousel}
+          contentContainerStyle={styles.carouselContent}>
+          {heroEntries.map(({ task, place, poiType }) => (
+            <View key={poiType} style={styles.carouselSlide}>
+              <HeroCard poiType={poiType} task={task} place={place} />
             </View>
-          </View>
-
-          {/* Open in Maps CTA — only when coordinates available */}
-          {nearbyPlace && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.ctaButton,
-                { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
-              ]}
-              onPress={() => openInMaps(nearbyPlace.lat, nearbyPlace.lng, nearbyPlace.name)}
-              accessibilityRole="button"
-              accessibilityLabel={`Open ${nearbyPlace.name} in Maps`}>
-              <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
-            </Pressable>
-          )}
-        </View>
+          ))}
+        </ScrollView>
       )}
 
-      {/* ── Grey rows: "Also Close" in hero mode, all results in grey-only mode ── */}
-      {listTasks.length > 0 && (
+      {/* ── Grey rows: approaching but not yet in hero zone ── */}
+      {greyTasks.length > 0 && (
         <View style={[styles.listSection, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           {isHero && (
             <Text style={[styles.listSectionLabel, { color: palette.muted }]}>ALSO CLOSE</Text>
           )}
-          {listTasks.map((task, index) => (
+          {greyTasks.map((task, index) => (
             <AlsoCloseRow
               key={task.id}
               task={task}
@@ -342,13 +382,23 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
 
-  // ── Hero block ──
+  // ── Hero carousel ──
+  carousel: {
+    marginBottom: 12,
+  },
+  carouselContent: {
+    // no extra padding — each slide is full-width via carouselSlide
+  },
+  carouselSlide: {
+    width: SLIDE_WIDTH,
+  },
+
+  // ── Hero block (single card inside carousel) ──
   heroBlock: {
     borderRadius: radius.card,
     borderWidth:  StyleSheet.hairlineWidth,
     padding:      16,
     overflow:     'hidden',
-    marginBottom: 12,
   },
   decHalo: {
     position:     'absolute',
@@ -390,11 +440,11 @@ const styles = StyleSheet.create({
     gap:  4,
   },
   heroDistance: {
-    fontSize:        11,
-    fontWeight:      '600',
-    fontFamily:      'Geist-SemiBold',
-    letterSpacing:   0.8,
-    fontVariant:     ['tabular-nums'],
+    fontSize:      11,
+    fontWeight:    '600',
+    fontFamily:    'Geist-SemiBold',
+    letterSpacing: 0.8,
+    fontVariant:   ['tabular-nums'],
   },
   heroPlaceName: {
     fontWeight:    '600',
@@ -420,12 +470,12 @@ const styles = StyleSheet.create({
 
   // ── Grey rows (also close / approaching) ──
   listSection: {
-    borderRadius: radius.card,
-    borderWidth:  1,
-    overflow:     'hidden',
-    paddingTop:   12,
+    borderRadius:      radius.card,
+    borderWidth:       1,
+    overflow:          'hidden',
+    paddingTop:        12,
     paddingHorizontal: 16,
-    paddingBottom: 4,
+    paddingBottom:     4,
   },
   listSectionLabel: {
     fontSize:      11,
@@ -435,10 +485,10 @@ const styles = StyleSheet.create({
     marginBottom:  8,
   },
   idleRow: {
-    flexDirection:  'row',
-    alignItems:     'center',
+    flexDirection:   'row',
+    alignItems:      'center',
     paddingVertical: 12,
-    gap:            14,
+    gap:             14,
   },
   idleIconTile: {
     width:          36,
