@@ -16,12 +16,12 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -68,7 +68,11 @@ function relativeTime(ts: { toDate(): Date } | null | undefined): string {
 
 // ─── Section header ───────────────────────────────────────────────────────────
 
-function SectionHeader({ title, palette, style }: { title: string; palette: any; style?: object }) {
+function SectionHeader({ title, palette, style }: {
+  title:   string;
+  palette: ReturnType<typeof useTheme>['palette'];
+  style?:  StyleProp<TextStyle>;
+}) {
   return (
     <Text style={[styles.sectionTitle, { color: palette.muted }, style]}>{title}</Text>
   );
@@ -124,8 +128,8 @@ export default function SocialHubScreen() {
   const hasActivity = pendingTasks.length > 0 || recentFollowers.length > 0;
 
   const feedItems: FeedItem[] = useMemo(() => [
-    ...pendingTasks.map(t => ({ kind: 'task'     as const, id: t.id,  data: t })),
-    ...recentFollowers.map(f => ({ kind: 'follower' as const, id: f.uid, data: f })),
+    ...pendingTasks.map(t   => ({ kind: 'task'     as const, id: `task:${t.id}`,      data: t })),
+    ...recentFollowers.map(f => ({ kind: 'follower' as const, id: `follower:${f.uid}`, data: f })),
   ], [pendingTasks, recentFollowers]);
 
   return (
@@ -280,13 +284,14 @@ export default function SocialHubScreen() {
                   </Text>
                 </View>
               ) : (
-                <ScrollView
+                <FlatList<FollowEntry>
                   horizontal
+                  data={following}
+                  keyExtractor={entry => entry.uid}
                   showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.followingScroll}>
-                  {following.map(entry => (
+                  contentContainerStyle={styles.followingScroll}
+                  renderItem={({ item: entry }) => (
                     <TouchableOpacity
-                      key={entry.uid}
                       style={styles.followingItem}
                       onPress={() => entry.username && navigation.navigate('PublicProfile', { username: entry.username })}
                       accessibilityRole="button"
@@ -296,17 +301,19 @@ export default function SocialHubScreen() {
                         {entry.username ? `@${entry.username}` : entry.displayName}
                       </Text>
                     </TouchableOpacity>
-                  ))}
-
-                  {/* "Find more" chip → KAN-99 contacts suggestions */}
-                  <TouchableOpacity
-                    style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}
-                    onPress={() => navigation.navigate('ContactSuggestions')}
-                    accessibilityRole="button"
-                    accessibilityLabel="Find more friends">
-                    <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
-                  </TouchableOpacity>
-                </ScrollView>
+                  )}
+                  ItemSeparatorComponent={() => <View style={styles.followingSeparator} />}
+                  ListFooterComponent={
+                    /* "Find more" chip → KAN-99 contacts suggestions */
+                    <TouchableOpacity
+                      style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line, marginLeft: 16 }]}
+                      onPress={() => navigation.navigate('ContactSuggestions')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Find more friends">
+                      <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
+                    </TouchableOpacity>
+                  }
+                />
               )}
             </View>
           }
@@ -424,8 +431,9 @@ const styles = StyleSheet.create({
   },
 
   // ── Following ──
-  followingScroll: { gap: 16, paddingRight: spacing.page },
-  followingItem:   { alignItems: 'center', gap: 6, width: 60 },
+  followingScroll:    { paddingRight: spacing.page },
+  followingSeparator: { width: 16 },
+  followingItem:      { alignItems: 'center', gap: 6, width: 60 },
   followingHandle: {
     fontSize:   11,
     fontFamily: 'Geist-Regular',

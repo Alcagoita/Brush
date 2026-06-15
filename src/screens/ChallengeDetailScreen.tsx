@@ -37,6 +37,9 @@ import { COPY } from '../constants/copy';
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'ChallengeDetail'>;
 type Route = RouteProp<RootStackParamList, 'ChallengeDetail'>;
 
+const COLOR_STATUS_ACCEPTED = '#4caf7d';
+const COLOR_STATUS_DECLINED = '#e05252';
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDeadline(ts: Challenge['deadline']): string {
@@ -278,7 +281,7 @@ export default function ChallengeDetailScreen() {
                       {pUid === uid ? ' (you)' : ''}
                     </Text>
                     <Text style={[styles.pendingStatus, {
-                      color: p.status === 'accepted' ? '#4caf7d' : p.status === 'declined' ? '#e05252' : palette.muted,
+                      color: p.status === 'accepted' ? COLOR_STATUS_ACCEPTED : p.status === 'declined' ? COLOR_STATUS_DECLINED : palette.muted,
                     }]}>
                       {p.status}
                     </Text>
@@ -291,7 +294,7 @@ export default function ChallengeDetailScreen() {
           )}
 
           {error ? (
-            <Text style={[styles.errorText, { color: '#e05252', textAlign: 'center' }]}>{error}</Text>
+            <Text style={[styles.errorText, { color: COLOR_STATUS_DECLINED, textAlign: 'center' }]}>{error}</Text>
           ) : null}
         </ScrollView>
       ) : null}

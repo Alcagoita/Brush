@@ -41,7 +41,7 @@ import {
   subscribeToPointsHistory,
   subscribeToAchievements,
 } from '../services/firestore';
-import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import type { Achievement, PointsHistoryEntry } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
