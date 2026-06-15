@@ -61,6 +61,7 @@ import { NearbyPlace } from '../services/maps';
 import { syncTasksToWatch } from '../services/wearSync';
 import { Category, StoreTuningState, Task } from '../types';
 import { todayISO } from '../utils/date';
+import { useAppStore } from '../store/appStore';
 
 // ─── Return type ──────────────────────────────────────────────────────────────
 
@@ -180,6 +181,28 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       setTasks([]);
       setIsLoading(false);
       return;
+    }
+
+    // Fast path — use data pre-loaded by SplashScreen (initial mount only).
+    if (!isRefresh) {
+      const { bootData, clearBootData } = useAppStore.getState();
+      if (bootData) {
+        setTasks(bootData.tasks);
+        setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
+        setTotalPoints(bootData.totalPoints);
+        setInboxCount(bootData.inboxCount);
+        if (bootData.userData) {
+          setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
+          setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
+        }
+        updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
+        updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
+        updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
+        updateProximityPoiPreferences(bootData.poiPrefsMap);
+        setIsLoading(false);
+        clearBootData();
+        return;
+      }
     }
 
     if (isRefresh) {
