@@ -1,10 +1,18 @@
 /**
  * ProgressRing — SVG circular progress indicator.
  *
- * Driven by Reanimated SharedValues so all geometry updates run on the
- * UI thread — no JS re-renders on every animation frame.
+ * PERF (KAN-154 perf pass): the ring geometry is FIXED. The scroll-driven
+ * collapse (rest → compact) is performed by the parent via `transform: scale`
+ * on the ring wrapper — NOT by re-rendering SVG geometry every frame. A static
+ * SVG is rasterised once and merely composited at a new scale while scrolling,
+ * which eliminated the per-frame re-rasterisation that pinned the UI thread and
+ * blocked touch input on Android.
  *
- * Progress changes (tasks completing) animate smoothly via withTiming.
+ * Progress changes (tasks completing) still animate smoothly via withTiming —
+ * those are occasional, interaction-driven updates, not per-scroll-frame work.
+ *
+ * Trade-off: because the whole ring scales uniformly, the stroke scales with it
+ * (rest 14 → compact ~6.4) rather than the previous non-proportional 14 → 10.
  *
  * DOT_PADDING: the SVG canvas is expanded by this amount on every side so
  * the brand dot (which extends beyond the arc's outer edge) always stays
@@ -17,11 +25,9 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../theme';
 
-const AnimatedSvg    = Animated.createAnimatedComponent(Svg);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
 /** Extra canvas on each side — must be ≥ halo dot radius (strokeWidth * 0.72 + 3). */
@@ -30,10 +36,13 @@ const DOT_PADDING = 12;
 interface Props {
   /** 0–1 fraction of tasks completed. */
   progress: number;
-  /** Shared/derived value — diameter of the whole ring (outer edge). */
-  diameter: SharedValue<number>;
-  /** Shared/derived value — stroke width. */
-  strokeWidth: SharedValue<number>;
+  /**
+   * Fixed outer diameter (px) at rest. The ring is collapsed via a parent
+   * `transform: scale`, so this value stays constant — it is NOT animated.
+   */
+  diameter: number;
+  /** Fixed stroke width (px) at rest. Scales with the ring via the parent. */
+  strokeWidth: number;
 }
 
 export default function ProgressRing({ progress, diameter, strokeWidth }: Props) {
@@ -45,99 +54,73 @@ export default function ProgressRing({ progress, diameter, strokeWidth }: Props)
     progressSV.value = withTiming(progress, { duration: 400 });
   }, [progress, progressSV]);
 
-  // SVG canvas is larger than the logical diameter by DOT_PADDING on each side
-  // so the brand dot never clips against the frame boundary.
-  const svgProps = useAnimatedProps(() => ({
-    width:  diameter.value + DOT_PADDING * 2,
-    height: diameter.value + DOT_PADDING * 2,
-  }));
+  // ── Static geometry — computed once from the fixed diameter/stroke ──────────
+  const d      = diameter;
+  const s      = strokeWidth;
+  const r      = (d - s) / 2;
+  const cx     = d / 2 + DOT_PADDING;     // centre (also cy — square canvas)
+  const circ   = 2 * Math.PI * r;
+  const canvas = d + DOT_PADDING * 2;
+  const tipR   = s * 0.72;
 
-  // All geometry is offset by DOT_PADDING so the ring sits centred in the
-  // expanded canvas. Layout size is kept correct via margin: -DOT_PADDING.
-
-  // Track circle (background ring).
-  const trackProps = useAnimatedProps(() => {
-    const d  = diameter.value;
-    const s  = strokeWidth.value;
-    const r  = (d - s) / 2;
-    const cx = d / 2 + DOT_PADDING;
-    return { cx, cy: cx, r, strokeWidth: s };
-  });
-
-  // Progress arc — strokeDashoffset encodes how much of the arc is filled.
+  // Progress arc — only strokeDashoffset animates, and only when progress
+  // changes (task toggle). Nothing here updates during scroll.
   const arcProps = useAnimatedProps(() => {
-    const d       = diameter.value;
-    const s       = strokeWidth.value;
-    const r       = (d - s) / 2;
-    const circ    = 2 * Math.PI * r;
     const clamped = Math.min(Math.max(progressSV.value, 0), 1);
-    const cx      = d / 2 + DOT_PADDING;
+    return { strokeDashoffset: circ * (1 - clamped) };
+  });
+
+  // Brand dot position at the arc's leading tip — animates with progress only.
+  const dotProps = useAnimatedProps(() => {
+    const pct   = Math.min(Math.max(progressSV.value, 0), 1);
+    const angle = 2 * Math.PI * pct;
     return {
-      cx,
-      cy:               cx,
-      r,
-      strokeWidth:      s,
-      strokeDasharray:  circ,
-      strokeDashoffset: circ * (1 - clamped),
+      cx: cx + r * Math.cos(angle),
+      cy: cx + r * Math.sin(angle),
     };
-  });
-
-  // Brand dot — halo (soft glow ring) behind the tip dot.
-  const haloDotProps = useAnimatedProps(() => {
-    const d     = diameter.value;
-    const s     = strokeWidth.value;
-    const r     = (d - s) / 2;
-    const pct   = Math.min(Math.max(progressSV.value, 0), 1);
-    const angle = 2 * Math.PI * pct;
-    const cx    = d / 2 + DOT_PADDING + r * Math.cos(angle);
-    const cy    = d / 2 + DOT_PADDING + r * Math.sin(angle);
-    const tipR  = s * 0.72;
-    return { cx, cy, r: tipR + 3 };
-  });
-
-  // Brand dot — solid core circle at the arc's leading tip.
-  const coreDotProps = useAnimatedProps(() => {
-    const d     = diameter.value;
-    const s     = strokeWidth.value;
-    const r     = (d - s) / 2;
-    const pct   = Math.min(Math.max(progressSV.value, 0), 1);
-    const angle = 2 * Math.PI * pct;
-    const cx    = d / 2 + DOT_PADDING + r * Math.cos(angle);
-    const cy    = d / 2 + DOT_PADDING + r * Math.sin(angle);
-    const tipR  = s * 0.72;
-    return { cx, cy, r: tipR };
   });
 
   return (
     // margin: -DOT_PADDING cancels the extra canvas in layout space so the
     // ring's visual diameter matches what the parent expects.
-    <AnimatedSvg
-      animatedProps={svgProps}
+    <Svg
+      width={canvas}
+      height={canvas}
       style={{ transform: [{ rotate: '-90deg' }], margin: -DOT_PADDING }}>
       {/* Track */}
-      <AnimatedCircle
+      <Circle
         stroke={palette.ringTrack}
         fill="none"
-        animatedProps={trackProps}
+        cx={cx}
+        cy={cx}
+        r={r}
+        strokeWidth={s}
       />
       {/* Progress arc */}
       <AnimatedCircle
         stroke={palette.ringFill}
         fill="none"
         strokeLinecap="round"
+        cx={cx}
+        cy={cx}
+        r={r}
+        strokeWidth={s}
+        strokeDasharray={circ}
         animatedProps={arcProps}
       />
       {/* Brand dot — soft halo behind the tip */}
       <AnimatedCircle
         fill={palette.ringFill}
         opacity={0.15}
-        animatedProps={haloDotProps}
+        r={tipR + 3}
+        animatedProps={dotProps}
       />
       {/* Brand dot — solid core at the arc's leading tip */}
       <AnimatedCircle
         fill={palette.ringFill}
-        animatedProps={coreDotProps}
+        r={tipR}
+        animatedProps={dotProps}
       />
-    </AnimatedSvg>
+    </Svg>
   );
 }

@@ -262,6 +262,16 @@ export default function NearbyCard({
 }: NearbyCardProps) {
   const { palette } = useTheme();
 
+  // Active carousel page — updated once per swipe settle (cheap; not per-frame).
+  const [activeIndex, setActiveIndex] = React.useState(0);
+  const onCarouselScroll = React.useCallback(
+    (e: { nativeEvent: { contentOffset: { x: number } } }) => {
+      const idx = Math.round(e.nativeEvent.contentOffset.x / SLIDE_WIDTH);
+      setActiveIndex(prev => (prev === idx ? prev : idx));
+    },
+    [],
+  );
+
   const poiTasks = tasks.filter(t => !t.done && t.poi != null);
   if (poiTasks.length === 0) { return null; }
 
@@ -312,19 +322,43 @@ export default function NearbyCard({
 
       {/* ── Hero carousel (orange, < 100 m) ── */}
       {heroEntries.length > 0 && (
-        <ScrollView
-          horizontal
-          pagingEnabled
-          showsHorizontalScrollIndicator={false}
-          decelerationRate="fast"
-          style={styles.carousel}
-          contentContainerStyle={styles.carouselContent}>
-          {heroEntries.map(({ task, place, poiType }) => (
-            <View key={poiType} style={styles.carouselSlide}>
-              <HeroCard poiType={poiType} task={task} place={place} />
+        <>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            decelerationRate="fast"
+            onMomentumScrollEnd={onCarouselScroll}
+            style={styles.carousel}
+            contentContainerStyle={styles.carouselContent}>
+            {heroEntries.map(({ task, place, poiType }) => (
+              <View key={poiType} style={styles.carouselSlide}>
+                <HeroCard poiType={poiType} task={task} place={place} />
+              </View>
+            ))}
+          </ScrollView>
+
+          {/* Page indicator — only when there's more than one slide. The active
+              dot widens into a pill; inactive dots are faint. */}
+          {heroEntries.length > 1 && (
+            <View style={styles.dotsRow} testID="nearby-page-dots">
+              {heroEntries.map(({ poiType }, i) => {
+                const active = i === Math.min(activeIndex, heroEntries.length - 1);
+                return (
+                  <View
+                    key={poiType}
+                    testID={`nearby-page-dot${active ? '-active' : ''}`}
+                    style={[
+                      styles.dot,
+                      active && styles.dotActive,
+                      { backgroundColor: active ? palette.accent : palette.nearBorder },
+                    ]}
+                  />
+                );
+              })}
             </View>
-          ))}
-        </ScrollView>
+          )}
+        </>
       )}
 
       {/* ── Grey rows: approaching but not yet in hero zone ── */}
@@ -384,13 +418,29 @@ const styles = StyleSheet.create({
 
   // ── Hero carousel ──
   carousel: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   carouselContent: {
     // no extra padding — each slide is full-width via carouselSlide
   },
   carouselSlide: {
     width: SLIDE_WIDTH,
+  },
+  // ── Page indicator dots ──
+  dotsRow: {
+    flexDirection:  'row',
+    justifyContent: 'center',
+    alignItems:     'center',
+    gap:            5,
+    marginBottom:   12,
+  },
+  dot: {
+    width:        6,
+    height:       6,
+    borderRadius: 3,
+  },
+  dotActive: {
+    width: 16,
   },
 
   // ── Hero block (single card inside carousel) ──

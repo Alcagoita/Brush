@@ -210,3 +210,39 @@ describe('NearbyCard — also close section', () => {
     expect(screen.queryByText('ALSO CLOSE')).toBeNull();
   });
 });
+
+describe('NearbyCard — hero carousel page indicator', () => {
+  const SUPERMARKET_PLACE = { ...NEARBY_PLACE, placeId: 'place-2', name: 'Target', distanceMeters: 80 };
+
+  it('shows page dots (one per hero slide) when multiple POI types are in the hero zone', () => {
+    // Two distinct POI types, both with a place < 100 m → two hero slides.
+    const pharmacyTask    = makeTask({ id: 'a', poi: 'pharmacy' });
+    const supermarketTask = makeTask({ id: 'b', poi: 'supermarket', title: 'Buy groceries' });
+
+    render(
+      <NearbyCard
+        tasks={[pharmacyTask, supermarketTask]}
+        nearbyPoiType="pharmacy"
+        nearbyPlace={NEARBY_PLACE}
+        poiPlaces={{ pharmacy: NEARBY_PLACE, supermarket: SUPERMARKET_PLACE }}
+      />,
+    );
+
+    const dots = screen.getByTestId('nearby-page-dots');
+    expect(dots.children).toHaveLength(2);
+    // Exactly one dot is the active (widened) dot — the first slide by default.
+    expect(screen.getAllByTestId('nearby-page-dot-active')).toHaveLength(1);
+  });
+
+  it('renders no page dots when there is only a single hero slide', () => {
+    render(
+      <NearbyCard
+        tasks={[makeTask()]}
+        nearbyPoiType="pharmacy"
+        nearbyPlace={NEARBY_PLACE}
+        poiPlaces={PLACES_MAP}
+      />,
+    );
+    expect(screen.queryByTestId('nearby-page-dots')).toBeNull();
+  });
+});

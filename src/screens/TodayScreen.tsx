@@ -78,8 +78,7 @@ const SCROLL_RANGE = 170; // SECTION_H_REST − SECTION_H_COLLAPSED (declared be
 
 const RING_REST      = 246;
 const RING_COLLAPSED = 112;
-const STROKE_REST      = 14;
-const STROKE_COLLAPSED = 10;
+const STROKE_REST      = 14; // collapse scales this down proportionally (~6.4)
 const RING_LEFT_REST      = (SCREEN_W - RING_REST) / 2;
 const RING_LEFT_COLLAPSED = 22;
 
@@ -213,11 +212,12 @@ export default function TodayScreen() {
   });
 
   // ── Derived values (UI thread) ────────────────────────────────────────────────
-  const ringSize: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_REST, RING_COLLAPSED], Extrapolation.CLAMP),
-  );
-  const ringStroke: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [STROKE_REST, STROKE_COLLAPSED], Extrapolation.CLAMP),
+  // The ring SVG is rendered ONCE at its rest geometry; the scroll-driven
+  // collapse is a pure parent transform:scale (see ringWrapStyle below). This
+  // avoids re-rasterising the SVG every scroll frame — the fix for the Android
+  // touch-blocking jank. Scale goes 1 → RING_COLLAPSED/RING_REST.
+  const ringScale: SharedValue<number> = useDerivedValue(() =>
+    interpolate(scrollY.value, [0, SCROLL_RANGE], [1, RING_COLLAPSED / RING_REST], Extrapolation.CLAMP),
   );
 
   // ── Progress counters ─────────────────────────────────────────────────────────
@@ -240,10 +240,15 @@ export default function TodayScreen() {
     height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
   }));
 
+  // left/top track the collapsed position while scale shrinks the (fixed-size)
+  // ring around its top-left corner — together they reproduce the original
+  // 246→112 collapse exactly, but without touching SVG geometry.
   const ringWrapStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
     left: interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_LEFT_REST, RING_LEFT_COLLAPSED], Extrapolation.CLAMP),
     top:  interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_TOP_REST,  RING_TOP_COLLAPSED],  Extrapolation.CLAMP),
+    transformOrigin: 'top left',
+    transform: [{ scale: ringScale.value }],
   }));
 
   const captionStyle = useAnimatedStyle(() => ({
@@ -461,8 +466,8 @@ export default function TodayScreen() {
           <Animated.View style={ringWrapStyle} pointerEvents="none">
             <ProgressRing
               progress={progress}
-              diameter={ringSize}
-              strokeWidth={ringStroke}
+              diameter={RING_REST}
+              strokeWidth={STROKE_REST}
             />
           </Animated.View>
 
