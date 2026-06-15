@@ -122,7 +122,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   // ── Task + screen data state ───────────────────────────────────────────────
 
   const [tasks,           setTasks]           = useState<Task[]>([]);
-  const [isLoading,       setIsLoading]       = useState(true);
+  const [isLoading,       setIsLoading]       = useState(() => {
+    if (!uid) { return false; }
+    const { bootData } = useAppStore.getState();
+    return !(bootData !== null && bootData.ownerUid === uid);
+  });
   const [isRefreshing,    setIsRefreshing]    = useState(false);
   const [error,           setError]           = useState<string | null>(null);
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
