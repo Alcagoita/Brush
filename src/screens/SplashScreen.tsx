@@ -80,6 +80,10 @@ const SPLASH_BG     = '#fdfcfa';
 const SPLASH_TEXT   = '#1f1c16';
 const SPLASH_ACCENT = '#e8a86a';
 
+// ─── Layout ───────────────────────────────────────────────────────────────────
+// Shifts the wordmark below true center to match the native launch screen position.
+const VERTICAL_OFFSET = 60;
+
 // ─── Logo constants ───────────────────────────────────────────────────────────
 
 const LOGO_SIZE = 62;
@@ -438,6 +442,7 @@ const styles = StyleSheet.create({
     backgroundColor: SPLASH_BG,
     alignItems:      'center',
     justifyContent:  'center',
+    paddingTop:      VERTICAL_OFFSET,
     zIndex:          999,
   },
   wordmarkContainer: {
