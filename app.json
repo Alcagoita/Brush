@@ -1,16 +1,4 @@
 {
   "name": "Brush",
-  "displayName": "Brush",
-  "expo": {
-    "icon": "./assets/icon.png",
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#F7F4EC"
-      }
-    },
-    "ios": {
-      "icon": "./assets/icon.png"
-    }
-  }
+  "displayName": "Brush"
 }
