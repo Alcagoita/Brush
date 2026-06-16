@@ -315,10 +315,10 @@ Locked, 15 tickets, four tracks + a bug track. All tickets labeled `sprint-10` i
 | KAN-95 | A | To Do |
 | KAN-106 | Bug | To Do |
 | KAN-107 | Bug | To Do |
-| KAN-146 | B | In Development (PR open) |
-| KAN-147 | B | To Do |
+| KAN-146 | B | ✅ Done |
+| KAN-147 | B | ✅ Done (superseded, no code) |
 | KAN-144 | B | ✅ Done |
-| KAN-145 | B | To Do |
+| KAN-145 | B | In Development |
 | KAN-148 | C | To Do |
 | KAN-149 | C | To Do |
 | KAN-150 | C | To Do |
@@ -389,14 +389,7 @@ Implementation: `functions/src/rolloverIncompleteTasks.ts` — daily `onSchedule
 
 ACs: no scheduled midnight-clear job (replaced by rollover, which doesn't delete/archive) · no `persistent` flag on schema · delete leaves no orphaned docs · existing task tests pass · undone tasks roll forward daily and appear in Today's single list · no second "NEARBY"-labeled section added.
 
-**KAN-147 — Today screen two-section layout (after KAN-146).** Builds on the `CollapsingTodayScreen` split from KAN-139 (Sprint 9) — only the populated body changes.
-- `todayTasks` = tasks created today, not done. `nearbyOldTasks` = tasks created before today, not done, within `NEARBY_RADIUS` (400m) of their POI.
-- Ring/streak scoring uses `todayTasks` only — `nearbyOldTasks` never contributes.
-- TODAY section: label row (`"TODAY"` / `"N of M done"`), `TaskRow` per task sorted by `createdAt` asc, empty state → `ScrRotatingNudge` (KAN-139).
-- NEARBY section (only rendered if non-empty): label row (`"NEARBY"` / `"N waiting"` — "waiting", not "overdue"), same `TaskRow`, sorted by POI distance asc, no visual penalty.
-- Section label style: 11px, `letterSpacing: 0.16em`, uppercase, `muted`; value side `tabular-nums`.
-
-ACs: TODAY drives ring/streak, NEARBY doesn't · NEARBY hidden when empty · NEARBY uses same `TaskRow`, no overdue styling · empty TODAY triggers `ScrRotatingNudge`.
+**KAN-147 — Today screen two-section layout ✅ Done — superseded, no code.** The literal spec (a second "NEARBY" section for undone tasks created before today) was written before KAN-146's rollover decision. Rollover already bumps any undone task's `date`/`createdAt` to today *before* the Today screen fetches data — by the time a user opens the app there is no "undone task from a previous day" left to put in a separate section; it's already a today task. Verified the single fetch (`getTasksForDate(uid, todayISO())` in both `useTodayScreen` and the SplashScreen boot path) already includes everything rolled over, renders through the existing single `TaskRow` list, and scores normally with no exclusion logic needed. Confirmed with stakeholder: do not build a second list/section — `NearbyCard`'s live GPS-proximity carousel remains the only "NEARBY"-labeled UI on the screen, untouched. Ticket closed via Jira comment, no PR.
 
 **KAN-144 — POI proximity persistent tracking ✅ Done** (after Sprint 9 KAN-142). Fixed: geofence tracking continuing past the first POI match until the task is brushed done, with re-registration after each exit event (`expo-location` geofences are one-shot on enter). Boundary-verified at 390m/400m/410m against `NEARBY_RADIUS = 400m`.
 
