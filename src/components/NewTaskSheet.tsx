@@ -49,6 +49,7 @@ import { CloseIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
 import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
+import { useToastStore } from '../store/toastStore';
 import RotatingTitlePlaceholder from './RotatingTitlePlaceholder';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -231,6 +232,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           date:     todayISO(),
           poi,
         });
+        useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
         setMounted(false);
         resetForm();
         onCloseRef.current();

@@ -73,10 +73,10 @@ export const COPY = {
     activityFeedReceived: (senderName: string) => `${senderName} brushed a to-do your way`,
   },
 
-  // ─── New task quick sheet (KAN-148) ─────────────────────────────────────────
-  // Shared with the More Details screen (KAN-149) — copy must be identical on
-  // overlapping fields, since tapping "More details ›" should feel like the
-  // same conversation continuing, not a different form.
+  // ─── New task quick sheet (KAN-148) + More Details (KAN-149) ───────────────
+  // Shared between both screens — copy must be identical on overlapping
+  // fields, since tapping "More details ›" should feel like the same
+  // conversation continuing, not a different form.
   newTaskSheet: {
     title:        'What do you need?',
     poiQuestion:  'Where does this happen?',
@@ -94,6 +94,14 @@ export const COPY = {
       'Grab something at the pharmacy…',
       'Fill up on the way home…',
     ],
+    // ── More Details only (KAN-149) ──
+    poiSearchPlaceholder: 'A café, a pharmacy, a gym…',
+    timeQuestion:         'Around when?',
+    timeOptional:         ' (optional)',
+    timePlaceholder:      'Anytime is fine',
+    footerHint:           'Just the what and the where',
+    /** Fires after a successful add from either surface — never on edit. */
+    confirmToast:         "Got it — I'll keep an eye out.",
   },
 
 } as const;

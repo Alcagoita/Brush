@@ -19,6 +19,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import NetworkBanner from './src/components/NetworkBanner';
+import Toast from './src/components/Toast';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
@@ -301,6 +302,7 @@ function AppShell() {
         backgroundColor={palette.bg}
       />
       <NetworkBanner />
+      <Toast />
       <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
         {displayUser ? (
           hasUsername === null || onboardingDone === null ? (
