@@ -193,7 +193,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     useEffect(() => {
       if (mounted && visible) {
         openAnimation();
-        setTimeout(() => titleRef.current?.focus(), 280);
       }
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mounted]);

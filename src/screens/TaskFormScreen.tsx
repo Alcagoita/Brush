@@ -328,7 +328,6 @@ export default function TaskFormScreen() {
               value={title}
               onChangeText={setTitle}
               onFocus={() => setTitleFocused(true)}
-              autoFocus={!isEdit}
               returnKeyType="next"
               maxLength={200}
               accessibilityLabel={COPY.newTaskSheet.title}
