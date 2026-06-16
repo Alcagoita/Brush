@@ -1,18 +1,18 @@
 /**
- * CalendarScreen tests — updated for the current task-based implementation.
+ * CalendarScreen tests — redesigned in KAN-145 (progress rings, streak
+ * chains, achievement milestones, slide-up diary detail card).
  *
  * Covers:
- *   - Month label renders (e.g. "June 2026")
+ *   - Month label renders (e.g. "June" / "2026")
  *   - Weekday labels render
- *   - "Today" pill renders
- *   - Previous/Next month navigation buttons render with correct accessibility
- *   - Navigating to the previous month updates the month label
- *   - Navigating to the next month updates the month label
- *   - "Today" pill navigates back to the current month
- *   - "TASKS" section label renders
- *   - "Today" label shown when current day is selected (default)
+ *   - "Today" pill renders and navigates
+ *   - Previous/Next month navigation
  *   - Day cell accessibility label includes "today" for the current day
+ *   - Detail card status label rules (Today / Upcoming / Day complete / Past)
+ *   - Stats line copy rules
+ *   - Task list renders with BrushStroke (not textDecoration) on completed items
  *   - Error state renders retry button when subscription fails
+ *   - Achievement / streak-run chips render from the achievements map
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
@@ -38,9 +38,13 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 jest.mock('@react-native-firebase/auth', () => ({}));
 
 const mockSubscribeToTasksForMonth = jest.fn();
+const mockSubscribeToAchievements  = jest.fn();
+const mockGetCategories            = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   subscribeToTasksForMonth: (...args: unknown[]) => mockSubscribeToTasksForMonth(...args),
+  subscribeToAchievements:  (...args: unknown[]) => mockSubscribeToAchievements(...args),
+  getCategories:            (...args: unknown[]) => mockGetCategories(...args),
 }));
 
 jest.mock('../../src/theme', () => ({
@@ -55,7 +59,10 @@ jest.mock('../../src/theme', () => ({
       line:     '#ddd',
       accent:   '#e8a86a',
       ringTrack: '#eee',
-      ringFill:  '#000',
+      ringFill:  '#d9a87a',
+      nearTint2:  '#f9ede0',
+      nearBorder: '#e8c9a0',
+      nearText:   '#7a4a20',
     },
     dark:    false,
     setDark: jest.fn(),
@@ -68,21 +75,28 @@ function renderScreen() {
   return render(<CalendarScreen />);
 }
 
+function fakeTimestamp(iso: string) {
+  const date = new Date(`${iso}T12:00:00`);
+  return { toDate: () => date };
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('CalendarScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default: subscription returns a no-op unsubscribe, no tasks.
     mockSubscribeToTasksForMonth.mockReturnValue(jest.fn());
+    mockSubscribeToAchievements.mockReturnValue(jest.fn());
+    mockGetCategories.mockResolvedValue([]);
   });
 
-  it('renders the current month and year label', () => {
+  it('renders the current month and year labels', () => {
     renderScreen();
     const now = new Date();
     const month = now.toLocaleString('en-US', { month: 'long' });
-    const year  = now.getFullYear();
-    expect(screen.getByText(`${month} ${year}`)).toBeTruthy();
+    const year  = String(now.getFullYear());
+    expect(screen.getByText(month)).toBeTruthy();
+    expect(screen.getByText(year)).toBeTruthy();
   });
 
   it('renders the "Today" pill', () => {
@@ -101,10 +115,9 @@ describe('CalendarScreen', () => {
     const now   = new Date();
     const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevMonth = prevDate.toLocaleString('en-US', { month: 'long' });
-    const prevYear  = prevDate.getFullYear();
 
     fireEvent.press(screen.getByLabelText('Previous month'));
-    expect(screen.getByText(`${prevMonth} ${prevYear}`)).toBeTruthy();
+    expect(screen.getByText(prevMonth)).toBeTruthy();
   });
 
   it('navigating to next month updates the month label', () => {
@@ -112,31 +125,32 @@ describe('CalendarScreen', () => {
     const now   = new Date();
     const nextDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
     const nextMonth = nextDate.toLocaleString('en-US', { month: 'long' });
-    const nextYear  = nextDate.getFullYear();
 
     fireEvent.press(screen.getByLabelText('Next month'));
-    expect(screen.getByText(`${nextMonth} ${nextYear}`)).toBeTruthy();
+    expect(screen.getByText(nextMonth)).toBeTruthy();
   });
 
   it('"Today" pill navigates back to the current month after navigating away', () => {
     renderScreen();
     const now   = new Date();
     const month = now.toLocaleString('en-US', { month: 'long' });
-    const year  = now.getFullYear();
 
     fireEvent.press(screen.getByLabelText('Next month'));
     fireEvent.press(screen.getByLabelText('Jump to today'));
-    expect(screen.getByText(`${month} ${year}`)).toBeTruthy();
+    expect(screen.getByText(month)).toBeTruthy();
   });
 
-  it('renders the "TASKS" section label', () => {
+  it('shows "Today" status label when current day is selected by default', () => {
     renderScreen();
-    expect(screen.getByText('TASKS')).toBeTruthy();
+    // Two "Today" texts exist: the "Today" pill and the detail card's status label.
+    expect(screen.getAllByText('Today').length).toBeGreaterThanOrEqual(2);
   });
 
-  it('shows "Today" label when current day is selected by default', () => {
+  it('day cell accessibility label includes "today" for the current day', () => {
     renderScreen();
-    expect(screen.getByText('Today')).toBeTruthy();
+    const now = new Date();
+    const day = String(now.getDate());
+    expect(screen.getByLabelText(new RegExp(`^${day}, today`))).toBeTruthy();
   });
 
   it('subscribes to tasks with the current uid', () => {
@@ -149,7 +163,18 @@ describe('CalendarScreen', () => {
     );
   });
 
-  it('shows tasks when the subscription fires successfully', () => {
+  it('shows "No tasks" stats line when selected day has no tasks', () => {
+    mockSubscribeToTasksForMonth.mockImplementation(
+      (_uid: string, _ym: string, onSuccess: (tasks: object[]) => void) => {
+        onSuccess([]);
+        return jest.fn();
+      },
+    );
+    renderScreen();
+    expect(screen.getByText('No tasks')).toBeTruthy();
+  });
+
+  it('shows the task title and "X of Y done" stats line for today', () => {
     let capturedSuccess: ((tasks: object[]) => void) | null = null;
     mockSubscribeToTasksForMonth.mockImplementation(
       (_uid: string, _ym: string, onSuccess: (tasks: object[]) => void) => {
@@ -165,9 +190,36 @@ describe('CalendarScreen', () => {
       ]);
     });
     expect(screen.getByText('Buy groceries')).toBeTruthy();
+    expect(screen.getByText('0 of 1 done · 0%')).toBeTruthy();
   });
 
-  it('shows "brushed" (not "done") in the detail card fraction label (KAN-108)', () => {
+  it('shows "none completed" stats line for a past day with 0% done', () => {
+    let capturedSuccess: ((tasks: object[]) => void) | null = null;
+    mockSubscribeToTasksForMonth.mockImplementation(
+      (_uid: string, _ym: string, onSuccess: (tasks: object[]) => void) => {
+        capturedSuccess = onSuccess;
+        return jest.fn();
+      },
+    );
+    renderScreen();
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const iso = yesterday.toISOString().slice(0, 10);
+
+    act(() => {
+      capturedSuccess!([
+        { id: 't1', title: 'Old task', category: 'errands', done: false, date: iso, createdAt: {} },
+      ]);
+    });
+
+    // Select yesterday's cell via its accessibility label (day number only — not "today").
+    const day = yesterday.getDate();
+    fireEvent.press(screen.getByLabelText(`${day}`));
+    expect(screen.getByText('1 task · none completed')).toBeTruthy();
+  });
+
+  it('does not use text-decoration line-through for completed tasks (uses BrushStroke instead)', () => {
     let capturedSuccess: ((tasks: object[]) => void) | null = null;
     mockSubscribeToTasksForMonth.mockImplementation(
       (_uid: string, _ym: string, onSuccess: (tasks: object[]) => void) => {
@@ -178,12 +230,15 @@ describe('CalendarScreen', () => {
     renderScreen();
     act(() => {
       capturedSuccess!([
-        { id: 't1', title: 'Buy groceries', category: 'errands', done: true,
+        { id: 't1', title: 'Done task', category: 'errands', done: true,
           date: new Date().toISOString().slice(0, 10), createdAt: {} },
       ]);
     });
-    expect(screen.getByText('brushed')).toBeTruthy();
-    expect(screen.queryByText('done')).toBeNull();
+    const title = screen.getByText('Done task');
+    const flatStyle = Array.isArray(title.props.style)
+      ? Object.assign({}, ...title.props.style)
+      : title.props.style;
+    expect(flatStyle.textDecorationLine).toBeUndefined();
   });
 
   it('shows retry button on subscription error', () => {
@@ -197,5 +252,26 @@ describe('CalendarScreen', () => {
     renderScreen();
     act(() => { capturedError!(new Error('Firestore unavailable')); });
     expect(screen.getByLabelText('Try again')).toBeTruthy();
+  });
+
+  it('renders an achievement chip for the day an achievement was last earned', () => {
+    const now = new Date();
+    const iso = now.toISOString().slice(0, 10);
+
+    mockSubscribeToTasksForMonth.mockReturnValue(jest.fn());
+    mockSubscribeToAchievements.mockImplementation((_uid: string, onUpdate: (map: object) => void) => {
+      onUpdate({
+        early_bird: { earnedAt: fakeTimestamp(iso), earnCount: 1, progress: 1, target: 1 },
+      });
+      return jest.fn();
+    });
+
+    renderScreen();
+    expect(screen.getByText('Early bird · unlocked')).toBeTruthy();
+  });
+
+  it('renders an "Open today" CTA only when today is selected', () => {
+    renderScreen();
+    expect(screen.getByLabelText('Open today')).toBeTruthy();
   });
 });

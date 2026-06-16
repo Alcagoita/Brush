@@ -24,7 +24,7 @@ import {
 
 export type AchievementIconKey = 'check' | 'sun' | 'flame' | 'pin' | 'star' | 'medal';
 
-function AchievementIcon({ icon, color, size }: { icon: AchievementIconKey; color: string; size: number }) {
+export function AchievementIcon({ icon, color, size }: { icon: AchievementIconKey; color: string; size: number }) {
   switch (icon) {
     case 'check': return <CheckIcon  color={color} size={size} />;
     case 'sun':   return <SunIcon    color={color} size={size} />;
