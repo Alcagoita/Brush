@@ -24,23 +24,25 @@ jest.mock('../../src/services/firestore', () => ({
 
 jest.mock('../../src/services/achievements', () => ({
   ACHIEVEMENT_DEFS: {
-    first_brush:  { id: 'first_brush',  label: 'First brush',  points: 5,  target: 1,   repeatable: false },
-    early_bird:   { id: 'early_bird',   label: 'Early bird',   points: 10, target: 1,   repeatable: true  },
-    day_complete: { id: 'day_complete', label: 'Day complete', points: 15, target: 1,   repeatable: true  },
-    on_a_roll:    { id: 'on_a_roll',    label: 'On a roll',    points: 20, target: 3,   repeatable: true  },
-    explorer:     { id: 'explorer',     label: 'Explorer',     points: 25, target: 10,  repeatable: false },
-    centurion:    { id: 'centurion',    label: 'Centurion',    points: 30, target: 100, repeatable: false },
+    first_task:       { id: 'first_task',       points: 5,  target: 1, repeatable: false },
+    first_brush:      { id: 'first_brush',      points: 10, target: 1, repeatable: false },
+    right_place:      { id: 'right_place',      points: 10, target: 1, repeatable: false },
+    worth_wait:       { id: 'worth_wait',       points: 10, target: 1, repeatable: false },
+    custom_cat:       { id: 'custom_cat',       points: 5,  target: 1, repeatable: false },
+    out_about:        { id: 'out_about',        points: 10, target: 3, repeatable: false },
+    challenge_winner: { id: 'challenge_winner', points: 15, target: 1, repeatable: false },
   },
 }));
 
 jest.mock('../../src/constants/tiers', () => ({
   deriveTierStanding: (pts: number) => {
-    if (pts < 50)   { return { nextTier: { name: 'Bronze',     at: 50,   color: '#b3793f' }, maxed: false, bandPct: pts        / 50,  toGo: 50   - pts }; }
-    if (pts < 200)  { return { nextTier: { name: 'Silver',     at: 200,  color: '#7d93a4' }, maxed: false, bandPct: (pts-50)  / 150,  toGo: 200  - pts }; }
-    if (pts < 500)  { return { nextTier: { name: 'Gold',       at: 500,  color: '#c0972d' }, maxed: false, bandPct: (pts-200) / 300,  toGo: 500  - pts }; }
-    if (pts < 1200) { return { nextTier: { name: 'Adamantium', at: 1200, color: '#5e788c' }, maxed: false, bandPct: (pts-500) / 700,  toGo: 1200 - pts }; }
-    if (pts < 3000) { return { nextTier: { name: 'Vibranium',  at: 3000, color: '#7256a6' }, maxed: false, bandPct: (pts-1200)/1800,  toGo: 3000 - pts }; }
-    return           { nextTier: { name: 'Vibranium', at: 3000, color: '#7256a6' }, maxed: true,  bandPct: 1, toGo: 0 };
+    const tin = { name: 'Tin', at: 0, color: '#9b9690' };
+    if (pts < 50)   { return { curTier: tin,                                            nextTier: { name: 'Bronze',     at: 50,   color: '#b3793f' }, maxed: false, bandPct: pts        / 50,  toGo: 50   - pts }; }
+    if (pts < 200)  { return { curTier: { name: 'Bronze',     color: '#b3793f' },       nextTier: { name: 'Silver',     at: 200,  color: '#7d93a4' }, maxed: false, bandPct: (pts-50)  / 150,  toGo: 200  - pts }; }
+    if (pts < 500)  { return { curTier: { name: 'Silver',     color: '#7d93a4' },       nextTier: { name: 'Gold',       at: 500,  color: '#c0972d' }, maxed: false, bandPct: (pts-200) / 300,  toGo: 500  - pts }; }
+    if (pts < 1200) { return { curTier: { name: 'Gold',       color: '#c0972d' },       nextTier: { name: 'Adamantium', at: 1200, color: '#5e788c' }, maxed: false, bandPct: (pts-500) / 700,  toGo: 1200 - pts }; }
+    if (pts < 3000) { return { curTier: { name: 'Adamantium', color: '#5e788c' },       nextTier: { name: 'Vibranium',  at: 3000, color: '#7256a6' }, maxed: false, bandPct: (pts-1200)/1800,  toGo: 3000 - pts }; }
+    return           { curTier: { name: 'Vibranium',           color: '#7256a6' },       nextTier: { name: 'Vibranium',  at: 3000, color: '#7256a6' }, maxed: true,  bandPct: 1, toGo: 0 };
   },
 }));
 
@@ -199,12 +201,13 @@ describe('AchievementsScreen — KAN-136: tier header card', () => {
     expect(screen.getAllByText('42').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows "{toGo} pts to {name}" when not maxed', () => {
+  it('shows "Tin · Bronze is on its way" when not maxed (KAN-150: no countdown)', () => {
     renderScreen();
     firePoints(10);
-    // 10 pts → toGo = 40, nextTier = Bronze
-    expect(screen.getByText(/40 pts/)).toBeTruthy();
-    expect(screen.getByText(/Bronze/)).toBeTruthy();
+    // 10 pts → curTier = Tin, nextTier = Bronze
+    expect(screen.getByText(/Tin/)).toBeTruthy();
+    expect(screen.getByText(/Bronze is on its way/)).toBeTruthy();
+    expect(screen.queryByText(/pts to/)).toBeNull(); // no countdown number
   });
 
   it('shows "Top tier · {name}" when maxed', () => {
@@ -218,14 +221,14 @@ describe('AchievementsScreen — KAN-136: tier header card', () => {
 // ─── Achievement gallery — sections (KAN-136) ─────────────────────────────────
 
 describe('AchievementsScreen — KAN-136: achievement sections', () => {
-  it('shows all catalogue labels', () => {
+  it('shows all Tin-tier catalogue labels (KAN-150)', () => {
     renderScreen();
+    expect(screen.getByText('Off your mind')).toBeTruthy();
     expect(screen.getByText('First brush')).toBeTruthy();
-    expect(screen.getByText('Early bird')).toBeTruthy();
-    expect(screen.getByText('Day complete')).toBeTruthy();
-    expect(screen.getByText('On a roll')).toBeTruthy();
-    expect(screen.getByText('Explorer')).toBeTruthy();
-    expect(screen.getByText('Centurion')).toBeTruthy();
+    expect(screen.getByText('Right place, right time')).toBeTruthy();
+    expect(screen.getByText('Worth the wait')).toBeTruthy();
+    expect(screen.getByText('Make it yours')).toBeTruthy();
+    expect(screen.getByText('Out and about')).toBeTruthy();
     expect(screen.getByText('First to brush it away')).toBeTruthy();
   });
 
@@ -238,8 +241,8 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
   it('shows EARNED · N section after earning some', () => {
     renderScreen();
     fireAchievements({
+      first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
       first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
-      early_bird:  { earnCount: 2, progress: 2, target: 1, earnedAt: null },
     });
     expect(screen.getByText(/EARNED · 2/)).toBeTruthy();
     expect(screen.getByText(/LOCKED · 5/)).toBeTruthy();
@@ -254,7 +257,7 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
   it('hides LOCKED section when everything earned', () => {
     renderScreen();
     const allEarned: AchievementsMap = {};
-    const keys: (keyof AchievementsMap)[] = ['first_brush', 'early_bird', 'day_complete', 'on_a_roll', 'explorer', 'centurion', 'challenge_winner'];
+    const keys: (keyof AchievementsMap)[] = ['first_task', 'first_brush', 'right_place', 'worth_wait', 'custom_cat', 'out_about', 'challenge_winner'];
     keys.forEach(t => { allEarned[t] = { earnCount: 1, progress: 1, target: 1, earnedAt: null }; });
     fireAchievements(allEarned);
     expect(screen.queryByText(/LOCKED ·/)).toBeNull();
@@ -269,32 +272,35 @@ describe('AchievementsScreen — achievement cards', () => {
     fireAchievements({
       first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
     });
-    expect(screen.getByText(/5 pts earned/)).toBeTruthy();
+    expect(screen.getByText(/10 pts earned/)).toBeTruthy();
   });
 
-  it('shows "pts available" badge for locked achievements', () => {
+  it('shows "pts available" badge for locked achievements (5pt entries)', () => {
     renderScreen();
     fireAchievements({});
     const matches = screen.getAllByText(/pts available/);
-    const exact = matches.filter(el => el.props.children === '5 pts available');
-    expect(exact.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('scales "pts earned" by earnCount for repeatable achievements', () => {
-    renderScreen();
-    fireAchievements({
-      early_bird: { earnCount: 3, progress: 3, target: 1, earnedAt: null },
-    });
-    expect(screen.getByText(/30 pts earned/)).toBeTruthy();
+    const fivePt = matches.filter(el => el.props.children === '5 pts available');
+    expect(fivePt.length).toBeGreaterThanOrEqual(1); // first_task and custom_cat are 5 pts each
   });
 });
 
-// ─── Centurion meta-achievement ───────────────────────────────────────────────
+// ─── Tin-tier anti-guilt design (KAN-150) ────────────────────────────────────
 
-describe('AchievementsScreen — centurion meta-achievement', () => {
-  it('centurion progress uses totalPoints', () => {
+describe('AchievementsScreen — KAN-150: anti-guilt design', () => {
+  it('locked cards do not show a progress bar (surprises, not quests)', () => {
     renderScreen();
-    firePoints(80);
-    expect(screen.getAllByText(/80/).length).toBeGreaterThanOrEqual(1);
+    fireAchievements({});
+    // out_about is the only multi-step Tin achievement (target 3);
+    // its progress bar should be absent while locked.
+    expect(screen.queryByText(/\/3/)).toBeNull();
+  });
+
+  it('earned out_about card shows progress fraction', () => {
+    renderScreen();
+    fireAchievements({
+      out_about: { earnCount: 1, progress: 3, target: 3, earnedAt: null },
+    });
+    // progress fraction rendered as "3" + "/" + "3" in two sibling Text nodes
+    expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(2);
   });
 });
