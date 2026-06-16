@@ -44,7 +44,6 @@ import {
   Dimensions,
   Easing,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -57,7 +56,7 @@ import Svg, { Path } from 'react-native-svg';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, radius, categories as builtInCategories } from '../theme/tokens';
+import { spacing, categories as builtInCategories } from '../theme/tokens';
 import { subscribeToTasksForMonth, subscribeToAchievements, getCategories } from '../services/firestore';
 import { Task, Category, MonthTasksUiState, AchievementsMap } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -70,8 +69,13 @@ import { todayISO } from '../utils/date';
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SCREEN_W = Dimensions.get('window').width;
-const CELL_W   = (SCREEN_W - 20) / 7; // matches grid horizontal padding below
+// Intentionally 10 (not the standard 22 page margin) — the design handoff
+// specifies "Day Grid: padding: 0 10px 8px" explicitly for this 7-column
+// grid; fitting 7 ring-bearing cells comfortably needs the tighter margin.
+const GRID_H_PADDING = 10;
 const CELL_GAP = 2;
+// 7 columns + 6 inter-column gaps must fit inside the grid's horizontal padding.
+const CELL_W = (SCREEN_W - GRID_H_PADDING * 2 - CELL_GAP * 6) / 7;
 
 const RING_SM        = 36;
 const RING_SM_STROKE = 2.6;
@@ -149,7 +153,10 @@ function isoAddDays(iso: string, delta: number): string {
 
 // ─── Category color resolution (matches TaskRow.tsx) ─────────────────────────
 
-const FALLBACK_CAT = { color: '#9a958b', label: 'Other' };
+// Matches TaskRow.tsx's FALLBACK_CAT exactly — category colors are a fixed
+// design-system constant set (see theme/tokens.ts `categories`), not
+// theme-dependent, so this intentionally isn't a useTheme() palette value.
+const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
 
 function resolveCategory(task: Task, customCategories: Category[]) {
   const builtIn = builtInCategories[task.category as keyof typeof builtInCategories];
@@ -313,12 +320,12 @@ function DayCell({
         <View style={[styles.todayDot, { backgroundColor: palette.accent }]} />
       )}
 
-      {/* Milestone pip */}
+      {/* Milestone pip — halo is a border, not a drop shadow (no shadows rule) */}
       {achievement && !isFuture && (
         <View
           style={[
             styles.milestonePip,
-            { backgroundColor: palette.accent, shadowColor: pipHalo },
+            { backgroundColor: palette.accent, borderColor: pipHalo },
           ]}
         />
       )}
@@ -366,7 +373,6 @@ export default function CalendarScreen() {
       console.warn('[CalendarScreen] tasks subscription error', err);
       setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, displayYear, displayMonth, retryKey]);
 
   // ── Custom categories — one-shot, mirrors TaskRow's resolution ──
@@ -381,7 +387,13 @@ export default function CalendarScreen() {
     return subscribeToAchievements(uid, setAchievementsMap);
   }, [uid]);
 
-  const monthTasks = monthTasksState.status === 'success' ? monthTasksState.tasks : [];
+  // Wrapped in its own useMemo so the fallback `[]` keeps a stable identity
+  // across renders — otherwise every render (even unrelated ones) would
+  // create a new empty array, defeating the downstream useMemo deps below.
+  const monthTasks = useMemo(
+    () => (monthTasksState.status === 'success' ? monthTasksState.tasks : []),
+    [monthTasksState],
+  );
 
   // ── Day grid ──
   const grid = useMemo(
@@ -750,9 +762,9 @@ const styles = StyleSheet.create({
     paddingBottom:    6,
   },
   navBtn: {
-    width:          40,
-    height:         40,
-    borderRadius:   20,
+    width:          44,
+    height:         44,
+    borderRadius:   22,
     alignItems:     'center',
     justifyContent: 'center',
   },
@@ -802,7 +814,7 @@ const styles = StyleSheet.create({
   // ── Weekday row ──
   weekdayRow: {
     flexDirection:    'row',
-    paddingHorizontal: 10,
+    paddingHorizontal: GRID_H_PADDING,
     paddingBottom:      3,
   },
   weekdayLabel: {
@@ -818,7 +830,7 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection:    'row',
     flexWrap:         'wrap',
-    paddingHorizontal: 10,
+    paddingHorizontal: GRID_H_PADDING,
     paddingBottom:      8,
     gap: CELL_GAP,
   },
@@ -851,14 +863,12 @@ const styles = StyleSheet.create({
   },
   milestonePip: {
     position:     'absolute',
-    top:           4,
-    right:         4,
+    top:           2,
+    right:         2,
     width:         5,
     height:        5,
-    borderRadius:  2.5,
-    shadowOffset:  { width: 0, height: 0 },
-    shadowOpacity: 1,
-    shadowRadius:  2,
+    borderRadius:  4.5, // (width/2 + borderWidth) so the halo border stays circular
+    borderWidth:   2,
   },
   chainLink: {
     position:    'absolute',

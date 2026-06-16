@@ -80,14 +80,25 @@ function fakeTimestamp(iso: string) {
   return { toDate: () => date };
 }
 
+// Fixed clock — avoids flakiness around month/day boundaries. All `new
+// Date()` calls in both the component and the tests below resolve to this
+// instant while fake timers are active, so "today" is deterministic.
+const FIXED_NOW = new Date('2026-06-16T12:00:00');
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('CalendarScreen', () => {
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(FIXED_NOW);
     jest.clearAllMocks();
     mockSubscribeToTasksForMonth.mockReturnValue(jest.fn());
     mockSubscribeToAchievements.mockReturnValue(jest.fn());
     mockGetCategories.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('renders the current month and year labels', () => {
