@@ -78,6 +78,17 @@ const RING_SM_STROKE = 2.6;
 const RING_LG        = 68;
 const RING_LG_STROKE = 5.5;
 
+// Streak chain link geometry — computed so the tick's two ends land exactly
+// on the tangent of each ring (touching, never overlapping the circle).
+// Cells are square (width === height === CELL_W) with CELL_GAP between them.
+// In the LATER cell's own coordinate space (0 = its left edge):
+//   the previous ring's right edge sits at  -(CELL_W + CELL_GAP) + CELL_W/2 + RING_R
+//   this ring's left edge sits at            CELL_W/2 - RING_R
+const RING_R     = RING_SM / 2;
+const CHAIN_LEFT  = -(CELL_W + CELL_GAP) + CELL_W / 2 + RING_R; // distance from cell's left edge (negative — reaches into the previous cell)
+const CHAIN_RIGHT = CELL_W - (CELL_W / 2 - RING_R);             // distance from cell's right edge
+const CHAIN_TOP   = CELL_W / 2 - 1; // vertical center of a CELL_W-tall cell, minus half the 2px line height
+
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -851,9 +862,9 @@ const styles = StyleSheet.create({
   },
   chainLink: {
     position:    'absolute',
-    top:         '50%',
-    left:        '-34%',
-    right:       '34%',
+    top:          CHAIN_TOP,
+    left:         CHAIN_LEFT,
+    right:        CHAIN_RIGHT,
     height:       2,
     borderRadius: 1,
     opacity:      0.4,
