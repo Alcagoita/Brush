@@ -25,6 +25,7 @@ export const lightPalette = {
   nearText:   '#7a4a20',   // oklch(0.42 0.13 65)
   success:    '#4caf7d',   // accepted / positive status
   danger:     '#e05252',   // declined / error status
+  onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
 } as const;
 
 export const darkPalette = {
@@ -44,6 +45,7 @@ export const darkPalette = {
   nearText:   '#dba87a',   // oklch(0.86 0.10 65)
   success:    '#5fc090',   // accepted / positive status (brighter for dark bg)
   danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
+  onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
 } as const;
 
 export type Palette = {
@@ -63,6 +65,7 @@ export type Palette = {
   nearText: string;
   success: string;
   danger: string;
+  onAccent: string;
 };
 
 // ─── Category colors ──────────────────────────────────────────────────────────

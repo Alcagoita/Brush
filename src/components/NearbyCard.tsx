@@ -253,7 +253,7 @@ function AlsoCloseRow({
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function NearbyCard({
+function NearbyCard({
   tasks,
   nearbyPoiType,
   poiPlaces,
@@ -384,6 +384,11 @@ export default function NearbyCard({
     </View>
   );
 }
+
+// Memoized so unrelated TodayScreen re-renders (points/inbox badge, scroll
+// layout) don't rebuild the card and restart its animations — it re-renders
+// only when its own props (tasks / nearby data) change (KAN-156).
+export default React.memo(NearbyCard);
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
