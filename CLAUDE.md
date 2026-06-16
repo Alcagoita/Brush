@@ -295,6 +295,150 @@ docs/
 
 ---
 
+## Sprint 10 — Active
+
+Locked, 15 tickets, four tracks + a bug track. All tickets labeled `sprint-10` in Jira.
+
+- **Track A** — import connector reliability
+- **Bug track** — Wear OS offline edge cases
+- **Track B** — core product decisions (persistence/calendar)
+- **Track C** — New Task copy direction + Tin tier achievements
+- **Track D** — splash screen + app icon (brand assets)
+
+### Status (as of last check)
+
+| Ticket | Track | Status |
+|---|---|---|
+| KAN-92 | A | To Do |
+| KAN-93 | A | To Do |
+| KAN-94 | A | To Do |
+| KAN-95 | A | To Do |
+| KAN-106 | Bug | To Do |
+| KAN-107 | Bug | To Do |
+| KAN-146 | B | To Do |
+| KAN-147 | B | To Do |
+| KAN-144 | B | ✅ Done |
+| KAN-145 | B | To Do |
+| KAN-148 | C | To Do |
+| KAN-149 | C | To Do |
+| KAN-150 | C | To Do |
+| KAN-151 | D | ✅ Done |
+| KAN-152 | D | ✅ Done |
+
+### Priority order
+
+1. KAN-92 — import timeout (flaky connections leave button stuck loading)
+2. KAN-94 — cancellation misreported as error
+3. KAN-93 — retry logic, composes KAN-92 + KAN-94
+4. KAN-95 — notes/description mapping, depends on KAN-84/85 merged
+5. KAN-106 — Wear OS silent data loss on disconnect
+6. KAN-107 — offline scenario tests, after KAN-106
+7. KAN-146 — remove end-of-day cleanup (Firestore + Cloud Functions)
+8. KAN-147 — Today screen two-section layout, depends on KAN-146
+9. KAN-144 — POI proximity persistent tracking ✅ done
+10. KAN-145 — Calendar screen redesign, most complex UI ticket
+11. KAN-148 — New Task quick sheet copy
+12. KAN-149 — More Details copy + confirmation toast
+13. KAN-150 — Tin tier achievements
+14. KAN-151 — Splash screen ✅ done
+15. KAN-152 — App icon iOS + Android ✅ done
+
+### Track A — Import connector reliability (KAN-92, 93, 94, 95)
+
+Files: `src/services/import.ts`, `src/types/index.ts`, `src/components/ImportTasksSection.tsx`.
+
+**KAN-92 — Import timeout (no deps).** Wrap the import call in a 30s `Promise.race` timeout (`IMPORT_TIMEOUT_MS = 30_000`). Error messages: general failure → `"Import failed. Tap to retry."`; timeout → `"Import timed out. Check your connection and try again."` Clear the `setTimeout` on unmount.
+
+ACs: button never stuck >30s loading · distinct timeout message · retry after timeout starts fresh (no stale state) · no leaked timer.
+
+**KAN-94 — `ImportResult.cancelled` field (no deps).** Add `cancelled: number` to `ImportResult`. In `importFromGoogleTasks`/`importFromGoogleCalendar`, catch `statusCodes.SIGN_IN_CANCELLED` and return `{ imported: 0, skipped: 0, failed: 0, cancelled: 1 }` instead of throwing; re-throw anything else. `ImportTasksSection` shows a neutral `"Import cancelled."` message (no retry button) when `cancelled > 0`.
+
+ACs: `cancelled` field added · both Google connectors return it on scope decline · neutral UI message · unit tests for cancellation path on both connectors.
+
+**KAN-93 — Exponential backoff retry (after KAN-92 + KAN-94).** `importWithRetry` wraps `runImportWithTimeout`; each attempt gets its own 30s window. `RETRY_DELAYS_MS = [1_000, 2_000, 4_000]` + ±300ms jitter. Skip retry entirely on cancellation or 401/403 — fail immediately. UI shows `"Retrying… (attempt N of 3)"` during backoff; after 3 failures, permanent error state with a manual "Try again" that resets the counter.
+
+ACs: auto-retry up to 3x with correct delays · auth errors/cancellations skip retry · retry label shown · manual retry resets counter · works for both Google and EventKit connectors.
+
+**KAN-95 — Map notes/description → `Task.description` (after KAN-84/85 merged).** Google Tasks: `item.notes?.trim() || undefined`. Google Calendar: strip HTML from `item.description` via a small `stripHtml` helper. EventKit (`importFromReminders`/`importFromCalendar`): `item.notes?.trim() || undefined` (already plain text).
+
+ACs: all three sources map to `description` · HTML stripped for Calendar · `undefined` not `""` when source has no notes · unit tests per connector.
+
+### Bug track — Wear OS offline (KAN-106 → KAN-107)
+
+**KAN-106 — Watch connectivity awareness.** Kotlin, Wear OS module.
+1. `CapabilityClient` listener tracks `phoneConnected`; flush pending queue on reconnect.
+2. In-memory `pendingQueue` in `MarkDoneClient` — if no connected nodes, queue the task ID and set optimistic pending state instead of sending immediately.
+3. `WatchTask.pendingSync: Boolean` — `TaskListScreen` shows a ⚠ icon on rows pending >5s without DataClient reconciliation.
+4. "Phone disconnected" banner (muted, no action) at the top of `TaskListScreen` when unreachable.
+
+ACs: ⚠ after 5s unreconciled · failed `sendMessage()` calls queued and retried on reconnect · disconnect banner shown · existing `wearSync` tests pass.
+
+**KAN-107 — Offline scenario tests (after KAN-106).** Wear OS emulator + Firebase emulator suite (or mocked `WearableListenerService`/`FirebaseFirestore`). Four required cases: happy path; no connected nodes (optimistic update stays, no crash); Firestore write fails unauthenticated (watch/phone state both stay as-is); reconnect after offline (queued message delivered, watch reconciled).
+
+ACs: ≥4 integration/instrumented tests · run in CI against Firebase emulator · PR description includes the test matrix.
+
+### Track B — Core product (KAN-146 → KAN-147 → KAN-144 ✅ → KAN-145) — **current track**
+
+**KAN-146 — Remove end-of-day task cleanup.** Find and delete: any midnight-scheduled Cloud Function that archives/deletes incomplete tasks; any client-side day-boundary reset logic; any `persistent: boolean` field on the task model (remove if present, don't add if absent). Task documents stay until `done === true` or explicit user deletion — no TTL, no archive collection, no scheduled purge. Verify swipe/long-press delete leaves no orphaned Firestore documents.
+
+ACs: no scheduled midnight-clear job · no `persistent` flag on schema · delete leaves no orphaned docs · existing task tests pass.
+
+**KAN-147 — Today screen two-section layout (after KAN-146).** Builds on the `CollapsingTodayScreen` split from KAN-139 (Sprint 9) — only the populated body changes.
+- `todayTasks` = tasks created today, not done. `nearbyOldTasks` = tasks created before today, not done, within `NEARBY_RADIUS` (400m) of their POI.
+- Ring/streak scoring uses `todayTasks` only — `nearbyOldTasks` never contributes.
+- TODAY section: label row (`"TODAY"` / `"N of M done"`), `TaskRow` per task sorted by `createdAt` asc, empty state → `ScrRotatingNudge` (KAN-139).
+- NEARBY section (only rendered if non-empty): label row (`"NEARBY"` / `"N waiting"` — "waiting", not "overdue"), same `TaskRow`, sorted by POI distance asc, no visual penalty.
+- Section label style: 11px, `letterSpacing: 0.16em`, uppercase, `muted`; value side `tabular-nums`.
+
+ACs: TODAY drives ring/streak, NEARBY doesn't · NEARBY hidden when empty · NEARBY uses same `TaskRow`, no overdue styling · empty TODAY triggers `ScrRotatingNudge`.
+
+**KAN-144 — POI proximity persistent tracking ✅ Done** (after Sprint 9 KAN-142). Fixed: geofence tracking continuing past the first POI match until the task is brushed done, with re-registration after each exit event (`expo-location` geofences are one-shot on enter). Boundary-verified at 390m/400m/410m against `NEARBY_RADIUS = 400m`.
+
+**KAN-145 — Calendar screen redesign (after KAN-146 ring data rules confirmed).** Most complex UI ticket this sprint. Design reference: `outputs/design_handoff_calendar/` (`screen-extras.jsx` primary, `screen.jsx` tokens, `brush-icons.jsx` for `BrushStroke`/`BrushStrikeTitle`).
+- `ProgressRing` SVG: `progress: number (0–1)`, `state: RingState` (`'empty' | 'partial' | 'complete' | 'past' | 'future'`), `size`, `strokeWidth` (default 4). Standard `circumference`/`dashoffset` SVG arc math, ring starts at top (-90°).
+- Ring state → visuals: `future` no track fill; `empty` track only + day number; `partial` track + accent arc; `complete` solid accent + checkmark/number; `past` muted `surface2`, day number, **not** "skipped".
+- `past` data rule: day has elapsed, had tasks, not all done that same day. Later completion does not retroactively close the ring.
+- Streak chain: thin accent line connecting consecutive `complete` cells; gap = break.
+- Milestone pips: small accent dots under the day number at 7/14/30/60/100-day streaks.
+- `CalTaskRow`: completed tasks get a `BrushStroke` SVG bezier (not `textDecoration: line-through`), Reanimated `scaleX 0→1` from left, ~350ms ease-out, gated by `AccessibilityInfo.isReduceMotionEnabled()`.
+- Slide-up detail card on day tap: `CalTaskRow` list (scrollable >5), `CalAchChip` row if achievements exist that day, "N tasks · M done" summary.
+- Month navigation via chevrons; ring data scoped to last 90 days + current month.
+
+ACs: all 5 ring states · `past` uses neutral label · streak chain renders correctly · milestone pips correct · slide-up card with `CalTaskRow` + `CalAchChip` · `BrushStroke` animation on completion · reduced-motion guard on all animations · month nav scopes data correctly.
+
+### Track C — Copy & UX (KAN-148, 149, 150) — independent, parallelizable
+
+**KAN-148 — New Task quick sheet copy.** Sheet title → `"What do you want to do?"`; POI label → `"Where does this happen?"`; category label → `"Which part of your life?"`; CTA → `"Add it"`. POI field: rotating placeholder examples (3–4 relevant to the 16 POI types), cycling on focus or every ~4s while empty. Category field: warm placeholder (e.g. "health", "errands"). Sentence case throughout.
+
+ACs: title/labels updated · rotating POI placeholder · warm category placeholder · CTA reads "Add it" · no functional changes, labels only.
+
+**KAN-149 — More Details copy + confirmation toast.** Title → `"Tell me more"`; POI label → `"Where does this happen?"`; category label → `"Which part of your life?"`; notes label → `"Anything else?"`; CTA → `"Add it"`. Confirmation toast after task creation (both quick sheet and More Details): `"Got it — I'll remind you when you're nearby."` (POI set) or `"Done! I'll keep track of this."` (no POI). Bottom toast, `surface` background, `text` color, 2.5s auto-dismiss, screen-reader announced.
+
+ACs: labels updated · toast appears post-creation · copy branches on POI presence · 2.5s auto-dismiss · accessible.
+
+**KAN-150 — Tin tier achievements.** Tin = entry tier (0 pts); tiers: Tin(0)→Bronze(50)→Silver(200)→Gold(500)→Adamantium(1200)→Vibranium(3000). Points come from achievements only, never task completion directly. 10 Tin achievements (115 pts total): First Sweep (10), Early Riser (10, before 9am), Night Owl (10, after 10pm), Consistent (15, 3-day streak), Explorer (15, 3 POI types), Quick Draw (10, create+complete <1hr), Planner (10, 5 tasks/day), Nearby (15, completed via NEARBY nudge), Weekend Warrior (10, Sat+Sun), Variety (10, 3 categories). Award logic runs server-side in a Cloud Function (`onDocumentUpdated` on task write) — never client-trusted; idempotent via `unlockedAt !== null` check. Unlock toast (bottom, brief) shows name + points.
+
+ACs: all 10 implemented with correct criteria · server-side award, no client trust · no duplicate awards · unlock toast on award · points total visible in profile/tier screen.
+
+### Track D — Brand assets (KAN-151, 152) ✅ Both Done
+
+KAN-151 (splash screen) and KAN-152 (app icon) merged into develop. See commit history on `KAN-151-splash-screen` and `KAN-152-app-icon` branches for implementation details.
+
+### Build order
+
+```
+Track A:      KAN-92 ─┐
+              KAN-94 ─┴─→ KAN-93 → KAN-95 (after KAN-84/85 merged)
+Bug track:    KAN-106 → KAN-107
+Track B:      KAN-146 → KAN-147
+              KAN-144 ✅ (done, was parallel w/ 146/147)
+              KAN-145 (after KAN-146 ring data rules confirmed)
+Track C:      KAN-148 / KAN-149 / KAN-150 (independent, any order)
+Track D:      KAN-151 ✅ / KAN-152 ✅ (done)
+```
+
+---
+
 ## Sprint Boundary Rule
 
 ### End-of-Sprint Checklist
