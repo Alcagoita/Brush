@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState, Platform, Vibration } from 'react-native';
+import { AppState, InteractionManager, Platform, Vibration } from 'react-native';
 import {
   setTaskDone,
   setStoreTuningPref,
@@ -490,19 +490,29 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         ).length;
 
         if (task) {
-          evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount })
-            .then(({ nudgeCandidate }) => {
-              if (nudgeCandidate) {
-                checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
-              }
-            })
-            .catch(() => {});
+          // Defer achievement + challenge work until after the completion
+          // animation / in-flight interactions settle (KAN-157). Previously the
+          // heavy Firestore achievements transaction ran concurrently with the
+          // completion re-render, saturating the JS thread (10s+ freeze, and a
+          // Fabric ShadowTree commit crash). The screen never needs the full
+          // achievements here — once the work lands we refresh only the points
+          // total for the header badge.
+          InteractionManager.runAfterInteractions(() => {
+            evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount })
+              .then(({ nudgeCandidate }) => {
+                if (nudgeCandidate) {
+                  checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
+                }
+                getTotalPoints(uid).then(setTotalPoints).catch(() => {});
+              })
+              .catch(() => {});
 
-          getActiveChallengesForUser(uid).then(challenges => {
-            challenges.forEach(c =>
-              incrementCompletedCount(c.id, uid, c).catch(() => {}),
-            );
-          }).catch(() => {});
+            getActiveChallengesForUser(uid).then(challenges => {
+              challenges.forEach(c =>
+                incrementCompletedCount(c.id, uid, c).catch(() => {}),
+              );
+            }).catch(() => {});
+          });
         }
       }
     } catch (err) {

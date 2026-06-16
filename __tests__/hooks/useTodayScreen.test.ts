@@ -293,6 +293,29 @@ describe('useTodayScreen — optimistic toggle', () => {
     );
   });
 
+  it('refreshes only the points total after completing a task, not the full data (KAN-157)', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+    mockGetTotalPoints.mockResolvedValue(7);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    // Ignore the calls made during the initial one-shot load.
+    mockGetTotalPoints.mockClear();
+    mockGetTasksForDate.mockClear();
+
+    await act(async () => {
+      await result.current.handleToggle('task-1', true);
+    });
+    // Flush the deferred (InteractionManager) achievement + points work.
+    await act(async () => {});
+
+    // Completion refreshes ONLY the lightweight total-points read…
+    expect(mockGetTotalPoints).toHaveBeenCalledWith(UID);
+    // …and does NOT trigger a full task refetch.
+    expect(mockGetTasksForDate).not.toHaveBeenCalled();
+  });
+
   it('reverts the local task state when setTaskDone fails', async () => {
     mockSetTaskDone.mockRejectedValue(new Error('Network error'));
     mockGetTasksForDate.mockResolvedValue([TASK]);

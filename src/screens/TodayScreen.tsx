@@ -42,6 +42,7 @@ import { PlusIcon } from '../components/AppIcon';
 import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import Animated, {
   cancelAnimation,
+  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
@@ -54,7 +55,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
@@ -73,12 +73,11 @@ import { COPY } from '../constants/copy';
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const SCREEN_W = Dimensions.get('window').width;
-const SCREEN_H = Dimensions.get('window').height;
 const SCROLL_RANGE = 170; // SECTION_H_REST − SECTION_H_COLLAPSED (declared below)
 
 const RING_REST      = 246;
 const RING_COLLAPSED = 112;
-const STROKE_REST      = 14; // collapse scales this down proportionally (~6.4)
+const STROKE_REST      = 14;
 const RING_LEFT_REST      = (SCREEN_W - RING_REST) / 2;
 const RING_LEFT_COLLAPSED = 22;
 
@@ -87,11 +86,11 @@ const SECTION_H_COLLAPSED = 150;
 const RING_TOP_REST      = (SECTION_H_REST      - RING_REST)      / 2;
 const RING_TOP_COLLAPSED = (SECTION_H_COLLAPSED - RING_COLLAPSED) / 2;
 
-// Caption fades over k 0→0.625 (scrollY 0→106)
-const CAPTION_FADE_END = SCROLL_RANGE * 0.625;
-// Counter fades in over k 0.45→0.91 (scrollY 76.5→154.7)
-const COUNTER_FADE_START = SCROLL_RANGE * 0.45;
-const COUNTER_FADE_END   = SCROLL_RANGE * 0.91;
+// ── 2-state collapse (KAN-157) ──────────────────────────────────────────────────
+// Two positions only: rest (scroll 0 → 60%) and collapsed (60 → 100%). A single
+// `collapseT` (0↔1) animates between them on the UI thread; everything is a
+// composite-only transform/opacity interpolation of it.
+const COLLAPSE_THRESHOLD = 0.6; // fraction of SCROLL_RANGE that triggers collapse
 
 // ─── Empty-state message set (KAN-139) ───────────────────────────────────────
 
@@ -197,11 +196,6 @@ export default function TodayScreen() {
   const month   = MONTHS[now.getMonth()];
   const day     = now.getDate();
 
-  // ── ScrollView viewport height (for minHeight calculation) ───────────────────
-  // Measured via onLayout so the content is always tall enough to allow the
-  // full SCROLL_RANGE (170px) of scroll, even with very few tasks.
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-
   // ── Reanimated scroll value ───────────────────────────────────────────────────
   const scrollY = useSharedValue(0);
 
@@ -211,14 +205,48 @@ export default function TodayScreen() {
     },
   });
 
-  // ── Derived values (UI thread) ────────────────────────────────────────────────
-  // The ring SVG is rendered ONCE at its rest geometry; the scroll-driven
-  // collapse is a pure parent transform:scale (see ringWrapStyle below). This
-  // avoids re-rasterising the SVG every scroll frame — the fix for the Android
-  // touch-blocking jank. Scale goes 1 → RING_COLLAPSED/RING_REST.
-  const ringScale: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [1, RING_COLLAPSED / RING_REST], Extrapolation.CLAMP),
+  // ── 2-state collapse (KAN-157) ────────────────────────────────────────────────
+  // A single `collapseT` (0 = rest, 1 = collapsed) animates between the two
+  // positions, entirely on the UI thread (withTiming inside a derived value),
+  // ONLY when the scroll crosses the 60% threshold. No JS round-trip, no
+  // per-frame layout — every dependent style below is a composite-only
+  // transform/opacity interpolation of collapseT.
+  const collapseT = useDerivedValue(() =>
+    withTiming(scrollY.value >= SCROLL_RANGE * COLLAPSE_THRESHOLD ? 1 : 0, {
+      duration: 240,
+      easing: Easing.inOut(Easing.cubic),
+    }),
   );
+
+  // `collapsed` mirrors the state in JS — used only for caption pointerEvents and
+  // the one-shot haptic. The animation itself never touches JS.
+  const [collapsed, setCollapsed] = useState(false);
+  useAnimatedReaction(
+    () => scrollY.value >= SCROLL_RANGE * COLLAPSE_THRESHOLD,
+    (isCollapsed, prev) => {
+      if (isCollapsed !== prev) {
+        runOnJS(setCollapsed)(isCollapsed);
+        if (isCollapsed) { runOnJS(Vibration.vibrate)(Platform.OS === 'android' ? 10 : 1); }
+      }
+    },
+  );
+
+  const ringWrapStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(collapseT.value, [0, 1], [0, RING_LEFT_COLLAPSED - RING_LEFT_REST]) },
+      { translateY: interpolate(collapseT.value, [0, 1], [0, RING_TOP_COLLAPSED - RING_TOP_REST]) },
+      { scale:      interpolate(collapseT.value, [0, 1], [1, RING_COLLAPSED / RING_REST]) },
+    ],
+  }));
+  const bgStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: interpolate(collapseT.value, [0, 1], [1, SECTION_H_COLLAPSED / SECTION_H_REST]) }],
+  }));
+  const captionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(collapseT.value, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+  }));
+  const collapsedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(collapseT.value, [0.5, 1], [0, 1], Extrapolation.CLAMP),
+  }));
 
   // ── Progress counters ─────────────────────────────────────────────────────────
   const pct       = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
@@ -244,48 +272,6 @@ export default function TodayScreen() {
 
   // ── Empty state flag ──────────────────────────────────────────────────────────
   const isEmpty = !isLoading && !error && tasks.length === 0;
-
-  // ── Animated styles (UI thread) ───────────────────────────────────────────────
-  // bgStyle drives the inner background only — the outer ring container has a
-  // fixed height so animating it never triggers a native layout pass.
-  const bgStyle = useAnimatedStyle(() => ({
-    height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
-  }));
-
-  // left/top track the collapsed position while scale shrinks the (fixed-size)
-  // ring around its top-left corner — together they reproduce the original
-  // 246→112 collapse exactly, but without touching SVG geometry.
-  const ringWrapStyle = useAnimatedStyle(() => ({
-    position: 'absolute' as const,
-    left: interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_LEFT_REST, RING_LEFT_COLLAPSED], Extrapolation.CLAMP),
-    top:  interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_TOP_REST,  RING_TOP_COLLAPSED],  Extrapolation.CLAMP),
-    transformOrigin: 'top left',
-    transform: [{ scale: ringScale.value }],
-  }));
-
-  const captionStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, CAPTION_FADE_END], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  // Both the compact ring caption and the progress panel fade in together.
-  const counterStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [COUNTER_FADE_START, COUNTER_FADE_END], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  // ── Haptic feedback at full collapse ──────────────────────────────────────────
-  const hapticFired = useSharedValue(false);
-  useAnimatedReaction(
-    () => scrollY.value >= SCROLL_RANGE,
-    (isCollapsed) => {
-      if (isCollapsed && !hapticFired.value) {
-        hapticFired.value = true;
-        runOnJS(Vibration.vibrate)(Platform.OS === 'android' ? 10 : 1);
-      }
-      if (!isCollapsed) {
-        hapticFired.value = false;
-      }
-    },
-  );
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -346,14 +332,10 @@ export default function TodayScreen() {
             style={StyleSheet.absoluteFill}
             contentContainerStyle={[
               styles.scrollContent,
-              {
-                backgroundColor: palette.bg,
-                minHeight: (scrollViewHeight || SCREEN_H) + SCROLL_RANGE,
-              },
+              { backgroundColor: palette.bg },
             ]}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
-            onLayout={e => setScrollViewHeight(e.nativeEvent.layout.height)}
             onScroll={scrollHandler}>
 
             {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
@@ -453,20 +435,18 @@ export default function TodayScreen() {
 
         {/* ── Collapsible ring section — absolutely positioned ON TOP of content ── */}
         {/*                                                                         */}
-        {/* ARCHITECTURE: outer container has a FIXED height (never animates).     */}
-        {/* Only the inner ringBg child animates its height — because it is        */}
-        {/* position:absolute it does not affect sibling layout and never triggers */}
-        {/* a native layout pass. This eliminates the touch-blocking glitch that   */}
-        {/* occurred when animating layout properties on the outer container.      */}
+        {/* 3-STATE SNAP (KAN-157): the header has three fixed layouts (rest /      */}
+        {/* middle / collapsed) selected by `stage`. Nothing animates per frame —   */}
+        {/* a stage change swaps to a different set of STATIC styles. This removes  */}
+        {/* the per-frame layout/commit work that froze the thread on scroll.       */}
         {/*                                                                         */}
         {/* pointerEvents="box-none" lets scroll gestures pass through to the      */}
-        {/* ScrollView while still allowing the day-number Pressable to work.      */}
-        {/* The SVG ring and background have explicit "none" so they never block.  */}
+        {/* ScrollView while still allowing the day-number Pressable to work.       */}
         <View
           pointerEvents="box-none"
           style={styles.ringSection}>
 
-          {/* Background fill + bottom border — only this animates height */}
+          {/* Background fill + bottom border — collapses via scaleY (composite) */}
           <Animated.View
             pointerEvents="none"
             style={[
@@ -476,8 +456,8 @@ export default function TodayScreen() {
             ]}
           />
 
-          {/* Ring — absolutely positioned within section, animates left/top/size */}
-          <Animated.View style={ringWrapStyle} pointerEvents="none">
+          {/* Ring — rendered once at rest size; scaled/translated per stage */}
+          <Animated.View style={[styles.ringWrap, ringWrapStyle]} pointerEvents="none">
             <ProgressRing
               progress={progress}
               diameter={RING_REST}
@@ -485,8 +465,10 @@ export default function TodayScreen() {
             />
           </Animated.View>
 
-          {/* Caption — fades out over k 0→0.625 */}
-          <Animated.View style={[styles.captionWrap, captionStyle]} pointerEvents="box-none">
+          {/* Full caption — fades out as the header collapses */}
+          <Animated.View
+            style={[styles.captionWrap, captionStyle]}
+            pointerEvents={collapsed ? 'none' : 'box-none'}>
             <Text style={[styles.captionLabel, { color: palette.muted }]}>
               {weekday.toUpperCase()}
             </Text>
@@ -511,10 +493,8 @@ export default function TodayScreen() {
             )}
           </Animated.View>
 
-          {/* Compact ring caption — fades in with the progress panel */}
-          <Animated.View
-            style={[styles.ringCaption, counterStyle]}
-            pointerEvents="none">
+          {/* Compact caption — fades in when collapsed */}
+          <Animated.View style={[styles.ringCaption, collapsedStyle]} pointerEvents="none">
             <Text style={[styles.ringCaptionDay3, { color: palette.muted }]}>
               {weekday.slice(0, 3).toUpperCase()}
             </Text>
@@ -526,9 +506,9 @@ export default function TodayScreen() {
             </Text>
           </Animated.View>
 
-          {/* Progress panel — fades in over k 0.45→0.91 */}
+          {/* Progress panel — fades in when collapsed */}
           <Animated.View
-            style={[styles.progressWrap, counterStyle]}
+            style={[styles.progressWrap, collapsedStyle]}
             accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}
             accessibilityRole="text"
             pointerEvents="none">
@@ -633,7 +613,15 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    height: SECTION_H_REST,      // fixed; collapse is a scaleY transform
+    transformOrigin: 'top',
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  ringWrap: {
+    position: 'absolute',
+    left: RING_LEFT_REST,        // fixed rest position; stage moves it via translate
+    top: RING_TOP_REST,
+    transformOrigin: 'top left', // scale shrinks toward the top-left corner
   },
   captionWrap: {
     position: 'absolute',
@@ -834,7 +822,8 @@ const styles = StyleSheet.create({
   },
   // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (170px)
   // even with a short task list.
-  bottomPad: { height: 220 },
+  // Clears the floating add-task FAB at the end of the list.
+  bottomPad: { height: 96 },
   // ── Empty state CTA ──
   emptyCTAWrap: {
     paddingHorizontal: spacing.page,
