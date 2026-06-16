@@ -374,3 +374,36 @@ describe('KAN-148 copy', () => {
     expect(screen.queryByText('Pick up toothpaste…')).toBeNull();
   });
 });
+
+// ─── KAN-149 — confirmation toast ───────────────────────────────────────────────
+
+describe('KAN-149 confirmation toast', () => {
+  it('shows the toast after a successful add', async () => {
+    const { useToastStore } = require('../../src/store/toastStore');
+    useToastStore.setState({ message: null });
+
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    fireEvent.press(screen.getByLabelText('Market'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(useToastStore.getState().message).toBe("Got it — I'll keep an eye out.");
+  });
+
+  it('does not show the toast when addTask fails', async () => {
+    const { useToastStore } = require('../../src/store/toastStore');
+    useToastStore.setState({ message: null });
+    mockAddTask.mockRejectedValueOnce(new Error('Network error'));
+
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    fireEvent.press(screen.getByLabelText('ATM'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(useToastStore.getState().message).toBeNull();
+  });
+});
