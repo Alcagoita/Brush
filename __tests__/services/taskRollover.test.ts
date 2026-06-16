@@ -83,6 +83,16 @@ describe('rolloverIncompleteTasks', () => {
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });
 
+  it('splits writes into multiple batches when over the 500 limit', async () => {
+    const docs = Array.from({ length: 501 }, (_, i) => ({ ref: { id: `t${i}` } }));
+    mockGetDocs.mockResolvedValue({ empty: false, docs });
+
+    await rolloverIncompleteTasks('uid-1', TODAY);
+
+    expect(mockBatchUpdate).toHaveBeenCalledTimes(501);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(2); // 500 + 1
+  });
+
   it('defaults `today` to the device-local date when not passed', async () => {
     mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
 

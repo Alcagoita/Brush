@@ -61,6 +61,10 @@ describe('rolloverAllUsers', () => {
     await rolloverAllUsers(db, TODAY);
     expect(db.collectionGroup).toHaveBeenCalledWith('tasks');
     expect(getMock).toHaveBeenCalled();
+
+    const whereMock = (db.collectionGroup('tasks') as unknown as { where: jest.Mock }).where;
+    expect(whereMock).toHaveBeenCalledWith('done', '==', false);
+    expect(whereMock).toHaveBeenCalledWith('date', '<', TODAY);
   });
 
   it('updates every stale task with date and createdAt bumped to today', async () => {
@@ -74,7 +78,7 @@ describe('rolloverAllUsers', () => {
     docs.forEach(d => {
       expect(updateMock).toHaveBeenCalledWith(
         d.ref,
-        expect.objectContaining({ date: TODAY }),
+        expect.objectContaining({ date: TODAY, createdAt: expect.anything() }),
       );
     });
     expect(commitMock).toHaveBeenCalledTimes(1);

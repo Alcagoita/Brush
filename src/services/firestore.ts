@@ -161,11 +161,17 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   const snap = await getDocs(q);
   if (snap.empty) { return; }
 
-  const batch = writeBatch(getFirestore());
-  snap.docs.forEach(d => {
-    batch.update(d.ref, { date: today, createdAt: serverTimestamp() });
-  });
-  await batch.commit();
+  // Firestore caps a single batch at 500 writes — chunk to stay under it
+  // (matches the server-side rolloverIncompleteTasks Cloud Function).
+  const BATCH_LIMIT = 500;
+  const db = getFirestore();
+  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
+      batch.update(d.ref, { date: today, createdAt: serverTimestamp() });
+    });
+    await batch.commit();
+  }
 }
 
 /**
