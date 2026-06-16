@@ -498,7 +498,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           // achievements here — once the work lands we refresh only the points
           // total for the header badge.
           InteractionManager.runAfterInteractions(() => {
-            evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount })
+            evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount, isNearby: !!task.poi && task.poi === nearbyPoiType })
               .then(({ nudgeCandidate }) => {
                 if (nudgeCandidate) {
                   checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
