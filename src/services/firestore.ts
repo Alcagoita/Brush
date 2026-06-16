@@ -136,6 +136,45 @@ export async function getTasksForDate(uid: string, date: string): Promise<Task[]
 }
 
 /**
+ * Roll forward any undone task still dated before `today` so it becomes
+ * today's task (KAN-146 — tasks persist until brushed away; an unfinished
+ * task is never cleared, it simply becomes "new" the next day).
+ *
+ * Bumps both `date` and `createdAt` to now — the task is treated as freshly
+ * created today, matching how it will appear and score on the Today screen.
+ *
+ * This is the client-side correctness fallback: the per-user `today` here is
+ * computed in the device's local timezone, unlike the best-effort UTC-anchored
+ * server-side `rolloverIncompleteTasks` Cloud Function. Calling this is safe
+ * even if the server-side job already ran — there's nothing left to roll over.
+ *
+ * Idempotent and cheap when there's nothing to roll over (single query, no
+ * writes). Intended to run once during SplashScreen boot, before the task
+ * list is fetched for the day.
+ */
+export async function rolloverIncompleteTasks(uid: string, today: string = todayISO()): Promise<void> {
+  const q = query(
+    tasksRef(uid),
+    where('done', '==', false),
+    where('date', '<', today),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) { return; }
+
+  // Firestore caps a single batch at 500 writes — chunk to stay under it
+  // (matches the server-side rolloverIncompleteTasks Cloud Function).
+  const BATCH_LIMIT = 500;
+  const db = getFirestore();
+  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
+      batch.update(d.ref, { date: today, createdAt: serverTimestamp() });
+    });
+    await batch.commit();
+  }
+}
+
+/**
  * Subscribe to live updates for a user's tasks on a given date.
  * Returns an unsubscribe function — call it on component unmount.
  */

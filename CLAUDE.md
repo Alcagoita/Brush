@@ -315,7 +315,7 @@ Locked, 15 tickets, four tracks + a bug track. All tickets labeled `sprint-10` i
 | KAN-95 | A | To Do |
 | KAN-106 | Bug | To Do |
 | KAN-107 | Bug | To Do |
-| KAN-146 | B | To Do |
+| KAN-146 | B | In Development (PR open) |
 | KAN-147 | B | To Do |
 | KAN-144 | B | ✅ Done |
 | KAN-145 | B | To Do |
@@ -379,9 +379,15 @@ ACs: ≥4 integration/instrumented tests · run in CI against Firebase emulator 
 
 ### Track B — Core product (KAN-146 → KAN-147 → KAN-144 ✅ → KAN-145) — **current track**
 
-**KAN-146 — Remove end-of-day task cleanup.** Find and delete: any midnight-scheduled Cloud Function that archives/deletes incomplete tasks; any client-side day-boundary reset logic; any `persistent: boolean` field on the task model (remove if present, don't add if absent). Task documents stay until `done === true` or explicit user deletion — no TTL, no archive collection, no scheduled purge. Verify swipe/long-press delete leaves no orphaned Firestore documents.
+**KAN-146 — Remove end-of-day task cleanup.** Verified: no scheduled Cloud Function archives/deletes tasks, no client-side day-boundary reset logic, no `persistent` field on the task model — codebase was already clean here.
 
-ACs: no scheduled midnight-clear job · no `persistent` flag on schema · delete leaves no orphaned docs · existing task tests pass.
+**Scope addition confirmed with stakeholder:** the Today screen only ever fetched `getTasksForDate(uid, todayISO())` — undone tasks from previous days were never fetched at all, contradicting the "tasks persist" decision. Resolution (overrides the literal Jira ticket text "never moves... automatically" — explicit live decision from the user takes precedence): a daily **rollover** moves any undone task forward to the new day, bumping both `date` and `createdAt` to now — it is treated as a brand-new task for that day, no separate "old tasks" list or second "NEARBY" section (the existing `NearbyCard` proximity carousel remains the only "NEARBY" UI — do not duplicate it).
+
+Implementation: `functions/src/rolloverIncompleteTasks.ts` — daily `onSchedule('5 0 * * *', ...)` Cloud Function, UTC-anchored best effort, collection-group query (`done == false`, `date < today`), batched writes. Client-side fallback `rolloverIncompleteTasks(uid)` in `src/services/firestore.ts`, called from `SplashScreen.tsx` before the boot data fetch — this one is per-user-timezone-correct (uses local `todayISO()`) and runs whichever device opens first each day; either path running first makes the other a no-op. New composite indexes added in `firestore.indexes.json` (`done`+`date`, both `COLLECTION` and `COLLECTION_GROUP` scope).
+
+**Note for KAN-145:** ring/streak calendar history must key off `createdAt` per-day, not `date` — `date` now changes on rollover and no longer reflects a task's original day.
+
+ACs: no scheduled midnight-clear job (replaced by rollover, which doesn't delete/archive) · no `persistent` flag on schema · delete leaves no orphaned docs · existing task tests pass · undone tasks roll forward daily and appear in Today's single list · no second "NEARBY"-labeled section added.
 
 **KAN-147 — Today screen two-section layout (after KAN-146).** Builds on the `CollapsingTodayScreen` split from KAN-139 (Sprint 9) — only the populated body changes.
 - `todayTasks` = tasks created today, not done. `nearbyOldTasks` = tasks created before today, not done, within `NEARBY_RADIUS` (400m) of their POI.

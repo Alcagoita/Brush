@@ -46,6 +46,7 @@ import {
   getTotalPoints,
   getUser,
   getUserPreferences,
+  rolloverIncompleteTasks,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
 import { todayISO } from '../utils/date';
@@ -322,15 +323,22 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     }
 
     const uid = user.uid;
-    Promise.all([
-      getTasksForDate(uid, todayISO()),
-      getUser(uid),
-      getUserPreferences(uid),
-      getPoiPreferencesMap(uid),
-      getCategories(uid),
-      getTotalPoints(uid),
-      getIncomingSharedTasksCount(uid),
-    ])
+    // Roll forward yesterday's undone tasks before fetching today's list, so
+    // they're already included (KAN-146 — tasks persist until brushed away).
+    // This is the per-user-timezone-correct fallback to the best-effort UTC
+    // server-side rollover Cloud Function; failures here are non-fatal — the
+    // server-side job (or tomorrow's rollover) will catch anything missed.
+    rolloverIncompleteTasks(uid)
+      .catch(err => console.warn('[SplashScreen] rolloverIncompleteTasks failed (non-critical)', err))
+      .then(() => Promise.all([
+        getTasksForDate(uid, todayISO()),
+        getUser(uid),
+        getUserPreferences(uid),
+        getPoiPreferencesMap(uid),
+        getCategories(uid),
+        getTotalPoints(uid),
+        getIncomingSharedTasksCount(uid),
+      ]))
       .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount]) => {
         if (cancelled) { return; }
         useAppStore.getState().setBootData({
