@@ -48,6 +48,8 @@ import { addTask } from '../services/firestore';
 import { CloseIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
 import { todayISO } from '../utils/date';
+import { COPY } from '../constants/copy';
+import RotatingTitlePlaceholder from './RotatingTitlePlaceholder';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -113,6 +115,8 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [category, setCategory] = useState<string | null>(null);
     const [poi,      setPoi]      = useState<PoiType | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    // Rotating title placeholder freezes permanently once the user taps the field (KAN-148).
+    const [titleFocused, setTitleFocused] = useState(false);
 
     const [mounted, setMounted] = useState(false);
     const titleRef = useRef<TextInput>(null);
@@ -140,6 +144,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setCategory(null);
       setPoi(null);
       setSubmitting(false);
+      setTitleFocused(false);
       dragOffset.value = 0;
     }, [dragOffset]);
 
@@ -279,7 +284,9 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
             {/* Header */}
             <View style={styles.header}>
-              <Text style={[styles.headerTitle, { color: palette.text }]}>New task</Text>
+              <Text style={[styles.headerTitle, { color: palette.text }]}>
+                {COPY.newTaskSheet.title}
+              </Text>
               <Pressable
                 style={[styles.closeBtn, { backgroundColor: palette.surface }]}
                 onPress={handleClose}
@@ -296,39 +303,47 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
               {/* ── Title ── */}
               <View style={styles.fieldPad}>
-                <TextInput
-                  ref={titleRef}
-                  style={[
-                    styles.titleInput,
-                    {
-                      backgroundColor: palette.surface,
-                      borderColor:     palette.line,
-                      color:           palette.text,
-                    },
-                  ]}
-                  placeholder="What do you need to do?"
-                  placeholderTextColor={palette.muted}
-                  value={title}
-                  onChangeText={setTitle}
-                  returnKeyType="default"
-                  maxLength={200}
-                />
+                <View style={styles.titleInputWrap}>
+                  <TextInput
+                    ref={titleRef}
+                    style={[
+                      styles.titleInput,
+                      {
+                        backgroundColor: palette.surface,
+                        borderColor:     palette.line,
+                        color:           palette.text,
+                      },
+                    ]}
+                    value={title}
+                    onChangeText={setTitle}
+                    onFocus={() => setTitleFocused(true)}
+                    returnKeyType="default"
+                    maxLength={200}
+                    accessibilityLabel={COPY.newTaskSheet.title}
+                  />
+                  {/* Rotating example placeholder — hides once focused or once there's a value */}
+                  {!titleFocused && title.length === 0 && (
+                    <RotatingTitlePlaceholder
+                      examples={COPY.newTaskSheet.titleExamples}
+                      active={!titleFocused}
+                      style={[styles.titlePlaceholder, { color: palette.muted }]}
+                    />
+                  )}
+                </View>
               </View>
 
-              {/* ── POI label ── */}
-              <View style={styles.poiLabelRow}>
-                <Text style={[styles.fieldLabel, { color: palette.muted }]}>
-                  POINT OF INTEREST
-                </Text>
-                <Text style={[styles.fieldLabelRequired, { color: palette.accent }]}>
-                  {' · '}required
+              {/* ── POI question ── */}
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.poiQuestion}
                 </Text>
               </View>
 
-              {/* ── Quick picks header ── */}
-              <View style={styles.quickPicksHeader}>
-                <Text style={[styles.quickPicksTitle, { color: palette.muted }]}>Quick picks</Text>
-                <Text style={[styles.quickPicksHint,  { color: palette.faint }]}>Swipe for more</Text>
+              {/* ── "Swipe for more" hint — right-aligned, no "Quick picks" sublabel ── */}
+              <View style={styles.swipeHintRow}>
+                <Text style={[styles.quickPicksHint, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.swipeHint}
+                </Text>
               </View>
 
               {/* ── POI carousel ── */}
@@ -351,11 +366,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 ))}
               </ScrollView>
 
-              {/* ── Category (optional) ── */}
-              <View style={styles.poiLabelRow}>
-                <Text style={[styles.fieldLabel, { color: palette.muted }]}>CATEGORY</Text>
-                <Text style={[styles.fieldLabelOptional, { color: palette.faint }]}>
-                  {' '}(optional)
+              {/* ── Category question (optional) ── */}
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.catQuestion}
+                </Text>
+                <Text style={[styles.questionOptional, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.catOptional}
                 </Text>
               </View>
               <View style={styles.categoryRow}>
@@ -416,7 +433,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   accessibilityRole="button"
                   accessibilityLabel="More details">
                   <Text style={[styles.ctaGhostLabel, { color: palette.muted }]}>
-                    More details ›
+                    {COPY.newTaskSheet.moreDetails}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -431,13 +448,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   onPress={handleSubmit}
                   disabled={!canSubmit || submitting}
                   accessibilityRole="button"
-                  accessibilityLabel="Add task"
+                  accessibilityLabel={COPY.newTaskSheet.cta}
                   accessibilityState={{ disabled: !canSubmit || submitting }}>
                   <Text style={[
                     styles.ctaSubmitLabel,
                     { color: canSubmit && !submitting ? palette.bg : palette.muted },
                   ]}>
-                    {submitting ? 'Adding…' : 'Add task'}
+                    {submitting ? COPY.newTaskSheet.ctaSubmitting : COPY.newTaskSheet.cta}
                   </Text>
                 </Pressable>
               </View>
@@ -512,6 +529,9 @@ const styles = StyleSheet.create({
   fieldPad: {
     paddingHorizontal: 22,
   },
+  titleInputWrap: {
+    position: 'relative',
+  },
   titleInput: {
     fontSize:          16,
     fontFamily:        'Geist-Regular',
@@ -520,42 +540,42 @@ const styles = StyleSheet.create({
     borderRadius:      12,
     borderWidth:        1,
   },
-  poiLabelRow: {
+  // Overlays the TextInput at the same inset the native placeholder would
+  // sit at — derived from titleInput's own borderWidth(1) + padding(16/14),
+  // not arbitrary values. Using a rounder spacing-scale number here would
+  // shift the overlay 1px off from where typed text actually starts.
+  titlePlaceholder: {
+    position:          'absolute',
+    left:               17, // borderWidth(1) + paddingHorizontal(16)
+    top:                15, // borderWidth(1) + paddingVertical(14)
+    right:              17,
+    fontSize:           16,
+    fontFamily:        'Geist-Regular',
+  },
+  // Sentence-case conversational question labels (KAN-148) — replace the
+  // old all-caps micro-labels now that fields read as questions, not forms.
+  questionRow: {
     flexDirection:     'row',
     alignItems:        'baseline',
     paddingHorizontal: 22,
     paddingTop:        20,
     paddingBottom:     10,
   },
-  fieldLabel: {
-    fontSize:      11,
+  questionLabel: {
+    fontSize:      15,
     fontWeight:    '500',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  1.76,
+    fontFamily:    'Geist-Medium',
+    letterSpacing: -0.15,
   },
-  fieldLabelRequired: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  0,
+  questionOptional: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
   },
-  fieldLabelOptional: {
-    fontSize:      11,
-    fontWeight:    '400',
-    fontFamily:    'Geist-Regular',
-    letterSpacing:  0,
-  },
-  quickPicksHeader: {
+  swipeHintRow: {
     flexDirection:     'row',
-    justifyContent:    'space-between',
-    alignItems:        'center',
+    justifyContent:    'flex-end',
     paddingHorizontal: 22,
     marginBottom:       8,
-  },
-  quickPicksTitle: {
-    fontSize:   12,
-    fontWeight: '500',
-    fontFamily: 'Geist-Medium',
   },
   quickPicksHint: {
     fontSize:   11,
