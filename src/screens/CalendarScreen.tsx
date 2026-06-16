@@ -1,29 +1,49 @@
 /**
- * CalendarScreen — KAN-50
+ * CalendarScreen — KAN-50, redesigned in KAN-145
  *
  * Layout (top → bottom):
- *   1. Top bar       — ← back  |  "Today" pill
- *   2. Month nav     — ‹  Month YYYY  ›
+ *   1. Top bar       — ← back  |  "Calendar"  |  "Today" pill
+ *   2. Month nav     — ‹  Month  ›  /  year
  *   3. Weekday row   — S  M  T  W  T  F  S
- *   4. Day grid      — 7-col, each cell: day number + MiniRing(18×18)
- *   5. Detail card   — selected day's large ring (52×52) + task rows
+ *   4. Day grid      — 7-col, each cell: ring (CalendarRing, 36×36) overlaid
+ *                       with the day number, same center point
+ *   5. Hairline divider
+ *   6. Detail card   — slides up + fades in on selection change. Status label
+ *                       (Today / Upcoming / Day complete / Past) + date +
+ *                       stats line + large ring (68×68), achievement/run
+ *                       chips, full task list with BrushStroke strikethrough,
+ *                       "Open today" CTA when the selected day is today.
  *
- * Day cell colours (spec):
- *   selected → bg=text,    ring color=bg,     ring track=rgba(white,0.18)
- *   today    → bg=surface, ring color varies, ring track=ringTrack
- *   other    → bg=transparent
+ * Ring states (see CalendarRing.tsx):
+ *   no ring     — day has no tasks, or is in the future
+ *   "skipped"   — past, 0% done, had tasks → track only, opacity 0.5.
+ *                 Not surfaced as a label anywhere — the detail card always
+ *                 says "Past" (muted), never "Skipped". A past day's stats
+ *                 are locked in at query time; a task finished on a later
+ *                 day no longer counts toward the day it was originally due
+ *                 once it rolls forward (KAN-146) — the calendar records
+ *                 daily intention, not eventual completion.
+ *   partial     — 0 < done < total → partial arc, ringFill, rounded tip
+ *   complete    — done === total (> 0) → closed ring, accent, bold number
  *
- * MiniRing fill color:
- *   selected cell      → palette.bg
- *   all done  (unsel.) → palette.accent
- *   partial / no tasks → palette.text  (faint if total===0)
+ * Streak chains: a thin accent tick links two adjacent 100%-complete day
+ * cells (skipped in the first column of a week row — nowhere to draw it,
+ * and a run never visually crosses a month boundary since only the
+ * currently-displayed month's tasks are loaded).
+ *
+ * Achievement milestone pips/chips: achievements are stored as a single map
+ * on the user doc with only the MOST RECENT earnedAt per type (no per-day
+ * history for repeatable achievements). So a pip/chip can only ever mark the
+ * one day each achievement type was last earned — confirmed acceptable
+ * scope for this ticket.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Animated,
   Dimensions,
+  Easing,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -32,36 +52,57 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Svg, { Circle } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, radius } from '../theme/tokens';
-import { subscribeToTasksForMonth } from '../services/firestore';
-import { Task, MonthTasksUiState } from '../types';
+import { spacing, categories as builtInCategories } from '../theme/tokens';
+import { subscribeToTasksForMonth, subscribeToAchievements, getCategories } from '../services/firestore';
+import { Task, Category, MonthTasksUiState, AchievementsMap } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
-import { COPY } from '../constants/copy';
+import { AchievementIcon, AchievementIconKey, ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
+import BrushStroke from '../components/BrushStroke';
+import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const SCREEN_W = Dimensions.get('window').width;
-const CELL_W   = SCREEN_W / 7;
-const CELL_H   = 66;
-const RING_SM  = 18;   // grid cell ring
-const RING_LG  = 52;   // detail card ring
-const RING_SM_STROKE = 2.5;
-const RING_LG_STROKE = 4;
+// Intentionally 10 (not the standard 22 page margin) — the design handoff
+// specifies "Day Grid: padding: 0 10px 8px" explicitly for this 7-column
+// grid; fitting 7 ring-bearing cells comfortably needs the tighter margin.
+const GRID_H_PADDING = 10;
+const CELL_GAP = 2;
+// 7 columns + 6 inter-column gaps must fit inside the grid's horizontal padding.
+const CELL_W = (SCREEN_W - GRID_H_PADDING * 2 - CELL_GAP * 6) / 7;
+
+const RING_SM        = 36;
+const RING_SM_STROKE = 2.6;
+const RING_LG        = 68;
+const RING_LG_STROKE = 5.5;
+
+// Streak chain link geometry — computed so the tick's two ends land exactly
+// on the tangent of each ring (touching, never overlapping the circle).
+// Cells are square (width === height === CELL_W) with CELL_GAP between them.
+// In the LATER cell's own coordinate space (0 = its left edge):
+//   the previous ring's right edge sits at  -(CELL_W + CELL_GAP) + CELL_W/2 + RING_R
+//   this ring's left edge sits at            CELL_W/2 - RING_R
+const RING_R     = RING_SM / 2;
+const CHAIN_LEFT  = -(CELL_W + CELL_GAP) + CELL_W / 2 + RING_R; // distance from cell's left edge (negative — reaches into the previous cell)
+const CHAIN_RIGHT = CELL_W - (CELL_W / 2 - RING_R);             // distance from cell's right edge
+const CHAIN_TOP   = CELL_W / 2 - 1; // vertical center of a CELL_W-tall cell, minus half the 2px line height
 
 const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
-const SHORT_WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const FULL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const CARD_ANIM_MS = 300;
+
+// ─── Date helpers ─────────────────────────────────────────────────────────────
 
 /** YYYY-MM string from year + 1-based month. */
 function toYearMonth(year: number, month: number): string {
@@ -96,201 +137,199 @@ function buildGrid(year: number, month: number): (number | null)[] {
   return cells;
 }
 
-/** Pretty label for the detail card header: "MON, MAY 4". */
-function formatDetailHeader(iso: string): string {
+/** Pretty label for the detail card header: "Friday, May 22". */
+function formatFullDateLabel(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  const wd   = SHORT_WEEKDAYS[date.getDay()].toUpperCase();
-  const mo   = MONTH_NAMES[m - 1].slice(0, 3).toUpperCase();
-  return `${wd}, ${mo} ${d}`;
+  return `${FULL_WEEKDAYS[date.getDay()]}, ${MONTH_NAMES[m - 1]} ${d}`;
 }
 
-// ─── MiniRing ─────────────────────────────────────────────────────────────────
-
-interface MiniRingProps {
-  size:   number;
-  stroke: number;
-  done:   number;
-  total:  number;
-  color:  string;
-  track:  string;
+/** Shift an ISO date string by `delta` days (handles month/year rollover). */
+function isoAddDays(iso: string, delta: number): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d + delta);
+  return toDateISO(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
 }
 
-function MiniRing({ size, stroke, done, total, color, track }: MiniRingProps) {
-  const r    = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const pct  = total === 0 ? 0 : Math.min(done / total, 1);
+// ─── Category color resolution (matches TaskRow.tsx) ─────────────────────────
+
+// Matches TaskRow.tsx's FALLBACK_CAT exactly — category colors are a fixed
+// design-system constant set (see theme/tokens.ts `categories`), not
+// theme-dependent, so this intentionally isn't a useTheme() palette value.
+const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
+
+function resolveCategory(task: Task, customCategories: Category[]) {
+  const builtIn = builtInCategories[task.category as keyof typeof builtInCategories];
+  const custom  = customCategories.find(c => c.id === task.category);
+  return builtIn
+    ? { color: builtIn.color, label: builtIn.label }
+    : custom
+    ? { color: custom.color, label: custom.name }
+    : FALLBACK_CAT;
+}
+
+// ─── CalTaskRow — one task inside the detail card ────────────────────────────
+
+interface CalTaskRowProps {
+  task: Task;
+  customCategories: Category[];
+  isLast: boolean;
+}
+
+function CalTaskRow({ task, customCategories, isLast }: CalTaskRowProps) {
+  const { palette } = useTheme();
+  const cat = resolveCategory(task, customCategories);
+  const [titleWidth, setTitleWidth] = useState(0);
 
   return (
-    <Svg
-      width={size}
-      height={size}
-      style={{ transform: [{ rotate: '-90deg' }] }}>
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={track}
-        strokeWidth={stroke}
+    <View
+      style={[
+        styles.taskRow,
+        !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line },
+      ]}>
+      {/* Check circle */}
+      <View
+        style={[
+          styles.checkCircle,
+          task.done
+            ? { backgroundColor: cat.color, borderColor: cat.color }
+            : { backgroundColor: 'transparent', borderColor: palette.faint },
+        ]}>
+        {task.done && (
+          <Svg width={10} height={10} viewBox="0 0 12 12" fill="none">
+            <Path
+              d="M2.5 6.5L5 9l4.5-5.5"
+              stroke="#fff"
+              strokeWidth={1.7}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        )}
+      </View>
+
+      {/* Title with brush strikethrough when done */}
+      <View style={styles.taskTitleWrap}>
+        <Text
+          style={[styles.taskTitle, { color: task.done ? palette.muted : palette.text }]}
+          numberOfLines={1}
+          onLayout={e => setTitleWidth(e.nativeEvent.layout.width)}>
+          {task.title}
+        </Text>
+        {task.done && (
+          <View pointerEvents="none" style={styles.taskStrokeOverlay}>
+            <BrushStroke width={titleWidth} color={palette.accent} />
+          </View>
+        )}
+      </View>
+
+      {/* Category dot */}
+      <View
+        style={[
+          styles.categoryDot,
+          { backgroundColor: cat.color, opacity: task.done ? 0.4 : 0.85 },
+        ]}
       />
-      {pct > 0 && (
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          fill="none"
-          stroke={color}
-          strokeWidth={stroke}
-          strokeLinecap="round"
-          strokeDasharray={`${circ * pct} ${circ}`}
-        />
-      )}
-    </Svg>
+    </View>
+  );
+}
+
+// ─── CalAchChip — quiet badge chip used in the detail card ───────────────────
+
+function CalAchChip({ icon, children }: { icon: AchievementIconKey; children: React.ReactNode }) {
+  const { palette } = useTheme();
+  return (
+    <View
+      style={[
+        styles.achChip,
+        { backgroundColor: palette.nearTint2, borderColor: palette.nearBorder },
+      ]}>
+      <AchievementIcon icon={icon} color={palette.nearText} size={13} />
+      <Text style={[styles.achChipLabel, { color: palette.nearText }]}>{children}</Text>
+    </View>
   );
 }
 
 // ─── DayCell ──────────────────────────────────────────────────────────────────
 
 interface DayCellProps {
-  day:        number;
-  isToday:    boolean;
-  isSelected: boolean;
-  done:       number;
-  total:      number;
-  onPress:    () => void;
+  day:         number;
+  isToday:     boolean;
+  isSelected:  boolean;
+  isFuture:    boolean;
+  done:        number;
+  total:       number;
+  isComplete:  boolean;
+  chainsBack:  boolean;
+  achievement: { icon: AchievementIconKey; label: string } | undefined;
+  onPress:     () => void;
 }
 
-function DayCell({ day, isToday, isSelected, done, total, onPress }: DayCellProps) {
-  const { palette } = useTheme();
+function DayCell({
+  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, achievement, onPress,
+}: DayCellProps) {
+  const { palette, dark } = useTheme();
 
-  // Background
   const bg =
     isSelected ? palette.text :
     isToday    ? palette.surface :
     'transparent';
 
-  // Ring fill colour
-  const allDone  = total > 0 && done === total;
-  const ringColor =
-    isSelected         ? palette.bg :
-    allDone            ? palette.accent :
-    total === 0        ? palette.faint :
-                         palette.text;
+  const dayColor = isSelected ? palette.bg : isFuture ? palette.faint : palette.text;
+  const dayWeight = (isComplete || isToday || isSelected) ? '600' as const : '400' as const;
 
-  // Ring track colour
-  const ringTrack = isSelected
-    ? 'rgba(253,253,251,0.18)'
-    : palette.ringTrack;
-
-  // Day number text colour
-  const dayColor = isSelected ? palette.bg : palette.text;
+  // Halo behind the milestone pip matches whatever background sits behind it.
+  const pipHalo = isSelected ? palette.text : isToday ? palette.surface : palette.bg;
 
   return (
     <Pressable
       onPress={onPress}
-      style={[
-        styles.cell,
-        { backgroundColor: bg },
-      ]}
+      style={[styles.cell, { backgroundColor: bg }]}
       accessibilityRole="button"
       accessibilityLabel={`${day}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`}>
-      <Text style={[styles.cellDay, { color: dayColor }]}>{day}</Text>
-      <MiniRing
-        size={RING_SM}
-        stroke={RING_SM_STROKE}
-        done={done}
-        total={total}
-        color={ringColor}
-        track={ringTrack}
-      />
-    </Pressable>
-  );
-}
 
-// ─── DetailCard ───────────────────────────────────────────────────────────────
+      {/* Streak chain link — reaches back toward yesterday's ring */}
+      {chainsBack && (
+        <View
+          pointerEvents="none"
+          style={[styles.chainLink, { backgroundColor: palette.accent }]}
+        />
+      )}
 
-interface DetailCardProps {
-  dateISO:  string;
-  tasks:    Task[];
-  isToday:  boolean;
-}
-
-function DetailCard({ dateISO, tasks, isToday }: DetailCardProps) {
-  const { palette } = useTheme();
-  const done  = tasks.filter(t => t.done).length;
-  const total = tasks.length;
-  const allDone   = total > 0 && done === total;
-  const ringColor = allDone ? palette.accent : palette.text;
-
-  return (
-    <View style={[styles.detailCard, { borderColor: palette.line, backgroundColor: palette.surface }]}>
-      {/* Header row */}
-      <View style={styles.detailHeader}>
-        <View style={styles.detailHeaderLeft}>
-          <Text style={[styles.detailDateLabel, { color: palette.muted }]}>
-            {isToday ? 'TODAY · ' : ''}{formatDetailHeader(dateISO)}
-          </Text>
-          <Text style={[styles.detailFraction, { color: palette.text }]}>
-            {done}
-            <Text style={{ color: palette.faint }}> / </Text>
-            <Text style={{ color: palette.muted }}>{total}</Text>
-            <Text style={[styles.detailFractionSuffix, { color: palette.muted }]}>
-              {' '}brushed
-            </Text>
-          </Text>
-        </View>
-
-        <MiniRing
-          size={RING_LG}
-          stroke={RING_LG_STROKE}
+      {/* Ring layer — absolutely centered */}
+      <View style={styles.ringLayer} pointerEvents="none">
+        <CalendarRing
+          size={RING_SM}
+          stroke={RING_SM_STROKE}
           done={done}
           total={total}
-          color={ringColor}
-          track={palette.ringTrack}
+          isFuture={isFuture}
+          isSelected={isSelected}
+          dark={dark}
+          ringTrack={palette.ringTrack}
+          ringFill={palette.ringFill}
+          accent={palette.accent}
         />
       </View>
 
-      {/* Divider */}
-      <View style={[styles.detailDivider, { backgroundColor: palette.line }]} />
+      {/* Day number */}
+      <Text style={[styles.cellDay, { color: dayColor, fontWeight: dayWeight }]}>{day}</Text>
 
-      {/* Task rows */}
-      {total === 0 ? (
-        <Text style={[styles.emptyLabel, { color: palette.muted }]}>
-          {COPY.emptyState.calendarNoTasks}
-        </Text>
-      ) : (
-        tasks.map(task => (
-          <View key={task.id} style={styles.taskRow}>
-            {/* Done indicator */}
-            <View
-              style={[
-                styles.taskDot,
-                task.done
-                  ? { backgroundColor: palette.accent }
-                  : { borderColor: palette.faint, borderWidth: 1.5 },
-              ]}
-            />
-            <View style={styles.taskContent}>
-              <Text
-                style={[
-                  styles.taskTitle,
-                  { color: task.done ? palette.muted : palette.text },
-                  task.done && styles.taskTitleDone,
-                ]}
-                numberOfLines={2}>
-                {task.title}
-              </Text>
-              {task.time ? (
-                <Text style={[styles.taskTime, { color: palette.muted }]}>
-                  {task.time}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        ))
+      {/* Today accent dot */}
+      {isToday && !isSelected && (
+        <View style={[styles.todayDot, { backgroundColor: palette.accent }]} />
       )}
-    </View>
+
+      {/* Milestone pip — halo is a border, not a drop shadow (no shadows rule) */}
+      {achievement && !isFuture && (
+        <View
+          style={[
+            styles.milestonePip,
+            { backgroundColor: palette.accent, borderColor: pipHalo },
+          ]}
+        />
+      )}
+    </Pressable>
   );
 }
 
@@ -300,7 +339,7 @@ type Nav   = NativeStackNavigationProp<RootStackParamList, 'Calendar'>;
 type Route = RouteProp<RootStackParamList, 'Calendar'>;
 
 export default function CalendarScreen() {
-  const { palette } = useTheme();
+  const { palette, dark } = useTheme();
   const insets      = useSafeAreaInsets();
   const navigation  = useNavigation<Nav>();
   const route       = useRoute<Route>();
@@ -308,20 +347,16 @@ export default function CalendarScreen() {
   const user = getAuth().currentUser;
   const uid  = user?.uid ?? '';
 
-  // ── Initial date from params or today ──
   const initDate  = route.params?.initialDate ?? todayISO();
   const [initY, initM] = initDate.split('-').map(Number);
 
-  const [selectedDate,   setSelectedDate]   = useState<string>(initDate);
-  const [displayYear,    setDisplayYear]    = useState<number>(initY);
-  const [displayMonth,   setDisplayMonth]   = useState<number>(initM);   // 1-based
-  /**
-   * Single discriminated union for the month's tasks (KAN-57).
-   * Replaces `monthTasks: Task[]` so the loading and error states are explicit.
-   */
+  const [selectedDate, setSelectedDate] = useState<string>(initDate);
+  const [displayYear,  setDisplayYear]  = useState<number>(initY);
+  const [displayMonth, setDisplayMonth] = useState<number>(initM); // 1-based
   const [monthTasksState, setMonthTasksState] = useState<MonthTasksUiState>({ status: 'loading' });
-  /** Incremented by "Try again" to re-trigger the subscription (KAN-58). */
   const [retryKey, setRetryKey] = useState(0);
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
+  const [achievementsMap, setAchievementsMap]   = useState<AchievementsMap>({});
 
   const today     = todayISO();
   const todayYear = Number(today.split('-')[0]);
@@ -338,12 +373,27 @@ export default function CalendarScreen() {
       console.warn('[CalendarScreen] tasks subscription error', err);
       setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, displayYear, displayMonth, retryKey]);
 
-  // Derive task array; falls back to [] when loading/errored so memos below
-  // are always safe and the grid renders without data when unavailable.
-  const monthTasks = monthTasksState.status === 'success' ? monthTasksState.tasks : [];
+  // ── Custom categories — one-shot, mirrors TaskRow's resolution ──
+  useEffect(() => {
+    if (!uid) { return; }
+    getCategories(uid).then(setCustomCategories).catch(() => {});
+  }, [uid]);
+
+  // ── Achievements map — drives milestone pips/chips ──
+  useEffect(() => {
+    if (!uid) { return; }
+    return subscribeToAchievements(uid, setAchievementsMap);
+  }, [uid]);
+
+  // Wrapped in its own useMemo so the fallback `[]` keeps a stable identity
+  // across renders — otherwise every render (even unrelated ones) would
+  // create a new empty array, defeating the downstream useMemo deps below.
+  const monthTasks = useMemo(
+    () => (monthTasksState.status === 'success' ? monthTasksState.tasks : []),
+    [monthTasksState],
+  );
 
   // ── Day grid ──
   const grid = useMemo(
@@ -351,7 +401,7 @@ export default function CalendarScreen() {
     [displayYear, displayMonth],
   );
 
-  // ── Per-day aggregates ──
+  // ── Per-day aggregates, keyed by ISO date ──
   const dayStats = useMemo<Record<string, { done: number; total: number }>>(() => {
     const map: Record<string, { done: number; total: number }> = {};
     for (const t of monthTasks) {
@@ -362,6 +412,42 @@ export default function CalendarScreen() {
     return map;
   }, [monthTasks]);
 
+  const isDayComplete = useCallback((iso: string): boolean => {
+    const s = dayStats[iso];
+    return !!s && s.total > 0 && s.done === s.total;
+  }, [dayStats]);
+
+  // Length of the consecutive-complete run containing `iso` (0 if not complete).
+  // Never crosses a month boundary — only the displayed month's stats are loaded.
+  const runLength = useCallback((iso: string): number => {
+    if (!isDayComplete(iso)) { return 0; }
+    let a = iso;
+    let b = iso;
+    while (isDayComplete(isoAddDays(a, -1))) { a = isoAddDays(a, -1); }
+    while (isDayComplete(isoAddDays(b, 1)))  { b = isoAddDays(b, 1); }
+    const [ay, am, ad] = a.split('-').map(Number);
+    const [by, bm, bd] = b.split('-').map(Number);
+    const da = new Date(ay, am - 1, ad).getTime();
+    const db = new Date(by, bm - 1, bd).getTime();
+    return Math.round((db - da) / 86400000) + 1;
+  }, [isDayComplete]);
+
+  // ── Achievement milestones for the displayed month ──
+  // Only the single most-recent earnedAt per type is available (see header note).
+  const achievementsByDay = useMemo<Record<number, { icon: AchievementIconKey; label: string }>>(() => {
+    const map: Record<number, { icon: AchievementIconKey; label: string }> = {};
+    for (const def of ACHIEVEMENT_CATALOGUE) {
+      if (def.type === 'challenge_winner') { continue; } // not part of the day-attributable V1 set
+      const entry = achievementsMap[def.type];
+      if (!entry?.earnedAt) { continue; }
+      const d = entry.earnedAt.toDate();
+      if (d.getFullYear() === displayYear && d.getMonth() + 1 === displayMonth) {
+        map[d.getDate()] = { icon: def.icon, label: def.label };
+      }
+    }
+    return map;
+  }, [achievementsMap, displayYear, displayMonth]);
+
   // ── Tasks for selected day (detail card) ──
   const selectedTasks = useMemo(
     () => monthTasks.filter(t => t.date === selectedDate).sort((a, b) => {
@@ -371,6 +457,40 @@ export default function CalendarScreen() {
     }),
     [monthTasks, selectedDate],
   );
+
+  // ── Selected-day derived state ──
+  const selDone   = selectedTasks.filter(t => t.done).length;
+  const selTotal  = selectedTasks.length;
+  const selPct    = selTotal > 0 ? Math.round((selDone / selTotal) * 100) : 0;
+  const isSelToday    = selectedDate === today;
+  const isSelFuture   = selectedDate > today;
+  const isSelPast     = selectedDate < today;
+  const isSelComplete = selTotal > 0 && selDone === selTotal;
+  const isSelZero     = selTotal > 0 && selDone === 0 && isSelPast;
+  const selRun        = runLength(selectedDate);
+  const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
+
+  // ── Detail card slide-up animation (re-triggers on selection change) ──
+  const cardOpacity   = useRef(new Animated.Value(0)).current;
+  const cardTranslate = useRef(new Animated.Value(14)).current;
+  useEffect(() => {
+    cardOpacity.setValue(0);
+    cardTranslate.setValue(14);
+    Animated.parallel([
+      Animated.timing(cardOpacity, {
+        toValue: 1,
+        duration: CARD_ANIM_MS,
+        easing: Easing.bezier(0.32, 0.72, 0, 1),
+        useNativeDriver: true,
+      }),
+      Animated.timing(cardTranslate, {
+        toValue: 0,
+        duration: CARD_ANIM_MS,
+        easing: Easing.bezier(0.32, 0.72, 0, 1),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [selectedDate, cardOpacity, cardTranslate]);
 
   // ── Month navigation ──
   const goToPrevMonth = useCallback(() => {
@@ -395,20 +515,43 @@ export default function CalendarScreen() {
     setSelectedDate(toDateISO(displayYear, displayMonth, day));
   }, [displayYear, displayMonth]);
 
+  // ── Status label (detail card) ──
+  const statusLabel =
+    isSelToday ? 'Today' :
+    isSelFuture ? 'Upcoming' :
+    isSelComplete ? 'Day complete' :
+    'Past';
+  const statusColor =
+    isSelToday ? palette.accent :
+    isSelFuture ? palette.faint :
+    isSelComplete ? palette.accent :
+    palette.muted;
+
+  // ── Stats line copy ──
+  const statsLine =
+    selTotal === 0 ? 'No tasks' :
+    isSelFuture ? `${selTotal} task${selTotal === 1 ? '' : 's'} planned` :
+    isSelZero ? `${selTotal} task${selTotal === 1 ? '' : 's'} · none completed` :
+    `${selDone} of ${selTotal} done · ${selPct}%`;
+
+  const detailRingColor = isSelComplete ? palette.accent : palette.text;
+
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
 
       {/* ── Top bar ── */}
-      <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
+      <View style={styles.topBar}>
         <Pressable
-          style={styles.backBtn}
+          style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
+
+        <Text style={[styles.topBarTitle, { color: palette.text }]}>Calendar</Text>
 
         <Pressable
           style={[styles.todayPill, { borderColor: palette.line }]}
@@ -423,22 +566,27 @@ export default function CalendarScreen() {
       <View style={styles.monthNav}>
         <Pressable
           onPress={goToPrevMonth}
-          style={styles.monthNavBtn}
+          style={styles.navBtn}
           accessibilityRole="button"
           accessibilityLabel="Previous month">
-          <ChevronLeftIcon color={palette.muted} size={20} />
+          <ChevronLeftIcon color={palette.muted} size={18} />
         </Pressable>
 
-        <Text style={[styles.monthLabel, { color: palette.text }]}>
-          {MONTH_NAMES[displayMonth - 1]} {displayYear}
-        </Text>
+        <View style={styles.monthLabelWrap}>
+          <Text style={[styles.monthLabel, { color: palette.text }]}>
+            {MONTH_NAMES[displayMonth - 1]}
+          </Text>
+          <Text style={[styles.yearLabel, { color: palette.muted }]}>
+            {displayYear}
+          </Text>
+        </View>
 
         <Pressable
           onPress={goToNextMonth}
-          style={styles.monthNavBtn}
+          style={styles.navBtn}
           accessibilityRole="button"
           accessibilityLabel="Next month">
-          <ChevronRightIcon color={palette.muted} size={20} />
+          <ChevronRightIcon color={palette.muted} size={18} />
         </Pressable>
       </View>
 
@@ -457,38 +605,41 @@ export default function CalendarScreen() {
       <View style={styles.grid}>
         {grid.map((day, i) => {
           if (day === null) {
-            return <View key={`pad-${i}`} style={{ width: CELL_W, height: CELL_H }} />;
+            return <View key={`pad-${i}`} style={{ width: CELL_W, height: CELL_W }} />;
           }
-          const iso     = toDateISO(displayYear, displayMonth, day);
-          const stats   = dayStats[iso] ?? { done: 0, total: 0 };
-          const isSel   = iso === selectedDate;
-          const isTod   = iso === today;
+          const iso       = toDateISO(displayYear, displayMonth, day);
+          const stats      = dayStats[iso] ?? { done: 0, total: 0 };
+          const isSel      = iso === selectedDate;
+          const isTod      = iso === today;
+          const isFut      = iso > today;
+          const isComplete = stats.total > 0 && stats.done === stats.total;
+          const col        = i % 7;
+          const chainsBack = isComplete && col > 0 && isDayComplete(isoAddDays(iso, -1));
+          const ach        = achievementsByDay[day];
+
           return (
             <DayCell
               key={iso}
               day={day}
               isToday={isTod}
               isSelected={isSel}
+              isFuture={isFut}
               done={stats.done}
               total={stats.total}
+              isComplete={isComplete}
+              chainsBack={chainsBack}
+              achievement={ach}
               onPress={() => onDayPress(day)}
             />
           );
         })}
       </View>
 
-      {/* ── Detail card (scrollable) ── */}
-      <ScrollView
-        style={styles.detailScroll}
-        contentContainerStyle={[
-          styles.detailScrollContent,
-          { paddingBottom: insets.bottom + 24 },
-        ]}
-        showsVerticalScrollIndicator={false}>
-        <Text style={[styles.detailSectionLabel, { color: palette.muted }]}>
-          TASKS
-        </Text>
-        {/* Error branch (KAN-58): show message + retry button */}
+      {/* ── Hairline divider ── */}
+      <View style={[styles.divider, { backgroundColor: palette.line }]} />
+
+      {/* ── Detail card — slides up + fades in on selection change ── */}
+      <View style={styles.detailArea}>
         {monthTasksState.status === 'error' ? (
           <View style={styles.errorWrap}>
             <Text
@@ -505,13 +656,93 @@ export default function CalendarScreen() {
             </Pressable>
           </View>
         ) : (
-          <DetailCard
-            dateISO={selectedDate}
-            tasks={selectedTasks}
-            isToday={selectedDate === today}
-          />
+          <Animated.ScrollView
+            style={{ opacity: cardOpacity, transform: [{ translateY: cardTranslate }] }}
+            contentContainerStyle={[
+              styles.detailScrollContent,
+              { paddingBottom: insets.bottom + 24 },
+            ]}
+            showsVerticalScrollIndicator={false}>
+
+            {/* Header row: status/date/stats + large ring */}
+            <View style={styles.detailHeader}>
+              <View style={styles.detailHeaderLeft}>
+                <Text style={[styles.statusLabel, { color: statusColor }]}>
+                  {statusLabel}
+                </Text>
+                <Text style={[styles.dateLabel, { color: palette.text }]} numberOfLines={1}>
+                  {formatFullDateLabel(selectedDate)}
+                </Text>
+                <Text style={[styles.statsLabel, { color: palette.muted }]}>
+                  {statsLine}
+                </Text>
+              </View>
+
+              <View style={styles.detailRingWrap}>
+                <CalendarRing
+                  size={RING_LG}
+                  stroke={RING_LG_STROKE}
+                  done={selDone}
+                  total={selTotal}
+                  isFuture={false}
+                  isSelected={false}
+                  dark={dark}
+                  ringTrack={palette.ringTrack}
+                  ringFill={palette.ringFill}
+                  accent={palette.accent}
+                />
+                <View style={styles.detailRingNumberWrap}>
+                  <Text style={[styles.detailRingNumber, { color: detailRingColor }]}>
+                    {Number(selectedDate.split('-')[2])}
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Achievement / run chips */}
+            {(selAch || (isSelComplete && selRun >= 2)) && (
+              <View style={styles.chipsRow}>
+                {isSelComplete && selRun >= 2 && (
+                  <CalAchChip icon="flame">{`${selRun}-day run`}</CalAchChip>
+                )}
+                {selAch && (
+                  <CalAchChip icon={selAch.icon}>{`${selAch.label} · unlocked`}</CalAchChip>
+                )}
+              </View>
+            )}
+
+            {/* Task list */}
+            {selTotal === 0 ? (
+              <Text style={[styles.emptyLabel, { color: palette.faint }]}>
+                Nothing on this day.
+              </Text>
+            ) : (
+              <View style={[styles.taskList, { borderTopColor: palette.line }]}>
+                {selectedTasks.map((task, i) => (
+                  <CalTaskRow
+                    key={task.id}
+                    task={task}
+                    customCategories={customCategories}
+                    isLast={i === selectedTasks.length - 1}
+                  />
+                ))}
+              </View>
+            )}
+
+            {/* Open today CTA */}
+            {isSelToday && (
+              <Pressable
+                onPress={() => navigation.goBack()}
+                style={[styles.openTodayBtn, { backgroundColor: palette.text }]}
+                accessibilityRole="button"
+                accessibilityLabel="Open today">
+                <Text style={[styles.openTodayLabel, { color: palette.bg }]}>Open today</Text>
+                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
+              </Pressable>
+            )}
+          </Animated.ScrollView>
         )}
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -519,33 +750,39 @@ export default function CalendarScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
+  root: { flex: 1 },
 
   // ── Top bar ──
   topBar: {
-    flexDirection:     'row',
-    alignItems:        'center',
-    justifyContent:    'space-between',
-    paddingHorizontal: spacing.page,
-    paddingVertical:   12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection:  'row',
+    alignItems:     'center',
+    gap:             8,
+    paddingHorizontal: 14,
+    paddingTop:      12,
+    paddingBottom:    6,
   },
-  backBtn: {
-    width:          36,
-    height:         36,
+  navBtn: {
+    width:          44,
+    height:         44,
+    borderRadius:   22,
     alignItems:     'center',
     justifyContent: 'center',
+  },
+  topBarTitle: {
+    flex:           1,
+    fontSize:       17,
+    fontWeight:     '500',
+    fontFamily:     'Geist-Regular',
+    letterSpacing:  -0.17,
   },
   todayPill: {
     borderRadius:    9999,
     borderWidth:     1,
-    paddingHorizontal: 14,
-    paddingVertical:   6,
+    paddingHorizontal: 12,
+    paddingVertical:    6,
   },
   todayPillLabel: {
-    fontSize:   13,
+    fontSize:   12.5,
     fontWeight: '500',
     fontFamily: 'Geist-Regular',
   },
@@ -555,81 +792,116 @@ const styles = StyleSheet.create({
     flexDirection:  'row',
     alignItems:     'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.page,
-    paddingVertical:   16,
+    paddingHorizontal: 18,
+    paddingTop:      2,
+    paddingBottom:   10,
   },
-  monthNavBtn: {
-    width:          36,
-    height:         36,
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
+  monthLabelWrap: { alignItems: 'center' },
   monthLabel: {
-    fontSize:   17,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
+    fontSize:      19,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Regular',
+    letterSpacing: -0.38,
+    lineHeight:     22,
+  },
+  yearLabel: {
+    fontSize:     11.5,
+    fontFamily:   'Geist-Regular',
+    marginTop:     2,
+    fontVariant:  ['tabular-nums'],
   },
 
   // ── Weekday row ──
   weekdayRow: {
-    flexDirection: 'row',
-    marginBottom:   4,
+    flexDirection:    'row',
+    paddingHorizontal: GRID_H_PADDING,
+    paddingBottom:      3,
   },
   weekdayLabel: {
     textAlign:     'center',
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  0.8,
-    paddingBottom:  6,
+    fontSize:      10,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Regular',
+    letterSpacing:  1,
+    textTransform: 'uppercase',
   },
 
   // ── Day grid ──
   grid: {
-    flexDirection: 'row',
-    flexWrap:      'wrap',
+    flexDirection:    'row',
+    flexWrap:         'wrap',
+    paddingHorizontal: GRID_H_PADDING,
+    paddingBottom:      8,
+    gap: CELL_GAP,
   },
-
-  // ── Day cell ──
   cell: {
     width:          CELL_W,
-    height:         CELL_H,
+    height:         CELL_W,
     alignItems:     'center',
     justifyContent: 'center',
-    gap:             4,
-    borderRadius:   radius.card,
+    borderRadius:   11,
+  },
+  ringLayer: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems:     'center',
+    justifyContent: 'center',
   },
   cellDay: {
-    fontSize:   14,
-    fontWeight: '500',
-    fontFamily: 'Geist-Regular',
+    fontSize:    13.5,
+    fontFamily:  'Geist-Regular',
     fontVariant: ['tabular-nums'],
+    letterSpacing: -0.135,
     lineHeight:  16,
   },
+  todayDot: {
+    position:     'absolute',
+    bottom:        4,
+    width:         3,
+    height:        3,
+    borderRadius:  1.5,
+  },
+  milestonePip: {
+    position:     'absolute',
+    top:           2,
+    right:         2,
+    width:         5,
+    height:        5,
+    borderRadius:  4.5, // (width/2 + borderWidth) so the halo border stays circular
+    borderWidth:   2,
+  },
+  chainLink: {
+    position:    'absolute',
+    top:          CHAIN_TOP,
+    left:         CHAIN_LEFT,
+    right:        CHAIN_RIGHT,
+    height:       2,
+    borderRadius: 1,
+    opacity:      0.4,
+  },
 
-  // ── Detail section ──
-  detailScroll: {
+  // ── Hairline divider ──
+  divider: {
+    height:           StyleSheet.hairlineWidth,
+    marginHorizontal: 16,
+  },
+
+  // ── Detail card ──
+  detailArea: {
     flex: 1,
-    marginTop: 12,
   },
   detailScrollContent: {
     paddingHorizontal: spacing.page,
   },
-  detailSectionLabel: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  1.2,
-    marginBottom:   10,
+  errorWrap: {
+    paddingHorizontal: spacing.page,
+    paddingTop: 16,
+    gap: 8,
   },
   detailEmptyText: {
     fontSize:   14,
     fontFamily: 'Geist-Regular',
     paddingVertical: 12,
-  },
-  // ── Error retry (KAN-58) ──
-  errorWrap: {
-    gap: 8,
   },
   retryBtn: {
     alignSelf:         'flex-start',
@@ -642,83 +914,139 @@ const styles = StyleSheet.create({
     fontSize:   14,
     fontFamily: 'Geist-Regular',
   },
-
-  // ── Detail card ──
-  detailCard: {
-    borderRadius:  radius.card,
-    borderWidth:   StyleSheet.hairlineWidth,
-    overflow:      'hidden',
-    paddingHorizontal: 16,
-    paddingTop:    16,
-    paddingBottom: 12,
-  },
   detailHeader: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'space-between',
-    marginBottom:   14,
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:            16,
+    paddingTop:     16,
+    paddingBottom:  12,
   },
   detailHeaderLeft: {
     flex: 1,
-    gap:  4,
-    marginRight: 16,
   },
-  detailDateLabel: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  0.8,
+  statusLabel: {
+    fontSize:      10.5,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Regular',
+    letterSpacing:  1.26,
+    textTransform: 'uppercase',
+    marginBottom:   4,
   },
-  detailFraction: {
-    fontSize:   28,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
+  dateLabel: {
+    fontSize:      19,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Regular',
+    letterSpacing: -0.38,
+    lineHeight:     23,
+  },
+  statsLabel: {
+    fontSize:    12.5,
+    fontFamily:  'Geist-Regular',
+    marginTop:    5,
     fontVariant: ['tabular-nums'],
-    lineHeight:  32,
   },
-  detailFractionSuffix: {
-    fontSize:   14,
-    fontWeight: '400',
-    fontFamily: 'Geist-Regular',
+  detailRingWrap: {
+    width:  RING_LG,
+    height: RING_LG,
   },
-  detailDivider: {
-    height:        StyleSheet.hairlineWidth,
-    marginBottom:  12,
+  detailRingNumberWrap: {
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  detailRingNumber: {
+    fontSize:      22,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Regular',
+    letterSpacing: -0.66,
+    fontVariant:   ['tabular-nums'],
+    lineHeight:     24,
   },
 
-  // ── Task rows ──
-  emptyLabel: {
-    fontSize:   14,
+  // ── Achievement / run chips ──
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    gap:            8,
+    paddingBottom: 14,
+  },
+  achChip: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:            7,
+    paddingHorizontal: 12,
+    paddingVertical:    6,
+    borderRadius:      9999,
+    borderWidth:        1,
+  },
+  achChipLabel: {
+    fontSize:   12,
+    fontWeight: '500',
     fontFamily: 'Geist-Regular',
-    paddingVertical: 8,
+  },
+
+  // ── Task list ──
+  emptyLabel: {
+    fontSize:      14,
+    fontFamily:    'Geist-Regular',
+    textAlign:     'center',
+    letterSpacing: -0.14,
+    paddingTop:     24,
+  },
+  taskList: {
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   taskRow: {
     flexDirection: 'row',
-    alignItems:    'flex-start',
-    paddingVertical: 10,
+    alignItems:    'center',
     gap:            12,
+    paddingVertical: 9,
   },
-  taskDot: {
-    width:        16,
-    height:       16,
-    borderRadius: 8,
-    marginTop:     2,
-    flexShrink:   0,
+  checkCircle: {
+    width:          20,
+    height:         20,
+    borderRadius:   10,
+    borderWidth:    1.5,
+    alignItems:     'center',
+    justifyContent: 'center',
+    flexShrink:     0,
   },
-  taskContent: {
+  taskTitleWrap: {
     flex: 1,
-    gap:  2,
+    minWidth: 0,
   },
   taskTitle: {
-    fontSize:   15,
-    fontFamily: 'Geist-Regular',
-    lineHeight: 20,
+    fontSize:      14,
+    fontFamily:    'Geist-Regular',
+    letterSpacing: -0.14,
+    lineHeight:     18,
   },
-  taskTitleDone: {
-    textDecorationLine: 'line-through',
+  taskStrokeOverlay: {
+    position: 'absolute',
+    left: 0, right: 0, top: 0,
   },
-  taskTime: {
-    fontSize:   12,
-    fontFamily: 'Geist-Regular',
+  categoryDot: {
+    width:        7,
+    height:       7,
+    borderRadius: 3.5,
+    flexShrink:   0,
+  },
+
+  // ── Open today CTA ──
+  openTodayBtn: {
+    marginTop:      18,
+    paddingVertical: 12,
+    borderRadius:    14,
+    flexDirection:  'row',
+    alignItems:     'center',
+    justifyContent: 'center',
+    gap:             8,
+  },
+  openTodayLabel: {
+    fontSize:      14,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Regular',
+    letterSpacing: -0.14,
   },
 });
