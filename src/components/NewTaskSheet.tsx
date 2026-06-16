@@ -341,7 +341,9 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
               {/* ── "Swipe for more" hint — right-aligned, no "Quick picks" sublabel ── */}
               <View style={styles.swipeHintRow}>
-                <Text style={[styles.quickPicksHint, { color: palette.faint }]}>Swipe for more</Text>
+                <Text style={[styles.quickPicksHint, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.swipeHint}
+                </Text>
               </View>
 
               {/* ── POI carousel ── */}
@@ -539,11 +541,13 @@ const styles = StyleSheet.create({
     borderWidth:        1,
   },
   // Overlays the TextInput at the same inset the native placeholder would
-  // sit at (border width + input padding) — see RotatingTitlePlaceholder.
+  // sit at — derived from titleInput's own borderWidth(1) + padding(16/14),
+  // not arbitrary values. Using a rounder spacing-scale number here would
+  // shift the overlay 1px off from where typed text actually starts.
   titlePlaceholder: {
     position:          'absolute',
-    left:               17,
-    top:                15,
+    left:               17, // borderWidth(1) + paddingHorizontal(16)
+    top:                15, // borderWidth(1) + paddingVertical(14)
     right:              17,
     fontSize:           16,
     fontFamily:        'Geist-Regular',

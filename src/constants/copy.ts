@@ -82,6 +82,7 @@ export const COPY = {
     poiQuestion:  'Where does this happen?',
     catQuestion:  'Which part of your life?',
     catOptional:  ' (optional)',
+    swipeHint:    'Swipe for more',
     moreDetails:  'More details ›',
     cta:          'Add it',
     ctaSubmitting: 'Adding…',

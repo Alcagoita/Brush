@@ -16,7 +16,8 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, StyleProp, TextStyle } from 'react-native';
+import { AccessibilityInfo, Animated } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 
 interface Props {
   examples: string[];
