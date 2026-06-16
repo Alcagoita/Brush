@@ -24,19 +24,6 @@ jest.mock('../../src/theme', () => ({
   }),
 }));
 
-// Minimal reanimated mock — returns plain objects for animatedProps.
-jest.mock('react-native-reanimated', () => {
-  const { View } = require('react-native');
-  return {
-    __esModule:              true,
-    default:                 { View, createAnimatedComponent: (c: unknown) => c },
-    useSharedValue:          (v: unknown) => ({ value: v }),
-    useAnimatedProps:        (fn: () => unknown) => fn(),
-    withTiming:              (v: unknown) => v,
-    useEffect:               require('react').useEffect,
-  };
-});
-
 // Mock react-native-svg: render Circle as a View-like stub that accepts data-testid.
 jest.mock('react-native-svg', () => {
   const React = require('react');

@@ -543,7 +543,7 @@ export default function TodayScreen() {
           onPress={() => setSheetVisible(true)}
           accessibilityRole="button"
           accessibilityLabel="Add task">
-          <PlusIcon color="#FFFFFF" size={24} />
+          <PlusIcon color={palette.onAccent} size={24} />
         </Pressable>
       )}
 
@@ -863,11 +863,6 @@ const styles = StyleSheet.create({
     borderRadius:   18,
     alignItems:     'center',
     justifyContent: 'center',
-    shadowColor:   '#e8a86a',
-    shadowOffset:  { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius:  18,
-    elevation:      8,
   },
   fabPressed: {
     transform: [{ scale: 0.96 }],
