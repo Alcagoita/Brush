@@ -14,12 +14,13 @@ jest.mock('../../src/hooks/useAuth', () => ({
 }));
 
 jest.mock('../../src/services/firestore', () => ({
-  getTasksForDate:      jest.fn(),
-  getUser:              jest.fn(),
-  getUserPreferences:   jest.fn(),
-  getPoiPreferencesMap: jest.fn(),
-  getCategories:        jest.fn(),
-  getTotalPoints:       jest.fn(),
+  getTasksForDate:         jest.fn(),
+  getUser:                 jest.fn(),
+  getUserPreferences:      jest.fn(),
+  getPoiPreferencesMap:    jest.fn(),
+  getCategories:           jest.fn(),
+  getTotalPoints:          jest.fn(),
+  rolloverIncompleteTasks: jest.fn(),
 }));
 
 jest.mock('../../src/services/sharing', () => ({
@@ -49,6 +50,7 @@ import {
   getPoiPreferencesMap,
   getCategories,
   getTotalPoints,
+  rolloverIncompleteTasks,
 } from '../../src/services/firestore';
 import { getIncomingSharedTasksCount } from '../../src/services/sharing';
 import { useAppStore } from '../../src/store/appStore';
@@ -62,6 +64,7 @@ const mockGetPoiPreferencesMap = getPoiPreferencesMap as jest.Mock;
 const mockGetCategories        = getCategories        as jest.Mock;
 const mockGetTotalPoints       = getTotalPoints       as jest.Mock;
 const mockGetIncomingCount     = getIncomingSharedTasksCount as jest.Mock;
+const mockRolloverIncompleteTasks = rolloverIncompleteTasks as jest.Mock;
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -74,6 +77,7 @@ beforeEach(() => {
   mockGetCategories.mockResolvedValue([]);
   mockGetTotalPoints.mockResolvedValue(5);
   mockGetIncomingCount.mockResolvedValue(2);
+  mockRolloverIncompleteTasks.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -110,6 +114,28 @@ describe('SplashScreen', () => {
       await act(async () => { await Promise.resolve(); });
 
       expect(mockGetTasksForDate).toHaveBeenCalledWith('u1', '2026-06-15');
+    });
+
+    it('rolls over incomplete tasks before fetching today\'s task list (KAN-146)', async () => {
+      const callOrder: string[] = [];
+      mockRolloverIncompleteTasks.mockImplementation(async () => { callOrder.push('rollover'); });
+      mockGetTasksForDate.mockImplementation(async () => { callOrder.push('getTasksForDate'); return []; });
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(mockRolloverIncompleteTasks).toHaveBeenCalledWith('u1');
+      expect(callOrder).toEqual(['rollover', 'getTasksForDate']);
+    });
+
+    it('still loads today\'s data when rollover fails (non-fatal)', async () => {
+      mockRolloverIncompleteTasks.mockRejectedValue(new Error('rollover boom'));
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(mockGetTasksForDate).toHaveBeenCalledWith('u1', '2026-06-15');
+      expect(useAppStore.getState().bootData).not.toBeNull();
     });
 
     it('calls onExit after the abort timer when rest phase is not reached', async () => {
