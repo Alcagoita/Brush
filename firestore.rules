@@ -41,6 +41,7 @@ service cloud.firestore {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
           && validString(request.resource.data.title, 500)
+          && request.resource.data.title.size() > 0
           && validString(request.resource.data.date, 10);
       }
 

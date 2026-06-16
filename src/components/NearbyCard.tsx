@@ -25,11 +25,11 @@
 
 import React from 'react';
 import {
-  Dimensions,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 
@@ -51,7 +51,6 @@ import { ChevronRightIcon, PoiIcon } from './AppIcon';
 
 // Distance threshold that separates the orange hero zone from the grey zone.
 const HERO_RADIUS_M = 100;
-const SLIDE_WIDTH = Dimensions.get('window').width - spacing.page * 2;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -262,14 +261,19 @@ export default function NearbyCard({
 }: NearbyCardProps) {
   const { palette } = useTheme();
 
+  // Full-bleed slide width — read from the live window so it stays correct
+  // across orientation / multi-window changes (not frozen at import time).
+  const { width: windowWidth } = useWindowDimensions();
+  const slideWidth = windowWidth - spacing.page * 2;
+
   // Active carousel page — updated once per swipe settle (cheap; not per-frame).
   const [activeIndex, setActiveIndex] = React.useState(0);
   const onCarouselScroll = React.useCallback(
     (e: { nativeEvent: { contentOffset: { x: number } } }) => {
-      const idx = Math.round(e.nativeEvent.contentOffset.x / SLIDE_WIDTH);
+      const idx = Math.round(e.nativeEvent.contentOffset.x / slideWidth);
       setActiveIndex(prev => (prev === idx ? prev : idx));
     },
-    [],
+    [slideWidth],
   );
 
   const poiTasks = tasks.filter(t => !t.done && t.poi != null);
@@ -332,7 +336,7 @@ export default function NearbyCard({
             style={styles.carousel}
             contentContainerStyle={styles.carouselContent}>
             {heroEntries.map(({ task, place, poiType }) => (
-              <View key={poiType} style={styles.carouselSlide}>
+              <View key={poiType} style={{ width: slideWidth }}>
                 <HeroCard poiType={poiType} task={task} place={place} />
               </View>
             ))}
@@ -421,10 +425,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   carouselContent: {
-    // no extra padding — each slide is full-width via carouselSlide
-  },
-  carouselSlide: {
-    width: SLIDE_WIDTH,
+    // no extra padding — each slide is full-width via an inline width
   },
   // ── Page indicator dots ──
   dotsRow: {

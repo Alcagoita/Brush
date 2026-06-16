@@ -37,9 +37,6 @@ import { COPY } from '../constants/copy';
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'ChallengeDetail'>;
 type Route = RouteProp<RootStackParamList, 'ChallengeDetail'>;
 
-const COLOR_STATUS_ACCEPTED = '#4caf7d';
-const COLOR_STATUS_DECLINED = '#e05252';
-
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDeadline(ts: Challenge['deadline']): string {
@@ -277,7 +274,7 @@ export default function ChallengeDetailScreen() {
                       {pUid === uid ? ' (you)' : ''}
                     </Text>
                     <Text style={[styles.pendingStatus, {
-                      color: p.status === 'accepted' ? COLOR_STATUS_ACCEPTED : p.status === 'declined' ? COLOR_STATUS_DECLINED : palette.muted,
+                      color: p.status === 'accepted' ? palette.success : p.status === 'declined' ? palette.danger : palette.muted,
                     }]}>
                       {p.status}
                     </Text>
@@ -290,12 +287,12 @@ export default function ChallengeDetailScreen() {
           )}
 
           {error ? (
-            <Text style={[styles.errorText, { color: COLOR_STATUS_DECLINED, textAlign: 'center' }]}>{error}</Text>
+            <Text style={[styles.errorText, { color: palette.danger, textAlign: 'center' }]}>{error}</Text>
           ) : null}
         </ScrollView>
       ) : error ? (
         <View style={styles.center}>
-          <Text style={[styles.errorText, { color: palette.muted }]}>{error}</Text>
+          <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
         </View>
       ) : null}
     </View>

@@ -228,10 +228,10 @@ describe('NearbyCard — hero carousel page indicator', () => {
       />,
     );
 
-    const dots = screen.getByTestId('nearby-page-dots');
-    expect(dots.children).toHaveLength(2);
-    // Exactly one dot is the active (widened) dot — the first slide by default.
+    // Two slides → two dots total: one active (widened) pill + one inactive.
+    expect(screen.getByTestId('nearby-page-dots')).toBeTruthy();
     expect(screen.getAllByTestId('nearby-page-dot-active')).toHaveLength(1);
+    expect(screen.getAllByTestId('nearby-page-dot')).toHaveLength(1);
   });
 
   it('renders no page dots when there is only a single hero slide', () => {

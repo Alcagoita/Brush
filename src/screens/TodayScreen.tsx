@@ -365,6 +365,7 @@ export default function TodayScreen() {
                   </Text>
                   <Pressable
                     onPress={refreshProximity}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                     accessibilityRole="button"
                     accessibilityLabel="Retry location">
                     <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
@@ -373,6 +374,7 @@ export default function TodayScreen() {
               ) : (
                 <Pressable
                   onPress={refreshProximity}
+                  hitSlop={{ top: 6, bottom: 6 }}
                   style={[styles.refreshRow, { borderBottomColor: palette.line }]}
                   accessibilityRole="button"
                   accessibilityLabel="Refresh location">
