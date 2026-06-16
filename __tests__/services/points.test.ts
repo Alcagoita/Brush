@@ -467,6 +467,48 @@ describe('subscribeToPointsHistory', () => {
     expect(result[1]).toMatchObject({ id: 'task-2_2026-05-29', taskId: 'task-2' });
   });
 
+  it('does not collapse non-task entries that share taskId=""', () => {
+    const fakeTs = { toDate: () => new Date('2026-05-29') };
+    mockOnSnapshot.mockImplementation((_ref: unknown, cb: CollSnapshotCallback) => {
+      cb({
+        docs: [
+          {
+            id:   'streak-1',
+            data: () => ({
+              taskId: '', taskTitle: '3-day streak', awardedAt: fakeTs,
+              points: 1, reason: 'streak_bonus',
+            }),
+          },
+          {
+            id:   'achievement-1',
+            data: () => ({
+              taskId: '', taskTitle: 'Achievement unlocked: first_brush', awardedAt: fakeTs,
+              points: 5, reason: 'achievement_bonus',
+            }),
+          },
+          {
+            id:   'daily-1',
+            data: () => ({
+              taskId: '', taskTitle: 'Daily complete: 2026-05-29', awardedAt: fakeTs,
+              points: 2, reason: 'daily_complete_bonus',
+            }),
+          },
+        ],
+      });
+      return jest.fn();
+    });
+
+    const onUpdate = jest.fn();
+    subscribeToPointsHistory('uid-1', onUpdate);
+
+    // All three must be present — none collapsed despite sharing taskId:''
+    const result = onUpdate.mock.calls[0][0] as unknown[];
+    expect(result).toHaveLength(3);
+    expect(result[0]).toMatchObject({ id: 'streak-1',      reason: 'streak_bonus' });
+    expect(result[1]).toMatchObject({ id: 'achievement-1', reason: 'achievement_bonus' });
+    expect(result[2]).toMatchObject({ id: 'daily-1',       reason: 'daily_complete_bonus' });
+  });
+
   it('returns an unsubscribe function', () => {
     const unsub = jest.fn();
     mockOnSnapshot.mockReturnValue(unsub);
@@ -541,6 +583,20 @@ describe('awardPointsBatch', () => {
     await expect(
       awardPointsBatch('uid-1', [{ taskId: 't1', taskTitle: 'Task', points: 1 }]),
     ).rejects.toThrow('network error');
+  });
+
+  it('uses a deterministic doc ID so calling twice is idempotent', async () => {
+    const mockDoc = require('@react-native-firebase/firestore').doc as jest.Mock;
+    mockDoc.mockClear();
+
+    await awardPointsBatch('uid-1', [{ taskId: 'task-x', taskTitle: 'Buy milk', points: 1 }]);
+
+    // doc() should have been called with a deterministic ID string (taskId + date)
+    const callsWithId = mockDoc.mock.calls.filter(
+      (args: unknown[]) => typeof args[args.length - 1] === 'string' &&
+        (args[args.length - 1] as string).startsWith('task-x_'),
+    );
+    expect(callsWithId.length).toBeGreaterThanOrEqual(1);
   });
 });
 

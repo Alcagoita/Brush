@@ -23,6 +23,8 @@ export const lightPalette = {
   nearTint2:  '#f9ede0',   // oklch(0.94 0.05 65)
   nearBorder: '#e8c9a0',   // oklch(0.85 0.09 65)
   nearText:   '#7a4a20',   // oklch(0.42 0.13 65)
+  success:    '#4caf7d',   // accepted / positive status
+  danger:     '#e05252',   // declined / error status
 } as const;
 
 export const darkPalette = {
@@ -40,6 +42,8 @@ export const darkPalette = {
   nearTint2:  '#362514',   // oklch(0.27 0.06 65)
   nearBorder: '#6b4020',   // oklch(0.42 0.10 65)
   nearText:   '#dba87a',   // oklch(0.86 0.10 65)
+  success:    '#5fc090',   // accepted / positive status (brighter for dark bg)
+  danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
 } as const;
 
 export type Palette = {
@@ -57,6 +61,8 @@ export type Palette = {
   nearTint2: string;
   nearBorder: string;
   nearText: string;
+  success: string;
+  danger: string;
 };
 
 // ─── Category colors ──────────────────────────────────────────────────────────

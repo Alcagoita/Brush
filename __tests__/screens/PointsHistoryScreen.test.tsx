@@ -59,11 +59,16 @@ jest.mock('../../src/theme', () => ({
   }),
 }));
 
-jest.mock('../../src/components/AppIcon', () => {
-  const React = require('react');
-  const { View } = require('react-native');
-  return { ChevronLeftIcon: (p: any) => React.createElement(View, p) };
-});
+jest.mock('../../src/components/AppIcon', () => ({
+  ChevronLeftIcon: () => null,
+  CheckIcon:       () => null,
+  SunIcon:         () => null,
+  FlameIcon:       () => null,
+  PinIcon:         () => null,
+  StarIcon:        () => null,
+  MedalIcon:       () => null,
+  LockIcon:        () => null,
+}));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -181,35 +186,35 @@ describe('PointsHistoryScreen — points history', () => {
 describe('PointsHistoryScreen — achievements gallery', () => {
   it('renders all catalogue achievements', () => {
     render(<PointsHistoryScreen />);
-    expect(screen.getByLabelText('First task achievement, locked')).toBeTruthy();
+    expect(screen.getByLabelText('First brush achievement, locked')).toBeTruthy();
     expect(screen.getByLabelText('Day complete achievement, locked')).toBeTruthy();
   });
 
   it('shows "Locked" badge on unearned achievements', () => {
     render(<PointsHistoryScreen />);
-    // All 3 catalogue entries are locked when no achievements earned
-    expect(screen.getAllByText('Locked').length).toBe(3);
+    // All 7 catalogue entries are locked when no achievements earned
+    expect(screen.getAllByText('Locked').length).toBe(7);
   });
 
   it('shows the unlock condition for locked achievements', () => {
     render(<PointsHistoryScreen />);
-    expect(screen.getByText('Complete your very first task')).toBeTruthy();
+    expect(screen.getByText('Brush away your first task')).toBeTruthy();
   });
 
   it('marks an earned achievement as earned', () => {
     render(<PointsHistoryScreen />);
     fireAchievements([
-      { id: 'first_task', type: 'first_task', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
+      { id: 'first_brush', type: 'first_brush', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
     ]);
-    expect(screen.getByLabelText('First task achievement, earned')).toBeTruthy();
+    expect(screen.getByLabelText('First brush achievement, earned')).toBeTruthy();
   });
 
   it('hides "Locked" badge for earned achievements', () => {
     render(<PointsHistoryScreen />);
     fireAchievements([
-      { id: 'first_task', type: 'first_task', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
+      { id: 'first_brush', type: 'first_brush', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
     ]);
-    // 2 locked badges remain (daily_complete + challenge_winner still locked)
-    expect(screen.getAllByText('Locked').length).toBe(2);
+    // 6 locked badges remain (other 6 catalogue entries still locked)
+    expect(screen.getAllByText('Locked').length).toBe(6);
   });
 });

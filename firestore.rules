@@ -8,6 +8,11 @@ service cloud.firestore {
       return request.auth != null && request.auth.uid == userId;
     }
 
+    // Guard against oversized string fields to prevent resource-exhaustion writes.
+    function validString(s, maxLen) {
+      return s is string && s.size() <= maxLen;
+    }
+
     // ─── Username index (KAN-97) ──────────────────────────────────────────────
     // Public read so checkUsernameAvailable / getUserByUsername work for all
     // authenticated users. Write is restricted: you may only create/delete an
@@ -15,7 +20,8 @@ service cloud.firestore {
     match /usernames/{username} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
-                    && request.resource.data.uid == request.auth.uid;
+                    && request.resource.data.uid == request.auth.uid
+                    && validString(username, 20);
       // Deletion (username release on change): only the current owner may remove.
       allow delete: if request.auth != null
                     && resource.data.uid == request.auth.uid;
@@ -32,7 +38,11 @@ service cloud.firestore {
 
       // ─── Tasks ──────────────────────────────────────────────────────────────
       match /tasks/{taskId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validString(request.resource.data.title, 500)
+          && request.resource.data.title.size() > 0
+          && validString(request.resource.data.date, 10);
       }
 
       // ─── Custom categories ───────────────────────────────────────────────────
@@ -97,8 +107,10 @@ service cloud.firestore {
     // create incoming entries; recipients read and delete their own.
     match /sharedTasks/{userId}/incoming/{docId} {
       allow read, delete: if isOwner(userId);
-      // Any authenticated user may send a task to another user.
-      allow create: if request.auth != null;
+      // Sender must be authenticated and the sentBy field must match their uid
+      // to prevent impersonation.
+      allow create: if request.auth != null
+                    && request.resource.data.sentBy == request.auth.uid;
       allow update: if false;
     }
 
@@ -106,7 +118,10 @@ service cloud.firestore {
     // Written by the sender; read and deleted by the recipient's device.
     match /pendingNotifications/{userId}/items/{docId} {
       allow read, delete: if isOwner(userId);
-      allow create: if request.auth != null;
+      // Sender must be authenticated and the sentBy field must match their uid
+      // to prevent impersonation.
+      allow create: if request.auth != null
+                    && request.resource.data.sentBy == request.auth.uid;
       allow update: if false;
     }
 
@@ -117,14 +132,17 @@ service cloud.firestore {
         resource.data.createdBy == request.auth.uid ||
         request.auth.uid in resource.data.participants
       );
-      // Only the creator can create.
+      // Only the creator can create; createdBy must match their uid.
       allow create: if request.auth != null &&
         request.resource.data.createdBy == request.auth.uid;
-      // Participants and the creator may update (accept/decline, progress).
-      allow update: if request.auth != null && (
-        resource.data.createdBy == request.auth.uid ||
-        request.auth.uid in resource.data.participants
-      );
+      // Participants and the creator may update, but immutable fields (creator,
+      // type, createdAt) cannot be changed after creation.
+      allow update: if request.auth != null
+        && (resource.data.createdBy == request.auth.uid ||
+            request.auth.uid in resource.data.participants)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.type      == resource.data.type
+        && request.resource.data.createdAt == resource.data.createdAt;
       allow delete: if false;
     }
 

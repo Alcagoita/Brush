@@ -51,19 +51,17 @@ jest.mock('react-native-svg', () => {
 
 import ProgressRing from '../../src/components/ProgressRing';
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const makeShared = (v: number) => ({ value: v });
-
 // ─── Tests ────────────────────────────────────────────────────────────────────
+// Geometry props (diameter/strokeWidth) are now fixed plain numbers — the
+// scroll collapse is a parent transform, not per-frame SVG geometry.
 
 describe('ProgressRing — KAN-133 brand dot', () => {
   it('renders four Circle elements (track, arc, halo dot, core dot)', () => {
     const { UNSAFE_getAllByProps } = render(
       <ProgressRing
         progress={0.5}
-        diameter={makeShared(120) as any}
-        strokeWidth={makeShared(10) as any}
+        diameter={120}
+        strokeWidth={10}
       />,
     );
     // All Circle stubs will have testID="Circle"
@@ -75,8 +73,8 @@ describe('ProgressRing — KAN-133 brand dot', () => {
     const { UNSAFE_getAllByProps } = render(
       <ProgressRing
         progress={0.5}
-        diameter={makeShared(120) as any}
-        strokeWidth={makeShared(10) as any}
+        diameter={120}
+        strokeWidth={10}
       />,
     );
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });
@@ -88,8 +86,8 @@ describe('ProgressRing — KAN-133 brand dot', () => {
     const { UNSAFE_getAllByProps } = render(
       <ProgressRing
         progress={0.5}
-        diameter={makeShared(120) as any}
-        strokeWidth={makeShared(10) as any}
+        diameter={120}
+        strokeWidth={10}
       />,
     );
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });
@@ -101,8 +99,8 @@ describe('ProgressRing — KAN-133 brand dot', () => {
     const { UNSAFE_getAllByProps } = render(
       <ProgressRing
         progress={0}
-        diameter={makeShared(120) as any}
-        strokeWidth={makeShared(10) as any}
+        diameter={120}
+        strokeWidth={10}
       />,
     );
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });

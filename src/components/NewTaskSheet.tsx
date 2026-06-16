@@ -67,6 +67,7 @@ interface NewTaskSheetProps {
   visible: boolean;
   uid: string;
   onClose: () => void;
+  onTaskAdded?: () => void;
   customCategories?: Category[];
 }
 
@@ -104,7 +105,7 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
-  function NewTaskSheet({ visible, uid, onClose, customCategories = [] }, ref) {
+  function NewTaskSheet({ visible, uid, onClose, onTaskAdded, customCategories = [] }, ref) {
     const { palette } = useTheme();
 
     // Form state
@@ -116,8 +117,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [mounted, setMounted] = useState(false);
     const titleRef = useRef<TextInput>(null);
 
-    const onCloseRef = useRef(onClose);
+    const onCloseRef      = useRef(onClose);
     useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+    const onTaskAddedRef  = useRef(onTaskAdded);
+    useEffect(() => { onTaskAddedRef.current = onTaskAdded; }, [onTaskAdded]);
 
     // ── Reanimated ──
     const translateY   = useSharedValue(SCREEN_H);
@@ -225,6 +229,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         setMounted(false);
         resetForm();
         onCloseRef.current();
+        onTaskAddedRef.current?.();
       } catch (err) {
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);

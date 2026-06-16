@@ -78,8 +78,7 @@ const SCROLL_RANGE = 170; // SECTION_H_REST − SECTION_H_COLLAPSED (declared be
 
 const RING_REST      = 246;
 const RING_COLLAPSED = 112;
-const STROKE_REST      = 14;
-const STROKE_COLLAPSED = 10;
+const STROKE_REST      = 14; // collapse scales this down proportionally (~6.4)
 const RING_LEFT_REST      = (SCREEN_W - RING_REST) / 2;
 const RING_LEFT_COLLAPSED = 22;
 
@@ -175,6 +174,9 @@ export default function TodayScreen() {
     totalPoints,
     inboxCount,
     handleToggle,
+    permissionGranted,
+    refreshProximity,
+    locationUnavailable,
   } = useTodayScreen(uid);
 
   // ── Sheet ref + auto-close on new task ────────────────────────────────────────
@@ -210,11 +212,12 @@ export default function TodayScreen() {
   });
 
   // ── Derived values (UI thread) ────────────────────────────────────────────────
-  const ringSize: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_REST, RING_COLLAPSED], Extrapolation.CLAMP),
-  );
-  const ringStroke: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [STROKE_REST, STROKE_COLLAPSED], Extrapolation.CLAMP),
+  // The ring SVG is rendered ONCE at its rest geometry; the scroll-driven
+  // collapse is a pure parent transform:scale (see ringWrapStyle below). This
+  // avoids re-rasterising the SVG every scroll frame — the fix for the Android
+  // touch-blocking jank. Scale goes 1 → RING_COLLAPSED/RING_REST.
+  const ringScale: SharedValue<number> = useDerivedValue(() =>
+    interpolate(scrollY.value, [0, SCROLL_RANGE], [1, RING_COLLAPSED / RING_REST], Extrapolation.CLAMP),
   );
 
   // ── Progress counters ─────────────────────────────────────────────────────────
@@ -237,10 +240,15 @@ export default function TodayScreen() {
     height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
   }));
 
+  // left/top track the collapsed position while scale shrinks the (fixed-size)
+  // ring around its top-left corner — together they reproduce the original
+  // 246→112 collapse exactly, but without touching SVG geometry.
   const ringWrapStyle = useAnimatedStyle(() => ({
     position: 'absolute' as const,
     left: interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_LEFT_REST, RING_LEFT_COLLAPSED], Extrapolation.CLAMP),
     top:  interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_TOP_REST,  RING_TOP_COLLAPSED],  Extrapolation.CLAMP),
+    transformOrigin: 'top left',
+    transform: [{ scale: ringScale.value }],
   }));
 
   const captionStyle = useAnimatedStyle(() => ({
@@ -345,6 +353,38 @@ export default function TodayScreen() {
               storeTuningActive={storeTuningActive}
             />
 
+            {/* ── Location status row — shown when there are POI tasks but
+                 no nearby place is detected. Two states:
+                 · GPS off  → error message + Retry
+                 · GPS on   → subtle "Refresh location" tap target             ── */}
+            {permissionGranted && nearbyCount > 0 && !nearbyPoiType && !isLoading && (
+              locationUnavailable ? (
+                <View style={[styles.locationErrorRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+                  <Text style={[styles.locationErrorText, { color: palette.muted }]}>
+                    Location unavailable. Turn on GPS to see nearby places.
+                  </Text>
+                  <Pressable
+                    onPress={refreshProximity}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Retry location">
+                    <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={refreshProximity}
+                  hitSlop={{ top: 6, bottom: 6 }}
+                  style={[styles.refreshRow, { borderBottomColor: palette.line }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Refresh location">
+                  <Text style={[styles.refreshLabel, { color: palette.muted }]}>
+                    Refresh location
+                  </Text>
+                </Pressable>
+              )
+            )}
+
             {/* ── Task list ── */}
             <View style={[styles.section, { borderTopColor: palette.line }]}>
               <View style={styles.sectionHeader}>
@@ -428,8 +468,8 @@ export default function TodayScreen() {
           <Animated.View style={ringWrapStyle} pointerEvents="none">
             <ProgressRing
               progress={progress}
-              diameter={ringSize}
-              strokeWidth={ringStroke}
+              diameter={RING_REST}
+              strokeWidth={STROKE_REST}
             />
           </Animated.View>
 
@@ -521,6 +561,7 @@ export default function TodayScreen() {
         visible={sheetVisible}
         uid={uid ?? ''}
         onClose={() => setSheetVisible(false)}
+        onTaskAdded={refresh}
         customCategories={customCategories}
       />
 
@@ -729,6 +770,38 @@ const styles = StyleSheet.create({
   retryLabel: {
     fontSize:   14,
     fontFamily: 'Geist-Regular',
+  },
+  refreshRow: {
+    paddingHorizontal: spacing.page,
+    paddingVertical:   10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    alignItems:        'flex-end',
+  },
+  refreshLabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+  locationErrorRow: {
+    marginHorizontal: spacing.page,
+    marginBottom:     12,
+    paddingHorizontal: 14,
+    paddingVertical:   12,
+    borderRadius:     radius.card,
+    borderWidth:      StyleSheet.hairlineWidth,
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              12,
+  },
+  locationErrorText: {
+    flex:       1,
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+    lineHeight: 18,
+  },
+  locationRetryLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-SemiBold',
+    fontWeight: '600',
   },
   // ── Skeleton ──
   skeletonRow: {

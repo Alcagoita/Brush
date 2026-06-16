@@ -11,16 +11,17 @@
  *      "Find more" chip → contacts suggestions (KAN-99)
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import type { StyleProp, TextStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -36,6 +37,10 @@ import type { SharedTask, FollowEntry } from '../types';
 import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SocialHub'>;
+
+type FeedItem =
+  | { kind: 'task';     id: string; data: SharedTask  }
+  | { kind: 'follower'; id: string; data: FollowEntry };
 
 const LOAD_TIMEOUT_MS = 5_000;
 
@@ -63,9 +68,13 @@ function relativeTime(ts: { toDate(): Date } | null | undefined): string {
 
 // ─── Section header ───────────────────────────────────────────────────────────
 
-function SectionHeader({ title, palette }: { title: string; palette: any }) {
+function SectionHeader({ title, palette, style }: {
+  title:   string;
+  palette: ReturnType<typeof useTheme>['palette'];
+  style?:  StyleProp<TextStyle>;
+}) {
   return (
-    <Text style={[styles.sectionTitle, { color: palette.muted }]}>{title}</Text>
+    <Text style={[styles.sectionTitle, { color: palette.muted }, style]}>{title}</Text>
   );
 }
 
@@ -118,6 +127,11 @@ export default function SocialHubScreen() {
 
   const hasActivity = pendingTasks.length > 0 || recentFollowers.length > 0;
 
+  const feedItems: FeedItem[] = useMemo(() => [
+    ...pendingTasks.map(t   => ({ kind: 'task'     as const, id: `task:${t.id}`,      data: t })),
+    ...recentFollowers.map(f => ({ kind: 'follower' as const, id: `follower:${f.uid}`, data: f })),
+  ], [pendingTasks, recentFollowers]);
+
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
 
@@ -160,47 +174,16 @@ export default function SocialHubScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView
+        <FlatList<FeedItem>
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
-          showsVerticalScrollIndicator={false}>
-
-          {/* ── Section 1: Quick actions ── */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: palette.text }]}
-              onPress={() => navigation.navigate('ShareToDo')}
-              accessibilityRole="button"
-              accessibilityLabel="Brush a To-do with a friend">
-              <ShareIcon color={palette.bg} size={18} />
-              <Text style={[styles.actionLabel, { color: palette.bg }]}>Brush a To-do</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: palette.surface2 }]}
-              onPress={() => navigation.navigate('CreateChallenge')}
-              accessibilityRole="button"
-              accessibilityLabel="Challenge a friend">
-              <TrophyIcon color={palette.text} size={18} />
-              <Text style={[styles.actionLabel, { color: palette.text }]}>Challenge</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* ── Section 2: Activity feed ── */}
-          <SectionHeader title="ACTIVITY" palette={palette} />
-
-          {!hasActivity ? (
-            <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-              <UsersIcon color={palette.faint} size={28} />
-              <Text style={[styles.emptyText, { color: palette.muted }]}>
-                No activity yet — follow friends to get started.
-              </Text>
-            </View>
-          ) : (
-            <View style={styles.feedList}>
-              {/* Pending shared tasks */}
-              {pendingTasks.map(task => (
+          showsVerticalScrollIndicator={false}
+          data={feedItems}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => {
+            if (item.kind === 'task') {
+              const task = item.data;
+              return (
                 <TouchableOpacity
-                  key={task.id}
                   style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
                   onPress={() => navigation.navigate('SharedTaskInbox')}
                   accessibilityRole="button"
@@ -219,75 +202,122 @@ export default function SocialHubScreen() {
                     {relativeTime(task.sentAt)}
                   </Text>
                 </TouchableOpacity>
-              ))}
-
-              {/* Recent followers */}
-              {recentFollowers.map(f => (
-                <TouchableOpacity
-                  key={f.uid}
-                  style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
-                  onPress={() => f.username && navigation.navigate('PublicProfile', { username: f.username })}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${f.displayName} started following you`}>
-                  <Avatar photoURL={null} size={32} accessibilityLabel={f.displayName} />
-                  <View style={styles.feedText}>
-                    <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
-                      <Text style={{ fontFamily: 'Geist-Medium' }}>
-                        {f.username ? `@${f.username}` : f.displayName}
-                      </Text>
-                      {' started following you'}
-                    </Text>
-                  </View>
-                  <Text style={[styles.feedTime, { color: palette.faint }]}>
-                    {relativeTime(f.followedAt)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
-
-          {/* ── Section 3: Following list ── */}
-          <SectionHeader
-            title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
-            palette={palette}
-          />
-
-          {following.length === 0 ? (
-            <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-              <Text style={[styles.emptyText, { color: palette.muted }]}>
-                You're not following anyone yet.
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.followingScroll}>
-              {following.map(entry => (
-                <TouchableOpacity
-                  key={entry.uid}
-                  style={styles.followingItem}
-                  onPress={() => entry.username && navigation.navigate('PublicProfile', { username: entry.username })}
-                  accessibilityRole="button"
-                  accessibilityLabel={entry.displayName}>
-                  <Avatar photoURL={null} size={44} accessibilityLabel={entry.displayName} />
-                  <Text style={[styles.followingHandle, { color: palette.muted }]} numberOfLines={1}>
-                    {entry.username ? `@${entry.username}` : entry.displayName}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-
-              {/* "Find more" chip → KAN-99 contacts suggestions */}
+              );
+            }
+            const f = item.data;
+            return (
               <TouchableOpacity
-                style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}
-                onPress={() => navigation.navigate('ContactSuggestions')}
+                style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
+                onPress={() => f.username && navigation.navigate('PublicProfile', { username: f.username })}
                 accessibilityRole="button"
-                accessibilityLabel="Find more friends">
-                <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
+                accessibilityLabel={`${f.displayName} started following you`}>
+                <Avatar photoURL={null} size={32} accessibilityLabel={f.displayName} />
+                <View style={styles.feedText}>
+                  <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
+                    <Text style={{ fontFamily: 'Geist-Medium' }}>
+                      {f.username ? `@${f.username}` : f.displayName}
+                    </Text>
+                    {' started following you'}
+                  </Text>
+                </View>
+                <Text style={[styles.feedTime, { color: palette.faint }]}>
+                  {relativeTime(f.followedAt)}
+                </Text>
               </TouchableOpacity>
-            </ScrollView>
-          )}
-        </ScrollView>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={styles.feedSeparator} />}
+          ListHeaderComponent={
+            <View>
+              {/* ── Section 1: Quick actions ── */}
+              <View style={styles.quickActions}>
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: palette.text }]}
+                  onPress={() => navigation.navigate('ShareToDo')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Brush a To-do with a friend">
+                  <ShareIcon color={palette.bg} size={18} />
+                  <Text style={[styles.actionLabel, { color: palette.bg }]}>Brush a To-do</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.actionBtn, { backgroundColor: palette.surface2 }]}
+                  onPress={() => navigation.navigate('CreateChallenge')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Challenge a friend">
+                  <TrophyIcon color={palette.text} size={18} />
+                  <Text style={[styles.actionLabel, { color: palette.text }]}>Challenge</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* ── Section 2 header ── */}
+              <SectionHeader
+                title="ACTIVITY"
+                palette={palette}
+                style={{ marginTop: 16, marginBottom: 12 }}
+              />
+
+              {/* Empty state when no activity (no data items rendered) */}
+              {!hasActivity && (
+                <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+                  <UsersIcon color={palette.faint} size={28} />
+                  <Text style={[styles.emptyText, { color: palette.muted }]}>
+                    No activity yet — follow friends to get started.
+                  </Text>
+                </View>
+              )}
+            </View>
+          }
+          ListFooterComponent={
+            <View>
+              {/* ── Section 3: Following list ── */}
+              <SectionHeader
+                title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
+                palette={palette}
+                style={{ marginTop: 16, marginBottom: 12 }}
+              />
+
+              {following.length === 0 ? (
+                <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+                  <Text style={[styles.emptyText, { color: palette.muted }]}>
+                    You're not following anyone yet.
+                  </Text>
+                </View>
+              ) : (
+                <FlatList<FollowEntry>
+                  horizontal
+                  data={following}
+                  keyExtractor={entry => entry.uid}
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.followingScroll}
+                  renderItem={({ item: entry }) => (
+                    <TouchableOpacity
+                      style={styles.followingItem}
+                      onPress={() => entry.username && navigation.navigate('PublicProfile', { username: entry.username })}
+                      accessibilityRole="button"
+                      accessibilityLabel={entry.displayName}>
+                      <Avatar photoURL={null} size={44} accessibilityLabel={entry.displayName} />
+                      <Text style={[styles.followingHandle, { color: palette.muted }]} numberOfLines={1}>
+                        {entry.username ? `@${entry.username}` : entry.displayName}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                  ItemSeparatorComponent={() => <View style={styles.followingSeparator} />}
+                  ListFooterComponent={
+                    /* "Find more" chip → KAN-99 contacts suggestions */
+                    <TouchableOpacity
+                      style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line, marginLeft: 16 }]}
+                      onPress={() => navigation.navigate('ContactSuggestions')}
+                      accessibilityRole="button"
+                      accessibilityLabel="Find more friends">
+                      <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
+                    </TouchableOpacity>
+                  }
+                />
+              )}
+            </View>
+          }
+        />
       )}
     </View>
   );
@@ -342,7 +372,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.page,
     paddingTop:        20,
-    gap:               16,
   },
 
   // ── Quick actions ──
@@ -371,11 +400,10 @@ const styles = StyleSheet.create({
     fontWeight:    '600',
     fontFamily:    'Geist-SemiBold',
     letterSpacing: 0.8,
-    marginBottom:  -4,
   },
 
   // ── Feed ──
-  feedList: { gap: 8 },
+  feedSeparator: { height: 8 },
   feedRow: {
     flexDirection:  'row',
     alignItems:     'center',
@@ -403,8 +431,9 @@ const styles = StyleSheet.create({
   },
 
   // ── Following ──
-  followingScroll: { gap: 16, paddingRight: spacing.page },
-  followingItem:   { alignItems: 'center', gap: 6, width: 60 },
+  followingScroll:    { paddingRight: spacing.page },
+  followingSeparator: { width: 16 },
+  followingItem:      { alignItems: 'center', gap: 6, width: 60 },
   followingHandle: {
     fontSize:   11,
     fontFamily: 'Geist-Regular',

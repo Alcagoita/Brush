@@ -209,6 +209,40 @@ describe('addTask submission', () => {
     });
     expect(mockAddTask).not.toHaveBeenCalled();
   });
+
+  it('calls onTaskAdded after successful submission', async () => {
+    const onTaskAdded = jest.fn();
+    renderSheet({ onTaskAdded });
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('What do you need to do?'),
+      'Buy milk',
+    );
+    fireEvent.press(screen.getByLabelText('Market'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add task'));
+    });
+
+    expect(mockAddTask).toHaveBeenCalled();
+    expect(onTaskAdded).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onTaskAdded when addTask fails', async () => {
+    mockAddTask.mockRejectedValue(new Error('Network error'));
+    const onTaskAdded = jest.fn();
+    renderSheet({ onTaskAdded });
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('What do you need to do?'),
+      'Buy milk',
+    );
+    fireEvent.press(screen.getByLabelText('ATM'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add task'));
+    });
+
+    expect(onTaskAdded).not.toHaveBeenCalled();
+  });
 });
 
 describe('"More details" navigation', () => {
