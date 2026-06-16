@@ -330,7 +330,7 @@ export default function TaskFormScreen() {
               onFocus={() => setTitleFocused(true)}
               returnKeyType="next"
               maxLength={200}
-              accessibilityLabel={COPY.newTaskSheet.title}
+              accessibilityLabel={isEdit ? 'Task title' : COPY.newTaskSheet.title}
             />
             {/* Rotating example placeholder — same component as the quick sheet (KAN-148) */}
             {!isEdit && !titleFocused && title.length === 0 && (
@@ -624,9 +624,9 @@ export default function TaskFormScreen() {
         },
       ]}>
         <Text style={[styles.ctaHelper, { color: canSubmit ? palette.muted : palette.faint }]}>
-          {canSubmit
-            ? 'Ready to add'
-            : COPY.newTaskSheet.footerHint}
+          {isEdit
+            ? (canSubmit ? 'Ready to save' : '')
+            : (canSubmit ? 'Ready to add' : COPY.newTaskSheet.footerHint)}
         </Text>
         <Pressable
           onPress={handleSave}

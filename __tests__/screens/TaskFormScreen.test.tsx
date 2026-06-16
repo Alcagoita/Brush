@@ -176,7 +176,7 @@ describe('TaskFormScreen — edit mode', () => {
   it('pre-populates the title field', () => {
     render(<TaskFormScreen />);
     expect(
-      screen.getByLabelText('What do you need?').props.value,
+      screen.getByLabelText('Task title').props.value,
     ).toBe('Buy milk');
   });
 
@@ -185,9 +185,9 @@ describe('TaskFormScreen — edit mode', () => {
     expect(screen.getByLabelText('Save changes')).toBeTruthy();
   });
 
-  it('shows "Ready to add" helper when both title and POI are already set', () => {
+  it('shows "Ready to save" helper when both title and POI are already set', () => {
     render(<TaskFormScreen />);
-    expect(screen.getByText('Ready to add')).toBeTruthy();
+    expect(screen.getByText('Ready to save')).toBeTruthy();
   });
 
   it('pre-populates the notes field from existing description', () => {
@@ -470,7 +470,7 @@ describe('TaskFormScreen — save (edit)', () => {
     mockUpdateTask.mockResolvedValueOnce(undefined);
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByLabelText('What do you need?'),
+      screen.getByLabelText('Task title'),
       'Buy oat milk',
     );
     await act(async () => {
@@ -617,7 +617,7 @@ describe('TaskFormScreen — confirmation toast', () => {
     setRouteParams({ uid: 'user-123', task: makeTask() });
     mockUpdateTask.mockResolvedValueOnce(undefined);
     render(<TaskFormScreen />);
-    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy oat milk');
+    fireEvent.changeText(screen.getByLabelText('Task title'), 'Buy oat milk');
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Save changes'));
     });
