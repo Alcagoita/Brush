@@ -51,7 +51,7 @@ interface TaskRowProps {
 /** Fallback for tasks whose category ID doesn't match any known category. */
 const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
 
-export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategories = [] }: TaskRowProps) {
+function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategories = [] }: TaskRowProps) {
   const { palette } = useTheme();
   const builtIn = categories[task.category as keyof typeof categories];
   const custom  = customCategories.find(c => c.id === task.category);
@@ -270,6 +270,12 @@ export default function TaskRow({ task, nearbyPoiType = null, onToggle, onPress,
     </View>
   );
 }
+
+// Memoized: the Today list re-renders whenever proximity data (poiPlaces /
+// nearbyPoiType) changes. Without memo, every row rebuilt its ~5 shared values
+// and SVG on each of those updates (KAN-156 render storm). With stable props
+// from TodayScreen, rows now only re-render when their own data changes.
+export default React.memo(TaskRow);
 
 const styles = StyleSheet.create({
   row: {

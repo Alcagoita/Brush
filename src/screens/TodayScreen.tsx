@@ -27,7 +27,7 @@
  * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -225,10 +225,22 @@ export default function TodayScreen() {
   const remaining = totalTasks - doneTasks;
 
   // ── Task display order: undone first, done at bottom ─────────────────────────
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.done === b.done) { return 0; }
-    return a.done ? 1 : -1;
-  });
+  // Memoized so a nearby-data change (which leaves `tasks` untouched) doesn't
+  // produce a new array identity and re-render every memoized TaskRow (KAN-156).
+  const sortedTasks = useMemo(
+    () => [...tasks].sort((a, b) => {
+      if (a.done === b.done) { return 0; }
+      return a.done ? 1 : -1;
+    }),
+    [tasks],
+  );
+
+  // Stable row-press handler — an inline arrow here would change identity every
+  // render and defeat React.memo on TaskRow.
+  const handleTaskPress = useCallback(
+    (t: typeof tasks[number]) => navigation.navigate('TaskForm', { uid: uid ?? '', task: t }),
+    [navigation, uid],
+  );
 
   // ── Empty state flag ──────────────────────────────────────────────────────────
   const isEmpty = !isLoading && !error && tasks.length === 0;
@@ -428,7 +440,7 @@ export default function TodayScreen() {
                     task={task}
                     nearbyPoiType={nearbyPoiType}
                     onToggle={handleToggle}
-                    onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
+                    onPress={handleTaskPress}
                     customCategories={customCategories}
                   />
                 ))
