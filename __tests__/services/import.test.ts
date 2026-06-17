@@ -21,6 +21,7 @@ import {
   IMPORT_TIMEOUT_MS,
   IMPORT_TIMEOUT_ERROR,
 } from '../../src/services/import';
+import type { ImportResult } from '../../src/types';
 
 // ─── GoogleSignin mock ────────────────────────────────────────────────────────
 
@@ -112,8 +113,8 @@ describe('runImportWithTimeout', () => {
   });
 
   it('handles a synchronous throw inside importFn without leaking the timer', async () => {
-    const syncThrow = () => { throw new Error('sync-boom'); };
-    const { promise } = runImportWithTimeout(syncThrow as unknown as () => Promise<ImportResult>);
+    const syncThrow: () => Promise<ImportResult> = () => { throw new Error('sync-boom'); };
+    const { promise } = runImportWithTimeout(syncThrow);
     await expect(promise).rejects.toThrow('sync-boom');
     // Timer must have been cleared — advancing past IMPORT_TIMEOUT_MS should not throw
     jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
