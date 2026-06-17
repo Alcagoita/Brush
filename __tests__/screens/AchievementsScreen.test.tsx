@@ -30,7 +30,6 @@ jest.mock('../../src/services/achievements', () => ({
     worth_wait:       { id: 'worth_wait',       points: 10, target: 1, repeatable: false },
     custom_cat:       { id: 'custom_cat',       points: 5,  target: 1, repeatable: false },
     out_about:        { id: 'out_about',        points: 10, target: 3, repeatable: false },
-    challenge_winner: { id: 'challenge_winner', points: 15, target: 1, repeatable: false },
   },
 }));
 
