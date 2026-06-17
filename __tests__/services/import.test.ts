@@ -16,6 +16,9 @@ import {
   fetchExistingTitles,
   importFromReminders,
   importFromCalendar,
+  runImportWithTimeout,
+  IMPORT_TIMEOUT_MS,
+  IMPORT_TIMEOUT_ERROR,
 } from '../../src/services/import';
 
 // ─── GoogleSignin mock ────────────────────────────────────────────────────────
@@ -77,6 +80,44 @@ jest.mock('@react-native-firebase/firestore', () => {
     serverTimestamp: () => 'SERVER_TIMESTAMP',
   };
   return firestoreFn;
+});
+
+// ─── runImportWithTimeout (KAN-92) ────────────────────────────────────────────
+
+describe('runImportWithTimeout', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  it('resolves with the import result when the connector finishes in time', async () => {
+    const result = { imported: 2, skipped: 0, failed: 0 };
+    const { promise } = runImportWithTimeout(() => Promise.resolve(result));
+    await expect(promise).resolves.toEqual(result);
+  });
+
+  it('rejects with IMPORT_TIMEOUT when the connector exceeds IMPORT_TIMEOUT_MS', async () => {
+    const never = new Promise<never>(() => {/* never resolves */});
+    const { promise } = runImportWithTimeout(() => never);
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS);
+    await expect(promise).rejects.toThrow(IMPORT_TIMEOUT_ERROR);
+  });
+
+  it('does not fire the timeout if the connector resolves first', async () => {
+    const result = { imported: 1, skipped: 0, failed: 0 };
+    const { promise } = runImportWithTimeout(() => Promise.resolve(result));
+    await promise;
+    // Advance past timeout window — no unhandled rejection should occur
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
+    // test passes if no unhandled rejection is thrown
+  });
+
+  it('clearTimer cancels the timeout so it does not fire after unmount', async () => {
+    const never = new Promise<never>(() => {/* never resolves */});
+    const { promise, clearTimer } = runImportWithTimeout(() => never);
+    clearTimer();
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
+    // Promise stays pending (never resolves or rejects) — attach a no-op to avoid leak warning
+    promise.catch(() => {});
+  });
 });
 
 // ─── isDuplicate ─────────────────────────────────────────────────────────────

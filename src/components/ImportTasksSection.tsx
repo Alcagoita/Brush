@@ -12,7 +12,7 @@
  * others. The result summary stays visible until the button is pressed again.
  */
 
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -84,11 +84,21 @@ interface RowProps {
   palette: ReturnType<typeof useTheme>['palette'];
 }
 
+const ERROR_GENERAL = 'Import failed. Tap to retry.';
+const ERROR_TIMEOUT = 'Import timed out. Check your connection and try again.';
+
 function ImportRow({ source, uid, palette }: RowProps) {
   const [state, setState] = useState<ImportState>({ status: 'idle' });
 
   // Fade animation for the result / error summary
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Hold the active timer cancel so we can clear it on unmount (KAN-92)
+  const clearTimerRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => { clearTimerRef.current?.(); };
+  }, []);
 
   const fadeIn = useCallback(() => {
     fadeAnim.setValue(0);
@@ -98,15 +108,21 @@ function ImportRow({ source, uid, palette }: RowProps) {
   const handlePress = useCallback(async () => {
     if (state.status === 'loading') { return; }
     setState({ status: 'loading' });
+
+    const { runImportWithTimeout, IMPORT_TIMEOUT_ERROR } = require('../services/import');
+    const { promise, clearTimer } = runImportWithTimeout(() => source.connector(uid));
+    clearTimerRef.current = clearTimer;
+
     try {
-      const result = await source.connector(uid);
+      const result = await promise;
+      clearTimerRef.current = null;
       setState({ status: 'success', result });
       fadeIn();
     } catch (err) {
-      // Log the raw error for debugging but never surface technical details
-      // (e.g. Firebase auth codes, network stack traces) to the user.
+      clearTimerRef.current = null;
+      const isTimeout = err instanceof Error && err.message === IMPORT_TIMEOUT_ERROR;
       console.warn('[ImportTasksSection] connector error', err);
-      setState({ status: 'error', message: 'Import failed. Please try again.' });
+      setState({ status: 'error', message: isTimeout ? ERROR_TIMEOUT : ERROR_GENERAL });
       fadeIn();
     }
   }, [state.status, source, uid, fadeIn]);
@@ -161,7 +177,7 @@ function ImportRow({ source, uid, palette }: RowProps) {
             {state.message}
           </Text>
           <Text style={[styles.retryHint, { color: palette.muted }]}>
-            Tap the button above to retry.
+            Tap the button above to try again.
           </Text>
         </Animated.View>
       )}

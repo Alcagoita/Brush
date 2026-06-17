@@ -25,6 +25,39 @@ import { Linking, Platform } from 'react-native';
 import BrushEventKitModule from '../native/BrushEventKitModule';
 import { ImportResult } from '../types';
 
+// ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
+
+export const IMPORT_TIMEOUT_MS = 30_000;
+
+/**
+ * Sentinel error message used to distinguish a timeout from a general failure.
+ * Check with `err.message === IMPORT_TIMEOUT_ERROR` in catch blocks.
+ */
+export const IMPORT_TIMEOUT_ERROR = 'IMPORT_TIMEOUT';
+
+/**
+ * Races `importFn` against a 30-second hard timeout.
+ * Returns { promise, clearTimer } so callers can cancel the timer on unmount
+ * and avoid the setState-after-unmount warning.
+ */
+export function runImportWithTimeout(importFn: () => Promise<ImportResult>): {
+  promise:   Promise<ImportResult>;
+  clearTimer: () => void;
+} {
+  let timerId: ReturnType<typeof setTimeout>;
+  const clearTimer = () => clearTimeout(timerId);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timerId = setTimeout(
+      () => reject(new Error(IMPORT_TIMEOUT_ERROR)),
+      IMPORT_TIMEOUT_MS,
+    );
+  });
+
+  const promise = Promise.race([importFn(), timeoutPromise]).finally(clearTimer);
+  return { promise, clearTimer };
+}
+
 // ─── Google API helpers ───────────────────────────────────────────────────────
 
 const GOOGLE_TASKS_URL =
