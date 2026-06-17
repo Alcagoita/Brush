@@ -37,6 +37,7 @@ import { todayISO } from '../utils/date';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COPY } from '../constants/copy';
 import { useToastStore } from '../store/toastStore';
+import { evaluateAddTaskAchievement, evaluateCustomCatAchievement } from '../services/achievements';
 import RotatingTitlePlaceholder from '../components/RotatingTitlePlaceholder';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -181,6 +182,7 @@ export default function TaskFormScreen() {
     setNewCatSaving(true);
     try {
       const id = await addCategory(uid, { name: trimmed, color: newCatColor, poi: null });
+      evaluateCustomCatAchievement(uid).catch(() => {});
       setCategory(id);
       setAddingCat(false);
     } catch (err) {
@@ -226,6 +228,7 @@ export default function TaskFormScreen() {
         await updateTask(uid, existingTask.id, payload);
       } else {
         await addTask(uid, payload);
+        evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
       }
       navigation.goBack();

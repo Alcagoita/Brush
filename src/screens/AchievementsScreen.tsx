@@ -113,14 +113,14 @@ function AchievementCard({
         {catalogueDef.condition}
       </Text>
 
-      {/* Progress bar (for multi-step achievements) */}
-      {target > 1 && (
+      {/* Progress bar — only shown once earned; locked achievements show no progress (KAN-150: surprises, not quests) */}
+      {earned && target > 1 && (
         <View style={[styles.progressTrack, { backgroundColor: palette.ringTrack }]}>
           <View
             style={[
               styles.progressFill,
               {
-                backgroundColor: earned ? palette.accent : palette.faint,
+                backgroundColor: palette.accent,
                 width: `${Math.round(fillRatio * 100)}%`,
               },
             ]}
@@ -128,8 +128,7 @@ function AchievementCard({
         </View>
       )}
 
-      {/* Progress fraction for multi-step */}
-      {target > 1 && (
+      {earned && target > 1 && (
         <Text style={[styles.progressFraction, { color: palette.muted }]}>
           <Text style={{ fontVariant: ['tabular-nums'] }}>{Math.min(progress, target)}</Text>
           {'/'}<Text style={{ fontVariant: ['tabular-nums'] }}>{target}</Text>
@@ -201,7 +200,7 @@ export default function AchievementsScreen() {
   }, [uid]);
 
   // ── Tier standing ─────────────────────────────────────────────────────────────
-  const { nextTier, maxed, bandPct, toGo } = deriveTierStanding(totalPoints);
+  const { curTier, nextTier, maxed, bandPct } = deriveTierStanding(totalPoints);
 
   // ── Achievement lists ─────────────────────────────────────────────────────────
   const earnedDefs = ACHIEVEMENT_CATALOGUE.filter(
@@ -235,10 +234,10 @@ export default function AchievementsScreen() {
             </Text>
           ) : (
             <Text style={[styles.medalCaption, { color: palette.muted }]}>
-              <Text style={{ color: nextTier.color, fontWeight: '600', fontVariant: ['tabular-nums'] }}>
-                {toGo} pts
+              <Text style={{ color: curTier?.color || palette.muted, fontWeight: '600' }}>
+                {curTier?.name || 'Tin'}
               </Text>
-              {' to '}{nextTier.name}
+              {' · '}{nextTier.name} is on its way
             </Text>
           )}
         </View>
@@ -281,7 +280,7 @@ export default function AchievementsScreen() {
             const type        = catDef.type as AchievementType;
             const entry       = achievementsMap[type];
             const earnCount   = earned ? (entry?.earnCount ?? 0) : 0;
-            const rawProgress = type === 'centurion' ? totalPoints : (entry?.progress ?? 0);
+            const rawProgress = entry?.progress ?? 0;
             const def         = ACHIEVEMENT_DEFS[type];
             return { earnCount, progress: rawProgress, target: def?.target ?? 1, points: def?.points ?? 0 };
           };
