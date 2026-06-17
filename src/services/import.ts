@@ -80,6 +80,49 @@ export function makeImportDocId(source: string, title: string): string {
   return `imp_${hash.toString(36)}`;
 }
 
+// ─── Retry with exponential backoff (KAN-93) ─────────────────────────────────
+
+export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
+
+/**
+ * Returns true for errors that should NOT be retried automatically:
+ *   - Google API 401/403 (auth/permission — retrying won't help)
+ *   - Cancellation is handled separately (result.cancelled, not a throw)
+ */
+function isNonRetryable(err: unknown): boolean {
+  return err instanceof Error && /Google API error (401|403)/.test(err.message);
+}
+
+/**
+ * Wraps `importFn` with up to 3 automatic retries using exponential backoff
+ * + ±300ms jitter. Each attempt gets its own 30-second timeout window.
+ *
+ * `onRetrying(attempt, total)` is called during each backoff delay so the UI
+ * can show "Retrying… (attempt N of 3)".
+ *
+ * Non-retryable errors (401/403) and cancellations are surfaced immediately.
+ */
+export async function importWithRetry(
+  importFn: () => Promise<ImportResult>,
+  onRetrying?: (attempt: number, total: number) => void,
+): Promise<ImportResult> {
+  const maxRetries = RETRY_DELAYS_MS.length;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { promise } = runImportWithTimeout(importFn);
+    try {
+      return await promise;
+    } catch (err) {
+      if (attempt >= maxRetries || isNonRetryable(err)) { throw err; }
+      const jitter = Math.random() * 600 - 300;
+      const delay  = RETRY_DELAYS_MS[attempt] + jitter;
+      onRetrying?.(attempt + 1, maxRetries);
+      await new Promise<void>(res => setTimeout(res, delay));
+    }
+  }
+  throw new Error('importWithRetry: unreachable');
+}
+
 // ─── Cancellation helper (KAN-94) ────────────────────────────────────────────
 
 const CANCELLED_RESULT: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 1 };

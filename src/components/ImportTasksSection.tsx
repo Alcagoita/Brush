@@ -12,7 +12,7 @@
  * others. The result summary stays visible until the button is pressed again.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -31,6 +31,7 @@ import { ImportResult } from '../types';
 type ImportState =
   | { status: 'idle' }
   | { status: 'loading' }
+  | { status: 'retrying'; attempt: number; total: number }
   | { status: 'success'; result: ImportResult }
   | { status: 'cancelled' }
   | { status: 'error'; message: string };
@@ -94,15 +95,9 @@ function ImportRow({ source, uid, palette }: RowProps) {
   // Fade animation for the result / error summary
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
-  // Hold the active timer cancel so we can clear it on unmount (KAN-92)
-  const clearTimerRef = useRef<(() => void) | null>(null);
-  // Generation counter: increments on each press so results from a timed-out
-  // background run are discarded if the user has already retried (KAN-92).
+  // Generation counter: increments on each press so results from a background
+  // run are discarded if the user has already pressed again (KAN-92/93).
   const generationRef = useRef(0);
-
-  useEffect(() => {
-    return () => { clearTimerRef.current?.(); };
-  }, []);
 
   const fadeIn = useCallback(() => {
     fadeAnim.setValue(0);
@@ -110,17 +105,20 @@ function ImportRow({ source, uid, palette }: RowProps) {
   }, [fadeAnim]);
 
   const handlePress = useCallback(async () => {
-    if (state.status === 'loading') { return; }
+    if (state.status === 'loading' || state.status === 'retrying') { return; }
     setState({ status: 'loading' });
 
-    const { runImportWithTimeout, IMPORT_TIMEOUT_ERROR } = require('../services/import');
-    const { promise, clearTimer } = runImportWithTimeout(() => source.connector(uid));
-    clearTimerRef.current = clearTimer;
+    const { importWithRetry, IMPORT_TIMEOUT_ERROR } = require('../services/import');
     const generation = ++generationRef.current;
 
     try {
-      const result = await promise;
-      clearTimerRef.current = null;
+      const result = await importWithRetry(
+        () => source.connector(uid),
+        (attempt: number, total: number) => {
+          if (generationRef.current !== generation) { return; }
+          setState({ status: 'retrying', attempt, total });
+        },
+      );
       if (generationRef.current !== generation) { return; }
       if (result.cancelled > 0) {
         setState({ status: 'cancelled' });
@@ -129,7 +127,6 @@ function ImportRow({ source, uid, palette }: RowProps) {
       }
       fadeIn();
     } catch (err) {
-      clearTimerRef.current = null;
       if (generationRef.current !== generation) { return; }
       const isTimeout = err instanceof Error && err.message === IMPORT_TIMEOUT_ERROR;
       console.warn('[ImportTasksSection] connector error', err);
@@ -138,7 +135,10 @@ function ImportRow({ source, uid, palette }: RowProps) {
     }
   }, [state.status, source, uid, fadeIn]);
 
-  const isLoading = state.status === 'loading';
+  const isBusy = state.status === 'loading' || state.status === 'retrying';
+  const retryLabel = state.status === 'retrying'
+    ? `Retrying… (attempt ${state.attempt} of ${state.total})`
+    : null;
 
   return (
     <View style={styles.row} accessibilityLabel={`${source.label} row`}>
@@ -147,21 +147,23 @@ function ImportRow({ source, uid, palette }: RowProps) {
         style={[
           styles.importBtn,
           { borderColor: palette.line },
-          isLoading && styles.importBtnLoading,
+          isBusy && styles.importBtnLoading,
         ]}
         onPress={handlePress}
-        disabled={isLoading}
+        disabled={isBusy}
         accessibilityRole="button"
-        accessibilityLabel={isLoading ? 'Importing' : source.label}
-        accessibilityState={{ busy: isLoading }}>
-        {isLoading ? (
+        accessibilityLabel={isBusy ? (retryLabel ?? 'Importing') : source.label}
+        accessibilityState={{ busy: isBusy }}>
+        {isBusy ? (
           <View style={styles.importBtnInner}>
             <ActivityIndicator
               size="small"
               color={palette.muted}
               accessibilityLabel="Import in progress"
             />
-            <Text style={[styles.importBtnText, { color: palette.muted }]}>Importing…</Text>
+            <Text style={[styles.importBtnText, { color: palette.muted }]}>
+              {retryLabel ?? 'Importing…'}
+            </Text>
           </View>
         ) : (
           <Text style={[styles.importBtnText, { color: palette.text }]}>{source.label}</Text>

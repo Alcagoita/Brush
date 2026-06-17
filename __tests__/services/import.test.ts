@@ -17,9 +17,11 @@ import {
   importFromReminders,
   importFromCalendar,
   runImportWithTimeout,
+  importWithRetry,
   makeImportDocId,
   IMPORT_TIMEOUT_MS,
   IMPORT_TIMEOUT_ERROR,
+  RETRY_DELAYS_MS,
 } from '../../src/services/import';
 import type { ImportResult } from '../../src/types';
 
@@ -127,6 +129,77 @@ describe('runImportWithTimeout', () => {
     jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
     // Promise stays pending (never resolves or rejects) — attach a no-op to avoid leak warning
     promise.catch(() => {});
+  });
+});
+
+// ─── importWithRetry (KAN-93) ─────────────────────────────────────────────────
+
+describe('importWithRetry', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  const OK: ImportResult = { imported: 1, skipped: 0, failed: 0, cancelled: 0 };
+
+  it('resolves immediately when the first attempt succeeds', async () => {
+    const fn = jest.fn().mockResolvedValue(OK);
+    await expect(importWithRetry(fn)).resolves.toEqual(OK);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries up to 3 times and resolves on the final attempt', async () => {
+    const fn = jest.fn()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValue(OK);
+
+    const promise = importWithRetry(fn);
+    await jest.runAllTimersAsync();
+    await expect(promise).resolves.toEqual(OK);
+    expect(fn).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
+  });
+
+  it('throws after all retries are exhausted', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('always fails'));
+
+    const promise = importWithRetry(fn);
+    void promise.catch(() => {}); // prevent unhandled rejection before assertion
+    await jest.runAllTimersAsync();
+    await expect(promise).rejects.toThrow('always fails');
+    expect(fn).toHaveBeenCalledTimes(4);
+  });
+
+  it('does not retry on 401 auth errors', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('Google API error 401: Unauthorized'));
+    await expect(importWithRetry(fn)).rejects.toThrow('401');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry on 403 auth errors', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('Google API error 403: Forbidden'));
+    await expect(importWithRetry(fn)).rejects.toThrow('403');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cancelled result without retrying when result.cancelled > 0', async () => {
+    const cancelled: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 1 };
+    const fn = jest.fn().mockResolvedValue(cancelled);
+    const result = await importWithRetry(fn);
+    expect(result.cancelled).toBe(1);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onRetrying with correct attempt and total during backoff', async () => {
+    const fn = jest.fn()
+      .mockRejectedValueOnce(new Error('fail'))
+      .mockResolvedValue(OK);
+    const onRetrying = jest.fn();
+
+    const promise = importWithRetry(fn, onRetrying);
+    await jest.runAllTimersAsync();
+    await promise;
+
+    expect(onRetrying).toHaveBeenCalledWith(1, RETRY_DELAYS_MS.length);
   });
 });
 
