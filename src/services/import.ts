@@ -87,10 +87,19 @@ export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
 /**
  * Returns true for errors that should NOT be retried automatically:
  *   - Google API 401/403 (auth/permission — retrying won't help)
+ *   - EventKit PERMISSION_DENIED (re-triggering Linking.openSettings() on retry would be wrong)
  *   - Cancellation is handled separately (result.cancelled, not a throw)
  */
 function isNonRetryable(err: unknown): boolean {
-  return err instanceof Error && /Google API error (401|403)/.test(err.message);
+  if (err instanceof Error && /Google API error (401|403)/.test(err.message)) {
+    return true;
+  }
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: unknown }).code === 'PERMISSION_DENIED'
+  );
 }
 
 /**

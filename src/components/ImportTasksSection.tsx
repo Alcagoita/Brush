@@ -161,7 +161,7 @@ function ImportRow({ source, uid, palette }: RowProps) {
               color={palette.muted}
               accessibilityLabel="Import in progress"
             />
-            <Text style={[styles.importBtnText, { color: palette.muted }]}>
+            <Text style={[styles.importBtnText, retryLabel ? styles.tabularNums : undefined, { color: palette.muted }]}>
               {retryLabel ?? 'Importing…'}
             </Text>
           </View>
@@ -288,6 +288,9 @@ const styles = StyleSheet.create({
     fontSize:   14,
     fontWeight: '500',
     fontFamily: 'Geist-Medium',
+  },
+  tabularNums: {
+    fontVariant: ['tabular-nums'] as const,
   },
 
   resultText: {

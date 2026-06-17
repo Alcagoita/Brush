@@ -181,6 +181,13 @@ describe('importWithRetry', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
+  it('does not retry on EventKit PERMISSION_DENIED errors', async () => {
+    const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
+    const fn = jest.fn().mockRejectedValue(permissionError);
+    await expect(importWithRetry(fn)).rejects.toThrow('denied');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
   it('returns cancelled result without retrying when result.cancelled > 0', async () => {
     const cancelled: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 1 };
     const fn = jest.fn().mockResolvedValue(cancelled);
