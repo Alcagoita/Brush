@@ -17,6 +17,7 @@ import {
   importFromReminders,
   importFromCalendar,
   runImportWithTimeout,
+  makeImportDocId,
   IMPORT_TIMEOUT_MS,
   IMPORT_TIMEOUT_ERROR,
 } from '../../src/services/import';
@@ -110,6 +111,14 @@ describe('runImportWithTimeout', () => {
     // test passes if no unhandled rejection is thrown
   });
 
+  it('handles a synchronous throw inside importFn without leaking the timer', async () => {
+    const syncThrow = () => { throw new Error('sync-boom'); };
+    const { promise } = runImportWithTimeout(syncThrow as unknown as () => Promise<ImportResult>);
+    await expect(promise).rejects.toThrow('sync-boom');
+    // Timer must have been cleared — advancing past IMPORT_TIMEOUT_MS should not throw
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
+  });
+
   it('clearTimer cancels the timeout so it does not fire after unmount', async () => {
     const never = new Promise<never>(() => {/* never resolves */});
     const { promise, clearTimer } = runImportWithTimeout(() => never);
@@ -117,6 +126,38 @@ describe('runImportWithTimeout', () => {
     jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
     // Promise stays pending (never resolves or rejects) — attach a no-op to avoid leak warning
     promise.catch(() => {});
+  });
+});
+
+// ─── makeImportDocId (KAN-92) ─────────────────────────────────────────────────
+
+describe('makeImportDocId', () => {
+  it('returns the same ID for identical source and title', () => {
+    expect(makeImportDocId('google_tasks', 'Buy milk')).toBe(
+      makeImportDocId('google_tasks', 'Buy milk'),
+    );
+  });
+
+  it('is case-insensitive and trims whitespace', () => {
+    expect(makeImportDocId('google_tasks', 'Buy Milk')).toBe(
+      makeImportDocId('google_tasks', '  buy milk  '),
+    );
+  });
+
+  it('returns different IDs for different sources with the same title', () => {
+    expect(makeImportDocId('google_tasks', 'Buy milk')).not.toBe(
+      makeImportDocId('google_calendar', 'Buy milk'),
+    );
+  });
+
+  it('returns different IDs for different titles with the same source', () => {
+    expect(makeImportDocId('google_tasks', 'Buy milk')).not.toBe(
+      makeImportDocId('google_tasks', 'Call dentist'),
+    );
+  });
+
+  it('returns an ID that starts with "imp_"', () => {
+    expect(makeImportDocId('google_tasks', 'any title')).toMatch(/^imp_/);
   });
 });
 

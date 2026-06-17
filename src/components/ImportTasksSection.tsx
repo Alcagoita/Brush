@@ -95,6 +95,9 @@ function ImportRow({ source, uid, palette }: RowProps) {
 
   // Hold the active timer cancel so we can clear it on unmount (KAN-92)
   const clearTimerRef = useRef<(() => void) | null>(null);
+  // Generation counter: increments on each press so results from a timed-out
+  // background run are discarded if the user has already retried (KAN-92).
+  const generationRef = useRef(0);
 
   useEffect(() => {
     return () => { clearTimerRef.current?.(); };
@@ -112,14 +115,17 @@ function ImportRow({ source, uid, palette }: RowProps) {
     const { runImportWithTimeout, IMPORT_TIMEOUT_ERROR } = require('../services/import');
     const { promise, clearTimer } = runImportWithTimeout(() => source.connector(uid));
     clearTimerRef.current = clearTimer;
+    const generation = ++generationRef.current;
 
     try {
       const result = await promise;
       clearTimerRef.current = null;
+      if (generationRef.current !== generation) { return; }
       setState({ status: 'success', result });
       fadeIn();
     } catch (err) {
       clearTimerRef.current = null;
+      if (generationRef.current !== generation) { return; }
       const isTimeout = err instanceof Error && err.message === IMPORT_TIMEOUT_ERROR;
       console.warn('[ImportTasksSection] connector error', err);
       setState({ status: 'error', message: isTimeout ? ERROR_TIMEOUT : ERROR_GENERAL });
