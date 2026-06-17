@@ -321,7 +321,7 @@ Locked, 15 tickets, four tracks + a bug track. All tickets labeled `sprint-10` i
 | KAN-145 | B | ✅ Done |
 | KAN-148 | C | ✅ Done |
 | KAN-149 | C | ✅ Done |
-| KAN-150 | C | To Do |
+| KAN-150 | C | ✅ Done |
 | KAN-151 | D | ✅ Done |
 | KAN-152 | D | ✅ Done |
 
