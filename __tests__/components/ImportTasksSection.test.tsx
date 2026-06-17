@@ -167,6 +167,16 @@ describe('ImportTasksSection — Android', () => {
     expect(mockImportFromGoogleTasks).toHaveBeenCalledTimes(2);
   });
 
+  it('shows neutral "Import cancelled." message when result.cancelled > 0 (KAN-94)', async () => {
+    mockImportFromGoogleTasks.mockResolvedValueOnce({ imported: 0, skipped: 0, failed: 0, cancelled: 1 });
+    renderSection();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
+    });
+    expect(screen.getByText('Import cancelled.')).toBeTruthy();
+    expect(screen.queryByText('Tap the button above to try again.')).toBeNull();
+  });
+
   it('shows distinct timeout message when connector rejects with IMPORT_TIMEOUT (KAN-92)', async () => {
     mockImportFromGoogleTasks.mockRejectedValueOnce(new Error('IMPORT_TIMEOUT'));
     renderSection();

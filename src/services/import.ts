@@ -20,7 +20,7 @@
  */
 
 import firestore from '@react-native-firebase/firestore';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Linking, Platform } from 'react-native';
 import BrushEventKitModule from '../native/BrushEventKitModule';
 import { ImportResult } from '../types';
@@ -78,6 +78,19 @@ export function makeImportDocId(source: string, title: string): string {
     hash = (((hash << 5) + hash) ^ normalized.charCodeAt(i)) >>> 0;
   }
   return `imp_${hash.toString(36)}`;
+}
+
+// ─── Cancellation helper (KAN-94) ────────────────────────────────────────────
+
+const CANCELLED_RESULT: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 1 };
+
+function isGoogleSignInCancelled(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: unknown }).code === statusCodes.SIGN_IN_CANCELLED
+  );
 }
 
 // ─── Google API helpers ───────────────────────────────────────────────────────
@@ -189,7 +202,15 @@ export function isDuplicate(title: string, existingTitles: Set<string>): boolean
  * maps them to Brush tasks, skips duplicates, and writes to Firestore.
  */
 export async function importFromGoogleTasks(uid: string): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  try { return await _importFromGoogleTasks(uid); }
+  catch (err) {
+    if (isGoogleSignInCancelled(err)) { return CANCELLED_RESULT; }
+    throw err;
+  }
+}
+
+async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
 
   const existingTitles = await fetchExistingTitles(uid);
   const data = await googleFetch(GOOGLE_TASKS_URL) as { items?: GoogleTaskItem[] };
@@ -240,7 +261,15 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
  * skips all-day events more than 30 days out and duplicates, writes to Firestore.
  */
 export async function importFromGoogleCalendar(uid: string): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  try { return await _importFromGoogleCalendar(uid); }
+  catch (err) {
+    if (isGoogleSignInCancelled(err)) { return CANCELLED_RESULT; }
+    throw err;
+  }
+}
+
+async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
   const now = new Date();
 
   const existingTitles = await fetchExistingTitles(uid);
@@ -332,7 +361,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
     throw err;
   }
 
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
   const existingTitles = await fetchExistingTitles(uid);
   const batch = firestore().batch();
   const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
@@ -392,7 +421,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
     throw err;
   }
 
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
   const now = new Date();
   const existingTitles = await fetchExistingTitles(uid);
   const batch = firestore().batch();

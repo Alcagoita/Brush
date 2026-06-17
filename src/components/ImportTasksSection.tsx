@@ -32,6 +32,7 @@ type ImportState =
   | { status: 'idle' }
   | { status: 'loading' }
   | { status: 'success'; result: ImportResult }
+  | { status: 'cancelled' }
   | { status: 'error'; message: string };
 
 export type ImportConnector = (uid: string) => Promise<ImportResult>;
@@ -121,7 +122,11 @@ function ImportRow({ source, uid, palette }: RowProps) {
       const result = await promise;
       clearTimerRef.current = null;
       if (generationRef.current !== generation) { return; }
-      setState({ status: 'success', result });
+      if (result.cancelled > 0) {
+        setState({ status: 'cancelled' });
+      } else {
+        setState({ status: 'success', result });
+      }
       fadeIn();
     } catch (err) {
       clearTimerRef.current = null;
@@ -170,6 +175,17 @@ function ImportRow({ source, uid, palette }: RowProps) {
             style={[styles.resultText, { color: palette.muted }]}
             accessibilityLabel={`Import result: ${state.result.imported} imported, ${state.result.skipped} skipped, ${state.result.failed} failed`}>
             {state.result.imported} imported · {state.result.skipped} skipped · {state.result.failed} failed
+          </Text>
+        </Animated.View>
+      )}
+
+      {/* Cancelled — neutral, no retry button */}
+      {state.status === 'cancelled' && (
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <Text
+            style={[styles.resultText, { color: palette.muted }]}
+            accessibilityLabel="Import cancelled">
+            Import cancelled.
           </Text>
         </Animated.View>
       )}
