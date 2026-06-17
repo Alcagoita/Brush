@@ -43,6 +43,12 @@ jest.mock('../../src/services/import', () => ({
   importFromGoogleCalendar: (...args: unknown[]) => mockImportFromGoogleCalendar(...args),
   importFromReminders:      (...args: unknown[]) => mockImportFromReminders(...args),
   importFromCalendar:       (...args: unknown[]) => mockImportFromCalendar(...args),
+  // KAN-92: pass-through wrapper so component tests control connector behaviour directly
+  runImportWithTimeout: (importFn: () => Promise<unknown>) => ({
+    promise:   importFn(),
+    clearTimer: jest.fn(),
+  }),
+  IMPORT_TIMEOUT_ERROR: 'IMPORT_TIMEOUT',
 }));
 
 // ─── Import component (after mocks) ──────────────────────────────────────────
@@ -130,9 +136,9 @@ describe('ImportTasksSection — Android', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
     });
-    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.getByText('Import failed. Tap to retry.')).toBeTruthy();
     expect(screen.queryByText('auth/invalid-credential')).toBeNull();
-    expect(screen.getByText('Tap the button above to retry.')).toBeTruthy();
+    expect(screen.getByText('Tap the button above to try again.')).toBeTruthy();
   });
 
   it('shows a user-friendly error message for non-Error rejections', async () => {
@@ -141,7 +147,7 @@ describe('ImportTasksSection — Android', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
     });
-    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.getByText('Import failed. Tap to retry.')).toBeTruthy();
   });
 
   it('button is accessible again after a successful import', async () => {
@@ -159,6 +165,16 @@ describe('ImportTasksSection — Android', () => {
     });
 
     expect(mockImportFromGoogleTasks).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows distinct timeout message when connector rejects with IMPORT_TIMEOUT (KAN-92)', async () => {
+    mockImportFromGoogleTasks.mockRejectedValueOnce(new Error('IMPORT_TIMEOUT'));
+    renderSection();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
+    });
+    expect(screen.getByText('Import timed out. Check your connection and try again.')).toBeTruthy();
+    expect(screen.queryByText('Import failed. Tap to retry.')).toBeNull();
   });
 
   it('each source button is independent — pressing one does not affect the other', async () => {
@@ -222,7 +238,7 @@ describe('ImportTasksSection — iOS', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Calendar'));
     });
-    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.getByText('Import failed. Tap to retry.')).toBeTruthy();
     expect(screen.queryByText('Permission denied')).toBeNull();
   });
 });

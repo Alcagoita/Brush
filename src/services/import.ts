@@ -25,6 +25,61 @@ import { Linking, Platform } from 'react-native';
 import BrushEventKitModule from '../native/BrushEventKitModule';
 import { ImportResult } from '../types';
 
+// ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
+
+export const IMPORT_TIMEOUT_MS = 30_000;
+
+/**
+ * Sentinel error message used to distinguish a timeout from a general failure.
+ * Check with `err.message === IMPORT_TIMEOUT_ERROR` in catch blocks.
+ */
+export const IMPORT_TIMEOUT_ERROR = 'IMPORT_TIMEOUT';
+
+/**
+ * Races `importFn` against a 30-second hard timeout.
+ * Returns { promise, clearTimer } so callers can cancel the timer on unmount
+ * and avoid the setState-after-unmount warning.
+ */
+export function runImportWithTimeout(importFn: () => Promise<ImportResult>): {
+  promise:   Promise<ImportResult>;
+  clearTimer: () => void;
+} {
+  let timerId: ReturnType<typeof setTimeout>;
+  const clearTimer = () => clearTimeout(timerId);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timerId = setTimeout(
+      () => reject(new Error(IMPORT_TIMEOUT_ERROR)),
+      IMPORT_TIMEOUT_MS,
+    );
+  });
+
+  // Wrap in Promise.resolve().then() so a synchronous throw inside importFn
+  // still triggers .finally(clearTimer) instead of leaking the timer.
+  const importPromise = Promise.resolve().then(importFn);
+  const promise = Promise.race([importPromise, timeoutPromise]).finally(clearTimer);
+  return { promise, clearTimer };
+}
+
+// ─── Idempotency key (KAN-92) ─────────────────────────────────────────────────
+
+/**
+ * Deterministic Firestore doc ID for an imported task.
+ * Two concurrent imports writing the same source+title will resolve to the
+ * same doc ID, making the second write a no-op overwrite instead of a duplicate.
+ *
+ * djb2-variant hash keeps the key short and collision-resistant without a
+ * crypto dependency.
+ */
+export function makeImportDocId(source: string, title: string): string {
+  const normalized = `${source}:${title.toLowerCase().trim()}`;
+  let hash = 5381;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = (((hash << 5) + hash) ^ normalized.charCodeAt(i)) >>> 0;
+  }
+  return `imp_${hash.toString(36)}`;
+}
+
 // ─── Google API helpers ───────────────────────────────────────────────────────
 
 const GOOGLE_TASKS_URL =
@@ -154,7 +209,7 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
 
     try {
       const dueDate = parseGoogleDate(item.due);
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('google_tasks', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
@@ -213,7 +268,7 @@ export async function importFromGoogleCalendar(uid: string): Promise<ImportResul
       if (!startDate) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
@@ -289,7 +344,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
 
     try {
       const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('eventkit_reminders', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
@@ -353,7 +408,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (isNaN(startDate.getTime())) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
