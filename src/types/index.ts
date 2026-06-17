@@ -417,6 +417,8 @@ export interface ImportResult {
   skipped: number;
   /** Tasks that failed to write. */
   failed: number;
+  /** User actively declined the OAuth scope prompt — not an error, no retry needed. */
+  cancelled: number;
 }
 
 // ─── Screen UiState types (KAN-57) ───────────────────────────────────────────
