@@ -310,7 +310,7 @@ Locked, 15 tickets, four tracks + a bug track. All tickets labeled `sprint-10` i
 | Ticket | Track | Status |
 |---|---|---|
 | KAN-92 | A | ✅ Done |
-| KAN-93 | A | To Do |
+| KAN-93 | A | ✅ Done |
 | KAN-94 | A | ✅ Done |
 | KAN-95 | A | To Do |
 | KAN-106 | Bug | To Do |
