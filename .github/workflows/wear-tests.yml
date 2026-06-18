@@ -31,7 +31,7 @@ jobs:
         working-directory: android
 
       - name: Run wear unit tests
-        run: ./gradlew :wear:test --tests "com.brush.wear.*"
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" :wear:test --tests "com.brush.wear.*"
         working-directory: android
 
       - name: Upload test results
