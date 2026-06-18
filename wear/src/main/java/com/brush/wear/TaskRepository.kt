@@ -36,7 +36,8 @@ object TaskRepository {
     private val _tasks = MutableStateFlow<List<WatchTask>>(emptyList())
     val tasks: StateFlow<List<WatchTask>> = _tasks
 
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    // Replaceable for unit tests — production uses Dispatchers.Default.
+    internal var scope: CoroutineScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     // Task IDs where mark-done was sent but DataClient hasn't reconciled yet.
     // ConcurrentHashMap.newKeySet — accessed from UI thread, Default coroutine, and service callbacks.
