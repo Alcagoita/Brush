@@ -17,11 +17,14 @@ import android.content.Context
 import android.util.Log
 import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.Wearable
+import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.atomic.AtomicBoolean
 
 object MarkDoneClient {
 
     private const val PATH = "/brush/mark-done"
-    private val pendingQueue = ArrayDeque<String>()
+    // ConcurrentLinkedDeque — accessed from UI thread, Wearable API callbacks, and service callbacks.
+    private val pendingQueue = ConcurrentLinkedDeque<String>()
 
     /**
      * Send a mark-done message for [taskId] to all connected phone nodes.
@@ -51,6 +54,7 @@ object MarkDoneClient {
     /**
      * Deliver all queued mark-done messages now that the phone is reachable.
      * Called by WearDataListenerService.onPeerConnected().
+     * Uses poll() loop to drain atomically — avoids toList()+clear() race.
      */
     fun flushPendingQueue(context: Context) {
         if (pendingQueue.isEmpty()) return
@@ -58,12 +62,14 @@ object MarkDoneClient {
             Wearable.getNodeClient(context).connectedNodes
                 .addOnSuccessListener { nodes ->
                     if (nodes.isEmpty()) return@addOnSuccessListener
-                    val toSend = pendingQueue.toList()
-                    pendingQueue.clear()
-                    for (taskId in toSend) {
+                    var count = 0
+                    var taskId = pendingQueue.poll()
+                    while (taskId != null) {
                         sendToNodes(context, nodes, taskId)
+                        count++
+                        taskId = pendingQueue.poll()
                     }
-                    Log.d("MarkDoneClient", "Flushed ${toSend.size} queued message(s) on reconnect")
+                    Log.d("MarkDoneClient", "Flushed $count queued message(s) on reconnect")
                 }
         } catch (e: Exception) {
             Log.d("MarkDoneClient", "Wearable API unavailable during flush: ${e.message}")
@@ -71,13 +77,17 @@ object MarkDoneClient {
     }
 
     private fun sendToNodes(context: Context, nodes: List<Node>, taskId: String) {
-        val payload = taskId.toByteArray(Charsets.UTF_8)
+        val payload  = taskId.toByteArray(Charsets.UTF_8)
+        val requeued = AtomicBoolean(false)
         for (node in nodes) {
             Wearable.getMessageClient(context)
                 .sendMessage(node.id, PATH, payload)
                 .addOnFailureListener { e ->
-                    Log.w("MarkDoneClient", "sendMessage to ${node.id} failed, re-queuing $taskId: ${e.message}")
-                    pendingQueue.addLast(taskId)
+                    Log.w("MarkDoneClient", "sendMessage to ${node.id} failed: ${e.message}")
+                    // Re-queue once per send attempt regardless of how many nodes failed.
+                    if (requeued.compareAndSet(false, true)) {
+                        pendingQueue.addLast(taskId)
+                    }
                 }
         }
     }

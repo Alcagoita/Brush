@@ -39,7 +39,8 @@ object TaskRepository {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     // Task IDs where mark-done was sent but DataClient hasn't reconciled yet.
-    private val pendingTaskIds = mutableSetOf<String>()
+    // ConcurrentHashMap.newKeySet — accessed from UI thread, Default coroutine, and service callbacks.
+    private val pendingTaskIds: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
 
     /**
      * Optimistically mark a task done before the phone confirms via DataClient.
