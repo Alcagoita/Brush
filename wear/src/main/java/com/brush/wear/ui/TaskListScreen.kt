@@ -6,9 +6,10 @@
  *
  * Layout:
  *   ScalingLazyColumn (handles round-screen edge scaling automatically)
- *     ├── Title chip  — "My Tasks"
- *     ├── Task rows   — category dot + title, strike-through when done
- *     └── Footer text — "{n} task(s) left" or "All done 🎉"
+ *     ├── [Banner]    — "Phone disconnected" when phone unreachable (KAN-106)
+ *     ├── Title chip  — "Today"
+ *     ├── Task rows   — category dot + title + ⚠ if pendingSync (KAN-106)
+ *     └── Footer text — "{n} left" or "All done ✓"
  *
  * Empty / waiting state: centred "No tasks yet" message.
  *
@@ -39,13 +40,15 @@ import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.items
 import androidx.wear.compose.material.MaterialTheme
 import androidx.wear.compose.material.Text
+import com.brush.wear.ConnectivityRepository
 import com.brush.wear.MarkDoneClient
 import com.brush.wear.TaskRepository
 import com.brush.wear.WatchTask
 
 @Composable
 fun TaskListScreen() {
-    val tasks by TaskRepository.tasks.collectAsState()
+    val tasks          by TaskRepository.tasks.collectAsState()
+    val phoneConnected by ConnectivityRepository.phoneConnected.collectAsState()
 
     BrushWearTheme {
         Box(
@@ -54,34 +57,61 @@ fun TaskListScreen() {
                 .background(MaterialTheme.colors.background),
         ) {
             if (tasks.isEmpty()) {
-                EmptyState()
+                EmptyState(phoneConnected = phoneConnected)
             } else {
-                TaskList(tasks = tasks)
+                TaskList(tasks = tasks, phoneConnected = phoneConnected)
             }
         }
+    }
+}
+
+// ─── Disconnect banner ────────────────────────────────────────────────────────
+
+@Composable
+private fun DisconnectBanner() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colors.surface.copy(alpha = 0.7f))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text  = "Phone disconnected",
+            color = MaterialTheme.colors.onBackground.copy(alpha = 0.6f),
+            style = MaterialTheme.typography.caption2,
+        )
     }
 }
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun EmptyState() {
-    Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center,
+private fun EmptyState(phoneConnected: Boolean) {
+    Column(
+        modifier          = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text  = "No tasks yet",
-                color = MaterialTheme.colors.onBackground,
-                style = MaterialTheme.typography.body1,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text  = "Open Brush on your phone",
-                color = MaterialTheme.colors.onBackground.copy(alpha = 0.5f),
-                style = MaterialTheme.typography.caption2,
-            )
+        if (!phoneConnected) {
+            DisconnectBanner()
+        }
+        Box(
+            modifier          = Modifier.weight(1f),
+            contentAlignment  = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text  = "No tasks yet",
+                    color = MaterialTheme.colors.onBackground,
+                    style = MaterialTheme.typography.body1,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text  = "Open Brush on your phone",
+                    color = MaterialTheme.colors.onBackground.copy(alpha = 0.5f),
+                    style = MaterialTheme.typography.caption2,
+                )
+            }
         }
     }
 }
@@ -89,7 +119,7 @@ private fun EmptyState() {
 // ─── Task list ────────────────────────────────────────────────────────────────
 
 @Composable
-private fun TaskList(tasks: List<WatchTask>) {
+private fun TaskList(tasks: List<WatchTask>, phoneConnected: Boolean) {
     val remaining = tasks.count { !it.done }
     val context   = LocalContext.current
 
@@ -98,6 +128,11 @@ private fun TaskList(tasks: List<WatchTask>) {
         contentPadding      = PaddingValues(horizontal = 8.dp, vertical = 32.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        // ── Disconnect banner ──
+        if (!phoneConnected) {
+            item { DisconnectBanner() }
+        }
+
         // ── Title ──
         item {
             Text(
@@ -176,5 +211,15 @@ private fun TaskRow(task: WatchTask, context: Context) {
             overflow        = TextOverflow.Ellipsis,
             modifier        = Modifier.weight(1f),
         )
+
+        // Pending-sync indicator — shown after 5s without DataClient reconciliation (KAN-106)
+        if (task.pendingSync) {
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text  = "!",
+                color = MaterialTheme.colors.primary.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.caption1,
+            )
+        }
     }
 }
