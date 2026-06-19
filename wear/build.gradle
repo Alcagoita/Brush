@@ -6,7 +6,7 @@ apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
     namespace 'com.brush.wear'
-    compileSdk rootProject.ext.compileSdkVersion
+    compileSdk 36
 
     defaultConfig {
         applicationId 'com.brush.wear'
@@ -53,4 +53,8 @@ dependencies {
 
     // JSON parsing for the task payload
     implementation 'org.json:json:20240303'
+
+    // Unit tests
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3'
 }
