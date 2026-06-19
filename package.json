@@ -40,12 +40,13 @@
     "react-native-contacts": "^7.0.8",
     "react-native-geolocation-service": "^5.3.1",
     "react-native-permissions": "^5.5.1",
-    "react-native-reanimated": "^3.19.5",
-    "react-native-safe-area-context": "^5.5.2",
+    "react-native-reanimated": "4.3.1",
+    "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "^4.25.2",
     "react-native-share-menu": "^4.1.4",
-    "react-native-svg": "^15.15.5",
+    "react-native-svg": "15.15.4",
     "react-native-wear-connectivity": "^0.1.17",
+    "react-native-worklets": "0.8.3",
     "zustand": "^5.0.14"
   },
   "devDependencies": {
@@ -73,9 +74,21 @@
     "jest-circus": "^30.4.2",
     "prettier": "2.8.8",
     "react-test-renderer": "19.2.3",
-    "typescript": "^5.8.3"
+    "typescript": "~6.0.3"
   },
   "engines": {
     "node": ">= 22.11.0"
+  },
+  "expo": {
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "exclude": [
+          "react-native-geolocation-service",
+          "react-native-share-menu",
+          "@notifee/react-native",
+          "expo-modules-jsi"
+        ]
+      }
+    }
   }
 }
