@@ -86,9 +86,6 @@ export interface TodayScreenState {
   showStoreTuningPrompt:    boolean;
   onStoreTuningTurnOn:      () => void;
   onStoreTuningNotNow:      () => void;
-  /** Controls the new-task bottom sheet. */
-  sheetVisible:     boolean;
-  setSheetVisible:  (v: boolean) => void;
   /** Custom categories from Firestore — passed to NewTaskSheet. */
   customCategories: Category[];
   totalTasks:   number;
@@ -112,6 +109,16 @@ export interface TodayScreenState {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const DATA_FETCH_TIMEOUT_MS = 5_000;
+
+/**
+ * DEBUG KILL-SWITCH — disables every background engine on the Today screen:
+ * location permission, outdoor/indoor proximity, store tuning, battery refresh,
+ * wear sync, and the post-completion achievements/challenges work. Only the
+ * one-shot task fetch stays on so the screen still renders. Flip to false to
+ * restore normal behaviour. Used to isolate which "never-stopping" service
+ * locks the JS thread.
+ */
+const DEBUG_DISABLE_BACKGROUND = false;
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
@@ -139,7 +146,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const [totalPoints,     setTotalPoints]     = useState(0);
   const [inboxCount,      setInboxCount]      = useState(0);
-  const [sheetVisible,    setSheetVisible]    = useState(false);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   // Refs so the AppState closure always reads the latest values without
@@ -161,6 +167,8 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   // ── Nearby state ───────────────────────────────────────────────────────────
 
   const [nearbyPoiType,       setNearbyPoiType]       = useState<string | null>(null);
+  /** Mirror of nearbyPoiType for stable callbacks (avoids handleToggle churn). */
+  const nearbyPoiTypeRef = useRef<string | null>(null);
   const [nearbyPlace,         setNearbyPlace]         = useState<NearbyPlace | null>(null);
   const [poiPlaces,           setPoiPlaces]           = useState<PlacesMap>({});
   const [locationUnavailable, setLocationUnavailable] = useState(false);
@@ -171,6 +179,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const [batteryLevel, setBatteryLevel] = useState(hookBatteryLevel);
   useEffect(() => { setBatteryLevel(hookBatteryLevel); }, [hookBatteryLevel]);
   useEffect(() => {
+    if (DEBUG_DISABLE_BACKGROUND) { return; }
     const sub = AppState.addEventListener('change', async (nextState) => {
       if (nextState === 'active') {
         setBatteryLevel(await getBatteryLevel());
@@ -298,12 +307,14 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   // ── Wear OS sync (KAN-35) ──────────────────────────────────────────────────
 
   useEffect(() => {
+    if (DEBUG_DISABLE_BACKGROUND) { return; }
     syncTasksToWatch(tasks);
   }, [tasks]);
 
   // ── Location permission (KAN-53) ──────────────────────────────────────────
 
   useEffect(() => {
+    if (DEBUG_DISABLE_BACKGROUND) { return; }
     if (!uid) { return; }
     requestLocationPermission().then(status => {
       if (status === 'granted') { setPermissionGranted(true); }
@@ -363,6 +374,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   const onNearbyUpdate = useCallback(
     (poiType: string | null, place: import('../services/maps').NearbyPlace | null, allPlaces: PlacesMap) => {
+      nearbyPoiTypeRef.current = poiType;
       setNearbyPoiType(poiType);
       setNearbyPlace(place);
       setPoiPlaces(allPlaces);
@@ -447,6 +459,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         uid,
         tasks,
         (task, place) => {
+          nearbyPoiTypeRef.current = task?.poi ?? null;
           setNearbyPoiType(task?.poi ?? null);
           setNearbyPlace(place);
         },
@@ -481,15 +494,20 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       await setTaskDone(uid, taskId, done);
 
       if (done) {
-        const task = tasks.find(t => t.id === taskId);
+        // Read the latest tasks from the ref — NOT a captured `tasks` dep.
+        // Depending on `tasks` here would give handleToggle a new identity on
+        // every task change, defeating React.memo on every TaskRow and causing
+        // a full-list re-render storm on each proximity tick (KAN-157 follow-up).
+        const current = latestTasksRef.current;
+        const task = current.find(t => t.id === taskId);
         const allOthersDone =
-          tasks.length > 0 &&
-          tasks.filter(t => t.id !== taskId).every(t => t.done);
-        const remainingTaskCount = tasks.filter(
+          current.length > 0 &&
+          current.filter(t => t.id !== taskId).every(t => t.done);
+        const remainingTaskCount = current.filter(
           t => t.id !== taskId && !t.done,
         ).length;
 
-        if (task) {
+        if (task && !DEBUG_DISABLE_BACKGROUND) {
           // Defer achievement + challenge work until after the completion
           // animation / in-flight interactions settle (KAN-157). Previously the
           // heavy Firestore achievements transaction ran concurrently with the
@@ -498,7 +516,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           // achievements here — once the work lands we refresh only the points
           // total for the header badge.
           InteractionManager.runAfterInteractions(() => {
-            evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount, isNearby: !!task.poi && task.poi === nearbyPoiType })
+            evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount, isNearby: !!task.poi && task.poi === nearbyPoiTypeRef.current })
               .then(({ nudgeCandidate }) => {
                 if (nudgeCandidate) {
                   checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
@@ -519,7 +537,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done } : t));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
-  }, [uid, tasks]);
+  }, [uid]);
 
   // ── Store tuning handlers ───────────────────────────────────────────────────
 
@@ -564,8 +582,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     showStoreTuningPrompt: storeTuningState === 'prompt_shown',
     onStoreTuningTurnOn,
     onStoreTuningNotNow,
-    sheetVisible,
-    setSheetVisible,
     customCategories,
     totalTasks,
     doneTasks,

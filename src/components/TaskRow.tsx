@@ -51,6 +51,10 @@ interface TaskRowProps {
 /** Fallback for tasks whose category ID doesn't match any known category. */
 const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
 
+/** DEBUG — strip the react-native-svg pieces (BrushStroke overlay + brush-away
+ *  sweep gradient) to test whether SVG-per-row is what locks the Today screen. */
+const DEBUG_TASKROW_LIGHT = false;
+
 function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategories = [] }: TaskRowProps) {
   const { palette } = useTheme();
   const builtIn = categories[task.category as keyof typeof categories];
@@ -164,6 +168,36 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
     };
   });
 
+  if (DEBUG_TASKROW_LIGHT) {
+    // Fully static interactive row — Pressables wired, ZERO reanimated / onLayout.
+    return (
+      <View style={[styles.row, { borderBottomColor: palette.line }]}>
+        <Pressable onPress={() => onToggle(task.id, !task.done)} hitSlop={8}
+          accessibilityRole="checkbox" accessibilityState={{ checked: task.done }}>
+          <View style={[styles.checkbox, { borderColor: task.done ? palette.faint : palette.text }]}>
+            <Animated.View style={[styles.checkboxFill, { backgroundColor: palette.faint }, fillStyle]} />
+          </View>
+        </Pressable>
+        <Pressable style={styles.body} onPress={onPress ? () => onPress(task) : undefined}>
+          <View style={styles.content}>
+            <Text style={[styles.title, { color: task.done ? palette.muted : palette.text }]} numberOfLines={2}>
+              {task.title}
+            </Text>
+            <View style={styles.chips}>
+              <View style={[styles.catChip, { backgroundColor: cat.color + '1a', borderColor: cat.color + '40' }]}>
+                <Text style={[styles.catLabel, { color: cat.color }]}>{cat.label}</Text>
+              </View>
+              {task.poi && (
+                <PoiChip poi={task.poi} isNearby={task.poi === nearbyPoiType} />
+              )}
+            </View>
+          </View>
+          {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View
       style={[styles.row, { borderBottomColor: palette.line }]}
@@ -207,7 +241,7 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
             {/* Animated brushstroke — replaces text-decoration: line-through.
                 Only mounted when task.done so un-completing causes an instant
                 unmount (no fade-out animation needed per spec). */}
-            {task.done && (
+            {task.done && !DEBUG_TASKROW_LIGHT && (
               <Animated.View
                 pointerEvents="none"
                 style={[styles.strokeOverlay, animatedStrokeStyle]}>
@@ -232,7 +266,7 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
             </View>
 
             {/* POI chip */}
-            {task.poi && (
+            {task.poi && !DEBUG_TASKROW_LIGHT && (
               <PoiChip
                 poi={task.poi}
                 isNearby={task.poi === nearbyPoiType}
@@ -251,7 +285,7 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
       </Pressable>
 
       {/* Brush-away wash — peach gradient sweep L→R on task completion (KAN-134) */}
-      {sweeping && (
+      {sweeping && !DEBUG_TASKROW_LIGHT && (
         <Animated.View
           pointerEvents="none"
           style={[StyleSheet.absoluteFill, { zIndex: 3 }, sweepStyle]}>

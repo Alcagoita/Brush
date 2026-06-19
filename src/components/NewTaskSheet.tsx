@@ -22,9 +22,9 @@ import React, {
   useState,
 } from 'react';
 import {
+  BackHandler,
   Dimensions,
   KeyboardAvoidingView,
-  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -120,7 +120,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     // Rotating title placeholder freezes permanently once the user taps the field (KAN-148).
     const [titleFocused, setTitleFocused] = useState(false);
 
-    const [mounted, setMounted] = useState(false);
     const titleRef = useRef<TextInput>(null);
 
     const onCloseRef      = useRef(onClose);
@@ -150,53 +149,50 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       dragOffset.value = 0;
     }, [dragOffset]);
 
+    // Closing just tells the parent (store) to flip `visible` → the effect below
+    // animates out. The sheet is NEVER unmounted, so its static tree (16 POI
+    // tiles, inputs, pills) is built once on first mount, not rebuilt per open.
+    const handleClose = useCallback(() => { onCloseRef.current(); }, []);
+
     useImperativeHandle(ref, () => ({
-      hide: () => {
-        setMounted(false);
-        resetForm();
-        onCloseRef.current();
-      },
-    }), [resetForm]);
+      hide: () => { onCloseRef.current(); },
+    }), []);
 
     const openAnimation = useCallback(() => {
+      dragOffset.value   = 0;
       translateY.value   = withTiming(0,   { duration: 320, easing: Easing.bezier(0.32, 0.72, 0, 1) });
       scrimOpacity.value = withTiming(0.4, { duration: 250, easing: Easing.linear });
-    }, [translateY, scrimOpacity]);
-
-    const doClose = useCallback(() => {
-      setMounted(false);
-      resetForm();
-      onCloseRef.current();
-    }, [resetForm]);
+    }, [translateY, scrimOpacity, dragOffset]);
 
     const closeAnimation = useCallback(() => {
+      dragOffset.value   = 0;
       scrimOpacity.value = withTiming(0,        { duration: 250, easing: Easing.linear });
       translateY.value   = withTiming(SCREEN_H, { duration: 280, easing: Easing.bezier(0.32, 0.72, 0, 1) });
-      setTimeout(doClose, 300);
-    }, [translateY, scrimOpacity, doClose]);
+    }, [translateY, scrimOpacity, dragOffset]);
 
-    const handleClose = useCallback(() => {
-      dragOffset.value = 0;
-      closeAnimation();
-    }, [closeAnimation, dragOffset]);
-
-    const handleCloseRef = useRef(handleClose);
-    useEffect(() => { handleCloseRef.current = handleClose; }, [handleClose]);
-
+    // Drive the animation off `visible`. On the very first render (closed) we
+    // only set the resting off-screen position — no animation, no form reset.
+    const didMountRef = useRef(false);
     useEffect(() => {
       if (visible) {
-        translateY.value = SCREEN_H;
-        setMounted(true);
+        openAnimation();
+      } else {
+        closeAnimation();
+        if (didMountRef.current) { resetForm(); }
       }
+      didMountRef.current = true;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
+    // Android hardware back closes the sheet while it's open (Modal used to do this).
     useEffect(() => {
-      if (mounted && visible) {
-        openAnimation();
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mounted]);
+      if (!visible) { return; }
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        onCloseRef.current();
+        return true;
+      });
+      return () => sub.remove();
+    }, [visible]);
 
     const panResponder = useMemo(() => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -206,7 +202,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 80 || g.vy > 0.5) {
-          handleCloseRef.current();
+          onCloseRef.current();
         } else {
           dragOffset.value = withSpring(0, { stiffness: 300, damping: 30 });
         }
@@ -234,8 +230,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         });
         evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
-        setMounted(false);
-        resetForm();
+        // Close (store flips visible → effect animates out + resets the form).
         onCloseRef.current();
         onTaskAddedRef.current?.();
       } catch (err) {
@@ -253,20 +248,17 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       }), 80);
     }, [handleClose, uid, title, poi]);
 
-    if (!mounted) { return null; }
-
+    // Always mounted — built once, shown/hidden via transform. `pointerEvents`
+    // goes inert when closed so the off-screen sheet never blocks the screen.
     return (
-      <Modal
-        visible={mounted}
-        transparent
-        animationType="none"
-        statusBarTranslucent
-        onRequestClose={handleClose}>
+      <View
+        style={[StyleSheet.absoluteFill, styles.host]}
+        pointerEvents={visible ? 'box-none' : 'none'}>
 
         {/* ── Scrim ── */}
         <Animated.View
           style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}
-          pointerEvents="box-only">
+          pointerEvents={visible ? 'box-only' : 'none'}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
 
@@ -324,11 +316,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                     maxLength={200}
                     accessibilityLabel={COPY.newTaskSheet.title}
                   />
-                  {/* Rotating example placeholder — hides once focused or once there's a value */}
-                  {!titleFocused && title.length === 0 && (
+                  {/* Rotating example placeholder — hides once focused or once there's a value.
+                      Gated by `visible` so the rotation timer doesn't run while the
+                      always-mounted sheet is closed offscreen. */}
+                  {visible && !titleFocused && title.length === 0 && (
                     <RotatingTitlePlaceholder
                       examples={COPY.newTaskSheet.titleExamples}
-                      active={!titleFocused}
+                      active={visible && !titleFocused}
                       style={[styles.titlePlaceholder, { color: palette.muted }]}
                     />
                   )}
@@ -466,7 +460,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
-      </Modal>
+      </View>
     );
   },
 );
@@ -476,6 +470,11 @@ export default NewTaskSheet;
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Always-mounted overlay host — above TodayScreen (FAB zIndex 5). Inert when
+  // closed via pointerEvents, so it never blocks the screen behind it.
+  host: {
+    zIndex: 50,
+  },
   scrim: {
     backgroundColor: 'rgba(0,0,0,0.4)',
     zIndex: 10,
