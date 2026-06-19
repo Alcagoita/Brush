@@ -45,7 +45,7 @@ jobs:
         working-directory: android
 
       - name: Run wear unit tests
-        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" -PincludeWear :wear:test
+        run: ./gradlew -Dorg.gradle.java.home="$JAVA_HOME" -PincludeWear :wear:testDebugUnitTest
         working-directory: android
 
       - name: Upload test results
