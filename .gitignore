@@ -128,3 +128,6 @@ __pycache__/
 .expo
 dist/
 web-build/
+
+# CodeGraph local index (per-developer, not committed)
+.codegraph/
