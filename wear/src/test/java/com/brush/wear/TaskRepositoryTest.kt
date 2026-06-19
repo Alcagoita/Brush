@@ -25,11 +25,15 @@ package com.brush.wear
 
 import junit.framework.TestCase.assertFalse
 import junit.framework.TestCase.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
@@ -44,6 +48,13 @@ class TaskRepositoryTest {
         // Inject test scope so delay() runs on virtual time, not real time.
         TaskRepository.scope = testScope
         // Reset to a known empty state.
+        TaskRepository.updateFromJson("[]")
+    }
+
+    @After
+    fun tearDown() {
+        // Restore production scope so other tests run in isolation.
+        TaskRepository.scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
         TaskRepository.updateFromJson("[]")
     }
 
