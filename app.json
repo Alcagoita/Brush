@@ -1,7 +1,8 @@
 {
-  "name": "Brush",
-  "displayName": "Brush",
   "expo": {
+    "name": "Brush",
+    "slug": "brush",
+    "platforms": ["ios", "android"],
     "icon": "./assets/icon.png",
     "android": {
       "adaptiveIcon": {

@@ -1,5 +1,16 @@
-pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
-plugins { id("com.facebook.react.settings") }
+pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") 
+  def expoPluginsPath = new File(
+    providers.exec {
+      workingDir(rootDir)
+      commandLine("node", "--print", "require.resolve('expo-modules-autolinking/package.json', { paths: [require.resolve('expo/package.json')] })")
+    }.standardOutput.asText.get().trim(),
+    "../android/expo-gradle-plugin"
+  ).absolutePath
+  includeBuild(expoPluginsPath)
+}
+plugins { id("com.facebook.react.settings") 
+id("expo-autolinking-settings")
+}
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
   // autolinkLibrariesFromCommand takes a List<String> (executable + args).
   // Passing the absolute node path avoids the "npx not found" error that
@@ -18,3 +29,6 @@ if (settings.hasProperty('bundleWear') || settings.hasProperty('includeWear')) {
     project(':wear').projectDir = new File(rootDir, '../wear')
 }
 includeBuild('../node_modules/@react-native/gradle-plugin')
+expoAutolinking.useExpoModules()
+expoAutolinking.useExpoVersionCatalog()
+includeBuild(expoAutolinking.reactNativeGradlePlugin)

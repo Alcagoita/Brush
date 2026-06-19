@@ -123,3 +123,8 @@ vendor/
 __pycache__/
 *.orig
 /tmp/
+
+# Expo
+.expo
+dist/
+web-build/
