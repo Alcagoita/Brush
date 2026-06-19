@@ -16,7 +16,14 @@ import {
   fetchExistingTitles,
   importFromReminders,
   importFromCalendar,
+  runImportWithTimeout,
+  importWithRetry,
+  makeImportDocId,
+  IMPORT_TIMEOUT_MS,
+  IMPORT_TIMEOUT_ERROR,
+  RETRY_DELAYS_MS,
 } from '../../src/services/import';
+import type { ImportResult } from '../../src/types';
 
 // ─── GoogleSignin mock ────────────────────────────────────────────────────────
 
@@ -77,6 +84,162 @@ jest.mock('@react-native-firebase/firestore', () => {
     serverTimestamp: () => 'SERVER_TIMESTAMP',
   };
   return firestoreFn;
+});
+
+// ─── runImportWithTimeout (KAN-92) ────────────────────────────────────────────
+
+describe('runImportWithTimeout', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  it('resolves with the import result when the connector finishes in time', async () => {
+    const result = { imported: 2, skipped: 0, failed: 0 };
+    const { promise } = runImportWithTimeout(() => Promise.resolve(result));
+    await expect(promise).resolves.toEqual(result);
+  });
+
+  it('rejects with IMPORT_TIMEOUT when the connector exceeds IMPORT_TIMEOUT_MS', async () => {
+    const never = new Promise<never>(() => {/* never resolves */});
+    const { promise } = runImportWithTimeout(() => never);
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS);
+    await expect(promise).rejects.toThrow(IMPORT_TIMEOUT_ERROR);
+  });
+
+  it('does not fire the timeout if the connector resolves first', async () => {
+    const result = { imported: 1, skipped: 0, failed: 0 };
+    const { promise } = runImportWithTimeout(() => Promise.resolve(result));
+    await promise;
+    // Advance past timeout window — no unhandled rejection should occur
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
+    // test passes if no unhandled rejection is thrown
+  });
+
+  it('handles a synchronous throw inside importFn without leaking the timer', async () => {
+    const syncThrow: () => Promise<ImportResult> = () => { throw new Error('sync-boom'); };
+    const { promise } = runImportWithTimeout(syncThrow);
+    await expect(promise).rejects.toThrow('sync-boom');
+    // Timer must have been cleared — advancing past IMPORT_TIMEOUT_MS should not throw
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
+  });
+
+  it('clearTimer cancels the timeout so it does not fire after unmount', async () => {
+    const never = new Promise<never>(() => {/* never resolves */});
+    const { promise, clearTimer } = runImportWithTimeout(() => never);
+    clearTimer();
+    jest.advanceTimersByTime(IMPORT_TIMEOUT_MS + 1000);
+    // Promise stays pending (never resolves or rejects) — attach a no-op to avoid leak warning
+    promise.catch(() => {});
+  });
+});
+
+// ─── importWithRetry (KAN-93) ─────────────────────────────────────────────────
+
+describe('importWithRetry', () => {
+  beforeEach(() => { jest.useFakeTimers(); });
+  afterEach(() => { jest.useRealTimers(); });
+
+  const OK: ImportResult = { imported: 1, skipped: 0, failed: 0, cancelled: 0 };
+
+  it('resolves immediately when the first attempt succeeds', async () => {
+    const fn = jest.fn().mockResolvedValue(OK);
+    await expect(importWithRetry(fn)).resolves.toEqual(OK);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries up to 3 times and resolves on the final attempt', async () => {
+    const fn = jest.fn()
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockRejectedValueOnce(new Error('transient'))
+      .mockResolvedValue(OK);
+
+    const promise = importWithRetry(fn);
+    await jest.runAllTimersAsync();
+    await expect(promise).resolves.toEqual(OK);
+    expect(fn).toHaveBeenCalledTimes(4); // 1 initial + 3 retries
+  });
+
+  it('throws after all retries are exhausted', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('always fails'));
+
+    const promise = importWithRetry(fn);
+    void promise.catch(() => {}); // prevent unhandled rejection before assertion
+    await jest.runAllTimersAsync();
+    await expect(promise).rejects.toThrow('always fails');
+    expect(fn).toHaveBeenCalledTimes(4);
+  });
+
+  it('does not retry on 401 auth errors', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('Google API error 401: Unauthorized'));
+    await expect(importWithRetry(fn)).rejects.toThrow('401');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry on 403 auth errors', async () => {
+    const fn = jest.fn().mockRejectedValue(new Error('Google API error 403: Forbidden'));
+    await expect(importWithRetry(fn)).rejects.toThrow('403');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry on EventKit PERMISSION_DENIED errors', async () => {
+    const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
+    const fn = jest.fn().mockRejectedValue(permissionError);
+    await expect(importWithRetry(fn)).rejects.toThrow('denied');
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('returns cancelled result without retrying when result.cancelled > 0', async () => {
+    const cancelled: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 1 };
+    const fn = jest.fn().mockResolvedValue(cancelled);
+    const result = await importWithRetry(fn);
+    expect(result.cancelled).toBe(1);
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls onRetrying with correct attempt and total during backoff', async () => {
+    const fn = jest.fn()
+      .mockRejectedValueOnce(new Error('fail'))
+      .mockResolvedValue(OK);
+    const onRetrying = jest.fn();
+
+    const promise = importWithRetry(fn, onRetrying);
+    await jest.runAllTimersAsync();
+    await promise;
+
+    expect(onRetrying).toHaveBeenCalledWith(1, RETRY_DELAYS_MS.length);
+  });
+});
+
+// ─── makeImportDocId (KAN-92) ─────────────────────────────────────────────────
+
+describe('makeImportDocId', () => {
+  it('returns the same ID for identical source and title', () => {
+    expect(makeImportDocId('google_tasks', 'Buy milk')).toBe(
+      makeImportDocId('google_tasks', 'Buy milk'),
+    );
+  });
+
+  it('is case-insensitive and trims whitespace', () => {
+    expect(makeImportDocId('google_tasks', 'Buy Milk')).toBe(
+      makeImportDocId('google_tasks', '  buy milk  '),
+    );
+  });
+
+  it('returns different IDs for different sources with the same title', () => {
+    expect(makeImportDocId('google_tasks', 'Buy milk')).not.toBe(
+      makeImportDocId('google_calendar', 'Buy milk'),
+    );
+  });
+
+  it('returns different IDs for different titles with the same source', () => {
+    expect(makeImportDocId('google_tasks', 'Buy milk')).not.toBe(
+      makeImportDocId('google_tasks', 'Call dentist'),
+    );
+  });
+
+  it('returns an ID that starts with "imp_"', () => {
+    expect(makeImportDocId('google_tasks', 'any title')).toMatch(/^imp_/);
+  });
 });
 
 // ─── isDuplicate ─────────────────────────────────────────────────────────────

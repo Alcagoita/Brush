@@ -16,17 +16,24 @@
  *   accessibilityLabel — forwarded to the Pressable / View
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import {
   AccessibilityInfo,
-  Animated,
-  Easing,
   Image,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import Animated, {
+  cancelAnimation,
+  Easing,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from '../theme';
 
 const DOT_SIZE = 12; // px — amber brand dot diameter
@@ -46,44 +53,46 @@ interface AvatarProps {
 //   50%      → scale 0.5, opacity 0.45
 
 function PulsingDot({ color }: { color: string }) {
-  const scale   = useRef(new Animated.Value(1)).current;
-  const opacity = useRef(new Animated.Value(1)).current;
+  // Reanimated (UI-thread) — replaces the legacy `Animated` loop. On the New
+  // Architecture the legacy API drove per-frame setNativeProps commits, which
+  // flooded the Fabric ShadowTree and livelocked/crashed the app (KAN-157).
+  const scale   = useSharedValue(1);
+  const opacity = useSharedValue(1);
 
   useEffect(() => {
-    let animation: Animated.CompositeAnimation;
-
+    let active = true;
     AccessibilityInfo.isReduceMotionEnabled().then(reduced => {
-      if (reduced) { return; }
-
-      animation = Animated.loop(
-        Animated.sequence([
-          Animated.parallel([
-            Animated.timing(scale,   { toValue: 0.5,  duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(opacity, { toValue: 0.45, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
-          Animated.parallel([
-            Animated.timing(scale,   { toValue: 1,    duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-            Animated.timing(opacity, { toValue: 1,    duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-          ]),
-        ]),
+      if (reduced || !active) { return; }
+      const duration = 800;
+      const easing   = Easing.inOut(Easing.ease);
+      scale.value = withRepeat(
+        withSequence(withTiming(0.5, { duration, easing }), withTiming(1, { duration, easing })),
+        -1,
       );
-      animation.start();
+      opacity.value = withRepeat(
+        withSequence(withTiming(0.45, { duration, easing }), withTiming(1, { duration, easing })),
+        -1,
+      );
     });
 
-    return () => animation?.stop();
+    return () => {
+      active = false;
+      cancelAnimation(scale);
+      cancelAnimation(opacity);
+    };
   }, [opacity, scale]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+    opacity:   opacity.value,
+  }));
 
   return (
     <Animated.View
       style={[
         styles.dot,
-        {
-          width:           DOT_SIZE,
-          height:          DOT_SIZE,
-          backgroundColor: color,
-          transform:       [{ scale }],
-          opacity,
-        },
+        { width: DOT_SIZE, height: DOT_SIZE, backgroundColor: color },
+        animatedStyle,
       ]}
     />
   );

@@ -55,6 +55,7 @@ jest.mock('@react-native-google-signin/google-signin', () => ({
     getTokens:  (...args: unknown[]) => mockGetTokens(...args),
     configure:  jest.fn(),
   },
+  statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
 }));
 
 // Auto-incrementing doc id stub
@@ -291,6 +292,15 @@ describe('importFromGoogleTasks', () => {
 
     await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('User declined scope');
   });
+
+  it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
+    const cancelErr = Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
+    mockGetTokens.mockRejectedValueOnce(cancelErr);
+    mockGet.mockResolvedValue({ docs: [] });
+
+    const result = await importFromGoogleTasks('uid-1');
+    expect(result).toEqual({ imported: 0, skipped: 0, failed: 0, cancelled: 1 });
+  });
 });
 
 // ─── importFromGoogleCalendar ─────────────────────────────────────────────────
@@ -399,6 +409,15 @@ describe('importFromGoogleCalendar', () => {
     expect(result.imported).toBe(1);
     const setCall = mockBatchSet.mock.calls[0][1];
     expect(setCall.date).toBe('2026-06-20');
+  });
+
+  it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
+    const cancelErr = Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
+    mockGetTokens.mockRejectedValueOnce(cancelErr);
+    mockGet.mockResolvedValue({ docs: [] });
+
+    const result = await importFromGoogleCalendar('uid-1');
+    expect(result).toEqual({ imported: 0, skipped: 0, failed: 0, cancelled: 1 });
   });
 });
 

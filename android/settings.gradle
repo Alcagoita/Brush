@@ -9,10 +9,11 @@ extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
 }
 rootProject.name = 'Brush'
 include ':app'
-// The :wear module is optional — only included when bundleWear=true is passed
-// so wear build issues never block the phone app during development.
+// The :wear module is optional.
+// -PbundleWear: include :wear AND embed via wearApp in :app (Play Store release).
+// -PincludeWear: include :wear in the project graph only (CI unit tests).
 // For Play Store release: ./gradlew bundleRelease -PbundleWear
-if (settings.hasProperty('bundleWear')) {
+if (settings.hasProperty('bundleWear') || settings.hasProperty('includeWear')) {
     include ':wear'
     project(':wear').projectDir = new File(rootDir, '../wear')
 }

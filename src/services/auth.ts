@@ -11,12 +11,11 @@ import {
 } from '@react-native-firebase/auth/lib/modular';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { appleAuth } from '@invertase/react-native-apple-authentication';
+import { GOOGLE_OAUTH_WEB_CLIENT_ID } from '../config/keys';
 
-// Configure Google Sign-In once at module load time.
-// webClientId comes from the OAuth 2.0 client in google-services.json / GoogleService-Info.plist.
 // Scopes added in KAN-84: tasks.readonly and calendar.readonly for the import connectors.
 GoogleSignin.configure({
-  webClientId: '187550770253-p3bb919dl616s1phbl4dj8v1spbtk753.apps.googleusercontent.com',
+  webClientId: GOOGLE_OAUTH_WEB_CLIENT_ID,
   scopes: [
     'https://www.googleapis.com/auth/tasks.readonly',
     'https://www.googleapis.com/auth/calendar.readonly',

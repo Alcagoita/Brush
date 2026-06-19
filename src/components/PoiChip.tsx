@@ -10,16 +10,8 @@
  *   50%     → scale 0.5, opacity 0.45
  */
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { radius } from '../theme/tokens';
 import { placeTypeLabel } from '../services/maps';
@@ -32,35 +24,9 @@ interface PoiChipProps {
   isNearby?: boolean;
 }
 
-/** Pulsing 6 px dot — animates only when rendered (isNearby = true). */
-function PulsingDot({ color }: { color: string }) {
-  const scale   = useSharedValue(1);
-  const opacity = useSharedValue(1);
-
-  useEffect(() => {
-    const cfg = { duration: 800, easing: Easing.inOut(Easing.ease) };
-    // Each withSequence: rest → half → rest = one full 1.6 s cycle
-    scale.value   = withRepeat(
-      withSequence(withTiming(1, cfg), withTiming(0.5, cfg)),
-      -1,
-    );
-    opacity.value = withRepeat(
-      withSequence(withTiming(1, cfg), withTiming(0.45, cfg)),
-      -1,
-    );
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const style = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-    opacity:   opacity.value,
-  }));
-
-  return (
-    <Animated.View
-      style={[styles.dot, { backgroundColor: color }, style]}
-    />
-  );
+/** Static 6 px dot — animation removed (was an infinite reanimated pulse). */
+function StaticDot({ color }: { color: string }) {
+  return <View style={[styles.dot, { backgroundColor: color }]} />;
 }
 
 export default function PoiChip({ poi, isNearby = false }: PoiChipProps) {
@@ -72,7 +38,7 @@ export default function PoiChip({ poi, isNearby = false }: PoiChipProps) {
 
   return (
     <View style={[styles.chip, { backgroundColor: bgColor, borderColor }]}>
-      {isNearby && <PulsingDot color={palette.accent} />}
+      {isNearby && <StaticDot color={palette.accent} />}
       <PoiIcon type={poi} color={textColor} size={12} />
       <Text style={[styles.label, { color: textColor }]}>
         {placeTypeLabel(poi)}

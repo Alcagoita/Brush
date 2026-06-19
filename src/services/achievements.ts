@@ -31,10 +31,13 @@ import { fireAchievementNudge } from './notifications';
 
 // ─── Tier ladder (KAN-129) ────────────────────────────────────────────────────
 
+// Kept for any legacy call sites; canonical ladder is TIERS in constants/tiers.ts
 export const TIER_LADDER = [
-  { name: 'Bronze',   at: 50  },
-  { name: 'Silver',   at: 150 },
-  { name: 'Gold',     at: 350 },
+  { name: 'Bronze',     at: 50   },
+  { name: 'Silver',     at: 200  },
+  { name: 'Gold',       at: 500  },
+  { name: 'Adamantium', at: 1200 },
+  { name: 'Vibranium',  at: 3000 },
 ] as const;
 
 /** Returns the next tier the user hasn't reached yet. */
@@ -65,13 +68,22 @@ export interface AchievementDef {
 }
 
 export const ACHIEVEMENT_DEFS: Record<string, AchievementDef> = {
-  first_brush:  { id: 'first_brush',  label: 'First brush',  desc: 'Brush away your first task',               icon: 'check', points: 5,  target: 1,   repeatable: false },
+  // ── Tin tier (KAN-150) — 50 pts total = Bronze threshold ─────────────────
+  first_task:   { id: 'first_task',   label: 'Off your mind',           desc: 'Add your first task',                            icon: 'check', points: 5,  target: 1,  repeatable: false },
+  first_brush:  { id: 'first_brush',  label: 'First brush',             desc: 'Brush away your first task',                     icon: 'check', points: 10, target: 1,  repeatable: false },
+  right_place:  { id: 'right_place',  label: 'Right place, right time', desc: 'Brush a task while near where it happens',       icon: 'pin',   points: 10, target: 1,  repeatable: false },
+  worth_wait:   { id: 'worth_wait',   label: 'Worth the wait',          desc: 'Brush a task that stuck around for a few days',  icon: 'flame', points: 10, target: 1,  repeatable: false },
+  custom_cat:   { id: 'custom_cat',   label: 'Make it yours',           desc: 'Create a custom category',                       icon: 'star',  points: 5,  target: 1,  repeatable: false },
+  out_about:    { id: 'out_about',    label: 'Out and about',           desc: 'Brush tasks at a few different kinds of places', icon: 'pin',   points: 10, target: 3,  repeatable: false },
+  // ── Legacy V1 (kept for existing user data — no longer awarded to new users)
   early_bird:   { id: 'early_bird',   label: 'Early bird',   desc: 'Brush a task away before 9 AM',            icon: 'sun',   points: 10, target: 1,   repeatable: true  },
   day_complete: { id: 'day_complete', label: 'Day complete', desc: 'Brush away every task in a single day',    icon: 'check', points: 15, target: 1,   repeatable: true  },
   on_a_roll:    { id: 'on_a_roll',    label: 'On a roll',    desc: '3-day brushing streak',                    icon: 'flame', points: 20, target: 3,   repeatable: true  },
   explorer:     { id: 'explorer',     label: 'Explorer',     desc: 'Brush away 10 location-based tasks',       icon: 'pin',   points: 25, target: 10,  repeatable: false },
   centurion:    { id: 'centurion',    label: 'Centurion',    desc: 'Reach 100 achievement points',             icon: 'star',  points: 30, target: 100, repeatable: false },
 } as const;
+
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
 
 // ─── evaluateAchievements ─────────────────────────────────────────────────────
 
@@ -97,7 +109,7 @@ export interface AchievementNudgeCandidate {
 export async function evaluateAchievements(
   uid:  string,
   task: Task,
-  ctx:  { allTasksDone: boolean; remainingTaskCount?: number },
+  ctx:  { allTasksDone: boolean; remainingTaskCount?: number; isNearby?: boolean },
 ): Promise<{ nudgeCandidate: AchievementNudgeCandidate | null }> {
   const db = getFirestore();
   const userDocRef = db.collection('users').doc(uid);
@@ -147,6 +159,36 @@ export async function evaluateAchievements(
     // ── first_brush — any task completion, target 1, non-repeatable ──────────
     if (!(map['first_brush']?.earnCount ?? 0)) {
       tryAward('first_brush', 1);
+    }
+
+    // ── right_place — brushed while physically near the task's POI type ───────
+    if (task.poi && ctx.isNearby && !(map['right_place']?.earnCount ?? 0)) {
+      tryAward('right_place', 1);
+    }
+
+    // ── worth_wait — task created ≥ 3 days ago (KAN-150) ─────────────────────
+    // Note: createdAt is bumped on rollover (KAN-146); for rolled-over tasks
+    // this fires only if the task was created and completed in a single session
+    // spanning ≥3 days without a rollover. Use originalCreatedAt if added later.
+    if (task.createdAt && !(map['worth_wait']?.earnCount ?? 0)) {
+      const ts = task.createdAt as unknown as { toMillis?(): number; seconds?: number };
+      const createdAtMs = typeof ts.toMillis === 'function'
+        ? ts.toMillis()
+        : (ts.seconds ?? 0) * 1000;
+      const ageMs = Date.now() - createdAtMs;
+      if (ageMs >= THREE_DAYS_MS) {
+        tryAward('worth_wait', 1);
+      }
+    }
+
+    // ── out_about — brushed tasks at 3 distinct POI types ────────────────────
+    if (task.poi && !(map['out_about']?.earnCount ?? 0)) {
+      const existing: string[] = data?.brushedPoiTypes ?? [];
+      const updated  = existing.includes(task.poi) ? existing : [...existing, task.poi];
+      if (updated.length !== existing.length) {
+        updates['brushedPoiTypes'] = updated;
+      }
+      tryAward('out_about', updated.length);
     }
 
     // ── early_bird — before 9 AM, repeatable ─────────────────────────────────
@@ -316,6 +358,64 @@ export async function checkAndFireAchievementNudge(
   await fireAchievementNudge({
     achievementId: candidate.achievementId,
     remaining:     candidate.remaining,
+  });
+}
+
+// ─── Tin-tier non-completion triggers (KAN-150) ──────────────────────────────
+
+/**
+ * Call after a successful `addTask`. Awards `first_task` if the user
+ * hasn't added a task before. Idempotent — safe to call on every add.
+ */
+export async function evaluateAddTaskAchievement(uid: string): Promise<void> {
+  const db = getFirestore();
+  const userDocRef = db.collection('users').doc(uid);
+
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(userDocRef);
+    const data = snap.data() as (User & { achievements?: AchievementsMap }) | undefined;
+    const map: AchievementsMap = (data?.achievements ?? {}) as AchievementsMap;
+
+    if ((map['first_task']?.earnCount ?? 0) > 0) { return; }
+
+    const def = ACHIEVEMENT_DEFS['first_task'];
+    tx.update(userDocRef, {
+      [`achievements.first_task`]: {
+        earnedAt:  serverTimestamp(),
+        earnCount: 1,
+        progress:  1,
+        target:    def.target,
+      },
+      totalPoints: increment(def.points),
+    });
+  });
+}
+
+/**
+ * Call after a custom category is successfully saved. Awards `custom_cat`
+ * the first time. Idempotent.
+ */
+export async function evaluateCustomCatAchievement(uid: string): Promise<void> {
+  const db = getFirestore();
+  const userDocRef = db.collection('users').doc(uid);
+
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(userDocRef);
+    const data = snap.data() as (User & { achievements?: AchievementsMap }) | undefined;
+    const map: AchievementsMap = (data?.achievements ?? {}) as AchievementsMap;
+
+    if ((map['custom_cat']?.earnCount ?? 0) > 0) { return; }
+
+    const def = ACHIEVEMENT_DEFS['custom_cat'];
+    tx.update(userDocRef, {
+      [`achievements.custom_cat`]: {
+        earnedAt:  serverTimestamp(),
+        earnCount: 1,
+        progress:  1,
+        target:    def.target,
+      },
+      totalPoints: increment(def.points),
+    });
   });
 }
 

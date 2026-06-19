@@ -46,6 +46,8 @@ export interface User {
   totalPoints?: number;
   /** Current consecutive-day task streak. Updated by streak logic. */
   currentStreak?: number;
+  /** Distinct POI types at which the user has brushed at least one task (KAN-150). */
+  brushedPoiTypes?: string[];
   /**
    * Achievement progress and earn state, keyed by AchievementType (KAN-129).
    * Embedded on the user doc — replaces the old achievements subcollection.
@@ -263,7 +265,14 @@ export type PointsReason =
  * `challenge_winner` is kept for the social challenge flow (KAN-104).
  */
 export type AchievementType =
+  // ── Tin tier — KAN-150 ────────────────────────────────────────────────────
+  | 'first_task'       // Add your first task
   | 'first_brush'      // Brush away your first task
+  | 'right_place'      // Brush a task while near its POI type
+  | 'worth_wait'       // Brush a task that waited at least 3 days
+  | 'custom_cat'       // Create a custom category
+  | 'out_about'        // Brush tasks at 3 distinct POI types
+  // ── Legacy V1 (kept for existing user data) ───────────────────────────────
   | 'early_bird'       // Brush a task away before 9 AM
   | 'day_complete'     // Brush away every task in a single day
   | 'on_a_roll'        // 3-day brushing streak
@@ -408,6 +417,8 @@ export interface ImportResult {
   skipped: number;
   /** Tasks that failed to write. */
   failed: number;
+  /** User actively declined the OAuth scope prompt — not an error, no retry needed. */
+  cancelled: number;
 }
 
 // ─── Screen UiState types (KAN-57) ───────────────────────────────────────────

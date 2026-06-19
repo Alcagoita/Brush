@@ -15,6 +15,22 @@
         { "fieldPath": "done", "order": "ASCENDING" },
         { "fieldPath": "poi",  "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "done", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "tasks",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "done", "order": "ASCENDING" },
+        { "fieldPath": "date", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

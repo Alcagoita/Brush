@@ -27,7 +27,7 @@
  * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
@@ -42,6 +42,7 @@ import { PlusIcon } from '../components/AppIcon';
 import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import Animated, {
   cancelAnimation,
+  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
@@ -54,7 +55,6 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import type { SharedValue } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
@@ -65,7 +65,8 @@ import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import NearbyCard from '../components/NearbyCard';
-import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
+import NewTaskSheetHost from '../components/NewTaskSheetHost';
+import { useNewTaskSheetStore } from '../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
@@ -73,13 +74,11 @@ import { COPY } from '../constants/copy';
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
 const SCREEN_W = Dimensions.get('window').width;
-const SCREEN_H = Dimensions.get('window').height;
 const SCROLL_RANGE = 170; // SECTION_H_REST − SECTION_H_COLLAPSED (declared below)
 
 const RING_REST      = 246;
 const RING_COLLAPSED = 112;
 const STROKE_REST      = 14;
-const STROKE_COLLAPSED = 10;
 const RING_LEFT_REST      = (SCREEN_W - RING_REST) / 2;
 const RING_LEFT_COLLAPSED = 22;
 
@@ -88,11 +87,21 @@ const SECTION_H_COLLAPSED = 150;
 const RING_TOP_REST      = (SECTION_H_REST      - RING_REST)      / 2;
 const RING_TOP_COLLAPSED = (SECTION_H_COLLAPSED - RING_COLLAPSED) / 2;
 
-// Caption fades over k 0→0.625 (scrollY 0→106)
-const CAPTION_FADE_END = SCROLL_RANGE * 0.625;
-// Counter fades in over k 0.45→0.91 (scrollY 76.5→154.7)
-const COUNTER_FADE_START = SCROLL_RANGE * 0.45;
-const COUNTER_FADE_END   = SCROLL_RANGE * 0.91;
+// ── 2-state collapse (KAN-157) ──────────────────────────────────────────────────
+// Two positions only: rest (scroll 0 → 60%) and collapsed (60 → 100%). A single
+// `collapseT` (0↔1) animates between them on the UI thread; everything is a
+// composite-only transform/opacity interpolation of it.
+const COLLAPSE_THRESHOLD = 0.6; // fraction of SCROLL_RANGE that triggers collapse
+
+/**
+ * DEBUG bisect toggles for the Today scroll block. Add parts back one at a time
+ * to isolate what locks the screen. Restore by setting all three true.
+ */
+const DEBUG_SHOW_LIST    = true;  // the FlatList of TaskRows
+const DEBUG_SHOW_NEARBY  = true;  // the NearbyCard (list header)
+const DEBUG_SHOW_RING    = true;  // the collapsible ring overlay
+const DEBUG_SIMPLE_ROWS  = false; // render dumb <Text> rows instead of <TaskRow>
+const DEBUG_MINIMAL = !DEBUG_SHOW_LIST && !DEBUG_SHOW_RING;
 
 // ─── Empty-state message set (KAN-139) ───────────────────────────────────────
 
@@ -165,8 +174,6 @@ export default function TodayScreen() {
     showStoreTuningPrompt,
     onStoreTuningTurnOn,
     onStoreTuningNotNow,
-    sheetVisible,
-    setSheetVisible,
     customCategories,
     totalTasks,
     doneTasks,
@@ -175,30 +182,22 @@ export default function TodayScreen() {
     totalPoints,
     inboxCount,
     handleToggle,
+    permissionGranted,
+    refreshProximity,
+    locationUnavailable,
   } = useTodayScreen(uid);
 
-  // ── Sheet ref + auto-close on new task ────────────────────────────────────────
-  // Kept in the screen because sheetRef is a UI element ref, not data state.
-  const sheetRef        = useRef<NewTaskSheetHandle>(null);
-  const prevTasksLenRef = useRef(0);
-
-  useEffect(() => {
-    if (sheetVisible && tasks.length > prevTasksLenRef.current) {
-      sheetRef.current?.hide();
-    }
-    prevTasksLenRef.current = tasks.length;
-  }, [tasks, sheetVisible]);
+  // ── New Task sheet open trigger ───────────────────────────────────────────────
+  // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is
+  // read via getState() (no subscription) so opening never re-renders this
+  // screen; the sheet itself is rendered by NewTaskSheetHost which subscribes.
+  const openSheet = useCallback(() => useNewTaskSheetStore.getState().open(), []);
 
   // ── Date display ──────────────────────────────────────────────────────────────
   const now     = new Date();
   const weekday = WEEKDAYS[now.getDay()];
   const month   = MONTHS[now.getMonth()];
   const day     = now.getDate();
-
-  // ── ScrollView viewport height (for minHeight calculation) ───────────────────
-  // Measured via onLayout so the content is always tall enough to allow the
-  // full SCROLL_RANGE (170px) of scroll, even with very few tasks.
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
 
   // ── Reanimated scroll value ───────────────────────────────────────────────────
   const scrollY = useSharedValue(0);
@@ -209,63 +208,195 @@ export default function TodayScreen() {
     },
   });
 
-  // ── Derived values (UI thread) ────────────────────────────────────────────────
-  const ringSize: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_REST, RING_COLLAPSED], Extrapolation.CLAMP),
+  // ── 2-state collapse (KAN-157) ────────────────────────────────────────────────
+  // A single `collapseT` (0 = rest, 1 = collapsed) animates between the two
+  // positions, entirely on the UI thread (withTiming inside a derived value),
+  // ONLY when the scroll crosses the 60% threshold. No JS round-trip, no
+  // per-frame layout — every dependent style below is a composite-only
+  // transform/opacity interpolation of collapseT.
+  const collapseT = useDerivedValue(() =>
+    withTiming(scrollY.value >= SCROLL_RANGE * COLLAPSE_THRESHOLD ? 1 : 0, {
+      duration: 240,
+      easing: Easing.inOut(Easing.cubic),
+    }),
   );
-  const ringStroke: SharedValue<number> = useDerivedValue(() =>
-    interpolate(scrollY.value, [0, SCROLL_RANGE], [STROKE_REST, STROKE_COLLAPSED], Extrapolation.CLAMP),
+
+  // `collapsed` mirrors the state in JS — used only for caption pointerEvents and
+  // the one-shot haptic. The animation itself never touches JS.
+  const [collapsed, setCollapsed] = useState(false);
+  useAnimatedReaction(
+    () => scrollY.value >= SCROLL_RANGE * COLLAPSE_THRESHOLD,
+    (isCollapsed, prev) => {
+      if (isCollapsed !== prev) {
+        runOnJS(setCollapsed)(isCollapsed);
+        if (isCollapsed) { runOnJS(Vibration.vibrate)(Platform.OS === 'android' ? 10 : 1); }
+      }
+    },
   );
+
+  const ringWrapStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: interpolate(collapseT.value, [0, 1], [0, RING_LEFT_COLLAPSED - RING_LEFT_REST]) },
+      { translateY: interpolate(collapseT.value, [0, 1], [0, RING_TOP_COLLAPSED - RING_TOP_REST]) },
+      { scale:      interpolate(collapseT.value, [0, 1], [1, RING_COLLAPSED / RING_REST]) },
+    ],
+  }));
+  const bgStyle = useAnimatedStyle(() => ({
+    transform: [{ scaleY: interpolate(collapseT.value, [0, 1], [1, SECTION_H_COLLAPSED / SECTION_H_REST]) }],
+  }));
+  const captionStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(collapseT.value, [0, 0.5], [1, 0], Extrapolation.CLAMP),
+  }));
+  const collapsedStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(collapseT.value, [0.5, 1], [0, 1], Extrapolation.CLAMP),
+  }));
 
   // ── Progress counters ─────────────────────────────────────────────────────────
   const pct       = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
   const remaining = totalTasks - doneTasks;
 
   // ── Task display order: undone first, done at bottom ─────────────────────────
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (a.done === b.done) { return 0; }
-    return a.done ? 1 : -1;
-  });
+  // Memoized so a nearby-data change (which leaves `tasks` untouched) doesn't
+  // produce a new array identity and re-render every memoized TaskRow (KAN-156).
+  const sortedTasks = useMemo(
+    () => [...tasks].sort((a, b) => {
+      if (a.done === b.done) { return 0; }
+      return a.done ? 1 : -1;
+    }),
+    [tasks],
+  );
+
+  // Stable row-press handler — an inline arrow here would change identity every
+  // render and defeat React.memo on TaskRow.
+  const handleTaskPress = useCallback(
+    (t: typeof tasks[number]) => navigation.navigate('TaskForm', { uid: uid ?? '', task: t }),
+    [navigation, uid],
+  );
 
   // ── Empty state flag ──────────────────────────────────────────────────────────
   const isEmpty = !isLoading && !error && tasks.length === 0;
 
-  // ── Animated styles (UI thread) ───────────────────────────────────────────────
-  // bgStyle drives the inner background only — the outer ring container has a
-  // fixed height so animating it never triggers a native layout pass.
-  const bgStyle = useAnimatedStyle(() => ({
-    height: interpolate(scrollY.value, [0, SCROLL_RANGE], [SECTION_H_REST, SECTION_H_COLLAPSED], Extrapolation.CLAMP),
-  }));
-
-  const ringWrapStyle = useAnimatedStyle(() => ({
-    position: 'absolute' as const,
-    left: interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_LEFT_REST, RING_LEFT_COLLAPSED], Extrapolation.CLAMP),
-    top:  interpolate(scrollY.value, [0, SCROLL_RANGE], [RING_TOP_REST,  RING_TOP_COLLAPSED],  Extrapolation.CLAMP),
-  }));
-
-  const captionStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [0, CAPTION_FADE_END], [1, 0], Extrapolation.CLAMP),
-  }));
-
-  // Both the compact ring caption and the progress panel fade in together.
-  const counterStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(scrollY.value, [COUNTER_FADE_START, COUNTER_FADE_END], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  // ── Haptic feedback at full collapse ──────────────────────────────────────────
-  const hapticFired = useSharedValue(false);
-  useAnimatedReaction(
-    () => scrollY.value >= SCROLL_RANGE,
-    (isCollapsed) => {
-      if (isCollapsed && !hapticFired.value) {
-        hapticFired.value = true;
-        runOnJS(Vibration.vibrate)(Platform.OS === 'android' ? 10 : 1);
-      }
-      if (!isCollapsed) {
-        hapticFired.value = false;
-      }
-    },
+  // ── Virtualized task list (KAN-157 follow-up) ─────────────────────────────────
+  // Post-rollover (KAN-146) the Today list can hold every undone task carried
+  // forward from past days — potentially dozens. Rendering them all eagerly in a
+  // .map() inside a ScrollView meant every proximity tick re-rendered the whole
+  // animation-heavy list, saturating the JS thread (buttons dead). FlatList
+  // virtualizes: only on-screen rows mount, and stable props keep React.memo
+  // intact so a location update never re-renders rows it didn't change.
+  const renderTask = useCallback(
+    ({ item }: { item: typeof tasks[number] }) => (
+      DEBUG_SIMPLE_ROWS ? (
+        <View style={styles.rowPad}>
+          <Text style={{ color: palette.text, paddingVertical: 14 }}>{item.title}</Text>
+        </View>
+      ) : (
+      <View style={styles.rowPad}>
+        <TaskRow
+          task={item}
+          // Narrow the prop: only the matching row ever sees a non-null type, so
+          // every other row keeps a stable `null` across location ticks and its
+          // memo holds (no re-render).
+          nearbyPoiType={item.poi && item.poi === nearbyPoiType ? nearbyPoiType : null}
+          onToggle={handleToggle}
+          onPress={handleTaskPress}
+          customCategories={customCategories}
+        />
+      </View>
+      )
+    ),
+    [nearbyPoiType, handleToggle, handleTaskPress, customCategories, palette.text],
   );
+
+  const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
+
+  const listHeader = useMemo(() => (
+    <>
+      {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
+      {DEBUG_SHOW_NEARBY && (
+      <NearbyCard
+        tasks={sortedTasks}
+        nearbyPoiType={nearbyPoiType}
+        nearbyPlace={nearbyPlace}
+        poiPlaces={poiPlaces}
+        storeTuningActive={storeTuningActive}
+      />
+      )}
+
+      {/* ── Location status row ── */}
+      {permissionGranted && nearbyCount > 0 && !nearbyPoiType && !isLoading && (
+        locationUnavailable ? (
+          <View style={[styles.locationErrorRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+            <Text style={[styles.locationErrorText, { color: palette.muted }]}>
+              Location unavailable. Turn on GPS to see nearby places.
+            </Text>
+            <Pressable
+              onPress={refreshProximity}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Retry location">
+              <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={refreshProximity}
+            hitSlop={{ top: 6, bottom: 6 }}
+            style={[styles.refreshRow, { borderBottomColor: palette.line }]}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh location">
+            <Text style={[styles.refreshLabel, { color: palette.muted }]}>
+              Refresh location
+            </Text>
+          </Pressable>
+        )
+      )}
+
+      {/* ── Task list section header ── */}
+      <View style={[styles.sectionHeaderBlock, { borderTopColor: palette.line }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: palette.muted }]}>
+            {`TODAY · `}
+            <Text style={[styles.sectionTitleCount, { color: palette.text }]}
+              accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
+              {`${doneTasks}/${totalTasks}`}
+            </Text>
+          </Text>
+          {remaining > 0 && (
+            <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
+              {`${remaining} left`}
+            </Text>
+          )}
+        </View>
+      </View>
+    </>
+  ), [
+    sortedTasks, nearbyPoiType, nearbyPlace, poiPlaces, storeTuningActive,
+    permissionGranted, nearbyCount, isLoading, locationUnavailable,
+    refreshProximity, palette, doneTasks, totalTasks, remaining,
+  ]);
+
+  const listEmpty = isLoading ? (
+    <View style={styles.rowPad}>
+      {[0, 1, 2].map(i => (
+        <SkeletonRow key={i} index={i} faint={palette.faint} />
+      ))}
+    </View>
+  ) : error ? (
+    <View style={[styles.rowPad, styles.errorWrap]}>
+      <Text
+        style={[styles.empty, { color: palette.muted }]}
+        accessibilityRole="alert">
+        {error}
+      </Text>
+      <Pressable
+        onPress={refresh}
+        style={[styles.retryBtn, { borderColor: palette.line }]}
+        accessibilityRole="button"
+        accessibilityLabel="Try again">
+        <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+      </Pressable>
+    </View>
+  ) : null;
 
   // ─── Render ──────────────────────────────────────────────────────────────────
 
@@ -288,9 +419,10 @@ export default function TodayScreen() {
       </View>
 
       {/* ── Scroll area — ring section overlaid on content ── */}
+      {(DEBUG_SHOW_LIST || DEBUG_SHOW_RING) && (
       <View style={styles.scrollArea}>
 
-        {isEmpty ? (
+        {DEBUG_SHOW_LIST && (isEmpty ? (
           /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
           <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
             <ScrRotatingNudge messages={EMPTY_MESSAGES} pace={5} showCategoryIcon />
@@ -301,7 +433,7 @@ export default function TodayScreen() {
                   { backgroundColor: palette.accent },
                   pressed && styles.emptyCTABtnPressed,
                 ]}
-                onPress={() => setSheetVisible(true)}
+                onPress={openSheet}
                 accessibilityRole="button"
                 accessibilityLabel="Add something">
                 <PlusIcon color={palette.text} size={20} />
@@ -322,99 +454,43 @@ export default function TodayScreen() {
             section collapses by SCROLL_RANGE (170px), content scrolls up the
             same distance — they stay in perfect alignment throughout.
           */
-          <Animated.ScrollView
+          <Animated.FlatList
             style={StyleSheet.absoluteFill}
             contentContainerStyle={[
               styles.scrollContent,
-              {
-                backgroundColor: palette.bg,
-                minHeight: (scrollViewHeight || SCREEN_H) + SCROLL_RANGE,
-              },
+              { backgroundColor: palette.bg },
             ]}
+            data={isLoading || error ? [] : sortedTasks}
+            renderItem={renderTask}
+            keyExtractor={keyExtractor}
+            ListHeaderComponent={listHeader}
+            ListEmptyComponent={listEmpty}
+            ListFooterComponent={<View style={styles.bottomPad} />}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
-            onLayout={e => setScrollViewHeight(e.nativeEvent.layout.height)}
-            onScroll={scrollHandler}>
-
-            {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
-            <NearbyCard
-              tasks={sortedTasks}
-              nearbyPoiType={nearbyPoiType}
-              nearbyPlace={nearbyPlace}
-              poiPlaces={poiPlaces}
-              storeTuningActive={storeTuningActive}
-            />
-
-            {/* ── Task list ── */}
-            <View style={[styles.section, { borderTopColor: palette.line }]}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: palette.muted }]}>
-                  {`TODAY · `}
-                  <Text style={[styles.sectionTitleCount, { color: palette.text }]}
-                    accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
-                    {`${doneTasks}/${totalTasks}`}
-                  </Text>
-                </Text>
-                {remaining > 0 && (
-                  <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
-                    {`${remaining} left`}
-                  </Text>
-                )}
-              </View>
-
-              {isLoading ? (
-                [0, 1, 2].map(i => (
-                  <SkeletonRow key={i} index={i} faint={palette.faint} />
-                ))
-              ) : error ? (
-                <View style={styles.errorWrap}>
-                  <Text
-                    style={[styles.empty, { color: palette.muted }]}
-                    accessibilityRole="alert">
-                    {error}
-                  </Text>
-                  <Pressable
-                    onPress={refresh}
-                    style={[styles.retryBtn, { borderColor: palette.line }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Try again">
-                    <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                sortedTasks.map(task => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    nearbyPoiType={nearbyPoiType}
-                    onToggle={handleToggle}
-                    onPress={t => navigation.navigate('TaskForm', { uid: uid ?? '', task: t })}
-                    customCategories={customCategories}
-                  />
-                ))
-              )}
-            </View>
-
-            <View style={styles.bottomPad} />
-          </Animated.ScrollView>
-        )}
+            onScroll={scrollHandler}
+            removeClippedSubviews
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+          />
+        ))}
 
         {/* ── Collapsible ring section — absolutely positioned ON TOP of content ── */}
         {/*                                                                         */}
-        {/* ARCHITECTURE: outer container has a FIXED height (never animates).     */}
-        {/* Only the inner ringBg child animates its height — because it is        */}
-        {/* position:absolute it does not affect sibling layout and never triggers */}
-        {/* a native layout pass. This eliminates the touch-blocking glitch that   */}
-        {/* occurred when animating layout properties on the outer container.      */}
+        {/* 3-STATE SNAP (KAN-157): the header has three fixed layouts (rest /      */}
+        {/* middle / collapsed) selected by `stage`. Nothing animates per frame —   */}
+        {/* a stage change swaps to a different set of STATIC styles. This removes  */}
+        {/* the per-frame layout/commit work that froze the thread on scroll.       */}
         {/*                                                                         */}
         {/* pointerEvents="box-none" lets scroll gestures pass through to the      */}
-        {/* ScrollView while still allowing the day-number Pressable to work.      */}
-        {/* The SVG ring and background have explicit "none" so they never block.  */}
+        {/* ScrollView while still allowing the day-number Pressable to work.       */}
+        {DEBUG_SHOW_RING && (
         <View
           pointerEvents="box-none"
           style={styles.ringSection}>
 
-          {/* Background fill + bottom border — only this animates height */}
+          {/* Background fill + bottom border — collapses via scaleY (composite) */}
           <Animated.View
             pointerEvents="none"
             style={[
@@ -424,17 +500,19 @@ export default function TodayScreen() {
             ]}
           />
 
-          {/* Ring — absolutely positioned within section, animates left/top/size */}
-          <Animated.View style={ringWrapStyle} pointerEvents="none">
+          {/* Ring — rendered once at rest size; scaled/translated per stage */}
+          <Animated.View style={[styles.ringWrap, ringWrapStyle]} pointerEvents="none">
             <ProgressRing
               progress={progress}
-              diameter={ringSize}
-              strokeWidth={ringStroke}
+              diameter={RING_REST}
+              strokeWidth={STROKE_REST}
             />
           </Animated.View>
 
-          {/* Caption — fades out over k 0→0.625 */}
-          <Animated.View style={[styles.captionWrap, captionStyle]} pointerEvents="box-none">
+          {/* Full caption — fades out as the header collapses */}
+          <Animated.View
+            style={[styles.captionWrap, captionStyle]}
+            pointerEvents={collapsed ? 'none' : 'box-none'}>
             <Text style={[styles.captionLabel, { color: palette.muted }]}>
               {weekday.toUpperCase()}
             </Text>
@@ -459,10 +537,8 @@ export default function TodayScreen() {
             )}
           </Animated.View>
 
-          {/* Compact ring caption — fades in with the progress panel */}
-          <Animated.View
-            style={[styles.ringCaption, counterStyle]}
-            pointerEvents="none">
+          {/* Compact caption — fades in when collapsed */}
+          <Animated.View style={[styles.ringCaption, collapsedStyle]} pointerEvents="none">
             <Text style={[styles.ringCaptionDay3, { color: palette.muted }]}>
               {weekday.slice(0, 3).toUpperCase()}
             </Text>
@@ -474,9 +550,9 @@ export default function TodayScreen() {
             </Text>
           </Animated.View>
 
-          {/* Progress panel — fades in over k 0.45→0.91 */}
+          {/* Progress panel — fades in when collapsed */}
           <Animated.View
-            style={[styles.progressWrap, counterStyle]}
+            style={[styles.progressWrap, collapsedStyle]}
             accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}
             accessibilityRole="text"
             pointerEvents="none">
@@ -497,30 +573,32 @@ export default function TodayScreen() {
             </Text>
           </Animated.View>
         </View>
+        )}
 
       </View>
+      )}
 
       {/* ── Add-task FAB (KAN-51) — hidden on empty state (CTA replaces it) ── */}
-      {!isEmpty && (
+      {(!isEmpty || DEBUG_MINIMAL) && (
         <Pressable
           style={({ pressed }) => [
             styles.fab,
             { backgroundColor: palette.accent },
             pressed && styles.fabPressed,
           ]}
-          onPress={() => setSheetVisible(true)}
+          onPress={openSheet}
           accessibilityRole="button"
           accessibilityLabel="Add task">
-          <PlusIcon color="#FFFFFF" size={24} />
+          <PlusIcon color={palette.onAccent} size={24} />
         </Pressable>
       )}
 
       {/* ── New-task bottom sheet (KAN-51) ── */}
-      <NewTaskSheet
-        ref={sheetRef}
-        visible={sheetVisible}
+      {/* Rendered through a store-subscribed host so open/close never re-renders
+          TodayScreen — only the host re-renders on a visibility toggle. */}
+      <NewTaskSheetHost
         uid={uid ?? ''}
-        onClose={() => setSheetVisible(false)}
+        onTaskAdded={refresh}
         customCategories={customCategories}
       />
 
@@ -532,7 +610,7 @@ export default function TodayScreen() {
       />
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ── */}
-      {isLoading && (
+      {isLoading && !DEBUG_MINIMAL && (
         <View style={styles.loadingOverlay} pointerEvents="box-only">
           <ActivityIndicator size="large" color={palette.accent} />
         </View>
@@ -580,7 +658,15 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
+    height: SECTION_H_REST,      // fixed; collapse is a scaleY transform
+    transformOrigin: 'top',
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  ringWrap: {
+    position: 'absolute',
+    left: RING_LEFT_REST,        // fixed rest position; stage moves it via translate
+    top: RING_TOP_REST,
+    transformOrigin: 'top left', // scale shrinks toward the top-left corner
   },
   captionWrap: {
     position: 'absolute',
@@ -683,11 +769,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     marginTop: 3,
   },
-  section: {
+  sectionHeaderBlock: {
     marginTop: 24,
     paddingHorizontal: spacing.page,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 20,
+  },
+  // Per-row horizontal padding — replaces the wrapping `section` View now that
+  // rows are FlatList items rather than children of a single padded container.
+  rowPad: {
+    paddingHorizontal: spacing.page,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -730,6 +821,38 @@ const styles = StyleSheet.create({
     fontSize:   14,
     fontFamily: 'Geist-Regular',
   },
+  refreshRow: {
+    paddingHorizontal: spacing.page,
+    paddingVertical:   10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    alignItems:        'flex-end',
+  },
+  refreshLabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+  locationErrorRow: {
+    marginHorizontal: spacing.page,
+    marginBottom:     12,
+    paddingHorizontal: 14,
+    paddingVertical:   12,
+    borderRadius:     radius.card,
+    borderWidth:      StyleSheet.hairlineWidth,
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              12,
+  },
+  locationErrorText: {
+    flex:       1,
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+    lineHeight: 18,
+  },
+  locationRetryLabel: {
+    fontSize:   13,
+    fontFamily: 'Geist-SemiBold',
+    fontWeight: '600',
+  },
   // ── Skeleton ──
   skeletonRow: {
     flexDirection: 'row',
@@ -749,7 +872,8 @@ const styles = StyleSheet.create({
   },
   // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (170px)
   // even with a short task list.
-  bottomPad: { height: 220 },
+  // Clears the floating add-task FAB at the end of the list.
+  bottomPad: { height: 96 },
   // ── Empty state CTA ──
   emptyCTAWrap: {
     paddingHorizontal: spacing.page,
@@ -789,11 +913,6 @@ const styles = StyleSheet.create({
     borderRadius:   18,
     alignItems:     'center',
     justifyContent: 'center',
-    shadowColor:   '#e8a86a',
-    shadowOffset:  { width: 0, height: 6 },
-    shadowOpacity: 0.45,
-    shadowRadius:  18,
-    elevation:      8,
   },
   fabPressed: {
     transform: [{ scale: 0.96 }],

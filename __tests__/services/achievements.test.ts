@@ -96,11 +96,16 @@ import {
   getNextTier,
   ACHIEVEMENT_DEFS,
   evaluateAchievements,
+  evaluateAddTaskAchievement,
+  evaluateCustomCatAchievement,
   awardChallengeWinnerAchievement,
 } from '../../src/services/achievements';
 import type { Task } from '../../src/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const NOW_SECONDS = Math.floor(Date.now() / 1000);
+const THREE_DAYS_AGO_SECONDS = NOW_SECONDS - (3 * 24 * 60 * 60 + 60); // 3 days + 1 min
 
 const BASE_TASK: Task = {
   id:        'task-1',
@@ -108,7 +113,7 @@ const BASE_TASK: Task = {
   category:  'errands',
   done:      true,
   date:      '2026-06-07',
-  createdAt: {} as any,
+  createdAt: { seconds: NOW_SECONDS, nanoseconds: 0 } as any,
 };
 
 function makeUserSnap(overrides: Record<string, unknown> = {}) {
@@ -148,11 +153,13 @@ beforeEach(() => {
 // ─── TIER_LADDER ──────────────────────────────────────────────────────────────
 
 describe('TIER_LADDER', () => {
-  it('has three tiers: Bronze@50, Silver@150, Gold@350', () => {
+  it('has five tiers: Bronze@50 → Silver@200 → Gold@500 → Adamantium@1200 → Vibranium@3000', () => {
     expect(TIER_LADDER).toEqual([
-      { name: 'Bronze', at: 50  },
-      { name: 'Silver', at: 150 },
-      { name: 'Gold',   at: 350 },
+      { name: 'Bronze',     at: 50   },
+      { name: 'Silver',     at: 200  },
+      { name: 'Gold',       at: 500  },
+      { name: 'Adamantium', at: 1200 },
+      { name: 'Vibranium',  at: 3000 },
     ]);
   });
 });
@@ -169,31 +176,44 @@ describe('getNextTier', () => {
   it('returns Silver for exactly 50 points', () => {
     expect(getNextTier(50).name).toBe('Silver');
   });
-  it('returns Silver for 149 points', () => {
-    expect(getNextTier(149).name).toBe('Silver');
+  it('returns Silver for 199 points', () => {
+    expect(getNextTier(199).name).toBe('Silver');
   });
-  it('returns Gold for 150 points', () => {
-    expect(getNextTier(150).name).toBe('Gold');
+  it('returns Gold for 200 points', () => {
+    expect(getNextTier(200).name).toBe('Gold');
   });
-  it('returns Gold (last tier) for 350+ points', () => {
-    expect(getNextTier(350).name).toBe('Gold');
-    expect(getNextTier(999).name).toBe('Gold');
+  it('returns Vibranium (last tier) for 3000+ points', () => {
+    expect(getNextTier(3000).name).toBe('Vibranium');
+    expect(getNextTier(9999).name).toBe('Vibranium');
   });
 });
 
 // ─── ACHIEVEMENT_DEFS ─────────────────────────────────────────────────────────
 
 describe('ACHIEVEMENT_DEFS', () => {
-  const V1_IDS = ['first_brush', 'early_bird', 'day_complete', 'on_a_roll', 'explorer', 'centurion'];
+  const TIN_IDS  = ['first_task', 'first_brush', 'right_place', 'worth_wait', 'custom_cat', 'out_about'];
+  const V1_IDS   = ['first_brush', 'early_bird', 'day_complete', 'on_a_roll', 'explorer', 'centurion'];
+  const ALL_IDS  = [...new Set([...TIN_IDS, ...V1_IDS])];
 
-  it('defines all v1 achievement types', () => {
+  it('defines all Tin-tier achievement types', () => {
+    for (const id of TIN_IDS) {
+      expect(ACHIEVEMENT_DEFS[id]).toBeDefined();
+    }
+  });
+
+  it('defines all legacy v1 achievement types', () => {
     for (const id of V1_IDS) {
       expect(ACHIEVEMENT_DEFS[id]).toBeDefined();
     }
   });
 
+  it('Tin-tier total is exactly 50 pts (= Bronze threshold)', () => {
+    const tinTotal = TIN_IDS.reduce((sum, id) => sum + ACHIEVEMENT_DEFS[id].points, 0);
+    expect(tinTotal).toBe(50);
+  });
+
   it('each def has id, label, desc, icon, points, target, repeatable', () => {
-    for (const id of V1_IDS) {
+    for (const id of ALL_IDS) {
       const def = ACHIEVEMENT_DEFS[id];
       expect(typeof def.id).toBe('string');
       expect(typeof def.label).toBe('string');
@@ -413,6 +433,167 @@ describe('evaluateAchievements', () => {
   });
 });
 
+// ─── Tin-tier: right_place, worth_wait, out_about (KAN-150) ──────────────────
+
+describe('evaluateAchievements — Tin tier (KAN-150)', () => {
+  function captureUpdates(): Record<string, unknown> {
+    if (mockTxUpdate.mock.calls.length === 0) { return {}; }
+    return mockTxUpdate.mock.calls[0][1] as Record<string, unknown>;
+  }
+
+  it('awards right_place when task has a POI and isNearby is true', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap());
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const task = { ...BASE_TASK, poi: 'cafe' as const };
+
+    await evaluateAchievements('uid-1', task, { allTasksDone: false, isNearby: true });
+
+    const updates = captureUpdates();
+    expect(updates['achievements.right_place']).toMatchObject({ earnCount: 1, progress: 1 });
+  });
+
+  it('does not award right_place when isNearby is false', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap());
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const task = { ...BASE_TASK, poi: 'cafe' as const };
+
+    await evaluateAchievements('uid-1', task, { allTasksDone: false, isNearby: false });
+
+    const updates = captureUpdates();
+    expect(updates['achievements.right_place']).toBeUndefined();
+  });
+
+  it('does not award right_place when already earned', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      achievements: { right_place: { earnCount: 1, progress: 1, target: 1, earnedAt: {} } },
+    }));
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const task = { ...BASE_TASK, poi: 'cafe' as const };
+
+    await evaluateAchievements('uid-1', task, { allTasksDone: false, isNearby: true });
+
+    const updates = captureUpdates();
+    expect(updates['achievements.right_place']).toBeUndefined();
+  });
+
+  it('awards worth_wait when task createdAt is ≥ 3 days ago', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap());
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const oldTask = { ...BASE_TASK, createdAt: { seconds: THREE_DAYS_AGO_SECONDS, nanoseconds: 0 } as any };
+
+    await evaluateAchievements('uid-1', oldTask, { allTasksDone: false });
+
+    const updates = captureUpdates();
+    expect(updates['achievements.worth_wait']).toMatchObject({ earnCount: 1, progress: 1 });
+  });
+
+  it('does not award worth_wait for a fresh task (< 3 days old)', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap());
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+
+    await evaluateAchievements('uid-1', BASE_TASK, { allTasksDone: false });
+
+    const updates = captureUpdates();
+    expect(updates['achievements.worth_wait']).toBeUndefined();
+  });
+
+  it('awards out_about when 3 distinct POI types have been brushed', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      brushedPoiTypes: ['cafe', 'atm'],
+    }));
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const task = { ...BASE_TASK, poi: 'pharmacy' as const };
+
+    await evaluateAchievements('uid-1', task, { allTasksDone: false });
+
+    const updates = captureUpdates();
+    expect(updates['achievements.out_about']).toMatchObject({ earnCount: 1, progress: 3 });
+    expect(updates['brushedPoiTypes']).toEqual(['cafe', 'atm', 'pharmacy']);
+  });
+
+  it('does not award out_about for a repeated POI type', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      brushedPoiTypes: ['cafe', 'atm', 'pharmacy'],
+      achievements: {
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: {} },
+        out_about:   { earnCount: 1, progress: 3, target: 3, earnedAt: {} },
+      },
+    }));
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const task = { ...BASE_TASK, poi: 'cafe' as const };
+
+    await evaluateAchievements('uid-1', task, { allTasksDone: false });
+
+    expect(mockIncrement).not.toHaveBeenCalled();
+  });
+
+  it('tracks out_about progress without awarding when < 3 distinct types', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      brushedPoiTypes: ['cafe'],
+    }));
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
+    const task = { ...BASE_TASK, poi: 'atm' as const };
+
+    await evaluateAchievements('uid-1', task, { allTasksDone: false });
+
+    const updates = captureUpdates();
+    expect(updates['brushedPoiTypes']).toEqual(['cafe', 'atm']);
+    expect(updates['achievements.out_about']).toBeUndefined();
+  });
+});
+
+// ─── evaluateAddTaskAchievement (KAN-150) ────────────────────────────────────
+
+describe('evaluateAddTaskAchievement', () => {
+  it('awards first_task on first call', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap());
+
+    await evaluateAddTaskAchievement('uid-1');
+
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ 'achievements.first_task': expect.objectContaining({ earnCount: 1 }) }),
+    );
+    expect(mockIncrement).toHaveBeenCalledWith(5); // 5 pts
+  });
+
+  it('is a no-op when first_task already earned', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      achievements: { first_task: { earnCount: 1, progress: 1, target: 1, earnedAt: {} } },
+    }));
+
+    await evaluateAddTaskAchievement('uid-1');
+
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+});
+
+// ─── evaluateCustomCatAchievement (KAN-150) ──────────────────────────────────
+
+describe('evaluateCustomCatAchievement', () => {
+  it('awards custom_cat on first call', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap());
+
+    await evaluateCustomCatAchievement('uid-1');
+
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ 'achievements.custom_cat': expect.objectContaining({ earnCount: 1 }) }),
+    );
+    expect(mockIncrement).toHaveBeenCalledWith(5); // 5 pts
+  });
+
+  it('is a no-op when custom_cat already earned', async () => {
+    mockTxGet.mockResolvedValue(makeUserSnap({
+      achievements: { custom_cat: { earnCount: 1, progress: 1, target: 1, earnedAt: {} } },
+    }));
+
+    await evaluateCustomCatAchievement('uid-1');
+
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+});
+
 // ─── awardChallengeWinnerAchievement (KAN-104) ────────────────────────────────
 
 describe('awardChallengeWinnerAchievement', () => {
@@ -476,7 +657,7 @@ import { migratePointsToAchievementDerived } from '../../src/services/achievemen
 
 describe('migratePointsToAchievementDerived', () => {
   it('writes the correct computed total when stored value is stale', async () => {
-    // first_brush (earnCount:1 × 5pts) + day_complete (earnCount:2 × 15pts) = 35 pts
+    // first_brush (earnCount:1 × 10pts) + day_complete (earnCount:2 × 15pts) = 40 pts
     mockTxGet.mockResolvedValue(makeUserSnap({
       totalPoints: 99, // stale legacy value
       achievements: {
@@ -489,7 +670,7 @@ describe('migratePointsToAchievementDerived', () => {
 
     expect(mockTxUpdate).toHaveBeenCalledWith(
       mockUserDocRef,
-      { totalPoints: 35 },
+      { totalPoints: 40 },
     );
   });
 
@@ -531,14 +712,14 @@ describe('migratePointsToAchievementDerived', () => {
 
   it('ignores achievements with earnCount 0 in the sum', async () => {
     mockTxGet.mockResolvedValue(makeUserSnap({
-      totalPoints: 5,
+      totalPoints: 10,
       achievements: {
         first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
         early_bird:  { earnCount: 0, progress: 0, target: 1, earnedAt: null }, // not earned
       },
     }));
 
-    // 5 pts matches first_brush only → no update needed
+    // 10 pts matches first_brush only → no update needed
     await migratePointsToAchievementDerived('uid-1');
 
     expect(mockTxUpdate).not.toHaveBeenCalled();

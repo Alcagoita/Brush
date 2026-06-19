@@ -85,16 +85,16 @@ beforeEach(() => {
 describe('canSubmit: requires title AND POI', () => {
   it('Add task button is disabled when sheet first opens (no title, no POI)', () => {
     renderSheet();
-    const addBtn = screen.getByLabelText('Add task');
+    const addBtn = screen.getByLabelText('Add it');
     expect(addBtn.props.accessibilityState?.disabled).toBe(true);
   });
 
   it('Add task button remains disabled when only title is entered', () => {
     renderSheet();
-    const titleInput = screen.getByPlaceholderText('What do you need to do?');
+    const titleInput = screen.getByLabelText('What do you need?');
     fireEvent.changeText(titleInput, 'Buy bread');
 
-    const addBtn = screen.getByLabelText('Add task');
+    const addBtn = screen.getByLabelText('Add it');
     expect(addBtn.props.accessibilityState?.disabled).toBe(true);
   });
 
@@ -103,19 +103,19 @@ describe('canSubmit: requires title AND POI', () => {
     const cafeTile = screen.getByLabelText('Café');
     fireEvent.press(cafeTile);
 
-    const addBtn = screen.getByLabelText('Add task');
+    const addBtn = screen.getByLabelText('Add it');
     expect(addBtn.props.accessibilityState?.disabled).toBe(true);
   });
 
   it('Add task button is enabled when title AND POI are both set', () => {
     renderSheet();
-    const titleInput = screen.getByPlaceholderText('What do you need to do?');
+    const titleInput = screen.getByLabelText('What do you need?');
     fireEvent.changeText(titleInput, 'Buy bread');
 
     const marketTile = screen.getByLabelText('Market');
     fireEvent.press(marketTile);
 
-    const addBtn = screen.getByLabelText('Add task');
+    const addBtn = screen.getByLabelText('Add it');
     expect(addBtn.props.accessibilityState?.disabled).toBe(false);
   });
 });
@@ -159,12 +159,12 @@ describe('addTask submission', () => {
     renderSheet();
 
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Pick up prescription',
     );
     fireEvent.press(screen.getByLabelText('Pharmacy'));
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
 
     expect(mockAddTask).toHaveBeenCalledWith(
@@ -182,14 +182,14 @@ describe('addTask submission', () => {
     renderSheet();
 
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Morning run',
     );
     fireEvent.press(screen.getByLabelText('Gym'));
     fireEvent.press(screen.getByLabelText('Health'));
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
 
     expect(mockAddTask).toHaveBeenCalledWith(
@@ -201,13 +201,47 @@ describe('addTask submission', () => {
   it('does not call addTask when POI is missing', async () => {
     renderSheet();
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'No POI task',
     );
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     expect(mockAddTask).not.toHaveBeenCalled();
+  });
+
+  it('calls onTaskAdded after successful submission', async () => {
+    const onTaskAdded = jest.fn();
+    renderSheet({ onTaskAdded });
+
+    fireEvent.changeText(
+      screen.getByLabelText('What do you need?'),
+      'Buy milk',
+    );
+    fireEvent.press(screen.getByLabelText('Market'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockAddTask).toHaveBeenCalled();
+    expect(onTaskAdded).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not call onTaskAdded when addTask fails', async () => {
+    mockAddTask.mockRejectedValue(new Error('Network error'));
+    const onTaskAdded = jest.fn();
+    renderSheet({ onTaskAdded });
+
+    fireEvent.changeText(
+      screen.getByLabelText('What do you need?'),
+      'Buy milk',
+    );
+    fireEvent.press(screen.getByLabelText('ATM'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(onTaskAdded).not.toHaveBeenCalled();
   });
 });
 
@@ -216,7 +250,7 @@ describe('"More details" navigation', () => {
     renderSheet();
 
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Buy groceries',
     );
     fireEvent.press(screen.getByLabelText('Market')); // poi: 'supermarket'
@@ -265,12 +299,111 @@ describe('category chips', () => {
   it('category is optional — no category selected is valid when title+POI set', () => {
     renderSheet();
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Test task',
     );
     fireEvent.press(screen.getByLabelText('ATM'));
 
-    const addBtn = screen.getByLabelText('Add task');
+    const addBtn = screen.getByLabelText('Add it');
     expect(addBtn.props.accessibilityState?.disabled).toBe(false);
+  });
+});
+
+// ─── KAN-148 — conversational copy pass ────────────────────────────────────────
+
+describe('KAN-148 copy', () => {
+  it('sheet title reads "What do you need?"', () => {
+    renderSheet();
+    expect(screen.getByText('What do you need?')).toBeTruthy();
+  });
+
+  it('POI question reads "Where does this happen?" with no "required" marker', () => {
+    renderSheet();
+    expect(screen.getByText('Where does this happen?')).toBeTruthy();
+    expect(screen.queryByText(/required/i)).toBeNull();
+  });
+
+  it('category question reads "Which part of your life?" with "(optional)"', () => {
+    renderSheet();
+    expect(screen.getByText('Which part of your life?')).toBeTruthy();
+    expect(screen.getByText(' (optional)')).toBeTruthy();
+  });
+
+  it('"Quick picks" sublabel is removed; "Swipe for more" hint is kept', () => {
+    renderSheet();
+    expect(screen.queryByText('Quick picks')).toBeNull();
+    expect(screen.getByText('Swipe for more')).toBeTruthy();
+  });
+
+  it('primary CTA reads "Add it", not "Add task"', () => {
+    renderSheet();
+    expect(screen.getByText('Add it')).toBeTruthy();
+    expect(screen.queryByText('Add task')).toBeNull();
+  });
+
+  it('submitting state shows "Adding…"', async () => {
+    let resolveAdd: () => void = () => {};
+    mockAddTask.mockImplementation(() => new Promise<void>(res => { resolveAdd = res; }));
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    fireEvent.press(screen.getByLabelText('Market'));
+
+    act(() => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(screen.getByText('Adding…')).toBeTruthy());
+
+    await act(async () => { resolveAdd(); });
+  });
+
+  it('renders a rotating example as the title input\'s faux placeholder before focus', () => {
+    renderSheet();
+    expect(screen.getByText('Pick up toothpaste…')).toBeTruthy();
+  });
+
+  it('hides the rotating placeholder once the title input is focused', () => {
+    renderSheet();
+    expect(screen.getByText('Pick up toothpaste…')).toBeTruthy();
+
+    fireEvent(screen.getByLabelText('What do you need?'), 'focus');
+    expect(screen.queryByText('Pick up toothpaste…')).toBeNull();
+  });
+
+  it('hides the rotating placeholder once there is a typed value', () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    expect(screen.queryByText('Pick up toothpaste…')).toBeNull();
+  });
+});
+
+// ─── KAN-149 — confirmation toast ───────────────────────────────────────────────
+
+describe('KAN-149 confirmation toast', () => {
+  it('shows the toast after a successful add', async () => {
+    const { useToastStore } = require('../../src/store/toastStore');
+    useToastStore.setState({ message: null });
+
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    fireEvent.press(screen.getByLabelText('Market'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(useToastStore.getState().message).toBe("Got it — I'll keep an eye out.");
+  });
+
+  it('does not show the toast when addTask fails', async () => {
+    const { useToastStore } = require('../../src/store/toastStore');
+    useToastStore.setState({ message: null });
+    mockAddTask.mockRejectedValueOnce(new Error('Network error'));
+
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    fireEvent.press(screen.getByLabelText('ATM'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(useToastStore.getState().message).toBeNull();
   });
 });

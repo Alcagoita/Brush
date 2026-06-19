@@ -24,7 +24,7 @@ import {
 
 export type AchievementIconKey = 'check' | 'sun' | 'flame' | 'pin' | 'star' | 'medal';
 
-function AchievementIcon({ icon, color, size }: { icon: AchievementIconKey; color: string; size: number }) {
+export function AchievementIcon({ icon, color, size }: { icon: AchievementIconKey; color: string; size: number }) {
   switch (icon) {
     case 'check': return <CheckIcon  color={color} size={size} />;
     case 'sun':   return <SunIcon    color={color} size={size} />;
@@ -42,13 +42,14 @@ export interface AchievementDef {
   condition: string;
 }
 
+// ── Tin tier (KAN-150) ────────────────────────────────────────────────────────
 export const ACHIEVEMENT_CATALOGUE: AchievementDef[] = [
-  { type: 'first_brush',     label: 'First brush',  icon: 'check', condition: 'Brush away your first task'            },
-  { type: 'early_bird',      label: 'Early bird',   icon: 'sun',   condition: 'Brush a task away before 9 AM'         },
-  { type: 'day_complete',    label: 'Day complete', icon: 'check', condition: 'Brush away every task in a single day' },
-  { type: 'on_a_roll',       label: 'On a roll',    icon: 'flame', condition: '3-day brushing streak'                 },
-  { type: 'explorer',        label: 'Explorer',     icon: 'pin',   condition: 'Brush away 10 location-based tasks'   },
-  { type: 'centurion',       label: 'Centurion',    icon: 'star',  condition: 'Reach 100 achievement points'          },
+  { type: 'first_task',  label: 'Off your mind',           icon: 'check', condition: 'Add your first task'                           },
+  { type: 'first_brush', label: 'First brush',             icon: 'check', condition: 'Brush away your first task'                    },
+  { type: 'right_place', label: 'Right place, right time', icon: 'pin',   condition: 'Brush a task while near where it happens'      },
+  { type: 'worth_wait',  label: 'Worth the wait',          icon: 'flame', condition: 'Brush a task that stuck around for a few days' },
+  { type: 'custom_cat',  label: 'Make it yours',           icon: 'star',  condition: 'Create a custom category'                      },
+  { type: 'out_about',   label: 'Out and about',           icon: 'pin',   condition: 'Brush tasks at a few different kinds of places' },
   {
     type:      'challenge_winner',
     label:     COPY.achievement.challengeWinnerTitle,

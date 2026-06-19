@@ -35,6 +35,10 @@ import { POI_CATALOG } from '../types';
 import { PLACE_TYPE_LABELS } from '../services/maps';
 import { todayISO } from '../utils/date';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { COPY } from '../constants/copy';
+import { useToastStore } from '../store/toastStore';
+import { evaluateAddTaskAchievement, evaluateCustomCatAchievement } from '../services/achievements';
+import RotatingTitlePlaceholder from '../components/RotatingTitlePlaceholder';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -126,6 +130,8 @@ export default function TaskFormScreen() {
   const [title,    setTitle]    = useState(existingTask?.title    ?? initialTitle ?? '');
   const [category, setCategory] = useState<string | null>(existingTask?.category ?? null);
   const [notes,    setNotes]    = useState(existingTask?.description ?? '');
+  // Rotating title placeholder freezes permanently once the user taps the field (KAN-149).
+  const [titleFocused, setTitleFocused] = useState(false);
 
   // Due date
   const [date, setDate] = useState<string>(() => {
@@ -176,6 +182,7 @@ export default function TaskFormScreen() {
     setNewCatSaving(true);
     try {
       const id = await addCategory(uid, { name: trimmed, color: newCatColor, poi: null });
+      evaluateCustomCatAchievement(uid).catch(() => {});
       setCategory(id);
       setAddingCat(false);
     } catch (err) {
@@ -221,6 +228,8 @@ export default function TaskFormScreen() {
         await updateTask(uid, existingTask.id, payload);
       } else {
         await addTask(uid, payload);
+        evaluateAddTaskAchievement(uid).catch(() => {});
+        useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
       }
       navigation.goBack();
     } catch (err) {
@@ -293,7 +302,7 @@ export default function TaskFormScreen() {
           <Text style={[styles.backLabel, { color: palette.muted }]}>‹</Text>
         </Pressable>
         <Text style={[styles.topBarTitle, { color: palette.text }]}>
-          {isEdit ? 'Edit task' : 'New task'}
+          {isEdit ? 'Edit task' : COPY.newTaskSheet.title}
         </Text>
         <View style={styles.topBarRight} />
       </View>
@@ -306,42 +315,42 @@ export default function TaskFormScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
 
-        {/* ── TASK section ── */}
+        {/* ── Title — no section label (header + placeholder already ask it) ── */}
         <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>TASK</Text>
-            <Text style={[styles.sectionLabelRequired, { color: palette.accent }]}>
-              {' · '}required
-            </Text>
+          <View style={styles.titleInputWrap}>
+            <TextInput
+              ref={titleRef}
+              style={[
+                styles.titleInput,
+                {
+                  backgroundColor: palette.surface,
+                  borderColor:     palette.line,
+                  color:           palette.text,
+                },
+              ]}
+              value={title}
+              onChangeText={setTitle}
+              onFocus={() => setTitleFocused(true)}
+              returnKeyType="next"
+              maxLength={200}
+              accessibilityLabel={isEdit ? 'Task title' : COPY.newTaskSheet.title}
+            />
+            {/* Rotating example placeholder — same component as the quick sheet (KAN-148) */}
+            {!isEdit && !titleFocused && title.length === 0 && (
+              <RotatingTitlePlaceholder
+                examples={COPY.newTaskSheet.titleExamples}
+                active={!titleFocused}
+                style={[styles.titlePlaceholder, { color: palette.muted }]}
+              />
+            )}
           </View>
-          <TextInput
-            ref={titleRef}
-            style={[
-              styles.titleInput,
-              {
-                backgroundColor: palette.surface,
-                borderColor:     palette.line,
-                color:           palette.text,
-              },
-            ]}
-            placeholder="What do you need to do?"
-            placeholderTextColor={palette.muted}
-            value={title}
-            onChangeText={setTitle}
-            autoFocus={!isEdit}
-            returnKeyType="next"
-            maxLength={200}
-          />
         </View>
 
-        {/* ── POINT OF INTEREST section ── */}
+        {/* ── Where does this happen? ── */}
         <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>
-              POINT OF INTEREST
-            </Text>
-            <Text style={[styles.sectionLabelRequired, { color: palette.accent }]}>
-              {' · '}required
+          <View style={styles.questionRow}>
+            <Text style={[styles.questionLabel, { color: palette.text }]}>
+              {COPY.newTaskSheet.poiQuestion}
             </Text>
           </View>
 
@@ -356,7 +365,7 @@ export default function TaskFormScreen() {
             <PoiIcon type="store" color={palette.faint} size={16} />
             <TextInput
               style={[styles.searchInput, { color: palette.text }]}
-              placeholder="bakery, florist, gym…"
+              placeholder={COPY.newTaskSheet.poiSearchPlaceholder}
               placeholderTextColor={palette.muted}
               value={query}
               onChangeText={v => {
@@ -419,12 +428,14 @@ export default function TaskFormScreen() {
           </View>
         </View>
 
-        {/* ── CATEGORY section ── */}
+        {/* ── Which part of your life? (optional) ── */}
         <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>CATEGORY</Text>
-            <Text style={[styles.sectionLabelOptional, { color: palette.faint }]}>
-              {' '}(optional)
+          <View style={styles.questionRow}>
+            <Text style={[styles.questionLabel, { color: palette.text }]}>
+              {COPY.newTaskSheet.catQuestion}
+            </Text>
+            <Text style={[styles.questionOptional, { color: palette.faint }]}>
+              {COPY.newTaskSheet.catOptional}
             </Text>
           </View>
           <View style={styles.categoryRow}>
@@ -521,12 +532,14 @@ export default function TaskFormScreen() {
           )}
         </View>
 
-        {/* ── SCHEDULE section ── */}
+        {/* ── Around when? (optional) ── */}
         <View style={styles.section}>
-          <View style={styles.sectionLabelRow}>
-            <Text style={[styles.sectionLabel, { color: palette.muted }]}>SCHEDULE</Text>
-            <Text style={[styles.sectionLabelOptional, { color: palette.faint }]}>
-              {' '}(optional)
+          <View style={styles.questionRow}>
+            <Text style={[styles.questionLabel, { color: palette.text }]}>
+              {COPY.newTaskSheet.timeQuestion}
+            </Text>
+            <Text style={[styles.questionOptional, { color: palette.faint }]}>
+              {COPY.newTaskSheet.timeOptional}
             </Text>
           </View>
           <View style={styles.scheduleRow}>
@@ -547,7 +560,7 @@ export default function TaskFormScreen() {
               <ClockIcon color={palette.faint} size={16} />
               <TextInput
                 style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}
-                placeholder="e.g. 14:00"
+                placeholder={COPY.newTaskSheet.timePlaceholder}
                 placeholderTextColor={palette.muted}
                 value={time}
                 onChangeText={setTime}
@@ -614,9 +627,9 @@ export default function TaskFormScreen() {
         },
       ]}>
         <Text style={[styles.ctaHelper, { color: canSubmit ? palette.muted : palette.faint }]}>
-          {canSubmit
-            ? 'Ready to add'
-            : 'Add a task name and a point of interest'}
+          {isEdit
+            ? (canSubmit ? 'Ready to save' : '')
+            : (canSubmit ? 'Ready to add' : COPY.newTaskSheet.footerHint)}
         </Text>
         <Pressable
           onPress={handleSave}
@@ -630,13 +643,15 @@ export default function TaskFormScreen() {
             },
           ]}
           accessibilityRole="button"
-          accessibilityLabel={isEdit ? 'Save changes' : 'Add task'}
+          accessibilityLabel={isEdit ? 'Save changes' : COPY.newTaskSheet.cta}
           accessibilityState={{ disabled: !canSubmit || submitting }}>
           <Text style={[
             styles.ctaBtnLabel,
             { color: canSubmit && !submitting ? palette.bg : palette.muted },
           ]}>
-            {submitting ? 'Saving…' : isEdit ? 'Save changes' : 'Add task'}
+            {submitting
+              ? (isEdit ? 'Saving…' : COPY.newTaskSheet.ctaSubmitting)
+              : (isEdit ? 'Save changes' : COPY.newTaskSheet.cta)}
           </Text>
         </Pressable>
       </View>
@@ -701,17 +716,32 @@ const styles = StyleSheet.create({
     fontFamily:    'Geist-SemiBold',
     letterSpacing:  1.76,
   },
-  sectionLabelRequired: {
-    fontSize:   11,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
-  },
   sectionLabelOptional: {
     fontSize:   11,
     fontFamily: 'Geist-Regular',
   },
+  // Sentence-case conversational question labels (KAN-149) — matches the
+  // New Task quick sheet's style (KAN-148) so both screens read as the
+  // same conversation continuing.
+  questionRow: {
+    flexDirection: 'row',
+    alignItems:    'baseline',
+  },
+  questionLabel: {
+    fontSize:      15,
+    fontWeight:    '500',
+    fontFamily:    'Geist-Medium',
+    letterSpacing: -0.15,
+  },
+  questionOptional: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
 
   // ── Title input ──
+  titleInputWrap: {
+    position: 'relative',
+  },
   titleInput: {
     fontSize:          16,
     fontFamily:        'Geist-Regular',
@@ -719,6 +749,16 @@ const styles = StyleSheet.create({
     paddingVertical:   14,
     borderRadius:      12,
     borderWidth:        1,
+  },
+  // Overlays the TextInput at the same inset the native placeholder would
+  // sit at — borderWidth(1) + padding(16/14), matching titleInput exactly.
+  titlePlaceholder: {
+    position: 'absolute',
+    left:      17, // borderWidth(1) + paddingHorizontal(16)
+    top:       15, // borderWidth(1) + paddingVertical(14)
+    right:     17,
+    fontSize:  16,
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Search field ──

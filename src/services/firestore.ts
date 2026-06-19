@@ -136,6 +136,45 @@ export async function getTasksForDate(uid: string, date: string): Promise<Task[]
 }
 
 /**
+ * Roll forward any undone task still dated before `today` so it becomes
+ * today's task (KAN-146 — tasks persist until brushed away; an unfinished
+ * task is never cleared, it simply becomes "new" the next day).
+ *
+ * Bumps both `date` and `createdAt` to now — the task is treated as freshly
+ * created today, matching how it will appear and score on the Today screen.
+ *
+ * This is the client-side correctness fallback: the per-user `today` here is
+ * computed in the device's local timezone, unlike the best-effort UTC-anchored
+ * server-side `rolloverIncompleteTasks` Cloud Function. Calling this is safe
+ * even if the server-side job already ran — there's nothing left to roll over.
+ *
+ * Idempotent and cheap when there's nothing to roll over (single query, no
+ * writes). Intended to run once during SplashScreen boot, before the task
+ * list is fetched for the day.
+ */
+export async function rolloverIncompleteTasks(uid: string, today: string = todayISO()): Promise<void> {
+  const q = query(
+    tasksRef(uid),
+    where('done', '==', false),
+    where('date', '<', today),
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) { return; }
+
+  // Firestore caps a single batch at 500 writes — chunk to stay under it
+  // (matches the server-side rolloverIncompleteTasks Cloud Function).
+  const BATCH_LIMIT = 500;
+  const db = getFirestore();
+  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
+      batch.update(d.ref, { date: today, createdAt: serverTimestamp() });
+    });
+    await batch.commit();
+  }
+}
+
+/**
  * Subscribe to live updates for a user's tasks on a given date.
  * Returns an unsubscribe function — call it on component unmount.
  */
@@ -378,16 +417,6 @@ export async function getPoiPreferencesMap(
   return map;
 }
 
-/**
- * Fetch all saved POI preferences for a user.
- * Returns defaults for any types not yet customised.
- * @deprecated Use getPoiPreferencesMap for a flat map or subscribeToPoiPreferences
- *             for real-time updates.
- */
-export async function getAllPoiPreferences(uid: string): Promise<PoiPreference[]> {
-  const allTypes: PoiType[] = ['atm', 'cafe', 'supermarket', 'pharmacy'];
-  return Promise.all(allTypes.map(t => getPoiPreference(uid, t)));
-}
 
 // ─── Custom categories ────────────────────────────────────────────────────────
 
@@ -550,14 +579,18 @@ export async function awardPointsBatch(
   entries: Array<{ taskId: string; taskTitle: string; points: number }>,
 ): Promise<void> {
   if (entries.length === 0) { return; }
-  const db    = getFirestore();
-  const batch = writeBatch(db);
-  const total = entries.reduce((sum, e) => sum + e.points, 0);
+  const db      = getFirestore();
+  const batch   = writeBatch(db);
+  const dateISO = todayISO();
+  const total   = entries.reduce((sum, e) => sum + e.points, 0);
 
   batch.update(userRef(uid), { totalPoints: increment(total) });
 
   for (const entry of entries) {
-    batch.set(doc(pointsHistoryRef(uid)), {
+    // Deterministic ID matches awardPoint — calling twice for the same task on
+    // the same day overwrites with identical data rather than doubling the entry.
+    const histRef = doc(pointsHistoryRef(uid), `${entry.taskId}_${dateISO}`);
+    batch.set(histRef, {
       taskId:    entry.taskId,
       taskTitle: entry.taskTitle,
       awardedAt: serverTimestamp(),
@@ -808,16 +841,20 @@ export function subscribeToPointsHistory(
     snap => {
       if (!snap) { return; }
 
-      // Deduplicate by taskId — keep only the most-recent entry per task.
-      // Docs are already ordered newest-first, so the first occurrence wins.
-      // This handles legacy auto-ID duplicates written before KAN-128 as well
-      // as any edge cases where two entries for the same task+day exist.
+      // Deduplicate task_completed entries by taskId — keeps the most-recent
+      // entry per task (docs are ordered newest-first). Non-task entries
+      // (achievement_bonus, streak_bonus, etc.) all carry taskId:'' so they
+      // must NOT be deduplicated; they pass through as-is.
       const seen = new Set<string>();
       const unique: PointsHistoryEntry[] = [];
       for (const d of snap.docs) {
         const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
-        if (!seen.has(entry.taskId)) {
-          seen.add(entry.taskId);
+        if (entry.reason === 'task_completed' && entry.taskId) {
+          if (!seen.has(entry.taskId)) {
+            seen.add(entry.taskId);
+            unique.push(entry);
+          }
+        } else {
           unique.push(entry);
         }
       }

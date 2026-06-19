@@ -22,9 +22,9 @@ import React, {
   useState,
 } from 'react';
 import {
+  BackHandler,
   Dimensions,
   KeyboardAvoidingView,
-  Modal,
   PanResponder,
   Platform,
   Pressable,
@@ -48,6 +48,10 @@ import { addTask } from '../services/firestore';
 import { CloseIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
 import { todayISO } from '../utils/date';
+import { COPY } from '../constants/copy';
+import { useToastStore } from '../store/toastStore';
+import RotatingTitlePlaceholder from './RotatingTitlePlaceholder';
+import { evaluateAddTaskAchievement } from '../services/achievements';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -67,6 +71,7 @@ interface NewTaskSheetProps {
   visible: boolean;
   uid: string;
   onClose: () => void;
+  onTaskAdded?: () => void;
   customCategories?: Category[];
 }
 
@@ -104,7 +109,7 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
-  function NewTaskSheet({ visible, uid, onClose, customCategories = [] }, ref) {
+  function NewTaskSheet({ visible, uid, onClose, onTaskAdded, customCategories = [] }, ref) {
     const { palette } = useTheme();
 
     // Form state
@@ -112,12 +117,16 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [category, setCategory] = useState<string | null>(null);
     const [poi,      setPoi]      = useState<PoiType | null>(null);
     const [submitting, setSubmitting] = useState(false);
+    // Rotating title placeholder freezes permanently once the user taps the field (KAN-148).
+    const [titleFocused, setTitleFocused] = useState(false);
 
-    const [mounted, setMounted] = useState(false);
     const titleRef = useRef<TextInput>(null);
 
-    const onCloseRef = useRef(onClose);
+    const onCloseRef      = useRef(onClose);
     useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+    const onTaskAddedRef  = useRef(onTaskAdded);
+    useEffect(() => { onTaskAddedRef.current = onTaskAdded; }, [onTaskAdded]);
 
     // ── Reanimated ──
     const translateY   = useSharedValue(SCREEN_H);
@@ -136,57 +145,54 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setCategory(null);
       setPoi(null);
       setSubmitting(false);
+      setTitleFocused(false);
       dragOffset.value = 0;
     }, [dragOffset]);
 
+    // Closing just tells the parent (store) to flip `visible` → the effect below
+    // animates out. The sheet is NEVER unmounted, so its static tree (16 POI
+    // tiles, inputs, pills) is built once on first mount, not rebuilt per open.
+    const handleClose = useCallback(() => { onCloseRef.current(); }, []);
+
     useImperativeHandle(ref, () => ({
-      hide: () => {
-        setMounted(false);
-        resetForm();
-        onCloseRef.current();
-      },
-    }), [resetForm]);
+      hide: () => { onCloseRef.current(); },
+    }), []);
 
     const openAnimation = useCallback(() => {
+      dragOffset.value   = 0;
       translateY.value   = withTiming(0,   { duration: 320, easing: Easing.bezier(0.32, 0.72, 0, 1) });
       scrimOpacity.value = withTiming(0.4, { duration: 250, easing: Easing.linear });
-    }, [translateY, scrimOpacity]);
-
-    const doClose = useCallback(() => {
-      setMounted(false);
-      resetForm();
-      onCloseRef.current();
-    }, [resetForm]);
+    }, [translateY, scrimOpacity, dragOffset]);
 
     const closeAnimation = useCallback(() => {
+      dragOffset.value   = 0;
       scrimOpacity.value = withTiming(0,        { duration: 250, easing: Easing.linear });
       translateY.value   = withTiming(SCREEN_H, { duration: 280, easing: Easing.bezier(0.32, 0.72, 0, 1) });
-      setTimeout(doClose, 300);
-    }, [translateY, scrimOpacity, doClose]);
+    }, [translateY, scrimOpacity, dragOffset]);
 
-    const handleClose = useCallback(() => {
-      dragOffset.value = 0;
-      closeAnimation();
-    }, [closeAnimation, dragOffset]);
-
-    const handleCloseRef = useRef(handleClose);
-    useEffect(() => { handleCloseRef.current = handleClose; }, [handleClose]);
-
+    // Drive the animation off `visible`. On the very first render (closed) we
+    // only set the resting off-screen position — no animation, no form reset.
+    const didMountRef = useRef(false);
     useEffect(() => {
       if (visible) {
-        translateY.value = SCREEN_H;
-        setMounted(true);
+        openAnimation();
+      } else {
+        closeAnimation();
+        if (didMountRef.current) { resetForm(); }
       }
+      didMountRef.current = true;
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [visible]);
 
+    // Android hardware back closes the sheet while it's open (Modal used to do this).
     useEffect(() => {
-      if (mounted && visible) {
-        openAnimation();
-        setTimeout(() => titleRef.current?.focus(), 280);
-      }
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mounted]);
+      if (!visible) { return; }
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        onCloseRef.current();
+        return true;
+      });
+      return () => sub.remove();
+    }, [visible]);
 
     const panResponder = useMemo(() => PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -196,7 +202,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       },
       onPanResponderRelease: (_, g) => {
         if (g.dy > 80 || g.vy > 0.5) {
-          handleCloseRef.current();
+          onCloseRef.current();
         } else {
           dragOffset.value = withSpring(0, { stiffness: 300, damping: 30 });
         }
@@ -222,9 +228,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           date:     todayISO(),
           poi,
         });
-        setMounted(false);
-        resetForm();
+        evaluateAddTaskAchievement(uid).catch(() => {});
+        useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
+        // Close (store flips visible → effect animates out + resets the form).
         onCloseRef.current();
+        onTaskAddedRef.current?.();
       } catch (err) {
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
@@ -240,20 +248,17 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       }), 80);
     }, [handleClose, uid, title, poi]);
 
-    if (!mounted) { return null; }
-
+    // Always mounted — built once, shown/hidden via transform. `pointerEvents`
+    // goes inert when closed so the off-screen sheet never blocks the screen.
     return (
-      <Modal
-        visible={mounted}
-        transparent
-        animationType="none"
-        statusBarTranslucent
-        onRequestClose={handleClose}>
+      <View
+        style={[StyleSheet.absoluteFill, styles.host]}
+        pointerEvents={visible ? 'box-none' : 'none'}>
 
         {/* ── Scrim ── */}
         <Animated.View
           style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}
-          pointerEvents="box-only">
+          pointerEvents={visible ? 'box-only' : 'none'}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
 
@@ -274,7 +279,9 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
             {/* Header */}
             <View style={styles.header}>
-              <Text style={[styles.headerTitle, { color: palette.text }]}>New task</Text>
+              <Text style={[styles.headerTitle, { color: palette.text }]}>
+                {COPY.newTaskSheet.title}
+              </Text>
               <Pressable
                 style={[styles.closeBtn, { backgroundColor: palette.surface }]}
                 onPress={handleClose}
@@ -291,39 +298,49 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
               {/* ── Title ── */}
               <View style={styles.fieldPad}>
-                <TextInput
-                  ref={titleRef}
-                  style={[
-                    styles.titleInput,
-                    {
-                      backgroundColor: palette.surface,
-                      borderColor:     palette.line,
-                      color:           palette.text,
-                    },
-                  ]}
-                  placeholder="What do you need to do?"
-                  placeholderTextColor={palette.muted}
-                  value={title}
-                  onChangeText={setTitle}
-                  returnKeyType="default"
-                  maxLength={200}
-                />
+                <View style={styles.titleInputWrap}>
+                  <TextInput
+                    ref={titleRef}
+                    style={[
+                      styles.titleInput,
+                      {
+                        backgroundColor: palette.surface,
+                        borderColor:     palette.line,
+                        color:           palette.text,
+                      },
+                    ]}
+                    value={title}
+                    onChangeText={setTitle}
+                    onFocus={() => setTitleFocused(true)}
+                    returnKeyType="default"
+                    maxLength={200}
+                    accessibilityLabel={COPY.newTaskSheet.title}
+                  />
+                  {/* Rotating example placeholder — hides once focused or once there's a value.
+                      Gated by `visible` so the rotation timer doesn't run while the
+                      always-mounted sheet is closed offscreen. */}
+                  {visible && !titleFocused && title.length === 0 && (
+                    <RotatingTitlePlaceholder
+                      examples={COPY.newTaskSheet.titleExamples}
+                      active={visible && !titleFocused}
+                      style={[styles.titlePlaceholder, { color: palette.muted }]}
+                    />
+                  )}
+                </View>
               </View>
 
-              {/* ── POI label ── */}
-              <View style={styles.poiLabelRow}>
-                <Text style={[styles.fieldLabel, { color: palette.muted }]}>
-                  POINT OF INTEREST
-                </Text>
-                <Text style={[styles.fieldLabelRequired, { color: palette.accent }]}>
-                  {' · '}required
+              {/* ── POI question ── */}
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.poiQuestion}
                 </Text>
               </View>
 
-              {/* ── Quick picks header ── */}
-              <View style={styles.quickPicksHeader}>
-                <Text style={[styles.quickPicksTitle, { color: palette.muted }]}>Quick picks</Text>
-                <Text style={[styles.quickPicksHint,  { color: palette.faint }]}>Swipe for more</Text>
+              {/* ── "Swipe for more" hint — right-aligned, no "Quick picks" sublabel ── */}
+              <View style={styles.swipeHintRow}>
+                <Text style={[styles.quickPicksHint, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.swipeHint}
+                </Text>
               </View>
 
               {/* ── POI carousel ── */}
@@ -346,11 +363,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 ))}
               </ScrollView>
 
-              {/* ── Category (optional) ── */}
-              <View style={styles.poiLabelRow}>
-                <Text style={[styles.fieldLabel, { color: palette.muted }]}>CATEGORY</Text>
-                <Text style={[styles.fieldLabelOptional, { color: palette.faint }]}>
-                  {' '}(optional)
+              {/* ── Category question (optional) ── */}
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.catQuestion}
+                </Text>
+                <Text style={[styles.questionOptional, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.catOptional}
                 </Text>
               </View>
               <View style={styles.categoryRow}>
@@ -411,7 +430,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   accessibilityRole="button"
                   accessibilityLabel="More details">
                   <Text style={[styles.ctaGhostLabel, { color: palette.muted }]}>
-                    More details ›
+                    {COPY.newTaskSheet.moreDetails}
                   </Text>
                 </Pressable>
                 <Pressable
@@ -426,13 +445,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   onPress={handleSubmit}
                   disabled={!canSubmit || submitting}
                   accessibilityRole="button"
-                  accessibilityLabel="Add task"
+                  accessibilityLabel={COPY.newTaskSheet.cta}
                   accessibilityState={{ disabled: !canSubmit || submitting }}>
                   <Text style={[
                     styles.ctaSubmitLabel,
                     { color: canSubmit && !submitting ? palette.bg : palette.muted },
                   ]}>
-                    {submitting ? 'Adding…' : 'Add task'}
+                    {submitting ? COPY.newTaskSheet.ctaSubmitting : COPY.newTaskSheet.cta}
                   </Text>
                 </Pressable>
               </View>
@@ -441,7 +460,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
-      </Modal>
+      </View>
     );
   },
 );
@@ -451,6 +470,11 @@ export default NewTaskSheet;
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
+  // Always-mounted overlay host — above TodayScreen (FAB zIndex 5). Inert when
+  // closed via pointerEvents, so it never blocks the screen behind it.
+  host: {
+    zIndex: 50,
+  },
   scrim: {
     backgroundColor: 'rgba(0,0,0,0.4)',
     zIndex: 10,
@@ -507,6 +531,9 @@ const styles = StyleSheet.create({
   fieldPad: {
     paddingHorizontal: 22,
   },
+  titleInputWrap: {
+    position: 'relative',
+  },
   titleInput: {
     fontSize:          16,
     fontFamily:        'Geist-Regular',
@@ -515,42 +542,42 @@ const styles = StyleSheet.create({
     borderRadius:      12,
     borderWidth:        1,
   },
-  poiLabelRow: {
+  // Overlays the TextInput at the same inset the native placeholder would
+  // sit at — derived from titleInput's own borderWidth(1) + padding(16/14),
+  // not arbitrary values. Using a rounder spacing-scale number here would
+  // shift the overlay 1px off from where typed text actually starts.
+  titlePlaceholder: {
+    position:          'absolute',
+    left:               17, // borderWidth(1) + paddingHorizontal(16)
+    top:                15, // borderWidth(1) + paddingVertical(14)
+    right:              17,
+    fontSize:           16,
+    fontFamily:        'Geist-Regular',
+  },
+  // Sentence-case conversational question labels (KAN-148) — replace the
+  // old all-caps micro-labels now that fields read as questions, not forms.
+  questionRow: {
     flexDirection:     'row',
     alignItems:        'baseline',
     paddingHorizontal: 22,
     paddingTop:        20,
     paddingBottom:     10,
   },
-  fieldLabel: {
-    fontSize:      11,
+  questionLabel: {
+    fontSize:      15,
     fontWeight:    '500',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  1.76,
+    fontFamily:    'Geist-Medium',
+    letterSpacing: -0.15,
   },
-  fieldLabelRequired: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing:  0,
+  questionOptional: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
   },
-  fieldLabelOptional: {
-    fontSize:      11,
-    fontWeight:    '400',
-    fontFamily:    'Geist-Regular',
-    letterSpacing:  0,
-  },
-  quickPicksHeader: {
+  swipeHintRow: {
     flexDirection:     'row',
-    justifyContent:    'space-between',
-    alignItems:        'center',
+    justifyContent:    'flex-end',
     paddingHorizontal: 22,
     marginBottom:       8,
-  },
-  quickPicksTitle: {
-    fontSize:   12,
-    fontWeight: '500',
-    fontFamily: 'Geist-Medium',
   },
   quickPicksHint: {
     fontSize:   11,

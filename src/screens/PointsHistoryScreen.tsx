@@ -23,7 +23,6 @@ import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -42,6 +41,7 @@ import {
   subscribeToPointsHistory,
   subscribeToAchievements,
 } from '../services/firestore';
+import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import type { Achievement, PointsHistoryEntry } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -50,7 +50,7 @@ const PAGE_SIZE = 20;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatTimestamp(ts: { seconds: number; nanoseconds: number } | undefined): string {
+function formatTimestamp(ts: FirebaseFirestoreTypes.Timestamp | null | undefined): string {
   if (!ts) { return ''; }
   return new Date(ts.seconds * 1000).toLocaleDateString('en-GB', {
     day:   'numeric',
@@ -73,21 +73,29 @@ function reasonLabel(reason: string): string {
 
 function HistoryRow({
   entry,
+  isFirst,
   isLast,
   palette,
 }: {
   entry:   PointsHistoryEntry;
+  isFirst: boolean;
   isLast:  boolean;
   palette: ReturnType<typeof useTheme>['palette'];
 }) {
   return (
-    <View style={[styles.historyRow, !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line }]}>
+    <View style={[
+      styles.historyRow,
+      { backgroundColor: palette.surface2 },
+      isFirst && styles.historyRowFirst,
+      isLast  && styles.historyRowLast,
+      !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line },
+    ]}>
       <View style={styles.historyContent}>
         <Text style={[styles.historyTitle, { color: palette.text }]} numberOfLines={1}>
           {entry.taskTitle}
         </Text>
         <Text style={[styles.historyReason, { color: palette.muted }]}>
-          {reasonLabel(entry.reason)} · {formatTimestamp(entry.awardedAt as any)}
+          {reasonLabel(entry.reason)} · {formatTimestamp(entry.awardedAt)}
         </Text>
       </View>
       <Text style={[styles.historyPoints, { color: palette.accent }]}>
@@ -151,72 +159,82 @@ export default function PointsHistoryScreen() {
         <View style={styles.navBtn} />
       </View>
 
-      <ScrollView
+      <FlatList<PointsHistoryEntry>
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
-        showsVerticalScrollIndicator={false}>
-
-        {/* ── Points History ── */}
-        <Text style={[styles.sectionHeading, { color: palette.text }]}>Points History</Text>
-
-        <View style={[styles.card, { backgroundColor: palette.surface2 }]}>
-          {!historyLoaded ? (
-            <ActivityIndicator
-              color={palette.accent}
-              style={styles.loader}
-              accessibilityLabel="Loading points history"
-            />
-          ) : allHistory.length === 0 ? (
-            <View style={styles.emptyWrap}>
-              <Text style={[styles.emptyText, { color: palette.faint }]}>
-                No points yet — complete a task to earn your first point.
-              </Text>
+        showsVerticalScrollIndicator={false}
+        data={historyLoaded && allHistory.length > 0 ? visibleHistory : []}
+        keyExtractor={item => item.id}
+        renderItem={({ item, index }) => (
+          <HistoryRow
+            entry={item}
+            isFirst={index === 0}
+            isLast={index === visibleHistory.length - 1 && !hasMore}
+            palette={palette}
+          />
+        )}
+        ListHeaderComponent={
+          <View>
+            <Text style={[styles.sectionHeading, { color: palette.text }]}>Points History</Text>
+            {(!historyLoaded || allHistory.length === 0) && (
+              <View style={[styles.card, { backgroundColor: palette.surface2 }]}>
+                {!historyLoaded ? (
+                  <ActivityIndicator
+                    color={palette.accent}
+                    style={styles.loader}
+                    accessibilityLabel="Loading points history"
+                  />
+                ) : (
+                  <View style={styles.emptyWrap}>
+                    <Text style={[styles.emptyText, { color: palette.faint }]}>
+                      No points yet — complete a task to earn your first point.
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
+        }
+        ListFooterComponent={
+          <View>
+            {hasMore && (
+              <Pressable
+                style={[
+                  styles.loadMoreBtn,
+                  {
+                    backgroundColor:       palette.surface2,
+                    borderTopColor:        palette.line,
+                    borderBottomLeftRadius:  radius.card,
+                    borderBottomRightRadius: radius.card,
+                  },
+                ]}
+                onPress={() => setVisibleCount(c => c + PAGE_SIZE)}
+                accessibilityRole="button"
+                accessibilityLabel="Load more history">
+                <Text style={[styles.loadMoreLabel, { color: palette.accent }]}>
+                  Load more ({allHistory.length - visibleCount} remaining)
+                </Text>
+              </Pressable>
+            )}
+            <Text style={[styles.sectionHeading, { color: palette.text, marginTop: 12 }]}>Achievements</Text>
+            <View style={achievementsGridStyle}>
+              {ACHIEVEMENT_CATALOGUE.map(def => {
+                const earned   = earnedMap[def.type];
+                const earnedAt = earned ? formatTimestamp(earned.earnedAt) : undefined;
+                return (
+                  <AchievementTile
+                    key={def.type}
+                    def={def}
+                    earned={!!earned}
+                    earnedAt={earnedAt}
+                    palette={palette}
+                  />
+                );
+              })}
             </View>
-          ) : (
-            <>
-              {visibleHistory.map((entry, idx) => (
-                <HistoryRow
-                  key={entry.id}
-                  entry={entry}
-                  isLast={idx === visibleHistory.length - 1}
-                  palette={palette}
-                />
-              ))}
-              {hasMore && (
-                <Pressable
-                  style={styles.loadMoreBtn}
-                  onPress={() => setVisibleCount(c => c + PAGE_SIZE)}
-                  accessibilityRole="button"
-                  accessibilityLabel="Load more history">
-                  <Text style={[styles.loadMoreLabel, { color: palette.accent }]}>
-                    Load more ({allHistory.length - visibleCount} remaining)
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          )}
-        </View>
-
-        {/* ── Achievements Gallery ── */}
-        <Text style={[styles.sectionHeading, { color: palette.text }]}>Achievements</Text>
-
-        <View style={achievementsGridStyle}>
-          {ACHIEVEMENT_CATALOGUE.map(def => {
-            const earned   = earnedMap[def.type];
-            const earnedAt = earned ? formatTimestamp(earned.earnedAt as any) : undefined;
-            return (
-              <AchievementTile
-                key={def.type}
-                def={def}
-                earned={!!earned}
-                earnedAt={earnedAt}
-                palette={palette}
-              />
-            );
-          })}
-        </View>
-
-      </ScrollView>
+          </View>
+        }
+      />
     </View>
   );
 }
@@ -252,7 +270,6 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: spacing.page,
     paddingTop:        24,
-    gap:               12,
   },
   sectionHeading: {
     fontSize:     15,
@@ -274,6 +291,14 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     paddingHorizontal: spacing.page,
     paddingVertical:   14,
+  },
+  historyRowFirst: {
+    borderTopLeftRadius:  radius.card,
+    borderTopRightRadius: radius.card,
+  },
+  historyRowLast: {
+    borderBottomLeftRadius:  radius.card,
+    borderBottomRightRadius: radius.card,
   },
   historyContent: {
     flex: 1,
@@ -297,9 +322,9 @@ const styles = StyleSheet.create({
 
   // ── Load more ──
   loadMoreBtn: {
-    paddingVertical:   14,
-    alignItems:        'center',
-    borderTopWidth:    StyleSheet.hairlineWidth,
+    paddingVertical: 14,
+    alignItems:      'center',
+    borderTopWidth:  StyleSheet.hairlineWidth,
   },
   loadMoreLabel: {
     fontSize:   13,

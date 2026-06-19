@@ -73,4 +73,35 @@ export const COPY = {
     activityFeedReceived: (senderName: string) => `${senderName} brushed a to-do your way`,
   },
 
+  // ─── New task quick sheet (KAN-148) + More Details (KAN-149) ───────────────
+  // Shared between both screens — copy must be identical on overlapping
+  // fields, since tapping "More details ›" should feel like the same
+  // conversation continuing, not a different form.
+  newTaskSheet: {
+    title:        'What do you need?',
+    poiQuestion:  'Where does this happen?',
+    catQuestion:  'Which part of your life?',
+    catOptional:  ' (optional)',
+    swipeHint:    'Swipe for more',
+    moreDetails:  'More details ›',
+    cta:          'Add it',
+    ctaSubmitting: 'Adding…',
+    /** Rotating title-input placeholder examples — fade between strings, not a hard swap. */
+    titleExamples: [
+      'Pick up toothpaste…',
+      'Withdraw some cash…',
+      'Return the library book…',
+      'Grab something at the pharmacy…',
+      'Fill up on the way home…',
+    ],
+    // ── More Details only (KAN-149) ──
+    poiSearchPlaceholder: 'A café, a pharmacy, a gym…',
+    timeQuestion:         'Around when?',
+    timeOptional:         ' (optional)',
+    timePlaceholder:      'Anytime is fine',
+    footerHint:           'Just the what and the where',
+    /** Fires after a successful add from either surface — never on edit. */
+    confirmToast:         "Got it — I'll keep an eye out.",
+  },
+
 } as const;

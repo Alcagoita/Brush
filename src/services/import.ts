@@ -20,10 +20,130 @@
  */
 
 import firestore from '@react-native-firebase/firestore';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Linking, Platform } from 'react-native';
 import BrushEventKitModule from '../native/BrushEventKitModule';
 import { ImportResult } from '../types';
+
+// ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
+
+export const IMPORT_TIMEOUT_MS = 30_000;
+
+/**
+ * Sentinel error message used to distinguish a timeout from a general failure.
+ * Check with `err.message === IMPORT_TIMEOUT_ERROR` in catch blocks.
+ */
+export const IMPORT_TIMEOUT_ERROR = 'IMPORT_TIMEOUT';
+
+/**
+ * Races `importFn` against a 30-second hard timeout.
+ * Returns { promise, clearTimer } so callers can cancel the timer on unmount
+ * and avoid the setState-after-unmount warning.
+ */
+export function runImportWithTimeout(importFn: () => Promise<ImportResult>): {
+  promise:   Promise<ImportResult>;
+  clearTimer: () => void;
+} {
+  let timerId: ReturnType<typeof setTimeout>;
+  const clearTimer = () => clearTimeout(timerId);
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timerId = setTimeout(
+      () => reject(new Error(IMPORT_TIMEOUT_ERROR)),
+      IMPORT_TIMEOUT_MS,
+    );
+  });
+
+  // Wrap in Promise.resolve().then() so a synchronous throw inside importFn
+  // still triggers .finally(clearTimer) instead of leaking the timer.
+  const importPromise = Promise.resolve().then(importFn);
+  const promise = Promise.race([importPromise, timeoutPromise]).finally(clearTimer);
+  return { promise, clearTimer };
+}
+
+// ─── Idempotency key (KAN-92) ─────────────────────────────────────────────────
+
+/**
+ * Deterministic Firestore doc ID for an imported task.
+ * Two concurrent imports writing the same source+title will resolve to the
+ * same doc ID, making the second write a no-op overwrite instead of a duplicate.
+ *
+ * djb2-variant hash keeps the key short and collision-resistant without a
+ * crypto dependency.
+ */
+export function makeImportDocId(source: string, title: string): string {
+  const normalized = `${source}:${title.toLowerCase().trim()}`;
+  let hash = 5381;
+  for (let i = 0; i < normalized.length; i++) {
+    hash = (((hash << 5) + hash) ^ normalized.charCodeAt(i)) >>> 0;
+  }
+  return `imp_${hash.toString(36)}`;
+}
+
+// ─── Retry with exponential backoff (KAN-93) ─────────────────────────────────
+
+export const RETRY_DELAYS_MS = [1_000, 2_000, 4_000] as const;
+
+/**
+ * Returns true for errors that should NOT be retried automatically:
+ *   - Google API 401/403 (auth/permission — retrying won't help)
+ *   - EventKit PERMISSION_DENIED (re-triggering Linking.openSettings() on retry would be wrong)
+ *   - Cancellation is handled separately (result.cancelled, not a throw)
+ */
+function isNonRetryable(err: unknown): boolean {
+  if (err instanceof Error && /Google API error (401|403)/.test(err.message)) {
+    return true;
+  }
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: unknown }).code === 'PERMISSION_DENIED'
+  );
+}
+
+/**
+ * Wraps `importFn` with up to 3 automatic retries using exponential backoff
+ * + ±300ms jitter. Each attempt gets its own 30-second timeout window.
+ *
+ * `onRetrying(attempt, total)` is called during each backoff delay so the UI
+ * can show "Retrying… (attempt N of 3)".
+ *
+ * Non-retryable errors (401/403) and cancellations are surfaced immediately.
+ */
+export async function importWithRetry(
+  importFn: () => Promise<ImportResult>,
+  onRetrying?: (attempt: number, total: number) => void,
+): Promise<ImportResult> {
+  const maxRetries = RETRY_DELAYS_MS.length;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const { promise } = runImportWithTimeout(importFn);
+    try {
+      return await promise;
+    } catch (err) {
+      if (attempt >= maxRetries || isNonRetryable(err)) { throw err; }
+      const jitter = Math.random() * 600 - 300;
+      const delay  = RETRY_DELAYS_MS[attempt] + jitter;
+      onRetrying?.(attempt + 1, maxRetries);
+      await new Promise<void>(res => setTimeout(res, delay));
+    }
+  }
+  throw new Error('importWithRetry: unreachable');
+}
+
+// ─── Cancellation helper (KAN-94) ────────────────────────────────────────────
+
+const CANCELLED_RESULT: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 1 };
+
+function isGoogleSignInCancelled(err: unknown): boolean {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    (err as { code: unknown }).code === statusCodes.SIGN_IN_CANCELLED
+  );
+}
 
 // ─── Google API helpers ───────────────────────────────────────────────────────
 
@@ -134,7 +254,15 @@ export function isDuplicate(title: string, existingTitles: Set<string>): boolean
  * maps them to Brush tasks, skips duplicates, and writes to Firestore.
  */
 export async function importFromGoogleTasks(uid: string): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  try { return await _importFromGoogleTasks(uid); }
+  catch (err) {
+    if (isGoogleSignInCancelled(err)) { return CANCELLED_RESULT; }
+    throw err;
+  }
+}
+
+async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
 
   const existingTitles = await fetchExistingTitles(uid);
   const data = await googleFetch(GOOGLE_TASKS_URL) as { items?: GoogleTaskItem[] };
@@ -154,7 +282,7 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
 
     try {
       const dueDate = parseGoogleDate(item.due);
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('google_tasks', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
@@ -185,7 +313,15 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
  * skips all-day events more than 30 days out and duplicates, writes to Firestore.
  */
 export async function importFromGoogleCalendar(uid: string): Promise<ImportResult> {
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  try { return await _importFromGoogleCalendar(uid); }
+  catch (err) {
+    if (isGoogleSignInCancelled(err)) { return CANCELLED_RESULT; }
+    throw err;
+  }
+}
+
+async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
   const now = new Date();
 
   const existingTitles = await fetchExistingTitles(uid);
@@ -213,7 +349,7 @@ export async function importFromGoogleCalendar(uid: string): Promise<ImportResul
       if (!startDate) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
@@ -277,7 +413,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
     throw err;
   }
 
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
   const existingTitles = await fetchExistingTitles(uid);
   const batch = firestore().batch();
   const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
@@ -289,7 +425,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
 
     try {
       const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('eventkit_reminders', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
@@ -337,7 +473,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
     throw err;
   }
 
-  const result: ImportResult = { imported: 0, skipped: 0, failed: 0 };
+  const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
   const now = new Date();
   const existingTitles = await fetchExistingTitles(uid);
   const batch = firestore().batch();
@@ -353,7 +489,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (isNaN(startDate.getTime())) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
-      const docRef = tasksRef.doc();
+      const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,

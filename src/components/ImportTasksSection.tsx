@@ -31,7 +31,9 @@ import { ImportResult } from '../types';
 type ImportState =
   | { status: 'idle' }
   | { status: 'loading' }
+  | { status: 'retrying'; attempt: number; total: number }
   | { status: 'success'; result: ImportResult }
+  | { status: 'cancelled' }
   | { status: 'error'; message: string };
 
 export type ImportConnector = (uid: string) => Promise<ImportResult>;
@@ -84,11 +86,18 @@ interface RowProps {
   palette: ReturnType<typeof useTheme>['palette'];
 }
 
+const ERROR_GENERAL = 'Import failed. Tap to retry.';
+const ERROR_TIMEOUT = 'Import timed out. Check your connection and try again.';
+
 function ImportRow({ source, uid, palette }: RowProps) {
   const [state, setState] = useState<ImportState>({ status: 'idle' });
 
   // Fade animation for the result / error summary
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Generation counter: increments on each press so results from a background
+  // run are discarded if the user has already pressed again (KAN-92/93).
+  const generationRef = useRef(0);
 
   const fadeIn = useCallback(() => {
     fadeAnim.setValue(0);
@@ -96,22 +105,40 @@ function ImportRow({ source, uid, palette }: RowProps) {
   }, [fadeAnim]);
 
   const handlePress = useCallback(async () => {
-    if (state.status === 'loading') { return; }
+    if (state.status === 'loading' || state.status === 'retrying') { return; }
     setState({ status: 'loading' });
+
+    const { importWithRetry, IMPORT_TIMEOUT_ERROR } = require('../services/import');
+    const generation = ++generationRef.current;
+
     try {
-      const result = await source.connector(uid);
-      setState({ status: 'success', result });
+      const result = await importWithRetry(
+        () => source.connector(uid),
+        (attempt: number, total: number) => {
+          if (generationRef.current !== generation) { return; }
+          setState({ status: 'retrying', attempt, total });
+        },
+      );
+      if (generationRef.current !== generation) { return; }
+      if (result.cancelled > 0) {
+        setState({ status: 'cancelled' });
+      } else {
+        setState({ status: 'success', result });
+      }
       fadeIn();
     } catch (err) {
-      // Log the raw error for debugging but never surface technical details
-      // (e.g. Firebase auth codes, network stack traces) to the user.
+      if (generationRef.current !== generation) { return; }
+      const isTimeout = err instanceof Error && err.message === IMPORT_TIMEOUT_ERROR;
       console.warn('[ImportTasksSection] connector error', err);
-      setState({ status: 'error', message: 'Import failed. Please try again.' });
+      setState({ status: 'error', message: isTimeout ? ERROR_TIMEOUT : ERROR_GENERAL });
       fadeIn();
     }
   }, [state.status, source, uid, fadeIn]);
 
-  const isLoading = state.status === 'loading';
+  const isBusy = state.status === 'loading' || state.status === 'retrying';
+  const retryLabel = state.status === 'retrying'
+    ? `Retrying… (attempt ${state.attempt} of ${state.total})`
+    : null;
 
   return (
     <View style={styles.row} accessibilityLabel={`${source.label} row`}>
@@ -120,21 +147,23 @@ function ImportRow({ source, uid, palette }: RowProps) {
         style={[
           styles.importBtn,
           { borderColor: palette.line },
-          isLoading && styles.importBtnLoading,
+          isBusy && styles.importBtnLoading,
         ]}
         onPress={handlePress}
-        disabled={isLoading}
+        disabled={isBusy}
         accessibilityRole="button"
-        accessibilityLabel={isLoading ? 'Importing' : source.label}
-        accessibilityState={{ busy: isLoading }}>
-        {isLoading ? (
+        accessibilityLabel={isBusy ? (retryLabel ?? 'Importing') : source.label}
+        accessibilityState={{ busy: isBusy }}>
+        {isBusy ? (
           <View style={styles.importBtnInner}>
             <ActivityIndicator
               size="small"
               color={palette.muted}
               accessibilityLabel="Import in progress"
             />
-            <Text style={[styles.importBtnText, { color: palette.muted }]}>Importing…</Text>
+            <Text style={[styles.importBtnText, retryLabel ? styles.tabularNums : undefined, { color: palette.muted }]}>
+              {retryLabel ?? 'Importing…'}
+            </Text>
           </View>
         ) : (
           <Text style={[styles.importBtnText, { color: palette.text }]}>{source.label}</Text>
@@ -152,6 +181,17 @@ function ImportRow({ source, uid, palette }: RowProps) {
         </Animated.View>
       )}
 
+      {/* Cancelled — neutral, no retry button */}
+      {state.status === 'cancelled' && (
+        <Animated.View style={{ opacity: fadeAnim }}>
+          <Text
+            style={[styles.resultText, { color: palette.muted }]}
+            accessibilityLabel="Import cancelled">
+            Import cancelled.
+          </Text>
+        </Animated.View>
+      )}
+
       {/* Error + retry hint */}
       {state.status === 'error' && (
         <Animated.View style={{ opacity: fadeAnim }}>
@@ -161,7 +201,7 @@ function ImportRow({ source, uid, palette }: RowProps) {
             {state.message}
           </Text>
           <Text style={[styles.retryHint, { color: palette.muted }]}>
-            Tap the button above to retry.
+            Tap the button above to try again.
           </Text>
         </Animated.View>
       )}
@@ -248,6 +288,9 @@ const styles = StyleSheet.create({
     fontSize:   14,
     fontWeight: '500',
     fontFamily: 'Geist-Medium',
+  },
+  tabularNums: {
+    fontVariant: ['tabular-nums'] as const,
   },
 
   resultText: {

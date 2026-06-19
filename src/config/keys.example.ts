@@ -18,3 +18,6 @@
 
 /** Google Places API (New) key — used only for server-side REST calls in maps.ts. */
 export const GOOGLE_PLACES_API_KEY = 'YOUR_GOOGLE_PLACES_API_KEY';
+
+/** Google OAuth web client ID — from google-services.json / GoogleService-Info.plist. */
+export const GOOGLE_OAUTH_WEB_CLIENT_ID = 'YOUR_GOOGLE_OAUTH_WEB_CLIENT_ID';

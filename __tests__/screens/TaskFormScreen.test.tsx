@@ -121,14 +121,14 @@ beforeEach(() => {
 // ── Create mode ───────────────────────────────────────────────────────────────
 
 describe('TaskFormScreen — create mode', () => {
-  it('renders "New task" heading', () => {
+  it('renders "What do you need?" heading', () => {
     render(<TaskFormScreen />);
-    expect(screen.getByText('New task')).toBeTruthy();
+    expect(screen.getByText('What do you need?')).toBeTruthy();
   });
 
   it('renders the title input', () => {
     render(<TaskFormScreen />);
-    expect(screen.getByPlaceholderText('What do you need to do?')).toBeTruthy();
+    expect(screen.getByLabelText('What do you need?')).toBeTruthy();
   });
 
   it('renders POI quick-pick tiles (spot-check 6 of the 16)', () => {
@@ -151,12 +151,12 @@ describe('TaskFormScreen — create mode', () => {
 
   it('shows the disabled helper text when canSubmit is false', () => {
     render(<TaskFormScreen />);
-    expect(screen.getByText('Add a task name and a point of interest')).toBeTruthy();
+    expect(screen.getByText('Just the what and the where')).toBeTruthy();
   });
 
   it('"Add task" button is disabled by default', () => {
     render(<TaskFormScreen />);
-    const btn = screen.getByLabelText('Add task');
+    const btn = screen.getByLabelText('Add it');
     expect(btn.props.accessibilityState?.disabled).toBe(true);
   });
 });
@@ -176,7 +176,7 @@ describe('TaskFormScreen — edit mode', () => {
   it('pre-populates the title field', () => {
     render(<TaskFormScreen />);
     expect(
-      screen.getByPlaceholderText('What do you need to do?').props.value,
+      screen.getByLabelText('Task title').props.value,
     ).toBe('Buy milk');
   });
 
@@ -185,9 +185,9 @@ describe('TaskFormScreen — edit mode', () => {
     expect(screen.getByLabelText('Save changes')).toBeTruthy();
   });
 
-  it('shows "Ready to add" helper when both title and POI are already set', () => {
+  it('shows "Ready to save" helper when both title and POI are already set', () => {
     render(<TaskFormScreen />);
-    expect(screen.getByText('Ready to add')).toBeTruthy();
+    expect(screen.getByText('Ready to save')).toBeTruthy();
   });
 
   it('pre-populates the notes field from existing description', () => {
@@ -208,23 +208,23 @@ describe('TaskFormScreen — canSubmit', () => {
   it('enables "Add task" when title and POI are both provided', () => {
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Groceries',
     );
     fireEvent.press(screen.getByText('Market'));
     expect(
-      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+      screen.getByLabelText('Add it').props.accessibilityState?.disabled,
     ).toBe(false);
   });
 
   it('keeps "Add task" disabled when title is set but POI is not', () => {
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Groceries',
     );
     expect(
-      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+      screen.getByLabelText('Add it').props.accessibilityState?.disabled,
     ).toBe(true);
   });
 
@@ -232,14 +232,14 @@ describe('TaskFormScreen — canSubmit', () => {
     render(<TaskFormScreen />);
     fireEvent.press(screen.getByText('ATM'));
     expect(
-      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+      screen.getByLabelText('Add it').props.accessibilityState?.disabled,
     ).toBe(true);
   });
 
   it('shows "Ready to add" helper once canSubmit is true', () => {
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Get cash',
     );
     fireEvent.press(screen.getByText('ATM'));
@@ -252,21 +252,21 @@ describe('TaskFormScreen — canSubmit', () => {
 describe('TaskFormScreen — POI free-text type', () => {
   it('renders the POI type input with the correct placeholder', () => {
     render(<TaskFormScreen />);
-    expect(screen.getByPlaceholderText('bakery, florist, gym…')).toBeTruthy();
+    expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…')).toBeTruthy();
   });
 
   it('enables submit when title + typed POI type are both set', () => {
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Get a croissant',
     );
     fireEvent.changeText(
-      screen.getByPlaceholderText('bakery, florist, gym…'),
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…'),
       'bakery',
     );
     expect(
-      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+      screen.getByLabelText('Add it').props.accessibilityState?.disabled,
     ).toBe(false);
   });
 
@@ -274,15 +274,15 @@ describe('TaskFormScreen — POI free-text type', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Pick up sushi',
     );
     fireEvent.changeText(
-      screen.getByPlaceholderText('bakery, florist, gym…'),
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…'),
       'sushi restaurant',
     );
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       expect(mockAddTask).toHaveBeenCalledWith(
@@ -295,12 +295,12 @@ describe('TaskFormScreen — POI free-text type', () => {
   it('selecting a quick-pick tile clears the typed text', () => {
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('bakery, florist, gym…'),
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…'),
       'florist',
     );
     fireEvent.press(screen.getByText('ATM')); // pick a quick-pick
     expect(
-      screen.getByPlaceholderText('bakery, florist, gym…').props.value,
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…').props.value,
     ).toBe('');
   });
 
@@ -308,16 +308,16 @@ describe('TaskFormScreen — POI free-text type', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Task',
     );
     fireEvent.press(screen.getByText('ATM')); // select quick-pick
     fireEvent.changeText(
-      screen.getByPlaceholderText('bakery, florist, gym…'),
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…'),
       'bakery',
     );
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       // typed type wins — NOT 'atm'
@@ -336,12 +336,12 @@ describe('TaskFormScreen — POI quick-pick', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Groceries',
     );
     fireEvent.press(screen.getByText('Market')); // type: 'supermarket'
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       expect(mockAddTask).toHaveBeenCalledWith(
@@ -354,16 +354,16 @@ describe('TaskFormScreen — POI quick-pick', () => {
   it('deselecting a tile clears the POI and disables submit', () => {
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Get cash',
     );
     fireEvent.press(screen.getByText('ATM')); // select
     expect(
-      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+      screen.getByLabelText('Add it').props.accessibilityState?.disabled,
     ).toBe(false);
     fireEvent.press(screen.getByText('ATM')); // deselect
     expect(
-      screen.getByLabelText('Add task').props.accessibilityState?.disabled,
+      screen.getByLabelText('Add it').props.accessibilityState?.disabled,
     ).toBe(true);
   });
 
@@ -371,13 +371,13 @@ describe('TaskFormScreen — POI quick-pick', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Task',
     );
     fireEvent.press(screen.getByText('ATM'));       // poi: 'atm'
     fireEvent.press(screen.getByText('Pharmacy')); // switch to 'pharmacy'
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       expect(mockAddTask).toHaveBeenCalledWith(
@@ -395,12 +395,12 @@ describe('TaskFormScreen — save (create)', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Walk the dog',
     );
     fireEvent.press(screen.getByText('Park'));
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       expect(mockAddTask).toHaveBeenCalledWith(
@@ -420,12 +420,12 @@ describe('TaskFormScreen — save (create)', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       '  Walk the dog  ',
     );
     fireEvent.press(screen.getByText('Park'));
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       expect(mockAddTask).toHaveBeenCalledWith(
@@ -439,7 +439,7 @@ describe('TaskFormScreen — save (create)', () => {
     mockAddTask.mockResolvedValueOnce('new-id');
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('What do you need?'),
       'Groceries',
     );
     fireEvent.press(screen.getByText('Market'));
@@ -448,7 +448,7 @@ describe('TaskFormScreen — save (create)', () => {
       'Milk, eggs, bread',
     );
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Add task'));
+      fireEvent.press(screen.getByLabelText('Add it'));
     });
     await waitFor(() => {
       expect(mockAddTask).toHaveBeenCalledWith(
@@ -470,7 +470,7 @@ describe('TaskFormScreen — save (edit)', () => {
     mockUpdateTask.mockResolvedValueOnce(undefined);
     render(<TaskFormScreen />);
     fireEvent.changeText(
-      screen.getByPlaceholderText('What do you need to do?'),
+      screen.getByLabelText('Task title'),
       'Buy oat milk',
     );
     await act(async () => {
@@ -552,5 +552,76 @@ describe('TaskFormScreen — delete (edit mode)', () => {
     expect(mockGoBack).not.toHaveBeenCalled();
 
     alertSpy.mockRestore();
+  });
+});
+
+// ── KAN-149 copy pass ────────────────────────────────────────────────────────
+
+describe('TaskFormScreen — KAN-149 copy', () => {
+  it('POI question reads "Where does this happen?" with no "required" marker', () => {
+    render(<TaskFormScreen />);
+    expect(screen.getByText('Where does this happen?')).toBeTruthy();
+    expect(screen.queryByText(/required/i)).toBeNull();
+  });
+
+  it('no "TASK" section label is rendered (header + placeholder already ask it)', () => {
+    render(<TaskFormScreen />);
+    expect(screen.queryByText('TASK')).toBeNull();
+  });
+
+  it('category question reads "Which part of your life?" with "(optional)"', () => {
+    render(<TaskFormScreen />);
+    expect(screen.getByText('Which part of your life?')).toBeTruthy();
+  });
+
+  it('time question reads "Around when?" with "Anytime is fine" placeholder', () => {
+    render(<TaskFormScreen />);
+    expect(screen.getByText('Around when?')).toBeTruthy();
+    expect(screen.getByPlaceholderText('Anytime is fine')).toBeTruthy();
+  });
+
+  it('renders a rotating example as the title input\'s faux placeholder in create mode', () => {
+    render(<TaskFormScreen />);
+    expect(screen.getByText('Pick up toothpaste…')).toBeTruthy();
+  });
+
+  it('does not render a rotating placeholder in edit mode', () => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    expect(screen.queryByText('Pick up toothpaste…')).toBeNull();
+  });
+});
+
+// ── KAN-149 confirmation toast ───────────────────────────────────────────────
+
+describe('TaskFormScreen — confirmation toast', () => {
+  it('shows the toast after a successful create add', async () => {
+    const { useToastStore } = require('../../src/store/toastStore');
+    useToastStore.setState({ message: null });
+
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(useToastStore.getState().message).toBe("Got it — I'll keep an eye out.");
+  });
+
+  it('does not show the toast after an edit/update', async () => {
+    const { useToastStore } = require('../../src/store/toastStore');
+    useToastStore.setState({ message: null });
+
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('Task title'), 'Buy oat milk');
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+
+    expect(useToastStore.getState().message).toBeNull();
   });
 });

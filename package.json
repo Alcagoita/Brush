@@ -1,6 +1,6 @@
 {
   "name": "brush",
-  "version": "0.9.5",
+  "version": "0.10.0",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -44,7 +44,8 @@
     "react-native-screens": "^4.25.2",
     "react-native-share-menu": "^4.1.4",
     "react-native-svg": "^15.15.5",
-    "react-native-wear-connectivity": "^0.1.17"
+    "react-native-wear-connectivity": "^0.1.17",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

@@ -38,11 +38,20 @@ const mockImportFromGoogleCalendar = jest.fn();
 const mockImportFromReminders      = jest.fn();
 const mockImportFromCalendar       = jest.fn();
 
+// Capture the onRetrying callback so tests can trigger it manually
+let capturedOnRetrying: ((attempt: number, total: number) => void) | undefined;
+
 jest.mock('../../src/services/import', () => ({
   importFromGoogleTasks:    (...args: unknown[]) => mockImportFromGoogleTasks(...args),
   importFromGoogleCalendar: (...args: unknown[]) => mockImportFromGoogleCalendar(...args),
   importFromReminders:      (...args: unknown[]) => mockImportFromReminders(...args),
   importFromCalendar:       (...args: unknown[]) => mockImportFromCalendar(...args),
+  // KAN-93: pass-through so tests control connector behaviour and retry callbacks
+  importWithRetry: (importFn: () => Promise<unknown>, onRetrying?: (a: number, t: number) => void) => {
+    capturedOnRetrying = onRetrying;
+    return importFn();
+  },
+  IMPORT_TIMEOUT_ERROR: 'IMPORT_TIMEOUT',
 }));
 
 // ─── Import component (after mocks) ──────────────────────────────────────────
@@ -130,9 +139,9 @@ describe('ImportTasksSection — Android', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
     });
-    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.getByText('Import failed. Tap to retry.')).toBeTruthy();
     expect(screen.queryByText('auth/invalid-credential')).toBeNull();
-    expect(screen.getByText('Tap the button above to retry.')).toBeTruthy();
+    expect(screen.getByText('Tap the button above to try again.')).toBeTruthy();
   });
 
   it('shows a user-friendly error message for non-Error rejections', async () => {
@@ -141,7 +150,7 @@ describe('ImportTasksSection — Android', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
     });
-    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.getByText('Import failed. Tap to retry.')).toBeTruthy();
   });
 
   it('button is accessible again after a successful import', async () => {
@@ -159,6 +168,56 @@ describe('ImportTasksSection — Android', () => {
     });
 
     expect(mockImportFromGoogleTasks).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows "Retrying… (attempt N of 3)" label during backoff (KAN-93)', async () => {
+    let resolveImport!: (v: unknown) => void;
+    mockImportFromGoogleTasks.mockReturnValueOnce(new Promise(r => { resolveImport = r; }));
+    renderSection();
+    fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
+
+    await act(async () => {
+      capturedOnRetrying?.(2, 3);
+    });
+
+    expect(screen.getByText('Retrying… (attempt 2 of 3)')).toBeTruthy();
+
+    // Clean up
+    await act(async () => resolveImport({ imported: 0, skipped: 0, failed: 0, cancelled: 0 }));
+  });
+
+  it('button is disabled during retrying state (KAN-93)', async () => {
+    let resolveImport!: (v: unknown) => void;
+    mockImportFromGoogleTasks.mockReturnValueOnce(new Promise(r => { resolveImport = r; }));
+    renderSection();
+    fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
+
+    await act(async () => { capturedOnRetrying?.(1, 3); });
+
+    const btn = screen.getByLabelText('Retrying… (attempt 1 of 3)');
+    expect(btn.props.accessibilityState?.busy).toBe(true);
+
+    await act(async () => resolveImport({ imported: 0, skipped: 0, failed: 0, cancelled: 0 }));
+  });
+
+  it('shows neutral "Import cancelled." message when result.cancelled > 0 (KAN-94)', async () => {
+    mockImportFromGoogleTasks.mockResolvedValueOnce({ imported: 0, skipped: 0, failed: 0, cancelled: 1 });
+    renderSection();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
+    });
+    expect(screen.getByText('Import cancelled.')).toBeTruthy();
+    expect(screen.queryByText('Tap the button above to try again.')).toBeNull();
+  });
+
+  it('shows distinct timeout message when connector rejects with IMPORT_TIMEOUT (KAN-92)', async () => {
+    mockImportFromGoogleTasks.mockRejectedValueOnce(new Error('IMPORT_TIMEOUT'));
+    renderSection();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Import from Google Tasks'));
+    });
+    expect(screen.getByText('Import timed out. Check your connection and try again.')).toBeTruthy();
+    expect(screen.queryByText('Import failed. Tap to retry.')).toBeNull();
   });
 
   it('each source button is independent — pressing one does not affect the other', async () => {
@@ -222,7 +281,7 @@ describe('ImportTasksSection — iOS', () => {
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Import from Calendar'));
     });
-    expect(screen.getByText('Import failed. Please try again.')).toBeTruthy();
+    expect(screen.getByText('Import failed. Tap to retry.')).toBeTruthy();
     expect(screen.queryByText('Permission denied')).toBeNull();
   });
 });

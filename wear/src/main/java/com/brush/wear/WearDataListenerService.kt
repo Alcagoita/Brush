@@ -5,8 +5,8 @@
  * MESSAGE       /brush/proximity-alert → show watch notification (KAN-36)
  * MESSAGE       /brush/mark-done-ack  → (reserved for future use)
  *
- * The watch sends mark-done messages to the phone (KAN-38); it does not receive
- * acknowledgements — so onMessageReceived is used exclusively for phone→watch paths.
+ * KAN-106: overrides onPeerConnected / onPeerDisconnected to track phone reachability
+ * in ConnectivityRepository and flush the MarkDoneClient pending queue on reconnect.
  */
 
 package com.brush.wear
@@ -20,6 +20,7 @@ import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.DataMapItem
 import com.google.android.gms.wearable.MessageEvent
+import com.google.android.gms.wearable.Node
 import com.google.android.gms.wearable.WearableListenerService
 import org.json.JSONObject
 
@@ -99,5 +100,17 @@ class WearDataListenerService : WearableListenerService() {
 
         NotificationManagerCompat.from(this)
             .notify(System.currentTimeMillis().toInt(), notif)
+    }
+
+    // ── Node connectivity (KAN-106) ───────────────────────────────────────────────
+    override fun onPeerConnected(peer: Node) {
+        super.onPeerConnected(peer)
+        ConnectivityRepository.setPhoneConnected(true)
+        MarkDoneClient.flushPendingQueue(this)
+    }
+
+    override fun onPeerDisconnected(peer: Node) {
+        super.onPeerDisconnected(peer)
+        ConnectivityRepository.setPhoneConnected(false)
     }
 }
