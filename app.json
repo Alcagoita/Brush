@@ -2,6 +2,15 @@
   "expo": {
     "name": "Brush",
     "slug": "brush",
-    "platforms": ["ios", "android"]
+    "platforms": ["ios", "android"],
+    "ios": {
+      "bundleIdentifier": "com.brush",
+      "googleServicesFile": "./ios/Brush/GoogleService-Info.plist"
+    },
+    "plugins": [
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "@react-native-firebase/crashlytics"
+    ]
   }
 }
