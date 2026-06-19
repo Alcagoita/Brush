@@ -304,12 +304,12 @@ export default function TodayScreen() {
       </View>
       )
     ),
-    [nearbyPoiType, handleToggle, handleTaskPress, customCategories],
+    [nearbyPoiType, handleToggle, handleTaskPress, customCategories, palette.text],
   );
 
   const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
 
-  const listHeader = (
+  const listHeader = useMemo(() => (
     <>
       {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
       {DEBUG_SHOW_NEARBY && (
@@ -369,7 +369,11 @@ export default function TodayScreen() {
         </View>
       </View>
     </>
-  );
+  ), [
+    sortedTasks, nearbyPoiType, nearbyPlace, poiPlaces, storeTuningActive,
+    permissionGranted, nearbyCount, isLoading, locationUnavailable,
+    refreshProximity, palette, doneTasks, totalTasks, remaining,
+  ]);
 
   const listEmpty = isLoading ? (
     <View style={styles.rowPad}>

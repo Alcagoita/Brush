@@ -474,7 +474,6 @@ const styles = StyleSheet.create({
   // closed via pointerEvents, so it never blocks the screen behind it.
   host: {
     zIndex: 50,
-    elevation: 50,
   },
   scrim: {
     backgroundColor: 'rgba(0,0,0,0.4)',
