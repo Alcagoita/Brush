@@ -65,7 +65,8 @@ import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import NearbyCard from '../components/NearbyCard';
-import NewTaskSheet, { NewTaskSheetHandle } from '../components/NewTaskSheet';
+import NewTaskSheetHost from '../components/NewTaskSheetHost';
+import { useNewTaskSheetStore } from '../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTodayScreen } from '../hooks/useTodayScreen';
@@ -91,6 +92,16 @@ const RING_TOP_COLLAPSED = (SECTION_H_COLLAPSED - RING_COLLAPSED) / 2;
 // `collapseT` (0↔1) animates between them on the UI thread; everything is a
 // composite-only transform/opacity interpolation of it.
 const COLLAPSE_THRESHOLD = 0.6; // fraction of SCROLL_RANGE that triggers collapse
+
+/**
+ * DEBUG bisect toggles for the Today scroll block. Add parts back one at a time
+ * to isolate what locks the screen. Restore by setting all three true.
+ */
+const DEBUG_SHOW_LIST    = true;  // the FlatList of TaskRows
+const DEBUG_SHOW_NEARBY  = true;  // the NearbyCard (list header)
+const DEBUG_SHOW_RING    = true;  // the collapsible ring overlay
+const DEBUG_SIMPLE_ROWS  = false; // render dumb <Text> rows instead of <TaskRow>
+const DEBUG_MINIMAL = !DEBUG_SHOW_LIST && !DEBUG_SHOW_RING;
 
 // ─── Empty-state message set (KAN-139) ───────────────────────────────────────
 
@@ -163,8 +174,6 @@ export default function TodayScreen() {
     showStoreTuningPrompt,
     onStoreTuningTurnOn,
     onStoreTuningNotNow,
-    sheetVisible,
-    setSheetVisible,
     customCategories,
     totalTasks,
     doneTasks,
@@ -178,17 +187,11 @@ export default function TodayScreen() {
     locationUnavailable,
   } = useTodayScreen(uid);
 
-  // ── Sheet ref + auto-close on new task ────────────────────────────────────────
-  // Kept in the screen because sheetRef is a UI element ref, not data state.
-  const sheetRef        = useRef<NewTaskSheetHandle>(null);
-  const prevTasksLenRef = useRef(0);
-
-  useEffect(() => {
-    if (sheetVisible && tasks.length > prevTasksLenRef.current) {
-      sheetRef.current?.hide();
-    }
-    prevTasksLenRef.current = tasks.length;
-  }, [tasks, sheetVisible]);
+  // ── New Task sheet open trigger ───────────────────────────────────────────────
+  // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is
+  // read via getState() (no subscription) so opening never re-renders this
+  // screen; the sheet itself is rendered by NewTaskSheetHost which subscribes.
+  const openSheet = useCallback(() => useNewTaskSheetStore.getState().open(), []);
 
   // ── Date display ──────────────────────────────────────────────────────────────
   const now     = new Date();
@@ -273,6 +276,124 @@ export default function TodayScreen() {
   // ── Empty state flag ──────────────────────────────────────────────────────────
   const isEmpty = !isLoading && !error && tasks.length === 0;
 
+  // ── Virtualized task list (KAN-157 follow-up) ─────────────────────────────────
+  // Post-rollover (KAN-146) the Today list can hold every undone task carried
+  // forward from past days — potentially dozens. Rendering them all eagerly in a
+  // .map() inside a ScrollView meant every proximity tick re-rendered the whole
+  // animation-heavy list, saturating the JS thread (buttons dead). FlatList
+  // virtualizes: only on-screen rows mount, and stable props keep React.memo
+  // intact so a location update never re-renders rows it didn't change.
+  const renderTask = useCallback(
+    ({ item }: { item: typeof tasks[number] }) => (
+      DEBUG_SIMPLE_ROWS ? (
+        <View style={styles.rowPad}>
+          <Text style={{ color: palette.text, paddingVertical: 14 }}>{item.title}</Text>
+        </View>
+      ) : (
+      <View style={styles.rowPad}>
+        <TaskRow
+          task={item}
+          // Narrow the prop: only the matching row ever sees a non-null type, so
+          // every other row keeps a stable `null` across location ticks and its
+          // memo holds (no re-render).
+          nearbyPoiType={item.poi && item.poi === nearbyPoiType ? nearbyPoiType : null}
+          onToggle={handleToggle}
+          onPress={handleTaskPress}
+          customCategories={customCategories}
+        />
+      </View>
+      )
+    ),
+    [nearbyPoiType, handleToggle, handleTaskPress, customCategories],
+  );
+
+  const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
+
+  const listHeader = (
+    <>
+      {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
+      {DEBUG_SHOW_NEARBY && (
+      <NearbyCard
+        tasks={sortedTasks}
+        nearbyPoiType={nearbyPoiType}
+        nearbyPlace={nearbyPlace}
+        poiPlaces={poiPlaces}
+        storeTuningActive={storeTuningActive}
+      />
+      )}
+
+      {/* ── Location status row ── */}
+      {permissionGranted && nearbyCount > 0 && !nearbyPoiType && !isLoading && (
+        locationUnavailable ? (
+          <View style={[styles.locationErrorRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+            <Text style={[styles.locationErrorText, { color: palette.muted }]}>
+              Location unavailable. Turn on GPS to see nearby places.
+            </Text>
+            <Pressable
+              onPress={refreshProximity}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Retry location">
+              <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            onPress={refreshProximity}
+            hitSlop={{ top: 6, bottom: 6 }}
+            style={[styles.refreshRow, { borderBottomColor: palette.line }]}
+            accessibilityRole="button"
+            accessibilityLabel="Refresh location">
+            <Text style={[styles.refreshLabel, { color: palette.muted }]}>
+              Refresh location
+            </Text>
+          </Pressable>
+        )
+      )}
+
+      {/* ── Task list section header ── */}
+      <View style={[styles.sectionHeaderBlock, { borderTopColor: palette.line }]}>
+        <View style={styles.sectionHeader}>
+          <Text style={[styles.sectionTitle, { color: palette.muted }]}>
+            {`TODAY · `}
+            <Text style={[styles.sectionTitleCount, { color: palette.text }]}
+              accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
+              {`${doneTasks}/${totalTasks}`}
+            </Text>
+          </Text>
+          {remaining > 0 && (
+            <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
+              {`${remaining} left`}
+            </Text>
+          )}
+        </View>
+      </View>
+    </>
+  );
+
+  const listEmpty = isLoading ? (
+    <View style={styles.rowPad}>
+      {[0, 1, 2].map(i => (
+        <SkeletonRow key={i} index={i} faint={palette.faint} />
+      ))}
+    </View>
+  ) : error ? (
+    <View style={[styles.rowPad, styles.errorWrap]}>
+      <Text
+        style={[styles.empty, { color: palette.muted }]}
+        accessibilityRole="alert">
+        {error}
+      </Text>
+      <Pressable
+        onPress={refresh}
+        style={[styles.retryBtn, { borderColor: palette.line }]}
+        accessibilityRole="button"
+        accessibilityLabel="Try again">
+        <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+      </Pressable>
+    </View>
+  ) : null;
+
   // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
@@ -294,9 +415,10 @@ export default function TodayScreen() {
       </View>
 
       {/* ── Scroll area — ring section overlaid on content ── */}
+      {(DEBUG_SHOW_LIST || DEBUG_SHOW_RING) && (
       <View style={styles.scrollArea}>
 
-        {isEmpty ? (
+        {DEBUG_SHOW_LIST && (isEmpty ? (
           /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
           <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
             <ScrRotatingNudge messages={EMPTY_MESSAGES} pace={5} showCategoryIcon />
@@ -307,7 +429,7 @@ export default function TodayScreen() {
                   { backgroundColor: palette.accent },
                   pressed && styles.emptyCTABtnPressed,
                 ]}
-                onPress={() => setSheetVisible(true)}
+                onPress={openSheet}
                 accessibilityRole="button"
                 accessibilityLabel="Add something">
                 <PlusIcon color={palette.text} size={20} />
@@ -328,110 +450,27 @@ export default function TodayScreen() {
             section collapses by SCROLL_RANGE (170px), content scrolls up the
             same distance — they stay in perfect alignment throughout.
           */
-          <Animated.ScrollView
+          <Animated.FlatList
             style={StyleSheet.absoluteFill}
             contentContainerStyle={[
               styles.scrollContent,
               { backgroundColor: palette.bg },
             ]}
+            data={isLoading || error ? [] : sortedTasks}
+            renderItem={renderTask}
+            keyExtractor={keyExtractor}
+            ListHeaderComponent={listHeader}
+            ListEmptyComponent={listEmpty}
+            ListFooterComponent={<View style={styles.bottomPad} />}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
-            onScroll={scrollHandler}>
-
-            {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
-            <NearbyCard
-              tasks={sortedTasks}
-              nearbyPoiType={nearbyPoiType}
-              nearbyPlace={nearbyPlace}
-              poiPlaces={poiPlaces}
-              storeTuningActive={storeTuningActive}
-            />
-
-            {/* ── Location status row — shown when there are POI tasks but
-                 no nearby place is detected. Two states:
-                 · GPS off  → error message + Retry
-                 · GPS on   → subtle "Refresh location" tap target             ── */}
-            {permissionGranted && nearbyCount > 0 && !nearbyPoiType && !isLoading && (
-              locationUnavailable ? (
-                <View style={[styles.locationErrorRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
-                  <Text style={[styles.locationErrorText, { color: palette.muted }]}>
-                    Location unavailable. Turn on GPS to see nearby places.
-                  </Text>
-                  <Pressable
-                    onPress={refreshProximity}
-                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                    accessibilityRole="button"
-                    accessibilityLabel="Retry location">
-                    <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Pressable
-                  onPress={refreshProximity}
-                  hitSlop={{ top: 6, bottom: 6 }}
-                  style={[styles.refreshRow, { borderBottomColor: palette.line }]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Refresh location">
-                  <Text style={[styles.refreshLabel, { color: palette.muted }]}>
-                    Refresh location
-                  </Text>
-                </Pressable>
-              )
-            )}
-
-            {/* ── Task list ── */}
-            <View style={[styles.section, { borderTopColor: palette.line }]}>
-              <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: palette.muted }]}>
-                  {`TODAY · `}
-                  <Text style={[styles.sectionTitleCount, { color: palette.text }]}
-                    accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
-                    {`${doneTasks}/${totalTasks}`}
-                  </Text>
-                </Text>
-                {remaining > 0 && (
-                  <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
-                    {`${remaining} left`}
-                  </Text>
-                )}
-              </View>
-
-              {isLoading ? (
-                [0, 1, 2].map(i => (
-                  <SkeletonRow key={i} index={i} faint={palette.faint} />
-                ))
-              ) : error ? (
-                <View style={styles.errorWrap}>
-                  <Text
-                    style={[styles.empty, { color: palette.muted }]}
-                    accessibilityRole="alert">
-                    {error}
-                  </Text>
-                  <Pressable
-                    onPress={refresh}
-                    style={[styles.retryBtn, { borderColor: palette.line }]}
-                    accessibilityRole="button"
-                    accessibilityLabel="Try again">
-                    <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                sortedTasks.map(task => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    nearbyPoiType={nearbyPoiType}
-                    onToggle={handleToggle}
-                    onPress={handleTaskPress}
-                    customCategories={customCategories}
-                  />
-                ))
-              )}
-            </View>
-
-            <View style={styles.bottomPad} />
-          </Animated.ScrollView>
-        )}
+            onScroll={scrollHandler}
+            removeClippedSubviews
+            initialNumToRender={10}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+          />
+        ))}
 
         {/* ── Collapsible ring section — absolutely positioned ON TOP of content ── */}
         {/*                                                                         */}
@@ -442,6 +481,7 @@ export default function TodayScreen() {
         {/*                                                                         */}
         {/* pointerEvents="box-none" lets scroll gestures pass through to the      */}
         {/* ScrollView while still allowing the day-number Pressable to work.       */}
+        {DEBUG_SHOW_RING && (
         <View
           pointerEvents="box-none"
           style={styles.ringSection}>
@@ -529,18 +569,20 @@ export default function TodayScreen() {
             </Text>
           </Animated.View>
         </View>
+        )}
 
       </View>
+      )}
 
       {/* ── Add-task FAB (KAN-51) — hidden on empty state (CTA replaces it) ── */}
-      {!isEmpty && (
+      {(!isEmpty || DEBUG_MINIMAL) && (
         <Pressable
           style={({ pressed }) => [
             styles.fab,
             { backgroundColor: palette.accent },
             pressed && styles.fabPressed,
           ]}
-          onPress={() => setSheetVisible(true)}
+          onPress={openSheet}
           accessibilityRole="button"
           accessibilityLabel="Add task">
           <PlusIcon color={palette.onAccent} size={24} />
@@ -548,11 +590,10 @@ export default function TodayScreen() {
       )}
 
       {/* ── New-task bottom sheet (KAN-51) ── */}
-      <NewTaskSheet
-        ref={sheetRef}
-        visible={sheetVisible}
+      {/* Rendered through a store-subscribed host so open/close never re-renders
+          TodayScreen — only the host re-renders on a visibility toggle. */}
+      <NewTaskSheetHost
         uid={uid ?? ''}
-        onClose={() => setSheetVisible(false)}
         onTaskAdded={refresh}
         customCategories={customCategories}
       />
@@ -565,7 +606,7 @@ export default function TodayScreen() {
       />
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ── */}
-      {isLoading && (
+      {isLoading && !DEBUG_MINIMAL && (
         <View style={styles.loadingOverlay} pointerEvents="box-only">
           <ActivityIndicator size="large" color={palette.accent} />
         </View>
@@ -724,11 +765,16 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     marginTop: 3,
   },
-  section: {
+  sectionHeaderBlock: {
     marginTop: 24,
     paddingHorizontal: spacing.page,
     borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 20,
+  },
+  // Per-row horizontal padding — replaces the wrapping `section` View now that
+  // rows are FlatList items rather than children of a single padded container.
+  rowPad: {
+    paddingHorizontal: spacing.page,
   },
   sectionHeader: {
     flexDirection: 'row',

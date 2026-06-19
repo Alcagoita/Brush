@@ -67,6 +67,14 @@ const ENTRANCE_DUR_MS   = 650;
 /** Maximum time to wait for a rest phase after data is ready before forcing exit. */
 const MAX_WAIT_AFTER_READY_MS = 4_000;
 
+/**
+ * Absolute upper bound on boot. The KAN-146 rollover + Firestore fetch run
+ * before `markReady`; if either stalls (offline, large batch write) the splash
+ * would otherwise cycle forever. After this deadline we mark ready regardless —
+ * the Today screen does its own fetch and shows an error/retry if needed.
+ */
+const BOOT_HARD_TIMEOUT_MS = 8_000;
+
 // ─── Easings ──────────────────────────────────────────────────────────────────
 
 const PAINT_EASING    = Easing.bezier(0.5, 0.05, 0.2, 1);
@@ -152,7 +160,6 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
   const isReadyRef      = useRef(false);
   const navigatingRef   = useRef(false);
   const cycleStartedRef = useRef(false);
-  const cycleTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const restTimerRef    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -182,8 +189,13 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     ],
   }));
 
-  const revealClipStyle = useAnimatedStyle(() => ({
-    width: revealProgress.value * containerFullW.value,
+  // L→R paint reveal via a composite transform ONLY — a background-coloured mask
+  // that slides right to uncover the stroke. Never animate `width` (a layout
+  // prop): on Fabric that forces a Yoga layout + ShadowTree commit every frame,
+  // saturating the JS thread and freezing the app (KAN-157). translateX is a
+  // GPU composite — zero layout, zero JS per frame.
+  const revealMaskStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: revealProgress.value * containerFullW.value }],
   }));
 
   const dotStyle = useAnimatedStyle(() => ({
@@ -195,7 +207,6 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
   const doNavigate = useCallback(() => {
     if (navigatingRef.current) { return; }
     navigatingRef.current = true;
-    if (cycleTimerRef.current !== null) { clearTimeout(cycleTimerRef.current); }
     if (restTimerRef.current  !== null) { clearTimeout(restTimerRef.current);  }
     if (abortTimerRef.current !== null) { clearTimeout(abortTimerRef.current); }
     onExitRef.current();
@@ -262,11 +273,15 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
       }
     }, REST_START_MS);
 
-    // Start next cycle unless we navigated
-    cycleTimerRef.current = setTimeout(() => {
-      if (restTimerRef.current !== null) { clearTimeout(restTimerRef.current); }
-      runCycle();
-    }, SPLASH_DUR_MS);
+    // NOTE: run ONCE — do not self-reschedule. On Fabric, every animation frame
+    // commits through the ShadowTree (Yoga + RawProps), so a perpetually looping
+    // splash animation pegs the JS thread. While pegged, the boot promises and
+    // `markReady`/`doNavigate` timers can't run — so the splash would loop
+    // forever and the app would never appear (the KAN-146 rollover made boot slow
+    // enough to fall into this deadlock). With a single cycle the thread frees
+    // after ~3s; boot callbacks then run and exit is driven by `restTimerRef`
+    // (fast path) or `markReady`'s abort timer (slow path). KAN-157 lesson:
+    // never animate per frame longer than necessary on Fabric.
   }, [
     revealProgress, strokeOpacity, strokeTX, strokeTY, strokeRot, dotScale,
     doNavigate,
@@ -361,12 +376,18 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     return () => { cancelled = true; };
   }, [authLoading, user, markReady]);
 
+  // ── Boot safety net ────────────────────────────────────────────────────────
+  // Guarantee the splash exits even if rollover/fetch never resolves.
+  useEffect(() => {
+    const t = setTimeout(markReady, BOOT_HARD_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [markReady]);
+
   // ── Timer cleanup ─────────────────────────────────────────────────────────
 
   useEffect(() => {
     return () => {
-      if (cycleTimerRef.current !== null) { clearTimeout(cycleTimerRef.current); }
-      if (restTimerRef.current  !== null) { clearTimeout(restTimerRef.current);  }
+        if (restTimerRef.current  !== null) { clearTimeout(restTimerRef.current);  }
       if (abortTimerRef.current !== null) { clearTimeout(abortTimerRef.current); }
     };
   }, []);
@@ -416,10 +437,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
               accessible={false}
               pointerEvents="none"
             >
-              {/* Clip container — width animates 0 → fullW for the L→R reveal */}
-              <Animated.View
-                style={[revealClipStyle, { height: strokeGeom.h, overflow: 'hidden' }]}
-              >
+              {/* Static full stroke, revealed L→R by a sliding bg-coloured mask.
+                  overflow:hidden keeps the mask clipped to the stroke bounds. */}
+              <View style={{ width: strokeGeom.fullW, height: strokeGeom.h, overflow: 'hidden' }}>
                 <Image
                   source={require('../../assets/amber-stroke.png')}
                   style={{
@@ -430,7 +450,17 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
                   resizeMode="stretch"
                   accessible={false}
                 />
-              </Animated.View>
+                {/* Mask: covers the stroke at progress 0 (translateX 0), slides
+                    fully off the right edge at progress 1 (translateX fullW). */}
+                <Animated.View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: SPLASH_BG },
+                    revealMaskStyle,
+                  ]}
+                  pointerEvents="none"
+                />
+              </View>
             </Animated.View>
           )}
         </View>
