@@ -66,5 +66,19 @@ target 'Brush' do
       :mac_catalyst_enabled => false,
       # :ccache_enabled => true
     )
+
+    # RNFB pods include React-Core headers (RCTBridgeModule.h, RCTConvert.h,
+    # RCTEventEmitter.h) which are non-modular. With use_frameworks! :linkage =>
+    # :static each pod is a framework module, so Clang rejects non-modular
+    # includes by default. This flag suppresses that error per-target.
+    # install_modules_dependencies() in RNFB v24 resolves module ownership
+    # conflicts (umbrella/prefix patches no longer needed), but this Clang
+    # compiler flag is a separate concern that still must be set manually.
+    installer.pods_project.targets.each do |target|
+      next unless target.name.start_with?('RNFB')
+      target.build_configurations.each do |cfg|
+        cfg.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+      end
+    end
   end
 end
