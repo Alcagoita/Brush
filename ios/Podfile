@@ -101,10 +101,10 @@ target 'Brush' do
     firebase_h = "#{installer.sandbox.root}/Firebase/CoreOnly/Sources/Firebase.h"
     if File.exist?(firebase_h)
       content = File.read(firebase_h)
-      unless content.include?('SafariServices/SafariServices.h')
+      unless content.include?('@protocol FIRComponentLifecycleMaintainer')
         content.sub!(
           '#import <FirebaseAuth/FirebaseAuth-Swift.h>',
-          "#import <SafariServices/SafariServices.h>\n      #import <WebKit/WebKit.h>\n      #import <FirebaseAuth/FirebaseAuth-Swift.h>"
+          "#import <SafariServices/SafariServices.h>\n      #import <WebKit/WebKit.h>\n      @protocol FIRComponentLifecycleMaintainer;\n      #import <FirebaseAuth/FirebaseAuth-Swift.h>"
         )
         File.chmod(0644, firebase_h)
         IO.write(firebase_h, content)
