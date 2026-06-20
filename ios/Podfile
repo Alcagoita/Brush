@@ -119,5 +119,18 @@ target 'Brush' do
         cfg.build_settings['GCC_PRECOMPILE_PREFIX_HEADER'] = 'YES'
       end
     end
+
+    # Xcode 15+ User Script Sandboxing blocks CocoaPods' resource-copy script
+    # from writing resources-to-copy-BrushShareExtension.txt inside ios/Pods/.
+    # CocoaPods xcconfig does not set this flag, so the target's explicit YES
+    # wins. Override it here so every pod install keeps it in sync.
+    main_proj = Xcodeproj::Project.open("#{installer.sandbox.root}/../Brush.xcodeproj")
+    main_proj.targets.each do |target|
+      next unless target.name == 'BrushShareExtension'
+      target.build_configurations.each do |cfg|
+        cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+      end
+    end
+    main_proj.save
   end
 end
