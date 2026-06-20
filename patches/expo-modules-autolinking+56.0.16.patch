@@ -4,11 +4,11 @@ index 0000000..0cc6f86
 Binary files /dev/null and b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/8.13/executionHistory/executionHistory.bin differ
 diff --git a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/8.13/executionHistory/executionHistory.lock b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/8.13/executionHistory/executionHistory.lock
 new file mode 100644
-index 0000000..cffe79b
+index 0000000..f2b7c9e
 Binary files /dev/null and b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/8.13/executionHistory/executionHistory.lock differ
 diff --git a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/buildOutputCleanup/buildOutputCleanup.lock b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/buildOutputCleanup/buildOutputCleanup.lock
 new file mode 100644
-index 0000000..790d2b1
+index 0000000..71fe472
 Binary files /dev/null and b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/buildOutputCleanup/buildOutputCleanup.lock differ
 diff --git a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/buildOutputCleanup/cache.properties b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/buildOutputCleanup/cache.properties
 new file mode 100644
@@ -24,7 +24,7 @@ index 0000000..0bc2097
 Binary files /dev/null and b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/buildOutputCleanup/outputFiles.bin differ
 diff --git a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/file-system.probe b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/file-system.probe
 new file mode 100644
-index 0000000..003d174
+index 0000000..63a13ad
 Binary files /dev/null and b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/.gradle/file-system.probe differ
 diff --git a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-plugin-shared/build/classes/kotlin/main/META-INF/expo-autolinking-plugin-shared.kotlin_module b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-plugin-shared/build/classes/kotlin/main/META-INF/expo-autolinking-plugin-shared.kotlin_module
 new file mode 100644
@@ -1151,10 +1151,17 @@ index 0000000..58630c0
 +Manifest-Version: 1.0
 +
 diff --git a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-settings-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingSettingsExtension.kt b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-settings-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingSettingsExtension.kt
-index 04601c1..b2ca6b1 100644
+index 04601c1..cb9eace 100644
 --- a/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-settings-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingSettingsExtension.kt
 +++ b/node_modules/expo-modules-autolinking/android/expo-gradle-plugin/expo-autolinking-settings-plugin/src/main/kotlin/expo/modules/plugin/ExpoAutolinkingSettingsExtension.kt
-@@ -45,6 +45,10 @@ open class ExpoAutolinkingSettingsExtension(
+@@ -1,5 +1,6 @@
+ package expo.modules.plugin
+ 
++import expo.modules.plugin.gradle.loadLocalProperties
+ import org.gradle.api.Action
+ import org.gradle.api.initialization.Settings
+ import org.gradle.api.initialization.dsl.VersionCatalogBuilder
+@@ -45,6 +46,10 @@ open class ExpoAutolinkingSettingsExtension(
     */
    var exclude: List<String>? = null
  
@@ -1165,7 +1172,7 @@ index 04601c1..b2ca6b1 100644
    /**
     * The file pointing to the React Native Gradle plugin.
     */
-@@ -52,7 +56,7 @@ open class ExpoAutolinkingSettingsExtension(
+@@ -52,7 +57,7 @@ open class ExpoAutolinkingSettingsExtension(
      File(
        settings.providers.exec { env ->
          env.workingDir(projectRoot)
@@ -1174,7 +1181,7 @@ index 04601c1..b2ca6b1 100644
        }.standardOutput.asText.get().trim(),
      ).parentFile
    }
-@@ -64,7 +68,7 @@ open class ExpoAutolinkingSettingsExtension(
+@@ -64,7 +69,7 @@ open class ExpoAutolinkingSettingsExtension(
      File(
        settings.providers.exec { env ->
          env.workingDir(projectRoot)
