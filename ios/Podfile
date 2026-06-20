@@ -85,6 +85,24 @@ target 'Brush' do
     # first so the Swift compiler sees RCTBridgeModule/RCTConvert ownership
     # established before any RNFB type appears in the generated Swift interface.
     # install_modules_dependencies() in RNFB v24 does not fix this path.
+    # FirebaseAuth-umbrella.h only imports UIKit. FirebaseAuth-Swift.h (included
+    # as part of the FirebaseAuth module) references SFSafariViewControllerDelegate
+    # (SafariServices), WKNavigationDelegate/WKNavigationAction (WebKit), and
+    # FIRComponentLifecycleMaintainer (FirebaseCore). Without these in scope,
+    # any target importing FirebaseAuth hits "No type or protocol named" errors.
+    # Patching the umbrella header fixes it for all consuming targets at once.
+    firebase_auth_umbrella = "#{installer.sandbox.root}/Target Support Files/FirebaseAuth/FirebaseAuth-umbrella.h"
+    if File.exist?(firebase_auth_umbrella)
+      content = File.read(firebase_auth_umbrella)
+      unless content.include?('SafariServices')
+        content.sub!(
+          '#import <UIKit/UIKit.h>',
+          "#import <UIKit/UIKit.h>\n#import <SafariServices/SafariServices.h>\n#import <WebKit/WebKit.h>\n#import <FirebaseCore/FirebaseCore.h>"
+        )
+        File.write(firebase_auth_umbrella, content)
+      end
+    end
+
     rnfb_dependents = %w[RNFBAuth RNFBCrashlytics RNFBFirestore RNFBMessaging RNFBStorage]
     rnfb_dependents.each do |pod_name|
       umbrella = "#{installer.sandbox.root}/Target Support Files/#{pod_name}/#{pod_name}-umbrella.h"
