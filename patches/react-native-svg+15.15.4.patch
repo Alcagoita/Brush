@@ -1,0 +1,25 @@
+diff --git a/node_modules/react-native-svg/android/build.gradle b/node_modules/react-native-svg/android/build.gradle
+index 4fe912c..98ad035 100644
+--- a/node_modules/react-native-svg/android/build.gradle
++++ b/node_modules/react-native-svg/android/build.gradle
+@@ -33,6 +33,11 @@ if (project == rootProject) {
+ 
+ apply plugin: 'com.android.library'
+ 
++def localProps = new Properties()
++def localPropsFile = new File(rootProject.projectDir, "local.properties")
++if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }
++def nodeBinary = localProps.getProperty("NODE_BINARY", "node")
++
+ def safeExtGet(prop, fallback) {
+     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+@@ -47,7 +52,7 @@ def resolveReactNativeDirectory() {
+   def reactNativePackage = file(
+       providers.exec {
+           workingDir(rootDir)
+-          commandLine("node", "--print", "require.resolve('react-native/package.json')")
++          commandLine(nodeBinary, "--print", "require.resolve('react-native/package.json')")
+       }.standardOutput.asText.get().trim()
+   )
+   if (reactNativePackage.exists()) {

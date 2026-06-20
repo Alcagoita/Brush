@@ -1,0 +1,43 @@
+diff --git a/node_modules/react-native-reanimated/android/build.gradle b/node_modules/react-native-reanimated/android/build.gradle
+index 8167d16..691420f 100644
+--- a/node_modules/react-native-reanimated/android/build.gradle
++++ b/node_modules/react-native-reanimated/android/build.gradle
+@@ -3,6 +3,11 @@ import groovy.json.JsonSlurper
+ import org.apache.tools.ant.taskdefs.condition.Os
+ import javax.inject.Inject
+ 
++def localProps = new Properties()
++def localPropsFile = new File(rootProject.projectDir, "local.properties")
++if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }
++def nodeBinary = localProps.getProperty("NODE_BINARY", "node")
++
+ def safeExtGet(prop, fallback) {
+     rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+@@ -34,7 +39,7 @@ def resolveReactNativeDirectory() {
+     // Fallback to node resolver for custom directory structures like monorepos.
+     def reactNativePackage = file(providers.exec {
+         workingDir(rootDir)
+-        commandLine("node", "--print", "require.resolve('react-native/package.json')")
++        commandLine(nodeBinary, "--print", "require.resolve('react-native/package.json')")
+     }.standardOutput.asText.get().trim())
+     if (reactNativePackage.exists()) {
+         return reactNativePackage.parentFile
+@@ -241,7 +246,7 @@ android {
+ 
+ def validateReactNativeVersionResult = providers.exec {
+     workingDir(projectDir.path)
+-    commandLine("node", "./../scripts/validate-react-native-version.js", REACT_NATIVE_VERSION.toString())
++    commandLine(nodeBinary, "./../scripts/validate-react-native-version.js", REACT_NATIVE_VERSION.toString())
+     ignoreExitValue = true
+ }
+ 
+@@ -266,7 +271,7 @@ preBuild.dependsOn(assertNewArchitectureEnabledTask)
+ 
+ def validateWorkletsBuildResult = providers.exec {
+     workingDir(projectDir.path)
+-    commandLine("node", "./../scripts/validate-worklets-build.js")
++    commandLine(nodeBinary, "./../scripts/validate-worklets-build.js")
+     ignoreExitValue = true
+ }
+ 
