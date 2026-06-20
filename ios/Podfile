@@ -80,9 +80,25 @@ target 'Brush' do
     #    Clang enters framework module compilation for each dependent target.
     #    install_modules_dependencies() in RNFB v24 didn't eliminate this.
     #
-    # Umbrella header patches (Swift EmitSwiftModule phase) removed — covered
-    # by install_modules_dependencies() in RNFB v24. Restore if Swift
-    # interface emission errors appear.
+    # Umbrella header patch — Swift EmitSwiftModule phase.
+    # Each RNFB dependent pod's umbrella header must import RNFBApp headers
+    # first so the Swift compiler sees RCTBridgeModule/RCTConvert ownership
+    # established before any RNFB type appears in the generated Swift interface.
+    # install_modules_dependencies() in RNFB v24 does not fix this path.
+    rnfb_dependents = %w[RNFBAuth RNFBCrashlytics RNFBFirestore RNFBMessaging RNFBStorage]
+    rnfb_dependents.each do |pod_name|
+      umbrella = "#{installer.sandbox.root}/Target Support Files/#{pod_name}/#{pod_name}-umbrella.h"
+      next unless File.exist?(umbrella)
+      content = File.read(umbrella)
+      next if content.include?('RNFBAppModule.h')
+      first_import = content.match(/#import "RNFB[^"]+\.h"/)
+      next unless first_import
+      content.sub!(
+        first_import[0],
+        "#import <RNFBApp/RNFBAppModule.h>\n#import <RNFBApp/RCTConvert+FIRApp.h>\n#{first_import[0]}"
+      )
+      File.write(umbrella, content)
+    end
 
     compat_header = "#{installer.sandbox.root}/RNFBCompat-prefix.h"
     File.write(compat_header, <<~COMPAT)
