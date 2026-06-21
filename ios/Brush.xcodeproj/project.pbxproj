@@ -21,7 +21,6 @@
 		90A3D240B5D44CEFBB2559CD /* ParseResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D7C6BE0CB84F1A9D5B132C /* ParseResult.swift */; };
 		71CD83637C80479A8B3B4DEF /* CloudFunctions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAD784E3659E43BCAAB875EF /* CloudFunctions.swift */; };
 		178B18C5ADB14B59B3FC47D7 /* ConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C7C74C02424F989FF0F22F /* ConfirmationView.swift */; };
-		811A34EF96934E0C8B379CB3 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = D907F7A40D714652875FA076 /* Info.plist */; };
 		4949AF9B54A44F8EAACB6571 /* BrushShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 542CF20EADDC4F40AA500845; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -763,7 +762,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
@@ -793,7 +792,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				SWIFT_COMPILATION_MODE = wholemodule;

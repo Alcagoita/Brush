@@ -163,7 +163,10 @@ function withShareExtensionXcode(config) {
 
     // ── PBX group with source files ────────────────────────────────────────
 
-    const allFiles = [...SOURCE_FILES, 'Info.plist', ENTITLEMENTS_FILE];
+    // Info.plist is referenced via INFOPLIST_FILE build setting only — it must
+    // NOT appear in PBXBuildFile, or addPbxGroup will create a spurious
+    // "Info.plist in Resources" build file entry.
+    const allFiles = [...SOURCE_FILES, ENTITLEMENTS_FILE];
     const { uuid: pbxGroupUuid } = project.addPbxGroup(
       allFiles,
       EXTENSION_NAME,
