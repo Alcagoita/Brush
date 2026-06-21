@@ -12,33 +12,36 @@
 		81AB9BB82411601600AC10FF /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */; };
 		8768F94715954DF19006DDC0 /* Geist-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8200D76D424775A91F0B29 /* Geist-Regular.ttf */; };
 		B4D591A2F88645EF874F9667 /* Geist-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 29246E9E8C04400D8DC4A9C3 /* Geist-Medium.ttf */; };
-		B53F5482078E1B92C8EDE8DB /* Pods_BrushShareExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 022FB03B92098B86DF25C78A /* Pods_BrushShareExtension.framework */; };
 		BDFAF69EA8A2E05B2127F303 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */; };
 		DBC000516EE8C892B78BF187 /* Pods_Brush.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A5E811D3B0C30ABDC3E15475 /* Pods_Brush.framework */; };
 		DBF2E2083FD0013C478A2D92 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 31AC1B518174C41A0832DC7C /* GoogleService-Info.plist */; };
-		DF6892992FD4E36D003E1EDD /* BrushShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = DF68928F2FD4E36C003E1EDD /* BrushShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		EB706A746CDB9E43F52588B4 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BE56E75490C740C56716ABC /* ExpoModulesProvider.swift */; };
 		EEE24D0CE3434552B2D3DC1B /* Geist-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = F1BFDF13CDF1454798C0C50C /* Geist-SemiBold.ttf */; };
+		F9C36184A5AA4677B8E23332 /* ShareViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 014B0CAB040845F8872415EA /* ShareViewController.swift */; };
+		90A3D240B5D44CEFBB2559CD /* ParseResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D7C6BE0CB84F1A9D5B132C /* ParseResult.swift */; };
+		71CD83637C80479A8B3B4DEF /* CloudFunctions.swift in Sources */ = {isa = PBXBuildFile; fileRef = BAD784E3659E43BCAAB875EF /* CloudFunctions.swift */; };
+		178B18C5ADB14B59B3FC47D7 /* ConfirmationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1C7C74C02424F989FF0F22F /* ConfirmationView.swift */; };
+		4949AF9B54A44F8EAACB6571 /* BrushShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 542CF20EADDC4F40AA500845; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		DF6892972FD4E36D003E1EDD /* PBXContainerItemProxy */ = {
+		5296B3D2A4F945D983A6683F /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = DF68928E2FD4E36C003E1EDD;
+			remoteGlobalIDString = 0AD30ECBEE9B4FE08D9F3ECB;
 			remoteInfo = BrushShareExtension;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		DF68929A2FD4E36D003E1EDD /* Embed Foundation Extensions */ = {
+		10EB3487ACC64436BE25E9B7 /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				DF6892992FD4E36D003E1EDD /* BrushShareExtension.appex in Embed Foundation Extensions */,
+				4949AF9B54A44F8EAACB6571 /* BrushShareExtension.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -46,8 +49,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		022FB03B92098B86DF25C78A /* Pods_BrushShareExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_BrushShareExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		09113D10881E8C9820285008 /* Pods-BrushShareExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BrushShareExtension.release.xcconfig"; path = "Target Support Files/Pods-BrushShareExtension/Pods-BrushShareExtension.release.xcconfig"; sourceTree = "<group>"; };
 		13B07F961A680F5B00A75B9A /* Brush.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Brush.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Brush/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Brush/Info.plist; sourceTree = "<group>"; };
@@ -59,39 +60,25 @@
 		5709B34CF0A7D63546082F79 /* Pods-Agenda.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Agenda.release.xcconfig"; path = "Target Support Files/Pods-Agenda/Pods-Agenda.release.xcconfig"; sourceTree = "<group>"; };
 		6BE56E75490C740C56716ABC /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Brush/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Brush/AppDelegate.swift; sourceTree = "<group>"; };
-		7CB6C1E22EBF86153EAD19A2 /* Pods-BrushShareExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BrushShareExtension.debug.xcconfig"; path = "Target Support Files/Pods-BrushShareExtension/Pods-BrushShareExtension.debug.xcconfig"; sourceTree = "<group>"; };
 		81AB9BB72411601600AC10FF /* LaunchScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = LaunchScreen.storyboard; path = Brush/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		959F51F696A8D0953FAE2D12 /* Pods-Brush.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brush.debug.xcconfig"; path = "Target Support Files/Pods-Brush/Pods-Brush.debug.xcconfig"; sourceTree = "<group>"; };
 		A5E811D3B0C30ABDC3E15475 /* Pods_Brush.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Brush.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		DF68928F2FD4E36C003E1EDD /* BrushShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = BrushShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		EC1CE4951ABEED4C9E8829E1 /* Pods-Brush.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Brush.release.xcconfig"; path = "Target Support Files/Pods-Brush/Pods-Brush.release.xcconfig"; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F1BFDF13CDF1454798C0C50C /* Geist-SemiBold.ttf */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; name = "Geist-SemiBold.ttf"; path = "../src/assets/fonts/Geist-SemiBold.ttf"; sourceTree = "<group>"; };
+		542CF20EADDC4F40AA500845 /* BrushShareExtension.appex */ = {isa = PBXFileReference; name = "BrushShareExtension.appex"; path = "BrushShareExtension.appex"; sourceTree = BUILT_PRODUCTS_DIR; fileEncoding = undefined; lastKnownFileType = undefined; explicitFileType = wrapper.app-extension; includeInIndex = 0; };
+		014B0CAB040845F8872415EA /* ShareViewController.swift */ = {isa = PBXFileReference; name = "ShareViewController.swift"; path = "ShareViewController.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		57D7C6BE0CB84F1A9D5B132C /* ParseResult.swift */ = {isa = PBXFileReference; name = "ParseResult.swift"; path = "ParseResult.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		BAD784E3659E43BCAAB875EF /* CloudFunctions.swift */ = {isa = PBXFileReference; name = "CloudFunctions.swift"; path = "CloudFunctions.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		D1C7C74C02424F989FF0F22F /* ConfirmationView.swift */ = {isa = PBXFileReference; name = "ConfirmationView.swift"; path = "ConfirmationView.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		D907F7A40D714652875FA076 /* Info.plist */ = {isa = PBXFileReference; name = "Info.plist"; path = "Info.plist"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = text.plist.xml; explicitFileType = undefined; includeInIndex = 0; };
+		A5DA772218F4432A81068202 /* BrushShareExtension.entitlements */ = {isa = PBXFileReference; name = "BrushShareExtension.entitlements"; path = "BrushShareExtension.entitlements"; sourceTree = "<group>"; fileEncoding = undefined; lastKnownFileType = unknown; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		DF68929D2FD4E36D003E1EDD /* Exceptions for "BrushShareExtension" folder in "BrushShareExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = DF68928E2FD4E36C003E1EDD /* BrushShareExtension */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		DF6892902FD4E36D003E1EDD /* BrushShareExtension */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				DF68929D2FD4E36D003E1EDD /* Exceptions for "BrushShareExtension" folder in "BrushShareExtension" target */,
-			);
-			explicitFileTypes = {
-			};
-			explicitFolders = (
-			);
-			path = BrushShareExtension;
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -103,11 +90,10 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DF68928C2FD4E36C003E1EDD /* Frameworks */ = {
+		C11DA5459C2B4BC19FCEAF72 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B53F5482078E1B92C8EDE8DB /* Pods_BrushShareExtension.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,7 +126,6 @@
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
 				A5E811D3B0C30ABDC3E15475 /* Pods_Brush.framework */,
-				022FB03B92098B86DF25C78A /* Pods_BrushShareExtension.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -175,12 +160,12 @@
 			children = (
 				13B07FAE1A68108700A75B9A /* Brush */,
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
-				DF6892902FD4E36D003E1EDD /* BrushShareExtension */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
 				BBD78D7AC51CEA395F1C20DB /* Pods */,
 				3768757D415E41E7A8670EF1 /* Resources */,
 				683289ED8BBB2AECBCE96674 /* ExpoModulesProviders */,
+				55120D8C812A492E9D2EAAAF /* BrushShareExtension */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -191,7 +176,7 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* Brush.app */,
-				DF68928F2FD4E36C003E1EDD /* BrushShareExtension.appex */,
+				542CF20EADDC4F40AA500845 /* BrushShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -203,10 +188,22 @@
 				5709B34CF0A7D63546082F79 /* Pods-Agenda.release.xcconfig */,
 				959F51F696A8D0953FAE2D12 /* Pods-Brush.debug.xcconfig */,
 				EC1CE4951ABEED4C9E8829E1 /* Pods-Brush.release.xcconfig */,
-				7CB6C1E22EBF86153EAD19A2 /* Pods-BrushShareExtension.debug.xcconfig */,
-				09113D10881E8C9820285008 /* Pods-BrushShareExtension.release.xcconfig */,
 			);
 			path = Pods;
+			sourceTree = "<group>";
+		};
+		55120D8C812A492E9D2EAAAF /* BrushShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				014B0CAB040845F8872415EA /* ShareViewController.swift */,
+				57D7C6BE0CB84F1A9D5B132C /* ParseResult.swift */,
+				BAD784E3659E43BCAAB875EF /* CloudFunctions.swift */,
+				D1C7C74C02424F989FF0F22F /* ConfirmationView.swift */,
+				D907F7A40D714652875FA076 /* Info.plist */,
+				A5DA772218F4432A81068202 /* BrushShareExtension.entitlements */,
+			);
+			name = BrushShareExtension;
+			path = BrushShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -227,39 +224,34 @@
 				E235C05ADACE081382539298 /* [CP] Copy Pods Resources */,
 				591FDBABA8D2E86508F06050 /* [CP-User] [RNFB] Core Configuration */,
 				B0F9B11BBE4FEBF5EB2592E9 /* [CP-User] [RNFB] Crashlytics Configuration */,
-				DF68929A2FD4E36D003E1EDD /* Embed Foundation Extensions */,
+				10EB3487ACC64436BE25E9B7 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				DF6892982FD4E36D003E1EDD /* PBXTargetDependency */,
+				DD1400894D6D4089BDC3B3D0 /* PBXTargetDependency */,
 			);
 			name = Brush;
 			productName = Brush;
 			productReference = 13B07F961A680F5B00A75B9A /* Brush.app */;
 			productType = "com.apple.product-type.application";
 		};
-		DF68928E2FD4E36C003E1EDD /* BrushShareExtension */ = {
+		0AD30ECBEE9B4FE08D9F3ECB /* BrushShareExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = DF68929E2FD4E36D003E1EDD /* Build configuration list for PBXNativeTarget "BrushShareExtension" */;
+			name = BrushShareExtension;
+			productName = BrushShareExtension;
+			productReference = 542CF20EADDC4F40AA500845;
+			productType = "com.apple.product-type.app-extension";
+			buildConfigurationList = E56D685BB5F5483CBD12A30A;
 			buildPhases = (
-				13CEF450A511463B264394BF /* [CP] Check Pods Manifest.lock */,
-				DF68928B2FD4E36C003E1EDD /* Sources */,
-				DF68928C2FD4E36C003E1EDD /* Frameworks */,
-				DF68928D2FD4E36C003E1EDD /* Resources */,
-				31085C985757254BD29B5966 /* [CP] Copy Pods Resources */,
+				8563A04C1851429B95A8F21B /* Sources */,
+				C11DA5459C2B4BC19FCEAF72 /* Frameworks */,
+				5B64AA2B6977460A9DFD15DF /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			fileSystemSynchronizedGroups = (
-				DF6892902FD4E36D003E1EDD /* BrushShareExtension */,
-			);
-			name = BrushShareExtension;
-			productName = BrushShareExtension;
-			productReference = DF68928F2FD4E36C003E1EDD /* BrushShareExtension.appex */;
-			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -273,8 +265,8 @@
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1120;
 					};
-					DF68928E2FD4E36C003E1EDD = {
-						CreatedOnToolsVersion = 26.3;
+					0AD30ECBEE9B4FE08D9F3ECB = {
+						LastSwiftMigration = 1250;
 					};
 				};
 			};
@@ -292,7 +284,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* Brush */,
-				DF68928E2FD4E36C003E1EDD /* BrushShareExtension */,
+				0AD30ECBEE9B4FE08D9F3ECB /* BrushShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -312,7 +304,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DF68928D2FD4E36C003E1EDD /* Resources */ = {
+		5B64AA2B6977460A9DFD15DF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -355,28 +347,6 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Brush/Pods-Brush-frameworks.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		13CEF450A511463B264394BF /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-BrushShareExtension-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 		1926ECE9651AC283F81A0EC3 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -400,23 +370,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Brush/expo-configure-project.sh\"\n";
-		};
-		31085C985757254BD29B5966 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-BrushShareExtension/Pods-BrushShareExtension-resources-${CONFIGURATION}-input-files.xcfilelist",
-			);
-			name = "[CP] Copy Pods Resources";
-			outputFileListPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-BrushShareExtension/Pods-BrushShareExtension-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-BrushShareExtension/Pods-BrushShareExtension-resources.sh\"\n";
-			showEnvVarsInLog = 0;
 		};
 		5278C57B1DDABA331AA8C5E7 /* [Firebase] Verify GoogleService-Info.plist */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -514,20 +467,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DF68928B2FD4E36C003E1EDD /* Sources */ = {
+		8563A04C1851429B95A8F21B /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F9C36184A5AA4677B8E23332 /* "ShareViewController.swift" in Sources */,
+				90A3D240B5D44CEFBB2559CD /* "ParseResult.swift" in Sources */,
+				71CD83637C80479A8B3B4DEF /* "CloudFunctions.swift" in Sources */,
+				178B18C5ADB14B59B3FC47D7 /* "ConfirmationView.swift" in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		DF6892982FD4E36D003E1EDD /* PBXTargetDependency */ = {
+		DD1400894D6D4089BDC3B3D0 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = DF68928E2FD4E36C003E1EDD /* BrushShareExtension */;
-			targetProxy = DF6892972FD4E36D003E1EDD /* PBXContainerItemProxy */;
+			target = 0AD30ECBEE9B4FE08D9F3ECB /* BrushShareExtension */;
+			targetProxy = 5296B3D2A4F945D983A6683F /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -555,11 +512,11 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
 				PRODUCT_BUNDLE_IDENTIFIER = com.brush;
-				PRODUCT_NAME = Brush;
+				PRODUCT_NAME = "Brush";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Debug;
@@ -586,10 +543,10 @@
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
 				PRODUCT_BUNDLE_IDENTIFIER = com.brush;
-				PRODUCT_NAME = Brush;
+				PRODUCT_NAME = "Brush";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
 				VERSIONING_SYSTEM = "apple-generic";
 			};
 			name = Release;
@@ -782,100 +739,64 @@
 			};
 			name = Release;
 		};
-		DF68929B2FD4E36D003E1EDD /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 7CB6C1E22EBF86153EAD19A2 /* Pods-BrushShareExtension.debug.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
-				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
-				GCC_PRECOMPILE_PREFIX_HEADER = YES;
-				GCC_PREFIX_HEADER = "$(PODS_ROOT)/BrushShareExtCompat-prefix.h";
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = BrushShareExtension/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = BrushShareExtension;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.brush.BrushShareExtension;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
-			};
+		2ECD136938E2453B996B2E0A /* Debug */ = {
 			name = Debug;
-		};
-		DF68929C2FD4E36D003E1EDD /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 09113D10881E8C9820285008 /* Pods-BrushShareExtension.release.xcconfig */;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = BrushShareExtension/BrushShareExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 1;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				CURRENT_PROJECT_VERSION = "1";
 				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GCC_PRECOMPILE_PREFIX_HEADER = YES;
 				GCC_PREFIX_HEADER = "$(PODS_ROOT)/BrushShareExtCompat-prefix.h";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BrushShareExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BrushShareExtension;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
-				MARKETING_VERSION = 1.0;
-				MTL_FAST_MATH = YES;
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.brush.BrushShareExtension;
+				IPHONEOS_DEPLOYMENT_TARGET = "16.4";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = "1.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.brush.BrushShareExtension";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};
+		};
+		7EE5C94F289643838CDCE0C7 /* Release */ = {
 			name = Release;
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = BrushShareExtension/BrushShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = "1";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_PRECOMPILE_PREFIX_HEADER = YES;
+				GCC_PREFIX_HEADER = "$(PODS_ROOT)/BrushShareExtCompat-prefix.h";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = BrushShareExtension/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BrushShareExtension;
+				IPHONEOS_DEPLOYMENT_TARGET = "16.4";
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				MARKETING_VERSION = "1.0";
+				PRODUCT_BUNDLE_IDENTIFIER = "com.brush.BrushShareExtension";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
 		};
 /* End XCBuildConfiguration section */
 
@@ -898,11 +819,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		DF68929E2FD4E36D003E1EDD /* Build configuration list for PBXNativeTarget "BrushShareExtension" */ = {
+		E56D685BB5F5483CBD12A30A /* Build configuration list for PBXNativeTarget "BrushShareExtension" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				DF68929B2FD4E36D003E1EDD /* Debug */,
-				DF68929C2FD4E36D003E1EDD /* Release */,
+				2ECD136938E2453B996B2E0A /* Debug */,
+				7EE5C94F289643838CDCE0C7 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

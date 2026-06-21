@@ -22,6 +22,7 @@
           "remindersPermission": "Brush needs reminders access to import your incomplete reminders as tasks."
         }
       ],
+      "./plugins/withShareExtension",
       [
         "expo-location",
         {
