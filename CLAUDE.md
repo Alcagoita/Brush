@@ -295,6 +295,78 @@ docs/
 
 ---
 
+## Sprint 11 — Active
+
+**Epic KAN-158 — Expo migration.** Layer the Expo toolchain onto the existing bare RN 0.85.3 app, replace native-module/Podfile/patch hacks with config plugins and Expo modules, then enable the New Architecture. **Wear OS untouched throughout** (runs as legacy bridge module in mixed-mode — expected, supported).
+
+### Status
+
+| Ticket | Title | Status |
+|---|---|---|
+| KAN-159 | Install Expo modules into existing RN project | To Do |
+| KAN-160 | Replace Firebase Podfile hacks with config plugin | To Do |
+| KAN-161 | Eliminate patch-package — audit + replace both patches | To Do |
+| KAN-162 | Migrate BrushGeofenceModule to expo-location | To Do |
+| KAN-163 | Migrate BrushEventKitModule to expo-calendar | To Do |
+| KAN-164 | Replace iOS Share Extension with config plugin | To Do |
+| KAN-165 | Enable New Architecture (Fabric + TurboModules) | To Do |
+
+### Build order
+
+```
+KAN-159 (gate) ─┬─→ KAN-160 ┐
+                ├─→ KAN-161 ┤
+                ├─→ KAN-162 ├─→ KAN-165 (last)
+                ├─→ KAN-163 ┤
+                └─→ KAN-164 ┘
+```
+
+KAN-159 is the gate. KAN-160–164 run in parallel after it. KAN-165 last (needs all of 160–164).
+
+### KAN-159 — Install Expo modules (gate, no deps)
+
+`npx install-expo-modules@latest`; swap `babel.config.js` → `babel-preset-expo`; `metro.config.js` → `expo/metro-config`; add `app.json` (name/slug/platforms ios+android); `pod install`; build both platforms; Jest green.
+
+ACs: both platforms build+launch clean · no native module broken (Wear OS, geofence, share extension) · Jest green · no new patches. **Unlock for the whole epic — if build fails here, stop and investigate.**
+
+### KAN-160 — Firebase config plugin (dep: 159)
+
+Delete the 40+ line manual Podfile static-framework post-install hooks for `@react-native-firebase` (`$RNFirebaseAsStaticFramework`, `use_frameworks! :linkage => :static`, umbrella header patches, `RNFBCompat-prefix.h`, RCTBridgeModule/RCTConvert clang fix). Add `@react-native-firebase/app` + messaging/crashlytics config plugins to `app.json`; `npx expo prebuild --clean`; remove redundant hooks; `pod install` + iOS build.
+
+ACs: Podfile post-install has zero RNFB hacks · Auth/Firestore/Messaging/Crashlytics functional · iOS build clean, no umbrella warnings · Android unaffected.
+
+### KAN-161 — Eliminate patch-package (dep: 159)
+
+Audit + replace both patches. `react-native-reanimated+3.19.5.patch` (13 KB): check if upstreamed in newer reanimated → upgrade + delete, else config plugin/native override. `react-native-share-menu+4.1.4.patch` (639 B): check upstream → upgrade, else evaluate `expo-share-extension` (aligns w/ KAN-164). Remove `patch-package` from devDependencies + `postinstall`.
+
+ACs: no `patches/` dir · no `patch-package` in package.json · both builds green · Jest green.
+
+### KAN-162 — BrushGeofenceModule → expo-location (dep: 159)
+
+Rewrite `src/services/geolocation.ts` on `expo-location` + `expo-task-manager` geofencing (`startGeofencingAsync`). Delete `src/services/nativeGeofence.ts`; Android `BrushGeofenceModule.kt`/`BrushGeofencePackage.kt`/`GeofenceBroadcastReceiver.kt` (+ unregister from `MainApplication.kt`); iOS `BrushGeofenceModule.swift`/`.m`. Update AndroidManifest permissions/receivers. Preserve `NEARBY_RADIUS` (ATM/pharmacy=50m, cafe/supermarket=75m).
+
+ACs: no custom geofence native files · geofencing triggers both platforms · proximity tests pass/updated · KAN-144 POI persistence behaviour unchanged.
+
+### KAN-163 — BrushEventKitModule → expo-calendar (dep: 159)
+
+iOS-only native (Android has no equivalent custom module). Install `expo-calendar`; map each `BrushEventKitModule.swift` exported method to expo-calendar; rewrite `src/services/events.ts`; update `src/services/import.ts` callers; delete `BrushEventKitModule.swift`/`.m` from Xcode; add expo-calendar config plugin (handles `NSCalendarsUsageDescription`).
+
+ACs: no `BrushEventKitModule` files · calendar import works · permission prompt as before · import unit tests updated+passing.
+
+### KAN-164 — iOS Share Extension → config plugin (dep: 159)
+
+Replace manual `BrushShareExtension` Xcode target with `expo-share-extension` (or minimal custom config plugin). **Preserve the 4 Swift files with zero logic changes**: `ShareViewController.swift`, `ParseResult.swift`, `CloudFunctions.swift`, `ConfirmationView.swift`. Remove manual target from `project.pbxproj`; add plugin to `app.json`; `npx expo prebuild`; verify extension Firebase pods link (Core/Auth/Firestore/Functions).
+
+ACs: target generated via config plugin not manual Xcode · 4 Swift files preserved verbatim · share flow works end-to-end iOS · Firebase pods linked in extension target.
+
+### KAN-165 — Enable New Architecture (dep: 160–164 all done)
+
+Primary perf win. Add `expo-build-properties`; `newArchEnabled: true` both platforms; `npx expo prebuild --clean`; `pod install` verifying New Arch support (reanimated 3.x ✓, @notifee/react-native version check, react-native-wear-connectivity → mixed-mode bridge if no New Arch, @react-native-firebase 24.x ✓); fix TurboModule registration errors; full device run.
+
+ACs: `newArchEnabled: true` active at runtime · no Today screen regressions, **KAN-157 fix holds (transform/opacity only — no per-frame layout-prop animation on Fabric)** · Jest green · geofencing/Wear OS/Firebase functional · measurable FPS gain on TodayScreen scroll.
+
+---
+
 ## Sprint Boundary Rule
 
 ### End-of-Sprint Checklist

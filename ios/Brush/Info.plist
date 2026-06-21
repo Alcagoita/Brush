@@ -1,81 +1,99 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
-	<key>CFBundleDevelopmentRegion</key>
-	<string>en</string>
-	<key>CFBundleDisplayName</key>
-	<string>Brush</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundleIdentifier</key>
-	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-	<key>CFBundleInfoDictionaryVersion</key>
-	<string>6.0</string>
-	<key>CFBundleName</key>
-	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>APPL</string>
-	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
-	<key>CFBundleSignature</key>
-	<string>????</string>
-	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>LSRequiresIPhoneOS</key>
-	<true/>
-	<key>NSAppTransportSecurity</key>
-	<dict>
-		<key>NSAllowsArbitraryLoads</key>
-		<false/>
-		<key>NSAllowsLocalNetworking</key>
-		<true/>
-	</dict>
-	<!-- ── EventKit permission strings (KAN-85) ── -->
-	<!-- Shown when the user taps "Import from Reminders" or "Import from Calendar". -->
-	<key>NSRemindersUsageDescription</key>
-	<string>Brush uses your Reminders to import tasks with one tap — nothing is modified or deleted.</string>
-	<key>NSCalendarsUsageDescription</key>
-	<string>Brush uses your Calendar to import upcoming events as tasks — nothing is modified or deleted.</string>
-	<!-- ── Location permission strings (KAN-22) ── -->
-	<!-- Shown to the user when the system location dialog appears. -->
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Brush uses your location to alert you when you're near a place linked to one of your tasks — for example, a pharmacy for "Pick up prescription".</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Brush uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Brush uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
-	<key>RCTNewArchEnabled</key>
-	<true/>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>location</string>
-		<string>remote-notification</string>
-	</array>
-	<key>UILaunchStoryboardName</key>
-	<string>LaunchScreen</string>
-	<key>UIRequiredDeviceCapabilities</key>
-	<array>
-		<string>arm64</string>
-	</array>
-	<key>UISupportedInterfaceOrientations</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UISupportedInterfaceOrientations~ipad</key>
-	<array>
-		<string>UIInterfaceOrientationPortrait</string>
-	</array>
-	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
-	<key>UIAppFonts</key>
-	<array>
-		<string>Geist-Regular.ttf</string>
-		<string>Geist-Medium.ttf</string>
-		<string>Geist-SemiBold.ttf</string>
-	</array>
-</dict>
+  <dict>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleDisplayName</key>
+    <string>Brush</string>
+    <key>CFBundleExecutable</key>
+    <string>$(EXECUTABLE_NAME)</string>
+    <key>CFBundleIdentifier</key>
+    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>$(PRODUCT_NAME)</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.10.0</string>
+    <key>CFBundleSignature</key>
+    <string>????</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.brush</string>
+        </array>
+      </dict>
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.187550770253-r6n7fp43s242srp6ek3i7ti8aggdond4</string>
+        </array>
+      </dict>
+    </array>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSRequiresIPhoneOS</key>
+    <true/>
+    <key>NSAppTransportSecurity</key>
+    <dict>
+      <key>NSAllowsArbitraryLoads</key>
+      <false/>
+      <key>NSAllowsLocalNetworking</key>
+      <true/>
+    </dict>
+    <key>NSCalendarsUsageDescription</key>
+    <string>Brush uses your Calendar to import upcoming events as tasks — nothing is modified or deleted.</string>
+    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+    <string>Brush uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
+    <key>NSLocationAlwaysUsageDescription</key>
+    <string>Brush uses your location in the background to notify you the moment you arrive near a task's location, even when the app isn't open.</string>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Brush uses your location to alert you when you're near a place linked to one of your tasks — for example, a pharmacy for "Pick up prescription".</string>
+    <key>NSRemindersUsageDescription</key>
+    <string>Brush uses your Reminders to import tasks with one tap — nothing is modified or deleted.</string>
+    <key>RCTNewArchEnabled</key>
+    <true/>
+    <key>UIAppFonts</key>
+    <array>
+      <string>Geist-Regular.ttf</string>
+      <string>Geist-Medium.ttf</string>
+      <string>Geist-SemiBold.ttf</string>
+    </array>
+    <key>UIBackgroundModes</key>
+    <array>
+      <string>fetch</string>
+      <string>location</string>
+      <string>remote-notification</string>
+    </array>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
+    <key>UIRequiredDeviceCapabilities</key>
+    <array>
+      <string>arm64</string>
+    </array>
+    <key>UIRequiresFullScreen</key>
+    <false/>
+    <key>UISupportedInterfaceOrientations</key>
+    <array>
+      <string>UIInterfaceOrientationPortrait</string>
+      <string>UIInterfaceOrientationPortraitUpsideDown</string>
+      <string>UIInterfaceOrientationLandscapeLeft</string>
+      <string>UIInterfaceOrientationLandscapeRight</string>
+    </array>
+    <key>UISupportedInterfaceOrientations~ipad</key>
+    <array>
+      <string>UIInterfaceOrientationPortrait</string>
+    </array>
+    <key>UIUserInterfaceStyle</key>
+    <string>Light</string>
+    <key>UIViewControllerBasedStatusBarAppearance</key>
+    <false/>
+  </dict>
 </plist>
