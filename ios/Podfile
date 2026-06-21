@@ -67,72 +67,126 @@ target 'Brush' do
       # :ccache_enabled => true
     )
 
-    installer.pods_project.targets.each do |target|
-      if target.name.start_with?('RNFB')
-        target.build_configurations.each do |config|
-          config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
-        end
-        Pod::UI.puts "  ✔ #{target.name} included"
+    # Two issues arise with RNFB + use_frameworks! :linkage => :static:
+    #
+    # 1. "Include of non-modular header inside framework module" — RNFB pods
+    #    include React-Core headers (RCTBridgeModule.h, RCTConvert.h, etc.)
+    #    which are non-modular. Fixed by CLANG_ALLOW_NON_MODULAR_INCLUDES.
+    #
+    # 2. RCT_EXTERN_MODULE/RCT_EXTERN_METHOD macros fail to expand ("type
+    #    specifier missing") in RNFB ObjC .m files — Clang can't resolve
+    #    RCTBridgeModule in each pod's framework module context even after (1).
+    #    Fixed by pre-importing RNFBApp headers via GCC_PREFIX_HEADER before
+    #    Clang enters framework module compilation for each dependent target.
+    #    install_modules_dependencies() in RNFB v24 didn't eliminate this.
+    #
+    # Umbrella header patch — Swift EmitSwiftModule phase.
+    # Each RNFB dependent pod's umbrella header must import RNFBApp headers
+    # first so the Swift compiler sees RCTBridgeModule/RCTConvert ownership
+    # established before any RNFB type appears in the generated Swift interface.
+    # install_modules_dependencies() in RNFB v24 does not fix this path.
+    # Firebase/Firebase.h includes FirebaseAuth-Swift.h via a non-module include
+    # chain (RNFBFunctionsModule.mm → Firebase.h:40 → FirebaseAuth-Swift.h).
+    # FirebaseAuth-Swift.h is loaded as the FirebaseAuth.Swift submodule which
+    # is compiled in isolation — the GCC_PREFIX_HEADER and umbrella header patches
+    # do NOT apply to it. The only reliable fix is to inject SafariServices/WebKit
+    # imports into Firebase.h itself, immediately before FirebaseAuth-Swift.h.
+    # Firebase/Firebase.h imports FirebaseAuth-Swift.h (line 40) with only UIKit
+    # in scope. FirebaseAuth-Swift.h references SFSafariViewControllerDelegate
+    # (SafariServices) and WKNavigationDelegate/WKNavigationAction (WebKit).
+    # FirebaseAuth-Swift.h is loaded as the FirebaseAuth.Swift submodule which
+    # compiles in isolation — GCC_PREFIX_HEADER and umbrella patches don't reach
+    # it. The fix is to inject the missing imports into Firebase.h itself.
+    # Pod files are installed read-only; chmod before writing.
+    firebase_h = "#{installer.sandbox.root}/Firebase/CoreOnly/Sources/Firebase.h"
+    if File.exist?(firebase_h)
+      content = File.read(firebase_h)
+      unless content.include?('@protocol FIRComponentLifecycleMaintainer')
+        content.sub!(
+          '#import <FirebaseAuth/FirebaseAuth-Swift.h>',
+          "#import <SafariServices/SafariServices.h>\n#import <WebKit/WebKit.h>\n@protocol FIRComponentLifecycleMaintainer;\n#import <FirebaseAuth/FirebaseAuth-Swift.h>"
+        )
+        File.chmod(0644, firebase_h)
+        File.write(firebase_h, content)
       end
     end
 
-    # Fix: "declaration of 'RCTBridgeModule' / 'RCTConvert' must be imported from
-    #       module 'RNFBApp.X' before it is required"
-    #
-    # With use_frameworks! :linkage => :static, RNFBApp is compiled first and its
-    # Clang module "owns" React-Core types (RCTBridgeModule, RCTPromiseRejectBlock,
-    # RCTConvert). Every subsequent RNFB pod must see those headers imported through
-    # the RNFBApp module before any of its own headers are processed — otherwise the
-    # compiler raises the error above.
-    #
-    # Two-pronged fix (both are required):
-    #   1. Umbrella-header patch  — fixes EmitSwiftModule (Swift interface emission)
-    #   2. GCC_PREFIX_HEADER      — fixes regular ObjC .m compilation
-    #
-    # Neither touches node_modules source files.
-
     rnfb_dependents = %w[RNFBAuth RNFBCrashlytics RNFBFirestore RNFBMessaging RNFBStorage]
-
-    # ── 1. Umbrella-header patch ────────────────────────────────────────────────
     rnfb_dependents.each do |pod_name|
       umbrella = "#{installer.sandbox.root}/Target Support Files/#{pod_name}/#{pod_name}-umbrella.h"
       next unless File.exist?(umbrella)
-
       content = File.read(umbrella)
       next if content.include?('RNFBAppModule.h')
-
       first_import = content.match(/#import "RNFB[^"]+\.h"/)
       next unless first_import
-
       content.sub!(
         first_import[0],
         "#import <RNFBApp/RNFBAppModule.h>\n#import <RNFBApp/RCTConvert+FIRApp.h>\n#{first_import[0]}"
       )
       File.write(umbrella, content)
-      Pod::UI.puts "  ✔ Patched #{pod_name}-umbrella.h"
     end
 
-    # ── 2. GCC_PREFIX_HEADER for ObjC compilation units ────────────────────────
-    # Write a tiny prefix header into the Pods sandbox (recreated each pod install).
     compat_header = "#{installer.sandbox.root}/RNFBCompat-prefix.h"
     File.write(compat_header, <<~COMPAT)
-      // Auto-generated by Podfile post_install — do not edit.
-      // Pre-imports RNFBApp headers so Clang module ownership is satisfied before
-      // any other RNFB header is seen during ObjC compilation.
+      // Auto-generated by Podfile post_install.
+      // Firebase/Firebase.h includes FirebaseAuth-Swift.h which references
+      // SafariServices and WebKit types. These must be in scope before any
+      // RNFB pod processes Firebase.h, so they go first.
+      // RNFBApp headers follow to establish RCTBridgeModule/RCTConvert ownership.
       #ifdef __OBJC__
+      #import <SafariServices/SafariServices.h>
+      #import <WebKit/WebKit.h>
+      #import <FirebaseCore/FirebaseCore.h>
       #import <RNFBApp/RNFBAppModule.h>
       #import <RNFBApp/RCTConvert+FIRApp.h>
       #endif
     COMPAT
-    Pod::UI.puts '  ✔ Written RNFBCompat-prefix.h'
 
     installer.pods_project.targets.each do |target|
-      next unless rnfb_dependents.include?(target.name)
+      next unless target.name.start_with?('RNFB')
       target.build_configurations.each do |cfg|
-        cfg.build_settings['GCC_PREFIX_HEADER']           = '$(PODS_ROOT)/RNFBCompat-prefix.h'
+        cfg.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+        cfg.build_settings['GCC_PREFIX_HEADER']            = '$(PODS_ROOT)/RNFBCompat-prefix.h'
         cfg.build_settings['GCC_PRECOMPILE_PREFIX_HEADER'] = 'YES'
       end
-      Pod::UI.puts "  ✔ Prefix header applied to #{target.name}"
+    end
+
+    # BrushShareExtension: two build-setting fixes applied to the main project.
+    #
+    # 1. ENABLE_USER_SCRIPT_SANDBOXING — Xcode 15+ sandbox blocks CocoaPods'
+    #    resource-copy script from writing resources-to-copy-BrushShareExtension.txt
+    #    inside ios/Pods/. CocoaPods xcconfig does not override the target's
+    #    explicit YES, so it must be set here.
+    #
+    # 2. GCC_PREFIX_HEADER — FirebaseAuth-Swift.h (pre-built framework header)
+    #    references SafariServices and WebKit types. In the share extension
+    #    compilation context these frameworks are not auto-imported, causing
+    #    "No type or protocol named SFSafariViewControllerDelegate / WKNavigationDelegate"
+    #    errors. A prefix header that imports SafariServices, WebKit, and FirebaseCore
+    #    before any Firebase header is processed resolves this.
+    share_ext_prefix = "#{installer.sandbox.root}/BrushShareExtCompat-prefix.h"
+    File.write(share_ext_prefix, <<~HDR)
+      // Auto-generated by Podfile post_install.
+      #ifdef __OBJC__
+      #import <SafariServices/SafariServices.h>
+      #import <WebKit/WebKit.h>
+      #import <FirebaseCore/FirebaseCore.h>
+      #endif
+    HDR
+
+    begin
+      main_proj = Xcodeproj::Project.open("#{installer.sandbox.root}/../Brush.xcodeproj")
+      main_proj.targets.each do |target|
+        next unless target.name == 'BrushShareExtension'
+        target.build_configurations.each do |cfg|
+          cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+          cfg.build_settings['GCC_PREFIX_HEADER']            = '$(PODS_ROOT)/BrushShareExtCompat-prefix.h'
+          cfg.build_settings['GCC_PRECOMPILE_PREFIX_HEADER'] = 'YES'
+        end
+      end
+      main_proj.save
+    rescue => e
+      warn "[post_install] Failed to patch BrushShareExtension build settings in Brush.xcodeproj: #{e.message}"
     end
   end
 end

@@ -1,0 +1,15 @@
+diff --git a/node_modules/react-native-svg/android/build.gradle b/node_modules/react-native-svg/android/build.gradle
+index 4fe912c..6059a5e 100644
+--- a/node_modules/react-native-svg/android/build.gradle
++++ b/node_modules/react-native-svg/android/build.gradle
+@@ -46,8 +46,9 @@ def resolveReactNativeDirectory() {
+   // Fallback to node resolver for custom directory structures like monorepos.
+   def reactNativePackage = file(
+       providers.exec {
++          def _lp = new Properties(); new File(rootProject.projectDir, "local.properties").with { if (exists()) withInputStream { _lp.load(it) } }
+           workingDir(rootDir)
+-          commandLine("node", "--print", "require.resolve('react-native/package.json')")
++          commandLine(_lp.getProperty("NODE_BINARY", "node"), "--print", "require.resolve('react-native/package.json')")
+       }.standardOutput.asText.get().trim()
+   )
+   if (reactNativePackage.exists()) {

@@ -1,0 +1,37 @@
+diff --git a/node_modules/react-native-reanimated/android/build.gradle b/node_modules/react-native-reanimated/android/build.gradle
+index 8167d16..7360f60 100644
+--- a/node_modules/react-native-reanimated/android/build.gradle
++++ b/node_modules/react-native-reanimated/android/build.gradle
+@@ -33,8 +33,9 @@ def resolveReactNativeDirectory() {
+ 
+     // Fallback to node resolver for custom directory structures like monorepos.
+     def reactNativePackage = file(providers.exec {
++        def _lp = new Properties(); new File(rootProject.projectDir, "local.properties").with { if (exists()) withInputStream { _lp.load(it) } }
+         workingDir(rootDir)
+-        commandLine("node", "--print", "require.resolve('react-native/package.json')")
++        commandLine(_lp.getProperty("NODE_BINARY", "node"), "--print", "require.resolve('react-native/package.json')")
+     }.standardOutput.asText.get().trim())
+     if (reactNativePackage.exists()) {
+         return reactNativePackage.parentFile
+@@ -240,8 +241,9 @@ android {
+ }
+ 
+ def validateReactNativeVersionResult = providers.exec {
++    def _lp = new Properties(); new File(rootProject.projectDir, "local.properties").with { if (exists()) withInputStream { _lp.load(it) } }
+     workingDir(projectDir.path)
+-    commandLine("node", "./../scripts/validate-react-native-version.js", REACT_NATIVE_VERSION.toString())
++    commandLine(_lp.getProperty("NODE_BINARY", "node"), "./../scripts/validate-react-native-version.js", REACT_NATIVE_VERSION.toString())
+     ignoreExitValue = true
+ }
+ 
+@@ -265,8 +267,9 @@ tasks.register('assertNewArchitectureEnabledTask') {
+ preBuild.dependsOn(assertNewArchitectureEnabledTask)
+ 
+ def validateWorkletsBuildResult = providers.exec {
++    def _lp = new Properties(); new File(rootProject.projectDir, "local.properties").with { if (exists()) withInputStream { _lp.load(it) } }
+     workingDir(projectDir.path)
+-    commandLine("node", "./../scripts/validate-worklets-build.js")
++    commandLine(_lp.getProperty("NODE_BINARY", "node"), "./../scripts/validate-worklets-build.js")
+     ignoreExitValue = true
+ }
+ 
