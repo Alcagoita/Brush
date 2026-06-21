@@ -160,3 +160,25 @@ describe('setTrackingAccuracy — passes correct options to watchPositionAsync',
     expect(opts.timeInterval).toBe(8_000);
   });
 });
+
+// ─── Race condition: stopTracking before watchPositionAsync resolves ──────────
+
+describe('stopTracking race condition', () => {
+  it('discards late-resolving subscription when stopTracking is called first', async () => {
+    let resolvePromise!: (sub: { remove: jest.Mock }) => void;
+    const deferred = new Promise<{ remove: jest.Mock }>(res => { resolvePromise = res; });
+    mockWatchPositionAsync.mockReturnValue(deferred);
+
+    startTracking(noop);
+    // watchPositionAsync promise is still pending here
+    stopTracking(); // should invalidate the in-flight promise
+
+    const lateRemove = jest.fn();
+    resolvePromise({ remove: lateRemove }); // promise resolves AFTER stopTracking
+    await deferred;
+    await Promise.resolve(); // let .then() handler run
+
+    // Late subscription must be immediately removed — not stored as watchSubscription.
+    expect(lateRemove).toHaveBeenCalledTimes(1);
+  });
+});

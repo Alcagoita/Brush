@@ -25,7 +25,7 @@ import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
+import { Task, POI_GEOFENCE_RADIUS } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
@@ -392,7 +392,9 @@ export function resetProximityState(): void {
   poiRadiusPrefs = {};
 
   geofenceEntryTimes.clear();
-  Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(() => {});
+  Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
+    console.warn('[proximity] stopGeofencingAsync failed', err),
+  );
 }
 
 /**

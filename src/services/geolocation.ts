@@ -65,24 +65,28 @@ export type LocationContext = 'outdoor' | 'indoor_unmapped' | 'indoor_mapped';
  *   'unavailable' — device does not support location
  */
 export async function requestLocationPermission(): Promise<PermissionStatus> {
-  const { status: fg } = await Location.requestForegroundPermissionsAsync();
+  try {
+    const { status: fg } = await Location.requestForegroundPermissionsAsync();
 
-  if (fg === 'denied') return 'denied';
-  if (fg === 'undetermined') return 'denied';
-  if (fg !== 'granted') return 'unavailable';
+    if (fg === 'denied') return 'denied';
+    if (fg === 'undetermined') return 'denied';
+    if (fg !== 'granted') return 'unavailable';
 
-  const { status: bg } = await Location.requestBackgroundPermissionsAsync();
+    const bgResponse = await Location.requestBackgroundPermissionsAsync();
+    const { status: bg, canAskAgain } = bgResponse;
 
-  if (bg === 'granted') return 'granted';
+    if (bg === 'granted') return 'granted';
 
-  if (bg === 'denied') {
-    // Background location was permanently denied on this request attempt.
-    // Show the settings alert; foreground-only mode still works.
-    showBlockedAlert();
-    return 'blocked';
+    // canAskAgain false = permanently denied; true = soft deny, can retry
+    if (bg === 'denied' && !canAskAgain) {
+      showBlockedAlert();
+      return 'blocked';
+    }
+
+    return 'denied';
+  } catch {
+    return 'unavailable';
   }
-
-  return 'denied';
 }
 
 function showBlockedAlert(): void {
@@ -136,6 +140,13 @@ let currentErrorCallback: LocationErrorCallback = defaultErrorHandler;
 let watchSubscription: Location.LocationSubscription | null = null;
 
 /**
+ * Guard incremented on every startTracking call. The .then() handler captures
+ * the value at call time and discards the subscription if stopTracking() ran
+ * while watchPositionAsync was still pending (race condition guard).
+ */
+let _trackingGeneration = 0;
+
+/**
  * Starts continuous location tracking.
  *
  * Calls `onLocation` each time the device moves beyond the active distanceInterval.
@@ -152,6 +163,7 @@ export function startTracking(
   currentErrorCallback    = onError;
   stopTracking();
 
+  const generation = ++_trackingGeneration;
   const opts = currentAccuracyMode === 'fine' ? FINE_ACCURACY_OPTIONS : COARSE_ACCURACY_OPTIONS;
 
   Location.watchPositionAsync(opts, (position) => {
@@ -162,6 +174,11 @@ export function startTracking(
       timestamp: position.timestamp,
     });
   }).then((sub) => {
+    if (generation !== _trackingGeneration) {
+      // stopTracking() was called while the promise was in-flight; discard.
+      sub.remove();
+      return;
+    }
     watchSubscription = sub;
   }).catch(onError);
 }
@@ -171,6 +188,7 @@ export function startTracking(
  * Safe to call when no watcher is active.
  */
 export function stopTracking(): void {
+  _trackingGeneration++; // invalidates any in-flight watchPositionAsync promise
   if (watchSubscription !== null) {
     watchSubscription.remove();
     watchSubscription = null;

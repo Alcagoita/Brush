@@ -20,7 +20,9 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Brush needs \"Always\" location access to alert you when you're near a task's location.",
           "locationAlwaysPermission": "Brush needs \"Always\" location access to alert you when you're near a task's location.",
-          "locationWhenInUsePermission": "Brush needs your location to show nearby task alerts."
+          "locationWhenInUsePermission": "Brush needs your location to show nearby task alerts.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
         }
       ]
     ]
