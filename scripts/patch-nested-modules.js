@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// Patches nested node_modules that patch-package cannot target.
+// Patches node_modules files that either:
+//   (a) patch-package cannot target (nested node_modules), or
+//   (b) are better expressed as simple text replacements.
 // Run after patch-package in postinstall.
 
 const fs = require('fs');
@@ -37,6 +39,20 @@ const NODE_BINARY_BLOCK =
   'def localPropsFile = new File(rootProject.projectDir, "local.properties")\n' +
   'if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }\n' +
   'def nodeBinary = localProps.getProperty("NODE_BINARY", "node")\n';
+
+// Fix: react-native-share-menu Android SDK levels (upstream ships with API 29/SDK 29; we target 36)
+// and iOS module import path (bare import fails with use_frameworks! :linkage => :static).
+const SHARE_MENU_ROOT = path.join(__dirname, '..', 'node_modules', 'react-native-share-menu');
+
+patchFile(path.join(SHARE_MENU_ROOT, 'android', 'build.gradle'), [
+  ['compileSdkVersion 29\n    buildToolsVersion "29.0.2"', 'compileSdkVersion 36'],
+  ['minSdkVersion 16', 'minSdkVersion 24'],
+  ['targetSdkVersion 29', 'targetSdkVersion 36'],
+]);
+
+patchFile(path.join(SHARE_MENU_ROOT, 'ios', 'ShareMenuManager.m'), [
+  ['#import "RNShareMenu-Swift.h"', '#import <RNShareMenu/RNShareMenu-Swift.h>'],
+]);
 
 // Fix: expo/node_modules/expo-constants get-app-config-android.gradle
 // Uses hardcoded "node" — replace with NODE_BINARY from local.properties.

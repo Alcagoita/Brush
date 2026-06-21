@@ -94,6 +94,10 @@ def enableProguardInReleaseBuilds = false
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+// Mirrors rootProject.ext.REACT_NATIVE_NODE_MODULES_DIR so library build scripts
+// using safeAppExtGet() (reanimated, worklets, screens) also skip node resolution.
+project.ext.REACT_NATIVE_NODE_MODULES_DIR = rootProject.ext.REACT_NATIVE_NODE_MODULES_DIR
+
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion
