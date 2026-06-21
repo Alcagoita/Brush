@@ -51,25 +51,8 @@ jest.mock('../../src/services/geolocation', () => ({
   setTrackingAccuracy:  jest.fn(),
 }));
 
-jest.mock('../../src/services/nativeGeofence', () => ({
-  NativeGeofence: {
-    registerGeofence:   jest.fn().mockResolvedValue(undefined),
-    removeGeofence:     jest.fn().mockResolvedValue(undefined),
-    removeAllGeofences: jest.fn().mockResolvedValue(undefined),
-  },
-  geofenceEmitter: {
-    addListener: (event: string, cb: (...args: unknown[]) => void) => {
-      mockGeofenceEmitter.on(event, cb);
-      return { remove: () => mockGeofenceEmitter.removeListener(event, cb) };
-    },
-  },
-  buildGeofenceId:        (poiType: string, placeId: string) => `brush_geo_${poiType}_${placeId}`,
-  parseGeofenceId:        jest.fn().mockImplementation((id: string) => {
-    const m = id.match(/^brush_geo_([^_]+)_(.+)$/);
-    return m ? { poiType: m[1], placeId: m[2] } : null;
-  }),
-  GEOFENCE_ENTRY_EVENT:   'onGeofenceEntry',
-  supportsNativeGeofences: true,
+jest.mock('expo-location', () => ({
+  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/config/keys', () => ({

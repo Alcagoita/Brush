@@ -4,7 +4,7 @@
  * Covers:
  *   - isDuplicate (case-insensitive, whitespace)
  *   - fetchExistingTitles (Firestore path, lowercase, missing title field)
- *   - importFromReminders (happy path, duplicate skip, permission denied, no module)
+ *   - importFromReminders (happy path, duplicate skip, permission denied)
  *   - importFromCalendar  (happy path, duplicate skip, 30-day filter, permission denied)
  *
  * Note: Google connector tests (importFromGoogleTasks / importFromGoogleCalendar)
@@ -40,17 +40,14 @@ jest.mock('react-native', () => ({
   NativeModules: {},
 }));
 
-// ─── BrushEventKitModule mock ─────────────────────────────────────────────────
+// ─── expo-calendar mock ───────────────────────────────────────────────────────
 
-const mockFetchReminders   = jest.fn();
+const mockFetchReminders      = jest.fn();
 const mockFetchCalendarEvents = jest.fn();
 
-jest.mock('../../src/native/BrushEventKitModule', () => ({
-  __esModule: true,
-  default: {
-    fetchReminders:     (...args: unknown[]) => mockFetchReminders(...args),
-    fetchCalendarEvents: (...args: unknown[]) => mockFetchCalendarEvents(...args),
-  },
+jest.mock('../../src/services/calendar', () => ({
+  fetchReminders:     (...args: unknown[]) => mockFetchReminders(...args),
+  fetchCalendarEvents: (...args: unknown[]) => mockFetchCalendarEvents(...args),
 }));
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────

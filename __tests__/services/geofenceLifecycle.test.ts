@@ -46,18 +46,8 @@ jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));
 
-jest.mock('../../src/services/nativeGeofence', () => ({
-  NativeGeofence: {
-    registerGeofence:   jest.fn().mockResolvedValue(undefined),
-    removeGeofence:     jest.fn().mockResolvedValue(undefined),
-    removeAllGeofences: jest.fn().mockResolvedValue(undefined),
-  },
-  geofenceEmitter:         null,
-  buildGeofenceId:         (poiType: string, placeId: string) => `brush_geo_${poiType}_${placeId}`,
-  parseGeofenceId:         jest.fn().mockReturnValue(null),
-  GEOFENCE_ENTRY_EVENT:    'onGeofenceEntry',
-  GEOFENCE_EXIT_EVENT:     'onGeofenceExit',
-  supportsNativeGeofences: true,
+jest.mock('expo-location', () => ({
+  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/notifications', () => ({

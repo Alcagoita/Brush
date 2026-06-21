@@ -1,0 +1,65 @@
+diff --git a/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/ProjectConfiguration.kt b/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/ProjectConfiguration.kt
+index cfc300c..b07f142 100644
+--- a/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/ProjectConfiguration.kt
++++ b/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/ProjectConfiguration.kt
+@@ -96,26 +96,30 @@ internal fun Project.applyPublishing(expoModulesExtension: ExpoModuleExtension)
+   libraryExtension
+     .applyPublishingVariant()
+ 
+-  afterEvaluate {
+-    val publicationInfo = PublicationInfo(this)
+-
+-    publishingExtension()
++  // AGP 8.x creates the 'release' SoftwareComponent lazily via onVariants,
++  // which fires after afterEvaluate. whenObjectAdded fires reactively when
++  // the component is actually registered, regardless of evaluation ordering.
++  val capturedProject = this
++  components.matching { it.name == "release" }.whenObjectAdded {
++    val publicationInfo = PublicationInfo(capturedProject)
++
++    capturedProject.publishingExtension()
+       .publications
+       .createReleasePublication(
+         publicationInfo,
+         expoModulesExtension.pomConfigurator
+       )
+ 
+-    createExpoPublishToMavenLocalTask(publicationInfo, expoModulesExtension)
++    capturedProject.createExpoPublishToMavenLocalTask(publicationInfo, expoModulesExtension)
+ 
+     val npmLocalRepositoryRelativePath = "local-maven-repo"
+-    val npmLocalRepository = File("${project.projectDir.parentFile}/${npmLocalRepositoryRelativePath}").toURI()
+-    publishingExtension().repositories.mavenLocal { mavenRepo ->
++    val npmLocalRepository = File("${capturedProject.projectDir.parentFile}/${npmLocalRepositoryRelativePath}").toURI()
++    capturedProject.publishingExtension().repositories.mavenLocal { mavenRepo ->
+       mavenRepo.name = "NPMPackage"
+       mavenRepo.url = npmLocalRepository
+     }
+ 
+-    createExpoPublishTask(publicationInfo, expoModulesExtension, npmLocalRepositoryRelativePath)
++    capturedProject.createExpoPublishTask(publicationInfo, expoModulesExtension, npmLocalRepositoryRelativePath)
+   }
+ }
+ 
+diff --git a/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/gradle/ExpoGradleHelperExtension.kt b/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/gradle/ExpoGradleHelperExtension.kt
+index 7c387ab..d74dc7c 100644
+--- a/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/gradle/ExpoGradleHelperExtension.kt
++++ b/node_modules/expo-modules-core/expo-module-gradle-plugin/src/main/kotlin/expo/modules/plugin/gradle/ExpoGradleHelperExtension.kt
+@@ -40,10 +40,16 @@ open class ExpoGradleHelperExtension {
+       ?.projectDir
+       ?.parentFile
+ 
++    val localProps = java.util.Properties().apply {
++      val f = java.io.File(project.rootDir, "local.properties")
++      if (f.exists()) f.reader().use(::load)
++    }
++    val nodeBinary = localProps.getProperty("NODE_BINARY", "node")
++
+     reactNativeDir = reactNativeDirFromSource ?: File(
+       project.providers.exec { env ->
+         env.workingDir(project.rootDir)
+-        env.commandLine("node", "--print", "require.resolve('react-native/package.json')")
++        env.commandLine(nodeBinary, "--print", "require.resolve('react-native/package.json')")
+       }.standardOutput.asText.get().trim()
+     ).parentFile
+ 

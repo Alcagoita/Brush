@@ -1,10 +1,32 @@
-pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
-plugins { id("com.facebook.react.settings") }
+pluginManagement {
+  // pluginManagement must be first — read local.properties here for NODE_BINARY
+  // so the exec block finds node when Android Studio doesn't inherit shell PATH.
+  def pmLocalProps = new Properties()
+  def pmLocalPropsFile = new File(rootDir, "local.properties")
+  if (pmLocalPropsFile.exists()) { pmLocalPropsFile.withInputStream { pmLocalProps.load(it) } }
+  def pmNodeBinary = pmLocalProps.getProperty("NODE_BINARY", "node")
+
+  includeBuild("../node_modules/@react-native/gradle-plugin")
+  def expoPluginsPath = new File(
+    providers.exec {
+      workingDir(rootDir)
+      commandLine(pmNodeBinary, "--print", "require.resolve('expo-modules-autolinking/package.json', { paths: [require.resolve('expo/package.json')] })")
+    }.standardOutput.asText.get().trim(),
+    "../android/expo-gradle-plugin"
+  ).absolutePath
+  includeBuild(expoPluginsPath)
+}
+plugins { id("com.facebook.react.settings")
+id("expo-autolinking-settings")
+}
+
+// Read local.properties again after plugins {} (can't share variables across blocks).
+def localProps = new Properties()
+def localPropsFile = new File(rootDir, "local.properties")
+if (localPropsFile.exists()) { localPropsFile.withInputStream { localProps.load(it) } }
+def nodeBinary = localProps.getProperty("NODE_BINARY", "node")
+
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex ->
-  // autolinkLibrariesFromCommand takes a List<String> (executable + args).
-  // Passing the absolute node path avoids the "npx not found" error that
-  // occurs when Android Studio's Gradle daemon doesn't inherit the shell PATH.
-  def nodeBinary = providers.gradleProperty("NODE_BINARY").getOrElse("node")
   ex.autolinkLibrariesFromCommand([nodeBinary, "node_modules/.bin/react-native", "config"])
 }
 rootProject.name = 'Brush'
@@ -18,3 +40,6 @@ if (settings.hasProperty('bundleWear') || settings.hasProperty('includeWear')) {
     project(':wear').projectDir = new File(rootDir, '../wear')
 }
 includeBuild('../node_modules/@react-native/gradle-plugin')
+expoAutolinking.useExpoModules()
+expoAutolinking.useExpoVersionCatalog()
+includeBuild(expoAutolinking.reactNativeGradlePlugin)

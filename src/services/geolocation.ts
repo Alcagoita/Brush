@@ -1,30 +1,20 @@
 /**
- * geolocation.ts — Background location tracking service (KAN-22).
+ * geolocation.ts — Background location tracking service (KAN-22 / KAN-162).
  *
- * Library: react-native-geolocation-service v5
- * (Selected as the "or equivalent" option — fully open-source, supports RN
- * New Architecture, no proprietary native binary required.)
+ * Library: expo-location (replaces react-native-geolocation-service, KAN-162).
  *
  * Permissions requested:
- *   Android: ACCESS_FINE_LOCATION + ACCESS_BACKGROUND_LOCATION (API 29+)
+ *   Android: FOREGROUND + BACKGROUND (ACCESS_BACKGROUND_LOCATION, API 29+)
  *   iOS:     Always (NSLocationAlwaysAndWhenInUseUsageDescription)
  *
  * Rules (from CLAUDE.md / KAN-22):
  *   - Request `always` permission so geofences fire in the background.
  *   - Only one POI is "currently nearby" at a time (closest wins).
  *   - A geofence notification fires once per entry per day.
- *
- * The proximity check / geofence logic lives in KAN-24 and consumes the
- * Coordinates emitted by watchPosition() below.
  */
 
+import * as Location from 'expo-location';
 import { Alert, Linking, Platform } from 'react-native';
-import Geolocation, {
-  GeoError,
-  GeoPosition,
-  GeoWatchOptions,
-} from 'react-native-geolocation-service';
-import { check, request, PERMISSIONS, RESULTS, Permission } from 'react-native-permissions';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +28,7 @@ export interface Coordinates {
 }
 
 export type LocationCallback = (coords: Coordinates) => void;
-export type LocationErrorCallback = (error: GeoError) => void;
+export type LocationErrorCallback = (error: Error) => void;
 
 export type PermissionStatus = 'granted' | 'denied' | 'blocked' | 'unavailable';
 
@@ -54,45 +44,13 @@ export type PermissionStatus = 'granted' | 'denied' | 'blocked' | 'unavailable';
  */
 export type LocationContext = 'outdoor' | 'indoor_unmapped' | 'indoor_mapped';
 
-// ─── Watch options ─────────────────────────────────────────────────────────────
-
-/**
- * Options for continuous tracking (KAN-54 — tuned for battery efficiency).
- *
- * distanceFilter 25 m  — halves wakeups vs. the old 10 m value.
- *                        Maximum detection latency for a 50 m ATM fence is
- *                        ~2 steps at walking pace (~3 m/s) = ~8 s. Acceptable.
- *
- * interval 8 s         — Android preferred poll cadence. Battery Historian showed
- *                        no excess wakeups at this value; kept unchanged.
- *
- * fastestInterval 4 s  — Android floor. Kept to avoid starving the engine when
- *                        the user is moving quickly toward a POI.
- *
- * ios 'best'           — Replaces 'bestForNavigation' (turn-by-turn nav mode,
- *                        maximum drain). 'best' is sufficient for 50 m geofences
- *                        and draws significantly less power on A-series chips.
- */
-const WATCH_OPTIONS: GeoWatchOptions = {
-  enableHighAccuracy: true,
-  distanceFilter: 25,        // was 10 — halves wakeups; 2-step latency for 50 m fences is acceptable
-  interval: 8_000,           // Android: preferred update interval (ms) — unchanged
-  fastestInterval: 4_000,    // Android: fastest acceptable update interval (ms) — unchanged
-  showsBackgroundLocationIndicator: true,   // iOS: shows blue pill in status bar
-  forceRequestLocation: false,
-  accuracy: {
-    android: 'high',
-    ios: 'best',             // was 'bestForNavigation' — sufficient for 50 m fences, lower drain
-  },
-};
-
 // ─── Permission helpers ───────────────────────────────────────────────────────
 
 /**
  * Checks and requests location permissions appropriate for background use.
  *
  * Android flow (API 29+):
- *   1. Request FINE location (foreground).
+ *   1. Request foreground location.
  *   2. Only after that is granted: request BACKGROUND_LOCATION separately.
  *      (Android 11+ requires this to be a separate dialog.)
  *
@@ -107,49 +65,28 @@ const WATCH_OPTIONS: GeoWatchOptions = {
  *   'unavailable' — device does not support location
  */
 export async function requestLocationPermission(): Promise<PermissionStatus> {
-  if (Platform.OS === 'ios') {
-    return requestIOSPermission();
+  try {
+    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+
+    if (fg === 'denied') return 'denied';
+    if (fg === 'undetermined') return 'denied';
+    if (fg !== 'granted') return 'unavailable';
+
+    const bgResponse = await Location.requestBackgroundPermissionsAsync();
+    const { status: bg, canAskAgain } = bgResponse;
+
+    if (bg === 'granted') return 'granted';
+
+    // canAskAgain false = permanently denied; true = soft deny, can retry
+    if (bg === 'denied' && !canAskAgain) {
+      showBlockedAlert();
+      return 'blocked';
+    }
+
+    return 'denied';
+  } catch {
+    return 'unavailable';
   }
-  return requestAndroidPermission();
-}
-
-async function requestIOSPermission(): Promise<PermissionStatus> {
-  const permission = PERMISSIONS.IOS.LOCATION_ALWAYS;
-  const current = await check(permission);
-
-  if (current === RESULTS.GRANTED) return 'granted';
-  if (current === RESULTS.UNAVAILABLE) return 'unavailable';
-  if (current === RESULTS.BLOCKED) {
-    showBlockedAlert();
-    return 'blocked';
-  }
-
-  const result = await request(permission);
-  if (result === RESULTS.GRANTED) return 'granted';
-  if (result === RESULTS.BLOCKED) { showBlockedAlert(); return 'blocked'; }
-  return 'denied';
-}
-
-async function requestAndroidPermission(): Promise<PermissionStatus> {
-  // Step 1 — foreground fine location
-  const finePerm: Permission = PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION;
-  const fineResult = await request(finePerm);
-
-  if (fineResult === RESULTS.DENIED) return 'denied';
-  if (fineResult === RESULTS.BLOCKED) { showBlockedAlert(); return 'blocked'; }
-  if (fineResult !== RESULTS.GRANTED) return 'unavailable';
-
-  // Step 2 — background location (Android 10+, API 29)
-  // On older devices this permission doesn't exist; skip gracefully.
-  if (Number(Platform.Version) < 29) return 'granted';
-
-  const bgPerm: Permission = PERMISSIONS.ANDROID.ACCESS_BACKGROUND_LOCATION;
-  const bgResult = await request(bgPerm);
-
-  if (bgResult === RESULTS.GRANTED) return 'granted';
-  if (bgResult === RESULTS.BLOCKED) { showBlockedAlert(); return 'blocked'; }
-  // Background denied but foreground granted — foreground tracking still works.
-  return 'denied';
 }
 
 function showBlockedAlert(): void {
@@ -179,26 +116,20 @@ function showBlockedAlert(): void {
  */
 export type AccuracyMode = 'coarse' | 'fine';
 
-const COARSE_OPTIONS: GeoWatchOptions = {
-  enableHighAccuracy: false,
-  // 100 m filter + 30 s interval: when all POIs are > 500 m away the display
-  // distance rows don't need frequent updates. Halves Android wakeups vs. the
-  // previous 50 m / 15 s settings and eliminates most stationary callbacks.
-  distanceFilter: 100,
-  interval: 30_000,
-  fastestInterval: 15_000,
-  showsBackgroundLocationIndicator: true,
-  forceRequestLocation: false,
-  accuracy: {
-    android: 'balancedPower',  // cell/WiFi triangulation — much lower drain than GPS
-    ios: 'hundredMeters',      // ~100 m accuracy — sufficient for approach detection
-  },
+const FINE_ACCURACY_OPTIONS: Location.LocationOptions = {
+  accuracy:       Location.Accuracy.High,
+  distanceInterval: 25,
+  timeInterval:   8_000,
 };
 
-const FINE_OPTIONS: GeoWatchOptions = WATCH_OPTIONS; // reuse the KAN-54 tuned options
+const COARSE_ACCURACY_OPTIONS: Location.LocationOptions = {
+  accuracy:       Location.Accuracy.Balanced,
+  distanceInterval: 100,
+  timeInterval:   30_000,
+};
 
 /** Currently active accuracy mode — module-level to avoid unnecessary restarts. */
-let currentAccuracyMode: AccuracyMode = 'coarse'; // bootstrap in coarse (KAN-55)
+let currentAccuracyMode: AccuracyMode = 'coarse';
 
 /** Active location callback — stored so we can restart tracking on mode switch. */
 let currentLocationCallback: LocationCallback | null = null;
@@ -206,12 +137,19 @@ let currentErrorCallback: LocationErrorCallback = defaultErrorHandler;
 
 // ─── Tracking ─────────────────────────────────────────────────────────────────
 
-let watchId: number | null = null;
+let watchSubscription: Location.LocationSubscription | null = null;
+
+/**
+ * Guard incremented on every startTracking call. The .then() handler captures
+ * the value at call time and discards the subscription if stopTracking() ran
+ * while watchPositionAsync was still pending (race condition guard).
+ */
+let _trackingGeneration = 0;
 
 /**
  * Starts continuous location tracking.
  *
- * Calls `onLocation` each time the device moves beyond the active distanceFilter.
+ * Calls `onLocation` each time the device moves beyond the active distanceInterval.
  * Calls `onError` on any error (permission revoked, GPS off, etc.).
  *
  * Safe to call multiple times — stops the previous watcher automatically.
@@ -223,22 +161,26 @@ export function startTracking(
 ): void {
   currentLocationCallback = onLocation;
   currentErrorCallback    = onError;
-  stopTracking(); // clear any previous watcher
+  stopTracking();
 
-  const options = currentAccuracyMode === 'fine' ? FINE_OPTIONS : COARSE_OPTIONS;
+  const generation = ++_trackingGeneration;
+  const opts = currentAccuracyMode === 'fine' ? FINE_ACCURACY_OPTIONS : COARSE_ACCURACY_OPTIONS;
 
-  watchId = Geolocation.watchPosition(
-    (position: GeoPosition) => {
-      onLocation({
-        lat:       position.coords.latitude,
-        lng:       position.coords.longitude,
-        accuracy:  position.coords.accuracy ?? 999,
-        timestamp: position.timestamp,
-      });
-    },
-    onError,
-    options,
-  );
+  Location.watchPositionAsync(opts, (position) => {
+    onLocation({
+      lat:       position.coords.latitude,
+      lng:       position.coords.longitude,
+      accuracy:  position.coords.accuracy ?? 999,
+      timestamp: position.timestamp,
+    });
+  }).then((sub) => {
+    if (generation !== _trackingGeneration) {
+      // stopTracking() was called while the promise was in-flight; discard.
+      sub.remove();
+      return;
+    }
+    watchSubscription = sub;
+  }).catch(onError);
 }
 
 /**
@@ -246,9 +188,10 @@ export function startTracking(
  * Safe to call when no watcher is active.
  */
 export function stopTracking(): void {
-  if (watchId !== null) {
-    Geolocation.clearWatch(watchId);
-    watchId = null;
+  _trackingGeneration++; // invalidates any in-flight watchPositionAsync promise
+  if (watchSubscription !== null) {
+    watchSubscription.remove();
+    watchSubscription = null;
   }
 }
 
@@ -257,22 +200,12 @@ export function stopTracking(): void {
  *
  * No-op if the requested mode matches the current mode — avoids restarting
  * the watcher on every location tick.
- *
- * Does NOT reset placeCache or currentNearbyType inside proximity.ts — only
- * the watcher options change.
  */
 export function setTrackingAccuracy(mode: AccuracyMode): void {
-  if (mode === currentAccuracyMode) { return; } // no-op — already in this mode
+  if (mode === currentAccuracyMode) { return; }
   currentAccuracyMode = mode;
 
-  // Restart the watcher with the new options only if it was already running.
-  //
-  // Invariant: watchId !== null ⟹ currentLocationCallback !== null.
-  // startTracking() is the only path that sets watchId, and it always sets
-  // currentLocationCallback first. The `&& currentLocationCallback` check is
-  // therefore redundant, but kept as a TypeScript null guard and defensive
-  // safeguard against future refactors that might break this invariant.
-  if (watchId !== null && currentLocationCallback) {
+  if (watchSubscription !== null && currentLocationCallback) {
     startTracking(currentLocationCallback, currentErrorCallback);
   }
 }
@@ -283,59 +216,41 @@ export function setTrackingAccuracy(mode: AccuracyMode): void {
  * Use only when GPS-level accuracy is required (e.g. turn-by-turn).
  */
 export function getCurrentPosition(): Promise<Coordinates> {
-  return new Promise((resolve, reject) => {
-    Geolocation.getCurrentPosition(
-      (position: GeoPosition) =>
-        resolve({
-          lat:       position.coords.latitude,
-          lng:       position.coords.longitude,
-          accuracy:  position.coords.accuracy ?? 999,
-          timestamp: position.timestamp,
-        }),
-      reject,
-      {
-        enableHighAccuracy: true,
-        timeout: 5_000,
-        maximumAge: 60_000,
-        accuracy: { android: 'high', ios: 'best' }, // was 'bestForNavigation' — KAN-54
-      },
-    );
-  });
+  return Location.getCurrentPositionAsync({
+    accuracy: Location.Accuracy.High,
+  }).then((position) => ({
+    lat:       position.coords.latitude,
+    lng:       position.coords.longitude,
+    accuracy:  position.coords.accuracy ?? 999,
+    timestamp: position.timestamp,
+  }));
 }
 
 /**
  * One-shot position query using network/cell location only.
  *
- * Does NOT wake the GPS hardware. Returns in < 100 ms using a cached or
- * network-derived fix. Accuracy is 50–200 m, which is sufficient for
- * proximity detection at 100 m / 400 m thresholds.
+ * Does NOT wake the GPS hardware. Returns quickly using a cached or
+ * network-derived fix. Accuracy is 50–200 m, sufficient for proximity
+ * detection at 100 m / 400 m thresholds.
  *
  * Use this for all background proximity checks to avoid GPS cold-start
  * latency and the associated system slowdown.
  */
 export function getPositionLowAccuracy(): Promise<Coordinates> {
-  return new Promise((resolve, reject) => {
-    Geolocation.getCurrentPosition(
-      (position: GeoPosition) =>
-        resolve({
-          lat:       position.coords.latitude,
-          lng:       position.coords.longitude,
-          accuracy:  position.coords.accuracy ?? 999,
-          timestamp: position.timestamp,
-        }),
-      reject,
-      {
-        enableHighAccuracy: false,
-        timeout:    3_000,
-        maximumAge: 5 * 60 * 1_000, // accept a cached fix up to 5 min old
-        accuracy:   { android: 'balanced' as const, ios: 'kilometer' as const },
-      },
-    );
-  });
+  return Location.getCurrentPositionAsync({
+    accuracy:    Location.Accuracy.Balanced,
+    timeInterval: 3_000,
+    mayShowUserSettingsDialog: false,
+  }).then((position) => ({
+    lat:       position.coords.latitude,
+    lng:       position.coords.longitude,
+    accuracy:  position.coords.accuracy ?? 999,
+    timestamp: position.timestamp,
+  }));
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function defaultErrorHandler(error: GeoError): void {
-  console.warn('[geolocation] error', error.code, error.message);
+function defaultErrorHandler(error: Error): void {
+  console.warn('[geolocation] error', error.message);
 }

@@ -1,16 +1,56 @@
 /**
- * Unit tests for src/services/nativeGeofence.ts — KAN-56.
+ * Unit tests for geofence ID helpers — KAN-56 / KAN-162.
  *
  * Covers:
  *   buildGeofenceId / parseGeofenceId round-trip
  *   parseGeofenceId edge cases (unknown prefix, missing separator)
- *   NativeGeofence falls back to no-op stubs when native module is unavailable
+ *
+ * Functions moved from nativeGeofence.ts to proximity.ts in KAN-162.
  */
+
+jest.mock('expo-location', () => ({
+  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../../src/services/geolocation', () => ({
+  getPositionLowAccuracy: jest.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 10 }),
+}));
+
+jest.mock('../../src/services/maps', () => ({
+  searchNearbyPlaces: jest.fn().mockResolvedValue({}),
+  getDistanceMeters:  jest.fn().mockReturnValue(0),
+  placeTypeLabel:     jest.fn().mockReturnValue('ATM'),
+}));
+
+jest.mock('../../src/services/firestore', () => ({
+  markAllPoiAlertsSeen: jest.fn().mockResolvedValue(undefined),
+  markExitPromptSeen:   jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../../src/services/notifications', () => ({
+  fireExitPrompt: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('react-native', () => ({
+  Platform:      { OS: 'ios' },
+  NativeModules: {},
+}));
+
+jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
+  default: { createChannel: jest.fn(), displayNotification: jest.fn() },
+  AndroidImportance: { HIGH: 4 },
+}));
+
+jest.mock('../../src/native/WearNotificationModule', () => null);
+jest.mock('../../src/constants/copy', () => ({
+  COPY: { notification: { proximityTitle: jest.fn(), proximityBody: jest.fn() } },
+}));
 
 import {
   buildGeofenceId,
   parseGeofenceId,
-} from '../../src/services/nativeGeofence';
+} from '../../src/services/proximity';
 
 // ─── ID helpers ───────────────────────────────────────────────────────────────
 

@@ -123,3 +123,11 @@ vendor/
 __pycache__/
 *.orig
 /tmp/
+
+# Expo
+.expo
+dist/
+web-build/
+
+# CodeGraph local index (per-developer, not committed)
+.codegraph/

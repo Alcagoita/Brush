@@ -1,0 +1,8 @@
+{
+  "expo.inlineModules.watchedDirectories": "[]",
+  "expo.inlineModules.xcodeProjectTargets": "{\"mainTarget\":\"Brush\",\"targets\":[]}",
+  "ios.forceStaticLinking": "[]",
+  "EX_DEV_CLIENT_NETWORK_INSPECTOR": "true",
+  "apple.privacyManifestAggregationEnabled": "true",
+  "EXPO_USE_PRECOMPILED_MODULES": "true"
+}

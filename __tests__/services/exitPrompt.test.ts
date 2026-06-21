@@ -48,33 +48,16 @@ jest.mock('../../src/services/maps', () => ({
   getDistanceMeters:   jest.fn().mockReturnValue(0),
 }));
 
-jest.mock('../../src/services/geolocation', () => ({
-  startTracking:         jest.fn(),
-  stopTracking:          jest.fn(),
-  getCurrentPosition:    jest.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 5 }),
-  onLocation:            jest.fn().mockReturnValue({ remove: jest.fn() }),
-  requestAlwaysPermission: jest.fn().mockResolvedValue(true),
+jest.mock('expo-location', () => ({
+  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../../src/services/nativeGeofence', () => ({
-  default: {
-    registerGeofence:    jest.fn().mockResolvedValue(undefined),
-    removeAllGeofences:  jest.fn().mockResolvedValue(undefined),
-  },
-  GEOFENCE_ENTRY_EVENT: 'onGeofenceEntry',
-  GEOFENCE_EXIT_EVENT:  'onGeofenceExit',
-  BrushGeofenceModule:  {
-    registerGeofence:    jest.fn().mockResolvedValue(undefined),
-    removeAllGeofences:  jest.fn().mockResolvedValue(undefined),
-    addListener:         jest.fn().mockReturnValue({ remove: jest.fn() }),
-    removeListeners:     jest.fn(),
-  },
-  // Parse "poiType:placeId" geofence IDs — mirrors the real implementation.
-  parseGeofenceId: (id: string) => {
-    const [poiType, placeId] = id.split(':');
-    return poiType && placeId ? { poiType, placeId } : null;
-  },
-  geofenceIdFor: (poiType: string, placeId: string) => `${poiType}:${placeId}`,
+jest.mock('../../src/services/geolocation', () => ({
+  startTracking:            jest.fn(),
+  stopTracking:             jest.fn(),
+  getCurrentPosition:       jest.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 5 }),
+  getPositionLowAccuracy:   jest.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 10 }),
+  requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));
 
 jest.mock('react-native', () => ({
@@ -136,42 +119,42 @@ beforeEach(() => {
 describe('handleGeofenceExit', () => {
   it('does nothing when exitPrompt preference is disabled', async () => {
     updateExitPromptPref(false);
-    __setGeofenceEntryTime('supermarket:task-1', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', DWELL_OVER_5_MIN);
 
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
 
     expect(mockFireExitPrompt).not.toHaveBeenCalled();
   });
 
   it('does nothing when there is no entry time for the geofence', async () => {
     // No entry time seeded
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
 
     expect(mockFireExitPrompt).not.toHaveBeenCalled();
   });
 
   it('does nothing when dwell time is less than 5 minutes', async () => {
     // Only 2 minutes of dwell
-    __setGeofenceEntryTime('supermarket:task-1', Date.now() - 2 * 60 * 1000);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', Date.now() - 2 * 60 * 1000);
 
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
 
     expect(mockFireExitPrompt).not.toHaveBeenCalled();
   });
 
   it('does nothing when task is already done', async () => {
-    __setGeofenceEntryTime('supermarket:task-1', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', DWELL_OVER_5_MIN);
 
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask({ done: true })]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask({ done: true })]);
 
     expect(mockFireExitPrompt).not.toHaveBeenCalled();
   });
 
   it('does nothing when exitPromptSeenDate matches today', async () => {
-    __setGeofenceEntryTime('supermarket:task-1', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', DWELL_OVER_5_MIN);
 
     await handleGeofenceExit(
-      'supermarket:task-1',
+      'brush_geo_supermarket_task-1',
       UID,
       [makeTask({ exitPromptSeenDate: TODAY })],
     );
@@ -180,18 +163,18 @@ describe('handleGeofenceExit', () => {
   });
 
   it('does nothing when no task matches the POI type', async () => {
-    __setGeofenceEntryTime('atm:task-2', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_atm_task-2', DWELL_OVER_5_MIN);
 
     // Task is supermarket but geofence is atm
-    await handleGeofenceExit('atm:task-2', UID, [makeTask({ poi: 'supermarket' as const })]);
+    await handleGeofenceExit('brush_geo_atm_task-2', UID, [makeTask({ poi: 'supermarket' as const })]);
 
     expect(mockFireExitPrompt).not.toHaveBeenCalled();
   });
 
   it('fires exit prompt when all conditions are met', async () => {
-    __setGeofenceEntryTime('supermarket:task-1', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', DWELL_OVER_5_MIN);
 
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
 
     expect(mockFireExitPrompt).toHaveBeenCalledTimes(1);
     const [opts] = mockFireExitPrompt.mock.calls[0];
@@ -200,22 +183,22 @@ describe('handleGeofenceExit', () => {
   });
 
   it('calls markExitPromptSeen after firing the prompt', async () => {
-    __setGeofenceEntryTime('supermarket:task-1', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', DWELL_OVER_5_MIN);
 
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
 
     expect(mockMarkExitSeen).toHaveBeenCalledTimes(1);
     expect(mockMarkExitSeen).toHaveBeenCalledWith(UID, 'task-1', TODAY);
   });
 
   it('clears entry time from map after processing exit', async () => {
-    __setGeofenceEntryTime('supermarket:task-1', DWELL_OVER_5_MIN);
+    __setGeofenceEntryTime('brush_geo_supermarket_task-1', DWELL_OVER_5_MIN);
 
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
 
     // Second call with same geofenceId: no entry time → no prompt
     mockFireExitPrompt.mockClear();
-    await handleGeofenceExit('supermarket:task-1', UID, [makeTask()]);
+    await handleGeofenceExit('brush_geo_supermarket_task-1', UID, [makeTask()]);
     expect(mockFireExitPrompt).not.toHaveBeenCalled();
   });
 });

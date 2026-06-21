@@ -295,146 +295,75 @@ docs/
 
 ---
 
-## Sprint 10 — Active
+## Sprint 11 — Active
 
-Locked, 15 tickets, four tracks + a bug track. All tickets labeled `sprint-10` in Jira.
+**Epic KAN-158 — Expo migration.** Layer the Expo toolchain onto the existing bare RN 0.85.3 app, replace native-module/Podfile/patch hacks with config plugins and Expo modules, then enable the New Architecture. **Wear OS untouched throughout** (runs as legacy bridge module in mixed-mode — expected, supported).
 
-- **Track A** — import connector reliability
-- **Bug track** — Wear OS offline edge cases
-- **Track B** — core product decisions (persistence/calendar)
-- **Track C** — New Task copy direction + Tin tier achievements
-- **Track D** — splash screen + app icon (brand assets)
+### Status
 
-### Status (as of last check)
-
-| Ticket | Track | Status |
+| Ticket | Title | Status |
 |---|---|---|
-| KAN-92 | A | ✅ Done |
-| KAN-93 | A | ✅ Done |
-| KAN-94 | A | ✅ Done |
-| KAN-95 | A | To Do |
-| KAN-106 | Bug | ✅ Done |
-| KAN-107 | Bug | ✅ Done |
-| KAN-146 | B | ✅ Done |
-| KAN-147 | B | ✅ Done (superseded, no code) |
-| KAN-144 | B | ✅ Done |
-| KAN-145 | B | ✅ Done |
-| KAN-148 | C | ✅ Done |
-| KAN-149 | C | ✅ Done |
-| KAN-150 | C | ✅ Done |
-| KAN-151 | D | ✅ Done |
-| KAN-152 | D | ✅ Done |
-
-### Priority order
-
-1. KAN-92 — import timeout (flaky connections leave button stuck loading)
-2. KAN-94 — cancellation misreported as error
-3. KAN-93 — retry logic, composes KAN-92 + KAN-94
-4. KAN-95 — notes/description mapping, depends on KAN-84/85 merged
-5. KAN-106 — Wear OS silent data loss on disconnect
-6. KAN-107 — offline scenario tests, after KAN-106
-7. KAN-146 — remove end-of-day cleanup (Firestore + Cloud Functions)
-8. KAN-147 — Today screen two-section layout, depends on KAN-146
-9. KAN-144 — POI proximity persistent tracking ✅ done
-10. KAN-145 — Calendar screen redesign, most complex UI ticket
-11. KAN-148 — New Task quick sheet copy
-12. KAN-149 — More Details copy + confirmation toast
-13. KAN-150 — Tin tier achievements
-14. KAN-151 — Splash screen ✅ done
-15. KAN-152 — App icon iOS + Android ✅ done
-
-### Track A — Import connector reliability (KAN-92, 93, 94, 95)
-
-Files: `src/services/import.ts`, `src/types/index.ts`, `src/components/ImportTasksSection.tsx`.
-
-**KAN-92 — Import timeout (no deps).** Wrap the import call in a 30s `Promise.race` timeout (`IMPORT_TIMEOUT_MS = 30_000`). Error messages: general failure → `"Import failed. Tap to retry."`; timeout → `"Import timed out. Check your connection and try again."` Clear the `setTimeout` on unmount.
-
-ACs: button never stuck >30s loading · distinct timeout message · retry after timeout starts fresh (no stale state) · no leaked timer.
-
-**KAN-94 — `ImportResult.cancelled` field (no deps).** Add `cancelled: number` to `ImportResult`. In `importFromGoogleTasks`/`importFromGoogleCalendar`, catch `statusCodes.SIGN_IN_CANCELLED` and return `{ imported: 0, skipped: 0, failed: 0, cancelled: 1 }` instead of throwing; re-throw anything else. `ImportTasksSection` shows a neutral `"Import cancelled."` message (no retry button) when `cancelled > 0`.
-
-ACs: `cancelled` field added · both Google connectors return it on scope decline · neutral UI message · unit tests for cancellation path on both connectors.
-
-**KAN-93 — Exponential backoff retry (after KAN-92 + KAN-94).** `importWithRetry` wraps `runImportWithTimeout`; each attempt gets its own 30s window. `RETRY_DELAYS_MS = [1_000, 2_000, 4_000]` + ±300ms jitter. Skip retry entirely on cancellation or 401/403 — fail immediately. UI shows `"Retrying… (attempt N of 3)"` during backoff; after 3 failures, permanent error state with a manual "Try again" that resets the counter.
-
-ACs: auto-retry up to 3x with correct delays · auth errors/cancellations skip retry · retry label shown · manual retry resets counter · works for both Google and EventKit connectors.
-
-**KAN-95 — Map notes/description → `Task.description` (after KAN-84/85 merged).** Google Tasks: `item.notes?.trim() || undefined`. Google Calendar: strip HTML from `item.description` via a small `stripHtml` helper. EventKit (`importFromReminders`/`importFromCalendar`): `item.notes?.trim() || undefined` (already plain text).
-
-ACs: all three sources map to `description` · HTML stripped for Calendar · `undefined` not `""` when source has no notes · unit tests per connector.
-
-### Bug track — Wear OS offline (KAN-106 → KAN-107)
-
-**KAN-106 — Watch connectivity awareness.** Kotlin, Wear OS module.
-1. `CapabilityClient` listener tracks `phoneConnected`; flush pending queue on reconnect.
-2. In-memory `pendingQueue` in `MarkDoneClient` — if no connected nodes, queue the task ID and set optimistic pending state instead of sending immediately.
-3. `WatchTask.pendingSync: Boolean` — `TaskListScreen` shows a ⚠ icon on rows pending >5s without DataClient reconciliation.
-4. "Phone disconnected" banner (muted, no action) at the top of `TaskListScreen` when unreachable.
-
-ACs: ⚠ after 5s unreconciled · failed `sendMessage()` calls queued and retried on reconnect · disconnect banner shown · existing `wearSync` tests pass.
-
-**KAN-107 — Offline scenario tests (after KAN-106).** Wear OS emulator + Firebase emulator suite (or mocked `WearableListenerService`/`FirebaseFirestore`). Four required cases: happy path; no connected nodes (optimistic update stays, no crash); Firestore write fails unauthenticated (watch/phone state both stay as-is); reconnect after offline (queued message delivered, watch reconciled).
-
-ACs: ≥4 integration/instrumented tests · run in CI against Firebase emulator · PR description includes the test matrix.
-
-### Track B — Core product (KAN-146 → KAN-147 → KAN-144 ✅ → KAN-145) — **current track**
-
-**KAN-146 — Remove end-of-day task cleanup.** Verified: no scheduled Cloud Function archives/deletes tasks, no client-side day-boundary reset logic, no `persistent` field on the task model — codebase was already clean here.
-
-**Scope addition confirmed with stakeholder:** the Today screen only ever fetched `getTasksForDate(uid, todayISO())` — undone tasks from previous days were never fetched at all, contradicting the "tasks persist" decision. Resolution (overrides the literal Jira ticket text "never moves... automatically" — explicit live decision from the user takes precedence): a daily **rollover** moves any undone task forward to the new day, bumping both `date` and `createdAt` to now — it is treated as a brand-new task for that day, no separate "old tasks" list or second "NEARBY" section (the existing `NearbyCard` proximity carousel remains the only "NEARBY" UI — do not duplicate it).
-
-Implementation: `functions/src/rolloverIncompleteTasks.ts` — daily `onSchedule('5 0 * * *', ...)` Cloud Function, UTC-anchored best effort, collection-group query (`done == false`, `date < today`), batched writes. Client-side fallback `rolloverIncompleteTasks(uid)` in `src/services/firestore.ts`, called from `SplashScreen.tsx` before the boot data fetch — this one is per-user-timezone-correct (uses local `todayISO()`) and runs whichever device opens first each day; either path running first makes the other a no-op. New composite indexes added in `firestore.indexes.json` (`done`+`date`, both `COLLECTION` and `COLLECTION_GROUP` scope).
-
-**Note for KAN-145:** ring/streak calendar history must key off `createdAt` per-day, not `date` — `date` now changes on rollover and no longer reflects a task's original day.
-
-ACs: no scheduled midnight-clear job (replaced by rollover, which doesn't delete/archive) · no `persistent` flag on schema · delete leaves no orphaned docs · existing task tests pass · undone tasks roll forward daily and appear in Today's single list · no second "NEARBY"-labeled section added.
-
-**KAN-147 — Today screen two-section layout ✅ Done — superseded, no code.** The literal spec (a second "NEARBY" section for undone tasks created before today) was written before KAN-146's rollover decision. Rollover already bumps any undone task's `date`/`createdAt` to today *before* the Today screen fetches data — by the time a user opens the app there is no "undone task from a previous day" left to put in a separate section; it's already a today task. Verified the single fetch (`getTasksForDate(uid, todayISO())` in both `useTodayScreen` and the SplashScreen boot path) already includes everything rolled over, renders through the existing single `TaskRow` list, and scores normally with no exclusion logic needed. Confirmed with stakeholder: do not build a second list/section — `NearbyCard`'s live GPS-proximity carousel remains the only "NEARBY"-labeled UI on the screen, untouched. Ticket closed via Jira comment, no PR.
-
-**KAN-144 — POI proximity persistent tracking ✅ Done** (after Sprint 9 KAN-142). Fixed: geofence tracking continuing past the first POI match until the task is brushed done, with re-registration after each exit event (`expo-location` geofences are one-shot on enter). Boundary-verified at 390m/400m/410m against `NEARBY_RADIUS = 400m`.
-
-**KAN-145 — Calendar screen redesign (after KAN-146 ring data rules confirmed).** Most complex UI ticket this sprint. Design reference: `outputs/design_handoff_calendar/` (`screen-extras.jsx` primary, `screen.jsx` tokens, `brush-icons.jsx` for `BrushStroke`/`BrushStrikeTitle`).
-- `ProgressRing` SVG: `progress: number (0–1)`, `state: RingState` (`'empty' | 'partial' | 'complete' | 'past' | 'future'`), `size`, `strokeWidth` (default 4). Standard `circumference`/`dashoffset` SVG arc math, ring starts at top (-90°).
-- Ring state → visuals: `future` no track fill; `empty` track only + day number; `partial` track + accent arc; `complete` solid accent + checkmark/number; `past` muted `surface2`, day number, **not** "skipped".
-- `past` data rule: day has elapsed, had tasks, not all done that same day. Later completion does not retroactively close the ring.
-- Streak chain: thin accent line connecting consecutive `complete` cells; gap = break.
-- Milestone pips: small accent dots under the day number at 7/14/30/60/100-day streaks.
-- `CalTaskRow`: completed tasks get a `BrushStroke` SVG bezier (not `textDecoration: line-through`), Reanimated `scaleX 0→1` from left, ~350ms ease-out, gated by `AccessibilityInfo.isReduceMotionEnabled()`.
-- Slide-up detail card on day tap: `CalTaskRow` list (scrollable >5), `CalAchChip` row if achievements exist that day, "N tasks · M done" summary.
-- Month navigation via chevrons; ring data scoped to last 90 days + current month.
-
-ACs: all 5 ring states · `past` uses neutral label · streak chain renders correctly · milestone pips correct · slide-up card with `CalTaskRow` + `CalAchChip` · `BrushStroke` animation on completion · reduced-motion guard on all animations · month nav scopes data correctly.
-
-### Track C — Copy & UX (KAN-148, 149, 150) — independent, parallelizable
-
-**KAN-148 — New Task quick sheet copy.** Sheet title → `"What do you want to do?"`; POI label → `"Where does this happen?"`; category label → `"Which part of your life?"`; CTA → `"Add it"`. POI field: rotating placeholder examples (3–4 relevant to the 16 POI types), cycling on focus or every ~4s while empty. Category field: warm placeholder (e.g. "health", "errands"). Sentence case throughout.
-
-ACs: title/labels updated · rotating POI placeholder · warm category placeholder · CTA reads "Add it" · no functional changes, labels only.
-
-**KAN-149 — More Details copy + confirmation toast.** Title → `"Tell me more"`; POI label → `"Where does this happen?"`; category label → `"Which part of your life?"`; notes label → `"Anything else?"`; CTA → `"Add it"`. Confirmation toast after task creation (both quick sheet and More Details): `"Got it — I'll remind you when you're nearby."` (POI set) or `"Done! I'll keep track of this."` (no POI). Bottom toast, `surface` background, `text` color, 2.5s auto-dismiss, screen-reader announced.
-
-ACs: labels updated · toast appears post-creation · copy branches on POI presence · 2.5s auto-dismiss · accessible.
-
-**KAN-150 — Tin tier achievements.** Tin = entry tier (0 pts); tiers: Tin(0)→Bronze(50)→Silver(200)→Gold(500)→Adamantium(1200)→Vibranium(3000). Points come from achievements only, never task completion directly. 10 Tin achievements (115 pts total): First Sweep (10), Early Riser (10, before 9am), Night Owl (10, after 10pm), Consistent (15, 3-day streak), Explorer (15, 3 POI types), Quick Draw (10, create+complete <1hr), Planner (10, 5 tasks/day), Nearby (15, completed via NEARBY nudge), Weekend Warrior (10, Sat+Sun), Variety (10, 3 categories). Award logic runs server-side in a Cloud Function (`onDocumentUpdated` on task write) — never client-trusted; idempotent via `unlockedAt !== null` check. Unlock toast (bottom, brief) shows name + points.
-
-ACs: all 10 implemented with correct criteria · server-side award, no client trust · no duplicate awards · unlock toast on award · points total visible in profile/tier screen.
-
-### Track D — Brand assets (KAN-151, 152) ✅ Both Done
-
-KAN-151 (splash screen) and KAN-152 (app icon) merged into develop. See commit history on `KAN-151-splash-screen` and `KAN-152-app-icon` branches for implementation details.
+| KAN-159 | Install Expo modules into existing RN project | To Do |
+| KAN-160 | Replace Firebase Podfile hacks with config plugin | To Do |
+| KAN-161 | Eliminate patch-package — audit + replace both patches | To Do |
+| KAN-162 | Migrate BrushGeofenceModule to expo-location | To Do |
+| KAN-163 | Migrate BrushEventKitModule to expo-calendar | To Do |
+| KAN-164 | Replace iOS Share Extension with config plugin | To Do |
+| KAN-165 | Enable New Architecture (Fabric + TurboModules) | To Do |
 
 ### Build order
 
+```text
+KAN-159 (gate) ─┬─→ KAN-160 ┐
+                ├─→ KAN-161 ┤
+                ├─→ KAN-162 ├─→ KAN-165 (last)
+                ├─→ KAN-163 ┤
+                └─→ KAN-164 ┘
 ```
-Track A:      KAN-92 ─┐
-              KAN-94 ─┴─→ KAN-93 → KAN-95 (after KAN-84/85 merged)
-Bug track:    KAN-106 → KAN-107
-Track B:      KAN-146 → KAN-147
-              KAN-144 ✅ (done, was parallel w/ 146/147)
-              KAN-145 (after KAN-146 ring data rules confirmed)
-Track C:      KAN-148 / KAN-149 / KAN-150 (independent, any order)
-Track D:      KAN-151 ✅ / KAN-152 ✅ (done)
-```
+
+KAN-159 is the gate. KAN-160–164 run in parallel after it. KAN-165 last (needs all of 160–164).
+
+### KAN-159 — Install Expo modules (gate, no deps)
+
+`npx install-expo-modules@latest`; swap `babel.config.js` → `babel-preset-expo`; `metro.config.js` → `expo/metro-config`; add `app.json` (name/slug/platforms ios+android); `pod install`; build both platforms; Jest green.
+
+ACs: both platforms build+launch clean · no native module broken (Wear OS, geofence, share extension) · Jest green · no new patches. **Unlock for the whole epic — if build fails here, stop and investigate.**
+
+### KAN-160 — Firebase config plugin (dep: 159)
+
+Delete the 40+ line manual Podfile static-framework post-install hooks for `@react-native-firebase` (`$RNFirebaseAsStaticFramework`, `use_frameworks! :linkage => :static`, umbrella header patches, `RNFBCompat-prefix.h`, RCTBridgeModule/RCTConvert clang fix). Add `@react-native-firebase/app` + messaging/crashlytics config plugins to `app.json`; `npx expo prebuild --clean`; remove redundant hooks; `pod install` + iOS build.
+
+ACs: Podfile post-install has zero RNFB hacks · Auth/Firestore/Messaging/Crashlytics functional · iOS build clean, no umbrella warnings · Android unaffected.
+
+### KAN-161 — Eliminate patch-package (dep: 159)
+
+Audit + replace both patches. `react-native-reanimated+3.19.5.patch` (13 KB): check if upstreamed in newer reanimated → upgrade + delete, else config plugin/native override. `react-native-share-menu+4.1.4.patch` (639 B): check upstream → upgrade, else evaluate `expo-share-extension` (aligns w/ KAN-164). Remove `patch-package` from devDependencies + `postinstall`.
+
+ACs: no `patches/` dir · no `patch-package` in package.json · both builds green · Jest green.
+
+### KAN-162 — BrushGeofenceModule → expo-location (dep: 159)
+
+Rewrite `src/services/geolocation.ts` on `expo-location` + `expo-task-manager` geofencing (`startGeofencingAsync`). Delete `src/services/nativeGeofence.ts`; Android `BrushGeofenceModule.kt`/`BrushGeofencePackage.kt`/`GeofenceBroadcastReceiver.kt` (+ unregister from `MainApplication.kt`); iOS `BrushGeofenceModule.swift`/`.m`. Update AndroidManifest permissions/receivers. Preserve `NEARBY_RADIUS` (ATM/pharmacy=50m, cafe/supermarket=75m).
+
+ACs: no custom geofence native files · geofencing triggers both platforms · proximity tests pass/updated · KAN-144 POI persistence behaviour unchanged.
+
+### KAN-163 — BrushEventKitModule → expo-calendar (dep: 159)
+
+iOS-only native (Android has no equivalent custom module). Install `expo-calendar`; map each `BrushEventKitModule.swift` exported method to expo-calendar; rewrite `src/services/events.ts`; update `src/services/import.ts` callers; delete `BrushEventKitModule.swift`/`.m` from Xcode; add expo-calendar config plugin (handles `NSCalendarsUsageDescription`).
+
+ACs: no `BrushEventKitModule` files · calendar import works · permission prompt as before · import unit tests updated+passing.
+
+### KAN-164 — iOS Share Extension → config plugin (dep: 159)
+
+Replace manual `BrushShareExtension` Xcode target with `expo-share-extension` (or minimal custom config plugin). **Preserve the 4 Swift files with zero logic changes**: `ShareViewController.swift`, `ParseResult.swift`, `CloudFunctions.swift`, `ConfirmationView.swift`. Remove manual target from `project.pbxproj`; add plugin to `app.json`; `npx expo prebuild`; verify extension Firebase pods link (Core/Auth/Firestore/Functions).
+
+ACs: target generated via config plugin not manual Xcode · 4 Swift files preserved verbatim · share flow works end-to-end iOS · Firebase pods linked in extension target.
+
+### KAN-165 — Enable New Architecture (dep: 160–164 all done)
+
+Primary perf win. Add `expo-build-properties`; `newArchEnabled: true` both platforms; `npx expo prebuild --clean`; `pod install` verifying New Arch support (reanimated 3.x ✓, @notifee/react-native version check, react-native-wear-connectivity → mixed-mode bridge if no New Arch, @react-native-firebase 24.x ✓); fix TurboModule registration errors; full device run.
+
+ACs: `newArchEnabled: true` active at runtime · no Today screen regressions, **KAN-157 fix holds (transform/opacity only — no per-frame layout-prop animation on Fabric)** · Jest green · geofencing/Wear OS/Firebase functional · measurable FPS gain on TodayScreen scroll.
 
 ---
 
@@ -470,3 +399,4 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 - **Sprint 7** — ✅ Done (v0.7.0)
 - **Sprint 8** — ✅ Done (v0.8.0)
 - **Sprint 9** — ✅ Done (v0.9.0)
+- **Sprint 10** — ✅ Done (v0.10.0)

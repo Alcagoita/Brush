@@ -1,16 +1,42 @@
 {
-  "name": "Brush",
-  "displayName": "Brush",
   "expo": {
-    "icon": "./assets/icon.png",
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#F7F4EC"
-      }
-    },
+    "name": "Brush",
+    "slug": "brush",
+    "platforms": [
+      "ios",
+      "android"
+    ],
     "ios": {
-      "icon": "./assets/icon.png"
-    }
+      "bundleIdentifier": "com.brush",
+      "googleServicesFile": "./ios/Brush/GoogleService-Info.plist"
+    },
+    "android": {
+      "package": "com.brush",
+      "googleServicesFile": "./android/app/google-services.json"
+    },
+    "plugins": [
+      "expo-build-properties",
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      "@react-native-firebase/crashlytics",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Brush needs calendar access to import events as tasks.",
+          "remindersPermission": "Brush needs reminders access to import your incomplete reminders as tasks."
+        }
+      ],
+      "./plugins/withShareExtension",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Brush needs \"Always\" location access to alert you when you're near a task's location.",
+          "locationAlwaysPermission": "Brush needs \"Always\" location access to alert you when you're near a task's location.",
+          "locationWhenInUsePermission": "Brush needs your location to show nearby task alerts.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true
+        }
+      ]
+    ]
   }
 }

@@ -19,24 +19,37 @@
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
+import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { PoiType, Task, POI_GEOFENCE_RADIUS } from '../types';
-import {
-  NativeGeofence,
-  geofenceEmitter,
-  buildGeofenceId,
-  parseGeofenceId,
-  GEOFENCE_ENTRY_EVENT,
-  GEOFENCE_EXIT_EVENT,
-} from './nativeGeofence';
+import { Task, POI_GEOFENCE_RADIUS } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
+
+// ─── Geofence ID helpers (exit-prompt, KAN-119) ───────────────────────────────
+
+const GEOFENCE_TASK_NAME = 'brush-exit-geofence';
+
+export function buildGeofenceId(poiType: string, placeId: string): string {
+  return `brush_geo_${poiType}_${placeId}`;
+}
+
+export function parseGeofenceId(id: string): { poiType: string; placeId: string } | null {
+  const prefix = 'brush_geo_';
+  if (!id.startsWith(prefix)) { return null; }
+  const rest = id.slice(prefix.length);
+  const firstUnderscore = rest.indexOf('_');
+  if (firstUnderscore === -1) { return null; }
+  return {
+    poiType: rest.slice(0, firstUnderscore),
+    placeId: rest.slice(firstUnderscore + 1),
+  };
+}
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -379,7 +392,9 @@ export function resetProximityState(): void {
   poiRadiusPrefs = {};
 
   geofenceEntryTimes.clear();
-  NativeGeofence.removeAllGeofences().catch(() => {});
+  Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
+    console.warn('[proximity] stopGeofencingAsync failed', err),
+  );
 }
 
 /**
