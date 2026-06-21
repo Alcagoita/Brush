@@ -313,7 +313,7 @@ docs/
 
 ### Build order
 
-```
+```text
 KAN-159 (gate) ─┬─→ KAN-160 ┐
                 ├─→ KAN-161 ┤
                 ├─→ KAN-162 ├─→ KAN-165 (last)

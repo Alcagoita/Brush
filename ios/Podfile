@@ -104,10 +104,10 @@ target 'Brush' do
       unless content.include?('@protocol FIRComponentLifecycleMaintainer')
         content.sub!(
           '#import <FirebaseAuth/FirebaseAuth-Swift.h>',
-          "#import <SafariServices/SafariServices.h>\n      #import <WebKit/WebKit.h>\n      @protocol FIRComponentLifecycleMaintainer;\n      #import <FirebaseAuth/FirebaseAuth-Swift.h>"
+          "#import <SafariServices/SafariServices.h>\n#import <WebKit/WebKit.h>\n@protocol FIRComponentLifecycleMaintainer;\n#import <FirebaseAuth/FirebaseAuth-Swift.h>"
         )
         File.chmod(0644, firebase_h)
-        IO.write(firebase_h, content)
+        File.write(firebase_h, content)
       end
     end
 
@@ -174,15 +174,19 @@ target 'Brush' do
       #endif
     HDR
 
-    main_proj = Xcodeproj::Project.open("#{installer.sandbox.root}/../Brush.xcodeproj")
-    main_proj.targets.each do |target|
-      next unless target.name == 'BrushShareExtension'
-      target.build_configurations.each do |cfg|
-        cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
-        cfg.build_settings['GCC_PREFIX_HEADER']            = '$(PODS_ROOT)/BrushShareExtCompat-prefix.h'
-        cfg.build_settings['GCC_PRECOMPILE_PREFIX_HEADER'] = 'YES'
+    begin
+      main_proj = Xcodeproj::Project.open("#{installer.sandbox.root}/../Brush.xcodeproj")
+      main_proj.targets.each do |target|
+        next unless target.name == 'BrushShareExtension'
+        target.build_configurations.each do |cfg|
+          cfg.build_settings['ENABLE_USER_SCRIPT_SANDBOXING'] = 'NO'
+          cfg.build_settings['GCC_PREFIX_HEADER']            = '$(PODS_ROOT)/BrushShareExtCompat-prefix.h'
+          cfg.build_settings['GCC_PRECOMPILE_PREFIX_HEADER'] = 'YES'
+        end
       end
+      main_proj.save
+    rescue => e
+      warn "[post_install] Failed to patch BrushShareExtension build settings in Brush.xcodeproj: #{e.message}"
     end
-    main_proj.save
   end
 end

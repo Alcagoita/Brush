@@ -15,8 +15,8 @@ function patchFile(filePath, patches) {
   for (const [from, to] of patches) {
     if (content.includes(to)) continue; // already patched
     if (!content.includes(from)) {
-      console.warn(`[patch-nested] WARNING: expected string not found in ${path.basename(filePath)}:\n  ${from.slice(0, 80)}`);
-      continue;
+      console.error(`[patch-nested] ERROR: expected string not found in ${path.basename(filePath)}:\n  ${from.slice(0, 80)}`);
+      process.exit(1);
     }
     content = content.replaceAll(from, to);
     changed = true;
