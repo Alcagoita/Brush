@@ -50,6 +50,11 @@ const mockBatchCommit = jest.fn();
 const mockGet         = jest.fn();
 const mockDoc         = jest.fn();
 
+jest.mock('../../src/services/calendar', () => ({
+  fetchReminders:     jest.fn(),
+  fetchCalendarEvents: jest.fn(),
+}));
+
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
     getTokens:  (...args: unknown[]) => mockGetTokens(...args),
