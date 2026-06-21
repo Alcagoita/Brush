@@ -22,7 +22,7 @@
 import firestore from '@react-native-firebase/firestore';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { Linking, Platform } from 'react-native';
-import BrushEventKitModule from '../native/BrushEventKitModule';
+import { fetchReminders, fetchCalendarEvents } from './calendar';
 import { ImportResult } from '../types';
 
 // ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
@@ -399,13 +399,10 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
   if (Platform.OS !== 'ios') {
     throw new Error('importFromReminders is only available on iOS.');
   }
-  if (!BrushEventKitModule) {
-    throw new Error('BrushEventKitModule native module is not available.');
-  }
 
-  let items: Awaited<ReturnType<typeof BrushEventKitModule.fetchReminders>>;
+  let items: Awaited<ReturnType<typeof fetchReminders>>;
   try {
-    items = await BrushEventKitModule.fetchReminders();
+    items = await fetchReminders();
   } catch (err: unknown) {
     if (isPermissionDenied(err)) {
       await openSettings();
@@ -458,14 +455,11 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
   if (Platform.OS !== 'ios') {
     throw new Error('importFromCalendar is only available on iOS.');
   }
-  if (!BrushEventKitModule) {
-    throw new Error('BrushEventKitModule native module is not available.');
-  }
 
   const DAYS_AHEAD = 30;
-  let items: Awaited<ReturnType<typeof BrushEventKitModule.fetchCalendarEvents>>;
+  let items: Awaited<ReturnType<typeof fetchCalendarEvents>>;
   try {
-    items = await BrushEventKitModule.fetchCalendarEvents(DAYS_AHEAD);
+    items = await fetchCalendarEvents(DAYS_AHEAD);
   } catch (err: unknown) {
     if (isPermissionDenied(err)) {
       await openSettings();

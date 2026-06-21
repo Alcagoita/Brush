@@ -16,6 +16,13 @@
       "@react-native-firebase/messaging",
       "@react-native-firebase/crashlytics",
       [
+        "expo-calendar",
+        {
+          "calendarPermission": "Brush needs calendar access to import events as tasks.",
+          "remindersPermission": "Brush needs reminders access to import your incomplete reminders as tasks."
+        }
+      ],
+      [
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Brush needs \"Always\" location access to alert you when you're near a task's location.",
