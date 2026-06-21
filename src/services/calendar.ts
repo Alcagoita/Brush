@@ -7,9 +7,14 @@
  * matching the shape that importFromReminders/importFromCalendar check.
  *
  * iOS only: getRemindersAsync is not available on Android.
+ *
+ * Uses expo-calendar v56 "next" API (class-based). The old async-suffixed
+ * functions (getRemindersAsync, getCalendarsAsync, etc.) are legacyWarnings
+ * shims that throw immediately — do not use them.
  */
 
 import * as Calendar from 'expo-calendar';
+
 export interface ReminderItem {
   title: string;
   dueDateString?: string;
@@ -32,23 +37,23 @@ function permissionDeniedError(resource: string): Error {
  * iOS only.
  */
 export async function fetchReminders(): Promise<ReminderItem[]> {
-  const { status } = await Calendar.requestRemindersPermissionsAsync();
+  const { status } = await Calendar.requestRemindersPermissions();
   if (status !== 'granted') {
     throw permissionDeniedError('Reminders');
   }
 
-  // Wide range to match original `predicateForIncompleteReminders(nil, nil, nil)`
-  const past   = new Date(0);
-  const future = new Date('2100-01-01T00:00:00Z');
+  const reminderCalendars = await Calendar.getCalendars(Calendar.EntityTypes.REMINDER);
+  if (reminderCalendars.length === 0) { return []; }
 
-  const reminders = await Calendar.getRemindersAsync(
-    null,
-    Calendar.ReminderStatus.Incomplete,
-    past,
-    future,
+  // listReminders(null, null, Incomplete) → predicateForIncompleteReminders(nil, nil, calendars)
+  // — matches original BrushEventKitModule behaviour (all incomplete, no date filter).
+  const pages = await Promise.all(
+    reminderCalendars.map(cal =>
+      cal.listReminders(null, null, Calendar.ReminderStatus.Incomplete),
+    ),
   );
 
-  return reminders
+  return pages.flat()
     .filter(r => r.title?.trim())
     .map(r => ({
       title: r.title!,
@@ -61,7 +66,7 @@ export async function fetchReminders(): Promise<ReminderItem[]> {
  * Works on iOS and Android.
  */
 export async function fetchCalendarEvents(daysAhead: number): Promise<CalendarEventItem[]> {
-  const { status } = await Calendar.requestCalendarPermissionsAsync();
+  const { status } = await Calendar.requestCalendarPermissions();
   if (status !== 'granted') {
     throw permissionDeniedError('Calendar');
   }
@@ -70,11 +75,10 @@ export async function fetchCalendarEvents(daysAhead: number): Promise<CalendarEv
   const end = new Date();
   end.setDate(end.getDate() + daysAhead);
 
-  const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-  if (calendars.length === 0) { return []; }
+  const eventCalendars = await Calendar.getCalendars(Calendar.EntityTypes.EVENT);
+  if (eventCalendars.length === 0) { return []; }
 
-  const calendarIds = calendars.map(c => c.id);
-  const events = await Calendar.getEventsAsync(calendarIds, now, end);
+  const events = await Calendar.listEvents(eventCalendars, now, end);
 
   return events
     .filter(e => e.title?.trim())
