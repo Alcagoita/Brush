@@ -316,6 +316,26 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ---
 
+## Sprint 13 — Import enrichment + POI inference
+
+Theme: finish import data mapping, then auto-assign a POI to imported tasks from their title.
+
+| Order | Ticket | Scope |
+|-------|--------|-------|
+| 1 | KAN-95  | Map Google Tasks notes / Calendar descriptions to `Task.description` on import (`src/services/import.ts`). |
+| 2 | KAN-195 | Multi-language POI keyword dictionary + rule-map service (`src/services/poiInference.ts`). EN + pt-PT, accent-folded, self-growing "learned" layer foundation. |
+| 3 | KAN-196 | On-device LLM fallback (free, no API key — Apple Foundation Models / Android ML Kit GenAI) + dictionary learn-back. Blocked by KAN-195. |
+| 4 | KAN-197 | Wire rule-map + LLM into import flow, auto-apply, user edit feeds dictionary. Blocked by KAN-195 + KAN-196. |
+
+Notes:
+- POI inference outputs **type only** (`atm | cafe | supermarket | pharmacy | null`). `null` is a valid, expected result — never force-guess.
+- Dictionary is **self-growing**: seed layer + learned layer. LLM (KAN-196) and user edits (KAN-197) append confirmed keyword→POI pairs so the rule map keeps improving and fewer titles hit the LLM.
+- Languages: **EN + Português de Portugal (pt-PT, NOT pt-BR)** for now; structure allows data-only language adds later.
+- No Anthropic/cloud API key — would burn credits. On-device only.
+- Deferred from import backlog: KAN-141 (quick-capture flow — needs product refinement, partly superseded), KAN-180 (landing "Import your tasks" section — website epic KAN-167 track).
+
+---
+
 ## Sprint History
 
 - **Sprint 1** — ✅ Done (v0.1.0)
