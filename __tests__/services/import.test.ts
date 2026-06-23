@@ -19,6 +19,8 @@ import {
   runImportWithTimeout,
   importWithRetry,
   makeImportDocId,
+  stripHtml,
+  toDescription,
   IMPORT_TIMEOUT_MS,
   IMPORT_TIMEOUT_ERROR,
   RETRY_DELAYS_MS,
@@ -239,6 +241,51 @@ describe('makeImportDocId', () => {
   });
 });
 
+// ─── stripHtml / toDescription (KAN-95) ──────────────────────────────────────
+
+describe('stripHtml', () => {
+  it('removes tags and keeps text content', () => {
+    expect(stripHtml('<p>Hello <b>world</b></p>')).toBe('Hello world');
+  });
+
+  it('converts <br> to a newline', () => {
+    expect(stripHtml('line one<br>line two')).toBe('line one\nline two');
+    expect(stripHtml('line one<br/>line two')).toBe('line one\nline two');
+  });
+
+  it('decodes common HTML entities', () => {
+    expect(stripHtml('Tom &amp; Jerry &lt;tag&gt; &quot;q&quot; &#39;a&#39;')).toBe(
+      'Tom & Jerry <tag> "q" \'a\'',
+    );
+  });
+
+  it('collapses whitespace but preserves newlines', () => {
+    expect(stripHtml('a   b<br>  c  ')).toBe('a b\nc');
+  });
+});
+
+describe('toDescription', () => {
+  it('returns undefined for undefined input', () => {
+    expect(toDescription(undefined)).toBeUndefined();
+  });
+
+  it('returns undefined for whitespace-only input', () => {
+    expect(toDescription('   ')).toBeUndefined();
+  });
+
+  it('trims plain-text input', () => {
+    expect(toDescription('  pick up milk  ')).toBe('pick up milk');
+  });
+
+  it('strips HTML when { html: true }', () => {
+    expect(toDescription('<p>Agenda</p>', { html: true })).toBe('Agenda');
+  });
+
+  it('returns undefined when HTML strips down to nothing', () => {
+    expect(toDescription('<br> <p></p>', { html: true })).toBeUndefined();
+  });
+});
+
 // ─── isDuplicate ─────────────────────────────────────────────────────────────
 
 describe('isDuplicate', () => {
@@ -376,6 +423,24 @@ describe('importFromReminders', () => {
     expect(result.imported).toBe(0);
   });
 
+  it('maps reminder notes to Task.description (KAN-95)', async () => {
+    mockFetchReminders.mockResolvedValueOnce([
+      { title: 'Pick up milk', notes: '  2% organic  ' },
+    ]);
+
+    await importFromReminders('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.description).toBe('2% organic');
+  });
+
+  it('omits description when the reminder has no notes (KAN-95)', async () => {
+    mockFetchReminders.mockResolvedValueOnce([{ title: 'Pick up milk' }]);
+
+    await importFromReminders('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
   it('opens Settings and rethrows when permission is denied', async () => {
     const permissionError = Object.assign(new Error('denied'), { code: 'PERMISSION_DENIED' });
     mockFetchReminders.mockRejectedValueOnce(permissionError);
@@ -444,6 +509,26 @@ describe('importFromCalendar', () => {
 
     const result = await importFromCalendar('uid-1');
     expect(result.imported).toBe(1);
+  });
+
+  it('maps calendar event notes to Task.description (KAN-95)', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Team standup', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: false, notes: '  bring laptop  ' },
+    ]);
+
+    await importFromCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.description).toBe('bring laptop');
+  });
+
+  it('omits description when the event has no notes (KAN-95)', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Team standup', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: false },
+    ]);
+
+    await importFromCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
   });
 
   it('opens Settings and rethrows on PERMISSION_DENIED', async () => {

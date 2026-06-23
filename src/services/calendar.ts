@@ -18,12 +18,14 @@ import * as Calendar from 'expo-calendar';
 export interface ReminderItem {
   title: string;
   dueDateString?: string;
+  notes?: string;  // EKReminder.notes → Task.description (KAN-95)
 }
 
 export interface CalendarEventItem {
   title: string;
   startDateString: string;
   isAllDay: boolean;
+  notes?: string;  // EKEvent.notes → Task.description (KAN-95)
 }
 
 function permissionDeniedError(resource: string): Error {
@@ -58,6 +60,7 @@ export async function fetchReminders(): Promise<ReminderItem[]> {
     .map(r => ({
       title: r.title!,
       dueDateString: r.dueDate ? new Date(r.dueDate).toISOString() : undefined,
+      notes: r.notes ?? undefined,
     }));
 }
 
@@ -86,5 +89,6 @@ export async function fetchCalendarEvents(daysAhead: number): Promise<CalendarEv
       title:           e.title!,
       startDateString: new Date(e.startDate).toISOString(),
       isAllDay:        e.allDay,
+      notes:           e.notes ?? undefined,
     }));
 }

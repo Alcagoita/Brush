@@ -283,6 +283,41 @@ describe('importFromGoogleTasks', () => {
     expect(setCall.date).toBe('2026-08-01');
   });
 
+  it('maps the task notes field to Task.description (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{
+      id: '1', title: 'Buy groceries', status: 'needsAction',
+      notes: '  milk, eggs, bread  ',
+    }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.description).toBe('milk, eggs, bread');
+  });
+
+  it('omits description when the task has no notes (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
+  it('omits description when notes is only whitespace (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{
+      id: '1', title: 'Buy groceries', status: 'needsAction', notes: '   ',
+    }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
   it('throws when the Google API returns an error response', async () => {
     mockAccessToken();
     mockGet.mockResolvedValue({ docs: [] });
@@ -414,6 +449,46 @@ describe('importFromGoogleCalendar', () => {
     expect(result.imported).toBe(1);
     const setCall = mockBatchSet.mock.calls[0][1];
     expect(setCall.date).toBe('2026-06-20');
+  });
+
+  it('strips HTML from the event description and maps it to Task.description (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([{
+      id: '1', summary: 'Team standup',
+      description: '<p>Agenda:<br>Discuss <b>roadmap</b> &amp; sprint</p>',
+      start: { dateTime: '2026-06-05T09:00:00Z' },
+    }]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.description).toBe('Agenda:\nDiscuss roadmap & sprint');
+  });
+
+  it('omits description when the event has none (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team standup', start: { dateTime: '2026-06-05T09:00:00Z' } },
+    ]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
+  it('omits description when the event description is empty markup (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([{
+      id: '1', summary: 'Team standup',
+      description: '<br>   <p></p>',
+      start: { dateTime: '2026-06-05T09:00:00Z' },
+    }]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
   });
 
   it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
