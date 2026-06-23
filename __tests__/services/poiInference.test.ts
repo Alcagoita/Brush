@@ -270,4 +270,31 @@ describe('registerCategoryKeywords (user adds a new POI)', () => {
     expect(inferPoiFromRules('order from florist')).toBe('florist');
     expect(inferPoiFromRules('go to the hardware store')).toBe('hardware_store');
   });
+
+  it('registers category terms across all languages (matches a pt-PT lookup)', () => {
+    // Firestore callers pass no lang; the term must match regardless of the
+    // language the import later infers with.
+    registerCategoryKeywords({ name: 'Padaria', poi: 'bakery' });
+    expect(inferPoiFromRules('ir à padaria', 'pt-PT')).toBe('bakery');
+    expect(inferPoiFromRules('stop at padaria', 'en')).toBe('bakery');
+  });
+
+  it('replaceCategoryKeywords prunes categories no longer in the list', () => {
+    syncCategoryKeywords([
+      { name: 'Florist', poi: 'florist' },
+      { name: 'Hardware store', poi: 'hardware_store' },
+    ]);
+    expect(inferPoiFromRules('order from florist')).toBe('florist');
+
+    // Re-sync with the florist removed (e.g. user deleted that category).
+    syncCategoryKeywords([{ name: 'Hardware store', poi: 'hardware_store' }]);
+    expect(inferPoiFromRules('order from florist')).toBeNull();
+    expect(inferPoiFromRules('go to the hardware store')).toBe('hardware_store');
+  });
+
+  it('explicit user/LLM learned entry wins over a category-derived term', () => {
+    registerCategoryKeywords({ name: 'pilates', poi: 'gym' });
+    registerLearnedKeyword('pilates', 'salon'); // hypothetical correction
+    expect(inferPoiFromRules('book pilates')).toBe('salon');
+  });
 });

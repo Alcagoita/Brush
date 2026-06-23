@@ -46,7 +46,7 @@ import {
   PointsReason,
   UserPreferences,
 } from '../types';
-import { registerCategoryKeywords, syncCategoryKeywords } from './poiInference';
+import { registerCategoryKeywords, replaceCategoryKeywords } from './poiInference';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -472,11 +472,17 @@ export async function updateCategory(
   categoryId: string,
   data: Partial<Pick<Category, 'name' | 'color' | 'poi'>>,
 ): Promise<void> {
-  await updateDoc(categoryRef(uid, categoryId), data);
-  // Keep the inference dictionary in sync when the name/POI changes (KAN-195).
-  // Registers only when both a name and a POI are present in the patch.
-  if (data.name !== undefined && data.poi !== undefined) {
-    registerCategoryKeywords({ name: data.name, poi: data.poi });
+  const ref = categoryRef(uid, categoryId);
+  await updateDoc(ref, data);
+  // Keep the inference dictionary in sync on any name/POI change (KAN-195).
+  // A name-only or POI-only patch still needs the merged document, so re-read it
+  // and register the full current category (registered across all languages).
+  if (data.name !== undefined || data.poi !== undefined) {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const c = snap.data() as Category;
+      registerCategoryKeywords({ name: c.name, poi: c.poi });
+    }
   }
 }
 
@@ -1298,9 +1304,10 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
 export async function getCategories(uid: string): Promise<Category[]> {
   const snap = await getDocs(query(categoriesRef(uid), orderBy('name', 'asc')));
   const categories = snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
-  // Re-register custom-category wording into the inference dictionary on load,
-  // so user-added POIs survive an app restart before KAN-196's durable store.
-  syncCategoryKeywords(categories);
+  // Rebuild the inference dictionary's category layer from the current list on
+  // load, so user-added POIs survive an app restart and renamed/deleted ones
+  // stop matching (durable store lands in KAN-196).
+  replaceCategoryKeywords(categories);
   return categories;
 }
 
