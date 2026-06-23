@@ -215,6 +215,45 @@ export function shouldSkipCalendarEvent(
   return startDate > thirtyDaysOut;
 }
 
+// ─── Description mapping (KAN-95) ─────────────────────────────────────────────
+
+/**
+ * Strip HTML to plain text. Google Calendar event descriptions may contain
+ * markup (`<a>`, `<br>`, entities). A regex pass is sufficient for v1 — we are
+ * not rendering rich text, just storing a readable note.
+ */
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')  // <br> → newline before dropping tags
+    .replace(/<[^>]*>/g, ' ')             // remaining tags → space
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[^\S\n]+/g, ' ')            // collapse spaces/tabs, keep newlines
+    .replace(/\s*\n\s*/g, '\n')           // trim around newlines
+    .trim();
+}
+
+/**
+ * Normalize an external note/description into a `Task.description` value.
+ * Returns `undefined` (not an empty string) when there is nothing to store, so
+ * callers can omit the field entirely and avoid writing empty descriptions.
+ *
+ * Pass `{ html: true }` for sources whose notes may contain markup
+ * (Google Calendar). Plain-text sources (Google Tasks, EventKit) omit it.
+ */
+export function toDescription(
+  raw: string | undefined,
+  opts: { html?: boolean } = {},
+): string | undefined {
+  if (!raw) { return undefined; }
+  const text = (opts.html ? stripHtml(raw) : raw).trim();
+  return text || undefined;
+}
+
 // ─── Duplicate detection ──────────────────────────────────────────────────────
 
 /**
@@ -282,6 +321,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
 
     try {
       const dueDate = parseGoogleDate(item.due);
+      const description = toDescription(item.notes);
       const docRef = tasksRef.doc(makeImportDocId('google_tasks', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -290,6 +330,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
         done:      false,
         date:      dueDate ? formatDateString(dueDate) : formatDateString(new Date()),
         source:    'google_tasks',
+        ...(description ? { description } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       // Track the title in the local Set to prevent intra-batch duplicates.
@@ -349,6 +390,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
       if (!startDate) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
+      const description = toDescription(item.description, { html: true });
       const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -357,6 +399,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
         done:      false,
         date:      formatDateString(startDate),
         source:    'google_calendar',
+        ...(description ? { description } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -375,13 +418,15 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
 interface GoogleTaskItem {
   id:     string;
   title?: string;
+  notes?: string;  // plain-text note → Task.description (KAN-95)
   due?:   string;  // RFC 3339
   status: 'needsAction' | 'completed';
 }
 
 interface GoogleCalendarEvent {
-  id:       string;
-  summary?: string;
+  id:          string;
+  summary?:    string;
+  description?: string;  // may contain HTML → stripped to Task.description (KAN-95)
   start?: {
     date?:     string;  // "YYYY-MM-DD" for all-day
     dateTime?: string;  // RFC 3339 for timed
@@ -422,6 +467,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
 
     try {
       const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
+      const description = toDescription(item.notes);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_reminders', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -432,6 +478,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
                      ? formatDateString(dueDate)
                      : formatDateString(new Date()),
         source:    'eventkit_reminders',
+        ...(description ? { description } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -483,6 +530,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (isNaN(startDate.getTime())) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
+      const description = toDescription(item.notes);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -491,6 +539,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
         done:      false,
         date:      formatDateString(startDate),
         source:    'eventkit_calendar',
+        ...(description ? { description } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
