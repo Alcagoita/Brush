@@ -7,7 +7,7 @@ the device is unsupported, the app falls back to the rule-map dictionary
 
 ## Surface
 
-```
+```typescript
 isAvailable(): Promise<boolean>
 classify(title: string, allowed: string[], lang: string): Promise<string | null>
 ```
@@ -24,17 +24,22 @@ capability guard.
 ### Build & verify (Android dev build)
 
 1. Prebuild / sync so autolinking picks up the local module:
-   ```
+
+   ```bash
    npx expo prebuild -p android
    ```
+
 2. Build a dev client onto a supported physical device (not an emulator):
-   ```
+
+   ```bash
    npx expo run:android --device
    ```
+
 3. Ensure AICore is installed/updated on the device (Play Store → "Android
    System Intelligence" / AICore) and the device is enrolled for Gemini Nano
    experimental access.
 4. Smoke test from JS:
+
    ```ts
    import { isLlmAvailable, classifyPoi } from './src/services/poiLlm';
    await isLlmAvailable();              // expect true on a supported device

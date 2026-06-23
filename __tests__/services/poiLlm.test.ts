@@ -33,6 +33,7 @@ import {
   classifyPoi,
   learnPoiKeyword,
   learnFromClassification,
+  learnFromUserEdit,
   LLM_TIMEOUT_MS,
 } from '../../src/services/poiLlm';
 import { inferPoiFromRules, clearLearnedKeywords } from '../../src/services/poiInference';
@@ -84,6 +85,8 @@ describe('isLlmAvailable', () => {
     mockIsAvailable.mockRejectedValueOnce(new Error('AICore missing'));
     await expect(isLlmAvailable()).resolves.toBe(false);
   });
+  // Absent-native-module path (requireOptionalNativeModule → null) is covered in
+  // poiLlm.absent.test.ts, which mocks the module as missing for the whole file.
 });
 
 // ─── classifyPoi ──────────────────────────────────────────────────────────────
@@ -139,10 +142,17 @@ describe('learn-back', () => {
     expect(inferPoiFromRules('refill amoxicillin 500mg', 'en')).toBe('pharmacy');
   });
 
-  it('persists the learned keyword with its source', async () => {
+  it('persists an LLM classification with source "llm"', async () => {
     await learnFromClassification('uid-1', 'Buy guarana', 'supermarket', 'en');
     expect(mockPersist).toHaveBeenCalledWith('uid-1', {
       keyword: 'Buy guarana', poi: 'supermarket', lang: 'en', source: 'llm',
+    });
+  });
+
+  it('persists a user edit with source "user"', async () => {
+    await learnFromUserEdit('uid-1', 'Levar o carro à oficina', 'store', 'pt-PT');
+    expect(mockPersist).toHaveBeenCalledWith('uid-1', {
+      keyword: 'Levar o carro à oficina', poi: 'store', lang: 'pt-PT', source: 'user',
     });
   });
 

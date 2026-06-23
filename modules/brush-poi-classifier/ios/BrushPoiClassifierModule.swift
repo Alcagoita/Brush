@@ -20,4 +20,7 @@ public class BrushPoiClassifierModule: Module {
       return nil
     }
   }
+
+  // No resources to clean up; present to satisfy SwiftLint required_deinit.
+  deinit {}
 }

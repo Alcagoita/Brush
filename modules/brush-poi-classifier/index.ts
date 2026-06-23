@@ -7,6 +7,6 @@
 // Native surface:
 //   isAvailable(): Promise<boolean>
 //   classify(title: string, allowed: string[], lang: string): Promise<string | null>
-import { requireOptionalNativeModule } from 'expo';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 
 export default requireOptionalNativeModule('BrushPoiClassifier');
