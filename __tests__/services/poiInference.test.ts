@@ -22,6 +22,9 @@ import {
   inferPoiFromRules,
   normalize,
   registerLearnedKeyword,
+  registerPoiKeywords,
+  registerCategoryKeywords,
+  syncCategoryKeywords,
   clearLearnedKeywords,
 } from '../../src/services/poiInference';
 
@@ -104,6 +107,54 @@ describe('inferPoiFromRules (pt-PT)', () => {
   });
 });
 
+// ─── All 16 built-in POI types ─────────────────────────────────────────────────
+
+describe('inferPoiFromRules: all 16 built-in types (en)', () => {
+  const cases: [string, string][] = [
+    ['withdraw cash',            'atm'],
+    ['grab a coffee',           'cafe'],
+    ['buy bread',               'supermarket'],
+    ['pick up prescription',    'pharmacy'],
+    ['fill up on petrol',       'gas'],
+    ['morning workout',         'gym'],
+    ['deposit cheque at bank',  'bank'],
+    ['dinner reservation',      'restaurant'],
+    ['walk in the park',        'park'],
+    ['return book to library',  'library'],
+    ['mail a parcel',           'post'],
+    ['shop at the mall',        'store'],
+    ['dentist checkup',         'clinic'],
+    ['book a haircut',          'salon'],
+    ['catch the bus',           'bus'],
+    ['pick up kids from school','school'],
+  ];
+
+  it.each(cases)('maps %p to %p', (title, expected) => {
+    expect(inferPoiFromRules(title)).toBe(expected);
+  });
+});
+
+describe('inferPoiFromRules: extended types (pt-PT)', () => {
+  const cases: [string, string][] = [
+    ['meter gasolina',           'gas'],
+    ['ir ao ginásio',            'gym'],
+    ['ir ao banco',              'bank'],
+    ['reserva no restaurante',   'restaurant'],
+    ['passear no parque',        'park'],
+    ['devolver livro',           'library'],
+    ['enviar encomenda',         'post'],
+    ['comprar no centro comercial', 'store'],
+    ['consulta no médico',       'clinic'],
+    ['corte de cabelo',          'salon'],
+    ['apanhar o autocarro',      'bus'],
+    ['reunião de pais',          'school'],
+  ];
+
+  it.each(cases)('maps %p to %p', (title, expected) => {
+    expect(inferPoiFromRules(title, 'pt-PT')).toBe(expected);
+  });
+});
+
 // ─── No-match / edge cases ─────────────────────────────────────────────────────
 
 describe('inferPoiFromRules: no match returns null', () => {
@@ -171,5 +222,52 @@ describe('learned layer', () => {
     // is consulted first so it wins on the length tie.
     registerLearnedKeyword('tea', 'supermarket');
     expect(inferPoiFromRules('buy tea')).toBe('supermarket');
+  });
+
+  it('registerPoiKeywords registers multiple synonyms for one POI', () => {
+    registerPoiKeywords('gym', ['crossfit', 'spin class']);
+    expect(inferPoiFromRules('crossfit session')).toBe('gym');
+    expect(inferPoiFromRules('book a spin class')).toBe('gym');
+  });
+});
+
+// ─── Dynamic custom-category registration ──────────────────────────────────────
+
+describe('registerCategoryKeywords (user adds a new POI)', () => {
+  it('registers a custom category name → its POI', () => {
+    expect(inferPoiFromRules('weekly book club')).toBeNull();
+    registerCategoryKeywords({ name: 'Book club', poi: 'library' });
+    expect(inferPoiFromRules('weekly book club')).toBe('library');
+  });
+
+  it('supports a custom Google Places type beyond the 16 built-ins', () => {
+    registerCategoryKeywords({ name: 'Bakery run', poi: 'bakery' });
+    expect(inferPoiFromRules('morning bakery run')).toBe('bakery');
+  });
+
+  it('registers extra synonyms alongside the name', () => {
+    registerCategoryKeywords({ name: 'Vet', poi: 'veterinary_care', synonyms: ['vaccine', 'pet checkup'] });
+    expect(inferPoiFromRules('dog vaccine')).toBe('veterinary_care');
+    expect(inferPoiFromRules('pet checkup')).toBe('veterinary_care');
+  });
+
+  it('is a no-op when the category has no POI', () => {
+    registerCategoryKeywords({ name: 'Misc', poi: null });
+    expect(inferPoiFromRules('some misc task')).toBeNull();
+  });
+
+  it('is a no-op for an empty name', () => {
+    registerCategoryKeywords({ name: '   ', poi: 'gym' });
+    expect(inferPoiFromRules('   ')).toBeNull();
+  });
+
+  it('syncCategoryKeywords bulk-registers many categories', () => {
+    syncCategoryKeywords([
+      { name: 'Florist', poi: 'florist' },
+      { name: 'Hardware store', poi: 'hardware_store' },
+      { name: 'No location', poi: null },
+    ]);
+    expect(inferPoiFromRules('order from florist')).toBe('florist');
+    expect(inferPoiFromRules('go to the hardware store')).toBe('hardware_store');
   });
 });

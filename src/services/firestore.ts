@@ -46,6 +46,7 @@ import {
   PointsReason,
   UserPreferences,
 } from '../types';
+import { registerCategoryKeywords, syncCategoryKeywords } from './poiInference';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -456,6 +457,9 @@ export async function addCategory(
   data: Omit<Category, 'id' | 'isBuiltIn'>,
 ): Promise<string> {
   const ref = await addDoc(categoriesRef(uid), { ...data, isBuiltIn: false });
+  // Feed the new POI's wording into the inference dictionary (KAN-195) so future
+  // imports recognise it. No-op when the category has no POI association.
+  registerCategoryKeywords({ name: data.name, poi: data.poi });
   return ref.id;
 }
 
@@ -469,6 +473,11 @@ export async function updateCategory(
   data: Partial<Pick<Category, 'name' | 'color' | 'poi'>>,
 ): Promise<void> {
   await updateDoc(categoryRef(uid, categoryId), data);
+  // Keep the inference dictionary in sync when the name/POI changes (KAN-195).
+  // Registers only when both a name and a POI are present in the patch.
+  if (data.name !== undefined && data.poi !== undefined) {
+    registerCategoryKeywords({ name: data.name, poi: data.poi });
+  }
 }
 
 /**
@@ -1288,7 +1297,11 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
 
 export async function getCategories(uid: string): Promise<Category[]> {
   const snap = await getDocs(query(categoriesRef(uid), orderBy('name', 'asc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
+  const categories = snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
+  // Re-register custom-category wording into the inference dictionary on load,
+  // so user-added POIs survive an app restart before KAN-196's durable store.
+  syncCategoryKeywords(categories);
+  return categories;
 }
 
 export async function getTotalPoints(uid: string): Promise<number> {
