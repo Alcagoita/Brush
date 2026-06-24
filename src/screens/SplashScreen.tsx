@@ -46,6 +46,7 @@ import {
   getTotalPoints,
   getUser,
   getUserPreferences,
+  loadLearnedKeywords,
   rolloverIncompleteTasks,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
@@ -338,6 +339,12 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     }
 
     const uid = user.uid;
+    // Rehydrate the POI inference learned layer (LLM/user-confirmed keywords)
+    // from Firestore on boot (KAN-196). Non-fatal — inference falls back to the
+    // seed dictionary if this fails. (Custom-category terms are rehydrated
+    // separately by getCategories below.)
+    loadLearnedKeywords(uid)
+      .catch(err => console.warn('[SplashScreen] loadLearnedKeywords failed (non-critical)', err));
     // Roll forward yesterday's undone tasks before fetching today's list, so
     // they're already included (KAN-146 — tasks persist until brushed away).
     // This is the per-user-timezone-correct fallback to the best-effort UTC

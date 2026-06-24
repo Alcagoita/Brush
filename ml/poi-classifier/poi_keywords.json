@@ -1,0 +1,25 @@
+{
+  "_comment": "KAN-196 training source. Mirrors the seed dictionary in src/services/poiInference.ts (EN + Portugues de Portugal) plus a 'none' class for tasks with no place to visit. Keep in sync with the TS seed when keywords change. Used by generate_dataset.py to synthesize labeled title->POI examples.",
+  "labels": {
+    "atm":         { "en": ["atm", "cash", "withdraw cash", "cash machine", "take out money"], "pt": ["multibanco", "dinheiro", "levantar dinheiro", "levantamento"] },
+    "cafe":        { "en": ["coffee", "latte", "espresso", "cappuccino", "cafe", "tea", "flat white"], "pt": ["cafe", "galao", "bica", "cha", "pastel de nata", "pequeno almoco"] },
+    "supermarket": { "en": ["groceries", "grocery", "supermarket", "market", "food shopping", "bread", "milk", "eggs", "butter", "vegetables", "veggies", "fruit"], "pt": ["compras", "supermercado", "mercearia", "mercado", "pao", "leite", "ovos", "fruta", "legumes"] },
+    "pharmacy":    { "en": ["pharmacy", "drugstore", "prescription", "meds", "medicine", "medication", "pills", "vitamins"], "pt": ["farmacia", "receita", "medicamentos", "remedios", "comprimidos"] },
+    "gas":         { "en": ["gas", "gas station", "fuel", "petrol", "diesel", "fill up", "fill the tank"], "pt": ["gasolina", "combustivel", "gasoleo", "abastecer", "meter gasolina", "bomba de gasolina"] },
+    "gym":         { "en": ["gym", "workout", "work out", "exercise", "fitness", "training"], "pt": ["ginasio", "treino", "exercicio", "musculacao"] },
+    "bank":        { "en": ["bank", "deposit", "bank branch", "cheque"], "pt": ["banco", "deposito", "balcao"] },
+    "restaurant":  { "en": ["restaurant", "lunch", "dinner", "eat out", "dine out", "reservation"], "pt": ["restaurante", "almoco", "jantar", "reserva", "refeicao"] },
+    "park":        { "en": ["park", "walk", "playground", "picnic"], "pt": ["parque", "passear", "jardim", "piquenique"] },
+    "library":     { "en": ["library", "return book", "borrow book", "library book"], "pt": ["biblioteca", "devolver livro", "requisitar livro"] },
+    "post":        { "en": ["post office", "mail", "parcel", "package", "stamp", "stamps", "ship package"], "pt": ["correios", "carta", "encomenda", "selo", "enviar encomenda"] },
+    "store":       { "en": ["store", "shop", "mall", "shopping mall", "underwear", "socks", "clothes", "t-shirt", "shoes"], "pt": ["loja", "centro comercial", "shopping", "roupa", "sapatos", "meias"] },
+    "clinic":      { "en": ["clinic", "doctor", "doctor appointment", "checkup", "dentist", "medical appointment"], "pt": ["clinica", "medico", "consulta", "dentista", "exame"] },
+    "salon":       { "en": ["salon", "haircut", "hair cut", "barber", "hair appointment", "nails", "manicure"], "pt": ["cabeleireiro", "corte de cabelo", "barbeiro", "unhas", "manicure"] },
+    "bus":         { "en": ["bus", "bus stop", "bus station", "catch the bus"], "pt": ["autocarro", "paragem", "apanhar o autocarro"] },
+    "school":      { "en": ["school", "class", "pick up kids", "parent meeting", "drop off kids"], "pt": ["escola", "aula", "buscar os miudos", "reuniao de pais"] }
+  },
+  "none": {
+    "en": ["call mom", "email the boss", "finish the report", "reply to emails", "schedule a meeting", "water the plants", "pay rent online", "read a chapter", "plan the trip", "back up the laptop", "renew passport online", "call the plumber", "review the budget", "write the blog post", "feed the cat", "do the laundry"],
+    "pt": ["ligar a mae", "enviar email ao chefe", "terminar o relatorio", "responder aos emails", "marcar uma reuniao", "regar as plantas", "pagar a renda online", "ler um capitulo", "planear a viagem", "fazer copia de seguranca", "renovar o passaporte online", "ligar ao canalizador", "rever o orcamento", "dar de comer ao gato", "tratar da roupa"]
+  }
+}
