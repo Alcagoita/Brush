@@ -154,12 +154,25 @@ const GOOGLE_CALENDAR_URL = (timeMin: string) =>
   `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}`;
 
 /**
- * Returns the current Google OAuth access token.
- * Refreshes silently if the cached token has expired.
+ * Returns a Google OAuth access token with the import scopes (KAN-201).
+ *
+ * `getTokens()` alone only works when a Google session already exists. Brush's
+ * default login is email/password, which creates no Google session, so we first
+ * try `getTokens()` and, if that fails, establish a session via `signIn()`
+ * (account picker + scope consent) and retry. A user-cancelled prompt throws
+ * `SIGN_IN_CANCELLED`, which the connector wrappers translate into a cancelled
+ * result rather than an error.
  */
 async function getGoogleAccessToken(): Promise<string> {
-  const tokens = await GoogleSignin.getTokens();
-  return tokens.accessToken;
+  try {
+    const tokens = await GoogleSignin.getTokens();
+    return tokens.accessToken;
+  } catch {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    await GoogleSignin.signIn();
+    const tokens = await GoogleSignin.getTokens();
+    return tokens.accessToken;
+  }
 }
 
 /**

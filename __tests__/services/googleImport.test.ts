@@ -45,6 +45,8 @@ import {
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockGetTokens   = jest.fn();
+const mockSignIn      = jest.fn();
+const mockHasPlay     = jest.fn();
 const mockBatchSet    = jest.fn();
 const mockBatchCommit = jest.fn();
 const mockGet         = jest.fn();
@@ -57,8 +59,10 @@ jest.mock('../../src/services/calendar', () => ({
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
-    getTokens:  (...args: unknown[]) => mockGetTokens(...args),
-    configure:  jest.fn(),
+    getTokens:       (...args: unknown[]) => mockGetTokens(...args),
+    signIn:          (...args: unknown[]) => mockSignIn(...args),
+    hasPlayServices: (...args: unknown[]) => mockHasPlay(...args),
+    configure:       jest.fn(),
   },
   statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
 }));
@@ -326,16 +330,45 @@ describe('importFromGoogleTasks', () => {
     await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('401');
   });
 
-  it('throws when getTokens() fails (e.g. user declined OAuth scope)', async () => {
-    mockGetTokens.mockRejectedValueOnce(new Error('User declined scope'));
-    mockGet.mockResolvedValue({ docs: [] });
+  it('signs in then imports when no Google session exists yet (KAN-201)', async () => {
+    // First getTokens fails (no session, e.g. email/password login); signIn
+    // establishes one, then the retried getTokens succeeds.
+    mockGetTokens
+      .mockRejectedValueOnce(new Error('no current user'))
+      .mockResolvedValueOnce({ accessToken: 'fresh-token' });
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockResolvedValue({ data: { idToken: 'id' } });
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
 
-    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('User declined scope');
+    const result = await importFromGoogleTasks('uid-1');
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+    expect(result.imported).toBe(1);
   });
 
-  it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
+  it('does not call signIn when a Google session already exists (KAN-201)', async () => {
+    mockAccessToken(); // getTokens resolves on the first call
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    expect(mockSignIn).not.toHaveBeenCalled();
+  });
+
+  it('rethrows a non-cancellation sign-in error (KAN-201)', async () => {
+    mockGetTokens.mockRejectedValue(new Error('no session'));
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockRejectedValueOnce(new Error('PLAY_SERVICES_NOT_AVAILABLE'));
+    mockGet.mockResolvedValue({ docs: [] });
+
+    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('PLAY_SERVICES_NOT_AVAILABLE');
+  });
+
+  it('returns cancelled:1 when user cancels the Google sign-in prompt (KAN-94/201)', async () => {
     const cancelErr = Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
-    mockGetTokens.mockRejectedValueOnce(cancelErr);
+    mockGetTokens.mockRejectedValue(new Error('no session'));
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockRejectedValueOnce(cancelErr);
     mockGet.mockResolvedValue({ docs: [] });
 
     const result = await importFromGoogleTasks('uid-1');
@@ -491,9 +524,11 @@ describe('importFromGoogleCalendar', () => {
     expect('description' in setCall).toBe(false);
   });
 
-  it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
+  it('returns cancelled:1 when user cancels the Google sign-in prompt (KAN-94/201)', async () => {
     const cancelErr = Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
-    mockGetTokens.mockRejectedValueOnce(cancelErr);
+    mockGetTokens.mockRejectedValue(new Error('no session'));
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockRejectedValueOnce(cancelErr);
     mockGet.mockResolvedValue({ docs: [] });
 
     const result = await importFromGoogleCalendar('uid-1');
