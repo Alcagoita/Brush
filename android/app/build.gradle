@@ -60,9 +60,21 @@ react {
     /* Autolinking */
     autolinkLibrariesWithApp()
     //
-    // Added by install-expo-modules
-    entryFile = file(["node", "-e", "require('expo/scripts/resolveAppEntry')", rootDir.getAbsoluteFile().getParentFile().getAbsolutePath(), "android", "absolute"].execute(null, rootDir).text.trim())
-    cliFile = new File(["node", "--print", "require.resolve('@expo/cli')"].execute(null, rootDir).text.trim())
+    // Added by install-expo-modules.
+    // Use the absolute NODE_BINARY (gradle.properties) instead of bare "node" so
+    // entryFile/cliFile resolution does not depend on the Gradle daemon's PATH.
+    // Android Studio's daemon happens to have node on PATH, but a CLI daemon does
+    // not — bare "node" then resolves to empty and cliFile falls back to the
+    // project dir ("... is not a file"). This matches nodeExecutableAndArgs above
+    // and settings.gradle, which already resolve node via NODE_BINARY.
+    def nodeBinary = rootProject.properties.get("NODE_BINARY", "node") as String
+    // @expo/cli is NOT hoisted to the top-level node_modules in this project — it
+    // is nested under expo/node_modules. A bare require.resolve('@expo/cli') from
+    // rootDir throws MODULE_NOT_FOUND, leaving cliFile empty (→ project dir →
+    // "is not a file"). Resolve it relative to the expo package instead, the same
+    // way settings.gradle resolves expo-modules-autolinking.
+    entryFile = file([nodeBinary, "-e", "require('expo/scripts/resolveAppEntry')", rootDir.getAbsoluteFile().getParentFile().getAbsolutePath(), "android", "absolute"].execute(null, rootDir).text.trim())
+    cliFile = new File([nodeBinary, "--print", "require.resolve('@expo/cli', { paths: [require('path').dirname(require.resolve('expo/package.json'))] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
 }
 

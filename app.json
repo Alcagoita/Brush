@@ -16,6 +16,7 @@
     },
     "plugins": [
       "expo-build-properties",
+      "react-native-fast-tflite",
       "@react-native-firebase/app",
       "@react-native-firebase/messaging",
       "@react-native-firebase/crashlytics",

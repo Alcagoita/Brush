@@ -1,25 +1,23 @@
 /**
- * KAN-196 — on-device LLM POI fallback + learn-back unit tests.
+ * KAN-196 — on-device POI classifier (fast-tflite) + learn-back unit tests.
  *
- * The native model (`BrushPoiClassifier`) is mocked — real on-device inference
- * can only be exercised on a capable Android device via a dev build.
+ * react-native-fast-tflite is mocked — real inference runs on-device. The real
+ * vocab.json / labels.json / tokenizer are exercised; the model output is faked.
  *
  * Covers:
- *   validatePoi      — valid type, off-list/freeform → null, none/empty → null
- *   isLlmAvailable   — absent module / isAvailable false / throw → false
- *   classifyPoi      — unavailable → null, valid → poi, off-list → null,
- *                      timeout → null, native throw → null, empty title → null
- *   learn-back       — registers into the dictionary learned layer + persists
+ *   tokenize       — vocab ids, OOV, pad/truncate to MAXLEN
+ *   validatePoi    — valid label, none/empty/off-list → null
+ *   isLlmAvailable — model loads → true; load throws → false
+ *   classifyPoi    — empty → null, valid → POI, below threshold → null,
+ *                    "none" → null, inference throws → null, load fails → null
+ *   learn-back     — registers into the dictionary learned layer + persists
  */
 
-const mockIsAvailable = jest.fn();
-const mockClassify    = jest.fn();
+const mockLoad = jest.fn();
+const mockRunSync = jest.fn();
 
-jest.mock('expo-modules-core', () => ({
-  requireOptionalNativeModule: () => ({
-    isAvailable: (...a: unknown[]) => mockIsAvailable(...a),
-    classify:    (...a: unknown[]) => mockClassify(...a),
-  }),
+jest.mock('react-native-fast-tflite', () => ({
+  loadTensorflowModel: (...a: unknown[]) => mockLoad(...a),
 }));
 
 const mockPersist = jest.fn().mockResolvedValue(undefined);
@@ -28,115 +26,131 @@ jest.mock('../../src/services/firestore', () => ({
 }));
 
 import {
+  tokenize,
   validatePoi,
   isLlmAvailable,
   classifyPoi,
   learnPoiKeyword,
   learnFromClassification,
   learnFromUserEdit,
-  LLM_TIMEOUT_MS,
+  CONFIDENCE_THRESHOLD,
+  __resetModelForTests,
 } from '../../src/services/poiLlm';
 import { inferPoiFromRules, clearLearnedKeywords } from '../../src/services/poiInference';
+import labels from '../../assets/poi-model/labels.json';
+
+const LABELS = labels as string[];
+const idxOf = (label: string) => LABELS.indexOf(label);
+
+/** Build a fake softmax output peaking at class `idx`. */
+function probs(idx: number, p = 0.9): Float32Array {
+  const a = new Float32Array(LABELS.length).fill((1 - p) / (LABELS.length - 1));
+  a[idx] = p;
+  return a;
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
+  __resetModelForTests();
   clearLearnedKeywords();
+  mockLoad.mockResolvedValue({ runSync: mockRunSync });
+});
+
+// ─── tokenize ─────────────────────────────────────────────────────────────────
+
+describe('tokenize', () => {
+  it('maps known tokens to their vocab ids and right-pads with 0', () => {
+    const ids = Array.from(tokenize('buy bread'));
+    expect(ids.length).toBe(12);
+    expect(ids[0]).toBeGreaterThan(1); // "buy" known
+    expect(ids[1]).toBeGreaterThan(1); // "bread" known
+    expect(ids.slice(2).every(x => x === 0)).toBe(true);
+  });
+
+  it('maps unknown tokens to OOV (1)', () => {
+    const ids = Array.from(tokenize('zzzqqq'));
+    expect(ids[0]).toBe(1);
+  });
+
+  it('accent-folds and lowercases before lookup (matches training)', () => {
+    expect(Array.from(tokenize('Pão'))).toEqual(Array.from(tokenize('pao')));
+  });
+
+  it('truncates to 12 tokens', () => {
+    const ids = tokenize('a b c d e f g h i j k l m n o p');
+    expect(ids.length).toBe(12);
+  });
 });
 
 // ─── validatePoi ──────────────────────────────────────────────────────────────
 
 describe('validatePoi', () => {
-  it('accepts a valid built-in POI type', () => {
+  it('accepts a built-in POI label', () => {
     expect(validatePoi('pharmacy')).toBe('pharmacy');
+    expect(validatePoi('  SALON ')).toBe('salon');
   });
-
-  it('is case- and whitespace-insensitive', () => {
-    expect(validatePoi('  CAFE  ')).toBe('cafe');
-  });
-
-  it('rejects off-list / freeform text', () => {
-    expect(validatePoi('the answer is supermarket probably')).toBeNull();
-    expect(validatePoi('bakery')).toBeNull(); // not a built-in PoiType
-  });
-
-  it('treats none / null / empty as no result', () => {
+  it('treats none/null/empty as no result', () => {
     expect(validatePoi('none')).toBeNull();
-    expect(validatePoi('null')).toBeNull();
     expect(validatePoi('')).toBeNull();
     expect(validatePoi(null)).toBeNull();
-    expect(validatePoi(undefined)).toBeNull();
+  });
+  it('rejects an off-list label', () => {
+    expect(validatePoi('spaceship')).toBeNull();
   });
 });
 
 // ─── isLlmAvailable ───────────────────────────────────────────────────────────
 
 describe('isLlmAvailable', () => {
-  it('returns true when the native module reports available', async () => {
-    mockIsAvailable.mockResolvedValueOnce(true);
+  it('returns true when the model loads', async () => {
     await expect(isLlmAvailable()).resolves.toBe(true);
   });
-
-  it('returns false when the native module reports unavailable', async () => {
-    mockIsAvailable.mockResolvedValueOnce(false);
+  it('returns false (no throw) when the model fails to load', async () => {
+    mockLoad.mockReset();
+    mockLoad.mockRejectedValue(new Error('no tflite runtime'));
     await expect(isLlmAvailable()).resolves.toBe(false);
   });
-
-  it('returns false (never throws) when the native call throws', async () => {
-    mockIsAvailable.mockRejectedValueOnce(new Error('AICore missing'));
-    await expect(isLlmAvailable()).resolves.toBe(false);
-  });
-  // Absent-native-module path (requireOptionalNativeModule → null) is covered in
-  // poiLlm.absent.test.ts, which mocks the module as missing for the whole file.
 });
 
 // ─── classifyPoi ──────────────────────────────────────────────────────────────
 
 describe('classifyPoi', () => {
-  it('returns null for an empty title without calling the model', async () => {
+  it('returns null for an empty title without loading the model', async () => {
     expect(await classifyPoi('   ', 'en')).toBeNull();
-    expect(mockIsAvailable).not.toHaveBeenCalled();
+    expect(mockLoad).not.toHaveBeenCalled();
   });
 
-  it('returns null when the model is unavailable', async () => {
-    mockIsAvailable.mockResolvedValueOnce(false);
-    expect(await classifyPoi('pick up amoxicillin', 'en')).toBeNull();
-    expect(mockClassify).not.toHaveBeenCalled();
-  });
-
-  it('returns the validated POI for a valid classification', async () => {
-    mockIsAvailable.mockResolvedValueOnce(true);
-    mockClassify.mockResolvedValueOnce('pharmacy');
+  it('returns the top POI label above the confidence threshold', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('pharmacy'), 0.92)]);
     expect(await classifyPoi('pick up amoxicillin', 'en')).toBe('pharmacy');
   });
 
-  it('returns null when the model emits an off-list answer', async () => {
-    mockIsAvailable.mockResolvedValueOnce(true);
-    mockClassify.mockResolvedValueOnce('i think a pharmacy');
-    expect(await classifyPoi('pick up amoxicillin', 'en')).toBeNull();
+  it('returns null when the top probability is below threshold', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('pharmacy'), CONFIDENCE_THRESHOLD - 0.1)]);
+    expect(await classifyPoi('something vague', 'en')).toBeNull();
   });
 
-  it('returns null when the model throws', async () => {
-    mockIsAvailable.mockResolvedValueOnce(true);
-    mockClassify.mockRejectedValueOnce(new Error('inference failed'));
-    expect(await classifyPoi('something', 'en')).toBeNull();
+  it('returns null when the top class is "none"', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('none'), 0.95)]);
+    expect(await classifyPoi('call mom', 'en')).toBeNull();
   });
 
-  it('returns null when the model exceeds the timeout', async () => {
-    jest.useFakeTimers();
-    mockIsAvailable.mockResolvedValueOnce(true);
-    mockClassify.mockReturnValueOnce(new Promise(() => {})); // never resolves
+  it('returns null when inference throws', async () => {
+    mockRunSync.mockImplementation(() => { throw new Error('inference failed'); });
+    expect(await classifyPoi('buy milk', 'en')).toBeNull();
+  });
 
-    const p = classifyPoi('slow title', 'en');
-    await jest.advanceTimersByTimeAsync(LLM_TIMEOUT_MS + 1);
-    await expect(p).resolves.toBeNull();
-    jest.useRealTimers();
+  it('returns null when the model cannot load', async () => {
+    mockLoad.mockReset();
+    mockLoad.mockRejectedValue(new Error('no runtime'));
+    expect(await classifyPoi('buy milk', 'en')).toBeNull();
   });
 });
 
 // ─── learn-back ───────────────────────────────────────────────────────────────
 
 describe('learn-back', () => {
-  it('registers the title into the dictionary learned layer so the rule map catches it next time', async () => {
+  it('registers the title into the dictionary learned layer', async () => {
     expect(inferPoiFromRules('refill amoxicillin 500mg', 'en')).toBeNull();
     await learnPoiKeyword('uid-1', 'Refill amoxicillin 500mg', 'pharmacy', 'en', 'llm');
     expect(inferPoiFromRules('refill amoxicillin 500mg', 'en')).toBe('pharmacy');
@@ -150,9 +164,9 @@ describe('learn-back', () => {
   });
 
   it('persists a user edit with source "user"', async () => {
-    await learnFromUserEdit('uid-1', 'Levar o carro à oficina', 'store', 'pt-PT');
+    await learnFromUserEdit('uid-1', 'Levar o carro a oficina', 'store', 'pt-PT');
     expect(mockPersist).toHaveBeenCalledWith('uid-1', {
-      keyword: 'Levar o carro à oficina', poi: 'store', lang: 'pt-PT', source: 'user',
+      keyword: 'Levar o carro a oficina', poi: 'store', lang: 'pt-PT', source: 'user',
     });
   });
 

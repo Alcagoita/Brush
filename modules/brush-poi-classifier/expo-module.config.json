@@ -1,9 +1,0 @@
-{
-  "platforms": ["android", "ios"],
-  "android": {
-    "modules": ["expo.modules.brushpoiclassifier.BrushPoiClassifierModule"]
-  },
-  "ios": {
-    "modules": ["BrushPoiClassifierModule"]
-  }
-}

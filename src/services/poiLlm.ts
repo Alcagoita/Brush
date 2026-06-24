@@ -1,112 +1,159 @@
 /**
  * src/services/poiLlm.ts — KAN-196
  *
- * On-device LLM fallback for POI inference, plus dictionary learn-back. This is
- * the SECOND pass: titles the rule map (KAN-195) returns `null` for can be sent
- * to a free, on-device model. No Anthropic/cloud key, no billing, offline-capable.
+ * On-device POI classifier (second pass after the KAN-195 rule map), plus
+ * dictionary learn-back. Titles the rule map returns `null` for are run through
+ * a small TFLite average-word-embedding text classifier via
+ * react-native-fast-tflite — free, offline, and cross-platform (Android + iOS,
+ * no hardware gate, ~90 KB bundled model).
  *
- * The model itself lives in a native module (`BrushPoiClassifier`):
- *   - Android: ML Kit GenAI / Gemini Nano (the supported path).
- *   - iOS: Apple Foundation Models — stub for now (won't run on the simulator),
- *     so the capability guard simply reports unavailable and we fall back to null.
+ * Pipeline: normalize+tokenize the title (same `normalize()` the dictionary
+ * uses) → int[MAXLEN] → model → softmax over the 17 classes (16 POI + "none").
+ * Top class wins if its probability ≥ CONFIDENCE_THRESHOLD and it is a real POI;
+ * otherwise `null`. `null` is a valid, expected result — callers treat it as
+ * "no POI". Any failure (model can't load, inference throws) also degrades to
+ * `null`, so POI inference never throws or blocks an import.
  *
- * The native module is loaded *optionally*: on any platform/build where it is
- * absent, `requireOptionalNativeModule` returns null and every entry point here
- * degrades to `null` — POI inference never throws or blocks on the LLM.
+ * Model artifacts (trained offline — see ml/poi-classifier/): the .tflite plus
+ * vocab.json (token→id) and labels.json (class index→label). The JS tokenizer
+ * here MUST match ml/poi-classifier/train_colab.py exactly.
  *
  * ── Learn-back ────────────────────────────────────────────────────────────
- * When the model (or a user edit, KAN-197) confidently resolves a title to a
- * POI, we feed that back into the dictionary's learned layer (KAN-195) AND
- * persist it to Firestore so it survives a restart. Next time, the rule map
- * catches the title for free — no LLM call — and the dictionary self-improves.
+ * A confident classification (or a user edit, KAN-197) is fed back into the
+ * dictionary's learned layer (KAN-195) AND persisted to Firestore, so next time
+ * the rule map catches the title for free.
  */
 
-import { requireOptionalNativeModule } from 'expo-modules-core';
+import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tflite';
 import type { PoiType } from '../types';
 import { POI_CATALOG } from '../types';
 import {
+  normalize,
   registerLearnedKeyword,
   type PoiResolution,
   type SupportedLang,
 } from './poiInference';
 import { persistLearnedKeyword } from './firestore';
+import vocabJson from '../../assets/poi-model/vocab.json';
+import labelsJson from '../../assets/poi-model/labels.json';
 
-// ─── Native module boundary ───────────────────────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const MODEL_ASSET = require('../../assets/poi-model/poi_classifier.tflite');
 
-interface PoiClassifierNativeModule {
-  /** True only when an on-device model is present and ready on this device. */
-  isAvailable(): Promise<boolean>;
-  /**
-   * Classify `title` into one of `allowed` POI types (or "none").
-   * Implementations must constrain output to the allowed list; we re-validate
-   * anyway and never trust freeform text.
-   */
-  classify(title: string, allowed: string[], lang: string): Promise<string | null>;
+// Must match ml/poi-classifier/train_colab.py.
+const MAXLEN = 12;
+const PAD_ID = 0;
+const OOV_ID = 1;
+
+/** Minimum top-class probability to accept a classification. Below → null. */
+export const CONFIDENCE_THRESHOLD = 0.5;
+
+const VOCAB = vocabJson as Record<string, number>;
+const LABELS = labelsJson as string[];
+const VALID_POI = new Set<string>(POI_CATALOG.map(c => c.type));
+
+// ─── Model (lazy, cached) ─────────────────────────────────────────────────────
+
+let modelPromise: Promise<TensorflowModel> | null = null;
+
+function getModel(): Promise<TensorflowModel> {
+  if (!modelPromise) {
+    modelPromise = loadTensorflowModel(MODEL_ASSET, []); // [] = default CPU delegate
+  }
+  return modelPromise;
 }
 
-/** Null on any platform/build without the native module compiled in. */
-const Native = requireOptionalNativeModule<PoiClassifierNativeModule>('BrushPoiClassifier');
+/** Test-only: drop the cached model so the next call reloads it. */
+export function __resetModelForTests(): void {
+  modelPromise = null;
+}
 
-/** Per-call hard timeout — a slow model must not stall an import. */
-export const LLM_TIMEOUT_MS = 4_000;
+/**
+ * Whether the classifier model can be used. Never throws — a load failure
+ * (e.g. the native runtime isn't present) resolves to `false`.
+ */
+export async function isLlmAvailable(): Promise<boolean> {
+  try {
+    await getModel();
+    return true;
+  } catch {
+    modelPromise = null; // allow a retry next time
+    return false;
+  }
+}
 
-/** The set of valid built-in POI type strings the model may return. */
-const VALID_POI = new Set<string>(POI_CATALOG.map(c => c.type));
+// ─── Tokenizer (must mirror train_colab.py) ──────────────────────────────────
+
+/**
+ * Title → fixed-length int token ids. Reuses `normalize()` (lowercase,
+ * accent-fold, de-punctuate), splits on whitespace, maps each token to its
+ * vocab id (OOV → 1), truncates to MAXLEN and right-pads with 0.
+ */
+export function tokenize(title: string): Int32Array {
+  const ids = new Int32Array(MAXLEN); // zero-filled = PAD_ID
+  const tokens = normalize(title).split(' ').filter(Boolean);
+  const n = Math.min(tokens.length, MAXLEN);
+  for (let i = 0; i < n; i++) {
+    ids[i] = VOCAB[tokens[i]] ?? OOV_ID;
+  }
+  return ids;
+}
 
 // ─── Output validation ────────────────────────────────────────────────────────
 
 /**
- * Coerce raw model output to a `PoiType` or `null`. Trims/lowercases, treats
- * "none"/"null"/empty as no-result, and rejects anything not in the built-in
- * POI set. The model's text is never trusted directly.
+ * Map a class label to a `PoiType` or `null`. "none"/empty/unknown → null;
+ * never trust a label outside the built-in POI set.
  */
-export function validatePoi(raw: string | null | undefined): PoiType | null {
-  if (!raw) { return null; }
-  const v = raw.trim().toLowerCase();
+export function validatePoi(label: string | null | undefined): PoiType | null {
+  if (!label) { return null; }
+  const v = label.trim().toLowerCase();
   if (!v || v === 'none' || v === 'null') { return null; }
   return VALID_POI.has(v) ? (v as PoiType) : null;
 }
 
-// ─── Capability guard ─────────────────────────────────────────────────────────
-
-/**
- * Whether the on-device model can be used right now. Never throws — any error
- * (missing module, native exception) resolves to `false`.
- */
-export async function isLlmAvailable(): Promise<boolean> {
-  if (!Native) { return false; }
-  try { return await Native.isAvailable(); }
-  catch { return false; }
-}
-
 // ─── Classification ───────────────────────────────────────────────────────────
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
-  return Promise.race([
-    promise,
-    new Promise<null>(resolve => setTimeout(() => resolve(null), ms)),
-  ]);
-}
-
 /**
- * Infer a POI type from a title using the on-device model. Returns `null` when
- * the model is unavailable, times out, errors, or returns anything off-list.
- * `null` is a valid, expected result — callers must treat it as "no POI".
+ * Classify a title into a POI type using the on-device model. Returns `null`
+ * when the model is unavailable, errors, the top class is below
+ * CONFIDENCE_THRESHOLD, or the predicted label is "none"/off-list.
+ *
+ * `lang` is accepted for API symmetry with the rule map; the model is bilingual
+ * via a shared vocab and does not need it.
  */
 export async function classifyPoi(
   title: string,
-  lang: SupportedLang,
+  _lang: SupportedLang,
 ): Promise<PoiType | null> {
-  if (!title || !title.trim() || !Native) { return null; }
-  if (!(await isLlmAvailable())) { return null; }
+  if (!title || !title.trim()) { return null; }
 
-  let raw: string | null;
+  let model: TensorflowModel;
   try {
-    raw = await withTimeout(Native.classify(title, [...VALID_POI], lang), LLM_TIMEOUT_MS);
+    model = await getModel();
+  } catch {
+    modelPromise = null;
+    return null;
+  }
+
+  let probs: Float32Array;
+  try {
+    // runSync takes/returns ArrayBuffer[]; input is the int32 token tensor,
+    // output is the float32 softmax over the classes.
+    const outputs = model.runSync([tokenize(title).buffer as ArrayBuffer]);
+    probs = new Float32Array(outputs[0]);
   } catch {
     return null;
   }
-  return validatePoi(raw);
+  if (!probs || probs.length === 0) { return null; }
+
+  let bestIdx = 0;
+  let bestP = -1;
+  for (let i = 0; i < probs.length; i++) {
+    if (probs[i] > bestP) { bestP = probs[i]; bestIdx = i; }
+  }
+  if (bestP < CONFIDENCE_THRESHOLD) { return null; }
+  return validatePoi(LABELS[bestIdx]);
 }
 
 // ─── Learn-back ───────────────────────────────────────────────────────────────
@@ -137,7 +184,7 @@ export async function learnPoiKeyword(
   }
 }
 
-/** Learn-back from an LLM classification (source = 'llm'). */
+/** Learn-back from a model classification (source = 'llm'). */
 export function learnFromClassification(
   uid: string,
   title: string,

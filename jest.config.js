@@ -9,4 +9,8 @@ module.exports = {
     '/node_modules/',
     '/e2e/',
   ],
+  moduleNameMapper: {
+    // Binary model asset — stub so Jest doesn't try to parse it as a module.
+    '\\.tflite$': '<rootDir>/__mocks__/tfliteAsset.js',
+  },
 };
