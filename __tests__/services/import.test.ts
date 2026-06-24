@@ -21,6 +21,7 @@ import {
   makeImportDocId,
   stripHtml,
   toDescription,
+  inferImportedPoi,
   IMPORT_TIMEOUT_MS,
   IMPORT_TIMEOUT_ERROR,
   RETRY_DELAYS_MS,
@@ -283,6 +284,27 @@ describe('toDescription', () => {
 
   it('returns undefined when HTML strips down to nothing', () => {
     expect(toDescription('<br> <p></p>', { html: true })).toBeUndefined();
+  });
+});
+
+// ─── inferImportedPoi (KAN-197) ──────────────────────────────────────────────
+
+describe('inferImportedPoi', () => {
+  it('infers a POI via the EN rule map', async () => {
+    expect(await inferImportedPoi('Buy bread')).toBe('supermarket');
+    expect(await inferImportedPoi('withdraw cash')).toBe('atm');
+  });
+
+  it('infers a POI via the pt-PT rule map', async () => {
+    expect(await inferImportedPoi('comprar pão')).toBe('supermarket');
+    expect(await inferImportedPoi('ir à farmácia')).toBe('pharmacy');
+  });
+
+  it('returns null when neither rule map nor classifier matches', async () => {
+    // The classifier is unavailable in tests (fast-tflite manual mock rejects),
+    // so a no-keyword title falls through to null.
+    expect(await inferImportedPoi('call mom')).toBeNull();
+    expect(await inferImportedPoi('finish the quarterly report')).toBeNull();
   });
 });
 

@@ -71,14 +71,14 @@ export function __resetModelForTests(): void {
   modelPromise = null;
 }
 
-/** Race a promise against a timeout; rejects if `ms` elapses first. */
+/** Race a promise against a timeout; rejects if `ms` elapses first. Clears the
+ *  timer once the race settles so it never leaks. */
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('model load timeout')), ms),
-    ),
-  ]);
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('model load timeout')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /**
