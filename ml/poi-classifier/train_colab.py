@@ -90,12 +90,12 @@ def main():
 
     vocab = build_vocab(tr_tokens)
     labels = sorted(set(tr_labels))
-    label_to_idx = {l: i for i, l in enumerate(labels)}
+    label_to_idx = {label: i for i, label in enumerate(labels)}
 
     x_tr = np.array([encode(t, vocab) for t in tr_tokens], dtype=np.int32)
-    y_tr = np.array([label_to_idx[l] for l in tr_labels], dtype=np.int32)
+    y_tr = np.array([label_to_idx[label] for label in tr_labels], dtype=np.int32)
     x_va = np.array([encode(t, vocab) for t in va_tokens], dtype=np.int32)
-    y_va = np.array([label_to_idx[l] for l in va_labels], dtype=np.int32)
+    y_va = np.array([label_to_idx[label] for label in va_labels], dtype=np.int32)
 
     model = tf.keras.Sequential([
         tf.keras.layers.Input(shape=(MAXLEN,), dtype="int32", name="tokens"),

@@ -48,6 +48,9 @@ const OOV_ID = 1;
 /** Minimum top-class probability to accept a classification. Below → null. */
 export const CONFIDENCE_THRESHOLD = 0.5;
 
+/** Hard cap on the native model load so a stalled load can't block an import. */
+export const MODEL_LOAD_TIMEOUT_MS = 5_000;
+
 const VOCAB = vocabJson as Record<string, number>;
 const LABELS = labelsJson as string[];
 const VALID_POI = new Set<string>(POI_CATALOG.map(c => c.type));
@@ -68,16 +71,38 @@ export function __resetModelForTests(): void {
   modelPromise = null;
 }
 
+/** Race a promise against a timeout; rejects if `ms` elapses first. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error('model load timeout')), ms),
+    ),
+  ]);
+}
+
 /**
- * Whether the classifier model can be used. Never throws — a load failure
- * (e.g. the native runtime isn't present) resolves to `false`.
+ * Load the model with a hard timeout. On timeout/failure the cached promise is
+ * cleared so a later call can retry instead of being stuck on a bad load.
+ */
+async function loadModelGuarded(): Promise<TensorflowModel> {
+  try {
+    return await withTimeout(getModel(), MODEL_LOAD_TIMEOUT_MS);
+  } catch (err) {
+    modelPromise = null;
+    throw err;
+  }
+}
+
+/**
+ * Whether the classifier model can be used. Never throws — a load failure or
+ * timeout resolves to `false` (and clears the cache so the next call retries).
  */
 export async function isLlmAvailable(): Promise<boolean> {
   try {
-    await getModel();
+    await loadModelGuarded();
     return true;
   } catch {
-    modelPromise = null; // allow a retry next time
     return false;
   }
 }
@@ -130,9 +155,8 @@ export async function classifyPoi(
 
   let model: TensorflowModel;
   try {
-    model = await getModel();
+    model = await loadModelGuarded();
   } catch {
-    modelPromise = null;
     return null;
   }
 

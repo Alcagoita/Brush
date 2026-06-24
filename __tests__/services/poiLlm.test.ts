@@ -34,6 +34,7 @@ import {
   learnFromClassification,
   learnFromUserEdit,
   CONFIDENCE_THRESHOLD,
+  MODEL_LOAD_TIMEOUT_MS,
   __resetModelForTests,
 } from '../../src/services/poiLlm';
 import { inferPoiFromRules, clearLearnedKeywords } from '../../src/services/poiInference';
@@ -109,6 +110,16 @@ describe('isLlmAvailable', () => {
     mockLoad.mockReset();
     mockLoad.mockRejectedValue(new Error('no tflite runtime'));
     await expect(isLlmAvailable()).resolves.toBe(false);
+  });
+
+  it('returns false when the model load exceeds the timeout', async () => {
+    jest.useFakeTimers();
+    mockLoad.mockReset();
+    mockLoad.mockReturnValue(new Promise(() => {})); // never resolves
+    const p = isLlmAvailable();
+    await jest.advanceTimersByTimeAsync(MODEL_LOAD_TIMEOUT_MS + 1);
+    await expect(p).resolves.toBe(false);
+    jest.useRealTimers();
   });
 });
 

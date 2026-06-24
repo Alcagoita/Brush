@@ -43,8 +43,8 @@ python3 generate_dataset.py --per-class 1000
 
 ### 3. Hand the 3 artifacts back
 
-They get bundled into `modules/brush-poi-classifier` (model asset + vocab/labels
-shipped with the JS). Commit them.
+They get bundled into `assets/poi-model` (model asset + vocab/labels shipped
+with the JS, loaded by `src/services/poiLlm.ts`). Commit them.
 
 ## Tokenizer contract (JS must match `train_colab.py` exactly)
 
