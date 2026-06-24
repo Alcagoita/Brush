@@ -3,18 +3,25 @@
 On-device, cross-platform (Android + iOS), offline POI inference — the second
 pass after the KAN-195 rule map. A small TFLite **average-word-embedding text
 classifier** maps a task title to one of the 16 POI types or `none`. Runs via
-MediaPipe Tasks `TextClassifier` on essentially all phones — no hardware gate,
-no model download, ~1–5 MB bundled asset.
+[`react-native-fast-tflite`](https://github.com/mrousavy/react-native-fast-tflite)
+(JSI, Android + iOS) — no hardware gate, no model download, tiny bundled asset.
 
-This replaces the hardware-gated Gemini Nano / AICore approach (Pixel 8/9 only).
+Replaces the hardware-gated Gemini Nano / AICore approach (Pixel 8/9 only).
 
 ## Files
 
 | File | What |
 |------|------|
 | `poi_keywords.json` | Seed keywords per POI label (EN + pt-PT) + a `none` class. Mirrors the seed in `src/services/poiInference.ts` — keep in sync. |
-| `generate_dataset.py` | Synthesizes `train.csv` / `validation.csv` from the keywords (templates + typo augmentation, bilingual). Stdlib only. |
-| `train_colab.py` | Trains + exports `poi_classifier.tflite` (+ `labels.txt`). Run in Colab. |
+| `generate_dataset.py` | Synthesizes `train.csv` / `validation.csv` (templates + typo augmentation, bilingual). Stdlib only. |
+| `train_colab.py` | Trains (pure TF/Keras) + exports `model.tflite`, `vocab.json`, `labels.json`. |
+
+## Why pure TensorFlow (not mediapipe-model-maker)
+
+`mediapipe-model-maker` caps at Python 3.11; Colab now runs 3.12. Plain
+TF/Keras trains fine on 3.12 and gives a TFLite model we run through
+`react-native-fast-tflite`, doing tokenization in JS. Simpler and avoids the
+broken installer + MediaPipe native deps on both platforms.
 
 ## Pipeline
 
@@ -26,38 +33,40 @@ python3 generate_dataset.py --per-class 1000
 # → train.csv, validation.csv  (17 classes: 16 POI + none)
 ```
 
-### 2. Train + export (Google Colab, free, ~5 min)
-
-`mediapipe-model-maker` needs Python 3.11/3.12 — **Colab**, not this machine
-(Python 3.14 here can't install TensorFlow).
+### 2. Train + export (Google Colab, free, ~3 min)
 
 1. New Colab notebook.
 2. Upload `train.csv`, `validation.csv`.
-3. Run:
-   ```python
-   !pip install -q mediapipe-model-maker
-   %run train_colab.py   # or paste its contents
-   ```
-4. Download `exported_model/poi_classifier.tflite` and `labels.txt`.
+3. Cell: `!pip install -q tensorflow`
+4. Cell: paste `train_colab.py` contents (or `%run train_colab.py`).
+5. Download `model.tflite`, `vocab.json`, `labels.json`.
 
-### 3. Commit the model
+### 3. Hand the 3 artifacts back
 
-Drop `poi_classifier.tflite` into the native module's asset folder (added in the
-integration step) and commit it. The labels order is embedded in the model
-metadata; `labels.txt` is the human-readable reference.
+They get bundled into `modules/brush-poi-classifier` (model asset + vocab/labels
+shipped with the JS). Commit them.
+
+## Tokenizer contract (JS must match `train_colab.py` exactly)
+
+- lowercase
+- Unicode NFD normalize + strip combining marks (accent-fold): `café` → `cafe`
+- split on `/[^a-z0-9]+/`, drop empties
+- map token → `vocab.json` id; OOV → `1`; pad id `0`
+- truncate to `MAXLEN` (12) tokens; right-pad with `0`
+
+This is exactly `normalize()` in `src/services/poiInference.ts` — reuse it.
 
 ## Then: native integration (next step, separate change)
 
-- Bundle `poi_classifier.tflite` in `modules/brush-poi-classifier`.
-- Android (Kotlin): `com.google.mediapipe:tasks-text` `TextClassifier`.
-- iOS (Swift): `MediaPipeTasksText` `TextClassifier`.
-- Same JS boundary as today (`classifyPoi(title, lang)` in `src/services/poiLlm.ts`):
-  run the model, take the top category, apply a confidence threshold, return the
-  POI type or `null`. Output is still validated against the built-in `PoiType` set.
+- Add `react-native-fast-tflite` (+ Expo config plugin) — Android + iOS.
+- Bundle `model.tflite`; ship `vocab.json` / `labels.json` with the JS.
+- In `src/services/poiLlm.ts` `classifyPoi(title, lang)`: tokenize (shared
+  `normalize`) → int[12] → run model → softmax argmax → if confidence ≥ threshold
+  and label ≠ `none`, return the label (validated against `PoiType`); else `null`.
+- Rule map (KAN-195) stays the fast exact first pass; classifier is the second pass.
 
 ## Retraining / growing
 
-The dictionary is self-growing (learned layer + user edits, KAN-195/197). Periodically:
-1. Update `poi_keywords.json` (and/or export confirmed learn-back pairs).
-2. Re-run steps 1–3.
-3. Commit the refreshed `.tflite`.
+The dictionary self-grows (learned layer + user edits, KAN-195/197). Periodically:
+1. Update `poi_keywords.json` (and/or fold in confirmed learn-back pairs).
+2. Re-run steps 1–3, commit refreshed `model.tflite` + `vocab.json` + `labels.json`.
