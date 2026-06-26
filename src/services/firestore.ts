@@ -122,7 +122,7 @@ export async function getUser(uid: string): Promise<User | null> {
  */
 export async function addTask(
   uid: string,
-  data: Omit<Task, 'id' | 'createdAt' | 'completedAt'>,
+  data: Omit<Task, 'id' | 'createdAt' | 'completedAt' | 'pendingSync'>,
 ): Promise<string> {
   const ref = await addDoc(tasksRef(uid), {
     ...data,

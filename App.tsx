@@ -18,7 +18,6 @@ import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
 import LoginScreen from './src/screens/LoginScreen';
 import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import NetworkBanner from './src/components/NetworkBanner';
 import Toast from './src/components/Toast';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
@@ -301,7 +300,6 @@ function AppShell() {
         barStyle={dark ? 'light-content' : 'dark-content'}
         backgroundColor={palette.bg}
       />
-      <NetworkBanner />
       <Toast />
       <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
         {displayUser ? (

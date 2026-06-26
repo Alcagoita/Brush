@@ -195,7 +195,13 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
           {(task.time || task.pendingSync) ? (
             <View style={styles.trailing}>
               {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
-              {task.pendingSync ? <View style={[styles.syncDot, { backgroundColor: palette.faint }]} /> : null}
+              {task.pendingSync ? (
+                <View
+                  style={[styles.syncDot, { backgroundColor: palette.faint }]}
+                  accessibilityLabel="Syncing"
+                  accessibilityRole="none"
+                />
+              ) : null}
             </View>
           ) : null}
         </Pressable>
@@ -290,7 +296,11 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
               </Text>
             ) : null}
             {task.pendingSync ? (
-              <View style={[styles.syncDot, { backgroundColor: palette.faint }]} />
+              <View
+                style={[styles.syncDot, { backgroundColor: palette.faint }]}
+                accessibilityLabel="Syncing"
+                accessibilityRole="none"
+              />
             ) : null}
           </View>
         ) : null}

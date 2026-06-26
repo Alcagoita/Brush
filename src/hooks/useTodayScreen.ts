@@ -101,7 +101,7 @@ export interface TodayScreenState {
   /** True when location permission has been granted. */
   permissionGranted: boolean;
   /** Re-runs the proximity search immediately — useful for a manual "refresh location" tap. */
-  refreshProximity: () => void;
+  refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
   locationUnavailable: boolean;
 }
@@ -553,10 +553,15 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // ── Manual proximity refresh ────────────────────────────────────────────────
 
-  const refreshProximity = useCallback(() => {
-    if (!uid || !permissionGranted || !hasPOITasks) { return; }
-    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate)
-      .catch(() => setLocationUnavailable(true));
+  const refreshProximity = useCallback(async (): Promise<boolean> => {
+    if (!uid || !permissionGranted || !hasPOITasks) { return false; }
+    try {
+      await runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate);
+      return true;
+    } catch {
+      setLocationUnavailable(true);
+      return false;
+    }
   }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
 
   useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);

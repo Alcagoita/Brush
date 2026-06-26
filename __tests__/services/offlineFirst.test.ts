@@ -5,7 +5,6 @@
  *   1. addTask uses Timestamp.now() (not serverTimestamp) for createdAt
  *   2. setTaskDone uses Timestamp.now() (not serverTimestamp) for completedAt
  *   3. rolloverIncompleteTasks uses Timestamp.now() for createdAt
- *   4. getPositionLowAccuracy falls back to GPS on network failure
  */
 
 // ─── Firestore mocks ─────────────────────────────────────────────────────────
@@ -54,7 +53,6 @@ jest.mock('../../src/utils/date', () => ({
 }));
 
 import { addTask, setTaskDone, rolloverIncompleteTasks } from '../../src/services/firestore';
-import { Timestamp } from '@react-native-firebase/firestore';
 
 const TODAY = '2026-06-26';
 

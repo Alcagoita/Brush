@@ -23,7 +23,7 @@
  *   scr-halo:  expanding ring around icon tile, 2.2 s ease-out ∞
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -34,12 +34,13 @@ import {
 } from 'react-native';
 
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
-  withSequence,
   withTiming,
+  withSequence,
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
@@ -47,7 +48,7 @@ import { spacing, radius } from '../theme/tokens';
 import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
 import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
-import { ChevronRightIcon, PoiIcon } from './AppIcon';
+import { ChevronRightIcon, PoiIcon, RefreshIcon } from './AppIcon';
 
 // Distance threshold that separates the orange hero zone from the grey zone.
 const HERO_RADIUS_M = 100;
@@ -65,6 +66,8 @@ interface NearbyCardProps {
    * A small indicator appears in the header.
    */
   storeTuningActive?: boolean;
+  /** Called when user taps the refresh button in the header. */
+  onRefreshLocation?: () => Promise<boolean>;
 }
 
 // ─── Pulsing dot (header) ─────────────────────────────────────────────────────
@@ -258,8 +261,45 @@ function NearbyCard({
   nearbyPoiType,
   poiPlaces,
   storeTuningActive = false,
+  onRefreshLocation,
 }: NearbyCardProps) {
   const { palette } = useTheme();
+
+  // ── Refresh animation ────────────────────────────────────────────────────────
+  const [isRefreshing, setIsRefreshing]     = useState(false);
+  const [refreshResult, setRefreshResult]   = useState<'ok' | 'fail' | null>(null);
+  const spinAngle      = useSharedValue(0);
+  const feedbackOpacity = useSharedValue(0);
+
+  const spinStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${spinAngle.value}deg` }],
+  }));
+  const feedbackStyle = useAnimatedStyle(() => ({ opacity: feedbackOpacity.value }));
+
+  const handleRefresh = React.useCallback(async () => {
+    if (isRefreshing || !onRefreshLocation) { return; }
+    setIsRefreshing(true);
+    setRefreshResult(null);
+    feedbackOpacity.value = 0;
+    spinAngle.value = 0;
+    spinAngle.value = withRepeat(
+      withTiming(-360, { duration: 700, easing: Easing.linear }),
+      -1,
+      false,
+    );
+    const ok = await onRefreshLocation();
+    cancelAnimation(spinAngle);
+    spinAngle.value = withTiming(
+      Math.floor(spinAngle.value / -360) * -360,
+      { duration: 150 },
+    );
+    setRefreshResult(ok ? 'ok' : 'fail');
+    setIsRefreshing(false);
+    feedbackOpacity.value = withTiming(1, { duration: 150 }, () => {
+      feedbackOpacity.value = withTiming(0, { duration: 500, easing: Easing.in(Easing.ease) });
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRefreshing, onRefreshLocation]);
 
   // Full-bleed slide width — read from the live window so it stays correct
   // across orientation / multi-window changes (not frozen at import time).
@@ -305,6 +345,8 @@ function NearbyCard({
   // Nothing to show at all — hide.
   if (!isHero && greyTasks.length === 0) { return null; }
 
+  const totalPlaces = heroEntries.length + greyTasks.length;
+
   return (
     <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 14 }]}>
 
@@ -317,11 +359,30 @@ function NearbyCard({
           </Text>
         </View>
 
-        {storeTuningActive && (
-          <Text style={[styles.tuningLabel, { color: palette.accent }]}>
-            Store tuning on
+        <View style={styles.headerRight}>
+          {storeTuningActive && (
+            <Text style={[styles.tuningLabel, { color: palette.accent }]}>
+              Store tuning on
+            </Text>
+          )}
+          <Animated.Text style={[styles.feedbackLabel, { color: refreshResult === 'ok' ? palette.accent : palette.muted }, feedbackStyle]}>
+            {refreshResult === 'ok' ? 'Updated' : 'Failed'}
+          </Animated.Text>
+          <Text style={[styles.placesCount, { color: palette.muted }]}>
+            {totalPlaces === 1 ? '1 place' : `${totalPlaces} places`}
           </Text>
-        )}
+          {onRefreshLocation && (
+            <Pressable
+              onPress={handleRefresh}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Refresh location">
+              <Animated.View style={spinStyle}>
+                <RefreshIcon color={palette.muted} size={14} />
+              </Animated.View>
+            </Pressable>
+          )}
+        </View>
       </View>
 
       {/* ── Hero carousel (orange, < 100 m) ── */}
@@ -413,11 +474,25 @@ const styles = StyleSheet.create({
     fontFamily:    'Geist-Medium',
     letterSpacing: 1.76,
   },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           8,
+  },
   tuningLabel: {
     fontSize:      10,
     fontWeight:    '500',
     fontFamily:    'Geist-Medium',
     letterSpacing: 0.5,
+  },
+  placesCount: {
+    fontSize:   11,
+    fontFamily: 'Geist-Regular',
+    fontVariant: ['tabular-nums'],
+  },
+  feedbackLabel: {
+    fontSize:   11,
+    fontFamily: 'Geist-Regular',
   },
   pulsingDot: {
     width:        6,

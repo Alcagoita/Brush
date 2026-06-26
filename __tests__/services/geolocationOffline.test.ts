@@ -62,7 +62,7 @@ describe('getPositionLowAccuracy — GPS fallback', () => {
     expect(mockGetCurrentPositionAsync).toHaveBeenCalledTimes(2);
     expect(mockGetCurrentPositionAsync).toHaveBeenNthCalledWith(
       2,
-      expect.objectContaining({ accuracy: Accuracy.High }),
+      expect.objectContaining({ accuracy: Accuracy.High, mayShowUserSettingsDialog: false }),
     );
     expect(coords.lat).toBe(38.71);
     expect(coords.lng).toBe(-9.12);

@@ -254,6 +254,7 @@ export async function getPositionLowAccuracy(): Promise<Coordinates> {
     // Network-based positioning failed (offline) — fall back to GPS.
     const position = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.High,
+      mayShowUserSettingsDialog: false,
     });
     return toCoords(position);
   }
