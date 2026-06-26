@@ -260,10 +260,15 @@ function AlsoCloseRow({
   const { palette } = useTheme();
 
   return (
-    <View style={[
-      styles.idleRow,
-      !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
-    ]}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.idleRow,
+        !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
+        { opacity: pressed && !!place ? 0.65 : 1 },
+      ]}
+      onPress={place ? () => openInMaps(place.lat, place.lng, place.name) : undefined}
+      accessibilityRole={place ? 'button' : 'text'}
+      accessibilityLabel={place ? `Open ${place.name} in Maps` : task.title}>
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
         <PoiIcon type={task.poi ?? 'atm'} color={palette.muted} size={20} />
       </View>
@@ -280,7 +285,7 @@ function AlsoCloseRow({
       </View>
 
       <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
-    </View>
+    </Pressable>
   );
 }
 
