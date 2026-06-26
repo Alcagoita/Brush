@@ -169,7 +169,6 @@ export default function TodayScreen() {
     error,
     refresh,
     nearbyPoiType,
-    nearbyPlace,
     poiPlaces,
     storeTuningActive,
     showStoreTuningPrompt,
@@ -318,7 +317,6 @@ export default function TodayScreen() {
       <NearbyCard
         tasks={sortedTasks}
         nearbyPoiType={nearbyPoiType}
-        nearbyPlace={nearbyPlace}
         poiPlaces={poiPlaces}
         storeTuningActive={storeTuningActive}
         onRefreshLocation={refreshProximity}
@@ -344,7 +342,7 @@ export default function TodayScreen() {
       </View>
     </>
   ), [
-    sortedTasks, nearbyPoiType, nearbyPlace, poiPlaces, storeTuningActive,
+    sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
     permissionGranted, nearbyCount, isLoading,
     palette, doneTasks, totalTasks, remaining,
   ]);
