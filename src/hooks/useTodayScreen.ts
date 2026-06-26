@@ -101,7 +101,7 @@ export interface TodayScreenState {
   /** True when location permission has been granted. */
   permissionGranted: boolean;
   /** Re-runs the proximity search immediately — useful for a manual "refresh location" tap. */
-  refreshProximity: () => void;
+  refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
   locationUnavailable: boolean;
 }
@@ -488,10 +488,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
     Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
 
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done } : t));
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done, pendingSync: true } : t));
 
     try {
       await setTaskDone(uid, taskId, done);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, pendingSync: false } : t));
 
       if (done) {
         // Read the latest tasks from the ref — NOT a captured `tasks` dep.
@@ -534,7 +535,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         }
       }
     } catch (err) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done } : t));
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done, pendingSync: false } : t));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
   }, [uid]);
@@ -552,10 +553,15 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // ── Manual proximity refresh ────────────────────────────────────────────────
 
-  const refreshProximity = useCallback(() => {
-    if (!uid || !permissionGranted || !hasPOITasks) { return; }
-    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate)
-      .catch(() => setLocationUnavailable(true));
+  const refreshProximity = useCallback(async (): Promise<boolean> => {
+    if (!uid || !permissionGranted || !hasPOITasks) { return false; }
+    try {
+      await runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate);
+      return true;
+    } catch {
+      setLocationUnavailable(true);
+      return false;
+    }
   }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
 
   useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);

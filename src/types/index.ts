@@ -160,6 +160,8 @@ export interface Task {
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
   date: string;
+  /** True when this task has a local write not yet confirmed by the server (KAN-198). */
+  pendingSync?: boolean;
 }
 
 // ─── Category ─────────────────────────────────────────────────────────────────
