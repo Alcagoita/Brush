@@ -13,6 +13,8 @@ const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
 const mockWhere       = jest.fn((...a: unknown[]) => a);
 const mockQuery       = jest.fn((...a: unknown[]) => a);
 
+const NOW_TIMESTAMP = { _isNow: true };
+
 jest.mock('@react-native-firebase/firestore', () => ({
   getFirestore:    jest.fn(),
   collection:      jest.fn(() => ({ _type: 'collection' })),
@@ -28,9 +30,9 @@ jest.mock('@react-native-firebase/firestore', () => ({
   where:           (...args: unknown[]) => mockWhere(...args),
   orderBy:         jest.fn(),
   onSnapshot:      jest.fn(),
-  serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
+  serverTimestamp: jest.fn(() => ({ _serverTimestamp: true })),
   increment:       jest.fn(),
-  Timestamp:       {},
+  Timestamp:       { now: jest.fn(() => NOW_TIMESTAMP) },
   runTransaction:  jest.fn(),
 }));
 
@@ -74,11 +76,11 @@ describe('rolloverIncompleteTasks', () => {
     expect(mockBatchUpdate).toHaveBeenCalledTimes(2);
     expect(mockBatchUpdate).toHaveBeenCalledWith(
       docs[0].ref,
-      { date: TODAY, createdAt: 'SERVER_TIMESTAMP' },
+      { date: TODAY, createdAt: NOW_TIMESTAMP },
     );
     expect(mockBatchUpdate).toHaveBeenCalledWith(
       docs[1].ref,
-      { date: TODAY, createdAt: 'SERVER_TIMESTAMP' },
+      { date: TODAY, createdAt: NOW_TIMESTAMP },
     );
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });

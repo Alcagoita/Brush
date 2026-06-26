@@ -192,7 +192,12 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
               )}
             </View>
           </View>
-          {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
+          {(task.time || task.pendingSync) ? (
+            <View style={styles.trailing}>
+              {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
+              {task.pendingSync ? <View style={[styles.syncDot, { backgroundColor: palette.faint }]} /> : null}
+            </View>
+          ) : null}
         </Pressable>
       </View>
     );
@@ -276,11 +281,18 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
           </View>
         </View>
 
-        {/* Scheduled time */}
-        {task.time ? (
-          <Text style={[styles.time, { color: palette.muted }]}>
-            {task.time}
-          </Text>
+        {/* Trailing: scheduled time + pending-sync dot */}
+        {(task.time || task.pendingSync) ? (
+          <View style={styles.trailing}>
+            {task.time ? (
+              <Text style={[styles.time, { color: palette.muted }]}>
+                {task.time}
+              </Text>
+            ) : null}
+            {task.pendingSync ? (
+              <View style={[styles.syncDot, { backgroundColor: palette.faint }]} />
+            ) : null}
+          </View>
         ) : null}
       </Pressable>
 
@@ -381,5 +393,15 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     alignSelf:   'flex-start',
     paddingTop:  1,
+  },
+  trailing: {
+    alignItems: 'flex-end',
+    gap:        4,
+  },
+  syncDot: {
+    width:        5,
+    height:       5,
+    borderRadius: 9999,
+    alignSelf:    'flex-end',
   },
 });

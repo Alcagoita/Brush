@@ -227,26 +227,36 @@ export function getCurrentPosition(): Promise<Coordinates> {
 }
 
 /**
- * One-shot position query using network/cell location only.
+ * One-shot position query using network/cell location when available.
  *
- * Does NOT wake the GPS hardware. Returns quickly using a cached or
- * network-derived fix. Accuracy is 50–200 m, sufficient for proximity
- * detection at 100 m / 400 m thresholds.
+ * Tries Balanced accuracy (WiFi/cell, low power) first. If network-based
+ * positioning is unavailable (e.g. device is offline), falls back to GPS
+ * so proximity checks continue working with no internet connection.
  *
- * Use this for all background proximity checks to avoid GPS cold-start
- * latency and the associated system slowdown.
+ * Use this for all background proximity checks.
  */
-export function getPositionLowAccuracy(): Promise<Coordinates> {
-  return Location.getCurrentPositionAsync({
-    accuracy:    Location.Accuracy.Balanced,
-    timeInterval: 3_000,
-    mayShowUserSettingsDialog: false,
-  }).then((position) => ({
+export async function getPositionLowAccuracy(): Promise<Coordinates> {
+  const toCoords = (position: Location.LocationObject): Coordinates => ({
     lat:       position.coords.latitude,
     lng:       position.coords.longitude,
     accuracy:  position.coords.accuracy ?? 999,
     timestamp: position.timestamp,
-  }));
+  });
+
+  try {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy:    Location.Accuracy.Balanced,
+      timeInterval: 3_000,
+      mayShowUserSettingsDialog: false,
+    });
+    return toCoords(position);
+  } catch {
+    // Network-based positioning failed (offline) — fall back to GPS.
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    return toCoords(position);
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

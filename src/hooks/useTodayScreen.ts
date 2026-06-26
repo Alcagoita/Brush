@@ -488,10 +488,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
     Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
 
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done } : t));
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done, pendingSync: true } : t));
 
     try {
       await setTaskDone(uid, taskId, done);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, pendingSync: false } : t));
 
       if (done) {
         // Read the latest tasks from the ref — NOT a captured `tasks` dep.
@@ -534,7 +535,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         }
       }
     } catch (err) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done } : t));
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done, pendingSync: false } : t));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
   }, [uid]);

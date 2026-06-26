@@ -127,7 +127,7 @@ export async function addTask(
   const ref = await addDoc(tasksRef(uid), {
     ...data,
     done: false,
-    createdAt: serverTimestamp(),
+    createdAt: Timestamp.now(),
   });
   return ref.id;
 }
@@ -176,7 +176,7 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
     const batch = writeBatch(db);
     snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
-      batch.update(d.ref, { date: today, createdAt: serverTimestamp() });
+      batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
     });
     await batch.commit();
   }
@@ -199,7 +199,8 @@ export function subscribeToTasksForDate(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    { includeMetadataChanges: true },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data(), pendingSync: d.metadata.hasPendingWrites } as Task))); },
     onError,
   );
 }
@@ -268,7 +269,7 @@ export async function setTaskDone(
 ): Promise<void> {
   await updateDoc(taskRef(uid, taskId), {
     done,
-    completedAt: done ? serverTimestamp() : null,
+    completedAt: done ? Timestamp.now() : null,
   });
 }
 
