@@ -46,6 +46,14 @@ import {
   PointsReason,
   UserPreferences,
 } from '../types';
+import {
+  registerCategoryKeywords,
+  replaceCategoryKeywords,
+  registerLearnedKeyword,
+  normalize,
+  type SupportedLang,
+  type PoiResolution,
+} from './poiInference';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -456,6 +464,9 @@ export async function addCategory(
   data: Omit<Category, 'id' | 'isBuiltIn'>,
 ): Promise<string> {
   const ref = await addDoc(categoriesRef(uid), { ...data, isBuiltIn: false });
+  // Feed the new POI's wording into the inference dictionary (KAN-195) so future
+  // imports recognise it. No-op when the category has no POI association.
+  registerCategoryKeywords({ name: data.name, poi: data.poi });
   return ref.id;
 }
 
@@ -468,7 +479,18 @@ export async function updateCategory(
   categoryId: string,
   data: Partial<Pick<Category, 'name' | 'color' | 'poi'>>,
 ): Promise<void> {
-  await updateDoc(categoryRef(uid, categoryId), data);
+  const ref = categoryRef(uid, categoryId);
+  await updateDoc(ref, data);
+  // Keep the inference dictionary in sync on any name/POI change (KAN-195).
+  // A name-only or POI-only patch still needs the merged document, so re-read it
+  // and register the full current category (registered across all languages).
+  if (data.name !== undefined || data.poi !== undefined) {
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const c = snap.data() as Category;
+      registerCategoryKeywords({ name: c.name, poi: c.poi });
+    }
+  }
 }
 
 /**
@@ -1284,11 +1306,74 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
   return snap.docs.length;
 }
 
+// ─── Learned POI keywords (KAN-196) ──────────────────────────────────────────
+//
+// Durable store for keyword→POI pairs confirmed by the on-device LLM or a user
+// POI edit, so the dictionary's learned layer survives a restart. One doc per
+// (normalized keyword + language). All reads/writes are scoped to /users/{uid}.
+
+/** A persisted learned keyword→POI association. */
+export interface LearnedKeyword {
+  keyword: string;
+  poi: PoiResolution;
+  lang: SupportedLang;
+  source: 'llm' | 'user';
+}
+
+function learnedKeywordsRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'learnedPoiKeywords');
+}
+
+/** Stable doc id for a learned keyword: "<lang>:<normalized keyword>". */
+function learnedKeywordId(keyword: string, lang: SupportedLang): string {
+  return `${lang}:${normalize(keyword)}`;
+}
+
+/**
+ * Persist one learned keyword→POI pair (idempotent upsert keyed by keyword+lang).
+ * No-op when the keyword normalizes to empty.
+ */
+export async function persistLearnedKeyword(
+  uid: string,
+  entry: LearnedKeyword,
+): Promise<void> {
+  const key = normalize(entry.keyword);
+  if (!key) { return; }
+  const ref = doc(learnedKeywordsRef(uid), learnedKeywordId(entry.keyword, entry.lang));
+  await setDoc(ref, {
+    keyword: key,
+    poi: entry.poi,
+    lang: entry.lang,
+    source: entry.source,
+    updatedAt: serverTimestamp(),
+  });
+}
+
+/**
+ * Load all persisted learned keywords for `uid` into the in-memory learned
+ * layer. Call on app start so LLM/user-confirmed keywords are available to the
+ * rule map. Skips malformed docs; never throws on an individual bad entry.
+ */
+export async function loadLearnedKeywords(uid: string): Promise<void> {
+  const snap = await getDocs(learnedKeywordsRef(uid));
+  for (const d of snap.docs) {
+    const data = d.data() as Partial<LearnedKeyword>;
+    if (typeof data.keyword === 'string' && data.poi && data.lang) {
+      registerLearnedKeyword(data.keyword, data.poi, data.lang);
+    }
+  }
+}
+
 // ─── One-shot getters (non-subscribing) ──────────────────────────────────────
 
 export async function getCategories(uid: string): Promise<Category[]> {
   const snap = await getDocs(query(categoriesRef(uid), orderBy('name', 'asc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
+  const categories = snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
+  // Rebuild the inference dictionary's category layer from the current list on
+  // load, so user-added POIs survive an app restart and renamed/deleted ones
+  // stop matching (durable store lands in KAN-196).
+  replaceCategoryKeywords(categories);
+  return categories;
 }
 
 export async function getTotalPoints(uid: string): Promise<number> {

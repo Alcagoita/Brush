@@ -45,6 +45,8 @@ import {
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockGetTokens   = jest.fn();
+const mockSignIn      = jest.fn();
+const mockHasPlay     = jest.fn();
 const mockBatchSet    = jest.fn();
 const mockBatchCommit = jest.fn();
 const mockGet         = jest.fn();
@@ -57,8 +59,10 @@ jest.mock('../../src/services/calendar', () => ({
 
 jest.mock('@react-native-google-signin/google-signin', () => ({
   GoogleSignin: {
-    getTokens:  (...args: unknown[]) => mockGetTokens(...args),
-    configure:  jest.fn(),
+    getTokens:       (...args: unknown[]) => mockGetTokens(...args),
+    signIn:          (...args: unknown[]) => mockSignIn(...args),
+    hasPlayServices: (...args: unknown[]) => mockHasPlay(...args),
+    configure:       jest.fn(),
   },
   statusCodes: { SIGN_IN_CANCELLED: 'SIGN_IN_CANCELLED' },
 }));
@@ -107,6 +111,11 @@ function mockAccessToken(token = 'test-access-token') {
 }
 
 function mockTasksResponse(items: object[]) {
+  // First call: lists endpoint; second call: tasks for that list
+  mockFetch.mockResolvedValueOnce({
+    ok:   true,
+    json: async () => ({ items: [{ id: 'list-default', title: 'My Tasks' }] }),
+  });
   mockFetch.mockResolvedValueOnce({
     ok:   true,
     json: async () => ({ items }),
@@ -283,6 +292,63 @@ describe('importFromGoogleTasks', () => {
     expect(setCall.date).toBe('2026-08-01');
   });
 
+  it('maps the task notes field to Task.description (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{
+      id: '1', title: 'Buy groceries', status: 'needsAction',
+      notes: '  milk, eggs, bread  ',
+    }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.description).toBe('milk, eggs, bread');
+  });
+
+  it('omits description when the task has no notes (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
+  it('omits description when notes is only whitespace (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{
+      id: '1', title: 'Buy groceries', status: 'needsAction', notes: '   ',
+    }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
+  it('auto-applies a POI inferred by the rule map (KAN-197)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy bread', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.poi).toBe('supermarket');
+  });
+
+  it('omits poi when neither rule map nor classifier matches (KAN-197)', async () => {
+    // "Team standup" has no POI keyword; the classifier is mocked unavailable
+    // (react-native-fast-tflite manual mock rejects) → poi stays unset.
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Team standup', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('poi' in setCall).toBe(false);
+  });
+
   it('throws when the Google API returns an error response', async () => {
     mockAccessToken();
     mockGet.mockResolvedValue({ docs: [] });
@@ -291,16 +357,45 @@ describe('importFromGoogleTasks', () => {
     await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('401');
   });
 
-  it('throws when getTokens() fails (e.g. user declined OAuth scope)', async () => {
-    mockGetTokens.mockRejectedValueOnce(new Error('User declined scope'));
-    mockGet.mockResolvedValue({ docs: [] });
+  it('signs in then imports when no Google session exists yet (KAN-201)', async () => {
+    // First getTokens fails (no session, e.g. email/password login); signIn
+    // establishes one, then the retried getTokens succeeds.
+    mockGetTokens
+      .mockRejectedValueOnce(new Error('no current user'))
+      .mockResolvedValueOnce({ accessToken: 'fresh-token' });
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockResolvedValue({ data: { idToken: 'id' } });
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
 
-    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('User declined scope');
+    const result = await importFromGoogleTasks('uid-1');
+    expect(mockSignIn).toHaveBeenCalledTimes(1);
+    expect(result.imported).toBe(1);
   });
 
-  it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
+  it('does not call signIn when a Google session already exists (KAN-201)', async () => {
+    mockAccessToken(); // getTokens resolves on the first call
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy groceries', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    expect(mockSignIn).not.toHaveBeenCalled();
+  });
+
+  it('rethrows a non-cancellation sign-in error (KAN-201)', async () => {
+    mockGetTokens.mockRejectedValue(new Error('no session'));
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockRejectedValueOnce(new Error('PLAY_SERVICES_NOT_AVAILABLE'));
+    mockGet.mockResolvedValue({ docs: [] });
+
+    await expect(importFromGoogleTasks('uid-1')).rejects.toThrow('PLAY_SERVICES_NOT_AVAILABLE');
+  });
+
+  it('returns cancelled:1 when user cancels the Google sign-in prompt (KAN-94/201)', async () => {
     const cancelErr = Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
-    mockGetTokens.mockRejectedValueOnce(cancelErr);
+    mockGetTokens.mockRejectedValue(new Error('no session'));
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockRejectedValueOnce(cancelErr);
     mockGet.mockResolvedValue({ docs: [] });
 
     const result = await importFromGoogleTasks('uid-1');
@@ -416,9 +511,51 @@ describe('importFromGoogleCalendar', () => {
     expect(setCall.date).toBe('2026-06-20');
   });
 
-  it('returns cancelled:1 when user cancels the OAuth prompt (KAN-94)', async () => {
+  it('strips HTML from the event description and maps it to Task.description (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([{
+      id: '1', summary: 'Team standup',
+      description: '<p>Agenda:<br>Discuss <b>roadmap</b> &amp; sprint</p>',
+      start: { dateTime: '2026-06-05T09:00:00Z' },
+    }]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.description).toBe('Agenda:\nDiscuss roadmap & sprint');
+  });
+
+  it('omits description when the event has none (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team standup', start: { dateTime: '2026-06-05T09:00:00Z' } },
+    ]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
+  it('omits description when the event description is empty markup (KAN-95)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([{
+      id: '1', summary: 'Team standup',
+      description: '<br>   <p></p>',
+      start: { dateTime: '2026-06-05T09:00:00Z' },
+    }]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('description' in setCall).toBe(false);
+  });
+
+  it('returns cancelled:1 when user cancels the Google sign-in prompt (KAN-94/201)', async () => {
     const cancelErr = Object.assign(new Error('cancelled'), { code: 'SIGN_IN_CANCELLED' });
-    mockGetTokens.mockRejectedValueOnce(cancelErr);
+    mockGetTokens.mockRejectedValue(new Error('no session'));
+    mockHasPlay.mockResolvedValue(true);
+    mockSignIn.mockRejectedValueOnce(cancelErr);
     mockGet.mockResolvedValue({ docs: [] });
 
     const result = await importFromGoogleCalendar('uid-1');

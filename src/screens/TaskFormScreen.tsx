@@ -29,6 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
 import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } from '../services/firestore';
+import { learnFromUserEdit } from '../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../components/AppIcon';
 import type { Category, PoiType, Task } from '../types';
 import { POI_CATALOG } from '../types';
@@ -231,6 +232,14 @@ export default function TaskFormScreen() {
         evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
       }
+
+      // Feed the user's title→POI choice back into the inference dictionary
+      // (KAN-197) so future imports recognise it. The user is the source of
+      // truth. Best-effort and non-blocking — never affects the save.
+      if (effectivePoi) {
+        learnFromUserEdit(uid, trimmed, effectivePoi, 'en').catch(() => {});
+      }
+
       navigation.goBack();
     } catch (err) {
       console.warn('[TaskFormScreen] save error', err);

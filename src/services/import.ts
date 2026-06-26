@@ -24,6 +24,30 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import { Linking, Platform } from 'react-native';
 import { fetchReminders, fetchCalendarEvents } from './calendar';
 import { ImportResult } from '../types';
+import { inferPoiFromRules } from './poiInference';
+import { classifyPoi } from './poiLlm';
+
+// ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
+
+/**
+ * Infer a POI type for an imported task title.
+ *   1. Rule map (KAN-195) — instant, offline. Tried in both EN and pt-PT since
+ *      the import language is unknown.
+ *   2. On-device classifier (KAN-196) — only for titles the rule map misses.
+ *   3. Neither → null (a valid, expected result — many tasks have no POI).
+ *
+ * Never throws: inference must never break or block an import. Returns a POI
+ * type string (or a custom Places type from a learned category) or null.
+ */
+export async function inferImportedPoi(title: string): Promise<string | null> {
+  try {
+    const rule = inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT');
+    if (rule) { return rule; }
+    return await classifyPoi(title, 'en');
+  } catch {
+    return null;
+  }
+}
 
 // ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
 
@@ -147,19 +171,35 @@ function isGoogleSignInCancelled(err: unknown): boolean {
 
 // ─── Google API helpers ───────────────────────────────────────────────────────
 
-const GOOGLE_TASKS_URL =
-  'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=false';
+const GOOGLE_TASK_LISTS_URL = 'https://tasks.googleapis.com/tasks/v1/users/@me/lists';
+const googleTasksUrl = (listId: string) =>
+  `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks?showCompleted=false`;
+
+interface GoogleTaskList { id: string; title: string; }
 
 const GOOGLE_CALENDAR_URL = (timeMin: string) =>
   `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}`;
 
 /**
- * Returns the current Google OAuth access token.
- * Refreshes silently if the cached token has expired.
+ * Returns a Google OAuth access token with the import scopes (KAN-201).
+ *
+ * `getTokens()` alone only works when a Google session already exists. Brush's
+ * default login is email/password, which creates no Google session, so we first
+ * try `getTokens()` and, if that fails, establish a session via `signIn()`
+ * (account picker + scope consent) and retry. A user-cancelled prompt throws
+ * `SIGN_IN_CANCELLED`, which the connector wrappers translate into a cancelled
+ * result rather than an error.
  */
 async function getGoogleAccessToken(): Promise<string> {
-  const tokens = await GoogleSignin.getTokens();
-  return tokens.accessToken;
+  try {
+    const tokens = await GoogleSignin.getTokens();
+    return tokens.accessToken;
+  } catch {
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    await GoogleSignin.signIn();
+    const tokens = await GoogleSignin.getTokens();
+    return tokens.accessToken;
+  }
 }
 
 /**
@@ -215,6 +255,45 @@ export function shouldSkipCalendarEvent(
   return startDate > thirtyDaysOut;
 }
 
+// ─── Description mapping (KAN-95) ─────────────────────────────────────────────
+
+/**
+ * Strip HTML to plain text. Google Calendar event descriptions may contain
+ * markup (`<a>`, `<br>`, entities). A regex pass is sufficient for v1 — we are
+ * not rendering rich text, just storing a readable note.
+ */
+export function stripHtml(html: string): string {
+  return html
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')  // <br> → newline before dropping tags
+    .replace(/<[^>]*>/g, ' ')             // remaining tags → space
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/[^\S\n]+/g, ' ')            // collapse spaces/tabs, keep newlines
+    .replace(/\s*\n\s*/g, '\n')           // trim around newlines
+    .trim();
+}
+
+/**
+ * Normalize an external note/description into a `Task.description` value.
+ * Returns `undefined` (not an empty string) when there is nothing to store, so
+ * callers can omit the field entirely and avoid writing empty descriptions.
+ *
+ * Pass `{ html: true }` for sources whose notes may contain markup
+ * (Google Calendar). Plain-text sources (Google Tasks, EventKit) omit it.
+ */
+export function toDescription(
+  raw: string | undefined,
+  opts: { html?: boolean } = {},
+): string | undefined {
+  if (!raw) { return undefined; }
+  const text = (opts.html ? stripHtml(raw) : raw).trim();
+  return text || undefined;
+}
+
 // ─── Duplicate detection ──────────────────────────────────────────────────────
 
 /**
@@ -265,8 +344,14 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
 
   const existingTitles = await fetchExistingTitles(uid);
-  const data = await googleFetch(GOOGLE_TASKS_URL) as { items?: GoogleTaskItem[] };
-  const items: GoogleTaskItem[] = data.items ?? [];
+  const listsData = await googleFetch(GOOGLE_TASK_LISTS_URL) as { items?: GoogleTaskList[] };
+  const lists: GoogleTaskList[] = listsData.items ?? [];
+  const allItems: GoogleTaskItem[] = [];
+  for (const list of lists) {
+    const data = await googleFetch(googleTasksUrl(list.id)) as { items?: GoogleTaskItem[] };
+    allItems.push(...(data.items ?? []));
+  }
+  const items: GoogleTaskItem[] = allItems;
 
   // NOTE: Firestore batches are capped at 500 writes. For MVP this is acceptable
   // since users typically have <100 tasks. If imports grow large, chunk into
@@ -282,6 +367,8 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
 
     try {
       const dueDate = parseGoogleDate(item.due);
+      const description = toDescription(item.notes);
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('google_tasks', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -290,6 +377,8 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
         done:      false,
         date:      dueDate ? formatDateString(dueDate) : formatDateString(new Date()),
         source:    'google_tasks',
+        ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       // Track the title in the local Set to prevent intra-batch duplicates.
@@ -349,6 +438,8 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
       if (!startDate) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
+      const description = toDescription(item.description, { html: true });
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -357,6 +448,8 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
         done:      false,
         date:      formatDateString(startDate),
         source:    'google_calendar',
+        ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -375,13 +468,15 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
 interface GoogleTaskItem {
   id:     string;
   title?: string;
+  notes?: string;  // plain-text note → Task.description (KAN-95)
   due?:   string;  // RFC 3339
   status: 'needsAction' | 'completed';
 }
 
 interface GoogleCalendarEvent {
-  id:       string;
-  summary?: string;
+  id:          string;
+  summary?:    string;
+  description?: string;  // may contain HTML → stripped to Task.description (KAN-95)
   start?: {
     date?:     string;  // "YYYY-MM-DD" for all-day
     dateTime?: string;  // RFC 3339 for timed
@@ -422,6 +517,8 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
 
     try {
       const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
+      const description = toDescription(item.notes);
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_reminders', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -432,6 +529,8 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
                      ? formatDateString(dueDate)
                      : formatDateString(new Date()),
         source:    'eventkit_reminders',
+        ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -483,6 +582,8 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (isNaN(startDate.getTime())) { result.skipped++; continue; }
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
+      const description = toDescription(item.notes);
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -491,6 +592,8 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
         done:      false,
         date:      formatDateString(startDate),
         source:    'eventkit_calendar',
+        ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
