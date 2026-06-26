@@ -111,6 +111,11 @@ function mockAccessToken(token = 'test-access-token') {
 }
 
 function mockTasksResponse(items: object[]) {
+  // First call: lists endpoint; second call: tasks for that list
+  mockFetch.mockResolvedValueOnce({
+    ok:   true,
+    json: async () => ({ items: [{ id: 'list-default', title: 'My Tasks' }] }),
+  });
   mockFetch.mockResolvedValueOnce({
     ok:   true,
     json: async () => ({ items }),

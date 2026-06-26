@@ -171,8 +171,11 @@ function isGoogleSignInCancelled(err: unknown): boolean {
 
 // ─── Google API helpers ───────────────────────────────────────────────────────
 
-const GOOGLE_TASKS_URL =
-  'https://tasks.googleapis.com/tasks/v1/lists/@default/tasks?showCompleted=false';
+const GOOGLE_TASK_LISTS_URL = 'https://tasks.googleapis.com/tasks/v1/users/@me/lists';
+const googleTasksUrl = (listId: string) =>
+  `https://tasks.googleapis.com/tasks/v1/lists/${encodeURIComponent(listId)}/tasks?showCompleted=false`;
+
+interface GoogleTaskList { id: string; title: string; }
 
 const GOOGLE_CALENDAR_URL = (timeMin: string) =>
   `https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&timeMin=${encodeURIComponent(timeMin)}`;
@@ -341,8 +344,14 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
 
   const existingTitles = await fetchExistingTitles(uid);
-  const data = await googleFetch(GOOGLE_TASKS_URL) as { items?: GoogleTaskItem[] };
-  const items: GoogleTaskItem[] = data.items ?? [];
+  const listsData = await googleFetch(GOOGLE_TASK_LISTS_URL) as { items?: GoogleTaskList[] };
+  const lists: GoogleTaskList[] = listsData.items ?? [];
+  const allItems: GoogleTaskItem[] = [];
+  for (const list of lists) {
+    const data = await googleFetch(googleTasksUrl(list.id)) as { items?: GoogleTaskItem[] };
+    allItems.push(...(data.items ?? []));
+  }
+  const items: GoogleTaskItem[] = allItems;
 
   // NOTE: Firestore batches are capped at 500 writes. For MVP this is acceptable
   // since users typically have <100 tasks. If imports grow large, chunk into
