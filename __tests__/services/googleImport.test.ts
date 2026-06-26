@@ -322,6 +322,28 @@ describe('importFromGoogleTasks', () => {
     expect('description' in setCall).toBe(false);
   });
 
+  it('auto-applies a POI inferred by the rule map (KAN-197)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Buy bread', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.poi).toBe('supermarket');
+  });
+
+  it('omits poi when neither rule map nor classifier matches (KAN-197)', async () => {
+    // "Team standup" has no POI keyword; the classifier is mocked unavailable
+    // (react-native-fast-tflite manual mock rejects) → poi stays unset.
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockTasksResponse([{ id: '1', title: 'Team standup', status: 'needsAction' }]);
+
+    await importFromGoogleTasks('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('poi' in setCall).toBe(false);
+  });
+
   it('throws when the Google API returns an error response', async () => {
     mockAccessToken();
     mockGet.mockResolvedValue({ docs: [] });

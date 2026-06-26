@@ -24,6 +24,30 @@ import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-si
 import { Linking, Platform } from 'react-native';
 import { fetchReminders, fetchCalendarEvents } from './calendar';
 import { ImportResult } from '../types';
+import { inferPoiFromRules } from './poiInference';
+import { classifyPoi } from './poiLlm';
+
+// ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
+
+/**
+ * Infer a POI type for an imported task title.
+ *   1. Rule map (KAN-195) — instant, offline. Tried in both EN and pt-PT since
+ *      the import language is unknown.
+ *   2. On-device classifier (KAN-196) — only for titles the rule map misses.
+ *   3. Neither → null (a valid, expected result — many tasks have no POI).
+ *
+ * Never throws: inference must never break or block an import. Returns a POI
+ * type string (or a custom Places type from a learned category) or null.
+ */
+export async function inferImportedPoi(title: string): Promise<string | null> {
+  try {
+    const rule = inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT');
+    if (rule) { return rule; }
+    return await classifyPoi(title, 'en');
+  } catch {
+    return null;
+  }
+}
 
 // ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
 
@@ -335,6 +359,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
     try {
       const dueDate = parseGoogleDate(item.due);
       const description = toDescription(item.notes);
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('google_tasks', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -344,6 +369,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
         date:      dueDate ? formatDateString(dueDate) : formatDateString(new Date()),
         source:    'google_tasks',
         ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       // Track the title in the local Set to prevent intra-batch duplicates.
@@ -404,6 +430,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.description, { html: true });
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -413,6 +440,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
         date:      formatDateString(startDate),
         source:    'google_calendar',
         ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -481,6 +509,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
     try {
       const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
       const description = toDescription(item.notes);
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_reminders', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -492,6 +521,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
                      : formatDateString(new Date()),
         source:    'eventkit_reminders',
         ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -544,6 +574,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.notes);
+      const poi = await inferImportedPoi(title);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -553,6 +584,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
         date:      formatDateString(startDate),
         source:    'eventkit_calendar',
         ...(description ? { description } : {}),
+        ...(poi ? { poi } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
