@@ -9,8 +9,8 @@ set -euo pipefail
 #   android/app/google-services.json     (Android Firebase SDK config)
 #   ios/Brush/GoogleService-Info.plist   (iOS Firebase SDK config)
 #
-# PROD Firebase project: brush-away-prod
-# QA  Firebase project:  brush-away
+# PROD Firebase project: brush-away       (production data)
+# DEV  Firebase project: brush-away-dev   (development / QA)
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV="${1:-}"
@@ -22,12 +22,12 @@ fi
 
 case "$ENV" in
   dev|staging)
-    FIREBASE_PROJECT="brush-away"
-    ANDROID_CONFIG="google-services.json"
-    IOS_CONFIG="GoogleService-Info.plist"
+    FIREBASE_PROJECT="brush-away-dev"
+    ANDROID_CONFIG="google-services-dev.json"
+    IOS_CONFIG="GoogleService-Info-Dev.plist"
     ;;
   prod)
-    FIREBASE_PROJECT="brush-away-prod"
+    FIREBASE_PROJECT="brush-away"
     ANDROID_CONFIG="google-services-prod.json"
     IOS_CONFIG="GoogleService-Info-Prod.plist"
     ;;
