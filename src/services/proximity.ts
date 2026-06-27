@@ -19,6 +19,7 @@
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
+import NetInfo from '@react-native-community/netinfo';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
@@ -89,6 +90,9 @@ const DEFAULT_GEOFENCE_RADIUS = 75;
 /** Notifee Android channel id for proximity alerts. */
 const CHANNEL_ID = 'proximity_alerts';
 
+/** Queued searches older than this are discarded when connection returns. */
+const QUEUE_STALE_MS = 5 * 60 * 1_000;
+
 // ─── Internal state ───────────────────────────────────────────────────────────
 
 /** Where the last Places API search was run from. Movement gate. */
@@ -124,6 +128,39 @@ let exitPromptEnabled = true;
 
 /** User-saved POI radius preferences (KAN-25). */
 let poiRadiusPrefs: Record<string, number> = {};
+
+// ─── Offline queue (KAN-205) ──────────────────────────────────────────────────
+
+type PendingSearch = {
+  uid:         string;
+  tasks:       Task[];
+  onUpdate:    ProximityCallback;
+  enqueuedAt:  number;
+};
+
+let _pendingQueue:        PendingSearch[]  = [];
+let _netInfoUnsubscribe:  (() => void) | null = null;
+
+function _ensureNetInfoListener(): void {
+  if (_netInfoUnsubscribe) { return; }
+  _netInfoUnsubscribe = NetInfo.addEventListener(state => {
+    if (state.isConnected) { void _flushQueue(); }
+  });
+}
+
+async function _flushQueue(): Promise<void> {
+  const now   = Date.now();
+  const queue = _pendingQueue.filter(e => now - e.enqueuedAt < QUEUE_STALE_MS);
+  _pendingQueue = [];
+  for (const entry of queue) {
+    await runProximitySearch(entry.uid, entry.tasks, entry.onUpdate);
+  }
+}
+
+function _enqueueSearch(uid: string, tasks: Task[], onUpdate: ProximityCallback): void {
+  _pendingQueue.push({ uid, tasks, onUpdate, enqueuedAt: Date.now() });
+  _ensureNetInfoListener();
+}
 
 // ─── Native geofence state (exit-prompt only, KAN-119) ───────────────────────
 
@@ -260,7 +297,12 @@ async function runProximitySearch(
     try {
       results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
     } catch {
-      // Network/timeout — keep showing whatever was shown before.
+      // If offline, queue this search for retry when connection returns.
+      // Otherwise (timeout, API error) keep showing whatever was shown before.
+      const net = await NetInfo.fetch();
+      if (!net.isConnected) {
+        _enqueueSearch(uid, tasks, onUpdate);
+      }
       return;
     }
 
@@ -391,6 +433,7 @@ export function resetProximityState(): void {
   _prevUndonePoiTaskCount = 0;
   _alertedTodayTypes.clear();
   poiRadiusPrefs = {};
+  _pendingQueue   = [];
 
   geofenceEntryTimes.clear();
   Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
@@ -430,3 +473,7 @@ export function __setGeofenceEntryTime(geofenceId: string, timestamp: number): v
 export function __clearGeofenceEntryTimes(): void {
   geofenceEntryTimes.clear();
 }
+
+export function __getPendingQueue(): PendingSearch[] { return _pendingQueue; }
+export function __clearPendingQueue(): void { _pendingQueue = []; }
+export function __setNetInfoUnsubscribe(fn: (() => void) | null): void { _netInfoUnsubscribe = fn; }
