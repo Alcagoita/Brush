@@ -50,10 +50,13 @@ function isPoiType(s: string): s is PoiType {
 /**
  * Extract "HH:MM" from shared text.
  * Handles: "at 9am", "at 14:30", "3:45pm", "9 PM".
+ * The "at ..." form requires a word boundary after the digits so ordinal/
+ * address tokens like "at 5th Avenue" or "at 3rd" don't produce false matches.
+ * Without am/pm we still require either minutes (:MM) or am/pm suffix.
  */
 function extractTime(text: string): string | null {
   const m =
-    text.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i) ??
+    text.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b\s*(am|pm)?\b/i) ??
     text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
   if (!m) { return null; }
   let h = parseInt(m[1], 10);
@@ -78,13 +81,28 @@ function extractTime(text: string): string | null {
  */
 export async function parseMessageToTask(text: string): Promise<ParseMessageOutput> {
   const trimmed = text.trim().slice(0, 2_000);
-  const title   = trimmed.slice(0, 80);
+
+  // Nothing useful to parse — skip all inference.
+  if (trimmed.length === 0) {
+    return { title: '', suggestedPoi: null, suggestedTime: null, confidence: 'low' };
+  }
+
+  const title         = trimmed.slice(0, 80);
   const suggestedTime = extractTime(trimmed);
 
   // Pass 1: offline local dictionary.
+  // inferPoiFromRules returns PoiResolution (PoiType | arbitrary Google string).
+  // Check canonical PoiType first; then try GOOGLE_TYPE_TO_POI for aliases
+  // the dictionary may emit (e.g. "coffee_shop" from a custom category).
   const localPoi = inferPoiFromRules(trimmed);
-  if (localPoi && isPoiType(localPoi)) {
-    return { title, suggestedPoi: localPoi, suggestedTime, confidence: 'high' };
+  if (localPoi) {
+    if (isPoiType(localPoi)) {
+      return { title, suggestedPoi: localPoi, suggestedTime, confidence: 'high' };
+    }
+    const mapped = GOOGLE_TYPE_TO_POI[localPoi];
+    if (mapped) {
+      return { title, suggestedPoi: mapped, suggestedTime, confidence: 'high' };
+    }
   }
 
   // Pass 2: Google Places Text Search — extract primary type from top results.
@@ -96,8 +114,10 @@ export async function parseMessageToTask(text: string): Promise<ParseMessageOutp
         return { title, suggestedPoi: poi, suggestedTime, confidence: 'medium' };
       }
     }
-  } catch {
-    // Network error — fall through to low-confidence.
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[parseMessageToTask] searchPlaceTypes failed:', err);
+    }
   }
 
   return { title, suggestedPoi: null, suggestedTime, confidence: 'low' };
