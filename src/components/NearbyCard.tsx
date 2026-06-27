@@ -381,7 +381,10 @@ function NearbyCard({
   });
 
   // Nothing to show at all — hide.
-  if (!isHero && greyTasks.length === 0) { return null; }
+  // Guard on actual content, not the isHero flag: nearbyPoiType can be set
+  // but have no matching task (or poiPlaces empty), which would leave an
+  // empty header. Content is the source of truth for visibility.
+  if (heroEntries.length === 0 && greyTasks.length === 0) { return null; }
 
   const totalPlaces = heroEntries.length + greyTasks.length;
 
