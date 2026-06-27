@@ -8,6 +8,14 @@
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
+jest.mock('@react-native-community/netinfo', () => ({
+  __esModule: true,
+  default: {
+    fetch:            jest.fn(() => Promise.resolve({ isConnected: true })),
+    addEventListener: jest.fn(() => jest.fn()),
+  },
+}));
+
 const mockGetCurrentPositionAsync = jest.fn();
 const mockOnUpdate = jest.fn();
 

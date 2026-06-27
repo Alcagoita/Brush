@@ -19,6 +19,7 @@
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
+import NetInfo from '@react-native-community/netinfo';
 import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
@@ -89,6 +90,9 @@ const DEFAULT_GEOFENCE_RADIUS = 75;
 /** Notifee Android channel id for proximity alerts. */
 const CHANNEL_ID = 'proximity_alerts';
 
+/** Queued searches older than this are discarded when connection returns. */
+const QUEUE_STALE_MS = 5 * 60 * 1_000;
+
 // ─── Internal state ───────────────────────────────────────────────────────────
 
 /** Where the last Places API search was run from. Movement gate. */
@@ -124,6 +128,63 @@ let exitPromptEnabled = true;
 
 /** User-saved POI radius preferences (KAN-25). */
 let poiRadiusPrefs: Record<string, number> = {};
+
+// ─── Offline queue (KAN-205) ──────────────────────────────────────────────────
+
+type PendingSearch = {
+  uid:         string;
+  tasks:       Task[];
+  onUpdate:    ProximityCallback;
+  enqueuedAt:  number;
+};
+
+let _pendingQueue:        PendingSearch[]  = [];
+let _netInfoUnsubscribe:  (() => void) | null = null;
+
+function _ensureNetInfoListener(): void {
+  if (_netInfoUnsubscribe) { return; }
+  _netInfoUnsubscribe = NetInfo.addEventListener(state => {
+    if (state.isConnected) {
+      void _flushQueue().catch(err => console.warn('[proximity] flush failed', err));
+    }
+  });
+}
+
+async function _flushQueue(): Promise<void> {
+  const now   = Date.now();
+  // Snapshot + clear before iterating so new enqueues during flush go to a fresh queue.
+  const snapshot = _pendingQueue.filter(e => now - e.enqueuedAt < QUEUE_STALE_MS);
+  _pendingQueue  = [];
+
+  for (const entry of snapshot) {
+    if (_isSearching) {
+      // Search engine busy — restore remaining entries and retry after current search.
+      _pendingQueue.unshift(entry, ...(snapshot.slice(snapshot.indexOf(entry) + 1)));
+      setTimeout(
+        () => void _flushQueue().catch(err => console.warn('[proximity] flush retry failed', err)),
+        250,
+      );
+      return;
+    }
+    try {
+      await runProximitySearch(entry.uid, entry.tasks, entry.onUpdate);
+    } catch (err) {
+      console.warn('[proximity] flush entry failed', err);
+      // Don't re-enqueue — runProximitySearch already re-enqueues on offline.
+    }
+  }
+
+  // Tear down listener when queue is fully drained.
+  if (_pendingQueue.length === 0) {
+    _netInfoUnsubscribe?.();
+    _netInfoUnsubscribe = null;
+  }
+}
+
+function _enqueueSearch(uid: string, tasks: Task[], onUpdate: ProximityCallback): void {
+  _pendingQueue.push({ uid, tasks, onUpdate, enqueuedAt: Date.now() });
+  _ensureNetInfoListener();
+}
 
 // ─── Native geofence state (exit-prompt only, KAN-119) ───────────────────────
 
@@ -260,7 +321,13 @@ async function runProximitySearch(
     try {
       results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
     } catch {
-      // Network/timeout — keep showing whatever was shown before.
+      // If offline, queue this search for retry when connection returns.
+      // Otherwise (timeout, API error) keep showing whatever was shown before.
+      let isConnected: boolean | null = null;
+      try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
+      if (isConnected === false) {
+        _enqueueSearch(uid, tasks, onUpdate);
+      }
       return;
     }
 
@@ -391,6 +458,9 @@ export function resetProximityState(): void {
   _prevUndonePoiTaskCount = 0;
   _alertedTodayTypes.clear();
   poiRadiusPrefs = {};
+  _pendingQueue   = [];
+  _netInfoUnsubscribe?.();
+  _netInfoUnsubscribe = null;
 
   geofenceEntryTimes.clear();
   Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
@@ -430,3 +500,7 @@ export function __setGeofenceEntryTime(geofenceId: string, timestamp: number): v
 export function __clearGeofenceEntryTimes(): void {
   geofenceEntryTimes.clear();
 }
+
+export function __getPendingQueue(): PendingSearch[] { return _pendingQueue; }
+export function __clearPendingQueue(): void { _pendingQueue = []; }
+export function __setNetInfoUnsubscribe(fn: (() => void) | null): void { _netInfoUnsubscribe = fn; }
