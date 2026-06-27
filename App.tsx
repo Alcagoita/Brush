@@ -14,7 +14,7 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
 import { useAuth } from './src/hooks/useAuth';
 import { useFCM } from './src/hooks/useFCM';
-import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
+import { logBreadcrumb } from './src/services/crashlytics';
 import LoginScreen from './src/screens/LoginScreen';
 import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -149,10 +149,9 @@ function AppShell() {
   // Persist the FCM device token whenever a user is signed in.
   useFCM(user?.uid ?? null);
 
-  // Attach / detach the Crashlytics user identifier on auth changes.
+  // Log a Crashlytics breadcrumb on auth changes. User identifier is set in useAuth.
   useEffect(() => {
     if (!loading) {
-      setCrashlyticsUser(user?.uid ?? null);
       logBreadcrumb(user ? `User signed in: ${user.uid}` : 'User signed out');
     }
   }, [user, loading]);
