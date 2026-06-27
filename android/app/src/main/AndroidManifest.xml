@@ -62,6 +62,25 @@
             <category android:name="android.intent.category.DEFAULT" />
             <data android:mimeType="text/plain" />
         </intent-filter>
+
+        <!-- ── App Links — brushaway.app deep links (KAN-208) ── -->
+        <!-- autoVerify triggers Android App Link verification against          -->
+        <!-- https://brushaway.app/.well-known/assetlinks.json at install time. -->
+        <!-- Verified links open directly in the app without a chooser dialog.  -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="brushaway.app" />
+        </intent-filter>
+
+        <!-- ── Custom scheme fallback (brushaway://) ── -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="brushaway" />
+        </intent-filter>
       </activity>
 
 
