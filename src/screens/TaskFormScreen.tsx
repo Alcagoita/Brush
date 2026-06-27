@@ -32,6 +32,7 @@ import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } f
 import { learnFromUserEdit } from '../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../components/AppIcon';
 import type { Category, PoiType, Task } from '../types';
+import { logTap } from '../services/analytics';
 import { POI_CATALOG } from '../types';
 import { PLACE_TYPE_LABELS } from '../services/maps';
 import { todayISO } from '../utils/date';
@@ -227,8 +228,10 @@ export default function TaskFormScreen() {
 
       if (isEdit && existingTask) {
         await updateTask(uid, existingTask.id, payload);
+        logTap('task_edit', { category: payload.category });
       } else {
         await addTask(uid, payload);
+        logTap('task_create', { category: payload.category });
         evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
       }
@@ -266,6 +269,7 @@ export default function TaskFormScreen() {
             setDeleting(true);
             try {
               await deleteTask(uid, existingTask.id);
+              logTap('task_delete', { category: existingTask.category });
               navigation.goBack();
             } catch (err) {
               console.warn('[TaskFormScreen] delete error', err);
@@ -429,7 +433,11 @@ export default function TaskFormScreen() {
                 onPress={() => {
                   const next = poiKey === type ? null : type;
                   setPoiKey(next);
-                  if (next) { setQuery(''); setCustomPoiType(null); }
+                  if (next) {
+                    setQuery('');
+                    setCustomPoiType(null);
+                    logTap('poi_chip_tap', { poi_type: type });
+                  }
                 }}
                 palette={palette}
               />

@@ -34,6 +34,7 @@ import { subscribeToFollowing, getUser } from '../services/firestore';
 import { createChallenge } from '../services/challenges';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { FollowEntry } from '../types';
+import { logTap } from '../services/analytics';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateChallenge'>;
 
@@ -134,6 +135,7 @@ export default function CreateChallengeScreen() {
         participants:    selectedFriends,
         message:         message.trim() || undefined,
       });
+      logTap('challenge_create', { type: challengeType });
       setSent(true);
     } catch (e) {
       setError('Failed to send challenge. Please try again.');

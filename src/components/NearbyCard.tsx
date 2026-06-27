@@ -49,6 +49,7 @@ import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../serv
 import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
 import { ChevronRightIcon, PoiIcon, RefreshIcon } from './AppIcon';
+import { logTap } from '../services/analytics';
 
 // Distance threshold that separates the orange hero zone from the grey zone.
 const HERO_RADIUS_M = 100;
@@ -223,7 +224,7 @@ function HeroCard({
           styles.ctaButton,
           { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
         ]}
-        onPress={() => openInMaps(place.lat, place.lng, place.name)}
+        onPress={() => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); }}
         accessibilityRole="button"
         accessibilityLabel={`Open ${place.name} in Maps`}>
         <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
@@ -268,7 +269,7 @@ function AlsoCloseRow({
         !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
         { opacity: pressed && !!place ? 0.65 : 1 },
       ]}
-      onPress={place ? () => openInMaps(place.lat, place.lng, place.name) : undefined}
+      onPress={place ? () => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); } : undefined}
       accessibilityRole={place ? 'button' : 'text'}
       accessibilityLabel={place ? `Open ${place.name} in Maps` : task.title}>
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
@@ -326,6 +327,7 @@ function NearbyCard({
       false,
     );
     const ok = await onRefreshLocation();
+    logTap('nearby_refresh', { success: ok });
     cancelAnimation(spinAngle);
     spinAngle.value = withTiming(
       Math.floor(spinAngle.value / -360) * -360,
