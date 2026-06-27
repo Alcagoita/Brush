@@ -22,6 +22,7 @@ import {
   getPoiPreferencesMap,
   getUser,
   getTotalPoints,
+  getInboxUnreadCount,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../services/achievements';
@@ -96,6 +97,8 @@ export interface TodayScreenState {
   totalPoints:  number;
   /** Count of pending shared tasks for the inbox bell badge. */
   inboxCount:   number;
+  /** Count of unread social inbox entries (follow notifications) for the people icon badge. */
+  socialUnreadCount: number;
   /** Task-done toggle — updates local state immediately, persists to Firestore. */
   handleToggle: (taskId: string, done: boolean) => Promise<void>;
   /** True when location permission has been granted. */
@@ -146,6 +149,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const [totalPoints,     setTotalPoints]     = useState(0);
   const [inboxCount,      setInboxCount]      = useState(0);
+  const [socialUnreadCount, setSocialUnreadCount] = useState(0);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   // Refs so the AppState closure always reads the latest values without
@@ -232,6 +236,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
         setTotalPoints(bootData.totalPoints);
         setInboxCount(bootData.inboxCount);
+        setSocialUnreadCount(bootData.socialUnreadCount ?? 0);
         if (bootData.userData) {
           setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
           setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
@@ -262,6 +267,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         categories,
         points,
         inbox,
+        socialUnread,
       ] = await withTimeout(
         Promise.all([
           getTasksForDate(uid, todayISO()),
@@ -271,6 +277,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           getCategories(uid),
           getTotalPoints(uid),
           getIncomingSharedTasksCount(uid),
+          getInboxUnreadCount(uid),
         ]),
         DATA_FETCH_TIMEOUT_MS,
       );
@@ -279,6 +286,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       setCustomCategories(categories.filter(c => !c.isBuiltIn));
       setTotalPoints(points);
       setInboxCount(inbox);
+      setSocialUnreadCount(socialUnread);
 
       if (userData) {
         setLowBatteryPausePref(userData.poiPreferences?.lowBatteryPause ?? false);
@@ -598,6 +606,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     nearbyCount,
     totalPoints,
     inboxCount,
+    socialUnreadCount,
     handleToggle,
     permissionGranted,
     refreshProximity,

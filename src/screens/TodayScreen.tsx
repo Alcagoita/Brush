@@ -181,6 +181,7 @@ export default function TodayScreen() {
     nearbyCount,
     totalPoints,
     inboxCount,
+    socialUnreadCount,
     handleToggle,
     permissionGranted,
     refreshProximity,
@@ -381,7 +382,7 @@ export default function TodayScreen() {
           displayName={displayName}
           photoURL={user?.photoURL}
           hasUnread={inboxCount > 0}
-          socialBadge={inboxCount}
+          socialBadge={socialUnreadCount}
           points={totalPoints}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}

@@ -1238,6 +1238,12 @@ export async function markInboxEntryRead(uid: string, entryId: string): Promise<
   await updateDoc(doc(inboxRef(uid), entryId), { read: true });
 }
 
+/** Count of unread inbox entries — used for the people-icon badge on Today. */
+export async function getInboxUnreadCount(uid: string): Promise<number> {
+  const snap = await getDocs(query(inboxRef(uid), where('read', '==', false)));
+  return snap.size;
+}
+
 // ─── Store fine tuning preference (KAN-74) ───────────────────────────────────
 //
 // Stored on the root user document as `poiPreferences.storeTuningEnabled`.
