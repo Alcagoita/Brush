@@ -101,6 +101,27 @@ export async function upsertUser(
 }
 
 /**
+ * Write the full user document for a brand-new account.
+ * Must be called once after Firebase Auth user creation — neither signUpWithEmail
+ * nor claimUsername write the mandatory fields (email, displayName, createdAt, uid).
+ * Uses setDoc without merge so a partial doc from a previous failed attempt
+ * is always overwritten with complete data.
+ */
+export async function createUserDocument(
+  uid: string,
+  email: string,
+  displayName: string,
+): Promise<void> {
+  await setDoc(userRef(uid), {
+    uid,
+    email,
+    displayName,
+    darkMode: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
+/**
  * Update the displayName field on the Firestore user document (KAN-18).
  * Callers should also call firebase.auth().currentUser.updateProfile() to
  * keep the Auth profile in sync — see ProfileScreen.
