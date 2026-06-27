@@ -12,6 +12,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  InteractionManager,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -101,7 +102,8 @@ export default function ProfileScreen() {
   // Name edit
   const [nameValue,    setNameValue]    = useState(currentUser?.displayName ?? '');
   const [savingName,   setSavingName]   = useState(false);
-  const nameInputRef = useRef<TextInput>(null);
+  const nameInputRef     = useRef<TextInput>(null);
+  const usernameInputRef = useRef<TextInput>(null);
 
   // Username edit
   const [usernameValue,   setUsernameValue]   = useState('');
@@ -109,14 +111,24 @@ export default function ProfileScreen() {
   const [savingUsername,  setSavingUsername]  = useState(false);
   const [cooldownDays,    setCooldownDays]    = useState<number | null>(null);
 
-  const openEdit = () => {
+  const openEditField = (
+    field: 'name' | 'username',
+    ref: React.RefObject<TextInput | null>,
+  ) => {
     setNameValue(currentUser?.displayName ?? '');
     setUsernameValue(currentUsername ?? '');
     setUsernameError('');
     setEditOpen(true);
-    setEditingField('name');
-    setTimeout(() => nameInputRef.current?.focus(), 50);
+    setEditingField(field);
+    // Wait for all in-flight animations (e.g. share sheet close) to finish
+    // before focusing — avoids focus racing with a still-visible modal.
+    InteractionManager.runAfterInteractions(() => {
+      ref.current?.focus();
+    });
   };
+
+  const openEdit         = () => openEditField('name',     nameInputRef);
+  const openEditUsername = () => openEditField('username', usernameInputRef);
 
   const closeEdit = () => {
     setEditOpen(false);
@@ -147,7 +159,8 @@ export default function ProfileScreen() {
     if (!uid) { return; }
     const trimmed = usernameValue.trim();
     const fmtErr  = validateUsername(trimmed);
-    if (fmtErr || trimmed === currentUsername) { return; }
+    if (fmtErr) { setUsernameError(fmtErr); return; }
+    if (trimmed === currentUsername) { return; }
     setSavingUsername(true);
     setUsernameError('');
     try {
@@ -289,6 +302,7 @@ export default function ProfileScreen() {
                 <View style={styles.editFieldRow}>
                   <Text style={[styles.usernameAt, { color: palette.faint }]}>@</Text>
                   <TextInput
+                    ref={usernameInputRef}
                     style={[styles.editFieldInput, { color: palette.text, borderBottomColor: palette.line, flex: 1 }]}
                     value={usernameValue}
                     onChangeText={handleUsernameChange}
@@ -324,9 +338,13 @@ export default function ProfileScreen() {
                   onPress={async () => {
                     await handleSaveName();
                     if (usernameValue !== currentUsername && !usernameError) {
+                      // handleSaveUsername calls closeEdit() on success.
+                      // On any failure it sets usernameError and returns early,
+                      // keeping the panel open so the user can correct input.
                       await handleSaveUsername();
+                    } else {
+                      closeEdit();
                     }
-                    closeEdit();
                   }}
                   disabled={savingName || savingUsername || !nameValue.trim()}
                   hitSlop={8}
@@ -486,6 +504,7 @@ export default function ProfileScreen() {
       <ShareProfileSheet
         visible={shareSheetOpen}
         onClose={() => setShareSheetOpen(false)}
+        onSetUsername={openEditUsername}
         displayName={displayName}
         username={currentUsername}
         totalPoints={totalPoints}
