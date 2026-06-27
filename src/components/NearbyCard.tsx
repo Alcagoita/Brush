@@ -165,12 +165,14 @@ function HeroCard({
   const { palette } = useTheme();
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // Reset to nearest when the set of places changes (new proximity search).
-  const firstPlaceId = places[0]?.placeId;
+  // Reset to nearest whenever the full result set changes (new proximity search).
+  // Keying on the joined placeId list catches replacements at any position,
+  // including when places[0] stays the same but other slots change.
+  const placesSignature = places.map(p => p.placeId).join(',');
   React.useEffect(() => {
     setCurrentIndex(0);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firstPlaceId]);
+  }, [placesSignature]);
 
   const place = places[Math.min(currentIndex, places.length - 1)];
   if (!place) { return null; }
