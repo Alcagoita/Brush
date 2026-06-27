@@ -1,12 +1,13 @@
 /**
  * SocialHubScreen — KAN-100 / KAN-212
  *
- * Social inbox with three sections:
- *   1. Friends   — follow notifications from /users/{uid}/inbox (KAN-212)
- *   2. Challenges — placeholder (future)
- *   3. Shared tasks — incoming shared to-dos
+ * Social content hub. Three sections:
+ *   1. Quick actions — Share a to-do · Challenge a friend
+ *   2. Shared tasks — incoming pending tasks (accept/decline in Notifications)
+ *   3. Challenges   — placeholder
+ *   4. Following    — horizontal avatar scroll + "Find more" chip
  *
- * Plus the following list and quick-action buttons.
+ * Follow notifications live in the Notifications screen (bell icon).
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
@@ -28,16 +29,9 @@ import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, RefreshIcon, ShareIcon, TrophyIcon, UsersIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import { getIncomingSharedTasks } from '../services/sharing';
-import {
-  getFollowing,
-  getInboxEntries,
-  markInboxEntryRead,
-  followUser,
-  isFollowing,
-  getUser,
-} from '../services/firestore';
+import { getFollowing } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
-import type { SharedTask, FollowEntry, InboxEntry } from '../types';
+import type { SharedTask, FollowEntry } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SocialHub'>;
 
@@ -52,8 +46,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   ]);
 }
 
-// ─── Relative time ────────────────────────────────────────────────────────────
-
 function relativeTime(ts: { toDate(): Date } | null | undefined): string {
   if (!ts) { return ''; }
   const diff = Date.now() - ts.toDate().getTime();
@@ -65,8 +57,6 @@ function relativeTime(ts: { toDate(): Date } | null | undefined): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-// ─── Section header ───────────────────────────────────────────────────────────
-
 function SectionHeader({ title, palette }: {
   title:   string;
   palette: ReturnType<typeof useTheme>['palette'];
@@ -76,32 +66,22 @@ function SectionHeader({ title, palette }: {
   );
 }
 
-// ─── Screen ───────────────────────────────────────────────────────────────────
-
 export default function SocialHubScreen() {
   const { palette } = useTheme();
   const navigation  = useNavigation<Nav>();
   const insets      = useSafeAreaInsets();
 
-  const currentUser = getAuth().currentUser;
-  const uid         = currentUser?.uid ?? '';
+  const uid = getAuth().currentUser?.uid ?? '';
 
   const [loading,      setLoading]      = useState(true);
   const [error,        setError]        = useState(false);
-  const [inboxEntries, setInboxEntries] = useState<InboxEntry[]>([]);
   const [pendingTasks, setPendingTasks] = useState<SharedTask[]>([]);
   const [following,    setFollowing]    = useState<FollowEntry[]>([]);
-
-  // Track which follow-back operations are in progress (keyed by fromUid).
-  const [followingBack, setFollowingBack] = useState<Record<string, boolean>>({});
-  // Track which entries have already been followed back (so we hide the button).
-  const [followedBack, setFollowedBack] = useState<Record<string, boolean>>({});
 
   const loadData = useCallback(async () => {
     if (!uid) {
       setLoading(false);
       setError(false);
-      setInboxEntries([]);
       setPendingTasks([]);
       setFollowing([]);
       return;
@@ -109,25 +89,15 @@ export default function SocialHubScreen() {
     setLoading(true);
     setError(false);
     try {
-      const [entries, tasks, followingList] = await withTimeout(
+      const [tasks, followingList] = await withTimeout(
         Promise.all([
-          getInboxEntries(uid),
           getIncomingSharedTasks(uid),
           getFollowing(uid),
         ]),
         LOAD_TIMEOUT_MS,
       );
-      setInboxEntries(entries);
       setPendingTasks(tasks);
       setFollowing(followingList);
-
-      // Pre-compute which inbox senders we already follow back.
-      const followChecks = await Promise.all(
-        entries
-          .filter(e => e.type === 'follow_request')
-          .map(e => isFollowing(uid, e.fromUid).then(v => [e.fromUid, v] as [string, boolean])),
-      );
-      setFollowedBack(Object.fromEntries(followChecks));
     } catch {
       setError(true);
     } finally {
@@ -136,122 +106,6 @@ export default function SocialHubScreen() {
   }, [uid]);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  // ── Follow back ─────────────────────────────────────────────────────────────
-
-  const handleFollowBack = useCallback(async (entry: InboxEntry) => {
-    if (followingBack[entry.fromUid] || followedBack[entry.fromUid]) { return; }
-    setFollowingBack(prev => ({ ...prev, [entry.fromUid]: true }));
-    try {
-      const me = await getUser(uid);
-      await followUser(
-        uid,
-        me?.username ?? '',
-        currentUser?.displayName ?? '',
-        entry.fromUid,
-        entry.fromUsername,
-        entry.fromDisplayName,
-      );
-      setFollowedBack(prev => ({ ...prev, [entry.fromUid]: true }));
-    } catch (err) {
-      console.warn('[SocialHubScreen] follow back failed', err);
-    } finally {
-      setFollowingBack(prev => ({ ...prev, [entry.fromUid]: false }));
-    }
-  }, [uid, currentUser, followingBack, followedBack]);
-
-  // ── Mark inbox entry read on tap ─────────────────────────────────────────────
-
-  const handleInboxTap = useCallback(async (entry: InboxEntry, onTap: () => void) => {
-    if (!entry.read) {
-      markInboxEntryRead(uid, entry.id).catch(() => {});
-      setInboxEntries(prev =>
-        prev.map(e => e.id === entry.id ? { ...e, read: true } : e),
-      );
-    }
-    onTap();
-  }, [uid]);
-
-  // ── Derived ──────────────────────────────────────────────────────────────────
-
-  const unreadCount = inboxEntries.filter(e => !e.read).length;
-
-  // ── Render ───────────────────────────────────────────────────────────────────
-
-  const renderFollowEntry = ({ item: entry }: { item: InboxEntry }) => {
-    const alreadyFollowing = followedBack[entry.fromUid];
-    return (
-      <TouchableOpacity
-        style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
-        onPress={() =>
-          handleInboxTap(entry, () =>
-            entry.fromUsername && navigation.navigate('PublicProfile', { username: entry.fromUsername }),
-          )
-        }
-        accessibilityRole="button"
-        accessibilityLabel={`${entry.fromDisplayName} started following you`}>
-
-        {/* Unread dot */}
-        {!entry.read && (
-          <View style={[styles.unreadDot, { backgroundColor: palette.accent }]} />
-        )}
-
-        <Avatar photoURL={null} size={32} accessibilityLabel={entry.fromDisplayName} />
-
-        <View style={styles.feedText}>
-          <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
-            <Text style={{ fontFamily: 'Geist-SemiBold' }}>
-              {entry.fromUsername ? `@${entry.fromUsername}` : entry.fromDisplayName}
-            </Text>
-            {' started following you'}
-          </Text>
-          <Text style={[styles.feedTime, { color: palette.faint }]}>
-            {relativeTime(entry.createdAt)}
-          </Text>
-        </View>
-
-        <View style={styles.inboxActions}>
-          {!alreadyFollowing && (
-            <TouchableOpacity
-              style={[styles.followBackBtn, { backgroundColor: palette.text }]}
-              onPress={() => handleFollowBack(entry)}
-              disabled={!!followingBack[entry.fromUid]}
-              accessibilityRole="button"
-              accessibilityLabel={`Follow back ${entry.fromDisplayName}`}>
-              <Text style={[styles.followBackLabel, { color: palette.bg }]}>
-                {followingBack[entry.fromUid] ? '…' : 'Follow'}
-              </Text>
-            </TouchableOpacity>
-          )}
-          {alreadyFollowing && (
-            <Text style={[styles.followingLabel, { color: palette.muted }]}>Following</Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const renderSharedTask = ({ item: task }: { item: SharedTask }) => (
-    <TouchableOpacity
-      style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
-      onPress={() => navigation.navigate('SharedTaskInbox')}
-      accessibilityRole="button"
-      accessibilityLabel={`Shared task from ${task.sentByName}`}>
-      <Avatar photoURL={null} size={32} accessibilityLabel={task.sentByName} />
-      <View style={styles.feedText}>
-        <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
-          <Text style={{ fontFamily: 'Geist-SemiBold' }}>{task.sentByName}</Text>
-          {' brushed a to-do your way'}
-        </Text>
-        <Text style={[styles.feedSub, { color: palette.muted }]} numberOfLines={1}>
-          {task.title}
-        </Text>
-      </View>
-      <Text style={[styles.feedTime, { color: palette.faint }]}>
-        {relativeTime(task.sentAt)}
-      </Text>
-    </TouchableOpacity>
-  );
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -265,16 +119,7 @@ export default function SocialHubScreen() {
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <View style={styles.titleRow}>
-          <Text style={[styles.title, { color: palette.text }]}>Friends</Text>
-          {unreadCount > 0 && (
-            <View style={[styles.badgePill, { backgroundColor: palette.accent }]}>
-              <Text style={[styles.badgeText, { color: palette.bg }]}>
-                {unreadCount > 99 ? '99+' : String(unreadCount)}
-              </Text>
-            </View>
-          )}
-        </View>
+        <Text style={[styles.title, { color: palette.text }]}>Friends</Text>
         <Pressable
           style={styles.navBtn}
           onPress={loadData}
@@ -331,36 +176,7 @@ export default function SocialHubScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* ── Section: Friends (follow notifications) ── */}
-              <SectionHeader title="FRIENDS" palette={palette} />
-              {inboxEntries.length === 0 ? (
-                <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-                  <UsersIcon color={palette.faint} size={28} />
-                  <Text style={[styles.emptyText, { color: palette.muted }]}>
-                    No follow notifications yet.
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.feedList}>
-                  {inboxEntries.map((entry, i) => (
-                    <View key={entry.id}>
-                      {renderFollowEntry({ item: entry })}
-                      {i < inboxEntries.length - 1 && <View style={styles.feedSep} />}
-                    </View>
-                  ))}
-                </View>
-              )}
-
-              {/* ── Section: Challenges (placeholder) ── */}
-              <SectionHeader title="CHALLENGES" palette={palette} />
-              <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
-                <TrophyIcon color={palette.faint} size={28} />
-                <Text style={[styles.emptyText, { color: palette.muted }]}>
-                  Challenge alerts coming soon.
-                </Text>
-              </View>
-
-              {/* ── Section: Shared tasks ── */}
+              {/* ── Shared tasks ── */}
               <SectionHeader title="SHARED TASKS" palette={palette} />
               {pendingTasks.length === 0 ? (
                 <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
@@ -373,20 +189,48 @@ export default function SocialHubScreen() {
                 <View style={styles.feedList}>
                   {pendingTasks.map((task, i) => (
                     <View key={task.id}>
-                      {renderSharedTask({ item: task })}
+                      <TouchableOpacity
+                        style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
+                        onPress={() => navigation.navigate('SharedTaskInbox')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Shared task from ${task.sentByName}`}>
+                        <Avatar photoURL={null} size={32} accessibilityLabel={task.sentByName} />
+                        <View style={styles.feedText}>
+                          <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
+                            <Text style={{ fontFamily: 'Geist-SemiBold' }}>{task.sentByName}</Text>
+                            {' brushed a to-do your way'}
+                          </Text>
+                          <Text style={[styles.feedSub, { color: palette.muted }]} numberOfLines={1}>
+                            {task.title}
+                          </Text>
+                        </View>
+                        <Text style={[styles.feedTime, { color: palette.faint }]}>
+                          {relativeTime(task.sentAt)}
+                        </Text>
+                      </TouchableOpacity>
                       {i < pendingTasks.length - 1 && <View style={styles.feedSep} />}
                     </View>
                   ))}
                 </View>
               )}
 
-              {/* ── Section: Following list ── */}
+              {/* ── Challenges ── */}
+              <SectionHeader title="CHALLENGES" palette={palette} />
+              <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+                <TrophyIcon color={palette.faint} size={28} />
+                <Text style={[styles.emptyText, { color: palette.muted }]}>
+                  Challenge alerts coming soon.
+                </Text>
+              </View>
+
+              {/* ── Following list ── */}
               <SectionHeader
                 title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
                 palette={palette}
               />
               {following.length === 0 ? (
                 <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
+                  <UsersIcon color={palette.faint} size={28} />
                   <Text style={[styles.emptyText, { color: palette.muted }]}>
                     You're not following anyone yet.
                   </Text>
@@ -432,10 +276,8 @@ export default function SocialHubScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  root:   { flex: 1 },
+  root: { flex: 1 },
 
   topBar: {
     flexDirection:     'row',
@@ -446,25 +288,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   navBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  title:    { fontSize: 17, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
-  badgePill: {
-    minWidth:          18,
-    height:            18,
-    borderRadius:      9,
-    paddingHorizontal: 5,
-    alignItems:        'center',
-    justifyContent:    'center',
-  },
-  badgeText: { fontSize: 11, fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] },
+  title:  { fontSize: 17, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 
   loadingCenter: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   errorCenter: {
-    flex:              1,
-    alignItems:        'center',
-    justifyContent:    'center',
-    paddingHorizontal: spacing.page,
-    gap:               16,
+    flex: 1, alignItems: 'center', justifyContent: 'center',
+    paddingHorizontal: spacing.page, gap: 16,
   },
   errorText:  { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center', lineHeight: 20 },
   retryBtn:   { paddingHorizontal: 24, paddingVertical: 12, borderRadius: radii.ctaBtn },
@@ -475,62 +304,28 @@ const styles = StyleSheet.create({
   // ── Quick actions ──
   quickActions: { flexDirection: 'row', gap: 12, marginBottom: 24 },
   actionBtn: {
-    flex:           1,
-    flexDirection:  'row',
-    alignItems:     'center',
-    justifyContent: 'center',
-    gap:            8,
-    height:         52,
-    borderRadius:   radii.ctaBtn,
+    flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 8, height: 52, borderRadius: radii.ctaBtn,
   },
   actionLabel: { fontSize: 14, fontWeight: '500', fontFamily: 'Geist-Medium' },
 
   // ── Section header ──
   sectionTitle: {
-    fontSize:      11,
-    fontWeight:    '600',
-    fontFamily:    'Geist-SemiBold',
-    letterSpacing: 0.8,
-    marginBottom:  10,
-    marginTop:     20,
+    fontSize: 11, fontWeight: '600', fontFamily: 'Geist-SemiBold',
+    letterSpacing: 0.8, marginBottom: 10, marginTop: 20,
   },
 
-  // ── Feed ──
+  // ── Feed rows (shared tasks) ──
   feedList: { gap: 0 },
   feedSep:  { height: 8 },
-  feedRow: {
-    flexDirection: 'row',
-    alignItems:    'center',
-    gap:           10,
-    padding:       12,
-    borderRadius:  radii.card,
-  },
+  feedRow:  { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: radii.card },
   feedText: { flex: 1 },
   feedMain: { fontSize: 14, fontFamily: 'Geist-Regular' },
   feedSub:  { fontSize: 12, fontFamily: 'Geist-Regular', marginTop: 2 },
   feedTime: { fontSize: 11, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
-  // ── Unread dot ──
-  unreadDot: { width: 8, height: 8, borderRadius: 4 },
-
-  // ── Inbox actions (follow back / following) ──
-  inboxActions: { alignItems: 'flex-end', gap: 4 },
-  followBackBtn: {
-    paddingHorizontal: 12,
-    paddingVertical:   6,
-    borderRadius:      radii.chip,
-  },
-  followBackLabel: { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500' },
-  followingLabel:  { fontSize: 12, fontFamily: 'Geist-Regular' },
-
   // ── Empty card ──
-  emptyCard: {
-    borderRadius: radii.card,
-    padding:      20,
-    alignItems:   'center',
-    gap:          10,
-    marginBottom: 4,
-  },
+  emptyCard: { borderRadius: radii.card, padding: 20, alignItems: 'center', gap: 10, marginBottom: 4 },
   emptyText: { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center', lineHeight: 20 },
 
   // ── Following ──
@@ -539,13 +334,8 @@ const styles = StyleSheet.create({
   followingItem:    { alignItems: 'center', gap: 6, width: 60 },
   followingHandle:  { fontSize: 11, fontFamily: 'Geist-Regular', textAlign: 'center' },
   findMoreChip: {
-    height:            44,
-    paddingHorizontal: 16,
-    borderRadius:      radii.chip,
-    borderWidth:       1,
-    alignSelf:         'center',
-    alignItems:        'center',
-    justifyContent:    'center',
+    height: 44, paddingHorizontal: 16, borderRadius: radii.chip,
+    borderWidth: 1, alignSelf: 'center', alignItems: 'center', justifyContent: 'center',
   },
   findMoreLabel: { fontSize: 13, fontWeight: '500', fontFamily: 'Geist-Medium' },
 });

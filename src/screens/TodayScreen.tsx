@@ -381,8 +381,8 @@ export default function TodayScreen() {
         <Header
           displayName={displayName}
           photoURL={user?.photoURL}
-          hasUnread={inboxCount > 0}
-          socialBadge={socialUnreadCount}
+          hasUnread={inboxCount > 0 || socialUnreadCount > 0}
+          socialBadge={0}
           points={totalPoints}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
