@@ -73,17 +73,17 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
         setSubmitError('@' + value + ' is already taken. Please choose another.');
         return;
       }
-      // Ensure the full user document exists before claiming the username.
-      // Email/password sign-ups never write the Firestore doc — Firebase Auth
-      // creates the Auth user only. Google/Apple sign-ins may also reach here
-      // on first login without a doc if the app was reinstalled.
+      // Ensure a complete user document exists before claiming the username.
+      // Legacy partial docs (only username/usernameUpdatedAt, missing email/
+      // displayName/uid/createdAt) must also be repaired here.
       const existingDoc = await getUser(uid);
-      if (!existingDoc) {
+      const isComplete = !!(existingDoc?.email && existingDoc?.uid && existingDoc?.createdAt);
+      if (!isComplete) {
         const authUser = getAuth().currentUser;
         await createUserDocument(
           uid,
-          authUser?.email ?? '',
-          authUser?.displayName ?? '',
+          authUser?.email ?? existingDoc?.email ?? '',
+          authUser?.displayName ?? existingDoc?.displayName ?? '',
         );
       }
       await claimUsername(uid, value);

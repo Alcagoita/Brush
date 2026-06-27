@@ -77,6 +77,7 @@ export default function PublicProfileScreen() {
   // ── Load target user + achievements + follow state ───────────────────────────
   useEffect(() => {
     let cancelled = false;
+    setFollowError('');
     getUserByUsername(username)
       .then(async u => {
         if (cancelled) { return; }
@@ -100,6 +101,7 @@ export default function PublicProfileScreen() {
   const handleToggleFollow = async () => {
     if (!targetUser || toggling) { return; }
     setToggling(true);
+    setFollowError('');
     try {
       if (following) {
         await unfollowUser(currentUid, targetUser.uid);
@@ -116,6 +118,7 @@ export default function PublicProfileScreen() {
         );
         setFollowing(true);
       }
+      setFollowError('');
     } catch (err) {
       console.warn('[PublicProfileScreen] follow toggle failed', err);
       setFollowError('Something went wrong. Please try again.');
@@ -193,7 +196,7 @@ export default function PublicProfileScreen() {
 
             {/* Follow / Unfollow button — hidden on own profile */}
             {!isOwnProfile && followError ? (
-              <Text style={{ color: '#e05252', fontSize: 13, marginTop: 4 }}>{followError}</Text>
+              <Text style={[styles.followErrorText, { color: palette.danger }]}>{followError}</Text>
             ) : null}
             {!isOwnProfile && (
               <Pressable
@@ -362,6 +365,11 @@ const styles = StyleSheet.create({
   countLabel:   { fontSize: 12, fontFamily: 'Geist-Regular' },
   countDivider: { width: 1, height: 28 },
 
+  followErrorText: {
+    fontSize:   13,
+    marginTop:  4,
+    fontFamily: 'Geist-Regular',
+  },
   followBtn: {
     marginTop:         4,
     height:            44,
