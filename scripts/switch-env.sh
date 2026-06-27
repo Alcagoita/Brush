@@ -20,6 +20,15 @@ if [[ -z "$ENV" ]]; then
   exit 1
 fi
 
+require_file() {
+  local path="$1"
+  if [[ ! -f "$path" ]]; then
+    echo "Error: required file not found: $path" >&2
+    echo "  Run this script from the repo root, or check that all config files are present." >&2
+    exit 1
+  fi
+}
+
 case "$ENV" in
   dev|staging)
     FIREBASE_PROJECT="brush-away-dev"
@@ -38,12 +47,15 @@ case "$ENV" in
 esac
 
 # .firebaserc
+require_file "$PROJECT_ROOT/.firebaserc.$ENV"
 cp "$PROJECT_ROOT/.firebaserc.$ENV" "$PROJECT_ROOT/.firebaserc"
 
 # Android SDK config
+require_file "$PROJECT_ROOT/android/app/$ANDROID_CONFIG"
 cp "$PROJECT_ROOT/android/app/$ANDROID_CONFIG" "$PROJECT_ROOT/android/app/google-services.json"
 
 # iOS SDK config
+require_file "$PROJECT_ROOT/ios/Brush/$IOS_CONFIG"
 cp "$PROJECT_ROOT/ios/Brush/$IOS_CONFIG" "$PROJECT_ROOT/ios/Brush/GoogleService-Info.plist"
 
 echo "✓ Switched to: $ENV (Firebase project: $FIREBASE_PROJECT)"
