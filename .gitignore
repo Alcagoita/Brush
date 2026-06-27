@@ -3,10 +3,9 @@
 # Build outputs (APKs stored locally, not committed)
 builds/
 
-# Firebase config files (contain sensitive API keys — keep out of git)
-# New developers: run `firebase apps:sdkconfig` to download these
-android/app/google-services.json
-ios/Brush/GoogleService-Info.plist
+# Firebase config files — all variants committed (keys are restricted by bundle ID)
+# Active files (google-services.json, GoogleService-Info.plist) default to DEV.
+# Switch with: bash scripts/switch-env.sh [dev|staging|prod]
 
 # Google Places API key — contains a real API key, must never be committed.
 # Copy src/config/keys.example.ts → src/config/keys.ts and fill in your key.
