@@ -14,12 +14,15 @@ export function useAuth() {
       // the auth token in its cache by the time any subscription fires.
       // Without this, every subscription on cold-start races the token and
       // produces a PERMISSION_DENIED warning on its first attempt.
-      if (newUser) {
-        await newUser.getIdToken();
-        setCrashlyticsUser(newUser.uid);
-      } else {
-        setCrashlyticsUser(null);
+      try {
+        if (newUser) {
+          await newUser.getIdToken();
+        }
+      } catch (err) {
+        console.warn('[useAuth] getIdToken failed', err);
       }
+
+      setCrashlyticsUser(newUser?.uid ?? null);
       setUser(newUser);
       setLoading(false);
     });
