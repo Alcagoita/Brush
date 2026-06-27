@@ -12,7 +12,8 @@
     "e2e:test:ios": "detox test --configuration ios.sim.debug",
     "e2e:build:android": "detox build --configuration android.emu.debug",
     "e2e:test:android": "detox test --configuration android.emu.debug",
-    "postinstall": "patch-package && node scripts/patch-nested-modules.js"
+    "postinstall": "patch-package && node scripts/patch-nested-modules.js",
+    "eas-build-post-install": "node scripts/eas-post-install.js"
   },
   "dependencies": {
     "@invertase/react-native-apple-authentication": "^2.5.1",
