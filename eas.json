@@ -21,6 +21,12 @@
       "env": {
         "APP_ENV": "production"
       }
+    },
+    "production-firebase": {
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "production"
+      }
     }
   },
   "submit": {

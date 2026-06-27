@@ -60,12 +60,8 @@
     <string>Brush needs calendar access to import events as tasks.</string>
     <key>NSCalendarsUsageDescription</key>
     <string>Brush needs calendar access to import events as tasks.</string>
-    <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>Brush needs "Always" location access to alert you when you're near a task's location.</string>
-    <key>NSLocationAlwaysUsageDescription</key>
-    <string>Brush needs "Always" location access to alert you when you're near a task's location.</string>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>Brush needs your location to show nearby task alerts.</string>
+    <string>Brush needs your location while the app is in use to alert you when you're near a task's location.</string>
     <key>NSMotionUsageDescription</key>
     <string>Allow $(PRODUCT_NAME) to detect your current motion activity</string>
     <key>NSRemindersFullAccessUsageDescription</key>
