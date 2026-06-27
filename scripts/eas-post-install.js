@@ -17,7 +17,7 @@
 const fs   = require('fs');
 const path = require('path');
 
-const KNOWN_PROFILES = new Set(['development', 'staging', 'production']);
+const KNOWN_PROFILES = new Set(['development', 'staging', 'production', 'production-firebase']);
 
 const profile = process.env.EAS_BUILD_PROFILE ?? '';
 
@@ -28,7 +28,7 @@ if (!KNOWN_PROFILES.has(profile)) {
 
 const root = path.join(__dirname, '..');
 
-if (profile === 'production') {
+if (profile === 'production' || profile === 'production-firebase') {
   console.log('[eas-post-install] profile=production — switching to PROD Firebase config (brush-away)');
 
   const androidSrc  = path.join(root, 'android', 'app', 'google-services-prod.json');
