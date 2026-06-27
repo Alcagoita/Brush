@@ -30,10 +30,18 @@
           <string>com.brush</string>
         </array>
       </dict>
+      <!-- PROD Google Sign-In callback (brush-away) -->
       <dict>
         <key>CFBundleURLSchemes</key>
         <array>
           <string>com.googleusercontent.apps.187550770253-r6n7fp43s242srp6ek3i7ti8aggdond4</string>
+        </array>
+      </dict>
+      <!-- DEV Google Sign-In callback (brush-away-dev) -->
+      <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+          <string>com.googleusercontent.apps.517474028701-abitqmd8gc4oku00a87bcljeof0pojpn</string>
         </array>
       </dict>
     </array>
