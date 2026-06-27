@@ -241,7 +241,7 @@ export default function ShareProfileSheet({
 
         {/* Targets grid — or no-username prompt */}
         {!username ? (
-          <View style={[styles.noUsernameWrap, { paddingBottom: insets.bottom + 8 }]}>
+          <View style={styles.noUsernameWrap}>
             <Text style={[styles.noUsernameTitle, { color: palette.text }]}>
               Set a username first
             </Text>
@@ -423,6 +423,7 @@ const styles = StyleSheet.create({
     alignItems:        'center',
     paddingHorizontal: 28,
     paddingTop:        20,
+    paddingBottom:     28,
     gap:               10,
   },
   noUsernameTitle: {
