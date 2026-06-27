@@ -20,5 +20,9 @@ export type AnalyticsEvent =
 type EventParams = Record<string, string | number | boolean>;
 
 export function logTap(event: AnalyticsEvent, params?: EventParams): void {
-  analytics().logEvent(event, params).catch(() => {});
+  try {
+    void analytics().logEvent(event, params).catch(() => {});
+  } catch {
+    // analytics must never break app flows
+  }
 }

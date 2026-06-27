@@ -3,7 +3,8 @@
  *
  * Verifies that logTap:
  *   - calls analytics().logEvent with the correct event name and params
- *   - never throws, even when the underlying SDK rejects
+ *   - never throws on async rejection
+ *   - never throws on synchronous SDK error (native module not available)
  */
 
 const mockLogEvent = jest.fn(() => Promise.resolve());
@@ -31,11 +32,17 @@ describe('logTap', () => {
     expect(mockLogEvent).toHaveBeenCalledWith('task_create', { category: 'errands' });
   });
 
-  it('does not throw when SDK rejects', async () => {
+  it('does not throw when SDK rejects asynchronously', async () => {
     mockLogEvent.mockRejectedValueOnce(new Error('SDK error'));
     expect(() => logTap('login', { method: 'email' })).not.toThrow();
     // Allow microtask to settle — rejection must be swallowed
     await new Promise(resolve => setTimeout(resolve, 0));
+  });
+
+  it('does not throw when analytics() throws synchronously', () => {
+    const { default: analyticsMock } = require('@react-native-firebase/analytics');
+    analyticsMock.mockImplementationOnce(() => { throw new Error('Native module unavailable'); });
+    expect(() => logTap('task_complete')).not.toThrow();
   });
 
   it('fires for every event type in the union without type error', () => {
