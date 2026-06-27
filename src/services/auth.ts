@@ -49,6 +49,16 @@ export async function logout(): Promise<void> {
 
 export const getCurrentUser = () => getAuth().currentUser;
 
+export class GoogleSignInError extends Error {
+  constructor(
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'GoogleSignInError';
+  }
+}
+
 /**
  * Sign in with Google via Firebase credential.
  * Triggers the native Google account picker, then exchanges the idToken
@@ -57,10 +67,14 @@ export const getCurrentUser = () => getAuth().currentUser;
 export const signInWithGoogle = async () => {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
   const response = await GoogleSignin.signIn();
-  if (response.type !== 'success' || !response.data.idToken) {
-    const err = new Error('SIGN_IN_CANCELLED') as any;
-    err.code = 'SIGN_IN_CANCELLED';
-    throw err;
+  if (response.type !== 'success') {
+    throw new GoogleSignInError('SIGN_IN_CANCELLED', 'Sign-in dismissed by user');
+  }
+  if (!response.data.idToken) {
+    throw new GoogleSignInError(
+      'GOOGLE_ID_TOKEN_MISSING',
+      'Google sign-in succeeded but returned no ID token — check OAuth client configuration',
+    );
   }
   const googleCredential = GoogleAuthProvider.credential(response.data.idToken);
   return signInWithCredential(getAuth(), googleCredential);
