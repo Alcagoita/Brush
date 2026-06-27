@@ -101,7 +101,8 @@ export default function ProfileScreen() {
   // Name edit
   const [nameValue,    setNameValue]    = useState(currentUser?.displayName ?? '');
   const [savingName,   setSavingName]   = useState(false);
-  const nameInputRef = useRef<TextInput>(null);
+  const nameInputRef     = useRef<TextInput>(null);
+  const usernameInputRef = useRef<TextInput>(null);
 
   // Username edit
   const [usernameValue,   setUsernameValue]   = useState('');
@@ -116,6 +117,15 @@ export default function ProfileScreen() {
     setEditOpen(true);
     setEditingField('name');
     setTimeout(() => nameInputRef.current?.focus(), 50);
+  };
+
+  const openEditUsername = () => {
+    setNameValue(currentUser?.displayName ?? '');
+    setUsernameValue(currentUsername ?? '');
+    setUsernameError('');
+    setEditOpen(true);
+    setEditingField('username');
+    setTimeout(() => usernameInputRef.current?.focus(), 50);
   };
 
   const closeEdit = () => {
@@ -289,6 +299,7 @@ export default function ProfileScreen() {
                 <View style={styles.editFieldRow}>
                   <Text style={[styles.usernameAt, { color: palette.faint }]}>@</Text>
                   <TextInput
+                    ref={usernameInputRef}
                     style={[styles.editFieldInput, { color: palette.text, borderBottomColor: palette.line, flex: 1 }]}
                     value={usernameValue}
                     onChangeText={handleUsernameChange}
@@ -486,6 +497,7 @@ export default function ProfileScreen() {
       <ShareProfileSheet
         visible={shareSheetOpen}
         onClose={() => setShareSheetOpen(false)}
+        onSetUsername={openEditUsername}
         displayName={displayName}
         username={currentUsername}
         totalPoints={totalPoints}
