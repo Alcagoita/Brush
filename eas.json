@@ -26,9 +26,7 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "olegarioncnascimento@gmail.com",
-        "ascAppId": "",
-        "appleTeamId": ""
+        "appleId": "olegarioncnascimento@gmail.com"
       },
       "android": {
         "serviceAccountKeyPath": "./google-play-key.json",

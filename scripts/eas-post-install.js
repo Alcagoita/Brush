@@ -17,12 +17,18 @@
 const fs   = require('fs');
 const path = require('path');
 
+const KNOWN_PROFILES = new Set(['development', 'staging', 'production']);
+
 const profile = process.env.EAS_BUILD_PROFILE ?? '';
-const isProd  = profile === 'production';
+
+if (!KNOWN_PROFILES.has(profile)) {
+  console.error(`[eas-post-install] ERROR: unknown EAS_BUILD_PROFILE="${profile}". Expected one of: ${[...KNOWN_PROFILES].join(', ')}`);
+  process.exit(1);
+}
 
 const root = path.join(__dirname, '..');
 
-if (isProd) {
+if (profile === 'production') {
   console.log('[eas-post-install] profile=production — switching to PROD Firebase config (brush-away)');
 
   const androidSrc  = path.join(root, 'android', 'app', 'google-services-prod.json');
@@ -37,5 +43,5 @@ if (isProd) {
 
   console.log('[eas-post-install] Done. Native build will use brush-away (PROD).');
 } else {
-  console.log(`[eas-post-install] profile=${profile || '(none)'} — keeping DEV Firebase config (brush-away-dev)`);
+  console.log(`[eas-post-install] profile=${profile} — keeping DEV Firebase config (brush-away-dev)`);
 }
