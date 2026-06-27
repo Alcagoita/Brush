@@ -144,16 +144,40 @@ let _netInfoUnsubscribe:  (() => void) | null = null;
 function _ensureNetInfoListener(): void {
   if (_netInfoUnsubscribe) { return; }
   _netInfoUnsubscribe = NetInfo.addEventListener(state => {
-    if (state.isConnected) { void _flushQueue(); }
+    if (state.isConnected) {
+      void _flushQueue().catch(err => console.warn('[proximity] flush failed', err));
+    }
   });
 }
 
 async function _flushQueue(): Promise<void> {
   const now   = Date.now();
-  const queue = _pendingQueue.filter(e => now - e.enqueuedAt < QUEUE_STALE_MS);
-  _pendingQueue = [];
-  for (const entry of queue) {
-    await runProximitySearch(entry.uid, entry.tasks, entry.onUpdate);
+  // Snapshot + clear before iterating so new enqueues during flush go to a fresh queue.
+  const snapshot = _pendingQueue.filter(e => now - e.enqueuedAt < QUEUE_STALE_MS);
+  _pendingQueue  = [];
+
+  for (const entry of snapshot) {
+    if (_isSearching) {
+      // Search engine busy — restore remaining entries and retry after current search.
+      _pendingQueue.unshift(entry, ...(snapshot.slice(snapshot.indexOf(entry) + 1)));
+      setTimeout(
+        () => void _flushQueue().catch(err => console.warn('[proximity] flush retry failed', err)),
+        250,
+      );
+      return;
+    }
+    try {
+      await runProximitySearch(entry.uid, entry.tasks, entry.onUpdate);
+    } catch (err) {
+      console.warn('[proximity] flush entry failed', err);
+      // Don't re-enqueue — runProximitySearch already re-enqueues on offline.
+    }
+  }
+
+  // Tear down listener when queue is fully drained.
+  if (_pendingQueue.length === 0) {
+    _netInfoUnsubscribe?.();
+    _netInfoUnsubscribe = null;
   }
 }
 
@@ -299,8 +323,9 @@ async function runProximitySearch(
     } catch {
       // If offline, queue this search for retry when connection returns.
       // Otherwise (timeout, API error) keep showing whatever was shown before.
-      const net = await NetInfo.fetch();
-      if (!net.isConnected) {
+      let isConnected: boolean | null = null;
+      try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
+      if (isConnected === false) {
         _enqueueSearch(uid, tasks, onUpdate);
       }
       return;
@@ -434,6 +459,8 @@ export function resetProximityState(): void {
   _alertedTodayTypes.clear();
   poiRadiusPrefs = {};
   _pendingQueue   = [];
+  _netInfoUnsubscribe?.();
+  _netInfoUnsubscribe = null;
 
   geofenceEntryTimes.clear();
   Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>

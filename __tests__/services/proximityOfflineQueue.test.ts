@@ -268,4 +268,48 @@ describe('offline queue — reset', () => {
     resetProximityState();
     expect(__getPendingQueue()).toHaveLength(0);
   });
+
+  it('resetProximityState tears down the NetInfo listener', async () => {
+    _mockIsConnected = false;
+    mockNetInfoFetch.mockResolvedValue({ isConnected: false });
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('Network request failed'));
+    await runProximitySearch('uid1', [makeTask('t1', 'supermarket')], jest.fn());
+
+    const unsubscribeSpy = mockNetInfoAddEventListener.mock.results[0]?.value;
+    resetProximityState();
+
+    expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('offline queue — resilience', () => {
+  it('does not enqueue when NetInfo.fetch() rejects', async () => {
+    _mockIsConnected = false;
+    mockNetInfoFetch.mockRejectedValue(new Error('NetInfo unavailable'));
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('Network request failed'));
+
+    await runProximitySearch('uid1', [makeTask('t1', 'supermarket')], jest.fn());
+
+    // NetInfo.fetch() threw — connection state unknown — should NOT enqueue.
+    expect(__getPendingQueue()).toHaveLength(0);
+  });
+
+  it('listener is unregistered after queue fully drains', async () => {
+    _mockIsConnected = false;
+    mockNetInfoFetch.mockResolvedValue({ isConnected: false });
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('Network request failed'));
+    await runProximitySearch('uid1', [makeTask('t1', 'cafe')], jest.fn());
+
+    const unsubscribeSpy = mockNetInfoAddEventListener.mock.results[0]?.value;
+
+    // Flush successfully.
+    mockSearchNearbyPlaces.mockClear();
+    mockSearchNearbyPlaces.mockResolvedValue({ cafe: [] });
+    _mockIsConnected = true;
+    _netInfoListener?.({ isConnected: true });
+    await new Promise(resolve => setTimeout(resolve, 0));
+
+    expect(__getPendingQueue()).toHaveLength(0);
+    expect(unsubscribeSpy).toHaveBeenCalledTimes(1);
+  });
 });
