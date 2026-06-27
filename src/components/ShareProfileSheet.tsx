@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { logTap } from '../services/analytics';
 import {
   CheckIcon,
   CloseIcon,
@@ -134,6 +135,7 @@ export default function ShareProfileSheet({
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   const handleCopyLink = useCallback(() => {
+    logTap('share_profile', { method: 'copy_link' });
     Clipboard.setString(profileUrl);
     setCopied(true);
     if (copyTimeoutRef.current) { clearTimeout(copyTimeoutRef.current); }
@@ -143,6 +145,7 @@ export default function ShareProfileSheet({
   const handleShare = useCallback(async () => {
     try {
       await Share.share({ url: profileUrl, message: profileUrl });
+      logTap('share_profile', { method: 'share_sheet' });
     } catch {
       // User cancelled or share unavailable — silent
     }

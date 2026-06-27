@@ -33,6 +33,7 @@ import { radius, spacing } from '../theme/tokens';
 import { findUserByEmail, sendSharedTask, UserSummary } from '../services/sharing';
 import { Task } from '../types';
 import { COPY } from '../constants/copy';
+import { logTap } from '../services/analytics';
 
 export interface ShareTaskSheetProps {
   visible:      boolean;
@@ -119,6 +120,7 @@ export default function ShareTaskSheet({
         recipientName: user.displayName,
         task,
       });
+      logTap('share_task');
       setSendState({ status: 'sent', recipientName: user.displayName });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to send task.';

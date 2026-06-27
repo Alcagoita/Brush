@@ -54,6 +54,7 @@ import {
   type SupportedLang,
   type PoiResolution,
 } from './poiInference';
+import { logTap } from './analytics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -781,6 +782,7 @@ export async function awardAchievement(
     },
     { merge: false },
   );
+  logTap('achievement_unlocked', { achievement_id: achievementId });
 }
 
 /**

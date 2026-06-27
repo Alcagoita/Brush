@@ -36,6 +36,7 @@ import {
   setStoreTuningPref,
 } from '../services/firestore';
 import { logout } from '../services/auth';
+import { logTap } from '../services/analytics';
 import {
   BatteryIcon,
   BellIcon,
@@ -90,6 +91,7 @@ function ImportRow({ source, uid, isLast }: ImportRowProps) {
     try {
       const result = await source.connector(uid);
       setStatus({ kind: 'success', result });
+      logTap('calendar_import', { source: source.key });
     } catch {
       setStatus({ kind: 'error', message: 'Import failed. Please try again.' });
     }
@@ -232,6 +234,7 @@ export default function SettingsScreen() {
 
   const handleDarkToggle = useCallback((value: boolean) => {
     setDark(value);
+    logTap('settings_theme_toggle', { dark: value });
   }, [setDark]);
 
   const handleLowBatteryToggle = useCallback(async (value: boolean) => {
@@ -264,6 +267,7 @@ export default function SettingsScreen() {
           onPress: async () => {
             try {
               await logout();
+              logTap('logout');
             } catch {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             }
