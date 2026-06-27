@@ -35,6 +35,12 @@ service cloud.firestore {
     match /users/{userId} {
       allow read:  if request.auth != null;
       allow write: if isOwner(userId);
+      // Allow any authenticated user to increment/decrement follower and following
+      // counts (updated client-side on follow/unfollow). Scoped to only these two
+      // fields so no other profile data can be mutated via this path.
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['followersCount', 'followingCount']);
 
       // ─── Tasks ──────────────────────────────────────────────────────────────
       match /tasks/{taskId} {

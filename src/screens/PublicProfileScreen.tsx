@@ -72,6 +72,7 @@ export default function PublicProfileScreen() {
   const [notFound,      setNotFound]      = useState(false);
   const [following,     setFollowing]     = useState(false);
   const [toggling,      setToggling]      = useState(false);
+  const [followError,   setFollowError]   = useState('');
 
   // ── Load target user + achievements + follow state ───────────────────────────
   useEffect(() => {
@@ -117,6 +118,7 @@ export default function PublicProfileScreen() {
       }
     } catch (err) {
       console.warn('[PublicProfileScreen] follow toggle failed', err);
+      setFollowError('Something went wrong. Please try again.');
     } finally {
       setToggling(false);
     }
@@ -190,6 +192,9 @@ export default function PublicProfileScreen() {
             </View>
 
             {/* Follow / Unfollow button — hidden on own profile */}
+            {!isOwnProfile && followError ? (
+              <Text style={{ color: '#e05252', fontSize: 13, marginTop: 4 }}>{followError}</Text>
+            ) : null}
             {!isOwnProfile && (
               <Pressable
                 style={({ pressed }) => [

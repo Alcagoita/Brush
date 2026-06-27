@@ -29,6 +29,8 @@ import { radius, spacing } from '../theme/tokens';
 import {
   checkUsernameAvailable,
   claimUsername,
+  createUserDocument,
+  getUser,
   validateUsername,
 } from '../services/firestore';
 
@@ -70,6 +72,19 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
       if (!available) {
         setSubmitError('@' + value + ' is already taken. Please choose another.');
         return;
+      }
+      // Ensure the full user document exists before claiming the username.
+      // Email/password sign-ups never write the Firestore doc — Firebase Auth
+      // creates the Auth user only. Google/Apple sign-ins may also reach here
+      // on first login without a doc if the app was reinstalled.
+      const existingDoc = await getUser(uid);
+      if (!existingDoc) {
+        const authUser = getAuth().currentUser;
+        await createUserDocument(
+          uid,
+          authUser?.email ?? '',
+          authUser?.displayName ?? '',
+        );
       }
       await claimUsername(uid, value);
       onComplete();
