@@ -54,13 +54,13 @@ export function parseGeofenceId(id: string): { poiType: string; placeId: string 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
 /**
- * Nearest known place per POI type string.
- * A type is present in this map only when a place was found within
- * NEARBY_RADIUS_M. Includes the hero type's place (< HERO_RADIUS_M)
- * as well as grey-range places (HERO_RADIUS_M–NEARBY_RADIUS_M).
- * Used by NearbyCard to display distance and place name on each row.
+ * All known nearby places per POI type string, ordered nearest-first.
+ * A type is present only when ≥1 place was found within NEARBY_RADIUS_M.
+ * Includes the hero type's places (< HERO_RADIUS_M) as well as grey-range
+ * places (HERO_RADIUS_M–NEARBY_RADIUS_M).
+ * Used by NearbyCard to display distance, place name, and "Try another place".
  */
-export type PlacesMap = Partial<Record<string, NearbyPlace>>;
+export type PlacesMap = Partial<Record<string, NearbyPlace[]>>;
 
 /** Callback fired whenever nearby state or place data changes. */
 export type ProximityCallback = (
@@ -273,14 +273,15 @@ async function runProximitySearch(
     const allPlaces: PlacesMap = {};
 
     for (const poiType of uniquePoiTypes) {
-      const nearest = results[poiType]?.[0];
-      if (!nearest) { continue; }
+      const places = results[poiType] ?? [];
+      if (places.length === 0) { continue; }
 
+      const nearest = places[0];
       const dist = nearest.distanceMeters;
       if (dist >= NEARBY_RADIUS) { continue; }
 
-      // All places within NEARBY_RADIUS go into the map (for grey rows).
-      allPlaces[poiType] = nearest;
+      // Store all places within NEARBY_RADIUS, ordered nearest-first.
+      allPlaces[poiType] = places;
 
       // Closest place under HERO_RADIUS_M wins the orange hero.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {

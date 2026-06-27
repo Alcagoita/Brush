@@ -58,8 +58,7 @@ const HERO_RADIUS_M = 100;
 interface NearbyCardProps {
   tasks:         Task[];
   nearbyPoiType: string | null;
-  nearbyPlace:   NearbyPlace | null;
-  /** Nearest known place per POI type from the proximity service. */
+  /** All nearby places per POI type from the proximity service, ordered nearest-first. */
   poiPlaces:     PlacesMap;
   /**
    * When true Store fine tuning is active (KAN-74).
@@ -157,13 +156,30 @@ function HaloIcon({
 function HeroCard({
   poiType,
   task,
-  place,
+  places,
 }: {
   poiType: string;
   task:    Task;
-  place:   NearbyPlace;
+  places:  NearbyPlace[];
 }) {
   const { palette } = useTheme();
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  // Reset to nearest whenever the full result set changes (new proximity search).
+  // Keying on the joined placeId list catches replacements at any position,
+  // including when places[0] stays the same but other slots change.
+  const placesSignature = places.map(p => p.placeId).join(',');
+  React.useEffect(() => {
+    setCurrentIndex(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placesSignature]);
+
+  const place = places[Math.min(currentIndex, places.length - 1)];
+  if (!place) { return null; }
+
+  const handleTryAnother = () => {
+    setCurrentIndex(i => (i + 1) % places.length);
+  };
 
   return (
     <View
@@ -212,6 +228,22 @@ function HeroCard({
         accessibilityLabel={`Open ${place.name} in Maps`}>
         <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
       </Pressable>
+
+      {/* "Try another place" — only when 2+ POIs found */}
+      {places.length > 1 && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.tryAnotherBtn,
+            { borderColor: palette.nearBorder, opacity: pressed ? 0.6 : 1 },
+          ]}
+          onPress={handleTryAnother}
+          accessibilityRole="button"
+          accessibilityLabel="Try another place">
+          <Text style={[styles.tryAnotherLabel, { color: palette.nearText }]}>
+            Try another place
+          </Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -230,10 +262,15 @@ function AlsoCloseRow({
   const { palette } = useTheme();
 
   return (
-    <View style={[
-      styles.idleRow,
-      !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
-    ]}>
+    <Pressable
+      style={({ pressed }) => [
+        styles.idleRow,
+        !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
+        { opacity: pressed && !!place ? 0.65 : 1 },
+      ]}
+      onPress={place ? () => openInMaps(place.lat, place.lng, place.name) : undefined}
+      accessibilityRole={place ? 'button' : 'text'}
+      accessibilityLabel={place ? `Open ${place.name} in Maps` : task.title}>
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
         <PoiIcon type={task.poi ?? 'atm'} color={palette.muted} size={20} />
       </View>
@@ -250,7 +287,7 @@ function AlsoCloseRow({
       </View>
 
       <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
-    </View>
+    </Pressable>
   );
 }
 
@@ -263,6 +300,7 @@ function NearbyCard({
   storeTuningActive = false,
   onRefreshLocation,
 }: NearbyCardProps) {
+
   const { palette } = useTheme();
 
   // ── Refresh animation ────────────────────────────────────────────────────────
@@ -321,13 +359,13 @@ function NearbyCard({
 
   // One carousel entry per POI type that has a place within the hero zone.
   // First undone task for each type wins the card.
-  const heroEntries = poiTasks.reduce<Array<{ task: Task; place: NearbyPlace; poiType: string }>>(
+  const heroEntries = poiTasks.reduce<Array<{ task: Task; places: NearbyPlace[]; poiType: string }>>(
     (acc, t) => {
       if (!t.poi) { return acc; }
-      const place = poiPlaces[t.poi];
-      if (!place || place.distanceMeters >= HERO_RADIUS_M) { return acc; }
+      const places = poiPlaces[t.poi];
+      if (!places?.length || places[0].distanceMeters >= HERO_RADIUS_M) { return acc; }
       if (acc.find(e => e.poiType === t.poi)) { return acc; }
-      acc.push({ task: t, place, poiType: t.poi });
+      acc.push({ task: t, places, poiType: t.poi });
       return acc;
     },
     [],
@@ -339,7 +377,7 @@ function NearbyCard({
   const heroPoiTypes = new Set(heroEntries.map(e => e.poiType));
   const greyTasks = poiTasks.filter(t => {
     if (!t.poi || heroPoiTypes.has(t.poi)) { return false; }
-    return !!poiPlaces[t.poi];
+    return !!poiPlaces[t.poi]?.length;
   });
 
   // Nothing to show at all — hide.
@@ -396,9 +434,9 @@ function NearbyCard({
             onMomentumScrollEnd={onCarouselScroll}
             style={styles.carousel}
             contentContainerStyle={styles.carouselContent}>
-            {heroEntries.map(({ task, place, poiType }) => (
+            {heroEntries.map(({ task, places, poiType }) => (
               <View key={poiType} style={{ width: slideWidth }}>
-                <HeroCard poiType={poiType} task={task} place={place} />
+                <HeroCard poiType={poiType} task={task} places={places} />
               </View>
             ))}
           </ScrollView>
@@ -436,7 +474,7 @@ function NearbyCard({
             <AlsoCloseRow
               key={task.id}
               task={task}
-              place={task.poi ? poiPlaces[task.poi] : undefined}
+              place={task.poi ? poiPlaces[task.poi]?.[0] : undefined}
               isFirst={index === 0}
             />
           ))}
@@ -597,6 +635,17 @@ const styles = StyleSheet.create({
     fontSize:   15,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
+  },
+  tryAnotherBtn: {
+    marginTop:     8,
+    borderRadius:  radius.ctaBtn,
+    paddingVertical: 10,
+    alignItems:    'center',
+    borderWidth:   StyleSheet.hairlineWidth,
+  },
+  tryAnotherLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Grey rows (also close / approaching) ──

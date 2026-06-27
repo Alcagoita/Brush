@@ -462,6 +462,9 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           nearbyPoiTypeRef.current = task?.poi ?? null;
           setNearbyPoiType(task?.poi ?? null);
           setNearbyPlace(place);
+          // Populate poiPlaces so NearbyCard heroEntries computation can find
+          // the indoor match (it derives hero cards from poiPlaces, not nearbyPlace).
+          setPoiPlaces(task?.poi && place ? { [task.poi]: [place] } : {});
         },
       );
       isIndoorMonitoringRef.current   = true;
