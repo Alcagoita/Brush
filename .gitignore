@@ -24,9 +24,9 @@ emulator-data/
 *.p12
 *.cer
 
-# Google Play service account key — required at repo root before `eas submit`.
-# Obtain from Google Play Console → Setup → API access → Service accounts.
-# Never commit this file.
+# Google Play service account key — if used locally, keep it out of git.
+# For EAS Submit, credentials are managed server-side via `eas credentials`
+# (run once per machine; no local file required in CI).
 google-play-key.json
 
 # ─── macOS ───────────────────────────────────────────────────────────────────

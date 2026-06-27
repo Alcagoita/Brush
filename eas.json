@@ -29,7 +29,6 @@
         "appleId": "olegarioncnascimento@gmail.com"
       },
       "android": {
-        "serviceAccountKeyPath": "./google-play-key.json",
         "track": "internal"
       }
     }
