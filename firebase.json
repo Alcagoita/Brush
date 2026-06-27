@@ -5,5 +5,8 @@
   },
   "functions": {
     "source": "functions"
+  },
+  "react-native": {
+    "crashlytics_disable_auto_disabler": true
   }
 }

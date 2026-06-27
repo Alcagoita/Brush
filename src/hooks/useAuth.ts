@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import '@react-native-firebase/auth'; // ensures native module registration
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth/lib/modular';
 import type { FirebaseAuthTypes } from '@react-native-firebase/auth';
+import { setCrashlyticsUser } from '../services/crashlytics';
 
 export function useAuth() {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
@@ -15,6 +16,9 @@ export function useAuth() {
       // produces a PERMISSION_DENIED warning on its first attempt.
       if (newUser) {
         await newUser.getIdToken();
+        setCrashlyticsUser(newUser.uid);
+      } else {
+        setCrashlyticsUser(null);
       }
       setUser(newUser);
       setLoading(false);
