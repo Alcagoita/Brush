@@ -5,10 +5,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
-  GoogleAuthProvider,
-  OAuthProvider,
   signInWithCredential,
 } from '@react-native-firebase/auth/lib/modular';
+import { GoogleAuthProvider, OAuthProvider } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { appleAuth } from '@invertase/react-native-apple-authentication';
 import { GOOGLE_OAUTH_WEB_CLIENT_ID } from '../config/keys';
@@ -57,8 +56,13 @@ export const getCurrentUser = () => getAuth().currentUser;
  */
 export const signInWithGoogle = async () => {
   await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-  const { data } = await GoogleSignin.signIn();
-  const googleCredential = GoogleAuthProvider.credential(data?.idToken ?? null);
+  const response = await GoogleSignin.signIn();
+  if (response.type !== 'success' || !response.data.idToken) {
+    const err = new Error('SIGN_IN_CANCELLED') as any;
+    err.code = 'SIGN_IN_CANCELLED';
+    throw err;
+  }
+  const googleCredential = GoogleAuthProvider.credential(response.data.idToken);
   return signInWithCredential(getAuth(), googleCredential);
 };
 
