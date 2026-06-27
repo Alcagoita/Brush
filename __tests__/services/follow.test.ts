@@ -1,5 +1,5 @@
 /**
- * Unit tests for the follow system (KAN-98).
+ * Unit tests for the follow system (KAN-98 / KAN-212).
  *
  * Covers:
  *   followUser
@@ -8,6 +8,7 @@
  *     - writes followers entry with correct shape
  *     - increments followingCount on follower doc (set-merge)
  *     - increments followersCount on followed doc (set-merge)
+ *     - writes inbox entry to followed user's inbox (KAN-212)
  *     - commits one atomic batch
  *   unfollowUser
  *     - deletes both subcollection entries
@@ -22,7 +23,22 @@
  *   subscribeToFollowers
  *     - maps snapshot docs to FollowEntry objects (uid from doc id)
  *     - returns an unsubscribe function
+ *   getInboxEntries (KAN-212)
+ *     - returns entries mapped from Firestore docs
+ *   markInboxEntryRead (KAN-212)
+ *     - calls updateDoc with read: true
  */
+
+// ─── Module mocks ─────────────────────────────────────────────────────────────
+
+jest.mock('@react-native-firebase/analytics', () => () => ({ logEvent: jest.fn() }));
+jest.mock('../../src/services/analytics', () => ({ logTap: jest.fn() }));
+jest.mock('../../src/services/poiInference', () => ({
+  registerCategoryKeywords: jest.fn(),
+  replaceCategoryKeywords:  jest.fn(),
+  registerLearnedKeyword:   jest.fn(),
+  normalize:                jest.fn(),
+}));
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
@@ -44,10 +60,10 @@ jest.mock('@react-native-firebase/firestore', () => ({
   doc:             jest.fn((_db: unknown, ...segments: string[]) => ({ _path: segments.join('/') })),
   addDoc:          jest.fn(),
   getDoc:          (...args: unknown[]) => mockGetDoc(...args),
-  updateDoc:       jest.fn(),
+  updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
   setDoc:          jest.fn(),
   writeBatch:      () => mockWriteBatch(),
-  getDocs:         jest.fn(),
+  getDocs:         (...args: unknown[]) => mockGetDocs(...args),
   query:           jest.fn(coll => coll),
   where:           jest.fn(),
   orderBy:         jest.fn(),
@@ -64,7 +80,12 @@ import {
   isFollowing,
   subscribeToFollowing,
   subscribeToFollowers,
+  getInboxEntries,
+  markInboxEntryRead,
 } from '../../src/services/firestore';
+
+const mockGetDocs  = jest.fn();
+const mockUpdateDoc = jest.fn();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -126,6 +147,22 @@ describe('followUser', () => {
     );
     expect(countCall).toBeDefined();
     expect(countCall[1].followersCount).toEqual({ _increment: 1 });
+  });
+
+  it('writes inbox entry to the followed user inbox (KAN-212)', async () => {
+    await followUser('uid_a', 'alice', 'Alice', 'uid_b', 'bob', 'Bob');
+
+    const inboxCall = mockBatchSet.mock.calls.find(
+      ([, data]) => data?.type === 'follow_request',
+    );
+    expect(inboxCall).toBeDefined();
+    expect(inboxCall[1]).toMatchObject({
+      type:            'follow_request',
+      fromUid:         'uid_a',
+      fromUsername:    'alice',
+      fromDisplayName: 'Alice',
+      read:            false,
+    });
   });
 
   it('commits exactly one batch', async () => {
@@ -235,5 +272,60 @@ describe('subscribeToFollowers', () => {
     mockOnSnapshot.mockReturnValueOnce(unsub);
     const result = subscribeToFollowers('uid_a', jest.fn());
     expect(result).toBe(unsub);
+  });
+});
+
+// ─── getInboxEntries (KAN-212) ────────────────────────────────────────────────
+
+describe('getInboxEntries', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  it('returns inbox entries mapped from Firestore docs', async () => {
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'entry1',
+          data: () => ({
+            type:            'follow_request',
+            fromUid:         'uid_a',
+            fromUsername:    'alice',
+            fromDisplayName: 'Alice',
+            read:            false,
+            createdAt:       {},
+          }),
+        },
+      ],
+    });
+
+    const entries = await getInboxEntries('uid_b');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      id:           'entry1',
+      type:         'follow_request',
+      fromUid:      'uid_a',
+      fromUsername: 'alice',
+      read:         false,
+    });
+  });
+
+  it('returns empty array when inbox is empty', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    const entries = await getInboxEntries('uid_b');
+    expect(entries).toEqual([]);
+  });
+});
+
+// ─── markInboxEntryRead (KAN-212) ────────────────────────────────────────────
+
+describe('markInboxEntryRead', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  it('calls updateDoc with read: true', async () => {
+    mockUpdateDoc.mockResolvedValueOnce(undefined);
+    await markInboxEntryRead('uid_b', 'entry1');
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      { read: true },
+    );
   });
 });
