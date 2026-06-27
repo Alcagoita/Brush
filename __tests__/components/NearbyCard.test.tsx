@@ -29,13 +29,14 @@ jest.mock('../../src/theme', () => ({
 }));
 
 jest.mock('react-native-reanimated', () => {
-  const { View } = require('react-native');
+  const { View, Text } = require('react-native');
   const noop = () => {};
   return {
     __esModule: true,
-    default:          { View, createAnimatedComponent: (c: unknown) => c },
+    default:          { View, Text, createAnimatedComponent: (c: unknown) => c },
     useSharedValue:   (v: unknown) => ({ value: v }),
     useAnimatedStyle: () => ({}),
+    cancelAnimation:  noop,
     withRepeat:       (v: unknown) => v,
     withSequence:     (...args: unknown[]) => args[0],
     withTiming:       (v: unknown) => v,
@@ -52,6 +53,7 @@ jest.mock('../../src/services/maps', () => ({
 jest.mock('../../src/components/AppIcon', () => ({
   ChevronRightIcon: () => null,
   PoiIcon:          () => null,
+  RefreshIcon:      () => null,
 }));
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -72,11 +74,20 @@ const NEARBY_PLACE = {
   name:           'Whole Foods',
   lat:            37.7749,
   lng:            -122.4194,
-  distanceMeters: 60,
+  distanceMeters: 60,   // hero zone (< 100 m)
+};
+
+// Approaching but not yet in hero zone (100 m < d < 400 m).
+const GREY_PLACE = {
+  placeId:        'place-grey',
+  name:           'Target',
+  lat:            37.7749,
+  lng:            -122.4194,
+  distanceMeters: 200,
 };
 
 const EMPTY_PLACES = {};
-const PLACES_MAP   = { pharmacy: NEARBY_PLACE };
+const PLACES_MAP   = { pharmacy: [NEARBY_PLACE] };
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
@@ -86,7 +97,6 @@ describe('NearbyCard — hidden when service has not triggered', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType={null}
-        nearbyPlace={null}
         poiPlaces={EMPTY_PLACES}
       />,
     );
@@ -98,7 +108,6 @@ describe('NearbyCard — hidden when service has not triggered', () => {
       <NearbyCard
         tasks={[makeTask({ done: true })]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={null}
         poiPlaces={EMPTY_PLACES}
       />,
     );
@@ -110,7 +119,6 @@ describe('NearbyCard — hidden when service has not triggered', () => {
       <NearbyCard
         tasks={[makeTask({ poi: 'supermarket' })]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={null}
         poiPlaces={EMPTY_PLACES}
       />,
     );
@@ -124,7 +132,6 @@ describe('NearbyCard — hero state', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
         poiPlaces={PLACES_MAP}
       />,
     );
@@ -136,7 +143,6 @@ describe('NearbyCard — hero state', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
         poiPlaces={PLACES_MAP}
       />,
     );
@@ -148,7 +154,6 @@ describe('NearbyCard — hero state', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
         poiPlaces={PLACES_MAP}
       />,
     );
@@ -160,19 +165,17 @@ describe('NearbyCard — hero state', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
         poiPlaces={PLACES_MAP}
       />,
     );
     expect(screen.getByLabelText('Open Whole Foods in Maps')).toBeTruthy();
   });
 
-  it('omits the "Open in Maps" CTA when nearbyPlace is null', () => {
+  it('omits the "Open in Maps" CTA when no place is available', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={null}
         poiPlaces={EMPTY_PLACES}
       />,
     );
@@ -185,12 +188,12 @@ describe('NearbyCard — also close section', () => {
     const heroTask  = makeTask({ id: 'hero', poi: 'pharmacy' });
     const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Buy groceries' });
 
+    // pharmacy in hero zone (60 m), supermarket approaching but not hero (200 m).
     render(
       <NearbyCard
         tasks={[heroTask, alsoClose]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
-        poiPlaces={{ pharmacy: NEARBY_PLACE }}
+        poiPlaces={{ pharmacy: [NEARBY_PLACE], supermarket: [GREY_PLACE] }}
       />,
     );
 
@@ -203,7 +206,6 @@ describe('NearbyCard — also close section', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
         poiPlaces={PLACES_MAP}
       />,
     );
@@ -223,8 +225,7 @@ describe('NearbyCard — hero carousel page indicator', () => {
       <NearbyCard
         tasks={[pharmacyTask, supermarketTask]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
-        poiPlaces={{ pharmacy: NEARBY_PLACE, supermarket: SUPERMARKET_PLACE }}
+        poiPlaces={{ pharmacy: [NEARBY_PLACE], supermarket: [SUPERMARKET_PLACE] }}
       />,
     );
 
@@ -239,7 +240,6 @@ describe('NearbyCard — hero carousel page indicator', () => {
       <NearbyCard
         tasks={[makeTask()]}
         nearbyPoiType="pharmacy"
-        nearbyPlace={NEARBY_PLACE}
         poiPlaces={PLACES_MAP}
       />,
     );
