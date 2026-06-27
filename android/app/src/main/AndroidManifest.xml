@@ -24,10 +24,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Coarse location — fallback / battery-saver mode -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Background location — required so geofences fire when app is backgrounded -->
-    <!-- Android 10+ requires this to be requested separately via the system dialog -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <!-- Foreground service — needed to keep location alive when app is in background -->
+    <!-- No ACCESS_BACKGROUND_LOCATION — foreground-only model (KAN-209) -->
+    <!-- Foreground service — keeps location alive while app is backgrounded (not killed) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
