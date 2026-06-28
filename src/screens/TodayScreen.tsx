@@ -55,7 +55,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
@@ -188,6 +188,9 @@ export default function TodayScreen() {
     locationUnavailable,
   } = useTodayScreen(uid);
 
+
+  // Refresh task list on focus so accepted shared tasks appear immediately.
+  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
 
   // ── New Task sheet open trigger ───────────────────────────────────────────────
   // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is

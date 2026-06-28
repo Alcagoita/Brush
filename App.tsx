@@ -125,23 +125,25 @@ function AppShell() {
 
   // ── Shared-task notification subscription (KAN-87) ───────────────────────
   // Fires a local notifee notification when a new pendingNotification arrives.
-  // The data.screen key routes the press handler to SharedTaskInbox.
+  // Subscribe to all social pending notifications (shared tasks, challenges, follows).
+  // data.screen is set per-type at write time so deep-links route correctly.
   useEffect(() => {
     if (!displayUser) { return; }
     const uid = displayUser.uid;
     return subscribeToSharedTaskNotifications(uid, async n => {
       try {
         await notifeeApp.createChannel({
-          id: 'shared_tasks', name: 'Shared Tasks', importance: AppAndroidImportance.HIGH,
+          id: 'social', name: 'Social', importance: AppAndroidImportance.HIGH,
         });
+        const screen = (n.data as Record<string, string> | undefined)?.screen ?? 'SharedTaskInbox';
         await notifeeApp.displayNotification({
           title: n.title,
           body:  n.body,
-          data:  { ...n.data, screen: 'SharedTaskInbox' },
-          android: { channelId: 'shared_tasks', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
+          data:  { ...n.data, screen },
+          android: { channelId: 'social', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
         });
       } catch (e) {
-        console.warn('[AppShell] shared task notification failed', e);
+        console.warn('[AppShell] social notification failed', e);
       }
     });
   }, [displayUser]);

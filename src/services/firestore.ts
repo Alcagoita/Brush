@@ -46,6 +46,7 @@ import {
   PointsReason,
   UserPreferences,
   InboxEntry,
+  PendingNotification,
 } from '../types';
 import {
   registerCategoryKeywords,
@@ -1135,6 +1136,17 @@ export async function followUser(
     read:            false,
     createdAt:       serverTimestamp(),
   } satisfies Omit<InboxEntry, 'id'>);
+
+  // Also write a pendingNotification so the device fires a system notification.
+  const pendingNotifRef = doc(collection(getFirestore(), 'pendingNotifications', followedUid, 'items'));
+  const handle = followerUsername ? `@${followerUsername}` : followerDisplayName;
+  batch.set(pendingNotifRef, {
+    type:      'follow' as const,
+    title:     `${handle} started following you`,
+    body:      'Tap to see their profile',
+    data:      { type: 'follow', fromUid: followerUid, screen: 'SharedTaskInbox' },
+    createdAt: serverTimestamp(),
+  });
 
   await batch.commit();
 }
