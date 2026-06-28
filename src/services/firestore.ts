@@ -10,6 +10,7 @@
  *   /users/{uid}/pois/{poiType} — per-POI geofence radius preferences
  */
 
+import { getAuth } from '@react-native-firebase/auth';
 import {
   getFirestore,
   collection,
@@ -132,17 +133,24 @@ export async function backfillUserDocument(
   authEmail: string | null,
   authDisplayName: string | null,
 ): Promise<void> {
+  if (getAuth().currentUser?.uid !== uid) { return; }
+
   const existing = await getUser(uid);
   if (!existing) { return; }
-  const isComplete = !!(existing.email && existing.createdAt);
+
+  const isComplete =
+    existing.email != null &&
+    existing.displayName != null &&
+    existing.createdAt != null &&
+    typeof existing.darkMode === 'boolean';
   if (isComplete) { return; }
 
   const patch: Record<string, unknown> = {};
-  if (!existing.email)       { patch.email       = authEmail ?? ''; }
-  if (!existing.displayName) { patch.displayName = authDisplayName ?? existing.username ?? ''; }
-  if (!existing.createdAt)   { patch.createdAt   = serverTimestamp(); }
-  if (existing.darkMode === undefined) { patch.darkMode = false; }
-  if (!existing.uid)         { patch.uid         = uid; }
+  if (existing.email       == null) { patch.email       = authEmail ?? ''; }
+  if (existing.displayName == null) { patch.displayName = authDisplayName ?? existing.username ?? ''; }
+  if (existing.createdAt   == null) { patch.createdAt   = serverTimestamp(); }
+  if (typeof existing.darkMode !== 'boolean') { patch.darkMode = false; }
+  if (existing.uid         == null) { patch.uid         = uid; }
 
   if (Object.keys(patch).length > 0) {
     await updateDoc(userRef(uid), patch);

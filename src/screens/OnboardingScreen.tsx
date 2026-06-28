@@ -14,9 +14,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
+  FlatList,
   Keyboard,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -427,27 +427,32 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                 <Text style={styles.sheetEyebrow}>The first thing on your mind…</Text>
 
                 {/* Chip-only selection — no free text */}
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                  <View style={styles.chipRow}>
-                    {SUGGESTION_CHIPS.map(chip => (
-                      <Pressable
-                        key={chip}
-                        style={({ pressed }) => [
-                          styles.chip,
-                          taskTitle === chip && styles.chipSelected,
-                          { transform: [{ scale: pressed ? 0.97 : 1 }] },
-                        ]}
-                        onPress={() => setTaskTitle(prev => prev === chip ? '' : chip)}>
-                        <Text style={[
-                          styles.chipText,
-                          taskTitle === chip && styles.chipTextSelected,
-                        ]}>
-                          {chip}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </ScrollView>
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.chipScroll}
+                  contentContainerStyle={styles.chipRow}
+                  data={SUGGESTION_CHIPS}
+                  keyExtractor={chip => chip}
+                  renderItem={({ item: chip }) => (
+                    <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: taskTitle === chip }}
+                      style={({ pressed }) => [
+                        styles.chip,
+                        taskTitle === chip && styles.chipSelected,
+                        { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                      ]}
+                      onPress={() => setTaskTitle(prev => prev === chip ? '' : chip)}>
+                      <Text style={[
+                        styles.chipText,
+                        taskTitle === chip && styles.chipTextSelected,
+                      ]}>
+                        {chip}
+                      </Text>
+                    </Pressable>
+                  )}
+                />
 
                 {/* Footer */}
                 <View style={styles.sheetFooter}>

@@ -77,6 +77,11 @@ export default function PublicProfileScreen() {
   // ── Load target user + achievements + follow state ───────────────────────────
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setTargetUser(null);
+    setAchievements([]);
+    setFollowing(false);
     setFollowError('');
     getUserByUsername(username)
       .then(async u => {
@@ -95,7 +100,7 @@ export default function PublicProfileScreen() {
           setAchievements(achievs);
           setFollowing(followed);
         } catch {
-          // Non-fatal: show profile without enrichment.
+          if (!cancelled) { setAchievements([]); setFollowing(false); }
         }
       })
       .catch(() => { if (!cancelled) { setNotFound(true); setLoading(false); } });
