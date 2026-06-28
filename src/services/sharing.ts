@@ -36,6 +36,7 @@ import {
   query,
   serverTimestamp,
   where,
+  writeBatch,
 } from '@react-native-firebase/firestore';
 import { Task, SharedTask, PendingNotification } from '../types';
 
@@ -84,7 +85,8 @@ export interface SendSharedTaskParams {
 }
 
 /**
- * Write the shared task record and a pending notification document.
+ * Write the shared task record and a pending notification document,
+ * then atomically remove the task from the sender's own task list.
  * Returns the ID of the created incoming record.
  */
 export async function sendSharedTask(params: SendSharedTaskParams): Promise<string> {
@@ -96,41 +98,47 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
 
   const db = getFirestore();
 
-  // 1. Write the shared task to the recipient's inbox.
-  const incomingRef = await addDoc(
-    collection(db, 'sharedTasks', recipientUid, 'incoming'),
-    {
-      taskId:     task.id,
-      title:      task.title,
-      category:   task.category,
-      ...(task.poi ? { poi: task.poi } : {}),
-      sentBy:          senderUid,
-      sentByName:      senderName,
-      ...(senderUsername ? { sentByUsername: senderUsername } : {}),
-      sentAt:     serverTimestamp(),
-      status:     'pending',
-    } satisfies Omit<SharedTask, 'id'>,
-  );
+  // Pre-allocate doc refs so they can go into a batch.
+  const incomingDocRef  = doc(collection(db, 'sharedTasks', recipientUid, 'incoming'));
+  const notifDocRef     = doc(collection(db, 'pendingNotifications', recipientUid, 'items'));
+  const senderTaskRef   = doc(db, 'users', senderUid, 'tasks', task.id);
 
-  // 2. Write a pending-notification document so the recipient's device
-  //    (KAN-87 subscription) can trigger a local notifee notification.
-  await addDoc(
-    collection(db, 'pendingNotifications', recipientUid, 'items'),
-    {
-      type:      'shared_task',
-      title:     senderUsername ? `@${senderUsername} sent you a task` : `${senderName} sent you a task`,
-      body:      task.title,
-      data: {
-        type:           'shared_task',
-        sharedTaskId:   incomingRef.id,
-        recipientUid,
-        screen:         'SharedTaskInbox', // deep-link target for notifee press handler
-      },
-      createdAt: serverTimestamp(),
-    } satisfies Omit<PendingNotification, 'id'>,
-  );
+  const batch = writeBatch(db);
 
-  return incomingRef.id;
+  // 1. Write shared task to recipient's inbox.
+  batch.set(incomingDocRef, {
+    taskId:          task.id,
+    title:           task.title,
+    category:        task.category,
+    ...(task.poi ? { poi: task.poi } : {}),
+    sentBy:          senderUid,
+    sentByName:      senderName,
+    ...(senderUsername ? { sentByUsername: senderUsername } : {}),
+    sentAt:          serverTimestamp(),
+    status:          'pending' as const,
+  });
+
+  // 2. Pending notification for the recipient's device (KAN-87).
+  batch.set(notifDocRef, {
+    type:   'shared_task' as const,
+    sentBy: senderUid,
+    title:  senderUsername ? `@${senderUsername} sent you a task` : `${senderName} sent you a task`,
+    body:   task.title,
+    data: {
+      type:         'shared_task',
+      sharedTaskId: incomingDocRef.id,
+      recipientUid,
+      screen:       'SharedTaskInbox',
+    },
+    createdAt: serverTimestamp(),
+  });
+
+  // 3. Remove the task from the sender — only the recipient can complete it.
+  batch.delete(senderTaskRef);
+
+  await batch.commit();
+
+  return incomingDocRef.id;
 }
 
 // ─── Receive (KAN-87) ─────────────────────────────────────────────────────────

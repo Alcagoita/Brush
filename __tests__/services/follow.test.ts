@@ -1,5 +1,5 @@
 /**
- * Unit tests for the follow system (KAN-98).
+ * Unit tests for the follow system (KAN-98 / KAN-212).
  *
  * Covers:
  *   followUser
@@ -8,6 +8,8 @@
  *     - writes followers entry with correct shape
  *     - increments followingCount on follower doc (set-merge)
  *     - increments followersCount on followed doc (set-merge)
+ *     - writes inbox entry to followed user's inbox (KAN-212)
+ *     - writes pendingNotification for system notification (KAN-212)
  *     - commits one atomic batch
  *   unfollowUser
  *     - deletes both subcollection entries
@@ -22,13 +24,35 @@
  *   subscribeToFollowers
  *     - maps snapshot docs to FollowEntry objects (uid from doc id)
  *     - returns an unsubscribe function
+ *   getInboxEntries (KAN-212)
+ *     - queries /users/{uid}/inbox ordered by createdAt desc
+ *     - returns entries mapped from Firestore docs
+ *     - returns empty array when inbox is empty
+ *   markInboxEntryRead (KAN-212)
+ *     - calls updateDoc on /users/{uid}/inbox/{entryId} with read: true
+ *   getInboxUnreadCount (KAN-212)
+ *     - queries /users/{uid}/inbox where read == false
+ *     - returns the count of unread entries
+ *     - returns 0 when inbox is empty
  */
+
+// ─── Module mocks ─────────────────────────────────────────────────────────────
+
+jest.mock('@react-native-firebase/analytics', () => () => ({ logEvent: jest.fn() }));
+jest.mock('../../src/services/analytics', () => ({ logTap: jest.fn() }));
+jest.mock('../../src/services/poiInference', () => ({
+  registerCategoryKeywords: jest.fn(),
+  replaceCategoryKeywords:  jest.fn(),
+  registerLearnedKeyword:   jest.fn(),
+  normalize:                jest.fn(),
+}));
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
 const mockBatchSet    = jest.fn();
 const mockBatchDelete = jest.fn();
 const mockBatchCommit = jest.fn();
+const mockCollection  = jest.fn(() => ({ _type: 'collection' }));
 const mockWriteBatch  = jest.fn(() => ({
   set:    mockBatchSet,
   delete: mockBatchDelete,
@@ -40,14 +64,14 @@ const mockOnSnapshot = jest.fn();
 
 jest.mock('@react-native-firebase/firestore', () => ({
   getFirestore:    jest.fn(),
-  collection:      jest.fn(() => ({ _type: 'collection' })),
+  collection:      (...args: unknown[]) => mockCollection(...args),
   doc:             jest.fn((_db: unknown, ...segments: string[]) => ({ _path: segments.join('/') })),
   addDoc:          jest.fn(),
   getDoc:          (...args: unknown[]) => mockGetDoc(...args),
-  updateDoc:       jest.fn(),
+  updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
   setDoc:          jest.fn(),
   writeBatch:      () => mockWriteBatch(),
-  getDocs:         jest.fn(),
+  getDocs:         (...args: unknown[]) => mockGetDocs(...args),
   query:           jest.fn(coll => coll),
   where:           jest.fn(),
   orderBy:         jest.fn(),
@@ -64,7 +88,13 @@ import {
   isFollowing,
   subscribeToFollowing,
   subscribeToFollowers,
+  getInboxEntries,
+  markInboxEntryRead,
+  getInboxUnreadCount,
 } from '../../src/services/firestore';
+
+const mockGetDocs  = jest.fn();
+const mockUpdateDoc = jest.fn();
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -79,7 +109,7 @@ function makeCollSnap(docs: Array<{ id: string; data: object }>) {
 // ─── followUser ───────────────────────────────────────────────────────────────
 
 describe('followUser', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
+  beforeEach(() => { jest.clearAllMocks(); mockCollection.mockReturnValue({ _type: 'collection' }); });
 
   it('throws cannot_follow_self when follower equals followed', async () => {
     await expect(
@@ -126,6 +156,48 @@ describe('followUser', () => {
     );
     expect(countCall).toBeDefined();
     expect(countCall[1].followersCount).toEqual({ _increment: 1 });
+  });
+
+  it('writes inbox entry to followed user inbox with deterministic ID (KAN-212)', async () => {
+    await followUser('uid_a', 'alice', 'Alice', 'uid_b', 'bob', 'Bob');
+
+    const inboxCall = mockBatchSet.mock.calls.find(
+      ([, data]) => data?.type === 'follow_request',
+    );
+    expect(inboxCall).toBeDefined();
+    // Deterministic doc ID = followerUid so repeated calls don't duplicate entries.
+    expect(inboxCall[0]._path).toBe('uid_a');
+    expect(inboxCall[1]).toMatchObject({
+      type:            'follow_request',
+      fromUid:         'uid_a',
+      fromUsername:    'alice',
+      fromDisplayName: 'Alice',
+      read:            false,
+    });
+    // collection() must have been called with the inbox path for followed user
+    expect(mockCollection).toHaveBeenCalledWith(
+      undefined, 'users', 'uid_b', 'inbox',
+    );
+  });
+
+  it('writes pendingNotification to followed user queue (KAN-212)', async () => {
+    await followUser('uid_a', 'alice', 'Alice', 'uid_b', 'bob', 'Bob');
+
+    const notifCall = mockBatchSet.mock.calls.find(
+      ([, data]) => data?.type === 'follow',
+    );
+    expect(notifCall).toBeDefined();
+    // Deterministic doc ID = follow_{followerUid}
+    expect(notifCall[0]._path).toBe('follow_uid_a');
+    expect(notifCall[1]).toMatchObject({
+      type:   'follow',
+      sentBy: 'uid_a',
+      data:   expect.objectContaining({ fromUid: 'uid_a', screen: 'SharedTaskInbox' }),
+    });
+    // collection() must have been called with the pendingNotifications path
+    expect(mockCollection).toHaveBeenCalledWith(
+      undefined, 'pendingNotifications', 'uid_b', 'items',
+    );
   });
 
   it('commits exactly one batch', async () => {
@@ -235,5 +307,104 @@ describe('subscribeToFollowers', () => {
     mockOnSnapshot.mockReturnValueOnce(unsub);
     const result = subscribeToFollowers('uid_a', jest.fn());
     expect(result).toBe(unsub);
+  });
+});
+
+// ─── getInboxEntries (KAN-212) ────────────────────────────────────────────────
+
+const { orderBy: mockOrderByFn, where: mockWhereFn } = jest.requireMock('@react-native-firebase/firestore');
+
+describe('getInboxEntries', () => {
+  beforeEach(() => { jest.clearAllMocks(); mockCollection.mockReturnValue({ _type: 'collection' }); });
+
+  it('queries /users/{uid}/inbox ordered by createdAt desc', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    await getInboxEntries('uid_b');
+    expect(mockCollection).toHaveBeenCalledWith(
+      undefined, 'users', 'uid_b', 'inbox',
+    );
+    expect(mockOrderByFn).toHaveBeenCalledWith('createdAt', 'desc');
+  });
+
+  it('returns inbox entries mapped from Firestore docs', async () => {
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id: 'entry1',
+          data: () => ({
+            type:            'follow_request',
+            fromUid:         'uid_a',
+            fromUsername:    'alice',
+            fromDisplayName: 'Alice',
+            read:            false,
+            createdAt:       {},
+          }),
+        },
+      ],
+    });
+
+    const entries = await getInboxEntries('uid_b');
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      id:           'entry1',
+      type:         'follow_request',
+      fromUid:      'uid_a',
+      fromUsername: 'alice',
+      read:         false,
+    });
+  });
+
+  it('returns empty array when inbox is empty', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    const entries = await getInboxEntries('uid_b');
+    expect(entries).toEqual([]);
+  });
+});
+
+// ─── markInboxEntryRead (KAN-212) ────────────────────────────────────────────
+
+describe('markInboxEntryRead', () => {
+  beforeEach(() => { jest.clearAllMocks(); mockCollection.mockReturnValue({ _type: 'collection' }); });
+
+  it('calls updateDoc on /users/{uid}/inbox/{entryId} with read: true', async () => {
+    mockUpdateDoc.mockResolvedValueOnce(undefined);
+    await markInboxEntryRead('uid_b', 'entry1');
+    // doc() is called as doc(inboxRef(uid), entryId) — segments = ['entry1']
+    const { doc: mockDoc } = jest.requireMock('@react-native-firebase/firestore');
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'entry1');
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      expect.objectContaining({ _path: 'entry1' }),
+      { read: true },
+    );
+    expect(mockCollection).toHaveBeenCalledWith(
+      undefined, 'users', 'uid_b', 'inbox',
+    );
+  });
+});
+
+// ─── getInboxUnreadCount (KAN-212) ───────────────────────────────────────────
+
+describe('getInboxUnreadCount', () => {
+  beforeEach(() => { jest.clearAllMocks(); mockCollection.mockReturnValue({ _type: 'collection' }); });
+
+  it('queries /users/{uid}/inbox where read == false', async () => {
+    mockGetDocs.mockResolvedValueOnce({ size: 0, docs: [] });
+    await getInboxUnreadCount('uid_b');
+    expect(mockCollection).toHaveBeenCalledWith(
+      undefined, 'users', 'uid_b', 'inbox',
+    );
+    expect(mockWhereFn).toHaveBeenCalledWith('read', '==', false);
+  });
+
+  it('returns count of unread entries', async () => {
+    mockGetDocs.mockResolvedValueOnce({ size: 2, docs: [{}, {}] });
+    const count = await getInboxUnreadCount('uid_b');
+    expect(count).toBe(2);
+  });
+
+  it('returns 0 when no unread entries', async () => {
+    mockGetDocs.mockResolvedValueOnce({ size: 0, docs: [] });
+    const count = await getInboxUnreadCount('uid_b');
+    expect(count).toBe(0);
   });
 });

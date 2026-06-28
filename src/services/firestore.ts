@@ -45,6 +45,7 @@ import {
   PointsHistoryEntry,
   PointsReason,
   UserPreferences,
+  InboxEntry,
 } from '../types';
 import {
   registerCategoryKeywords,
@@ -1083,6 +1084,10 @@ function followersEntryRef(uid: string, followerUid: string) {
   return doc(getFirestore(), 'users', uid, 'followers', followerUid);
 }
 
+function inboxRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'inbox');
+}
+
 /**
  * Follow another user. Atomically:
  *  - writes to follower's /following/{followedUid}
@@ -1119,6 +1124,34 @@ export async function followUser(
   });
   batch.set(userRef(followerUid), { followingCount: increment(1) }, { merge: true });
   batch.set(userRef(followedUid), { followersCount: increment(1) }, { merge: true });
+
+  // Use followerUid as the deterministic doc ID — prevents duplicate inbox
+  // entries if followUser is called more than once for the same pair.
+  const inboxDocRef = doc(inboxRef(followedUid), followerUid);
+  const handle = followerUsername ? `@${followerUsername}` : followerDisplayName;
+  batch.set(inboxDocRef, {
+    type:            'follow_request' as const,
+    fromUid:         followerUid,
+    fromUsername:    followerUsername,
+    fromDisplayName: followerDisplayName,
+    read:            false,
+    createdAt:       serverTimestamp(),
+  });
+
+  // Also write a pendingNotification so the device fires a system notification.
+  // Deterministic ID = follow_{followerUid} to prevent duplicate notifications.
+  const pendingNotifDocRef = doc(
+    collection(getFirestore(), 'pendingNotifications', followedUid, 'items'),
+    `follow_${followerUid}`,
+  );
+  batch.set(pendingNotifDocRef, {
+    type:      'follow' as const,
+    sentBy:    followerUid,
+    title:     `${handle} started following you`,
+    body:      'Tap to see their profile',
+    data:      { type: 'follow', fromUid: followerUid, screen: 'SharedTaskInbox' },
+    createdAt: serverTimestamp(),
+  });
 
   await batch.commit();
 }
@@ -1207,6 +1240,25 @@ export async function getFollowers(uid: string): Promise<FollowEntry[]> {
     ),
   );
   return snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry));
+}
+
+// ─── Social Inbox (KAN-212) ───────────────────────────────────────────────────
+
+/** One-shot fetch of inbox entries for uid, newest first. */
+export async function getInboxEntries(uid: string): Promise<InboxEntry[]> {
+  const snap = await getDocs(query(inboxRef(uid), orderBy('createdAt', 'desc')));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as InboxEntry));
+}
+
+/** Mark a single inbox entry as read. */
+export async function markInboxEntryRead(uid: string, entryId: string): Promise<void> {
+  await updateDoc(doc(inboxRef(uid), entryId), { read: true });
+}
+
+/** Count of unread inbox entries — used for the people-icon badge on Today. */
+export async function getInboxUnreadCount(uid: string): Promise<number> {
+  const snap = await getDocs(query(inboxRef(uid), where('read', '==', false)));
+  return snap.size;
 }
 
 // ─── Store fine tuning preference (KAN-74) ───────────────────────────────────

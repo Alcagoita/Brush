@@ -46,6 +46,16 @@ const LINKING_CONFIG = {
   },
 };
 
+// Screens reachable from a social notification tap. Anything outside this set
+// falls back to SharedTaskInbox so Firestore data can't drive navigation to
+// unexpected screens.
+const SOCIAL_NOTIF_SCREENS = new Set<keyof RootStackParamList>([
+  'SharedTaskInbox',
+  'ChallengeDetail',
+  'PublicProfile',
+  'SocialHub',
+]);
+
 const TRANSITION_MS = 220;
 
 function AppShell() {
@@ -125,23 +135,29 @@ function AppShell() {
 
   // ── Shared-task notification subscription (KAN-87) ───────────────────────
   // Fires a local notifee notification when a new pendingNotification arrives.
-  // The data.screen key routes the press handler to SharedTaskInbox.
+  // Subscribe to all social pending notifications (shared tasks, challenges, follows).
+  // data.screen is set per-type at write time so deep-links route correctly.
   useEffect(() => {
     if (!displayUser) { return; }
     const uid = displayUser.uid;
     return subscribeToSharedTaskNotifications(uid, async n => {
       try {
         await notifeeApp.createChannel({
-          id: 'shared_tasks', name: 'Shared Tasks', importance: AppAndroidImportance.HIGH,
+          id: 'social', name: 'Social', importance: AppAndroidImportance.HIGH,
         });
+        const rawScreen = (n.data as Record<string, string> | undefined)?.screen;
+        const screen: keyof RootStackParamList =
+          rawScreen && SOCIAL_NOTIF_SCREENS.has(rawScreen as keyof RootStackParamList)
+            ? (rawScreen as keyof RootStackParamList)
+            : 'SharedTaskInbox';
         await notifeeApp.displayNotification({
           title: n.title,
           body:  n.body,
-          data:  { ...n.data, screen: 'SharedTaskInbox' },
-          android: { channelId: 'shared_tasks', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
+          data:  { ...n.data, screen },
+          android: { channelId: 'social', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
         });
       } catch (e) {
-        console.warn('[AppShell] shared task notification failed', e);
+        console.warn('[AppShell] social notification failed', e);
       }
     });
   }, [displayUser]);
