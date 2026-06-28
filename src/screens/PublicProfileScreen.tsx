@@ -83,17 +83,22 @@ export default function PublicProfileScreen() {
         if (cancelled) { return; }
         if (!u) { setNotFound(true); setLoading(false); return; }
         setTargetUser(u);
+        setLoading(false);
 
-        const [achievs, followed] = await Promise.all([
-          getAchievementsForUser(u.uid),
-          u.uid !== currentUid ? isFollowing(currentUid, u.uid) : Promise.resolve(false),
-        ]);
-        if (cancelled) { return; }
-        setAchievements(achievs);
-        setFollowing(followed);
+        // Enrich with achievements + follow state — failures don't hide the profile.
+        try {
+          const [achievs, followed] = await Promise.all([
+            getAchievementsForUser(u.uid),
+            u.uid !== currentUid ? isFollowing(currentUid, u.uid) : Promise.resolve(false),
+          ]);
+          if (cancelled) { return; }
+          setAchievements(achievs);
+          setFollowing(followed);
+        } catch {
+          // Non-fatal: show profile without enrichment.
+        }
       })
-      .catch(() => { if (!cancelled) { setNotFound(true); } })
-      .finally(() => { if (!cancelled) { setLoading(false); } });
+      .catch(() => { if (!cancelled) { setNotFound(true); setLoading(false); } });
     return () => { cancelled = true; };
   }, [username, currentUid]);
 
@@ -114,7 +119,7 @@ export default function PublicProfileScreen() {
           currentAuth?.displayName ?? '',
           targetUser.uid,
           targetUser.username ?? '',
-          targetUser.displayName,
+          targetUser.displayName ?? '',
         );
         setFollowing(true);
       }

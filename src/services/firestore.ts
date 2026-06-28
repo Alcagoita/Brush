@@ -123,6 +123,33 @@ export async function createUserDocument(
 }
 
 /**
+ * Backfill any missing mandatory fields (email, displayName, darkMode, createdAt)
+ * on an existing user doc that was created before createUserDocument was in place.
+ * Safe to call on every login — no-ops if the doc is already complete.
+ */
+export async function backfillUserDocument(
+  uid: string,
+  authEmail: string | null,
+  authDisplayName: string | null,
+): Promise<void> {
+  const existing = await getUser(uid);
+  if (!existing) { return; }
+  const isComplete = !!(existing.email && existing.createdAt);
+  if (isComplete) { return; }
+
+  const patch: Record<string, unknown> = {};
+  if (!existing.email)       { patch.email       = authEmail ?? ''; }
+  if (!existing.displayName) { patch.displayName = authDisplayName ?? existing.username ?? ''; }
+  if (!existing.createdAt)   { patch.createdAt   = serverTimestamp(); }
+  if (existing.darkMode === undefined) { patch.darkMode = false; }
+  if (!existing.uid)         { patch.uid         = uid; }
+
+  if (Object.keys(patch).length > 0) {
+    await updateDoc(userRef(uid), patch);
+  }
+}
+
+/**
  * Update the displayName field on the Firestore user document (KAN-18).
  * Callers should also call firebase.auth().currentUser.updateProfile() to
  * keep the Auth profile in sync — see ProfileScreen.

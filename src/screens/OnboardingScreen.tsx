@@ -11,17 +11,14 @@
  * Light-mode only. All tokens are hardcoded to the light palette per spec.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Animated, {
@@ -42,6 +39,9 @@ import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import BrushStroke from '../components/BrushStroke';
 import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
 import { todayISO } from '../utils/date';
+import { inferPoiFromRules } from '../services/poiInference';
+import { POI_CATALOG } from '../types';
+import type { PoiType } from '../types';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
 
@@ -186,7 +186,6 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [rewardVisible, setRewardVisible] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const inputRef = useRef<TextInput>(null);
 
   // ── Stage 1 entrance ───────────────────────────────────────────────────────
   const welcomeY   = useSharedValue(13);
@@ -221,7 +220,6 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
       duration: 340,
       easing: Easing.bezier(0.32, 0.72, 0, 1),
     });
-    setTimeout(() => inputRef.current?.focus(), 320);
   }, [scrimOp, sheetY]);
 
   const closeSheet = useCallback(() => {
@@ -291,11 +289,19 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
     closeSheet();
 
     try {
+      const VALID_POI_TYPES = new Set(POI_CATALOG.map(p => p.type));
+      const inferredPoi = inferPoiFromRules(taskTitle.trim());
+      const poi: PoiType = (inferredPoi && VALID_POI_TYPES.has(inferredPoi as PoiType))
+        ? (inferredPoi as PoiType)
+        : 'supermarket';
+
       const id = await addTask(uid, {
         title:    taskTitle.trim(),
         category: 'errands',
+        poi,
         date:     todayISO(),
       });
+
       setCreatedTaskId(id);
     } catch {
       // Non-critical — onboarding proceeds even if Firestore write fails
@@ -412,73 +418,55 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
             <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
               <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
             </Animated.View>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="box-none">
-              <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-                <Animated.View
-                  style={[styles.sheet, { paddingBottom: insets.bottom + 16 }, sheetStyle]}>
-                  {/* Handle */}
-                  <View style={styles.sheetHandle} />
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+              <Animated.View
+                style={[styles.sheet, { paddingBottom: insets.bottom + 16 }, sheetStyle]}>
+                {/* Handle */}
+                <View style={styles.sheetHandle} />
 
-                  <Text style={styles.sheetEyebrow}>The first thing on your mind…</Text>
+                <Text style={styles.sheetEyebrow}>The first thing on your mind…</Text>
 
-                  <TextInput
-                    ref={inputRef}
-                    style={styles.sheetInput}
-                    placeholder="Buy bread? Coffee outside? Go for a run?"
-                    placeholderTextColor={T.faint}
-                    value={taskTitle}
-                    onChangeText={setTaskTitle}
-                    onSubmitEditing={handleAddTask}
-                    returnKeyType="done"
-                    autoCapitalize="sentences"
-                    autoCorrect
-                  />
-
-                  {/* Suggestion chips */}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                    <View style={styles.chipRow}>
-                      {SUGGESTION_CHIPS.map(chip => (
-                        <Pressable
-                          key={chip}
-                          style={({ pressed }) => [
-                            styles.chip,
-                            taskTitle === chip && styles.chipSelected,
-                            { transform: [{ scale: pressed ? 0.97 : 1 }] },
-                          ]}
-                          onPress={() => { setTaskTitle(chip); inputRef.current?.focus(); }}>
-                          <Text style={[
-                            styles.chipText,
-                            taskTitle === chip && styles.chipTextSelected,
-                          ]}>
-                            {chip}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </ScrollView>
-
-                  {/* Footer */}
-                  <View style={styles.sheetFooter}>
-                    <Text style={styles.sheetHelper}>
-                      Time &amp; place can wait. Just get it out of your head.
-                    </Text>
-                    <Pressable
-                      style={[styles.addBtn, !taskTitle.trim() && styles.addBtnDisabled]}
-                      onPress={handleAddTask}
-                      disabled={!taskTitle.trim()}
-                      accessibilityRole="button"
-                      accessibilityLabel="Add task">
-                      <Text style={[styles.addBtnText, !taskTitle.trim() && styles.addBtnTextDisabled]}>
-                        Add it
-                      </Text>
-                    </Pressable>
+                {/* Chip-only selection — no free text */}
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
+                  <View style={styles.chipRow}>
+                    {SUGGESTION_CHIPS.map(chip => (
+                      <Pressable
+                        key={chip}
+                        style={({ pressed }) => [
+                          styles.chip,
+                          taskTitle === chip && styles.chipSelected,
+                          { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                        ]}
+                        onPress={() => setTaskTitle(prev => prev === chip ? '' : chip)}>
+                        <Text style={[
+                          styles.chipText,
+                          taskTitle === chip && styles.chipTextSelected,
+                        ]}>
+                          {chip}
+                        </Text>
+                      </Pressable>
+                    ))}
                   </View>
-                </Animated.View>
-              </View>
-            </KeyboardAvoidingView>
+                </ScrollView>
+
+                {/* Footer */}
+                <View style={styles.sheetFooter}>
+                  <Text style={styles.sheetHelper}>
+                    Time &amp; place can wait. Just get it out of your head.
+                  </Text>
+                  <Pressable
+                    style={[styles.addBtn, !taskTitle.trim() && styles.addBtnDisabled]}
+                    onPress={handleAddTask}
+                    disabled={!taskTitle.trim()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add task">
+                    <Text style={[styles.addBtnText, !taskTitle.trim() && styles.addBtnTextDisabled]}>
+                      Add it
+                    </Text>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            </View>
           </>
         )}
       </View>
