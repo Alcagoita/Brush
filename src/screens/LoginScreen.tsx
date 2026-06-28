@@ -48,6 +48,7 @@ import {
   signInWithGoogle,
   signUpWithEmail,
 } from '../services/auth';
+import { logTap } from '../services/analytics';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -402,6 +403,7 @@ export default function LoginScreen() {
       } else {
         await signInWithEmail(email.trim(), password);
       }
+      logTap('login', { method: 'email' });
     } catch (error: any) {
       applyError(parseAuthError(error?.code ?? '', isSignUp));
     } finally {
@@ -414,6 +416,7 @@ export default function LoginScreen() {
     setGoogleLoading(true);
     try {
       await signInWithGoogle();
+      logTap('login', { method: 'google' });
     } catch (error: any) {
       const code = error?.code ?? '';
       if (code === 'SIGN_IN_CANCELLED' || code === '12501') { return; }

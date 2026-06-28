@@ -45,6 +45,7 @@ import {
   PointsHistoryEntry,
   PointsReason,
   UserPreferences,
+  InboxEntry,
 } from '../types';
 import {
   registerCategoryKeywords,
@@ -54,6 +55,7 @@ import {
   type SupportedLang,
   type PoiResolution,
 } from './poiInference';
+import { logTap } from './analytics';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -100,6 +102,27 @@ export async function upsertUser(
 }
 
 /**
+ * Write the full user document for a brand-new account.
+ * Must be called once after Firebase Auth user creation — neither signUpWithEmail
+ * nor claimUsername write the mandatory fields (email, displayName, createdAt, uid).
+ * Uses setDoc without merge so a partial doc from a previous failed attempt
+ * is always overwritten with complete data.
+ */
+export async function createUserDocument(
+  uid: string,
+  email: string,
+  displayName: string,
+): Promise<void> {
+  await setDoc(userRef(uid), {
+    uid,
+    email,
+    displayName,
+    darkMode: false,
+    createdAt: serverTimestamp(),
+  });
+}
+
+/**
  * Update the displayName field on the Firestore user document (KAN-18).
  * Callers should also call firebase.auth().currentUser.updateProfile() to
  * keep the Auth profile in sync — see ProfileScreen.
@@ -122,12 +145,12 @@ export async function getUser(uid: string): Promise<User | null> {
  */
 export async function addTask(
   uid: string,
-  data: Omit<Task, 'id' | 'createdAt' | 'completedAt'>,
+  data: Omit<Task, 'id' | 'createdAt' | 'completedAt' | 'pendingSync'>,
 ): Promise<string> {
   const ref = await addDoc(tasksRef(uid), {
     ...data,
     done: false,
-    createdAt: serverTimestamp(),
+    createdAt: Timestamp.now(),
   });
   return ref.id;
 }
@@ -176,7 +199,7 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
     const batch = writeBatch(db);
     snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
-      batch.update(d.ref, { date: today, createdAt: serverTimestamp() });
+      batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
     });
     await batch.commit();
   }
@@ -199,7 +222,8 @@ export function subscribeToTasksForDate(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    { includeMetadataChanges: true },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data(), pendingSync: d.metadata.hasPendingWrites } as Task))); },
     onError,
   );
 }
@@ -268,7 +292,7 @@ export async function setTaskDone(
 ): Promise<void> {
   await updateDoc(taskRef(uid, taskId), {
     done,
-    completedAt: done ? serverTimestamp() : null,
+    completedAt: done ? Timestamp.now() : null,
   });
 }
 
@@ -780,6 +804,7 @@ export async function awardAchievement(
     },
     { merge: false },
   );
+  logTap('achievement_unlocked', { achievement_id: achievementId });
 }
 
 /**
@@ -1059,6 +1084,10 @@ function followersEntryRef(uid: string, followerUid: string) {
   return doc(getFirestore(), 'users', uid, 'followers', followerUid);
 }
 
+function inboxRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'inbox');
+}
+
 /**
  * Follow another user. Atomically:
  *  - writes to follower's /following/{followedUid}
@@ -1095,6 +1124,34 @@ export async function followUser(
   });
   batch.set(userRef(followerUid), { followingCount: increment(1) }, { merge: true });
   batch.set(userRef(followedUid), { followersCount: increment(1) }, { merge: true });
+
+  // Use followerUid as the deterministic doc ID — prevents duplicate inbox
+  // entries if followUser is called more than once for the same pair.
+  const inboxDocRef = doc(inboxRef(followedUid), followerUid);
+  const handle = followerUsername ? `@${followerUsername}` : followerDisplayName;
+  batch.set(inboxDocRef, {
+    type:            'follow_request' as const,
+    fromUid:         followerUid,
+    fromUsername:    followerUsername,
+    fromDisplayName: followerDisplayName,
+    read:            false,
+    createdAt:       serverTimestamp(),
+  });
+
+  // Also write a pendingNotification so the device fires a system notification.
+  // Deterministic ID = follow_{followerUid} to prevent duplicate notifications.
+  const pendingNotifDocRef = doc(
+    collection(getFirestore(), 'pendingNotifications', followedUid, 'items'),
+    `follow_${followerUid}`,
+  );
+  batch.set(pendingNotifDocRef, {
+    type:      'follow' as const,
+    sentBy:    followerUid,
+    title:     `${handle} started following you`,
+    body:      'Tap to see their profile',
+    data:      { type: 'follow', fromUid: followerUid, screen: 'SharedTaskInbox' },
+    createdAt: serverTimestamp(),
+  });
 
   await batch.commit();
 }
@@ -1183,6 +1240,25 @@ export async function getFollowers(uid: string): Promise<FollowEntry[]> {
     ),
   );
   return snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry));
+}
+
+// ─── Social Inbox (KAN-212) ───────────────────────────────────────────────────
+
+/** One-shot fetch of inbox entries for uid, newest first. */
+export async function getInboxEntries(uid: string): Promise<InboxEntry[]> {
+  const snap = await getDocs(query(inboxRef(uid), orderBy('createdAt', 'desc')));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as InboxEntry));
+}
+
+/** Mark a single inbox entry as read. */
+export async function markInboxEntryRead(uid: string, entryId: string): Promise<void> {
+  await updateDoc(doc(inboxRef(uid), entryId), { read: true });
+}
+
+/** Count of unread inbox entries — used for the people-icon badge on Today. */
+export async function getInboxUnreadCount(uid: string): Promise<number> {
+  const snap = await getDocs(query(inboxRef(uid), where('read', '==', false)));
+  return snap.size;
 }
 
 // ─── Store fine tuning preference (KAN-74) ───────────────────────────────────

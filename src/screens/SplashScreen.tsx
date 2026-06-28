@@ -41,6 +41,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppStore } from '../store/appStore';
 import {
   getCategories,
+  getInboxUnreadCount,
   getPoiPreferencesMap,
   getTasksForDate,
   getTotalPoints,
@@ -360,8 +361,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         getCategories(uid),
         getTotalPoints(uid),
         getIncomingSharedTasksCount(uid),
+        getInboxUnreadCount(uid),
       ]))
-      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount]) => {
+      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount]) => {
         if (cancelled) { return; }
         useAppStore.getState().setBootData({
           ownerUid: uid,
@@ -370,6 +372,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
           customCategories: categories,
           totalPoints,
           inboxCount,
+          socialUnreadCount,
           userPrefs,
           poiPrefsMap,
         });

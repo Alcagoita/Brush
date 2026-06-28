@@ -35,6 +35,7 @@ import PoiChip from './PoiChip';
 import BrushStroke from './BrushStroke';
 import { COPY } from '../constants/copy';
 import { Task, Category } from '../types';
+import { logTap } from '../services/analytics';
 
 interface TaskRowProps {
   task: Task;
@@ -172,7 +173,10 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
     // Fully static interactive row — Pressables wired, ZERO reanimated / onLayout.
     return (
       <View style={[styles.row, { borderBottomColor: palette.line }]}>
-        <Pressable onPress={() => onToggle(task.id, !task.done)} hitSlop={8}
+        <Pressable onPress={() => {
+          if (!task.done) { logTap('task_complete', { category: task.category }); }
+          onToggle(task.id, !task.done);
+        }} hitSlop={8}
           accessibilityRole="checkbox" accessibilityState={{ checked: task.done }}>
           <View style={[styles.checkbox, { borderColor: task.done ? palette.faint : palette.text }]}>
             <Animated.View style={[styles.checkboxFill, { backgroundColor: palette.faint }, fillStyle]} />
@@ -192,7 +196,18 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
               )}
             </View>
           </View>
-          {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
+          {(task.time || task.pendingSync) ? (
+            <View style={styles.trailing}>
+              {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
+              {task.pendingSync ? (
+                <View
+                  style={[styles.syncDot, { backgroundColor: palette.faint }]}
+                  accessibilityLabel="Syncing"
+                  accessibilityRole="none"
+                />
+              ) : null}
+            </View>
+          ) : null}
         </Pressable>
       </View>
     );
@@ -205,7 +220,10 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
 
       {/* ── Checkbox — toggles done ── */}
       <Pressable
-        onPress={() => onToggle(task.id, !task.done)}
+        onPress={() => {
+          if (!task.done) { logTap('task_complete', { category: task.category }); }
+          onToggle(task.id, !task.done);
+        }}
         hitSlop={8}
         accessibilityRole="checkbox"
         accessibilityLabel={task.done ? COPY.taskRow.unbrush(task.title) : COPY.taskRow.brushAway(task.title)}
@@ -276,11 +294,22 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
           </View>
         </View>
 
-        {/* Scheduled time */}
-        {task.time ? (
-          <Text style={[styles.time, { color: palette.muted }]}>
-            {task.time}
-          </Text>
+        {/* Trailing: scheduled time + pending-sync dot */}
+        {(task.time || task.pendingSync) ? (
+          <View style={styles.trailing}>
+            {task.time ? (
+              <Text style={[styles.time, { color: palette.muted }]}>
+                {task.time}
+              </Text>
+            ) : null}
+            {task.pendingSync ? (
+              <View
+                style={[styles.syncDot, { backgroundColor: palette.faint }]}
+                accessibilityLabel="Syncing"
+                accessibilityRole="none"
+              />
+            ) : null}
+          </View>
         ) : null}
       </Pressable>
 
@@ -381,5 +410,15 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     alignSelf:   'flex-start',
     paddingTop:  1,
+  },
+  trailing: {
+    alignItems: 'flex-end',
+    gap:        4,
+  },
+  syncDot: {
+    width:        5,
+    height:       5,
+    borderRadius: 9999,
+    alignSelf:    'flex-end',
   },
 });

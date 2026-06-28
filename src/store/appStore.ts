@@ -2,14 +2,15 @@ import { create } from 'zustand';
 import type { Task, Category, User, UserPreferences } from '../types';
 
 export interface BootData {
-  ownerUid:         string;
-  tasks:            Task[];
-  customCategories: Category[];
-  totalPoints:      number;
-  inboxCount:       number;
-  userPrefs:        Partial<UserPreferences>;
-  poiPrefsMap:      Record<string, number>;
-  userData:         User | null;
+  ownerUid:          string;
+  tasks:             Task[];
+  customCategories:  Category[];
+  totalPoints:       number;
+  inboxCount:        number;
+  socialUnreadCount: number;
+  userPrefs:         Partial<UserPreferences>;
+  poiPrefsMap:       Record<string, number>;
+  userData:          User | null;
 }
 
 interface AppStore {

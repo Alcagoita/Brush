@@ -160,6 +160,8 @@ export interface Task {
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
   date: string;
+  /** True when this task has a local write not yet confirmed by the server (KAN-198). */
+  pendingSync?: boolean;
 }
 
 // ─── Category ─────────────────────────────────────────────────────────────────
@@ -544,9 +546,25 @@ export interface SharedTask {
  */
 export interface PendingNotification {
   id:          string;
-  type:        'shared_task';
+  type:        'shared_task' | 'follow';
   title:       string;       // notification title
   body:        string;       // notification body
   data?:       Record<string, string>;
   createdAt:   FirebaseFirestoreTypes.Timestamp;
+}
+
+// ─── Social Inbox (KAN-212) ───────────────────────────────────────────────────
+
+/**
+ * One entry in /users/{uid}/inbox/{entryId}.
+ * Currently only follow_request — discriminated union for future types.
+ */
+export interface InboxEntry {
+  id:              string;
+  type:            'follow_request';
+  fromUid:         string;
+  fromUsername:    string;
+  fromDisplayName: string;
+  read:            boolean;
+  createdAt:       FirebaseFirestoreTypes.Timestamp;
 }

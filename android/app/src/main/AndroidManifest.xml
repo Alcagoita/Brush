@@ -24,10 +24,8 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <!-- Coarse location — fallback / battery-saver mode -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <!-- Background location — required so geofences fire when app is backgrounded -->
-    <!-- Android 10+ requires this to be requested separately via the system dialog -->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <!-- Foreground service — needed to keep location alive when app is in background -->
+    <!-- No ACCESS_BACKGROUND_LOCATION — foreground-only model (KAN-209) -->
+    <!-- Foreground service — keeps location alive while app is backgrounded (not killed) -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
@@ -61,6 +59,25 @@
             <action android:name="android.intent.action.SEND" />
             <category android:name="android.intent.category.DEFAULT" />
             <data android:mimeType="text/plain" />
+        </intent-filter>
+
+        <!-- ── App Links — brushaway.app deep links (KAN-208) ── -->
+        <!-- autoVerify triggers Android App Link verification against          -->
+        <!-- https://brushaway.app/.well-known/assetlinks.json at install time. -->
+        <!-- Verified links open directly in the app without a chooser dialog.  -->
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" android:host="brushaway.app" />
+        </intent-filter>
+
+        <!-- ── Custom scheme fallback (brushaway://) ── -->
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="brushaway" />
         </intent-filter>
       </activity>
 

@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { logTap } from '../services/analytics';
 import {
   CheckIcon,
   CloseIcon,
@@ -45,12 +46,13 @@ import Avatar from './Avatar';
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface ShareProfileSheetProps {
-  visible:     boolean;
-  onClose:     () => void;
-  displayName: string;
-  username?:   string;
-  totalPoints: number;
-  photoURL?:   string | null;
+  visible:        boolean;
+  onClose:        () => void;
+  onSetUsername?: () => void;
+  displayName:    string;
+  username?:      string;
+  totalPoints:    number;
+  photoURL?:      string | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -58,6 +60,7 @@ export interface ShareProfileSheetProps {
 export default function ShareProfileSheet({
   visible,
   onClose,
+  onSetUsername,
   displayName,
   username,
   totalPoints,
@@ -132,6 +135,7 @@ export default function ShareProfileSheet({
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   const handleCopyLink = useCallback(() => {
+    logTap('share_profile', { method: 'copy_link' });
     Clipboard.setString(profileUrl);
     setCopied(true);
     if (copyTimeoutRef.current) { clearTimeout(copyTimeoutRef.current); }
@@ -141,6 +145,7 @@ export default function ShareProfileSheet({
   const handleShare = useCallback(async () => {
     try {
       await Share.share({ url: profileUrl, message: profileUrl });
+      logTap('share_profile', { method: 'share_sheet' });
     } catch {
       // User cancelled or share unavailable — silent
     }
@@ -237,63 +242,85 @@ export default function ShareProfileSheet({
           </View>
         </View>
 
-        {/* Targets grid */}
-        <View style={styles.targetsGrid}>
-
-          {/* Copy link */}
-          <Pressable
-            style={[styles.targetTile, { backgroundColor: palette.surface }]}
-            onPress={handleCopyLink}
-            accessibilityRole="button"
-            accessibilityLabel={copied ? 'Link copied' : 'Copy link'}>
-            <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
-              {copied
-                ? <CheckIcon color={palette.accent} size={22} />
-                : <CopyIcon  color={palette.muted}  size={22} />
-              }
-            </View>
-            <Text style={[styles.targetLabel, { color: copied ? palette.accent : palette.muted }]}>
-              {copied ? 'Copied!' : 'Copy link'}
+        {/* Targets grid — or no-username prompt */}
+        {!username ? (
+          <View style={styles.noUsernameWrap}>
+            <Text style={[styles.noUsernameTitle, { color: palette.text }]}>
+              Set a username first
             </Text>
-          </Pressable>
+            <Text style={[styles.noUsernameBody, { color: palette.muted }]}>
+              Your profile link uses your username — add one to share your profile.
+            </Text>
+            {onSetUsername ? (
+              <Pressable
+                style={[styles.setUsernameBtn, { backgroundColor: palette.text }]}
+                onPress={() => { onClose(); onSetUsername(); }}
+                accessibilityRole="button"
+                accessibilityLabel="Set username">
+                <Text style={[styles.setUsernameBtnLabel, { color: palette.bg }]}>
+                  Set username
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <View style={styles.targetsGrid}>
 
-          {/* Message */}
-          <Pressable
-            style={[styles.targetTile, { backgroundColor: palette.surface }]}
-            onPress={handleShare}
-            accessibilityRole="button"
-            accessibilityLabel="Share via message">
-            <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
-              <MessageIcon color={palette.muted} size={22} />
-            </View>
-            <Text style={[styles.targetLabel, { color: palette.muted }]}>Message</Text>
-          </Pressable>
+            {/* Copy link */}
+            <Pressable
+              style={[styles.targetTile, { backgroundColor: palette.surface }]}
+              onPress={handleCopyLink}
+              accessibilityRole="button"
+              accessibilityLabel={copied ? 'Link copied' : 'Copy link'}>
+              <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
+                {copied
+                  ? <CheckIcon color={palette.accent} size={22} />
+                  : <CopyIcon  color={palette.muted}  size={22} />
+                }
+              </View>
+              <Text style={[styles.targetLabel, { color: copied ? palette.accent : palette.muted }]}>
+                {copied ? 'Copied!' : 'Copy link'}
+              </Text>
+            </Pressable>
 
-          {/* QR code — v1 placeholder */}
-          <Pressable
-            style={[styles.targetTile, { backgroundColor: palette.surface }]}
-            onPress={() => { /* v1 placeholder — no destination */ }}
-            accessibilityRole="button"
-            accessibilityLabel="Show QR code (coming soon)">
-            <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
-              <QrCodeIcon color={palette.faint} size={22} />
-            </View>
-            <Text style={[styles.targetLabel, { color: palette.faint }]}>QR code</Text>
-          </Pressable>
+            {/* Message */}
+            <Pressable
+              style={[styles.targetTile, { backgroundColor: palette.surface }]}
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel="Share via message">
+              <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
+                <MessageIcon color={palette.muted} size={22} />
+              </View>
+              <Text style={[styles.targetLabel, { color: palette.muted }]}>Message</Text>
+            </Pressable>
 
-          {/* More */}
-          <Pressable
-            style={[styles.targetTile, { backgroundColor: palette.surface }]}
-            onPress={handleShare}
-            accessibilityRole="button"
-            accessibilityLabel="More sharing options">
-            <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
-              <GridIcon color={palette.muted} size={22} />
-            </View>
-            <Text style={[styles.targetLabel, { color: palette.muted }]}>More</Text>
-          </Pressable>
+            {/* QR code — v1 placeholder */}
+            <Pressable
+              style={[styles.targetTile, { backgroundColor: palette.surface }]}
+              onPress={() => { /* v1 placeholder — no destination */ }}
+              accessibilityRole="button"
+              accessibilityLabel="Show QR code (coming soon)">
+              <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
+                <QrCodeIcon color={palette.faint} size={22} />
+              </View>
+              <Text style={[styles.targetLabel, { color: palette.faint }]}>QR code</Text>
+            </Pressable>
 
-        </View>
+            {/* More */}
+            <Pressable
+              style={[styles.targetTile, { backgroundColor: palette.surface }]}
+              onPress={handleShare}
+              accessibilityRole="button"
+              accessibilityLabel="More sharing options">
+              <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
+                <GridIcon color={palette.muted} size={22} />
+              </View>
+              <Text style={[styles.targetLabel, { color: palette.muted }]}>More</Text>
+            </Pressable>
+
+          </View>
+        )}
       </Animated.View>
     </Modal>
   );
@@ -392,6 +419,39 @@ const styles = StyleSheet.create({
     fontWeight:  '500',
     fontFamily:  'Geist-Medium',
     fontVariant: ['tabular-nums'],
+  },
+
+  // ── No-username prompt ──
+  noUsernameWrap: {
+    alignItems:        'center',
+    paddingHorizontal: 28,
+    paddingTop:        20,
+    paddingBottom:     28,
+    gap:               10,
+  },
+  noUsernameTitle: {
+    fontSize:   17,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
+    textAlign:  'center',
+  },
+  noUsernameBody: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+    textAlign:  'center',
+    lineHeight: 20,
+  },
+  setUsernameBtn: {
+    marginTop:         8,
+    paddingHorizontal: 28,
+    paddingVertical:   13,
+    borderRadius:      12,
+    alignItems:        'center',
+  },
+  setUsernameBtnLabel: {
+    fontSize:   15,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
   },
 
   // ── Targets grid ──

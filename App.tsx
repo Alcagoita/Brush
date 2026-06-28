@@ -14,11 +14,10 @@ import { getMessaging, onMessage } from '@react-native-firebase/messaging';
 import notifee, { EventType } from '@notifee/react-native';
 import { useAuth } from './src/hooks/useAuth';
 import { useFCM } from './src/hooks/useFCM';
-import { setCrashlyticsUser, logBreadcrumb } from './src/services/crashlytics';
+import { logBreadcrumb } from './src/services/crashlytics';
 import LoginScreen from './src/screens/LoginScreen';
 import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
-import NetworkBanner from './src/components/NetworkBanner';
 import Toast from './src/components/Toast';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
@@ -46,6 +45,16 @@ const LINKING_CONFIG = {
     } as Record<keyof RootStackParamList, unknown>,
   },
 };
+
+// Screens reachable from a social notification tap. Anything outside this set
+// falls back to SharedTaskInbox so Firestore data can't drive navigation to
+// unexpected screens.
+const SOCIAL_NOTIF_SCREENS = new Set<keyof RootStackParamList>([
+  'SharedTaskInbox',
+  'ChallengeDetail',
+  'PublicProfile',
+  'SocialHub',
+]);
 
 const TRANSITION_MS = 220;
 
@@ -126,23 +135,29 @@ function AppShell() {
 
   // ── Shared-task notification subscription (KAN-87) ───────────────────────
   // Fires a local notifee notification when a new pendingNotification arrives.
-  // The data.screen key routes the press handler to SharedTaskInbox.
+  // Subscribe to all social pending notifications (shared tasks, challenges, follows).
+  // data.screen is set per-type at write time so deep-links route correctly.
   useEffect(() => {
     if (!displayUser) { return; }
     const uid = displayUser.uid;
     return subscribeToSharedTaskNotifications(uid, async n => {
       try {
         await notifeeApp.createChannel({
-          id: 'shared_tasks', name: 'Shared Tasks', importance: AppAndroidImportance.HIGH,
+          id: 'social', name: 'Social', importance: AppAndroidImportance.HIGH,
         });
+        const rawScreen = (n.data as Record<string, string> | undefined)?.screen;
+        const screen: keyof RootStackParamList =
+          rawScreen && SOCIAL_NOTIF_SCREENS.has(rawScreen as keyof RootStackParamList)
+            ? (rawScreen as keyof RootStackParamList)
+            : 'SharedTaskInbox';
         await notifeeApp.displayNotification({
           title: n.title,
           body:  n.body,
-          data:  { ...n.data, screen: 'SharedTaskInbox' },
-          android: { channelId: 'shared_tasks', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
+          data:  { ...n.data, screen },
+          android: { channelId: 'social', importance: AppAndroidImportance.HIGH, pressAction: { id: 'default' } },
         });
       } catch (e) {
-        console.warn('[AppShell] shared task notification failed', e);
+        console.warn('[AppShell] social notification failed', e);
       }
     });
   }, [displayUser]);
@@ -150,10 +165,9 @@ function AppShell() {
   // Persist the FCM device token whenever a user is signed in.
   useFCM(user?.uid ?? null);
 
-  // Attach / detach the Crashlytics user identifier on auth changes.
+  // Log a Crashlytics breadcrumb on auth changes. User identifier is set in useAuth.
   useEffect(() => {
     if (!loading) {
-      setCrashlyticsUser(user?.uid ?? null);
       logBreadcrumb(user ? `User signed in: ${user.uid}` : 'User signed out');
     }
   }, [user, loading]);
@@ -301,7 +315,6 @@ function AppShell() {
         barStyle={dark ? 'light-content' : 'dark-content'}
         backgroundColor={palette.bg}
       />
-      <NetworkBanner />
       <Toast />
       <Animated.View style={[styles.fill, { opacity: fadeAnim }]}>
         {displayUser ? (

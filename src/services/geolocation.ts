@@ -1,16 +1,14 @@
 /**
- * geolocation.ts — Background location tracking service (KAN-22 / KAN-162).
+ * geolocation.ts — Foreground location tracking service (KAN-22 / KAN-162 / KAN-209).
  *
  * Library: expo-location (replaces react-native-geolocation-service, KAN-162).
  *
  * Permissions requested:
- *   Android: FOREGROUND + BACKGROUND (ACCESS_BACKGROUND_LOCATION, API 29+)
- *   iOS:     Always (NSLocationAlwaysAndWhenInUseUsageDescription)
+ *   Android: FOREGROUND only (ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION)
+ *   iOS:     When In Use (NSLocationWhenInUseUsageDescription)
  *
- * Rules (from CLAUDE.md / KAN-22):
- *   - Request `always` permission so geofences fire in the background.
- *   - Only one POI is "currently nearby" at a time (closest wins).
- *   - A geofence notification fires once per entry per day.
+ * Proximity works while the app is alive (foreground + backgrounded), stops on kill.
+ * No background location permission needed — matches the Google Maps model (KAN-209).
  */
 
 import * as Location from 'expo-location';
@@ -47,38 +45,21 @@ export type LocationContext = 'outdoor' | 'indoor_unmapped' | 'indoor_mapped';
 // ─── Permission helpers ───────────────────────────────────────────────────────
 
 /**
- * Checks and requests location permissions appropriate for background use.
- *
- * Android flow (API 29+):
- *   1. Request foreground location.
- *   2. Only after that is granted: request BACKGROUND_LOCATION separately.
- *      (Android 11+ requires this to be a separate dialog.)
- *
- * iOS flow:
- *   Request "always" permission directly. The system shows a two-step dialog
- *   (When In Use → Always) automatically.
+ * Checks and requests foreground location permission ("While using the app").
  *
  * Returns:
- *   'granted'     — both foreground + background granted
+ *   'granted'     — foreground location granted
  *   'denied'      — user denied; can ask again
- *   'blocked'     — user denied and checked "don't ask again"; must open Settings
+ *   'blocked'     — permanently denied; user must open Settings
  *   'unavailable' — device does not support location
  */
 export async function requestLocationPermission(): Promise<PermissionStatus> {
   try {
-    const { status: fg } = await Location.requestForegroundPermissionsAsync();
+    const { status, canAskAgain } = await Location.requestForegroundPermissionsAsync();
 
-    if (fg === 'denied') return 'denied';
-    if (fg === 'undetermined') return 'denied';
-    if (fg !== 'granted') return 'unavailable';
+    if (status === 'granted') return 'granted';
 
-    const bgResponse = await Location.requestBackgroundPermissionsAsync();
-    const { status: bg, canAskAgain } = bgResponse;
-
-    if (bg === 'granted') return 'granted';
-
-    // canAskAgain false = permanently denied; true = soft deny, can retry
-    if (bg === 'denied' && !canAskAgain) {
+    if (status === 'denied' && !canAskAgain) {
       showBlockedAlert();
       return 'blocked';
     }
@@ -92,7 +73,7 @@ export async function requestLocationPermission(): Promise<PermissionStatus> {
 function showBlockedAlert(): void {
   Alert.alert(
     'Location permission required',
-    'Brush needs "Always" location access to alert you when you\'re near a task\'s location. Please enable it in Settings.',
+    'Brush needs location access while the app is in use to alert you when you\'re near a task\'s location. Please enable it in Settings.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -227,26 +208,37 @@ export function getCurrentPosition(): Promise<Coordinates> {
 }
 
 /**
- * One-shot position query using network/cell location only.
+ * One-shot position query using network/cell location when available.
  *
- * Does NOT wake the GPS hardware. Returns quickly using a cached or
- * network-derived fix. Accuracy is 50–200 m, sufficient for proximity
- * detection at 100 m / 400 m thresholds.
+ * Tries Balanced accuracy (WiFi/cell, low power) first. If network-based
+ * positioning is unavailable (e.g. device is offline), falls back to GPS
+ * so proximity checks continue working with no internet connection.
  *
- * Use this for all background proximity checks to avoid GPS cold-start
- * latency and the associated system slowdown.
+ * Use this for all background proximity checks.
  */
-export function getPositionLowAccuracy(): Promise<Coordinates> {
-  return Location.getCurrentPositionAsync({
-    accuracy:    Location.Accuracy.Balanced,
-    timeInterval: 3_000,
-    mayShowUserSettingsDialog: false,
-  }).then((position) => ({
+export async function getPositionLowAccuracy(): Promise<Coordinates> {
+  const toCoords = (position: Location.LocationObject): Coordinates => ({
     lat:       position.coords.latitude,
     lng:       position.coords.longitude,
     accuracy:  position.coords.accuracy ?? 999,
     timestamp: position.timestamp,
-  }));
+  });
+
+  try {
+    const position = await Location.getCurrentPositionAsync({
+      accuracy:    Location.Accuracy.Balanced,
+      timeInterval: 3_000,
+      mayShowUserSettingsDialog: false,
+    });
+    return toCoords(position);
+  } catch {
+    // Network-based positioning failed (offline) — fall back to GPS.
+    const position = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+      mayShowUserSettingsDialog: false,
+    });
+    return toCoords(position);
+  }
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

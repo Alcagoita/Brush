@@ -22,6 +22,7 @@ import {
   getPoiPreferencesMap,
   getUser,
   getTotalPoints,
+  getInboxUnreadCount,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../services/achievements';
@@ -96,12 +97,14 @@ export interface TodayScreenState {
   totalPoints:  number;
   /** Count of pending shared tasks for the inbox bell badge. */
   inboxCount:   number;
+  /** Count of unread social inbox entries (follow notifications) for the people icon badge. */
+  socialUnreadCount: number;
   /** Task-done toggle — updates local state immediately, persists to Firestore. */
   handleToggle: (taskId: string, done: boolean) => Promise<void>;
   /** True when location permission has been granted. */
   permissionGranted: boolean;
   /** Re-runs the proximity search immediately — useful for a manual "refresh location" tap. */
-  refreshProximity: () => void;
+  refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
   locationUnavailable: boolean;
 }
@@ -146,6 +149,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const [totalPoints,     setTotalPoints]     = useState(0);
   const [inboxCount,      setInboxCount]      = useState(0);
+  const [socialUnreadCount, setSocialUnreadCount] = useState(0);
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   // Refs so the AppState closure always reads the latest values without
@@ -232,6 +236,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
         setTotalPoints(bootData.totalPoints);
         setInboxCount(bootData.inboxCount);
+        setSocialUnreadCount(bootData.socialUnreadCount ?? 0);
         if (bootData.userData) {
           setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
           setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
@@ -262,6 +267,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         categories,
         points,
         inbox,
+        socialUnread,
       ] = await withTimeout(
         Promise.all([
           getTasksForDate(uid, todayISO()),
@@ -271,6 +277,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           getCategories(uid),
           getTotalPoints(uid),
           getIncomingSharedTasksCount(uid),
+          getInboxUnreadCount(uid),
         ]),
         DATA_FETCH_TIMEOUT_MS,
       );
@@ -279,6 +286,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       setCustomCategories(categories.filter(c => !c.isBuiltIn));
       setTotalPoints(points);
       setInboxCount(inbox);
+      setSocialUnreadCount(socialUnread);
 
       if (userData) {
         setLowBatteryPausePref(userData.poiPreferences?.lowBatteryPause ?? false);
@@ -462,6 +470,9 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
           nearbyPoiTypeRef.current = task?.poi ?? null;
           setNearbyPoiType(task?.poi ?? null);
           setNearbyPlace(place);
+          // Populate poiPlaces so NearbyCard heroEntries computation can find
+          // the indoor match (it derives hero cards from poiPlaces, not nearbyPlace).
+          setPoiPlaces(task?.poi && place ? { [task.poi]: [place] } : {});
         },
       );
       isIndoorMonitoringRef.current   = true;
@@ -488,10 +499,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
     Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
 
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done } : t));
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done, pendingSync: true } : t));
 
     try {
       await setTaskDone(uid, taskId, done);
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, pendingSync: false } : t));
 
       if (done) {
         // Read the latest tasks from the ref — NOT a captured `tasks` dep.
@@ -534,7 +546,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
         }
       }
     } catch (err) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done } : t));
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done, pendingSync: false } : t));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
   }, [uid]);
@@ -552,10 +564,15 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // ── Manual proximity refresh ────────────────────────────────────────────────
 
-  const refreshProximity = useCallback(() => {
-    if (!uid || !permissionGranted || !hasPOITasks) { return; }
-    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate)
-      .catch(() => setLocationUnavailable(true));
+  const refreshProximity = useCallback(async (): Promise<boolean> => {
+    if (!uid || !permissionGranted || !hasPOITasks) { return false; }
+    try {
+      await runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate);
+      return true;
+    } catch {
+      setLocationUnavailable(true);
+      return false;
+    }
   }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
 
   useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);
@@ -589,6 +606,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     nearbyCount,
     totalPoints,
     inboxCount,
+    socialUnreadCount,
     handleToggle,
     permissionGranted,
     refreshProximity,

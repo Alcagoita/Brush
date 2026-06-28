@@ -1,41 +1,124 @@
 /**
- * functions.ts — Firebase Cloud Function callers (KAN-90)
+ * functions.ts — task parsing helpers (KAN-90, updated KAN-116)
  *
- * Wraps @react-native-firebase/functions httpsCallable calls.
- * All functions authenticate automatically because Firebase Callable
- * functions verify the caller's Auth token on the server side.
+ * Originally called a Firebase Cloud Function (Claude Haiku) to parse shared
+ * text. Now fully client-side:
+ *   1. Local keyword dictionary (offline, instant) via poiInference.ts
+ *   2. Google Places Text Search fallback (1 network call, no AI cost)
+ *   3. Give up → confidence 'low', user edits manually
  *
- * Scoped to: Cloud Functions deployed in the brush-away Firebase project.
+ * Same ParseMessageOutput shape as before — ShareReceiveScreen is unchanged.
  */
 
-import functions from '@react-native-firebase/functions';
-import type { PoiType } from '../types';
+import { inferPoiFromRules } from './poiInference';
+import { searchPlaceTypes }  from './maps';
+import { POI_GOOGLE_TYPES }  from '../types';
+import type { PoiType }      from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ParseMessageOutput {
-  title: string;
+  title:        string;
   suggestedPoi: PoiType | null;
   suggestedTime: string | null;   // "HH:MM" 24-hour format, or null
-  confidence: 'high' | 'medium' | 'low';
+  confidence:   'high' | 'medium' | 'low';
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/** Reverse map: Google Places primary type string → our PoiType. */
+const GOOGLE_TYPE_TO_POI: Record<string, PoiType> = {
+  ...Object.fromEntries(
+    (Object.entries(POI_GOOGLE_TYPES) as [PoiType, string][])
+      .map(([poi, googleType]) => [googleType, poi]),
+  ),
+  // Extra aliases the Places API may return that aren't in POI_GOOGLE_TYPES.
+  coffee_shop:        'cafe',
+  grocery_store:      'supermarket',
+  convenience_store:  'supermarket',
+  drugstore:          'pharmacy',
+  transit_station:    'bus',
+  light_rail_station: 'bus',
+};
+
+const VALID_POI_TYPES = new Set<string>(Object.keys(POI_GOOGLE_TYPES));
+
+function isPoiType(s: string): s is PoiType {
+  return VALID_POI_TYPES.has(s);
+}
+
+/**
+ * Extract "HH:MM" from shared text.
+ * Handles: "at 9am", "at 14:30", "3:45pm", "9 PM".
+ * The "at ..." form requires a word boundary after the digits so ordinal/
+ * address tokens like "at 5th Avenue" or "at 3rd" don't produce false matches.
+ * Without am/pm we still require either minutes (:MM) or am/pm suffix.
+ */
+function extractTime(text: string): string | null {
+  const m =
+    text.match(/\bat\s+(\d{1,2})(?::(\d{2}))?\b\s*(am|pm)?\b/i) ??
+    text.match(/\b(\d{1,2})(?::(\d{2}))?\s*(am|pm)\b/i);
+  if (!m) { return null; }
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  const meridiem = (m[3] ?? '').toLowerCase();
+  if (meridiem === 'pm' && h < 12) { h += 12; }
+  if (meridiem === 'am' && h === 12) { h = 0; }
+  if (h > 23 || min > 59) { return null; }
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
 }
 
 // ─── parseMessageToTask ───────────────────────────────────────────────────────
 
 /**
- * Call the `parseMessageToTask` Cloud Function.
+ * Parse a free-text shared message into structured task data.
  *
- * Sends a free-text message to the backend, which uses Claude Haiku to extract
- * a structured task (title, POI, time, confidence level).
+ * No AI, no Cloud Function — runs entirely on-device with a Google Places
+ * fallback for unknown vocabulary.
  *
- * @param text  The raw shared message (max 2 000 chars — server enforces this).
- * @returns     Structured task data; confidence 'low' means best-effort only.
- * @throws      HttpsError on auth failure or hard server error.
+ * @param text  Raw shared message.
+ * @returns     Structured task data. confidence 'low' → user should review.
  */
 export async function parseMessageToTask(text: string): Promise<ParseMessageOutput> {
-  const callable = functions().httpsCallable<{ text: string }, ParseMessageOutput>(
-    'parseMessageToTask',
-  );
-  const result = await callable({ text });
-  return result.data;
+  const trimmed = text.trim().slice(0, 2_000);
+
+  // Nothing useful to parse — skip all inference.
+  if (trimmed.length === 0) {
+    return { title: '', suggestedPoi: null, suggestedTime: null, confidence: 'low' };
+  }
+
+  const title         = trimmed.slice(0, 80);
+  const suggestedTime = extractTime(trimmed);
+
+  // Pass 1: offline local dictionary.
+  // inferPoiFromRules returns PoiResolution (PoiType | arbitrary Google string).
+  // Check canonical PoiType first; then try GOOGLE_TYPE_TO_POI for aliases
+  // the dictionary may emit (e.g. "coffee_shop" from a custom category).
+  const localPoi = inferPoiFromRules(trimmed);
+  if (localPoi) {
+    if (isPoiType(localPoi)) {
+      return { title, suggestedPoi: localPoi, suggestedTime, confidence: 'high' };
+    }
+    const mapped = GOOGLE_TYPE_TO_POI[localPoi];
+    if (mapped) {
+      return { title, suggestedPoi: mapped, suggestedTime, confidence: 'high' };
+    }
+  }
+
+  // Pass 2: Google Places Text Search — extract primary type from top results.
+  try {
+    const suggestions = await searchPlaceTypes(trimmed.slice(0, 200));
+    for (const { type } of suggestions) {
+      const poi = GOOGLE_TYPE_TO_POI[type];
+      if (poi) {
+        return { title, suggestedPoi: poi, suggestedTime, confidence: 'medium' };
+      }
+    }
+  } catch (err) {
+    if (__DEV__) {
+      console.warn('[parseMessageToTask] searchPlaceTypes failed:', err);
+    }
+  }
+
+  return { title, suggestedPoi: null, suggestedTime, confidence: 'low' };
 }

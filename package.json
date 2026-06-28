@@ -1,6 +1,6 @@
 {
   "name": "brush",
-  "version": "0.13.0",
+  "version": "0.14.0",
   "private": true,
   "scripts": {
     "android": "expo run:android",
@@ -12,7 +12,8 @@
     "e2e:test:ios": "detox test --configuration ios.sim.debug",
     "e2e:build:android": "detox build --configuration android.emu.debug",
     "e2e:test:android": "detox test --configuration android.emu.debug",
-    "postinstall": "patch-package && node scripts/patch-nested-modules.js"
+    "postinstall": "patch-package && node scripts/patch-nested-modules.js",
+    "eas-build-post-install": "node scripts/eas-post-install.js"
   },
   "dependencies": {
     "@invertase/react-native-apple-authentication": "^2.5.1",
@@ -20,6 +21,7 @@
     "@react-native-clipboard/clipboard": "^1.16.3",
     "@react-native-community/datetimepicker": "^9.1.0",
     "@react-native-community/netinfo": "^12.0.1",
+    "@react-native-firebase/analytics": "24.0.0",
     "@react-native-firebase/app": "24.0.0",
     "@react-native-firebase/auth": "24.0.0",
     "@react-native-firebase/crashlytics": "24.0.0",

@@ -3,10 +3,10 @@
 # Build outputs (APKs stored locally, not committed)
 builds/
 
-# Firebase config files (contain sensitive API keys — keep out of git)
-# New developers: run `firebase apps:sdkconfig` to download these
-android/app/google-services.json
-ios/Brush/GoogleService-Info.plist
+# Firebase config files — all variants are committed.
+# These files contain no secrets; any API key restrictions must be maintained in
+# the Firebase console. Active files default to DEV (brush-away-dev project).
+# Switch with: bash scripts/switch-env.sh [dev|staging|prod]
 
 # Google Places API key — contains a real API key, must never be committed.
 # Copy src/config/keys.example.ts → src/config/keys.ts and fill in your key.
@@ -23,6 +23,11 @@ emulator-data/
 *.p8
 *.p12
 *.cer
+
+# Google Play service account key — if used locally, keep it out of git.
+# For EAS Submit, credentials are managed server-side via `eas credentials`
+# (run once per machine; no local file required in CI).
+google-play-key.json
 
 # ─── macOS ───────────────────────────────────────────────────────────────────
 

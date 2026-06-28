@@ -29,6 +29,8 @@ import { radius, spacing } from '../theme/tokens';
 import {
   checkUsernameAvailable,
   claimUsername,
+  createUserDocument,
+  getUser,
   validateUsername,
 } from '../services/firestore';
 
@@ -70,6 +72,19 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
       if (!available) {
         setSubmitError('@' + value + ' is already taken. Please choose another.');
         return;
+      }
+      // Ensure a complete user document exists before claiming the username.
+      // Legacy partial docs (only username/usernameUpdatedAt, missing email/
+      // displayName/uid/createdAt) must also be repaired here.
+      const existingDoc = await getUser(uid);
+      const isComplete = !!(existingDoc?.email && existingDoc?.uid && existingDoc?.createdAt);
+      if (!isComplete) {
+        const authUser = getAuth().currentUser;
+        await createUserDocument(
+          uid,
+          authUser?.email ?? existingDoc?.email ?? '',
+          authUser?.displayName ?? existingDoc?.displayName ?? '',
+        );
       }
       await claimUsername(uid, value);
       onComplete();

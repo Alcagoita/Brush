@@ -55,7 +55,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
@@ -65,6 +65,7 @@ import Header from '../components/Header';
 import ProgressRing from '../components/ProgressRing';
 import TaskRow from '../components/TaskRow';
 import NearbyCard from '../components/NearbyCard';
+import NetworkBanner from '../components/NetworkBanner';
 import NewTaskSheetHost from '../components/NewTaskSheetHost';
 import { useNewTaskSheetStore } from '../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../components/StoreTuningPromptSheet';
@@ -168,7 +169,6 @@ export default function TodayScreen() {
     error,
     refresh,
     nearbyPoiType,
-    nearbyPlace,
     poiPlaces,
     storeTuningActive,
     showStoreTuningPrompt,
@@ -181,11 +181,20 @@ export default function TodayScreen() {
     nearbyCount,
     totalPoints,
     inboxCount,
+    socialUnreadCount,
     handleToggle,
     permissionGranted,
     refreshProximity,
-    locationUnavailable,
   } = useTodayScreen(uid);
+
+
+  // Refresh tasks on focus so accepted shared tasks appear on return.
+  // Skip the very first focus — SplashScreen already preloaded data.
+  const hasFocusedOnce = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (!hasFocusedOnce.current) { hasFocusedOnce.current = true; return; }
+    refresh();
+  }, [refresh]));
 
   // ── New Task sheet open trigger ───────────────────────────────────────────────
   // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is
@@ -316,39 +325,10 @@ export default function TodayScreen() {
       <NearbyCard
         tasks={sortedTasks}
         nearbyPoiType={nearbyPoiType}
-        nearbyPlace={nearbyPlace}
         poiPlaces={poiPlaces}
         storeTuningActive={storeTuningActive}
+        onRefreshLocation={refreshProximity}
       />
-      )}
-
-      {/* ── Location status row ── */}
-      {permissionGranted && nearbyCount > 0 && !nearbyPoiType && !isLoading && (
-        locationUnavailable ? (
-          <View style={[styles.locationErrorRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
-            <Text style={[styles.locationErrorText, { color: palette.muted }]}>
-              Location unavailable. Turn on GPS to see nearby places.
-            </Text>
-            <Pressable
-              onPress={refreshProximity}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              accessibilityRole="button"
-              accessibilityLabel="Retry location">
-              <Text style={[styles.locationRetryLabel, { color: palette.text }]}>Retry</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Pressable
-            onPress={refreshProximity}
-            hitSlop={{ top: 6, bottom: 6 }}
-            style={[styles.refreshRow, { borderBottomColor: palette.line }]}
-            accessibilityRole="button"
-            accessibilityLabel="Refresh location">
-            <Text style={[styles.refreshLabel, { color: palette.muted }]}>
-              Refresh location
-            </Text>
-          </Pressable>
-        )
       )}
 
       {/* ── Task list section header ── */}
@@ -370,9 +350,9 @@ export default function TodayScreen() {
       </View>
     </>
   ), [
-    sortedTasks, nearbyPoiType, nearbyPlace, poiPlaces, storeTuningActive,
-    permissionGranted, nearbyCount, isLoading, locationUnavailable,
-    refreshProximity, palette, doneTasks, totalTasks, remaining,
+    sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
+    permissionGranted, nearbyCount, isLoading,
+    palette, doneTasks, totalTasks, remaining,
   ]);
 
   const listEmpty = isLoading ? (
@@ -408,8 +388,8 @@ export default function TodayScreen() {
         <Header
           displayName={displayName}
           photoURL={user?.photoURL}
-          hasUnread={inboxCount > 0}
-          socialBadge={inboxCount}
+          hasUnread={inboxCount > 0 || socialUnreadCount > 0}
+          socialBadge={0}
           points={totalPoints}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
@@ -417,6 +397,9 @@ export default function TodayScreen() {
           onAchievementsPress={() => navigation.navigate('Achievements')}
         />
       </View>
+
+      {/* ── Offline banner — below app bar ── */}
+      <NetworkBanner />
 
       {/* ── Scroll area — ring section overlaid on content ── */}
       {(DEBUG_SHOW_LIST || DEBUG_SHOW_RING) && (
@@ -819,16 +802,6 @@ const styles = StyleSheet.create({
   },
   retryLabel: {
     fontSize:   14,
-    fontFamily: 'Geist-Regular',
-  },
-  refreshRow: {
-    paddingHorizontal: spacing.page,
-    paddingVertical:   10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    alignItems:        'flex-end',
-  },
-  refreshLabel: {
-    fontSize:   12,
     fontFamily: 'Geist-Regular',
   },
   locationErrorRow: {

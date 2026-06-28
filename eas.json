@@ -1,0 +1,42 @@
+{
+  "cli": {
+    "version": ">= 16.0.0"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "development"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "staging"
+      }
+    },
+    "production": {
+      "distribution": "store",
+      "env": {
+        "APP_ENV": "production"
+      }
+    },
+    "production-firebase": {
+      "distribution": "internal",
+      "env": {
+        "APP_ENV": "production"
+      }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "olegarioncnascimento@gmail.com"
+      },
+      "android": {
+        "track": "internal"
+      }
+    }
+  }
+}
