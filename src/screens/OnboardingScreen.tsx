@@ -39,9 +39,8 @@ import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import BrushStroke from '../components/BrushStroke';
 import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
 import { todayISO } from '../utils/date';
-import { inferPoiFromRules } from '../services/poiInference';
-import { POI_CATALOG } from '../types';
-import type { PoiType } from '../types';
+import { PoiIcon } from '../components/AppIcon';
+import type { PoiType, Category } from '../types';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
 
@@ -71,7 +70,15 @@ const ONBOARDING_NUDGES: NudgeMessage[] = [
   { text: 'There’s probably something in the fridge that needs replacing.', poi: 'supermarket', color: '#8b6bc4' },
 ];
 
-const SUGGESTION_CHIPS = ['Buy bread', 'Coffee outside', 'Post office', 'Groceries', 'Go for a run'];
+interface SuggestionChip { label: string; poi: PoiType; category: Category; }
+
+const SUGGESTION_CHIPS: SuggestionChip[] = [
+  { label: 'Buy bread',      poi: 'store',       category: 'errands'  },
+  { label: 'Coffee outside', poi: 'cafe',        category: 'personal' },
+  { label: 'Withdraw cash',  poi: 'atm',         category: 'personal' },
+  { label: 'Groceries',      poi: 'supermarket', category: 'errands'  },
+  { label: 'Go for a run',   poi: 'park',        category: 'health'   },
+];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -289,16 +296,12 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
     closeSheet();
 
     try {
-      const VALID_POI_TYPES = new Set(POI_CATALOG.map(p => p.type));
-      const inferredPoi = inferPoiFromRules(taskTitle.trim());
-      const poi: PoiType = (inferredPoi && VALID_POI_TYPES.has(inferredPoi as PoiType))
-        ? (inferredPoi as PoiType)
-        : 'supermarket';
+      const chip = SUGGESTION_CHIPS.find(c => c.label === taskTitle.trim());
 
       const id = await addTask(uid, {
         title:    taskTitle.trim(),
-        category: 'errands',
-        poi,
+        category: chip?.category ?? 'errands',
+        poi:      chip?.poi ?? 'supermarket',
         date:     todayISO(),
       });
 
@@ -433,25 +436,30 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                   style={styles.chipScroll}
                   contentContainerStyle={styles.chipRow}
                   data={SUGGESTION_CHIPS}
-                  keyExtractor={chip => chip}
-                  renderItem={({ item: chip }) => (
-                    <Pressable
-                      accessibilityRole="checkbox"
-                      accessibilityState={{ checked: taskTitle === chip }}
-                      style={({ pressed }) => [
-                        styles.chip,
-                        taskTitle === chip && styles.chipSelected,
-                        { transform: [{ scale: pressed ? 0.97 : 1 }] },
-                      ]}
-                      onPress={() => setTaskTitle(prev => prev === chip ? '' : chip)}>
-                      <Text style={[
-                        styles.chipText,
-                        taskTitle === chip && styles.chipTextSelected,
-                      ]}>
-                        {chip}
-                      </Text>
-                    </Pressable>
-                  )}
+                  keyExtractor={chip => chip.label}
+                  renderItem={({ item: chip }) => {
+                    const selected = taskTitle === chip.label;
+                    return (
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        style={({ pressed }) => [
+                          styles.chip,
+                          selected && styles.chipSelected,
+                          { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                        ]}
+                        onPress={() => setTaskTitle(prev => prev === chip.label ? '' : chip.label)}>
+                        <PoiIcon
+                          type={chip.poi}
+                          color={selected ? T.bg : T.muted}
+                          size={14}
+                        />
+                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                          {chip.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
                 />
 
                 {/* Footer */}
@@ -729,9 +737,12 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     gap:           8,
-    paddingRight:  22,
+    paddingHorizontal: 22,
   },
   chip: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             6,
     backgroundColor: T.surface,
     borderWidth:     1,
     borderColor:     T.line,
