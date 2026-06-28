@@ -46,6 +46,16 @@ const LINKING_CONFIG = {
   },
 };
 
+// Screens reachable from a social notification tap. Anything outside this set
+// falls back to SharedTaskInbox so Firestore data can't drive navigation to
+// unexpected screens.
+const SOCIAL_NOTIF_SCREENS = new Set<keyof RootStackParamList>([
+  'SharedTaskInbox',
+  'ChallengeDetail',
+  'PublicProfile',
+  'SocialHub',
+]);
+
 const TRANSITION_MS = 220;
 
 function AppShell() {
@@ -135,7 +145,11 @@ function AppShell() {
         await notifeeApp.createChannel({
           id: 'social', name: 'Social', importance: AppAndroidImportance.HIGH,
         });
-        const screen = (n.data as Record<string, string> | undefined)?.screen ?? 'SharedTaskInbox';
+        const rawScreen = (n.data as Record<string, string> | undefined)?.screen;
+        const screen: keyof RootStackParamList =
+          rawScreen && SOCIAL_NOTIF_SCREENS.has(rawScreen as keyof RootStackParamList)
+            ? (rawScreen as keyof RootStackParamList)
+            : 'SharedTaskInbox';
         await notifeeApp.displayNotification({
           title: n.title,
           body:  n.body,

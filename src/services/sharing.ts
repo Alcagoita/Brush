@@ -120,9 +120,10 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
 
   // 2. Pending notification for the recipient's device (KAN-87).
   batch.set(notifDocRef, {
-    type:  'shared_task' as const,
-    title: senderUsername ? `@${senderUsername} sent you a task` : `${senderName} sent you a task`,
-    body:  task.title,
+    type:   'shared_task' as const,
+    sentBy: senderUid,
+    title:  senderUsername ? `@${senderUsername} sent you a task` : `${senderName} sent you a task`,
+    body:   task.title,
     data: {
       type:         'shared_task',
       sharedTaskId: incomingDocRef.id,

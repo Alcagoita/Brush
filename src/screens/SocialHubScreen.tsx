@@ -47,7 +47,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 function relativeTime(ts: { toDate(): Date } | null | undefined): string {
-  if (!ts) { return ''; }
+  if (!ts || typeof ts.toDate !== 'function') { return ''; }
   const diff = Date.now() - ts.toDate().getTime();
   const mins = Math.floor(diff / 60_000);
   if (mins < 1)  { return 'just now'; }

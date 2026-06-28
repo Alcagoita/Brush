@@ -185,12 +185,16 @@ export default function TodayScreen() {
     handleToggle,
     permissionGranted,
     refreshProximity,
-    locationUnavailable,
   } = useTodayScreen(uid);
 
 
-  // Refresh task list on focus so accepted shared tasks appear immediately.
-  useFocusEffect(useCallback(() => { refresh(); }, [refresh]));
+  // Refresh tasks on focus so accepted shared tasks appear on return.
+  // Skip the very first focus — SplashScreen already preloaded data.
+  const hasFocusedOnce = useRef(false);
+  useFocusEffect(useCallback(() => {
+    if (!hasFocusedOnce.current) { hasFocusedOnce.current = true; return; }
+    refresh();
+  }, [refresh]));
 
   // ── New Task sheet open trigger ───────────────────────────────────────────────
   // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is

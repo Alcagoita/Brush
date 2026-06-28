@@ -46,7 +46,6 @@ import {
   PointsReason,
   UserPreferences,
   InboxEntry,
-  PendingNotification,
 } from '../types';
 import {
   registerCategoryKeywords,
@@ -1126,22 +1125,28 @@ export async function followUser(
   batch.set(userRef(followerUid), { followingCount: increment(1) }, { merge: true });
   batch.set(userRef(followedUid), { followersCount: increment(1) }, { merge: true });
 
-  // Write inbox entry so the followed user sees a follow notification.
-  const inboxDocRef = doc(inboxRef(followedUid));
+  // Use followerUid as the deterministic doc ID — prevents duplicate inbox
+  // entries if followUser is called more than once for the same pair.
+  const inboxDocRef = doc(inboxRef(followedUid), followerUid);
+  const handle = followerUsername ? `@${followerUsername}` : followerDisplayName;
   batch.set(inboxDocRef, {
-    type:            'follow_request',
+    type:            'follow_request' as const,
     fromUid:         followerUid,
     fromUsername:    followerUsername,
     fromDisplayName: followerDisplayName,
     read:            false,
     createdAt:       serverTimestamp(),
-  } satisfies Omit<InboxEntry, 'id'>);
+  });
 
   // Also write a pendingNotification so the device fires a system notification.
-  const pendingNotifRef = doc(collection(getFirestore(), 'pendingNotifications', followedUid, 'items'));
-  const handle = followerUsername ? `@${followerUsername}` : followerDisplayName;
-  batch.set(pendingNotifRef, {
+  // Deterministic ID = follow_{followerUid} to prevent duplicate notifications.
+  const pendingNotifDocRef = doc(
+    collection(getFirestore(), 'pendingNotifications', followedUid, 'items'),
+    `follow_${followerUid}`,
+  );
+  batch.set(pendingNotifDocRef, {
     type:      'follow' as const,
+    sentBy:    followerUid,
     title:     `${handle} started following you`,
     body:      'Tap to see their profile',
     data:      { type: 'follow', fromUid: followerUid, screen: 'SharedTaskInbox' },

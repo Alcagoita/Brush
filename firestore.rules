@@ -97,14 +97,22 @@ service cloud.firestore {
 
       // ─── Social inbox (KAN-212) ──────────────────────────────────────────────
       // Owner reads, marks read (only the `read` field), or deletes their own entries.
-      // Any authenticated user may create a follow_request entry pointing to themselves.
+      // Creators: validated shape + existsAfter guard (follower/following doc must
+      // be present in the same batch) prevents spam/injection without a real follow.
       match /inbox/{entryId} {
         allow read, delete: if isOwner(userId);
         allow update: if isOwner(userId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
         allow create: if request.auth != null
+          && request.resource.data.keys().hasOnly(['type', 'fromUid', 'fromUsername', 'fromDisplayName', 'read', 'createdAt'])
           && request.resource.data.type == 'follow_request'
-          && request.resource.data.fromUid == request.auth.uid;
+          && request.resource.data.fromUid == request.auth.uid
+          && validString(request.resource.data.fromUsername, 30)
+          && validString(request.resource.data.fromDisplayName, 80)
+          && request.resource.data.read is bool
+          && request.resource.data.read == false
+          && request.resource.data.createdAt is timestamp
+          && existsAfter(/databases/$(database)/documents/users/$(userId)/followers/$(request.auth.uid));
       }
 
       // ─── Following (KAN-98) ──────────────────────────────────────────────────
@@ -139,11 +147,16 @@ service cloud.firestore {
     }
 
     // ─── Pending notifications (KAN-87) ───────────────────────────────────────
-    // Written by any authenticated user (senders, followers, challenge invites).
-    // Read and deleted by the recipient's device only.
+    // Writer must be authenticated and identify themselves via sentBy == auth.uid.
+    // Type must be one of the known event types; title/body/createdAt validated.
     match /pendingNotifications/{userId}/items/{docId} {
       allow read, delete: if isOwner(userId);
-      allow create: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.sentBy == request.auth.uid
+        && request.resource.data.type in ['shared_task', 'challenge_invite', 'challenge_won', 'challenge_ended', 'follow']
+        && request.resource.data.title is string
+        && request.resource.data.body is string
+        && request.resource.data.createdAt is timestamp;
       allow update: if false;
     }
 

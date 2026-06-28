@@ -119,6 +119,7 @@ export async function createChallenge(params: CreateChallengeParams): Promise<st
     participants.map(p =>
       addDoc(pendingNotifRef(p.uid), {
         type:      'challenge_invite',
+        sentBy:    creatorUid,
         title:     notifTitle,
         body:      message ?? typeLabel,
         data: {
@@ -235,6 +236,7 @@ export async function incrementCompletedCount(
             collection(db, 'pendingNotifications', pUid, 'items'),
             {
               type:      'challenge_ended',
+              sentBy:    uid,
               title:     `${winnerHandle} won the challenge!`,
               body:      'Better luck next time.',
               data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
@@ -265,6 +267,7 @@ export async function incrementCompletedCount(
 export async function resolveTimeBasedChallenge(
   challengeId: string,
   challenge: Challenge,
+  callerUid: string,
 ): Promise<void> {
   const db = getFirestore();
   const entries = Object.entries(challenge.participants);
@@ -289,6 +292,7 @@ export async function resolveTimeBasedChallenge(
         collection(db, 'pendingNotifications', pUid, 'items'),
         {
           type:      pUid === winnerUid ? 'challenge_won' : 'challenge_ended',
+          sentBy:    callerUid,
           title:     pUid === winnerUid ? COPY.achievement.challengeWonNotifTitle : `${winnerHandle} won the challenge!`,
           body:      pUid === winnerUid ? COPY.achievement.challengeWonBody : COPY.achievement.challengeEndedBody,
           data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
