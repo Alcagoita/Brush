@@ -330,3 +330,4 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 - **Sprint 10** — ✅ Done (v0.10.0)
 - **Sprint 11** — ✅ Done (v0.11.0)
 - **Sprint 13** — ✅ Done (v0.13.0)
+- **Sprint 14** — ✅ Done (v0.14.0)
