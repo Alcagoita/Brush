@@ -57,7 +57,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, categories as builtInCategories } from '../theme/tokens';
-import { subscribeToTasksForMonth, subscribeToAchievements, getCategories } from '../services/firestore';
+import { subscribeToTasksForMonth, subscribeToAchievements, getCategories, setTaskDone } from '../services/firestore';
 import { Task, Category, MonthTasksUiState, AchievementsMap } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
@@ -174,18 +174,31 @@ interface CalTaskRowProps {
   task: Task;
   customCategories: Category[];
   isLast: boolean;
+  uid: string;
+  isFuture: boolean;
 }
 
-function CalTaskRow({ task, customCategories, isLast }: CalTaskRowProps) {
+function CalTaskRow({ task, customCategories, isLast, uid, isFuture }: CalTaskRowProps) {
   const { palette } = useTheme();
   const cat = resolveCategory(task, customCategories);
   const [titleWidth, setTitleWidth] = useState(0);
 
+  const handleToggle = () => {
+    if (isFuture) { return; }
+    setTaskDone(uid, task.id, !task.done).catch(err =>
+      console.warn('[CalTaskRow] setTaskDone failed', err),
+    );
+  };
+
   return (
-    <View
-      style={[
+    <Pressable
+      onPress={handleToggle}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: task.done }}
+      style={({ pressed }) => [
         styles.taskRow,
         !isLast && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: palette.line },
+        pressed && { opacity: 0.7 },
       ]}>
       {/* Check circle */}
       <View
@@ -210,17 +223,20 @@ function CalTaskRow({ task, customCategories, isLast }: CalTaskRowProps) {
 
       {/* Title with brush strikethrough when done */}
       <View style={styles.taskTitleWrap}>
-        <Text
-          style={[styles.taskTitle, { color: task.done ? palette.muted : palette.text }]}
-          numberOfLines={1}
+        <View
+          style={styles.taskTitleInner}
           onLayout={e => setTitleWidth(e.nativeEvent.layout.width)}>
-          {task.title}
-        </Text>
-        {task.done && (
-          <View pointerEvents="none" style={styles.taskStrokeOverlay}>
-            <BrushStroke width={titleWidth} color={palette.accent} />
-          </View>
-        )}
+          <Text
+            style={[styles.taskTitle, { color: task.done ? palette.muted : palette.text }]}
+            numberOfLines={1}>
+            {task.title}
+          </Text>
+          {task.done && titleWidth > 0 && (
+            <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+              <BrushStroke width={titleWidth} color={palette.accent} />
+            </View>
+          )}
+        </View>
       </View>
 
       {/* Category dot */}
@@ -230,7 +246,7 @@ function CalTaskRow({ task, customCategories, isLast }: CalTaskRowProps) {
           { backgroundColor: cat.color, opacity: task.done ? 0.4 : 0.85 },
         ]}
       />
-    </View>
+    </Pressable>
   );
 }
 
@@ -724,6 +740,8 @@ export default function CalendarScreen() {
                     task={task}
                     customCategories={customCategories}
                     isLast={i === selectedTasks.length - 1}
+                    uid={uid}
+                    isFuture={isSelFuture}
                   />
                 ))}
               </View>
@@ -1013,18 +1031,18 @@ const styles = StyleSheet.create({
     flexShrink:     0,
   },
   taskTitleWrap: {
-    flex: 1,
+    flex:    1,
     minWidth: 0,
+  },
+  taskTitleInner: {
+    alignSelf: 'flex-start',
+    position:  'relative',
   },
   taskTitle: {
     fontSize:      14,
     fontFamily:    'Geist-Regular',
     letterSpacing: -0.14,
     lineHeight:     18,
-  },
-  taskStrokeOverlay: {
-    position: 'absolute',
-    left: 0, right: 0, top: 0,
   },
   categoryDot: {
     width:        7,
