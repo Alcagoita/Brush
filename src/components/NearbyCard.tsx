@@ -262,13 +262,14 @@ function AlsoCloseRow({
   place:   NearbyPlace | undefined;
   isFirst: boolean;
 }) {
-  const { palette } = useTheme();
+  const { palette, dark } = useTheme();
+  const separatorColor = dark ? 'rgba(255,255,255,0.14)' : 'rgba(20,20,18,0.14)';
 
   return (
     <Pressable
       style={({ pressed }) => [
         styles.idleRow,
-        !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line },
+        !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separatorColor },
         { opacity: pressed && !!place ? 0.65 : 1 },
       ]}
       onPress={place ? () => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); } : undefined}
@@ -360,10 +361,8 @@ function NearbyCard({
   );
 
   const poiTasks = tasks.filter(t => !t.done && t.poi != null);
-  if (poiTasks.length === 0) { onHasContent?.(false); return null; }
 
   // One carousel entry per POI type that has a place within the hero zone.
-  // First undone task for each type wins the card.
   const heroEntries = poiTasks.reduce<Array<{ task: Task; places: NearbyPlace[]; poiType: string }>>(
     (acc, t) => {
       if (!t.poi) { return acc; }
@@ -385,15 +384,18 @@ function NearbyCard({
     return !!poiPlaces[t.poi]?.length;
   });
 
+  const hasContent = poiTasks.length > 0 && (heroEntries.length > 0 || greyTasks.length > 0);
+
+  // Notify parent after render — never during render (avoids setState-in-render warning).
+  React.useEffect(() => { onHasContent?.(hasContent); }, [hasContent, onHasContent]);
+
+  if (poiTasks.length === 0) { return null; }
+
   // Nothing to show at all — hide.
-  // Guard on actual content, not the isHero flag: nearbyPoiType can be set
-  // but have no matching task (or poiPlaces empty), which would leave an
-  // empty header. Content is the source of truth for visibility.
-  if (heroEntries.length === 0 && greyTasks.length === 0) { onHasContent?.(false); return null; }
+  if (heroEntries.length === 0 && greyTasks.length === 0) { return null; }
 
   const totalPlaces = heroEntries.length + greyTasks.length;
 
-  onHasContent?.(true);
   return (
     <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 14 }]}>
 
@@ -662,15 +664,14 @@ const styles = StyleSheet.create({
     borderRadius:      radius.card,
     borderWidth:       1,
     overflow:          'hidden',
-    paddingTop:        12,
     paddingHorizontal: 16,
-    paddingBottom:     4,
   },
   listSectionLabel: {
     fontSize:      11,
     fontWeight:    '600',
     fontFamily:    'Geist-SemiBold',
     letterSpacing: 1,
+    paddingTop:    12,
     marginBottom:  8,
   },
   idleRow: {

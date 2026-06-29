@@ -334,7 +334,7 @@ export default function TodayScreen() {
       )}
 
       {/* ── Task list section header ── */}
-      <View style={[styles.sectionHeaderBlock, nearbyHasContent && { borderTopColor: palette.line }]}>
+      <View style={[styles.sectionHeaderBlock, nearbyHasContent && { marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
             {`TODAY · `}
@@ -355,6 +355,7 @@ export default function TodayScreen() {
     sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
     permissionGranted, nearbyCount, isLoading,
     palette, doneTasks, totalTasks, remaining,
+    nearbyHasContent, setNearbyHasContent,
   ]);
 
   const listEmpty = isLoading ? (
@@ -481,7 +482,7 @@ export default function TodayScreen() {
             style={[
               styles.ringBg,
               bgStyle,
-              { backgroundColor: palette.bg, borderBottomColor: palette.line },
+              { backgroundColor: palette.bg, borderBottomColor: palette.line, borderBottomWidth: nearbyHasContent ? StyleSheet.hairlineWidth : 0 },
             ]}
           />
 
@@ -645,7 +646,6 @@ const styles = StyleSheet.create({
     right: 0,
     height: SECTION_H_REST,      // fixed; collapse is a scaleY transform
     transformOrigin: 'top',
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   ringWrap: {
     position: 'absolute',
@@ -757,7 +757,6 @@ const styles = StyleSheet.create({
   sectionHeaderBlock: {
     marginTop: 24,
     paddingHorizontal: spacing.page,
-    borderTopWidth: StyleSheet.hairlineWidth,
     paddingTop: 20,
   },
   // Per-row horizontal padding — replaces the wrapping `section` View now that
