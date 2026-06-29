@@ -40,6 +40,8 @@ import BrushStroke from '../components/BrushStroke';
 import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
 import { todayISO } from '../utils/date';
 import { PoiIcon } from '../components/AppIcon';
+import PoiChip from '../components/PoiChip';
+import { categories } from '../theme/tokens';
 import type { PoiType, Category } from '../types';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
@@ -75,9 +77,9 @@ interface SuggestionChip { label: string; poi: PoiType; category: Category; }
 const SUGGESTION_CHIPS: SuggestionChip[] = [
   { label: 'Buy bread',      poi: 'store',       category: 'errands'  },
   { label: 'Coffee outside', poi: 'cafe',        category: 'personal' },
+  { label: 'Go for a run',   poi: 'park',        category: 'health'   },
   { label: 'Withdraw cash',  poi: 'atm',         category: 'personal' },
   { label: 'Groceries',      poi: 'supermarket', category: 'errands'  },
-  { label: 'Go for a run',   poi: 'park',        category: 'health'   },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -439,22 +441,26 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                   keyExtractor={chip => chip.label}
                   renderItem={({ item: chip }) => {
                     const selected = taskTitle === chip.label;
+                    const catColor = categories[chip.category as keyof typeof categories]?.color ?? T.muted;
                     return (
                       <Pressable
                         accessibilityRole="checkbox"
                         accessibilityState={{ checked: selected }}
                         style={({ pressed }) => [
                           styles.chip,
-                          selected && styles.chipSelected,
+                          {
+                            backgroundColor: selected ? catColor : catColor + '18',
+                            borderColor:     selected ? catColor : catColor + '50',
+                          },
                           { transform: [{ scale: pressed ? 0.97 : 1 }] },
                         ]}
                         onPress={() => setTaskTitle(prev => prev === chip.label ? '' : chip.label)}>
                         <PoiIcon
                           type={chip.poi}
-                          color={selected ? T.bg : T.muted}
-                          size={14}
+                          color={selected ? '#fff' : catColor}
+                          size={16}
                         />
-                        <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
+                        <Text style={[styles.chipText, { color: selected ? '#fff' : catColor }]}>
                           {chip.label}
                         </Text>
                       </Pressable>
@@ -542,9 +548,18 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                 </Animated.View>
               )}
             </View>
-            <Text style={styles.taskMeta}>
-              <Text style={{ color: '#8b6bc4' }}>• </Text>Errands
-            </Text>
+            {(() => {
+              const chip = SUGGESTION_CHIPS.find(c => c.label === taskTitle);
+              const cat  = categories[chip?.category as keyof typeof categories] ?? categories.errands;
+              return (
+                <View style={styles.chips}>
+                  <View style={[styles.catChip, { backgroundColor: cat.color + '1a', borderColor: cat.color + '40' }]}>
+                    <Text style={[styles.catLabel, { color: cat.color }]}>{cat.label}</Text>
+                  </View>
+                  {chip?.poi && <PoiChip poi={chip.poi} />}
+                </View>
+              );
+            })()}
           </View>
         </View>
 
@@ -717,10 +732,11 @@ const styles = StyleSheet.create({
     marginBottom:    18,
   },
   sheetEyebrow: {
-    fontFamily: 'Geist-Regular',
-    fontSize:   13,
-    color:      T.muted,
-    marginBottom: 12,
+    fontFamily:    'Geist-Medium',
+    fontSize:      22,
+    color:         T.text,
+    letterSpacing: 22 * -0.02,
+    marginBottom:  18,
   },
   sheetInput: {
     fontFamily:    'Geist-Medium',
@@ -747,16 +763,16 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     borderColor:     T.line,
     borderRadius:    9999,
-    paddingHorizontal: 14,
-    paddingVertical:   8,
+    paddingHorizontal: 16,
+    paddingVertical:   9,
   },
   chipSelected: {
     backgroundColor: T.text,
     borderColor:     T.text,
   },
   chipText: {
-    fontFamily: 'Geist-Regular',
-    fontSize:   14,
+    fontFamily: 'Geist-Medium',
+    fontSize:   15,
     color:      T.text,
   },
   chipTextSelected: { color: T.bg },
@@ -871,6 +887,23 @@ const styles = StyleSheet.create({
     fontSize:    12,
     color:       T.muted,
     marginTop:   4,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    alignItems:    'center',
+    gap:           6,
+    marginTop:     4,
+  },
+  catChip: {
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    borderRadius:      9999,
+    borderWidth:       StyleSheet.hairlineWidth,
+  },
+  catLabel: {
+    fontSize:   11,
+    fontFamily: 'Geist-SemiBold',
   },
   washOverlay: {
     borderRadius: 4,
