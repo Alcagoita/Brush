@@ -11,17 +11,14 @@
  * Light-mode only. All tokens are hardcoded to the light palette per spec.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   AccessibilityInfo,
+  FlatList,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import Animated, {
@@ -42,6 +39,10 @@ import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import BrushStroke from '../components/BrushStroke';
 import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
 import { todayISO } from '../utils/date';
+import { PoiIcon } from '../components/AppIcon';
+import PoiChip from '../components/PoiChip';
+import { categories } from '../theme/tokens';
+import type { PoiType, Category } from '../types';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
 
@@ -60,6 +61,15 @@ const T = {
   nearText:   '#7a4a20',
 };
 
+function chipFgColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return L > 0.35 ? T.text : '#fff';
+}
+
 // ─── Onboarding message set (KAN-140 — 6 messages) ───────────────────────────
 
 const ONBOARDING_NUDGES: NudgeMessage[] = [
@@ -71,7 +81,15 @@ const ONBOARDING_NUDGES: NudgeMessage[] = [
   { text: 'There’s probably something in the fridge that needs replacing.', poi: 'supermarket', color: '#8b6bc4' },
 ];
 
-const SUGGESTION_CHIPS = ['Buy bread', 'Coffee outside', 'Post office', 'Groceries', 'Go for a run'];
+interface SuggestionChip { label: string; poi: PoiType; category: Category; }
+
+const SUGGESTION_CHIPS: SuggestionChip[] = [
+  { label: 'Buy bread',      poi: 'store',       category: 'errands'  },
+  { label: 'Coffee outside', poi: 'cafe',        category: 'personal' },
+  { label: 'Go for a run',   poi: 'park',        category: 'health'   },
+  { label: 'Withdraw cash',  poi: 'atm',         category: 'personal' },
+  { label: 'Groceries',      poi: 'supermarket', category: 'errands'  },
+];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -186,7 +204,6 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
   const [sheetVisible, setSheetVisible] = useState(false);
   const [rewardVisible, setRewardVisible] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const inputRef = useRef<TextInput>(null);
 
   // ── Stage 1 entrance ───────────────────────────────────────────────────────
   const welcomeY   = useSharedValue(13);
@@ -221,7 +238,6 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
       duration: 340,
       easing: Easing.bezier(0.32, 0.72, 0, 1),
     });
-    setTimeout(() => inputRef.current?.focus(), 320);
   }, [scrimOp, sheetY]);
 
   const closeSheet = useCallback(() => {
@@ -291,11 +307,15 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
     closeSheet();
 
     try {
+      const chip = SUGGESTION_CHIPS.find(c => c.label === taskTitle.trim());
+
       const id = await addTask(uid, {
         title:    taskTitle.trim(),
-        category: 'errands',
+        category: chip?.category ?? 'errands',
+        poi:      chip?.poi ?? 'supermarket',
         date:     todayISO(),
       });
+
       setCreatedTaskId(id);
     } catch {
       // Non-critical — onboarding proceeds even if Firestore write fails
@@ -412,73 +432,70 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
             <Animated.View style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}>
               <Pressable style={StyleSheet.absoluteFill} onPress={closeSheet} />
             </Animated.View>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-              style={StyleSheet.absoluteFill}
-              pointerEvents="box-none">
-              <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-                <Animated.View
-                  style={[styles.sheet, { paddingBottom: insets.bottom + 16 }, sheetStyle]}>
-                  {/* Handle */}
-                  <View style={styles.sheetHandle} />
+            <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+              <Animated.View
+                style={[styles.sheet, { paddingBottom: insets.bottom + 16 }, sheetStyle]}>
+                {/* Handle */}
+                <View style={styles.sheetHandle} />
 
-                  <Text style={styles.sheetEyebrow}>The first thing on your mind…</Text>
+                <Text style={styles.sheetEyebrow}>The first thing on your mind…</Text>
 
-                  <TextInput
-                    ref={inputRef}
-                    style={styles.sheetInput}
-                    placeholder="Buy bread? Coffee outside? Go for a run?"
-                    placeholderTextColor={T.faint}
-                    value={taskTitle}
-                    onChangeText={setTaskTitle}
-                    onSubmitEditing={handleAddTask}
-                    returnKeyType="done"
-                    autoCapitalize="sentences"
-                    autoCorrect
-                  />
+                {/* Chip-only selection — no free text */}
+                <FlatList
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.chipScroll}
+                  contentContainerStyle={styles.chipRow}
+                  data={SUGGESTION_CHIPS}
+                  keyExtractor={chip => chip.label}
+                  renderItem={({ item: chip }) => {
+                    const selected = taskTitle === chip.label;
+                    const catColor = categories[chip.category as keyof typeof categories]?.color ?? T.muted;
+                    const selectedFg = chipFgColor(catColor);
+                    return (
+                      <Pressable
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: selected }}
+                        style={({ pressed }) => [
+                          styles.chip,
+                          {
+                            backgroundColor: selected ? catColor : catColor + '18',
+                            borderColor:     selected ? catColor : catColor + '50',
+                          },
+                          { transform: [{ scale: pressed ? 0.97 : 1 }] },
+                        ]}
+                        onPress={() => setTaskTitle(prev => prev === chip.label ? '' : chip.label)}>
+                        <PoiIcon
+                          type={chip.poi}
+                          color={selected ? selectedFg : catColor}
+                          size={16}
+                        />
+                        <Text style={[styles.chipText, { color: selected ? selectedFg : catColor }]}>
+                          {chip.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                />
 
-                  {/* Suggestion chips */}
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll}>
-                    <View style={styles.chipRow}>
-                      {SUGGESTION_CHIPS.map(chip => (
-                        <Pressable
-                          key={chip}
-                          style={({ pressed }) => [
-                            styles.chip,
-                            taskTitle === chip && styles.chipSelected,
-                            { transform: [{ scale: pressed ? 0.97 : 1 }] },
-                          ]}
-                          onPress={() => { setTaskTitle(chip); inputRef.current?.focus(); }}>
-                          <Text style={[
-                            styles.chipText,
-                            taskTitle === chip && styles.chipTextSelected,
-                          ]}>
-                            {chip}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  </ScrollView>
-
-                  {/* Footer */}
-                  <View style={styles.sheetFooter}>
-                    <Text style={styles.sheetHelper}>
-                      Time &amp; place can wait. Just get it out of your head.
+                {/* Footer */}
+                <View style={styles.sheetFooter}>
+                  <Text style={styles.sheetHelper}>
+                    Time &amp; place can wait. Just get it out of your head.
+                  </Text>
+                  <Pressable
+                    style={[styles.addBtn, !taskTitle.trim() && styles.addBtnDisabled]}
+                    onPress={handleAddTask}
+                    disabled={!taskTitle.trim()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add task">
+                    <Text style={[styles.addBtnText, !taskTitle.trim() && styles.addBtnTextDisabled]}>
+                      Add it
                     </Text>
-                    <Pressable
-                      style={[styles.addBtn, !taskTitle.trim() && styles.addBtnDisabled]}
-                      onPress={handleAddTask}
-                      disabled={!taskTitle.trim()}
-                      accessibilityRole="button"
-                      accessibilityLabel="Add task">
-                      <Text style={[styles.addBtnText, !taskTitle.trim() && styles.addBtnTextDisabled]}>
-                        Add it
-                      </Text>
-                    </Pressable>
-                  </View>
-                </Animated.View>
-              </View>
-            </KeyboardAvoidingView>
+                  </Pressable>
+                </View>
+              </Animated.View>
+            </View>
           </>
         )}
       </View>
@@ -541,9 +558,18 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                 </Animated.View>
               )}
             </View>
-            <Text style={styles.taskMeta}>
-              <Text style={{ color: '#8b6bc4' }}>• </Text>Errands
-            </Text>
+            {(() => {
+              const chip = SUGGESTION_CHIPS.find(c => c.label === taskTitle);
+              const cat  = categories[chip?.category as keyof typeof categories] ?? categories.errands;
+              return (
+                <View style={styles.chips}>
+                  <View style={[styles.catChip, { backgroundColor: cat.color + '1a', borderColor: cat.color + '40' }]}>
+                    <Text style={[styles.catLabel, { color: cat.color }]}>{cat.label}</Text>
+                  </View>
+                  {chip?.poi && <PoiChip poi={chip.poi} />}
+                </View>
+              );
+            })()}
           </View>
         </View>
 
@@ -716,10 +742,11 @@ const styles = StyleSheet.create({
     marginBottom:    18,
   },
   sheetEyebrow: {
-    fontFamily: 'Geist-Regular',
-    fontSize:   13,
-    color:      T.muted,
-    marginBottom: 12,
+    fontFamily:    'Geist-Medium',
+    fontSize:      22,
+    color:         T.text,
+    letterSpacing: 22 * -0.02,
+    marginBottom:  18,
   },
   sheetInput: {
     fontFamily:    'Geist-Medium',
@@ -736,23 +763,26 @@ const styles = StyleSheet.create({
   chipRow: {
     flexDirection: 'row',
     gap:           8,
-    paddingRight:  22,
+    paddingHorizontal: 22,
   },
   chip: {
+    flexDirection:   'row',
+    alignItems:      'center',
+    gap:             6,
     backgroundColor: T.surface,
     borderWidth:     1,
     borderColor:     T.line,
     borderRadius:    9999,
-    paddingHorizontal: 14,
-    paddingVertical:   8,
+    paddingHorizontal: 16,
+    paddingVertical:   9,
   },
   chipSelected: {
     backgroundColor: T.text,
     borderColor:     T.text,
   },
   chipText: {
-    fontFamily: 'Geist-Regular',
-    fontSize:   14,
+    fontFamily: 'Geist-Medium',
+    fontSize:   15,
     color:      T.text,
   },
   chipTextSelected: { color: T.bg },
@@ -855,7 +885,7 @@ const styles = StyleSheet.create({
     backgroundColor: T.faint,
   },
   taskBody:    { flex: 1 },
-  titleWrapper: { position: 'relative' },
+  titleWrapper: { position: 'relative', alignSelf: 'flex-start' },
   taskTitle: {
     fontFamily: 'Geist-Regular',
     fontSize:   16,
@@ -867,6 +897,23 @@ const styles = StyleSheet.create({
     fontSize:    12,
     color:       T.muted,
     marginTop:   4,
+  },
+  chips: {
+    flexDirection: 'row',
+    flexWrap:      'wrap',
+    alignItems:    'center',
+    gap:           6,
+    marginTop:     4,
+  },
+  catChip: {
+    paddingHorizontal: 8,
+    paddingVertical:   3,
+    borderRadius:      9999,
+    borderWidth:       StyleSheet.hairlineWidth,
+  },
+  catLabel: {
+    fontSize:   11,
+    fontFamily: 'Geist-SemiBold',
   },
   washOverlay: {
     borderRadius: 4,
