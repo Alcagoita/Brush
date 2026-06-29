@@ -77,23 +77,33 @@ export default function PublicProfileScreen() {
   // ── Load target user + achievements + follow state ───────────────────────────
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setNotFound(false);
+    setTargetUser(null);
+    setAchievements([]);
+    setFollowing(false);
     setFollowError('');
     getUserByUsername(username)
       .then(async u => {
         if (cancelled) { return; }
         if (!u) { setNotFound(true); setLoading(false); return; }
         setTargetUser(u);
+        setLoading(false);
 
-        const [achievs, followed] = await Promise.all([
-          getAchievementsForUser(u.uid),
-          u.uid !== currentUid ? isFollowing(currentUid, u.uid) : Promise.resolve(false),
-        ]);
-        if (cancelled) { return; }
-        setAchievements(achievs);
-        setFollowing(followed);
+        // Enrich with achievements + follow state — failures don't hide the profile.
+        try {
+          const [achievs, followed] = await Promise.all([
+            getAchievementsForUser(u.uid),
+            u.uid !== currentUid ? isFollowing(currentUid, u.uid) : Promise.resolve(false),
+          ]);
+          if (cancelled) { return; }
+          setAchievements(achievs);
+          setFollowing(followed);
+        } catch {
+          if (!cancelled) { setAchievements([]); setFollowing(false); }
+        }
       })
-      .catch(() => { if (!cancelled) { setNotFound(true); } })
-      .finally(() => { if (!cancelled) { setLoading(false); } });
+      .catch(() => { if (!cancelled) { setNotFound(true); setLoading(false); } });
     return () => { cancelled = true; };
   }, [username, currentUid]);
 
@@ -114,7 +124,7 @@ export default function PublicProfileScreen() {
           currentAuth?.displayName ?? '',
           targetUser.uid,
           targetUser.username ?? '',
-          targetUser.displayName,
+          targetUser.displayName ?? '',
         );
         setFollowing(true);
       }

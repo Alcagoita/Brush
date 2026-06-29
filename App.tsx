@@ -24,7 +24,7 @@ import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
 import type { RootStackParamList } from './src/navigation/AppNavigator';
-import { getUser, markLastOpenedAt, setTaskDone, getUserPreferences } from './src/services/firestore';
+import { getUser, markLastOpenedAt, setTaskDone, getUserPreferences, backfillUserDocument } from './src/services/firestore';
 import SplashScreen from './src/screens/SplashScreen';
 import { useAppStore } from './src/store/appStore';
 import { migratePointsToAchievementDerived } from './src/services/achievements';
@@ -130,6 +130,9 @@ function AppShell() {
     if (!displayUser) { return; }
     migratePointsToAchievementDerived(displayUser.uid).catch(err =>
       console.warn('[App] migratePointsToAchievementDerived failed (non-critical)', err),
+    );
+    backfillUserDocument(displayUser.uid, displayUser.email ?? null, displayUser.displayName ?? null).catch(err =>
+      console.warn('[App] backfillUserDocument failed (non-critical)', err),
     );
   }, [displayUser]);
 
