@@ -33,6 +33,7 @@ export default function BrushStroke({ width, color }: BrushStrokeProps) {
       width={width}
       height={26}
       viewBox="0 0 260 26"
+      preserveAspectRatio="none"
       style={{ position: 'absolute', top: -2 }}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants">
