@@ -61,6 +61,15 @@ const T = {
   nearText:   '#7a4a20',
 };
 
+function chipFgColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return L > 0.35 ? T.text : '#fff';
+}
+
 // ─── Onboarding message set (KAN-140 — 6 messages) ───────────────────────────
 
 const ONBOARDING_NUDGES: NudgeMessage[] = [
@@ -442,6 +451,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                   renderItem={({ item: chip }) => {
                     const selected = taskTitle === chip.label;
                     const catColor = categories[chip.category as keyof typeof categories]?.color ?? T.muted;
+                    const selectedFg = chipFgColor(catColor);
                     return (
                       <Pressable
                         accessibilityRole="checkbox"
@@ -457,10 +467,10 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                         onPress={() => setTaskTitle(prev => prev === chip.label ? '' : chip.label)}>
                         <PoiIcon
                           type={chip.poi}
-                          color={selected ? '#fff' : catColor}
+                          color={selected ? selectedFg : catColor}
                           size={16}
                         />
-                        <Text style={[styles.chipText, { color: selected ? '#fff' : catColor }]}>
+                        <Text style={[styles.chipText, { color: selected ? selectedFg : catColor }]}>
                           {chip.label}
                         </Text>
                       </Pressable>
