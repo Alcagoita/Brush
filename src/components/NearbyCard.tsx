@@ -68,6 +68,8 @@ interface NearbyCardProps {
   storeTuningActive?: boolean;
   /** Called when user taps the refresh button in the header. */
   onRefreshLocation?: () => Promise<boolean>;
+  /** Called on every render — true if content is visible, false if null. */
+  onHasContent?: (has: boolean) => void;
 }
 
 // ─── Pulsing dot (header) ─────────────────────────────────────────────────────
@@ -300,6 +302,7 @@ function NearbyCard({
   poiPlaces,
   storeTuningActive = false,
   onRefreshLocation,
+  onHasContent,
 }: NearbyCardProps) {
 
   const { palette } = useTheme();
@@ -357,7 +360,7 @@ function NearbyCard({
   );
 
   const poiTasks = tasks.filter(t => !t.done && t.poi != null);
-  if (poiTasks.length === 0) { return null; }
+  if (poiTasks.length === 0) { onHasContent?.(false); return null; }
 
   // One carousel entry per POI type that has a place within the hero zone.
   // First undone task for each type wins the card.
@@ -386,10 +389,11 @@ function NearbyCard({
   // Guard on actual content, not the isHero flag: nearbyPoiType can be set
   // but have no matching task (or poiPlaces empty), which would leave an
   // empty header. Content is the source of truth for visibility.
-  if (heroEntries.length === 0 && greyTasks.length === 0) { return null; }
+  if (heroEntries.length === 0 && greyTasks.length === 0) { onHasContent?.(false); return null; }
 
   const totalPlaces = heroEntries.length + greyTasks.length;
 
+  onHasContent?.(true);
   return (
     <View style={[styles.card, { marginHorizontal: spacing.page, marginTop: 14 }]}>
 

@@ -187,6 +187,7 @@ export default function TodayScreen() {
     refreshProximity,
   } = useTodayScreen(uid);
 
+  const [nearbyHasContent, setNearbyHasContent] = useState(false);
 
   // Refresh tasks on focus so accepted shared tasks appear on return.
   // Skip the very first focus — SplashScreen already preloaded data.
@@ -328,11 +329,12 @@ export default function TodayScreen() {
         poiPlaces={poiPlaces}
         storeTuningActive={storeTuningActive}
         onRefreshLocation={refreshProximity}
+        onHasContent={setNearbyHasContent}
       />
       )}
 
       {/* ── Task list section header ── */}
-      <View style={[styles.sectionHeaderBlock, { borderTopColor: palette.line }]}>
+      <View style={[styles.sectionHeaderBlock, nearbyHasContent && { borderTopColor: palette.line }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
             {`TODAY · `}
