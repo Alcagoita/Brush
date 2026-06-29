@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     backgroundColor: T.faint,
   },
   taskBody:    { flex: 1 },
-  titleWrapper: { position: 'relative' },
+  titleWrapper: { position: 'relative', alignSelf: 'flex-start' },
   taskTitle: {
     fontFamily: 'Geist-Regular',
     fontSize:   16,

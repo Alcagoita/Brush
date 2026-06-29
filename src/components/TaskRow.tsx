@@ -372,7 +372,8 @@ const styles = StyleSheet.create({
     gap:  6,
   },
   titleWrapper: {
-    position: 'relative',
+    position:  'relative',
+    alignSelf: 'flex-start',
   },
   strokeOverlay: {
     position: 'absolute',
