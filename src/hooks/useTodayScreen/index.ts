@@ -10,9 +10,9 @@
  * No JSX — independently testable with renderHook.
  */
 
-import { NearbyPlace } from '../../services/maps';
-import { PlacesMap } from '../../services/proximity';
-import { Category, Task } from '../../types';
+import type { NearbyPlace } from '../../services/maps';
+import type { PlacesMap } from '../../services/proximity';
+import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
 import { useTaskCompletion } from './useTaskCompletion';

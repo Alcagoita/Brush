@@ -26,7 +26,7 @@ import { updateNotifNearbyEnabled, updateProximityPoiPreferences } from '../../s
 import { updateExitPromptPref } from '../../services/proximity';
 import { updateIndoorExitPromptPref } from '../../services/indoorProximity';
 import { syncTasksToWatch } from '../../services/wearSync';
-import { Category, Task } from '../../types';
+import type { Category, Task } from '../../types';
 import { todayISO } from '../../utils/date';
 import { useAppStore } from '../../store/appStore';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
@@ -84,10 +84,25 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
   //
   // No background watchers. Called once on mount and again on pull-to-refresh,
   // error retry, or when onTaskAdded fires after a new task is created.
+  //
+  // requestIdRef guards against overlapping calls (e.g. a fast refocus refresh
+  // firing while the initial fetch is still in flight) — only the most recent
+  // call is allowed to commit state.
+
+  const requestIdRef = useRef(0);
 
   const loadData = useCallback(async (isRefresh: boolean = false) => {
+    const myRequestId = ++requestIdRef.current;
+    const isStale = () => requestIdRef.current !== myRequestId;
+
     if (!uid) {
       setTasks([]);
+      setCustomCategories([]);
+      setTotalPoints(0);
+      setInboxCount(0);
+      setSocialUnreadCount(0);
+      setLowBatteryPausePref(false);
+      setStoreTuningEnabled(undefined);
       setIsLoading(false);
       return;
     }
@@ -98,20 +113,22 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       if (bootData && bootData.ownerUid !== uid) {
         clearBootData();
       } else if (bootData) {
-        setTasks(bootData.tasks);
-        setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
-        setTotalPoints(bootData.totalPoints);
-        setInboxCount(bootData.inboxCount);
-        setSocialUnreadCount(bootData.socialUnreadCount ?? 0);
-        if (bootData.userData) {
-          setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
-          setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
+        if (!isStale()) {
+          setTasks(bootData.tasks);
+          setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
+          setTotalPoints(bootData.totalPoints);
+          setInboxCount(bootData.inboxCount);
+          setSocialUnreadCount(bootData.socialUnreadCount ?? 0);
+          if (bootData.userData) {
+            setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
+            setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
+          }
+          updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
+          updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
+          updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
+          updateProximityPoiPreferences(bootData.poiPrefsMap);
+          setIsLoading(false);
         }
-        updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
-        updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
-        updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
-        updateProximityPoiPreferences(bootData.poiPrefsMap);
-        setIsLoading(false);
         clearBootData();
         return;
       }
@@ -148,6 +165,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         DATA_FETCH_TIMEOUT_MS,
       );
 
+      if (isStale()) { return; }
+
       setTasks(fetchedTasks);
       setCustomCategories(categories.filter(c => !c.isBuiltIn));
       setTotalPoints(points);
@@ -165,10 +184,12 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       updateProximityPoiPreferences(poiPrefsMap);
 
     } catch (err) {
-      setError('Could not load tasks. Check your connection.');
+      if (!isStale()) { setError('Could not load tasks. Check your connection.'); }
     } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
+      if (!isStale()) {
+        setIsLoading(false);
+        setIsRefreshing(false);
+      }
     }
   }, [uid]);
 

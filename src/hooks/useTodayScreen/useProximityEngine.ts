@@ -10,14 +10,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { setStoreTuningPref } from '../../services/firestore';
-import { requestLocationPermission, LocationContext } from '../../services/geolocation';
+import { requestLocationPermission } from '../../services/geolocation';
+import type { LocationContext } from '../../services/geolocation';
 import {
-  PlacesMap,
   runProximitySearch,
   getLastSearchCoords,
   setLocationTap,
 } from '../../services/proximity';
-import { getDistanceMeters, NearbyPlace } from '../../services/maps';
+import type { PlacesMap } from '../../services/proximity';
+import { getDistanceMeters } from '../../services/maps';
+import type { NearbyPlace } from '../../services/maps';
 import {
   startIndoorProximityMonitoring,
   stopIndoorProximityMonitoring,
@@ -31,7 +33,7 @@ import {
   dismissStoreTuning,
 } from '../../services/storeTuning';
 import { getBatteryLevel, useBatteryLevel } from '../../services/battery';
-import { StoreTuningState, Task } from '../../types';
+import type { StoreTuningState, Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
 export interface ProximityEngine {
@@ -265,6 +267,7 @@ export function useProximityEngine(
     return () => {
       stopIndoorMonitoringRef.current?.();
       stopIndoorMonitoringRef.current = null;
+      isIndoorMonitoringRef.current = false;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, permissionGranted, isStoreTuningActive]);
@@ -289,7 +292,7 @@ export function useProximityEngine(
   // ── Manual proximity refresh ────────────────────────────────────────────────
 
   const refreshProximity = useCallback(async (): Promise<boolean> => {
-    if (!uid || !permissionGranted || !hasPOITasks) { return false; }
+    if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return false; }
     try {
       await runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate);
       return true;
@@ -297,7 +300,7 @@ export function useProximityEngine(
       setLocationUnavailable(true);
       return false;
     }
-  }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
+  }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
 
   useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);
 

@@ -11,7 +11,7 @@ import { Platform, Vibration, InteractionManager } from 'react-native';
 import { setTaskDone, getTotalPoints } from '../../services/firestore';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../../services/challenges';
-import { Task } from '../../types';
+import type { Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
 export function useTaskCompletion(
@@ -73,7 +73,14 @@ export function useTaskCompletion(
         }
       }
     } catch (err) {
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: !done, pendingSync: false } : t));
+      // Only revert if the row still reflects this failed write (done + pendingSync).
+      // If the user toggled again before this rejected, that newer optimistic
+      // update already owns the row — don't stomp it.
+      setTasks(prev => prev.map(t =>
+        t.id === taskId && t.done === done && t.pendingSync
+          ? { ...t, done: !done, pendingSync: false }
+          : t,
+      ));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
   }, [uid, setTasks, latestTasksRef, nearbyPoiTypeRef, setTotalPoints]);
