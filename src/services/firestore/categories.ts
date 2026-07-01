@@ -1,4 +1,4 @@
-import { getDoc, getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from '@react-native-firebase/firestore';
+import { getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from '@react-native-firebase/firestore';
 import type { Category } from '../../types';
 import { registerCategoryKeywords, replaceCategoryKeywords } from '../poiInference';
 import { categoriesRef, categoryRef } from './refs';
@@ -49,14 +49,11 @@ export async function updateCategory(
   const ref = categoryRef(uid, categoryId);
   await updateDoc(ref, data);
   // Keep the inference dictionary in sync on any name/POI change (KAN-195).
-  // A name-only or POI-only patch still needs the merged document, so re-read it
-  // and register the full current category (registered across all languages).
+  // registerCategoryKeywords only adds — it can't purge a stale keyword left
+  // behind by a rename, so rebuild the whole category layer from the current
+  // list (same as getCategories) rather than re-registering just this one.
   if (data.name !== undefined || data.poi !== undefined) {
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      const c = snap.data() as Category;
-      registerCategoryKeywords({ name: c.name, poi: c.poi });
-    }
+    await getCategories(uid);
   }
 }
 
@@ -66,6 +63,9 @@ export async function updateCategory(
  */
 export async function deleteCategory(uid: string, categoryId: string): Promise<void> {
   await deleteDoc(categoryRef(uid, categoryId));
+  // Rebuild the inference dictionary so the deleted category's keywords stop
+  // matching immediately, instead of waiting for the next getCategories() call.
+  await getCategories(uid);
 }
 
 export async function getCategories(uid: string): Promise<Category[]> {

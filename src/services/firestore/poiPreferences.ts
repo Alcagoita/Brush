@@ -62,6 +62,9 @@ export async function setPoiPreference(
   poiType: string,
   radiusMeters: number,
 ): Promise<void> {
+  if (!Number.isFinite(radiusMeters) || radiusMeters <= 0) {
+    throw new Error(`setPoiPreference: radiusMeters must be a finite positive number, got ${radiusMeters}`);
+  }
   await setDoc(poiRef(uid, poiType), { type: poiType, radiusMeters });
 }
 

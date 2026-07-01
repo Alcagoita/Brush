@@ -37,7 +37,7 @@ export function validateUsername(v: string): string | null {
 
 /** Returns true if the username is not yet claimed. */
 export async function checkUsernameAvailable(username: string): Promise<boolean> {
-  const snap = await getDoc(usernameIndexRef(username));
+  const snap = await getDoc(usernameIndexRef(username.toLowerCase()));
   return !snap.exists();
 }
 
@@ -50,12 +50,13 @@ export async function checkUsernameAvailable(username: string): Promise<boolean>
  * Throws if the write fails (e.g. Firestore security rule blocks duplicate claim).
  */
 export async function claimUsername(uid: string, username: string): Promise<void> {
+  const normalized = username.toLowerCase();
   const db = getFirestore();
   const batch = writeBatch(db);
-  batch.set(usernameIndexRef(username), { uid });
+  batch.set(usernameIndexRef(normalized), { uid });
   batch.set(
     userRef(uid),
-    { username, usernameUpdatedAt: serverTimestamp() },
+    { username: normalized, usernameUpdatedAt: serverTimestamp() },
     { merge: true },
   );
   await batch.commit();
@@ -68,6 +69,7 @@ export async function claimUsername(uid: string, username: string): Promise<void
  * the number of days remaining, so callers can show a specific message.
  */
 export async function updateUsername(uid: string, newUsername: string): Promise<void> {
+  const normalized = newUsername.toLowerCase();
   const userData = await getUser(uid);
   if (userData?.usernameUpdatedAt) {
     const updatedAt  = (userData.usernameUpdatedAt as Timestamp).toDate();
@@ -93,10 +95,10 @@ export async function updateUsername(uid: string, newUsername: string): Promise<
     batch.delete(usernameIndexRef(userData.username));
   }
 
-  batch.set(usernameIndexRef(newUsername), { uid });
+  batch.set(usernameIndexRef(normalized), { uid });
   batch.set(
     userRef(uid),
-    { username: newUsername, usernameUpdatedAt: serverTimestamp() },
+    { username: normalized, usernameUpdatedAt: serverTimestamp() },
     { merge: true },
   );
 
@@ -108,7 +110,7 @@ export async function updateUsername(uid: string, newUsername: string): Promise<
  * Returns null if the username is not claimed.
  */
 export async function getUserByUsername(username: string): Promise<User | null> {
-  const indexSnap = await getDoc(usernameIndexRef(username));
+  const indexSnap = await getDoc(usernameIndexRef(username.toLowerCase()));
   if (!indexSnap.exists()) { return null; }
   const { uid } = indexSnap.data() as { uid: string };
   return getUser(uid);

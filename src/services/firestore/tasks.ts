@@ -210,12 +210,18 @@ export async function markAllPoiAlertsSeen(
   date: string,
 ): Promise<void> {
   if (taskIds.length === 0) { return; }
-  const db    = getFirestore();
-  const batch = writeBatch(db);
-  for (const id of taskIds) {
-    batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
+
+  // Firestore caps a single batch at 500 writes — chunk to stay under it
+  // (matches the chunking in rolloverIncompleteTasks above).
+  const BATCH_LIMIT = 500;
+  const db = getFirestore();
+  for (let i = 0; i < taskIds.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    taskIds.slice(i, i + BATCH_LIMIT).forEach(id => {
+      batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
+    });
+    await batch.commit();
   }
-  await batch.commit();
 }
 
 /**

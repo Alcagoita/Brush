@@ -94,15 +94,17 @@ export async function revokePoint(
 }
 
 /**
- * Award points for multiple tasks in a single atomic Firestore write batch.
+ * Award points for multiple tasks atomically, idempotently skipping any entry
+ * already awarded today (same deterministic-ID check as {@link awardPoint}).
  *
- * Increments `totalPoints` on the user document by the sum of all entry points,
- * and creates one PointsHistoryEntry per entry — all in one commit.
+ * Increments `totalPoints` on the user document by the sum of only the *new*
+ * entries' points — an entry whose history doc already exists is skipped
+ * entirely, so calling this twice with overlapping entries never double-counts.
  *
- * ⚠️ Firestore batch limit: 500 operations per batch.
- * With `n` entries this function performs `1 update + n sets` = `n + 1` ops.
- * Safe limit is therefore **499 entries per call**. Callers with larger lists
- * must chunk themselves — chunking is out of scope for v1.
+ * ⚠️ Firestore transaction limit: 500 documents involved per transaction.
+ * With `n` entries this function touches `n` history docs (read + maybe write)
+ * plus 1 user doc — safe limit is therefore **~499 entries per call**. Callers
+ * with larger lists must chunk themselves — chunking is out of scope for v1.
  *
  * @param uid     Firebase user ID.
  * @param entries Array of { taskId, taskTitle, points } to award. No-ops if empty.
@@ -113,26 +115,33 @@ export async function awardPointsBatch(
 ): Promise<void> {
   if (entries.length === 0) { return; }
   const db      = getFirestore();
-  const batch   = writeBatch(db);
   const dateISO = todayISO();
-  const total   = entries.reduce((sum, e) => sum + e.points, 0);
 
-  batch.update(userRef(uid), { totalPoints: increment(total) });
+  // Deterministic IDs match awardPoint — a task already awarded today is
+  // skipped rather than overwritten/double-counted.
+  const histRefs = entries.map(e => doc(pointsHistoryRef(uid), `${e.taskId}_${dateISO}`));
 
-  for (const entry of entries) {
-    // Deterministic ID matches awardPoint — calling twice for the same task on
-    // the same day overwrites with identical data rather than doubling the entry.
-    const histRef = doc(pointsHistoryRef(uid), `${entry.taskId}_${dateISO}`);
-    batch.set(histRef, {
-      taskId:    entry.taskId,
-      taskTitle: entry.taskTitle,
-      awardedAt: serverTimestamp(),
-      points:    entry.points,
-      reason:    'task_completed',
+  await runTransaction(db, async (tx) => {
+    const snaps = await Promise.all(histRefs.map(ref => tx.get(ref)));
+
+    let total = 0;
+    snaps.forEach((snap, i) => {
+      if (snap.exists()) { return; } // Already awarded today — skip
+      const entry = entries[i];
+      total += entry.points;
+      tx.set(histRefs[i], {
+        taskId:    entry.taskId,
+        taskTitle: entry.taskTitle,
+        awardedAt: serverTimestamp(),
+        points:    entry.points,
+        reason:    'task_completed',
+      });
     });
-  }
 
-  await batch.commit();
+    if (total > 0) {
+      tx.update(userRef(uid), { totalPoints: increment(total) });
+    }
+  });
 }
 
 // ─── KAN-63: Additional point-award functions ─────────────────────────────────

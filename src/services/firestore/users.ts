@@ -61,9 +61,15 @@ export async function backfillUserDocument(
     typeof existing.darkMode === 'boolean';
   if (isComplete) { return; }
 
+  // Only fill email/displayName when a real value is available — writing ''
+  // would make isComplete() true forever and prevent a later login (once Auth
+  // actually has the data) from backfilling the real value.
   const patch: Record<string, unknown> = {};
-  if (existing.email       == null) { patch.email       = authEmail ?? ''; }
-  if (existing.displayName == null) { patch.displayName = authDisplayName ?? existing.username ?? ''; }
+  if (existing.email == null && authEmail) { patch.email = authEmail; }
+  if (existing.displayName == null) {
+    const displayName = authDisplayName ?? existing.username;
+    if (displayName) { patch.displayName = displayName; }
+  }
   if (existing.createdAt   == null) { patch.createdAt   = serverTimestamp(); }
   if (typeof existing.darkMode !== 'boolean') { patch.darkMode = false; }
   if (existing.uid         == null) { patch.uid         = uid; }

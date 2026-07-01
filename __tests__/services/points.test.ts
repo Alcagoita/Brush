@@ -527,13 +527,13 @@ import { awardPointsBatch } from '../../src/services/firestore';
 describe('awardPointsBatch', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockBatchCommit.mockResolvedValue(undefined);
+    // Default: no history doc exists yet for any entry (fresh award).
+    mockTxGet.mockResolvedValue({ exists: () => false });
   });
 
   it('no-ops when entries array is empty', async () => {
     await awardPointsBatch('uid-1', []);
-    expect(mockWriteBatch).not.toHaveBeenCalled();
-    expect(mockBatchCommit).not.toHaveBeenCalled();
+    expect(mockRunTransaction).not.toHaveBeenCalled();
   });
 
   it('increments totalPoints by the sum of all entry points', async () => {
@@ -542,32 +542,25 @@ describe('awardPointsBatch', () => {
       { taskId: 't2', taskTitle: 'Task 2', points: 2 },
       { taskId: 't3', taskTitle: 'Task 3', points: 3 },
     ]);
-    expect(mockBatchUpdate).toHaveBeenCalledWith(
+    expect(mockTxUpdate).toHaveBeenCalledWith(
       expect.anything(),
       { totalPoints: mockIncrement(6) },
     );
   });
 
-  it('calls batch.set once per entry', async () => {
+  it('calls tx.set once per entry', async () => {
     await awardPointsBatch('uid-1', [
       { taskId: 't1', taskTitle: 'Task A', points: 1 },
       { taskId: 't2', taskTitle: 'Task B', points: 1 },
     ]);
-    expect(mockBatchSet).toHaveBeenCalledTimes(2);
+    expect(mockTxSet).toHaveBeenCalledTimes(2);
   });
 
-  it('calls batch.commit exactly once', async () => {
-    await awardPointsBatch('uid-1', [
-      { taskId: 't1', taskTitle: 'Task A', points: 1 },
-    ]);
-    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
-  });
-
-  it('each batch.set entry contains correct taskId, taskTitle and points', async () => {
+  it('each tx.set entry contains correct taskId, taskTitle and points', async () => {
     await awardPointsBatch('uid-1', [
       { taskId: 'task-x', taskTitle: 'Walk the dog', points: 5 },
     ]);
-    expect(mockBatchSet).toHaveBeenCalledWith(
+    expect(mockTxSet).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
         taskId:    'task-x',
@@ -578,8 +571,8 @@ describe('awardPointsBatch', () => {
     );
   });
 
-  it('rejects if batch.commit rejects', async () => {
-    mockBatchCommit.mockRejectedValueOnce(new Error('network error'));
+  it('rejects if the transaction rejects', async () => {
+    mockRunTransaction.mockRejectedValueOnce(new Error('network error'));
     await expect(
       awardPointsBatch('uid-1', [{ taskId: 't1', taskTitle: 'Task', points: 1 }]),
     ).rejects.toThrow('network error');
@@ -597,6 +590,39 @@ describe('awardPointsBatch', () => {
         (args[args.length - 1] as string).startsWith('task-x_'),
     );
     expect(callsWithId.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('skips an entry already awarded today and excludes it from the totalPoints increment', async () => {
+    // t1 already has a history doc for today; t2 does not.
+    mockTxGet
+      .mockResolvedValueOnce({ exists: () => true })
+      .mockResolvedValueOnce({ exists: () => false });
+
+    await awardPointsBatch('uid-1', [
+      { taskId: 't1', taskTitle: 'Already awarded', points: 5 },
+      { taskId: 't2', taskTitle: 'New', points: 2 },
+    ]);
+
+    expect(mockTxSet).toHaveBeenCalledTimes(1);
+    expect(mockTxSet).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ taskId: 't2', points: 2 }),
+    );
+    expect(mockTxUpdate).toHaveBeenCalledWith(
+      expect.anything(),
+      { totalPoints: mockIncrement(2) },
+    );
+  });
+
+  it('does not touch totalPoints when every entry is already awarded', async () => {
+    mockTxGet.mockResolvedValue({ exists: () => true });
+
+    await awardPointsBatch('uid-1', [
+      { taskId: 't1', taskTitle: 'Already awarded', points: 5 },
+    ]);
+
+    expect(mockTxSet).not.toHaveBeenCalled();
+    expect(mockTxUpdate).not.toHaveBeenCalled();
   });
 });
 

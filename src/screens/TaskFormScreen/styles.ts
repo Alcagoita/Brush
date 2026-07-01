@@ -1,5 +1,11 @@
-import { StyleSheet } from 'react-native';
+import { Dimensions, StyleSheet } from 'react-native';
 import { radius, spacing } from '../../theme/tokens';
+
+// 4-column POI quick-pick grid — width computed from the screen so the fixed
+// 10px gaps between tiles are accounted for (a plain 22.5% width ignores the
+// `gap` and can overflow/wrap unpredictably on narrow screens).
+const POI_GRID_GAP = 10;
+const POI_TILE_WIDTH = (Dimensions.get('window').width - spacing.page * 2 - POI_GRID_GAP * 3) / 4;
 
 export const styles = StyleSheet.create({
   root: {
@@ -141,10 +147,10 @@ export const styles = StyleSheet.create({
   poiGrid: {
     flexDirection: 'row',
     flexWrap:      'wrap',
-    gap:           10,
+    gap:           POI_GRID_GAP,
   },
   poiTile: {
-    width:          '22.5%',
+    width:          POI_TILE_WIDTH,
     borderRadius:   14,
     borderWidth:     1,
     alignItems:     'center',
