@@ -146,18 +146,19 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // ─── Pending notifications (KAN-87) ───────────────────────────────────────
-    // Writer must be authenticated and identify themselves via sentBy == auth.uid.
-    // Type must be one of the known event types; title/body/createdAt validated.
+    // ─── Pending notifications (KAN-87 / KAN-221) ─────────────────────────────
+    // Previously allowed any authenticated user to create an entry here as
+    // long as they set sentBy == auth.uid — but nothing tied the write to a
+    // real follow/share/challenge event, so any authenticated user could
+    // spoof a notification (fake title/body) into another user's mailbox.
+    // Creation now happens exclusively server-side via the onFollowRequest /
+    // onSharedTaskCreated / onChallengeNotifications Cloud Functions (Admin
+    // SDK, bypasses rules), each triggered off a write that is itself
+    // already rule-validated. Clients may only read and delete their own
+    // mailbox entries after local delivery.
     match /pendingNotifications/{userId}/items/{docId} {
       allow read, delete: if isOwner(userId);
-      allow create: if request.auth != null
-        && request.resource.data.sentBy == request.auth.uid
-        && request.resource.data.type in ['shared_task', 'challenge_invite', 'challenge_won', 'challenge_ended', 'follow']
-        && request.resource.data.title is string
-        && request.resource.data.body is string
-        && request.resource.data.createdAt is timestamp;
-      allow update: if false;
+      allow create, update: if false;
     }
 
     // ─── Challenges (KAN-102) ─────────────────────────────────────────────────

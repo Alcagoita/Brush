@@ -8,9 +8,8 @@
  *     - writes challenge document with correct shape (time-based)
  *     - creator participant has status 'accepted'
  *     - other participants have status 'pending'
- *     - sends one pending notification per participant
- *     - notification title includes @username when available
- *     - notification data includes screen: ChallengeDetail
+ *     - does not write pendingNotifications directly (KAN-221 — moved
+ *       server-side to the onChallengeNotifications Cloud Function)
  *     - includes message when provided, omits when not
  *   updateParticipantStatus
  *     - calls updateDoc with correct field path
@@ -118,23 +117,13 @@ describe('createChallenge', () => {
     expect(data.participants['uid-bob'].status).toBe('pending');
   });
 
-  it('sends one notification per participant (not creator)', async () => {
+  it('writes exactly one document — the challenge itself (no direct notifications)', async () => {
     await createChallenge({ ...BASE_PARAMS, type: 'goal', goalCount: 5, participants: [ALICE, BOB] });
-    // First addDoc = challenge doc; remaining = notifications
-    const notifCalls = mockAddDoc.mock.calls.slice(1);
-    expect(notifCalls).toHaveLength(2);
-  });
-
-  it('uses @username in notification title', async () => {
-    await createChallenge({ ...BASE_PARAMS, type: 'goal', goalCount: 10, participants: [ALICE] });
-    const [, notifData] = mockAddDoc.mock.calls[1];
-    expect(notifData.title).toContain('@me');
-  });
-
-  it('includes screen: ChallengeDetail in notification data', async () => {
-    await createChallenge({ ...BASE_PARAMS, type: 'goal', goalCount: 10, participants: [ALICE] });
-    const [, notifData] = mockAddDoc.mock.calls[1];
-    expect(notifData.data.screen).toBe('ChallengeDetail');
+    // The invite notification for each non-creator participant is now written
+    // server-side by the onChallengeNotifications Cloud Function (KAN-221),
+    // triggered off this document's creation — the client only writes the
+    // challenge doc itself.
+    expect(mockAddDoc).toHaveBeenCalledTimes(1);
   });
 
   it('includes message in challenge doc when provided', async () => {
