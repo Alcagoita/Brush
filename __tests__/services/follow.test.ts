@@ -9,7 +9,8 @@
  *     - increments followingCount on follower doc (set-merge)
  *     - increments followersCount on followed doc (set-merge)
  *     - writes inbox entry to followed user's inbox (KAN-212)
- *     - writes pendingNotification for system notification (KAN-212)
+ *     - does NOT write to pendingNotifications directly (KAN-221 — moved
+ *       server-side to the onFollowRequest Cloud Function)
  *     - commits one atomic batch
  *   unfollowUser
  *     - deletes both subcollection entries
@@ -39,6 +40,8 @@
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
 jest.mock('@react-native-firebase/analytics', () => () => ({ logEvent: jest.fn() }));
+// Pulled in transitively via the firestore/ barrel (users.ts) — KAN-214.
+jest.mock('@react-native-firebase/auth', () => ({}));
 jest.mock('../../src/services/analytics', () => ({ logTap: jest.fn() }));
 jest.mock('../../src/services/poiInference', () => ({
   registerCategoryKeywords: jest.fn(),
@@ -180,22 +183,17 @@ describe('followUser', () => {
     );
   });
 
-  it('writes pendingNotification to followed user queue (KAN-212)', async () => {
+  it('does not write directly to pendingNotifications (KAN-221)', async () => {
     await followUser('uid_a', 'alice', 'Alice', 'uid_b', 'bob', 'Bob');
 
+    // The follow pendingNotification is now written server-side by the
+    // onFollowRequest Cloud Function, triggered off the inbox entry —
+    // the client must not write to another user's mailbox directly.
     const notifCall = mockBatchSet.mock.calls.find(
       ([, data]) => data?.type === 'follow',
     );
-    expect(notifCall).toBeDefined();
-    // Deterministic doc ID = follow_{followerUid}
-    expect(notifCall[0]._path).toBe('follow_uid_a');
-    expect(notifCall[1]).toMatchObject({
-      type:   'follow',
-      sentBy: 'uid_a',
-      data:   expect.objectContaining({ fromUid: 'uid_a', screen: 'SharedTaskInbox' }),
-    });
-    // collection() must have been called with the pendingNotifications path
-    expect(mockCollection).toHaveBeenCalledWith(
+    expect(notifCall).toBeUndefined();
+    expect(mockCollection).not.toHaveBeenCalledWith(
       undefined, 'pendingNotifications', 'uid_b', 'items',
     );
   });

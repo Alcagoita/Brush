@@ -15,7 +15,6 @@ import {
   updateDoc,
   writeBatch,
   doc,
-  collection,
   query,
   where,
   orderBy,
@@ -73,7 +72,6 @@ export async function followUser(
   // Use followerUid as the deterministic doc ID — prevents duplicate inbox
   // entries if followUser is called more than once for the same pair.
   const inboxDocRef = doc(inboxRef(followedUid), followerUid);
-  const handle = followerUsername ? `@${followerUsername}` : followerDisplayName;
   batch.set(inboxDocRef, {
     type:            'follow_request' as const,
     fromUid:         followerUid,
@@ -83,20 +81,10 @@ export async function followUser(
     createdAt:       serverTimestamp(),
   });
 
-  // Also write a pendingNotification so the device fires a system notification.
-  // Deterministic ID = follow_{followerUid} to prevent duplicate notifications.
-  const pendingNotifDocRef = doc(
-    collection(getFirestore(), 'pendingNotifications', followedUid, 'items'),
-    `follow_${followerUid}`,
-  );
-  batch.set(pendingNotifDocRef, {
-    type:      'follow' as const,
-    sentBy:    followerUid,
-    title:     `${handle} started following you`,
-    body:      'Tap to see their profile',
-    data:      { type: 'follow', fromUid: followerUid, screen: 'SharedTaskInbox' },
-    createdAt: serverTimestamp(),
-  });
+  // The pendingNotification for the followed user's device is written
+  // server-side by the onFollowRequest Cloud Function (KAN-221), triggered
+  // off the inbox entry above — the client no longer writes directly to
+  // another user's pendingNotifications mailbox.
 
   await batch.commit();
 }

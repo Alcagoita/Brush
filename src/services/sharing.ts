@@ -6,22 +6,21 @@
  * Send flow (KAN-86):
  *   1. findUserByEmail()   — exact-match email lookup in Firestore
  *   2. sendSharedTask()    — writes to sharedTasks/{recipientUid}/incoming
- *                          — writes a pendingNotification so the recipient
- *                            device shows a local notifee notification (KAN-87)
  *
  * Receive flow (KAN-87):
  *   subscribeToIncomingSharedTasks()   — real-time listener for the inbox
  *   acceptSharedTask()                 — copies task into recipient's collection
  *   declineSharedTask()                — removes from incoming
  *
- * Notification delivery:
- *   The app writes a pendingNotifications/{recipientUid}/items/{id} document.
- *   The recipient's device (KAN-87) subscribes to that collection and fires a
- *   local notifee notification when a new item arrives. This works while the
- *   app is foregrounded or backgrounded with an active Firestore connection.
- *   For true background push (app killed), a Firebase Cloud Function listening
- *   to sharedTasks writes can call the FCM HTTP v1 API — that is a future
- *   infrastructure addition outside this ticket's scope.
+ * Notification delivery (KAN-221):
+ *   The onSharedTaskCreated Cloud Function (functions/src/onSharedTaskCreated.ts)
+ *   writes a pendingNotifications/{recipientUid}/items/{id} document when the
+ *   incoming record above is created. The recipient's device (KAN-87)
+ *   subscribes to that collection and fires a local notifee notification when
+ *   a new item arrives. Moving the write server-side closed a spoofing hole:
+ *   previously the client wrote pendingNotifications directly, which let any
+ *   authenticated user forge a notification into another user's mailbox with
+ *   no real shared task behind it.
  */
 
 import {
@@ -100,7 +99,6 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
 
   // Pre-allocate doc refs so they can go into a batch.
   const incomingDocRef  = doc(collection(db, 'sharedTasks', recipientUid, 'incoming'));
-  const notifDocRef     = doc(collection(db, 'pendingNotifications', recipientUid, 'items'));
   const senderTaskRef   = doc(db, 'users', senderUid, 'tasks', task.id);
 
   const batch = writeBatch(db);
@@ -118,22 +116,12 @@ export async function sendSharedTask(params: SendSharedTaskParams): Promise<stri
     status:          'pending' as const,
   });
 
-  // 2. Pending notification for the recipient's device (KAN-87).
-  batch.set(notifDocRef, {
-    type:   'shared_task' as const,
-    sentBy: senderUid,
-    title:  senderUsername ? `@${senderUsername} sent you a task` : `${senderName} sent you a task`,
-    body:   task.title,
-    data: {
-      type:         'shared_task',
-      sharedTaskId: incomingDocRef.id,
-      recipientUid,
-      screen:       'SharedTaskInbox',
-    },
-    createdAt: serverTimestamp(),
-  });
+  // The pendingNotification for the recipient's device is written
+  // server-side by the onSharedTaskCreated Cloud Function (KAN-221),
+  // triggered off the incoming record above — the client no longer writes
+  // directly to another user's pendingNotifications mailbox.
 
-  // 3. Remove the task from the sender — only the recipient can complete it.
+  // 2. Remove the task from the sender — only the recipient can complete it.
   batch.delete(senderTaskRef);
 
   await batch.commit();
