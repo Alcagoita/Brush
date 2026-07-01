@@ -30,7 +30,14 @@ export function useTaskCompletion(
 
     try {
       await setTaskDone(uid, taskId, done);
-      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, pendingSync: false } : t));
+      // Only clear pendingSync if the row still reflects this write (same
+      // optimistic done value) — a newer toggle that landed while this write
+      // was in flight already owns the row's pendingSync state.
+      setTasks(prev => prev.map(t =>
+        t.id === taskId && t.done === done
+          ? { ...t, pendingSync: false }
+          : t,
+      ));
 
       if (done) {
         // Read the latest tasks from the ref — NOT a captured `tasks` dep.

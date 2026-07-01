@@ -11,9 +11,12 @@ interface PoiTileProps {
   selected: boolean;
   onPress: () => void;
   palette: ReturnType<typeof useTheme>['palette'];
+  /** Live tile width from getPoiTileWidth(useWindowDimensions().width) — kept
+   *  out of the static StyleSheet so rotation/split-screen/fold reflow it. */
+  width: number;
 }
 
-export function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
+export function PoiTile({ type, label, selected, onPress, palette, width }: PoiTileProps) {
   const iconColor = selected ? palette.nearText : palette.muted;
   return (
     <Pressable
@@ -23,6 +26,7 @@ export function PoiTile({ type, label, selected, onPress, palette }: PoiTileProp
       style={[
         styles.poiTile,
         {
+          width,
           backgroundColor: selected ? palette.nearTint2  : palette.surface,
           borderColor:     selected ? palette.nearBorder : palette.line,
         },

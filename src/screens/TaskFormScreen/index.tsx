@@ -21,6 +21,7 @@ import {
   ScrollView,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -42,7 +43,7 @@ import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder'
 import { COLOR_DESTRUCTIVE, NTD_CAT_HUES } from './constants';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
-import { styles } from './styles';
+import { styles, getPoiTileWidth } from './styles';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,6 +61,8 @@ export default function TaskFormScreen() {
   const { palette }  = useTheme();
   const navigation   = useNavigation();
   const insets       = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const poiTileWidth = getPoiTileWidth(windowWidth);
   const route        = useRoute<RouteProp<RootStackParamList, 'TaskForm'>>();
 
   const { uid, task: existingTask, initialDate, initialTitle, initialPoi } = route.params;
@@ -378,6 +381,7 @@ export default function TaskFormScreen() {
                   }
                 }}
                 palette={palette}
+                width={poiTileWidth}
               />
             ))}
           </View>
