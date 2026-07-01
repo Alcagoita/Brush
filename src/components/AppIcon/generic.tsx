@@ -1,6 +1,7 @@
 import React from 'react';
 import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
-import { S, IconProps } from './shared';
+import { S } from './shared';
+import type { IconProps } from './shared';
 
 // ── Bell (Header notifications) ───────────────────────────────────────────────
 export function BellIcon({ color, size = 24 }: IconProps) {

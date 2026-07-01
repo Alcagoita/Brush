@@ -1,5 +1,5 @@
 import { Dimensions } from 'react-native';
-import { NudgeMessage } from '../../components/ScrRotatingNudge';
+import type { NudgeMessage } from '../../components/ScrRotatingNudge';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
 
