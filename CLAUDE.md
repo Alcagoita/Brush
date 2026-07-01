@@ -316,6 +316,23 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ---
 
+## Sprint 15 (in progress)
+
+Tickets (all confirmed To Do in Jira as of 2026-07-01):
+
+- **KAN-202** — Bug/sec: restrict Google Places API key to bundle ID + SHA-1 in GCP Console. Non-code, external console action.
+- **KAN-214** — Split god files: `firestore.ts`, `TodayScreen.tsx`, `TaskFormScreen.tsx`, `useTodayScreen.ts`, `AppIcon.tsx`. Pure refactor, no behavior change.
+- **KAN-215** — Extract dup helpers: `toDateSafe(ts)` timestamp coercion + shared Firestore snapshot-mapping helper; also touches `import.ts` memoization and `proximity.ts` error-report helper.
+- **KAN-216** — Memoize list rows (`PoiChip`, `TaskRow`, `NearbyCard`, `TodayScreen`), move inline styles to StyleSheet/useMemo, re-audit exhaustive-deps overrides.
+- **KAN-217** — Hardcoded hex colors/shadows → theme tokens (add `error` + tier-color tokens).
+- **KAN-218** — Bug: audit `onSnapshot` listeners in `firestore.ts` (14 `subscribeTo*` exports) vs one-shot-fetch rule ([[project_no_background_services]], KAN-153 regression risk).
+- **KAN-219** — Remove `any` casts / non-null assertions in nav + error handling.
+- **KAN-220** — Dead code: verify + remove legacy `TIERS` export in `achievements.ts`.
+
+Per rule 12 (one ticket at a time), work sequentially — order TBD with user.
+
+---
+
 ## Sprint History
 
 - **Sprint 1** — ✅ Done (v0.1.0)
