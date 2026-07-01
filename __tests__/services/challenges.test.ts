@@ -13,6 +13,14 @@
  *     - includes message when provided, omits when not
  *   updateParticipantStatus
  *     - calls updateDoc with correct field path
+ *   incrementCompletedCount
+ *     - increments completedCount without marking won when goal not met
+ *     - marks participant won and challenge completed when goal is met
+ *     - does not write pendingNotifications directly (KAN-221)
+ *   resolveTimeBasedChallenge
+ *     - marks the highest-completedCount participant as winner
+ *     - does not write pendingNotifications directly (KAN-221)
+ *     - no-ops when there are no participants
  */
 
 // ─── External mocks ──────────────────────────────────────────────────────────
@@ -54,8 +62,11 @@ jest.mock('@react-native-firebase/firestore', () => ({
 import {
   createChallenge,
   updateParticipantStatus,
+  incrementCompletedCount,
+  resolveTimeBasedChallenge,
 } from '../../src/services/challenges';
-import type { FollowEntry } from '../../src/types';
+import type { Challenge, FollowEntry } from '../../src/types';
+import { awardChallengeWinnerAchievement } from '../../src/services/achievements';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -126,6 +137,14 @@ describe('createChallenge', () => {
     expect(mockAddDoc).toHaveBeenCalledTimes(1);
   });
 
+  it('does not write directly to pendingNotifications (KAN-221)', async () => {
+    await createChallenge({ ...BASE_PARAMS, type: 'goal', goalCount: 5, participants: [ALICE, BOB] });
+    const { collection: mockCollectionFn } = jest.requireMock('@react-native-firebase/firestore');
+    expect(mockCollectionFn).not.toHaveBeenCalledWith(
+      expect.anything(), 'pendingNotifications', expect.anything(), 'items',
+    );
+  });
+
   it('includes message in challenge doc when provided', async () => {
     await createChallenge({ ...BASE_PARAMS, type: 'goal', goalCount: 5, participants: [ALICE], message: 'gl hf' });
     const [, data] = mockAddDoc.mock.calls[0];
@@ -158,5 +177,85 @@ describe('updateParticipantStatus', () => {
       expect.anything(),
       { 'participants.uid-alice.status': 'declined' },
     );
+  });
+});
+
+// ─── incrementCompletedCount ──────────────────────────────────────────────────
+
+function makeGoalChallenge(overrides: Partial<Challenge> = {}): Challenge {
+  return {
+    id:        'challenge-1',
+    type:      'goal',
+    goalCount: 5,
+    createdBy: 'uid-me',
+    status:    'active',
+    createdAt: { seconds: 0, nanoseconds: 0 } as unknown as Challenge['createdAt'],
+    participants: {
+      'uid-me':    { username: 'me',    displayName: 'Me',    status: 'accepted', completedCount: 4, won: false },
+      'uid-alice': { username: 'alice', displayName: 'Alice', status: 'accepted', completedCount: 2, won: false },
+    },
+    ...overrides,
+  } as Challenge;
+}
+
+describe('incrementCompletedCount', () => {
+  beforeEach(() => { jest.clearAllMocks(); mockUpdateDoc.mockResolvedValue(undefined); });
+
+  it('increments completedCount without marking won when goal not met', async () => {
+    const challenge = makeGoalChallenge({ goalCount: 10 });
+    const result = await incrementCompletedCount('challenge-1', 'uid-me', challenge);
+
+    expect(result).toBe(false);
+    const [, data] = mockUpdateDoc.mock.calls[0];
+    expect(data).toEqual({ 'participants.uid-me.completedCount': { _increment: 1 } });
+    expect(awardChallengeWinnerAchievement).not.toHaveBeenCalled();
+  });
+
+  it('marks participant won and challenge completed when goal is met', async () => {
+    const challenge = makeGoalChallenge({ goalCount: 5 }); // uid-me at 4 -> 5 meets goal
+    const result = await incrementCompletedCount('challenge-1', 'uid-me', challenge);
+
+    expect(result).toBe(true);
+    const [, data] = mockUpdateDoc.mock.calls[0];
+    expect(data).toEqual({
+      'participants.uid-me.completedCount': { _increment: 1 },
+      'participants.uid-me.won':            true,
+      status:                               'completed',
+    });
+    expect(awardChallengeWinnerAchievement).toHaveBeenCalledWith('uid-me', 'challenge-1');
+  });
+
+  it('does not write directly to pendingNotifications (KAN-221)', async () => {
+    const challenge = makeGoalChallenge({ goalCount: 5 });
+    await incrementCompletedCount('challenge-1', 'uid-me', challenge);
+    expect(mockAddDoc).not.toHaveBeenCalled();
+  });
+});
+
+// ─── resolveTimeBasedChallenge ────────────────────────────────────────────────
+
+describe('resolveTimeBasedChallenge', () => {
+  beforeEach(() => { jest.clearAllMocks(); mockUpdateDoc.mockResolvedValue(undefined); });
+
+  it('marks the highest-completedCount participant as winner', async () => {
+    const challenge = makeGoalChallenge({ type: 'time', goalCount: undefined });
+    await resolveTimeBasedChallenge('challenge-1', challenge);
+
+    const [, data] = mockUpdateDoc.mock.calls[0];
+    expect(data.status).toBe('completed');
+    expect(data['participants.uid-me.won']).toBe(true);
+    expect(awardChallengeWinnerAchievement).toHaveBeenCalledWith('uid-me', 'challenge-1');
+  });
+
+  it('does not write directly to pendingNotifications (KAN-221)', async () => {
+    const challenge = makeGoalChallenge({ type: 'time', goalCount: undefined });
+    await resolveTimeBasedChallenge('challenge-1', challenge);
+    expect(mockAddDoc).not.toHaveBeenCalled();
+  });
+
+  it('no-ops when there are no participants', async () => {
+    const challenge = makeGoalChallenge({ type: 'time', goalCount: undefined, participants: {} });
+    await resolveTimeBasedChallenge('challenge-1', challenge);
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 });

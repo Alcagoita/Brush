@@ -21,6 +21,7 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  increment,
   Timestamp,
 } from '@react-native-firebase/firestore';
 import type { Challenge, ChallengeParticipant, FollowEntry } from '../types';
@@ -181,15 +182,13 @@ export async function incrementCompletedCount(
   uid: string,
   challenge: Challenge,
 ): Promise<boolean> {
-  const { increment: inc } = await import('@react-native-firebase/firestore');
-
   const newCount = (challenge.participants[uid]?.completedCount ?? 0) + 1;
   const isGoalMet = challenge.type === 'goal' && newCount >= (challenge.goalCount ?? Infinity);
 
   if (isGoalMet) {
     // Atomic: increment count + mark winner + close challenge.
     await updateDoc(challengeRef(challengeId), {
-      [`participants.${uid}.completedCount`]: inc(1),
+      [`participants.${uid}.completedCount`]: increment(1),
       [`participants.${uid}.won`]:            true,
       status:                                 'completed',
     });
@@ -207,7 +206,7 @@ export async function incrementCompletedCount(
   }
 
   await updateDoc(challengeRef(challengeId), {
-    [`participants.${uid}.completedCount`]: inc(1),
+    [`participants.${uid}.completedCount`]: increment(1),
   });
   return false;
 }

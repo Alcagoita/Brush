@@ -108,6 +108,7 @@ describe('buildChallengeOutcomeNotifications', () => {
     const notifications = buildChallengeOutcomeNotifications('challenge-1', makeChallenge(), 'uid-alice');
     const winnerNotif = notifications.find(n => n.uid === 'uid-alice');
     expect(winnerNotif?.payload.type).toBe('challenge_won');
+    expect(winnerNotif?.payload.data).toMatchObject({ type: 'challenge_won' });
   });
 
   it('sends challenge_ended to everyone else, with the winner handle in the title', () => {

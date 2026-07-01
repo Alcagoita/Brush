@@ -161,7 +161,29 @@ service cloud.firestore {
       allow create, update: if false;
     }
 
-    // ─── Challenges (KAN-102) ─────────────────────────────────────────────────
+    // ─── Challenges (KAN-102 / KAN-221) ───────────────────────────────────────
+    // isValidParticipantsUpdate: onChallengeNotifications (KAN-221) treats a
+    // participant's `won` flag flipping to true as a trusted signal that a
+    // real win occurred, and fires challenge_won/challenge_ended notifications
+    // off it. Without this guard, any participant or the creator could set
+    // ANY other participant's `won`/`completedCount` and forge a challenge
+    // outcome. Restricts a participants-map update to: only the caller's own
+    // entry may change, completedCount may only increase, and won may only
+    // flip false -> true.
+    function isValidParticipantsUpdate() {
+      let before = resource.data.participants;
+      let after  = request.resource.data.participants;
+      return after == before
+        || (
+          after.diff(before).affectedKeys().hasOnly([request.auth.uid])
+          && after[request.auth.uid].diff(before[request.auth.uid]).affectedKeys()
+               .hasOnly(['completedCount', 'won', 'status'])
+          && after[request.auth.uid].completedCount >= before[request.auth.uid].completedCount
+          && (after[request.auth.uid].won == before[request.auth.uid].won
+              || after[request.auth.uid].won == true)
+        );
+    }
+
     match /challenges/{challengeId} {
       // Any participant or the creator may read the challenge.
       allow read: if request.auth != null && (
@@ -172,13 +194,16 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.resource.data.createdBy == request.auth.uid;
       // Participants and the creator may update, but immutable fields (creator,
-      // type, createdAt) cannot be changed after creation.
+      // type, createdAt) cannot be changed after creation, and participants-map
+      // mutations are restricted to the caller's own entry (see
+      // isValidParticipantsUpdate).
       allow update: if request.auth != null
         && (resource.data.createdBy == request.auth.uid ||
             request.auth.uid in resource.data.participants)
         && request.resource.data.createdBy == resource.data.createdBy
         && request.resource.data.type      == resource.data.type
-        && request.resource.data.createdAt == resource.data.createdAt;
+        && request.resource.data.createdAt == resource.data.createdAt
+        && isValidParticipantsUpdate();
       allow delete: if false;
     }
 

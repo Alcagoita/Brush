@@ -110,7 +110,7 @@ export function buildChallengeOutcomeNotifications(
           sentBy:    winnerUid,
           title:     CHALLENGE_WON_TITLE,
           body:      CHALLENGE_WON_BODY,
-          data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
+          data:      { type: 'challenge_won', challengeId, screen: 'ChallengeDetail' },
           createdAt: admin.firestore.FieldValue.serverTimestamp(),
         },
       });
@@ -160,7 +160,7 @@ export const onChallengeNotifications = onDocumentWritten(
 
     if (notifications.length === 0) { return; }
 
-    await Promise.allSettled(
+    const results = await Promise.allSettled(
       notifications.map(({ uid, payload }) =>
         db
           .collection('pendingNotifications').doc(uid)
@@ -168,5 +168,20 @@ export const onChallengeNotifications = onDocumentWritten(
           .set(payload),
       ),
     );
+
+    // Unlike the FCM sends in onFriendActivity/onUserLapsed (best-effort,
+    // no single source of truth), these writes ARE the notification record —
+    // a failed one is permanently lost unless we throw so Cloud Functions
+    // retries the whole trigger.
+    const failures = results.filter((r): r is PromiseRejectedResult => r.status === 'rejected');
+    if (failures.length > 0) {
+      console.error(
+        `[onChallengeNotifications] ${failures.length}/${notifications.length} write(s) failed for challenge ${challengeId}`,
+        failures.map(f => f.reason),
+      );
+      throw new Error(
+        `onChallengeNotifications: ${failures.length} of ${notifications.length} notification writes failed`,
+      );
+    }
   },
 );
