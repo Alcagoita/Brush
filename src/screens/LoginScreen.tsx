@@ -224,9 +224,9 @@ interface ParsedError {
 
 /** Extracts a Firebase-style `.code` string from an unknown catch value, or ''. */
 function errorCode(error: unknown): string {
-  return typeof error === 'object' && error !== null && 'code' in error
-    ? String((error as { code: unknown }).code)
-    : '';
+  if (typeof error !== 'object' || error === null || !('code' in error)) { return ''; }
+  const code = (error as { code: unknown }).code;
+  return code == null ? '' : String(code);
 }
 
 function parseAuthError(code: string, isSignUp: boolean): ParsedError {
