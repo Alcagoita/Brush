@@ -54,7 +54,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
-import { isThisWeek, toDateSafe } from '../utils/date';
+import { isThisWeek, toDateSafe, todayISO } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -223,7 +223,7 @@ export default function NotificationPreferencesScreen() {
 
   useEffect(() => {
     if (!uid) { return; }
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayISO();
     getTasksForDate(uid, today)
       .then(tasks => {
         setIncompletePoiCount(tasks.filter(t => !t.done && t.poi).length);

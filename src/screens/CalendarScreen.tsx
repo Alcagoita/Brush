@@ -379,24 +379,25 @@ export default function CalendarScreen() {
   // ── Tasks for displayed month — one-shot fetch, re-run on focus so
   // returning from the TaskForm modal (which stays stacked above and
   // doesn't unmount this screen) shows the mutation (KAN-218 follow-up).
-  // taskFetchSeq guards against a stale response landing after a newer
-  // month has already been requested.
-  const taskFetchSeq = useRef(0);
+  // `cancelled` guards against a stale response landing after a newer
+  // month has been requested, after the screen has blurred, or after
+  // unmount — useFocusEffect invokes this cleanup in all three cases.
   useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    const ym  = toYearMonth(displayYear, displayMonth);
-    const seq = ++taskFetchSeq.current;
+    const ym = toYearMonth(displayYear, displayMonth);
+    let cancelled = false;
     setMonthTasksState({ status: 'loading' });
     getTasksForMonth(uid, ym)
       .then(tasks => {
-        if (taskFetchSeq.current !== seq) { return; } // superseded by a newer request
+        if (cancelled) { return; }
         setMonthTasksState({ status: 'success', tasks });
       })
       .catch(err => {
-        if (taskFetchSeq.current !== seq) { return; }
+        if (cancelled) { return; }
         console.warn('[CalendarScreen] tasks fetch error', err);
         setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
       });
+    return () => { cancelled = true; };
   }, [uid, displayYear, displayMonth, retryKey]));
 
   // Toggling a task doesn't refetch the whole month — apply the flip locally

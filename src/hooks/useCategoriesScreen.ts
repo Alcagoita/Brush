@@ -9,7 +9,7 @@
  * and delegates all state management and Firestore interaction to it.
  */
 
-import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react';
+import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import {
   addCategory,
@@ -72,13 +72,20 @@ export function useCategoriesScreen(uid: string): CategoriesScreenState {
 
   // ── One-shot fetch (KAN-218) ─────────────────────────────────────────────────
 
+  // Guards against an older request (e.g. from a fast double-tap of "Try
+  // again") resolving after a newer one and clobbering its result.
+  const fetchSeq = useRef(0);
+
   const loadCategories = useCallback(async () => {
     if (!uid) { return; }
+    const seq = ++fetchSeq.current;
     setCategoriesState({ status: 'loading' });
     try {
       const cats = await getCategories(uid);
+      if (fetchSeq.current !== seq) { return; } // superseded by a newer request
       setCategoriesState({ status: 'success', categories: cats });
     } catch (err) {
+      if (fetchSeq.current !== seq) { return; }
       console.warn('[useCategoriesScreen] categories fetch error', err);
       setCategoriesState({
         status:  'error',

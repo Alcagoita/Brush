@@ -260,4 +260,23 @@ describe('CalendarScreen', () => {
 
     expect(mockSetTaskDone).toHaveBeenCalledWith('test-uid', 't1', true);
   });
+
+  it('reverts the optimistic toggle when setTaskDone fails', async () => {
+    mockGetTasksForMonth.mockResolvedValue([
+      { id: 't1', title: 'Buy groceries', category: 'errands', done: false,
+        date: new Date().toISOString().slice(0, 10), createdAt: {} },
+    ]);
+    mockSetTaskDone.mockRejectedValue(new Error('write failed'));
+    await renderScreen();
+
+    const checkbox = screen.getByRole('checkbox');
+    expect(checkbox.props.accessibilityState.checked).toBe(false);
+
+    await act(async () => {
+      fireEvent.press(checkbox);
+    });
+
+    expect(mockSetTaskDone).toHaveBeenCalledWith('test-uid', 't1', true);
+    expect(screen.getByRole('checkbox').props.accessibilityState.checked).toBe(false);
+  });
 });

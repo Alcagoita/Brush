@@ -18,7 +18,7 @@
  * Navigation: pushed from Profile; back via header chevron.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -118,12 +118,14 @@ export default function PointsHistoryScreen() {
   const [visibleCount,  setVisibleCount]  = useState(PAGE_SIZE);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  useEffect(() => {
+  // One-shot fetch, re-run on every focus so returning from Today after
+  // brushing a task shows it without a manual reload (KAN-218 follow-up).
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
     getPointsHistory(uid)
       .then(entries => { setAllHistory(entries); setHistoryLoaded(true); })
       .catch(err => console.warn('[PointsHistoryScreen] history error', err));
-  }, [uid]);
+  }, [uid]));
 
   const visibleHistory  = allHistory.slice(0, visibleCount);
   const hasMore         = visibleCount < allHistory.length;
