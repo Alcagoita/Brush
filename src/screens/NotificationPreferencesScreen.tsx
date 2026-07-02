@@ -54,7 +54,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
-import { isThisWeek } from '../utils/date';
+import { isThisWeek, toDateSafe } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -269,7 +269,7 @@ export default function NotificationPreferencesScreen() {
   useEffect(() => {
     if (loading) { return; }
     // "app opened this week" — lastOpenedAt is written on every foreground
-    const lastOpened = prefs.lastOpenedAt?.toDate?.() ?? null;
+    const lastOpened = toDateSafe(prefs.lastOpenedAt);
     const appOpenedThisWeek = lastOpened !== null && isThisWeek(lastOpened);
     scheduleWeeklyRecap({
       enabled: weeklyOn,

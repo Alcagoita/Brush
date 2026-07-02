@@ -2,6 +2,7 @@ import { getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } fro
 import type { Category } from '../../types';
 import { registerCategoryKeywords, replaceCategoryKeywords } from '../poiInference';
 import { categoriesRef, categoryRef } from './refs';
+import { mapSnapshotDocs } from './snapshot';
 
 /**
  * Subscribe to the user's custom categories (built-ins are not stored here).
@@ -16,7 +17,7 @@ export function subscribeToCategories(
     query(categoriesRef(uid), orderBy('name', 'asc')),
     snap => {
       if (!snap) return;
-      onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category)));
+      onUpdate(mapSnapshotDocs<Category>(snap).map(c => ({ ...c, isBuiltIn: false })));
     },
     onError,
   );
@@ -70,7 +71,7 @@ export async function deleteCategory(uid: string, categoryId: string): Promise<v
 
 export async function getCategories(uid: string): Promise<Category[]> {
   const snap = await getDocs(query(categoriesRef(uid), orderBy('name', 'asc')));
-  const categories = snap.docs.map(d => ({ id: d.id, ...d.data(), isBuiltIn: false } as Category));
+  const categories = mapSnapshotDocs<Category>(snap).map(c => ({ ...c, isBuiltIn: false }));
   // Rebuild the inference dictionary's category layer from the current list on
   // load, so user-added POIs survive an app restart and renamed/deleted ones
   // stop matching (durable store lands in KAN-196).

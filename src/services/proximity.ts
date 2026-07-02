@@ -32,6 +32,16 @@ import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 
+// ─── Error reporting ──────────────────────────────────────────────────────────
+//
+// Single chokepoint for this module's non-fatal error logging (KAN-215) —
+// previously each catch block called console.warn independently. Also the one
+// place to wire in real crash/error reporting later.
+
+function reportProximityError(context: string, err: unknown): void {
+  console.warn(`[proximity] ${context}`, err);
+}
+
 // ─── Geofence ID helpers (exit-prompt, KAN-119) ───────────────────────────────
 
 const GEOFENCE_TASK_NAME = 'brush-exit-geofence';
@@ -145,7 +155,7 @@ function _ensureNetInfoListener(): void {
   if (_netInfoUnsubscribe) { return; }
   _netInfoUnsubscribe = NetInfo.addEventListener(state => {
     if (state.isConnected) {
-      void _flushQueue().catch(err => console.warn('[proximity] flush failed', err));
+      void _flushQueue().catch(err => reportProximityError('flush failed', err));
     }
   });
 }
@@ -161,7 +171,7 @@ async function _flushQueue(): Promise<void> {
       // Search engine busy — restore remaining entries and retry after current search.
       _pendingQueue.unshift(entry, ...(snapshot.slice(snapshot.indexOf(entry) + 1)));
       setTimeout(
-        () => void _flushQueue().catch(err => console.warn('[proximity] flush retry failed', err)),
+        () => void _flushQueue().catch(err => reportProximityError('flush retry failed', err)),
         250,
       );
       return;
@@ -169,7 +179,7 @@ async function _flushQueue(): Promise<void> {
     try {
       await runProximitySearch(entry.uid, entry.tasks, entry.onUpdate);
     } catch (err) {
-      console.warn('[proximity] flush entry failed', err);
+      reportProximityError('flush entry failed', err);
       // Don't re-enqueue — runProximitySearch already re-enqueues on offline.
     }
   }
@@ -281,7 +291,7 @@ export async function handleGeofenceExit(
     await fireExitPrompt({ taskId: task.id, taskTitle: task.title });
     await markExitPromptSeen(uid, task.id, today);
   } catch (err) {
-    console.warn('[proximity] exit prompt failed', err);
+    reportProximityError('exit prompt failed', err);
   }
 }
 
@@ -320,9 +330,10 @@ async function runProximitySearch(
     let results: Record<string, NearbyPlace[]> = {};
     try {
       results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
-    } catch {
+    } catch (err) {
       // If offline, queue this search for retry when connection returns.
       // Otherwise (timeout, API error) keep showing whatever was shown before.
+      reportProximityError('searchNearbyPlaces failed', err);
       let isConnected: boolean | null = null;
       try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
       if (isConnected === false) {
@@ -372,10 +383,10 @@ async function runProximitySearch(
       ) {
         _alertedTodayTypes.add(heroType);
         fireNotification(placeTypeLabel(heroType), eligible.length).catch(err =>
-          console.warn('[proximity] notification failed', err),
+          reportProximityError('notification failed', err),
         );
         markAllPoiAlertsSeen(uid, eligible.map(t => t.id), today).catch(err =>
-          console.warn('[proximity] markAllPoiAlertsSeen failed', err),
+          reportProximityError('markAllPoiAlertsSeen failed', err),
         );
       }
     }
@@ -464,7 +475,7 @@ export function resetProximityState(): void {
 
   geofenceEntryTimes.clear();
   Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
-    console.warn('[proximity] stopGeofencingAsync failed', err),
+    reportProximityError('stopGeofencingAsync failed', err),
   );
 }
 

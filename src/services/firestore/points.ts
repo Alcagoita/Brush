@@ -32,6 +32,7 @@ import type {
 } from '../../types';
 import { logTap } from '../analytics';
 import { userRef, pointsHistoryRef, achievementsRef, achievementRef } from './refs';
+import { mapSnapshotDocs } from './snapshot';
 
 /**
  * Award 1 point for completing a task (KAN-31 / KAN-128).
@@ -367,7 +368,7 @@ export function subscribeToAchievements(
  */
 export async function getAchievementsForUser(uid: string): Promise<Achievement[]> {
   const snap = await getDocs(query(achievementsRef(uid), orderBy('earnedAt', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Achievement));
+  return mapSnapshotDocs<Achievement>(snap);
 }
 
 /**

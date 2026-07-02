@@ -30,6 +30,15 @@ import { classifyPoi } from './poiLlm';
 // ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
 
 /**
+ * Memoizes inferImportedPoi by normalized title — a title repeated within (or
+ * across) an import batch (e.g. recurring calendar events) skips redundant
+ * rule-map lookups and, more importantly, redundant on-device classifier
+ * calls. Caches the in-flight promise so concurrent calls for the same title
+ * share one classifier call rather than racing separate ones.
+ */
+const importPoiCache = new Map<string, Promise<string | null>>();
+
+/**
  * Infer a POI type for an imported task title.
  *   1. Rule map (KAN-195) — instant, offline. Tried in both EN and pt-PT since
  *      the import language is unknown.
@@ -40,13 +49,22 @@ import { classifyPoi } from './poiLlm';
  * type string (or a custom Places type from a learned category) or null.
  */
 export async function inferImportedPoi(title: string): Promise<string | null> {
-  try {
-    const rule = inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT');
-    if (rule) { return rule; }
-    return await classifyPoi(title, 'en');
-  } catch {
-    return null;
-  }
+  const key = title.trim().toLowerCase();
+  const cached = importPoiCache.get(key);
+  if (cached) { return cached; }
+
+  const result = (async () => {
+    try {
+      const rule = inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT');
+      if (rule) { return rule; }
+      return await classifyPoi(title, 'en');
+    } catch {
+      return null;
+    }
+  })();
+
+  importPoiCache.set(key, result);
+  return result;
 }
 
 // ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────

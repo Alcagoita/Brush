@@ -34,3 +34,36 @@ export function isThisWeek(date: Date): boolean {
   const { monday, sunday } = getCurrentWeekBoundaries();
   return date >= monday && date <= sunday;
 }
+
+/**
+ * Safely coerce a Firestore Timestamp (or a plain `{_seconds}` object from
+ * cached/serialized data, or an already-native `Date`) into a `Date`.
+ * Returns `null` for anything else (including missing/undefined).
+ *
+ * Consolidates the `(ts as any).toDate?.() ?? new Date((ts as any)._seconds * 1000)`
+ * pattern that was duplicated across several screens (KAN-215).
+ */
+export function toDateSafe(ts: unknown): Date | null {
+  if (!ts) { return null; }
+  if (ts instanceof Date) { return ts; }
+  const maybeTimestamp = ts as { toDate?: () => Date; _seconds?: number };
+  if (typeof maybeTimestamp.toDate === 'function') { return maybeTimestamp.toDate(); }
+  if (typeof maybeTimestamp._seconds === 'number') { return new Date(maybeTimestamp._seconds * 1000); }
+  return null;
+}
+
+/**
+ * "3m ago" / "2h ago" / "5d ago" relative-time label for a Firestore Timestamp
+ * (or anything toDateSafe accepts). Returns '' when ts can't be coerced.
+ */
+export function relativeTime(ts: unknown): string {
+  const date = toDateSafe(ts);
+  if (!date) { return ''; }
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1)  { return 'just now'; }
+  if (mins < 60) { return `${mins}m ago`; }
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  { return `${hrs}h ago`; }
+  return `${Math.floor(hrs / 24)}d ago`;
+}
