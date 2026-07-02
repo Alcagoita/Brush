@@ -31,6 +31,7 @@ import {
   inboxRef,
   userRef,
 } from './refs';
+import { mapSnapshotDocs } from './snapshot';
 
 /**
  * Follow another user. Atomically:
@@ -130,7 +131,7 @@ export function subscribeToFollowing(
     query(followingRef(uid), orderBy('followedAt', 'desc')),
     snap => {
       if (!snap) { return; }
-      onUpdate(snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry)));
+      onUpdate(mapSnapshotDocs<FollowEntry>(snap, 'uid'));
     },
     onError,
   );
@@ -139,7 +140,7 @@ export function subscribeToFollowing(
 /** One-shot fetch of the users that uid is following, newest first. */
 export async function getFollowing(uid: string): Promise<FollowEntry[]> {
   const snap = await getDocs(query(followingRef(uid), orderBy('followedAt', 'desc')));
-  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry));
+  return mapSnapshotDocs<FollowEntry>(snap, 'uid');
 }
 
 /**
@@ -155,7 +156,7 @@ export function subscribeToFollowers(
     query(followersRef(uid), orderBy('followedAt', 'desc')),
     snap => {
       if (!snap) { return; }
-      onUpdate(snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry)));
+      onUpdate(mapSnapshotDocs<FollowEntry>(snap, 'uid'));
     },
     onError,
   );
@@ -164,13 +165,13 @@ export function subscribeToFollowers(
 /** One-shot fetch of the users that follow uid, newest first. */
 export async function getFollowers(uid: string): Promise<FollowEntry[]> {
   const snap = await getDocs(query(followersRef(uid), orderBy('followedAt', 'desc')));
-  return snap.docs.map(d => ({ uid: d.id, ...d.data() } as FollowEntry));
+  return mapSnapshotDocs<FollowEntry>(snap, 'uid');
 }
 
 /** One-shot fetch of inbox entries for uid, newest first. */
 export async function getInboxEntries(uid: string): Promise<InboxEntry[]> {
   const snap = await getDocs(query(inboxRef(uid), orderBy('createdAt', 'desc')));
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as InboxEntry));
+  return mapSnapshotDocs<InboxEntry>(snap);
 }
 
 /** Mark a single inbox entry as read. */

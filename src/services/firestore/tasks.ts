@@ -14,6 +14,7 @@ import {
 import { getCurrentWeekBoundaries, todayISO } from '../../utils/date';
 import type { Task } from '../../types';
 import { tasksRef, taskRef } from './refs';
+import { mapSnapshotDocs } from './snapshot';
 
 /**
  * Add a new task for the given user.
@@ -39,7 +40,7 @@ export async function getTasksForDate(uid: string, date: string): Promise<Task[]
     orderBy('createdAt', 'asc'),
   );
   const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Task));
+  return mapSnapshotDocs<Task>(snap);
 }
 
 /**
@@ -131,7 +132,7 @@ export function subscribeToTasksForMonth(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(mapSnapshotDocs<Task>(snap)); },
     onError,
   );
 }
@@ -152,7 +153,7 @@ export function subscribeToPoiTasks(
   );
   return onSnapshot(
     q,
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data() } as Task))); },
+    snap => { if (!snap) { onUpdate([]); return; } onUpdate(mapSnapshotDocs<Task>(snap)); },
     onError,
   );
 }

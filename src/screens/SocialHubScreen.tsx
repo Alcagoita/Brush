@@ -32,6 +32,7 @@ import { getIncomingSharedTasks } from '../services/sharing';
 import { getFollowing } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { SharedTask, FollowEntry } from '../types';
+import { relativeTime } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SocialHub'>;
 
@@ -44,17 +45,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
       setTimeout(() => reject(new Error('Load timed out')), ms),
     ),
   ]);
-}
-
-function relativeTime(ts: { toDate(): Date } | null | undefined): string {
-  if (!ts || typeof ts.toDate !== 'function') { return ''; }
-  const diff = Date.now() - ts.toDate().getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1)  { return 'just now'; }
-  if (mins < 60) { return `${mins}m ago`; }
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  { return `${hrs}h ago`; }
-  return `${Math.floor(hrs / 24)}d ago`;
 }
 
 function SectionHeader({ title, palette }: {
