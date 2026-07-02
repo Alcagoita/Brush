@@ -272,13 +272,13 @@ describe('CalendarScreen', () => {
     mockSubscribeToTasksForMonth.mockReturnValue(jest.fn());
     mockSubscribeToAchievements.mockImplementation((_uid: string, onUpdate: (map: object) => void) => {
       onUpdate({
-        early_bird: { earnedAt: fakeTimestamp(iso), earnCount: 1, progress: 1, target: 1 },
+        first_brush: { earnedAt: fakeTimestamp(iso), earnCount: 1, progress: 1, target: 1 },
       });
       return jest.fn();
     });
 
     renderScreen();
-    expect(screen.getByText('Early bird · unlocked')).toBeTruthy();
+    expect(screen.getByText('First brush · unlocked')).toBeTruthy();
   });
 
   it('renders an "Open today" CTA only when today is selected', () => {
