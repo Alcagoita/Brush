@@ -1,4 +1,5 @@
 import { Dimensions } from 'react-native';
+import { categories } from '../../theme/tokens';
 import type { NudgeMessage } from '../../components/ScrRotatingNudge';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -37,11 +38,11 @@ export const DEBUG_MINIMAL = !DEBUG_SHOW_LIST && !DEBUG_SHOW_RING;
 
 export const EMPTY_MESSAGES: NudgeMessage[] = [
   { text: "Nothing on today. That doesn’t mean nothing matters." },
-  { text: "Don’t you feel the need for bread?",                  poi: "supermarket", color: "#8b6bc4" },
-  { text: "Maybe today’s a good day for coffee outside.",        poi: "cafe",        color: "#e8a86a" },
-  { text: "Might be worth grabbing some cash while you’re out.", poi: "atm",         color: "#8b6bc4" },
-  { text: "Anything in the cabinet running low?",                     poi: "pharmacy",    color: "#5ba87a" },
-  { text: "Something in the fridge is probably asking to be replaced.", poi: "supermarket", color: "#8b6bc4" },
+  { text: "Don’t you feel the need for bread?",                  poi: "supermarket", color: categories.errands.color },
+  { text: "Maybe today’s a good day for coffee outside.",        poi: "cafe",        color: categories.personal.color },
+  { text: "Might be worth grabbing some cash while you’re out.", poi: "atm",         color: categories.errands.color },
+  { text: "Anything in the cabinet running low?",                     poi: "pharmacy",    color: categories.health.color },
+  { text: "Something in the fridge is probably asking to be replaced.", poi: "supermarket", color: categories.errands.color },
   { text: "A clear day is a gift. What will you do with it?" },
   { text: "What’s the one thing future-you will thank you for?" },
 ];

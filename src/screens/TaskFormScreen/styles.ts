@@ -244,7 +244,6 @@ export const styles = StyleSheet.create({
   swatchSelected: {
     transform:   [{ scale: 1.2 }],
     borderWidth:  2,
-    borderColor: 'rgba(0,0,0,0.25)',
   },
   catEditorActions: {
     flexDirection: 'row',

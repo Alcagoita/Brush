@@ -34,8 +34,6 @@ import {
   validateUsername,
 } from '../services/firestore';
 
-const ERROR_COLOR = '#e05252';
-
 interface Props {
   onComplete: () => void;
 }
@@ -96,7 +94,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
   };
 
   const borderColor = validationErr && value
-    ? ERROR_COLOR
+    ? palette.danger
     : value && !validationErr
     ? palette.accent
     : palette.line;
@@ -142,9 +140,9 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
           </View>
 
           {validationErr && value ? (
-            <Text style={[styles.hint, { color: ERROR_COLOR }]}>{validationErr}</Text>
+            <Text style={[styles.hint, { color: palette.danger }]}>{validationErr}</Text>
           ) : submitError ? (
-            <Text style={[styles.hint, { color: ERROR_COLOR }]}>{submitError}</Text>
+            <Text style={[styles.hint, { color: palette.danger }]}>{submitError}</Text>
           ) : (
             <Text style={[styles.hint, { color: palette.muted }]}>
               3–20 chars · letters, numbers, underscores only

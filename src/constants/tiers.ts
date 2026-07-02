@@ -1,3 +1,5 @@
+import { tierColors } from '../theme/tokens';
+
 export interface Tier {
   name: string;
   at: number;
@@ -5,12 +7,12 @@ export interface Tier {
 }
 
 export const TIERS: Tier[] = [
-  { name: 'Tin',        at: 0,    color: '#9b9690' },
-  { name: 'Bronze',     at: 50,   color: '#b3793f' },
-  { name: 'Silver',     at: 200,  color: '#7d93a4' },
-  { name: 'Gold',       at: 500,  color: '#c0972d' },
-  { name: 'Adamantium', at: 1200, color: '#5e788c' },
-  { name: 'Vibranium',  at: 3000, color: '#7256a6' },
+  { name: 'Tin',        at: 0,    color: tierColors.tin },
+  { name: 'Bronze',     at: 50,   color: tierColors.bronze },
+  { name: 'Silver',     at: 200,  color: tierColors.silver },
+  { name: 'Gold',       at: 500,  color: tierColors.gold },
+  { name: 'Adamantium', at: 1200, color: tierColors.adamantium },
+  { name: 'Vibranium',  at: 3000, color: tierColors.vibranium },
 ];
 
 export function deriveTierStanding(points: number) {

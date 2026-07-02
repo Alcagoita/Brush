@@ -27,7 +27,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
-import { categories as builtInCategories } from '../../theme/tokens';
+import { categories as builtInCategories, categoryHues } from '../../theme/tokens';
 import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } from '../../services/firestore';
 import { learnFromUserEdit } from '../../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
@@ -40,7 +40,6 @@ import { COPY } from '../../constants/copy';
 import { useToastStore } from '../../store/toastStore';
 import { evaluateAddTaskAchievement, evaluateCustomCatAchievement } from '../../services/achievements';
 import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder';
-import { COLOR_DESTRUCTIVE, NTD_CAT_HUES } from './constants';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { styles, getPoiTileWidth } from './styles';
@@ -109,12 +108,12 @@ export default function TaskFormScreen() {
   // Inline new-category editor
   const [addingCat,   setAddingCat]   = useState(false);
   const [newCatName,  setNewCatName]  = useState('');
-  const [newCatColor, setNewCatColor] = useState(NTD_CAT_HUES[0]);
+  const [newCatColor, setNewCatColor] = useState<string>(categoryHues[0]);
   const [newCatSaving, setNewCatSaving] = useState(false);
 
   const handleOpenNewCat = useCallback(() => {
     setNewCatName('');
-    setNewCatColor(NTD_CAT_HUES[0]);
+    setNewCatColor(categoryHues[0]);
     setNewCatSaving(false);
     setAddingCat(true);
   }, []);
@@ -449,14 +448,14 @@ export default function TaskFormScreen() {
                 />
               </View>
               <View style={styles.swatchRow}>
-                {NTD_CAT_HUES.map(c => (
+                {categoryHues.map(c => (
                   <Pressable
                     key={c}
                     onPress={() => setNewCatColor(c)}
                     style={[
                       styles.swatch,
                       { backgroundColor: c },
-                      newCatColor === c && styles.swatchSelected,
+                      newCatColor === c && [styles.swatchSelected, { borderColor: palette.text }],
                     ]}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: newCatColor === c }}
@@ -569,7 +568,7 @@ export default function TaskFormScreen() {
             ]}
             accessibilityRole="button"
             accessibilityLabel="Delete task">
-            <Text style={[styles.deleteBtnLabel, { color: COLOR_DESTRUCTIVE }]}>
+            <Text style={[styles.deleteBtnLabel, { color: palette.danger }]}>
               {deleting ? 'Deleting…' : 'Delete task'}
             </Text>
           </Pressable>

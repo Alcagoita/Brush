@@ -321,7 +321,7 @@ export default function ProfileScreen() {
                     {cooldownDays}d cooldown remaining
                   </Text>
                 ) : usernameError ? (
-                  <Text style={[styles.editFieldHint, { color: '#e05252' }]}>{usernameError}</Text>
+                  <Text style={[styles.editFieldHint, { color: palette.danger }]}>{usernameError}</Text>
                 ) : null}
               </View>
 
