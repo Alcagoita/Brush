@@ -9,14 +9,14 @@
  * /users/{uid}/userPreferences/prefs.
  */
 
-import { getDoc, setDoc, updateDoc, onSnapshot, serverTimestamp } from '@react-native-firebase/firestore';
+import { getDoc, setDoc, updateDoc, serverTimestamp } from '@react-native-firebase/firestore';
 import type { User, UserPreferences } from '../../types';
 import { userRef, userPrefsRef } from './refs';
 
 /**
  * Persist the user's "Pause nearby alerts on low battery" preference.
  * Pass `true` to enable, `false` to disable. Default server value is absent
- * (treated as false by subscribers and the proximity engine).
+ * (treated as false by callers and the proximity engine).
  */
 export async function setLowBatteryPausePref(
   uid: string,
@@ -26,24 +26,13 @@ export async function setLowBatteryPausePref(
 }
 
 /**
- * Subscribe to live updates for the user's low-battery pause preference.
- *
- * Fires immediately with the stored value (or `false` if not yet set), then
- * again whenever the preference changes. Returns an unsubscribe function.
+ * Read the user's low-battery pause preference once.
+ * Returns `false` if not yet set.
  */
-export function subscribeLowBatteryPausePref(
-  uid: string,
-  onUpdate: (enabled: boolean) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    userRef(uid),
-    snap => {
-      const data = snap?.data() as User | undefined;
-      onUpdate(data?.poiPreferences?.lowBatteryPause ?? false);
-    },
-    onError,
-  );
+export async function getLowBatteryPausePref(uid: string): Promise<boolean> {
+  const snap = await getDoc(userRef(uid));
+  const data = snap.data() as User | undefined;
+  return data?.poiPreferences?.lowBatteryPause ?? false;
 }
 
 /**
@@ -60,28 +49,17 @@ export async function setStoreTuningPref(
 }
 
 /**
- * Subscribe to live updates for the user's Store fine tuning preference.
+ * Read the user's Store fine tuning preference once.
  *
- * `onUpdate` receives `true | false | undefined`:
+ * Returns `true | false | undefined`:
  *   undefined — field not yet set (first-time user; show prompt on indoor_mapped)
  *   true      — user has enabled the feature
  *   false     — user explicitly disabled (suppress prompt)
- *
- * Returns an unsubscribe function.
  */
-export function subscribeStoreTuningPref(
-  uid: string,
-  onUpdate: (enabled: boolean | undefined) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    userRef(uid),
-    snap => {
-      const data = snap?.data() as User | undefined;
-      onUpdate(data?.poiPreferences?.storeTuningEnabled);
-    },
-    onError,
-  );
+export async function getStoreTuningPref(uid: string): Promise<boolean | undefined> {
+  const snap = await getDoc(userRef(uid));
+  const data = snap.data() as User | undefined;
+  return data?.poiPreferences?.storeTuningEnabled;
 }
 
 /**
@@ -105,22 +83,6 @@ export async function updateUserPreferences(
   prefs: Partial<UserPreferences>,
 ): Promise<void> {
   await setDoc(userPrefsRef(uid), prefs, { merge: true });
-}
-
-/**
- * Live subscription to the user's preferences document.
- * Returns an unsubscribe function.
- */
-export function subscribeToUserPreferences(
-  uid: string,
-  onUpdate: (prefs: Partial<UserPreferences>) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    userPrefsRef(uid),
-    snap => onUpdate((snap?.data() as Partial<UserPreferences>) ?? {}),
-    onError,
-  );
 }
 
 /**

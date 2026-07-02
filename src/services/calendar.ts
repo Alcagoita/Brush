@@ -56,9 +56,9 @@ export async function fetchReminders(): Promise<ReminderItem[]> {
   );
 
   return pages.flat()
-    .filter(r => r.title?.trim())
+    .filter((r): r is typeof r & { title: string } => !!r.title?.trim())
     .map(r => ({
-      title: r.title!,
+      title: r.title,
       dueDateString: r.dueDate ? new Date(r.dueDate).toISOString() : undefined,
       notes: r.notes ?? undefined,
     }));
@@ -84,9 +84,9 @@ export async function fetchCalendarEvents(daysAhead: number): Promise<CalendarEv
   const events = await Calendar.listEvents(eventCalendars, now, end);
 
   return events
-    .filter(e => e.title?.trim())
+    .filter((e): e is typeof e & { title: string } => !!e.title?.trim())
     .map(e => ({
-      title:           e.title!,
+      title:           e.title,
       startDateString: new Date(e.startDate).toISOString(),
       isAllDay:        e.allDay,
       notes:           e.notes ?? undefined,

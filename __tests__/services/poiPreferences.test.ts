@@ -2,7 +2,6 @@
  * KAN-25 — Firebase POI preferences tests.
  *
  * Covers:
- *   - subscribeToPoiPreferences: fires correct Record<string, number> from snapshot
  *   - getPoiPreference: returns stored value; falls back to spec default
  *   - setPoiPreference: writes correct Firestore document
  *   - getPoiPreferencesMap: one-shot flat map
@@ -18,9 +17,6 @@ jest.mock('../../src/config/keys', () => ({
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
-type SnapshotCallback = (snap: { docs: Array<{ data: () => object }> }) => void;
-
-const mockOnSnapshot  = jest.fn();
 const mockGetDoc      = jest.fn();
 const mockGetDocs     = jest.fn();
 const mockSetDoc      = jest.fn();
@@ -45,7 +41,6 @@ jest.mock('@react-native-firebase/firestore', () => {
     query:           jest.fn((...a: unknown[]) => a[0]),
     where:           jest.fn(),
     orderBy:         jest.fn(),
-    onSnapshot:      (...args: unknown[]) => mockOnSnapshot(...args),
     serverTimestamp: jest.fn(),
     Timestamp:       {},
   };
@@ -108,7 +103,6 @@ function mockPlacesResponse(places: Array<{ id: string; displayName: { text: str
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import {
-  subscribeToPoiPreferences,
   getPoiPreference,
   setPoiPreference,
   getPoiPreferencesMap,
@@ -118,80 +112,6 @@ import {
   resetProximityState,
   updateProximityPoiPreferences,
 } from '../../src/services/proximity';
-
-// ─── subscribeToPoiPreferences ────────────────────────────────────────────────
-
-describe('subscribeToPoiPreferences', () => {
-  beforeEach(() => {
-    mockOnSnapshot.mockClear();
-  });
-
-  it('fires onUpdate with an empty map when collection is empty', () => {
-    mockOnSnapshot.mockImplementation((_ref: unknown, cb: SnapshotCallback) => {
-      cb({ docs: [] });
-      return jest.fn();
-    });
-
-    const onUpdate = jest.fn();
-    subscribeToPoiPreferences('uid-1', onUpdate);
-
-    expect(onUpdate).toHaveBeenCalledWith({});
-  });
-
-  it('fires onUpdate with correct type→radius map from stored docs', () => {
-    mockOnSnapshot.mockImplementation((_ref: unknown, cb: SnapshotCallback) => {
-      cb({
-        docs: [
-          { data: () => ({ type: 'atm',      radiusMeters: 100 }) },
-          { data: () => ({ type: 'pharmacy', radiusMeters: 80  }) },
-          { data: () => ({ type: 'gym',      radiusMeters: 90  }) },
-        ],
-      });
-      return jest.fn();
-    });
-
-    const onUpdate = jest.fn();
-    subscribeToPoiPreferences('uid-1', onUpdate);
-
-    expect(onUpdate).toHaveBeenCalledWith({
-      atm:      100,
-      pharmacy: 80,
-      gym:      90,
-    });
-  });
-
-  it('fires again when preferences change (snapshot re-fires)', () => {
-    let capturedCb: SnapshotCallback | null = null;
-    mockOnSnapshot.mockImplementation((_ref: unknown, cb: SnapshotCallback) => {
-      capturedCb = cb;
-      return jest.fn();
-    });
-
-    const onUpdate = jest.fn();
-    subscribeToPoiPreferences('uid-1', onUpdate);
-
-    // Initial empty state
-    capturedCb!({ docs: [] });
-    expect(onUpdate).toHaveBeenCalledTimes(1);
-
-    // User updates ATM radius
-    capturedCb!({
-      docs: [{ data: () => ({ type: 'atm', radiusMeters: 150 }) }],
-    });
-    expect(onUpdate).toHaveBeenCalledTimes(2);
-    expect(onUpdate).toHaveBeenLastCalledWith({ atm: 150 });
-  });
-
-  it('returns an unsubscribe function', () => {
-    const unsub = jest.fn();
-    mockOnSnapshot.mockReturnValue(unsub);
-
-    const stop = subscribeToPoiPreferences('uid-1', jest.fn());
-    stop();
-
-    expect(unsub).toHaveBeenCalledTimes(1);
-  });
-});
 
 // ─── getPoiPreference ─────────────────────────────────────────────────────────
 

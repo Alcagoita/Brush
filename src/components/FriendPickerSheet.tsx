@@ -5,7 +5,7 @@
  * Backed by the user's following list (KAN-98) — no email search.
  *
  * Features:
- *   - Real-time following list from subscribeToFollowing
+ *   - Following list fetched once each time the sheet opens (KAN-218)
  *   - Search bar to filter by @username or display name
  *   - Multi-select with checkboxes
  *   - Send button sends to all selected friends in parallel
@@ -29,7 +29,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import Avatar from './Avatar';
-import { subscribeToFollowing } from '../services/firestore';
+import { getFollowing } from '../services/firestore';
 import { sendSharedTask } from '../services/sharing';
 import type { FollowEntry, Task } from '../types';
 
@@ -55,10 +55,10 @@ export default function FriendPickerSheet({
   const [sentTo,    setSentTo]      = useState<Set<string>>(new Set());
   const [error,     setError]       = useState('');
 
-  // Subscribe to following list while sheet is visible
+  // Fetch the following list once each time the sheet opens
   useEffect(() => {
     if (!visible || !senderUid) { return; }
-    return subscribeToFollowing(senderUid, setFollowing);
+    getFollowing(senderUid).then(setFollowing).catch(err => console.warn('[FriendPickerSheet] following error', err));
   }, [visible, senderUid]);
 
   // Reset state when sheet closes

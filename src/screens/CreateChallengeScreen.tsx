@@ -30,7 +30,7 @@ import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, TrophyIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
-import { subscribeToFollowing, getUser } from '../services/firestore';
+import { getFollowing, getUser } from '../services/firestore';
 import { createChallenge } from '../services/challenges';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { FollowEntry } from '../types';
@@ -85,7 +85,7 @@ export default function CreateChallengeScreen() {
 
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToFollowing(uid, setFollowing);
+    getFollowing(uid).then(setFollowing).catch(err => console.warn('[CreateChallengeScreen] following error', err));
   }, [uid]);
 
   const filtered = useMemo(() => {

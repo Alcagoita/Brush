@@ -18,7 +18,6 @@ import {
   runTransaction,
   query,
   orderBy,
-  onSnapshot,
   serverTimestamp,
   increment,
 } from '@react-native-firebase/firestore';
@@ -304,61 +303,26 @@ export async function awardAchievement(
   logTap('achievement_unlocked', { achievement_id: achievementId });
 }
 
-/**
- * Subscribe to the user's total points count.
- * Reads the `totalPoints` field on /users/{uid}.
- * Fires immediately, then on every change. Returns an unsubscribe function.
- */
-export function subscribeToTotalPoints(
-  uid: string,
-  onUpdate: (totalPoints: number) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    userRef(uid),
-    snap => {
-      if (!snap) return;
-      const data = snap.data() as { totalPoints?: number } | undefined;
-      onUpdate(data?.totalPoints ?? 0);
-    },
-    onError,
-  );
+export async function getTotalPoints(uid: string): Promise<number> {
+  const snap = await getDoc(userRef(uid));
+  return (snap.data() as { totalPoints?: number } | undefined)?.totalPoints ?? 0;
 }
 
-export function subscribeToCurrentStreak(
-  uid: string,
-  onUpdate: (streak: number) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    userRef(uid),
-    snap => {
-      if (!snap) return;
-      const data = snap.data() as { currentStreak?: number } | undefined;
-      onUpdate(data?.currentStreak ?? 0);
-    },
-    onError,
-  );
+/** Read the user's current streak once. Reads the `currentStreak` field on /users/{uid}. */
+export async function getCurrentStreak(uid: string): Promise<number> {
+  const snap = await getDoc(userRef(uid));
+  return (snap.data() as { currentStreak?: number } | undefined)?.currentStreak ?? 0;
 }
 
 /**
- * Subscribe to the user's achievements map (KAN-129).
+ * Read the user's achievements map once (KAN-129).
  * Reads from the `achievements` field on the user document — not the old
- * subcollection. Returns an unsubscribe function.
+ * subcollection.
  */
-export function subscribeToAchievements(
-  uid: string,
-  onUpdate: (map: AchievementsMap) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    userRef(uid),
-    snap => {
-      const data = snap?.data() as User | undefined;
-      onUpdate((data?.achievements ?? {}) as AchievementsMap);
-    },
-    onError,
-  );
+export async function getAchievements(uid: string): Promise<AchievementsMap> {
+  const snap = await getDoc(userRef(uid));
+  const data = snap.data() as User | undefined;
+  return (data?.achievements ?? {}) as AchievementsMap;
 }
 
 /**
@@ -371,44 +335,26 @@ export async function getAchievementsForUser(uid: string): Promise<Achievement[]
   return mapSnapshotDocs<Achievement>(snap);
 }
 
-/**
- * Subscribe to the user's points history, newest first.
- * Returns an unsubscribe function — call on component unmount.
- */
-export function subscribeToPointsHistory(
-  uid: string,
-  onUpdate: (history: PointsHistoryEntry[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')),
-    snap => {
-      if (!snap) { return; }
+/** One-time fetch of the user's points history, newest first. */
+export async function getPointsHistory(uid: string): Promise<PointsHistoryEntry[]> {
+  const snap = await getDocs(query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')));
 
-      // Deduplicate task_completed entries by taskId — keeps the most-recent
-      // entry per task (docs are ordered newest-first). Non-task entries
-      // (achievement_bonus, streak_bonus, etc.) all carry taskId:'' so they
-      // must NOT be deduplicated; they pass through as-is.
-      const seen = new Set<string>();
-      const unique: PointsHistoryEntry[] = [];
-      for (const d of snap.docs) {
-        const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
-        if (entry.reason === 'task_completed' && entry.taskId) {
-          if (!seen.has(entry.taskId)) {
-            seen.add(entry.taskId);
-            unique.push(entry);
-          }
-        } else {
-          unique.push(entry);
-        }
+  // Deduplicate task_completed entries by taskId — keeps the most-recent
+  // entry per task (docs are ordered newest-first). Non-task entries
+  // (achievement_bonus, streak_bonus, etc.) all carry taskId:'' so they
+  // must NOT be deduplicated; they pass through as-is.
+  const seen = new Set<string>();
+  const unique: PointsHistoryEntry[] = [];
+  for (const d of snap.docs) {
+    const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
+    if (entry.reason === 'task_completed' && entry.taskId) {
+      if (!seen.has(entry.taskId)) {
+        seen.add(entry.taskId);
+        unique.push(entry);
       }
-      onUpdate(unique);
-    },
-    onError,
-  );
-}
-
-export async function getTotalPoints(uid: string): Promise<number> {
-  const snap = await getDoc(userRef(uid));
-  return (snap.data() as { totalPoints?: number } | undefined)?.totalPoints ?? 0;
+    } else {
+      unique.push(entry);
+    }
+  }
+  return unique;
 }

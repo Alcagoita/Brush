@@ -18,7 +18,6 @@ import {
   query,
   where,
   orderBy,
-  onSnapshot,
   serverTimestamp,
   increment,
 } from '@react-native-firebase/firestore';
@@ -118,48 +117,10 @@ export async function isFollowing(
   return snap.exists();
 }
 
-/**
- * Subscribe to the list of users that uid follows, newest first.
- * Returns an unsubscribe function.
- */
-export function subscribeToFollowing(
-  uid: string,
-  onUpdate: (entries: FollowEntry[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    query(followingRef(uid), orderBy('followedAt', 'desc')),
-    snap => {
-      if (!snap) { return; }
-      onUpdate(mapSnapshotDocs<FollowEntry>(snap, 'uid'));
-    },
-    onError,
-  );
-}
-
 /** One-shot fetch of the users that uid is following, newest first. */
 export async function getFollowing(uid: string): Promise<FollowEntry[]> {
   const snap = await getDocs(query(followingRef(uid), orderBy('followedAt', 'desc')));
   return mapSnapshotDocs<FollowEntry>(snap, 'uid');
-}
-
-/**
- * Subscribe to the list of users that follow uid, newest first.
- * Returns an unsubscribe function.
- */
-export function subscribeToFollowers(
-  uid: string,
-  onUpdate: (entries: FollowEntry[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    query(followersRef(uid), orderBy('followedAt', 'desc')),
-    snap => {
-      if (!snap) { return; }
-      onUpdate(mapSnapshotDocs<FollowEntry>(snap, 'uid'));
-    },
-    onError,
-  );
 }
 
 /** One-shot fetch of the users that follow uid, newest first. */

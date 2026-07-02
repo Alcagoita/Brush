@@ -1,20 +1,20 @@
 /**
- * useCategoriesScreen — KAN-59
+ * useCategoriesScreen — KAN-59 / KAN-218
  *
  * ViewModel-layer hook for CategoriesScreen. Owns all custom-category
- * data state, the Firestore subscription, and CRUD callbacks. No JSX —
- * independently testable with renderHook.
+ * data state (one-shot fetch, not a live subscription — KAN-218) and CRUD
+ * callbacks. No JSX — independently testable with renderHook.
  *
  * CategoriesScreen becomes a pure rendering component that calls this hook
  * and delegates all state management and Firestore interaction to it.
  */
 
-import { Dispatch, SetStateAction, useCallback, useEffect, useRef, useState } from 'react';
+import { Dispatch, SetStateAction, useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import {
   addCategory,
   deleteCategory,
-  subscribeToCategories,
+  getCategories,
   updateCategory,
 } from '../services/firestore';
 import { Category, CategoriesUiState } from '../types';
@@ -62,37 +62,25 @@ export function useCategoriesScreen(uid: string): CategoriesScreenState {
     ? categoriesState.categories
     : [];
 
-  // Tracks the previous list length — used to detect a newly-added category
-  // so the sheet auto-closes once the Firestore write is confirmed.
-  const prevCatsLenRef = useRef(0);
+  // ── One-shot fetch (KAN-218) ─────────────────────────────────────────────────
 
-  // ── Live subscription (KAN-57 / KAN-58) ─────────────────────────────────────
-
-  useEffect(() => {
+  const loadCategories = useCallback(async () => {
     if (!uid) { return; }
     setCategoriesState({ status: 'loading' });
-    return subscribeToCategories(uid, (cats) => {
+    try {
+      const cats = await getCategories(uid);
       setCategoriesState({ status: 'success', categories: cats });
-    }, (err) => {
-      console.warn('[useCategoriesScreen] categories subscription error', err);
+    } catch (err) {
+      console.warn('[useCategoriesScreen] categories fetch error', err);
       setCategoriesState({
         status:  'error',
         message: 'Could not load categories. Check your connection.',
       });
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, retryKey]);
-
-  // ── Auto-close sheet when a new category appears in the Firestore snapshot ──
-  // Firestore's local cache fires the subscription before (or just as) addCategory()
-  // resolves, so this closes the sheet as soon as the write is visible.
-
-  useEffect(() => {
-    if (sheetVisible && editing === null && customCategories.length > prevCatsLenRef.current) {
-      setSheetVisible(false);
     }
-    prevCatsLenRef.current = customCategories.length;
-  }, [customCategories, sheetVisible, editing]);
+  }, [uid]);
+
+  // retryKey re-triggers this on the "Try again" button (KAN-58).
+  useEffect(() => { loadCategories(); }, [loadCategories, retryKey]);
 
   // ── Callbacks ───────────────────────────────────────────────────────────────
 
@@ -116,9 +104,11 @@ export function useCategoriesScreen(uid: string): CategoriesScreenState {
           text:  'Delete',
           style: 'destructive',
           onPress: () =>
-            deleteCategory(uid, cat.id).catch(err =>
-              console.warn('[useCategoriesScreen] delete failed', err),
-            ),
+            deleteCategory(uid, cat.id)
+              .then(() => setCategoriesState(prev => prev.status === 'success'
+                ? { status: 'success', categories: prev.categories.filter(c => c.id !== cat.id) }
+                : prev))
+              .catch(err => console.warn('[useCategoriesScreen] delete failed', err)),
         },
       ],
     );
@@ -126,17 +116,24 @@ export function useCategoriesScreen(uid: string): CategoriesScreenState {
 
   const handleSave = useCallback((data: Omit<Category, 'id' | 'isBuiltIn'>) => {
     if (editing) {
-      // EDIT: close immediately; write runs in the background.
+      // EDIT: close immediately; apply the patch locally once the write confirms.
+      const editingId = editing.id;
       setSheetVisible(false);
-      updateCategory(uid, editing.id, data).catch(err =>
-        console.warn('[useCategoriesScreen] updateCategory failed', err),
-      );
+      updateCategory(uid, editingId, data)
+        .then(() => setCategoriesState(prev => prev.status === 'success'
+          ? { status: 'success', categories: prev.categories.map(c => c.id === editingId ? { ...c, ...data } : c) }
+          : prev))
+        .catch(err => console.warn('[useCategoriesScreen] updateCategory failed', err));
     } else {
-      // ADD: fire-and-forget; the useEffect above closes the sheet when the
-      // new item appears in the Firestore snapshot.
-      addCategory(uid, data).catch(err =>
-        console.warn('[useCategoriesScreen] addCategory failed', err),
-      );
+      // ADD: close the sheet and append locally once the write confirms.
+      addCategory(uid, data)
+        .then(id => {
+          setCategoriesState(prev => prev.status === 'success'
+            ? { status: 'success', categories: [...prev.categories, { id, ...data, isBuiltIn: false }] }
+            : prev);
+          setSheetVisible(false);
+        })
+        .catch(err => console.warn('[useCategoriesScreen] addCategory failed', err));
     }
   }, [uid, editing]);
 
