@@ -19,6 +19,14 @@ import {
 } from '../services/firestore';
 import { Category, CategoriesUiState } from '../types';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// getCategories() orders by name — keep optimistic local edits in the same
+// order so the list doesn't jump out of sync with a post-reload fetch.
+function sortByName(categories: Category[]): Category[] {
+  return [...categories].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // ─── Return type ──────────────────────────────────────────────────────────────
 
 export interface CategoriesScreenState {
@@ -121,7 +129,7 @@ export function useCategoriesScreen(uid: string): CategoriesScreenState {
       setSheetVisible(false);
       updateCategory(uid, editingId, data)
         .then(() => setCategoriesState(prev => prev.status === 'success'
-          ? { status: 'success', categories: prev.categories.map(c => c.id === editingId ? { ...c, ...data } : c) }
+          ? { status: 'success', categories: sortByName(prev.categories.map(c => c.id === editingId ? { ...c, ...data } : c)) }
           : prev))
         .catch(err => console.warn('[useCategoriesScreen] updateCategory failed', err));
     } else {
@@ -129,7 +137,7 @@ export function useCategoriesScreen(uid: string): CategoriesScreenState {
       addCategory(uid, data)
         .then(id => {
           setCategoriesState(prev => prev.status === 'success'
-            ? { status: 'success', categories: [...prev.categories, { id, ...data, isBuiltIn: false }] }
+            ? { status: 'success', categories: sortByName([...prev.categories, { id, ...data, isBuiltIn: false }]) }
             : prev);
           setSheetVisible(false);
         })

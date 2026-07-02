@@ -48,7 +48,9 @@ export default function FriendPickerSheet({
   const { palette } = useTheme();
   const insets      = useSafeAreaInsets();
 
-  const [following, setFollowing]   = useState<FollowEntry[]>([]);
+  const [following,        setFollowing]        = useState<FollowEntry[]>([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(true);
+  const [followingError,   setFollowingError]   = useState('');
   const [query,     setQuery]       = useState('');
   const [selected,  setSelected]    = useState<Set<string>>(new Set());
   const [sending,   setSending]     = useState(false);
@@ -58,7 +60,15 @@ export default function FriendPickerSheet({
   // Fetch the following list once each time the sheet opens
   useEffect(() => {
     if (!visible || !senderUid) { return; }
-    getFollowing(senderUid).then(setFollowing).catch(err => console.warn('[FriendPickerSheet] following error', err));
+    setLoadingFollowing(true);
+    setFollowingError('');
+    getFollowing(senderUid)
+      .then(setFollowing)
+      .catch(err => {
+        console.warn('[FriendPickerSheet] following error', err);
+        setFollowingError('Could not load your friends list. Check your connection.');
+      })
+      .finally(() => setLoadingFollowing(false));
   }, [visible, senderUid]);
 
   // Reset state when sheet closes
@@ -196,7 +206,17 @@ export default function FriendPickerSheet({
           </View>
 
           {/* Friend list */}
-          {following.length === 0 ? (
+          {loadingFollowing ? (
+            <View style={styles.emptyWrap}>
+              <ActivityIndicator color={palette.muted} accessibilityLabel="Loading friends" />
+            </View>
+          ) : followingError ? (
+            <View style={styles.emptyWrap}>
+              <Text style={[styles.emptyText, { color: '#e05252' }]} accessibilityRole="alert">
+                {followingError}
+              </Text>
+            </View>
+          ) : following.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Text style={[styles.emptyText, { color: palette.muted }]}>
                 You're not following anyone yet.

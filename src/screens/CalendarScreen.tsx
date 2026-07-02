@@ -376,18 +376,28 @@ export default function CalendarScreen() {
   const todayYear = Number(today.split('-')[0]);
   const todayMon  = Number(today.split('-')[1]);
 
-  // ── Tasks for displayed month — one-shot fetch (KAN-218) ──
-  useEffect(() => {
+  // ── Tasks for displayed month — one-shot fetch, re-run on focus so
+  // returning from the TaskForm modal (which stays stacked above and
+  // doesn't unmount this screen) shows the mutation (KAN-218 follow-up).
+  // taskFetchSeq guards against a stale response landing after a newer
+  // month has already been requested.
+  const taskFetchSeq = useRef(0);
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    const ym = toYearMonth(displayYear, displayMonth);
+    const ym  = toYearMonth(displayYear, displayMonth);
+    const seq = ++taskFetchSeq.current;
     setMonthTasksState({ status: 'loading' });
     getTasksForMonth(uid, ym)
-      .then(tasks => setMonthTasksState({ status: 'success', tasks }))
+      .then(tasks => {
+        if (taskFetchSeq.current !== seq) { return; } // superseded by a newer request
+        setMonthTasksState({ status: 'success', tasks });
+      })
       .catch(err => {
+        if (taskFetchSeq.current !== seq) { return; }
         console.warn('[CalendarScreen] tasks fetch error', err);
         setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
       });
-  }, [uid, displayYear, displayMonth, retryKey]);
+  }, [uid, displayYear, displayMonth, retryKey]));
 
   // Toggling a task doesn't refetch the whole month — apply the flip locally
   // (setTaskDone itself persists it) so the checkbox updates immediately.
@@ -403,11 +413,12 @@ export default function CalendarScreen() {
     });
   }, [uid]);
 
-  // ── Custom categories — one-shot, mirrors TaskRow's resolution ──
-  useEffect(() => {
+  // ── Custom categories — one-shot, mirrors TaskRow's resolution. Re-run on
+  // focus so a category created via TaskForm's modal shows immediately.
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
     getCategories(uid).then(setCustomCategories).catch(() => {});
-  }, [uid]);
+  }, [uid]));
 
   // ── Achievements map — drives milestone pips/chips. One-shot, re-run on
   // every focus so returning from Today after unlocking one shows it (KAN-218) ──
