@@ -187,7 +187,7 @@ describe('PointsHistoryScreen — achievements gallery', () => {
   it('renders all catalogue achievements', () => {
     render(<PointsHistoryScreen />);
     expect(screen.getByLabelText('First brush achievement, locked')).toBeTruthy();
-    expect(screen.getByLabelText('Day complete achievement, locked')).toBeTruthy();
+    expect(screen.getByLabelText('Off your mind achievement, locked')).toBeTruthy();
   });
 
   it('shows "Locked" badge on unearned achievements', () => {
