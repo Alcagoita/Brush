@@ -68,8 +68,8 @@ export default function AddEventModal({ visible, date, onClose, onSave }: Props)
       });
       reset();
       onClose();
-    } catch (error: any) {
-      Alert.alert('Error', error.message);
+    } catch (error: unknown) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Something went wrong.');
     } finally {
       setSaving(false);
     }

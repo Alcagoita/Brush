@@ -222,6 +222,13 @@ interface ParsedError {
   message: string;
 }
 
+/** Extracts a Firebase-style `.code` string from an unknown catch value, or ''. */
+function errorCode(error: unknown): string {
+  if (typeof error !== 'object' || error === null || !('code' in error)) { return ''; }
+  const code = (error as { code: unknown }).code;
+  return code == null ? '' : String(code);
+}
+
 function parseAuthError(code: string, isSignUp: boolean): ParsedError {
   switch (code) {
     case 'auth/invalid-email':
@@ -404,8 +411,8 @@ export default function LoginScreen() {
         await signInWithEmail(email.trim(), password);
       }
       logTap('login', { method: 'email' });
-    } catch (error: any) {
-      applyError(parseAuthError(error?.code ?? '', isSignUp));
+    } catch (error: unknown) {
+      applyError(parseAuthError(errorCode(error), isSignUp));
     } finally {
       setLoading(false);
     }
@@ -417,8 +424,8 @@ export default function LoginScreen() {
     try {
       await signInWithGoogle();
       logTap('login', { method: 'google' });
-    } catch (error: any) {
-      const code = error?.code ?? '';
+    } catch (error: unknown) {
+      const code = errorCode(error);
       if (code === 'SIGN_IN_CANCELLED' || code === '12501') { return; }
       setGeneralError('Google sign-in failed. Please try again.');
     } finally {
