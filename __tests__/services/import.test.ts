@@ -308,6 +308,38 @@ describe('inferImportedPoi', () => {
   });
 });
 
+// ─── inferImportedPoi memoization (KAN-215) ──────────────────────────────────
+
+describe('inferImportedPoi memoization', () => {
+  it('calls the on-device classifier only once for a repeated title', async () => {
+    const classifyPoi = jest.spyOn(require('../../src/services/poiLlm'), 'classifyPoi')
+      .mockResolvedValue('cafe');
+
+    // No rule-map entry matches this title, so it must reach the classifier.
+    const title = 'Zzyzx unique nonmatching title 42';
+    const first  = await inferImportedPoi(title);
+    const second = await inferImportedPoi(title);
+
+    expect(first).toBe('cafe');
+    expect(second).toBe('cafe');
+    expect(classifyPoi).toHaveBeenCalledTimes(1);
+
+    classifyPoi.mockRestore();
+  });
+
+  it('treats titles differing only by case/whitespace as the same cache key', async () => {
+    const classifyPoi = jest.spyOn(require('../../src/services/poiLlm'), 'classifyPoi')
+      .mockResolvedValue('bank');
+
+    await inferImportedPoi('  Another Unique Nonmatching Title 99  ');
+    await inferImportedPoi('another unique nonmatching title 99');
+
+    expect(classifyPoi).toHaveBeenCalledTimes(1);
+
+    classifyPoi.mockRestore();
+  });
+});
+
 // ─── isDuplicate ─────────────────────────────────────────────────────────────
 
 describe('isDuplicate', () => {
