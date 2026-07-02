@@ -468,7 +468,7 @@ export default function TodayScreen() {
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ── */}
       {isLoading && !DEBUG_MINIMAL && (
-        <View style={styles.loadingOverlay} pointerEvents="box-only">
+        <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
           <ActivityIndicator size="large" color={palette.accent} />
         </View>
       )}

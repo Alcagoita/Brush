@@ -400,7 +400,7 @@ export default function CreateChallengeScreen() {
             </View>
 
             {error ? (
-              <Text style={[styles.errorText, { color: '#e05252' }]}>{error}</Text>
+              <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
             ) : null}
           </View>
         )}
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontSize: 11, fontFamily: 'Geist-Medium', fontWeight: '500', letterSpacing: 0.5 },
   summaryLine:  { fontSize: 14, fontFamily: 'Geist-Regular' },
-  errorText:    { fontSize: 13, fontFamily: 'Geist-Regular', color: '#e05252' },
+  errorText:    { fontSize: 13, fontFamily: 'Geist-Regular' },
 
   // Sent screen
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: spacing.page },
