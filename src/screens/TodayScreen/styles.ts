@@ -166,6 +166,9 @@ export const styles = StyleSheet.create({
   rowPad: {
     paddingHorizontal: spacing.page,
   },
+  debugRowText: {
+    paddingVertical: 14,
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'baseline',
