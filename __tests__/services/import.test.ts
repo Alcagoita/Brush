@@ -26,6 +26,7 @@ import {
   IMPORT_TIMEOUT_ERROR,
   RETRY_DELAYS_MS,
 } from '../../src/services/import';
+import type { ImportPoiCache } from '../../src/services/import';
 import type { ImportResult } from '../../src/types';
 
 // ─── GoogleSignin mock ────────────────────────────────────────────────────────
@@ -311,14 +312,15 @@ describe('inferImportedPoi', () => {
 // ─── inferImportedPoi memoization (KAN-215) ──────────────────────────────────
 
 describe('inferImportedPoi memoization', () => {
-  it('calls the on-device classifier only once for a repeated title', async () => {
+  it('calls the on-device classifier only once for a repeated title when a cache is passed', async () => {
     const classifyPoi = jest.spyOn(require('../../src/services/poiLlm'), 'classifyPoi')
       .mockResolvedValue('cafe');
 
     // No rule-map entry matches this title, so it must reach the classifier.
     const title = 'Zzyzx unique nonmatching title 42';
-    const first  = await inferImportedPoi(title);
-    const second = await inferImportedPoi(title);
+    const cache: ImportPoiCache = new Map();
+    const first  = await inferImportedPoi(title, cache);
+    const second = await inferImportedPoi(title, cache);
 
     expect(first).toBe('cafe');
     expect(second).toBe('cafe');
@@ -331,10 +333,41 @@ describe('inferImportedPoi memoization', () => {
     const classifyPoi = jest.spyOn(require('../../src/services/poiLlm'), 'classifyPoi')
       .mockResolvedValue('bank');
 
-    await inferImportedPoi('  Another Unique Nonmatching Title 99  ');
-    await inferImportedPoi('another unique nonmatching title 99');
+    const cache: ImportPoiCache = new Map();
+    await inferImportedPoi('  Another Unique Nonmatching Title 99  ', cache);
+    await inferImportedPoi('another unique nonmatching title 99', cache);
 
     expect(classifyPoi).toHaveBeenCalledTimes(1);
+
+    classifyPoi.mockRestore();
+  });
+
+  it('without a cache, does not memoize — the classifier runs again for a repeated title', async () => {
+    const classifyPoi = jest.spyOn(require('../../src/services/poiLlm'), 'classifyPoi')
+      .mockResolvedValue('gym');
+
+    const title = 'Yzzyx another unique nonmatching title 7';
+    await inferImportedPoi(title);
+    await inferImportedPoi(title);
+
+    expect(classifyPoi).toHaveBeenCalledTimes(2);
+
+    classifyPoi.mockRestore();
+  });
+
+  it('does not cache a failed lookup — a later call with the same cache retries', async () => {
+    const classifyPoi = jest.spyOn(require('../../src/services/poiLlm'), 'classifyPoi')
+      .mockRejectedValueOnce(new Error('classifier unavailable'))
+      .mockResolvedValueOnce('supermarket');
+
+    const title = 'Qwxyz yet another unique nonmatching title 8';
+    const cache: ImportPoiCache = new Map();
+    const first  = await inferImportedPoi(title, cache);
+    const second = await inferImportedPoi(title, cache);
+
+    expect(first).toBeNull();
+    expect(second).toBe('supermarket');
+    expect(classifyPoi).toHaveBeenCalledTimes(2);
 
     classifyPoi.mockRestore();
   });

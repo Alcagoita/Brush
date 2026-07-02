@@ -23,7 +23,17 @@ describe('toDateSafe', () => {
     expect(result).toEqual(new Date(seconds * 1000));
   });
 
-  it('returns null for an object with neither toDate nor _seconds', () => {
+  it('coerces a {toMillis()} object (e.g. achievements.ts createdAt shape)', () => {
+    const ms = 1_800_000_000_000;
+    expect(toDateSafe({ toMillis: () => ms })).toEqual(new Date(ms));
+  });
+
+  it('falls back to a plain {seconds} object (e.g. PublicProfileScreen shape)', () => {
+    const seconds = 1_800_000_000;
+    expect(toDateSafe({ seconds })).toEqual(new Date(seconds * 1000));
+  });
+
+  it('returns null for an object with none of the recognized shapes', () => {
     expect(toDateSafe({ foo: 'bar' })).toBeNull();
   });
 

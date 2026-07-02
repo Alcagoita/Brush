@@ -36,8 +36,9 @@ export function isThisWeek(date: Date): boolean {
 }
 
 /**
- * Safely coerce a Firestore Timestamp (or a plain `{_seconds}` object from
- * cached/serialized data, or an already-native `Date`) into a `Date`.
+ * Safely coerce a Firestore Timestamp — or any of its serialized/plain-object
+ * shapes seen across this codebase (`{toDate()}`, `{toMillis()}`, `{_seconds}`,
+ * `{seconds}`), or an already-native `Date` — into a `Date`.
  * Returns `null` for anything else (including missing/undefined).
  *
  * Consolidates the `(ts as any).toDate?.() ?? new Date((ts as any)._seconds * 1000)`
@@ -46,9 +47,16 @@ export function isThisWeek(date: Date): boolean {
 export function toDateSafe(ts: unknown): Date | null {
   if (!ts) { return null; }
   if (ts instanceof Date) { return ts; }
-  const maybeTimestamp = ts as { toDate?: () => Date; _seconds?: number };
-  if (typeof maybeTimestamp.toDate === 'function') { return maybeTimestamp.toDate(); }
-  if (typeof maybeTimestamp._seconds === 'number') { return new Date(maybeTimestamp._seconds * 1000); }
+  const maybeTimestamp = ts as {
+    toDate?:   () => Date;
+    toMillis?: () => number;
+    _seconds?: number;
+    seconds?:  number;
+  };
+  if (typeof maybeTimestamp.toDate   === 'function') { return maybeTimestamp.toDate(); }
+  if (typeof maybeTimestamp.toMillis === 'function') { return new Date(maybeTimestamp.toMillis()); }
+  if (typeof maybeTimestamp._seconds === 'number')   { return new Date(maybeTimestamp._seconds * 1000); }
+  if (typeof maybeTimestamp.seconds  === 'number')   { return new Date(maybeTimestamp.seconds * 1000); }
   return null;
 }
 

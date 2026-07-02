@@ -26,4 +26,13 @@ describe('mapSnapshotDocs', () => {
   it('returns an empty array for an empty snapshot', () => {
     expect(mapSnapshotDocs(fakeSnap([]))).toEqual([]);
   });
+
+  it('the doc id always wins over a same-named field in the stored data', () => {
+    // e.g. FollowEntry's stored data could (incorrectly) contain a stale "uid"
+    // field — the real Firestore document id must still be the source of truth.
+    const snap = fakeSnap([{ id: 'real-doc-id', data: { uid: 'stale-value', username: 'alice' } }]);
+    expect(mapSnapshotDocs(snap, 'uid')).toEqual([
+      { uid: 'real-doc-id', username: 'alice' },
+    ]);
+  });
 });
