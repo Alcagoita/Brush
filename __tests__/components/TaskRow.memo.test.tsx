@@ -54,7 +54,7 @@ const TASK: Task = {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('TaskRow — React.memo (KAN-156)', () => {
-  beforeEach(() => (PoiChip as jest.Mock).mockClear());
+  beforeEach(() => (PoiChip as unknown as jest.Mock).mockClear());
 
   it('does NOT re-render when a parent re-renders with identical props', () => {
     const onToggle = jest.fn();
@@ -62,12 +62,12 @@ describe('TaskRow — React.memo (KAN-156)', () => {
     const props    = { task: TASK, nearbyPoiType: null, onToggle, onPress } as const;
 
     const { rerender } = render(<TaskRow {...props} />);
-    const afterMount = (PoiChip as jest.Mock).mock.calls.length;
+    const afterMount = (PoiChip as unknown as jest.Mock).mock.calls.length;
     expect(afterMount).toBeGreaterThan(0);
 
     // Same prop references → memo should skip the re-render entirely.
     rerender(<TaskRow {...props} />);
-    expect((PoiChip as jest.Mock).mock.calls.length).toBe(afterMount);
+    expect((PoiChip as unknown as jest.Mock).mock.calls.length).toBe(afterMount);
   });
 
   it('DOES re-render when an own prop (nearbyPoiType) changes', () => {
@@ -76,9 +76,9 @@ describe('TaskRow — React.memo (KAN-156)', () => {
     const props    = { task: TASK, nearbyPoiType: null, onToggle, onPress } as const;
 
     const { rerender } = render(<TaskRow {...props} />);
-    const afterMount = (PoiChip as jest.Mock).mock.calls.length;
+    const afterMount = (PoiChip as unknown as jest.Mock).mock.calls.length;
 
     rerender(<TaskRow {...props} nearbyPoiType="cafe" />);
-    expect((PoiChip as jest.Mock).mock.calls.length).toBe(afterMount + 1);
+    expect((PoiChip as unknown as jest.Mock).mock.calls.length).toBe(afterMount + 1);
   });
 });

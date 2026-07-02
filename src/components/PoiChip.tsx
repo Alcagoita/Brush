@@ -10,7 +10,7 @@
  *   50%     → scale 0.5, opacity 0.45
  */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme';
 import { radius } from '../theme/tokens';
@@ -29,7 +29,7 @@ function StaticDot({ color }: { color: string }) {
   return <View style={[styles.dot, { backgroundColor: color }]} />;
 }
 
-export default function PoiChip({ poi, isNearby = false }: PoiChipProps) {
+function PoiChip({ poi, isNearby = false }: PoiChipProps) {
   const { palette } = useTheme();
 
   const bgColor     = isNearby ? palette.nearTint2  : palette.surface;
@@ -46,6 +46,8 @@ export default function PoiChip({ poi, isNearby = false }: PoiChipProps) {
     </View>
   );
 }
+
+export default memo(PoiChip);
 
 const styles = StyleSheet.create({
   chip: {

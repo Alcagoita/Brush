@@ -168,7 +168,7 @@ export default function TodayScreen() {
     ({ item }: { item: typeof tasks[number] }) => (
       DEBUG_SIMPLE_ROWS ? (
         <View style={styles.rowPad}>
-          <Text style={{ color: palette.text, paddingVertical: 14 }}>{item.title}</Text>
+          <Text style={[styles.debugRowText, { color: palette.text }]}>{item.title}</Text>
         </View>
       ) : (
       <View style={styles.rowPad}>
