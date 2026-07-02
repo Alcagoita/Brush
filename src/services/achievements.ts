@@ -29,25 +29,6 @@ import { DEFAULT_USER_PREFERENCES } from '../types';
 import { COPY } from '../constants/copy';
 import { fireAchievementNudge } from './notifications';
 
-// ─── Tier ladder (KAN-129) ────────────────────────────────────────────────────
-
-// Kept for any legacy call sites; canonical ladder is TIERS in constants/tiers.ts
-export const TIER_LADDER = [
-  { name: 'Bronze',     at: 50   },
-  { name: 'Silver',     at: 200  },
-  { name: 'Gold',       at: 500  },
-  { name: 'Adamantium', at: 1200 },
-  { name: 'Vibranium',  at: 3000 },
-] as const;
-
-/** Returns the next tier the user hasn't reached yet. */
-export function getNextTier(points: number): { name: string; at: number } {
-  return (
-    TIER_LADDER.find(t => points < t.at) ??
-    TIER_LADDER[TIER_LADDER.length - 1]
-  );
-}
-
 // ─── V1 achievement definitions ───────────────────────────────────────────────
 
 export interface AchievementDef {
