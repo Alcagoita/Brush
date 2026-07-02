@@ -17,6 +17,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import PointsHistoryScreen from '../../src/screens/PointsHistoryScreen';
+import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -186,8 +187,9 @@ describe('PointsHistoryScreen — points history', () => {
 describe('PointsHistoryScreen — achievements gallery', () => {
   it('renders all catalogue achievements', () => {
     render(<PointsHistoryScreen />);
-    expect(screen.getByLabelText('First brush achievement, locked')).toBeTruthy();
-    expect(screen.getByLabelText('Off your mind achievement, locked')).toBeTruthy();
+    ACHIEVEMENT_CATALOGUE.forEach((def) => {
+      expect(screen.getByLabelText(`${def.label} achievement, locked`)).toBeTruthy();
+    });
   });
 
   it('shows "Locked" badge on unearned achievements', () => {
