@@ -137,18 +137,6 @@ const ATM_FAR = {
   types:       ['atm'],
 };
 
-/**
- * ATM ~5 m north — inside DWELL_PROMPT_RADIUS_M (10 m). Used for exit-prompt
- * dwell tests (KAN-233); ATM_NEARBY (~30 m, above) stands in for "moved
- * outside the 10 m dwell radius but still displayed" in the same tests.
- */
-const ATM_VERY_CLOSE = {
-  id:          'atm-1', // same placeId as ATM_NEARBY — same geofence identity
-  displayName: { text: 'Corner ATM' },
-  location:    { latitude: 0.000045, longitude: 0 },
-  types:       ['atm'],
-};
-
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id:        'task-1',
@@ -389,14 +377,14 @@ describe('geo-triggered notifications', () => {
 
   // ── Exit-prompt foreground dwell detection (KAN-233) ────────────────────────
   //
-  // No native OS geofencing (foreground-only location permission). Instead,
-  // each tick of the same search loop that drives the hero card checks
-  // whether the nearest place has been continuously within
-  // DWELL_PROMPT_RADIUS_M (10 m) for at least EXIT_PROMPT_MIN_DWELL_MS
-  // (5 min) — the prompt fires as soon as that's true, while the user is
-  // still there, with no exit/leaving required. Each `it` simulates two or
-  // more ticks with a controlled Date.now() to place dwell time on either
-  // side of the 5-minute threshold.
+  // No native OS geofencing (foreground-only location permission). Instead:
+  // the first tick where a POI type's nearest place is in the hero zone
+  // (< HERO_RADIUS_M) starts a clock. Location is deliberately NOT
+  // re-checked during the following EXIT_PROMPT_MIN_DWELL_MS (5 min) —
+  // whatever happens in between is ignored. Once that much time has
+  // elapsed, the next tick where the place is roughly nearby again (hero
+  // zone — no stricter check) fires the prompt directly, with no "left the
+  // area" transition required.
 
   describe('exit-prompt dwell detection', () => {
     const T0 = 1_800_000_000_000; // arbitrary fixed epoch ms
@@ -405,26 +393,26 @@ describe('geo-triggered notifications', () => {
       jest.restoreAllMocks();
     });
 
-    it('does not fire when dwell time is under 5 minutes', async () => {
+    it('does not fire before 5 minutes have passed, even while still close', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]); // ~5 m — inside the 10 m dwell radius
+      mockPlacesResponse([ATM_NEARBY]); // ~30 m — inside the hero zone
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
       jest.spyOn(Date, 'now').mockReturnValue(T0 + 2 * 60 * 1000); // +2 min, still close
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
       await flushAsync();
 
       expect(mockFireExitPrompt).not.toHaveBeenCalled();
     });
 
-    it('fires as soon as dwell reaches 5 minutes, while still there (no exit needed)', async () => {
+    it('fires once 5+ minutes have passed and the place is still roughly nearby', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
-      jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000); // +6 min, still close
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
       await flushAsync();
 
@@ -434,13 +422,74 @@ describe('geo-triggered notifications', () => {
       expect(mockMarkExitPromptSeen).toHaveBeenCalledWith('uid-1', 'task-1', expect.any(String));
     });
 
+    it('does NOT re-check location during the 5-minute window — moving far away mid-window still fires once seen close again after 5 min', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(T0);
+      mockPlacesResponse([ATM_NEARBY]); // arrival — clock starts
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+      // Wanders far away 2 minutes in — must NOT reset the clock.
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 2 * 60 * 1000);
+      mockPlacesResponse([ATM_FAR]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      await flushAsync();
+      expect(mockFireExitPrompt).not.toHaveBeenCalled(); // only 2 min elapsed regardless
+
+      // Back close again at +6 min total — clock was never reset, so this
+      // already clears the 5-minute mark and fires.
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
+      mockPlacesResponse([ATM_NEARBY]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      await flushAsync();
+
+      expect(mockFireExitPrompt).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not fire at a 5+ minute check tick if the place is not close at that exact moment', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(T0);
+      mockPlacesResponse([ATM_NEARBY]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+      // Past 5 minutes, but far away right now — must not fire this tick.
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
+      mockPlacesResponse([ATM_FAR]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      await flushAsync();
+      expect(mockFireExitPrompt).not.toHaveBeenCalled();
+
+      // Back close a minute later — the original clock is still intact
+      // (never reset), so this fires right away.
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 7 * 60 * 1000);
+      mockPlacesResponse([ATM_NEARBY]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      await flushAsync();
+
+      expect(mockFireExitPrompt).toHaveBeenCalledTimes(1);
+    });
+
+    it('a POI type disappearing from results mid-window does not reset the clock', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(T0);
+      mockPlacesResponse([ATM_NEARBY]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 2 * 60 * 1000);
+      mockPlacesResponse([]); // no ATM results at all this tick
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+      jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
+      mockPlacesResponse([ATM_NEARBY]);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      await flushAsync();
+
+      expect(mockFireExitPrompt).toHaveBeenCalledTimes(1);
+    });
+
     it('does not refire on every subsequent tick after already firing once', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
       jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000); // fires here
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
       await flushAsync();
       expect(mockFireExitPrompt).toHaveBeenCalledTimes(1);
@@ -448,60 +497,22 @@ describe('geo-triggered notifications', () => {
       // One minute later, still there — the clock restarted after firing, so
       // this must not fire again immediately.
       jest.spyOn(Date, 'now').mockReturnValue(T0 + 7 * 60 * 1000);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
       await flushAsync();
 
       expect(mockFireExitPrompt).toHaveBeenCalledTimes(1);
     });
 
-    it('moving beyond the dwell radius before 5 minutes resets the clock', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
-      await runProximitySearch('uid-1', [makeTask()], jest.fn());
-
-      // Steps back to ~30 m (outside the 10 m dwell radius) after 2 minutes.
-      jest.spyOn(Date, 'now').mockReturnValue(T0 + 2 * 60 * 1000);
-      mockPlacesResponse([ATM_NEARBY]);
-      await runProximitySearch('uid-1', [makeTask()], jest.fn());
-
-      // Comes back within 10 m 1 minute later — if the old dwell time leaked
-      // through, this would already show >5 min elapsed since T0 and fire
-      // immediately, which would be wrong: the clock must have reset.
-      jest.spyOn(Date, 'now').mockReturnValue(T0 + 3 * 60 * 1000);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
-      await runProximitySearch('uid-1', [makeTask()], jest.fn());
-      await flushAsync();
-
-      expect(mockFireExitPrompt).not.toHaveBeenCalled();
-    });
-
-    it('a POI type disappearing from results resets the dwell clock', async () => {
-      jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
-      await runProximitySearch('uid-1', [makeTask()], jest.fn());
-
-      jest.spyOn(Date, 'now').mockReturnValue(T0 + 2 * 60 * 1000);
-      mockPlacesResponse([]); // no ATM results at all this tick
-      await runProximitySearch('uid-1', [makeTask()], jest.fn());
-
-      jest.spyOn(Date, 'now').mockReturnValue(T0 + 3 * 60 * 1000);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
-      await runProximitySearch('uid-1', [makeTask()], jest.fn());
-      await flushAsync();
-
-      expect(mockFireExitPrompt).not.toHaveBeenCalled();
-    });
-
     it('does not track or fire anything while exitPromptEnabled is false', async () => {
       updateExitPromptPref(false);
 
       jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
       jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
       await flushAsync();
 
@@ -511,14 +522,14 @@ describe('geo-triggered notifications', () => {
     it('re-enabling exitPrompt after being off starts a fresh clock, not a stale one', async () => {
       updateExitPromptPref(false);
       jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
       // Re-enable much later — if a stale dwell timer survived, this tick
       // would incorrectly look like it already dwelled ≥5 min.
       updateExitPromptPref(true);
       jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
-      mockPlacesResponse([ATM_VERY_CLOSE]); // fresh entry recorded now
+      mockPlacesResponse([ATM_NEARBY]); // fresh entry recorded now
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
       await flushAsync();
 
@@ -527,7 +538,7 @@ describe('geo-triggered notifications', () => {
 
     it('clears tracked dwell state without crashing when there are no undone POI tasks left', async () => {
       jest.spyOn(Date, 'now').mockReturnValue(T0);
-      mockPlacesResponse([ATM_VERY_CLOSE]);
+      mockPlacesResponse([ATM_NEARBY]);
       await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
       jest.spyOn(Date, 'now').mockReturnValue(T0 + 6 * 60 * 1000);
