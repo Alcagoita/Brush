@@ -30,6 +30,7 @@ import {
   validatePoi,
   isLlmAvailable,
   classifyPoi,
+  inferPoiForQuickAdd,
   learnPoiKeyword,
   learnFromClassification,
   learnFromUserEdit,
@@ -155,6 +156,31 @@ describe('classifyPoi', () => {
     mockLoad.mockReset();
     mockLoad.mockRejectedValue(new Error('no runtime'));
     expect(await classifyPoi('buy milk', 'en')).toBeNull();
+  });
+});
+
+// ─── inferPoiForQuickAdd (KAN-232) ─────────────────────────────────────────────
+
+describe('inferPoiForQuickAdd', () => {
+  it('returns the rule match without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('pick up prescription')).toBe('pharmacy');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('matches a pt-PT keyword when the EN dictionary misses', async () => {
+    expect(await inferPoiForQuickAdd('ir à farmácia')).toBe('pharmacy');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the LLM classifier when no rule matches', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('gym'), 0.9)]);
+    expect(await inferPoiForQuickAdd('leg day')).toBe('gym');
+    expect(mockLoad).toHaveBeenCalled();
+  });
+
+  it('returns null when neither the rules nor the LLM match', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('none'), 0.95)]);
+    expect(await inferPoiForQuickAdd('call mom')).toBeNull();
   });
 });
 

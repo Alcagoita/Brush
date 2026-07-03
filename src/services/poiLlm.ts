@@ -28,6 +28,7 @@ import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tfl
 import type { PoiType } from '../types';
 import { POI_CATALOG } from '../types';
 import {
+  inferPoiFromRules,
   normalize,
   registerLearnedKeyword,
   type PoiResolution,
@@ -178,6 +179,23 @@ export async function classifyPoi(
   }
   if (bestP < CONFIDENCE_THRESHOLD) { return null; }
   return validatePoi(LABELS[bestIdx]);
+}
+
+// ─── Quick-add suggestion (KAN-232) ───────────────────────────────────────────
+
+/**
+ * Suggest a POI type for a title as the user types it (new-task quick-add
+ * sheet): the offline rule dictionary first (EN, then pt-PT), falling back to
+ * the on-device classifier only when the rules miss. Returns `null` when
+ * neither pass matches — never throws, both underlying calls already degrade
+ * to `null` on failure, so this works fully offline (airplane mode).
+ */
+export async function inferPoiForQuickAdd(title: string): Promise<PoiType | null> {
+  const ruleMatch = validatePoi(
+    inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT'),
+  );
+  if (ruleMatch) { return ruleMatch; }
+  return classifyPoi(title, 'en');
 }
 
 // ─── Learn-back ───────────────────────────────────────────────────────────────
