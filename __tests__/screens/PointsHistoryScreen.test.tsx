@@ -181,27 +181,39 @@ describe('PointsHistoryScreen — points history', () => {
   });
 
   it('shows "Load more" when the first page returns a nextCursor', async () => {
+    // FlatList only renders its default initialNumToRender (10) items in this
+    // test environment — keep distinct-taskId assertions within that window
+    // rather than asserting on the tail of a longer list.
     const entries = Array.from({ length: 20 }, (_, i) =>
-      makeEntry({ id: `entry-${i}`, taskTitle: `Task ${i}` }),
+      makeEntry({ id: `entry-${i}`, taskId: `task-${i}`, taskTitle: `Task ${i}` }),
     );
     mockGetPointsHistory.mockResolvedValue({ entries, nextCursor: 'cursor-1' });
     await renderScreen();
     expect(screen.getByLabelText('Load more history')).toBeTruthy();
     expect(mockGetPointsHistory).toHaveBeenCalledWith('user-123', 20);
+    // Distinct taskIds — the screen's dedupe must not collapse the page down
+    // to a single row.
+    expect(screen.getAllByText(/^Task \d+$/).length).toBeGreaterThan(1);
+    expect(screen.getByText('Task 0')).toBeTruthy();
+    expect(screen.getByText('Task 9')).toBeTruthy();
   });
 
   it('fetches the next page with the previous cursor when "Load more" is pressed', async () => {
-    const page1 = Array.from({ length: 20 }, (_, i) =>
-      makeEntry({ id: `entry-${i}`, taskTitle: `Task ${i}` }),
+    // Small, distinct-taskId pages that comfortably fit within FlatList's
+    // default initialNumToRender (10) so appended rows are actually rendered
+    // and assertable, instead of hidden by virtualization.
+    const page1 = Array.from({ length: 6 }, (_, i) =>
+      makeEntry({ id: `entry-${i}`, taskId: `task-${i}`, taskTitle: `Task ${i}` }),
     );
-    const page2 = Array.from({ length: 5 }, (_, i) =>
-      makeEntry({ id: `entry-${20 + i}`, taskTitle: `Task ${20 + i}` }),
+    const page2 = Array.from({ length: 3 }, (_, i) =>
+      makeEntry({ id: `entry-${6 + i}`, taskId: `task-${6 + i}`, taskTitle: `Task ${6 + i}` }),
     );
     mockGetPointsHistory
       .mockResolvedValueOnce({ entries: page1, nextCursor: 'cursor-1' })
       .mockResolvedValueOnce({ entries: page2, nextCursor: null });
     await renderScreen();
     expect(screen.getByLabelText('Load more history')).toBeTruthy();
+    expect(screen.getAllByText(/^Task \d+$/)).toHaveLength(6);
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Load more history'));
@@ -211,11 +223,15 @@ describe('PointsHistoryScreen — points history', () => {
     expect(mockGetPointsHistory).toHaveBeenCalledTimes(2);
     // Server reports no more pages — "Load more" disappears
     expect(screen.queryByLabelText('Load more history')).toBeNull();
+    // Second page's entries are appended onto the first, not replacing it.
+    expect(screen.getAllByText(/^Task \d+$/)).toHaveLength(9);
+    expect(screen.getByText('Task 0')).toBeTruthy();
+    expect(screen.getByText('Task 8')).toBeTruthy();
   });
 
   it('ignores a double-tap on "Load more" — only one next-page fetch fires (reentrancy guard)', async () => {
     const page1 = Array.from({ length: 20 }, (_, i) =>
-      makeEntry({ id: `entry-${i}`, taskTitle: `Task ${i}` }),
+      makeEntry({ id: `entry-${i}`, taskId: `task-${i}`, taskTitle: `Task ${i}` }),
     );
     mockGetPointsHistory
       .mockResolvedValueOnce({ entries: page1, nextCursor: 'cursor-1' })

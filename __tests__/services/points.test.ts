@@ -30,7 +30,8 @@
  *     - maps documents to PointsHistoryEntry objects (includes doc id)
  *     - deduplicates legacy entries within a page — keeps only the latest entry per taskId
  *     - does not collapse non-task entries that share taskId=""
- *     - returns a nextCursor (last doc) when the page is full, null otherwise
+ *     - over-fetches by one doc; returns a nextCursor only when a doc exists beyond pageSize
+ *     - returns a null nextCursor when exactly pageSize docs exist (no false "has more")
  *     - passes the cursor to startAfter when fetching a subsequent page
  *     - throws when uid does not match the authenticated user (KAN-222 review fix)
  */
@@ -450,12 +451,21 @@ describe('getPointsHistory', () => {
     expect(entries[2]).toMatchObject({ id: 'daily-1',       reason: 'daily_complete_bonus' });
   });
 
-  it('returns a nextCursor (the last doc) when the page is exactly full', async () => {
+  it('returns a nextCursor (the last doc of the page) when more docs exist beyond pageSize', async () => {
     const fakeTs = { toDate: () => new Date('2026-05-29') };
-    const lastDoc = {
+    const lastDocOfPage = {
       id:   'hist-2',
       data: () => ({
         taskId: 'task-2', taskTitle: 'Pick up meds', awardedAt: fakeTs,
+        points: 1, reason: 'task_completed',
+      }),
+    };
+    // Over-fetch: the service requests pageSize+1 docs, so a 3rd doc here
+    // signals a next page without itself belonging to this one.
+    const extraDoc = {
+      id:   'hist-3',
+      data: () => ({
+        taskId: 'task-3', taskTitle: 'Walk the dog', awardedAt: fakeTs,
         points: 1, reason: 'task_completed',
       }),
     };
@@ -468,12 +478,43 @@ describe('getPointsHistory', () => {
             points: 1, reason: 'task_completed',
           }),
         },
-        lastDoc,
+        lastDocOfPage,
+        extraDoc,
       ],
     });
 
     const result = await getPointsHistory('uid-1', 2);
-    expect(result.nextCursor).toBe(lastDoc);
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries.map(e => e.id)).toEqual(['hist-1', 'hist-2']);
+    expect(result.nextCursor).toBe(lastDocOfPage);
+  });
+
+  it('returns a null nextCursor when exactly pageSize docs exist and no more remain (KAN-222 review fix)', async () => {
+    const fakeTs = { toDate: () => new Date('2026-05-29') };
+    // Firestore returns exactly pageSize docs (no pageSize+1-th doc) — this is
+    // the true last page, and previously would have falsely reported a cursor.
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id:   'hist-1',
+          data: () => ({
+            taskId: 'task-1', taskTitle: 'Buy milk', awardedAt: fakeTs,
+            points: 1, reason: 'task_completed',
+          }),
+        },
+        {
+          id:   'hist-2',
+          data: () => ({
+            taskId: 'task-2', taskTitle: 'Pick up meds', awardedAt: fakeTs,
+            points: 1, reason: 'task_completed',
+          }),
+        },
+      ],
+    });
+
+    const result = await getPointsHistory('uid-1', 2);
+    expect(result.entries).toHaveLength(2);
+    expect(result.nextCursor).toBeNull();
   });
 
   it('passes the cursor to startAfter when fetching a subsequent page', async () => {

@@ -373,14 +373,21 @@ export async function getPointsHistory(
     throw new Error('getPointsHistory: uid must match the authenticated user');
   }
 
-  const constraints: QueryConstraint[] = [orderBy('awardedAt', 'desc'), limit(pageSize)];
+  // Over-fetch by one doc so a page that exactly fills pageSize can be told
+  // apart from the true last page — otherwise snap.docs.length === pageSize
+  // would falsely report a next page whenever the remaining docs are an exact
+  // multiple of pageSize.
+  const constraints: QueryConstraint[] = [orderBy('awardedAt', 'desc'), limit(pageSize + 1)];
   if (cursor) { constraints.push(startAfter(cursor)); }
 
   const snap = await getDocs(query(pointsHistoryRef(uid), ...constraints));
 
+  const hasMorePages = snap.docs.length > pageSize;
+  const pageDocs      = hasMorePages ? snap.docs.slice(0, pageSize) : snap.docs;
+
   const seen = new Set<string>();
   const entries: PointsHistoryEntry[] = [];
-  for (const d of snap.docs) {
+  for (const d of pageDocs) {
     const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
     if (entry.reason === 'task_completed' && entry.taskId) {
       if (!seen.has(entry.taskId)) {
@@ -392,8 +399,7 @@ export async function getPointsHistory(
     }
   }
 
-  const lastDoc      = snap.docs[snap.docs.length - 1];
-  const hasMorePages = snap.docs.length === pageSize;
+  const lastDoc = pageDocs[pageDocs.length - 1];
 
   return { entries, nextCursor: hasMorePages && lastDoc ? lastDoc : null };
 }

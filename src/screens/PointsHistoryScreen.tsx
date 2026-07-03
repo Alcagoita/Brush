@@ -132,6 +132,12 @@ export default function PointsHistoryScreen() {
   // blocks the second call within the same tick.
   const loadingMoreRef = useRef(false);
 
+  // Monotonic request id — guards both the focus-driven fetch and handleLoadMore
+  // against resolving after a newer focus already reset state (e.g. the screen
+  // blurred and refocused before the in-flight request settled), which would
+  // otherwise overwrite fresh state with stale data.
+  const requestIdRef = useRef(0);
+
   function dedupeAgainstSeen(entries: PointsHistoryEntry[]): PointsHistoryEntry[] {
     const kept: PointsHistoryEntry[] = [];
     for (const entry of entries) {
@@ -151,6 +157,7 @@ export default function PointsHistoryScreen() {
   // while the dedup set is empty, producing duplicate rows.
   useFocusEffect(useCallback(() => {
     if (!uid) { return; }
+    const requestId = ++requestIdRef.current;
     seenTaskIds.current = new Set();
     loadingMoreRef.current = false;
     setHistory([]);
@@ -160,20 +167,27 @@ export default function PointsHistoryScreen() {
     setLoadingMore(false);
     getPointsHistory(uid, PAGE_SIZE)
       .then(({ entries, nextCursor }) => {
+        if (requestIdRef.current !== requestId) { return; } // blurred/refocused since — stale
         setHistory(dedupeAgainstSeen(entries));
         setCursor(nextCursor);
         setHasMore(nextCursor !== null);
         setHistoryLoaded(true);
       })
-      .catch(err => console.warn('[PointsHistoryScreen] history error', err));
+      .catch(err => {
+        if (requestIdRef.current !== requestId) { return; }
+        console.warn('[PointsHistoryScreen] history error', err);
+        setHistoryLoaded(true); // clear the spinner even on failure
+      });
   }, [uid]));
 
   const handleLoadMore = useCallback(() => {
     if (!uid || !cursor || loadingMoreRef.current) { return; }
+    const requestId = requestIdRef.current;
     loadingMoreRef.current = true;
     setLoadingMore(true);
     getPointsHistory(uid, PAGE_SIZE, cursor)
       .then(({ entries, nextCursor }) => {
+        if (requestIdRef.current !== requestId) { return; } // a newer focus reset state since
         setHistory(prev => [...prev, ...dedupeAgainstSeen(entries)]);
         setCursor(nextCursor);
         setHasMore(nextCursor !== null);
