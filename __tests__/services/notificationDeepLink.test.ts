@@ -51,10 +51,6 @@ jest.mock('../../src/services/geolocation', () => ({
   setTrackingAccuracy:  jest.fn(),
 }));
 
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('../../src/config/keys', () => ({
   GOOGLE_PLACES_API_KEY: 'TEST_KEY',
 }));

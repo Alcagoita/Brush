@@ -16,17 +16,28 @@
  * Notifications (KAN-28):
  *   Fires once when a type transitions INTO the hero zone (< HERO_RADIUS_M).
  *   Suppressed if the type was already alerted today or during quiet hours.
+ *
+ * Exit-prompt (KAN-119 / KAN-233):
+ *   No native OS geofencing — the app only has foreground ("when in use")
+ *   location permission. Instead: the first time a POI type's nearest place
+ *   is within the hero zone (< HERO_RADIUS_M), a timestamp is recorded.
+ *   Location is NOT re-checked during the following EXIT_PROMPT_MIN_DWELL_MS
+ *   — whatever happens in between (moving away, the type briefly vanishing
+ *   from results) is ignored. Once EXIT_PROMPT_MIN_DWELL_MS has elapsed, the
+ *   very next tick where that place is still roughly nearby (hero zone
+ *   again — no stricter check needed) fires the prompt. Only fires while
+ *   the app is open, matching the rest of this engine's foreground-only
+ *   model.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import NetInfo from '@react-native-community/netinfo';
-import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { Task, POI_GEOFENCE_RADIUS } from '../types';
+import { Task } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
@@ -43,8 +54,6 @@ function reportProximityError(context: string, err: unknown): void {
 }
 
 // ─── Geofence ID helpers (exit-prompt, KAN-119) ───────────────────────────────
-
-const GEOFENCE_TASK_NAME = 'brush-exit-geofence';
 
 export function buildGeofenceId(poiType: string, placeId: string): string {
   return `brush_geo_${poiType}_${placeId}`;
@@ -93,9 +102,6 @@ const POSITION_CHECK_INTERVAL_MS = 3 * 60 * 1_000; // 3 minutes
 
 /** Minimum movement from last search origin before re-calling the Places API. */
 const MIN_MOVEMENT_M = 200;
-
-/** Default geofence radius for custom POI types (exit-prompt only). */
-const DEFAULT_GEOFENCE_RADIUS = 75;
 
 /** Notifee Android channel id for proximity alerts. */
 const CHANNEL_ID = 'proximity_alerts';
@@ -196,7 +202,7 @@ function _enqueueSearch(uid: string, tasks: Task[], onUpdate: ProximityCallback)
   _ensureNetInfoListener();
 }
 
-// ─── Native geofence state (exit-prompt only, KAN-119) ───────────────────────
+// ─── Foreground geofence state (exit-prompt only, KAN-119 / KAN-233) ─────────
 
 const geofenceEntryTimes = new Map<string, number>();
 const EXIT_PROMPT_MIN_DWELL_MS = 5 * 60 * 1_000;
@@ -209,6 +215,11 @@ export function updateNotifNearbyEnabled(enabled: boolean): void {
 
 export function updateExitPromptPref(enabled: boolean): void {
   exitPromptEnabled = enabled;
+  if (!enabled) {
+    // Don't let a stale dwell timer (accrued while disabled) resurrect an
+    // exit prompt the instant the user re-enables the setting.
+    geofenceEntryTimes.clear();
+  }
 }
 
 export function updateProximityPoiPreferences(prefs: Record<string, number>): void {
@@ -220,14 +231,6 @@ export function updateProximityPoiPreferences(prefs: Record<string, number>): vo
 export function isQuietHours(): boolean {
   const hour = new Date().getHours();
   return hour >= 22 || hour < 8;
-}
-
-// ─── Radius helper ────────────────────────────────────────────────────────────
-
-function getGeofenceRadius(poiType: string): number {
-  return poiRadiusPrefs[poiType]
-    ?? (POI_GEOFENCE_RADIUS as Record<string, number>)[poiType]
-    ?? DEFAULT_GEOFENCE_RADIUS;
 }
 
 // ─── Notification channel ─────────────────────────────────────────────────────
@@ -295,6 +298,40 @@ export async function handleGeofenceExit(
   }
 }
 
+/**
+ * Foreground dwell check for exit-prompt (KAN-233). The first time a POI
+ * type's nearest place is in the hero zone (< HERO_RADIUS_M), records a
+ * timestamp and stops — location is deliberately NOT re-checked on every
+ * tick during the following EXIT_PROMPT_MIN_DWELL_MS. Once that much time
+ * has elapsed, the next tick where the same place is roughly nearby again
+ * (hero zone — no stricter distance check) fires the prompt directly, with
+ * no "left the area" transition required.
+ */
+function trackExitPromptGeofence(
+  poiType: string,
+  nearest: NearbyPlace | null,
+  uid: string,
+  tasks: Task[],
+): void {
+  if (!exitPromptEnabled || !nearest || nearest.distanceMeters >= HERO_RADIUS_M) { return; }
+
+  const geofenceId = buildGeofenceId(poiType, nearest.placeId);
+  const entryTime = geofenceEntryTimes.get(geofenceId);
+
+  if (!entryTime) {
+    geofenceEntryTimes.set(geofenceId, Date.now()); // first sighting — start the clock
+    return;
+  }
+
+  if (Date.now() - entryTime < EXIT_PROMPT_MIN_DWELL_MS) { return; }
+
+  // handleGeofenceExit does its own entryTime lookup + deletion — don't
+  // delete it here first, or its internal check finds nothing and no-ops.
+  handleGeofenceExit(geofenceId, uid, tasks).catch(err =>
+    reportProximityError('dwell-prompt check failed', err),
+  );
+}
+
 // ─── Core: one-shot proximity search ─────────────────────────────────────────
 
 /**
@@ -321,6 +358,9 @@ async function runProximitySearch(
 
     if (uniquePoiTypes.length === 0) {
       _currentNearbyType = null;
+      // No undone POI tasks left to prompt for — nothing to fire, just
+      // clear any in-progress dwell tracking.
+      geofenceEntryTimes.clear();
       onUpdate(null, null, {});
       _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
       return;
@@ -352,6 +392,13 @@ async function runProximitySearch(
 
     for (const poiType of uniquePoiTypes) {
       const places = results[poiType] ?? [];
+
+      // Exit-prompt dwell check runs for every type regardless of the
+      // display threshold below. A type with zero results this tick is
+      // simply skipped here (nothing to check) — an in-progress dwell clock
+      // is left untouched, not reset; see trackExitPromptGeofence's docs.
+      trackExitPromptGeofence(poiType, places[0] ?? null, uid, tasks);
+
       if (places.length === 0) { continue; }
 
       const nearest = places[0];
@@ -474,9 +521,6 @@ export function resetProximityState(): void {
   _netInfoUnsubscribe = null;
 
   geofenceEntryTimes.clear();
-  Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
-    reportProximityError('stopGeofencingAsync failed', err),
-  );
 }
 
 /**

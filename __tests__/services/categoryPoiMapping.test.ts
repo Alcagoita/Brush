@@ -38,10 +38,6 @@ jest.mock('../../src/services/geolocation', () => ({
   setTrackingAccuracy:  jest.fn(),
 }));
 
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('../../src/services/firestore', () => ({
   markPoiAlertSeen:     jest.fn().mockResolvedValue(undefined),
   markAllPoiAlertsSeen: jest.fn().mockResolvedValue(undefined),

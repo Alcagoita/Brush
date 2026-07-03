@@ -28,6 +28,10 @@ jest.mock('../../src/services/notifications', () => ({
   fireExitPrompt: (...args: any[]) => mockFireExitPrompt(...args),
 }));
 
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
+
 jest.mock('../../src/services/firestore', () => ({
   markExitPromptSeen: (...args: any[]) => mockMarkExitSeen(...args),
   // Stub other firestore helpers that proximity.ts imports
@@ -46,10 +50,6 @@ jest.mock('../../src/services/firestore', () => ({
 jest.mock('../../src/services/maps', () => ({
   searchNearbyPlaces:  jest.fn().mockResolvedValue([]),
   getDistanceMeters:   jest.fn().mockReturnValue(0),
-}));
-
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/geolocation', () => ({

@@ -8,9 +8,9 @@
  * Functions moved from nativeGeofence.ts to proximity.ts in KAN-162.
  */
 
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
 
 jest.mock('../../src/services/geolocation', () => ({
   getPositionLowAccuracy: jest.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 10 }),
