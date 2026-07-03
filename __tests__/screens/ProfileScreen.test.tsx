@@ -12,6 +12,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { AchievementsMap } from '../../src/types';
+import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -333,8 +334,8 @@ describe('ProfileScreen — achievement medal strip', () => {
       totalPoints: 0,
       currentStreak: 0,
       achievements: {
-        day_complete: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
-        early_bird:   { earnCount: 2, progress: 2, target: 1, earnedAt: null },
+        first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
       } as AchievementsMap,
     });
     await renderScreen();
@@ -343,13 +344,9 @@ describe('ProfileScreen — achievement medal strip', () => {
 
   it('shows all 7 V1 catalogue labels in the medal strip', async () => {
     await renderScreen();
-    expect(screen.getByText('First brush')).toBeTruthy();
-    expect(screen.getByText('Early bird')).toBeTruthy();
-    expect(screen.getByText('Day complete')).toBeTruthy();
-    expect(screen.getByText('On a roll')).toBeTruthy();
-    expect(screen.getByText('Explorer')).toBeTruthy();
-    expect(screen.getByText('Centurion')).toBeTruthy();
-    expect(screen.getByText('First to brush it away')).toBeTruthy();
+    for (const def of ACHIEVEMENT_CATALOGUE) {
+      expect(screen.getByText(def.label)).toBeTruthy();
+    }
   });
 });
 
