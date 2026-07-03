@@ -38,7 +38,7 @@ import {
   MODEL_LOAD_TIMEOUT_MS,
   __resetModelForTests,
 } from '../../src/services/poiLlm';
-import { inferPoiFromRules, clearLearnedKeywords } from '../../src/services/poiInference';
+import { inferPoiFromRules, registerLearnedKeyword, clearLearnedKeywords } from '../../src/services/poiInference';
 import labels from '../../assets/poi-model/labels.json';
 
 const LABELS = labels as string[];
@@ -181,6 +181,17 @@ describe('inferPoiForQuickAdd', () => {
   it('returns null when neither the rules nor the LLM match', async () => {
     mockRunSync.mockReturnValue([probs(idxOf('none'), 0.95)]);
     expect(await inferPoiForQuickAdd('call mom')).toBeNull();
+  });
+
+  it('still tries pt-PT rules when the EN rule match is a non-catalog custom type', async () => {
+    // EN resolves to a custom (non-PoiType) category string; pt-PT resolves to
+    // a valid built-in type for the same normalized keyword. A non-null EN
+    // result must not short-circuit the pt-PT lookup.
+    registerLearnedKeyword('foobar', 'bakery', 'en');
+    registerLearnedKeyword('foobar', 'pharmacy', 'pt-PT');
+
+    expect(await inferPoiForQuickAdd('foobar')).toBe('pharmacy');
+    expect(mockLoad).not.toHaveBeenCalled();
   });
 });
 

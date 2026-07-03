@@ -161,14 +161,18 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setTitleFocused(false);
       dragOffset.value = 0;
       userTouchedPoiRef.current = false;
+      // Invalidate any in-flight (debounced or async) inference so a late
+      // result can't repopulate `poi` after the sheet has been reset/closed.
+      inferenceRequestIdRef.current++;
     }, [dragOffset]);
 
     // KAN-232 — auto-suggest a POI as the title is typed: cheap offline
     // keyword rules first, on-device TFLite classifier as fallback. Never
     // overrides a manual pick (userTouchedPoiRef) and clears back to null if
-    // the (debounced) inference no longer matches anything.
+    // the (debounced) inference no longer matches anything. Skipped while
+    // closed so no timer/promise is scheduled against an off-screen sheet.
     useEffect(() => {
-      if (userTouchedPoiRef.current) { return; }
+      if (!visible || userTouchedPoiRef.current) { return; }
 
       const myRequestId = ++inferenceRequestIdRef.current;
       const trimmed = title.trim();
@@ -178,14 +182,16 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
         if (!trimmed) { setPoi(null); return; }
 
-        inferPoiForQuickAdd(trimmed).then(suggestion => {
-          if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
-          setPoi(suggestion);
-        });
+        inferPoiForQuickAdd(trimmed)
+          .then(suggestion => {
+            if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+            setPoi(suggestion);
+          })
+          .catch(() => {});
       }, POI_INFERENCE_DEBOUNCE_MS);
 
       return () => clearTimeout(timer);
-    }, [title]);
+    }, [title, visible]);
 
     // Closing just tells the parent (store) to flip `visible` → the effect below
     // animates out. The sheet is NEVER unmounted, so its static tree (16 POI

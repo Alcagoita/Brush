@@ -191,10 +191,15 @@ export async function classifyPoi(
  * to `null` on failure, so this works fully offline (airplane mode).
  */
 export async function inferPoiForQuickAdd(title: string): Promise<PoiType | null> {
-  const ruleMatch = validatePoi(
-    inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT'),
-  );
-  if (ruleMatch) { return ruleMatch; }
+  // Validated per language before moving on — inferPoiFromRules can return a
+  // non-catalog string (custom category Google Places type) for one language
+  // that validatePoi rejects; that must not block trying the other language.
+  const en = validatePoi(inferPoiFromRules(title, 'en'));
+  if (en) { return en; }
+
+  const pt = validatePoi(inferPoiFromRules(title, 'pt-PT'));
+  if (pt) { return pt; }
+
   return classifyPoi(title, 'en');
 }
 
