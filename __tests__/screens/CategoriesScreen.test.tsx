@@ -22,16 +22,16 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToCategories = jest.fn();
-const mockAddCategory            = jest.fn();
-const mockUpdateCategory         = jest.fn();
-const mockDeleteCategory         = jest.fn();
+const mockGetCategories  = jest.fn();
+const mockAddCategory    = jest.fn();
+const mockUpdateCategory = jest.fn();
+const mockDeleteCategory = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToCategories: (...args: unknown[]) => mockSubscribeToCategories(...args),
-  addCategory:           (...args: unknown[]) => mockAddCategory(...args),
-  updateCategory:        (...args: unknown[]) => mockUpdateCategory(...args),
-  deleteCategory:        (...args: unknown[]) => mockDeleteCategory(...args),
+  getCategories:  (...args: unknown[]) => mockGetCategories(...args),
+  addCategory:    (...args: unknown[]) => mockAddCategory(...args),
+  updateCategory: (...args: unknown[]) => mockUpdateCategory(...args),
+  deleteCategory: (...args: unknown[]) => mockDeleteCategory(...args),
 }));
 
 const mockSearchPlaceTypes = jest.fn();
@@ -104,15 +104,14 @@ const CUSTOM_CATEGORY: Category = {
 };
 
 /**
- * Renders the screen with a given set of custom categories.
- * The subscription mock calls its callback synchronously.
+ * Renders the screen with a given set of custom categories, flushing the
+ * one-shot getCategories() fetch (KAN-218) before returning.
  */
-function renderWith(customCategories: Category[] = []) {
-  mockSubscribeToCategories.mockImplementation((_uid: string, cb: (cats: Category[]) => void) => {
-    cb(customCategories);
-    return jest.fn(); // unsubscribe
-  });
-  return render(<CategoriesScreen />);
+async function renderWith(customCategories: Category[] = []) {
+  mockGetCategories.mockResolvedValue(customCategories);
+  const utils = render(<CategoriesScreen />);
+  await act(async () => {});
+  return utils;
 }
 
 /** Opens the sheet (Add or Edit) and waits for it to appear. */
@@ -136,41 +135,41 @@ afterEach(() => {
 // ── Render ────────────────────────────────────────────────────────────────────
 
 describe('CategoriesScreen — render', () => {
-  it('renders the screen title', () => {
-    renderWith();
+  it('renders the screen title', async () => {
+    await renderWith();
     expect(screen.getByText('Categories')).toBeTruthy();
   });
 
-  it('renders the BUILT-IN section header', () => {
-    renderWith();
+  it('renders the BUILT-IN section header', async () => {
+    await renderWith();
     expect(screen.getByText('BUILT-IN')).toBeTruthy();
   });
 
-  it('renders all 4 built-in category names', () => {
-    renderWith();
+  it('renders all 4 built-in category names', async () => {
+    await renderWith();
     expect(screen.getByText('Work')).toBeTruthy();
     expect(screen.getByText('Health')).toBeTruthy();
     expect(screen.getByText('Errands')).toBeTruthy();
     expect(screen.getByText('Personal')).toBeTruthy();
   });
 
-  it('renders the CUSTOM section header', () => {
-    renderWith();
+  it('renders the CUSTOM section header', async () => {
+    await renderWith();
     expect(screen.getByText('CUSTOM')).toBeTruthy();
   });
 
-  it('shows empty state when no custom categories exist', () => {
-    renderWith([]);
+  it('shows empty state when no custom categories exist', async () => {
+    await renderWith([]);
     expect(screen.getByText('No custom categories yet')).toBeTruthy();
   });
 
-  it('renders a custom category name', () => {
-    renderWith([CUSTOM_CATEGORY]);
+  it('renders a custom category name', async () => {
+    await renderWith([CUSTOM_CATEGORY]);
     expect(screen.getByText('Shopping')).toBeTruthy();
   });
 
-  it('renders the Add Category button', () => {
-    renderWith();
+  it('renders the Add Category button', async () => {
+    await renderWith();
     expect(screen.getByRole('button', { name: 'Add category' })).toBeTruthy();
   });
 });
@@ -178,14 +177,14 @@ describe('CategoriesScreen — render', () => {
 // ── Built-in row constraints ──────────────────────────────────────────────────
 
 describe('CategoriesScreen — built-in rows', () => {
-  it('does not show Edit button for built-in categories', () => {
-    renderWith();
+  it('does not show Edit button for built-in categories', async () => {
+    await renderWith();
     expect(screen.queryByRole('button', { name: 'Edit Work' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Edit Health' })).toBeNull();
   });
 
-  it('does not show Delete button for built-in categories', () => {
-    renderWith();
+  it('does not show Delete button for built-in categories', async () => {
+    await renderWith();
     expect(screen.queryByRole('button', { name: 'Delete Work' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Delete Personal' })).toBeNull();
   });
@@ -194,13 +193,13 @@ describe('CategoriesScreen — built-in rows', () => {
 // ── Custom row actions ────────────────────────────────────────────────────────
 
 describe('CategoriesScreen — custom row actions', () => {
-  it('shows Edit button for a custom category', () => {
-    renderWith([CUSTOM_CATEGORY]);
+  it('shows Edit button for a custom category', async () => {
+    await renderWith([CUSTOM_CATEGORY]);
     expect(screen.getByRole('button', { name: 'Edit Shopping' })).toBeTruthy();
   });
 
-  it('shows × Delete button for a custom category', () => {
-    renderWith([CUSTOM_CATEGORY]);
+  it('shows × Delete button for a custom category', async () => {
+    await renderWith([CUSTOM_CATEGORY]);
     expect(screen.getByRole('button', { name: 'Delete Shopping' })).toBeTruthy();
   });
 });
@@ -209,13 +208,13 @@ describe('CategoriesScreen — custom row actions', () => {
 
 describe('CategoriesScreen — add category', () => {
   it('opens the sheet when Add Category is pressed', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
     expect(screen.getByText('New Category')).toBeTruthy();
   });
 
   it('shows a name error when saving with empty name', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
     expect(screen.getByText('Please enter a category name.')).toBeTruthy();
@@ -223,7 +222,7 @@ describe('CategoriesScreen — add category', () => {
 
   it('calls addCategory with trimmed name and selected options on save', async () => {
     mockAddCategory.mockResolvedValueOnce('new-id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Category name'), '  Fitness  ');
@@ -241,7 +240,7 @@ describe('CategoriesScreen — add category', () => {
   });
 
   it('closes the sheet on Cancel', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
     await waitFor(() =>
@@ -254,7 +253,7 @@ describe('CategoriesScreen — add category', () => {
 
 describe('CategoriesScreen — edit category', () => {
   it('opens the sheet with "Edit Category" title', async () => {
-    renderWith([CUSTOM_CATEGORY]);
+    await renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Edit Shopping' }));
     await waitFor(() =>
       expect(screen.getByText('Edit Category')).toBeTruthy(),
@@ -262,7 +261,7 @@ describe('CategoriesScreen — edit category', () => {
   });
 
   it('pre-fills the name field with the existing name', async () => {
-    renderWith([CUSTOM_CATEGORY]);
+    await renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Edit Shopping' }));
     await waitFor(() => screen.getByText('Edit Category'));
     expect(screen.getByLabelText('Category name').props.value).toBe('Shopping');
@@ -270,7 +269,7 @@ describe('CategoriesScreen — edit category', () => {
 
   it('calls updateCategory with new data on save', async () => {
     mockUpdateCategory.mockResolvedValueOnce(undefined);
-    renderWith([CUSTOM_CATEGORY]);
+    await renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Edit Shopping' }));
     await waitFor(() => screen.getByText('Edit Category'));
 
@@ -291,8 +290,8 @@ describe('CategoriesScreen — edit category', () => {
 // ── Delete category ───────────────────────────────────────────────────────────
 
 describe('CategoriesScreen — delete category', () => {
-  it('shows a confirmation alert when × is pressed', () => {
-    renderWith([CUSTOM_CATEGORY]);
+  it('shows a confirmation alert when × is pressed', async () => {
+    await renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Delete Shopping' }));
     expect(Alert.alert).toHaveBeenCalledWith(
       'Delete Category',
@@ -301,9 +300,9 @@ describe('CategoriesScreen — delete category', () => {
     );
   });
 
-  it('calls deleteCategory when the user confirms', () => {
+  it('calls deleteCategory when the user confirms', async () => {
     mockDeleteCategory.mockResolvedValueOnce(undefined);
-    renderWith([CUSTOM_CATEGORY]);
+    await renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Delete Shopping' }));
 
     const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2] as Array<{ text: string; onPress?: () => void }>;
@@ -313,8 +312,8 @@ describe('CategoriesScreen — delete category', () => {
     expect(mockDeleteCategory).toHaveBeenCalledWith('test-uid', 'custom-1');
   });
 
-  it('does not call deleteCategory when the user cancels', () => {
-    renderWith([CUSTOM_CATEGORY]);
+  it('does not call deleteCategory when the user cancels', async () => {
+    await renderWith([CUSTOM_CATEGORY]);
     fireEvent.press(screen.getByRole('button', { name: 'Delete Shopping' }));
 
     const alertButtons = (Alert.alert as jest.Mock).mock.calls[0][2] as Array<{ text: string; onPress?: () => void }>;
@@ -329,7 +328,7 @@ describe('CategoriesScreen — delete category', () => {
 
 describe('CategoriesScreen — color picker', () => {
   it('renders 18 colour swatches', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
     expect(CATEGORY_COLORS).toHaveLength(18);
     // Each swatch has accessibilityRole="radio"
@@ -341,7 +340,7 @@ describe('CategoriesScreen — color picker', () => {
 
   it('selects a swatch and updates the colour', async () => {
     mockAddCategory.mockResolvedValueOnce('id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     // Tap the red swatch (#e05252)
@@ -359,7 +358,7 @@ describe('CategoriesScreen — color picker', () => {
 
   it('hex input updates colour when valid', async () => {
     mockAddCategory.mockResolvedValueOnce('id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Custom hex colour'), '#123456');
@@ -376,7 +375,7 @@ describe('CategoriesScreen — color picker', () => {
 
   it('invalid hex does not change the saved colour', async () => {
     mockAddCategory.mockResolvedValueOnce('id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     // Enter an invalid hex — colour stays at whatever the first swatch is
@@ -398,7 +397,7 @@ describe('CategoriesScreen — color picker', () => {
 
 describe('CategoriesScreen — location type', () => {
   it('renders the None chip and the 4 quick-pick chips', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
     expect(screen.getByRole('radio', { name: 'None' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: 'ATM' })).toBeTruthy();
@@ -409,7 +408,7 @@ describe('CategoriesScreen — location type', () => {
 
   it('selecting a quick-pick chip saves that POI type', async () => {
     mockAddCategory.mockResolvedValueOnce('id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Meds');
@@ -426,7 +425,7 @@ describe('CategoriesScreen — location type', () => {
 
   it('None chip saves null POI', async () => {
     mockAddCategory.mockResolvedValueOnce('id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Work');
@@ -444,7 +443,7 @@ describe('CategoriesScreen — location type', () => {
   });
 
   it('renders a location type search input', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
     expect(screen.getByLabelText('Search location type')).toBeTruthy();
   });
@@ -453,7 +452,7 @@ describe('CategoriesScreen — location type', () => {
     mockSearchPlaceTypes.mockResolvedValueOnce([
       { type: 'gym', label: 'Gym' },
     ]);
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Search location type'), 'gym');
@@ -472,7 +471,7 @@ describe('CategoriesScreen — location type', () => {
       { type: 'restaurant', label: 'Restaurant' },
     ]);
     mockAddCategory.mockResolvedValueOnce('id');
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Search location type'), 'gym');
@@ -494,7 +493,7 @@ describe('CategoriesScreen — location type', () => {
   });
 
   it('does not call searchPlaceTypes for empty input', async () => {
-    renderWith();
+    await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Search location type'), '');
@@ -507,13 +506,8 @@ describe('CategoriesScreen — location type', () => {
 // ─── KAN-57 / KAN-58 — CategoriesUiState error branch & retry ───────────────
 
 describe('CategoriesScreen — KAN-57 / KAN-58 UiState error branch & retry', () => {
-  it('shows a user-friendly error message when the subscription fires an error', async () => {
-    mockSubscribeToCategories.mockImplementation(
-      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
-        onError(new Error('Firestore unavailable'));
-        return jest.fn();
-      },
-    );
+  it('shows a user-friendly error message when the fetch rejects', async () => {
+    mockGetCategories.mockRejectedValue(new Error('Firestore unavailable'));
 
     render(<CategoriesScreen />);
     await act(async () => {});
@@ -522,12 +516,7 @@ describe('CategoriesScreen — KAN-57 / KAN-58 UiState error branch & retry', ()
   });
 
   it('shows a "Try again" button in the error state', async () => {
-    mockSubscribeToCategories.mockImplementation(
-      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
-        onError(new Error('Network error'));
-        return jest.fn();
-      },
-    );
+    mockGetCategories.mockRejectedValue(new Error('Network error'));
 
     render(<CategoriesScreen />);
     await act(async () => {});
@@ -536,12 +525,7 @@ describe('CategoriesScreen — KAN-57 / KAN-58 UiState error branch & retry', ()
   });
 
   it('does not show custom category rows in the error state', async () => {
-    mockSubscribeToCategories.mockImplementation(
-      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
-        onError(new Error('Network error'));
-        return jest.fn();
-      },
-    );
+    mockGetCategories.mockRejectedValue(new Error('Network error'));
 
     render(<CategoriesScreen />);
     await act(async () => {});
@@ -549,19 +533,10 @@ describe('CategoriesScreen — KAN-57 / KAN-58 UiState error branch & retry', ()
     expect(screen.queryByLabelText('My Category category')).toBeNull();
   });
 
-  it('re-subscribes and shows categories when "Try again" is pressed after recovery', async () => {
-    let callCount = 0;
-    mockSubscribeToCategories.mockImplementation(
-      (_uid: string, onSuccess: (cats: any[]) => void, onError: (err: Error) => void) => {
-        callCount += 1;
-        if (callCount === 1) {
-          onError(new Error('Network error'));
-        } else {
-          onSuccess([{ id: 'cat-gym', name: 'Gym', color: '#ff0000', poi: null, isBuiltIn: false }]);
-        }
-        return jest.fn();
-      },
-    );
+  it('re-fetches and shows categories when "Try again" is pressed after recovery', async () => {
+    mockGetCategories
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce([{ id: 'cat-gym', name: 'Gym', color: '#ff0000', poi: null, isBuiltIn: false }]);
 
     render(<CategoriesScreen />);
     await act(async () => {});

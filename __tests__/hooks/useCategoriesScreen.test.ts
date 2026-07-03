@@ -1,29 +1,29 @@
 /**
- * KAN-59 — useCategoriesScreen hook tests.
+ * KAN-59 / KAN-218 — useCategoriesScreen hook tests.
  *
  * Covers independently-testable hook behaviour (no JSX):
- *   - CategoriesUiState: loading → success on subscription callback
- *   - CategoriesUiState: loading → error on subscription error callback
- *   - retryKey: incrementing re-triggers the subscription
+ *   - CategoriesUiState: loading → success on fetch resolve (one-shot, KAN-218)
+ *   - CategoriesUiState: loading → error on fetch reject
+ *   - retryKey: incrementing re-triggers the fetch
  *   - handleAdd: sets sheetVisible=true, editing=null
  *   - handleEdit: sets sheetVisible=true, editing=the category
  *   - handleSave (edit mode): calls updateCategory, closes sheet
- *   - handleSave (add mode): calls addCategory (sheet stays open until snapshot)
+ *   - handleSave (add mode): calls addCategory, closes sheet once it resolves
  *   - handleCloseSheet: closes the sheet
  */
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToCategories = jest.fn();
-const mockAddCategory           = jest.fn();
-const mockUpdateCategory        = jest.fn();
-const mockDeleteCategory        = jest.fn();
+const mockGetCategories  = jest.fn();
+const mockAddCategory    = jest.fn();
+const mockUpdateCategory = jest.fn();
+const mockDeleteCategory = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToCategories: (...args: unknown[]) => mockSubscribeToCategories(...args),
-  addCategory:           (...args: unknown[]) => mockAddCategory(...args),
-  updateCategory:        (...args: unknown[]) => mockUpdateCategory(...args),
-  deleteCategory:        (...args: unknown[]) => mockDeleteCategory(...args),
+  getCategories:  (...args: unknown[]) => mockGetCategories(...args),
+  addCategory:    (...args: unknown[]) => mockAddCategory(...args),
+  updateCategory: (...args: unknown[]) => mockUpdateCategory(...args),
+  deleteCategory: (...args: unknown[]) => mockDeleteCategory(...args),
 }));
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
@@ -43,36 +43,25 @@ const CAT = {
   isBuiltIn: false,
 };
 
-// ─── Helper ───────────────────────────────────────────────────────────────────
-
-function setupSuccessSubscription(cats: any[] = []) {
-  mockSubscribeToCategories.mockImplementation(
-    (_uid: string, onSuccess: (cats: any[]) => void) => {
-      onSuccess(cats);
-      return jest.fn();
-    },
-  );
-}
-
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockGetCategories.mockResolvedValue([]);
   mockAddCategory.mockResolvedValue('new-id');
   mockUpdateCategory.mockResolvedValue(undefined);
   mockDeleteCategory.mockResolvedValue(undefined);
-  setupSuccessSubscription();
 });
 
-describe('useCategoriesScreen — subscription', () => {
+describe('useCategoriesScreen — one-shot fetch (KAN-218)', () => {
   it('starts in loading state', () => {
-    mockSubscribeToCategories.mockReturnValue(jest.fn()); // never fires
+    mockGetCategories.mockReturnValue(new Promise(() => {})); // never resolves
     const { result } = renderHook(() => useCategoriesScreen(UID));
     expect(result.current.categoriesState.status).toBe('loading');
   });
 
-  it('transitions to success when the subscription fires', async () => {
-    setupSuccessSubscription([CAT]);
+  it('transitions to success when the fetch resolves', async () => {
+    mockGetCategories.mockResolvedValue([CAT]);
     const { result } = renderHook(() => useCategoriesScreen(UID));
     await act(async () => {});
 
@@ -81,28 +70,23 @@ describe('useCategoriesScreen — subscription', () => {
     expect(result.current.customCategories[0].id).toBe('cat-1');
   });
 
-  it('transitions to error when the subscription fires an error', async () => {
-    mockSubscribeToCategories.mockImplementation(
-      (_uid: string, _onSuccess: unknown, onError: (err: Error) => void) => {
-        onError(new Error('Network error'));
-        return jest.fn();
-      },
-    );
+  it('transitions to error when the fetch rejects', async () => {
+    mockGetCategories.mockRejectedValue(new Error('Network error'));
     const { result } = renderHook(() => useCategoriesScreen(UID));
     await act(async () => {});
 
     expect(result.current.categoriesState.status).toBe('error');
   });
 
-  it('re-subscribes when retryKey is incremented', async () => {
+  it('re-fetches when retryKey is incremented', async () => {
     const { result } = renderHook(() => useCategoriesScreen(UID));
     await act(async () => {});
 
-    const callsBefore = mockSubscribeToCategories.mock.calls.length;
+    const callsBefore = mockGetCategories.mock.calls.length;
     act(() => { result.current.setRetryKey(k => k + 1); });
     await act(async () => {});
 
-    expect(mockSubscribeToCategories.mock.calls.length).toBeGreaterThan(callsBefore);
+    expect(mockGetCategories.mock.calls.length).toBeGreaterThan(callsBefore);
   });
 });
 

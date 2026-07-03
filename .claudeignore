@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/**
+
+# Git metadata
+.git/**
+
+# Build artifacts
+android/build/**
+android/app/build/**
+android/.gradle/**
+ios/build/**
+ios/Pods/**
+
+# Metro / Expo cache
+.metro/**
+.expo/**
+.expo-shared/**
+
+# Coverage and reports
+coverage/**
+test-results/**
+storybook-static/**
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+
+# IDE files
+.vscode/**
+.idea/**
+
+# Generated binaries
+*.apk
+*.aab
+*.ipa
+builds/**
+
+# Large assets
+assets/videos/**
+assets/generated/**
+
+# Temporary files
+tmp/**
+temp/**
+
+# React Native generated
+android/app/src/main/assets/index.android.bundle
+android/app/src/main/res/drawable-*/node_modules_*
+android/app/src/main/res/drawable-*/assets_*

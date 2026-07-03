@@ -105,7 +105,6 @@ interface CategoryRowProps {
 
 function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
   const { palette } = useTheme();
-  const hasPoi = category.poi !== null;
 
   return (
     <View
@@ -117,10 +116,10 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
       {/* Name + POI badge */}
       <View style={styles.rowContent}>
         <Text style={[styles.rowName, { color: palette.text }]}>{category.name}</Text>
-        {hasPoi && (
+        {category.poi !== null && (
           <View style={[styles.poiBadge, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
             <Text style={[styles.poiBadgeText, { color: palette.muted }]}>
-              {placeTypeLabel(category.poi!)}
+              {placeTypeLabel(category.poi)}
             </Text>
           </View>
         )}

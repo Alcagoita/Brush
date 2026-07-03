@@ -5,7 +5,9 @@
  *   - findUserByEmail returns user summary on match
  *   - findUserByEmail returns null when no match
  *   - findUserByEmail returns null for empty input
- *   - sendSharedTask writes incoming record and pending notification
+ *   - sendSharedTask writes the incoming record via one atomic batch
+ *   - sendSharedTask does not write pendingNotifications directly (KAN-221 —
+ *     moved server-side to the onSharedTaskCreated Cloud Function)
  *   - sendSharedTask throws CANNOT_SEND_TO_SELF
  *   - acceptSharedTask writes task and deletes incoming record
  *   - declineSharedTask deletes incoming record
@@ -21,19 +23,34 @@ import { Task } from '../../src/types';
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
-const mockGetDocs    = jest.fn();
-const mockAddDoc     = jest.fn();
-const mockDeleteDoc  = jest.fn();
+const mockGetDocs     = jest.fn();
+const mockAddDoc      = jest.fn();
+const mockDeleteDoc   = jest.fn();
+const mockCollection  = jest.fn(() => ({ _type: 'collection' }));
+const mockBatchSet    = jest.fn();
+const mockBatchDelete = jest.fn();
+const mockBatchCommit = jest.fn();
+const mockWriteBatch  = jest.fn(() => ({
+  set:    mockBatchSet,
+  delete: mockBatchDelete,
+  commit: mockBatchCommit,
+}));
+
+function mockDoc(...args: unknown[]) {
+  // doc(collectionRef) — auto-generated ID (no path segments passed).
+  // doc(db, ...segments) — explicit path; last segment doubles as the id.
+  const segments = args.slice(1).filter((a): a is string => typeof a === 'string');
+  const id = segments.length > 0 ? segments[segments.length - 1] : 'generated-id';
+  return { id, _path: segments.length > 0 ? segments.join('/') : id };
+}
 
 jest.mock('@react-native-firebase/firestore', () => {
-  const col  = jest.fn().mockReturnThis();
-  const docFn = jest.fn().mockReturnThis();
-  const qFn  = jest.fn((...args: unknown[]) => args);
+  const qFn = jest.fn((...args: unknown[]) => args);
 
   return {
     getFirestore:    jest.fn(() => ({})),
-    collection:      col,
-    doc:             docFn,
+    collection:      (...args: unknown[]) => mockCollection(...args),
+    doc:             (...args: unknown[]) => mockDoc(...args),
     query:           qFn,
     where:           jest.fn((...args: unknown[]) => args),
     addDoc:          (...args: unknown[]) => mockAddDoc(...args),
@@ -41,6 +58,7 @@ jest.mock('@react-native-firebase/firestore', () => {
     getDocs:         (...args: unknown[]) => mockGetDocs(...args),
     onSnapshot:      jest.fn(),
     serverTimestamp: jest.fn(() => 'SERVER_TIMESTAMP'),
+    writeBatch:      () => mockWriteBatch(),
   };
 });
 
@@ -112,14 +130,10 @@ describe('sendSharedTask', () => {
         task:          makeTask(),
       }),
     ).rejects.toThrow('CANNOT_SEND_TO_SELF');
-    expect(mockAddDoc).not.toHaveBeenCalled();
+    expect(mockBatchCommit).not.toHaveBeenCalled();
   });
 
-  it('writes the incoming record and a pending notification', async () => {
-    mockAddDoc
-      .mockResolvedValueOnce({ id: 'incoming-123' }) // incoming record
-      .mockResolvedValueOnce({ id: 'notif-456' });   // pending notification
-
+  it('writes the incoming record via a single batch.set call', async () => {
     const id = await sendSharedTask({
       senderUid:     'uid-sender',
       senderName:    'Bob',
@@ -128,12 +142,11 @@ describe('sendSharedTask', () => {
       task:          makeTask({ id: 'task-abc', title: 'Buy groceries' }),
     });
 
-    expect(id).toBe('incoming-123');
-    expect(mockAddDoc).toHaveBeenCalledTimes(2);
+    expect(id).toBe('generated-id');
+    expect(mockBatchSet).toHaveBeenCalledTimes(1);
 
-    // First call: incoming record
-    const [, incomingPayload] = mockAddDoc.mock.calls[0];
-    expect(incomingPayload).toMatchObject({
+    const [, payload] = mockBatchSet.mock.calls[0];
+    expect(payload).toMatchObject({
       taskId:     'task-abc',
       title:      'Buy groceries',
       category:   'errands',
@@ -141,65 +154,74 @@ describe('sendSharedTask', () => {
       sentByName: 'Bob',
       status:     'pending',
     });
+  });
 
-    // Second call: pending notification
-    const [, notifPayload] = mockAddDoc.mock.calls[1];
-    expect(notifPayload).toMatchObject({
-      type:  'shared_task',
-      title: 'Bob sent you a task',
-      body:  'Buy groceries',
+  it('does not write directly to pendingNotifications (KAN-221)', async () => {
+    await sendSharedTask({
+      senderUid:     'uid-sender',
+      senderName:    'Bob',
+      recipientUid:  'uid-recipient',
+      recipientName: 'Alice',
+      task:          makeTask(),
     });
+
+    // The shared_task pendingNotification is now written server-side by the
+    // onSharedTaskCreated Cloud Function, triggered off the incoming record —
+    // the client must not write to another user's mailbox directly.
+    expect(mockCollection).not.toHaveBeenCalledWith(
+      expect.anything(), 'pendingNotifications', expect.anything(), 'items',
+    );
+    expect(mockBatchSet).toHaveBeenCalledTimes(1);
+  });
+
+  it('deletes the task from the sender via the same batch', async () => {
+    await sendSharedTask({
+      senderUid:     'uid-sender',
+      senderName:    'Bob',
+      recipientUid:  'uid-recipient',
+      recipientName: 'Alice',
+      task:          makeTask({ id: 'task-abc' }),
+    });
+
+    expect(mockBatchDelete).toHaveBeenCalledTimes(1);
+    const [deletedRef] = mockBatchDelete.mock.calls[0];
+    expect(deletedRef._path).toBe('users/uid-sender/tasks/task-abc');
+  });
+
+  it('commits exactly one batch', async () => {
+    await sendSharedTask({
+      senderUid:     'uid-sender',
+      senderName:    'Bob',
+      recipientUid:  'uid-recipient',
+      recipientName: 'Alice',
+      task:          makeTask(),
+    });
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });
 
   // ── KAN-101: senderUsername ──────────────────────────────────────────────────
 
   it('includes sentByUsername in the record when provided (KAN-101)', async () => {
-    mockAddDoc.mockResolvedValue({ id: 'x' });
     await sendSharedTask({
       senderUid: 'uid-a', senderName: 'Alice', senderUsername: 'alice',
       recipientUid: 'uid-b', recipientName: 'Bob',
       task: makeTask(),
     });
-    const [, payload] = mockAddDoc.mock.calls[0];
+    const [, payload] = mockBatchSet.mock.calls[0];
     expect(payload.sentByUsername).toBe('alice');
   });
 
   it('omits sentByUsername when not provided (KAN-101)', async () => {
-    mockAddDoc.mockResolvedValue({ id: 'x' });
     await sendSharedTask({
       senderUid: 'uid-a', senderName: 'Alice',
       recipientUid: 'uid-b', recipientName: 'Bob',
       task: makeTask(),
     });
-    const [, payload] = mockAddDoc.mock.calls[0];
+    const [, payload] = mockBatchSet.mock.calls[0];
     expect(payload).not.toHaveProperty('sentByUsername');
   });
 
-  it('uses @username in notification title when senderUsername provided (KAN-101)', async () => {
-    mockAddDoc.mockResolvedValue({ id: 'x' });
-    await sendSharedTask({
-      senderUid: 'uid-a', senderName: 'Alice', senderUsername: 'alice',
-      recipientUid: 'uid-b', recipientName: 'Bob',
-      task: makeTask(),
-    });
-    const [, notifPayload] = mockAddDoc.mock.calls[1];
-    expect(notifPayload.title).toBe('@alice sent you a task');
-  });
-
-  it('includes screen: SharedTaskInbox in notification data (KAN-101)', async () => {
-    mockAddDoc.mockResolvedValue({ id: 'x' });
-    await sendSharedTask({
-      senderUid: 'uid-a', senderName: 'Alice',
-      recipientUid: 'uid-b', recipientName: 'Bob',
-      task: makeTask(),
-    });
-    const [, notifPayload] = mockAddDoc.mock.calls[1];
-    expect(notifPayload.data.screen).toBe('SharedTaskInbox');
-  });
-
   it('includes poi in the record when the task has one', async () => {
-    mockAddDoc.mockResolvedValue({ id: 'x' });
-
     await sendSharedTask({
       senderUid:     'uid-a',
       senderName:    'A',
@@ -208,13 +230,11 @@ describe('sendSharedTask', () => {
       task:          makeTask({ poi: 'supermarket' }),
     });
 
-    const [, payload] = mockAddDoc.mock.calls[0];
+    const [, payload] = mockBatchSet.mock.calls[0];
     expect(payload.poi).toBe('supermarket');
   });
 
   it('omits poi when the task has none', async () => {
-    mockAddDoc.mockResolvedValue({ id: 'x' });
-
     await sendSharedTask({
       senderUid:     'uid-a',
       senderName:    'A',
@@ -223,7 +243,7 @@ describe('sendSharedTask', () => {
       task:          makeTask({ poi: undefined }),
     });
 
-    const [, payload] = mockAddDoc.mock.calls[0];
+    const [, payload] = mockBatchSet.mock.calls[0];
     expect(payload).not.toHaveProperty('poi');
   });
 });

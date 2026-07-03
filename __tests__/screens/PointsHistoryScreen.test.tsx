@@ -1,13 +1,14 @@
 /**
- * Unit tests for PointsHistoryScreen — KAN-33
+ * Unit tests for PointsHistoryScreen — KAN-33 / KAN-218
  *
  * Covers:
  *   - Renders heading and both section labels
- *   - Loading state while history subscription hasn't fired
+ *   - Loading state while the history fetch hasn't resolved
  *   - Empty state when no history
  *   - History rows rendered (title, reason, points)
- *   - "Load more" button appears when there are more than PAGE_SIZE entries
- *   - "Load more" button absent when all entries fit on one page
+ *   - "Load more" button appears when the page response has a nextCursor
+ *   - "Load more" button absent when nextCursor is null
+ *   - "Load more" fetches the next page using the previous nextCursor
  *   - Achievements gallery: all catalogue entries rendered
  *   - Locked achievement shows "Locked" badge and condition text
  *   - Earned achievement hides "Locked" badge
@@ -17,25 +18,31 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import PointsHistoryScreen from '../../src/screens/PointsHistoryScreen';
+import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToPointsHistory = jest.fn(() => jest.fn());
-const mockSubscribeToAchievements  = jest.fn(() => jest.fn());
-const mockGoBack                   = jest.fn();
+const mockGetPointsHistory = jest.fn();
+const mockGetAchievements  = jest.fn();
+const mockGoBack           = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToPointsHistory: (...args: unknown[]) => mockSubscribeToPointsHistory(...args),
-  subscribeToAchievements:  (...args: unknown[]) => mockSubscribeToAchievements(...args),
+  getPointsHistory: (...args: unknown[]) => mockGetPointsHistory(...args),
+  getAchievements:  (...args: unknown[]) => mockGetAchievements(...args),
 }));
 
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
   getAuth: () => ({ currentUser: { uid: 'user-123' } }),
 }));
 
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ goBack: mockGoBack }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const actualReact = require('react');
+  return {
+    useNavigation: () => ({ goBack: mockGoBack }),
+    // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
+    useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
+  };
+});
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -72,14 +79,11 @@ jest.mock('../../src/components/AppIcon', () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function fireHistory(entries: object[]) {
-  const call = mockSubscribeToPointsHistory.mock.calls[0];
-  if (call) { act(() => { (call[1] as Function)(entries); }); }
-}
-
-function fireAchievements(achievements: object[]) {
-  const call = mockSubscribeToAchievements.mock.calls[0];
-  if (call) { act(() => { (call[1] as Function)(achievements); }); }
+/** Renders the screen and flushes the one-shot getPointsHistory/getAchievements fetches (KAN-218). */
+async function renderScreen() {
+  const utils = render(<PointsHistoryScreen />);
+  await act(async () => {});
+  return utils;
 }
 
 function makeEntry(overrides: Partial<any> = {}) {
@@ -94,34 +98,47 @@ function makeEntry(overrides: Partial<any> = {}) {
   };
 }
 
+/** AchievementsMap entry — matches AchievementEntry shape (earnCount > 0 = earned). */
+function makeAchievementsMap(type: string, overrides: Partial<any> = {}) {
+  return {
+    [type]: {
+      earnedAt:  { seconds: 1748908800, nanoseconds: 0 },
+      earnCount: 1,
+      progress:  1,
+      target:    1,
+      ...overrides,
+    },
+  };
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockSubscribeToPointsHistory.mockReturnValue(jest.fn());
-  mockSubscribeToAchievements.mockReturnValue(jest.fn());
+  mockGetPointsHistory.mockReturnValue(new Promise(() => {})); // never resolves by default
+  mockGetAchievements.mockResolvedValue({});
 });
 
 // ── Render ────────────────────────────────────────────────────────────────────
 
 describe('PointsHistoryScreen — render', () => {
-  it('renders the screen title', () => {
-    render(<PointsHistoryScreen />);
+  it('renders the screen title', async () => {
+    await renderScreen();
     expect(screen.getByText('Points & Achievements')).toBeTruthy();
   });
 
-  it('renders the Points History section heading', () => {
-    render(<PointsHistoryScreen />);
+  it('renders the Points History section heading', async () => {
+    await renderScreen();
     expect(screen.getByText('Points History')).toBeTruthy();
   });
 
-  it('renders the Achievements section heading', () => {
-    render(<PointsHistoryScreen />);
+  it('renders the Achievements section heading', async () => {
+    await renderScreen();
     expect(screen.getByText('Achievements')).toBeTruthy();
   });
 
-  it('calls goBack when back button is pressed', () => {
-    render(<PointsHistoryScreen />);
+  it('calls goBack when back button is pressed', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Back'));
     expect(mockGoBack).toHaveBeenCalled();
   });
@@ -130,91 +147,147 @@ describe('PointsHistoryScreen — render', () => {
 // ── Points history ────────────────────────────────────────────────────────────
 
 describe('PointsHistoryScreen — points history', () => {
-  it('shows a loading indicator before history fires', () => {
-    render(<PointsHistoryScreen />);
+  it('shows a loading indicator before the fetch resolves', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Loading points history')).toBeTruthy();
   });
 
-  it('shows the empty state when history is empty', () => {
-    render(<PointsHistoryScreen />);
-    fireHistory([]);
+  it('shows the empty state when history is empty', async () => {
+    mockGetPointsHistory.mockResolvedValue({ entries: [], nextCursor: null });
+    await renderScreen();
     expect(screen.getByText(/No points yet/)).toBeTruthy();
   });
 
-  it('renders a history row with task title and points', () => {
-    render(<PointsHistoryScreen />);
-    fireHistory([makeEntry({ taskTitle: 'Walk the dog', points: 1 })]);
+  it('renders a history row with task title and points', async () => {
+    mockGetPointsHistory.mockResolvedValue({
+      entries: [makeEntry({ taskTitle: 'Walk the dog', points: 1 })],
+      nextCursor: null,
+    });
+    await renderScreen();
     expect(screen.getByText('Walk the dog')).toBeTruthy();
     expect(screen.getByText('+1')).toBeTruthy();
   });
 
-  it('renders "Brushed" as the reason label for task_completed (KAN-108)', () => {
-    render(<PointsHistoryScreen />);
-    fireHistory([makeEntry()]);
+  it('renders "Brushed" as the reason label for task_completed (KAN-108)', async () => {
+    mockGetPointsHistory.mockResolvedValue({ entries: [makeEntry()], nextCursor: null });
+    await renderScreen();
     expect(screen.getByText(/^Brushed/)).toBeTruthy();
   });
 
-  it('does not show "Load more" when entries fit on one page', () => {
-    render(<PointsHistoryScreen />);
-    fireHistory([makeEntry()]);
+  it('does not show "Load more" when the page has no nextCursor', async () => {
+    mockGetPointsHistory.mockResolvedValue({ entries: [makeEntry()], nextCursor: null });
+    await renderScreen();
     expect(screen.queryByLabelText('Load more history')).toBeNull();
   });
 
-  it('shows "Load more" when there are more than 20 entries', () => {
-    render(<PointsHistoryScreen />);
-    const entries = Array.from({ length: 25 }, (_, i) =>
-      makeEntry({ id: `entry-${i}`, taskTitle: `Task ${i}` }),
+  it('shows "Load more" when the first page returns a nextCursor', async () => {
+    // FlatList only renders its default initialNumToRender (10) items in this
+    // test environment — keep distinct-taskId assertions within that window
+    // rather than asserting on the tail of a longer list.
+    const entries = Array.from({ length: 20 }, (_, i) =>
+      makeEntry({ id: `entry-${i}`, taskId: `task-${i}`, taskTitle: `Task ${i}` }),
     );
-    fireHistory(entries);
+    mockGetPointsHistory.mockResolvedValue({ entries, nextCursor: 'cursor-1' });
+    await renderScreen();
     expect(screen.getByLabelText('Load more history')).toBeTruthy();
+    expect(mockGetPointsHistory).toHaveBeenCalledWith('user-123', 20);
+    // Distinct taskIds — the screen's dedupe must not collapse the page down
+    // to a single row.
+    expect(screen.getAllByText(/^Task \d+$/).length).toBeGreaterThan(1);
+    expect(screen.getByText('Task 0')).toBeTruthy();
+    expect(screen.getByText('Task 9')).toBeTruthy();
   });
 
-  it('loads the next page when "Load more" is pressed', () => {
-    render(<PointsHistoryScreen />);
-    const entries = Array.from({ length: 25 }, (_, i) =>
-      makeEntry({ id: `entry-${i}`, taskTitle: `Task ${i}` }),
+  it('fetches the next page with the previous cursor when "Load more" is pressed', async () => {
+    // Small, distinct-taskId pages that comfortably fit within FlatList's
+    // default initialNumToRender (10) so appended rows are actually rendered
+    // and assertable, instead of hidden by virtualization.
+    const page1 = Array.from({ length: 6 }, (_, i) =>
+      makeEntry({ id: `entry-${i}`, taskId: `task-${i}`, taskTitle: `Task ${i}` }),
     );
-    fireHistory(entries);
-    fireEvent.press(screen.getByLabelText('Load more history'));
-    // All 25 now visible — "Load more" disappears
+    const page2 = Array.from({ length: 3 }, (_, i) =>
+      makeEntry({ id: `entry-${6 + i}`, taskId: `task-${6 + i}`, taskTitle: `Task ${6 + i}` }),
+    );
+    mockGetPointsHistory
+      .mockResolvedValueOnce({ entries: page1, nextCursor: 'cursor-1' })
+      .mockResolvedValueOnce({ entries: page2, nextCursor: null });
+    await renderScreen();
+    expect(screen.getByLabelText('Load more history')).toBeTruthy();
+    expect(screen.getAllByText(/^Task \d+$/)).toHaveLength(6);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Load more history'));
+    });
+
+    expect(mockGetPointsHistory).toHaveBeenLastCalledWith('user-123', 20, 'cursor-1');
+    expect(mockGetPointsHistory).toHaveBeenCalledTimes(2);
+    // Server reports no more pages — "Load more" disappears
     expect(screen.queryByLabelText('Load more history')).toBeNull();
+    // Second page's entries are appended onto the first, not replacing it.
+    expect(screen.getAllByText(/^Task \d+$/)).toHaveLength(9);
+    expect(screen.getByText('Task 0')).toBeTruthy();
+    expect(screen.getByText('Task 8')).toBeTruthy();
+  });
+
+  it('ignores a double-tap on "Load more" — only one next-page fetch fires (reentrancy guard)', async () => {
+    const page1 = Array.from({ length: 20 }, (_, i) =>
+      makeEntry({ id: `entry-${i}`, taskId: `task-${i}`, taskTitle: `Task ${i}` }),
+    );
+    mockGetPointsHistory
+      .mockResolvedValueOnce({ entries: page1, nextCursor: 'cursor-1' })
+      .mockResolvedValueOnce({ entries: [], nextCursor: null });
+    await renderScreen();
+    const loadMoreBtn = screen.getByLabelText('Load more history');
+
+    // Two rapid presses, before loadingMore state has a chance to propagate.
+    await act(async () => {
+      fireEvent.press(loadMoreBtn);
+      fireEvent.press(loadMoreBtn);
+    });
+
+    // Initial page fetch + exactly one "Load more" fetch — the second
+    // same-tick press is blocked by the loadingMoreRef mutex.
+    expect(mockGetPointsHistory).toHaveBeenCalledTimes(2);
   });
 });
 
 // ── Achievements gallery ──────────────────────────────────────────────────────
 
 describe('PointsHistoryScreen — achievements gallery', () => {
-  it('renders all catalogue achievements', () => {
-    render(<PointsHistoryScreen />);
-    expect(screen.getByLabelText('First brush achievement, locked')).toBeTruthy();
-    expect(screen.getByLabelText('Day complete achievement, locked')).toBeTruthy();
+  it('renders all catalogue achievements', async () => {
+    await renderScreen();
+    ACHIEVEMENT_CATALOGUE.forEach((def) => {
+      expect(screen.getByLabelText(`${def.label} achievement, locked`)).toBeTruthy();
+    });
   });
 
-  it('shows "Locked" badge on unearned achievements', () => {
-    render(<PointsHistoryScreen />);
+  it('shows "Locked" badge on unearned achievements', async () => {
+    await renderScreen();
     // All 7 catalogue entries are locked when no achievements earned
     expect(screen.getAllByText('Locked').length).toBe(7);
   });
 
-  it('shows the unlock condition for locked achievements', () => {
-    render(<PointsHistoryScreen />);
+  it('shows the unlock condition for locked achievements', async () => {
+    await renderScreen();
     expect(screen.getByText('Brush away your first task')).toBeTruthy();
   });
 
-  it('marks an earned achievement as earned', () => {
-    render(<PointsHistoryScreen />);
-    fireAchievements([
-      { id: 'first_brush', type: 'first_brush', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
-    ]);
+  it('marks an earned achievement as earned', async () => {
+    mockGetAchievements.mockResolvedValue(makeAchievementsMap('first_brush'));
+    await renderScreen();
     expect(screen.getByLabelText('First brush achievement, earned')).toBeTruthy();
   });
 
-  it('hides "Locked" badge for earned achievements', () => {
-    render(<PointsHistoryScreen />);
-    fireAchievements([
-      { id: 'first_brush', type: 'first_brush', earnedAt: { seconds: 1748908800, nanoseconds: 0 } },
-    ]);
+  it('hides "Locked" badge for earned achievements', async () => {
+    mockGetAchievements.mockResolvedValue(makeAchievementsMap('first_brush'));
+    await renderScreen();
     // 6 locked badges remain (other 6 catalogue entries still locked)
     expect(screen.getAllByText('Locked').length).toBe(6);
+  });
+
+  it('treats earnCount=0 as not earned', async () => {
+    mockGetAchievements.mockResolvedValue(makeAchievementsMap('first_brush', { earnCount: 0 }));
+    await renderScreen();
+    expect(screen.getAllByText('Locked').length).toBe(7);
   });
 });

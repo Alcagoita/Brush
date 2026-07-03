@@ -33,7 +33,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import {
-  subscribeToUserPreferences,
+  getUserPreferences,
   updateUserPreferences,
 } from '../services/firestore';
 import {
@@ -42,8 +42,8 @@ import {
   scheduleWeeklyRecap,
 } from '../services/notifications';
 import {
-  subscribeToTasksForDate,
-  subscribeToCurrentStreak,
+  getTasksForDate,
+  getCurrentStreak,
   getWeeklyCompletedCount,
 } from '../services/firestore';
 import {
@@ -54,7 +54,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
-import { isThisWeek } from '../utils/date';
+import { isThisWeek, toDateSafe, todayISO } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -197,14 +197,13 @@ export default function NotificationPreferencesScreen() {
   const [prefs,   setPrefs]   = useState<Partial<UserPreferences>>({});
   const [loading, setLoading] = useState(true);
 
-  // ── Live subscription ──────────────────────────────────────────────────────
+  // ── One-shot fetch (KAN-218) ────────────────────────────────────────────────
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToUserPreferences(
-      uid,
-      p => { setPrefs(p); setLoading(false); },
-      err => { console.warn('[NotifPrefs] subscription error', err); setLoading(false); },
-    );
+    getUserPreferences(uid)
+      .then(p => setPrefs(p))
+      .catch(err => console.warn('[NotifPrefs] preferences fetch error', err))
+      .finally(() => setLoading(false));
   }, [uid]);
 
   // ── Derived preference values with defaults ────────────────────────────────
@@ -224,16 +223,18 @@ export default function NotificationPreferencesScreen() {
 
   useEffect(() => {
     if (!uid) { return; }
-    const today = new Date().toISOString().split('T')[0];
-    return subscribeToTasksForDate(uid, today, tasks => {
-      setIncompletePoiCount(tasks.filter(t => !t.done && t.poi).length);
-      setTasksCompletedToday(tasks.filter(t => t.done).length);
-    });
+    const today = todayISO();
+    getTasksForDate(uid, today)
+      .then(tasks => {
+        setIncompletePoiCount(tasks.filter(t => !t.done && t.poi).length);
+        setTasksCompletedToday(tasks.filter(t => t.done).length);
+      })
+      .catch(err => console.warn('[NotifPrefs] tasksForDate error', err));
   }, [uid]);
 
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToCurrentStreak(uid, setCurrentStreak);
+    getCurrentStreak(uid).then(setCurrentStreak).catch(err => console.warn('[NotifPrefs] currentStreak error', err));
   }, [uid]);
 
   // Fetch weekly count once on mount (one-time read is sufficient — the
@@ -269,7 +270,7 @@ export default function NotificationPreferencesScreen() {
   useEffect(() => {
     if (loading) { return; }
     // "app opened this week" — lastOpenedAt is written on every foreground
-    const lastOpened = prefs.lastOpenedAt?.toDate?.() ?? null;
+    const lastOpened = toDateSafe(prefs.lastOpenedAt);
     const appOpenedThisWeek = lastOpened !== null && isThisWeek(lastOpened);
     scheduleWeeklyRecap({
       enabled: weeklyOn,

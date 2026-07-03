@@ -12,24 +12,21 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { AchievementsMap } from '../../src/types';
+import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToTotalPoints   = jest.fn();
-const mockSubscribeToCurrentStreak = jest.fn();
-const mockSubscribeToAchievements  = jest.fn();
-const mockGetUser                  = jest.fn();
+const mockGetUserPointsSummary = jest.fn();
+const mockGetUser              = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToTotalPoints:   (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
-  subscribeToCurrentStreak: (...args: unknown[]) => mockSubscribeToCurrentStreak(...args),
-  subscribeToAchievements:  (...args: unknown[]) => mockSubscribeToAchievements(...args),
-  getUser:                  (...args: unknown[]) => mockGetUser(...args),
-  updateDisplayName:        jest.fn().mockResolvedValue(undefined),
-  updateUsername:           jest.fn().mockResolvedValue(undefined),
-  checkUsernameAvailable:   jest.fn().mockResolvedValue(true),
-  validateUsername:         jest.fn(() => null),
-  USERNAME_COOLDOWN_DAYS:   30,
+  getUserPointsSummary:   (...args: unknown[]) => mockGetUserPointsSummary(...args),
+  getUser:                (...args: unknown[]) => mockGetUser(...args),
+  updateDisplayName:      jest.fn().mockResolvedValue(undefined),
+  updateUsername:         jest.fn().mockResolvedValue(undefined),
+  checkUsernameAvailable: jest.fn().mockResolvedValue(true),
+  validateUsername:       jest.fn(() => null),
+  USERNAME_COOLDOWN_DAYS: 30,
 }));
 
 jest.mock('../../src/services/achievements', () => ({
@@ -71,9 +68,14 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 
 const mockGoBack   = jest.fn();
 const mockNavigate = jest.fn();
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const actualReact = require('react');
+  return {
+    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+    // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
+    useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
+  };
+});
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -137,32 +139,16 @@ import ProfileScreen from '../../src/screens/ProfileScreen';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const noopUnsub = jest.fn();
-
 function setupDefaultMocks() {
-  mockSubscribeToTotalPoints.mockReturnValue(noopUnsub);
-  mockSubscribeToCurrentStreak.mockReturnValue(noopUnsub);
-  mockSubscribeToAchievements.mockReturnValue(noopUnsub);
+  mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
   mockGetUser.mockResolvedValue(null);
 }
 
-function firePoints(value: number) {
-  const call = mockSubscribeToTotalPoints.mock.calls[0];
-  if (call) { act(() => { call[1](value); }); }
-}
-
-function fireStreak(value: number) {
-  const call = mockSubscribeToCurrentStreak.mock.calls[0];
-  if (call) { act(() => { call[1](value); }); }
-}
-
-function fireAchievements(map: AchievementsMap) {
-  const call = mockSubscribeToAchievements.mock.calls[0];
-  if (call) { act(() => { call[1](map); }); }
-}
-
-function renderScreen() {
-  return render(<ProfileScreen />);
+/** Renders the screen and flushes the one-shot getUserPointsSummary fetch (KAN-218). */
+async function renderScreen() {
+  const utils = render(<ProfileScreen />);
+  await act(async () => {});
+  return utils;
 }
 
 // ─── Identity card ────────────────────────────────────────────────────────────
@@ -170,86 +156,56 @@ function renderScreen() {
 describe('ProfileScreen — identity card', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders without crashing', () => {
-    renderScreen();
+  it('renders without crashing', async () => {
+    await renderScreen();
     expect(screen.getByText('Profile')).toBeTruthy();
   });
 
-  it('shows display name from currentUser', () => {
-    renderScreen();
+  it('shows display name from currentUser', async () => {
+    await renderScreen();
     expect(screen.getByText('Jane Doe')).toBeTruthy();
   });
 
-  it('shows email from currentUser', () => {
-    renderScreen();
+  it('shows email from currentUser', async () => {
+    await renderScreen();
     expect(screen.getByText('test@example.com')).toBeTruthy();
   });
 
-  it('shows the edit button', () => {
-    renderScreen();
+  it('shows the edit button', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Edit profile')).toBeTruthy();
   });
 
-  it('opens inline edit panel when pencil button is pressed', () => {
-    renderScreen();
+  it('opens inline edit panel when pencil button is pressed', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Edit profile'));
     expect(screen.getByLabelText('Edit name')).toBeTruthy();
     expect(screen.getByLabelText('Edit username')).toBeTruthy();
   });
 
-  it('shows Cancel and Save in edit mode', () => {
-    renderScreen();
+  it('shows Cancel and Save in edit mode', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Edit profile'));
     expect(screen.getByText('Cancel')).toBeTruthy();
     expect(screen.getByText('Save')).toBeTruthy();
   });
 
-  it('closes edit panel when Cancel is pressed', () => {
-    renderScreen();
+  it('closes edit panel when Cancel is pressed', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Edit profile'));
     fireEvent.press(screen.getByText('Cancel'));
     expect(screen.queryByLabelText('Edit name')).toBeNull();
   });
 });
 
-// ─── Subscriptions ────────────────────────────────────────────────────────────
+// ─── One-shot fetch (KAN-218) ─────────────────────────────────────────────────
 
-describe('ProfileScreen — subscriptions', () => {
+describe('ProfileScreen — one-shot fetch (KAN-218)', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('subscribes to total points with the correct uid', () => {
-    renderScreen();
-    expect(mockSubscribeToTotalPoints).toHaveBeenCalledWith(
-      'test-uid', expect.any(Function), expect.any(Function),
-    );
-  });
-
-  it('subscribes to current streak with the correct uid', () => {
-    renderScreen();
-    expect(mockSubscribeToCurrentStreak).toHaveBeenCalledWith(
-      'test-uid', expect.any(Function), expect.any(Function),
-    );
-  });
-
-  it('subscribes to achievements with the correct uid', () => {
-    renderScreen();
-    expect(mockSubscribeToAchievements).toHaveBeenCalledWith(
-      'test-uid', expect.any(Function), expect.any(Function),
-    );
-  });
-
-  it('unsubscribes from all three subscriptions on unmount', () => {
-    const unsub1 = jest.fn();
-    const unsub2 = jest.fn();
-    const unsub3 = jest.fn();
-    mockSubscribeToTotalPoints.mockReturnValue(unsub1);
-    mockSubscribeToCurrentStreak.mockReturnValue(unsub2);
-    mockSubscribeToAchievements.mockReturnValue(unsub3);
-    const { unmount } = renderScreen();
-    unmount();
-    expect(unsub1).toHaveBeenCalledTimes(1);
-    expect(unsub2).toHaveBeenCalledTimes(1);
-    expect(unsub3).toHaveBeenCalledTimes(1);
+  it('fetches the points summary with the correct uid', async () => {
+    await renderScreen();
+    expect(mockGetUserPointsSummary).toHaveBeenCalledWith('test-uid');
   });
 });
 
@@ -258,68 +214,69 @@ describe('ProfileScreen — subscriptions', () => {
 describe('ProfileScreen — KAN-137: points hero card', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('shows TOTAL POINTS label', () => {
-    renderScreen();
+  it('shows TOTAL POINTS label', async () => {
+    await renderScreen();
     expect(screen.getByText('TOTAL POINTS')).toBeTruthy();
   });
 
-  it('shows POINTS & ACHIEVEMENTS section label', () => {
-    renderScreen();
+  it('shows POINTS & ACHIEVEMENTS section label', async () => {
+    await renderScreen();
     expect(screen.getByText('POINTS & ACHIEVEMENTS')).toBeTruthy();
   });
 
-  it('shows 0 points before subscription fires', () => {
-    renderScreen();
+  it('shows 0 points before the fetch resolves', () => {
+    mockGetUserPointsSummary.mockReturnValue(new Promise(() => {})); // never resolves
+    render(<ProfileScreen />);
     expect(screen.getByLabelText('0 points')).toBeTruthy();
   });
 
-  it('shows live point total when subscription fires', () => {
-    renderScreen();
-    firePoints(42);
+  it('shows the point total once the fetch resolves', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 42, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.getByLabelText('42 points')).toBeTruthy();
   });
 
-  it('shows "{toGo} pts to {name}" when not maxed', () => {
-    renderScreen();
-    firePoints(10);
+  it('shows "{toGo} pts to {name}" when not maxed', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 10, currentStreak: 0, achievements: {} });
+    await renderScreen();
     // 10 pts → toGo = 40, nextTier = Bronze
     expect(screen.getByText(/40 pts/)).toBeTruthy();
     expect(screen.getByText(/Bronze/)).toBeTruthy();
   });
 
-  it('shows "Top tier · {name}" when maxed', () => {
-    renderScreen();
-    firePoints(3000);
+  it('shows "Top tier · {name}" when maxed', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.getByText(/Top tier/)).toBeTruthy();
     expect(screen.getByText(/Vibranium/)).toBeTruthy();
   });
 
-  it('renders TierMedal with size 92', () => {
-    renderScreen();
+  it('renders TierMedal with size 92', async () => {
+    await renderScreen();
     expect(mockTierMedal).toHaveBeenCalledWith(
       expect.objectContaining({ size: 92 }),
     );
   });
 
-  it('passes earned=true and pct=null to TierMedal when maxed', () => {
-    renderScreen();
-    firePoints(3000);
+  it('passes earned=true and pct=null to TierMedal when maxed', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
+    await renderScreen();
     const lastCall = mockTierMedal.mock.calls[mockTierMedal.mock.calls.length - 1][0] as Record<string, unknown>;
     expect(lastCall.earned).toBe(true);
     expect(lastCall.pct).toBeNull();
   });
 
-  it('passes earned=false and numeric bandPct when not maxed', () => {
-    renderScreen();
-    firePoints(25);
+  it('passes earned=false and numeric bandPct when not maxed', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 25, currentStreak: 0, achievements: {} });
+    await renderScreen();
     // 25 pts → bandPct = 25/50 = 0.5
     const lastCall = mockTierMedal.mock.calls[mockTierMedal.mock.calls.length - 1][0] as Record<string, unknown>;
     expect(lastCall.earned).toBe(false);
     expect(typeof lastCall.pct).toBe('number');
   });
 
-  it('does not render old ring-based copy', () => {
-    renderScreen();
+  it('does not render old ring-based copy', async () => {
+    await renderScreen();
     expect(screen.queryByText(/earned through achievements/)).toBeNull();
     expect(screen.queryByText(/NEXT REWARD/)).toBeNull();
     expect(screen.queryByText(/badge$/)).toBeNull();
@@ -331,16 +288,16 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
 describe('ProfileScreen — KAN-137: streak chip', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('shows streak chip when streak > 0', () => {
-    renderScreen();
-    fireStreak(5);
+  it('shows streak chip when streak > 0', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 5, achievements: {} });
+    await renderScreen();
     expect(screen.getByText('5')).toBeTruthy();
     expect(screen.getByText(/-day streak/)).toBeTruthy();
   });
 
-  it('hides streak chip when streak is 0', () => {
-    renderScreen();
-    fireStreak(0);
+  it('hides streak chip when streak is 0', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.queryByText(/-day streak/)).toBeNull();
   });
 });
@@ -350,46 +307,46 @@ describe('ProfileScreen — KAN-137: streak chip', () => {
 describe('ProfileScreen — achievement medal strip', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('shows the Achievements header', () => {
-    renderScreen();
+  it('shows the Achievements header', async () => {
+    await renderScreen();
     expect(screen.getByText(/Achievements/)).toBeTruthy();
   });
 
-  it('shows "See all" button', () => {
-    renderScreen();
+  it('shows "See all" button', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('See all achievements')).toBeTruthy();
   });
 
-  it('"See all" navigates to Achievements screen', () => {
-    renderScreen();
+  it('"See all" navigates to Achievements screen', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('See all achievements'));
     expect(mockNavigate).toHaveBeenCalledWith('Achievements');
   });
 
-  it('shows 0/7 count when no achievements earned', () => {
-    renderScreen();
-    fireAchievements({});
+  it('shows 0/7 count when no achievements earned', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.getByText(/ · 0\/7/)).toBeTruthy();
   });
 
-  it('shows correct earned count when some achievements are earned', () => {
-    renderScreen();
-    fireAchievements({
-      day_complete: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
-      early_bird:   { earnCount: 2, progress: 2, target: 1, earnedAt: null },
+  it('shows correct earned count when some achievements are earned', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: {
+        first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      } as AchievementsMap,
     });
+    await renderScreen();
     expect(screen.getByText(/ · 2\/7/)).toBeTruthy();
   });
 
-  it('shows all 7 V1 catalogue labels in the medal strip', () => {
-    renderScreen();
-    expect(screen.getByText('First brush')).toBeTruthy();
-    expect(screen.getByText('Early bird')).toBeTruthy();
-    expect(screen.getByText('Day complete')).toBeTruthy();
-    expect(screen.getByText('On a roll')).toBeTruthy();
-    expect(screen.getByText('Explorer')).toBeTruthy();
-    expect(screen.getByText('Centurion')).toBeTruthy();
-    expect(screen.getByText('First to brush it away')).toBeTruthy();
+  it('shows all 7 V1 catalogue labels in the medal strip', async () => {
+    await renderScreen();
+    for (const def of ACHIEVEMENT_CATALOGUE) {
+      expect(screen.getByText(def.label)).toBeTruthy();
+    }
   });
 });
 
@@ -398,23 +355,23 @@ describe('ProfileScreen — achievement medal strip', () => {
 describe('ProfileScreen — navigation entries', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders "Share my profile" row', () => {
-    renderScreen();
+  it('renders "Share my profile" row', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Share my profile')).toBeTruthy();
   });
 
-  it('renders Settings entry row', () => {
-    renderScreen();
+  it('renders Settings entry row', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Settings')).toBeTruthy();
   });
 
-  it('renders "App & account" subtitle on Settings row', () => {
-    renderScreen();
+  it('renders "App & account" subtitle on Settings row', async () => {
+    await renderScreen();
     expect(screen.getByText('App & account')).toBeTruthy();
   });
 
-  it('navigates to Settings when Settings row is pressed', () => {
-    renderScreen();
+  it('navigates to Settings when Settings row is pressed', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Settings'));
     expect(mockNavigate).toHaveBeenCalledWith('Settings');
   });

@@ -52,6 +52,7 @@ import {
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
 import { todayISO } from '../utils/date';
+import { lightPalette } from '../theme/tokens';
 
 // ─── Timing constants ─────────────────────────────────────────────────────────
 
@@ -87,9 +88,12 @@ const ENTRANCE_EASING = Easing.bezier(0.2, 0.7,  0.3, 1);
 
 // ─── Design tokens (light only) ───────────────────────────────────────────────
 
-const SPLASH_BG     = '#fdfcfa';
-const SPLASH_TEXT   = '#1f1c16';
-const SPLASH_ACCENT = '#e8a86a';
+// Splash always renders in light mode — it appears before the user's theme
+// preference loads, matching the native (light) launch screen. Sourced from
+// lightPalette directly so it can't silently drift from the design tokens.
+const SPLASH_BG     = lightPalette.bg;
+const SPLASH_TEXT   = lightPalette.text;
+const SPLASH_ACCENT = lightPalette.accent;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
 // The iOS launch screen places content at screen.height * 1/3 from the top.

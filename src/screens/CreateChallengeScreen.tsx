@@ -30,7 +30,7 @@ import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, TrophyIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
-import { subscribeToFollowing, getUser } from '../services/firestore';
+import { getFollowing, getUser } from '../services/firestore';
 import { createChallenge } from '../services/challenges';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { FollowEntry } from '../types';
@@ -73,7 +73,9 @@ export default function CreateChallengeScreen() {
   const [showPicker,   setShowPicker]   = useState(false);
 
   // Step 3: friends
-  const [following,    setFollowing]    = useState<FollowEntry[]>([]);
+  const [following,        setFollowing]        = useState<FollowEntry[]>([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(true);
+  const [followingError,   setFollowingError]   = useState('');
   const [query,        setQuery]        = useState('');
   const [selected,     setSelected]     = useState<Set<string>>(new Set());
 
@@ -85,7 +87,15 @@ export default function CreateChallengeScreen() {
 
   useEffect(() => {
     if (!uid) { return; }
-    return subscribeToFollowing(uid, setFollowing);
+    setLoadingFollowing(true);
+    setFollowingError('');
+    getFollowing(uid)
+      .then(setFollowing)
+      .catch(err => {
+        console.warn('[CreateChallengeScreen] following error', err);
+        setFollowingError('Could not load your friends list. Check your connection.');
+      })
+      .finally(() => setLoadingFollowing(false));
   }, [uid]);
 
   const filtered = useMemo(() => {
@@ -325,44 +335,52 @@ export default function CreateChallengeScreen() {
                 accessibilityLabel="Search friends"
               />
             </View>
-            <FlatList
-              data={filtered}
-              keyExtractor={f => f.uid}
-              scrollEnabled={false}
-              renderItem={({ item }) => {
-                const isChecked = selected.has(item.uid);
-                return (
-                  <Pressable
-                    style={[styles.friendRow, { borderBottomColor: palette.line }]}
-                    onPress={() => setSelected(prev => {
-                      const next = new Set(prev);
-                      next.has(item.uid) ? next.delete(item.uid) : next.add(item.uid);
-                      return next;
-                    })}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: isChecked }}
-                    accessibilityLabel={item.displayName}>
-                    <Avatar photoURL={null} size={36} accessibilityLabel={item.displayName} />
-                    <View style={styles.friendText}>
-                      <Text style={[styles.friendName, { color: palette.text }]}>{item.displayName}</Text>
-                      {item.username ? (
-                        <Text style={[styles.friendHandle, { color: palette.muted }]}>@{item.username}</Text>
-                      ) : null}
-                    </View>
-                    <View style={[styles.checkbox,
-                      { borderColor: isChecked ? palette.text : palette.line },
-                      isChecked && { backgroundColor: palette.text }]}>
-                      {isChecked && <Text style={[styles.checkmark, { color: palette.bg }]}>✓</Text>}
-                    </View>
-                  </Pressable>
-                );
-              }}
-              ListEmptyComponent={
-                <Text style={[styles.emptyText, { color: palette.muted }]}>
-                  {following.length === 0 ? "You're not following anyone yet." : `No friends match "${query}".`}
-                </Text>
-              }
-            />
+            {loadingFollowing ? (
+              <ActivityIndicator color={palette.muted} accessibilityLabel="Loading friends" />
+            ) : followingError ? (
+              <Text style={[styles.emptyText, { color: '#e05252' }]} accessibilityRole="alert">
+                {followingError}
+              </Text>
+            ) : (
+              <FlatList
+                data={filtered}
+                keyExtractor={f => f.uid}
+                scrollEnabled={false}
+                renderItem={({ item }) => {
+                  const isChecked = selected.has(item.uid);
+                  return (
+                    <Pressable
+                      style={[styles.friendRow, { borderBottomColor: palette.line }]}
+                      onPress={() => setSelected(prev => {
+                        const next = new Set(prev);
+                        next.has(item.uid) ? next.delete(item.uid) : next.add(item.uid);
+                        return next;
+                      })}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: isChecked }}
+                      accessibilityLabel={item.displayName}>
+                      <Avatar photoURL={null} size={36} accessibilityLabel={item.displayName} />
+                      <View style={styles.friendText}>
+                        <Text style={[styles.friendName, { color: palette.text }]}>{item.displayName}</Text>
+                        {item.username ? (
+                          <Text style={[styles.friendHandle, { color: palette.muted }]}>@{item.username}</Text>
+                        ) : null}
+                      </View>
+                      <View style={[styles.checkbox,
+                        { borderColor: isChecked ? palette.text : palette.line },
+                        isChecked && { backgroundColor: palette.text }]}>
+                        {isChecked && <Text style={[styles.checkmark, { color: palette.bg }]}>✓</Text>}
+                      </View>
+                    </Pressable>
+                  );
+                }}
+                ListEmptyComponent={
+                  <Text style={[styles.emptyText, { color: palette.muted }]}>
+                    {following.length === 0 ? "You're not following anyone yet." : `No friends match "${query}".`}
+                  </Text>
+                }
+              />
+            )}
           </View>
         )}
 
@@ -400,7 +418,7 @@ export default function CreateChallengeScreen() {
             </View>
 
             {error ? (
-              <Text style={[styles.errorText, { color: '#e05252' }]}>{error}</Text>
+              <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
             ) : null}
           </View>
         )}
@@ -515,7 +533,7 @@ const styles = StyleSheet.create({
   },
   summaryLabel: { fontSize: 11, fontFamily: 'Geist-Medium', fontWeight: '500', letterSpacing: 0.5 },
   summaryLine:  { fontSize: 14, fontFamily: 'Geist-Regular' },
-  errorText:    { fontSize: 13, fontFamily: 'Geist-Regular', color: '#e05252' },
+  errorText:    { fontSize: 13, fontFamily: 'Geist-Regular' },
 
   // Sent screen
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: spacing.page },

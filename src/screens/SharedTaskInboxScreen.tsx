@@ -42,6 +42,7 @@ import {
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { SharedTask, InboxEntry } from '../types';
 import { COPY } from '../constants/copy';
+import { relativeTime, toDateSafe } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SharedTaskInbox'>;
 
@@ -53,22 +54,11 @@ type FeedItem =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function relativeTime(ts: { toDate(): Date } | null | undefined): string {
-  if (!ts) { return ''; }
-  const diff = Date.now() - ts.toDate().getTime();
-  const mins = Math.floor(diff / 60_000);
-  if (mins < 1)  { return 'just now'; }
-  if (mins < 60) { return `${mins}m ago`; }
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24)  { return `${hrs}h ago`; }
-  return `${Math.floor(hrs / 24)}d ago`;
-}
-
 function itemTimestamp(item: FeedItem): number {
   if (item.kind === 'follow') {
-    return item.data.createdAt?.toDate?.().getTime() ?? 0;
+    return toDateSafe(item.data.createdAt)?.getTime() ?? 0;
   }
-  return (item.data.sentAt as any)?.toDate?.().getTime() ?? 0;
+  return toDateSafe(item.data.sentAt)?.getTime() ?? 0;
 }
 
 // ─── Follow row ───────────────────────────────────────────────────────────────
@@ -208,7 +198,7 @@ function SharedTaskRow({
             {senderHandle ?? item.sentByName}
           </Text>
           <Text style={[styles.time, { color: palette.faint }]}>
-            {relativeTime(item.sentAt as any)}
+            {relativeTime(item.sentAt)}
           </Text>
         </View>
       </View>

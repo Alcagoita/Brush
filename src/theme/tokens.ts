@@ -26,6 +26,7 @@ export const lightPalette = {
   success:    '#4caf7d',   // accepted / positive status
   danger:     '#e05252',   // declined / error status
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
+  scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
 } as const;
 
 export const darkPalette = {
@@ -46,6 +47,7 @@ export const darkPalette = {
   success:    '#5fc090',   // accepted / positive status (brighter for dark bg)
   danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
+  scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
 } as const;
 
 export type Palette = {
@@ -66,6 +68,7 @@ export type Palette = {
   success: string;
   danger: string;
   onAccent: string;
+  scrim: string;
 };
 
 // ─── Category colors ──────────────────────────────────────────────────────────
@@ -78,6 +81,35 @@ export const categories = {
 } as const;
 
 export type CategoryKey = keyof typeof categories;
+
+/**
+ * Achievement tier badge colors (KAN-217). Fixed swatch set like `categories`
+ * above — tier identity colors don't vary between light/dark mode.
+ */
+export const tierColors = {
+  tin:        '#9b9690',
+  bronze:     '#b3793f',
+  silver:     '#7d93a4',
+  gold:       '#c0972d',
+  adamantium: '#5e788c',
+  vibranium:  '#7256a6',
+} as const;
+
+/**
+ * Fixed swatch set offered when a user creates a custom category (KAN-217).
+ * Unlike the themed palette, these represent user-chosen category identity
+ * colors — they don't vary between light/dark mode, same as `categories` above.
+ */
+export const categoryHues = [
+  '#d4855a', // oklch(0.66 0.13 30)
+  '#e8a86a', // oklch(0.66 0.13 70) — accent
+  '#5ba87a', // oklch(0.62 0.12 130)
+  '#5ba87a', // oklch(0.62 0.12 165)
+  '#5b8fa4', // oklch(0.62 0.12 215)
+  '#5b7fd4', // oklch(0.62 0.12 250)
+  '#8b6bc4', // oklch(0.62 0.12 305)
+  '#c45b7a', // oklch(0.62 0.12 350)
+] as const;
 
 // ─── Typography ───────────────────────────────────────────────────────────────
 

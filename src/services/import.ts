@@ -29,6 +29,9 @@ import { classifyPoi } from './poiLlm';
 
 // ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
 
+/** Per-import-batch memoization cache — see inferImportedPoi. */
+export type ImportPoiCache = Map<string, Promise<string | null>>;
+
 /**
  * Infer a POI type for an imported task title.
  *   1. Rule map (KAN-195) — instant, offline. Tried in both EN and pt-PT since
@@ -38,15 +41,41 @@ import { classifyPoi } from './poiLlm';
  *
  * Never throws: inference must never break or block an import. Returns a POI
  * type string (or a custom Places type from a learned category) or null.
+ *
+ * Pass a `cache` (create one `new Map()` per import connector call, see
+ * `_importFromGoogleTasks` etc.) to memoize repeated titles within that batch
+ * (e.g. recurring calendar events) — skips redundant rule-map lookups and,
+ * more importantly, redundant on-device classifier calls. The cache is scoped
+ * to a single import run rather than kept module-level: the rule-map
+ * dictionary is mutated at runtime whenever custom categories change
+ * (registerCategoryKeywords/replaceCategoryKeywords), so a longer-lived cache
+ * could keep returning a stale classification after the user renames/deletes
+ * a category. A failed lookup is never cached, so a transient classifier
+ * failure doesn't permanently poison a title for the rest of the batch.
  */
-export async function inferImportedPoi(title: string): Promise<string | null> {
-  try {
-    const rule = inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT');
-    if (rule) { return rule; }
-    return await classifyPoi(title, 'en');
-  } catch {
-    return null;
+export async function inferImportedPoi(
+  title: string,
+  cache?: ImportPoiCache,
+): Promise<string | null> {
+  const key = title.trim().toLowerCase();
+  if (cache) {
+    const cached = cache.get(key);
+    if (cached) { return cached; }
   }
+
+  const result = (async () => {
+    try {
+      const rule = inferPoiFromRules(title, 'en') ?? inferPoiFromRules(title, 'pt-PT');
+      if (rule) { return rule; }
+      return await classifyPoi(title, 'en');
+    } catch {
+      cache?.delete(key);
+      return null;
+    }
+  })();
+
+  cache?.set(key, result);
+  return result;
 }
 
 // ─── Timeout wrapper (KAN-92) ─────────────────────────────────────────────────
@@ -342,6 +371,7 @@ export async function importFromGoogleTasks(uid: string): Promise<ImportResult> 
 
 async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
+  const poiCache: ImportPoiCache = new Map();
 
   const existingTitles = await fetchExistingTitles(uid);
   const listsData = await googleFetch(GOOGLE_TASK_LISTS_URL) as { items?: GoogleTaskList[] };
@@ -368,7 +398,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
     try {
       const dueDate = parseGoogleDate(item.due);
       const description = toDescription(item.notes);
-      const poi = await inferImportedPoi(title);
+      const poi = await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('google_tasks', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -411,6 +441,7 @@ export async function importFromGoogleCalendar(uid: string): Promise<ImportResul
 
 async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
+  const poiCache: ImportPoiCache = new Map();
   const now = new Date();
 
   const existingTitles = await fetchExistingTitles(uid);
@@ -439,7 +470,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.description, { html: true });
-      const poi = await inferImportedPoi(title);
+      const poi = await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -506,6 +537,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
   }
 
   const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
+  const poiCache: ImportPoiCache = new Map();
   const existingTitles = await fetchExistingTitles(uid);
   const batch = firestore().batch();
   const tasksRef = firestore().collection('users').doc(uid).collection('tasks');
@@ -518,7 +550,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
     try {
       const dueDate = item.dueDateString ? new Date(item.dueDateString) : null;
       const description = toDescription(item.notes);
-      const poi = await inferImportedPoi(title);
+      const poi = await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_reminders', title));
       batch.set(docRef, {
         id:        docRef.id,
@@ -567,6 +599,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
   }
 
   const result: ImportResult = { imported: 0, skipped: 0, failed: 0, cancelled: 0 };
+  const poiCache: ImportPoiCache = new Map();
   const now = new Date();
   const existingTitles = await fetchExistingTitles(uid);
   const batch = firestore().batch();
@@ -583,7 +616,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.notes);
-      const poi = await inferImportedPoi(title);
+      const poi = await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,

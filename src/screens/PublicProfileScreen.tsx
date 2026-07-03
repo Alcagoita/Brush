@@ -42,13 +42,15 @@ import {
 } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Achievement, User } from '../types';
+import { toDateSafe } from '../utils/date';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'PublicProfile'>;
 type Route = RouteProp<RootStackParamList, 'PublicProfile'>;
 
-function formatTimestamp(ts: { seconds: number; nanoseconds: number } | undefined): string {
-  if (!ts) { return ''; }
-  return new Date(ts.seconds * 1000).toLocaleDateString('en-GB', {
+function formatTimestamp(ts: Achievement['earnedAt'] | undefined): string {
+  const date = toDateSafe(ts);
+  if (!date) { return ''; }
+  return date.toLocaleDateString('en-GB', {
     day:   'numeric',
     month: 'short',
     year:  'numeric',
@@ -282,7 +284,7 @@ export default function PublicProfileScreen() {
           <View style={achievementsGridStyle}>
             {ACHIEVEMENT_CATALOGUE.map(def => {
               const earned   = earnedMap[def.type];
-              const earnedAt = earned ? formatTimestamp(earned.earnedAt as any) : undefined;
+              const earnedAt = earned ? formatTimestamp(earned.earnedAt) : undefined;
               return (
                 <AchievementTile
                   key={def.type}

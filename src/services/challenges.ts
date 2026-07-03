@@ -21,11 +21,11 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  increment,
   Timestamp,
 } from '@react-native-firebase/firestore';
 import type { Challenge, ChallengeParticipant, FollowEntry } from '../types';
 import { awardChallengeWinnerAchievement } from './achievements';
-import { COPY } from '../constants/copy';
 
 // ─── Ref helpers ──────────────────────────────────────────────────────────────
 
@@ -35,11 +35,6 @@ export function challengeRef(challengeId: string) {
 
 function challengesRef() {
   return collection(getFirestore(), 'challenges');
-}
-
-// Pending notifications — same path as sharing.ts for consistent delivery.
-function pendingNotifRef(uid: string) {
-  return collection(getFirestore(), 'pendingNotifications', uid, 'items');
 }
 
 // ─── createChallenge (KAN-102) ────────────────────────────────────────────────
@@ -56,8 +51,9 @@ export interface CreateChallengeParams {
 }
 
 /**
- * Creates the challenge document and sends a pending notification to each
- * participant so their device can trigger a local notifee alert.
+ * Creates the challenge document. The invite notification to each
+ * non-creator participant is sent server-side by the onChallengeNotifications
+ * Cloud Function (KAN-221), triggered off this document's creation.
  *
  * Returns the new challenge ID.
  */
@@ -105,34 +101,13 @@ export async function createChallenge(params: CreateChallengeParams): Promise<st
   };
 
   const ref = await addDoc(challengesRef(), challengeDoc);
-  const challengeId = ref.id;
 
-  // Notify each non-creator participant via pendingNotifications.
-  const typeLabel = type === 'goal'
-    ? COPY.challenge.goalTypeLabel(goalCount ?? 0)
-    : `Most tasks by deadline`;
+  // The pendingNotification invite for each non-creator participant is
+  // written server-side by the onChallengeNotifications Cloud Function
+  // (KAN-221), triggered off this document's creation — the client no
+  // longer writes directly to another user's pendingNotifications mailbox.
 
-  const challengerHandle = creatorUsername ? `@${creatorUsername}` : creatorName;
-  const notifTitle = COPY.challenge.inviteTitle(challengerHandle, typeLabel);
-
-  await Promise.allSettled(
-    participants.map(p =>
-      addDoc(pendingNotifRef(p.uid), {
-        type:      'challenge_invite',
-        sentBy:    creatorUid,
-        title:     notifTitle,
-        body:      message ?? typeLabel,
-        data: {
-          type:        'challenge_invite',
-          challengeId,
-          screen:      'ChallengeDetail',
-        },
-        createdAt: serverTimestamp(),
-      }),
-    ),
-  );
-
-  return challengeId;
+  return ref.id;
 }
 
 // ─── subscribeToChallenge (KAN-103) ──────────────────────────────────────────
@@ -207,44 +182,20 @@ export async function incrementCompletedCount(
   uid: string,
   challenge: Challenge,
 ): Promise<boolean> {
-  const db = getFirestore();
-  const { increment: inc } = await import('@react-native-firebase/firestore');
-
   const newCount = (challenge.participants[uid]?.completedCount ?? 0) + 1;
   const isGoalMet = challenge.type === 'goal' && newCount >= (challenge.goalCount ?? Infinity);
 
   if (isGoalMet) {
     // Atomic: increment count + mark winner + close challenge.
     await updateDoc(challengeRef(challengeId), {
-      [`participants.${uid}.completedCount`]: inc(1),
+      [`participants.${uid}.completedCount`]: increment(1),
       [`participants.${uid}.won`]:            true,
       status:                                 'completed',
     });
 
-    // Notify other participants.
-    const winner = challenge.participants[uid];
-    const winnerHandle = winner?.username ? `@${winner.username}` : (winner?.displayName ?? 'Someone');
-    const others = Object.entries(challenge.participants)
-      .filter(([pUid]) => pUid !== uid)
-      .map(([, p]) => p);
-
-    await Promise.allSettled(
-      Object.entries(challenge.participants)
-        .filter(([pUid]) => pUid !== uid)
-        .map(([pUid]) =>
-          addDoc(
-            collection(db, 'pendingNotifications', pUid, 'items'),
-            {
-              type:      'challenge_ended',
-              sentBy:    uid,
-              title:     `${winnerHandle} won the challenge!`,
-              body:      'Better luck next time.',
-              data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
-              createdAt: serverTimestamp(),
-            },
-          ),
-        ),
-    );
+    // The pendingNotification for every other participant (challenge_ended)
+    // is written server-side by the onChallengeNotifications Cloud Function
+    // (KAN-221), triggered off the `won` flag flip above.
 
     // Award winner achievement + bonus points (KAN-104) — fire-and-forget.
     awardChallengeWinnerAchievement(uid, challengeId).catch(err =>
@@ -255,7 +206,7 @@ export async function incrementCompletedCount(
   }
 
   await updateDoc(challengeRef(challengeId), {
-    [`participants.${uid}.completedCount`]: inc(1),
+    [`participants.${uid}.completedCount`]: increment(1),
   });
   return false;
 }
@@ -267,9 +218,7 @@ export async function incrementCompletedCount(
 export async function resolveTimeBasedChallenge(
   challengeId: string,
   challenge: Challenge,
-  callerUid: string,
 ): Promise<void> {
-  const db = getFirestore();
   const entries = Object.entries(challenge.participants);
   if (entries.length === 0) { return; }
 
@@ -283,24 +232,10 @@ export async function resolveTimeBasedChallenge(
 
   await updateDoc(challengeRef(challengeId), updates);
 
-  // Notify all participants.
-  const winner = challenge.participants[winnerUid];
-  const winnerHandle = winner?.username ? `@${winner.username}` : (winner?.displayName ?? 'Someone');
-  await Promise.allSettled(
-    entries.map(([pUid]) =>
-      addDoc(
-        collection(db, 'pendingNotifications', pUid, 'items'),
-        {
-          type:      pUid === winnerUid ? 'challenge_won' : 'challenge_ended',
-          sentBy:    callerUid,
-          title:     pUid === winnerUid ? COPY.achievement.challengeWonNotifTitle : `${winnerHandle} won the challenge!`,
-          body:      pUid === winnerUid ? COPY.achievement.challengeWonBody : COPY.achievement.challengeEndedBody,
-          data:      { type: 'challenge_ended', challengeId, screen: 'ChallengeDetail' },
-          createdAt: serverTimestamp(),
-        },
-      ),
-    ),
-  );
+  // The pendingNotification for the winner (challenge_won) and every other
+  // participant (challenge_ended) is written server-side by the
+  // onChallengeNotifications Cloud Function (KAN-221), triggered off the
+  // `won` flag flip above.
 
   // Award winner achievement + bonus points (KAN-104) — fire-and-forget.
   awardChallengeWinnerAchievement(winnerUid, challengeId).catch(err =>

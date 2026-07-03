@@ -33,6 +33,7 @@ import {
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Challenge, ChallengeParticipant } from '../types';
 import { COPY } from '../constants/copy';
+import { toDateSafe } from '../utils/date';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'ChallengeDetail'>;
 type Route = RouteProp<RootStackParamList, 'ChallengeDetail'>;
@@ -40,8 +41,8 @@ type Route = RouteProp<RootStackParamList, 'ChallengeDetail'>;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDeadline(ts: Challenge['deadline']): string {
-  if (!ts) { return ''; }
-  const d = (ts as any).toDate?.() ?? new Date((ts as any)._seconds * 1000);
+  const d = toDateSafe(ts);
+  if (!d) { return ''; }
   return d.toLocaleDateString() + ' · ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 

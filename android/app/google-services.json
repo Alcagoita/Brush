@@ -1,37 +1,53 @@
 {
   "project_info": {
-    "project_number": "517474028701",
-    "project_id": "brush-away-dev",
-    "storage_bucket": "brush-away-dev.firebasestorage.app"
+    "project_number": "187550770253",
+    "project_id": "brush-away",
+    "storage_bucket": "brush-away.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:517474028701:android:dfb4e674cd114538e41874",
+        "mobilesdk_app_id": "1:187550770253:android:439283eb536d33c835e804",
         "android_client_info": {
           "package_name": "com.brush"
         }
       },
       "oauth_client": [
         {
-          "client_id": "517474028701-jusmq6u93q0otivlq2lssktjctuttjgv.apps.googleusercontent.com",
+          "client_id": "187550770253-4a77p49jr32211jft6uum99pvlq1mcs1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brush",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "187550770253-jilqvpts7nqce2fvfjqnnoscpvs9hi45.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.brush",
+            "certificate_hash": "064be34edf5d85e81acaf6a058bd1f6808f30b63"
+          }
+        },
+        {
+          "client_id": "187550770253-p3bb919dl616s1phbl4dj8v1spbtk753.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDoL4nVALygrnKK6qs4aSqhwNWsrGnk0cw"
+          "current_key": "AIzaSyDmWqHQRghQ5JYuXZzfQdMzS4WggpcDyRc"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "517474028701-jusmq6u93q0otivlq2lssktjctuttjgv.apps.googleusercontent.com",
+              "client_id": "187550770253-p3bb919dl616s1phbl4dj8v1spbtk753.apps.googleusercontent.com",
               "client_type": 3
             },
             {
-              "client_id": "517474028701-abitqmd8gc4oku00a87bcljeof0pojpn.apps.googleusercontent.com",
+              "client_id": "187550770253-r6n7fp43s242srp6ek3i7ti8aggdond4.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
                 "bundle_id": "com.brush"

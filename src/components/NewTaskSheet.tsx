@@ -270,7 +270,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           pointerEvents="box-none">
 
           <Animated.View
-            style={[styles.sheet, { backgroundColor: palette.bg }, sheetStyle]}>
+            style={[styles.sheet, { backgroundColor: palette.bg, borderTopColor: palette.line }, sheetStyle]}>
 
             {/* Drag handle */}
             <View style={styles.handleWrap} {...panResponder.panHandlers}>
@@ -488,11 +488,9 @@ const styles = StyleSheet.create({
     borderTopLeftRadius:  24,
     borderTopRightRadius: 24,
     maxHeight:            '90%',
-    shadowColor:   '#000',
-    shadowOffset:  { width: 0, height: -8 },
-    shadowOpacity: 0.12,
-    shadowRadius:  24,
-    elevation:     24,
+    // No drop shadows (design spec) — a top border separates the sheet from
+    // the scrim behind it instead. Color applied at the call site.
+    borderTopWidth: StyleSheet.hairlineWidth,
   },
   handleWrap: {
     alignItems:    'center',

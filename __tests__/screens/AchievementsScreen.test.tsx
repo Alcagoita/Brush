@@ -14,12 +14,10 @@ import type { AchievementsMap } from '../../src/types';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeToTotalPoints  = jest.fn();
-const mockSubscribeToAchievements = jest.fn();
+const mockGetUserPointsSummary = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeToTotalPoints:  (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
-  subscribeToAchievements: (...args: unknown[]) => mockSubscribeToAchievements(...args),
+  getUserPointsSummary: (...args: unknown[]) => mockGetUserPointsSummary(...args),
 }));
 
 jest.mock('../../src/services/achievements', () => ({
@@ -55,9 +53,14 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 }));
 
 const mockGoBack = jest.fn();
-jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ goBack: mockGoBack }),
-}));
+jest.mock('@react-navigation/native', () => {
+  const actualReact = require('react');
+  return {
+    useNavigation: () => ({ goBack: mockGoBack }),
+    // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
+    useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
+  };
+});
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
@@ -107,25 +110,15 @@ import AchievementsScreen from '../../src/screens/AchievementsScreen';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const noopUnsub = jest.fn();
-
 function setupDefaultMocks() {
-  mockSubscribeToTotalPoints.mockReturnValue(noopUnsub);
-  mockSubscribeToAchievements.mockReturnValue(noopUnsub);
+  mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
 }
 
-function firePoints(value: number) {
-  const call = mockSubscribeToTotalPoints.mock.calls[0];
-  if (call) { act(() => { call[1](value); }); }
-}
-
-function fireAchievements(map: AchievementsMap) {
-  const call = mockSubscribeToAchievements.mock.calls[0];
-  if (call) { act(() => { call[1](map); }); }
-}
-
-function renderScreen() {
-  return render(<AchievementsScreen />);
+/** Renders the screen and flushes the one-shot getUserPointsSummary fetch (KAN-218). */
+async function renderScreen() {
+  const utils = render(<AchievementsScreen />);
+  await act(async () => {});
+  return utils;
 }
 
 beforeEach(() => {
@@ -136,82 +129,63 @@ beforeEach(() => {
 // ─── Basic render ─────────────────────────────────────────────────────────────
 
 describe('AchievementsScreen — basic render', () => {
-  it('renders without crashing', () => {
-    renderScreen();
+  it('renders without crashing', async () => {
+    await renderScreen();
     expect(screen.getByText('Achievements')).toBeTruthy();
   });
 
-  it('renders the back button', () => {
-    renderScreen();
+  it('renders the back button', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Back')).toBeTruthy();
   });
 });
 
-// ─── Subscriptions ────────────────────────────────────────────────────────────
+// ─── One-shot fetch (KAN-218) ─────────────────────────────────────────────────
 
-describe('AchievementsScreen — subscriptions', () => {
-  it('subscribes to totalPoints with the correct uid', () => {
-    renderScreen();
-    expect(mockSubscribeToTotalPoints).toHaveBeenCalledWith(
-      'test-uid', expect.any(Function), expect.any(Function),
-    );
-  });
-
-  it('subscribes to achievements with the correct uid', () => {
-    renderScreen();
-    expect(mockSubscribeToAchievements).toHaveBeenCalledWith(
-      'test-uid', expect.any(Function), expect.any(Function),
-    );
-  });
-
-  it('cleans up both subscriptions on unmount', () => {
-    const unsub1 = jest.fn();
-    const unsub2 = jest.fn();
-    mockSubscribeToTotalPoints.mockReturnValue(unsub1);
-    mockSubscribeToAchievements.mockReturnValue(unsub2);
-    const { unmount } = renderScreen();
-    unmount();
-    expect(unsub1).toHaveBeenCalledTimes(1);
-    expect(unsub2).toHaveBeenCalledTimes(1);
+describe('AchievementsScreen — one-shot fetch (KAN-218)', () => {
+  it('fetches the points summary with the correct uid', async () => {
+    await renderScreen();
+    expect(mockGetUserPointsSummary).toHaveBeenCalledWith('test-uid');
   });
 });
 
 // ─── Tier header card (KAN-136) ───────────────────────────────────────────────
 
 describe('AchievementsScreen — KAN-136: tier header card', () => {
-  it('shows TOTAL POINTS label', () => {
-    renderScreen();
+  it('shows TOTAL POINTS label', async () => {
+    await renderScreen();
     expect(screen.getByText('TOTAL POINTS')).toBeTruthy();
   });
 
-  it('shows "points earned so far" caption', () => {
-    renderScreen();
+  it('shows "points earned so far" caption', async () => {
+    await renderScreen();
     expect(screen.getByText('points earned so far')).toBeTruthy();
   });
 
-  it('shows 0 before subscription fires', () => {
-    renderScreen();
+  it('shows 0 before the fetch resolves', () => {
+    mockGetUserPointsSummary.mockReturnValue(new Promise(() => {})); // never resolves
+    render(<AchievementsScreen />);
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows live point total when subscription fires', () => {
-    renderScreen();
-    firePoints(42);
+  it('shows the point total once the fetch resolves', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 42, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.getAllByText('42').length).toBeGreaterThanOrEqual(1);
   });
 
-  it('shows "Tin · Bronze is on its way" when not maxed (KAN-150: no countdown)', () => {
-    renderScreen();
-    firePoints(10);
+  it('shows "Tin · Bronze is on its way" when not maxed (KAN-150: no countdown)', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 10, currentStreak: 0, achievements: {} });
+    await renderScreen();
     // 10 pts → curTier = Tin, nextTier = Bronze
     expect(screen.getByText(/Tin/)).toBeTruthy();
     expect(screen.getByText(/Bronze is on its way/)).toBeTruthy();
     expect(screen.queryByText(/pts to/)).toBeNull(); // no countdown number
   });
 
-  it('shows "Top tier · {name}" when maxed', () => {
-    renderScreen();
-    firePoints(3000);
+  it('shows "Top tier · {name}" when maxed', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.getByText(/Top tier/)).toBeTruthy();
     expect(screen.getByText(/Vibranium/)).toBeTruthy();
   });
@@ -220,8 +194,8 @@ describe('AchievementsScreen — KAN-136: tier header card', () => {
 // ─── Achievement gallery — sections (KAN-136) ─────────────────────────────────
 
 describe('AchievementsScreen — KAN-136: achievement sections', () => {
-  it('shows all Tin-tier catalogue labels (KAN-150)', () => {
-    renderScreen();
+  it('shows all Tin-tier catalogue labels (KAN-150)', async () => {
+    await renderScreen();
     expect(screen.getByText('Off your mind')).toBeTruthy();
     expect(screen.getByText('First brush')).toBeTruthy();
     expect(screen.getByText('Right place, right time')).toBeTruthy();
@@ -231,34 +205,38 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
     expect(screen.getByText('First to brush it away')).toBeTruthy();
   });
 
-  it('shows LOCKED · N section when no achievements earned', () => {
-    renderScreen();
-    fireAchievements({});
+  it('shows LOCKED · N section when no achievements earned', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.getByText(/LOCKED · 7/)).toBeTruthy();
   });
 
-  it('shows EARNED · N section after earning some', () => {
-    renderScreen();
-    fireAchievements({
-      first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
-      first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+  it('shows EARNED · N section after earning some', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: {
+        first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      },
     });
+    await renderScreen();
     expect(screen.getByText(/EARNED · 2/)).toBeTruthy();
     expect(screen.getByText(/LOCKED · 5/)).toBeTruthy();
   });
 
-  it('hides EARNED section when nothing earned', () => {
-    renderScreen();
-    fireAchievements({});
+  it('hides EARNED section when nothing earned', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
+    await renderScreen();
     expect(screen.queryByText(/EARNED ·/)).toBeNull();
   });
 
-  it('hides LOCKED section when everything earned', () => {
-    renderScreen();
+  it('hides LOCKED section when everything earned', async () => {
     const allEarned: AchievementsMap = {};
     const keys: (keyof AchievementsMap)[] = ['first_task', 'first_brush', 'right_place', 'worth_wait', 'custom_cat', 'out_about', 'challenge_winner'];
     keys.forEach(t => { allEarned[t] = { earnCount: 1, progress: 1, target: 1, earnedAt: null }; });
-    fireAchievements(allEarned);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: allEarned });
+    await renderScreen();
     expect(screen.queryByText(/LOCKED ·/)).toBeNull();
   });
 });
@@ -266,17 +244,19 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
 // ─── Achievement cards ────────────────────────────────────────────────────────
 
 describe('AchievementsScreen — achievement cards', () => {
-  it('shows "pts earned" badge for earned achievements', () => {
-    renderScreen();
-    fireAchievements({
-      first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+  it('shows "pts earned" badge for earned achievements', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: { first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null } },
     });
+    await renderScreen();
     expect(screen.getByText(/10 pts earned/)).toBeTruthy();
   });
 
-  it('shows "pts available" badge for locked achievements (5pt entries)', () => {
-    renderScreen();
-    fireAchievements({});
+  it('shows "pts available" badge for locked achievements (5pt entries)', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
+    await renderScreen();
     const matches = screen.getAllByText(/pts available/);
     const fivePt = matches.filter(el => el.props.children === '5 pts available');
     expect(fivePt.length).toBeGreaterThanOrEqual(1); // first_task and custom_cat are 5 pts each
@@ -286,19 +266,21 @@ describe('AchievementsScreen — achievement cards', () => {
 // ─── Tin-tier anti-guilt design (KAN-150) ────────────────────────────────────
 
 describe('AchievementsScreen — KAN-150: anti-guilt design', () => {
-  it('locked cards do not show a progress bar (surprises, not quests)', () => {
-    renderScreen();
-    fireAchievements({});
+  it('locked cards do not show a progress bar (surprises, not quests)', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
+    await renderScreen();
     // out_about is the only multi-step Tin achievement (target 3);
     // its progress bar should be absent while locked.
     expect(screen.queryByText(/\/3/)).toBeNull();
   });
 
-  it('earned out_about card shows progress fraction', () => {
-    renderScreen();
-    fireAchievements({
-      out_about: { earnCount: 1, progress: 3, target: 3, earnedAt: null },
+  it('earned out_about card shows progress fraction', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: { out_about: { earnCount: 1, progress: 3, target: 3, earnedAt: null } },
     });
+    await renderScreen();
     // progress fraction rendered as "3" + "/" + "3" in two sibling Text nodes
     expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(2);
   });
