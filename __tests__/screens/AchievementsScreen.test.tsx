@@ -14,12 +14,10 @@ import type { AchievementsMap } from '../../src/types';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockGetTotalPoints  = jest.fn();
-const mockGetAchievements = jest.fn();
+const mockGetUserPointsSummary = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  getTotalPoints:  (...args: unknown[]) => mockGetTotalPoints(...args),
-  getAchievements: (...args: unknown[]) => mockGetAchievements(...args),
+  getUserPointsSummary: (...args: unknown[]) => mockGetUserPointsSummary(...args),
 }));
 
 jest.mock('../../src/services/achievements', () => ({
@@ -113,11 +111,10 @@ import AchievementsScreen from '../../src/screens/AchievementsScreen';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function setupDefaultMocks() {
-  mockGetTotalPoints.mockResolvedValue(0);
-  mockGetAchievements.mockResolvedValue({});
+  mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
 }
 
-/** Renders the screen and flushes the one-shot getTotalPoints/getAchievements fetches (KAN-218). */
+/** Renders the screen and flushes the one-shot getUserPointsSummary fetch (KAN-218). */
 async function renderScreen() {
   const utils = render(<AchievementsScreen />);
   await act(async () => {});
@@ -146,14 +143,9 @@ describe('AchievementsScreen — basic render', () => {
 // ─── One-shot fetch (KAN-218) ─────────────────────────────────────────────────
 
 describe('AchievementsScreen — one-shot fetch (KAN-218)', () => {
-  it('fetches totalPoints with the correct uid', async () => {
+  it('fetches the points summary with the correct uid', async () => {
     await renderScreen();
-    expect(mockGetTotalPoints).toHaveBeenCalledWith('test-uid');
-  });
-
-  it('fetches achievements with the correct uid', async () => {
-    await renderScreen();
-    expect(mockGetAchievements).toHaveBeenCalledWith('test-uid');
+    expect(mockGetUserPointsSummary).toHaveBeenCalledWith('test-uid');
   });
 });
 
@@ -171,19 +163,19 @@ describe('AchievementsScreen — KAN-136: tier header card', () => {
   });
 
   it('shows 0 before the fetch resolves', () => {
-    mockGetTotalPoints.mockReturnValue(new Promise(() => {})); // never resolves
+    mockGetUserPointsSummary.mockReturnValue(new Promise(() => {})); // never resolves
     render(<AchievementsScreen />);
     expect(screen.getAllByText('0').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows the point total once the fetch resolves', async () => {
-    mockGetTotalPoints.mockResolvedValue(42);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 42, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.getAllByText('42').length).toBeGreaterThanOrEqual(1);
   });
 
   it('shows "Tin · Bronze is on its way" when not maxed (KAN-150: no countdown)', async () => {
-    mockGetTotalPoints.mockResolvedValue(10);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 10, currentStreak: 0, achievements: {} });
     await renderScreen();
     // 10 pts → curTier = Tin, nextTier = Bronze
     expect(screen.getByText(/Tin/)).toBeTruthy();
@@ -192,7 +184,7 @@ describe('AchievementsScreen — KAN-136: tier header card', () => {
   });
 
   it('shows "Top tier · {name}" when maxed', async () => {
-    mockGetTotalPoints.mockResolvedValue(3000);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.getByText(/Top tier/)).toBeTruthy();
     expect(screen.getByText(/Vibranium/)).toBeTruthy();
@@ -214,15 +206,19 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
   });
 
   it('shows LOCKED · N section when no achievements earned', async () => {
-    mockGetAchievements.mockResolvedValue({});
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.getByText(/LOCKED · 7/)).toBeTruthy();
   });
 
   it('shows EARNED · N section after earning some', async () => {
-    mockGetAchievements.mockResolvedValue({
-      first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
-      first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: {
+        first_task:  { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      },
     });
     await renderScreen();
     expect(screen.getByText(/EARNED · 2/)).toBeTruthy();
@@ -230,7 +226,7 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
   });
 
   it('hides EARNED section when nothing earned', async () => {
-    mockGetAchievements.mockResolvedValue({});
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.queryByText(/EARNED ·/)).toBeNull();
   });
@@ -239,7 +235,7 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
     const allEarned: AchievementsMap = {};
     const keys: (keyof AchievementsMap)[] = ['first_task', 'first_brush', 'right_place', 'worth_wait', 'custom_cat', 'out_about', 'challenge_winner'];
     keys.forEach(t => { allEarned[t] = { earnCount: 1, progress: 1, target: 1, earnedAt: null }; });
-    mockGetAchievements.mockResolvedValue(allEarned);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: allEarned });
     await renderScreen();
     expect(screen.queryByText(/LOCKED ·/)).toBeNull();
   });
@@ -249,15 +245,17 @@ describe('AchievementsScreen — KAN-136: achievement sections', () => {
 
 describe('AchievementsScreen — achievement cards', () => {
   it('shows "pts earned" badge for earned achievements', async () => {
-    mockGetAchievements.mockResolvedValue({
-      first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: { first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null } },
     });
     await renderScreen();
     expect(screen.getByText(/10 pts earned/)).toBeTruthy();
   });
 
   it('shows "pts available" badge for locked achievements (5pt entries)', async () => {
-    mockGetAchievements.mockResolvedValue({});
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
     await renderScreen();
     const matches = screen.getAllByText(/pts available/);
     const fivePt = matches.filter(el => el.props.children === '5 pts available');
@@ -269,7 +267,7 @@ describe('AchievementsScreen — achievement cards', () => {
 
 describe('AchievementsScreen — KAN-150: anti-guilt design', () => {
   it('locked cards do not show a progress bar (surprises, not quests)', async () => {
-    mockGetAchievements.mockResolvedValue({});
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
     await renderScreen();
     // out_about is the only multi-step Tin achievement (target 3);
     // its progress bar should be absent while locked.
@@ -277,8 +275,10 @@ describe('AchievementsScreen — KAN-150: anti-guilt design', () => {
   });
 
   it('earned out_about card shows progress fraction', async () => {
-    mockGetAchievements.mockResolvedValue({
-      out_about: { earnCount: 1, progress: 3, target: 3, earnedAt: null },
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: { out_about: { earnCount: 1, progress: 3, target: 3, earnedAt: null } },
     });
     await renderScreen();
     // progress fraction rendered as "3" + "/" + "3" in two sibling Text nodes

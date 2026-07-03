@@ -330,6 +330,23 @@ export async function getAchievements(uid: string): Promise<AchievementsMap> {
 }
 
 /**
+ * Read totalPoints, currentStreak, and achievements in a single getDoc
+ * (KAN-223 — avoids ProfileScreen/AchievementsScreen tripling the read on
+ * /users/{uid} by calling getTotalPoints/getCurrentStreak/getAchievements separately).
+ */
+export async function getUserPointsSummary(
+  uid: string,
+): Promise<{ totalPoints: number; currentStreak: number; achievements: AchievementsMap }> {
+  const snap = await getDoc(userRef(uid));
+  const data = snap.data() as User | undefined;
+  return {
+    totalPoints: data?.totalPoints ?? 0,
+    currentStreak: data?.currentStreak ?? 0,
+    achievements: (data?.achievements ?? {}) as AchievementsMap,
+  };
+}
+
+/**
  * One-time fetch of any user's earned achievements, newest first.
  * Used to read a friend's achievements for the comparison view (KAN-105).
  * Firestore rules allow any authenticated user to read achievements.

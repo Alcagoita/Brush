@@ -22,8 +22,7 @@ import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import {
-  getTotalPoints,
-  getAchievements,
+  getUserPointsSummary,
 } from '../services/firestore';
 import { ACHIEVEMENT_DEFS } from '../services/achievements';
 import { deriveTierStanding } from '../constants/tiers';
@@ -196,8 +195,10 @@ export default function AchievementsScreen() {
   // earning points/achievements shows current data (KAN-218).
   useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    getTotalPoints(uid).then(setTotalPoints).catch(err => console.warn('[AchievementsScreen] points', err));
-    getAchievements(uid).then(setAchievementsMap).catch(err => console.warn('[AchievementsScreen] achievements', err));
+    getUserPointsSummary(uid).then(({ totalPoints: tp, achievements: ach }) => {
+      setTotalPoints(tp);
+      setAchievementsMap(ach);
+    }).catch(err => console.warn('[AchievementsScreen] points summary', err));
   }, [uid]));
 
   // ── Tier standing ─────────────────────────────────────────────────────────────
