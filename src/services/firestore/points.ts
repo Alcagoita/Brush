@@ -337,6 +337,10 @@ export async function getAchievements(uid: string): Promise<AchievementsMap> {
 export async function getUserPointsSummary(
   uid: string,
 ): Promise<{ totalPoints: number; currentStreak: number; achievements: AchievementsMap }> {
+  if (getAuth().currentUser?.uid !== uid) {
+    throw new Error('getUserPointsSummary: uid must match the authenticated user');
+  }
+
   const snap = await getDoc(userRef(uid));
   const data = snap.data() as User | undefined;
   return {
