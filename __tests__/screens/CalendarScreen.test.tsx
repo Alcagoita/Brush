@@ -235,11 +235,11 @@ describe('CalendarScreen', () => {
     const iso = now.toISOString().slice(0, 10);
 
     mockGetAchievements.mockResolvedValue({
-      early_bird: { earnedAt: fakeTimestamp(iso), earnCount: 1, progress: 1, target: 1 },
+      first_brush: { earnedAt: fakeTimestamp(iso), earnCount: 1, progress: 1, target: 1 },
     });
 
     await renderScreen();
-    expect(screen.getByText('Early bird · unlocked')).toBeTruthy();
+    expect(screen.getByText('First brush · unlocked')).toBeTruthy();
   });
 
   it('renders an "Open today" CTA only when today is selected', async () => {
