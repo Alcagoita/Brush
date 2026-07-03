@@ -25,11 +25,13 @@
  *   getAchievements (KAN-218)
  *     - returns {} when the user doc has no achievements field
  *     - returns the achievements map as stored
- *   getPointsHistory (KAN-218)
- *     - returns an empty array when the collection is empty
+ *   getPointsHistory (KAN-218, cursor pagination KAN-222)
+ *     - returns an empty page when the collection is empty
  *     - maps documents to PointsHistoryEntry objects (includes doc id)
- *     - deduplicates legacy entries — keeps only the latest entry per taskId
+ *     - deduplicates legacy entries within a page — keeps only the latest entry per taskId
  *     - does not collapse non-task entries that share taskId=""
+ *     - returns a nextCursor (last doc) when the page is full, null otherwise
+ *     - passes the cursor to startAfter when fetching a subsequent page
  */
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
@@ -81,6 +83,8 @@ jest.mock('@react-native-firebase/firestore', () => ({
   query:           jest.fn((...a: unknown[]) => a[0]),
   where:           jest.fn(),
   orderBy:         jest.fn(),
+  limit:           jest.fn((n: number) => ({ _limit: n })),
+  startAfter:      jest.fn((cursor: unknown) => ({ _startAfter: cursor })),
   serverTimestamp: () => mockServerTimestamp(),
   increment:       (n: number) => mockIncrement(n),
   Timestamp:       {},
@@ -309,50 +313,51 @@ describe('getAchievements', () => {
   });
 });
 
-// ─── getPointsHistory (KAN-218) ───────────────────────────────────────────────
+// ─── getPointsHistory (KAN-218, cursor pagination KAN-222) ───────────────────
 
 describe('getPointsHistory', () => {
-  it('returns an empty array when the collection is empty', async () => {
+  it('returns an empty page when the collection is empty', async () => {
     mockGetDocs.mockResolvedValueOnce({ docs: [] });
-    expect(await getPointsHistory('uid-1')).toEqual([]);
+    expect(await getPointsHistory('uid-1', 20)).toEqual({ entries: [], nextCursor: null });
   });
 
   it('maps documents to PointsHistoryEntry objects including doc id', async () => {
     const fakeTs = { toDate: () => new Date('2026-05-29') };
-    mockGetDocs.mockResolvedValueOnce({
-      docs: [
-        {
-          id:   'hist-2',
-          data: () => ({
-            taskId:    'task-2',
-            taskTitle: 'Pick up meds',
-            awardedAt: fakeTs,
-            points:    1,
-            reason:    'task_completed',
-          }),
-        },
-        {
-          id:   'hist-1',
-          data: () => ({
-            taskId:    'task-1',
-            taskTitle: 'Buy milk',
-            awardedAt: fakeTs,
-            points:    1,
-            reason:    'task_completed',
-          }),
-        },
-      ],
-    });
+    const docs = [
+      {
+        id:   'hist-2',
+        data: () => ({
+          taskId:    'task-2',
+          taskTitle: 'Pick up meds',
+          awardedAt: fakeTs,
+          points:    1,
+          reason:    'task_completed',
+        }),
+      },
+      {
+        id:   'hist-1',
+        data: () => ({
+          taskId:    'task-1',
+          taskTitle: 'Buy milk',
+          awardedAt: fakeTs,
+          points:    1,
+          reason:    'task_completed',
+        }),
+      },
+    ];
+    mockGetDocs.mockResolvedValueOnce({ docs });
 
-    const result = await getPointsHistory('uid-1');
+    const result = await getPointsHistory('uid-1', 20);
 
-    expect(result).toEqual([
+    expect(result.entries).toEqual([
       { id: 'hist-2', taskId: 'task-2', taskTitle: 'Pick up meds', awardedAt: fakeTs, points: 1, reason: 'task_completed' },
       { id: 'hist-1', taskId: 'task-1', taskTitle: 'Buy milk',     awardedAt: fakeTs, points: 1, reason: 'task_completed' },
     ]);
+    // Fewer docs than pageSize — no more pages.
+    expect(result.nextCursor).toBeNull();
   });
 
-  it('deduplicates legacy entries — keeps only the latest entry per taskId (KAN-128)', async () => {
+  it('deduplicates legacy entries within a page — keeps only the latest entry per taskId (KAN-128)', async () => {
     const olderTs = { toDate: () => new Date('2026-05-28') };
     const newerTs = { toDate: () => new Date('2026-05-29') };
     // Docs arrive ordered newest-first (as Firestore orderBy awardedAt desc guarantees).
@@ -394,10 +399,10 @@ describe('getPointsHistory', () => {
       ],
     });
 
-    const result = await getPointsHistory('uid-1');
-    expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ id: 'task-1_2026-05-29', taskId: 'task-1' });
-    expect(result[1]).toMatchObject({ id: 'task-2_2026-05-29', taskId: 'task-2' });
+    const { entries } = await getPointsHistory('uid-1', 20);
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toMatchObject({ id: 'task-1_2026-05-29', taskId: 'task-1' });
+    expect(entries[1]).toMatchObject({ id: 'task-2_2026-05-29', taskId: 'task-2' });
   });
 
   it('does not collapse non-task entries that share taskId=""', async () => {
@@ -429,11 +434,50 @@ describe('getPointsHistory', () => {
     });
 
     // All three must be present — none collapsed despite sharing taskId:''
-    const result = await getPointsHistory('uid-1');
-    expect(result).toHaveLength(3);
-    expect(result[0]).toMatchObject({ id: 'streak-1',      reason: 'streak_bonus' });
-    expect(result[1]).toMatchObject({ id: 'achievement-1', reason: 'achievement_bonus' });
-    expect(result[2]).toMatchObject({ id: 'daily-1',       reason: 'daily_complete_bonus' });
+    const { entries } = await getPointsHistory('uid-1', 20);
+    expect(entries).toHaveLength(3);
+    expect(entries[0]).toMatchObject({ id: 'streak-1',      reason: 'streak_bonus' });
+    expect(entries[1]).toMatchObject({ id: 'achievement-1', reason: 'achievement_bonus' });
+    expect(entries[2]).toMatchObject({ id: 'daily-1',       reason: 'daily_complete_bonus' });
+  });
+
+  it('returns a nextCursor (the last doc) when the page is exactly full', async () => {
+    const fakeTs = { toDate: () => new Date('2026-05-29') };
+    const lastDoc = {
+      id:   'hist-2',
+      data: () => ({
+        taskId: 'task-2', taskTitle: 'Pick up meds', awardedAt: fakeTs,
+        points: 1, reason: 'task_completed',
+      }),
+    };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          id:   'hist-1',
+          data: () => ({
+            taskId: 'task-1', taskTitle: 'Buy milk', awardedAt: fakeTs,
+            points: 1, reason: 'task_completed',
+          }),
+        },
+        lastDoc,
+      ],
+    });
+
+    const result = await getPointsHistory('uid-1', 2);
+    expect(result.nextCursor).toBe(lastDoc);
+  });
+
+  it('passes the cursor to startAfter when fetching a subsequent page', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+    const cursor = { id: 'hist-2' };
+
+    await getPointsHistory('uid-1', 20, cursor as never);
+
+    expect(mockGetDocs).toHaveBeenCalled();
+    const { startAfter } = jest.requireMock('@react-native-firebase/firestore') as {
+      startAfter: jest.Mock;
+    };
+    expect(startAfter).toHaveBeenCalledWith(cursor);
   });
 });
 

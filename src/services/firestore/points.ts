@@ -18,9 +18,12 @@ import {
   runTransaction,
   query,
   orderBy,
+  limit,
+  startAfter,
   serverTimestamp,
   increment,
 } from '@react-native-firebase/firestore';
+import type { QueryConstraint, QueryDocumentSnapshot } from '@react-native-firebase/firestore';
 import { todayISO } from '../../utils/date';
 import type {
   AchievementType,
@@ -335,26 +338,57 @@ export async function getAchievementsForUser(uid: string): Promise<Achievement[]
   return mapSnapshotDocs<Achievement>(snap);
 }
 
-/** One-time fetch of the user's points history, newest first. */
-export async function getPointsHistory(uid: string): Promise<PointsHistoryEntry[]> {
-  const snap = await getDocs(query(pointsHistoryRef(uid), orderBy('awardedAt', 'desc')));
+/** Opaque cursor for {@link getPointsHistory} pagination — pass back the
+ *  previous page's `nextCursor` to fetch the following page. */
+export type PointsHistoryCursor = QueryDocumentSnapshot;
 
-  // Deduplicate task_completed entries by taskId — keeps the most-recent
-  // entry per task (docs are ordered newest-first). Non-task entries
-  // (achievement_bonus, streak_bonus, etc.) all carry taskId:'' so they
-  // must NOT be deduplicated; they pass through as-is.
+export interface PointsHistoryPage {
+  entries: PointsHistoryEntry[];
+  /** Pass to the next call's `cursor` param. `null` when there are no more pages. */
+  nextCursor: PointsHistoryCursor | null;
+}
+
+/**
+ * Fetch one page of the user's points history, newest first (KAN-222).
+ *
+ * Server-side cursor pagination: pass `cursor` (the previous page's
+ * `nextCursor`) to fetch the page after it. `nextCursor` is `null` once the
+ * last page has been reached.
+ *
+ * Deduplicates task_completed entries by taskId *within this page only* —
+ * docs are ordered newest-first, so the first occurrence of a taskId on a
+ * page is the most recent one seen so far. Non-task entries (achievement_bonus,
+ * streak_bonus, etc.) all carry taskId:'' and are never deduplicated. Because a
+ * duplicate can land on a later page than its most-recent counterpart, callers
+ * that accumulate pages (e.g. PointsHistoryScreen) must track seen taskIds
+ * across pages themselves to preserve the "one entry per task" behaviour.
+ */
+export async function getPointsHistory(
+  uid: string,
+  pageSize: number,
+  cursor?: PointsHistoryCursor | null,
+): Promise<PointsHistoryPage> {
+  const constraints: QueryConstraint[] = [orderBy('awardedAt', 'desc'), limit(pageSize)];
+  if (cursor) { constraints.push(startAfter(cursor)); }
+
+  const snap = await getDocs(query(pointsHistoryRef(uid), ...constraints));
+
   const seen = new Set<string>();
-  const unique: PointsHistoryEntry[] = [];
+  const entries: PointsHistoryEntry[] = [];
   for (const d of snap.docs) {
     const entry = { id: d.id, ...d.data() } as PointsHistoryEntry;
     if (entry.reason === 'task_completed' && entry.taskId) {
       if (!seen.has(entry.taskId)) {
         seen.add(entry.taskId);
-        unique.push(entry);
+        entries.push(entry);
       }
     } else {
-      unique.push(entry);
+      entries.push(entry);
     }
   }
-  return unique;
+
+  const lastDoc      = snap.docs[snap.docs.length - 1];
+  const hasMorePages = snap.docs.length === pageSize;
+
+  return { entries, nextCursor: hasMorePages && lastDoc ? lastDoc : null };
 }
