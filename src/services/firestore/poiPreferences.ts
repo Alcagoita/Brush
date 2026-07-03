@@ -1,39 +1,7 @@
-import { getDoc, getDocs, setDoc, onSnapshot } from '@react-native-firebase/firestore';
+import { getDoc, getDocs, setDoc } from '@react-native-firebase/firestore';
 import { POI_GEOFENCE_RADIUS } from '../../types';
 import type { PoiPreference } from '../../types';
 import { poisRef, poiRef } from './refs';
-
-/**
- * Subscribe to live updates for all of the user's POI geofence radius
- * preferences. Fires immediately with the current stored values, then again
- * whenever any preference is created, updated, or deleted.
- *
- * `onUpdate` receives a plain `Record<string, number>` map of
- * `poiType → radiusMeters` containing ONLY the types that the user has
- * explicitly saved. Callers should fall back to `POI_GEOFENCE_RADIUS` (and
- * then to `DEFAULT_GEOFENCE_RADIUS`) for any type not present in the map.
- *
- * Returns an unsubscribe function — call it on component unmount.
- */
-export function subscribeToPoiPreferences(
-  uid: string,
-  onUpdate: (prefs: Record<string, number>) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    poisRef(uid),
-    snap => {
-      if (!snap) return;
-      const prefs: Record<string, number> = {};
-      for (const d of snap.docs) {
-        const pref = d.data() as PoiPreference;
-        prefs[pref.type] = pref.radiusMeters;
-      }
-      onUpdate(prefs);
-    },
-    onError,
-  );
-}
 
 /**
  * Fetch a user's geofence radius preference for a POI type.

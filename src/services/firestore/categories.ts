@@ -1,27 +1,8 @@
-import { getDocs, addDoc, updateDoc, deleteDoc, query, orderBy, onSnapshot } from '@react-native-firebase/firestore';
+import { getDocs, addDoc, updateDoc, deleteDoc, query, orderBy } from '@react-native-firebase/firestore';
 import type { Category } from '../../types';
 import { registerCategoryKeywords, replaceCategoryKeywords } from '../poiInference';
 import { categoriesRef, categoryRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
-
-/**
- * Subscribe to the user's custom categories (built-ins are not stored here).
- * Returns an unsubscribe function — call on component unmount.
- */
-export function subscribeToCategories(
-  uid: string,
-  onUpdate: (categories: Category[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  return onSnapshot(
-    query(categoriesRef(uid), orderBy('name', 'asc')),
-    snap => {
-      if (!snap) return;
-      onUpdate(mapSnapshotDocs<Category>(snap).map(c => ({ ...c, isBuiltIn: false })));
-    },
-    onError,
-  );
-}
 
 /**
  * Create a new custom category.

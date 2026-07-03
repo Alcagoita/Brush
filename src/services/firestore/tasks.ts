@@ -8,7 +8,6 @@ import {
   query,
   where,
   orderBy,
-  onSnapshot,
   Timestamp,
 } from '@react-native-firebase/firestore';
 import { getCurrentWeekBoundaries, todayISO } from '../../utils/date';
@@ -83,43 +82,12 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
 }
 
 /**
- * Subscribe to live updates for a user's tasks on a given date.
- * Returns an unsubscribe function — call it on component unmount.
- */
-export function subscribeToTasksForDate(
-  uid: string,
-  date: string,
-  onUpdate: (tasks: Task[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  const q = query(
-    tasksRef(uid),
-    where('date', '==', date),
-    orderBy('createdAt', 'asc'),
-  );
-  return onSnapshot(
-    q,
-    { includeMetadataChanges: true },
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(snap.docs.map(d => ({ id: d.id, ...d.data(), pendingSync: d.metadata.hasPendingWrites } as Task))); },
-    onError,
-  );
-}
-
-/**
- * Subscribe to all tasks for the given calendar month.
+ * Fetch all tasks for the given calendar month once.
  *
  * @param uid        - User ID
  * @param yearMonth  - 'YYYY-MM' (e.g. '2026-05')
- * @param onUpdate   - Receives the full task list for that month on every change
- * @param onError    - Optional error handler
- * @returns Unsubscribe function — call on component unmount
  */
-export function subscribeToTasksForMonth(
-  uid: string,
-  yearMonth: string,
-  onUpdate: (tasks: Task[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
+export async function getTasksForMonth(uid: string, yearMonth: string): Promise<Task[]> {
   const [year, month] = yearMonth.split('-').map(Number);
   const start = `${yearMonth}-01`;
   // First day of next month as exclusive upper bound (ISO string comparison works)
@@ -130,32 +98,8 @@ export function subscribeToTasksForMonth(
     where('date', '>=', start),
     where('date', '<',  nextMonth),
   );
-  return onSnapshot(
-    q,
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(mapSnapshotDocs<Task>(snap)); },
-    onError,
-  );
-}
-
-/**
- * Subscribe to all undone tasks that have a POI (needed for geofence matching).
- * Returns an unsubscribe function.
- */
-export function subscribeToPoiTasks(
-  uid: string,
-  onUpdate: (tasks: Task[]) => void,
-  onError?: (err: Error) => void,
-): () => void {
-  const q = query(
-    tasksRef(uid),
-    where('done', '==', false),
-    where('poi', '!=', null),
-  );
-  return onSnapshot(
-    q,
-    snap => { if (!snap) { onUpdate([]); return; } onUpdate(mapSnapshotDocs<Task>(snap)); },
-    onError,
-  );
+  const snap = await getDocs(q);
+  return mapSnapshotDocs<Task>(snap);
 }
 
 /**

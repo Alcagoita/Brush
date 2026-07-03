@@ -28,7 +28,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import { categories as builtInCategories, categoryHues } from '../../theme/tokens';
-import { addTask, updateTask, deleteTask, subscribeToCategories, addCategory } from '../../services/firestore';
+import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { learnFromUserEdit } from '../../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
@@ -97,12 +97,13 @@ export default function TaskFormScreen() {
   const [customPoiType, setCustomPoiType] = useState<string | null>(null);
   const [focused,       setFocused]       = useState(false);
 
-  // Custom categories
+  // Custom categories — one-shot fetch on mount (KAN-218). handleSaveNewCat
+  // appends the newly created category locally rather than refetching.
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
   useEffect(() => {
-    return subscribeToCategories(uid, cats => {
-      setCustomCategories(cats.filter(c => !c.isBuiltIn));
-    }, err => console.warn('[TaskFormScreen] categories error', err));
+    getCategories(uid)
+      .then(cats => setCustomCategories(cats.filter(c => !c.isBuiltIn)))
+      .catch(err => console.warn('[TaskFormScreen] categories error', err));
   }, [uid]);
 
   // Inline new-category editor
@@ -125,6 +126,8 @@ export default function TaskFormScreen() {
     try {
       const id = await addCategory(uid, { name: trimmed, color: newCatColor, poi: null });
       evaluateCustomCatAchievement(uid).catch(() => {});
+      // No live listener anymore (KAN-218) — append locally instead of refetching.
+      setCustomCategories(prev => [...prev, { id, name: trimmed, color: newCatColor, poi: null, isBuiltIn: false }]);
       setCategory(id);
       setAddingCat(false);
     } catch (err) {

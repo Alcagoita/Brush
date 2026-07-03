@@ -30,9 +30,9 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import {
-  subscribeLowBatteryPausePref,
+  getLowBatteryPausePref,
   setLowBatteryPausePref,
-  subscribeStoreTuningPref,
+  getStoreTuningPref,
   setStoreTuningPref,
 } from '../services/firestore';
 import { logout } from '../services/auth';
@@ -227,9 +227,8 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     if (!uid) { return; }
-    const unsubPause   = subscribeLowBatteryPausePref(uid, setLowBatteryPause);
-    const unsubTuning  = subscribeStoreTuningPref(uid, setStoreTuningEnabled);
-    return () => { unsubPause(); unsubTuning(); };
+    getLowBatteryPausePref(uid).then(setLowBatteryPause).catch(() => {});
+    getStoreTuningPref(uid).then(setStoreTuningEnabled).catch(() => {});
   }, [uid]);
 
   const handleDarkToggle = useCallback((value: boolean) => {

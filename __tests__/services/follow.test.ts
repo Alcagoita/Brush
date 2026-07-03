@@ -19,12 +19,9 @@
  *   isFollowing
  *     - returns true when the following document exists
  *     - returns false when the document does not exist
- *   subscribeToFollowing
+ *   getFollowing (KAN-218 — one-shot, not a live subscription)
  *     - maps snapshot docs to FollowEntry objects (uid from doc id)
- *     - returns an unsubscribe function
- *   subscribeToFollowers
- *     - maps snapshot docs to FollowEntry objects (uid from doc id)
- *     - returns an unsubscribe function
+ *     - returns an empty array when following is empty
  *   getInboxEntries (KAN-212)
  *     - queries /users/{uid}/inbox ordered by createdAt desc
  *     - returns entries mapped from Firestore docs
@@ -89,8 +86,7 @@ import {
   followUser,
   unfollowUser,
   isFollowing,
-  subscribeToFollowing,
-  subscribeToFollowers,
+  getFollowing,
   getInboxEntries,
   markInboxEntryRead,
   getInboxUnreadCount,
@@ -254,57 +250,23 @@ describe('isFollowing', () => {
 
 // ─── subscribeToFollowing ─────────────────────────────────────────────────────
 
-describe('subscribeToFollowing', () => {
+describe('getFollowing', () => {
   beforeEach(() => { jest.clearAllMocks(); });
 
-  it('maps snapshot docs to FollowEntry objects with uid from doc id', () => {
-    const onUpdate = jest.fn();
-    mockOnSnapshot.mockImplementationOnce((_q: unknown, cb: Function) => {
-      cb(makeCollSnap([
-        { id: 'uid_b', data: { username: 'bob', displayName: 'Bob', followedAt: {} } },
-      ]));
-      return jest.fn();
-    });
+  it('maps snapshot docs to FollowEntry objects with uid from doc id (KAN-218 — one-shot, not a live subscription)', async () => {
+    mockGetDocs.mockResolvedValueOnce(makeCollSnap([
+      { id: 'uid_b', data: { username: 'bob', displayName: 'Bob', followedAt: {} } },
+    ]));
 
-    subscribeToFollowing('uid_a', onUpdate);
-    expect(onUpdate).toHaveBeenCalledWith([
+    const result = await getFollowing('uid_a');
+    expect(result).toEqual([
       expect.objectContaining({ uid: 'uid_b', username: 'bob', displayName: 'Bob' }),
     ]);
   });
 
-  it('returns an unsubscribe function', () => {
-    const unsub = jest.fn();
-    mockOnSnapshot.mockReturnValueOnce(unsub);
-    const result = subscribeToFollowing('uid_a', jest.fn());
-    expect(result).toBe(unsub);
-  });
-});
-
-// ─── subscribeToFollowers ─────────────────────────────────────────────────────
-
-describe('subscribeToFollowers', () => {
-  beforeEach(() => { jest.clearAllMocks(); });
-
-  it('maps snapshot docs to FollowEntry objects with uid from doc id', () => {
-    const onUpdate = jest.fn();
-    mockOnSnapshot.mockImplementationOnce((_q: unknown, cb: Function) => {
-      cb(makeCollSnap([
-        { id: 'uid_c', data: { username: 'carol', displayName: 'Carol', followedAt: {} } },
-      ]));
-      return jest.fn();
-    });
-
-    subscribeToFollowers('uid_a', onUpdate);
-    expect(onUpdate).toHaveBeenCalledWith([
-      expect.objectContaining({ uid: 'uid_c', username: 'carol', displayName: 'Carol' }),
-    ]);
-  });
-
-  it('returns an unsubscribe function', () => {
-    const unsub = jest.fn();
-    mockOnSnapshot.mockReturnValueOnce(unsub);
-    const result = subscribeToFollowers('uid_a', jest.fn());
-    expect(result).toBe(unsub);
+  it('returns an empty array when following is empty', async () => {
+    mockGetDocs.mockResolvedValueOnce(makeCollSnap([]));
+    expect(await getFollowing('uid_a')).toEqual([]);
   });
 });
 

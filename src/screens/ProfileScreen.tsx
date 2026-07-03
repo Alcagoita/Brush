@@ -21,7 +21,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth, updateProfile } from '@react-native-firebase/auth/lib/modular';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -40,9 +40,9 @@ import {
 } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import {
-  subscribeToTotalPoints,
-  subscribeToCurrentStreak,
-  subscribeToAchievements,
+  getTotalPoints,
+  getCurrentStreak,
+  getAchievements,
   updateDisplayName,
   getUser,
   updateUsername,
@@ -76,13 +76,14 @@ export default function ProfileScreen() {
   const [currentStreak, setCurrentStreak] = useState(0);
   const [achievements,  setAchievements]  = useState<AchievementsMap>({});
 
-  useEffect(() => {
+  // One-shot fetch, re-run on every focus so returning from Today after
+  // earning points/achievements shows current data (KAN-218).
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    const u1 = subscribeToTotalPoints(uid,   setTotalPoints,   err => console.warn('[ProfileScreen] points', err));
-    const u2 = subscribeToCurrentStreak(uid, setCurrentStreak, err => console.warn('[ProfileScreen] streak', err));
-    const u3 = subscribeToAchievements(uid,  setAchievements,  err => console.warn('[ProfileScreen] achievements', err));
-    return () => { u1(); u2(); u3(); };
-  }, [uid]);
+    getTotalPoints(uid).then(setTotalPoints).catch(err => console.warn('[ProfileScreen] points', err));
+    getCurrentStreak(uid).then(setCurrentStreak).catch(err => console.warn('[ProfileScreen] streak', err));
+    getAchievements(uid).then(setAchievements).catch(err => console.warn('[ProfileScreen] achievements', err));
+  }, [uid]));
 
   // ── Username ───────────────────────────────────────────────────────────────
   const [currentUsername, setCurrentUsername] = useState<string | undefined>(undefined);

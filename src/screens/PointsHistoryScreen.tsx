@@ -18,7 +18,7 @@
  * Navigation: pushed from Profile; back via header chevron.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -28,7 +28,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
@@ -38,11 +38,11 @@ import AchievementTile, {
   achievementsGridStyle,
 } from '../components/AchievementTile';
 import {
-  subscribeToPointsHistory,
-  subscribeToAchievements,
+  getPointsHistory,
+  getAchievements,
 } from '../services/firestore';
 import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
-import type { Achievement, PointsHistoryEntry } from '../types';
+import type { AchievementsMap, PointsHistoryEntry } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -118,28 +118,26 @@ export default function PointsHistoryScreen() {
   const [visibleCount,  setVisibleCount]  = useState(PAGE_SIZE);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
-  useEffect(() => {
+  // One-shot fetch, re-run on every focus so returning from Today after
+  // brushing a task shows it without a manual reload (KAN-218 follow-up).
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    return subscribeToPointsHistory(uid, entries => {
-      setAllHistory(entries);
-      setHistoryLoaded(true);
-    }, err => console.warn('[PointsHistoryScreen] history error', err));
-  }, [uid]);
+    getPointsHistory(uid)
+      .then(entries => { setAllHistory(entries); setHistoryLoaded(true); })
+      .catch(err => console.warn('[PointsHistoryScreen] history error', err));
+  }, [uid]));
 
   const visibleHistory  = allHistory.slice(0, visibleCount);
   const hasMore         = visibleCount < allHistory.length;
 
-  // ── Achievements ────────────────────────────────────────────────────────────
-  const [earnedMap, setEarnedMap] = useState<Record<string, Achievement>>({});
+  // ── Achievements — one-shot, re-run on every focus so returning from Today
+  // after unlocking one shows it (KAN-218) ──────────────────────────────────
+  const [earnedMap, setEarnedMap] = useState<AchievementsMap>({});
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    return subscribeToAchievements(uid, list => {
-      const map: Record<string, Achievement> = {};
-      for (const a of list) { map[a.type] = a; }
-      setEarnedMap(map);
-    }, err => console.warn('[PointsHistoryScreen] achievements error', err));
-  }, [uid]);
+    getAchievements(uid).then(setEarnedMap).catch(err => console.warn('[PointsHistoryScreen] achievements error', err));
+  }, [uid]));
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -219,13 +217,14 @@ export default function PointsHistoryScreen() {
             <Text style={[styles.sectionHeading, { color: palette.text, marginTop: 12 }]}>Achievements</Text>
             <View style={achievementsGridStyle}>
               {ACHIEVEMENT_CATALOGUE.map(def => {
-                const earned   = earnedMap[def.type];
-                const earnedAt = earned ? formatTimestamp(earned.earnedAt) : undefined;
+                const entry  = earnedMap[def.type];
+                const earned = (entry?.earnCount ?? 0) > 0;
+                const earnedAt = earned ? formatTimestamp(entry?.earnedAt) : undefined;
                 return (
                   <AchievementTile
                     key={def.type}
                     def={def}
-                    earned={!!earned}
+                    earned={earned}
                     earnedAt={earnedAt}
                     palette={palette}
                   />

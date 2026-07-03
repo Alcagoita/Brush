@@ -7,7 +7,7 @@
  * Achievement gallery: "EARNED · N" + "LOCKED · N" sections, 2-col grid.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   FlatList,
   Pressable,
@@ -16,14 +16,14 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import {
-  subscribeToTotalPoints,
-  subscribeToAchievements,
+  getTotalPoints,
+  getAchievements,
 } from '../services/firestore';
 import { ACHIEVEMENT_DEFS } from '../services/achievements';
 import { deriveTierStanding } from '../constants/tiers';
@@ -192,12 +192,13 @@ export default function AchievementsScreen() {
   const [totalPoints,     setTotalPoints]     = useState(0);
   const [achievementsMap, setAchievementsMap] = useState<AchievementsMap>({});
 
-  useEffect(() => {
+  // One-shot fetch, re-run on every focus so returning from Today after
+  // earning points/achievements shows current data (KAN-218).
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    const u1 = subscribeToTotalPoints(uid, setTotalPoints,      err => console.warn('[AchievementsScreen] points', err));
-    const u2 = subscribeToAchievements(uid, setAchievementsMap, err => console.warn('[AchievementsScreen] achievements', err));
-    return () => { u1(); u2(); };
-  }, [uid]);
+    getTotalPoints(uid).then(setTotalPoints).catch(err => console.warn('[AchievementsScreen] points', err));
+    getAchievements(uid).then(setAchievementsMap).catch(err => console.warn('[AchievementsScreen] achievements', err));
+  }, [uid]));
 
   // ── Tier standing ─────────────────────────────────────────────────────────────
   const { curTier, nextTier, maxed, bandPct } = deriveTierStanding(totalPoints);

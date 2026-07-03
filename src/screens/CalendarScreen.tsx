@@ -49,7 +49,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
@@ -57,7 +57,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, categories as builtInCategories } from '../theme/tokens';
-import { subscribeToTasksForMonth, subscribeToAchievements, getCategories, setTaskDone } from '../services/firestore';
+import { getTasksForMonth, getAchievements, getCategories, setTaskDone } from '../services/firestore';
 import { Task, Category, MonthTasksUiState, AchievementsMap } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
@@ -174,20 +174,18 @@ interface CalTaskRowProps {
   task: Task;
   customCategories: Category[];
   isLast: boolean;
-  uid: string;
+  onToggle: (taskId: string, done: boolean) => void;
   isFuture: boolean;
 }
 
-function CalTaskRow({ task, customCategories, isLast, uid, isFuture }: CalTaskRowProps) {
+function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalTaskRowProps) {
   const { palette } = useTheme();
   const cat = resolveCategory(task, customCategories);
   const [titleWidth, setTitleWidth] = useState(0);
 
   const handleToggle = () => {
     if (isFuture) { return; }
-    setTaskDone(uid, task.id, !task.done).catch(err =>
-      console.warn('[CalTaskRow] setTaskDone failed', err),
-    );
+    onToggle(task.id, !task.done);
   };
 
   return (
@@ -378,30 +376,57 @@ export default function CalendarScreen() {
   const todayYear = Number(today.split('-')[0]);
   const todayMon  = Number(today.split('-')[1]);
 
-  // ── Firestore subscription for displayed month ──
-  useEffect(() => {
+  // ── Tasks for displayed month — one-shot fetch, re-run on focus so
+  // returning from the TaskForm modal (which stays stacked above and
+  // doesn't unmount this screen) shows the mutation (KAN-218 follow-up).
+  // `cancelled` guards against a stale response landing after a newer
+  // month has been requested, after the screen has blurred, or after
+  // unmount — useFocusEffect invokes this cleanup in all three cases.
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
     const ym = toYearMonth(displayYear, displayMonth);
+    let cancelled = false;
     setMonthTasksState({ status: 'loading' });
-    return subscribeToTasksForMonth(uid, ym, (tasks) => {
-      setMonthTasksState({ status: 'success', tasks });
-    }, (err) => {
-      console.warn('[CalendarScreen] tasks subscription error', err);
-      setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
-    });
-  }, [uid, displayYear, displayMonth, retryKey]);
+    getTasksForMonth(uid, ym)
+      .then(tasks => {
+        if (cancelled) { return; }
+        setMonthTasksState({ status: 'success', tasks });
+      })
+      .catch(err => {
+        if (cancelled) { return; }
+        console.warn('[CalendarScreen] tasks fetch error', err);
+        setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
+      });
+    return () => { cancelled = true; };
+  }, [uid, displayYear, displayMonth, retryKey]));
 
-  // ── Custom categories — one-shot, mirrors TaskRow's resolution ──
-  useEffect(() => {
+  // Toggling a task doesn't refetch the whole month — apply the flip locally
+  // (setTaskDone itself persists it) so the checkbox updates immediately.
+  const handleToggleTask = useCallback((taskId: string, done: boolean) => {
+    setMonthTasksState(prev => prev.status === 'success'
+      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done } : t) }
+      : prev);
+    setTaskDone(uid, taskId, done).catch(err => {
+      console.warn('[CalTaskRow] setTaskDone failed', err);
+      setMonthTasksState(prev => prev.status === 'success'
+        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done } : t) }
+        : prev);
+    });
+  }, [uid]);
+
+  // ── Custom categories — one-shot, mirrors TaskRow's resolution. Re-run on
+  // focus so a category created via TaskForm's modal shows immediately.
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
     getCategories(uid).then(setCustomCategories).catch(() => {});
-  }, [uid]);
+  }, [uid]));
 
-  // ── Achievements map — drives milestone pips/chips ──
-  useEffect(() => {
+  // ── Achievements map — drives milestone pips/chips. One-shot, re-run on
+  // every focus so returning from Today after unlocking one shows it (KAN-218) ──
+  useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    return subscribeToAchievements(uid, setAchievementsMap);
-  }, [uid]);
+    getAchievements(uid).then(setAchievementsMap).catch(err => console.warn('[CalendarScreen] achievements error', err));
+  }, [uid]));
 
   // Wrapped in its own useMemo so the fallback `[]` keeps a stable identity
   // across renders — otherwise every render (even unrelated ones) would
@@ -740,7 +765,7 @@ export default function CalendarScreen() {
                     task={task}
                     customCategories={customCategories}
                     isLast={i === selectedTasks.length - 1}
-                    uid={uid}
+                    onToggle={handleToggleTask}
                     isFuture={isSelFuture}
                   />
                 ))}
