@@ -69,10 +69,6 @@ jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));
 
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
-}));
-
 jest.mock('../../src/services/notifications', () => ({
   fireExitPrompt: jest.fn().mockResolvedValue(undefined),
 }));
