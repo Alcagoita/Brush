@@ -185,6 +185,7 @@ export function useProximityEngine(
   useEffect(() => {
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) {
       if (!hasPOITasks || isStoreTuningActive) {
+        nearbyPoiTypeRef.current = null;
         setNearbyPoiType(null);
         nearbyPlaceRef.current = null;
         setNearbyPlace(null);

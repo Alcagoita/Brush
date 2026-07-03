@@ -4,6 +4,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
   writeBatch,
   query,
   where,
@@ -106,10 +107,12 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
  * Mark a task as done or undone.
  * Sets completedAt to now when marking done; clears it when marking undone.
  *
- * When `completedPlace` is passed on a `done: true` call, persists it as
- * `completedPlaceId` / `completedPlaceName` / `completedPoiType` — the place
- * the user was next to at brush time (KAN-226). Omitted (or `done: false`)
- * writes touch no completedPlace* fields.
+ * `completedPlace` is the hero/nearby place snapshotted at brush time
+ * (KAN-226). It's a snapshot of the current completion, not sticky history —
+ * `completedPlaceId` / `completedPlaceName` / `completedPoiType` are written
+ * when passed on a `done: true` call, and deleted from the doc in every
+ * other case (`done: false`, or `done: true` with no matching place), so a
+ * later re-completion without a place can never resurrect stale metadata.
  */
 export async function setTaskDone(
   uid: string,
@@ -117,14 +120,13 @@ export async function setTaskDone(
   done: boolean,
   completedPlace?: { placeId: string; name: string; poiType: string },
 ): Promise<void> {
+  const hasPlace = done && !!completedPlace;
   await updateDoc(taskRef(uid, taskId), {
     done,
     completedAt: done ? Timestamp.now() : null,
-    ...(done && completedPlace ? {
-      completedPlaceId:   completedPlace.placeId,
-      completedPlaceName: completedPlace.name,
-      completedPoiType:   completedPlace.poiType,
-    } : {}),
+    completedPlaceId:   hasPlace ? completedPlace!.placeId : deleteField(),
+    completedPlaceName: hasPlace ? completedPlace!.name   : deleteField(),
+    completedPoiType:   hasPlace ? completedPlace!.poiType : deleteField(),
   });
 }
 
