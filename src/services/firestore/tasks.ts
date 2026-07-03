@@ -105,15 +105,26 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
 /**
  * Mark a task as done or undone.
  * Sets completedAt to now when marking done; clears it when marking undone.
+ *
+ * When `completedPlace` is passed on a `done: true` call, persists it as
+ * `completedPlaceId` / `completedPlaceName` / `completedPoiType` — the place
+ * the user was next to at brush time (KAN-226). Omitted (or `done: false`)
+ * writes touch no completedPlace* fields.
  */
 export async function setTaskDone(
   uid: string,
   taskId: string,
   done: boolean,
+  completedPlace?: { placeId: string; name: string; poiType: string },
 ): Promise<void> {
   await updateDoc(taskRef(uid, taskId), {
     done,
     completedAt: done ? Timestamp.now() : null,
+    ...(done && completedPlace ? {
+      completedPlaceId:   completedPlace.placeId,
+      completedPlaceName: completedPlace.name,
+      completedPoiType:   completedPlace.poiType,
+    } : {}),
   });
 }
 

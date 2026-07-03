@@ -74,6 +74,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     data.latestTasksRef,
     proximity.nearbyPoiTypeRef,
     data.setTotalPoints,
+    proximity.nearbyPlaceRef,
   );
 
   const totalTasks  = data.tasks.length;

@@ -147,6 +147,16 @@ export interface Task {
   /** Google Places ID if the user pinned a specific place — optional. */
   poiPlaceId?: string;
   /**
+   * Google Places ID of the hero/nearby place the user was next to when this
+   * task was brushed away — undefined when no matching place was known at
+   * brush time (KAN-226). Prerequisite data for learned places (KAN-230).
+   */
+  completedPlaceId?: string;
+  /** Human-readable name of `completedPlaceId`, snapshotted at brush time. */
+  completedPlaceName?: string;
+  /** POI type of `completedPlaceId`, snapshotted at brush time. */
+  completedPoiType?: string;
+  /**
    * The date (YYYY-MM-DD) on which a geofence-entry notification was last
    * fired for this task. Suppresses repeat alerts on the same day (KAN-24).
    */

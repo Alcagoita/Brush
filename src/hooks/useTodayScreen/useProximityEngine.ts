@@ -42,6 +42,8 @@ export interface ProximityEngine {
   /** Mirror of nearbyPoiType for stable callbacks (e.g. useTaskCompletion). */
   nearbyPoiTypeRef:   React.RefObject<string | null>;
   nearbyPlace:        NearbyPlace | null;
+  /** Mirror of nearbyPlace for stable callbacks (e.g. useTaskCompletion, KAN-226). */
+  nearbyPlaceRef:     React.RefObject<NearbyPlace | null>;
   poiPlaces:          PlacesMap;
   locationUnavailable: boolean;
   storeTuningActive:      boolean;
@@ -71,6 +73,7 @@ export function useProximityEngine(
   const [nearbyPoiType,       setNearbyPoiType]       = useState<string | null>(null);
   const nearbyPoiTypeRef = useRef<string | null>(null);
   const [nearbyPlace,         setNearbyPlace]         = useState<NearbyPlace | null>(null);
+  const nearbyPlaceRef = useRef<NearbyPlace | null>(null);
   const [poiPlaces,           setPoiPlaces]           = useState<PlacesMap>({});
   const [locationUnavailable, setLocationUnavailable] = useState(false);
 
@@ -169,6 +172,7 @@ export function useProximityEngine(
     (poiType: string | null, place: NearbyPlace | null, allPlaces: PlacesMap) => {
       nearbyPoiTypeRef.current = poiType;
       setNearbyPoiType(poiType);
+      nearbyPlaceRef.current = place;
       setNearbyPlace(place);
       setPoiPlaces(allPlaces);
       setLocationUnavailable(false);
@@ -182,6 +186,7 @@ export function useProximityEngine(
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) {
       if (!hasPOITasks || isStoreTuningActive) {
         setNearbyPoiType(null);
+        nearbyPlaceRef.current = null;
         setNearbyPlace(null);
         setPoiPlaces({});
       }
@@ -254,6 +259,7 @@ export function useProximityEngine(
         (task, place) => {
           nearbyPoiTypeRef.current = task?.poi ?? null;
           setNearbyPoiType(task?.poi ?? null);
+          nearbyPlaceRef.current = place;
           setNearbyPlace(place);
           // Populate poiPlaces so NearbyCard heroEntries computation can find
           // the indoor match (it derives hero cards from poiPlaces, not nearbyPlace).
@@ -309,6 +315,7 @@ export function useProximityEngine(
     nearbyPoiType,
     nearbyPoiTypeRef,
     nearbyPlace,
+    nearbyPlaceRef,
     poiPlaces,
     locationUnavailable,
     storeTuningActive: isStoreTuningActive,

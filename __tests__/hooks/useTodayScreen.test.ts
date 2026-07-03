@@ -22,6 +22,7 @@ const mockGetPoiPreferencesMap   = jest.fn();
 const mockGetTotalPoints         = jest.fn();
 const mockSetTaskDone            = jest.fn();
 const mockRunProximitySearch     = jest.fn();
+const mockGetInboxUnreadCount    = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
@@ -30,6 +31,7 @@ jest.mock('../../src/services/firestore', () => ({
   getUserPreferences:   (...args: unknown[]) => mockGetUserPreferences(...args),
   getPoiPreferencesMap: (...args: unknown[]) => mockGetPoiPreferencesMap(...args),
   getTotalPoints:       (...args: unknown[]) => mockGetTotalPoints(...args),
+  getInboxUnreadCount:  (...args: unknown[]) => mockGetInboxUnreadCount(...args),
   setStoreTuningPref:   jest.fn().mockResolvedValue(undefined),
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
@@ -141,6 +143,7 @@ function setupDefaults() {
   mockGetUserPreferences.mockResolvedValue({});
   mockGetPoiPreferencesMap.mockResolvedValue({});
   mockGetTotalPoints.mockResolvedValue(0);
+  mockGetInboxUnreadCount.mockResolvedValue(0);
   mockSetTaskDone.mockResolvedValue(undefined);
   mockRunProximitySearch.mockResolvedValue(undefined);
 }
@@ -272,6 +275,46 @@ describe('useTodayScreen — optimistic toggle', () => {
     });
 
     expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true);
+  });
+
+  it('passes completedPlace to setTaskDone when brushing a task near its own POI type (KAN-226)', async () => {
+    mockGetTasksForDate.mockResolvedValue([POI_TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    // Drive the proximity engine's onUpdate callback to set a hero place
+    // matching POI_TASK's poi type ('pharmacy').
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    const place = { placeId: 'place-abc', name: 'Corner Pharmacy', lat: 1, lng: 2, distanceMeters: 30 };
+    await act(async () => { onUpdate('pharmacy', place, { pharmacy: [place] }); });
+
+    await act(async () => {
+      await result.current.handleToggle('poi-task-1', true);
+    });
+
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'poi-task-1', true, {
+      placeId: 'place-abc',
+      name: 'Corner Pharmacy',
+      poiType: 'pharmacy',
+    });
+  });
+
+  it('does NOT pass completedPlace when the nearby place does not match the task POI type', async () => {
+    mockGetTasksForDate.mockResolvedValue([POI_TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    const place = { placeId: 'place-abc', name: 'Corner Cafe', lat: 1, lng: 2, distanceMeters: 30 };
+    await act(async () => { onUpdate('cafe', place, { cafe: [place] }); });
+
+    await act(async () => {
+      await result.current.handleToggle('poi-task-1', true);
+    });
+
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'poi-task-1', true);
   });
 
   it('calls evaluateAchievements when marking done', async () => {
