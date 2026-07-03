@@ -4,8 +4,9 @@
  * Two-section screen pushed from ProfileScreen ("See all"):
  *
  * 1. Points History — chronological list of PointsHistoryEntry records,
- *    newest first. Paginated: shows PAGE_SIZE rows, "Load more" appends the
- *    next batch (unbounded history is never fully loaded at once).
+ *    newest first. Paginated via server-side Firestore cursors: fetches
+ *    PAGE_SIZE rows at a time, "Load more" fetches the next page (unbounded
+ *    history is never fully loaded at once — KAN-222).
  *
  * 2. Achievements Gallery — grid of all known achievements (earned + locked).
  *    Earned: full accent colour, date unlocked.
@@ -18,7 +19,7 @@
  * Navigation: pushed from Profile; back via header chevron.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -41,6 +42,7 @@ import {
   getPointsHistory,
   getAchievements,
 } from '../services/firestore';
+import type { PointsHistoryCursor } from '../services/firestore/points';
 import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import type { AchievementsMap, PointsHistoryEntry } from '../types';
 
@@ -114,21 +116,88 @@ export default function PointsHistoryScreen() {
   const uid         = getAuth().currentUser?.uid ?? '';
 
   // ── Points history ──────────────────────────────────────────────────────────
-  const [allHistory,    setAllHistory]    = useState<PointsHistoryEntry[]>([]);
-  const [visibleCount,  setVisibleCount]  = useState(PAGE_SIZE);
+  const [history,       setHistory]       = useState<PointsHistoryEntry[]>([]);
+  const [cursor,        setCursor]        = useState<PointsHistoryCursor | null>(null);
+  const [hasMore,       setHasMore]       = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [loadingMore,   setLoadingMore]   = useState(false);
 
-  // One-shot fetch, re-run on every focus so returning from Today after
+  // Cross-page dedup of task_completed entries by taskId (mirrors the old
+  // single-query dedup behaviour — see getPointsHistory in services/firestore/points.ts).
+  // A ref, not state: it must survive across pages without forcing re-renders.
+  const seenTaskIds = useRef<Set<string>>(new Set());
+
+  // Synchronous reentrancy guard for handleLoadMore — loadingMore (state) is
+  // async, so a fast double-tap can fire twice before it propagates. This ref
+  // blocks the second call within the same tick.
+  const loadingMoreRef = useRef(false);
+
+  // Monotonic request id — guards both the focus-driven fetch and handleLoadMore
+  // against resolving after a newer focus already reset state (e.g. the screen
+  // blurred and refocused before the in-flight request settled), which would
+  // otherwise overwrite fresh state with stale data.
+  const requestIdRef = useRef(0);
+
+  function dedupeAgainstSeen(entries: PointsHistoryEntry[]): PointsHistoryEntry[] {
+    const kept: PointsHistoryEntry[] = [];
+    for (const entry of entries) {
+      if (entry.reason === 'task_completed' && entry.taskId) {
+        if (seenTaskIds.current.has(entry.taskId)) { continue; }
+        seenTaskIds.current.add(entry.taskId);
+      }
+      kept.push(entry);
+    }
+    return kept;
+  }
+
+  // Re-fetch the first page on every focus so returning from Today after
   // brushing a task shows it without a manual reload (KAN-218 follow-up).
+  // Resets ALL pagination state together (history/cursor/hasMore/dedup set) —
+  // clearing only the dedup set would let "Load more" fire on a stale cursor
+  // while the dedup set is empty, producing duplicate rows.
   useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    getPointsHistory(uid)
-      .then(entries => { setAllHistory(entries); setHistoryLoaded(true); })
-      .catch(err => console.warn('[PointsHistoryScreen] history error', err));
+    const requestId = ++requestIdRef.current;
+    seenTaskIds.current = new Set();
+    loadingMoreRef.current = false;
+    setHistory([]);
+    setCursor(null);
+    setHasMore(false);
+    setHistoryLoaded(false);
+    setLoadingMore(false);
+    getPointsHistory(uid, PAGE_SIZE)
+      .then(({ entries, nextCursor }) => {
+        if (requestIdRef.current !== requestId) { return; } // blurred/refocused since — stale
+        setHistory(dedupeAgainstSeen(entries));
+        setCursor(nextCursor);
+        setHasMore(nextCursor !== null);
+        setHistoryLoaded(true);
+      })
+      .catch(err => {
+        if (requestIdRef.current !== requestId) { return; }
+        console.warn('[PointsHistoryScreen] history error', err);
+        setHistoryLoaded(true); // clear the spinner even on failure
+      });
   }, [uid]));
 
-  const visibleHistory  = allHistory.slice(0, visibleCount);
-  const hasMore         = visibleCount < allHistory.length;
+  const handleLoadMore = useCallback(() => {
+    if (!uid || !cursor || loadingMoreRef.current) { return; }
+    const requestId = requestIdRef.current;
+    loadingMoreRef.current = true;
+    setLoadingMore(true);
+    getPointsHistory(uid, PAGE_SIZE, cursor)
+      .then(({ entries, nextCursor }) => {
+        if (requestIdRef.current !== requestId) { return; } // a newer focus reset state since
+        setHistory(prev => [...prev, ...dedupeAgainstSeen(entries)]);
+        setCursor(nextCursor);
+        setHasMore(nextCursor !== null);
+      })
+      .catch(err => console.warn('[PointsHistoryScreen] load more error', err))
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [uid, cursor]);
 
   // ── Achievements — one-shot, re-run on every focus so returning from Today
   // after unlocking one shows it (KAN-218) ──────────────────────────────────
@@ -161,20 +230,20 @@ export default function PointsHistoryScreen() {
         style={styles.scroll}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
-        data={historyLoaded && allHistory.length > 0 ? visibleHistory : []}
+        data={historyLoaded && history.length > 0 ? history : []}
         keyExtractor={item => item.id}
         renderItem={({ item, index }) => (
           <HistoryRow
             entry={item}
             isFirst={index === 0}
-            isLast={index === visibleHistory.length - 1 && !hasMore}
+            isLast={index === history.length - 1 && !hasMore}
             palette={palette}
           />
         )}
         ListHeaderComponent={
           <View>
             <Text style={[styles.sectionHeading, { color: palette.text }]}>Points History</Text>
-            {(!historyLoaded || allHistory.length === 0) && (
+            {(!historyLoaded || history.length === 0) && (
               <View style={[styles.card, { backgroundColor: palette.surface2 }]}>
                 {!historyLoaded ? (
                   <ActivityIndicator
@@ -206,12 +275,17 @@ export default function PointsHistoryScreen() {
                     borderBottomRightRadius: radius.card,
                   },
                 ]}
-                onPress={() => setVisibleCount(c => c + PAGE_SIZE)}
+                onPress={handleLoadMore}
+                disabled={loadingMore}
                 accessibilityRole="button"
                 accessibilityLabel="Load more history">
-                <Text style={[styles.loadMoreLabel, { color: palette.accent }]}>
-                  Load more ({allHistory.length - visibleCount} remaining)
-                </Text>
+                {loadingMore ? (
+                  <ActivityIndicator color={palette.accent} />
+                ) : (
+                  <Text style={[styles.loadMoreLabel, { color: palette.accent }]}>
+                    Load more
+                  </Text>
+                )}
               </Pressable>
             )}
             <Text style={[styles.sectionHeading, { color: palette.text, marginTop: 12 }]}>Achievements</Text>
