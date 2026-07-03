@@ -1,5 +1,6 @@
 module.exports = {
   preset: '@react-native/jest-preset',
+  setupFiles: ['<rootDir>/jest.setup.js'],
   transformIgnorePatterns: [
     'node_modules/(?!(react-native|@react-native|@react-native-firebase|@react-native-google-signin|react-native-calendars|react-native-safe-area-context|react-native-swipe-gestures|recyclerlistview|memoize-one|react-native-reanimated|react-native-svg|@react-navigation|@notifee|@invertase)/)',
   ],
