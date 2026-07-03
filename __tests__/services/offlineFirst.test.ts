@@ -28,6 +28,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   getDocs:         (...args: unknown[]) => mockGetDocs(...args),
   updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
   deleteDoc:       jest.fn(),
+  deleteField:     jest.fn(() => ({ _delete: true })),
   setDoc:          jest.fn(),
   writeBatch:      jest.fn(() => ({ update: mockBatchUpdate, commit: mockBatchCommit })),
   query:           (...args: unknown[]) => mockQuery(...args),
