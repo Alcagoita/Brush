@@ -127,6 +127,11 @@ export default function PointsHistoryScreen() {
   // A ref, not state: it must survive across pages without forcing re-renders.
   const seenTaskIds = useRef<Set<string>>(new Set());
 
+  // Synchronous reentrancy guard for handleLoadMore — loadingMore (state) is
+  // async, so a fast double-tap can fire twice before it propagates. This ref
+  // blocks the second call within the same tick.
+  const loadingMoreRef = useRef(false);
+
   function dedupeAgainstSeen(entries: PointsHistoryEntry[]): PointsHistoryEntry[] {
     const kept: PointsHistoryEntry[] = [];
     for (const entry of entries) {
@@ -141,9 +146,18 @@ export default function PointsHistoryScreen() {
 
   // Re-fetch the first page on every focus so returning from Today after
   // brushing a task shows it without a manual reload (KAN-218 follow-up).
+  // Resets ALL pagination state together (history/cursor/hasMore/dedup set) —
+  // clearing only the dedup set would let "Load more" fire on a stale cursor
+  // while the dedup set is empty, producing duplicate rows.
   useFocusEffect(useCallback(() => {
     if (!uid) { return; }
     seenTaskIds.current = new Set();
+    loadingMoreRef.current = false;
+    setHistory([]);
+    setCursor(null);
+    setHasMore(false);
+    setHistoryLoaded(false);
+    setLoadingMore(false);
     getPointsHistory(uid, PAGE_SIZE)
       .then(({ entries, nextCursor }) => {
         setHistory(dedupeAgainstSeen(entries));
@@ -155,7 +169,8 @@ export default function PointsHistoryScreen() {
   }, [uid]));
 
   const handleLoadMore = useCallback(() => {
-    if (!uid || !cursor || loadingMore) { return; }
+    if (!uid || !cursor || loadingMoreRef.current) { return; }
+    loadingMoreRef.current = true;
     setLoadingMore(true);
     getPointsHistory(uid, PAGE_SIZE, cursor)
       .then(({ entries, nextCursor }) => {
@@ -164,8 +179,11 @@ export default function PointsHistoryScreen() {
         setHasMore(nextCursor !== null);
       })
       .catch(err => console.warn('[PointsHistoryScreen] load more error', err))
-      .finally(() => setLoadingMore(false));
-  }, [uid, cursor, loadingMore]);
+      .finally(() => {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      });
+  }, [uid, cursor]);
 
   // ── Achievements — one-shot, re-run on every focus so returning from Today
   // after unlocking one shows it (KAN-218) ──────────────────────────────────

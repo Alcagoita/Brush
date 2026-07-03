@@ -32,6 +32,7 @@
  *     - does not collapse non-task entries that share taskId=""
  *     - returns a nextCursor (last doc) when the page is full, null otherwise
  *     - passes the cursor to startAfter when fetching a subsequent page
+ *     - throws when uid does not match the authenticated user (KAN-222 review fix)
  */
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
@@ -67,6 +68,14 @@ const mockGetDocs         = jest.fn();
 const mockSetDoc          = jest.fn();
 const mockIncrement       = jest.fn((n: number) => ({ _increment: n }));
 const mockServerTimestamp = jest.fn(() => ({ _serverTimestamp: true }));
+
+// getPointsHistory enforces uid === the authenticated user's uid — default to
+// 'uid-1' to match the uid used throughout the existing test suite; individual
+// tests override via mockGetAuth.mockReturnValueOnce(...) to exercise the guard.
+const mockGetAuth = jest.fn(() => ({ currentUser: { uid: 'uid-1' } }));
+jest.mock('@react-native-firebase/auth', () => ({
+  getAuth: () => mockGetAuth(),
+}));
 
 jest.mock('@react-native-firebase/firestore', () => ({
   getFirestore:    jest.fn(),
@@ -478,6 +487,23 @@ describe('getPointsHistory', () => {
       startAfter: jest.Mock;
     };
     expect(startAfter).toHaveBeenCalledWith(cursor);
+  });
+
+  it('throws when uid does not match the authenticated user', async () => {
+    mockGetAuth.mockReturnValueOnce({ currentUser: { uid: 'someone-else' } });
+
+    await expect(getPointsHistory('uid-1', 20)).rejects.toThrow(
+      'getPointsHistory: uid must match the authenticated user',
+    );
+    expect(mockGetDocs).not.toHaveBeenCalled();
+  });
+
+  it('throws when there is no authenticated user', async () => {
+    mockGetAuth.mockReturnValueOnce({ currentUser: null });
+
+    await expect(getPointsHistory('uid-1', 20)).rejects.toThrow(
+      'getPointsHistory: uid must match the authenticated user',
+    );
   });
 });
 

@@ -24,6 +24,7 @@ import {
   increment,
 } from '@react-native-firebase/firestore';
 import type { QueryConstraint, QueryDocumentSnapshot } from '@react-native-firebase/firestore';
+import { getAuth } from '@react-native-firebase/auth';
 import { todayISO } from '../../utils/date';
 import type {
   AchievementType,
@@ -368,6 +369,10 @@ export async function getPointsHistory(
   pageSize: number,
   cursor?: PointsHistoryCursor | null,
 ): Promise<PointsHistoryPage> {
+  if (getAuth().currentUser?.uid !== uid) {
+    throw new Error('getPointsHistory: uid must match the authenticated user');
+  }
+
   const constraints: QueryConstraint[] = [orderBy('awardedAt', 'desc'), limit(pageSize)];
   if (cursor) { constraints.push(startAfter(cursor)); }
 

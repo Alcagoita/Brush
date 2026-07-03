@@ -212,6 +212,27 @@ describe('PointsHistoryScreen — points history', () => {
     // Server reports no more pages — "Load more" disappears
     expect(screen.queryByLabelText('Load more history')).toBeNull();
   });
+
+  it('ignores a double-tap on "Load more" — only one next-page fetch fires (reentrancy guard)', async () => {
+    const page1 = Array.from({ length: 20 }, (_, i) =>
+      makeEntry({ id: `entry-${i}`, taskTitle: `Task ${i}` }),
+    );
+    mockGetPointsHistory
+      .mockResolvedValueOnce({ entries: page1, nextCursor: 'cursor-1' })
+      .mockResolvedValueOnce({ entries: [], nextCursor: null });
+    await renderScreen();
+    const loadMoreBtn = screen.getByLabelText('Load more history');
+
+    // Two rapid presses, before loadingMore state has a chance to propagate.
+    await act(async () => {
+      fireEvent.press(loadMoreBtn);
+      fireEvent.press(loadMoreBtn);
+    });
+
+    // Initial page fetch + exactly one "Load more" fetch — the second
+    // same-tick press is blocked by the loadingMoreRef mutex.
+    expect(mockGetPointsHistory).toHaveBeenCalledTimes(2);
+  });
 });
 
 // ── Achievements gallery ──────────────────────────────────────────────────────
