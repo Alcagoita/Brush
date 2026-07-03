@@ -15,15 +15,11 @@ import type { AchievementsMap } from '../../src/types';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockGetTotalPoints   = jest.fn();
-const mockGetCurrentStreak = jest.fn();
-const mockGetAchievements  = jest.fn();
-const mockGetUser          = jest.fn();
+const mockGetUserPointsSummary = jest.fn();
+const mockGetUser              = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  getTotalPoints:         (...args: unknown[]) => mockGetTotalPoints(...args),
-  getCurrentStreak:       (...args: unknown[]) => mockGetCurrentStreak(...args),
-  getAchievements:        (...args: unknown[]) => mockGetAchievements(...args),
+  getUserPointsSummary:   (...args: unknown[]) => mockGetUserPointsSummary(...args),
   getUser:                (...args: unknown[]) => mockGetUser(...args),
   updateDisplayName:      jest.fn().mockResolvedValue(undefined),
   updateUsername:         jest.fn().mockResolvedValue(undefined),
@@ -143,13 +139,11 @@ import ProfileScreen from '../../src/screens/ProfileScreen';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function setupDefaultMocks() {
-  mockGetTotalPoints.mockResolvedValue(0);
-  mockGetCurrentStreak.mockResolvedValue(0);
-  mockGetAchievements.mockResolvedValue({});
+  mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
   mockGetUser.mockResolvedValue(null);
 }
 
-/** Renders the screen and flushes the one-shot getTotalPoints/getCurrentStreak/getAchievements fetches (KAN-218). */
+/** Renders the screen and flushes the one-shot getUserPointsSummary fetch (KAN-218). */
 async function renderScreen() {
   const utils = render(<ProfileScreen />);
   await act(async () => {});
@@ -208,19 +202,9 @@ describe('ProfileScreen — identity card', () => {
 describe('ProfileScreen — one-shot fetch (KAN-218)', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('fetches total points with the correct uid', async () => {
+  it('fetches the points summary with the correct uid', async () => {
     await renderScreen();
-    expect(mockGetTotalPoints).toHaveBeenCalledWith('test-uid');
-  });
-
-  it('fetches current streak with the correct uid', async () => {
-    await renderScreen();
-    expect(mockGetCurrentStreak).toHaveBeenCalledWith('test-uid');
-  });
-
-  it('fetches achievements with the correct uid', async () => {
-    await renderScreen();
-    expect(mockGetAchievements).toHaveBeenCalledWith('test-uid');
+    expect(mockGetUserPointsSummary).toHaveBeenCalledWith('test-uid');
   });
 });
 
@@ -240,19 +224,19 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
   });
 
   it('shows 0 points before the fetch resolves', () => {
-    mockGetTotalPoints.mockReturnValue(new Promise(() => {})); // never resolves
+    mockGetUserPointsSummary.mockReturnValue(new Promise(() => {})); // never resolves
     render(<ProfileScreen />);
     expect(screen.getByLabelText('0 points')).toBeTruthy();
   });
 
   it('shows the point total once the fetch resolves', async () => {
-    mockGetTotalPoints.mockResolvedValue(42);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 42, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.getByLabelText('42 points')).toBeTruthy();
   });
 
   it('shows "{toGo} pts to {name}" when not maxed', async () => {
-    mockGetTotalPoints.mockResolvedValue(10);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 10, currentStreak: 0, achievements: {} });
     await renderScreen();
     // 10 pts → toGo = 40, nextTier = Bronze
     expect(screen.getByText(/40 pts/)).toBeTruthy();
@@ -260,7 +244,7 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
   });
 
   it('shows "Top tier · {name}" when maxed', async () => {
-    mockGetTotalPoints.mockResolvedValue(3000);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.getByText(/Top tier/)).toBeTruthy();
     expect(screen.getByText(/Vibranium/)).toBeTruthy();
@@ -274,7 +258,7 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
   });
 
   it('passes earned=true and pct=null to TierMedal when maxed', async () => {
-    mockGetTotalPoints.mockResolvedValue(3000);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
     await renderScreen();
     const lastCall = mockTierMedal.mock.calls[mockTierMedal.mock.calls.length - 1][0] as Record<string, unknown>;
     expect(lastCall.earned).toBe(true);
@@ -282,7 +266,7 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
   });
 
   it('passes earned=false and numeric bandPct when not maxed', async () => {
-    mockGetTotalPoints.mockResolvedValue(25);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 25, currentStreak: 0, achievements: {} });
     await renderScreen();
     // 25 pts → bandPct = 25/50 = 0.5
     const lastCall = mockTierMedal.mock.calls[mockTierMedal.mock.calls.length - 1][0] as Record<string, unknown>;
@@ -304,14 +288,14 @@ describe('ProfileScreen — KAN-137: streak chip', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
   it('shows streak chip when streak > 0', async () => {
-    mockGetCurrentStreak.mockResolvedValue(5);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 5, achievements: {} });
     await renderScreen();
     expect(screen.getByText('5')).toBeTruthy();
     expect(screen.getByText(/-day streak/)).toBeTruthy();
   });
 
   it('hides streak chip when streak is 0', async () => {
-    mockGetCurrentStreak.mockResolvedValue(0);
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.queryByText(/-day streak/)).toBeNull();
   });
@@ -339,16 +323,20 @@ describe('ProfileScreen — achievement medal strip', () => {
   });
 
   it('shows 0/7 count when no achievements earned', async () => {
-    mockGetAchievements.mockResolvedValue({});
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 0, currentStreak: 0, achievements: {} });
     await renderScreen();
     expect(screen.getByText(/ · 0\/7/)).toBeTruthy();
   });
 
   it('shows correct earned count when some achievements are earned', async () => {
-    mockGetAchievements.mockResolvedValue({
-      day_complete: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
-      early_bird:   { earnCount: 2, progress: 2, target: 1, earnedAt: null },
-    } as AchievementsMap);
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: {
+        day_complete: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+        early_bird:   { earnCount: 2, progress: 2, target: 1, earnedAt: null },
+      } as AchievementsMap,
+    });
     await renderScreen();
     expect(screen.getByText(/ · 2\/7/)).toBeTruthy();
   });

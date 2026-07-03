@@ -110,6 +110,7 @@ import {
   getTotalPoints,
   getCurrentStreak,
   getAchievements,
+  getUserPointsSummary,
   getPointsHistory,
 } from '../../src/services/firestore';
 
@@ -320,6 +321,51 @@ describe('getAchievements', () => {
     const map = { first_task: { earnedAt: null, earnCount: 1, progress: 1, target: 1 } };
     mockGetDoc.mockResolvedValueOnce({ data: () => ({ achievements: map }), exists: () => true });
     expect(await getAchievements('uid-1')).toEqual(map);
+  });
+});
+
+// ─── getUserPointsSummary (KAN-223) ──────────────────────────────────────────
+
+describe('getUserPointsSummary', () => {
+  it('returns defaults when the user doc has none of the three fields', async () => {
+    mockGetDoc.mockResolvedValueOnce({ data: () => ({ uid: 'uid-1' }), exists: () => true });
+    expect(await getUserPointsSummary('uid-1')).toEqual({
+      totalPoints: 0,
+      currentStreak: 0,
+      achievements: {},
+    });
+  });
+
+  it('returns the stored totalPoints, currentStreak, and achievements from a single getDoc', async () => {
+    const map = { first_task: { earnedAt: null, earnCount: 1, progress: 1, target: 1 } };
+    mockGetDoc.mockResolvedValueOnce({
+      data: () => ({ totalPoints: 7, currentStreak: 4, achievements: map }),
+      exists: () => true,
+    });
+
+    expect(await getUserPointsSummary('uid-1')).toEqual({
+      totalPoints: 7,
+      currentStreak: 4,
+      achievements: map,
+    });
+    expect(mockGetDoc).toHaveBeenCalledTimes(1);
+  });
+
+  it('throws when uid does not match the authenticated user', async () => {
+    mockGetAuth.mockReturnValueOnce({ currentUser: { uid: 'someone-else' } });
+
+    await expect(getUserPointsSummary('uid-1')).rejects.toThrow(
+      'getUserPointsSummary: uid must match the authenticated user',
+    );
+    expect(mockGetDoc).not.toHaveBeenCalled();
+  });
+
+  it('throws when there is no authenticated user', async () => {
+    mockGetAuth.mockReturnValueOnce({ currentUser: null });
+
+    await expect(getUserPointsSummary('uid-1')).rejects.toThrow(
+      'getUserPointsSummary: uid must match the authenticated user',
+    );
   });
 });
 

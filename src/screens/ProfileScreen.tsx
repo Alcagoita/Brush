@@ -40,9 +40,7 @@ import {
 } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import {
-  getTotalPoints,
-  getCurrentStreak,
-  getAchievements,
+  getUserPointsSummary,
   updateDisplayName,
   getUser,
   updateUsername,
@@ -80,9 +78,11 @@ export default function ProfileScreen() {
   // earning points/achievements shows current data (KAN-218).
   useFocusEffect(useCallback(() => {
     if (!uid) { return; }
-    getTotalPoints(uid).then(setTotalPoints).catch(err => console.warn('[ProfileScreen] points', err));
-    getCurrentStreak(uid).then(setCurrentStreak).catch(err => console.warn('[ProfileScreen] streak', err));
-    getAchievements(uid).then(setAchievements).catch(err => console.warn('[ProfileScreen] achievements', err));
+    getUserPointsSummary(uid).then(({ totalPoints: tp, currentStreak: cs, achievements: ach }) => {
+      setTotalPoints(tp);
+      setCurrentStreak(cs);
+      setAchievements(ach);
+    }).catch(err => console.warn('[ProfileScreen] points summary', err));
   }, [uid]));
 
   // ── Username ───────────────────────────────────────────────────────────────
