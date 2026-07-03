@@ -11,13 +11,27 @@
 // specific currentUser/analytics behavior — a local jest.mock() takes
 // precedence over this file for that test file.
 
+// Shared instance — @react-native-firebase/auth and its /lib/modular
+// subpath both export getAuth, and the app imports from either depending
+// on the call site. Delegating both mocks to one jest.fn() keeps auth
+// state consistent regardless of which import path is used.
+const mockGetAuth = jest.fn(() => ({ currentUser: null }));
+
 jest.mock('@react-native-firebase/auth', () => ({
-  getAuth: jest.fn(() => ({ currentUser: null })),
+  getAuth: (...args) => mockGetAuth(...args),
+  GoogleAuthProvider: { credential: jest.fn() },
+  OAuthProvider: jest.fn().mockImplementation(() => ({ credential: jest.fn() })),
 }));
 
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
-  getAuth: jest.fn(() => ({ currentUser: null })),
+  getAuth: (...args) => mockGetAuth(...args),
   connectAuthEmulator: jest.fn(),
+  onAuthStateChanged: jest.fn(() => jest.fn()),
+  signInWithEmailAndPassword: jest.fn(),
+  createUserWithEmailAndPassword: jest.fn(),
+  signOut: jest.fn(),
+  signInWithCredential: jest.fn(),
+  updateProfile: jest.fn(),
 }));
 
 jest.mock('@react-native-firebase/analytics', () => ({
