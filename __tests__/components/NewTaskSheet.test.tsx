@@ -35,6 +35,12 @@ jest.mock('../../src/services/poiLlm', () => ({
   inferPoiForQuickAdd: (...args: unknown[]) => mockInferPoiForQuickAdd(...args),
 }));
 
+const mockEvaluateAddTaskAchievement = jest.fn();
+
+jest.mock('../../src/services/achievements', () => ({
+  evaluateAddTaskAchievement: (...args: unknown[]) => mockEvaluateAddTaskAchievement(...args),
+}));
+
 jest.mock('../../src/navigation/navigationRef', () => ({
   navigateTo: (...args: unknown[]) => mockNavigateTo(...args),
 }));
@@ -88,6 +94,7 @@ beforeEach(() => {
   // Safe default for every pre-existing test: no auto-suggestion fires unless
   // a KAN-232 test below explicitly opts in with a resolved POI.
   mockInferPoiForQuickAdd.mockResolvedValue(null);
+  mockEvaluateAddTaskAchievement.mockResolvedValue(undefined);
 });
 
 describe('canSubmit: requires title AND POI', () => {
