@@ -325,7 +325,7 @@ Order (updated 2026-07-04 — added KAN-236):
 3. **KAN-233** — Cleanup dead exit-prompt geofence code ✅ merged
 4. **KAN-227** — Airplane-mode test suite ✅ merged
 5. **KAN-228** — Habitat POI cache (OSM + SQLite, cross-source place identity) — 🔄 PR #209 open, awaiting review
-6. **KAN-229** — Cache-backed offline proximity (depends on 228; seamless-switch AC lives here)
+6. **KAN-229** — ✅ Merged. Cache-backed offline proximity (depends on 228; seamless-switch AC lives here)
 7. **KAN-236** — Offline expectations messaging (depends on 228 + 229; UI/copy layer — state-based network banner/toast copy, three states: no cache yet, inside cached area, moved beyond cached coverage)
 8. **KAN-230** — Learned places (last — needs weeks of KAN-226 data anyway)
 
