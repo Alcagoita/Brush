@@ -35,8 +35,18 @@
  *   table, and a stale-check triggers a background OSM refresh around the
  *   same origin. Deferred via InteractionManager so the synchronous SQLite
  *   writes never delay this search's own hero-card/notification result.
- *   Reading from the cache to answer offline queries is KAN-229's job, not
- *   this file's.
+ *
+ * Cache-backed offline proximity (KAN-229):
+ *   When a live search fails while offline, the cache answers instead
+ *   (queryHabitatCache impersonates searchNearbyPlaces's return shape) and
+ *   the search is queued (KAN-205) so a live refresh replaces it on
+ *   reconnect. Live results are reconciled against the cache's cross-source
+ *   identity table (findExistingPlaceId) before the hero split runs: a
+ *   place already known to both sources gets the same internal id
+ *   regardless of which one answered, so the Nearby card's carousel and the
+ *   exit-prompt's per-place dwell timer don't reset on a source flip. A
+ *   place with no cache counterpart yet keeps its own Google placeId
+ *   unchanged (never invented — see findExistingPlaceId's docs).
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -51,7 +61,7 @@ import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
-import { recordLiveResult, refreshHabitatCacheIfStale } from './habitatCache';
+import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId } from './habitatCache';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -378,18 +388,24 @@ async function runProximitySearch(
 
     // One API call covers all POI types.
     let results: Record<string, NearbyPlace[]> = {};
+    let isOffline = false;
     try {
       results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
     } catch (err) {
-      // If offline, queue this search for retry when connection returns.
-      // Otherwise (timeout, API error) keep showing whatever was shown before.
+      // If offline, queue this search for retry when connection returns, and
+      // answer from the habitat cache in the meantime (KAN-229) — the cache
+      // impersonates the Places response, so hero split, notification,
+      // exit-prompt and wear alert all run unchanged below. Otherwise
+      // (timeout, API error while online) keep showing whatever was shown
+      // before.
       reportProximityError('searchNearbyPlaces failed', err);
       let isConnected: boolean | null = null;
       try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
-      if (isConnected === false) {
-        _enqueueSearch(uid, tasks, onUpdate);
-      }
-      return;
+      if (isConnected !== false) { return; }
+
+      _enqueueSearch(uid, tasks, onUpdate);
+      results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+      isOffline = true;
     }
 
     _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
@@ -399,26 +415,30 @@ async function runProximitySearch(
     // cache around this origin. Deferred until after interactions settle —
     // the seeding loop's synchronous SQLite writes must not delay the
     // hero-card/notification logic below, which needs this tick's result now.
-    InteractionManager.runAfterInteractions(() => {
-      try {
-        for (const poiType of uniquePoiTypes) {
-          for (const place of results[poiType] ?? []) {
-            recordLiveResult({
-              poiType,
-              name:          place.name,
-              lat:           place.lat,
-              lng:           place.lng,
-              googlePlaceId: place.placeId,
-            });
+    // Skipped when this tick was itself answered by the cache — there's no
+    // new live data to feed back into it.
+    if (!isOffline) {
+      InteractionManager.runAfterInteractions(() => {
+        try {
+          for (const poiType of uniquePoiTypes) {
+            for (const place of results[poiType] ?? []) {
+              recordLiveResult({
+                poiType,
+                name:          place.name,
+                lat:           place.lat,
+                lng:           place.lng,
+                googlePlaceId: place.placeId,
+              });
+            }
           }
+          refreshHabitatCacheIfStale(coords.lat, coords.lng, uniquePoiTypes).catch(err =>
+            reportProximityError('habitat cache refresh failed', err),
+          );
+        } catch (err) {
+          reportProximityError('habitat cache seed failed', err);
         }
-        refreshHabitatCacheIfStale(coords.lat, coords.lng, uniquePoiTypes).catch(err =>
-          reportProximityError('habitat cache refresh failed', err),
-        );
-      } catch (err) {
-        reportProximityError('habitat cache seed failed', err);
-      }
-    });
+      });
+    }
 
     // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
     let heroType:  string | null = null;
@@ -427,7 +447,23 @@ async function runProximitySearch(
     const allPlaces: PlacesMap = {};
 
     for (const poiType of uniquePoiTypes) {
-      const places = results[poiType] ?? [];
+      let places = results[poiType] ?? [];
+
+      // Reconcile live results against the cache's cross-source identity
+      // (KAN-229): a place already known to both Google and the OSM cache
+      // gets its stable internal id instead of this tick's raw Google
+      // placeId, so a later source flip (cache ↔ live) doesn't look like a
+      // different place downstream (exit-prompt dwell clock, hero card's
+      // carousel). A place with no cache counterpart yet keeps its own
+      // Google placeId — findExistingPlaceId never invents a new identity.
+      // Read-only and per-displayed-place (≤5), not the deferred bulk seed
+      // above, so safe to run synchronously here.
+      if (!isOffline && places.length > 0) {
+        places = places.map(place => {
+          const existingId = findExistingPlaceId(poiType, place.name, place.lat, place.lng);
+          return existingId ? { ...place, placeId: existingId } : place;
+        });
+      }
 
       // Exit-prompt dwell check runs for every type regardless of the
       // display threshold below. A type with zero results this tick is
