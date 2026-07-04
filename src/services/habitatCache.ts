@@ -409,6 +409,24 @@ export async function refreshHabitatCacheIfStale(
   }
 }
 
+/**
+ * True if the cache has any row at all, anywhere — a cheap, position-free
+ * check used to tell "nothing cached yet" (fresh install/new phone) apart
+ * from "nothing cached near here" (KAN-236's offline-messaging states).
+ *
+ * Never throws — a DB failure returns false (the more cautious of the two
+ * states to assume).
+ */
+export function hasCachedPlaces(): boolean {
+  try {
+    const rows = getDb().getAllSync<{ one: number }>('SELECT 1 as one FROM habitat_places LIMIT 1');
+    return rows.length > 0;
+  } catch (err) {
+    console.warn('[habitatCache] hasCachedPlaces failed', err);
+    return false;
+  }
+}
+
 // ─── Size budget ──────────────────────────────────────────────────────────────
 
 /** Deletes the oldest (by last_matched_at) rows beyond MAX_CACHED_PLACES. */

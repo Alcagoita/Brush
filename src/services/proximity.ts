@@ -47,6 +47,15 @@
  *   exit-prompt's per-place dwell timer don't reset on a source flip. A
  *   place with no cache counterpart yet keeps its own Google placeId
  *   unchanged (never invented — see findExistingPlaceId's docs).
+ *
+ * Offline expectations messaging (KAN-236):
+ *   A cache miss (nothing cached near this position) fires a one-time,
+ *   once-per-session toast telling the user they've walked beyond what the
+ *   cache knows — but only when the cache has data *somewhere* (hasCachedPlaces).
+ *   If the cache is empty everywhere (fresh install/new phone), that's a
+ *   different, more persistent state — NetworkBanner handles it directly
+ *   (it doesn't need a position, just "is there anything cached at all"), so
+ *   this file doesn't duplicate that check into a toast.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -61,7 +70,8 @@ import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
-import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId } from './habitatCache';
+import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
+import { useToastStore } from '../store/toastStore';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -148,6 +158,9 @@ const _alertedTodayTypes = new Set<string>();
 
 /** Guards against concurrent search calls. */
 let _isSearching = false;
+
+/** KAN-236 — the "you've moved beyond cached coverage" toast fires at most once per session. */
+let _offlineUncoveredNoticeShown = false;
 
 /**
  * Optional tap into the GPS stream (KAN-75 indoor detection).
@@ -399,9 +412,16 @@ async function runProximitySearch(
       // (timeout, API error while online) keep showing whatever was shown
       // before.
       reportProximityError('searchNearbyPlaces failed', err);
-      let isConnected: boolean | null = null;
-      try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
-      if (isConnected !== false) { return; }
+      // Same offline predicate as NetworkBanner — isConnected===true but
+      // isInternetReachable===false (captive portal, no real internet) must
+      // still fall back to the cache, not sit on a silent "keep showing
+      // what's there" state that never resolves.
+      let offline = false;
+      try {
+        const state = await NetInfo.fetch();
+        offline = state.isConnected === false || state.isInternetReachable === false;
+      } catch { /* treat as unknown — not offline */ }
+      if (!offline) { return; }
 
       _enqueueSearch(uid, tasks, onUpdate);
       results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
@@ -416,6 +436,14 @@ async function runProximitySearch(
     // (and any in-progress exit-prompt dwell clock) survives untouched; the
     // search stays queued above for a live retry on reconnect.
     if (isOffline && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
+      // KAN-236 — only worth telling the user if the cache has data
+      // *somewhere* (they've genuinely walked past its coverage); if it's
+      // empty everywhere, NetworkBanner's own "still learning your area"
+      // copy already covers that — no need to also fire a toast for it.
+      if (!_offlineUncoveredNoticeShown && hasCachedPlaces()) {
+        _offlineUncoveredNoticeShown = true;
+        useToastStore.getState().showToast(COPY.offline.uncoveredAreaToast);
+      }
       return;
     }
 
@@ -616,6 +644,7 @@ export function resetProximityState(): void {
   _pendingQueue   = [];
   _netInfoUnsubscribe?.();
   _netInfoUnsubscribe = null;
+  _offlineUncoveredNoticeShown = false;
 
   geofenceEntryTimes.clear();
 }

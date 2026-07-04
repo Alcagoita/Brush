@@ -58,6 +58,9 @@ const mockDb = {
     if (s.startsWith('SELECT COUNT(*)')) {
       return [{ count: rows.length }] as unknown as T[];
     }
+    if (s.startsWith('SELECT 1 as one FROM habitat_places')) {
+      return (rows.length > 0 ? [{ one: 1 }] : []) as unknown as T[];
+    }
     if (s.startsWith('SELECT poi_type FROM habitat_places WHERE poi_type IN')) {
       const inCount = (s.match(/\?/g) ?? []).length - 5; // poiTypes + 4 box bounds + 1 cutoff
       const poiTypes = params.slice(0, inCount) as string[];
@@ -136,6 +139,7 @@ import {
   refreshHabitatCacheIfStale,
   enforceSizeBudget,
   findExistingPlaceId,
+  hasCachedPlaces,
   __resetHabitatDbForTests,
   MAX_CACHED_PLACES,
   HABITAT_CACHE_STALE_MS,
@@ -445,6 +449,27 @@ describe('enforceSizeBudget', () => {
     expect(() => enforceSizeBudget()).not.toThrow();
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] enforceSizeBudget failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('hasCachedPlaces (KAN-236)', () => {
+  it('returns false when the cache is empty', () => {
+    expect(hasCachedPlaces()).toBe(false);
+  });
+
+  it('returns true when the cache has at least one row, anywhere', () => {
+    upsertPlace({ poiType: 'atm', name: 'Some ATM', lat: 40, lng: -70, source: { osm: 'node/1' } });
+    expect(hasCachedPlaces()).toBe(true);
+  });
+
+  it('returns false and logs a warning instead of throwing when the DB read fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(hasCachedPlaces()).toBe(false);
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] hasCachedPlaces failed', expect.any(Error));
     warnSpy.mockRestore();
   });
 });
