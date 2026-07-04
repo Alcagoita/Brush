@@ -1,5 +1,6 @@
 /**
  * KAN-229 — Cache-backed offline proximity.
+ * KAN-236 — Offline expectations messaging (the "moved beyond coverage" toast).
  *
  * Covers:
  *   - a live searchNearbyPlaces failure while offline answers from the
@@ -29,6 +30,10 @@
  *     nearest place), plus once more per extra place but ONLY for the
  *     type that actually won the hero slot — never for every place of
  *     every type (avoids an N+1 synchronous SQLite read per search)
+ *   - a cache miss fires a one-time, once-per-session toast when the cache
+ *     has data *somewhere* (the user has walked beyond its coverage) but
+ *     stays silent when the cache is empty everywhere (that's NetworkBanner's
+ *     job, not a toast) or when the cache actually answered (not a miss)
  */
 
 jest.mock('@react-native-community/netinfo', () =>
@@ -39,12 +44,14 @@ const mockRecordLiveResult            = jest.fn();
 const mockRefreshHabitatCacheIfStale  = jest.fn().mockResolvedValue(undefined);
 const mockQueryHabitatCache           = jest.fn().mockReturnValue({});
 const mockFindExistingPlaceId         = jest.fn().mockReturnValue(null);
+const mockHasCachedPlaces             = jest.fn().mockReturnValue(false);
 
 jest.mock('../../src/services/habitatCache', () => ({
   recordLiveResult:           (...args: unknown[]) => mockRecordLiveResult(...args),
   refreshHabitatCacheIfStale: (...args: unknown[]) => mockRefreshHabitatCacheIfStale(...args),
   queryHabitatCache:          (...args: unknown[]) => mockQueryHabitatCache(...args),
   findExistingPlaceId:        (...args: unknown[]) => mockFindExistingPlaceId(...args),
+  hasCachedPlaces:            (...args: unknown[]) => mockHasCachedPlaces(...args),
 }));
 
 const mockDisplayNotification = jest.fn().mockResolvedValue(undefined);
@@ -94,6 +101,11 @@ jest.mock('../../src/constants/copy', () => ({
       proximityTitle: (label: string) => `You're near ${label}`,
       proximityBody:  (count: number) => `${count} task(s) nearby`,
     },
+    offline: {
+      genericBanner:       'Offline — changes may not sync',
+      noCacheYetBanner:    "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
+      uncoveredAreaToast:  "You're outside the area I know by heart — I'll need a connection to spot places here.",
+    },
   },
 }));
 
@@ -106,6 +118,8 @@ import { runProximitySearch, resetProximityState, __getPendingQueue } from '../.
 import type { Task } from '../../src/types';
 import type { NearbyPlace } from '../../src/services/maps';
 import NetInfo from '@react-native-community/netinfo';
+import { useToastStore } from '../../src/store/toastStore';
+import { COPY } from '../../src/constants/copy';
 
 function goOffline(): void {
   (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
@@ -143,6 +157,8 @@ beforeEach(() => {
   mockGetPosition.mockResolvedValue(ORIGIN);
   mockQueryHabitatCache.mockReturnValue({});
   mockFindExistingPlaceId.mockReturnValue(null);
+  mockHasCachedPlaces.mockReturnValue(false);
+  useToastStore.setState({ message: null });
   // Pin the clock to business hours so isQuietHours() never suppresses
   // the notification assertions below.
   jest.spyOn(Date.prototype, 'getHours').mockReturnValue(10);
@@ -315,5 +331,79 @@ describe('alert dedup survives a source switch', () => {
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
     expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+});
+
+describe('offline expectations messaging — "moved beyond coverage" toast (KAN-236)', () => {
+  it('fires the toast on a cache miss when the cache has data elsewhere', async () => {
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+  });
+
+  it('does not fire the toast on a cache miss when the cache is empty everywhere (state 1, NetworkBanner\'s job)', async () => {
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    mockHasCachedPlaces.mockReturnValue(false);
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('does not fire the toast when the cache actually answers (not a miss)', async () => {
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('fires at most once per session across repeated cache misses', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+
+    // Dismiss it, then hit another cache miss in the same session.
+    useToastStore.getState().hideToast();
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('can fire again after resetProximityState (new session)', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+
+    useToastStore.getState().hideToast();
+    resetProximityState();
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
   });
 });

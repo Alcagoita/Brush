@@ -104,4 +104,17 @@ export const COPY = {
     confirmToast:         "Got it — I'll keep an eye out.",
   },
 
+  // ─── Offline expectations messaging (KAN-236) ──────────────────────────────
+  // Never say "POI"/"cache" here — frame everything as the app's own
+  // limitation, not the user's problem. State-based, not launch-based: only
+  // shown when it's actually true this session, never a blanket warning.
+  offline: {
+    /** NetworkBanner default text — offline, but nothing else worth saying (inside cached coverage, or coverage unknown yet). */
+    genericBanner: '⚠️  Offline — changes may not sync',
+    /** NetworkBanner text when offline AND the habitat cache has never been seeded (fresh install/new phone) — the only fully broken case. */
+    noCacheYetBanner: "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
+    /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. */
+    uncoveredAreaToast: "You're outside the area I know by heart — I'll need a connection to spot places here.",
+  },
+
 } as const;
