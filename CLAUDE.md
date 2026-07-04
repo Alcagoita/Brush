@@ -318,19 +318,20 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ## Sprint 16 Plan (KAN-226 epic — offline/habitat POI)
 
-Recommended order:
+Order (updated 2026-07-04 — added KAN-236):
 
-1. **KAN-226** — Record place at brush time (~1 day, unblocks everything downstream, starts accumulating data immediately)
-2. **KAN-232** — Wire POI inference into quick-add (small, independent, instant user value)
-3. **KAN-233** — Cleanup dead exit-prompt geofence code (0.5 day, clears `proximity.ts` before bigger changes land there)
-4. **KAN-227** — Airplane-mode test suite (establishes offline safety net before touching proximity engine)
-5. **KAN-228** — Habitat POI cache (the big one; includes cross-source place identity)
+1. **KAN-226** — Record place at brush time ✅ merged
+2. **KAN-232** — Wire POI inference into quick-add ✅ merged
+3. **KAN-233** — Cleanup dead exit-prompt geofence code ✅ merged
+4. **KAN-227** — Airplane-mode test suite ✅ merged
+5. **KAN-228** — Habitat POI cache (OSM + SQLite, cross-source place identity) — 🔄 PR #209 open, awaiting review
 6. **KAN-229** — Cache-backed offline proximity (depends on 228; seamless-switch AC lives here)
-7. **KAN-230** — Learned places (last — needs weeks of KAN-226 data anyway)
+7. **KAN-236** — Offline expectations messaging (depends on 228 + 229; UI/copy layer — state-based network banner/toast copy, three states: no cache yet, inside cached area, moved beyond cached coverage)
+8. **KAN-230** — Learned places (last — needs weeks of KAN-226 data anyway)
 
 **Hold:** KAN-231 (decision pending, not a Claude Code task), KAN-234/235 (post-epic).
 
-Rationale: three small independent wins first while KAN-226's data accumulates, tests before surgery on the proximity engine, then the cache→proximity chain in dependency order.
+Rationale: three small independent wins first while KAN-226's data accumulates, tests before surgery on the proximity engine, then the cache→proximity→messaging chain in dependency order (KAN-236 needs both the cache and the offline-proximity wiring to know which of its three states applies).
 
 Rule 12 (one ticket at a time) still applies — this order is a queue, not a license to batch.
 
