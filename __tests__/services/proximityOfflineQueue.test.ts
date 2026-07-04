@@ -27,10 +27,7 @@ jest.mock('@react-native-community/netinfo', () => ({
 
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
-jest.mock('../../src/services/habitatCache', () => ({
-  recordLiveResult: jest.fn(),
-  refreshHabitatCacheIfStale: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('../../src/services/habitatCache');
 
 // ─── Other required mocks ─────────────────────────────────────────────────────
 
@@ -46,9 +43,10 @@ jest.mock('expo-location', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Alert:    { alert: jest.fn() },
-  Linking:  { openSettings: jest.fn() },
-  Platform: { OS: 'android' },
+  Alert:              { alert: jest.fn() },
+  Linking:            { openSettings: jest.fn() },
+  Platform:           { OS: 'android' },
+  InteractionManager: { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 const mockSearchNearbyPlaces = jest.fn();

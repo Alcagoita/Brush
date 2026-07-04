@@ -39,10 +39,7 @@ jest.mock('@react-native-community/netinfo', () =>
 
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
-jest.mock('../../src/services/habitatCache', () => ({
-  recordLiveResult: jest.fn(),
-  refreshHabitatCacheIfStale: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('../../src/services/habitatCache');
 
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
@@ -55,8 +52,9 @@ jest.mock('@notifee/react-native', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Platform:      { OS: 'android' },
-  NativeModules: { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  Platform:            { OS: 'android' },
+  NativeModules:       { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  InteractionManager:  { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 // ─── Firebase / service mocks ─────────────────────────────────────────────────

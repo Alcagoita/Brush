@@ -99,4 +99,26 @@ describe('searchOsmPlaces', () => {
     const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
     expect(result).toEqual({ atm: [] });
   });
+
+  it('sends a User-Agent header identifying the app', async () => {
+    mockOverpassResponse([]);
+    await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(options.headers['User-Agent']).toMatch(/^BrushApp\//);
+  });
+
+  it('aborts and returns empty results when the request exceeds the timeout', async () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+      options.signal?.addEventListener('abort', () => reject(new Error('AbortError')));
+    }));
+
+    const resultPromise = searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    jest.advanceTimersByTime(8_001);
+    const result = await resultPromise;
+
+    expect(result).toEqual({ atm: [] });
+    jest.useRealTimers();
+  });
 });

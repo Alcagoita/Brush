@@ -16,7 +16,8 @@
  * later enhancement if node coverage proves insufficient.
  */
 
-import { PoiType, POI_OSM_TAGS } from '../types';
+import type { PoiType } from '../types';
+import { POI_OSM_TAGS } from '../types';
 import { getDistanceMeters } from './maps';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -26,6 +27,12 @@ export interface OsmPlace {
   osmId: string;
   /** Human-readable place name — falls back to the POI type label if OSM has no name tag. */
   name: string;
+  /**
+   * True when `name` is the generic tag-value fallback (OSM had no `name`
+   * tag), not a real identifying name. habitatCache's identity matching
+   * treats generic names as much weaker match evidence — see its docs.
+   */
+  isGenericName: boolean;
   lat: number;
   lng: number;
   /** Straight-line distance from the search origin in metres. */
@@ -49,6 +56,10 @@ interface OverpassResponse {
 // 5-line wrapper, not worth a cross-file dependency for.
 
 const FETCH_TIMEOUT_MS = 8_000;
+
+// Overpass's usage policy asks every client to identify itself — unlabeled
+// traffic risks being rate-limited or blocked. https://wiki.openstreetmap.org/wiki/Overpass_API#Rules
+const USER_AGENT = `BrushApp/${require('../../package.json').version}`;
 
 function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
   const controller = new AbortController();
@@ -103,7 +114,10 @@ export async function searchOsmPlaces(
   try {
     const response = await fetchWithTimeout(OVERPASS_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'User-Agent':   USER_AGENT,
+      },
       body: `data=${encodeURIComponent(query)}`,
     });
     if (!response.ok) { return result; }
@@ -123,6 +137,7 @@ export async function searchOsmPlaces(
       result[poiType].push({
         osmId:          `${el.type}/${el.id}`,
         name:           el.tags.name ?? tag.value.replace(/_/g, ' '),
+        isGenericName:  el.tags.name == null,
         lat:            el.lat,
         lng:            el.lon,
         distanceMeters: getDistanceMeters(lat, lng, el.lat, el.lon),
