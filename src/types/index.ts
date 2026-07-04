@@ -230,6 +230,32 @@ export const POI_GOOGLE_TYPES: Record<PoiType, string> = {
   school:       'school',
 };
 
+/**
+ * Maps our PoiType to the corresponding OpenStreetMap tag (key=value) used to
+ * query the Overpass API for the offline habitat cache (KAN-228). Google
+ * Places' ToS forbids long-term caching of coordinates, so the offline cache
+ * is sourced from OSM instead — this is the OSM equivalent of
+ * POI_GOOGLE_TYPES above.
+ */
+export const POI_OSM_TAGS: Record<PoiType, { key: string; value: string }> = {
+  atm:         { key: 'amenity', value: 'atm' },
+  cafe:        { key: 'amenity', value: 'cafe' },
+  supermarket: { key: 'shop',    value: 'supermarket' },
+  pharmacy:    { key: 'amenity', value: 'pharmacy' },
+  gas:         { key: 'amenity', value: 'fuel' },
+  gym:         { key: 'leisure', value: 'fitness_centre' },
+  bank:        { key: 'amenity', value: 'bank' },
+  restaurant:  { key: 'amenity', value: 'restaurant' },
+  park:        { key: 'leisure', value: 'park' },
+  library:     { key: 'amenity', value: 'library' },
+  post:        { key: 'amenity', value: 'post_office' },
+  store:       { key: 'shop',    value: 'convenience' },
+  clinic:      { key: 'amenity', value: 'clinic' },
+  salon:       { key: 'shop',    value: 'hairdresser' },
+  bus:         { key: 'highway', value: 'bus_stop' },
+  school:      { key: 'amenity', value: 'school' },
+};
+
 /** Default geofence radius in metres per POI type. */
 export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
   atm:         50,

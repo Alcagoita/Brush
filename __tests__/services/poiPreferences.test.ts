@@ -15,6 +15,17 @@ jest.mock('../../src/config/keys', () => ({
   GOOGLE_PLACES_API_KEY: 'TEST_KEY',
 }));
 
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
+
+// KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
+// pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
+jest.mock('../../src/services/habitatCache', () => ({
+  recordLiveResult: jest.fn(),
+  refreshHabitatCacheIfStale: jest.fn().mockResolvedValue(undefined),
+}));
+
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
 const mockGetDoc      = jest.fn();
