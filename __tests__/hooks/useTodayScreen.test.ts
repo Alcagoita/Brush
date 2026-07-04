@@ -23,6 +23,8 @@ const mockGetTotalPoints         = jest.fn();
 const mockSetTaskDone            = jest.fn();
 const mockRunProximitySearch     = jest.fn();
 const mockGetInboxUnreadCount    = jest.fn();
+const mockGetCompletedTasksWithPlace = jest.fn().mockResolvedValue([]);
+const mockSetLearnedPlaces           = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
@@ -35,6 +37,7 @@ jest.mock('../../src/services/firestore', () => ({
   setStoreTuningPref:   jest.fn().mockResolvedValue(undefined),
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
+  getCompletedTasksWithPlace: (...args: unknown[]) => mockGetCompletedTasksWithPlace(...args),
 }));
 
 jest.mock('../../src/services/sharing', () => ({
@@ -77,6 +80,7 @@ jest.mock('../../src/services/proximity', () => ({
   setLocationTap:                jest.fn(),
   updateNotifNearbyEnabled:      jest.fn(),
   updateExitPromptPref:          jest.fn(),
+  setLearnedPlaces:              (...args: unknown[]) => mockSetLearnedPlaces(...args),
 }));
 
 jest.mock('../../src/services/maps', () => ({

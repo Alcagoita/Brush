@@ -56,6 +56,14 @@
  *   different, more persistent state — NetworkBanner handles it directly
  *   (it doesn't need a position, just "is there anything cached at all"), so
  *   this file doesn't duplicate that check into a toast.
+ *
+ * Learned places (KAN-230):
+ *   setLearnedPlaces feeds in the on-device ranking computed elsewhere
+ *   (learnedPlaces.ts, from completedPlaceId brush history). When a type's
+ *   candidates include its learned venue, that venue is preferred as the
+ *   type's representative "nearest" over an arbitrary closer stranger —
+ *   but only when the learned venue is itself within HERO_RADIUS_M, so this
+ *   can never demote a genuinely hero-eligible type to grey/nothing.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -72,6 +80,7 @@ import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
 import { useToastStore } from '../store/toastStore';
+import { LearnedPlace, getLearnedPlaceForPoiType } from './learnedPlaces';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -162,6 +171,9 @@ let _isSearching = false;
 /** KAN-236 — the "you've moved beyond cached coverage" toast fires at most once per session. */
 let _offlineUncoveredNoticeShown = false;
 
+/** KAN-230 — on-device learned-place ranking, fed in from outside (see setLearnedPlaces). */
+let _learnedPlaces: LearnedPlace[] = [];
+
 /**
  * Optional tap into the GPS stream (KAN-75 indoor detection).
  * Every position fix is forwarded here so indoor detection can run without
@@ -244,6 +256,11 @@ const EXIT_PROMPT_MIN_DWELL_MS = 5 * 60 * 1_000;
 
 export function updateNotifNearbyEnabled(enabled: boolean): void {
   notifNearbyEnabled = enabled;
+}
+
+/** KAN-230 — feed in the on-device learned-place ranking. Pass null/empty to clear (e.g. on sign-out). */
+export function setLearnedPlaces(places: LearnedPlace[] | null): void {
+  _learnedPlaces = places ?? [];
 }
 
 export function updateExitPromptPref(enabled: boolean): void {
@@ -500,9 +517,34 @@ async function runProximitySearch(
       // only matters once we know it's the hero type and its carousel is
       // actually shown — reconciled in a second pass below.
       let nearest = places[0] ?? null;
+      let promotedFromRest: NearbyPlace | null = null; // original ref, for de-duplicating the tail below
       if (!isOffline && nearest) {
         const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
         if (existingId) { nearest = { ...nearest, placeId: existingId }; }
+      }
+
+      // KAN-230 — a learned place (≥3 brushes) gets top priority as this
+      // type's representative candidate over an arbitrary closer stranger.
+      // Only bothers reconciling the other ≤4 candidates' ids when this
+      // specific type actually has a learned venue to look for — most
+      // types have none, so this is a no-op (no extra SQLite reads) for
+      // them. Only swaps in the learned candidate when IT is also within
+      // HERO_RADIUS_M on its own real distance, so this can never demote a
+      // genuinely hero-eligible type to grey/nothing.
+      const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, poiType);
+      if (learnedForType && nearest?.placeId !== learnedForType.placeId) {
+        for (const candidate of places.slice(1)) {
+          let candidateId = candidate.placeId;
+          if (!isOffline) {
+            const existingId = findExistingPlaceId(poiType, candidate.name, candidate.lat, candidate.lng);
+            if (existingId) { candidateId = existingId; }
+          }
+          if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
+            promotedFromRest = candidate;
+            nearest = { ...candidate, placeId: candidateId };
+            break;
+          }
+        }
       }
 
       // Exit-prompt dwell check runs for every type regardless of the
@@ -518,7 +560,10 @@ async function runProximitySearch(
 
       // Store all places within NEARBY_RADIUS, ordered nearest-first (index
       // 0 already reconciled above; the rest keep their raw ids for now).
-      allPlaces[poiType] = [nearest, ...places.slice(1)];
+      // Excludes `promotedFromRest` from the tail — if the learned-place
+      // swap above pulled a place out of a later position, it would
+      // otherwise also appear at its original spot, duplicated.
+      allPlaces[poiType] = [nearest, ...places.slice(1).filter(p => p !== promotedFromRest)];
 
       // Closest place under HERO_RADIUS_M wins the orange hero.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {
@@ -645,6 +690,7 @@ export function resetProximityState(): void {
   _netInfoUnsubscribe?.();
   _netInfoUnsubscribe = null;
   _offlineUncoveredNoticeShown = false;
+  _learnedPlaces = [];
 
   geofenceEntryTimes.clear();
 }
