@@ -35,8 +35,18 @@
  *   table, and a stale-check triggers a background OSM refresh around the
  *   same origin. Deferred via InteractionManager so the synchronous SQLite
  *   writes never delay this search's own hero-card/notification result.
- *   Reading from the cache to answer offline queries is KAN-229's job, not
- *   this file's.
+ *
+ * Cache-backed offline proximity (KAN-229):
+ *   When a live search fails while offline, the cache answers instead
+ *   (queryHabitatCache impersonates searchNearbyPlaces's return shape) and
+ *   the search is queued (KAN-205) so a live refresh replaces it on
+ *   reconnect. Live results are reconciled against the cache's cross-source
+ *   identity table (findExistingPlaceId) before the hero split runs: a
+ *   place already known to both sources gets the same internal id
+ *   regardless of which one answered, so the Nearby card's carousel and the
+ *   exit-prompt's per-place dwell timer don't reset on a source flip. A
+ *   place with no cache counterpart yet keeps its own Google placeId
+ *   unchanged (never invented — see findExistingPlaceId's docs).
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -51,7 +61,7 @@ import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
-import { recordLiveResult, refreshHabitatCacheIfStale } from './habitatCache';
+import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId } from './habitatCache';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -378,47 +388,66 @@ async function runProximitySearch(
 
     // One API call covers all POI types.
     let results: Record<string, NearbyPlace[]> = {};
+    let isOffline = false;
     try {
       results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
     } catch (err) {
-      // If offline, queue this search for retry when connection returns.
-      // Otherwise (timeout, API error) keep showing whatever was shown before.
+      // If offline, queue this search for retry when connection returns, and
+      // answer from the habitat cache in the meantime (KAN-229) — the cache
+      // impersonates the Places response, so hero split, notification,
+      // exit-prompt and wear alert all run unchanged below. Otherwise
+      // (timeout, API error while online) keep showing whatever was shown
+      // before.
       reportProximityError('searchNearbyPlaces failed', err);
       let isConnected: boolean | null = null;
       try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
-      if (isConnected === false) {
-        _enqueueSearch(uid, tasks, onUpdate);
-      }
-      return;
+      if (isConnected !== false) { return; }
+
+      _enqueueSearch(uid, tasks, onUpdate);
+      results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+      isOffline = true;
     }
 
     _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
+
+    // A cache miss (nothing cached for this area yet) is not the same as
+    // "nothing nearby" — it just means this tick has no answer. Bail out
+    // before onUpdate so whatever hero/grey state was already on screen
+    // (and any in-progress exit-prompt dwell clock) survives untouched; the
+    // search stays queued above for a live retry on reconnect.
+    if (isOffline && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
+      return;
+    }
 
     // Habitat cache (KAN-228): seed the cross-source identity table with
     // these live Google hits, and opportunistically refresh the OSM-backed
     // cache around this origin. Deferred until after interactions settle —
     // the seeding loop's synchronous SQLite writes must not delay the
     // hero-card/notification logic below, which needs this tick's result now.
-    InteractionManager.runAfterInteractions(() => {
-      try {
-        for (const poiType of uniquePoiTypes) {
-          for (const place of results[poiType] ?? []) {
-            recordLiveResult({
-              poiType,
-              name:          place.name,
-              lat:           place.lat,
-              lng:           place.lng,
-              googlePlaceId: place.placeId,
-            });
+    // Skipped when this tick was itself answered by the cache — there's no
+    // new live data to feed back into it.
+    if (!isOffline) {
+      InteractionManager.runAfterInteractions(() => {
+        try {
+          for (const poiType of uniquePoiTypes) {
+            for (const place of results[poiType] ?? []) {
+              recordLiveResult({
+                poiType,
+                name:          place.name,
+                lat:           place.lat,
+                lng:           place.lng,
+                googlePlaceId: place.placeId,
+              });
+            }
           }
+          refreshHabitatCacheIfStale(coords.lat, coords.lng, uniquePoiTypes).catch(err =>
+            reportProximityError('habitat cache refresh failed', err),
+          );
+        } catch (err) {
+          reportProximityError('habitat cache seed failed', err);
         }
-        refreshHabitatCacheIfStale(coords.lat, coords.lng, uniquePoiTypes).catch(err =>
-          reportProximityError('habitat cache refresh failed', err),
-        );
-      } catch (err) {
-        reportProximityError('habitat cache seed failed', err);
-      }
-    });
+      });
+    }
 
     // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
     let heroType:  string | null = null;
@@ -429,20 +458,39 @@ async function runProximitySearch(
     for (const poiType of uniquePoiTypes) {
       const places = results[poiType] ?? [];
 
+      // Reconcile live results against the cache's cross-source identity
+      // (KAN-229): a place already known to both Google and the OSM cache
+      // gets its stable internal id instead of this tick's raw Google
+      // placeId, so a later source flip (cache ↔ live) doesn't look like a
+      // different place downstream (exit-prompt dwell clock, hero card's
+      // carousel). A place with no cache counterpart yet keeps its own
+      // Google placeId — findExistingPlaceId never invents a new identity.
+      //
+      // Only the nearest place is reconciled here (one sync SQLite read per
+      // type, not per place) — that's the only one trackExitPromptGeofence
+      // and a potential heroPlace ever look at. The rest of a type's list
+      // only matters once we know it's the hero type and its carousel is
+      // actually shown — reconciled in a second pass below.
+      let nearest = places[0] ?? null;
+      if (!isOffline && nearest) {
+        const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
+        if (existingId) { nearest = { ...nearest, placeId: existingId }; }
+      }
+
       // Exit-prompt dwell check runs for every type regardless of the
       // display threshold below. A type with zero results this tick is
       // simply skipped here (nothing to check) — an in-progress dwell clock
       // is left untouched, not reset; see trackExitPromptGeofence's docs.
-      trackExitPromptGeofence(poiType, places[0] ?? null, uid, tasks);
+      trackExitPromptGeofence(poiType, nearest, uid, tasks);
 
-      if (places.length === 0) { continue; }
+      if (!nearest) { continue; }
 
-      const nearest = places[0];
       const dist = nearest.distanceMeters;
       if (dist >= NEARBY_RADIUS) { continue; }
 
-      // Store all places within NEARBY_RADIUS, ordered nearest-first.
-      allPlaces[poiType] = places;
+      // Store all places within NEARBY_RADIUS, ordered nearest-first (index
+      // 0 already reconciled above; the rest keep their raw ids for now).
+      allPlaces[poiType] = [nearest, ...places.slice(1)];
 
       // Closest place under HERO_RADIUS_M wins the orange hero.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {
@@ -450,6 +498,19 @@ async function runProximitySearch(
         heroPlace    = nearest;
         heroDistance = dist;
       }
+    }
+
+    // Reconcile the rest of the hero type's carousel now that it's known —
+    // NearbyCard's "Try another place" carousel only ever shows the winning
+    // hero type's list, so there's no reason to pay for the other ≤4 places
+    // of every non-hero type too.
+    if (!isOffline && heroType !== null) {
+      const winningType = heroType;
+      allPlaces[winningType] = (allPlaces[winningType] ?? []).map((place, i) => {
+        if (i === 0) { return place; } // already reconciled above
+        const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
+        return existingId ? { ...place, placeId: existingId } : place;
+      });
     }
 
     // Fire notification when a new type enters the hero zone.

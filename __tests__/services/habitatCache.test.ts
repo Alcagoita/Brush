@@ -22,6 +22,9 @@
  *     skips entirely when offline
  *   - enforceSizeBudget evicts the oldest (by last_matched_at) rows beyond
  *     the cap
+ *   - findExistingPlaceId (KAN-229) is a read-only counterpart to upsertPlace:
+ *     returns an already-established match's id, or null (never inserts, and
+ *     never invents an id for an unmatched place)
  *   - every exported function degrades to a safe default (never throws)
  *     when the underlying DB call itself throws
  */
@@ -132,6 +135,7 @@ import {
   queryHabitatCache,
   refreshHabitatCacheIfStale,
   enforceSizeBudget,
+  findExistingPlaceId,
   __resetHabitatDbForTests,
   MAX_CACHED_PLACES,
   HABITAT_CACHE_STALE_MS,
@@ -274,6 +278,38 @@ describe('upsertPlace', () => {
 
     expect(id).toMatch(/^hp_/);
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('findExistingPlaceId (KAN-229)', () => {
+  it('returns the internal id of an already-established cross-source match', () => {
+    const id = upsertPlace({ poiType: 'atm', name: 'Corner ATM', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const found = findExistingPlaceId('atm', 'Corner ATM', 0.0001, 0);
+
+    expect(found).toBe(id);
+  });
+
+  it('returns null when the place has no cache counterpart yet — never invents an id', () => {
+    const found = findExistingPlaceId('atm', 'Some New Place', 0, 0);
+    expect(found).toBeNull();
+  });
+
+  it('is read-only — never inserts or updates a row', () => {
+    findExistingPlaceId('atm', 'Some New Place', 0, 0);
+    expect(rows).toHaveLength(0);
+    expect(mockDb.runSync).not.toHaveBeenCalled();
+  });
+
+  it('returns null and logs a warning instead of throwing when the DB read fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    const found = findExistingPlaceId('atm', 'Corner ATM', 0, 0);
+
+    expect(found).toBeNull();
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] findExistingPlaceId failed', expect.any(Error));
     warnSpy.mockRestore();
   });
 });

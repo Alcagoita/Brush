@@ -159,32 +159,74 @@ export interface PlaceCandidate {
  * rather than blocking the caller (same "never blocks the app" contract as
  * the rest of the proximity stack).
  */
+function findMatchingRow(
+  database: SQLite.SQLiteDatabase,
+  poiType: string,
+  name: string,
+  isGenericName: boolean | undefined,
+  lat: number,
+  lng: number,
+): HabitatRow | null {
+  const box = boundingBoxDeg(lat, lng, IDENTITY_MATCH_RADIUS_M);
+  const rows = database.getAllSync<HabitatRow>(
+    `SELECT * FROM habitat_places
+     WHERE poi_type = ?
+       AND lat BETWEEN ? AND ?
+       AND lng BETWEEN ? AND ?`,
+    [poiType, box.latMin, box.latMax, box.lngMin, box.lngMax],
+  );
+
+  const candidateName = normalize(name);
+  const candidateIsGeneric = isGenericName === true;
+  return rows.find(row => {
+    const dist = getDistanceMeters(lat, lng, row.lat, row.lng);
+    if (dist > IDENTITY_MATCH_RADIUS_M) { return false; }
+    const rowName = normalize(row.name);
+    if (candidateIsGeneric || row.is_generic_name === 1) {
+      return rowName === candidateName;
+    }
+    return rowName === candidateName || rowName.includes(candidateName) || candidateName.includes(rowName);
+  }) ?? null;
+}
+
+/**
+ * Read-only lookup: returns the internal id of an already-established
+ * cross-source identity match, or null if this place has no counterpart in
+ * the cache yet. Unlike `upsertPlace`, never inserts/updates a row — used by
+ * KAN-229 to reconcile a live Google result with its cache identity (when
+ * one already exists) without minting a throwaway id for places that have no
+ * match yet, which would defeat the whole point (a fresh random id on every
+ * search instead of the place's own stable Google placeId).
+ *
+ * Never throws — a DB failure returns null (caller falls back to the
+ * place's own source id, same as if no match existed).
+ */
+export function findExistingPlaceId(
+  poiType: string,
+  name: string,
+  lat: number,
+  lng: number,
+  isGenericName?: boolean,
+): string | null {
+  try {
+    const match = findMatchingRow(getDb(), poiType, name, isGenericName, lat, lng);
+    return match?.id ?? null;
+  } catch (err) {
+    console.warn('[habitatCache] findExistingPlaceId failed', err);
+    return null;
+  }
+}
+
 export function upsertPlace(candidate: PlaceCandidate): string {
   try {
     const database = getDb();
     const now = Date.now();
     const isOsmSourced = candidate.source.osm != null;
 
-    const box = boundingBoxDeg(candidate.lat, candidate.lng, IDENTITY_MATCH_RADIUS_M);
-    const rows = database.getAllSync<HabitatRow>(
-      `SELECT * FROM habitat_places
-       WHERE poi_type = ?
-         AND lat BETWEEN ? AND ?
-         AND lng BETWEEN ? AND ?`,
-      [candidate.poiType, box.latMin, box.latMax, box.lngMin, box.lngMax],
+    const match = findMatchingRow(
+      database, candidate.poiType, candidate.name, candidate.isGenericName,
+      candidate.lat, candidate.lng,
     );
-
-    const candidateName = normalize(candidate.name);
-    const candidateIsGeneric = candidate.isGenericName === true;
-    const match = rows.find(row => {
-      const dist = getDistanceMeters(candidate.lat, candidate.lng, row.lat, row.lng);
-      if (dist > IDENTITY_MATCH_RADIUS_M) { return false; }
-      const rowName = normalize(row.name);
-      if (candidateIsGeneric || row.is_generic_name === 1) {
-        return rowName === candidateName;
-      }
-      return rowName === candidateName || rowName.includes(candidateName) || candidateName.includes(rowName);
-    });
 
     if (match) {
       const osmFlag = isOsmSourced ? 1 : 0;
@@ -215,7 +257,7 @@ export function upsertPlace(candidate: PlaceCandidate): string {
       `INSERT INTO habitat_places
          (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, candidate.poiType, candidate.name, candidateIsGeneric ? 1 : 0, candidate.lat, candidate.lng,
+      [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
         candidate.source.google ?? null, candidate.source.osm ?? null, now, now],
     );
     return id;

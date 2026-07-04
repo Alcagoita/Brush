@@ -13,6 +13,7 @@ export const recordLiveResult = jest.fn();
 export const refreshHabitatCacheIfStale = jest.fn().mockResolvedValue(undefined);
 export const upsertPlace = jest.fn().mockReturnValue('hp_mock');
 export const queryHabitatCache = jest.fn().mockReturnValue({});
+export const findExistingPlaceId = jest.fn().mockReturnValue(null);
 export const enforceSizeBudget = jest.fn();
 export const __resetHabitatDbForTests = jest.fn();
 export const HABITAT_CACHE_STALE_MS = 14 * 24 * 60 * 60 * 1_000;
