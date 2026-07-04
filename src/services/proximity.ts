@@ -412,9 +412,16 @@ async function runProximitySearch(
       // (timeout, API error while online) keep showing whatever was shown
       // before.
       reportProximityError('searchNearbyPlaces failed', err);
-      let isConnected: boolean | null = null;
-      try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
-      if (isConnected !== false) { return; }
+      // Same offline predicate as NetworkBanner — isConnected===true but
+      // isInternetReachable===false (captive portal, no real internet) must
+      // still fall back to the cache, not sit on a silent "keep showing
+      // what's there" state that never resolves.
+      let offline = false;
+      try {
+        const state = await NetInfo.fetch();
+        offline = state.isConnected === false || state.isInternetReachable === false;
+      } catch { /* treat as unknown — not offline */ }
+      if (!offline) { return; }
 
       _enqueueSearch(uid, tasks, onUpdate);
       results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
@@ -433,7 +440,7 @@ async function runProximitySearch(
       // *somewhere* (they've genuinely walked past its coverage); if it's
       // empty everywhere, NetworkBanner's own "still learning your area"
       // copy already covers that — no need to also fire a toast for it.
-      if (hasCachedPlaces() && !_offlineUncoveredNoticeShown) {
+      if (!_offlineUncoveredNoticeShown && hasCachedPlaces()) {
         _offlineUncoveredNoticeShown = true;
         useToastStore.getState().showToast(COPY.offline.uncoveredAreaToast);
       }

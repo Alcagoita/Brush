@@ -9,11 +9,17 @@
  * beyond cached coverage) the generic banner is enough — see proximity.ts's
  * offline branch for the separate one-time "beyond coverage" toast.
  *
+ * hasCachedPlaces() opens/queries SQLite, so it must never run during
+ * render (the first call can synchronously create the DB + schema) — it's
+ * deferred to a post-commit effect. The generic banner renders immediately
+ * on going offline; the effect then swaps in the more specific copy a tick
+ * later if the cache turns out to be empty.
+ *
  * Uses @react-native-community/netinfo to monitor connection state.
  * Renders nothing when the device is online.
  */
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { useTheme } from '../theme';
@@ -28,8 +34,15 @@ export default function NetworkBanner() {
   // `null` means the state is not yet known — we stay silent in that case.
   const offline = isConnected === false || isInternetReachable === false;
 
-  // Only worth a DB read once we know we're offline in the first place.
-  const noCacheYet = useMemo(() => (offline ? !hasCachedPlaces() : false), [offline]);
+  const [noCacheYet, setNoCacheYet] = useState(false);
+
+  useEffect(() => {
+    if (!offline) {
+      setNoCacheYet(false);
+      return;
+    }
+    setNoCacheYet(!hasCachedPlaces());
+  }, [offline]);
 
   if (!offline) {
     return null;

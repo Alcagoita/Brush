@@ -125,6 +125,11 @@ function goOffline(): void {
   (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
 }
 
+/** Connected but no real internet (captive portal) — same "offline" predicate as NetworkBanner. */
+function goCaptivePortal(): void {
+  (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: true, isInternetReachable: false });
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const ORIGIN = { lat: 0, lng: 0, accuracy: 10 };
@@ -191,6 +196,22 @@ describe('offline branch answers from the habitat cache', () => {
 
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
+    expect(__getPendingQueue()).toHaveLength(1);
+  });
+
+  it('also answers from the cache when connected but unreachable (captive portal) — same predicate as NetworkBanner', async () => {
+    goCaptivePortal();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ placeId: 'hp_cached_1' }),
+      expect.anything(),
+    );
     expect(__getPendingQueue()).toHaveLength(1);
   });
 
@@ -385,6 +406,24 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
     expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('does not re-check the cache once the notice has already fired this session', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    expect(mockHasCachedPlaces).toHaveBeenCalledTimes(1);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    // The already-shown flag short-circuits before the DB read.
+    expect(mockHasCachedPlaces).toHaveBeenCalledTimes(1);
   });
 
   it('can fire again after resetProximityState (new session)', async () => {
