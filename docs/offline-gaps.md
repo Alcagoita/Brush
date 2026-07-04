@@ -4,7 +4,7 @@ Verification pass over what already works offline, what doesn't, and what's deli
 
 ## What already works offline (no new plumbing needed)
 
-Firestore offline persistence is enabled with an unlimited on-device cache (`src/services/firebase.ts`, `cacheSizeBytes: CACHE_SIZE_UNLIMITED`). All local-first writes go through `Timestamp.now()` (not `serverTimestamp()`), so they commit immediately without waiting on a round-trip — verified in `__tests__/services/offlineFirst.test.ts`.
+Firestore offline persistence is enabled with an unlimited on-device cache (`src/services/firebase.ts`, `cacheSizeBytes: CACHE_SIZE_UNLIMITED`), which lets any write commit locally and sync later regardless of timestamp strategy. Task writes specifically (`addTask`, `setTaskDone`, `rolloverIncompleteTasks`) go one step further and use `Timestamp.now()` instead of `serverTimestamp()`, so the value is readable immediately rather than resolving only after the server round-trip — verified in `__tests__/services/offlineFirst.test.ts`. This `Timestamp.now()` pattern is specific to the task flows; most other write paths (achievements, points, challenges, sharing, social, user profile) use `serverTimestamp()` and still rely on offline persistence alone, not on this immediate-read timestamp trick.
 
 - **Task create / edit / brush (mark done) / delete** — work fully offline and sync automatically once connectivity returns, per Firestore's own offline-persistence guarantees (see below) and the timestamp behavior already verified in `__tests__/services/offlineFirst.test.ts`.
 - **Progress ring / streak** — derived from local task state, updates immediately offline.
