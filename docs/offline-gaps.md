@@ -31,3 +31,14 @@ Firestore offline persistence is enabled with an unlimited on-device cache (`src
 ## Pre-existing E2E suite staleness (found in passing, not fixed here)
 
 `e2e/auth.test.ts` and `e2e/events.test.ts` reference UI that no longer exists in the current app: `"Add new event"`, an `AddEventModal`, and landing on a `CalendarScreen` after login. The current app has no "events" concept — it's Today-screen task creation via `NewTaskSheet`, and CLAUDE.md confirms Today (not Calendar) is the post-login landing screen. The native iOS workspace is still named `Agenda.xcworkspace` and the existing test emails use `@agenda-test.com` — all consistent with these two files predating the app's pivot from a generic calendar/agenda concept to Brush's task-brushing model. Since these tests can't be executed in this environment to confirm they currently fail, this is reported rather than fixed — flagging as a separate follow-up rather than expanding this ticket's scope.
+
+## Native Detox integration is missing on both platforms (blocks "green in CI" for now)
+
+While getting `e2e/offline.test.ts` running locally, found that **neither iOS nor Android has native Detox instrumentation wired in** — only the JS/config side exists (`.detoxrc.js`, `e2e/*.test.ts`, the `e2e:build:*`/`e2e:test:*` npm scripts). Confirmed:
+
+- Android: no `android/app/src/androidTest` directory, no `testInstrumentationRunner` in `android/app/build.gradle`. The debug APK builds and installs fine, and the app launches correctly via a plain `adb shell am start` — but Detox's own launch/attach handshake (which goes through the instrumented test APK, not a plain launch) never connects, and the app gets killed after the connection timeout. Symptom: "Detox can't seem to connect to the test app(s)!"
+- iOS: no Detox entry in `ios/Podfile`, and no built `.app` product exists at all (`ios/build/Build/Products/Debug-iphonesimulator/Brush.app` is absent) — it's never been built even once via `npm run e2e:build:ios`.
+
+This means the e2e suite — `e2e/offline.test.ts` (this ticket) as well as the pre-existing `auth.test.ts`/`events.test.ts` — has likely never successfully run on either platform, on any machine, ever. Consistent with other gaps found along the way (missing `ts-node`/`ts-jest` dependencies needed just to parse the Jest TS config, a missing `rootDir` in the root `tsconfig.json` that ts-jest needed).
+
+**Not fixed here** — this is real native-project work (Xcode target/scheme changes, Gradle build changes, Detox's native SDK integration on both platforms), squarely bigger than this ticket's scope. Flagged as a separate follow-up. Until it lands, KAN-227's "full offline flow green in CI" AC cannot literally be true — the offline logic itself is verified (unit tests, source read), but the E2E suite can't execute in CI or locally until native Detox setup exists.
