@@ -22,6 +22,13 @@
  *   - alert dedup survives a source switch: a notification fired from a
  *     cache-answered tick suppresses the same notification from a
  *     live-answered tick for the same place/type later that day
+ *   - a cache miss (offline, nothing cached for this area) does not call
+ *     onUpdate at all — a transient "no answer" tick must not clear
+ *     whatever hero/grey state was already on screen
+ *   - identity reconciliation only reads the cache once per type (the
+ *     nearest place), plus once more per extra place but ONLY for the
+ *     type that actually won the hero slot — never for every place of
+ *     every type (avoids an N+1 synchronous SQLite read per search)
  */
 
 jest.mock('@react-native-community/netinfo', () =>
@@ -191,6 +198,28 @@ describe('offline branch answers from the habitat cache', () => {
 
     expect(mockFindExistingPlaceId).not.toHaveBeenCalled();
   });
+
+  it('does not call onUpdate on a cache miss — preserves whatever was already on screen', async () => {
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] }); // nothing cached for this area yet
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(onUpdate).not.toHaveBeenCalled();
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  it('still enqueues for a live retry on a cache miss', async () => {
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(__getPendingQueue()).toHaveLength(1);
+  });
 });
 
 describe('live results reconcile against the cache identity table', () => {
@@ -230,6 +259,35 @@ describe('live results reconcile against the cache identity table', () => {
       expect.objectContaining({ placeId: 'ChIJlive1' }),
       expect.anything(),
     );
+  });
+
+  it('reconciles only the nearest place per type, plus the hero type\'s remaining places — never every place of every type', async () => {
+    const LAT_PER_METRE = 1 / 111_195;
+    mockFetch.mockResolvedValueOnce({
+      ok:   true,
+      json: async () => ({
+        places: [
+          { id: 'atm-near', displayName: { text: 'Near ATM' }, location: { latitude: LAT_PER_METRE * 30, longitude: 0 }, types: ['atm'] },
+          { id: 'atm-far',  displayName: { text: 'Far ATM' },  location: { latitude: LAT_PER_METRE * 80, longitude: 0 }, types: ['atm'] },
+          { id: 'cafe-near', displayName: { text: 'Near Cafe' }, location: { latitude: LAT_PER_METRE * 150, longitude: 0 }, types: ['cafe'] },
+          { id: 'cafe-far',  displayName: { text: 'Far Cafe' },  location: { latitude: LAT_PER_METRE * 200, longitude: 0 }, types: ['cafe'] },
+        ],
+      }),
+    });
+    mockFindExistingPlaceId.mockReturnValue(null);
+
+    const tasks = [makeTask({ id: 't1', poi: 'atm' }), makeTask({ id: 't2', poi: 'cafe' })];
+    await runProximitySearch('uid-1', tasks, jest.fn());
+
+    // atm is the hero type (nearest < HERO_RADIUS_M) — both its places get
+    // reconciled (nearest in pass 1, "Far ATM" in the hero-only pass 2).
+    // cafe is only a grey/"approaching" type — just its nearest place is
+    // ever looked up; "Far Cafe" is never queried.
+    expect(mockFindExistingPlaceId).toHaveBeenCalledTimes(3);
+    expect(mockFindExistingPlaceId).toHaveBeenCalledWith('atm', 'Near ATM', expect.any(Number), expect.any(Number));
+    expect(mockFindExistingPlaceId).toHaveBeenCalledWith('atm', 'Far ATM', expect.any(Number), expect.any(Number));
+    expect(mockFindExistingPlaceId).toHaveBeenCalledWith('cafe', 'Near Cafe', expect.any(Number), expect.any(Number));
+    expect(mockFindExistingPlaceId).not.toHaveBeenCalledWith('cafe', 'Far Cafe', expect.any(Number), expect.any(Number));
   });
 });
 

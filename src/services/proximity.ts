@@ -410,6 +410,15 @@ async function runProximitySearch(
 
     _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
 
+    // A cache miss (nothing cached for this area yet) is not the same as
+    // "nothing nearby" — it just means this tick has no answer. Bail out
+    // before onUpdate so whatever hero/grey state was already on screen
+    // (and any in-progress exit-prompt dwell clock) survives untouched; the
+    // search stays queued above for a live retry on reconnect.
+    if (isOffline && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
+      return;
+    }
+
     // Habitat cache (KAN-228): seed the cross-source identity table with
     // these live Google hits, and opportunistically refresh the OSM-backed
     // cache around this origin. Deferred until after interactions settle —
@@ -447,7 +456,7 @@ async function runProximitySearch(
     const allPlaces: PlacesMap = {};
 
     for (const poiType of uniquePoiTypes) {
-      let places = results[poiType] ?? [];
+      const places = results[poiType] ?? [];
 
       // Reconcile live results against the cache's cross-source identity
       // (KAN-229): a place already known to both Google and the OSM cache
@@ -456,29 +465,32 @@ async function runProximitySearch(
       // different place downstream (exit-prompt dwell clock, hero card's
       // carousel). A place with no cache counterpart yet keeps its own
       // Google placeId — findExistingPlaceId never invents a new identity.
-      // Read-only and per-displayed-place (≤5), not the deferred bulk seed
-      // above, so safe to run synchronously here.
-      if (!isOffline && places.length > 0) {
-        places = places.map(place => {
-          const existingId = findExistingPlaceId(poiType, place.name, place.lat, place.lng);
-          return existingId ? { ...place, placeId: existingId } : place;
-        });
+      //
+      // Only the nearest place is reconciled here (one sync SQLite read per
+      // type, not per place) — that's the only one trackExitPromptGeofence
+      // and a potential heroPlace ever look at. The rest of a type's list
+      // only matters once we know it's the hero type and its carousel is
+      // actually shown — reconciled in a second pass below.
+      let nearest = places[0] ?? null;
+      if (!isOffline && nearest) {
+        const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
+        if (existingId) { nearest = { ...nearest, placeId: existingId }; }
       }
 
       // Exit-prompt dwell check runs for every type regardless of the
       // display threshold below. A type with zero results this tick is
       // simply skipped here (nothing to check) — an in-progress dwell clock
       // is left untouched, not reset; see trackExitPromptGeofence's docs.
-      trackExitPromptGeofence(poiType, places[0] ?? null, uid, tasks);
+      trackExitPromptGeofence(poiType, nearest, uid, tasks);
 
-      if (places.length === 0) { continue; }
+      if (!nearest) { continue; }
 
-      const nearest = places[0];
       const dist = nearest.distanceMeters;
       if (dist >= NEARBY_RADIUS) { continue; }
 
-      // Store all places within NEARBY_RADIUS, ordered nearest-first.
-      allPlaces[poiType] = places;
+      // Store all places within NEARBY_RADIUS, ordered nearest-first (index
+      // 0 already reconciled above; the rest keep their raw ids for now).
+      allPlaces[poiType] = [nearest, ...places.slice(1)];
 
       // Closest place under HERO_RADIUS_M wins the orange hero.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {
@@ -486,6 +498,19 @@ async function runProximitySearch(
         heroPlace    = nearest;
         heroDistance = dist;
       }
+    }
+
+    // Reconcile the rest of the hero type's carousel now that it's known —
+    // NearbyCard's "Try another place" carousel only ever shows the winning
+    // hero type's list, so there's no reason to pay for the other ≤4 places
+    // of every non-hero type too.
+    if (!isOffline && heroType !== null) {
+      const winningType = heroType;
+      allPlaces[winningType] = (allPlaces[winningType] ?? []).map((place, i) => {
+        if (i === 0) { return place; } // already reconciled above
+        const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
+        return existingId ? { ...place, placeId: existingId } : place;
+      });
     }
 
     // Fire notification when a new type enters the hero zone.
