@@ -28,11 +28,20 @@
  *   again — no stricter check needed) fires the prompt. Only fires while
  *   the app is open, matching the rest of this engine's foreground-only
  *   model.
+ *
+ * Habitat POI cache (KAN-228):
+ *   Every successful live search opportunistically feeds the offline habitat
+ *   cache (habitatCache.ts) — Google hits seed its cross-source identity
+ *   table, and a stale-check triggers a background OSM refresh around the
+ *   same origin. Deferred via InteractionManager so the synchronous SQLite
+ *   writes never delay this search's own hero-card/notification result.
+ *   Reading from the cache to answer offline queries is KAN-229's job, not
+ *   this file's.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import NetInfo from '@react-native-community/netinfo';
-import { Platform } from 'react-native';
+import { InteractionManager, Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
@@ -42,6 +51,7 @@ import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
+import { recordLiveResult, refreshHabitatCacheIfStale } from './habitatCache';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -383,6 +393,32 @@ async function runProximitySearch(
     }
 
     _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
+
+    // Habitat cache (KAN-228): seed the cross-source identity table with
+    // these live Google hits, and opportunistically refresh the OSM-backed
+    // cache around this origin. Deferred until after interactions settle —
+    // the seeding loop's synchronous SQLite writes must not delay the
+    // hero-card/notification logic below, which needs this tick's result now.
+    InteractionManager.runAfterInteractions(() => {
+      try {
+        for (const poiType of uniquePoiTypes) {
+          for (const place of results[poiType] ?? []) {
+            recordLiveResult({
+              poiType,
+              name:          place.name,
+              lat:           place.lat,
+              lng:           place.lng,
+              googlePlaceId: place.placeId,
+            });
+          }
+        }
+        refreshHabitatCacheIfStale(coords.lat, coords.lng, uniquePoiTypes).catch(err =>
+          reportProximityError('habitat cache refresh failed', err),
+        );
+      } catch (err) {
+        reportProximityError('habitat cache seed failed', err);
+      }
+    });
 
     // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
     let heroType:  string | null = null;

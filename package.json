@@ -38,6 +38,7 @@
     "expo-build-properties": "~56.0.19",
     "expo-calendar": "^56.0.8",
     "expo-location": "^56.0.18",
+    "expo-sqlite": "~56.0.5",
     "expo-task-manager": "^56.0.19",
     "patch-package": "^8.0.1",
     "react": "19.2.3",

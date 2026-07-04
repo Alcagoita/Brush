@@ -32,6 +32,10 @@ jest.mock('@react-native-community/netinfo', () =>
   require('@react-native-community/netinfo/jest/netinfo-mock'),
 );
 
+// KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
+// pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
+jest.mock('../../src/services/habitatCache');
+
 jest.mock('../../src/services/firestore', () => ({
   markExitPromptSeen: (...args: any[]) => mockMarkExitSeen(...args),
   // Stub other firestore helpers that proximity.ts imports
@@ -66,6 +70,7 @@ jest.mock('react-native', () => ({
   })),
   NativeModules: { BrushGeofenceModule: {} },
   Platform: { OS: 'ios' },
+  InteractionManager: { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 jest.mock('@notifee/react-native', () => ({

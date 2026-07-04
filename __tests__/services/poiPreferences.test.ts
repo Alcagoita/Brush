@@ -15,6 +15,14 @@ jest.mock('../../src/config/keys', () => ({
   GOOGLE_PLACES_API_KEY: 'TEST_KEY',
 }));
 
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
+
+// KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
+// pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
+jest.mock('../../src/services/habitatCache');
+
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
 const mockGetDoc      = jest.fn();
@@ -59,8 +67,9 @@ jest.mock('@notifee/react-native', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Platform:      { OS: 'android' },
-  NativeModules: { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  Platform:            { OS: 'android' },
+  NativeModules:       { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  InteractionManager:  { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 const mockGetPosition = jest.fn();

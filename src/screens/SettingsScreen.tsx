@@ -411,6 +411,9 @@ export default function SettingsScreen() {
         <Text style={[s.footer, { color: palette.faint }]}>
           Brush Away · v{APP_VERSION}
         </Text>
+        <Text style={[s.footer, { color: palette.faint }]}>
+          Place data © OpenStreetMap contributors (ODbL)
+        </Text>
       </ScrollView>
     </View>
   );
