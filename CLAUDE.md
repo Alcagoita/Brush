@@ -320,13 +320,14 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 Recommended order:
 
-1. **KAN-226** — Record place at brush time (~1 day, unblocks everything downstream, starts accumulating data immediately)
-2. **KAN-232** — Wire POI inference into quick-add (small, independent, instant user value)
-3. **KAN-233** — Cleanup dead exit-prompt geofence code (0.5 day, clears `proximity.ts` before bigger changes land there)
-4. **KAN-227** — Airplane-mode test suite (establishes offline safety net before touching proximity engine)
-5. **KAN-228** — Habitat POI cache (the big one; includes cross-source place identity)
+1. **KAN-226** — ✅ Merged. Record place at brush time (~1 day, unblocks everything downstream, starts accumulating data immediately)
+2. **KAN-232** — ✅ Merged. Wire POI inference into quick-add (small, independent, instant user value)
+3. **KAN-233** — ✅ Merged. Cleanup dead exit-prompt geofence code (0.5 day, clears `proximity.ts` before bigger changes land there)
+4. **KAN-227** — ✅ Merged. Airplane-mode test suite (establishes offline safety net before touching proximity engine)
+5. **KAN-228** — ✅ Merged. Habitat POI cache (the big one; includes cross-source place identity)
 6. **KAN-229** — Cache-backed offline proximity (depends on 228; seamless-switch AC lives here)
-7. **KAN-230** — Learned places (last — needs weeks of KAN-226 data anyway)
+7. **KAN-236** — Offline expectations messaging
+8. **KAN-230** — Learned places (last — needs weeks of KAN-226 data anyway)
 
 **Hold:** KAN-231 (decision pending, not a Claude Code task), KAN-234/235 (post-epic).
 
