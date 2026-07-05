@@ -80,6 +80,15 @@ export function learnedKeywordsRef(uid: string) {
   return collection(getFirestore(), 'users', uid, 'learnedPoiKeywords');
 }
 
+/** users/{uid}/learnedPlaceCounts/{placeId} — per-place visit tally (KAN-240). */
+export function learnedPlaceCountsRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'learnedPlaceCounts');
+}
+
+export function learnedPlaceCountRef(uid: string, placeId: string) {
+  return doc(getFirestore(), 'users', uid, 'learnedPlaceCounts', placeId);
+}
+
 /** Stable doc id for a learned keyword: "<lang>:<normalized keyword>". */
 export function learnedKeywordId(keyword: string, lang: SupportedLang): string {
   return `${lang}:${normalize(keyword)}`;

@@ -1,20 +1,23 @@
 import {
   getFirestore,
   addDoc,
+  getDoc,
   getDocs,
   updateDoc,
   deleteDoc,
   deleteField,
   writeBatch,
+  runTransaction,
   query,
   where,
   orderBy,
   Timestamp,
 } from '@react-native-firebase/firestore';
 import { getCurrentWeekBoundaries, todayISO } from '../../utils/date';
-import type { Task } from '../../types';
-import { tasksRef, taskRef } from './refs';
+import type { Task, User } from '../../types';
+import { tasksRef, taskRef, userRef, learnedPlaceCountsRef, learnedPlaceCountRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
+import type { LearnedPlace } from '../learnedPlaces';
 
 /**
  * Add a new task for the given user.
@@ -113,6 +116,16 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
  * when passed on a `done: true` call, and deleted from the doc in every
  * other case (`done: false`, or `done: true` with no matching place), so a
  * later re-completion without a place can never resurrect stale metadata.
+ *
+ * Transactional (KAN-240): alongside the task doc, keeps the per-place visit
+ * counter at `/users/{uid}/learnedPlaceCounts/{placeId}` in lockstep —
+ * decrementing the venue this task previously counted toward (if any) and
+ * incrementing the one it counts toward now. This is what lets
+ * learnedPlaces.ts rank venues by reading a handful of counter docs instead
+ * of re-scanning the user's entire completed-task history on every toggle.
+ * A same-place re-brush without an intervening undo nets to zero and is
+ * skipped. All `tx.get` calls happen before any writes — required by
+ * Firestore transaction semantics.
  */
 export async function setTaskDone(
   uid: string,
@@ -120,13 +133,49 @@ export async function setTaskDone(
   done: boolean,
   completedPlace?: { placeId: string; name: string; poiType: string },
 ): Promise<void> {
-  const hasPlace = done && !!completedPlace;
-  await updateDoc(taskRef(uid, taskId), {
-    done,
-    completedAt: done ? Timestamp.now() : null,
-    completedPlaceId:   hasPlace ? completedPlace!.placeId : deleteField(),
-    completedPlaceName: hasPlace ? completedPlace!.name   : deleteField(),
-    completedPoiType:   hasPlace ? completedPlace!.poiType : deleteField(),
+  const hasPlace    = done && !!completedPlace;
+  const nextPlaceId = hasPlace ? completedPlace!.placeId : undefined;
+  const db   = getFirestore();
+  const tRef = taskRef(uid, taskId);
+
+  await runTransaction(db, async (tx) => {
+    const taskSnap    = await tx.get(tRef);
+    const prevPlaceId = (taskSnap.data() as Task | undefined)?.completedPlaceId;
+
+    const decrementPrev = !!prevPlaceId && prevPlaceId !== nextPlaceId;
+    const incrementNext = hasPlace && completedPlace!.placeId !== prevPlaceId;
+
+    const prevRef  = decrementPrev ? learnedPlaceCountRef(uid, prevPlaceId!) : null;
+    const prevSnap = prevRef ? await tx.get(prevRef) : null;
+    const nextRef  = incrementNext ? learnedPlaceCountRef(uid, completedPlace!.placeId) : null;
+    const nextSnap = nextRef ? await tx.get(nextRef) : null;
+
+    tx.update(tRef, {
+      done,
+      completedAt: done ? Timestamp.now() : null,
+      completedPlaceId:   hasPlace ? completedPlace!.placeId : deleteField(),
+      completedPlaceName: hasPlace ? completedPlace!.name   : deleteField(),
+      completedPoiType:   hasPlace ? completedPlace!.poiType : deleteField(),
+    });
+
+    if (prevRef && prevSnap?.exists()) {
+      const visitCount = ((prevSnap.data() as LearnedPlace).visitCount ?? 1) - 1;
+      if (visitCount <= 0) {
+        tx.delete(prevRef);
+      } else {
+        tx.update(prevRef, { visitCount });
+      }
+    }
+
+    if (nextRef) {
+      const visitCount = (nextSnap?.exists() ? (nextSnap.data() as LearnedPlace).visitCount : 0) + 1;
+      tx.set(nextRef, {
+        placeId:    completedPlace!.placeId,
+        name:       completedPlace!.name,
+        poiType:    completedPlace!.poiType,
+        visitCount,
+      });
+    }
   });
 }
 
@@ -227,14 +276,67 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
 }
 
 /**
- * Fetch every completed task with a `completedPlaceId` (KAN-226), across all
- * dates — the full brush-at-a-known-place history learnedPlaces.ts ranks
- * against (KAN-230). Firestore's `!=` operator excludes documents where the
- * field is absent entirely, so this returns exactly that subset without a
- * separate `done == true` filter.
+ * Fetch the per-place visit-count ranking source for learnedPlaces.ts
+ * (KAN-240). Reads `/users/{uid}/learnedPlaceCounts/{placeId}` — one small
+ * doc per distinct venue the user has ever brushed a task at, kept current by
+ * setTaskDone's transaction — instead of re-scanning the user's entire
+ * completed-task history on every call (the previous getCompletedTasksWithPlace
+ * behaviour, unbounded and called on every task toggle).
  */
-export async function getCompletedTasksWithPlace(uid: string): Promise<Task[]> {
+export async function getLearnedPlaceCounts(uid: string): Promise<LearnedPlace[]> {
+  const snap = await getDocs(learnedPlaceCountsRef(uid));
+  return mapSnapshotDocs<LearnedPlace>(snap, 'placeId');
+}
+
+/**
+ * One-time migration (KAN-240): tallies every historical `completedPlaceId`
+ * brush (the same unbounded scan getCompletedTasksWithPlace used to run on
+ * every toggle) into `/users/{uid}/learnedPlaceCounts/{placeId}`, for users
+ * who brushed tasks before the incremental counter existed.
+ *
+ * Gated by `learnedPlaceCountsBackfilled` on the user doc, so this full scan
+ * runs at most once per user — safe to call unconditionally on every boot.
+ *
+ * Race note: a setTaskDone() increment landing on the same placeId while this
+ * is still tallying could be overwritten by the blind `batch.set` below.
+ * Acceptable for a one-time migration window; unreachable once the flag is set.
+ */
+export async function backfillLearnedPlaceCounts(uid: string): Promise<void> {
+  const userSnap = await getDoc(userRef(uid));
+  if ((userSnap.data() as User | undefined)?.learnedPlaceCountsBackfilled) { return; }
+
   const q = query(tasksRef(uid), where('completedPlaceId', '!=', null));
   const snap = await getDocs(q);
-  return mapSnapshotDocs<Task>(snap);
+  const tasks = mapSnapshotDocs<Task>(snap);
+
+  const counts = new Map<string, { name: string; poiType: string; visitCount: number }>();
+  for (const task of tasks) {
+    if (!task.completedPlaceId) { continue; }
+    const existing = counts.get(task.completedPlaceId);
+    if (existing) {
+      existing.visitCount += 1;
+    } else {
+      counts.set(task.completedPlaceId, {
+        name:       task.completedPlaceName ?? '',
+        poiType:    task.completedPoiType ?? '',
+        visitCount: 1,
+      });
+    }
+  }
+
+  const db = getFirestore();
+  const entries = [...counts.entries()];
+
+  // Firestore caps a single batch at 500 writes — chunk to stay under it
+  // (matches the chunking in rolloverIncompleteTasks above).
+  const BATCH_LIMIT = 500;
+  for (let i = 0; i < entries.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    entries.slice(i, i + BATCH_LIMIT).forEach(([placeId, info]) => {
+      batch.set(learnedPlaceCountRef(uid, placeId), { placeId, ...info });
+    });
+    await batch.commit();
+  }
+
+  await updateDoc(userRef(uid), { learnedPlaceCountsBackfilled: true });
 }
