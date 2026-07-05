@@ -56,6 +56,17 @@
  *   different, more persistent state — NetworkBanner handles it directly
  *   (it doesn't need a position, just "is there anything cached at all"), so
  *   this file doesn't duplicate that check into a toast.
+ *
+ * Learned places (KAN-230):
+ *   setLearnedPlaces feeds in the on-device ranking computed elsewhere
+ *   (learnedPlaces.ts, from completedPlaceId brush history). The learned
+ *   venue only ever affects which PLACE represents the type that already
+ *   won the cross-type hero race on true distance — applied strictly after
+ *   heroType is locked in, so it can never change WHICH type wins by
+ *   inflating the distance used for that comparison. Within the winning
+ *   type, its learned venue is preferred as the displayed/notified place
+ *   over an arbitrary closer stranger, but only when the learned venue is
+ *   itself within HERO_RADIUS_M on its own real distance.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -72,6 +83,7 @@ import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
 import { useToastStore } from '../store/toastStore';
+import { LearnedPlace, getLearnedPlaceForPoiType } from './learnedPlaces';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -162,6 +174,9 @@ let _isSearching = false;
 /** KAN-236 — the "you've moved beyond cached coverage" toast fires at most once per session. */
 let _offlineUncoveredNoticeShown = false;
 
+/** KAN-230 — on-device learned-place ranking, fed in from outside (see setLearnedPlaces). */
+let _learnedPlaces: LearnedPlace[] = [];
+
 /**
  * Optional tap into the GPS stream (KAN-75 indoor detection).
  * Every position fix is forwarded here so indoor detection can run without
@@ -244,6 +259,11 @@ const EXIT_PROMPT_MIN_DWELL_MS = 5 * 60 * 1_000;
 
 export function updateNotifNearbyEnabled(enabled: boolean): void {
   notifNearbyEnabled = enabled;
+}
+
+/** KAN-230 — feed in the on-device learned-place ranking. Pass null/empty to clear (e.g. on sign-out). */
+export function setLearnedPlaces(places: LearnedPlace[] | null): void {
+  _learnedPlaces = places ?? [];
 }
 
 export function updateExitPromptPref(enabled: boolean): void {
@@ -520,7 +540,10 @@ async function runProximitySearch(
       // 0 already reconciled above; the rest keep their raw ids for now).
       allPlaces[poiType] = [nearest, ...places.slice(1)];
 
-      // Closest place under HERO_RADIUS_M wins the orange hero.
+      // Closest place under HERO_RADIUS_M wins the orange hero. Decided on
+      // the TRUE nearest distance only — KAN-230's learned-place preference
+      // (below) must never influence which TYPE wins the cross-type race,
+      // only which specific PLACE represents the type that already won.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {
         heroType     = poiType;
         heroPlace    = nearest;
@@ -539,6 +562,34 @@ async function runProximitySearch(
         const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
         return existingId ? { ...place, placeId: existingId } : place;
       });
+    }
+
+    // KAN-230 — now that the hero type is locked in on true distance alone,
+    // see if ITS OWN learned venue (≥3 brushes) is among its candidates and
+    // still within HERO_RADIUS_M on its own real distance. If so, prefer it
+    // as the displayed/notified place for this type — "top priority" only
+    // ever affects which place represents the type that already won, never
+    // which type wins. Non-hero (grey) types are left alone: nothing to
+    // prioritize for a type that isn't being shown as the hero anyway.
+    if (heroType !== null) {
+      const winningType = heroType;
+      const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, winningType);
+      const currentPlaces = allPlaces[winningType] ?? [];
+      if (learnedForType && currentPlaces[0]?.placeId !== learnedForType.placeId) {
+        for (const candidate of currentPlaces.slice(1)) {
+          let candidateId = candidate.placeId;
+          if (!isOffline) {
+            const existingId = findExistingPlaceId(winningType, candidate.name, candidate.lat, candidate.lng);
+            if (existingId) { candidateId = existingId; }
+          }
+          if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
+            const promoted = { ...candidate, placeId: candidateId };
+            allPlaces[winningType] = [promoted, ...currentPlaces.filter(p => p !== candidate)];
+            heroPlace = promoted;
+            break;
+          }
+        }
+      }
     }
 
     // Fire notification when a new type enters the hero zone.
@@ -645,6 +696,7 @@ export function resetProximityState(): void {
   _netInfoUnsubscribe?.();
   _netInfoUnsubscribe = null;
   _offlineUncoveredNoticeShown = false;
+  _learnedPlaces = [];
 
   geofenceEntryTimes.clear();
 }

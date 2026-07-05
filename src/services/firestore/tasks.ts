@@ -225,3 +225,16 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
   const snap = await getDocs(q);
   return snap.docs.length;
 }
+
+/**
+ * Fetch every completed task with a `completedPlaceId` (KAN-226), across all
+ * dates — the full brush-at-a-known-place history learnedPlaces.ts ranks
+ * against (KAN-230). Firestore's `!=` operator excludes documents where the
+ * field is absent entirely, so this returns exactly that subset without a
+ * separate `done == true` filter.
+ */
+export async function getCompletedTasksWithPlace(uid: string): Promise<Task[]> {
+  const q = query(tasksRef(uid), where('completedPlaceId', '!=', null));
+  const snap = await getDocs(q);
+  return mapSnapshotDocs<Task>(snap);
+}

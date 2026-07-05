@@ -1,21 +1,27 @@
 /**
  * useTodayScreen — KAN-59 / KAN-214
  *
- * ViewModel-layer hook for TodayScreen. Composes three focused sub-hooks:
+ * ViewModel-layer hook for TodayScreen. Composes four focused sub-hooks:
  *   - useTodayScreenData    — Firestore fetch, loading/error, task/points state
  *   - useProximityEngine    — location permission, outdoor/indoor proximity,
  *                             Store fine tuning
  *   - useTaskCompletion     — task-done toggle + achievements/challenges
+ *   - useLearnedPlaces      — on-device learned-place ranking (KAN-230),
+ *                             fed into the proximity engine and refreshed
+ *                             after every completion
  *
  * No JSX — independently testable with renderHook.
  */
 
+import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
+import { setLearnedPlaces } from '../../services/proximity';
 import type { PlacesMap } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
 import { useTaskCompletion } from './useTaskCompletion';
+import { useLearnedPlaces } from './useLearnedPlaces';
 
 export interface TodayScreenState {
   /** Today's tasks. Empty while loading. */
@@ -68,7 +74,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     data.lowBatteryPausePref,
     data.storeTuningEnabled,
   );
-  const { handleToggle } = useTaskCompletion(
+  const { handleToggle: handleToggleInner } = useTaskCompletion(
     uid,
     data.setTasks,
     data.latestTasksRef,
@@ -76,6 +82,22 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     data.setTotalPoints,
     proximity.nearbyPlaceRef,
   );
+
+  const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
+
+  useEffect(() => {
+    setLearnedPlaces(learnedPlaces);
+  }, [learnedPlaces]);
+
+  // A toggle in either direction changes the completedPlaceId brush history
+  // the ranking is derived from: `done: true` adds a data point, `done:
+  // false` deletes the previous completion's completedPlace* fields
+  // (setTaskDone) — refresh after both so the ranking never drifts from
+  // what's actually in Firestore.
+  const handleToggle = useCallback(async (taskId: string, done: boolean) => {
+    await handleToggleInner(taskId, done);
+    void refreshLearnedPlaces();
+  }, [handleToggleInner, refreshLearnedPlaces]);
 
   const totalTasks  = data.tasks.length;
   const doneTasks   = data.tasks.filter(t => t.done).length;
