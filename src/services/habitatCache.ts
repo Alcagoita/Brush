@@ -97,8 +97,14 @@ let db: SQLite.SQLiteDatabase | null = null;
 
 function getDb(): SQLite.SQLiteDatabase {
   if (!db) {
-    db = SQLite.openDatabaseSync(DB_NAME);
-    db.execSync(`
+    // Only commit to the module-level `db` cache once every migration step
+    // below has succeeded — assigning it upfront would mean a mid-migration
+    // failure (e.g. the ALTER TABLE throwing on a real error) permanently
+    // wedges the cache: `if (!db)` would be false forever after, so a later
+    // call would never retry and would just hand back a half-migrated
+    // handle for the rest of the process's lifetime.
+    const database = SQLite.openDatabaseSync(DB_NAME);
+    database.execSync(`
       CREATE TABLE IF NOT EXISTS habitat_places (
         id TEXT PRIMARY KEY,
         poi_type TEXT NOT NULL,
@@ -120,15 +126,16 @@ function getDb(): SQLite.SQLiteDatabase {
     // failure (disk full, corruption) surfaces instead of being masked by a
     // blanket catch.
     const existingColumns = new Set(
-      db.getAllSync<{ name: string }>('PRAGMA table_info(habitat_places)').map(c => c.name),
+      database.getAllSync<{ name: string }>('PRAGMA table_info(habitat_places)').map(c => c.name),
     );
     if (!existingColumns.has('cache_area_id')) {
-      db.execSync('ALTER TABLE habitat_places ADD COLUMN cache_area_id TEXT');
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN cache_area_id TEXT');
     }
     if (!existingColumns.has('expires_at')) {
-      db.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER');
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER');
     }
-    db.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
+    database.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
+    db = database;
   }
   return db;
 }

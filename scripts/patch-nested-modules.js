@@ -62,6 +62,9 @@ patchFile(path.join(SHARE_MENU_ROOT, 'ios', 'ShareMenuManager.m'), [
 // Fix: expo-constants get-app-config-android.gradle uses hardcoded "node" —
 // replace with NODE_BINARY from local.properties. Patch every copy present
 // (see EXPO_CONSTANTS_CANDIDATES comment above — hoisting isn't stable).
+if (EXPO_CONSTANTS_CANDIDATES.length === 0) {
+  console.warn('[patch-nested] WARNING: no expo-constants get-app-config-android.gradle found at either candidate path — Android Gradle builds may fail with a bare "node" exec error (see NODE_BINARY fix in this script)');
+}
 for (const expoConstantsPath of EXPO_CONSTANTS_CANDIDATES) {
   patchFile(expoConstantsPath, [
     // Insert local.properties reader block after the Os import

@@ -262,6 +262,33 @@ describe('migration (KAN-234 review fix — schema check instead of blanket catc
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.objectContaining({ message: 'disk full' }));
     warnSpy.mockRestore();
   });
+
+  it('retries the migration on the next call instead of reusing a stuck db state after a failed migration', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // First call: schema check reports both columns missing, ALTER TABLE throws.
+    mockDb.getAllSync.mockImplementationOnce(() => []);
+    mockDb.execSync
+      .mockImplementationOnce(() => {}) // CREATE TABLE ... ; CREATE INDEX ...
+      .mockImplementationOnce(() => { throw new Error('disk full'); }); // ALTER TABLE cache_area_id
+
+    upsertPlace({ poiType: 'pharmacy', name: 'First', lat: 0, lng: 0, source: { osm: 'node/1' } });
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.objectContaining({ message: 'disk full' }));
+    warnSpy.mockClear();
+
+    // Second call: schema check again reports both columns missing (the
+    // migration never committed) — this time everything succeeds. If `db`
+    // had been wedged non-null after the first failure, this ALTER TABLE
+    // would never even run.
+    mockDb.getAllSync.mockImplementationOnce(() => []);
+
+    upsertPlace({ poiType: 'cafe', name: 'Second', lat: 0, lng: 0, source: { osm: 'node/2' } });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    const alterCalls = mockDb.execSync.mock.calls.map(([sql]) => String(sql));
+    expect(alterCalls.filter(sql => sql.includes('ADD COLUMN cache_area_id'))).toHaveLength(2);
+    expect(rows.some(r => r.name === 'Second')).toBe(true);
+    warnSpy.mockRestore();
+  });
 });
 
 describe('upsertPlace', () => {

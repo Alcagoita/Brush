@@ -533,9 +533,18 @@ export async function searchPlacesAutocomplete(
  * landmarks/airports, unlike searchPlacesAutocomplete's establishment search.
  * `"(cities)"` is the Places API's documented shorthand for city/town-level
  * results (matches the legacy Autocomplete API's `types=(cities)`).
+ *
+ * `lat`/`lng`, when available, bias ambiguous queries (e.g. "Faro" — several
+ * exist worldwide) toward the caller's current region, same soft-bias
+ * mechanism as searchPlacesAutocomplete — it doesn't exclude far-away
+ * matches, just ranks nearby ones higher.
  */
-export async function searchDestinationAutocomplete(query: string): Promise<PlaceAutocompleteSuggestion[]> {
-  return fetchPlacesAutocomplete(query, ['(cities)']);
+export async function searchDestinationAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, ['(cities)'], lat, lng);
 }
 
 // ─── Place Details (KAN-234) ──────────────────────────────────────────────────
