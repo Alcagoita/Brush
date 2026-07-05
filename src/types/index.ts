@@ -59,6 +59,13 @@ export interface User {
    */
   /** Set to true once the user completes the guided first-run onboarding (KAN-140). */
   onboardingDone?: boolean;
+  /**
+   * Set to true once this user's historical `completedPlaceId` brush data has
+   * been tallied into `/users/{uid}/learnedPlaceCounts/{placeId}` (KAN-240).
+   * Gates `backfillLearnedPlaceCounts` so the one-time full-history scan never
+   * repeats on subsequent boots.
+   */
+  learnedPlaceCountsBackfilled?: boolean;
   poiPreferences?: {
     /**
      * When true, geofence monitoring is paused whenever battery drops below

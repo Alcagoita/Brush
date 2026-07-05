@@ -1,11 +1,13 @@
 /**
- * useLearnedPlaces — KAN-230
+ * useLearnedPlaces — KAN-230 / KAN-240
  *
- * Fetches the user's full brush-at-a-known-place history once per uid and
- * computes the on-device learned-place ranking (learnedPlaces.ts). One-shot
- * fetch, not a listener (repo rule: no persistent onSnapshot for this kind
- * of derived, infrequently-changing state) — call `refresh()` after a task
- * completes with a known place so the ranking picks up the new brush.
+ * Fetches the user's per-place visit counters
+ * (`/users/{uid}/learnedPlaceCounts`, kept current by setTaskDone's
+ * transaction — KAN-240) once per uid and computes the on-device
+ * learned-place ranking (learnedPlaces.ts). One-shot fetch, not a listener
+ * (repo rule: no persistent onSnapshot for this kind of derived,
+ * infrequently-changing state) — call `refresh()` after a task completes
+ * with a known place so the ranking picks up the new brush.
  *
  * A monotonic request token guards against two races:
  *   - overlapping refresh() calls resolving out of order (an older response
@@ -17,7 +19,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getCompletedTasksWithPlace } from '../../services/firestore';
+import { getLearnedPlaceCounts } from '../../services/firestore';
 import { computeLearnedPlaces } from '../../services/learnedPlaces';
 import type { LearnedPlace } from '../../services/learnedPlaces';
 
@@ -38,9 +40,9 @@ export function useLearnedPlaces(uid: string | undefined): LearnedPlacesState {
       return;
     }
     try {
-      const tasks = await getCompletedTasksWithPlace(uid);
+      const counts = await getLearnedPlaceCounts(uid);
       if (requestId !== requestIdRef.current) { return; } // superseded — discard
-      setLearnedPlaces(computeLearnedPlaces(tasks));
+      setLearnedPlaces(computeLearnedPlaces(counts));
     } catch (err) {
       if (requestId === requestIdRef.current) {
         console.warn('[useLearnedPlaces] refresh failed', err);

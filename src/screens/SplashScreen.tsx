@@ -40,6 +40,7 @@ import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../hooks/useAuth';
 import { useAppStore } from '../store/appStore';
 import {
+  backfillLearnedPlaceCounts,
   getCategories,
   getInboxUnreadCount,
   getPoiPreferencesMap,
@@ -350,6 +351,12 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     // separately by getCategories below.)
     loadLearnedKeywords(uid)
       .catch(err => console.warn('[SplashScreen] loadLearnedKeywords failed (non-critical)', err));
+    // One-time migration (KAN-240) for users who brushed tasks before the
+    // learnedPlaceCounts counter existed — no-ops after the first successful
+    // run (gated by a flag on the user doc). Non-fatal: worst case is the
+    // learned-places ranking is missing historical visits until next boot.
+    backfillLearnedPlaceCounts(uid)
+      .catch(err => console.warn('[SplashScreen] backfillLearnedPlaceCounts failed (non-critical)', err));
     // Roll forward yesterday's undone tasks before fetching today's list, so
     // they're already included (KAN-146 — tasks persist until brushed away).
     // This is the per-user-timezone-correct fallback to the best-effort UTC

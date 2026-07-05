@@ -16,7 +16,7 @@ interface SnapshotLike {
   docs: DocLike[];
 }
 
-export function mapSnapshotDocs<T>(snap: SnapshotLike, idKey: 'id' | 'uid' = 'id'): T[] {
+export function mapSnapshotDocs<T>(snap: SnapshotLike, idKey: 'id' | 'uid' | 'placeId' = 'id'): T[] {
   // idKey spread last so the canonical doc id always wins over any same-named
   // field that might exist in the stored data.
   return snap.docs.map(d => ({ ...d.data(), [idKey]: d.id } as T));
