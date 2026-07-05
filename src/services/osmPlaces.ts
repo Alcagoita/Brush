@@ -100,6 +100,39 @@ export async function searchOsmPlaces(
   radiusMeters: number,
   timeoutMs: number = FETCH_TIMEOUT_MS,
 ): Promise<Record<string, OsmPlace[]>> {
+  try {
+    return await fetchOsmPlaces(lat, lng, poiTypes, radiusMeters, timeoutMs);
+  } catch {
+    const result: Record<string, OsmPlace[]> = {};
+    for (const poiType of poiTypes) { result[poiType] = []; }
+    return result;
+  }
+}
+
+/**
+ * Same query as searchOsmPlaces, but throws on timeout/network error/non-200
+ * instead of collapsing failure into an empty result (KAN-234). Trip
+ * downloads are a foreground, user-initiated, visible-progress action —
+ * unlike the silent opportunistic refresh, a failed download must surface as
+ * an error/retry, not look identical to "this area genuinely has no POIs".
+ */
+export async function searchOsmPlacesStrict(
+  lat: number,
+  lng: number,
+  poiTypes: string[],
+  radiusMeters: number,
+  timeoutMs: number = FETCH_TIMEOUT_MS,
+): Promise<Record<string, OsmPlace[]>> {
+  return fetchOsmPlaces(lat, lng, poiTypes, radiusMeters, timeoutMs);
+}
+
+async function fetchOsmPlaces(
+  lat: number,
+  lng: number,
+  poiTypes: string[],
+  radiusMeters: number,
+  timeoutMs: number,
+): Promise<Record<string, OsmPlace[]>> {
   const result: Record<string, OsmPlace[]> = {};
   for (const poiType of poiTypes) { result[poiType] = []; }
   if (poiTypes.length === 0) { return result; }
@@ -118,21 +151,16 @@ export async function searchOsmPlaces(
 
   const query = `[out:json][timeout:25];(${clauses.join('')});out;`;
 
-  let data: OverpassResponse;
-  try {
-    const response = await fetchWithTimeout(OVERPASS_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent':   USER_AGENT,
-      },
-      body: `data=${encodeURIComponent(query)}`,
-    }, timeoutMs);
-    if (!response.ok) { return result; }
-    data = (await response.json()) as OverpassResponse;
-  } catch {
-    return result;
-  }
+  const response = await fetchWithTimeout(OVERPASS_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'User-Agent':   USER_AGENT,
+    },
+    body: `data=${encodeURIComponent(query)}`,
+  }, timeoutMs);
+  if (!response.ok) { throw new Error(`Overpass request failed: ${response.status}`); }
+  const data = (await response.json()) as OverpassResponse;
 
   for (const el of data.elements ?? []) {
     if (el.lat == null || el.lon == null || !el.tags) { continue; }

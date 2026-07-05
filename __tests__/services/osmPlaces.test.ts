@@ -12,7 +12,7 @@
 const mockFetch = jest.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
-import { searchOsmPlaces } from '../../src/services/osmPlaces';
+import { searchOsmPlaces, searchOsmPlacesStrict } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
 
@@ -139,6 +139,38 @@ describe('searchOsmPlaces', () => {
     jest.advanceTimersByTime(12_000); // past the 20s override
     const result = await resultPromise;
     expect(result).toEqual({ atm: [] });
+
+    jest.useRealTimers();
+  });
+});
+
+describe('searchOsmPlacesStrict (KAN-234 trip downloads)', () => {
+  it('parses results the same way as searchOsmPlaces on success', async () => {
+    mockOverpassResponse([{ id: 1, lat: 0.0001, lon: 0, tags: { amenity: 'pharmacy', name: 'Corner Pharmacy' } }]);
+    const result = await searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['pharmacy'], 5000);
+    expect(result.pharmacy[0].name).toBe('Corner Pharmacy');
+  });
+
+  it('throws on a non-200 response instead of collapsing to an empty result', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
+    await expect(searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000)).rejects.toThrow();
+  });
+
+  it('throws on a network error instead of collapsing to an empty result', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    await expect(searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000)).rejects.toThrow('network down');
+  });
+
+  it('throws when the request exceeds the timeout instead of collapsing to an empty result', async () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+      options.signal?.addEventListener('abort', () => reject(new Error('AbortError')));
+    }));
+
+    const resultPromise = searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    const expectation = expect(resultPromise).rejects.toThrow('AbortError');
+    jest.advanceTimersByTime(8_001);
+    await expectation;
 
     jest.useRealTimers();
   });

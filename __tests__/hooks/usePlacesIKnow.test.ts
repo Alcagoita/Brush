@@ -10,8 +10,12 @@
  *   - a failure in any of the three degrades safely (logs, doesn't throw)
  */
 
+// A mutable mock (not a fixed arrow) so individual tests can override via
+// mockGetAuth.mockReturnValueOnce(...) to exercise the no-uid guard (e.g.
+// auth not ready yet, or the user signed out while this screen is mounted).
+const mockGetAuth = jest.fn((): { currentUser: { uid: string } | null } => ({ currentUser: { uid: 'test-uid' } }));
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
-  getAuth: () => ({ currentUser: { uid: 'test-uid' } }),
+  getAuth: () => mockGetAuth(),
 }));
 jest.mock('@react-native-firebase/auth', () => ({}));
 
@@ -54,6 +58,10 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockGetCategories.mockResolvedValue([]);
   mockEstimateHabitatAreaSizeBytes.mockReturnValue(0);
+  // clearAllMocks() clears call history but not a persistent mockReturnValue
+  // override from a prior test — restore the default explicitly so tests
+  // that override this (the no-uid guard tests below) don't leak into others.
+  mockGetAuth.mockReturnValue({ currentUser: { uid: 'test-uid' } });
 });
 
 describe('refresh (initial load)', () => {
@@ -116,6 +124,19 @@ describe('refreshTrip', () => {
     expect(result.current.refreshingTripId).toBeNull();
     warnSpy.mockRestore();
   });
+
+  it('no-ops instead of calling refreshTripArea with an empty uid (KAN-234 review fix — auth not ready / signed out)', async () => {
+    mockGetAuth.mockReturnValue({ currentUser: null });
+    const trip = makeTrip();
+
+    const { result } = renderHook(() => usePlacesIKnow());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => { await result.current.refreshTrip(trip); });
+
+    expect(mockRefreshTripArea).not.toHaveBeenCalled();
+    expect(result.current.refreshingTripId).toBeNull();
+  });
 });
 
 describe('deleteTrip', () => {
@@ -146,5 +167,18 @@ describe('deleteTrip', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('[usePlacesIKnow] deleteTrip failed', expect.any(Error));
     warnSpy.mockRestore();
+  });
+
+  it('no-ops instead of calling deleteTrip with an empty uid (KAN-234 review fix — auth not ready / signed out)', async () => {
+    mockGetAuth.mockReturnValue({ currentUser: null });
+    const trip = makeTrip();
+
+    const { result } = renderHook(() => usePlacesIKnow());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => { await result.current.deleteTrip(trip); });
+
+    expect(mockDeleteTrip).not.toHaveBeenCalled();
+    expect(mockDeleteTripAreaPlaces).not.toHaveBeenCalled();
   });
 });

@@ -6,7 +6,7 @@
  * Network calls are mocked via global.fetch.
  */
 
-import { searchPlacesAutocomplete } from '../../src/services/maps';
+import { searchPlacesAutocomplete, searchDestinationAutocomplete } from '../../src/services/maps';
 
 // ─── Mock fetch ───────────────────────────────────────────────────────────────
 
@@ -161,5 +161,65 @@ describe('searchPlacesAutocomplete', () => {
     expect(headers['X-Goog-FieldMask']).toBe(
       'suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat',
     );
+  });
+
+  it('restricts to establishment results (not cities/regions)', async () => {
+    mockApiResponse([]);
+    await searchPlacesAutocomplete('faro');
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.includedPrimaryTypes).toEqual(['establishment']);
+  });
+});
+
+describe('searchDestinationAutocomplete (KAN-234 Trip Planner)', () => {
+  it('restricts results to cities/towns, not individual businesses', async () => {
+    mockApiResponse([]);
+    await searchDestinationAutocomplete('faro');
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.includedPrimaryTypes).toEqual(['(cities)']);
+  });
+
+  it('returns empty array for empty query without calling the API', async () => {
+    const results = await searchDestinationAutocomplete('');
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(results).toEqual([]);
+  });
+
+  it('maps API response to PlaceAutocompleteSuggestion[]', async () => {
+    mockApiResponse([makeSuggestion('gpl-1', 'Faro', 'Faro, Portugal')]);
+
+    const results = await searchDestinationAutocomplete('faro');
+
+    expect(results).toEqual([{ placeId: 'gpl-1', name: 'Faro', address: 'Faro, Portugal' }]);
+  });
+
+  it('returns empty array on API error', async () => {
+    mockApiError(503);
+    const results = await searchDestinationAutocomplete('faro');
+    expect(results).toEqual([]);
+  });
+
+  it('includes location bias in the request body when lat/lng are provided (disambiguates same-named cities)', async () => {
+    mockApiResponse([]);
+
+    await searchDestinationAutocomplete('faro', 37.0179, -7.9304);
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.locationBias).toEqual({
+      circle: {
+        center: { latitude: 37.0179, longitude: -7.9304 },
+        radius: 50_000,
+      },
+    });
+  });
+
+  it('omits locationBias when lat/lng are not provided', async () => {
+    mockApiResponse([]);
+    await searchDestinationAutocomplete('faro');
+
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+    expect(body.locationBias).toBeUndefined();
   });
 });

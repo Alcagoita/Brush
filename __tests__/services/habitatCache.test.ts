@@ -73,6 +73,13 @@ const mockDb = {
   getAllSync: jest.fn(<T>(sql: string, params: unknown[] = []): T[] => {
     const s = sql.replace(/\s+/g, ' ').trim();
 
+    if (s.startsWith('PRAGMA table_info(habitat_places)')) {
+      return [
+        { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
+        { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
+        { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
+      ] as unknown as T[];
+    }
     if (s.startsWith('SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL')) {
       return [{ count: rows.filter(r => r.cache_area_id == null).length }] as unknown as T[];
     }
@@ -157,6 +164,18 @@ const mockDb = {
     }
     throw new Error(`mockDb.runSync: unrecognized query: ${s}`);
   }),
+  // Mirrors expo-sqlite's real BEGIN/task/COMMIT-or-ROLLBACK+rethrow behavior
+  // closely enough for tests: snapshot `rows` first, restore it if task()
+  // throws, so a mid-batch failure genuinely undoes earlier deletes/inserts.
+  withTransactionSync: jest.fn((task: () => void) => {
+    const snapshot = rows.map(r => ({ ...r }));
+    try {
+      task();
+    } catch (err) {
+      rows = snapshot;
+      throw err;
+    }
+  }),
 };
 
 jest.mock('expo-sqlite', () => ({
@@ -186,6 +205,7 @@ import {
   hasCachedPlaces,
   deleteTripAreaPlaces,
   deleteExpiredTripPlaces,
+  writeTripAreaPlaces,
   estimateHabitatAreaSizeBytes,
   __resetHabitatDbForTests,
   __resetEmptyResultAttemptsForTests,
@@ -202,6 +222,73 @@ beforeEach(() => {
   __resetHabitatDbForTests();
   __resetEmptyResultAttemptsForTests();
   mockNetInfoFetch.mockResolvedValue({ isConnected: true });
+});
+
+describe('migration (KAN-234 review fix — schema check instead of blanket catch)', () => {
+  it('does not run ALTER TABLE when the columns already exist', () => {
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const alterCalls = mockDb.execSync.mock.calls.filter(([sql]) => String(sql).includes('ALTER TABLE'));
+    expect(alterCalls).toHaveLength(0);
+  });
+
+  it('runs ALTER TABLE only for columns missing from the real schema', () => {
+    mockDb.getAllSync.mockImplementationOnce(() => [
+      { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
+      { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
+      { name: 'osm_fetched_at' }, { name: 'last_matched_at' },
+      // cache_area_id / expires_at intentionally omitted — simulates a pre-KAN-234 on-device DB.
+    ]);
+
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const alterCalls = mockDb.execSync.mock.calls.map(([sql]) => String(sql));
+    expect(alterCalls.some(sql => sql.includes('ADD COLUMN cache_area_id'))).toBe(true);
+    expect(alterCalls.some(sql => sql.includes('ADD COLUMN expires_at'))).toBe(true);
+  });
+
+  it('surfaces a genuine migration failure via a warning instead of silently swallowing it', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => []); // schema check reports nothing — both columns "missing"
+    mockDb.execSync
+      .mockImplementationOnce(() => {}) // CREATE TABLE ... ; CREATE INDEX ...
+      .mockImplementationOnce(() => { throw new Error('disk full'); }); // ALTER TABLE cache_area_id — a real failure, not "column already exists"
+
+    // upsertPlace's own outer try/catch keeps the module's existing
+    // "never throws to callers" contract — but the migration failure must
+    // now be logged (not silently discarded the way a blanket catch would).
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.objectContaining({ message: 'disk full' }));
+    warnSpy.mockRestore();
+  });
+
+  it('retries the migration on the next call instead of reusing a stuck db state after a failed migration', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // First call: schema check reports both columns missing, ALTER TABLE throws.
+    mockDb.getAllSync.mockImplementationOnce(() => []);
+    mockDb.execSync
+      .mockImplementationOnce(() => {}) // CREATE TABLE ... ; CREATE INDEX ...
+      .mockImplementationOnce(() => { throw new Error('disk full'); }); // ALTER TABLE cache_area_id
+
+    upsertPlace({ poiType: 'pharmacy', name: 'First', lat: 0, lng: 0, source: { osm: 'node/1' } });
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.objectContaining({ message: 'disk full' }));
+    warnSpy.mockClear();
+
+    // Second call: schema check again reports both columns missing (the
+    // migration never committed) — this time everything succeeds. If `db`
+    // had been wedged non-null after the first failure, this ALTER TABLE
+    // would never even run.
+    mockDb.getAllSync.mockImplementationOnce(() => []);
+
+    upsertPlace({ poiType: 'cafe', name: 'Second', lat: 0, lng: 0, source: { osm: 'node/2' } });
+
+    expect(warnSpy).not.toHaveBeenCalled();
+    const alterCalls = mockDb.execSync.mock.calls.map(([sql]) => String(sql));
+    expect(alterCalls.filter(sql => sql.includes('ADD COLUMN cache_area_id'))).toHaveLength(2);
+    expect(rows.some(r => r.name === 'Second')).toBe(true);
+    warnSpy.mockRestore();
+  });
 });
 
 describe('upsertPlace', () => {
@@ -689,6 +776,55 @@ describe('deleteTripAreaPlaces', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] deleteTripAreaPlaces failed', expect.any(Error));
     warnSpy.mockRestore();
+  });
+});
+
+describe('writeTripAreaPlaces (KAN-234 review fix — atomic delete+reinsert)', () => {
+  it('replaces existing rows for cacheAreaId with the new places, in one transaction', () => {
+    upsertTripPlace({ poiType: 'atm', name: 'Old ATM', lat: 0, lng: 0, source: { osm: 'node/old' }, cacheAreaId: 'trip-1', expiresAt: 1 });
+
+    const written = writeTripAreaPlaces('trip-1', 2_000, [
+      { poiType: 'cafe', name: 'New Cafe', lat: 1, lng: 1, source: { osm: 'node/new1' } },
+      { poiType: 'bank', name: 'New Bank', lat: 2, lng: 2, source: { osm: 'node/new2' } },
+    ]);
+
+    expect(written).toBe(2);
+    expect(rows).toHaveLength(2);
+    expect(rows.every(r => r.cache_area_id === 'trip-1' && r.expires_at === 2_000)).toBe(true);
+    expect(rows.some(r => r.name === 'Old ATM')).toBe(false);
+  });
+
+  it('rolls back the delete when an insert fails partway — the previous cache is left intact, not half-deleted', () => {
+    upsertTripPlace({ poiType: 'atm', name: 'Old ATM', lat: 0, lng: 0, source: { osm: 'node/old' }, cacheAreaId: 'trip-1', expiresAt: 1 });
+
+    // Wrap the real dispatcher so the 2nd INSERT within the transaction throws.
+    const realRunSync = mockDb.runSync.getMockImplementation()!;
+    let insertCount = 0;
+    mockDb.runSync.mockImplementation((sql: string, params: unknown[] = []) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      if (s.startsWith('INSERT INTO habitat_places')) {
+        insertCount += 1;
+        if (insertCount === 2) { throw new Error('disk full'); }
+      }
+      return realRunSync(sql, params);
+    });
+
+    expect(() => writeTripAreaPlaces('trip-1', 2_000, [
+      { poiType: 'cafe', name: 'New Cafe', lat: 1, lng: 1, source: { osm: 'node/new1' } },
+      { poiType: 'bank', name: 'New Bank', lat: 2, lng: 2, source: { osm: 'node/new2' } },
+    ])).toThrow('disk full');
+
+    // Rollback restored the original row — the delete never actually "stuck".
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Old ATM');
+  });
+
+  it('propagates the underlying error instead of swallowing it', () => {
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(() => writeTripAreaPlaces('trip-1', 2_000, [
+      { poiType: 'cafe', name: 'New Cafe', lat: 1, lng: 1, source: { osm: 'node/new1' } },
+    ])).toThrow('disk full');
   });
 });
 

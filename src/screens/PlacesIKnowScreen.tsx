@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.page, paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  navBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  navBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   iconTile: { width: 36, height: 36, borderRadius: radii.listIcon, alignItems: 'center', justifyContent: 'center' },
   rowText: { flex: 1, gap: 2 },
   rowTitle: { fontSize: 15, fontFamily: 'Geist-Medium', fontWeight: '500' },
-  rowSub: { fontSize: 12, fontFamily: 'Geist-Regular' },
+  rowSub: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   actionBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   actionLabel: { fontSize: 13, fontFamily: 'Geist-Medium', fontWeight: '500' },

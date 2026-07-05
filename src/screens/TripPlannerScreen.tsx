@@ -12,7 +12,6 @@
 
 import React from 'react';
 import {
-  ActivityIndicator,
   Image,
   KeyboardAvoidingView,
   Platform,
@@ -30,6 +29,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
+import LoadingDots from '../components/LoadingDots';
 import { useTripPlanner, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT } from '../hooks/useTripPlanner';
 import { CIRCLE_FRACTION_OF_HALF_DIM } from '../services/maps';
 import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload';
@@ -250,7 +250,7 @@ export default function TripPlannerScreen() {
 
         {step === 'downloading' && (
           <View style={styles.downloadingSection}>
-            <ActivityIndicator color={palette.accent} size="large" />
+            <LoadingDots color={palette.accent} />
             <Text style={[styles.downloadingLabel, { color: palette.muted }]}>{COPY.tripPlanner.downloadingLabel}</Text>
           </View>
         )}
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   // Dates
   datesSection: { gap: 12 },
   dateField: { height: 48, borderRadius: radii.ctaBtn, borderWidth: 1, paddingHorizontal: 16, justifyContent: 'center' },
-  dateFieldText: { fontSize: 15, fontFamily: 'Geist-Regular' },
+  dateFieldText: { fontSize: 15, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
   skipLink: { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center', marginTop: 4 },
 
   // Radius + preview
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
   radiusChips: { flexDirection: 'row', gap: 8, alignSelf: 'stretch' },
   radiusChip: { flex: 1, height: 44, borderRadius: radii.ctaBtn, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   radiusChipLabel: { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500', textAlign: 'center' },
-  sizeEstimate: { fontSize: 13, fontFamily: 'Geist-Regular', textAlign: 'center' },
+  sizeEstimate: { fontSize: 13, fontFamily: 'Geist-Regular', textAlign: 'center', fontVariant: ['tabular-nums'] },
 
   // Downloading
   downloadingSection: { alignItems: 'center', justifyContent: 'center', gap: 16, paddingTop: 60 },

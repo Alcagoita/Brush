@@ -443,27 +443,29 @@ export interface PlaceAutocompleteSuggestion {
   address: string;
 }
 
-/**
- * Search for establishments matching the user-typed `query` string.
- * Results are optionally biased towards `lat`/`lng` when the device location
- * is available (50 km radius — covers most metro areas).
- *
- * Returns up to 5 establishment suggestions, sorted by relevance.
- * Returns an empty array on API error (search is best-effort).
- *
- * Uses the Places Autocomplete (New) API:
- *   POST https://places.googleapis.com/v1/places:autocomplete
- */
-export async function searchPlacesAutocomplete(
+interface AutocompleteResponse {
+  suggestions?: Array<{
+    placePrediction?: {
+      placeId?: string;
+      structuredFormat?: {
+        mainText?:      { text?: string };
+        secondaryText?: { text?: string };
+      };
+    };
+  }>;
+}
+
+async function fetchPlacesAutocomplete(
   query: string,
+  includedPrimaryTypes: string[],
   lat?: number,
   lng?: number,
 ): Promise<PlaceAutocompleteSuggestion[]> {
   if (!query.trim()) { return []; }
 
   const body: Record<string, unknown> = {
-    input:                query,
-    includedPrimaryTypes: ['establishment'],
+    input: query,
+    includedPrimaryTypes,
   };
 
   if (lat != null && lng != null) {
@@ -473,18 +475,6 @@ export async function searchPlacesAutocomplete(
         radius: 50_000,
       },
     };
-  }
-
-  interface AutocompleteResponse {
-    suggestions?: Array<{
-      placePrediction?: {
-        placeId?: string;
-        structuredFormat?: {
-          mainText?:      { text?: string };
-          secondaryText?: { text?: string };
-        };
-      };
-    }>;
   }
 
   let data: AutocompleteResponse;
@@ -516,6 +506,45 @@ export async function searchPlacesAutocomplete(
     if (results.length >= 5) { break; }
   }
   return results;
+}
+
+/**
+ * Search for establishments matching the user-typed `query` string.
+ * Results are optionally biased towards `lat`/`lng` when the device location
+ * is available (50 km radius — covers most metro areas).
+ *
+ * Returns up to 5 establishment suggestions, sorted by relevance.
+ * Returns an empty array on API error (search is best-effort).
+ *
+ * Uses the Places Autocomplete (New) API:
+ *   POST https://places.googleapis.com/v1/places:autocomplete
+ */
+export async function searchPlacesAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, ['establishment'], lat, lng);
+}
+
+/**
+ * Search for cities/towns/regions matching the user-typed `query` string
+ * (KAN-234 Trip Planner destination search) — excludes individual businesses/
+ * landmarks/airports, unlike searchPlacesAutocomplete's establishment search.
+ * `"(cities)"` is the Places API's documented shorthand for city/town-level
+ * results (matches the legacy Autocomplete API's `types=(cities)`).
+ *
+ * `lat`/`lng`, when available, bias ambiguous queries (e.g. "Faro" — several
+ * exist worldwide) toward the caller's current region, same soft-bias
+ * mechanism as searchPlacesAutocomplete — it doesn't exclude far-away
+ * matches, just ranks nearby ones higher.
+ */
+export async function searchDestinationAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, ['(cities)'], lat, lng);
 }
 
 // ─── Place Details (KAN-234) ──────────────────────────────────────────────────

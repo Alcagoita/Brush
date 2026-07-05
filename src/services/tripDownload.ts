@@ -21,9 +21,10 @@
  */
 
 import NetInfo from '@react-native-community/netinfo';
-import { ALL_POI_TYPES, Trip, TripRadiusPreset } from '../types';
-import { searchOsmPlaces } from './osmPlaces';
-import { upsertTripPlace, HABITAT_BYTES_PER_ROW } from './habitatCache';
+import { ALL_POI_TYPES } from '../types';
+import type { Trip, TripRadiusPreset } from '../types';
+import { searchOsmPlacesStrict } from './osmPlaces';
+import { writeTripAreaPlaces, HABITAT_BYTES_PER_ROW } from './habitatCache';
 import { updateTrip } from './firestore/trips';
 import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
@@ -113,7 +114,19 @@ export function formatTripSizeMb(bytes: number): string {
  * center/radius and upserts every result into the habitat cache tagged with
  * this trip's cacheAreaId/expiresAt. Throws on failure — this is a
  * user-initiated, visible-progress action (unlike habitatCache's own silent
- * fire-and-forget refresh), so the screen shows a real error/retry.
+ * fire-and-forget refresh), so the screen shows a real error/retry. Uses
+ * searchOsmPlacesStrict (not searchOsmPlaces) specifically so a real network
+ * failure surfaces as a thrown error instead of collapsing into the same
+ * empty result as "this area genuinely has no POIs" — a plain empty success
+ * would otherwise persist a useless trip.
+ *
+ * Clears any rows already tagged with this cacheAreaId and repopulates them
+ * in a single SQLite transaction (habitatCache.writeTripAreaPlaces) — so a
+ * refresh reconciles away places that no longer exist, but a write failure
+ * partway through rolls back instead of leaving a previously-good trip
+ * cache half-deleted. This is a foreground, user-initiated action where data
+ * integrity matters, unlike habitatCache's own never-throws opportunistic
+ * writes.
  *
  * Returns the number of places written, for a confirmation state.
  */
@@ -125,25 +138,26 @@ export async function downloadTripArea(
   customCategoryPoiTypes: string[],
 ): Promise<number> {
   const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
-  const osmResults = await searchOsmPlaces(center.lat, center.lng, poiTypes, radiusMeters, TRIP_DOWNLOAD_TIMEOUT_MS);
+  const osmResults = await searchOsmPlacesStrict(center.lat, center.lng, poiTypes, radiusMeters, TRIP_DOWNLOAD_TIMEOUT_MS);
 
-  let written = 0;
-  for (const poiType of poiTypes) {
-    for (const place of osmResults[poiType] ?? []) {
-      upsertTripPlace({
-        poiType,
-        name:          place.name,
-        isGenericName: place.isGenericName,
-        lat:           place.lat,
-        lng:           place.lng,
-        source:        { osm: place.osmId },
-        cacheAreaId,
-        expiresAt,
-      });
-      written += 1;
-    }
-  }
-  return written;
+  const totalFound = poiTypes.reduce((sum, poiType) => sum + (osmResults[poiType]?.length ?? 0), 0);
+  // A fetch that "succeeds" with zero places anywhere is indistinguishable
+  // from a soft failure (e.g. Overpass rate-limiting with a 200) — treat it
+  // as an error before touching any existing rows for this cacheAreaId, so a
+  // spurious empty refresh can't wipe out an area that was working before.
+  if (totalFound === 0) { throw new Error('Trip download returned no places'); }
+
+  const places = poiTypes.flatMap(poiType =>
+    (osmResults[poiType] ?? []).map(place => ({
+      poiType,
+      name:          place.name,
+      isGenericName: place.isGenericName,
+      lat:           place.lat,
+      lng:           place.lng,
+      source:        { osm: place.osmId },
+    })),
+  );
+  return writeTripAreaPlaces(cacheAreaId, expiresAt, places);
 }
 
 /**

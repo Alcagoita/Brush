@@ -25,11 +25,11 @@ jest.mock('@react-native-community/netinfo', () =>
 );
 jest.mock('../../src/services/habitatCache');
 
-const mockSearchPlacesAutocomplete = jest.fn();
+const mockSearchDestinationAutocomplete = jest.fn();
 const mockGetPlaceDetails = jest.fn();
 const mockBuildStaticMapPreviewUrl = jest.fn((..._args: unknown[]) => 'https://example.com/map.png');
 jest.mock('../../src/services/maps', () => ({
-  searchPlacesAutocomplete: (...args: unknown[]) => mockSearchPlacesAutocomplete(...args),
+  searchDestinationAutocomplete: (...args: unknown[]) => mockSearchDestinationAutocomplete(...args),
   getPlaceDetails: (...args: unknown[]) => mockGetPlaceDetails(...args),
   buildStaticMapPreviewUrl: (...args: unknown[]) => mockBuildStaticMapPreviewUrl(...args),
 }));
@@ -64,6 +64,7 @@ jest.mock('../../src/store/toastStore', () => ({
 
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useTripPlanner } from '../../src/hooks/useTripPlanner';
+import { deleteTripAreaPlaces as mockDeleteTripAreaPlaces } from '../../src/services/habitatCache';
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -73,16 +74,16 @@ beforeEach(() => {
 describe('destination step', () => {
   it('debounces autocomplete search as the user types', async () => {
     jest.useFakeTimers();
-    mockSearchPlacesAutocomplete.mockResolvedValue([{ placeId: 'p1', name: 'Faro', address: 'Portugal' }]);
+    mockSearchDestinationAutocomplete.mockResolvedValue([{ placeId: 'p1', name: 'Faro', address: 'Portugal' }]);
 
     const onDone = jest.fn();
     const { result } = renderHook(() => useTripPlanner(onDone));
 
     act(() => { result.current.setQuery('Far'); });
-    expect(mockSearchPlacesAutocomplete).not.toHaveBeenCalled();
+    expect(mockSearchDestinationAutocomplete).not.toHaveBeenCalled();
 
     await act(async () => { jest.advanceTimersByTime(300); });
-    expect(mockSearchPlacesAutocomplete).toHaveBeenCalledWith('Far');
+    expect(mockSearchDestinationAutocomplete).toHaveBeenCalledWith('Far');
 
     jest.useRealTimers();
   });
@@ -111,6 +112,26 @@ describe('destination step', () => {
 
     expect(result.current.step).toBe('destination');
     expect(result.current.error).not.toBeNull();
+  });
+
+  it('does not re-fire the debounced search once a destination has been selected (KAN-234 review fix)', async () => {
+    jest.useFakeTimers();
+    mockGetPlaceDetails.mockResolvedValue({ lat: 37.0179, lng: -7.9304, name: 'Faro, Portugal' });
+
+    const { result } = renderHook(() => useTripPlanner(jest.fn()));
+
+    await act(async () => {
+      await result.current.selectDestination({ placeId: 'p1', name: 'Faro', address: 'Portugal' });
+    });
+    mockSearchDestinationAutocomplete.mockClear();
+
+    // selectDestination internally calls setQuery(suggestion.name), which
+    // re-triggers the debounced-search effect exactly like real typing would
+    // — the "just selected" guard must suppress this one re-fire.
+    await act(async () => { jest.advanceTimersByTime(300); });
+    expect(mockSearchDestinationAutocomplete).not.toHaveBeenCalled();
+
+    jest.useRealTimers();
   });
 });
 
@@ -204,6 +225,21 @@ describe('confirmDownload', () => {
 
     await act(async () => { await result.current.confirmDownload(); });
 
+    expect(result.current.step).toBe('radius');
+    expect(result.current.error).not.toBeNull();
+    expect(onDoneMock).not.toHaveBeenCalled();
+  });
+
+  it('rolls back the downloaded cache rows when addTrip fails after a successful download (KAN-234 review fix)', async () => {
+    mockDownloadTripArea.mockResolvedValue(5);
+    mockAddTrip.mockRejectedValue(new Error('firestore unavailable'));
+    const result = await goToRadiusStep();
+
+    await act(async () => { await result.current.confirmDownload(); });
+
+    expect(mockDownloadTripArea).toHaveBeenCalled();
+    const [, , cacheAreaId] = mockDownloadTripArea.mock.calls[0];
+    expect(mockDeleteTripAreaPlaces).toHaveBeenCalledWith(cacheAreaId);
     expect(result.current.step).toBe('radius');
     expect(result.current.error).not.toBeNull();
     expect(onDoneMock).not.toHaveBeenCalled();
