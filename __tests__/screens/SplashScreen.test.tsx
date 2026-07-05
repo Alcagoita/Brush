@@ -20,6 +20,8 @@ jest.mock('../../src/services/firestore', () => ({
   getPoiPreferencesMap:    jest.fn(),
   getCategories:           jest.fn(),
   getTotalPoints:          jest.fn(),
+  getInboxUnreadCount:     jest.fn(),
+  loadLearnedKeywords:     jest.fn(),
   rolloverIncompleteTasks: jest.fn(),
 }));
 
@@ -50,6 +52,8 @@ import {
   getPoiPreferencesMap,
   getCategories,
   getTotalPoints,
+  getInboxUnreadCount,
+  loadLearnedKeywords,
   rolloverIncompleteTasks,
 } from '../../src/services/firestore';
 import { getIncomingSharedTasksCount } from '../../src/services/sharing';
@@ -64,6 +68,8 @@ const mockGetPoiPreferencesMap = getPoiPreferencesMap as jest.Mock;
 const mockGetCategories        = getCategories        as jest.Mock;
 const mockGetTotalPoints       = getTotalPoints       as jest.Mock;
 const mockGetIncomingCount     = getIncomingSharedTasksCount as jest.Mock;
+const mockGetInboxUnreadCount  = getInboxUnreadCount  as jest.Mock;
+const mockLoadLearnedKeywords  = loadLearnedKeywords  as jest.Mock;
 const mockRolloverIncompleteTasks = rolloverIncompleteTasks as jest.Mock;
 
 beforeEach(() => {
@@ -77,6 +83,8 @@ beforeEach(() => {
   mockGetCategories.mockResolvedValue([]);
   mockGetTotalPoints.mockResolvedValue(5);
   mockGetIncomingCount.mockResolvedValue(2);
+  mockGetInboxUnreadCount.mockResolvedValue(0);
+  mockLoadLearnedKeywords.mockResolvedValue(undefined);
   mockRolloverIncompleteTasks.mockResolvedValue(undefined);
 });
 
@@ -171,6 +179,14 @@ describe('SplashScreen', () => {
 
       expect(mockGetTasksForDate).not.toHaveBeenCalled();
       expect(mockGetUser).not.toHaveBeenCalled();
+      expect(mockGetUserPreferences).not.toHaveBeenCalled();
+      expect(mockGetPoiPreferencesMap).not.toHaveBeenCalled();
+      expect(mockGetCategories).not.toHaveBeenCalled();
+      expect(mockGetTotalPoints).not.toHaveBeenCalled();
+      expect(mockGetIncomingCount).not.toHaveBeenCalled();
+      expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
+      expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
     });
 
     it('does not populate the store', async () => {
@@ -199,6 +215,15 @@ describe('SplashScreen', () => {
       await act(async () => { await Promise.resolve(); });
 
       expect(mockGetTasksForDate).not.toHaveBeenCalled();
+      expect(mockGetUser).not.toHaveBeenCalled();
+      expect(mockGetUserPreferences).not.toHaveBeenCalled();
+      expect(mockGetPoiPreferencesMap).not.toHaveBeenCalled();
+      expect(mockGetCategories).not.toHaveBeenCalled();
+      expect(mockGetTotalPoints).not.toHaveBeenCalled();
+      expect(mockGetIncomingCount).not.toHaveBeenCalled();
+      expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
+      expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
     });
   });
 
