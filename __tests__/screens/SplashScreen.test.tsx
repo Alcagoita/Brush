@@ -179,6 +179,14 @@ describe('SplashScreen', () => {
 
       expect(mockGetTasksForDate).not.toHaveBeenCalled();
       expect(mockGetUser).not.toHaveBeenCalled();
+      expect(mockGetUserPreferences).not.toHaveBeenCalled();
+      expect(mockGetPoiPreferencesMap).not.toHaveBeenCalled();
+      expect(mockGetCategories).not.toHaveBeenCalled();
+      expect(mockGetTotalPoints).not.toHaveBeenCalled();
+      expect(mockGetIncomingCount).not.toHaveBeenCalled();
+      expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
+      expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
     });
 
     it('does not populate the store', async () => {
@@ -207,6 +215,15 @@ describe('SplashScreen', () => {
       await act(async () => { await Promise.resolve(); });
 
       expect(mockGetTasksForDate).not.toHaveBeenCalled();
+      expect(mockGetUser).not.toHaveBeenCalled();
+      expect(mockGetUserPreferences).not.toHaveBeenCalled();
+      expect(mockGetPoiPreferencesMap).not.toHaveBeenCalled();
+      expect(mockGetCategories).not.toHaveBeenCalled();
+      expect(mockGetTotalPoints).not.toHaveBeenCalled();
+      expect(mockGetIncomingCount).not.toHaveBeenCalled();
+      expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
+      expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
     });
   });
 
