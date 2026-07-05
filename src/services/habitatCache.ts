@@ -38,6 +38,7 @@ import { normalize } from './poiInference';
 import { searchOsmPlaces } from './osmPlaces';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters } from './maps';
+import { POI_OSM_TAGS } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -347,6 +348,46 @@ export function queryHabitatCache(
 // ─── Refresh ──────────────────────────────────────────────────────────────────
 
 /**
+ * A type with no OSM tag mapping (arbitrary custom-category Google Places
+ * strings) can never produce an OSM-backed row, so it would never satisfy
+ * the freshness check below and would stay "stale" — and get re-fetched —
+ * forever. Filtering to mappable types up front is what makes staleTypes
+ * capable of ever reaching empty for a custom-only request (KAN-238 review).
+ */
+function isOsmMappable(poiType: string): boolean {
+  return poiType in POI_OSM_TAGS;
+}
+
+/** Refetch cooldown for a (poiType, area) pair that came back with zero OSM
+ * results last time — a mapped type can legitimately have nothing nearby
+ * (e.g. no bus stop in this suburb); without this, a sparse area would hit
+ * Overpass again on every single proximity tick indefinitely. */
+const EMPTY_RESULT_RETRY_COOLDOWN_MS = 60 * 60 * 1_000; // 1 hour
+
+/** ~5.5 km per cell at the equator — coarser than IDENTITY_MATCH_RADIUS_M on
+ * purpose; this only throttles re-fetch attempts, not identity matching. */
+const EMPTY_RESULT_GRID_CELL_DEG = 0.05;
+
+/**
+ * In-memory only (not persisted — resets on app restart, which just means
+ * one extra retry, not a correctness issue). Keyed by poiType + coarse grid
+ * cell; unbounded growth isn't a concern since the key space is naturally
+ * capped by (POI types) × (cells the user actually visits).
+ */
+const _emptyResultAttempts = new Map<string, number>();
+
+function emptyResultAttemptKey(poiType: string, lat: number, lng: number): string {
+  const cellLat = Math.round(lat / EMPTY_RESULT_GRID_CELL_DEG);
+  const cellLng = Math.round(lng / EMPTY_RESULT_GRID_CELL_DEG);
+  return `${poiType}@${cellLat},${cellLng}`;
+}
+
+/** Test-only: clears the empty-result retry throttle between test cases. */
+export function __resetEmptyResultAttemptsForTests(): void {
+  _emptyResultAttempts.clear();
+}
+
+/**
  * Opportunistically refreshes the cache around `lat`/`lng` for `poiTypes`:
  * if online and the area has no OSM-fetched rows or any are older than
  * HABITAT_CACHE_STALE_MS, fetches fresh data from OSM and upserts it, then
@@ -364,7 +405,8 @@ export async function refreshHabitatCacheIfStale(
   lng: number,
   poiTypes: string[],
 ): Promise<void> {
-  if (poiTypes.length === 0) { return; }
+  const mappableTypes = poiTypes.filter(isOsmMappable);
+  if (mappableTypes.length === 0) { return; }
 
   try {
     let isConnected: boolean | null = null;
@@ -373,7 +415,7 @@ export async function refreshHabitatCacheIfStale(
 
     const database = getDb();
     const box = boundingBoxDeg(lat, lng, HABITAT_RADIUS_M);
-    const placeholders = poiTypes.map(() => '?').join(',');
+    const placeholders = mappableTypes.map(() => '?').join(',');
     const staleCutoff = Date.now() - HABITAT_CACHE_STALE_MS;
 
     const freshRows = database.getAllSync<{ poi_type: string }>(
@@ -383,15 +425,28 @@ export async function refreshHabitatCacheIfStale(
          AND lng BETWEEN ? AND ?
          AND osm_id IS NOT NULL
          AND osm_fetched_at >= ?`,
-      [...poiTypes, box.latMin, box.latMax, box.lngMin, box.lngMax, staleCutoff],
+      [...mappableTypes, box.latMin, box.latMax, box.lngMin, box.lngMax, staleCutoff],
     );
     const freshTypes = new Set(freshRows.map(r => r.poi_type));
-    const staleTypes = poiTypes.filter(t => !freshTypes.has(t));
+    const staleTypes = mappableTypes.filter(t => !freshTypes.has(t));
     if (staleTypes.length === 0) { return; }
 
-    const osmResults = await searchOsmPlaces(lat, lng, staleTypes, HABITAT_RADIUS_M);
-    for (const poiType of staleTypes) {
-      for (const place of osmResults[poiType] ?? []) {
+    const now = Date.now();
+    const typesToFetch = staleTypes.filter(t => {
+      const lastAttempt = _emptyResultAttempts.get(emptyResultAttemptKey(t, lat, lng));
+      return lastAttempt == null || now - lastAttempt >= EMPTY_RESULT_RETRY_COOLDOWN_MS;
+    });
+    if (typesToFetch.length === 0) { return; }
+
+    const osmResults = await searchOsmPlaces(lat, lng, typesToFetch, HABITAT_RADIUS_M);
+    let didUpsert = false;
+    for (const poiType of typesToFetch) {
+      const places = osmResults[poiType] ?? [];
+      if (places.length === 0) {
+        _emptyResultAttempts.set(emptyResultAttemptKey(poiType, lat, lng), now);
+        continue;
+      }
+      for (const place of places) {
         upsertPlace({
           poiType,
           name:          place.name,
@@ -400,10 +455,12 @@ export async function refreshHabitatCacheIfStale(
           lng:           place.lng,
           source:        { osm: place.osmId },
         });
+        didUpsert = true;
       }
     }
 
-    enforceSizeBudget();
+    // Skip the full-table COUNT(*) when nothing was actually written.
+    if (didUpsert) { enforceSizeBudget(); }
   } catch (err) {
     console.warn('[habitatCache] refreshHabitatCacheIfStale failed', err);
   }

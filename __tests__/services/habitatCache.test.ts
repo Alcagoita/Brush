@@ -27,6 +27,14 @@
  *     never invents an id for an unmatched place)
  *   - every exported function degrades to a safe default (never throws)
  *     when the underlying DB call itself throws
+ *   - refreshHabitatCacheIfStale (KAN-238 review) pre-filters to OSM-mappable
+ *     types before deciding what's stale — a custom-category string with no
+ *     POI_OSM_TAGS mapping can never produce a row, so it must never keep
+ *     "staleTypes" non-empty forever; a mapped type that legitimately
+ *     returns zero OSM results is throttled per (type, coarse area) instead
+ *     of re-hitting Overpass on every single proximity tick; and
+ *     enforceSizeBudget's full-table COUNT(*) is skipped when nothing was
+ *     actually upserted
  */
 
 interface MockHabitatRow {
@@ -141,6 +149,7 @@ import {
   findExistingPlaceId,
   hasCachedPlaces,
   __resetHabitatDbForTests,
+  __resetEmptyResultAttemptsForTests,
   MAX_CACHED_PLACES,
   HABITAT_CACHE_STALE_MS,
 } from '../../src/services/habitatCache';
@@ -151,6 +160,7 @@ beforeEach(() => {
   rows = [];
   jest.clearAllMocks();
   __resetHabitatDbForTests();
+  __resetEmptyResultAttemptsForTests();
   mockNetInfoFetch.mockResolvedValue({ isConnected: true });
 });
 
@@ -407,6 +417,78 @@ describe('refreshHabitatCacheIfStale', () => {
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
     expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+  });
+
+  it('never calls searchOsmPlaces for a custom type with no OSM mapping — it would never satisfy the freshness check and stay stale forever otherwise', async () => {
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['my_custom_unmapped_type']);
+    expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+  });
+
+  it('fetches only the OSM-mappable subset when poiTypes mixes mapped and unmapped types', async () => {
+    mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm', 'my_custom_unmapped_type']);
+
+    expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+  });
+
+  it('skips enforceSizeBudget\'s full-table COUNT(*) when OSM returned zero results for every fetched type', async () => {
+    mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    const countCalls = mockDb.getAllSync.mock.calls.filter(([sql]) => String(sql).includes('SELECT COUNT(*)'));
+    expect(countCalls).toHaveLength(0);
+  });
+
+  it('still runs enforceSizeBudget when at least one place was upserted', async () => {
+    mockSearchOsmPlaces.mockResolvedValue({
+      atm: [{ osmId: 'node/1', name: 'New ATM', isGenericName: false, lat: 0, lng: 0, distanceMeters: 0 }],
+    });
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    const countCalls = mockDb.getAllSync.mock.calls.filter(([sql]) => String(sql).includes('SELECT COUNT(*)'));
+    expect(countCalls).toHaveLength(1);
+  });
+
+  describe('empty-result retry cooldown', () => {
+    it('does not re-fetch a mapped type shortly after it returned zero OSM results', async () => {
+      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+
+      mockSearchOsmPlaces.mockClear();
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+    });
+
+    it('retries once the cooldown window has passed', async () => {
+      const nowSpy = jest.spyOn(Date, 'now');
+      let now = 1_000_000;
+      nowSpy.mockImplementation(() => now);
+
+      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+
+      mockSearchOsmPlaces.mockClear();
+      now += 60 * 60 * 1_000 + 1; // just past the 1-hour cooldown
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+
+      nowSpy.mockRestore();
+    });
+
+    it('throttles independently per area — a different location for the same type still fetches', async () => {
+      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      await refreshHabitatCacheIfStale(0, 0, ['atm']);
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+
+      mockSearchOsmPlaces.mockClear();
+      await refreshHabitatCacheIfStale(10, 10, ['atm']); // far enough to be a different grid cell
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('returns without throwing when the DB read fails', async () => {
