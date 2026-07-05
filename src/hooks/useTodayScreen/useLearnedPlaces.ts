@@ -6,11 +6,20 @@
  * fetch, not a listener (repo rule: no persistent onSnapshot for this kind
  * of derived, infrequently-changing state) — call `refresh()` after a task
  * completes with a known place so the ranking picks up the new brush.
+ *
+ * A monotonic request token guards against two races:
+ *   - overlapping refresh() calls resolving out of order (an older response
+ *     arriving after a newer one would otherwise overwrite fresher state)
+ *   - a uid change while a fetch for the *previous* uid is still in flight —
+ *     that response is discarded, and the ranking is cleared synchronously
+ *     on the uid change itself so a shared device never shows one account's
+ *     learned places while the next account's fetch is still pending.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getCompletedTasksWithPlace } from '../../services/firestore';
-import { computeLearnedPlaces, LearnedPlace } from '../../services/learnedPlaces';
+import { computeLearnedPlaces } from '../../services/learnedPlaces';
+import type { LearnedPlace } from '../../services/learnedPlaces';
 
 export interface LearnedPlacesState {
   learnedPlaces: LearnedPlace[];
@@ -20,21 +29,32 @@ export interface LearnedPlacesState {
 
 export function useLearnedPlaces(uid: string | undefined): LearnedPlacesState {
   const [learnedPlaces, setLearnedPlaces] = useState<LearnedPlace[]>([]);
+  const requestIdRef = useRef(0);
 
   const refresh = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     if (!uid) {
       setLearnedPlaces([]);
       return;
     }
     try {
       const tasks = await getCompletedTasksWithPlace(uid);
+      if (requestId !== requestIdRef.current) { return; } // superseded — discard
       setLearnedPlaces(computeLearnedPlaces(tasks));
     } catch (err) {
-      console.warn('[useLearnedPlaces] refresh failed', err);
+      if (requestId === requestIdRef.current) {
+        console.warn('[useLearnedPlaces] refresh failed', err);
+      }
     }
   }, [uid]);
 
+  // Only re-runs on mount and on an actual uid change — `refresh` only
+  // changes identity when `uid` does (its useCallback dep), so a manual
+  // `refresh()` call elsewhere (e.g. after a same-uid task completion)
+  // does not re-trigger this effect or the synchronous clear below.
   useEffect(() => {
+    requestIdRef.current += 1; // discard anything still in flight for the previous uid
+    setLearnedPlaces([]);
     void refresh();
   }, [refresh]);
 

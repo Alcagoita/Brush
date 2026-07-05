@@ -59,11 +59,14 @@
  *
  * Learned places (KAN-230):
  *   setLearnedPlaces feeds in the on-device ranking computed elsewhere
- *   (learnedPlaces.ts, from completedPlaceId brush history). When a type's
- *   candidates include its learned venue, that venue is preferred as the
- *   type's representative "nearest" over an arbitrary closer stranger —
- *   but only when the learned venue is itself within HERO_RADIUS_M, so this
- *   can never demote a genuinely hero-eligible type to grey/nothing.
+ *   (learnedPlaces.ts, from completedPlaceId brush history). The learned
+ *   venue only ever affects which PLACE represents the type that already
+ *   won the cross-type hero race on true distance — applied strictly after
+ *   heroType is locked in, so it can never change WHICH type wins by
+ *   inflating the distance used for that comparison. Within the winning
+ *   type, its learned venue is preferred as the displayed/notified place
+ *   over an arbitrary closer stranger, but only when the learned venue is
+ *   itself within HERO_RADIUS_M on its own real distance.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -517,34 +520,9 @@ async function runProximitySearch(
       // only matters once we know it's the hero type and its carousel is
       // actually shown — reconciled in a second pass below.
       let nearest = places[0] ?? null;
-      let promotedFromRest: NearbyPlace | null = null; // original ref, for de-duplicating the tail below
       if (!isOffline && nearest) {
         const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
         if (existingId) { nearest = { ...nearest, placeId: existingId }; }
-      }
-
-      // KAN-230 — a learned place (≥3 brushes) gets top priority as this
-      // type's representative candidate over an arbitrary closer stranger.
-      // Only bothers reconciling the other ≤4 candidates' ids when this
-      // specific type actually has a learned venue to look for — most
-      // types have none, so this is a no-op (no extra SQLite reads) for
-      // them. Only swaps in the learned candidate when IT is also within
-      // HERO_RADIUS_M on its own real distance, so this can never demote a
-      // genuinely hero-eligible type to grey/nothing.
-      const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, poiType);
-      if (learnedForType && nearest?.placeId !== learnedForType.placeId) {
-        for (const candidate of places.slice(1)) {
-          let candidateId = candidate.placeId;
-          if (!isOffline) {
-            const existingId = findExistingPlaceId(poiType, candidate.name, candidate.lat, candidate.lng);
-            if (existingId) { candidateId = existingId; }
-          }
-          if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
-            promotedFromRest = candidate;
-            nearest = { ...candidate, placeId: candidateId };
-            break;
-          }
-        }
       }
 
       // Exit-prompt dwell check runs for every type regardless of the
@@ -560,12 +538,12 @@ async function runProximitySearch(
 
       // Store all places within NEARBY_RADIUS, ordered nearest-first (index
       // 0 already reconciled above; the rest keep their raw ids for now).
-      // Excludes `promotedFromRest` from the tail — if the learned-place
-      // swap above pulled a place out of a later position, it would
-      // otherwise also appear at its original spot, duplicated.
-      allPlaces[poiType] = [nearest, ...places.slice(1).filter(p => p !== promotedFromRest)];
+      allPlaces[poiType] = [nearest, ...places.slice(1)];
 
-      // Closest place under HERO_RADIUS_M wins the orange hero.
+      // Closest place under HERO_RADIUS_M wins the orange hero. Decided on
+      // the TRUE nearest distance only — KAN-230's learned-place preference
+      // (below) must never influence which TYPE wins the cross-type race,
+      // only which specific PLACE represents the type that already won.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {
         heroType     = poiType;
         heroPlace    = nearest;
@@ -584,6 +562,34 @@ async function runProximitySearch(
         const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
         return existingId ? { ...place, placeId: existingId } : place;
       });
+    }
+
+    // KAN-230 — now that the hero type is locked in on true distance alone,
+    // see if ITS OWN learned venue (≥3 brushes) is among its candidates and
+    // still within HERO_RADIUS_M on its own real distance. If so, prefer it
+    // as the displayed/notified place for this type — "top priority" only
+    // ever affects which place represents the type that already won, never
+    // which type wins. Non-hero (grey) types are left alone: nothing to
+    // prioritize for a type that isn't being shown as the hero anyway.
+    if (heroType !== null) {
+      const winningType = heroType;
+      const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, winningType);
+      const currentPlaces = allPlaces[winningType] ?? [];
+      if (learnedForType && currentPlaces[0]?.placeId !== learnedForType.placeId) {
+        for (const candidate of currentPlaces.slice(1)) {
+          let candidateId = candidate.placeId;
+          if (!isOffline) {
+            const existingId = findExistingPlaceId(winningType, candidate.name, candidate.lat, candidate.lng);
+            if (existingId) { candidateId = existingId; }
+          }
+          if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
+            const promoted = { ...candidate, placeId: candidateId };
+            allPlaces[winningType] = [promoted, ...currentPlaces.filter(p => p !== candidate)];
+            heroPlace = promoted;
+            break;
+          }
+        }
+      }
     }
 
     // Fire notification when a new type enters the hero zone.

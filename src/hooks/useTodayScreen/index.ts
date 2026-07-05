@@ -83,19 +83,21 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     proximity.nearbyPlaceRef,
   );
 
-  const learned = useLearnedPlaces(uid);
+  const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
 
   useEffect(() => {
-    setLearnedPlaces(learned.learnedPlaces);
-  }, [learned.learnedPlaces]);
+    setLearnedPlaces(learnedPlaces);
+  }, [learnedPlaces]);
 
-  // A completion may have just recorded a new brush at a known place
-  // (KAN-226) — refresh the learned-place ranking so it picks up the Nth
-  // visit as soon as it happens, not on the next app launch.
+  // A toggle in either direction changes the completedPlaceId brush history
+  // the ranking is derived from: `done: true` adds a data point, `done:
+  // false` deletes the previous completion's completedPlace* fields
+  // (setTaskDone) — refresh after both so the ranking never drifts from
+  // what's actually in Firestore.
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     await handleToggleInner(taskId, done);
-    if (done) { void learned.refresh(); }
-  }, [handleToggleInner, learned]);
+    void refreshLearnedPlaces();
+  }, [handleToggleInner, refreshLearnedPlaces]);
 
   const totalTasks  = data.tasks.length;
   const doneTasks   = data.tasks.filter(t => t.done).length;

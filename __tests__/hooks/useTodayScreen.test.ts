@@ -281,6 +281,23 @@ describe('useTodayScreen — optimistic toggle', () => {
     expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true);
   });
 
+  it('refreshes the learned-place ranking after both a done:true and a done:false toggle (KAN-230)', async () => {
+    // setTaskDone deletes completedPlace* fields on done:false too — the
+    // ranking must refresh either way, not just on completion.
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+    mockGetCompletedTasksWithPlace.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+    expect(mockGetCompletedTasksWithPlace).toHaveBeenCalledTimes(1); // initial mount fetch
+
+    await act(async () => { await result.current.handleToggle('task-1', true); });
+    expect(mockGetCompletedTasksWithPlace).toHaveBeenCalledTimes(2);
+
+    await act(async () => { await result.current.handleToggle('task-1', false); });
+    expect(mockGetCompletedTasksWithPlace).toHaveBeenCalledTimes(3);
+  });
+
   it('passes completedPlace to setTaskDone when brushing a task near its own POI type (KAN-226)', async () => {
     mockGetTasksForDate.mockResolvedValue([POI_TASK]);
 

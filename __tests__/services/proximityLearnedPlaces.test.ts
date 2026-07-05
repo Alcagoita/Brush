@@ -100,6 +100,10 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 function mockAtmPlaces(places: Array<{ id: string; name: string; distanceMeters: number }>) {
+  mockPlacesResponse(places.map(p => ({ ...p, type: 'atm' })));
+}
+
+function mockPlacesResponse(places: Array<{ id: string; name: string; distanceMeters: number; type: string }>) {
   mockFetch.mockResolvedValueOnce({
     ok:   true,
     json: async () => ({
@@ -107,7 +111,7 @@ function mockAtmPlaces(places: Array<{ id: string; name: string; distanceMeters:
         id: p.id,
         displayName: { text: p.name },
         location: { latitude: LAT_PER_METRE * p.distanceMeters, longitude: 0 },
-        types: ['atm'],
+        types: [p.type],
       })),
     }),
   });
@@ -187,6 +191,34 @@ describe('a learned place gets top priority within its own hero range', () => {
     expect(onUpdate).toHaveBeenCalledWith(
       'atm',
       expect.objectContaining({ placeId: 'atm-stranger' }),
+      expect.anything(),
+    );
+  });
+
+  it('a type whose TRUE nearest already wins the cross-type hero race keeps winning after its own learned-place promotion (regression: promotion must not feed an inflated distance back into cross-type comparison)', async () => {
+    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    // atm's TRUE nearest (20 m) already beats cafe's nearest (50 m) — that
+    // must decide the cross-type race BEFORE atm's own learned place (90 m,
+    // still hero-eligible) gets swapped in for display.
+    mockPlacesResponse([
+      { id: 'atm-near',    name: 'Random ATM',  distanceMeters: 20, type: 'atm' },
+      { id: 'atm-learned', name: 'My Usual ATM', distanceMeters: 90, type: 'atm' },
+      { id: 'cafe-near',   name: 'Some Cafe',    distanceMeters: 50, type: 'cafe' },
+    ]);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch(
+      'uid-1',
+      [makeTask({ id: 't1', poi: 'atm' }), makeTask({ id: 't2', poi: 'cafe' })],
+      onUpdate,
+    );
+
+    // atm still wins hero (its true 20 m beat cafe's 50 m) — cafe must not
+    // win just because atm's post-promotion displayed distance (90 m) looks
+    // farther than cafe's 50 m.
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ placeId: 'atm-learned' }),
       expect.anything(),
     );
   });
