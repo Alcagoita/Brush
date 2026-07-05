@@ -185,6 +185,54 @@ describe('setTaskDone', () => {
     expect(mockTxDelete).not.toHaveBeenCalled();
   });
 
+  it('undoing at a place whose counter doc is missing (corrupted/partial data) still updates the task and touches no counter', async () => {
+    // The task doc claims a prior completedPlaceId, but no counter doc exists
+    // for it — e.g. partial migration, manual deletion, or corruption.
+    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+
+    await setTaskDone('uid-1', 'task-1', false);
+
+    expect(mockTxUpdate).toHaveBeenCalledWith(TASK_PATH, {
+      done: false,
+      completedAt: null,
+      completedPlaceId: DELETE_FIELD_SENTINEL,
+      completedPlaceName: DELETE_FIELD_SENTINEL,
+      completedPoiType: DELETE_FIELD_SENTINEL,
+    });
+    expect(mockTxUpdate).toHaveBeenCalledTimes(1); // task doc only — no counter update
+    expect(mockTxSet).not.toHaveBeenCalled();
+    expect(mockTxDelete).not.toHaveBeenCalled();
+  });
+
+  it('treats a corrupted (non-numeric) stored visitCount as 0 rather than propagating NaN', async () => {
+    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 'not-a-number' };
+
+    await setTaskDone('uid-1', 'task-1', false);
+
+    // 0 - 1 <= 0, so the corrupted counter is deleted rather than written as NaN.
+    expect(mockTxDelete).toHaveBeenCalledWith(COUNTER_PATH('place-abc'));
+    expect(mockTxUpdate.mock.calls.every(([path]) => path !== COUNTER_PATH('place-abc'))).toBe(true);
+  });
+
+  it('treats a missing visitCount on increment as 0 rather than propagating NaN', async () => {
+    store[TASK_PATH] = {};
+    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket' };
+
+    await setTaskDone('uid-1', 'task-1', true, {
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+    });
+
+    expect(mockTxSet).toHaveBeenCalledWith(COUNTER_PATH('place-abc'), {
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+      visitCount: 1,
+    });
+  });
+
   it('does not touch any counter when re-brushing at the same place (net-zero change)', async () => {
     store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
     store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 2 };

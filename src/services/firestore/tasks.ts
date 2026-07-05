@@ -6,6 +6,7 @@ import {
   updateDoc,
   deleteDoc,
   deleteField,
+  setDoc,
   writeBatch,
   runTransaction,
   query,
@@ -13,11 +14,42 @@ import {
   orderBy,
   Timestamp,
 } from '@react-native-firebase/firestore';
+import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { getCurrentWeekBoundaries, todayISO } from '../../utils/date';
 import type { Task, User } from '../../types';
 import { tasksRef, taskRef, userRef, learnedPlaceCountsRef, learnedPlaceCountRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
 import type { LearnedPlace } from '../learnedPlaces';
+
+/** Firestore caps a single batch at 500 writes — chunk any bulk write to stay under it. */
+const BATCH_LIMIT = 500;
+
+/**
+ * Shared chunk-and-commit helper for bulk writes (KAN-240 review — this
+ * logic was previously duplicated across rolloverIncompleteTasks,
+ * markAllPoiAlertsSeen, and backfillLearnedPlaceCounts). `writeItem` may be
+ * async so callers can do a read-before-write per item (e.g. merging against
+ * the latest value of a doc) without leaving the batch API.
+ */
+async function commitInChunks<T>(
+  items: T[],
+  writeItem: (batch: FirebaseFirestoreTypes.WriteBatch, item: T) => void | Promise<void>,
+): Promise<void> {
+  const db = getFirestore();
+  for (let i = 0; i < items.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const item of items.slice(i, i + BATCH_LIMIT)) {
+      await writeItem(batch, item);
+    }
+    await batch.commit();
+  }
+}
+
+/** Coerces a possibly-corrupted stored visitCount into a safe non-negative integer. */
+function toSafeVisitCount(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
 
 /**
  * Add a new task for the given user.
@@ -72,17 +104,9 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   const snap = await getDocs(q);
   if (snap.empty) { return; }
 
-  // Firestore caps a single batch at 500 writes — chunk to stay under it
-  // (matches the server-side rolloverIncompleteTasks Cloud Function).
-  const BATCH_LIMIT = 500;
-  const db = getFirestore();
-  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
-      batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
-    });
-    await batch.commit();
-  }
+  await commitInChunks(snap.docs, (batch, d) => {
+    batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
+  });
 }
 
 /**
@@ -159,7 +183,7 @@ export async function setTaskDone(
     });
 
     if (prevRef && prevSnap?.exists()) {
-      const visitCount = ((prevSnap.data() as LearnedPlace).visitCount ?? 1) - 1;
+      const visitCount = toSafeVisitCount((prevSnap.data() as LearnedPlace).visitCount) - 1;
       if (visitCount <= 0) {
         tx.delete(prevRef);
       } else {
@@ -168,7 +192,7 @@ export async function setTaskDone(
     }
 
     if (nextRef) {
-      const visitCount = (nextSnap?.exists() ? (nextSnap.data() as LearnedPlace).visitCount : 0) + 1;
+      const visitCount = (nextSnap?.exists() ? toSafeVisitCount((nextSnap.data() as LearnedPlace).visitCount) : 0) + 1;
       tx.set(nextRef, {
         placeId:    completedPlace!.placeId,
         name:       completedPlace!.name,
@@ -218,17 +242,9 @@ export async function markAllPoiAlertsSeen(
 ): Promise<void> {
   if (taskIds.length === 0) { return; }
 
-  // Firestore caps a single batch at 500 writes — chunk to stay under it
-  // (matches the chunking in rolloverIncompleteTasks above).
-  const BATCH_LIMIT = 500;
-  const db = getFirestore();
-  for (let i = 0; i < taskIds.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    taskIds.slice(i, i + BATCH_LIMIT).forEach(id => {
-      batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
-    });
-    await batch.commit();
-  }
+  await commitInChunks(taskIds, (batch, id) => {
+    batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
+  });
 }
 
 /**
@@ -296,10 +312,18 @@ export async function getLearnedPlaceCounts(uid: string): Promise<LearnedPlace[]
  *
  * Gated by `learnedPlaceCountsBackfilled` on the user doc, so this full scan
  * runs at most once per user — safe to call unconditionally on every boot.
+ * The flag is only set after every counter write below has committed
+ * successfully, so a failure partway through leaves the flag unset and the
+ * migration simply retries in full on the next boot.
  *
- * Race note: a setTaskDone() increment landing on the same placeId while this
- * is still tallying could be overwritten by the blind `batch.set` below.
- * Acceptable for a one-time migration window; unreachable once the flag is set.
+ * Race note: a setTaskDone() increment can land on the same placeId while
+ * this is still tallying. Each counter write below re-reads the doc
+ * immediately beforehand and keeps whichever value is higher — the tally
+ * (source of truth for everything up to the initial scan) or the current
+ * doc (which may already reflect a newer, concurrent increment) — instead of
+ * blindly overwriting with the possibly-stale tallied value. This narrows
+ * the race to the read-to-write gap of a single doc rather than the whole
+ * scan-to-commit window.
  */
 export async function backfillLearnedPlaceCounts(uid: string): Promise<void> {
   const userSnap = await getDoc(userRef(uid));
@@ -324,19 +348,16 @@ export async function backfillLearnedPlaceCounts(uid: string): Promise<void> {
     }
   }
 
-  const db = getFirestore();
-  const entries = [...counts.entries()];
+  await commitInChunks([...counts.entries()], async (batch, [placeId, info]) => {
+    const ref = learnedPlaceCountRef(uid, placeId);
+    const existingSnap = await getDoc(ref);
+    const existingCount = existingSnap.exists() ? toSafeVisitCount((existingSnap.data() as LearnedPlace).visitCount) : 0;
+    batch.set(ref, { placeId, ...info, visitCount: Math.max(info.visitCount, existingCount) });
+  });
 
-  // Firestore caps a single batch at 500 writes — chunk to stay under it
-  // (matches the chunking in rolloverIncompleteTasks above).
-  const BATCH_LIMIT = 500;
-  for (let i = 0; i < entries.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    entries.slice(i, i + BATCH_LIMIT).forEach(([placeId, info]) => {
-      batch.set(learnedPlaceCountRef(uid, placeId), { placeId, ...info });
-    });
-    await batch.commit();
-  }
-
-  await updateDoc(userRef(uid), { learnedPlaceCountsBackfilled: true });
+  // setDoc + merge, not updateDoc — the user doc may not exist yet (getUser
+  // returns null in that case elsewhere), and updateDoc throws on a missing
+  // doc, which would otherwise strand this flag unset and force the full
+  // scan to re-run on every boot.
+  await setDoc(userRef(uid), { learnedPlaceCountsBackfilled: true }, { merge: true });
 }
