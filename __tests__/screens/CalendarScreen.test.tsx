@@ -17,6 +17,7 @@
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
+import { View } from 'react-native';
 import CalendarScreen from '../../src/screens/CalendarScreen';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -46,12 +47,14 @@ const mockGetTasksForMonth = jest.fn();
 const mockGetAchievements  = jest.fn();
 const mockGetCategories    = jest.fn();
 const mockSetTaskDone      = jest.fn();
+const mockGetTrips         = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForMonth: (...args: unknown[]) => mockGetTasksForMonth(...args),
   getAchievements:  (...args: unknown[]) => mockGetAchievements(...args),
   getCategories:    (...args: unknown[]) => mockGetCategories(...args),
   setTaskDone:      (...args: unknown[]) => mockSetTaskDone(...args),
+  getTrips:         (...args: unknown[]) => mockGetTrips(...args),
 }));
 
 jest.mock('../../src/theme', () => ({
@@ -105,6 +108,7 @@ describe('CalendarScreen', () => {
     mockGetAchievements.mockResolvedValue({});
     mockGetCategories.mockResolvedValue([]);
     mockSetTaskDone.mockResolvedValue(undefined);
+    mockGetTrips.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -240,6 +244,51 @@ describe('CalendarScreen', () => {
 
     await renderScreen();
     expect(screen.getByText('First brush · unlocked')).toBeTruthy();
+  });
+
+  describe('trip range band (KAN-234)', () => {
+    function flattenStyle(style: unknown): Record<string, unknown> {
+      return Array.isArray(style) ? Object.assign({}, ...style) : (style as Record<string, unknown>);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function cellHasTripBand(cellInstance: any): boolean {
+      return cellInstance.findAllByType(View).some((v: any) => flattenStyle(v.props.style)?.backgroundColor === '#e8c9a0');
+    }
+    const trip = {
+      id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+      startDate: '2026-06-10', endDate: '2026-06-20', areaRadius: 15_000,
+      cacheAreaId: 'ta_1', expiresAt: 0, createdAt: fakeTimestamp('2026-06-01'),
+    };
+
+    it('fetches trips for the current uid', async () => {
+      await renderScreen();
+      expect(mockGetTrips).toHaveBeenCalledWith('test-uid');
+    });
+
+    it('marks a day inside a dated trip range, and not one outside it', async () => {
+      mockGetTrips.mockResolvedValue([trip]);
+      await renderScreen();
+
+      const inRangeCell    = screen.getByLabelText(/^16, today/);
+      const outOfRangeCell = screen.getByLabelText('25');
+      expect(cellHasTripBand(inRangeCell)).toBe(true);
+      expect(cellHasTripBand(outOfRangeCell)).toBe(false);
+    });
+
+    it('does not mark any day when the trip has no dates', async () => {
+      mockGetTrips.mockResolvedValue([{ ...trip, startDate: undefined, endDate: undefined }]);
+      await renderScreen();
+      expect(cellHasTripBand(screen.getByLabelText(/^16, today/))).toBe(false);
+    });
+
+    it('does not change the selected day stats line — ring/streak math unaffected (regression guard)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'A', category: 'errands', done: true, date: '2026-06-16', createdAt: {} },
+      ]);
+      mockGetTrips.mockResolvedValue([trip]);
+      await renderScreen();
+      expect(screen.getByText('1 of 1 done · 100%')).toBeTruthy();
+    });
   });
 
   it('renders an "Open today" CTA only when today is selected', async () => {

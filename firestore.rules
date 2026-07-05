@@ -62,6 +62,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ─── Trips (KAN-234) ──────────────────────────────────────────────────────
+      match /trips/{tripId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // ─── POI preferences ─────────────────────────────────────────────────────
       match /pois/{poiType} {
         allow read, write: if isOwner(userId);

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Task, Category, User, UserPreferences } from '../types';
+import type { Task, Category, User, UserPreferences, Trip } from '../types';
 
 export interface BootData {
   ownerUid:          string;
@@ -11,6 +11,8 @@ export interface BootData {
   userPrefs:         Partial<UserPreferences>;
   poiPrefsMap:       Record<string, number>;
   userData:          User | null;
+  /** Downloaded trip areas (KAN-234) — Calendar/Places I Know read from here instead of re-fetching. */
+  trips:             Trip[];
 }
 
 interface AppStore {

@@ -123,6 +123,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   SettingsIcon:     () => null,
   ShareIcon:        () => null,
   StarIcon:         () => null,
+  SuitcaseIcon:     () => null,
 }));
 
 jest.mock('../../src/components/Avatar', () => {
@@ -358,6 +359,14 @@ describe('ProfileScreen — navigation entries', () => {
   it('renders "Share my profile" row', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Share my profile')).toBeTruthy();
+  });
+
+  it('renders "Going somewhere?" row and navigates to TripPlanner (KAN-234)', async () => {
+    await renderScreen();
+    const row = screen.getByText('Going somewhere?');
+    expect(row).toBeTruthy();
+    fireEvent.press(row);
+    expect(mockNavigate).toHaveBeenCalledWith('TripPlanner');
   });
 
   it('renders Settings entry row', async () => {

@@ -117,4 +117,40 @@ export const COPY = {
     uncoveredAreaToast: "You're outside the area I know by heart — I'll need a connection to spot places here.",
   },
 
+  // ─── Trip Planner (KAN-234) ────────────────────────────────────────────────
+  // Never say "POI"/"cache"/"download region" here — frame everything in the
+  // app's first-person voice, same as offline/newTaskSheet above.
+  tripPlanner: {
+    entryRowLabel: 'Going somewhere?',
+    entryRowA11y:  'Plan a trip',
+    destinationQuestion: 'Where are you headed?',
+    destinationPlaceholder: 'Faro, Lisbon, Tokyo…',
+    datesQuestion: 'When are you going?',
+    datesOptional: ' (optional)',
+    datesSkip:     "I'll skip the dates",
+    radiusTown:          'Just the town',
+    radiusTownAndAround: 'Town and around',
+    radiusRegion:        'The whole region',
+    /** The pre-download "one honest line" — untilDate is set only for a dated trip. */
+    sizeEstimateLine: (mb: string, untilDate?: string) =>
+      untilDate
+        ? `About ${mb} — I'll know it until ${untilDate}.`
+        : `About ${mb} — I'll keep it fresh for about a month.`,
+    downloadButton:   'Learn this area',
+    downloadingLabel: 'Learning the area…',
+    downloadErrorToast: "Couldn't learn this area — check your connection and try again.",
+    downloadSuccessToast: (destination: string) => `Got it — I know ${destination} now.`,
+    placesIKnowTitle: 'Places I know',
+    placesIKnowEmpty: "I don't know any trip areas yet — add one above.",
+    habitatRowLabel: 'Everywhere I usually go',
+    habitatRowSub:   'Updated automatically as you go about your day',
+    tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
+    tripRowNoDates:    'No dates set',
+    tripRowKnownUntil: (date: string) => `I'll know it until ${date}`,
+    deleteConfirmTitle:  (destination: string) => `Forget ${destination}?`,
+    deleteConfirmBody:   "I'll stop recognizing places there. You can always learn it again later.",
+    deleteConfirmAction: 'Forget it',
+    deleteCancelAction:  'Keep it',
+  },
+
 } as const;

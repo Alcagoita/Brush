@@ -29,6 +29,8 @@ import ShareReceiveScreen from '../screens/ShareReceiveScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
+import TripPlannerScreen from '../screens/TripPlannerScreen';
+import PlacesIKnowScreen from '../screens/PlacesIKnowScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -64,6 +66,10 @@ export type RootStackParamList = {
   NotificationPreferences: undefined;
   /** Full achievements list with progress and point values (KAN-114 / KAN-129 / KAN-122). */
   Achievements: { achievementId?: string } | undefined;
+  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). */
+  TripPlanner: undefined;
+  /** "Places I know" — the always-on habitat area + downloaded trips, with refresh/delete (KAN-234). */
+  PlacesIKnow: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -97,6 +103,8 @@ export default function AppNavigator() {
       <Stack.Screen name="Settings"                   component={SettingsScreen} />
       <Stack.Screen name="NotificationPreferences"    component={NotificationPreferencesScreen} />
       <Stack.Screen name="Achievements"               component={AchievementsScreen} />
+      <Stack.Screen name="TripPlanner"                component={TripPlannerScreen} />
+      <Stack.Screen name="PlacesIKnow"                component={PlacesIKnowScreen} />
     </Stack.Navigator>
   );
 }

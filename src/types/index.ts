@@ -620,3 +620,43 @@ export interface InboxEntry {
   read:            boolean;
   createdAt:       FirebaseFirestoreTypes.Timestamp;
 }
+
+// ─── Trip (KAN-234) ───────────────────────────────────────────────────────────
+
+/** The 3 area-size presets offered in the Trip Planner flow. */
+export type TripRadiusPreset = 'town' | 'town_and_around' | 'region';
+
+/**
+ * /users/{uid}/trips/{tripId} — a manually-downloaded offline area for
+ * travel. First-class entity (not just a cache region) so it can carry
+ * dates, appear on the Calendar, and serve as the extension point for a
+ * future Vacation Planner (KAN-239) — do not collapse this into the habitat
+ * cache's SQLite table.
+ */
+export interface Trip {
+  id: string;
+  /** Free-text destination label as typed/selected, e.g. "Faro, Portugal". */
+  destination: string;
+  /** Google Place ID the destination resolved to. */
+  placeRef: string;
+  /**
+   * Center coordinates snapshotted at download time — this is the trip's own
+   * datum (a destination the user chose), not a re-cached POI, so Google
+   * Places' no-long-term-coordinate-caching ToS (see maps.ts/habitatCache.ts)
+   * doesn't apply to it the way it does to individual POI rows.
+   */
+  centerLat: number;
+  centerLng: number;
+  /** YYYY-MM-DD — optional; the flow encourages but doesn't require dates. */
+  startDate?: string;
+  endDate?: string;
+  /** Meters — one of tripDownload.ts's TRIP_RADIUS_PRESETS values. */
+  areaRadius: number;
+  /** Joins to habitatCache's habitat_places.cache_area_id. */
+  cacheAreaId: string;
+  /** Epoch ms this trip's cached rows are considered valid until. */
+  expiresAt: number;
+  /** Set once the day-before-departure pre-refresh has run, so it isn't repeated every app open during the trip window. */
+  preRefreshedAt?: number;
+  createdAt: FirebaseFirestoreTypes.Timestamp;
+}

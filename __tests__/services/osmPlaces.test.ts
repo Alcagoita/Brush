@@ -121,4 +121,25 @@ describe('searchOsmPlaces', () => {
     expect(result).toEqual({ atm: [] });
     jest.useRealTimers();
   });
+
+  it('honors an explicit timeoutMs override (KAN-234 trip downloads) instead of the 8s default', async () => {
+    jest.useFakeTimers();
+    mockFetch.mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+      options.signal?.addEventListener('abort', () => reject(new Error('AbortError')));
+    }));
+
+    const resultPromise = searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, 20_000);
+
+    jest.advanceTimersByTime(8_001); // past the default — must NOT have aborted yet
+    let settled = false;
+    resultPromise.then(() => { settled = true; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+
+    jest.advanceTimersByTime(12_000); // past the 20s override
+    const result = await resultPromise;
+    expect(result).toEqual({ atm: [] });
+
+    jest.useRealTimers();
+  });
 });
