@@ -164,6 +164,18 @@ const mockDb = {
     }
     throw new Error(`mockDb.runSync: unrecognized query: ${s}`);
   }),
+  // Mirrors expo-sqlite's real BEGIN/task/COMMIT-or-ROLLBACK+rethrow behavior
+  // closely enough for tests: snapshot `rows` first, restore it if task()
+  // throws, so a mid-batch failure genuinely undoes earlier deletes/inserts.
+  withTransactionSync: jest.fn((task: () => void) => {
+    const snapshot = rows.map(r => ({ ...r }));
+    try {
+      task();
+    } catch (err) {
+      rows = snapshot;
+      throw err;
+    }
+  }),
 };
 
 jest.mock('expo-sqlite', () => ({
@@ -193,6 +205,7 @@ import {
   hasCachedPlaces,
   deleteTripAreaPlaces,
   deleteExpiredTripPlaces,
+  writeTripAreaPlaces,
   estimateHabitatAreaSizeBytes,
   __resetHabitatDbForTests,
   __resetEmptyResultAttemptsForTests,
@@ -736,6 +749,55 @@ describe('deleteTripAreaPlaces', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] deleteTripAreaPlaces failed', expect.any(Error));
     warnSpy.mockRestore();
+  });
+});
+
+describe('writeTripAreaPlaces (KAN-234 review fix — atomic delete+reinsert)', () => {
+  it('replaces existing rows for cacheAreaId with the new places, in one transaction', () => {
+    upsertTripPlace({ poiType: 'atm', name: 'Old ATM', lat: 0, lng: 0, source: { osm: 'node/old' }, cacheAreaId: 'trip-1', expiresAt: 1 });
+
+    const written = writeTripAreaPlaces('trip-1', 2_000, [
+      { poiType: 'cafe', name: 'New Cafe', lat: 1, lng: 1, source: { osm: 'node/new1' } },
+      { poiType: 'bank', name: 'New Bank', lat: 2, lng: 2, source: { osm: 'node/new2' } },
+    ]);
+
+    expect(written).toBe(2);
+    expect(rows).toHaveLength(2);
+    expect(rows.every(r => r.cache_area_id === 'trip-1' && r.expires_at === 2_000)).toBe(true);
+    expect(rows.some(r => r.name === 'Old ATM')).toBe(false);
+  });
+
+  it('rolls back the delete when an insert fails partway — the previous cache is left intact, not half-deleted', () => {
+    upsertTripPlace({ poiType: 'atm', name: 'Old ATM', lat: 0, lng: 0, source: { osm: 'node/old' }, cacheAreaId: 'trip-1', expiresAt: 1 });
+
+    // Wrap the real dispatcher so the 2nd INSERT within the transaction throws.
+    const realRunSync = mockDb.runSync.getMockImplementation()!;
+    let insertCount = 0;
+    mockDb.runSync.mockImplementation((sql: string, params: unknown[] = []) => {
+      const s = sql.replace(/\s+/g, ' ').trim();
+      if (s.startsWith('INSERT INTO habitat_places')) {
+        insertCount += 1;
+        if (insertCount === 2) { throw new Error('disk full'); }
+      }
+      return realRunSync(sql, params);
+    });
+
+    expect(() => writeTripAreaPlaces('trip-1', 2_000, [
+      { poiType: 'cafe', name: 'New Cafe', lat: 1, lng: 1, source: { osm: 'node/new1' } },
+      { poiType: 'bank', name: 'New Bank', lat: 2, lng: 2, source: { osm: 'node/new2' } },
+    ])).toThrow('disk full');
+
+    // Rollback restored the original row — the delete never actually "stuck".
+    expect(rows).toHaveLength(1);
+    expect(rows[0].name).toBe('Old ATM');
+  });
+
+  it('propagates the underlying error instead of swallowing it', () => {
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(() => writeTripAreaPlaces('trip-1', 2_000, [
+      { poiType: 'cafe', name: 'New Cafe', lat: 1, lng: 1, source: { osm: 'node/new1' } },
+    ])).toThrow('disk full');
   });
 });
 

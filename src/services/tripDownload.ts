@@ -24,7 +24,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { ALL_POI_TYPES } from '../types';
 import type { Trip, TripRadiusPreset } from '../types';
 import { searchOsmPlacesStrict } from './osmPlaces';
-import { upsertTripPlace, deleteTripAreaPlaces, HABITAT_BYTES_PER_ROW } from './habitatCache';
+import { writeTripAreaPlaces, HABITAT_BYTES_PER_ROW } from './habitatCache';
 import { updateTrip } from './firestore/trips';
 import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
@@ -120,9 +120,13 @@ export function formatTripSizeMb(bytes: number): string {
  * empty result as "this area genuinely has no POIs" — a plain empty success
  * would otherwise persist a useless trip.
  *
- * Clears any rows already tagged with this cacheAreaId before repopulating,
- * so a refresh (refreshTripArea) reconciles away places that no longer exist
- * instead of accumulating stale rows forever alongside the new fetch.
+ * Clears any rows already tagged with this cacheAreaId and repopulates them
+ * in a single SQLite transaction (habitatCache.writeTripAreaPlaces) — so a
+ * refresh reconciles away places that no longer exist, but a write failure
+ * partway through rolls back instead of leaving a previously-good trip
+ * cache half-deleted. This is a foreground, user-initiated action where data
+ * integrity matters, unlike habitatCache's own never-throws opportunistic
+ * writes.
  *
  * Returns the number of places written, for a confirmation state.
  */
@@ -143,25 +147,17 @@ export async function downloadTripArea(
   // spurious empty refresh can't wipe out an area that was working before.
   if (totalFound === 0) { throw new Error('Trip download returned no places'); }
 
-  deleteTripAreaPlaces(cacheAreaId);
-
-  let written = 0;
-  for (const poiType of poiTypes) {
-    for (const place of osmResults[poiType] ?? []) {
-      upsertTripPlace({
-        poiType,
-        name:          place.name,
-        isGenericName: place.isGenericName,
-        lat:           place.lat,
-        lng:           place.lng,
-        source:        { osm: place.osmId },
-        cacheAreaId,
-        expiresAt,
-      });
-      written += 1;
-    }
-  }
-  return written;
+  const places = poiTypes.flatMap(poiType =>
+    (osmResults[poiType] ?? []).map(place => ({
+      poiType,
+      name:          place.name,
+      isGenericName: place.isGenericName,
+      lat:           place.lat,
+      lng:           place.lng,
+      source:        { osm: place.osmId },
+    })),
+  );
+  return writeTripAreaPlaces(cacheAreaId, expiresAt, places);
 }
 
 /**

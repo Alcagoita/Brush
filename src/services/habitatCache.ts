@@ -253,61 +253,71 @@ export function findExistingPlaceId(
 /** Only set on a KAN-234 trip download's writes — plain upsertPlace calls never pass this. */
 interface TripStamp { cacheAreaId: string; expiresAt: number; }
 
+/**
+ * Does the actual identity-merge/insert. Never catches — callers choose how
+ * failures should behave: upsertPlaceInternal (below) swallows them for the
+ * opportunistic never-throws contract; writeTripAreaPlaces lets them abort
+ * (and roll back) a trip download's transaction instead.
+ */
+function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
+  const database = getDb();
+  const now = Date.now();
+  const isOsmSourced = candidate.source.osm != null;
+
+  const match = findMatchingRow(
+    database, candidate.poiType, candidate.name, candidate.isGenericName,
+    candidate.lat, candidate.lng,
+  );
+
+  if (match) {
+    const osmFlag = isOsmSourced ? 1 : 0;
+    const tripCacheAreaId = trip?.cacheAreaId ?? null;
+    const tripExpiresAt = trip?.expiresAt ?? null;
+    database.runSync(
+      `UPDATE habitat_places
+       SET google_place_id = COALESCE(google_place_id, ?),
+           osm_id          = COALESCE(osm_id, ?),
+           lat             = CASE WHEN ? = 1 THEN ? ELSE lat END,
+           lng             = CASE WHEN ? = 1 THEN ? ELSE lng END,
+           osm_fetched_at  = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
+           cache_area_id   = COALESCE(cache_area_id, ?),
+           expires_at      = CASE
+                                WHEN ? IS NULL THEN expires_at
+                                WHEN expires_at IS NULL THEN ?
+                                ELSE MAX(expires_at, ?)
+                              END,
+           last_matched_at = ?
+       WHERE id = ?`,
+      [
+        candidate.source.google ?? null, candidate.source.osm ?? null,
+        osmFlag, candidate.lat, osmFlag, candidate.lng, osmFlag, now,
+        tripCacheAreaId,
+        tripExpiresAt, tripExpiresAt, tripExpiresAt,
+        now, match.id,
+      ],
+    );
+    return match.id;
+  }
+
+  // No existing row. Google coordinates are never persisted long-term
+  // (Places ToS) — only an OSM-anchored candidate may create a new row.
+  if (!isOsmSourced) { return generateId(); }
+
+  const id = generateId();
+  database.runSync(
+    `INSERT INTO habitat_places
+       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
+      candidate.source.google ?? null, candidate.source.osm ?? null, now, now,
+      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null],
+  );
+  return id;
+}
+
 function upsertPlaceInternal(candidate: PlaceCandidate, trip?: TripStamp): string {
   try {
-    const database = getDb();
-    const now = Date.now();
-    const isOsmSourced = candidate.source.osm != null;
-
-    const match = findMatchingRow(
-      database, candidate.poiType, candidate.name, candidate.isGenericName,
-      candidate.lat, candidate.lng,
-    );
-
-    if (match) {
-      const osmFlag = isOsmSourced ? 1 : 0;
-      const tripCacheAreaId = trip?.cacheAreaId ?? null;
-      const tripExpiresAt = trip?.expiresAt ?? null;
-      database.runSync(
-        `UPDATE habitat_places
-         SET google_place_id = COALESCE(google_place_id, ?),
-             osm_id          = COALESCE(osm_id, ?),
-             lat             = CASE WHEN ? = 1 THEN ? ELSE lat END,
-             lng             = CASE WHEN ? = 1 THEN ? ELSE lng END,
-             osm_fetched_at  = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
-             cache_area_id   = COALESCE(cache_area_id, ?),
-             expires_at      = CASE
-                                  WHEN ? IS NULL THEN expires_at
-                                  WHEN expires_at IS NULL THEN ?
-                                  ELSE MAX(expires_at, ?)
-                                END,
-             last_matched_at = ?
-         WHERE id = ?`,
-        [
-          candidate.source.google ?? null, candidate.source.osm ?? null,
-          osmFlag, candidate.lat, osmFlag, candidate.lng, osmFlag, now,
-          tripCacheAreaId,
-          tripExpiresAt, tripExpiresAt, tripExpiresAt,
-          now, match.id,
-        ],
-      );
-      return match.id;
-    }
-
-    // No existing row. Google coordinates are never persisted long-term
-    // (Places ToS) — only an OSM-anchored candidate may create a new row.
-    if (!isOsmSourced) { return generateId(); }
-
-    const id = generateId();
-    database.runSync(
-      `INSERT INTO habitat_places
-         (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
-        candidate.source.google ?? null, candidate.source.osm ?? null, now, now,
-        trip?.cacheAreaId ?? null, trip?.expiresAt ?? null],
-    );
-    return id;
+    return upsertPlaceCore(candidate, trip);
   } catch (err) {
     console.warn('[habitatCache] upsertPlace failed', err);
     return generateId();
@@ -337,6 +347,33 @@ export interface TripPlaceCandidate extends PlaceCandidate {
 export function upsertTripPlace(candidate: TripPlaceCandidate): string {
   const { cacheAreaId, expiresAt, ...rest } = candidate;
   return upsertPlaceInternal(rest, { cacheAreaId, expiresAt });
+}
+
+/**
+ * Replaces every row tagged with cacheAreaId with the given places, as a
+ * single SQLite transaction (KAN-234 review fix). Trip downloads/refreshes
+ * are user-initiated foreground actions where data integrity matters — unlike
+ * the opportunistic upsertPlace/upsertTripPlace above, this does NOT swallow
+ * DB errors: if any delete/insert fails, withTransactionSync rolls back the
+ * whole batch and this throws, so a previously-good trip cache is never left
+ * half-deleted by a failed refresh. Returns the number of places written on
+ * success.
+ */
+export function writeTripAreaPlaces(
+  cacheAreaId: string,
+  expiresAt: number,
+  places: PlaceCandidate[],
+): number {
+  const database = getDb();
+  let written = 0;
+  database.withTransactionSync(() => {
+    database.runSync('DELETE FROM habitat_places WHERE cache_area_id = ?', [cacheAreaId]);
+    for (const place of places) {
+      upsertPlaceCore(place, { cacheAreaId, expiresAt });
+      written += 1;
+    }
+  });
+  return written;
 }
 
 /**

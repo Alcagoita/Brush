@@ -21,11 +21,12 @@ jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlaces(...args),
 }));
 
-const mockUpsertTripPlace = jest.fn().mockReturnValue('hp_mock');
-const mockDeleteTripAreaPlaces = jest.fn();
+const mockWriteTripAreaPlaces = jest.fn((..._args: unknown[]) => {
+  const places = _args[2] as unknown[];
+  return places.length;
+});
 jest.mock('../../src/services/habitatCache', () => ({
-  upsertTripPlace: (...args: unknown[]) => mockUpsertTripPlace(...args),
-  deleteTripAreaPlaces: (...args: unknown[]) => mockDeleteTripAreaPlaces(...args),
+  writeTripAreaPlaces: (...args: unknown[]) => mockWriteTripAreaPlaces(...args),
   HABITAT_BYTES_PER_ROW: 200,
 }));
 
@@ -182,7 +183,7 @@ describe('downloadTripArea', () => {
     expect(poiTypes.filter((t: string) => t === 'gym')).toHaveLength(1);
   });
 
-  it('upserts every returned place tagged with cacheAreaId/expiresAt, and returns the written count', async () => {
+  it('passes every returned place tagged with cacheAreaId/expiresAt to writeTripAreaPlaces, and returns the written count', async () => {
     mockSearchOsmPlaces.mockResolvedValue({
       atm: [{ osmId: 'node/1', name: 'ATM', isGenericName: false, lat: 1, lng: 2, distanceMeters: 10 }],
       cafe: [{ osmId: 'node/2', name: 'Cafe', isGenericName: false, lat: 1, lng: 2, distanceMeters: 20 }],
@@ -191,12 +192,13 @@ describe('downloadTripArea', () => {
     const count = await downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []);
 
     expect(count).toBe(2);
-    expect(mockUpsertTripPlace).toHaveBeenCalledWith(expect.objectContaining({
-      poiType: 'atm', cacheAreaId: 'ta_1', expiresAt: 1_800_000_000_000,
-    }));
-    expect(mockUpsertTripPlace).toHaveBeenCalledWith(expect.objectContaining({
-      poiType: 'cafe', cacheAreaId: 'ta_1', expiresAt: 1_800_000_000_000,
-    }));
+    expect(mockWriteTripAreaPlaces).toHaveBeenCalledWith(
+      'ta_1', 1_800_000_000_000,
+      expect.arrayContaining([
+        expect.objectContaining({ poiType: 'atm' }),
+        expect.objectContaining({ poiType: 'cafe' }),
+      ]),
+    );
   });
 
   it('throws when searchOsmPlacesStrict fails — a user-initiated action must surface the error, not swallow it', async () => {
@@ -208,20 +210,16 @@ describe('downloadTripArea', () => {
     mockSearchOsmPlaces.mockResolvedValue({});
     await expect(downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []))
       .rejects.toThrow('Trip download returned no places');
-    expect(mockUpsertTripPlace).not.toHaveBeenCalled();
-    // Must not wipe any existing rows for this cacheAreaId before knowing the new fetch actually found something.
-    expect(mockDeleteTripAreaPlaces).not.toHaveBeenCalled();
+    // Must not touch any existing rows for this cacheAreaId before knowing the new fetch actually found something.
+    expect(mockWriteTripAreaPlaces).not.toHaveBeenCalled();
   });
 
-  it('clears existing rows for this cacheAreaId before repopulating (reconciles a refresh, no stale leftovers)', async () => {
+  it('propagates a write failure (e.g. a rolled-back transaction) instead of swallowing it', async () => {
     mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
-    await downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []);
+    mockWriteTripAreaPlaces.mockImplementationOnce(() => { throw new Error('disk full'); });
 
-    expect(mockDeleteTripAreaPlaces).toHaveBeenCalledWith('ta_1');
-    // Deletion must happen before the new rows are written, not after.
-    const deleteOrder = mockDeleteTripAreaPlaces.mock.invocationCallOrder[0];
-    const upsertOrder = mockUpsertTripPlace.mock.invocationCallOrder[0];
-    expect(deleteOrder).toBeLessThan(upsertOrder);
+    await expect(downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []))
+      .rejects.toThrow('disk full');
   });
 });
 
