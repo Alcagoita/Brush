@@ -14,19 +14,31 @@ jest.mock('../../src/hooks/useAuth', () => ({
 }));
 
 jest.mock('../../src/services/firestore', () => ({
-  getTasksForDate:         jest.fn(),
-  getUser:                 jest.fn(),
-  getUserPreferences:      jest.fn(),
-  getPoiPreferencesMap:    jest.fn(),
-  getCategories:           jest.fn(),
-  getTotalPoints:          jest.fn(),
-  getInboxUnreadCount:     jest.fn(),
-  loadLearnedKeywords:     jest.fn(),
-  rolloverIncompleteTasks: jest.fn(),
+  getTasksForDate:            jest.fn(),
+  getUser:                    jest.fn(),
+  getUserPreferences:         jest.fn(),
+  getPoiPreferencesMap:       jest.fn(),
+  getCategories:              jest.fn(),
+  getTotalPoints:             jest.fn(),
+  getInboxUnreadCount:        jest.fn(),
+  getTrips:                   jest.fn(),
+  loadLearnedKeywords:        jest.fn(),
+  rolloverIncompleteTasks:    jest.fn(),
+  backfillLearnedPlaceCounts: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/sharing', () => ({
   getIncomingSharedTasksCount: jest.fn(),
+}));
+
+const mockCheckAndRunTripPreRefresh = jest.fn();
+jest.mock('../../src/services/tripDownload', () => ({
+  checkAndRunTripPreRefresh: (...args: unknown[]) => mockCheckAndRunTripPreRefresh(...args),
+}));
+
+const mockDeleteExpiredTripPlaces = jest.fn();
+jest.mock('../../src/services/habitatCache', () => ({
+  deleteExpiredTripPlaces: (...args: unknown[]) => mockDeleteExpiredTripPlaces(...args),
 }));
 
 jest.mock('../../src/utils/date', () => ({
@@ -53,6 +65,7 @@ import {
   getCategories,
   getTotalPoints,
   getInboxUnreadCount,
+  getTrips,
   loadLearnedKeywords,
   rolloverIncompleteTasks,
 } from '../../src/services/firestore';
@@ -69,6 +82,7 @@ const mockGetCategories        = getCategories        as jest.Mock;
 const mockGetTotalPoints       = getTotalPoints       as jest.Mock;
 const mockGetIncomingCount     = getIncomingSharedTasksCount as jest.Mock;
 const mockGetInboxUnreadCount  = getInboxUnreadCount  as jest.Mock;
+const mockGetTrips             = getTrips             as jest.Mock;
 const mockLoadLearnedKeywords  = loadLearnedKeywords  as jest.Mock;
 const mockRolloverIncompleteTasks = rolloverIncompleteTasks as jest.Mock;
 
@@ -84,8 +98,11 @@ beforeEach(() => {
   mockGetTotalPoints.mockResolvedValue(5);
   mockGetIncomingCount.mockResolvedValue(2);
   mockGetInboxUnreadCount.mockResolvedValue(0);
+  mockGetTrips.mockResolvedValue([]);
   mockLoadLearnedKeywords.mockResolvedValue(undefined);
   mockRolloverIncompleteTasks.mockResolvedValue(undefined);
+  mockCheckAndRunTripPreRefresh.mockResolvedValue(undefined);
+  mockDeleteExpiredTripPlaces.mockReturnValue(undefined);
 });
 
 afterEach(() => {
@@ -166,6 +183,33 @@ describe('SplashScreen', () => {
 
       expect(useAppStore.getState().bootData?.totalPoints).toBe(0);
     });
+
+    // ── Trip areas boot wiring (KAN-234) ──
+    it('stores trips in boot data and runs the pre-refresh check with the custom-category POI union', async () => {
+      const trip = {
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-06-20', endDate: '2026-06-25', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: 0, createdAt: {},
+      };
+      mockGetTrips.mockResolvedValue([trip]);
+      mockGetCategories.mockResolvedValue([{ id: 'c1', name: 'Custom', poi: 'library' }]);
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.trips).toEqual([trip]);
+      expect(mockCheckAndRunTripPreRefresh).toHaveBeenCalledWith('u1', [trip], ['library']);
+      expect(mockDeleteExpiredTripPlaces).toHaveBeenCalled();
+    });
+
+    it('still marks the store ready when checkAndRunTripPreRefresh fails (non-fatal)', async () => {
+      mockCheckAndRunTripPreRefresh.mockRejectedValue(new Error('offline'));
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData).not.toBeNull();
+    });
   });
 
   describe('when user is not authenticated', () => {
@@ -185,8 +229,10 @@ describe('SplashScreen', () => {
       expect(mockGetTotalPoints).not.toHaveBeenCalled();
       expect(mockGetIncomingCount).not.toHaveBeenCalled();
       expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockGetTrips).not.toHaveBeenCalled();
       expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
       expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
+      expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
     });
 
     it('does not populate the store', async () => {
@@ -222,8 +268,10 @@ describe('SplashScreen', () => {
       expect(mockGetTotalPoints).not.toHaveBeenCalled();
       expect(mockGetIncomingCount).not.toHaveBeenCalled();
       expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockGetTrips).not.toHaveBeenCalled();
       expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
       expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
+      expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
     });
   });
 

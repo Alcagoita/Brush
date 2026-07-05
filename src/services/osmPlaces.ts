@@ -61,9 +61,9 @@ const FETCH_TIMEOUT_MS = 8_000;
 // traffic risks being rate-limited or blocked. https://wiki.openstreetmap.org/wiki/Overpass_API#Rules
 const USER_AGENT = `BrushApp/${require('../../package.json').version}`;
 
-function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+function fetchWithTimeout(url: string, options: RequestInit, timeoutMs: number = FETCH_TIMEOUT_MS): Promise<Response> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(url, { ...options, signal: controller.signal })
     .finally(() => clearTimeout(timer));
 }
@@ -82,15 +82,23 @@ const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
  * Returns a map keyed by the original poiType, each entry sorted ascending
  * by straight-line distance.
  *
- * Never throws — network error, timeout (8 s), or a non-200/malformed
- * response all resolve to an empty result, since this must never block the
- * app (same contract as searchNearbyPlaces).
+ * Never throws — network error, timeout (8 s by default), or a non-200/
+ * malformed response all resolve to an empty result, since this must never
+ * block the app (same contract as searchNearbyPlaces).
+ *
+ * `timeoutMs` defaults to the opportunistic-refresh case's 8s (unchanged
+ * behavior). KAN-234's trip downloads pass a longer value — a 40km/16+ type
+ * combined query is a meaningfully bigger request than anything the default
+ * opportunistic 5km refresh has ever needed to handle, and unlike that
+ * silent background refresh, a trip download is a foreground, visible,
+ * retryable user action, so it can afford to wait longer before giving up.
  */
 export async function searchOsmPlaces(
   lat: number,
   lng: number,
   poiTypes: string[],
   radiusMeters: number,
+  timeoutMs: number = FETCH_TIMEOUT_MS,
 ): Promise<Record<string, OsmPlace[]>> {
   const result: Record<string, OsmPlace[]> = {};
   for (const poiType of poiTypes) { result[poiType] = []; }
@@ -119,7 +127,7 @@ export async function searchOsmPlaces(
         'User-Agent':   USER_AGENT,
       },
       body: `data=${encodeURIComponent(query)}`,
-    });
+    }, timeoutMs);
     if (!response.ok) { return result; }
     data = (await response.json()) as OverpassResponse;
   } catch {

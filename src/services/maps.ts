@@ -517,3 +517,105 @@ export async function searchPlacesAutocomplete(
   }
   return results;
 }
+
+// ─── Place Details (KAN-234) ──────────────────────────────────────────────────
+
+/** Resolved coordinates + display name for a Places Autocomplete suggestion. */
+export interface PlaceDetails {
+  lat: number;
+  lng: number;
+  name: string;
+}
+
+/**
+ * Resolves a Places Autocomplete `placeId` (which carries no coordinates —
+ * see `searchPlacesAutocomplete`) to its lat/lng, for centering a Trip
+ * Planner download on the chosen destination.
+ *
+ * Uses the Places Details (New) API:
+ *   GET https://places.googleapis.com/v1/places/{placeId}
+ *
+ * Returns null on any error/non-200 response — best-effort, same contract
+ * as the rest of this file's search functions. Never throws.
+ */
+export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+  interface PlaceDetailsResponse {
+    location?: { latitude?: number; longitude?: number };
+    displayName?: { text?: string };
+  }
+
+  try {
+    const response = await fetchWithTimeout(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key':   GOOGLE_PLACES_API_KEY,
+          'X-Goog-FieldMask': 'location,displayName',
+        },
+      },
+    );
+    if (!response.ok) { return null; }
+
+    const data = (await response.json()) as PlaceDetailsResponse;
+    if (data.location?.latitude == null || data.location?.longitude == null) { return null; }
+
+    return {
+      lat:  data.location.latitude,
+      lng:  data.location.longitude,
+      name: data.displayName?.text ?? placeId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Static map preview (KAN-234) ─────────────────────────────────────────────
+
+const STATIC_MAP_URL = 'https://maps.googleapis.com/maps/api/staticmap';
+
+/**
+ * A trip radius circle should occupy roughly this fraction of the preview
+ * frame's smaller half-dimension, leaving visible padding around it rather
+ * than touching the image edges.
+ */
+export const CIRCLE_FRACTION_OF_HALF_DIM = 0.4;
+
+/**
+ * Builds a Google Static Maps API URL centered on `lat`/`lng`, at a zoom
+ * level chosen so a circle of `radiusMeters` (drawn separately, as an
+ * overlay View on top of this image — see TripPlannerScreen) visually fits
+ * within the given frame. Deliberately doesn't use the Static Maps `path=`
+ * polygon param to draw the circle itself (avoids query-length limits and
+ * true-circle-from-lat/lng-offsets math) — the image is just the backdrop.
+ *
+ * Zoom is derived from the standard Web Mercator meters-per-pixel formula:
+ *   metersPerPixel = 156543.03392 * cos(lat) / 2^zoom
+ * solved for the zoom that makes the desired radius match
+ * CIRCLE_FRACTION_OF_HALF_DIM of the frame's half-dimension.
+ *
+ * KAN-21 still applies — this is a single static image request, not an
+ * embedded interactive map SDK.
+ */
+export function buildStaticMapPreviewUrl(
+  lat: number,
+  lng: number,
+  radiusMeters: number,
+  width: number,
+  height: number,
+): string {
+  const halfDim = Math.min(width, height) / 2;
+  const desiredMetersPerPixel = radiusMeters / (halfDim * CIRCLE_FRACTION_OF_HALF_DIM);
+  const metersPerPixelAtZoom0 = 156_543.03392 * Math.cos(lat * DEG_TO_RAD);
+  const zoom = Math.round(Math.log2(metersPerPixelAtZoom0 / desiredMetersPerPixel));
+  const clampedZoom = Math.max(1, Math.min(20, zoom));
+
+  const params = new URLSearchParams({
+    center:  `${lat},${lng}`,
+    zoom:    String(clampedZoom),
+    size:    `${Math.round(width)}x${Math.round(height)}`,
+    maptype: 'roadmap',
+    key:     GOOGLE_PLACES_API_KEY,
+  });
+  return `${STATIC_MAP_URL}?${params.toString()}`;
+}

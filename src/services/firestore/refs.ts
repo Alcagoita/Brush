@@ -93,3 +93,12 @@ export function learnedPlaceCountRef(uid: string, placeId: string) {
 export function learnedKeywordId(keyword: string, lang: SupportedLang): string {
   return `${lang}:${normalize(keyword)}`;
 }
+
+/** users/{uid}/trips/{tripId} — manually-downloaded offline travel areas (KAN-234). */
+export function tripsRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'trips');
+}
+
+export function tripRef(uid: string, tripId: string) {
+  return doc(getFirestore(), 'users', uid, 'trips', tripId);
+}

@@ -35,6 +35,14 @@
  *     of re-hitting Overpass on every single proximity tick; and
  *     enforceSizeBudget's full-table COUNT(*) is skipped when nothing was
  *     actually upserted
+ *   - upsertTripPlace (KAN-234) stamps cache_area_id/expires_at: tags an
+ *     untagged row on merge, never overwrites an existing trip's tag (first
+ *     trip wins), but extends expires_at to the max of old/new; a plain
+ *     upsertPlace call never touches an existing trip row's tag/expiry
+ *   - enforceSizeBudget only counts/evicts within the cache_area_id IS NULL
+ *     pool — a trip row survives LRU pressure regardless of last_matched_at
+ *   - deleteTripAreaPlaces / deleteExpiredTripPlaces / estimateHabitatAreaSizeBytes
+ *     scope correctly to cache_area_id / expires_at
  */
 
 interface MockHabitatRow {
@@ -48,6 +56,8 @@ interface MockHabitatRow {
   osm_id: string | null;
   osm_fetched_at: number;
   last_matched_at: number;
+  cache_area_id: string | null;
+  expires_at: number | null;
 }
 
 // ─── In-memory expo-sqlite mock ────────────────────────────────────────────────
@@ -63,6 +73,9 @@ const mockDb = {
   getAllSync: jest.fn(<T>(sql: string, params: unknown[] = []): T[] => {
     const s = sql.replace(/\s+/g, ' ').trim();
 
+    if (s.startsWith('SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL')) {
+      return [{ count: rows.filter(r => r.cache_area_id == null).length }] as unknown as T[];
+    }
     if (s.startsWith('SELECT COUNT(*)')) {
       return [{ count: rows.length }] as unknown as T[];
     }
@@ -94,14 +107,21 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at] =
-        params as [string, string, string, number, number, number, string | null, string | null, number, number];
-      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at });
+      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at] =
+        params as [string, string, string, number, number, number, string | null, string | null, number, number, string | null, number | null];
+      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
-      const [google, osm, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt, lastMatchedAt, id] =
-        params as [string | null, string | null, number, number, number, number, number, number, number, string];
+      const [
+        google, osm, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
+        tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
+        lastMatchedAt, id,
+      ] = params as [
+        string | null, string | null, number, number, number, number, number, number,
+        string | null, number | null, number | null, number | null,
+        number, string,
+      ];
       const row = rows.find(r => r.id === id);
       if (row) {
         row.google_place_id = row.google_place_id ?? google;
@@ -109,15 +129,30 @@ const mockDb = {
         if (osmFlag1 === 1) { row.lat = lat; }
         if (osmFlag2 === 1) { row.lng = lng; }
         if (osmFlag3 === 1) { row.osm_fetched_at = osmFetchedAt; }
+        row.cache_area_id = row.cache_area_id ?? tripCacheAreaId;
+        if (tripExpiresAtA != null) {
+          row.expires_at = row.expires_at == null ? tripExpiresAtB : Math.max(row.expires_at, tripExpiresAtC!);
+        }
         row.last_matched_at = lastMatchedAt;
       }
       return {} as any;
     }
     if (s.startsWith('DELETE FROM habitat_places WHERE id IN')) {
       const [limit] = params as [number];
-      const oldestFirst = [...rows].sort((a, b) => a.last_matched_at - b.last_matched_at);
+      const pool = rows.filter(r => r.cache_area_id == null);
+      const oldestFirst = [...pool].sort((a, b) => a.last_matched_at - b.last_matched_at);
       const toDelete = new Set(oldestFirst.slice(0, limit).map(r => r.id));
       rows = rows.filter(r => !toDelete.has(r.id));
+      return {} as any;
+    }
+    if (s.startsWith('DELETE FROM habitat_places WHERE cache_area_id = ?')) {
+      const [cacheAreaId] = params as [string];
+      rows = rows.filter(r => r.cache_area_id !== cacheAreaId);
+      return {} as any;
+    }
+    if (s.startsWith('DELETE FROM habitat_places WHERE expires_at IS NOT NULL AND expires_at < ?')) {
+      const [now] = params as [number];
+      rows = rows.filter(r => !(r.expires_at != null && r.expires_at < now));
       return {} as any;
     }
     throw new Error(`mockDb.runSync: unrecognized query: ${s}`);
@@ -143,15 +178,20 @@ jest.mock('@react-native-community/netinfo', () => ({
 
 import {
   upsertPlace,
+  upsertTripPlace,
   queryHabitatCache,
   refreshHabitatCacheIfStale,
   enforceSizeBudget,
   findExistingPlaceId,
   hasCachedPlaces,
+  deleteTripAreaPlaces,
+  deleteExpiredTripPlaces,
+  estimateHabitatAreaSizeBytes,
   __resetHabitatDbForTests,
   __resetEmptyResultAttemptsForTests,
   MAX_CACHED_PLACES,
   HABITAT_CACHE_STALE_MS,
+  HABITAT_BYTES_PER_ROW,
 } from '../../src/services/habitatCache';
 
 const ORIGIN = { lat: 0, lng: 0 };
@@ -531,6 +571,177 @@ describe('enforceSizeBudget', () => {
     expect(() => enforceSizeBudget()).not.toThrow();
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] enforceSizeBudget failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+
+  it('never evicts a trip-tagged row (KAN-234) — only counts/evicts within the cache_area_id IS NULL pool', () => {
+    const tripId = upsertTripPlace({
+      poiType: 'atm', name: 'Trip ATM', lat: 0, lng: 0, source: { osm: 'node/trip' },
+      cacheAreaId: 'trip-1', expiresAt: Date.now() + 1_000_000,
+    });
+
+    for (let i = 0; i < MAX_CACHED_PLACES + 5; i++) {
+      const id = upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: (i + 1) * 0.01, lng: 0, source: { osm: `node/${i}` } });
+      const row = rows.find(r => r.id === id);
+      if (row) { row.last_matched_at = i; } // ascending — first inserted is oldest, would normally be evicted first
+    }
+
+    enforceSizeBudget();
+
+    expect(rows).toHaveLength(MAX_CACHED_PLACES + 1); // the cap only applies to the untagged pool
+    expect(rows.some(r => r.id === tripId)).toBe(true);
+  });
+});
+
+describe('upsertTripPlace / trip areas (KAN-234)', () => {
+  it('inserts a new row tagged with cacheAreaId and expiresAt', () => {
+    const expiresAt = Date.now() + 1_000_000;
+    const id = upsertTripPlace({
+      poiType: 'atm', name: 'Trip ATM', lat: 0, lng: 0, source: { osm: 'node/1' },
+      cacheAreaId: 'trip-1', expiresAt,
+    });
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].id).toBe(id);
+    expect(rows[0].cache_area_id).toBe('trip-1');
+    expect(rows[0].expires_at).toBe(expiresAt);
+  });
+
+  it('tags an existing untagged (ordinary habitat) row when a trip download rediscovers it', () => {
+    const habitatId = upsertPlace({ poiType: 'atm', name: 'Corner ATM', lat: 0, lng: 0, source: { osm: 'node/1' } });
+    expect(rows[0].cache_area_id).toBeNull();
+
+    const expiresAt = Date.now() + 1_000_000;
+    const tripId = upsertTripPlace({
+      poiType: 'atm', name: 'Corner ATM', lat: 0.0001, lng: 0, source: { osm: 'node/1' },
+      cacheAreaId: 'trip-1', expiresAt,
+    });
+
+    expect(tripId).toBe(habitatId);
+    expect(rows[0].cache_area_id).toBe('trip-1');
+    expect(rows[0].expires_at).toBe(expiresAt);
+  });
+
+  it('never overwrites an already trip-tagged row\'s cacheAreaId (first trip wins), but extends expiresAt to the max of old/new', () => {
+    const firstExpiry = Date.now() + 1_000_000;
+    const id = upsertTripPlace({
+      poiType: 'atm', name: 'Shared ATM', lat: 0, lng: 0, source: { osm: 'node/1' },
+      cacheAreaId: 'trip-1', expiresAt: firstExpiry,
+    });
+
+    const laterExpiry = firstExpiry + 5_000_000;
+    upsertTripPlace({
+      poiType: 'atm', name: 'Shared ATM', lat: 0.0001, lng: 0, source: { osm: 'node/1' },
+      cacheAreaId: 'trip-2', expiresAt: laterExpiry,
+    });
+
+    expect(rows.find(r => r.id === id)?.cache_area_id).toBe('trip-1'); // unchanged — first trip wins
+    expect(rows.find(r => r.id === id)?.expires_at).toBe(laterExpiry); // extended
+  });
+
+  it('a plain upsertPlace call never touches an existing trip row\'s cacheAreaId/expiresAt', () => {
+    const expiresAt = Date.now() + 1_000_000;
+    const id = upsertTripPlace({
+      poiType: 'atm', name: 'Trip ATM', lat: 0, lng: 0, source: { osm: 'node/1' },
+      cacheAreaId: 'trip-1', expiresAt,
+    });
+
+    upsertPlace({ poiType: 'atm', name: 'Trip ATM', lat: 0.0001, lng: 0, source: { google: 'g-1' } });
+
+    expect(rows.find(r => r.id === id)?.cache_area_id).toBe('trip-1');
+    expect(rows.find(r => r.id === id)?.expires_at).toBe(expiresAt);
+  });
+
+  it('returns a fresh id and logs a warning instead of throwing when the DB read fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    const id = upsertTripPlace({
+      poiType: 'atm', name: 'Trip ATM', lat: 0, lng: 0, source: { osm: 'node/1' },
+      cacheAreaId: 'trip-1', expiresAt: Date.now(),
+    });
+
+    expect(id).toMatch(/^hp_/);
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('deleteTripAreaPlaces', () => {
+  it('deletes only rows tagged with the given cacheAreaId', () => {
+    upsertTripPlace({ poiType: 'atm', name: 'A', lat: 0, lng: 0, source: { osm: 'node/1' }, cacheAreaId: 'trip-1', expiresAt: Date.now() });
+    upsertTripPlace({ poiType: 'cafe', name: 'B', lat: 10, lng: 10, source: { osm: 'node/2' }, cacheAreaId: 'trip-2', expiresAt: Date.now() });
+    upsertPlace({ poiType: 'bank', name: 'C', lat: 20, lng: 20, source: { osm: 'node/3' } }); // ordinary habitat row
+
+    deleteTripAreaPlaces('trip-1');
+
+    expect(rows).toHaveLength(2);
+    expect(rows.some(r => r.cache_area_id === 'trip-1')).toBe(false);
+    expect(rows.some(r => r.cache_area_id === 'trip-2')).toBe(true);
+    expect(rows.some(r => r.cache_area_id == null)).toBe(true);
+  });
+
+  it('does not throw when the DB call fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.runSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(() => deleteTripAreaPlaces('trip-1')).not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] deleteTripAreaPlaces failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('deleteExpiredTripPlaces', () => {
+  it('deletes only rows whose expiresAt has passed', () => {
+    const expiredId = upsertTripPlace({ poiType: 'atm', name: 'Expired', lat: 0, lng: 0, source: { osm: 'node/1' }, cacheAreaId: 'trip-1', expiresAt: Date.now() - 1_000 });
+    const activeId = upsertTripPlace({ poiType: 'cafe', name: 'Active', lat: 10, lng: 10, source: { osm: 'node/2' }, cacheAreaId: 'trip-2', expiresAt: Date.now() + 1_000_000 });
+    const habitatId = upsertPlace({ poiType: 'bank', name: 'Habitat', lat: 20, lng: 20, source: { osm: 'node/3' } }); // expires_at NULL
+
+    deleteExpiredTripPlaces();
+
+    expect(rows.some(r => r.id === expiredId)).toBe(false);
+    expect(rows.some(r => r.id === activeId)).toBe(true);
+    expect(rows.some(r => r.id === habitatId)).toBe(true);
+  });
+
+  it('does not throw when the DB call fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.runSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(() => deleteExpiredTripPlaces()).not.toThrow();
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] deleteExpiredTripPlaces failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('estimateHabitatAreaSizeBytes', () => {
+  it('returns 0 for an empty cache', () => {
+    expect(estimateHabitatAreaSizeBytes()).toBe(0);
+  });
+
+  it('scales with the number of untagged (ordinary habitat) rows', () => {
+    upsertPlace({ poiType: 'atm', name: 'A', lat: 0, lng: 0, source: { osm: 'node/1' } });
+    upsertPlace({ poiType: 'cafe', name: 'B', lat: 10, lng: 10, source: { osm: 'node/2' } });
+
+    expect(estimateHabitatAreaSizeBytes()).toBe(2 * HABITAT_BYTES_PER_ROW);
+  });
+
+  it('excludes trip-tagged rows', () => {
+    upsertPlace({ poiType: 'atm', name: 'A', lat: 0, lng: 0, source: { osm: 'node/1' } });
+    upsertTripPlace({ poiType: 'cafe', name: 'B', lat: 10, lng: 10, source: { osm: 'node/2' }, cacheAreaId: 'trip-1', expiresAt: Date.now() });
+
+    expect(estimateHabitatAreaSizeBytes()).toBe(1 * HABITAT_BYTES_PER_ROW);
+  });
+
+  it('returns 0 and logs a warning instead of throwing when the DB read fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(estimateHabitatAreaSizeBytes()).toBe(0);
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] estimateHabitatAreaSizeBytes failed', expect.any(Error));
     warnSpy.mockRestore();
   });
 });

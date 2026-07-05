@@ -12,11 +12,16 @@
 export const recordLiveResult = jest.fn();
 export const refreshHabitatCacheIfStale = jest.fn().mockResolvedValue(undefined);
 export const upsertPlace = jest.fn().mockReturnValue('hp_mock');
+export const upsertTripPlace = jest.fn().mockReturnValue('hp_mock_trip');
 export const queryHabitatCache = jest.fn().mockReturnValue({});
 export const findExistingPlaceId = jest.fn().mockReturnValue(null);
 export const hasCachedPlaces = jest.fn().mockReturnValue(false);
 export const enforceSizeBudget = jest.fn();
+export const deleteTripAreaPlaces = jest.fn();
+export const deleteExpiredTripPlaces = jest.fn();
+export const estimateHabitatAreaSizeBytes = jest.fn().mockReturnValue(0);
 export const __resetHabitatDbForTests = jest.fn();
 export const HABITAT_CACHE_STALE_MS = 14 * 24 * 60 * 60 * 1_000;
 export const HABITAT_RADIUS_M = 5_000;
 export const MAX_CACHED_PLACES = 2_000;
+export const HABITAT_BYTES_PER_ROW = 200;

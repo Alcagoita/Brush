@@ -30,6 +30,18 @@
  * wiring is KAN-229 ("cache-backed offline proximity"). This file only
  * builds and maintains the cache; queryHabitatCache is exposed for KAN-229
  * to call.
+ *
+ * Trip areas (KAN-234): a manually-downloaded travel area writes rows via
+ * upsertTripPlace instead of upsertPlace, tagging them with a cache_area_id
+ * (joins to the Trip Firestore doc) and an expires_at (date-tied to the
+ * trip, instead of the opportunistic pool's osm_fetched_at/staleness
+ * regime). Trip rows are exempt from enforceSizeBudget's LRU eviction —
+ * only deleteExpiredTripPlaces or an explicit deleteTripAreaPlaces (trip
+ * deletion) removes them — so an unrelated burst of opportunistic caching
+ * elsewhere can never silently evict an unexpired trip's coverage.
+ * queryHabitatCache is untouched: it already answers by lat/lng + poiType
+ * regardless of cache_area_id, so a downloaded trip area transparently
+ * serves offline queries once the user is physically there.
  */
 
 import * as SQLite from 'expo-sqlite';
@@ -101,6 +113,15 @@ function getDb(): SQLite.SQLiteDatabase {
       );
       CREATE INDEX IF NOT EXISTS idx_habitat_poi_type ON habitat_places(poi_type);
     `);
+    // KAN-234 migration — habitat_places predates the cache_area_id/expires_at
+    // columns (trip-area tagging + date-tied expiry), and CREATE TABLE IF NOT
+    // EXISTS won't retrofit columns onto an already-existing on-device DB.
+    // ALTER TABLE throws if the column already exists — narrowly swallowed
+    // (only this one expected case), not a blanket catch, so a genuinely
+    // different failure (disk full, corruption) isn't silently masked.
+    try { db.execSync('ALTER TABLE habitat_places ADD COLUMN cache_area_id TEXT'); } catch { /* column already exists */ }
+    try { db.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER'); } catch { /* column already exists */ }
+    db.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
   }
   return db;
 }
@@ -123,6 +144,10 @@ export interface HabitatRow {
   osm_id: string | null;
   osm_fetched_at: number;
   last_matched_at: number;
+  /** Non-null when this row belongs to a KAN-234 trip download — joins to Trip.cacheAreaId. Null for ordinary opportunistic habitat rows. */
+  cache_area_id: string | null;
+  /** Epoch ms this row is valid until (trip rows only) — null for ordinary habitat rows, which are governed by osm_fetched_at/HABITAT_CACHE_STALE_MS instead. */
+  expires_at: number | null;
 }
 
 function generateId(): string {
@@ -218,7 +243,10 @@ export function findExistingPlaceId(
   }
 }
 
-export function upsertPlace(candidate: PlaceCandidate): string {
+/** Only set on a KAN-234 trip download's writes — plain upsertPlace calls never pass this. */
+interface TripStamp { cacheAreaId: string; expiresAt: number; }
+
+function upsertPlaceInternal(candidate: PlaceCandidate, trip?: TripStamp): string {
   try {
     const database = getDb();
     const now = Date.now();
@@ -231,6 +259,8 @@ export function upsertPlace(candidate: PlaceCandidate): string {
 
     if (match) {
       const osmFlag = isOsmSourced ? 1 : 0;
+      const tripCacheAreaId = trip?.cacheAreaId ?? null;
+      const tripExpiresAt = trip?.expiresAt ?? null;
       database.runSync(
         `UPDATE habitat_places
          SET google_place_id = COALESCE(google_place_id, ?),
@@ -238,11 +268,19 @@ export function upsertPlace(candidate: PlaceCandidate): string {
              lat             = CASE WHEN ? = 1 THEN ? ELSE lat END,
              lng             = CASE WHEN ? = 1 THEN ? ELSE lng END,
              osm_fetched_at  = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
+             cache_area_id   = COALESCE(cache_area_id, ?),
+             expires_at      = CASE
+                                  WHEN ? IS NULL THEN expires_at
+                                  WHEN expires_at IS NULL THEN ?
+                                  ELSE MAX(expires_at, ?)
+                                END,
              last_matched_at = ?
          WHERE id = ?`,
         [
           candidate.source.google ?? null, candidate.source.osm ?? null,
           osmFlag, candidate.lat, osmFlag, candidate.lng, osmFlag, now,
+          tripCacheAreaId,
+          tripExpiresAt, tripExpiresAt, tripExpiresAt,
           now, match.id,
         ],
       );
@@ -256,16 +294,42 @@ export function upsertPlace(candidate: PlaceCandidate): string {
     const id = generateId();
     database.runSync(
       `INSERT INTO habitat_places
-         (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
-        candidate.source.google ?? null, candidate.source.osm ?? null, now, now],
+        candidate.source.google ?? null, candidate.source.osm ?? null, now, now,
+        trip?.cacheAreaId ?? null, trip?.expiresAt ?? null],
     );
     return id;
   } catch (err) {
     console.warn('[habitatCache] upsertPlace failed', err);
     return generateId();
   }
+}
+
+export function upsertPlace(candidate: PlaceCandidate): string {
+  return upsertPlaceInternal(candidate);
+}
+
+export interface TripPlaceCandidate extends PlaceCandidate {
+  /** Joins this row to Trip.cacheAreaId. */
+  cacheAreaId: string;
+  /** Epoch ms — merging into an already trip-tagged row extends this to the max of old/new rather than overwriting, so a place shared between two trips (or re-discovered by a refresh) keeps the longest-lived expiry. */
+  expiresAt: number;
+}
+
+/**
+ * Same identity-merge as upsertPlace, but stamps cache_area_id/expires_at
+ * (KAN-234). Merging into an existing untagged row tags it with this trip's
+ * cacheAreaId (the place is now known to be inside an active trip's
+ * coverage); merging into an already trip-tagged row never overwrites its
+ * cache_area_id (first trip wins) — only extends expires_at to the max of
+ * old/new. A plain (non-trip) upsertPlace call never touches an existing
+ * row's cache_area_id/expires_at at all.
+ */
+export function upsertTripPlace(candidate: TripPlaceCandidate): string {
+  const { cacheAreaId, expiresAt, ...rest } = candidate;
+  return upsertPlaceInternal(rest, { cacheAreaId, expiresAt });
 }
 
 /**
@@ -486,22 +550,69 @@ export function hasCachedPlaces(): boolean {
 
 // ─── Size budget ──────────────────────────────────────────────────────────────
 
-/** Deletes the oldest (by last_matched_at) rows beyond MAX_CACHED_PLACES. */
+/**
+ * Deletes the oldest (by last_matched_at) rows beyond MAX_CACHED_PLACES —
+ * scoped to `cache_area_id IS NULL` (the ordinary opportunistic habitat
+ * pool) only. KAN-234 trip rows are deliberately exempt from LRU eviction:
+ * they have their own explicit expiry contract (deleteExpiredTripPlaces),
+ * so a burst of opportunistic caching elsewhere could otherwise silently
+ * evict an unexpired trip's coverage mid-trip with no user-facing signal —
+ * breaking the "I'll know it until <date>" promise.
+ */
 export function enforceSizeBudget(): void {
   try {
     const database = getDb();
     const [{ count } = { count: 0 }] = database.getAllSync<{ count: number }>(
-      'SELECT COUNT(*) as count FROM habitat_places',
+      'SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL',
     );
     if (count <= MAX_CACHED_PLACES) { return; }
 
     database.runSync(
       `DELETE FROM habitat_places WHERE id IN (
-         SELECT id FROM habitat_places ORDER BY last_matched_at ASC LIMIT ?
+         SELECT id FROM habitat_places WHERE cache_area_id IS NULL ORDER BY last_matched_at ASC LIMIT ?
        )`,
       [count - MAX_CACHED_PLACES],
     );
   } catch (err) {
     console.warn('[habitatCache] enforceSizeBudget failed', err);
+  }
+}
+
+// ─── Trip areas (KAN-234) ─────────────────────────────────────────────────────
+
+/** Rough per-row on-device storage cost (SQLite row + index overhead) — illustrative, not measured. Shared by estimateHabitatAreaSizeBytes below and tripDownload.ts's pre-download size estimate. */
+export const HABITAT_BYTES_PER_ROW = 200;
+
+/** Deletes every row tagged with cacheAreaId. Used when a trip is deleted. */
+export function deleteTripAreaPlaces(cacheAreaId: string): void {
+  try {
+    getDb().runSync('DELETE FROM habitat_places WHERE cache_area_id = ?', [cacheAreaId]);
+  } catch (err) {
+    console.warn('[habitatCache] deleteTripAreaPlaces failed', err);
+  }
+}
+
+/** Deletes any row (trip or not) whose expires_at has passed. Ordinary habitat rows have expires_at IS NULL and are never touched here — run once per boot alongside the trip pre-refresh check. */
+export function deleteExpiredTripPlaces(): void {
+  try {
+    getDb().runSync(
+      'DELETE FROM habitat_places WHERE expires_at IS NOT NULL AND expires_at < ?',
+      [Date.now()],
+    );
+  } catch (err) {
+    console.warn('[habitatCache] deleteExpiredTripPlaces failed', err);
+  }
+}
+
+/** Rough size estimate for the always-on habitat area (cache_area_id IS NULL rows only) — shown in the "Places I Know" list. */
+export function estimateHabitatAreaSizeBytes(): number {
+  try {
+    const [{ count } = { count: 0 }] = getDb().getAllSync<{ count: number }>(
+      'SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL',
+    );
+    return count * HABITAT_BYTES_PER_ROW;
+  } catch (err) {
+    console.warn('[habitatCache] estimateHabitatAreaSizeBytes failed', err);
+    return 0;
   }
 }

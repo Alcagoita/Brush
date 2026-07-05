@@ -46,12 +46,15 @@ import {
   getPoiPreferencesMap,
   getTasksForDate,
   getTotalPoints,
+  getTrips,
   getUser,
   getUserPreferences,
   loadLearnedKeywords,
   rolloverIncompleteTasks,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
+import { checkAndRunTripPreRefresh } from '../services/tripDownload';
+import { deleteExpiredTripPlaces } from '../services/habitatCache';
 import { todayISO } from '../utils/date';
 import { lightPalette } from '../theme/tokens';
 
@@ -373,8 +376,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         getTotalPoints(uid),
         getIncomingSharedTasksCount(uid),
         getInboxUnreadCount(uid),
+        getTrips(uid),
       ]))
-      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount]) => {
+      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount, trips]) => {
         if (cancelled) { return; }
         useAppStore.getState().setBootData({
           ownerUid: uid,
@@ -386,8 +390,18 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
           socialUnreadCount,
           userPrefs,
           poiPrefsMap,
+          trips,
         });
         markReady();
+
+        // Trip areas (KAN-234): app is foreground-only (KAN-231), so the
+        // day-before-departure refresh has no native scheduler to run on —
+        // piggyback on this boot path instead, same "non-fatal, best effort,
+        // once per boot" shape as rolloverIncompleteTasks above.
+        const customCategoryPoiTypes = categories.map(c => c.poi).filter((p): p is string => !!p);
+        checkAndRunTripPreRefresh(uid, trips, customCategoryPoiTypes)
+          .catch(err => console.warn('[SplashScreen] checkAndRunTripPreRefresh failed (non-critical)', err));
+        try { deleteExpiredTripPlaces(); } catch (err) { console.warn('[SplashScreen] deleteExpiredTripPlaces failed (non-critical)', err); }
       })
       .catch(() => {
         if (cancelled) { return; }
