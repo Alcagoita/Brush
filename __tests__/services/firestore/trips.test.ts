@@ -59,6 +59,31 @@ describe('addTrip', () => {
       { ...tripData, createdAt: NOW_TIMESTAMP },
     );
   });
+
+  it('accepts explicit undefined startDate/endDate keys (real caller shape when dates are skipped)', async () => {
+    // useTripPlanner.confirmDownload always includes startDate/endDate keys
+    // in the object it passes to addTrip, even when the user skipped dates
+    // (skipDates sets both to undefined rather than omitting them) — this
+    // must not throw. addTrip does no filtering of its own; Firestore's
+    // ignoreUndefinedProperties (set globally in firebase.ts) is what
+    // drops these before the write actually reaches the server.
+    mockAddDoc.mockResolvedValue({ id: 'trip-2' });
+
+    const tripData: Omit<Trip, 'id' | 'createdAt'> = {
+      destination: 'Lisbon', placeRef: 'place-xyz',
+      centerLat: 38.7223, centerLng: -9.1393,
+      startDate: undefined, endDate: undefined,
+      areaRadius: 5_000, cacheAreaId: 'ta_456', expiresAt: 1_900_000_000_000,
+    };
+
+    const id = await addTrip('uid-1', tripData);
+
+    expect(id).toBe('trip-2');
+    expect(mockAddDoc).toHaveBeenCalledWith(
+      { _type: 'collection' },
+      { ...tripData, createdAt: NOW_TIMESTAMP },
+    );
+  });
 });
 
 describe('getTrips', () => {

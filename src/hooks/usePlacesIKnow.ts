@@ -50,6 +50,7 @@ export function usePlacesIKnow(): PlacesIKnowState {
   useEffect(() => { void refresh(); }, [refresh]);
 
   const refreshTrip = useCallback(async (trip: Trip) => {
+    if (!uid) { return; }
     setRefreshingTripId(trip.id);
     try {
       await refreshTripArea(uid, trip, customCategoryPoiTypes);
@@ -62,6 +63,7 @@ export function usePlacesIKnow(): PlacesIKnowState {
   }, [uid, customCategoryPoiTypes, refresh]);
 
   const deleteTrip = useCallback(async (trip: Trip) => {
+    if (!uid) { return; }
     try {
       await deleteTripDoc(uid, trip.id);
       deleteTripAreaPlaces(trip.cacheAreaId);

@@ -18,12 +18,14 @@
 
 const mockSearchOsmPlaces = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({
-  searchOsmPlaces: (...args: unknown[]) => mockSearchOsmPlaces(...args),
+  searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlaces(...args),
 }));
 
 const mockUpsertTripPlace = jest.fn().mockReturnValue('hp_mock');
+const mockDeleteTripAreaPlaces = jest.fn();
 jest.mock('../../src/services/habitatCache', () => ({
   upsertTripPlace: (...args: unknown[]) => mockUpsertTripPlace(...args),
+  deleteTripAreaPlaces: (...args: unknown[]) => mockDeleteTripAreaPlaces(...args),
   HABITAT_BYTES_PER_ROW: 200,
 }));
 
@@ -55,6 +57,9 @@ import {
 } from '../../src/services/tripDownload';
 import { ALL_POI_TYPES } from '../../src/types';
 import type { Trip } from '../../src/types';
+
+/** A non-empty OSM result — used everywhere a test isn't specifically about the empty-result guard, so downloadTripArea's "0 places found" check doesn't interfere. */
+const SOME_PLACE = { atm: [{ osmId: 'node/1', name: 'ATM', isGenericName: false, lat: 1, lng: 2, distanceMeters: 10 }] };
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
   return {
@@ -156,8 +161,8 @@ describe('shouldPreRefreshTrip', () => {
 });
 
 describe('downloadTripArea', () => {
-  it('requests ALL_POI_TYPES union with custom category types, in one searchOsmPlaces call', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({});
+  it('requests ALL_POI_TYPES union with custom category types, in one searchOsmPlacesStrict call', async () => {
+    mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
 
     await downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, ['climbing_gym']);
 
@@ -170,7 +175,7 @@ describe('downloadTripArea', () => {
   });
 
   it('dedupes a custom type that overlaps a built-in one', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({});
+    mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
     await downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, ['gym']);
 
     const [, , poiTypes] = mockSearchOsmPlaces.mock.calls[0];
@@ -194,15 +199,35 @@ describe('downloadTripArea', () => {
     }));
   });
 
-  it('throws when searchOsmPlaces fails — a user-initiated action must surface the error, not swallow it', async () => {
+  it('throws when searchOsmPlacesStrict fails — a user-initiated action must surface the error, not swallow it', async () => {
     mockSearchOsmPlaces.mockRejectedValue(new Error('network down'));
     await expect(downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, [])).rejects.toThrow('network down');
+  });
+
+  it('throws instead of persisting a "successful" empty result — indistinguishable from a soft failure otherwise', async () => {
+    mockSearchOsmPlaces.mockResolvedValue({});
+    await expect(downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []))
+      .rejects.toThrow('Trip download returned no places');
+    expect(mockUpsertTripPlace).not.toHaveBeenCalled();
+    // Must not wipe any existing rows for this cacheAreaId before knowing the new fetch actually found something.
+    expect(mockDeleteTripAreaPlaces).not.toHaveBeenCalled();
+  });
+
+  it('clears existing rows for this cacheAreaId before repopulating (reconciles a refresh, no stale leftovers)', async () => {
+    mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
+    await downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []);
+
+    expect(mockDeleteTripAreaPlaces).toHaveBeenCalledWith('ta_1');
+    // Deletion must happen before the new rows are written, not after.
+    const deleteOrder = mockDeleteTripAreaPlaces.mock.invocationCallOrder[0];
+    const upsertOrder = mockUpsertTripPlace.mock.invocationCallOrder[0];
+    expect(deleteOrder).toBeLessThan(upsertOrder);
   });
 });
 
 describe('refreshTripArea', () => {
   it('re-downloads and bumps Firestore expiresAt/preRefreshedAt', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({});
+    mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
     const trip = makeTrip({ endDate: '2026-07-27' });
 
     await refreshTripArea('uid-1', trip, []);
@@ -217,7 +242,7 @@ describe('refreshTripArea', () => {
 
 describe('checkAndRunTripPreRefresh', () => {
   it('only refreshes trips that are due', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({});
+    mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
     const due = makeTrip({ id: 'due', startDate: '2026-07-20' });
     const notDue = makeTrip({ id: 'not-due', startDate: '2026-08-20' });
 
@@ -230,7 +255,7 @@ describe('checkAndRunTripPreRefresh', () => {
   it('isolates a failing trip\'s refresh — other trips still get refreshed', async () => {
     mockSearchOsmPlaces
       .mockRejectedValueOnce(new Error('network down'))
-      .mockResolvedValueOnce({});
+      .mockResolvedValueOnce(SOME_PLACE);
     const failing = makeTrip({ id: 'failing', startDate: '2026-07-20' });
     const ok      = makeTrip({ id: 'ok', startDate: '2026-07-19' });
 

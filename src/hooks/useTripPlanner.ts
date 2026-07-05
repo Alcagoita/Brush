@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import {
-  searchPlacesAutocomplete,
+  searchDestinationAutocomplete,
   getPlaceDetails,
   buildStaticMapPreviewUrl,
 } from '../services/maps';
@@ -22,6 +22,8 @@ import {
   estimateTripDownloadBytes,
   TRIP_RADIUS_PRESETS,
 } from '../services/tripDownload';
+import { deleteTripAreaPlaces } from '../services/habitatCache';
+import { ALL_POI_TYPES } from '../types';
 import type { TripRadiusPreset } from '../types';
 import { useToastStore } from '../store/toastStore';
 import { COPY } from '../constants/copy';
@@ -89,21 +91,29 @@ export function useTripPlanner(onDone: () => void): TripPlannerState {
       .catch(err => console.warn('[useTripPlanner] getCategories failed', err));
   }, [uid]);
 
+  // Set right before selectDestination changes `query` itself, so the
+  // debounced effect below can tell "query changed because of a selection"
+  // apart from "query changed because the user is typing" — comparing query
+  // to destination.name isn't reliable since query is set from the
+  // suggestion's name while destination.name comes from resolved place
+  // details, and the two can differ.
+  const justSelectedRef = useRef(false);
+
   // Debounced destination autocomplete.
   useEffect(() => {
-    if (destination && query === destination.name) { return; } // just selected — don't immediately re-search
+    if (justSelectedRef.current) { justSelectedRef.current = false; return; }
     if (!query.trim()) { setSuggestions([]); return; }
 
     const timer = setTimeout(() => {
-      searchPlacesAutocomplete(query)
+      searchDestinationAutocomplete(query)
         .then(setSuggestions)
-        .catch(err => console.warn('[useTripPlanner] searchPlacesAutocomplete failed', err));
+        .catch(err => console.warn('[useTripPlanner] searchDestinationAutocomplete failed', err));
     }, AUTOCOMPLETE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
   const selectDestination = useCallback(async (suggestion: PlaceAutocompleteSuggestion) => {
+    justSelectedRef.current = true;
     setQuery(suggestion.name);
     setSuggestions([]);
     try {
@@ -129,7 +139,10 @@ export function useTripPlanner(onDone: () => void): TripPlannerState {
   }, []);
 
   const preset = TRIP_RADIUS_PRESETS.find(p => p.key === radiusKey) ?? TRIP_RADIUS_PRESETS[1];
-  const estimatedBytes = estimateTripDownloadBytes(preset.radiusMeters, customCategoryPoiTypes.length + 16);
+  // Matches downloadTripArea's exact union semantics (new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes]).size),
+  // so the size estimate can't drift from what's actually downloaded if a custom category reuses a built-in POI type.
+  const poiTypeCount = new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes]).size;
+  const estimatedBytes = estimateTripDownloadBytes(preset.radiusMeters, poiTypeCount);
   const previewUrl = destination
     ? buildStaticMapPreviewUrl(destination.lat, destination.lng, preset.radiusMeters, PREVIEW_WIDTH, PREVIEW_HEIGHT)
     : '';
@@ -150,17 +163,26 @@ export function useTripPlanner(onDone: () => void): TripPlannerState {
         expiresAt,
         customCategoryPoiTypes,
       );
-      await addTrip(uid, {
-        destination: destination.name,
-        placeRef: destination.placeId,
-        centerLat: destination.lat,
-        centerLng: destination.lng,
-        startDate,
-        endDate,
-        areaRadius: preset.radiusMeters,
-        cacheAreaId,
-        expiresAt,
-      });
+      try {
+        await addTrip(uid, {
+          destination: destination.name,
+          placeRef: destination.placeId,
+          centerLat: destination.lat,
+          centerLng: destination.lng,
+          startDate,
+          endDate,
+          areaRadius: preset.radiusMeters,
+          cacheAreaId,
+          expiresAt,
+        });
+      } catch (err) {
+        // The habitat rows were already written under cacheAreaId — without
+        // this rollback they'd be orphaned (never surfaced in "Places I
+        // know", never cleaned up, since deletion is normally driven by the
+        // Trip doc this addTrip call just failed to create).
+        deleteTripAreaPlaces(cacheAreaId);
+        throw err;
+      }
       useToastStore.getState().showToast(COPY.tripPlanner.downloadSuccessToast(destination.name));
       onDone();
     } catch (err) {

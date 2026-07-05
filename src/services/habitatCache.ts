@@ -116,11 +116,18 @@ function getDb(): SQLite.SQLiteDatabase {
     // KAN-234 migration — habitat_places predates the cache_area_id/expires_at
     // columns (trip-area tagging + date-tied expiry), and CREATE TABLE IF NOT
     // EXISTS won't retrofit columns onto an already-existing on-device DB.
-    // ALTER TABLE throws if the column already exists — narrowly swallowed
-    // (only this one expected case), not a blanket catch, so a genuinely
-    // different failure (disk full, corruption) isn't silently masked.
-    try { db.execSync('ALTER TABLE habitat_places ADD COLUMN cache_area_id TEXT'); } catch { /* column already exists */ }
-    try { db.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER'); } catch { /* column already exists */ }
+    // Check the actual schema instead of blindly ALTER-then-catch, so a real
+    // failure (disk full, corruption) surfaces instead of being masked by a
+    // blanket catch.
+    const existingColumns = new Set(
+      db.getAllSync<{ name: string }>('PRAGMA table_info(habitat_places)').map(c => c.name),
+    );
+    if (!existingColumns.has('cache_area_id')) {
+      db.execSync('ALTER TABLE habitat_places ADD COLUMN cache_area_id TEXT');
+    }
+    if (!existingColumns.has('expires_at')) {
+      db.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER');
+    }
     db.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
   }
   return db;

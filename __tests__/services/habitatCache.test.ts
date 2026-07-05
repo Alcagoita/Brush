@@ -73,6 +73,13 @@ const mockDb = {
   getAllSync: jest.fn(<T>(sql: string, params: unknown[] = []): T[] => {
     const s = sql.replace(/\s+/g, ' ').trim();
 
+    if (s.startsWith('PRAGMA table_info(habitat_places)')) {
+      return [
+        { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
+        { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
+        { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
+      ] as unknown as T[];
+    }
     if (s.startsWith('SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL')) {
       return [{ count: rows.filter(r => r.cache_area_id == null).length }] as unknown as T[];
     }
@@ -202,6 +209,46 @@ beforeEach(() => {
   __resetHabitatDbForTests();
   __resetEmptyResultAttemptsForTests();
   mockNetInfoFetch.mockResolvedValue({ isConnected: true });
+});
+
+describe('migration (KAN-234 review fix — schema check instead of blanket catch)', () => {
+  it('does not run ALTER TABLE when the columns already exist', () => {
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const alterCalls = mockDb.execSync.mock.calls.filter(([sql]) => String(sql).includes('ALTER TABLE'));
+    expect(alterCalls).toHaveLength(0);
+  });
+
+  it('runs ALTER TABLE only for columns missing from the real schema', () => {
+    mockDb.getAllSync.mockImplementationOnce(() => [
+      { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
+      { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
+      { name: 'osm_fetched_at' }, { name: 'last_matched_at' },
+      // cache_area_id / expires_at intentionally omitted — simulates a pre-KAN-234 on-device DB.
+    ]);
+
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const alterCalls = mockDb.execSync.mock.calls.map(([sql]) => String(sql));
+    expect(alterCalls.some(sql => sql.includes('ADD COLUMN cache_area_id'))).toBe(true);
+    expect(alterCalls.some(sql => sql.includes('ADD COLUMN expires_at'))).toBe(true);
+  });
+
+  it('surfaces a genuine migration failure via a warning instead of silently swallowing it', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => []); // schema check reports nothing — both columns "missing"
+    mockDb.execSync
+      .mockImplementationOnce(() => {}) // CREATE TABLE ... ; CREATE INDEX ...
+      .mockImplementationOnce(() => { throw new Error('disk full'); }); // ALTER TABLE cache_area_id — a real failure, not "column already exists"
+
+    // upsertPlace's own outer try/catch keeps the module's existing
+    // "never throws to callers" contract — but the migration failure must
+    // now be logged (not silently discarded the way a blanket catch would).
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] upsertPlace failed', expect.objectContaining({ message: 'disk full' }));
+    warnSpy.mockRestore();
+  });
 });
 
 describe('upsertPlace', () => {
