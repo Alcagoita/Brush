@@ -513,12 +513,19 @@ export function __resetEmptyResultAttemptsForTests(): void {
  * row's last_matched_at, but never osm_fetched_at) could never itself mask a
  * genuinely stale OSM refresh.
  *
+ * `force` (KAN-241, ContextChip's manual "Refresh now") skips both the
+ * staleness check and the empty-result retry cooldown — a deliberate,
+ * human-triggered tap shouldn't silently no-op just because the area was
+ * already fresh or recently came back empty, unlike the opportunistic
+ * background path this function otherwise serves.
+ *
  * Fire-and-forget from the caller's perspective — never throws.
  */
 export async function refreshHabitatCacheIfStale(
   lat: number,
   lng: number,
   poiTypes: string[],
+  force = false,
 ): Promise<void> {
   const mappableTypes = poiTypes.filter(isOsmMappable);
   if (mappableTypes.length === 0) { return; }
@@ -528,30 +535,35 @@ export async function refreshHabitatCacheIfStale(
     try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
     if (isConnected === false) { return; }
 
-    const database = getDb();
-    const box = boundingBoxDeg(lat, lng, HABITAT_RADIUS_M);
-    const placeholders = mappableTypes.map(() => '?').join(',');
-    const staleCutoff = Date.now() - HABITAT_CACHE_STALE_MS;
-
-    const freshRows = database.getAllSync<{ poi_type: string }>(
-      `SELECT poi_type FROM habitat_places
-       WHERE poi_type IN (${placeholders})
-         AND lat BETWEEN ? AND ?
-         AND lng BETWEEN ? AND ?
-         AND osm_id IS NOT NULL
-         AND osm_fetched_at >= ?`,
-      [...mappableTypes, box.latMin, box.latMax, box.lngMin, box.lngMax, staleCutoff],
-    );
-    const freshTypes = new Set(freshRows.map(r => r.poi_type));
-    const staleTypes = mappableTypes.filter(t => !freshTypes.has(t));
-    if (staleTypes.length === 0) { return; }
-
     const now = Date.now();
-    const typesToFetch = staleTypes.filter(t => {
-      const lastAttempt = _emptyResultAttempts.get(emptyResultAttemptKey(t, lat, lng));
-      return lastAttempt == null || now - lastAttempt >= EMPTY_RESULT_RETRY_COOLDOWN_MS;
-    });
-    if (typesToFetch.length === 0) { return; }
+    let typesToFetch: string[];
+    if (force) {
+      typesToFetch = mappableTypes;
+    } else {
+      const database = getDb();
+      const box = boundingBoxDeg(lat, lng, HABITAT_RADIUS_M);
+      const placeholders = mappableTypes.map(() => '?').join(',');
+      const staleCutoff = now - HABITAT_CACHE_STALE_MS;
+
+      const freshRows = database.getAllSync<{ poi_type: string }>(
+        `SELECT poi_type FROM habitat_places
+         WHERE poi_type IN (${placeholders})
+           AND lat BETWEEN ? AND ?
+           AND lng BETWEEN ? AND ?
+           AND osm_id IS NOT NULL
+           AND osm_fetched_at >= ?`,
+        [...mappableTypes, box.latMin, box.latMax, box.lngMin, box.lngMax, staleCutoff],
+      );
+      const freshTypes = new Set(freshRows.map(r => r.poi_type));
+      const staleTypes = mappableTypes.filter(t => !freshTypes.has(t));
+      if (staleTypes.length === 0) { return; }
+
+      typesToFetch = staleTypes.filter(t => {
+        const lastAttempt = _emptyResultAttempts.get(emptyResultAttemptKey(t, lat, lng));
+        return lastAttempt == null || now - lastAttempt >= EMPTY_RESULT_RETRY_COOLDOWN_MS;
+      });
+      if (typesToFetch.length === 0) { return; }
+    }
 
     const osmResults = await searchOsmPlaces(lat, lng, typesToFetch, HABITAT_RADIUS_M);
     let didUpsert = false;
@@ -596,6 +608,24 @@ export function hasCachedPlaces(): boolean {
   } catch (err) {
     console.warn('[habitatCache] hasCachedPlaces failed', err);
     return false;
+  }
+}
+
+/**
+ * Epoch ms of the most recent sighting anywhere in the ambient habitat pool
+ * (`cache_area_id IS NULL` — excludes trip areas, which have their own
+ * separate lifecycle), or null if the cache is empty. Powers ContextChip's
+ * "learned {date}" line (KAN-241).
+ */
+export function getMostRecentHabitatUpdateAt(): number | null {
+  try {
+    const [{ maxTs } = { maxTs: null }] = getDb().getAllSync<{ maxTs: number | null }>(
+      'SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL',
+    );
+    return maxTs ?? null;
+  } catch (err) {
+    console.warn('[habitatCache] getMostRecentHabitatUpdateAt failed', err);
+    return null;
   }
 }
 

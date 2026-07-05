@@ -109,9 +109,7 @@ export const COPY = {
   // limitation, not the user's problem. State-based, not launch-based: only
   // shown when it's actually true this session, never a blanket warning.
   offline: {
-    /** NetworkBanner default text — offline, but nothing else worth saying (inside cached coverage, or coverage unknown yet). */
-    genericBanner: '⚠️  Offline — changes may not sync',
-    /** NetworkBanner text when offline AND the habitat cache has never been seeded (fresh install/new phone) — the only fully broken case. */
+    /** NetworkBanner text when offline AND the habitat cache has never been seeded (fresh install/new phone) — the only fully broken case (KAN-241: every other offline case is now a quiet ContextChip glyph instead of a banner). */
     noCacheYetBanner: "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
     /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. */
     uncoveredAreaToast: "You're outside the area I know by heart — I'll need a connection to spot places here.",
@@ -151,6 +149,23 @@ export const COPY = {
     deleteConfirmBody:   "I'll stop recognizing places there. You can always learn it again later.",
     deleteConfirmAction: 'Forget it',
     deleteCancelAction:  'Keep it',
+  },
+
+  // ─── Context chip (KAN-241) ────────────────────────────────────────────────
+  // Never say "mode"/"cache"/"snapshot" here — same first-person voice as
+  // offline/tripPlanner above. This ticket only ever shows the offline glyph;
+  // the sheet copy stays area-name-agnostic (no reverse geocoding available).
+  contextChip: {
+    offlineGlyphA11y: 'Offline — I know this area',
+    sheetTitle: 'What I know here',
+    /** date is the last-learned day (e.g. "Jun 28"), or undefined if the cache has no timestamp yet. */
+    sheetBody: (date?: string) =>
+      date
+        ? `I've learned the places around here — last updated ${date}.`
+        : "I've learned the places around here.",
+    refreshButton:    'Refresh now',
+    refreshingLabel:  'Refreshing…',
+    refreshErrorToast: "Couldn't refresh — check your connection and try again.",
   },
 
 } as const;
