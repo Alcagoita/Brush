@@ -10,12 +10,17 @@
  *                             fed into the proximity engine and refreshed
  *                             after every completion
  *
+ * Also feeds the user's custom category place types into the proximity
+ * engine's habitat-cache prefetch (KAN-238) — the built-in 16 types don't
+ * need wiring here (proximity.ts already knows ALL_POI_TYPES), only the
+ * per-user custom ones, which live in Firestore via useTodayScreenData.
+ *
  * No JSX — independently testable with renderHook.
  */
 
 import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
-import { setLearnedPlaces } from '../../services/proximity';
+import { setLearnedPlaces, setCustomCategoryPoiTypes } from '../../services/proximity';
 import type { PlacesMap } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
@@ -88,6 +93,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   useEffect(() => {
     setLearnedPlaces(learnedPlaces);
   }, [learnedPlaces]);
+
+  useEffect(() => {
+    setCustomCategoryPoiTypes(
+      data.customCategories.map(c => c.poi).filter((poi): poi is string => !!poi),
+    );
+  }, [data.customCategories]);
 
   // A toggle in either direction changes the completedPlaceId brush history
   // the ranking is derived from: `done: true` adds a data point, `done:

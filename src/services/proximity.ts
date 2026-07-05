@@ -67,6 +67,15 @@
  *   type, its learned venue is preferred as the displayed/notified place
  *   over an arbitrary closer stranger, but only when the learned venue is
  *   itself within HERO_RADIUS_M on its own real distance.
+ *
+ * Habitat cache prefetch — all POI types (KAN-238):
+ *   The habitat cache's OSM-backed refresh (refreshHabitatCacheIfStale) is
+ *   fed ALL_POI_TYPES plus the user's custom category place types
+ *   (setCustomCategoryPoiTypes), not just this tick's open-task types — a
+ *   task created after caching (e.g. "buy aspirin" offline, no prior
+ *   pharmacy task) must still find candidates. Only the refresh/seed side
+ *   changes; queryHabitatCache and the live Places search both stay
+ *   filtered to this tick's actual open-task types, unchanged.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
@@ -76,7 +85,7 @@ import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { Task } from '../types';
+import { Task, ALL_POI_TYPES } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
@@ -177,6 +186,9 @@ let _offlineUncoveredNoticeShown = false;
 /** KAN-230 — on-device learned-place ranking, fed in from outside (see setLearnedPlaces). */
 let _learnedPlaces: LearnedPlace[] = [];
 
+/** KAN-238 — user's custom category place types, fed in from outside (see setCustomCategoryPoiTypes). */
+let _customCategoryPoiTypes: string[] = [];
+
 /**
  * Optional tap into the GPS stream (KAN-75 indoor detection).
  * Every position fix is forwarded here so indoor detection can run without
@@ -264,6 +276,11 @@ export function updateNotifNearbyEnabled(enabled: boolean): void {
 /** KAN-230 — feed in the on-device learned-place ranking. Pass null/empty to clear (e.g. on sign-out). */
 export function setLearnedPlaces(places: LearnedPlace[] | null): void {
   _learnedPlaces = places ?? [];
+}
+
+/** KAN-238 — feed in the user's custom category place types for the habitat cache's all-types prefetch. */
+export function setCustomCategoryPoiTypes(types: string[] | null): void {
+  _customCategoryPoiTypes = types ?? [];
 }
 
 export function updateExitPromptPref(enabled: boolean): void {
@@ -488,7 +505,12 @@ async function runProximitySearch(
               });
             }
           }
-          refreshHabitatCacheIfStale(coords.lat, coords.lng, uniquePoiTypes).catch(err =>
+          // KAN-238 — refresh ALL built-in types + the user's custom
+          // category types, not just this tick's open-task types
+          // (uniquePoiTypes), so a task created after caching (no prior
+          // task of that type) still finds cached candidates offline.
+          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ..._customCategoryPoiTypes])];
+          refreshHabitatCacheIfStale(coords.lat, coords.lng, prefetchTypes).catch(err =>
             reportProximityError('habitat cache refresh failed', err),
           );
         } catch (err) {
@@ -697,6 +719,7 @@ export function resetProximityState(): void {
   _netInfoUnsubscribe = null;
   _offlineUncoveredNoticeShown = false;
   _learnedPlaces = [];
+  _customCategoryPoiTypes = [];
 
   geofenceEntryTimes.clear();
 }

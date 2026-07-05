@@ -107,6 +107,15 @@ export const POI_CATALOG: { type: PoiType; label: string }[] = [
   { type: 'school',      label: 'School'     },
 ];
 
+/**
+ * All 16 built-in POI types, derived from POI_CATALOG. Used by the habitat
+ * cache's prefetch (KAN-238) to warm the cache for every type regardless of
+ * open tasks — a task created after caching (e.g. "buy aspirin" while
+ * offline) must still find pharmacy candidates even though no pharmacy task
+ * existed when the area was last refreshed online.
+ */
+export const ALL_POI_TYPES: PoiType[] = POI_CATALOG.map(c => c.type);
+
 /** /users/{uid}/pois/{poiType} */
 export interface PoiPreference {
   /**
