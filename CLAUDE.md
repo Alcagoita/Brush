@@ -318,20 +318,22 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ## Sprint 16 Plan (KAN-226 epic — offline/habitat POI)
 
-Order (updated 2026-07-04 — added KAN-236):
+Order (updated 2026-07-05 — KAN-230 merged; KAN-234/235/237 pulled off hold, KAN-238 added):
 
 1. **KAN-226** — Record place at brush time ✅ merged
 2. **KAN-232** — Wire POI inference into quick-add ✅ merged
 3. **KAN-233** — Cleanup dead exit-prompt geofence code ✅ merged
 4. **KAN-227** — Airplane-mode test suite ✅ merged
-5. **KAN-228** — Habitat POI cache (OSM + SQLite, cross-source place identity) — 🔄 PR #209 open, awaiting review
-6. **KAN-229** — ✅ Merged. Cache-backed offline proximity (depends on 228; seamless-switch AC lives here)
-7. **KAN-236** — Offline expectations messaging (depends on 228 + 229; UI/copy layer — state-based network banner/toast copy, three states: no cache yet, inside cached area, moved beyond cached coverage)
-8. **KAN-230** — Learned places (last — needs weeks of KAN-226 data anyway)
+5. **KAN-228** — Habitat POI cache (OSM + SQLite, cross-source place identity) ✅ merged
+6. **KAN-229** — Cache-backed offline proximity ✅ merged
+7. **KAN-236** — Offline expectations messaging ✅ merged
+8. **KAN-230** — Learned places ✅ merged
+9. **KAN-238** — Habitat cache: prefetch all POI types, not just open-task types — ⬅️ NEXT (prerequisite for KAN-234/237; also improves KAN-236 coverage-detection accuracy for never-prefetched types)
+10. **KAN-234** — Trip Planner ("Going somewhere?" offline area download) — depends on KAN-238
+11. **KAN-235** — "Heading out?" errand bundling — no hard dependency, queued after the cache-prefetch work lands
+12. **KAN-237** — Mall snapshot + cache-first proximity (Shopping mode evolution) — depends on KAN-228/229 (done) + KAN-238
 
-**Hold:** KAN-231 (decision pending, not a Claude Code task), KAN-234/235 (post-epic).
-
-Rationale: three small independent wins first while KAN-226's data accumulates, tests before surgery on the proximity engine, then the cache→proximity→messaging chain in dependency order (KAN-236 needs both the cache and the offline-proximity wiring to know which of its three states applies).
+KAN-231 — ✅ decided & closed (2026-07-04): stay foreground-only ("while using the app"); never request background/always-on location or implement native background geofences.
 
 Rule 12 (one ticket at a time) still applies — this order is a queue, not a license to batch.
 
