@@ -138,3 +138,6 @@ web-build/
 
 # CodeGraph local index (per-developer, not committed)
 .codegraph/CLAUDE.md
+
+# Project instructions — local-only, not committed (see chore/untrack-claude-md)
+/CLAUDE.md
