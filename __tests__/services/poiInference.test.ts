@@ -26,9 +26,25 @@ import {
   registerCategoryKeywords,
   syncCategoryKeywords,
   clearLearnedKeywords,
+  isSupportedLang,
 } from '../../src/services/poiInference';
 
 afterEach(() => { clearLearnedKeywords(); });
+
+describe('isSupportedLang', () => {
+  it('accepts the two supported languages', () => {
+    expect(isSupportedLang('en')).toBe(true);
+    expect(isSupportedLang('pt-PT')).toBe(true);
+  });
+
+  it('rejects anything else, including similar-looking or malformed values', () => {
+    expect(isSupportedLang('es')).toBe(false);
+    expect(isSupportedLang('pt')).toBe(false);
+    expect(isSupportedLang(undefined)).toBe(false);
+    expect(isSupportedLang(null)).toBe(false);
+    expect(isSupportedLang(123)).toBe(false);
+  });
+});
 
 // ─── normalize ────────────────────────────────────────────────────────────────
 

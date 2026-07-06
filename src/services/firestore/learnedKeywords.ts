@@ -7,7 +7,7 @@
  */
 
 import { getDocs, setDoc, doc, serverTimestamp } from '@react-native-firebase/firestore';
-import { registerLearnedKeyword, normalize, type SupportedLang, type PoiResolution } from '../poiInference';
+import { registerLearnedKeyword, normalize, isSupportedLang, type SupportedLang, type PoiResolution } from '../poiInference';
 import { learnedKeywordsRef, learnedKeywordId } from './refs';
 
 /** A persisted learned keyword→POI association. */
@@ -47,8 +47,15 @@ export async function loadLearnedKeywords(uid: string): Promise<void> {
   const snap = await getDocs(learnedKeywordsRef(uid));
   for (const d of snap.docs) {
     const data = d.data() as Partial<LearnedKeyword>;
-    if (typeof data.keyword === 'string' && data.poi && data.lang) {
+    // lang is validated against the supported set (not just truthy) because
+    // registerLearnedKeyword indexes its in-memory map directly by lang — an
+    // unsupported value would throw there rather than no-op, which used to
+    // be able to abort the rest of this loop for one bad doc.
+    if (typeof data.keyword !== 'string' || !data.poi || !isSupportedLang(data.lang)) { continue; }
+    try {
       registerLearnedKeyword(data.keyword, data.poi, data.lang);
+    } catch (err) {
+      console.warn('[learnedKeywords] skipping malformed doc', d.id, err);
     }
   }
 }

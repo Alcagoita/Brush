@@ -79,7 +79,14 @@ service cloud.firestore {
 
       // ─── Learned POI keywords (KAN-196) ──────────────────────────────────────
       match /learnedPoiKeywords/{docId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['keyword', 'poi', 'lang', 'source', 'updatedAt'])
+          && validString(request.resource.data.keyword, 200)
+          && validString(request.resource.data.poi, 50)
+          && request.resource.data.lang in ['en', 'pt-PT']
+          && request.resource.data.source in ['llm', 'user']
+          && request.resource.data.updatedAt is timestamp;
       }
 
       // ─── Learned place visit counters (KAN-240) ──────────────────────────────
