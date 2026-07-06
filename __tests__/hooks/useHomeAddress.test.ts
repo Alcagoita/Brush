@@ -108,11 +108,13 @@ describe('selectSuggestion', () => {
     const { result } = renderHook(() => useHomeAddress());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    let success: boolean | undefined;
     await act(async () => {
-      await result.current.selectSuggestion({ placeId: 'p1', name: 'Baker Street', address: 'London, UK' });
+      success = await result.current.selectSuggestion({ placeId: 'p1', name: 'Baker Street', address: 'London, UK' });
     });
 
     const expected = { address: 'Baker Street, London, UK', lat: 51.5, lng: -0.1 };
+    expect(success).toBe(true);
     expect(mockSetHome).toHaveBeenCalledWith('test-uid', expected);
     expect(mockSetHomeLocation).toHaveBeenCalledWith(expected);
     expect(result.current.home).toEqual(expected);
@@ -120,32 +122,36 @@ describe('selectSuggestion', () => {
     expect(result.current.saving).toBe(false);
   });
 
-  it('surfaces an error and leaves home untouched when getPlaceDetails returns null', async () => {
+  it('surfaces an error, leaves home untouched, and resolves false when getPlaceDetails returns null', async () => {
     mockGetPlaceDetails.mockResolvedValue(null);
 
     const { result } = renderHook(() => useHomeAddress());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    let success: boolean | undefined;
     await act(async () => {
-      await result.current.selectSuggestion({ placeId: 'p1', name: 'Baker Street', address: 'London' });
+      success = await result.current.selectSuggestion({ placeId: 'p1', name: 'Baker Street', address: 'London' });
     });
 
+    expect(success).toBe(false);
     expect(mockSetHome).not.toHaveBeenCalled();
     expect(result.current.home).toBeNull();
     expect(result.current.error).not.toBeNull();
   });
 
-  it('surfaces an error when setHome (the Firestore write) fails', async () => {
+  it('surfaces an error and resolves false when setHome (the Firestore write) fails', async () => {
     mockGetPlaceDetails.mockResolvedValue({ lat: 51.5, lng: -0.1, name: 'Baker Street' });
     mockSetHome.mockRejectedValue(new Error('firestore unavailable'));
 
     const { result } = renderHook(() => useHomeAddress());
     await waitFor(() => expect(result.current.loading).toBe(false));
 
+    let success: boolean | undefined;
     await act(async () => {
-      await result.current.selectSuggestion({ placeId: 'p1', name: 'Baker Street', address: 'London' });
+      success = await result.current.selectSuggestion({ placeId: 'p1', name: 'Baker Street', address: 'London' });
     });
 
+    expect(success).toBe(false);
     expect(result.current.home).toBeNull();
     expect(result.current.error).not.toBeNull();
     expect(mockSetHomeLocation).not.toHaveBeenCalled();

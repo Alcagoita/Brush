@@ -233,7 +233,7 @@ export default function SettingsScreen() {
   // HomeAddressScreen after a set/change/clear shows the current value. ──
   const [homeAddress, setHomeAddress] = useState<string | null>(null);
   useFocusEffect(useCallback(() => {
-    if (!uid) { return; }
+    if (!uid) { setHomeAddress(null); return; }
     getUser(uid).then(u => setHomeAddress(u?.home?.address ?? null)).catch(() => {});
   }, [uid]));
 

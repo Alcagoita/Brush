@@ -216,7 +216,7 @@ export const COPY = {
     settingsRowEmptySublabel: 'Not set',
     screenTitle: 'Home',
     searchPlaceholder: 'Search for your address…',
-    note: "So I know my way around your neighborhood. This stays on your device.",
+    note: "So I know my way around your neighborhood. Saved to your account — only you can see it.",
     changeButton: 'Change',
     clearButton: 'Clear',
     clearConfirmTitle: 'Clear home address?',

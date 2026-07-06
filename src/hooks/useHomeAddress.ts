@@ -24,7 +24,8 @@ export interface HomeAddressState {
   query: string;
   setQuery: (q: string) => void;
   suggestions: PlaceAutocompleteSuggestion[];
-  selectSuggestion: (s: PlaceAutocompleteSuggestion) => Promise<void>;
+  /** Resolves true on a successful save — callers should only leave search mode then, so saving/error stay visible on failure. */
+  selectSuggestion: (s: PlaceAutocompleteSuggestion) => Promise<boolean>;
   saving: boolean;
   error: string | null;
   clear: () => Promise<void>;
@@ -67,7 +68,7 @@ export function useHomeAddress(): HomeAddressState {
     justSelectedRef.current = true;
     setQuery(suggestion.name);
     setSuggestions([]);
-    if (!uid) { return; }
+    if (!uid) { return false; }
 
     setSaving(true);
     setError(null);
@@ -75,16 +76,18 @@ export function useHomeAddress(): HomeAddressState {
       const details = await getPlaceDetails(suggestion.placeId);
       if (!details) {
         setError(COPY.home.saveErrorToast);
-        return;
+        return false;
       }
       const address = [details.name, suggestion.address].filter(Boolean).join(', ');
       const next: HomeLocation = { address, lat: details.lat, lng: details.lng };
       await setHome(uid, next);
       setHomeState(next);
       setHomeLocation(next);
+      return true;
     } catch (err) {
       console.warn('[useHomeAddress] save failed', err);
       setError(COPY.home.saveErrorToast);
+      return false;
     } finally {
       setSaving(false);
     }

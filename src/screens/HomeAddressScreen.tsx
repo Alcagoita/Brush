@@ -109,7 +109,11 @@ export default function HomeAddressScreen() {
                       styles.dropdownRow,
                       i < suggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: palette.line },
                     ]}
-                    onPress={() => { selectSuggestion(s); setSearching(false); }}>
+                    onPress={async () => {
+                      const success = await selectSuggestion(s);
+                      // Stay in search mode on failure so saving/error stay visible.
+                      if (success) { setSearching(false); }
+                    }}>
                     <Text style={[styles.dropdownLabel, { color: palette.text }]}>{s.name}</Text>
                     {!!s.address && (
                       <Text style={[styles.dropdownSub, { color: palette.muted }]} numberOfLines={1}>{s.address}</Text>
@@ -153,6 +157,9 @@ export default function HomeAddressScreen() {
                 <Text style={[styles.actionLabel, { color: palette.nearText }]}>{COPY.home.clearButton}</Text>
               </Pressable>
             </View>
+
+            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel="Saving" />}
+            {!!error && <Text style={[styles.errorText, { color: palette.nearText }]}>{error}</Text>}
           </View>
         )}
 

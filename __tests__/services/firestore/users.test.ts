@@ -4,6 +4,7 @@
  * Covers:
  *   - setHome stamps updatedAt and writes the full home object
  *   - clearHome writes a deleteField() sentinel for the home key
+ *   - both reject when the given uid doesn't match the signed-in user
  */
 
 const mockUpdateDoc  = jest.fn();
@@ -19,10 +20,16 @@ jest.mock('@react-native-firebase/firestore', () => ({
   serverTimestamp:  jest.fn(() => SERVER_TIMESTAMP),
 }));
 
+let mockCurrentUser: { uid: string } | null = { uid: 'uid-1' };
+jest.mock('@react-native-firebase/auth', () => ({
+  getAuth: () => ({ get currentUser() { return mockCurrentUser; } }),
+}));
+
 import { setHome, clearHome } from '../../../src/services/firestore';
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCurrentUser = { uid: 'uid-1' };
 });
 
 describe('setHome', () => {
@@ -35,6 +42,20 @@ describe('setHome', () => {
       { _type: 'doc' },
       { home: { address: '221B Baker Street', lat: 51.5, lng: -0.1, updatedAt: SERVER_TIMESTAMP } },
     );
+  });
+
+  it('rejects when uid does not match the signed-in user', async () => {
+    mockCurrentUser = { uid: 'someone-else' };
+
+    await expect(setHome('uid-1', { address: 'x', lat: 0, lng: 0 })).rejects.toThrow();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('rejects when there is no signed-in user', async () => {
+    mockCurrentUser = null;
+
+    await expect(setHome('uid-1', { address: 'x', lat: 0, lng: 0 })).rejects.toThrow();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 });
 
@@ -49,5 +70,12 @@ describe('clearHome', () => {
       { home: { _type: 'deleteField' } },
     );
     expect(mockDeleteField).toHaveBeenCalled();
+  });
+
+  it('rejects when uid does not match the signed-in user', async () => {
+    mockCurrentUser = { uid: 'someone-else' };
+
+    await expect(clearHome('uid-1')).rejects.toThrow();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 });
