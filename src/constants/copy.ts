@@ -102,6 +102,8 @@ export const COPY = {
     footerHint:           'Just the what and the where',
     /** Fires after a successful add from either surface — never on edit. */
     confirmToast:         "Got it — I'll keep an eye out.",
+    /** KAN-249 — shown on a POI tile that's the app's inferred guess, not yet confirmed. */
+    poiSuggestionHint:    'my guess?',
   },
 
   // ─── Offline expectations messaging (KAN-236) ──────────────────────────────
