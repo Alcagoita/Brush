@@ -253,6 +253,38 @@ describe('SettingsScreen — KAN-113: LOCATION & BATTERY section', () => {
     });
     expect(mockSetStoreTuningPref).toHaveBeenCalledWith('test-uid', true);
   });
+
+  it('renders without crashing when getLowBatteryPausePref rejects on mount', async () => {
+    mockGetLowBatteryPausePref.mockRejectedValue(new Error('fetch failed'));
+    await renderScreen();
+    expect(screen.getByText('Pause nearby alerts on low battery')).toBeTruthy();
+  });
+
+  it('renders without crashing when getStoreTuningPref rejects on mount', async () => {
+    mockGetStoreTuningPref.mockRejectedValue(new Error('fetch failed'));
+    await renderScreen();
+    expect(screen.getByText('Store fine tuning')).toBeTruthy();
+  });
+
+  it('reverts the low battery toggle when setLowBatteryPausePref rejects', async () => {
+    mockSetLowBatteryPausePref.mockRejectedValue(new Error('write failed'));
+    await renderScreen();
+    const toggle = screen.getByLabelText('Pause nearby alerts on low battery toggle');
+    await act(async () => {
+      fireEvent(toggle, 'valueChange', true);
+    });
+    expect(toggle.props.value).toBe(false);
+  });
+
+  it('reverts the store tuning toggle when setStoreTuningPref rejects', async () => {
+    mockSetStoreTuningPref.mockRejectedValue(new Error('write failed'));
+    await renderScreen();
+    const toggle = screen.getByLabelText('Store fine tuning toggle');
+    await act(async () => {
+      fireEvent(toggle, 'valueChange', true);
+    });
+    expect(toggle.props.value).toBe(false);
+  });
 });
 
 // ─── IMPORT TASKS section ─────────────────────────────────────────────────────
@@ -283,6 +315,7 @@ describe('SettingsScreen — KAN-113: IMPORT TASKS section', () => {
 
 describe('SettingsScreen — KAN-113: ACCOUNT section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+  afterEach(() => { jest.restoreAllMocks(); });
 
   it('renders Sign out row', async () => {
     await renderScreen();
