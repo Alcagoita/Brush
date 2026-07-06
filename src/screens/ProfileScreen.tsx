@@ -408,7 +408,7 @@ export default function ProfileScreen() {
             <Text style={[styles.mallRowSublabel, { color: palette.muted }]}>{COPY.mallSnapshot.rowSublabel}</Text>
           </View>
           {mallSnapshotLoading ? (
-            <View style={styles.mallRowLoading} accessibilityLabel={COPY.mallSnapshot.downloadingLabel}>
+            <View style={styles.mallRowLoading} importantForAccessibility="no-hide-descendants">
               <LoadingDots color={palette.accent} size={6} />
             </View>
           ) : (

@@ -12,8 +12,9 @@
  *   - loading is true only while the async work is in flight
  */
 
+const mockGetAuth = jest.fn(() => ({ currentUser: { uid: 'test-uid' } }));
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
-  getAuth: () => ({ currentUser: { uid: 'test-uid' } }),
+  getAuth: () => mockGetAuth(),
 }));
 jest.mock('@react-native-firebase/auth', () => ({}));
 
@@ -40,12 +41,21 @@ jest.mock('../../src/services/proximity', () => ({
 const mockGetMallSnapshot = jest.fn();
 const mockDownloadMallSnapshot = jest.fn();
 const mockDeleteMallSnapshotDoc = jest.fn().mockResolvedValue(undefined);
-jest.mock('../../src/services/mallSnapshots', () => ({
-  getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
-  downloadMallSnapshot: (...args: unknown[]) => mockDownloadMallSnapshot(...args),
-  deleteMallSnapshotDoc: (...args: unknown[]) => mockDeleteMallSnapshotDoc(...args),
-  MALL_SNAPSHOT_CACHE_AREA_ID: 'mall_snapshot',
-}));
+jest.mock('../../src/services/mallSnapshots', () => {
+  class NoMallFoundError extends Error {
+    constructor() {
+      super('No shopping mall found nearby');
+      this.name = 'NoMallFoundError';
+    }
+  }
+  return {
+    getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
+    downloadMallSnapshot: (...args: unknown[]) => mockDownloadMallSnapshot(...args),
+    deleteMallSnapshotDoc: (...args: unknown[]) => mockDeleteMallSnapshotDoc(...args),
+    MALL_SNAPSHOT_CACHE_AREA_ID: 'mall_snapshot',
+    NoMallFoundError,
+  };
+});
 
 const mockShowToast = jest.fn();
 jest.mock('../../src/store/toastStore', () => ({
@@ -54,6 +64,7 @@ jest.mock('../../src/store/toastStore', () => ({
 
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import { useMallSnapshotToggle } from '../../src/hooks/useMallSnapshotToggle';
+import { NoMallFoundError } from '../../src/services/mallSnapshots';
 import { COPY } from '../../src/constants/copy';
 
 const SNAPSHOT = {
@@ -105,7 +116,7 @@ describe('toggle(true)', () => {
   });
 
   it('shows the "no mall found" toast and leaves enabled false when no mall is nearby', async () => {
-    mockDownloadMallSnapshot.mockRejectedValue(new Error('No shopping mall found nearby'));
+    mockDownloadMallSnapshot.mockRejectedValue(new NoMallFoundError());
     const { result } = renderHook(() => useMallSnapshotToggle());
 
     await act(async () => { await result.current.toggle(true); });
@@ -138,5 +149,52 @@ describe('toggle(false)', () => {
     expect(mockDeleteTripAreaPlaces).toHaveBeenCalledWith('mall_snapshot');
     expect(mockSetProximityMallSnapshot).toHaveBeenCalledWith(null);
     expect(result.current.enabled).toBe(false);
+  });
+});
+
+describe('missing uid (code review fix)', () => {
+  afterEach(() => {
+    mockGetAuth.mockImplementation(() => ({ currentUser: { uid: 'test-uid' } }));
+  });
+
+  it('turnOn is a no-op when there is no signed-in uid', async () => {
+    mockGetAuth.mockImplementation(() => ({ currentUser: null }));
+    const { result } = renderHook(() => useMallSnapshotToggle());
+
+    await act(async () => { await result.current.toggle(true); });
+
+    expect(mockGetCurrentPosition).not.toHaveBeenCalled();
+    expect(mockDownloadMallSnapshot).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('turnOff is a no-op when there is no signed-in uid', async () => {
+    mockGetAuth.mockImplementation(() => ({ currentUser: null }));
+    const { result } = renderHook(() => useMallSnapshotToggle());
+
+    await act(async () => { await result.current.toggle(false); });
+
+    expect(mockDeleteMallSnapshotDoc).not.toHaveBeenCalled();
+    expect(mockDeleteTripAreaPlaces).not.toHaveBeenCalled();
+    expect(result.current.loading).toBe(false);
+  });
+});
+
+describe('unmount safety (code review fix)', () => {
+  it('does not update state after unmount when turnOn resolves late', async () => {
+    let resolveDownload!: (snapshot: typeof SNAPSHOT) => void;
+    mockDownloadMallSnapshot.mockReturnValue(new Promise(resolve => { resolveDownload = resolve; }));
+
+    const { result, unmount } = renderHook(() => useMallSnapshotToggle());
+    let toggling!: Promise<void>;
+    act(() => { toggling = result.current.toggle(true); });
+
+    unmount();
+    resolveDownload(SNAPSHOT);
+
+    // No React "state update on an unmounted component" warning, and the
+    // resolved promise doesn't throw — the mountedRef guard swallows the
+    // late setState calls silently.
+    await expect(toggling).resolves.toBeUndefined();
   });
 });

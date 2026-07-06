@@ -24,6 +24,8 @@ const mockSetTaskDone            = jest.fn();
 const mockRunProximitySearch     = jest.fn();
 const mockGetInboxUnreadCount    = jest.fn();
 const mockGetLearnedPlaceCounts = jest.fn().mockResolvedValue([]);
+const mockGetTrips = jest.fn().mockResolvedValue([]);
+const mockGetMallSnapshot = jest.fn().mockResolvedValue(null);
 const mockSetLearnedPlaces           = jest.fn();
 const mockSetCustomCategoryPoiTypes  = jest.fn();
 const mockSetActiveTrips             = jest.fn();
@@ -41,6 +43,11 @@ jest.mock('../../src/services/firestore', () => ({
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
   getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
+  getTrips:              (...args: unknown[]) => mockGetTrips(...args),
+}));
+
+jest.mock('../../src/services/mallSnapshots', () => ({
+  getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
 }));
 
 jest.mock('../../src/services/sharing', () => ({

@@ -37,6 +37,10 @@ jest.mock('../../src/services/tripDownload', () => ({
   downloadAreaSnapshot: (...args: unknown[]) => mockDownloadAreaSnapshot(...args),
 }));
 
+jest.mock('../../src/services/proximity', () => ({
+  NEARBY_RADIUS: 400,
+}));
+
 import {
   getMallSnapshot,
   setMallSnapshotDoc,
@@ -44,6 +48,8 @@ import {
   downloadMallSnapshot,
   MALL_SNAPSHOT_CACHE_AREA_ID,
   MALL_SEARCH_RADIUS_M,
+  MALL_SNAPSHOT_DOWNLOAD_RADIUS_M,
+  NoMallFoundError,
 } from '../../src/services/mallSnapshots';
 
 beforeEach(() => {
@@ -90,7 +96,7 @@ describe('downloadMallSnapshot', () => {
 
     expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(1, 2, ['shopping_mall'], MALL_SEARCH_RADIUS_M);
     expect(mockDownloadAreaSnapshot).toHaveBeenCalledWith(
-      { lat: 1, lng: 2 }, MALL_SEARCH_RADIUS_M, MALL_SNAPSHOT_CACHE_AREA_ID, expect.any(Number), ['atm', 'cafe'],
+      { lat: 1, lng: 2 }, MALL_SNAPSHOT_DOWNLOAD_RADIUS_M, MALL_SNAPSHOT_CACHE_AREA_ID, expect.any(Number), ['atm', 'cafe'],
     );
     expect(mockSetDoc).toHaveBeenCalledWith(
       { _type: 'doc' },
@@ -98,13 +104,14 @@ describe('downloadMallSnapshot', () => {
     );
     expect(snapshot.placeId).toBe('mall-1');
     expect(snapshot.cacheAreaId).toBe(MALL_SNAPSHOT_CACHE_AREA_ID);
+    expect(snapshot.radius).toBe(MALL_SNAPSHOT_DOWNLOAD_RADIUS_M);
   });
 
-  it('throws when no shopping mall is found nearby, without ever calling downloadAreaSnapshot', async () => {
+  it('throws a typed NoMallFoundError when no shopping mall is found nearby, without ever calling downloadAreaSnapshot', async () => {
     mockSearchNearbyPlaces.mockResolvedValue({ shopping_mall: [] });
 
     await expect(downloadMallSnapshot('uid-1', { lat: 1, lng: 2 }, ['atm']))
-      .rejects.toThrow('No shopping mall found nearby');
+      .rejects.toBeInstanceOf(NoMallFoundError);
     expect(mockDownloadAreaSnapshot).not.toHaveBeenCalled();
     expect(mockSetDoc).not.toHaveBeenCalled();
   });
@@ -117,5 +124,11 @@ describe('downloadMallSnapshot', () => {
 
     await expect(downloadMallSnapshot('uid-1', { lat: 1, lng: 2 }, ['atm'])).rejects.toThrow('network down');
     expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+});
+
+describe('MALL_SNAPSHOT_DOWNLOAD_RADIUS_M (code review fix)', () => {
+  it('is at least proximity.ts\'s NEARBY_RADIUS, so cache-first coverage inside the snapshot is never narrower than a normal search window', () => {
+    expect(MALL_SNAPSHOT_DOWNLOAD_RADIUS_M).toBeGreaterThanOrEqual(400);
   });
 });

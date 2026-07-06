@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
-import { setLearnedPlaces, setCustomCategoryPoiTypes, setActiveTrips, setMallSnapshot } from '../../services/proximity';
+import { setLearnedPlaces, setCustomCategoryPoiTypes } from '../../services/proximity';
 import type { PlacesMap } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
@@ -100,13 +100,9 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     );
   }, [data.customCategories]);
 
-  useEffect(() => {
-    setActiveTrips(data.trips);
-  }, [data.trips]);
-
-  useEffect(() => {
-    setMallSnapshot(data.mallSnapshot);
-  }, [data.mallSnapshot]);
+  // setActiveTrips/setMallSnapshot (KAN-237) are fed synchronously from
+  // useTodayScreenData's loadData, not from an effect here — see that file
+  // for why (ordering vs. useProximityEngine's own effect below).
 
   // A toggle in either direction changes the completedPlaceId brush history
   // the ranking is derived from: `done: true` adds a data point, `done:

@@ -18,12 +18,30 @@ import type { MallSnapshot } from '../types';
 import { mallSnapshotRef } from './firestore/refs';
 import { searchNearbyPlaces } from './maps';
 import { downloadAreaSnapshot } from './tripDownload';
+import { NEARBY_RADIUS } from './proximity';
 
 /** Fixed — only one mall snapshot exists per user at a time. */
 export const MALL_SNAPSHOT_CACHE_AREA_ID = 'mall_snapshot';
 
-/** Radius used both to find the mall itself and to bound its POI download — matches indoorDetection.ts's own mall lookup. */
+/** Radius used to find the mall itself — matches indoorDetection.ts's own mall lookup. Deliberately smaller than the download radius below: this only needs to bracket the mall place entity, not the POIs around it. */
 export const MALL_SEARCH_RADIUS_M = 300;
+
+/**
+ * Radius used to bound the mall's POI download and the persisted snapshot's
+ * coverage. Must be >= proximity.ts's NEARBY_RADIUS — otherwise a user near
+ * the edge of the snapshot (inside MALL_SNAPSHOT_DOWNLOAD_RADIUS_M of the
+ * mall center, so cache-first is active) could have real nearby places
+ * within their own NEARBY_RADIUS search window that were never downloaded.
+ */
+export const MALL_SNAPSHOT_DOWNLOAD_RADIUS_M = Math.max(NEARBY_RADIUS, MALL_SEARCH_RADIUS_M);
+
+/** Thrown by downloadMallSnapshot when no mall is nearby — a typed signal so callers (useMallSnapshotToggle) don't need to match on the error message string. */
+export class NoMallFoundError extends Error {
+  constructor() {
+    super('No shopping mall found nearby');
+    this.name = 'NoMallFoundError';
+  }
+}
 
 /** Short-term per Google Places ToS (session/visit scale) — same order of magnitude as habitatCache's HABITAT_CACHE_STALE_MS, comfortably inside the ToS's documented ≤30-day bound. */
 export const MALL_SNAPSHOT_STALE_MS = 14 * 24 * 60 * 60 * 1_000; // 14 days
@@ -61,12 +79,12 @@ export async function downloadMallSnapshot(
 ): Promise<MallSnapshot> {
   const mallResults = await searchNearbyPlaces(center.lat, center.lng, ['shopping_mall'], MALL_SEARCH_RADIUS_M);
   const mall = mallResults.shopping_mall?.[0];
-  if (!mall) { throw new Error('No shopping mall found nearby'); }
+  if (!mall) { throw new NoMallFoundError(); }
 
   const expiresAt = Date.now() + MALL_SNAPSHOT_STALE_MS;
   await downloadAreaSnapshot(
     { lat: mall.lat, lng: mall.lng },
-    MALL_SEARCH_RADIUS_M,
+    MALL_SNAPSHOT_DOWNLOAD_RADIUS_M,
     MALL_SNAPSHOT_CACHE_AREA_ID,
     expiresAt,
     poiTypes,
@@ -77,7 +95,7 @@ export async function downloadMallSnapshot(
     name: mall.name,
     centerLat: mall.lat,
     centerLng: mall.lng,
-    radius: MALL_SEARCH_RADIUS_M,
+    radius: MALL_SNAPSHOT_DOWNLOAD_RADIUS_M,
     cacheAreaId: MALL_SNAPSHOT_CACHE_AREA_ID,
     expiresAt,
   };

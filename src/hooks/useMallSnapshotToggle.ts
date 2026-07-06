@@ -11,7 +11,7 @@
  * screen/hook split.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { getCurrentPosition } from '../services/geolocation';
@@ -23,6 +23,7 @@ import {
   downloadMallSnapshot,
   deleteMallSnapshotDoc,
   MALL_SNAPSHOT_CACHE_AREA_ID,
+  NoMallFoundError,
 } from '../services/mallSnapshots';
 import { ALL_POI_TYPES } from '../types';
 import { useToastStore } from '../store/toastStore';
@@ -40,14 +41,21 @@ export function useMallSnapshotToggle(): MallSnapshotToggleState {
   const [enabled, setEnabled] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
   useEffect(() => {
     if (!uid) { return; }
     getMallSnapshot(uid)
-      .then(snapshot => setEnabled(snapshot != null))
+      .then(snapshot => { if (mountedRef.current) { setEnabled(snapshot != null); } })
       .catch(err => console.warn('[useMallSnapshotToggle] initial load failed', err));
   }, [uid]);
 
   const turnOn = useCallback(async () => {
+    if (!uid) { return; }
     setLoading(true);
     try {
       const coords = await getCurrentPosition();
@@ -57,31 +65,32 @@ export function useMallSnapshotToggle(): MallSnapshotToggleState {
 
       const snapshot = await downloadMallSnapshot(uid, { lat: coords.lat, lng: coords.lng }, poiTypes);
       setProximityMallSnapshot(snapshot);
-      setEnabled(true);
+      if (mountedRef.current) { setEnabled(true); }
     } catch (err) {
       console.warn('[useMallSnapshotToggle] turnOn failed', err);
-      const message = err instanceof Error && err.message === 'No shopping mall found nearby'
+      const message = err instanceof NoMallFoundError
         ? COPY.mallSnapshot.noMallFoundToast
         : COPY.mallSnapshot.errorToast;
       useToastStore.getState().showToast(message);
-      setEnabled(false);
+      if (mountedRef.current) { setEnabled(false); }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) { setLoading(false); }
     }
   }, [uid]);
 
   const turnOff = useCallback(async () => {
+    if (!uid) { return; }
     setLoading(true);
     try {
       await deleteMallSnapshotDoc(uid);
       deleteTripAreaPlaces(MALL_SNAPSHOT_CACHE_AREA_ID);
       setProximityMallSnapshot(null);
-      setEnabled(false);
+      if (mountedRef.current) { setEnabled(false); }
     } catch (err) {
       console.warn('[useMallSnapshotToggle] turnOff failed', err);
       useToastStore.getState().showToast(COPY.mallSnapshot.errorToast);
     } finally {
-      setLoading(false);
+      if (mountedRef.current) { setLoading(false); }
     }
   }, [uid]);
 
