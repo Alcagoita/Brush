@@ -67,6 +67,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ─── Learned POI keywords (KAN-196) ──────────────────────────────────────
+      match /learnedPoiKeywords/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // ─── Achievements ────────────────────────────────────────────────────────
       // Any authenticated user may read achievements (KAN-105: friend comparison).
       // Only the owner may write.
