@@ -42,7 +42,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { categories } from '../theme/tokens';
+import { categories, fonts } from '../theme/tokens';
 import { PoiType, CategoryKey, Category, POI_CATALOG } from '../types';
 import { addTask } from '../services/firestore';
 import { inferPoiForQuickAdd, learnFromClassification, learnFromUserEdit } from '../services/poiLlm';
@@ -140,6 +140,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     // (poi === suggestedPoi) from a Replace (poi !== suggestedPoi); null means
     // no suggestion ever fired for this title, so no learn-back applies.
     const [suggestedPoi, setSuggestedPoi] = useState<PoiType | null>(null);
+    // The exact trimmed title the suggestion above was inferred for. Inference
+    // is skipped once the carousel is touched, so a later title edit can leave
+    // `suggestedPoi` stale relative to the title actually being submitted —
+    // learn-back at submit time is only valid when this still matches.
+    const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
     // True once the user has tapped any POI tile — drives the suggested-vs-
     // confirmed visual (a ref alone wouldn't trigger a re-render).
     const [poiTouched, setPoiTouched] = useState(false);
@@ -179,6 +184,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setCategory(null);
       setPoi(null);
       setSuggestedPoi(null);
+      setSuggestedTitle(null);
       setPoiTouched(false);
       setSubmitting(false);
       setTitleFocused(false);
@@ -203,13 +209,14 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       const timer = setTimeout(() => {
         if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
 
-        if (!trimmed) { setPoi(null); setSuggestedPoi(null); return; }
+        if (!trimmed) { setPoi(null); setSuggestedPoi(null); setSuggestedTitle(null); return; }
 
         inferPoiForQuickAdd(trimmed)
           .then(suggestion => {
             if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
             setPoi(suggestion);
             setSuggestedPoi(suggestion);
+            setSuggestedTitle(trimmed);
           })
           .catch(() => {});
       }, POI_INFERENCE_DEBOUNCE_MS);
@@ -297,9 +304,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           poi,
         });
         // KAN-249 learn-back — only meaningful when a suggestion actually
-        // fired for this title; no suggestion ever existed → today's
-        // behavior, no signal at all.
-        if (suggestedPoi) {
+        // fired for THIS title. Inference is skipped once the carousel is
+        // touched, so a title edit after that point can leave `suggestedPoi`
+        // referring to a now-unrelated title; `suggestedTitle` guards against
+        // persisting a learned mapping for the wrong keyword.
+        if (suggestedPoi && suggestedTitle === trimmed) {
           if (suggestedPoi === poi) {
             // Confirmed (tapped the suggested chip) or Ignored (saved
             // untouched) — both are a positive signal on the same mapping.
@@ -319,7 +328,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
       }
-    }, [title, category, poi, suggestedPoi, uid, submitting, resetForm]);
+    }, [title, category, poi, suggestedPoi, suggestedTitle, uid, submitting, resetForm]);
 
     const handleMoreDetails = useCallback(() => {
       handleClose();
@@ -704,7 +713,7 @@ const styles = StyleSheet.create({
   },
   poiTileHint: {
     fontSize:   9,
-    fontFamily: 'Geist-Regular',
+    fontFamily: fonts.families.regular,
     textAlign:  'center',
   },
   categoryRow: {

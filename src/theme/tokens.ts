@@ -121,6 +121,15 @@ export const fonts = {
     medium:   '500' as const,
     semibold: '600' as const,
   },
+  /** Single shared source of the per-weight linked font names — reference
+   *  these instead of a hard-coded 'Geist-Weight' string literal in a
+   *  component. Falls back to `fallback` (the platform's system font) if the
+   *  named font fails to load, same as any other RN fontFamily. */
+  families: {
+    regular:  'Geist-Regular',
+    medium:   'Geist-Medium',
+    semibold: 'Geist-SemiBold',
+  },
   /** Reusable font sizes — add to this instead of a raw literal in a component. */
   sizes: {
     /** Secondary/quiet row label (e.g. Calendar's "Going somewhere?" entry row). */

@@ -377,6 +377,27 @@ describe('KAN-249 suggested POI states', () => {
     expect(mockLearnFromClassification).not.toHaveBeenCalled();
     expect(mockLearnFromUserEdit).not.toHaveBeenCalled();
   });
+
+  it('does not fire learn-back when the title is edited after confirming a suggestion (stale suggestion)', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    fireEvent.press(screen.getByLabelText('Pharmacy')); // confirm
+
+    // Editing the title after the carousel is touched does not re-run
+    // inference (KAN-232), so `suggestedPoi` now refers to a stale title.
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin and bandages');
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockLearnFromClassification).not.toHaveBeenCalled();
+    expect(mockLearnFromUserEdit).not.toHaveBeenCalled();
+  });
 });
 
 describe('addTask submission', () => {
