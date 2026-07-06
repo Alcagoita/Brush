@@ -72,7 +72,11 @@ export default function PlacesIKnowScreen() {
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.goBack()}
+          // Not goBack() — this screen has two entry points (TripPlanner's
+          // post-download "done" flow, and CalendarScreen's trip-covered-day
+          // entry row), and goBack() would land back on whichever of those was
+          // current instead of always returning to Calendar.
+          onPress={() => navigation.navigate('Calendar')}
           accessibilityRole="button"
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
