@@ -71,14 +71,17 @@ export interface TripPlannerState {
   goBack: () => void;
 }
 
-export function useTripPlanner(onDone: () => void): TripPlannerState {
+export function useTripPlanner(onDone: () => void, initialStartDate?: string): TripPlannerState {
   const uid = getAuth().currentUser?.uid ?? '';
 
   const [step, setStep] = useState<TripPlannerStep>('destination');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
   const [destination, setDestination] = useState<ResolvedDestination | null>(null);
-  const [startDate, setStartDate] = useState<string | undefined>(undefined);
+  // Pre-filled when opened from a future Calendar day (KAN-243) — still just
+  // the dates step's normal state, so the user can change or clear it same
+  // as any other trip.
+  const [startDate, setStartDate] = useState<string | undefined>(initialStartDate);
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
   const [radiusKey, setRadiusKey] = useState<TripRadiusPreset>('town_and_around');
   const [error, setError] = useState<string | null>(null);

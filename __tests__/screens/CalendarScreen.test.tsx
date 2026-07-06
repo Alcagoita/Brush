@@ -27,10 +27,12 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+const mockNavigate = jest.fn();
+const mockGoBack   = jest.fn();
 jest.mock('@react-navigation/native', () => {
   const actualReact = require('react');
   return {
-    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    useNavigation: () => ({ navigate: (...args: unknown[]) => mockNavigate(...args), goBack: (...args: unknown[]) => mockGoBack(...args) }),
     useRoute:      () => ({ params: {} }),
     // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
     useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
@@ -294,6 +296,55 @@ describe('CalendarScreen', () => {
   it('renders an "Open today" CTA only when today is selected', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Open today')).toBeTruthy();
+  });
+
+  describe('"Going somewhere?" Trip Planner entry (KAN-243)', () => {
+    // Both the persistent row and the future-day CTA share the "Going
+    // somewhere?" label — disambiguated by their distinct accessibility labels.
+    const FUTURE_DAY_CTA_LABEL = /^Plan a trip starting/;
+
+    it('renders a persistent entry row that opens the flow with no prefill', async () => {
+      await renderScreen();
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Plan a trip'));
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('TripPlanner');
+    });
+
+    it('shows the future-day CTA in the detail card only for a future day', async () => {
+      await renderScreen();
+      // Today (the 16th) selected by default — no future-day CTA yet, only the persistent row.
+      expect(screen.queryByLabelText(FUTURE_DAY_CTA_LABEL)).toBeNull();
+      expect(screen.getAllByText('Going somewhere?')).toHaveLength(1);
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+      expect(screen.getByLabelText(FUTURE_DAY_CTA_LABEL)).toBeTruthy();
+      expect(screen.getAllByText('Going somewhere?')).toHaveLength(2);
+    });
+
+    it('does not show the future-day CTA for a past day', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
+      expect(screen.queryByLabelText(FUTURE_DAY_CTA_LABEL)).toBeNull();
+    });
+
+    it('opens the flow with that day pre-filled as the trip start when the future-day CTA is tapped', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText(FUTURE_DAY_CTA_LABEL));
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-25' });
+    });
+
+    it('leaves past/today day-tap selection behavior unchanged (still just selects the day)', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
+      expect(screen.getByText('Past')).toBeTruthy();
+      expect(mockNavigate).not.toHaveBeenCalled();
+    });
   });
 
   it('toggling a task applies the change locally and calls setTaskDone (KAN-218 — no live listener to reflect it)', async () => {
