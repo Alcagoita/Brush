@@ -80,6 +80,11 @@ const mockDb = {
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
       ] as unknown as T[];
     }
+    if (s.startsWith('SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL')) {
+      const untagged = rows.filter(r => r.cache_area_id == null);
+      const maxTs = untagged.length > 0 ? Math.max(...untagged.map(r => r.last_matched_at)) : null;
+      return [{ maxTs }] as unknown as T[];
+    }
     if (s.startsWith('SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL')) {
       return [{ count: rows.filter(r => r.cache_area_id == null).length }] as unknown as T[];
     }
@@ -203,6 +208,7 @@ import {
   enforceSizeBudget,
   findExistingPlaceId,
   hasCachedPlaces,
+  getMostRecentHabitatUpdateAt,
   deleteTripAreaPlaces,
   deleteExpiredTripPlaces,
   writeTripAreaPlaces,
@@ -627,6 +633,33 @@ describe('refreshHabitatCacheIfStale', () => {
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] refreshHabitatCacheIfStale failed', expect.any(Error));
     warnSpy.mockRestore();
   });
+
+  describe('force (KAN-241 — ContextChip manual "Refresh now")', () => {
+    it('re-fetches a type even when its OSM data is still fresh', async () => {
+      upsertPlace({ poiType: 'atm', name: 'Fresh ATM', lat: 0, lng: 0, source: { osm: 'node/1' } });
+      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm'], true);
+
+      expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    });
+
+    it('re-fetches a type even during its empty-result cooldown window', async () => {
+      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+
+      mockSearchOsmPlaces.mockClear();
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm'], true);
+      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+    });
+
+    it('still does nothing when offline, even with force', async () => {
+      mockNetInfoFetch.mockResolvedValue({ isConnected: false });
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm'], true);
+      expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe('enforceSizeBudget', () => {
@@ -899,6 +932,45 @@ describe('hasCachedPlaces (KAN-236)', () => {
     expect(hasCachedPlaces()).toBe(false);
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] hasCachedPlaces failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('getMostRecentHabitatUpdateAt (KAN-241)', () => {
+  it('returns null for an empty cache', () => {
+    expect(getMostRecentHabitatUpdateAt()).toBeNull();
+  });
+
+  it('returns the most recent last_matched_at among untagged rows', () => {
+    const dateSpy = jest.spyOn(Date, 'now');
+    dateSpy.mockReturnValue(1_000);
+    upsertPlace({ poiType: 'atm', name: 'A', lat: 0, lng: 0, source: { osm: 'node/1' } });
+    dateSpy.mockReturnValue(2_000);
+    upsertPlace({ poiType: 'cafe', name: 'B', lat: 10, lng: 10, source: { osm: 'node/2' } });
+
+    expect(getMostRecentHabitatUpdateAt()).toBe(2_000);
+    dateSpy.mockRestore();
+  });
+
+  it('excludes trip-tagged rows even when they are more recent than any untagged row', () => {
+    const dateSpy = jest.spyOn(Date, 'now');
+    dateSpy.mockReturnValue(1_000);
+    upsertPlace({ poiType: 'atm', name: 'A', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    dateSpy.mockReturnValue(9_999_999); // far more recent, but trip-tagged
+    upsertTripPlace({ poiType: 'cafe', name: 'B', lat: 10, lng: 10, source: { osm: 'node/2' }, cacheAreaId: 'trip-1', expiresAt: 9_999_999 });
+
+    expect(getMostRecentHabitatUpdateAt()).toBe(1_000);
+    dateSpy.mockRestore();
+  });
+
+  it('returns null and logs a warning instead of throwing when the DB read fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(getMostRecentHabitatUpdateAt()).toBeNull();
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] getMostRecentHabitatUpdateAt failed', expect.any(Error));
     warnSpy.mockRestore();
   });
 });

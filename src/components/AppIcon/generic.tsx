@@ -426,3 +426,16 @@ export function SuitcaseIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+// ── Cloud-off (ContextChip offline-with-coverage glyph, KAN-241) ──────────────
+export function CloudOffIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M17.5 18H6.5a4 4 0 0 1-.9-7.9 5.5 5.5 0 0 1 10.6-2.02A4.5 4.5 0 0 1 17.5 18z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Line x1="4" y1="4" x2="20" y2="20" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}

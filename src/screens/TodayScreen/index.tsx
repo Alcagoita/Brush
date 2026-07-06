@@ -48,6 +48,7 @@ import ProgressRing from '../../components/ProgressRing';
 import TaskRow from '../../components/TaskRow';
 import NearbyCard from '../../components/NearbyCard';
 import NetworkBanner from '../../components/NetworkBanner';
+import ContextChip from '../../components/ContextChip';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
 import { useNewTaskSheetStore } from '../../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
@@ -269,6 +270,7 @@ export default function TodayScreen() {
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
           onPeoplePress={() => navigation.navigate('SocialHub')}
           onAchievementsPress={() => navigation.navigate('Achievements')}
+          contextChip={<ContextChip />}
         />
       </View>
 
