@@ -41,6 +41,11 @@ jest.mock('../../src/services/habitatCache', () => ({
   deleteExpiredTripPlaces: (...args: unknown[]) => mockDeleteExpiredTripPlaces(...args),
 }));
 
+const mockGetMallSnapshot = jest.fn();
+jest.mock('../../src/services/mallSnapshots', () => ({
+  getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
+}));
+
 jest.mock('../../src/utils/date', () => ({
   todayISO: () => '2026-06-15',
 }));
@@ -99,6 +104,7 @@ beforeEach(() => {
   mockGetIncomingCount.mockResolvedValue(2);
   mockGetInboxUnreadCount.mockResolvedValue(0);
   mockGetTrips.mockResolvedValue([]);
+  mockGetMallSnapshot.mockResolvedValue(null);
   mockLoadLearnedKeywords.mockResolvedValue(undefined);
   mockRolloverIncompleteTasks.mockResolvedValue(undefined);
   mockCheckAndRunTripPreRefresh.mockResolvedValue(undefined);
@@ -210,6 +216,29 @@ describe('SplashScreen', () => {
 
       expect(useAppStore.getState().bootData).not.toBeNull();
     });
+
+    // ── Mall snapshot boot wiring (KAN-237) ──
+    it('stores the mall snapshot in boot data when one exists', async () => {
+      const snapshot = {
+        placeId: 'mall-1', name: 'Test Mall', centerLat: 1, centerLng: 2, radius: 300,
+        cacheAreaId: 'mall_snapshot', expiresAt: 0, createdAt: {},
+      };
+      mockGetMallSnapshot.mockResolvedValue(snapshot);
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.mallSnapshot).toEqual(snapshot);
+    });
+
+    it('stores a null mall snapshot when the user has none', async () => {
+      mockGetMallSnapshot.mockResolvedValue(null);
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.mallSnapshot).toBeNull();
+    });
   });
 
   describe('when user is not authenticated', () => {
@@ -230,6 +259,7 @@ describe('SplashScreen', () => {
       expect(mockGetIncomingCount).not.toHaveBeenCalled();
       expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
       expect(mockGetTrips).not.toHaveBeenCalled();
+      expect(mockGetMallSnapshot).not.toHaveBeenCalled();
       expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
       expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
       expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
@@ -269,6 +299,7 @@ describe('SplashScreen', () => {
       expect(mockGetIncomingCount).not.toHaveBeenCalled();
       expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
       expect(mockGetTrips).not.toHaveBeenCalled();
+      expect(mockGetMallSnapshot).not.toHaveBeenCalled();
       expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
       expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
       expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();

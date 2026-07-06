@@ -38,8 +38,8 @@ export const TRIP_RADIUS_PRESETS: { key: TripRadiusPreset; label: string; radius
   { key: 'region',          label: COPY.tripPlanner.radiusRegion,        radiusMeters: 40_000 },
 ];
 
-/** A larger request (16+ types, up to 40km) than the opportunistic 5km refresh has ever needed — give Overpass more time before giving up (see osmPlaces.searchOsmPlaces's timeoutMs param). */
-const TRIP_DOWNLOAD_TIMEOUT_MS = 20_000;
+/** A larger request (16+ types, up to 40km) than the opportunistic 5km refresh has ever needed — give Overpass more time before giving up (see osmPlaces.searchOsmPlaces's timeoutMs param). Shared by trip and mall snapshot downloads. */
+const AREA_DOWNLOAD_TIMEOUT_MS = 20_000;
 
 // ─── Expiry ───────────────────────────────────────────────────────────────────
 
@@ -110,42 +110,46 @@ export function formatTripSizeMb(bytes: number): string {
 // ─── Download orchestration ───────────────────────────────────────────────────
 
 /**
- * Fetches all built-in + custom-category POI types once for the given
- * center/radius and upserts every result into the habitat cache tagged with
- * this trip's cacheAreaId/expiresAt. Throws on failure — this is a
- * user-initiated, visible-progress action (unlike habitatCache's own silent
- * fire-and-forget refresh), so the screen shows a real error/retry. Uses
- * searchOsmPlacesStrict (not searchOsmPlaces) specifically so a real network
- * failure surfaces as a thrown error instead of collapsing into the same
- * empty result as "this area genuinely has no POIs" — a plain empty success
- * would otherwise persist a useless trip.
+ * Fetches all given POI types once for the given center/radius and writes
+ * every result into the habitat cache tagged with cacheAreaId/expiresAt.
+ * Throws on failure — this is a user-initiated, visible-progress action
+ * (unlike habitatCache's own silent fire-and-forget refresh), so the caller
+ * can show a real error/retry. Uses searchOsmPlacesStrict (not
+ * searchOsmPlaces) specifically so a real network failure surfaces as a
+ * thrown error instead of collapsing into the same empty result as "this
+ * area genuinely has no POIs" — a plain empty success would otherwise
+ * persist a useless area.
  *
  * Clears any rows already tagged with this cacheAreaId and repopulates them
  * in a single SQLite transaction (habitatCache.writeTripAreaPlaces) — so a
  * refresh reconciles away places that no longer exist, but a write failure
- * partway through rolls back instead of leaving a previously-good trip
+ * partway through rolls back instead of leaving a previously-good area
  * cache half-deleted. This is a foreground, user-initiated action where data
  * integrity matters, unlike habitatCache's own never-throws opportunistic
  * writes.
  *
+ * Shared by downloadTripArea (below) and mallSnapshots.ts's
+ * downloadMallSnapshot (KAN-237) — both are "download this bounded area's
+ * POIs once, tagged for cache-first proximity" with only the
+ * center/radius/cacheAreaId/expiry differing.
+ *
  * Returns the number of places written, for a confirmation state.
  */
-export async function downloadTripArea(
+export async function downloadAreaSnapshot(
   center: { lat: number; lng: number },
   radiusMeters: number,
   cacheAreaId: string,
   expiresAt: number,
-  customCategoryPoiTypes: string[],
+  poiTypes: string[],
 ): Promise<number> {
-  const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
-  const osmResults = await searchOsmPlacesStrict(center.lat, center.lng, poiTypes, radiusMeters, TRIP_DOWNLOAD_TIMEOUT_MS);
+  const osmResults = await searchOsmPlacesStrict(center.lat, center.lng, poiTypes, radiusMeters, AREA_DOWNLOAD_TIMEOUT_MS);
 
   const totalFound = poiTypes.reduce((sum, poiType) => sum + (osmResults[poiType]?.length ?? 0), 0);
   // A fetch that "succeeds" with zero places anywhere is indistinguishable
   // from a soft failure (e.g. Overpass rate-limiting with a 200) — treat it
   // as an error before touching any existing rows for this cacheAreaId, so a
   // spurious empty refresh can't wipe out an area that was working before.
-  if (totalFound === 0) { throw new Error('Trip download returned no places'); }
+  if (totalFound === 0) { throw new Error('Area download returned no places'); }
 
   const places = poiTypes.flatMap(poiType =>
     (osmResults[poiType] ?? []).map(place => ({
@@ -158,6 +162,24 @@ export async function downloadTripArea(
     })),
   );
   return writeTripAreaPlaces(cacheAreaId, expiresAt, places);
+}
+
+/**
+ * Derives the full ALL_POI_TYPES ∪ customCategoryPoiTypes union (same
+ * reasoning as proximity.ts's KAN-238 habitat-cache prefetch — a trip task
+ * is created *during* the trip, so a download filtered to today's tasks
+ * couldn't serve tomorrow's "buy sunscreen") and delegates to
+ * downloadAreaSnapshot.
+ */
+export async function downloadTripArea(
+  center: { lat: number; lng: number },
+  radiusMeters: number,
+  cacheAreaId: string,
+  expiresAt: number,
+  customCategoryPoiTypes: string[],
+): Promise<number> {
+  const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+  return downloadAreaSnapshot(center, radiusMeters, cacheAreaId, expiresAt, poiTypes);
 }
 
 /**

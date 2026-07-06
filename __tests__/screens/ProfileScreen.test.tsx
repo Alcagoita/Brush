@@ -124,6 +124,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   ShareIcon:        () => null,
   StarIcon:         () => null,
   SuitcaseIcon:     () => null,
+  BuildingIcon:     () => null,
 }));
 
 jest.mock('../../src/components/Avatar', () => {
@@ -132,7 +133,26 @@ jest.mock('../../src/components/Avatar', () => {
   return (props: object) => React.createElement(View, { testID: 'avatar', ...props });
 });
 
+jest.mock('../../src/components/LoadingDots', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return (props: object) => React.createElement(View, { testID: 'loading-dots', ...props });
+});
+
 jest.mock('../../src/components/ShareProfileSheet', () => () => null);
+
+// Mocked directly (KAN-237) — the hook pulls in getCurrentPosition, which
+// transitively imports expo-location (ESM, unparseable by this suite's jest
+// config). Screen tests only need to drive the toggle/loading/enabled surface.
+const mockToggleMallSnapshot = jest.fn();
+const mockUseMallSnapshotToggle = jest.fn(() => ({
+  enabled: false,
+  loading: false,
+  toggle: mockToggleMallSnapshot,
+}));
+jest.mock('../../src/hooks/useMallSnapshotToggle', () => ({
+  useMallSnapshotToggle: () => mockUseMallSnapshotToggle(),
+}));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
 
@@ -383,5 +403,51 @@ describe('ProfileScreen — navigation entries', () => {
     await renderScreen();
     fireEvent.press(screen.getByLabelText('Settings'));
     expect(mockNavigate).toHaveBeenCalledWith('Settings');
+  });
+});
+
+// ─── Mall snapshot toggle row (KAN-237) ───────────────────────────────────────
+
+describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDefaultMocks();
+    mockUseMallSnapshotToggle.mockReturnValue({
+      enabled: false,
+      loading: false,
+      toggle: mockToggleMallSnapshot,
+    });
+  });
+
+  it('renders the "Learn this mall" row', async () => {
+    await renderScreen();
+    expect(screen.getByText('Learn this mall')).toBeTruthy();
+  });
+
+  it('flips the toggle on when the switch is pressed', async () => {
+    await renderScreen();
+    fireEvent(screen.getByLabelText('Learn this mall'), 'valueChange', true);
+    expect(mockToggleMallSnapshot).toHaveBeenCalledWith(true);
+  });
+
+  it('reflects enabled: true with the switch on', async () => {
+    mockUseMallSnapshotToggle.mockReturnValue({
+      enabled: true,
+      loading: false,
+      toggle: mockToggleMallSnapshot,
+    });
+    await renderScreen();
+    expect(screen.getByLabelText('Learn this mall').props.value).toBe(true);
+  });
+
+  it('shows the downloading label and hides the switch while loading', async () => {
+    mockUseMallSnapshotToggle.mockReturnValue({
+      enabled: false,
+      loading: true,
+      toggle: mockToggleMallSnapshot,
+    });
+    await renderScreen();
+    expect(screen.getByText('Downloading Shopping mall data…')).toBeTruthy();
+    expect(screen.queryByLabelText('Learn this mall')).toBeNull();
   });
 });

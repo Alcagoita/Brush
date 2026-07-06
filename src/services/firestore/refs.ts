@@ -102,3 +102,8 @@ export function tripsRef(uid: string) {
 export function tripRef(uid: string, tripId: string) {
   return doc(getFirestore(), 'users', uid, 'trips', tripId);
 }
+
+/** users/{uid}/mallSnapshot/current — the single currently-active mall snapshot, if any (KAN-237). */
+export function mallSnapshotRef(uid: string) {
+  return doc(getFirestore(), 'users', uid, 'mallSnapshot', 'current');
+}

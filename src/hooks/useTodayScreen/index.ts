@@ -100,6 +100,10 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     );
   }, [data.customCategories]);
 
+  // setActiveTrips/setMallSnapshot (KAN-237) are fed synchronously from
+  // useTodayScreenData's loadData, not from an effect here — see that file
+  // for why (ordering vs. useProximityEngine's own effect below).
+
   // A toggle in either direction changes the completedPlaceId brush history
   // the ranking is derived from: `done: true` adds a data point, `done:
   // false` deletes the previous completion's completedPlace* fields

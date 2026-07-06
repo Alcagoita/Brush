@@ -67,6 +67,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ─── Mall snapshot (KAN-237) ─────────────────────────────────────────────
+      match /mallSnapshot/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // ─── POI preferences ─────────────────────────────────────────────────────
       match /pois/{poiType} {
         allow read, write: if isOwner(userId);

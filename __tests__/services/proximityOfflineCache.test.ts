@@ -114,8 +114,8 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
-import { runProximitySearch, resetProximityState, __getPendingQueue } from '../../src/services/proximity';
-import type { Task } from '../../src/types';
+import { runProximitySearch, resetProximityState, __getPendingQueue, setActiveTrips, setMallSnapshot } from '../../src/services/proximity';
+import type { Task, Trip, MallSnapshot } from '../../src/types';
 import type { NearbyPlace } from '../../src/services/maps';
 import NetInfo from '@react-native-community/netinfo';
 import { useToastStore } from '../../src/store/toastStore';
@@ -149,6 +149,25 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 
 function cachedPlace(overrides: Partial<NearbyPlace> = {}): NearbyPlace {
   return { placeId: 'hp_cached_1', name: 'Cached ATM', lat: 0.0002, lng: 0, distanceMeters: 22, ...overrides };
+}
+
+function makeTrip(overrides: Partial<Trip> = {}): Trip {
+  return {
+    id: 'trip-1', destination: 'Faro', placeRef: 'place-abc',
+    centerLat: 0, centerLng: 0, areaRadius: 5_000,
+    cacheAreaId: 'ta_1', expiresAt: Date.now() + 1_000_000,
+    createdAt: {} as unknown as Trip['createdAt'],
+    ...overrides,
+  };
+}
+
+function makeMallSnapshot(overrides: Partial<MallSnapshot> = {}): MallSnapshot {
+  return {
+    placeId: 'mall-1', name: 'Test Mall', centerLat: 0, centerLng: 0, radius: 300,
+    cacheAreaId: 'mall_snapshot', expiresAt: Date.now() + 1_000_000,
+    createdAt: {} as unknown as MallSnapshot['createdAt'],
+    ...overrides,
+  };
 }
 
 /** Flushes the fire-and-forget notification promise chain (createChannel → displayNotification). */
@@ -444,5 +463,74 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
     expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+  });
+});
+
+describe('cache-first coverage (KAN-237) — trip areas and the mall snapshot skip the live API entirely', () => {
+  afterEach(() => {
+    setActiveTrips(null);
+    setMallSnapshot(null);
+  });
+
+  it('answers from the cache with zero live API calls while inside an active trip area, even online', async () => {
+    setActiveTrips([makeTrip({ centerLat: 0, centerLng: 0, areaRadius: 5_000 })]);
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(mockQueryHabitatCache).toHaveBeenCalledWith(0, 0, ['atm'], expect.any(Number));
+    expect(onUpdate).toHaveBeenCalledWith('atm', expect.objectContaining({ placeId: 'hp_cached_1' }), expect.anything());
+  });
+
+  it('answers from the cache with zero live API calls while inside the mall snapshot, even online', async () => {
+    setMallSnapshot(makeMallSnapshot({ centerLat: 0, centerLng: 0, radius: 300 }));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(onUpdate).toHaveBeenCalledWith('atm', expect.objectContaining({ placeId: 'hp_cached_1' }), expect.anything());
+  });
+
+  it('falls through to the live API when outside any trip/mall area', async () => {
+    setActiveTrips([makeTrip({ centerLat: 10, centerLng: 10, areaRadius: 5_000 })]); // far away
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ places: [] }),
+    });
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockQueryHabitatCache).not.toHaveBeenCalled();
+  });
+
+  it('falls through to the live API when the trip has already expired', async () => {
+    setActiveTrips([makeTrip({ centerLat: 0, centerLng: 0, areaRadius: 5_000, expiresAt: Date.now() - 1_000 })]);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ places: [] }),
+    });
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a cache-first empty result proceeds through to onUpdate (confident "nothing here"), unlike the ambiguous offline-cache-miss path', async () => {
+    setActiveTrips([makeTrip({ centerLat: 0, centerLng: 0, areaRadius: 5_000 })]);
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    mockHasCachedPlaces.mockReturnValue(true); // would otherwise be eligible for the "beyond coverage" toast
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    // Must clear the hero via onUpdate, not bail out silently, and must not
+    // fire the offline "moved beyond coverage" toast — this isn't offline.
+    expect(onUpdate).toHaveBeenCalledWith(null, null, {});
+    expect(useToastStore.getState().message).toBeNull();
   });
 });

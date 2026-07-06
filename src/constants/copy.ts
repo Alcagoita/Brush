@@ -170,4 +170,13 @@ export const COPY = {
     refreshErrorToast: "Couldn't refresh — check your connection and try again.",
   },
 
+  // ─── Mall snapshot (KAN-237) ───────────────────────────────────────────────
+  mallSnapshot: {
+    rowLabel: 'Learn this mall',
+    rowSublabel: "Download this mall's places so I work here without signal.",
+    downloadingLabel: 'Downloading Shopping mall data…',
+    noMallFoundToast: "I can't find a mall nearby — try this again once you're inside one.",
+    errorToast: "Couldn't learn this mall — check your connection and try again.",
+  },
+
 } as const;

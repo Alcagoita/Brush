@@ -11,6 +11,7 @@ const makeBootData = (overrides?: Partial<BootData>): BootData => ({
   poiPrefsMap:      {},
   userData:         null,
   trips:            [],
+  mallSnapshot:     null,
   ...overrides,
 });
 
