@@ -77,6 +77,11 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ─── Learned POI keywords (KAN-196) ──────────────────────────────────────
+      match /learnedPoiKeywords/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // ─── Learned place visit counters (KAN-240) ──────────────────────────────
       match /learnedPlaceCounts/{placeId} {
         allow read, delete: if isOwner(userId);
