@@ -28,11 +28,16 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 const mockNavigate = jest.fn();
+const mockPush     = jest.fn();
 const mockGoBack   = jest.fn();
 jest.mock('@react-navigation/native', () => {
   const actualReact = require('react');
   return {
-    useNavigation: () => ({ navigate: (...args: unknown[]) => mockNavigate(...args), goBack: (...args: unknown[]) => mockGoBack(...args) }),
+    useNavigation: () => ({
+      navigate: (...args: unknown[]) => mockNavigate(...args),
+      push:     (...args: unknown[]) => mockPush(...args),
+      goBack:   (...args: unknown[]) => mockGoBack(...args),
+    }),
     useRoute:      () => ({ params: {} }),
     // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
     useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
@@ -308,7 +313,7 @@ describe('CalendarScreen', () => {
       await act(async () => {
         fireEvent.press(screen.getByLabelText('Plan a trip'));
       });
-      expect(mockNavigate).toHaveBeenCalledWith('TripPlanner');
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner');
     });
 
     it('shows the future-day CTA in the detail card only for a future day', async () => {
@@ -336,7 +341,7 @@ describe('CalendarScreen', () => {
         fireEvent.press(screen.getByLabelText(FUTURE_DAY_CTA_LABEL));
       });
 
-      expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-25' });
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-25' });
     });
 
     it('leaves past/today day-tap selection behavior unchanged (still just selects the day)', async () => {
@@ -344,6 +349,7 @@ describe('CalendarScreen', () => {
       await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
       expect(screen.getByText('Past')).toBeTruthy();
       expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
     });
   });
 

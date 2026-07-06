@@ -189,6 +189,16 @@ describe('initialStartDate prefill (KAN-243)', () => {
     const { result } = renderHook(() => useTripPlanner(jest.fn()));
     expect(result.current.startDate).toBeUndefined();
   });
+
+  it('ignores a malformed prefill instead of passing it through to the dates step', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), 'not-a-date'));
+    expect(result.current.startDate).toBeUndefined();
+  });
+
+  it('ignores a prefill with an impossible calendar date (e.g. Feb 30)', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), '2026-02-30'));
+    expect(result.current.startDate).toBeUndefined();
+  });
 });
 
 describe('radius step', () => {

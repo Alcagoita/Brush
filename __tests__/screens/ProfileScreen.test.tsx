@@ -68,10 +68,11 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 
 const mockGoBack   = jest.fn();
 const mockNavigate = jest.fn();
+const mockPush     = jest.fn();
 jest.mock('@react-navigation/native', () => {
   const actualReact = require('react');
   return {
-    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate, push: mockPush }),
     // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
     useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
   };
@@ -386,7 +387,10 @@ describe('ProfileScreen — navigation entries', () => {
     const row = screen.getByText('Going somewhere?');
     expect(row).toBeTruthy();
     fireEvent.press(row);
-    expect(mockNavigate).toHaveBeenCalledWith('TripPlanner');
+    // push (not navigate) — a fresh TripPlannerScreen instance each open, so
+    // its flow state can't go stale from a previous still-stacked visit
+    // (KAN-243 review fix).
+    expect(mockPush).toHaveBeenCalledWith('TripPlanner');
   });
 
   it('renders Settings entry row', async () => {

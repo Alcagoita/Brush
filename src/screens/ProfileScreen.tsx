@@ -388,7 +388,7 @@ export default function ProfileScreen() {
         {/* ── 2b. Trip Planner entry row (KAN-234) ── */}
         <Pressable
           style={[styles.shareRow, { backgroundColor: palette.surface, borderColor: palette.line }]}
-          onPress={() => navigation.navigate('TripPlanner')}
+          onPress={() => navigation.push('TripPlanner')}
           accessibilityRole="button"
           accessibilityLabel={COPY.tripPlanner.entryRowA11y}>
           <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
