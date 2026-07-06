@@ -64,6 +64,11 @@ jest.mock('../../src/services/firestore', () => ({
   getCategories: (...args: unknown[]) => mockGetCategories(...args),
 }));
 
+const mockRefreshTripArea = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/tripDownload', () => ({
+  refreshTripArea: (...args: unknown[]) => mockRefreshTripArea(...args),
+}));
+
 jest.mock('@react-native-firebase/auth/lib/modular', () => ({
   getAuth: () => ({ currentUser: { uid: 'test-uid' } }),
 }));
@@ -74,7 +79,49 @@ beforeEach(() => {
   mockGetMostRecentHabitatUpdateAt.mockReturnValue(null);
   mockGetCategories.mockResolvedValue([]);
   mockGetLastSearchCoords.mockReturnValue({ lat: 1, lng: 2 });
+  mockRefreshTripArea.mockResolvedValue(undefined);
+  mockUseOfflineCoverage.mockReturnValue({ offline: false, hasCache: false });
 });
+
+// ─── Fixtures (KAN-242) ────────────────────────────────────────────────────────
+
+function isoDaysFromNow(offset: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + offset);
+  return d.toISOString().slice(0, 10);
+}
+
+function makeMallContext(overrides: Partial<{ name: string }> = {}) {
+  return {
+    kind: 'mall' as const,
+    snapshot: {
+      placeId: 'mall-1',
+      name: overrides.name ?? 'Colombo',
+      centerLat: 0, centerLng: 0, radius: 300,
+      cacheAreaId: 'mall_snapshot',
+      expiresAt: Date.now() + 1_000_000,
+      createdAt: { toMillis: () => Date.now() } as never,
+    },
+  };
+}
+
+function makeTripContext(overrides: Partial<{ destination: string; startDate?: string; endDate?: string }> = {}) {
+  return {
+    kind: 'trip' as const,
+    trip: {
+      id: 'trip-1',
+      destination: overrides.destination ?? 'Faro',
+      placeRef: 'place-1',
+      centerLat: 0, centerLng: 0,
+      startDate: overrides.startDate ?? isoDaysFromNow(-1),
+      endDate: overrides.endDate ?? isoDaysFromNow(10),
+      areaRadius: 5_000,
+      cacheAreaId: 'ta_1',
+      expiresAt: Date.now() + 1_000_000,
+      createdAt: {} as never,
+    },
+  };
+}
 
 describe('ContextChip — the 4 situations', () => {
   it('renders nothing when online (situation #1)', () => {
@@ -236,5 +283,72 @@ describe('ContextChip — Refresh (shown once back online, mid-sheet)', () => {
     });
 
     expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
+  });
+});
+
+describe('ContextChip — mall context (KAN-242)', () => {
+  it('shows the mall chip with the mall name instead of the offline glyph', () => {
+    render(<ContextChip placeContext={makeMallContext({ name: 'Colombo' })} />);
+    expect(screen.getByLabelText(COPY.contextChip.mallChipA11y('Colombo'))).toBeTruthy();
+    expect(screen.getByText('· Colombo')).toBeTruthy();
+    expect(screen.queryByLabelText(COPY.contextChip.offlineGlyphA11y)).toBeNull();
+  });
+
+  it('opens a sheet with the mall title and no refresh action', async () => {
+    render(<ContextChip placeContext={makeMallContext({ name: 'Colombo' })} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.mallChipA11y('Colombo')));
+    });
+    expect(screen.getByText(COPY.contextChip.mallSheetTitle('Colombo'))).toBeTruthy();
+    expect(screen.getByText(COPY.contextChip.placeSheetCoverageLine, { exact: false })).toBeTruthy();
+    expect(screen.queryByLabelText(COPY.contextChip.refreshButton)).toBeNull();
+  });
+
+  it('shows the offline dot modifier on the mall chip when offline (not the standalone glyph)', () => {
+    mockUseOfflineCoverage.mockReturnValue({ offline: true, hasCache: true });
+    render(<ContextChip placeContext={makeMallContext()} />);
+    expect(screen.getByLabelText(COPY.contextChip.offlineDotA11y)).toBeTruthy();
+    expect(screen.queryByLabelText(COPY.contextChip.offlineGlyphA11y)).toBeNull();
+  });
+});
+
+describe('ContextChip — trip context (KAN-242)', () => {
+  it('shows the trip chip with the destination instead of the offline glyph', () => {
+    render(<ContextChip placeContext={makeTripContext({ destination: 'Faro' })} />);
+    expect(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro'))).toBeTruthy();
+    expect(screen.getByText('· Faro')).toBeTruthy();
+  });
+
+  it('opens a sheet with the trip title, dates, and a working refresh action', async () => {
+    render(<ContextChip placeContext={makeTripContext({ destination: 'Faro' })} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro')));
+    });
+    expect(screen.getByText(COPY.contextChip.tripSheetTitle('Faro'))).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.refreshButton));
+    });
+    expect(mockRefreshTripArea).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not show the trip chip once today is outside the trip dates', () => {
+    render(<ContextChip placeContext={makeTripContext({ startDate: isoDaysFromNow(-10), endDate: isoDaysFromNow(-2) })} />);
+    expect(screen.queryByLabelText(COPY.contextChip.tripChipA11y('Faro'))).toBeNull();
+  });
+
+  it('shows the trip chip for a dateless trip', () => {
+    render(<ContextChip placeContext={makeTripContext({ startDate: undefined, endDate: undefined })} />);
+    expect(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro'))).toBeTruthy();
+  });
+
+  it('disables the refresh button while offline', async () => {
+    mockUseOfflineCoverage.mockReturnValue({ offline: true, hasCache: true });
+    render(<ContextChip placeContext={makeTripContext({ destination: 'Faro' })} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro')));
+    });
+    const refreshBtn = screen.getByLabelText(COPY.contextChip.refreshButton);
+    expect(refreshBtn.props.accessibilityState?.disabled ?? refreshBtn.props.disabled).toBeTruthy();
   });
 });

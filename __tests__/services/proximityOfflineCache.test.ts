@@ -114,7 +114,7 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
-import { runProximitySearch, resetProximityState, __getPendingQueue, setActiveTrips, setMallSnapshot } from '../../src/services/proximity';
+import { runProximitySearch, resetProximityState, __getPendingQueue, setActiveTrips, setMallSnapshot, setPlaceContextTap } from '../../src/services/proximity';
 import type { Task, Trip, MallSnapshot } from '../../src/types';
 import type { NearbyPlace } from '../../src/services/maps';
 import NetInfo from '@react-native-community/netinfo';
@@ -532,5 +532,51 @@ describe('cache-first coverage (KAN-237) — trip areas and the mall snapshot sk
     // fire the offline "moved beyond coverage" toast — this isn't offline.
     expect(onUpdate).toHaveBeenCalledWith(null, null, {});
     expect(useToastStore.getState().message).toBeNull();
+  });
+});
+
+describe('place context tap (KAN-242) — feeds the header ContextChip, mall-first on overlap', () => {
+  afterEach(() => {
+    setActiveTrips(null);
+    setMallSnapshot(null);
+    setPlaceContextTap(null);
+  });
+
+  it('reports the mall when both an active trip and the mall snapshot cover the same position', () => {
+    const trip = makeTrip({ centerLat: 0, centerLng: 0, areaRadius: 5_000 });
+    const mall = makeMallSnapshot({ centerLat: 0, centerLng: 0, radius: 300 });
+    setActiveTrips([trip]);
+    setMallSnapshot(mall);
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+
+    return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
+      expect(tap).toHaveBeenCalledWith({ kind: 'mall', snapshot: mall });
+    });
+  });
+
+  it('reports the trip when only a trip area covers the position', () => {
+    const trip = makeTrip({ centerLat: 0, centerLng: 0, areaRadius: 5_000 });
+    setActiveTrips([trip]);
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+
+    return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
+      expect(tap).toHaveBeenCalledWith({ kind: 'trip', trip });
+    });
+  });
+
+  it('reports null when neither a trip nor the mall snapshot covers the position', () => {
+    setActiveTrips([makeTrip({ centerLat: 10, centerLng: 10, areaRadius: 5_000 })]); // far away
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => ({ places: [] }) });
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+
+    return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
+      expect(tap).toHaveBeenCalledWith(null);
+    });
   });
 });

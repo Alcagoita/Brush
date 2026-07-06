@@ -16,8 +16,9 @@ import {
   runProximitySearch,
   getLastSearchCoords,
   setLocationTap,
+  setPlaceContextTap,
 } from '../../services/proximity';
-import type { PlacesMap } from '../../services/proximity';
+import type { PlacesMap, PlaceContext } from '../../services/proximity';
 import { getDistanceMeters } from '../../services/maps';
 import type { NearbyPlace } from '../../services/maps';
 import {
@@ -45,6 +46,8 @@ export interface ProximityEngine {
   /** Mirror of nearbyPlace for stable callbacks (e.g. useTaskCompletion, KAN-226). */
   nearbyPlaceRef:     React.RefObject<NearbyPlace | null>;
   poiPlaces:          PlacesMap;
+  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip. */
+  placeContext:       PlaceContext;
   locationUnavailable: boolean;
   storeTuningActive:      boolean;
   showStoreTuningPrompt:  boolean;
@@ -75,6 +78,7 @@ export function useProximityEngine(
   const [nearbyPlace,         setNearbyPlace]         = useState<NearbyPlace | null>(null);
   const nearbyPlaceRef = useRef<NearbyPlace | null>(null);
   const [poiPlaces,           setPoiPlaces]           = useState<PlacesMap>({});
+  const [placeContext,        setPlaceContext]        = useState<PlaceContext>(null);
   const [locationUnavailable, setLocationUnavailable] = useState(false);
 
   // ── Battery level (KAN-52) — read on foreground only; not used for pausing ──
@@ -138,9 +142,11 @@ export function useProximityEngine(
     });
 
     setLocationTap((lat, lng, accuracy) => { feedLocation(lat, lng, accuracy); });
+    setPlaceContextTap(setPlaceContext);
 
     return () => {
       setLocationTap(null);
+      setPlaceContextTap(null);
       stopTuning();
       stopDetection();
     };
@@ -318,6 +324,7 @@ export function useProximityEngine(
     nearbyPlace,
     nearbyPlaceRef,
     poiPlaces,
+    placeContext,
     locationUnavailable,
     storeTuningActive: isStoreTuningActive,
     showStoreTuningPrompt: storeTuningState === 'prompt_shown',

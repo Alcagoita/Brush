@@ -151,10 +151,11 @@ export const COPY = {
     deleteCancelAction:  'Keep it',
   },
 
-  // ─── Context chip (KAN-241) ────────────────────────────────────────────────
+  // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
   // Never say "mode"/"cache"/"snapshot" here — same first-person voice as
-  // offline/tripPlanner above. This ticket only ever shows the offline glyph;
-  // the sheet copy stays area-name-agnostic (no reverse geocoding available).
+  // offline/tripPlanner above. The offline glyph's sheet copy stays
+  // area-name-agnostic (no reverse geocoding available); the mall/trip sheets
+  // can name the place since it's a destination the user chose themselves.
   contextChip: {
     offlineGlyphA11y: 'Offline — I know this area',
     closeSheetA11y: 'Close sheet',
@@ -168,6 +169,16 @@ export const COPY = {
     refreshButton:    'Refresh now',
     refreshingLabel:  'Refreshing…',
     refreshErrorToast: "Couldn't refresh — check your connection and try again.",
+
+    // KAN-242 — mall/trip place contexts.
+    mallChipA11y: (name: string) => `In ${name} — tap for details`,
+    tripChipA11y: (destination: string) => `In ${destination} — tap for details`,
+    offlineDotA11y: 'Offline',
+    mallSheetTitle: (name: string) => `While you're at ${name}`,
+    tripSheetTitle: (destination: string) => `While you're in ${destination}`,
+    placeSheetCoverageLine: "I've learned the places around here.",
+    mallSheetFreshnessLine: (date: string) => `Last learned ${date}`,
+    placeRefreshErrorToast: "Couldn't refresh — check your connection and try again.",
   },
 
   // ─── Mall snapshot (KAN-237) ───────────────────────────────────────────────
