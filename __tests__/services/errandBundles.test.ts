@@ -13,15 +13,24 @@
 interface MockDismissalRow { day: string; bundle_key: string }
 
 let dismissalRows: MockDismissalRow[] = [];
+let getAllSyncShouldThrow = false;
+let runSyncShouldThrow = false;
 
 const mockDismissalDb = {
   execSync: jest.fn(),
   getAllSync: jest.fn((sql: string, params: unknown[] = []) => {
+    if (getAllSyncShouldThrow) { throw new Error('getAllSync boom'); }
+    const s = sql.replace(/\s+/g, ' ').trim();
+    if (s.startsWith('SELECT bundle_key FROM dismissed_bundles WHERE day = ?')) {
+      const [day] = params as [string];
+      return dismissalRows.filter(r => r.day === day).map(r => ({ bundle_key: r.bundle_key }));
+    }
     const [day, bundleKey] = params as [string, string];
     const hit = dismissalRows.some(r => r.day === day && r.bundle_key === bundleKey);
     return hit ? [{ one: 1 }] : [];
   }),
   runSync: jest.fn((sql: string, params: unknown[] = []) => {
+    if (runSyncShouldThrow) { throw new Error('runSync boom'); }
     const [day, bundle_key] = params as [string, string];
     dismissalRows = dismissalRows.filter(r => !(r.day === day && r.bundle_key === bundle_key));
     dismissalRows.push({ day, bundle_key });
@@ -43,6 +52,7 @@ import {
   errandBundleKey,
   isBundleDismissedToday,
   dismissBundleForToday,
+  getDismissedBundleKeysToday,
   __resetErrandBundleDb,
   ERRAND_BUNDLE_RADIUS_M,
 } from '../../src/services/errandBundles';
@@ -71,6 +81,8 @@ function lngOffset(meters: number): number {
 beforeEach(() => {
   jest.clearAllMocks();
   dismissalRows = [];
+  getAllSyncShouldThrow = false;
+  runSyncShouldThrow = false;
   mockTodayISO.mockReturnValue('2026-07-06');
   __resetErrandBundleDb();
 });
@@ -153,6 +165,27 @@ describe('computeErrandBundles — anchor selection & threshold', () => {
     };
     expect(computeErrandBundles(tasks, poiPlaces)).toEqual([]);
   });
+
+  it('when the same task set is reachable via multiple anchors, keeps the anchor with the shortest total walk distance', () => {
+    const tasks = [
+      makeTask({ id: 't1', poi: 'atm' }),
+      makeTask({ id: 't2', poi: 'pharmacy' }),
+    ];
+    // Two atm candidates both sit within radius of the one pharmacy
+    // candidate, so the same {t1,t2} set is reachable from either anchor —
+    // atm-close (50 m from pharmacy) must win over atm-far (400 m).
+    const poiPlaces: PlacesMap = {
+      atm: [
+        makePlace({ placeId: 'atm-far', lat: 0, lng: 0 }),
+        makePlace({ placeId: 'atm-close', lat: 0, lng: lngOffset(350) }),
+      ],
+      pharmacy: [makePlace({ placeId: 'pharm-1', lat: 0, lng: lngOffset(400) })],
+    };
+
+    const bundles = computeErrandBundles(tasks, poiPlaces);
+    expect(bundles).toHaveLength(1);
+    expect(bundles[0].anchor.placeId).toBe('atm-close');
+  });
 });
 
 describe('computeErrandBundles — ranking', () => {
@@ -216,6 +249,39 @@ describe('bundle dismissal', () => {
     dismissBundleForToday('anchor-1');
     mockTodayISO.mockReturnValue('2026-07-07');
     expect(isBundleDismissedToday('anchor-1')).toBe(false);
+  });
+
+  it('isBundleDismissedToday degrades to "not dismissed" when the DB read throws', () => {
+    dismissBundleForToday('anchor-1');
+    getAllSyncShouldThrow = true;
+    expect(isBundleDismissedToday('anchor-1')).toBe(false);
+  });
+
+  it('dismissBundleForToday never throws when the DB write fails', () => {
+    runSyncShouldThrow = true;
+    expect(() => dismissBundleForToday('anchor-1')).not.toThrow();
+  });
+});
+
+describe('getDismissedBundleKeysToday', () => {
+  it('returns every key dismissed today, ignoring other days', () => {
+    dismissBundleForToday('anchor-1');
+    dismissBundleForToday('anchor-2');
+    mockTodayISO.mockReturnValue('2026-07-07');
+    dismissBundleForToday('anchor-3');
+    mockTodayISO.mockReturnValue('2026-07-06');
+
+    expect(getDismissedBundleKeysToday()).toEqual(new Set(['anchor-1', 'anchor-2']));
+  });
+
+  it('returns an empty set when nothing is dismissed', () => {
+    expect(getDismissedBundleKeysToday()).toEqual(new Set());
+  });
+
+  it('degrades to an empty set when the DB read throws', () => {
+    dismissBundleForToday('anchor-1');
+    getAllSyncShouldThrow = true;
+    expect(getDismissedBundleKeysToday()).toEqual(new Set());
   });
 });
 

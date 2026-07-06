@@ -72,7 +72,9 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
 
   const handleOpenAnchor = () => {
     logTap('errand_bundle_open_maps');
-    openInMaps(bundle.anchor.lat, bundle.anchor.lng, anchorName);
+    openInMaps(bundle.anchor.lat, bundle.anchor.lng, anchorName).catch(err => {
+      console.warn('[ErrandBundleCard] openInMaps failed', err);
+    });
   };
 
   return (
@@ -93,7 +95,7 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
         <Pressable
           style={styles.dismissBtn}
           onPress={() => { logTap('errand_bundle_dismiss'); onDismiss(); }}
-          hitSlop={8}
+          hitSlop={7}
           accessibilityRole="button"
           accessibilityLabel={COPY.errandBundle.dismissA11y}>
           <CloseIcon color={palette.faint} size={14} />
@@ -107,7 +109,7 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
               style={StyleSheet.absoluteFill}
               onPress={() => setSheetOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel={COPY.contextChip.closeSheetA11y}
+              accessibilityLabel={COPY.errandBundle.closeSheetA11y}
             />
           </Animated.View>
 
@@ -196,13 +198,17 @@ const styles = StyleSheet.create({
     flexShrink:     0,
   },
   cardText: {
-    flex:       1,
-    fontSize:   13,
-    fontFamily: 'Geist-Regular',
-    lineHeight: 18,
+    flex:        1,
+    fontSize:    13,
+    fontFamily:  'Geist-Regular',
+    lineHeight:  18,
+    fontVariant: ['tabular-nums'],
   },
   dismissBtn: {
-    padding: 4,
+    width:          30,
+    height:         30,
+    alignItems:     'center',
+    justifyContent: 'center',
   },
 
   scrim: {
@@ -250,7 +256,7 @@ const styles = StyleSheet.create({
   },
   rowText: { flex: 1, minWidth: 0 },
   rowTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
-  rowSub:   { fontSize: 13, fontFamily: 'Geist-Regular', marginTop: 2 },
+  rowSub:   { fontSize: 13, fontFamily: 'Geist-Regular', marginTop: 2, fontVariant: ['tabular-nums'] },
 
   mapsBtn: {
     alignItems:        'center',

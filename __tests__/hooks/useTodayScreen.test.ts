@@ -56,6 +56,7 @@ jest.mock('../../src/services/errandBundles', () => ({
   computeErrandBundles: jest.fn().mockReturnValue([]),
   errandBundleKey: (bundle: { anchor: { placeId: string } }) => bundle.anchor.placeId,
   isBundleDismissedToday: jest.fn().mockReturnValue(false),
+  getDismissedBundleKeysToday: jest.fn().mockReturnValue(new Set()),
   dismissBundleForToday: jest.fn(),
 }));
 

@@ -203,6 +203,7 @@ export const COPY = {
     sheetTitle: (anchorName: string) => `Near ${anchorName}`,
     sheetIntro: 'These can happen close together — see what fits, in whatever order suits you.',
     closeA11y: 'Close',
+    closeSheetA11y: 'Close sheet',
     openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
   },
 

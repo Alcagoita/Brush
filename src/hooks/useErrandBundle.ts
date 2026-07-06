@@ -7,17 +7,26 @@
  * today; dismissing hides it immediately (local state) and persists the
  * hide via errandBundles.ts's SQLite table so it survives a re-render/
  * app restart within the same calendar day.
+ *
+ * Dismissed keys are loaded once per calendar day (on mount, and again only
+ * if `todayISO()` has actually changed since) rather than doing a sync
+ * SQLite read per candidate bundle on every proximity tick — keeps the
+ * per-tick bundle-selection memo pure in-memory work, and keeps the
+ * in-memory dismissal state itself day-scoped (review fix: it previously
+ * never reloaded, so a dismissal from before midnight could stay applied
+ * after the day rolled over).
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   computeErrandBundles,
   dismissBundleForToday,
   errandBundleKey,
-  isBundleDismissedToday,
+  getDismissedBundleKeysToday,
 } from '../services/errandBundles';
 import type { ErrandBundle } from '../services/errandBundles';
 import type { PlacesMap } from '../services/proximity';
 import type { Task } from '../types';
+import { todayISO } from '../utils/date';
 
 export interface ErrandBundleState {
   bundle: ErrandBundle | null;
@@ -26,15 +35,21 @@ export interface ErrandBundleState {
 
 export function useErrandBundle(tasks: Task[], poiPlaces: PlacesMap): ErrandBundleState {
   const [dismissedKeys, setDismissedKeys] = useState<ReadonlySet<string>>(() => new Set());
+  const loadedDayRef = useRef<string | null>(null);
 
   const bundles = useMemo(() => computeErrandBundles(tasks, poiPlaces), [tasks, poiPlaces]);
 
+  useEffect(() => {
+    const today = todayISO();
+    if (loadedDayRef.current !== today) {
+      loadedDayRef.current = today;
+      setDismissedKeys(getDismissedBundleKeysToday());
+    }
+  }, [bundles]);
+
   const bundle = useMemo(() => {
     for (const candidate of bundles) {
-      const key = errandBundleKey(candidate);
-      if (dismissedKeys.has(key)) { continue; }
-      if (isBundleDismissedToday(key)) { continue; }
-      return candidate;
+      if (!dismissedKeys.has(errandBundleKey(candidate))) { return candidate; }
     }
     return null;
   }, [bundles, dismissedKeys]);

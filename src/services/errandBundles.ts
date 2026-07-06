@@ -85,13 +85,20 @@ export function computeErrandBundles(tasks: Task[], poiPlaces: PlacesMap): Erran
 
     // Same participating task set can surface from multiple candidate anchors
     // (e.g. two nearby places both within radius of the same tasks) — keep
-    // only the first one found for that exact set; ranking below picks the
-    // best set, not the best anchor within an already-covered set.
+    // the one with the shortest total walk distance (ties broken by placeId
+    // so the choice is deterministic regardless of allCandidates' iteration
+    // order, not just "whichever was found first" — that also matters here
+    // since errandBundleKey() is the anchor's placeId, so an unstable choice
+    // would make a persisted dismissal silently stop applying).
     const taskSetKey = entries.map(e => e.task.id).sort().join(',');
-    if (bundlesByTaskSet.has(taskSetKey)) { continue; }
-
     const totalWalkDistanceMeters = entries.reduce((sum, e) => sum + e.distanceToAnchorMeters, 0);
-    bundlesByTaskSet.set(taskSetKey, { anchor, entries, totalWalkDistanceMeters });
+    const existing = bundlesByTaskSet.get(taskSetKey);
+    const isBetter = !existing
+      || totalWalkDistanceMeters < existing.totalWalkDistanceMeters
+      || (totalWalkDistanceMeters === existing.totalWalkDistanceMeters && anchor.placeId < existing.anchor.placeId);
+    if (isBetter) {
+      bundlesByTaskSet.set(taskSetKey, { anchor, entries, totalWalkDistanceMeters });
+    }
   }
 
   return [...bundlesByTaskSet.values()].sort((a, b) =>
@@ -135,6 +142,25 @@ export function isBundleDismissedToday(bundleKey: string): boolean {
   } catch (err) {
     console.warn('[errandBundles] isBundleDismissedToday failed', err);
     return false;
+  }
+}
+
+/**
+ * All bundle keys dismissed today, in one query — used by useErrandBundle to
+ * load dismissal state once (on mount and again only if the calendar day
+ * rolls over) instead of running a sync SQLite read per candidate bundle on
+ * every proximity tick. Never throws — a DB failure means "nothing dismissed".
+ */
+export function getDismissedBundleKeysToday(): ReadonlySet<string> {
+  try {
+    const rows = getDismissalDb().getAllSync<{ bundle_key: string }>(
+      'SELECT bundle_key FROM dismissed_bundles WHERE day = ?',
+      [todayISO()],
+    );
+    return new Set(rows.map(r => r.bundle_key));
+  } catch (err) {
+    console.warn('[errandBundles] getDismissedBundleKeysToday failed', err);
+    return new Set();
   }
 }
 

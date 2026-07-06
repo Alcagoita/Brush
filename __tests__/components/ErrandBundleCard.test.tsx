@@ -122,4 +122,20 @@ describe('ErrandBundleCard', () => {
     expect(screen.queryByText(COPY.errandBundle.sheetTitle('Mercado da Vila'))).toBeNull();
     jest.useRealTimers();
   });
+
+  it('closes the sheet when the scrim is pressed', async () => {
+    jest.useFakeTimers();
+    render(<ErrandBundleCard bundle={makeBundle()} onDismiss={jest.fn()} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
+    });
+    expect(screen.getByText(COPY.errandBundle.sheetTitle('Mercado da Vila'))).toBeTruthy();
+
+    act(() => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.closeSheetA11y));
+    });
+    act(() => { jest.advanceTimersByTime(200); });
+    expect(screen.queryByText(COPY.errandBundle.sheetTitle('Mercado da Vila'))).toBeNull();
+    jest.useRealTimers();
+  });
 });
