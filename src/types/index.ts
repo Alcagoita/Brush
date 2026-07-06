@@ -84,6 +84,17 @@ export interface User {
      */
     storeTuningEnabled?: boolean;
   };
+  /**
+   * Explicit home anchor (KAN-247) — set by the user in Settings, never
+   * inferred. Optional; absent when the user hasn't set (or has cleared) it.
+   * Never used server-side.
+   */
+  home?: {
+    address: string;
+    lat: number;
+    lng: number;
+    updatedAt: FirebaseFirestoreTypes.Timestamp;
+  };
 }
 
 // ─── POI ──────────────────────────────────────────────────────────────────────

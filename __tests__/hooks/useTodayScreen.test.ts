@@ -30,6 +30,7 @@ const mockSetLearnedPlaces           = jest.fn();
 const mockSetCustomCategoryPoiTypes  = jest.fn();
 const mockSetActiveTrips             = jest.fn();
 const mockSetMallSnapshot            = jest.fn();
+const mockSetHomeLocation            = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
@@ -105,6 +106,10 @@ jest.mock('../../src/services/proximity', () => ({
   setCustomCategoryPoiTypes:     (...args: unknown[]) => mockSetCustomCategoryPoiTypes(...args),
   setActiveTrips:                (...args: unknown[]) => mockSetActiveTrips(...args),
   setMallSnapshot:               (...args: unknown[]) => mockSetMallSnapshot(...args),
+}));
+
+jest.mock('../../src/services/home', () => ({
+  setHomeLocation: (...args: unknown[]) => mockSetHomeLocation(...args),
 }));
 
 jest.mock('../../src/services/maps', () => ({
@@ -295,6 +300,34 @@ describe('useTodayScreen — cache-first proximity boot wiring (KAN-237)', () =>
 
     expect(mockSetActiveTrips).toHaveBeenCalledWith([]);
     expect(mockSetMallSnapshot).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('useTodayScreen — home anchor wiring (KAN-247)', () => {
+  it('feeds home.ts with null when the user has no home anchor set', async () => {
+    mockGetUser.mockResolvedValue(null);
+
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetHomeLocation).toHaveBeenCalledWith(null);
+  });
+
+  it('feeds home.ts with the user\'s home anchor when one is set', async () => {
+    const home = { address: '221B Baker Street', lat: 51.5, lng: -0.1 };
+    mockGetUser.mockResolvedValue({ home });
+
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetHomeLocation).toHaveBeenCalledWith(home);
+  });
+
+  it('clears home.ts when uid is undefined', async () => {
+    renderHook(() => useTodayScreen(undefined));
+    await act(async () => {});
+
+    expect(mockSetHomeLocation).toHaveBeenCalledWith(null);
   });
 });
 

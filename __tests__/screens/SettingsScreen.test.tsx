@@ -4,7 +4,7 @@
  * Covers:
  *   - All 5 sections render (TASKS, APPEARANCE, LOCATION & BATTERY, IMPORT TASKS, ACCOUNT)
  *   - Settings rows: Manage Categories, Notification Preferences, Dark mode,
- *     Pause nearby alerts, Store fine tuning, import rows, Sign out
+ *     Pause nearby alerts, Home (KAN-247), import rows, Sign out
  *   - Dark mode toggle calls setDark
  *   - Low battery pref: fetched once on mount + optimistic update on toggle
  *   - Sign out triggers confirmation Alert
@@ -20,15 +20,13 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 const mockGetLowBatteryPausePref = jest.fn();
 const mockSetLowBatteryPausePref = jest.fn();
-const mockGetStoreTuningPref     = jest.fn();
-const mockSetStoreTuningPref     = jest.fn();
 const mockLogout                 = jest.fn();
+const mockGetUser                = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getLowBatteryPausePref: (...args: unknown[]) => mockGetLowBatteryPausePref(...args),
   setLowBatteryPausePref: (...args: unknown[]) => mockSetLowBatteryPausePref(...args),
-  getStoreTuningPref:     (...args: unknown[]) => mockGetStoreTuningPref(...args),
-  setStoreTuningPref:     (...args: unknown[]) => mockSetStoreTuningPref(...args),
+  getUser:                (...args: unknown[]) => mockGetUser(...args),
 }));
 
 jest.mock('../../src/services/auth', () => ({
@@ -52,6 +50,9 @@ const mockGoBack   = jest.fn();
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+  // Real useFocusEffect re-runs on every focus; a plain mount-effect is
+  // enough here since these tests never leave/re-enter the screen.
+  useFocusEffect: (callback: () => void) => require('react').useEffect(callback, []),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -91,11 +92,11 @@ jest.mock('react-native-svg', () => {
 jest.mock('../../src/components/AppIcon', () => ({
   BatteryIcon:      () => null,
   BellIcon:         () => null,
-  BuildingIcon:     () => null,
   CalendarIcon:     () => null,
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
   GridIcon:         () => null,
+  HomeIcon:         () => null,
   ListCheckIcon:    () => null,
   LogOutIcon:       () => null,
   MoonIcon:         () => null,
@@ -110,15 +111,14 @@ import SettingsScreen from '../../src/screens/SettingsScreen';
 
 function setupDefaultMocks() {
   mockGetLowBatteryPausePref.mockResolvedValue(false);
-  mockGetStoreTuningPref.mockResolvedValue(undefined);
   mockSetLowBatteryPausePref.mockResolvedValue(undefined);
-  mockSetStoreTuningPref.mockResolvedValue(undefined);
   mockLogout.mockResolvedValue(undefined);
+  mockGetUser.mockResolvedValue(null);
 }
 
 async function renderScreen() {
   const result = render(<SettingsScreen />);
-  await act(async () => {}); // flush the getLowBatteryPausePref/getStoreTuningPref promises
+  await act(async () => {}); // flush the getLowBatteryPausePref/getUser promises
   return result;
 }
 
@@ -240,30 +240,10 @@ describe('SettingsScreen — KAN-113: LOCATION & BATTERY section', () => {
     expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', true);
   });
 
-  it('renders Store fine tuning row', async () => {
-    await renderScreen();
-    expect(screen.getByText('Store fine tuning')).toBeTruthy();
-  });
-
-  it('calls setStoreTuningPref when toggle is pressed', async () => {
-    await renderScreen();
-    const toggle = screen.getByLabelText('Store fine tuning toggle');
-    await act(async () => {
-      fireEvent(toggle, 'valueChange', true);
-    });
-    expect(mockSetStoreTuningPref).toHaveBeenCalledWith('test-uid', true);
-  });
-
   it('renders without crashing when getLowBatteryPausePref rejects on mount', async () => {
     mockGetLowBatteryPausePref.mockRejectedValue(new Error('fetch failed'));
     await renderScreen();
     expect(screen.getByText('Pause nearby alerts on low battery')).toBeTruthy();
-  });
-
-  it('renders without crashing when getStoreTuningPref rejects on mount', async () => {
-    mockGetStoreTuningPref.mockRejectedValue(new Error('fetch failed'));
-    await renderScreen();
-    expect(screen.getByText('Store fine tuning')).toBeTruthy();
   });
 
   it('reverts the low battery toggle when setLowBatteryPausePref rejects', async () => {
@@ -275,15 +255,30 @@ describe('SettingsScreen — KAN-113: LOCATION & BATTERY section', () => {
     });
     expect(toggle.props.value).toBe(false);
   });
+});
 
-  it('reverts the store tuning toggle when setStoreTuningPref rejects', async () => {
-    mockSetStoreTuningPref.mockRejectedValue(new Error('write failed'));
+// ─── LOCATION & BATTERY: Home row (KAN-247) ───────────────────────────────────
+
+describe('SettingsScreen — KAN-247: Home row', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('renders the Home row with an empty sublabel when unset', async () => {
+    mockGetUser.mockResolvedValue(null);
     await renderScreen();
-    const toggle = screen.getByLabelText('Store fine tuning toggle');
-    await act(async () => {
-      fireEvent(toggle, 'valueChange', true);
-    });
-    expect(toggle.props.value).toBe(false);
+    expect(screen.getByLabelText('Home')).toBeTruthy();
+    expect(screen.getByText('Not set')).toBeTruthy();
+  });
+
+  it('shows the stored address as the sublabel once getUser resolves', async () => {
+    mockGetUser.mockResolvedValue({ home: { address: '221B Baker Street, London', lat: 51.5, lng: -0.1 } });
+    await renderScreen();
+    expect(screen.getByText('221B Baker Street, London')).toBeTruthy();
+  });
+
+  it('navigates to HomeAddress when the Home row is pressed', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Home'));
+    expect(mockNavigate).toHaveBeenCalledWith('HomeAddress');
   });
 });
 
@@ -315,7 +310,6 @@ describe('SettingsScreen — KAN-113: IMPORT TASKS section', () => {
 
 describe('SettingsScreen — KAN-113: ACCOUNT section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
-  afterEach(() => { jest.restoreAllMocks(); });
 
   it('renders Sign out row', async () => {
     await renderScreen();
