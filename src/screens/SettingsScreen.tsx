@@ -24,7 +24,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
@@ -32,6 +32,7 @@ import { radius, spacing } from '../theme/tokens';
 import {
   getLowBatteryPausePref,
   setLowBatteryPausePref,
+  getUser,
 } from '../services/firestore';
 import { logout } from '../services/auth';
 import { logTap } from '../services/analytics';
@@ -42,6 +43,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   GridIcon,
+  HomeIcon,
   ListCheckIcon,
   LogOutIcon,
   MoonIcon,
@@ -49,6 +51,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ImportResult } from '../types';
+import { COPY } from '../constants/copy';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -226,6 +229,14 @@ export default function SettingsScreen() {
     getLowBatteryPausePref(uid).then(setLowBatteryPause).catch(() => {});
   }, [uid]);
 
+  // ── Home address (KAN-247) — re-fetched on every focus so returning from
+  // HomeAddressScreen after a set/change/clear shows the current value. ──
+  const [homeAddress, setHomeAddress] = useState<string | null>(null);
+  useFocusEffect(useCallback(() => {
+    if (!uid) { setHomeAddress(null); return; }
+    getUser(uid).then(u => setHomeAddress(u?.home?.address ?? null)).catch(() => {});
+  }, [uid]));
+
   const handleDarkToggle = useCallback((value: boolean) => {
     setDark(value);
     logTap('settings_theme_toggle', { dark: value });
@@ -340,6 +351,13 @@ export default function SettingsScreen() {
 
         {/* LOCATION & BATTERY */}
         <Section title="LOCATION & BATTERY">
+          <SettingsRow
+            Icon={HomeIcon}
+            label={COPY.home.settingsRowLabel}
+            sublabel={homeAddress ?? COPY.home.settingsRowEmptySublabel}
+            onPress={() => navigation.navigate('HomeAddress')}
+            accessibilityLabel={COPY.home.settingsRowLabel}
+          />
           <SettingsRow
             Icon={BatteryIcon}
             label="Pause nearby alerts on low battery"

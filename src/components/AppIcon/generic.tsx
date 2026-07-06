@@ -312,6 +312,16 @@ export function PinIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Home (Settings home-address row, KAN-247) ─────────────────────────────────
+export function HomeIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 11.5L12 4l8 7.5" stroke={color} strokeWidth={1.8} {...S} />
+      <Path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke={color} strokeWidth={1.8} {...S} />
+    </Svg>
+  );
+}
+
 // ── Star ──────────────────────────────────────────────────────────────────────
 export function StarIcon({ color, size = 24 }: IconProps) {
   return (

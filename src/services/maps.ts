@@ -463,10 +463,14 @@ async function fetchPlacesAutocomplete(
 ): Promise<PlaceAutocompleteSuggestion[]> {
   if (!query.trim()) { return []; }
 
-  const body: Record<string, unknown> = {
-    input: query,
-    includedPrimaryTypes,
-  };
+  const body: Record<string, unknown> = { input: query };
+  // Omit the field entirely rather than sending an empty array — an empty
+  // array signals "no primary-type restriction" (broadest match, used by
+  // searchAddressAutocomplete for street addresses/premises), and leaving it
+  // out avoids relying on undocumented API behavior for an empty list.
+  if (includedPrimaryTypes.length > 0) {
+    body.includedPrimaryTypes = includedPrimaryTypes;
+  }
 
   if (lat != null && lng != null) {
     body.locationBias = {
@@ -545,6 +549,20 @@ export async function searchDestinationAutocomplete(
   lng?: number,
 ): Promise<PlaceAutocompleteSuggestion[]> {
   return fetchPlacesAutocomplete(query, ['(cities)'], lat, lng);
+}
+
+/**
+ * Free-form address search for the Settings "Home" flow (KAN-247) — no
+ * primary-type restriction, so a specific street address/premise resolves
+ * just as well as a named place. Same 5-result cap and best-effort (never
+ * throws) contract as the rest of this file's search functions.
+ */
+export async function searchAddressAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, [], lat, lng);
 }
 
 // ─── Place Details (KAN-234) ──────────────────────────────────────────────────

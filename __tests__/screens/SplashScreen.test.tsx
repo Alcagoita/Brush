@@ -37,8 +37,10 @@ jest.mock('../../src/services/tripDownload', () => ({
 }));
 
 const mockDeleteExpiredTripPlaces = jest.fn();
+const mockRefreshHabitatCacheIfStale = jest.fn();
 jest.mock('../../src/services/habitatCache', () => ({
   deleteExpiredTripPlaces: (...args: unknown[]) => mockDeleteExpiredTripPlaces(...args),
+  refreshHabitatCacheIfStale: (...args: unknown[]) => mockRefreshHabitatCacheIfStale(...args),
 }));
 
 const mockGetMallSnapshot = jest.fn();
@@ -109,6 +111,7 @@ beforeEach(() => {
   mockRolloverIncompleteTasks.mockResolvedValue(undefined);
   mockCheckAndRunTripPreRefresh.mockResolvedValue(undefined);
   mockDeleteExpiredTripPlaces.mockReturnValue(undefined);
+  mockRefreshHabitatCacheIfStale.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -239,6 +242,46 @@ describe('SplashScreen', () => {
 
       expect(useAppStore.getState().bootData?.mallSnapshot).toBeNull();
     });
+
+    // ── Home anchor habitat prefetch (KAN-247) ──
+    describe('home anchor habitat prefetch', () => {
+      it('prefetches the habitat cache around home when a home anchor is set', async () => {
+        mockGetUser.mockResolvedValue({
+          uid: 'u1', username: 'alice', onboardingDone: true,
+          home: { address: '221B Baker Street', lat: 51.5, lng: -0.1 },
+        });
+        mockGetCategories.mockResolvedValue([{ id: 'c1', name: 'Custom', poi: 'library' }]);
+
+        render(<SplashScreen onExit={jest.fn()} />);
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+        expect(mockRefreshHabitatCacheIfStale).toHaveBeenCalledTimes(1);
+        const [lat, lng, prefetchTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
+        expect(lat).toBe(51.5);
+        expect(lng).toBe(-0.1);
+        expect(prefetchTypes).toEqual(expect.arrayContaining(['library']));
+      });
+
+      it('does not prefetch when no home anchor is set', async () => {
+        render(<SplashScreen onExit={jest.fn()} />);
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+        expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
+      });
+
+      it('still marks the store ready when the home prefetch fails (non-fatal)', async () => {
+        mockGetUser.mockResolvedValue({
+          uid: 'u1', username: 'alice', onboardingDone: true,
+          home: { address: '221B Baker Street', lat: 51.5, lng: -0.1 },
+        });
+        mockRefreshHabitatCacheIfStale.mockRejectedValue(new Error('offline'));
+
+        render(<SplashScreen onExit={jest.fn()} />);
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+        expect(useAppStore.getState().bootData).not.toBeNull();
+      });
+    });
   });
 
   describe('when user is not authenticated', () => {
@@ -263,6 +306,7 @@ describe('SplashScreen', () => {
       expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
       expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
       expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
+      expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
     });
 
     it('does not populate the store', async () => {
@@ -303,6 +347,7 @@ describe('SplashScreen', () => {
       expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
       expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
       expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
+      expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
     });
   });
 

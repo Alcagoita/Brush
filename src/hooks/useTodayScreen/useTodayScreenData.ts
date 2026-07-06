@@ -24,6 +24,7 @@ import {
 } from '../../services/firestore';
 import { getMallSnapshot } from '../../services/mallSnapshots';
 import { getIncomingSharedTasksCount } from '../../services/sharing';
+import { setHomeLocation } from '../../services/home';
 import { updateNotifNearbyEnabled, updateProximityPoiPreferences, setActiveTrips, setMallSnapshot as setProximityMallSnapshot } from '../../services/proximity';
 import { updateExitPromptPref } from '../../services/proximity';
 import { updateIndoorExitPromptPref } from '../../services/indoorProximity';
@@ -117,6 +118,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setMallSnapshot(null);
       setActiveTrips(null);
       setProximityMallSnapshot(null);
+      setHomeLocation(null);
       setIsLoading(false);
       return;
     }
@@ -146,6 +148,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
           // review fix).
           setActiveTrips(bootData.trips);
           setProximityMallSnapshot(bootData.mallSnapshot);
+          setHomeLocation(bootData.userData?.home ?? null);
           updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
           updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
           updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
@@ -203,6 +206,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setMallSnapshot(fetchedMallSnapshot);
       setActiveTrips(fetchedTrips);
       setProximityMallSnapshot(fetchedMallSnapshot);
+      setHomeLocation(userData?.home ?? null);
 
       if (userData) {
         setLowBatteryPausePref(userData.poiPreferences?.lowBatteryPause ?? false);

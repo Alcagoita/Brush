@@ -31,6 +31,7 @@ import NotificationPreferencesScreen from '../screens/NotificationPreferencesScr
 import AchievementsScreen from '../screens/AchievementsScreen';
 import TripPlannerScreen from '../screens/TripPlannerScreen';
 import PlacesIKnowScreen from '../screens/PlacesIKnowScreen';
+import HomeAddressScreen from '../screens/HomeAddressScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -70,6 +71,8 @@ export type RootStackParamList = {
   TripPlanner: { prefillStartDate?: string } | undefined;
   /** "Places I know" — the always-on habitat area + downloaded trips, with refresh/delete (KAN-234). */
   PlacesIKnow: undefined;
+  /** Explicit home address — set/edit/clear (KAN-247). */
+  HomeAddress: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -105,6 +108,7 @@ export default function AppNavigator() {
       <Stack.Screen name="Achievements"               component={AchievementsScreen} />
       <Stack.Screen name="TripPlanner"                component={TripPlannerScreen} />
       <Stack.Screen name="PlacesIKnow"                component={PlacesIKnowScreen} />
+      <Stack.Screen name="HomeAddress"                component={HomeAddressScreen} />
     </Stack.Navigator>
   );
 }

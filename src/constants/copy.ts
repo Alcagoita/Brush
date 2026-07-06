@@ -209,4 +209,22 @@ export const COPY = {
     openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
   },
 
+  // ─── Home address (KAN-247) ────────────────────────────────────────────────
+  // Explicit beats inferred — never "detection"/"fill this" form language.
+  home: {
+    settingsRowLabel: 'Home',
+    settingsRowEmptySublabel: 'Not set',
+    screenTitle: 'Home',
+    searchPlaceholder: 'Search for your address…',
+    note: "So I know my way around your neighborhood. Saved to your account — only you can see it.",
+    changeButton: 'Change',
+    clearButton: 'Clear',
+    clearConfirmTitle: 'Clear home address?',
+    clearConfirmBody: "I'll stop using it to know my way around your neighborhood.",
+    clearConfirmAction: 'Clear',
+    clearCancelAction: 'Keep it',
+    saveErrorToast: "Couldn't save — check your connection and try again.",
+    clearErrorToast: "Couldn't clear — check your connection and try again.",
+  },
+
 } as const;
