@@ -353,6 +353,56 @@ describe('CalendarScreen', () => {
     });
   });
 
+  describe('"Places I know" CTA for a future day already covered by a trip (KAN-250)', () => {
+    const coveredTrip = {
+      id: 'trip-2', destination: 'Faro', placeRef: 'p2', centerLat: 1, centerLng: 2,
+      startDate: '2026-06-24', endDate: '2026-06-27', areaRadius: 15_000,
+      cacheAreaId: 'ta_2', expiresAt: 0, createdAt: fakeTimestamp('2026-06-01'),
+    };
+
+    it('shows "Places I know: {destination}" instead of "Going somewhere?" for a day inside an existing trip', async () => {
+      mockGetTrips.mockResolvedValue([coveredTrip]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
+      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.queryByLabelText(/^Plan a trip starting/)).toBeNull();
+    });
+
+    it('navigates to PlacesIKnow (not TripPlanner) when that CTA is tapped', async () => {
+      mockGetTrips.mockResolvedValue([coveredTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Places I know — Faro'));
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
+      expect(mockPush).not.toHaveBeenCalledWith('TripPlanner', expect.anything());
+    });
+
+    it('still shows the normal "Going somewhere?" CTA for a future day NOT covered by any trip', async () => {
+      // Trip covers the 28th, not the 25th selected below.
+      mockGetTrips.mockResolvedValue([{ ...coveredTrip, startDate: '2026-06-28', endDate: '2026-06-29' }]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByLabelText(/^Plan a trip starting/)).toBeTruthy();
+      expect(screen.queryByLabelText(/^Places I know —/)).toBeNull();
+    });
+
+    it('leaves the persistent bottom entry row showing "Going somewhere?" regardless of trip coverage', async () => {
+      mockGetTrips.mockResolvedValue([coveredTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByLabelText('Plan a trip')).toBeTruthy();
+    });
+  });
+
   it('toggling a task applies the change locally and calls setTaskDone (KAN-218 — no live listener to reflect it)', async () => {
     mockGetTasksForMonth.mockResolvedValue([
       { id: 't1', title: 'Buy groceries', category: 'errands', done: false,

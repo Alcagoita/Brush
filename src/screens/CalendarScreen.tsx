@@ -503,6 +503,14 @@ export default function CalendarScreen() {
     (iso: string): boolean => datedTrips.some(t => iso >= t.startDate && iso <= t.endDate),
     [datedTrips],
   );
+  // Same range check as isInTripRange, but returns the actual Trip (KAN-250) —
+  // lets the detail card's day CTA show which place is already known instead
+  // of prompting to plan the trip again.
+  const tripForDate = useCallback(
+    (iso: string): (Trip & { startDate: string; endDate: string }) | undefined =>
+      datedTrips.find(t => iso >= t.startDate && iso <= t.endDate),
+    [datedTrips],
+  );
 
   // ── Achievement milestones for the displayed month ──
   // Only the single most-recent earnedAt per type is available (see header note).
@@ -541,6 +549,7 @@ export default function CalendarScreen() {
   const isSelZero     = selTotal > 0 && selDone === 0 && isSelPast;
   const selRun        = runLength(selectedDate);
   const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
+  const selTrip       = tripForDate(selectedDate);
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -828,8 +837,22 @@ export default function CalendarScreen() {
               </Pressable>
             )}
 
-            {/* "Going somewhere?" CTA — future days only (KAN-243) */}
-            {isSelFuture && (
+            {/* Future day already covered by a downloaded trip (KAN-250) — show
+                what's already known instead of prompting to plan again. */}
+            {isSelFuture && selTrip && (
+              <Pressable
+                onPress={() => navigation.navigate('PlacesIKnow')}
+                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)}>
+                <SuitcaseIcon color={palette.bg} size={16} />
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}</Text>
+                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
+              </Pressable>
+            )}
+
+            {/* "Going somewhere?" CTA — future days only, not yet covered by a trip (KAN-243) */}
+            {isSelFuture && !selTrip && (
               <Pressable
                 onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
                 style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}

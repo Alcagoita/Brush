@@ -142,6 +142,9 @@ export const COPY = {
     downloadSuccessToast: (destination: string) => `Got it — I know ${destination} now.`,
     placesIKnowTitle: 'Places I know',
     placesIKnowEmpty: "I don't know any trip areas yet — add one above.",
+    /** KAN-250 — Calendar's day CTA when the selected future day already falls within a downloaded trip; replaces entryRowLabel for that day. */
+    placesIKnowRowLabel: (destination: string) => `Places I know: ${destination}`,
+    placesIKnowRowA11y:  (destination: string) => `Places I know — ${destination}`,
     habitatRowLabel: 'Everywhere I usually go',
     habitatRowSub:   'Updated automatically as you go about your day',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,

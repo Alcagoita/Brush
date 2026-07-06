@@ -72,7 +72,10 @@ export default function PlacesIKnowScreen() {
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.goBack()}
+          // Not goBack() — the only entry point is TripPlanner's post-download
+          // "done" flow (navigation.navigate('PlacesIKnow')), so goBack() would
+          // land back on the just-finished download screen instead of Calendar.
+          onPress={() => navigation.navigate('Calendar')}
           accessibilityRole="button"
           accessibilityLabel="Back">
           <ChevronLeftIcon color={palette.text} size={22} />
