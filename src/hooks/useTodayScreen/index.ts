@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
-import { setLearnedPlaces, setCustomCategoryPoiTypes } from '../../services/proximity';
+import { setLearnedPlaces, setCustomCategoryPoiTypes, setActiveTrips, setMallSnapshot } from '../../services/proximity';
 import type { PlacesMap } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
@@ -99,6 +99,14 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
       data.customCategories.map(c => c.poi).filter((poi): poi is string => !!poi),
     );
   }, [data.customCategories]);
+
+  useEffect(() => {
+    setActiveTrips(data.trips);
+  }, [data.trips]);
+
+  useEffect(() => {
+    setMallSnapshot(data.mallSnapshot);
+  }, [data.mallSnapshot]);
 
   // A toggle in either direction changes the completedPlaceId brush history
   // the ranking is derived from: `done: true` adds a data point, `done:

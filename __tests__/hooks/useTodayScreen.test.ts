@@ -26,6 +26,8 @@ const mockGetInboxUnreadCount    = jest.fn();
 const mockGetLearnedPlaceCounts = jest.fn().mockResolvedValue([]);
 const mockSetLearnedPlaces           = jest.fn();
 const mockSetCustomCategoryPoiTypes  = jest.fn();
+const mockSetActiveTrips             = jest.fn();
+const mockSetMallSnapshot            = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
@@ -83,6 +85,8 @@ jest.mock('../../src/services/proximity', () => ({
   updateExitPromptPref:          jest.fn(),
   setLearnedPlaces:              (...args: unknown[]) => mockSetLearnedPlaces(...args),
   setCustomCategoryPoiTypes:     (...args: unknown[]) => mockSetCustomCategoryPoiTypes(...args),
+  setActiveTrips:                (...args: unknown[]) => mockSetActiveTrips(...args),
+  setMallSnapshot:               (...args: unknown[]) => mockSetMallSnapshot(...args),
 }));
 
 jest.mock('../../src/services/maps', () => ({
@@ -263,6 +267,16 @@ describe('useTodayScreen — custom category POI types (KAN-238)', () => {
     await act(async () => {});
 
     expect(mockSetCustomCategoryPoiTypes).toHaveBeenCalledWith(['climbing_gym']);
+  });
+});
+
+describe('useTodayScreen — cache-first proximity boot wiring (KAN-237)', () => {
+  it('feeds active trips and the mall snapshot into the proximity engine', async () => {
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetActiveTrips).toHaveBeenCalledWith([]);
+    expect(mockSetMallSnapshot).toHaveBeenCalledWith(null);
   });
 });
 

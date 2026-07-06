@@ -55,6 +55,7 @@ import {
 import { getIncomingSharedTasksCount } from '../services/sharing';
 import { checkAndRunTripPreRefresh } from '../services/tripDownload';
 import { deleteExpiredTripPlaces } from '../services/habitatCache';
+import { getMallSnapshot } from '../services/mallSnapshots';
 import { todayISO } from '../utils/date';
 import { lightPalette } from '../theme/tokens';
 
@@ -377,8 +378,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         getIncomingSharedTasksCount(uid),
         getInboxUnreadCount(uid),
         getTrips(uid),
+        getMallSnapshot(uid),
       ]))
-      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount, trips]) => {
+      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount, trips, mallSnapshot]) => {
         if (cancelled) { return; }
         useAppStore.getState().setBootData({
           ownerUid: uid,
@@ -391,6 +393,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
           userPrefs,
           poiPrefsMap,
           trips,
+          mallSnapshot,
         });
         markReady();
 

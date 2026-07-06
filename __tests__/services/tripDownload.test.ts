@@ -53,6 +53,7 @@ import {
   computeTripExpiresAt,
   shouldPreRefreshTrip,
   downloadTripArea,
+  downloadAreaSnapshot,
   refreshTripArea,
   checkAndRunTripPreRefresh,
 } from '../../src/services/tripDownload';
@@ -209,7 +210,7 @@ describe('downloadTripArea', () => {
   it('throws instead of persisting a "successful" empty result — indistinguishable from a soft failure otherwise', async () => {
     mockSearchOsmPlaces.mockResolvedValue({});
     await expect(downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []))
-      .rejects.toThrow('Trip download returned no places');
+      .rejects.toThrow('Area download returned no places');
     // Must not touch any existing rows for this cacheAreaId before knowing the new fetch actually found something.
     expect(mockWriteTripAreaPlaces).not.toHaveBeenCalled();
   });
@@ -220,6 +221,36 @@ describe('downloadTripArea', () => {
 
     await expect(downloadTripArea({ lat: 1, lng: 2 }, 15_000, 'ta_1', 1_800_000_000_000, []))
       .rejects.toThrow('disk full');
+  });
+});
+
+describe('downloadAreaSnapshot (KAN-237 — shared by trip and mall snapshot downloads)', () => {
+  it('requests exactly the given poiTypes (no union/derivation — caller decides the set)', async () => {
+    mockSearchOsmPlaces.mockResolvedValue(SOME_PLACE);
+
+    await downloadAreaSnapshot({ lat: 5, lng: 6 }, 300, 'mall_snapshot', 1_800_000_000_000, ['atm', 'cafe']);
+
+    expect(mockSearchOsmPlaces).toHaveBeenCalledWith(5, 6, ['atm', 'cafe'], 300, expect.any(Number));
+  });
+
+  it('writes results tagged with the given cacheAreaId/expiresAt and returns the written count', async () => {
+    mockSearchOsmPlaces.mockResolvedValue({
+      atm: [{ osmId: 'node/1', name: 'ATM', isGenericName: false, lat: 5, lng: 6, distanceMeters: 5 }],
+    });
+
+    const count = await downloadAreaSnapshot({ lat: 5, lng: 6 }, 300, 'mall_snapshot', 1_800_000_000_000, ['atm']);
+
+    expect(count).toBe(1);
+    expect(mockWriteTripAreaPlaces).toHaveBeenCalledWith(
+      'mall_snapshot', 1_800_000_000_000,
+      [expect.objectContaining({ poiType: 'atm' })],
+    );
+  });
+
+  it('throws instead of persisting a "successful" empty result', async () => {
+    mockSearchOsmPlaces.mockResolvedValue({});
+    await expect(downloadAreaSnapshot({ lat: 5, lng: 6 }, 300, 'mall_snapshot', 1_800_000_000_000, ['atm']))
+      .rejects.toThrow('Area download returned no places');
   });
 });
 

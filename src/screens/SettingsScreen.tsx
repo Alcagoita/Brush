@@ -32,15 +32,12 @@ import { radius, spacing } from '../theme/tokens';
 import {
   getLowBatteryPausePref,
   setLowBatteryPausePref,
-  getStoreTuningPref,
-  setStoreTuningPref,
 } from '../services/firestore';
 import { logout } from '../services/auth';
 import { logTap } from '../services/analytics';
 import {
   BatteryIcon,
   BellIcon,
-  BuildingIcon,
   CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -222,13 +219,11 @@ export default function SettingsScreen() {
 
   const uid = getAuth().currentUser?.uid ?? '';
 
-  const [lowBatteryPause,    setLowBatteryPause]    = useState(false);
-  const [storeTuningEnabled, setStoreTuningEnabled] = useState<boolean | undefined>(undefined);
+  const [lowBatteryPause, setLowBatteryPause] = useState(false);
 
   useEffect(() => {
     if (!uid) { return; }
     getLowBatteryPausePref(uid).then(setLowBatteryPause).catch(() => {});
-    getStoreTuningPref(uid).then(setStoreTuningEnabled).catch(() => {});
   }, [uid]);
 
   const handleDarkToggle = useCallback((value: boolean) => {
@@ -242,15 +237,6 @@ export default function SettingsScreen() {
       await setLowBatteryPausePref(uid, value);
     } catch {
       setLowBatteryPause(!value);
-    }
-  }, [uid]);
-
-  const handleStoreTuningToggle = useCallback(async (value: boolean) => {
-    setStoreTuningEnabled(value);
-    try {
-      await setStoreTuningPref(uid, value);
-    } catch {
-      setStoreTuningEnabled(!value);
     }
   }, [uid]);
 
@@ -357,6 +343,7 @@ export default function SettingsScreen() {
           <SettingsRow
             Icon={BatteryIcon}
             label="Pause nearby alerts on low battery"
+            isLast
             trailing={
               <Switch
                 value={lowBatteryPause}
@@ -364,21 +351,6 @@ export default function SettingsScreen() {
                 trackColor={{ false: palette.surface2, true: palette.accent }}
                 thumbColor={palette.bg}
                 accessibilityLabel="Pause nearby alerts on low battery toggle"
-              />
-            }
-          />
-          <SettingsRow
-            Icon={BuildingIcon}
-            label="Store fine tuning"
-            sublabel="Automatically switch to store-level proximity when inside a mall. Uses more battery."
-            isLast
-            trailing={
-              <Switch
-                value={storeTuningEnabled === true}
-                onValueChange={handleStoreTuningToggle}
-                trackColor={{ false: palette.surface2, true: palette.accent }}
-                thumbColor={palette.bg}
-                accessibilityLabel="Store fine tuning toggle"
               />
             }
           />

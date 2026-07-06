@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Task, Category, User, UserPreferences, Trip } from '../types';
+import type { Task, Category, User, UserPreferences, Trip, MallSnapshot } from '../types';
 
 export interface BootData {
   ownerUid:          string;
@@ -13,6 +13,8 @@ export interface BootData {
   userData:          User | null;
   /** Downloaded trip areas (KAN-234) — Calendar/Places I Know read from here instead of re-fetching. */
   trips:             Trip[];
+  /** Current mall snapshot (KAN-237), if the user has one learned — fed into proximity.ts's cache-first check. */
+  mallSnapshot:      MallSnapshot | null;
 }
 
 interface AppStore {

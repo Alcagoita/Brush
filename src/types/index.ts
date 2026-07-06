@@ -660,3 +660,22 @@ export interface Trip {
   preRefreshedAt?: number;
   createdAt: FirebaseFirestoreTypes.Timestamp;
 }
+
+/**
+ * /users/{uid}/mallSnapshot/current — the single currently-active mall
+ * snapshot, if any (KAN-237). Singleton (not a collection like Trip) since
+ * only one mall can be "learned" at a time via the Profile toggle.
+ */
+export interface MallSnapshot {
+  placeId: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  /** Meters — MALL_SEARCH_RADIUS_M, reused from indoorDetection.ts. */
+  radius: number;
+  /** Joins to habitatCache's habitat_places.cache_area_id — fixed constant, see mallSnapshots.ts. */
+  cacheAreaId: string;
+  /** Epoch ms — short-term per Google Places ToS (session/visit scale). */
+  expiresAt: number;
+  createdAt: FirebaseFirestoreTypes.Timestamp;
+}

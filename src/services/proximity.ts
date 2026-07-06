@@ -85,7 +85,7 @@ import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { Task, ALL_POI_TYPES } from '../types';
+import { Task, ALL_POI_TYPES, Trip, MallSnapshot } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
@@ -189,6 +189,12 @@ let _learnedPlaces: LearnedPlace[] = [];
 /** KAN-238 — user's custom category place types, fed in from outside (see setCustomCategoryPoiTypes). */
 let _customCategoryPoiTypes: string[] = [];
 
+/** KAN-237 — active trip areas, fed in from outside (see setActiveTrips). Used only to decide cache-first coverage, never for trip-specific business logic. */
+let _activeTrips: Trip[] = [];
+
+/** KAN-237 — the current mall snapshot, if any, fed in from outside (see setMallSnapshot). */
+let _mallSnapshot: MallSnapshot | null = null;
+
 /**
  * Optional tap into the GPS stream (KAN-75 indoor detection).
  * Every position fix is forwarded here so indoor detection can run without
@@ -281,6 +287,16 @@ export function setLearnedPlaces(places: LearnedPlace[] | null): void {
 /** KAN-238 — feed in the user's custom category place types for the habitat cache's all-types prefetch. */
 export function setCustomCategoryPoiTypes(types: string[] | null): void {
   _customCategoryPoiTypes = types ?? [];
+}
+
+/** KAN-237 — feed in the user's active (unexpired) trip areas, for cache-first coverage. Pass null/empty to clear (e.g. on sign-out). */
+export function setActiveTrips(trips: Trip[] | null): void {
+  _activeTrips = trips ?? [];
+}
+
+/** KAN-237 — feed in the current mall snapshot (or null when there isn't one / the toggle is off), for cache-first coverage. */
+export function setMallSnapshot(snapshot: MallSnapshot | null): void {
+  _mallSnapshot = snapshot;
 }
 
 export function updateExitPromptPref(enabled: boolean): void {
@@ -402,6 +418,36 @@ function trackExitPromptGeofence(
   );
 }
 
+// ─── Cache-first coverage (KAN-237) ───────────────────────────────────────────
+
+/**
+ * Returns the cacheAreaId to query if `lat`/`lng` falls inside an active
+ * (unexpired) trip area or the current mall snapshot — trip areas checked
+ * first, mall snapshot second (arbitrary but stable order; the two are never
+ * expected to overlap in practice). Returns null if neither applies, meaning
+ * the caller should fall through to the normal live-API-first flow.
+ *
+ * Deliberately narrow: only these two deliberately-downloaded, bounded areas
+ * trigger cache-first. The opportunistic habitat pool (KAN-228/229) is
+ * unaffected — it still only answers on a live-search failure, same as
+ * before this ticket.
+ */
+function findActiveCacheArea(lat: number, lng: number): string | null {
+  const now = Date.now();
+  for (const trip of _activeTrips) {
+    if (trip.expiresAt < now) { continue; }
+    if (getDistanceMeters(lat, lng, trip.centerLat, trip.centerLng) <= trip.areaRadius) {
+      return trip.cacheAreaId;
+    }
+  }
+  if (_mallSnapshot && _mallSnapshot.expiresAt >= now) {
+    if (getDistanceMeters(lat, lng, _mallSnapshot.centerLat, _mallSnapshot.centerLng) <= _mallSnapshot.radius) {
+      return _mallSnapshot.cacheAreaId;
+    }
+  }
+  return null;
+}
+
 // ─── Core: one-shot proximity search ─────────────────────────────────────────
 
 /**
@@ -438,31 +484,48 @@ async function runProximitySearch(
 
     // One API call covers all POI types.
     let results: Record<string, NearbyPlace[]> = {};
-    let isOffline = false;
-    try {
-      results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
-    } catch (err) {
-      // If offline, queue this search for retry when connection returns, and
-      // answer from the habitat cache in the meantime (KAN-229) — the cache
-      // impersonates the Places response, so hero split, notification,
-      // exit-prompt and wear alert all run unchanged below. Otherwise
-      // (timeout, API error while online) keep showing whatever was shown
-      // before.
-      reportProximityError('searchNearbyPlaces failed', err);
-      // Same offline predicate as NetworkBanner — isConnected===true but
-      // isInternetReachable===false (captive portal, no real internet) must
-      // still fall back to the cache, not sit on a silent "keep showing
-      // what's there" state that never resolves.
-      let offline = false;
-      try {
-        const state = await NetInfo.fetch();
-        offline = state.isConnected === false || state.isInternetReachable === false;
-      } catch { /* treat as unknown — not offline */ }
-      if (!offline) { return; }
+    let answeredFromCache = false;
+    // True only for the "live call failed, falling back to cache" path below
+    // — distinct from the KAN-237 cache-first hit, where an empty result is
+    // a confident "nothing here" (the snapshot was downloaded specifically
+    // to answer this), not an ambiguous cache-miss to bail out on.
+    let isConnectivityFallback = false;
 
-      _enqueueSearch(uid, tasks, onUpdate);
+    // KAN-237 — inside an active trip area or the current mall snapshot,
+    // skip the live API entirely: this is a deliberately-downloaded, bounded
+    // area, so the cache is trusted the same way the offline fallback below
+    // already trusts it, without needing a failed live call first.
+    const cacheAreaId = findActiveCacheArea(coords.lat, coords.lng);
+    if (cacheAreaId != null) {
       results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
-      isOffline = true;
+      answeredFromCache = true;
+    } else {
+      try {
+        results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+      } catch (err) {
+        // If offline, queue this search for retry when connection returns, and
+        // answer from the habitat cache in the meantime (KAN-229) — the cache
+        // impersonates the Places response, so hero split, notification,
+        // exit-prompt and wear alert all run unchanged below. Otherwise
+        // (timeout, API error while online) keep showing whatever was shown
+        // before.
+        reportProximityError('searchNearbyPlaces failed', err);
+        // Same offline predicate as NetworkBanner — isConnected===true but
+        // isInternetReachable===false (captive portal, no real internet) must
+        // still fall back to the cache, not sit on a silent "keep showing
+        // what's there" state that never resolves.
+        let offline = false;
+        try {
+          const state = await NetInfo.fetch();
+          offline = state.isConnected === false || state.isInternetReachable === false;
+        } catch { /* treat as unknown — not offline */ }
+        if (!offline) { return; }
+
+        _enqueueSearch(uid, tasks, onUpdate);
+        results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+        answeredFromCache = true;
+        isConnectivityFallback = true;
+      }
     }
 
     _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
@@ -471,8 +534,11 @@ async function runProximitySearch(
     // "nothing nearby" — it just means this tick has no answer. Bail out
     // before onUpdate so whatever hero/grey state was already on screen
     // (and any in-progress exit-prompt dwell clock) survives untouched; the
-    // search stays queued above for a live retry on reconnect.
-    if (isOffline && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
+    // search stays queued above for a live retry on reconnect. Only applies
+    // to the connectivity-fallback path — a KAN-237 cache-first empty result
+    // is a confident "nothing here," not an ambiguous miss, so it proceeds
+    // through to onUpdate normally (hero clears like any other empty tick).
+    if (isConnectivityFallback && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
       // KAN-236 — only worth telling the user if the cache has data
       // *somewhere* (they've genuinely walked past its coverage); if it's
       // empty everywhere, NetworkBanner's own "still learning your area"
@@ -491,7 +557,7 @@ async function runProximitySearch(
     // hero-card/notification logic below, which needs this tick's result now.
     // Skipped when this tick was itself answered by the cache — there's no
     // new live data to feed back into it.
-    if (!isOffline) {
+    if (!answeredFromCache) {
       InteractionManager.runAfterInteractions(() => {
         try {
           for (const poiType of uniquePoiTypes) {
@@ -542,7 +608,7 @@ async function runProximitySearch(
       // only matters once we know it's the hero type and its carousel is
       // actually shown — reconciled in a second pass below.
       let nearest = places[0] ?? null;
-      if (!isOffline && nearest) {
+      if (!answeredFromCache && nearest) {
         const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
         if (existingId) { nearest = { ...nearest, placeId: existingId }; }
       }
@@ -577,7 +643,7 @@ async function runProximitySearch(
     // NearbyCard's "Try another place" carousel only ever shows the winning
     // hero type's list, so there's no reason to pay for the other ≤4 places
     // of every non-hero type too.
-    if (!isOffline && heroType !== null) {
+    if (!answeredFromCache && heroType !== null) {
       const winningType = heroType;
       allPlaces[winningType] = (allPlaces[winningType] ?? []).map((place, i) => {
         if (i === 0) { return place; } // already reconciled above
@@ -600,7 +666,7 @@ async function runProximitySearch(
       if (learnedForType && currentPlaces[0]?.placeId !== learnedForType.placeId) {
         for (const candidate of currentPlaces.slice(1)) {
           let candidateId = candidate.placeId;
-          if (!isOffline) {
+          if (!answeredFromCache) {
             const existingId = findExistingPlaceId(winningType, candidate.name, candidate.lat, candidate.lng);
             if (existingId) { candidateId = existingId; }
           }
@@ -720,6 +786,8 @@ export function resetProximityState(): void {
   _offlineUncoveredNoticeShown = false;
   _learnedPlaces = [];
   _customCategoryPoiTypes = [];
+  _activeTrips = [];
+  _mallSnapshot = null;
 
   geofenceEntryTimes.clear();
 }

@@ -26,7 +26,7 @@ import { updateNotifNearbyEnabled, updateProximityPoiPreferences } from '../../s
 import { updateExitPromptPref } from '../../services/proximity';
 import { updateIndoorExitPromptPref } from '../../services/indoorProximity';
 import { syncTasksToWatch } from '../../services/wearSync';
-import type { Category, Task } from '../../types';
+import type { Category, MallSnapshot, Task, Trip } from '../../types';
 import { todayISO } from '../../utils/date';
 import { useAppStore } from '../../store/appStore';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
@@ -56,6 +56,11 @@ export interface TodayScreenData {
   socialUnreadCount: number;
   lowBatteryPausePref: boolean;
   storeTuningEnabled:  boolean | undefined;
+  /** Active trip areas + current mall snapshot (KAN-237) — fed into the
+   *  proximity engine's cache-first check. Boot-data fast path only, same as
+   *  the rest of this hook's Firestore reads (see loadData below). */
+  trips:               Trip[];
+  mallSnapshot:        MallSnapshot | null;
   /** Always-current tasks array, readable from stable callbacks without
    *  needing `tasks` in their dependency array (avoids identity churn). */
   latestTasksRef:    React.RefObject<Task[]>;
@@ -76,6 +81,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
   const [socialUnreadCount, setSocialUnreadCount] = useState(0);
   const [lowBatteryPausePref, setLowBatteryPausePref] = useState(false);
   const [storeTuningEnabled, setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [mallSnapshot, setMallSnapshot] = useState<MallSnapshot | null>(null);
 
   const latestTasksRef = useRef<Task[]>([]);
   useEffect(() => { latestTasksRef.current = tasks; }, [tasks]);
@@ -103,6 +110,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setSocialUnreadCount(0);
       setLowBatteryPausePref(false);
       setStoreTuningEnabled(undefined);
+      setTrips([]);
+      setMallSnapshot(null);
       setIsLoading(false);
       return;
     }
@@ -123,6 +132,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
             setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
             setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
           }
+          setTrips(bootData.trips);
+          setMallSnapshot(bootData.mallSnapshot);
           updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
           updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
           updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
@@ -220,6 +231,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     socialUnreadCount,
     lowBatteryPausePref,
     storeTuningEnabled,
+    trips,
+    mallSnapshot,
     latestTasksRef,
   };
 }
