@@ -121,6 +121,11 @@ export const fonts = {
     medium:   '500' as const,
     semibold: '600' as const,
   },
+  /** Reusable font sizes — add to this instead of a raw literal in a component. */
+  sizes: {
+    /** Secondary/quiet row label (e.g. Calendar's "Going somewhere?" entry row). */
+    label: 13.5,
+  },
 };
 
 // ─── Spacing ──────────────────────────────────────────────────────────────────

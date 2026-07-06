@@ -68,10 +68,11 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 
 const mockGoBack   = jest.fn();
 const mockNavigate = jest.fn();
+const mockPush     = jest.fn();
 jest.mock('@react-navigation/native', () => {
   const actualReact = require('react');
   return {
-    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+    useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate, push: mockPush }),
     // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
     useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
   };
@@ -381,12 +382,9 @@ describe('ProfileScreen — navigation entries', () => {
     expect(screen.getByLabelText('Share my profile')).toBeTruthy();
   });
 
-  it('renders "Going somewhere?" row and navigates to TripPlanner (KAN-234)', async () => {
+  it('does not render a "Going somewhere?" row — Trip Planner entry moved to Calendar (KAN-243)', async () => {
     await renderScreen();
-    const row = screen.getByText('Going somewhere?');
-    expect(row).toBeTruthy();
-    fireEvent.press(row);
-    expect(mockNavigate).toHaveBeenCalledWith('TripPlanner');
+    expect(screen.queryByText('Going somewhere?')).toBeNull();
   });
 
   it('renders Settings entry row', async () => {

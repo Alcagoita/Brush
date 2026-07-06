@@ -166,6 +166,41 @@ describe('dates step', () => {
   });
 });
 
+describe('initialStartDate prefill (KAN-243)', () => {
+  it('pre-fills startDate when provided, still requiring a destination first', async () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), '2026-07-24'));
+    expect(result.current.step).toBe('destination');
+    expect(result.current.startDate).toBe('2026-07-24');
+  });
+
+  it('is still editable/clearable like any other trip date', async () => {
+    mockGetPlaceDetails.mockResolvedValue({ lat: 1, lng: 2, name: 'Faro' });
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), '2026-07-24'));
+    await act(async () => {
+      await result.current.selectDestination({ placeId: 'p1', name: 'Faro', address: '' });
+    });
+    expect(result.current.startDate).toBe('2026-07-24');
+
+    act(() => { result.current.skipDates(); });
+    expect(result.current.startDate).toBeUndefined();
+  });
+
+  it('defaults to undefined when omitted (manual "Going somewhere?" entry)', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn()));
+    expect(result.current.startDate).toBeUndefined();
+  });
+
+  it('ignores a malformed prefill instead of passing it through to the dates step', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), 'not-a-date'));
+    expect(result.current.startDate).toBeUndefined();
+  });
+
+  it('ignores a prefill with an impossible calendar date (e.g. Feb 30)', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), '2026-02-30'));
+    expect(result.current.startDate).toBeUndefined();
+  });
+});
+
 describe('radius step', () => {
   async function goToRadiusStep() {
     mockGetPlaceDetails.mockResolvedValue({ lat: 1, lng: 2, name: 'Faro' });

@@ -38,7 +38,6 @@ import {
   SettingsIcon,
   ShareIcon,
   CameraIcon,
-  SuitcaseIcon,
   BuildingIcon,
 } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
@@ -382,19 +381,6 @@ export default function ProfileScreen() {
             <ShareIcon color={palette.muted} size={20} />
           </View>
           <Text style={[styles.shareRowLabel, { color: palette.text }]}>Share my profile</Text>
-          <ChevronRightIcon color={palette.faint} size={18} />
-        </Pressable>
-
-        {/* ── 2b. Trip Planner entry row (KAN-234) ── */}
-        <Pressable
-          style={[styles.shareRow, { backgroundColor: palette.surface, borderColor: palette.line }]}
-          onPress={() => navigation.navigate('TripPlanner')}
-          accessibilityRole="button"
-          accessibilityLabel={COPY.tripPlanner.entryRowA11y}>
-          <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
-            <SuitcaseIcon color={palette.muted} size={20} />
-          </View>
-          <Text style={[styles.shareRowLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
           <ChevronRightIcon color={palette.faint} size={18} />
         </Pressable>
 

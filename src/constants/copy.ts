@@ -121,6 +121,8 @@ export const COPY = {
   tripPlanner: {
     entryRowLabel: 'Going somewhere?',
     entryRowA11y:  'Plan a trip',
+    /** KAN-243 — the future-day CTA in Calendar's detail card; dateLabel is the full formatted date (e.g. "Friday, July 24"). */
+    entryRowA11yWithDate: (dateLabel: string) => `Plan a trip starting ${dateLabel}`,
     destinationQuestion: 'Where are you headed?',
     destinationPlaceholder: 'Faro, Lisbon, Tokyo…',
     datesQuestion: 'When are you going?',

@@ -30,6 +30,14 @@ import { COPY } from '../constants/copy';
 
 export type TripPlannerStep = 'destination' | 'dates' | 'radius' | 'downloading';
 
+/** Route params are an input boundary — validates a YYYY-MM-DD string (format + real calendar date) before it ever reaches DateTimePicker/formatters. */
+function isValidIsoDate(iso: string | undefined): iso is string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) { return false; }
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d;
+}
+
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
 
 /** Static map preview frame size — exported so the screen's circle overlay can size itself to match (see maps.ts's buildStaticMapPreviewUrl, which zooms the map to keep the circle at a fixed fraction of this frame regardless of which radius preset is selected). */
@@ -71,14 +79,19 @@ export interface TripPlannerState {
   goBack: () => void;
 }
 
-export function useTripPlanner(onDone: () => void): TripPlannerState {
+export function useTripPlanner(onDone: () => void, initialStartDate?: string): TripPlannerState {
   const uid = getAuth().currentUser?.uid ?? '';
 
   const [step, setStep] = useState<TripPlannerStep>('destination');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
   const [destination, setDestination] = useState<ResolvedDestination | null>(null);
-  const [startDate, setStartDate] = useState<string | undefined>(undefined);
+  // Pre-filled when opened from a future Calendar day (KAN-243) — still just
+  // the dates step's normal state, so the user can change or clear it same
+  // as any other trip.
+  const [startDate, setStartDate] = useState<string | undefined>(
+    isValidIsoDate(initialStartDate) ? initialStartDate : undefined,
+  );
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
   const [radiusKey, setRadiusKey] = useState<TripRadiusPreset>('town_and_around');
   const [error, setError] = useState<string | null>(null);

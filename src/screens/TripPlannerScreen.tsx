@@ -24,8 +24,9 @@ import {
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
@@ -36,7 +37,8 @@ import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload'
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import { COPY } from '../constants/copy';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
+type Nav   = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
+type Route = RouteProp<RootStackParamList, 'TripPlanner'>;
 
 const CIRCLE_DIAMETER = Math.min(TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT) * CIRCLE_FRACTION_OF_HALF_DIM;
 
@@ -50,6 +52,7 @@ const STEPS = ['destination', 'dates', 'radius'] as const;
 export default function TripPlannerScreen() {
   const { palette } = useTheme();
   const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
 
   const {
@@ -57,7 +60,7 @@ export default function TripPlannerScreen() {
     startDate, endDate, setStartDate, setEndDate, goToRadius, skipDates,
     radiusKey, setRadiusKey, estimatedBytes, previewUrl,
     confirmDownload, error, goBack,
-  } = useTripPlanner(() => navigation.navigate('PlacesIKnow'));
+  } = useTripPlanner(() => navigation.navigate('PlacesIKnow'), route.params?.prefillStartDate);
 
   const [showStartPicker, setShowStartPicker] = React.useState(false);
   const [showEndPicker, setShowEndPicker] = React.useState(false);

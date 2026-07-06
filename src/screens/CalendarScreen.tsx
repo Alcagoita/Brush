@@ -56,15 +56,16 @@ import Svg, { Path } from 'react-native-svg';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, categories as builtInCategories } from '../theme/tokens';
+import { spacing, radius, fonts, categories as builtInCategories } from '../theme/tokens';
 import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips } from '../services/firestore';
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/AppIcon';
 import { AchievementIcon, AchievementIconKey, ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
+import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -708,6 +709,17 @@ export default function CalendarScreen() {
         })}
       </View>
 
+      {/* ── "Going somewhere?" persistent entry (KAN-243) — always visible, no prefill ── */}
+      <Pressable
+        style={[styles.tripEntryRow, { borderColor: palette.line }]}
+        onPress={() => navigation.push('TripPlanner')}
+        accessibilityRole="button"
+        accessibilityLabel={COPY.tripPlanner.entryRowA11y}>
+        <SuitcaseIcon color={palette.muted} size={16} />
+        <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
+        <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+      </Pressable>
+
       {/* ── Hairline divider ── */}
       <View style={[styles.divider, { backgroundColor: palette.line }]} />
 
@@ -808,10 +820,22 @@ export default function CalendarScreen() {
             {isSelToday && (
               <Pressable
                 onPress={() => navigation.goBack()}
-                style={[styles.openTodayBtn, { backgroundColor: palette.text }]}
+                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
                 accessibilityRole="button"
                 accessibilityLabel="Open today">
-                <Text style={[styles.openTodayLabel, { color: palette.bg }]}>Open today</Text>
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>Open today</Text>
+                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
+              </Pressable>
+            )}
+
+            {/* "Going somewhere?" CTA — future days only (KAN-243) */}
+            {isSelFuture && (
+              <Pressable
+                onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
+                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate))}>
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.tripPlanner.entryRowLabel}</Text>
                 <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
               </Pressable>
             )}
@@ -961,6 +985,26 @@ const styles = StyleSheet.create({
     right:         6,
     height:        2,
     borderRadius:  1,
+  },
+
+  // ── "Going somewhere?" persistent entry (KAN-243) ──
+  tripEntryRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               8,
+    minHeight:         44,
+    marginHorizontal:  spacing[4],
+    marginBottom:      10,
+    paddingVertical:   10,
+    paddingHorizontal: 12,
+    borderRadius:      radius.ctaBtn,
+    borderWidth:       1,
+  },
+  tripEntryLabel: {
+    flex:       1,
+    fontSize:   fonts.sizes.label,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Hairline divider ──
@@ -1116,8 +1160,8 @@ const styles = StyleSheet.create({
     flexShrink:   0,
   },
 
-  // ── Open today CTA ──
-  openTodayBtn: {
+  // ── Detail card CTA — "Open today" / "Going somewhere?" (future day) ──
+  detailCtaBtn: {
     marginTop:      18,
     paddingVertical: 12,
     borderRadius:    14,
@@ -1126,7 +1170,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap:             8,
   },
-  openTodayLabel: {
+  detailCtaLabel: {
     fontSize:      14,
     fontWeight:    '500',
     fontFamily:    'Geist-Regular',
