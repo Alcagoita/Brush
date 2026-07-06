@@ -190,4 +190,21 @@ export const COPY = {
     errorToast: "Couldn't learn this mall — check your connection and try again.",
   },
 
+  // ─── Errand bundling (KAN-235) ──────────────────────────────────────────────
+  // "Can happen near each other" reveals opportunity — never "you should",
+  // never an itinerary ("first X, then Y"), never a task count framed as
+  // pressure ("3 waiting near the market" is wrong; this is right).
+  errandBundle: {
+    cardLine: (taskCount: number, anchorName: string) =>
+      `${taskCount} of these can happen near each other — a ten-minute walk around ${anchorName}.`,
+    cardA11y: (taskCount: number, anchorName: string) =>
+      `${taskCount} tasks can happen near each other, around ${anchorName} — tap for details`,
+    dismissA11y: 'Not now',
+    sheetTitle: (anchorName: string) => `Near ${anchorName}`,
+    sheetIntro: 'These can happen close together — see what fits, in whatever order suits you.',
+    closeA11y: 'Close',
+    closeSheetA11y: 'Close sheet',
+    openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
+  },
+
 } as const;

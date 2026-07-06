@@ -27,6 +27,8 @@ import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
 import { useTaskCompletion } from './useTaskCompletion';
 import { useLearnedPlaces } from './useLearnedPlaces';
+import { useErrandBundle } from '../useErrandBundle';
+import type { ErrandBundle } from '../../services/errandBundles';
 
 export interface TodayScreenState {
   /** Today's tasks. Empty while loading. */
@@ -70,6 +72,10 @@ export interface TodayScreenState {
   refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
   locationUnavailable: boolean;
+  /** Top-ranked errand bundle (KAN-235), or null when none exists / all are dismissed for today. */
+  errandBundle: ErrandBundle | null;
+  /** Hides the current errandBundle for the rest of the day. */
+  dismissErrandBundle: () => void;
 }
 
 export function useTodayScreen(uid: string | undefined): TodayScreenState {
@@ -91,6 +97,10 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   );
 
   const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
+
+  // Pure computation over data useProximityEngine already holds each tick
+  // (KAN-235) — no new timer, no new location subscription.
+  const { bundle: errandBundle, dismiss: dismissErrandBundle } = useErrandBundle(data.tasks, proximity.poiPlaces);
 
   useEffect(() => {
     setLearnedPlaces(learnedPlaces);
@@ -147,5 +157,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     permissionGranted: proximity.permissionGranted,
     refreshProximity: proximity.refreshProximity,
     locationUnavailable: proximity.locationUnavailable,
+    errandBundle,
+    dismissErrandBundle,
   };
 }
