@@ -313,11 +313,13 @@ function DayCell({
         />
       )}
 
-      {/* Trip range band — decorative only, never touches ring/streak state (KAN-234) */}
+      {/* Trip range band — decorative only, never touches ring/streak state (KAN-234).
+          dark.nearBorder is too dark/low-contrast against the dark bg — use
+          nearText's brighter amber instead in dark mode. */}
       {inTripRange && (
         <View
           pointerEvents="none"
-          style={[styles.tripBand, { backgroundColor: palette.nearBorder }]}
+          style={[styles.tripBand, { backgroundColor: dark ? palette.nearText : palette.nearBorder }]}
         />
       )}
 
@@ -495,8 +497,13 @@ export default function CalendarScreen() {
   }, [isDayComplete]);
 
   // Dated trips only — a dateless trip has nothing to mark on the Calendar.
+  // Sorted by startDate ascending so tripForDate's overlap tie-break below is
+  // deterministic regardless of getTrips' fetch order (Firestore gives no
+  // ordering guarantee — see trips.ts).
   const datedTrips = useMemo(
-    () => trips.filter((t): t is Trip & { startDate: string; endDate: string } => !!t.startDate && !!t.endDate),
+    () => trips
+      .filter((t): t is Trip & { startDate: string; endDate: string } => !!t.startDate && !!t.endDate)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [trips],
   );
   const isInTripRange = useCallback(
@@ -504,11 +511,15 @@ export default function CalendarScreen() {
     [datedTrips],
   );
   // Same range check as isInTripRange, but returns the actual Trip (KAN-250) —
-  // lets the detail card's day CTA show which place is already known instead
-  // of prompting to plan the trip again.
+  // lets the entry row show which place is already known instead of
+  // prompting to plan the trip again. When trips overlap, the one with the
+  // latest startDate wins (most specific/recent) — deterministic thanks to
+  // datedTrips' sort above.
   const tripForDate = useCallback(
-    (iso: string): (Trip & { startDate: string; endDate: string }) | undefined =>
-      datedTrips.find(t => iso >= t.startDate && iso <= t.endDate),
+    (iso: string): (Trip & { startDate: string; endDate: string }) | undefined => {
+      const matches = datedTrips.filter(t => iso >= t.startDate && iso <= t.endDate);
+      return matches[matches.length - 1];
+    },
     [datedTrips],
   );
 
@@ -718,16 +729,32 @@ export default function CalendarScreen() {
         })}
       </View>
 
-      {/* ── "Going somewhere?" persistent entry (KAN-243) — always visible, no prefill ── */}
-      <Pressable
-        style={[styles.tripEntryRow, { borderColor: palette.line }]}
-        onPress={() => navigation.push('TripPlanner')}
-        accessibilityRole="button"
-        accessibilityLabel={COPY.tripPlanner.entryRowA11y}>
-        <SuitcaseIcon color={palette.muted} size={16} />
-        <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
-        <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
-      </Pressable>
+      {/* ── Trip entry row (KAN-243 / KAN-250) — always visible, just under the
+          day grid. Trip-aware: shows "Places I know: {destination}" when the
+          selected day already falls within a downloaded trip, else the plain
+          "Going somewhere?" invite (prefilled with that date when it's a
+          future day). Single row — no separate day-specific CTA elsewhere. ── */}
+      {selTrip ? (
+        <Pressable
+          style={[styles.tripEntryRow, { borderColor: palette.line }]}
+          onPress={() => navigation.navigate('PlacesIKnow')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)}>
+          <SuitcaseIcon color={palette.muted} size={16} />
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}</Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      ) : (
+        <Pressable
+          style={[styles.tripEntryRow, { borderColor: palette.line }]}
+          onPress={() => navigation.push('TripPlanner', isSelFuture ? { prefillStartDate: selectedDate } : undefined)}
+          accessibilityRole="button"
+          accessibilityLabel={isSelFuture ? COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate)) : COPY.tripPlanner.entryRowA11y}>
+          <SuitcaseIcon color={palette.muted} size={16} />
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      )}
 
       {/* ── Hairline divider ── */}
       <View style={[styles.divider, { backgroundColor: palette.line }]} />
@@ -833,32 +860,6 @@ export default function CalendarScreen() {
                 accessibilityRole="button"
                 accessibilityLabel="Open today">
                 <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>Open today</Text>
-                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
-              </Pressable>
-            )}
-
-            {/* Future day already covered by a downloaded trip (KAN-250) — show
-                what's already known instead of prompting to plan again. */}
-            {isSelFuture && selTrip && (
-              <Pressable
-                onPress={() => navigation.navigate('PlacesIKnow')}
-                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
-                accessibilityRole="button"
-                accessibilityLabel={COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)}>
-                <SuitcaseIcon color={palette.bg} size={16} />
-                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}</Text>
-                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
-              </Pressable>
-            )}
-
-            {/* "Going somewhere?" CTA — future days only, not yet covered by a trip (KAN-243) */}
-            {isSelFuture && !selTrip && (
-              <Pressable
-                onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
-                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
-                accessibilityRole="button"
-                accessibilityLabel={COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate))}>
-                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.tripPlanner.entryRowLabel}</Text>
                 <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
               </Pressable>
             )}

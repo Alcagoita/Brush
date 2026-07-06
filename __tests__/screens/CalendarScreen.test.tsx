@@ -303,45 +303,35 @@ describe('CalendarScreen', () => {
     expect(screen.getByLabelText('Open today')).toBeTruthy();
   });
 
-  describe('"Going somewhere?" Trip Planner entry (KAN-243)', () => {
-    // Both the persistent row and the future-day CTA share the "Going
-    // somewhere?" label — disambiguated by their distinct accessibility labels.
-    const FUTURE_DAY_CTA_LABEL = /^Plan a trip starting/;
-
-    it('renders a persistent entry row that opens the flow with no prefill', async () => {
+  describe('Trip entry row — "Going somewhere?" state (KAN-243)', () => {
+    it('opens the flow with no prefill when today is selected (default)', async () => {
       await renderScreen();
       await act(async () => {
         fireEvent.press(screen.getByLabelText('Plan a trip'));
       });
-      expect(mockPush).toHaveBeenCalledWith('TripPlanner');
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner', undefined);
     });
 
-    it('shows the future-day CTA in the detail card only for a future day', async () => {
-      await renderScreen();
-      // Today (the 16th) selected by default — no future-day CTA yet, only the persistent row.
-      expect(screen.queryByLabelText(FUTURE_DAY_CTA_LABEL)).toBeNull();
-      expect(screen.getAllByText('Going somewhere?')).toHaveLength(1);
-
-      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
-      expect(screen.getByLabelText(FUTURE_DAY_CTA_LABEL)).toBeTruthy();
-      expect(screen.getAllByText('Going somewhere?')).toHaveLength(2);
-    });
-
-    it('does not show the future-day CTA for a past day', async () => {
-      await renderScreen();
-      await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
-      expect(screen.queryByLabelText(FUTURE_DAY_CTA_LABEL)).toBeNull();
-    });
-
-    it('opens the flow with that day pre-filled as the trip start when the future-day CTA is tapped', async () => {
+    it('opens the flow with that day pre-filled as the trip start when a future day is selected', async () => {
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
       await act(async () => {
-        fireEvent.press(screen.getByLabelText(FUTURE_DAY_CTA_LABEL));
+        fireEvent.press(screen.getByLabelText(/^Plan a trip starting/));
       });
 
       expect(mockPush).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-25' });
+    });
+
+    it('opens the flow with no prefill when a past day is selected', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Plan a trip'));
+      });
+
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner', undefined);
     });
 
     it('leaves past/today day-tap selection behavior unchanged (still just selects the day)', async () => {
@@ -353,7 +343,7 @@ describe('CalendarScreen', () => {
     });
   });
 
-  describe('"Places I know" CTA for a future day already covered by a trip (KAN-250)', () => {
+  describe('Trip entry row — "Places I know" state for a day covered by a trip (KAN-250)', () => {
     const coveredTrip = {
       id: 'trip-2', destination: 'Faro', placeRef: 'p2', centerLat: 1, centerLng: 2,
       startDate: '2026-06-24', endDate: '2026-06-27', areaRadius: 15_000,
@@ -369,9 +359,10 @@ describe('CalendarScreen', () => {
       expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
       expect(screen.getByText('Places I know: Faro')).toBeTruthy();
       expect(screen.queryByLabelText(/^Plan a trip starting/)).toBeNull();
+      expect(screen.queryByLabelText('Plan a trip')).toBeNull();
     });
 
-    it('navigates to PlacesIKnow (not TripPlanner) when that CTA is tapped', async () => {
+    it('navigates to PlacesIKnow (not TripPlanner) when that row is tapped', async () => {
       mockGetTrips.mockResolvedValue([coveredTrip]);
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
@@ -381,11 +372,11 @@ describe('CalendarScreen', () => {
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
-      expect(mockPush).not.toHaveBeenCalledWith('TripPlanner', expect.anything());
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
-    it('still shows the normal "Going somewhere?" CTA for a future day NOT covered by any trip', async () => {
-      // Trip covers the 28th, not the 25th selected below.
+    it('still shows the normal "Going somewhere?" row for a day NOT covered by any trip', async () => {
+      // Trip covers the 28th-29th, not the 25th selected below.
       mockGetTrips.mockResolvedValue([{ ...coveredTrip, startDate: '2026-06-28', endDate: '2026-06-29' }]);
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
@@ -394,12 +385,23 @@ describe('CalendarScreen', () => {
       expect(screen.queryByLabelText(/^Places I know —/)).toBeNull();
     });
 
-    it('leaves the persistent bottom entry row showing "Going somewhere?" regardless of trip coverage', async () => {
-      mockGetTrips.mockResolvedValue([coveredTrip]);
+    it('shows "Places I know" for today when today falls inside a trip range, without needing a future day', async () => {
+      // FIXED_NOW is 2026-06-16 — cover today in the trip range.
+      mockGetTrips.mockResolvedValue([{ ...coveredTrip, startDate: '2026-06-15', endDate: '2026-06-17' }]);
+      await renderScreen();
+
+      expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
+    });
+
+    it('picks the latest-starting trip deterministically when trips overlap a day', async () => {
+      const earlierTrip = { ...coveredTrip, id: 'trip-1', destination: 'Lisbon', startDate: '2026-06-20', endDate: '2026-06-26' };
+      const laterTrip   = { ...coveredTrip, id: 'trip-2', destination: 'Faro',   startDate: '2026-06-24', endDate: '2026-06-27' };
+      // Deliberately fetched in an order where the earlier-starting trip comes last.
+      mockGetTrips.mockResolvedValue([laterTrip, earlierTrip]);
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
-      expect(screen.getByLabelText('Plan a trip')).toBeTruthy();
+      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
     });
   });
 

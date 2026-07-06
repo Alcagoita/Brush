@@ -72,9 +72,10 @@ export default function PlacesIKnowScreen() {
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
         <Pressable
           style={styles.navBtn}
-          // Not goBack() — the only entry point is TripPlanner's post-download
-          // "done" flow (navigation.navigate('PlacesIKnow')), so goBack() would
-          // land back on the just-finished download screen instead of Calendar.
+          // Not goBack() — this screen has two entry points (TripPlanner's
+          // post-download "done" flow, and CalendarScreen's trip-covered-day
+          // entry row), and goBack() would land back on whichever of those was
+          // current instead of always returning to Calendar.
           onPress={() => navigation.navigate('Calendar')}
           accessibilityRole="button"
           accessibilityLabel="Back">
