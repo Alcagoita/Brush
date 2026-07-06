@@ -24,7 +24,9 @@ export default function NetworkBanner() {
   const { palette } = useTheme();
   const { offline, hasCache } = useOfflineCoverage();
 
-  if (!offline || hasCache) {
+  // hasCache === null means "not checked yet this offline period" — stay
+  // silent rather than flashing the banner before the real state is known.
+  if (!offline || hasCache !== false) {
     return null;
   }
 

@@ -100,6 +100,12 @@ describe('ContextChip — the 4 situations', () => {
     render(<ContextChip />);
     expect(screen.getByLabelText(COPY.contextChip.offlineGlyphA11y)).toBeTruthy();
   });
+
+  it('renders nothing while hasCache is still unknown (null) — must not flash before the real state resolves (review fix)', () => {
+    mockUseOfflineCoverage.mockReturnValue({ offline: true, hasCache: null });
+    render(<ContextChip />);
+    expect(screen.queryByLabelText(COPY.contextChip.offlineGlyphA11y)).toBeNull();
+  });
 });
 
 describe('ContextChip — tap sheet', () => {
@@ -192,24 +198,22 @@ describe('ContextChip — Refresh (shown once back online, mid-sheet)', () => {
   });
 
   it('calls refreshHabitatCacheIfStale with force=true, the last search coords, and ALL_POI_TYPES ∪ custom categories', async () => {
-    mockUseOfflineCoverage.mockReturnValue({ offline: false, hasCache: true });
     mockGetCategories.mockResolvedValue([{ id: 'c1', name: 'Custom', poi: 'library' }]);
     mockGetLastSearchCoords.mockReturnValue({ lat: 10, lng: 20 });
 
-    render(<ContextChip />);
     // Force the sheet open directly isn't possible without the glyph (chip
     // is absent while online) — simulate "was offline, tapped, came back
-    // online" via a rerender, matching the previous test's real user path.
+    // online" via a rerender, matching the real user path.
     mockUseOfflineCoverage.mockReturnValue({ offline: true, hasCache: true });
     const { rerender } = render(<ContextChip />);
     await act(async () => {
-      fireEvent.press(screen.getAllByLabelText(COPY.contextChip.offlineGlyphA11y)[0]);
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.offlineGlyphA11y));
     });
     mockUseOfflineCoverage.mockReturnValue({ offline: false, hasCache: true });
     await act(async () => { rerender(<ContextChip />); });
 
     await act(async () => {
-      fireEvent.press(screen.getAllByLabelText(COPY.contextChip.refreshButton)[0]);
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.refreshButton));
     });
 
     expect(mockRefreshHabitatCacheIfStale).toHaveBeenCalledWith(

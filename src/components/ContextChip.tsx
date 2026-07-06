@@ -104,7 +104,9 @@ export default function ContextChip() {
     }
   }, []);
 
-  const showChip = offline && hasCache;
+  // hasCache === null means "not checked yet this offline period" — stay
+  // silent rather than showing the glyph before the real state is known.
+  const showChip = offline && hasCache === true;
 
   return (
     <>
@@ -121,12 +123,12 @@ export default function ContextChip() {
 
       {modalVisible && (
         <Modal visible={modalVisible} transparent animationType="none" onRequestClose={() => setSheetOpen(false)} statusBarTranslucent>
-          <Animated.View style={[styles.scrim, { opacity: scrimOpacity }]} pointerEvents="box-none">
+          <Animated.View style={[styles.scrim, { backgroundColor: palette.scrim, opacity: scrimOpacity }]} pointerEvents="box-none">
             <Pressable
               style={StyleSheet.absoluteFill}
               onPress={() => setSheetOpen(false)}
               accessibilityRole="button"
-              accessibilityLabel="Close sheet"
+              accessibilityLabel={COPY.contextChip.closeSheetA11y}
             />
           </Animated.View>
 
@@ -149,8 +151,9 @@ export default function ContextChip() {
               <Pressable
                 style={[styles.closeBtn, { backgroundColor: palette.surface2 }]}
                 onPress={() => setSheetOpen(false)}
+                hitSlop={7}
                 accessibilityRole="button"
-                accessibilityLabel="Close">
+                accessibilityLabel={COPY.contextChip.closeA11y}>
                 <CloseIcon color={palette.muted} size={16} />
               </Pressable>
             </View>
@@ -191,7 +194,6 @@ const styles = StyleSheet.create({
 
   scrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheet: {
     position:             'absolute',

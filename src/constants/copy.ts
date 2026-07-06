@@ -157,6 +157,8 @@ export const COPY = {
   // the sheet copy stays area-name-agnostic (no reverse geocoding available).
   contextChip: {
     offlineGlyphA11y: 'Offline — I know this area',
+    closeSheetA11y: 'Close sheet',
+    closeA11y:      'Close',
     sheetTitle: 'What I know here',
     /** date is the last-learned day (e.g. "Jun 28"), or undefined if the cache has no timestamp yet. */
     sheetBody: (date?: string) =>

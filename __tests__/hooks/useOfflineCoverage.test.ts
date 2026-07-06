@@ -2,11 +2,14 @@
  * KAN-241 — useOfflineCoverage: shared offline/habitat-coverage detection.
  *
  * Verifies:
- *   - online → { offline: false, hasCache: false }, never checks the cache
+ *   - online → { offline: false, hasCache: null }, never checks the cache
  *   - offline + cache has data somewhere → { offline: true, hasCache: true }
  *   - offline + cache empty everywhere → { offline: true, hasCache: false }
  *   - isInternetReachable: false counts as offline even when isConnected is true
  *   - connectivity state not yet known (null) → stays offline: false
+ *   - hasCache is null (not false) on the render before the cache check
+ *     resolves — callers must not treat "unknown" as "no cache" (review fix:
+ *     avoids NetworkBanner flashing its broken-state copy for a tick)
  */
 
 import { renderHook, waitFor } from '@testing-library/react-native';
@@ -33,8 +36,20 @@ describe('useOfflineCoverage', () => {
 
     const { result } = renderHook(() => useOfflineCoverage());
 
-    expect(result.current).toEqual({ offline: false, hasCache: false });
+    expect(result.current).toEqual({ offline: false, hasCache: null });
     expect(mockHasCachedPlaces).not.toHaveBeenCalled();
+  });
+
+  it('resets hasCache back to null when connectivity returns (not stale false/true from before)', async () => {
+    mockUseNetInfo.mockReturnValue({ isConnected: false, isInternetReachable: false });
+    mockHasCachedPlaces.mockReturnValue(true);
+    const { result, rerender } = renderHook(() => useOfflineCoverage());
+    await waitFor(() => expect(result.current.hasCache).toBe(true));
+
+    mockUseNetInfo.mockReturnValue({ isConnected: true, isInternetReachable: true });
+    rerender({});
+
+    expect(result.current.hasCache).toBeNull();
   });
 
   it('reports offline + hasCache true when the cache has data somewhere', async () => {
