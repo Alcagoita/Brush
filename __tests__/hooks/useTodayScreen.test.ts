@@ -50,6 +50,15 @@ jest.mock('../../src/services/mallSnapshots', () => ({
   getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
 }));
 
+// errandBundles.ts opens its own expo-sqlite db — not under test here (see
+// errandBundles.test.ts / useErrandBundle.test.ts), so stub it out wholesale.
+jest.mock('../../src/services/errandBundles', () => ({
+  computeErrandBundles: jest.fn().mockReturnValue([]),
+  errandBundleKey: (bundle: { anchor: { placeId: string } }) => bundle.anchor.placeId,
+  isBundleDismissedToday: jest.fn().mockReturnValue(false),
+  dismissBundleForToday: jest.fn(),
+}));
+
 jest.mock('../../src/services/sharing', () => ({
   getIncomingSharedTasksCount: jest.fn().mockResolvedValue(0),
 }));
