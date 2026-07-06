@@ -1,28 +1,28 @@
 /**
- * ContextChip — quiet header signal for the app's current context (KAN-241).
+ * ContextChip — quiet header signal for the app's current context
+ * (KAN-241 offline glyph; KAN-242 mall/trip place contexts).
  *
- * This ticket only wires the offline-with-coverage state: a small muted
- * glyph shown next to the Today header's greeting when the device is
- * offline AND the habitat cache already has data somewhere. It replaces
- * the full-width NetworkBanner for that case — the banner now only shows
- * for the "no cache anywhere yet" case (see NetworkBanner.tsx).
+ * Exactly one of 4 states ever renders, in priority order:
+ *   1. Mall   — inside the active mall snapshot's bounds.
+ *   2. Trip   — inside an active trip's area AND today falls within its
+ *               dates (dateless trips have no date constraint).
+ *   3. Offline glyph — offline AND the habitat cache covers somewhere
+ *      (KAN-241's original behaviour, unchanged).
+ *   4. Nothing.
+ * The mall/trip > offline priority, and the "never two chips" guarantee,
+ * are resolved by the pure resolveContextChipView (src/utils/contextChip.ts)
+ * — unit-tested there without needing to mock geolocation or Firestore.
+ * Being offline while in a mall/trip context shows as a small muted dot on
+ * that chip (a modifier, not its own indicator) rather than the old glyph.
  *
- *   1. Online                          → chip absent
- *   2. Offline, cache covers here      → glyph (this component)
- *   3. Offline, no cache at all        → NetworkBanner, not this component
- *   4. Offline, cache exists elsewhere → glyph (same as #2 — proximity.ts's
- *                                        own once-per-session toast covers
- *                                        the "you've wandered off" nudge)
- *
- * Tapping the glyph opens a small sheet (Modal + Animated opacity/
- * translateY only — Fabric-safe, same pattern as ShareProfileSheet.tsx)
- * showing when the area was last learned, with a manual refresh option
- * once back online. The sheet stays mounted/visible independent of the
- * chip's own offline gating so it doesn't vanish mid-interaction if
- * connectivity flips back on while it's open.
+ * Tapping the chip opens a small sheet (Modal + Animated opacity/
+ * translateY only — Fabric-safe, same pattern as ShareProfileSheet.tsx),
+ * with content specific to the active state. The sheet stays mounted/
+ * visible independent of the chip's own gating so it doesn't vanish
+ * mid-interaction if connectivity or position flips while it's open.
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -42,7 +42,12 @@ import { CloudOffIcon, CloseIcon, RefreshIcon } from './AppIcon';
 import { useOfflineCoverage } from '../hooks/useOfflineCoverage';
 import { getMostRecentHabitatUpdateAt, refreshHabitatCacheIfStale } from '../services/habitatCache';
 import { getLastSearchCoords } from '../services/proximity';
+import type { PlaceContext } from '../services/proximity';
+import { refreshTripArea } from '../services/tripDownload';
 import { getCategories } from '../services/firestore';
+import { resolveContextChipView, ContextChipView } from '../utils/contextChip';
+import { todayISO } from '../utils/date';
+import { useToastStore } from '../store/toastStore';
 import { ALL_POI_TYPES } from '../types';
 import { COPY } from '../constants/copy';
 
@@ -50,7 +55,35 @@ function formatLearnedDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-export default function ContextChip() {
+/** YYYY-MM-DD → "Jun 28", without the UTC-parsing off-by-one (see PlacesIKnowScreen/TripPlannerScreen's own copy of this helper). */
+function formatDateShort(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number);
+  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+function chipA11yLabel(view: ContextChipView): string {
+  switch (view.kind) {
+    case 'mall':    return COPY.contextChip.mallChipA11y(view.name);
+    case 'trip':    return COPY.contextChip.tripChipA11y(view.destination);
+    case 'offline': return COPY.contextChip.offlineGlyphA11y;
+    case 'none':    return '';
+  }
+}
+
+function sheetTitleFor(view: ContextChipView): string {
+  switch (view.kind) {
+    case 'mall': return COPY.contextChip.mallSheetTitle(view.name);
+    case 'trip': return COPY.contextChip.tripSheetTitle(view.destination);
+    default:     return COPY.contextChip.sheetTitle;
+  }
+}
+
+export interface ContextChipProps {
+  /** Mall/trip context for the last position fix (KAN-242), or null. Absent by default (offline-only behaviour). */
+  placeContext?: PlaceContext;
+}
+
+export default function ContextChip({ placeContext = null }: ContextChipProps) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
@@ -63,6 +96,23 @@ export default function ContextChip() {
 
   const scrimOpacity    = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(screenHeight)).current;
+
+  const todayIso = todayISO();
+  const view = useMemo(
+    () => resolveContextChipView({ placeContext, todayIso, offline, hasCache }),
+    [placeContext, todayIso, offline, hasCache],
+  );
+
+  // Frozen at the moment the sheet is opened, so a connectivity/position
+  // update mid-interaction (which can change `view`/`placeContext` live)
+  // doesn't yank the sheet's title/body out from under the user or flip it
+  // to a different state — only the refresh button(s) react live to
+  // `offline`/`refreshing`. The chip itself is unaffected and always
+  // reflects the live `view`.
+  const [openedSheet, setOpenedSheet] = useState<{ view: ContextChipView; placeContext: PlaceContext }>({
+    view: { kind: 'none' },
+    placeContext: null,
+  });
 
   useEffect(() => {
     if (sheetOpen) {
@@ -104,20 +154,57 @@ export default function ContextChip() {
     }
   }, []);
 
-  // hasCache === null means "not checked yet this offline period" — stay
-  // silent rather than showing the glyph before the real state is known.
-  const showChip = offline && hasCache === true;
+  const handleTripRefresh = useCallback(async () => {
+    if (placeContext?.kind !== 'trip') { return; }
+    const trip = placeContext.trip;
+
+    setRefreshing(true);
+    try {
+      const uid = getAuth().currentUser?.uid;
+      if (!uid) { return; }
+      const categories = await getCategories(uid);
+      const customCategoryPoiTypes = categories.map(c => c.poi).filter((p): p is string => !!p);
+      await refreshTripArea(uid, trip, customCategoryPoiTypes);
+    } catch (err) {
+      console.warn('[ContextChip] trip refresh failed', err);
+      useToastStore.getState().showToast(COPY.contextChip.placeRefreshErrorToast);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [placeContext]);
+
+  const showChip = view.kind !== 'none';
 
   return (
     <>
       {showChip && (
         <Pressable
-          style={[styles.chip, { backgroundColor: palette.surface, borderColor: palette.line }]}
-          onPress={() => setSheetOpen(true)}
+          style={[
+            view.kind === 'offline' ? styles.chip : styles.placeChip,
+            { backgroundColor: palette.surface, borderColor: palette.line },
+          ]}
+          onPress={() => {
+            setOpenedSheet({ view, placeContext });
+            setSheetOpen(true);
+          }}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel={COPY.contextChip.offlineGlyphA11y}>
-          <CloudOffIcon color={palette.muted} size={14} />
+          accessibilityLabel={chipA11yLabel(view)}>
+          {view.kind === 'offline' ? (
+            <CloudOffIcon color={palette.muted} size={14} />
+          ) : (
+            <>
+              <Text style={[styles.placeChipText, { color: palette.muted }]} numberOfLines={1}>
+                {`· ${view.kind === 'mall' ? view.name : view.destination}`}
+              </Text>
+              {view.offlineDot && (
+                <View
+                  style={[styles.placeChipDot, { backgroundColor: palette.muted }]}
+                  accessibilityLabel={COPY.contextChip.offlineDotA11y}
+                />
+              )}
+            </>
+          )}
         </Pressable>
       )}
 
@@ -147,7 +234,7 @@ export default function ContextChip() {
             </View>
 
             <View style={styles.headerRow}>
-              <Text style={[styles.headerTitle, { color: palette.text }]}>{COPY.contextChip.sheetTitle}</Text>
+              <Text style={[styles.headerTitle, { color: palette.text }]}>{sheetTitleFor(openedSheet.view)}</Text>
               <Pressable
                 style={[styles.closeBtn, { backgroundColor: palette.surface2 }]}
                 onPress={() => setSheetOpen(false)}
@@ -158,11 +245,45 @@ export default function ContextChip() {
               </Pressable>
             </View>
 
-            <Text style={[styles.body, { color: palette.muted }]}>
-              {COPY.contextChip.sheetBody(lastUpdatedAt != null ? formatLearnedDate(lastUpdatedAt) : undefined)}
-            </Text>
+            {openedSheet.view.kind === 'offline' && (
+              <Text style={[styles.body, { color: palette.muted }]}>
+                {COPY.contextChip.sheetBody(lastUpdatedAt != null ? formatLearnedDate(lastUpdatedAt) : undefined)}
+              </Text>
+            )}
 
-            {!offline && (
+            {openedSheet.view.kind === 'mall' && openedSheet.placeContext?.kind === 'mall' && (
+              <Text style={[styles.body, { color: palette.muted }]}>
+                {COPY.contextChip.placeSheetCoverageLine}
+                {'\n'}
+                {COPY.contextChip.mallSheetFreshnessLine(formatLearnedDate(openedSheet.placeContext.snapshot.createdAt.toMillis()))}
+              </Text>
+            )}
+
+            {openedSheet.view.kind === 'trip' && (
+              <>
+                <Text style={[styles.body, { color: palette.muted }]}>
+                  {openedSheet.view.startDate && openedSheet.view.endDate
+                    ? COPY.tripPlanner.tripRowDates(formatDateShort(openedSheet.view.startDate), formatDateShort(openedSheet.view.endDate))
+                    : COPY.tripPlanner.tripRowNoDates}
+                  {'\n'}
+                  {COPY.contextChip.placeSheetCoverageLine}
+                  {openedSheet.view.endDate && `\n${COPY.tripPlanner.tripRowKnownUntil(formatDateShort(openedSheet.view.endDate))}`}
+                </Text>
+                <Pressable
+                  style={[styles.refreshBtn, { backgroundColor: palette.surface2, opacity: refreshing || offline ? 0.6 : 1 }]}
+                  onPress={handleTripRefresh}
+                  disabled={refreshing || offline}
+                  accessibilityRole="button"
+                  accessibilityLabel={refreshing ? COPY.contextChip.refreshingLabel : COPY.contextChip.refreshButton}>
+                  <RefreshIcon color={palette.text} size={16} />
+                  <Text style={[styles.refreshLabel, { color: palette.text }]}>
+                    {refreshing ? COPY.contextChip.refreshingLabel : COPY.contextChip.refreshButton}
+                  </Text>
+                </Pressable>
+              </>
+            )}
+
+            {openedSheet.view.kind === 'offline' && !offline && (
               <Pressable
                 style={[styles.refreshBtn, { backgroundColor: palette.surface2, opacity: refreshing ? 0.6 : 1 }]}
                 onPress={handleRefresh}
@@ -190,6 +311,29 @@ const styles = StyleSheet.create({
     borderWidth:    1,
     alignItems:     'center',
     justifyContent: 'center',
+  },
+
+  placeChip: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    height:            22,
+    maxWidth:          140,
+    paddingHorizontal: 8,
+    borderRadius:      radius.chip,
+    borderWidth:       1,
+    gap:               4,
+  },
+  placeChipText: {
+    fontSize:   11,
+    fontWeight: '500',
+    fontFamily: 'Geist-Medium',
+    flexShrink: 1,
+  },
+  placeChipDot: {
+    width:        5,
+    height:       5,
+    borderRadius: radius.chip,
+    flexShrink:   0,
   },
 
   scrim: {

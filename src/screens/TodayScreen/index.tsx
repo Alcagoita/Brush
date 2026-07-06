@@ -91,6 +91,7 @@ export default function TodayScreen() {
     refresh,
     nearbyPoiType,
     poiPlaces,
+    placeContext,
     storeTuningActive,
     showStoreTuningPrompt,
     onStoreTuningTurnOn,
@@ -270,7 +271,7 @@ export default function TodayScreen() {
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
           onPeoplePress={() => navigation.navigate('SocialHub')}
           onAchievementsPress={() => navigation.navigate('Achievements')}
-          contextChip={<ContextChip />}
+          contextChip={<ContextChip placeContext={placeContext} />}
         />
       </View>
 

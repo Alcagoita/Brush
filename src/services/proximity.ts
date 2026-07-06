@@ -133,6 +133,19 @@ export function parseGeofenceId(id: string): { poiType: string; placeId: string 
  */
 export type PlacesMap = Partial<Record<string, NearbyPlace[]>>;
 
+/**
+ * KAN-242 — which place context (if any) the last position fell inside,
+ * mall-first per the header context chip's display priority (mall > trip).
+ * Distinct from findActiveCacheArea below: that one is a pure boolean
+ * cache-routing signal for runProximitySearch, and its trip-then-mall check
+ * order doesn't affect behavior (queryHabitatCache never keys off the
+ * specific cacheAreaId) — this one's order is a real product requirement.
+ */
+export type PlaceContext =
+  | { kind: 'mall'; snapshot: MallSnapshot }
+  | { kind: 'trip'; trip: Trip }
+  | null;
+
 /** Callback fired whenever nearby state or place data changes. */
 export type ProximityCallback = (
   nearbyPoiType: string | null,
@@ -448,6 +461,35 @@ function findActiveCacheArea(lat: number, lng: number): string | null {
   return null;
 }
 
+/** KAN-242 — see PlaceContext's doc comment for why this mall-first order is distinct from findActiveCacheArea's above. */
+function findActivePlaceContext(lat: number, lng: number): PlaceContext {
+  const now = Date.now();
+  if (_mallSnapshot && _mallSnapshot.expiresAt >= now &&
+      getDistanceMeters(lat, lng, _mallSnapshot.centerLat, _mallSnapshot.centerLng) <= _mallSnapshot.radius) {
+    return { kind: 'mall', snapshot: _mallSnapshot };
+  }
+  for (const trip of _activeTrips) {
+    if (trip.expiresAt < now) { continue; }
+    if (getDistanceMeters(lat, lng, trip.centerLat, trip.centerLng) <= trip.areaRadius) {
+      return { kind: 'trip', trip };
+    }
+  }
+  return null;
+}
+
+let _placeContextTap: ((ctx: PlaceContext) => void) | null = null;
+
+/**
+ * KAN-242 — register a tap fired with the resolved place context on every
+ * position fix taken by runProximitySearch, independent of onUpdate/
+ * ProximityCallback (mirrors setLocationTap below). Feeds the header context
+ * chip without changing ProximityCallback's signature or any of its existing
+ * call-site tests. Pass null to unregister.
+ */
+export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): void {
+  _placeContextTap = cb;
+}
+
 // ─── Core: one-shot proximity search ─────────────────────────────────────────
 
 /**
@@ -468,6 +510,7 @@ async function runProximitySearch(
   try {
     const coords = await getPositionLowAccuracy();
     _locationTap?.(coords.lat, coords.lng, coords.accuracy);
+    _placeContextTap?.(findActivePlaceContext(coords.lat, coords.lng));
 
     const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
     const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];

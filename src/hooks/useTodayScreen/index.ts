@@ -21,7 +21,7 @@
 import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
 import { setLearnedPlaces, setCustomCategoryPoiTypes } from '../../services/proximity';
-import type { PlacesMap } from '../../services/proximity';
+import type { PlacesMap, PlaceContext } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
@@ -44,6 +44,8 @@ export interface TodayScreenState {
   nearbyPlace:      NearbyPlace | null;
   /** Nearest known place per POI type — drives NearbyCard "Also close" rows. */
   poiPlaces:        PlacesMap;
+  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip. */
+  placeContext:     PlaceContext;
   storeTuningActive:        boolean;
   showStoreTuningPrompt:    boolean;
   onStoreTuningTurnOn:      () => void;
@@ -128,6 +130,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     nearbyPoiType: proximity.nearbyPoiType,
     nearbyPlace: proximity.nearbyPlace,
     poiPlaces: proximity.poiPlaces,
+    placeContext: proximity.placeContext,
     storeTuningActive:     proximity.storeTuningActive,
     showStoreTuningPrompt: proximity.showStoreTuningPrompt,
     onStoreTuningTurnOn: proximity.onStoreTuningTurnOn,
