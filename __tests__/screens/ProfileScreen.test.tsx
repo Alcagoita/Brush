@@ -382,15 +382,9 @@ describe('ProfileScreen — navigation entries', () => {
     expect(screen.getByLabelText('Share my profile')).toBeTruthy();
   });
 
-  it('renders "Going somewhere?" row and navigates to TripPlanner (KAN-234)', async () => {
+  it('does not render a "Going somewhere?" row — Trip Planner entry moved to Calendar (KAN-243)', async () => {
     await renderScreen();
-    const row = screen.getByText('Going somewhere?');
-    expect(row).toBeTruthy();
-    fireEvent.press(row);
-    // push (not navigate) — a fresh TripPlannerScreen instance each open, so
-    // its flow state can't go stale from a previous still-stacked visit
-    // (KAN-243 review fix).
-    expect(mockPush).toHaveBeenCalledWith('TripPlanner');
+    expect(screen.queryByText('Going somewhere?')).toBeNull();
   });
 
   it('renders Settings entry row', async () => {
