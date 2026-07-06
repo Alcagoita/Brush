@@ -10,6 +10,7 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import ContextChip from '../../src/components/ContextChip';
 import { COPY } from '../../src/constants/copy';
+import { useToastStore } from '../../src/store/toastStore';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -85,10 +86,11 @@ beforeEach(() => {
 
 // ─── Fixtures (KAN-242) ────────────────────────────────────────────────────────
 
+/** Local-timezone YYYY-MM-DD, offset by `offset` days — mirrors todayISO() so date-gating assertions never drift a day against UTC around midnight (review fix; toISOString() is UTC and todayISO() is local). */
 function isoDaysFromNow(offset: number): string {
   const d = new Date();
   d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0, 10);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function makeMallContext(overrides: Partial<{ name: string }> = {}) {
@@ -350,5 +352,22 @@ describe('ContextChip — trip context (KAN-242)', () => {
     });
     const refreshBtn = screen.getByLabelText(COPY.contextChip.refreshButton);
     expect(refreshBtn.props.accessibilityState?.disabled ?? refreshBtn.props.disabled).toBeTruthy();
+  });
+
+  it('shows an error toast and re-enables the button when the trip refresh fails', async () => {
+    mockRefreshTripArea.mockRejectedValueOnce(new Error('network down'));
+    useToastStore.setState({ message: null });
+    render(<ContextChip placeContext={makeTripContext({ destination: 'Faro' })} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro')));
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.refreshButton));
+    });
+
+    expect(useToastStore.getState().message).toBe(COPY.contextChip.placeRefreshErrorToast);
+    const refreshBtn = screen.getByLabelText(COPY.contextChip.refreshButton);
+    expect(refreshBtn.props.accessibilityState?.disabled ?? refreshBtn.props.disabled).toBeFalsy();
   });
 });

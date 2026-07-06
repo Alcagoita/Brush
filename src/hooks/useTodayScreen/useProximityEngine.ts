@@ -196,6 +196,11 @@ export function useProximityEngine(
         nearbyPlaceRef.current = null;
         setNearbyPlace(null);
         setPoiPlaces({});
+        // Otherwise the header ContextChip keeps showing a mall/trip context
+        // from the last tick before the engine stopped searching (KAN-242
+        // review fix) — e.g. the user's last POI task got completed while
+        // inside a mall, and the chip would freeze there indefinitely.
+        setPlaceContext(null);
       }
       return;
     }

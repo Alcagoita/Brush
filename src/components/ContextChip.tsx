@@ -93,23 +93,26 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
   const [modalVisible, setModalVisible]   = useState(false);
   const [refreshing, setRefreshing]       = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
-  // Frozen at the moment the offline-glyph sheet is opened, so reconnecting
-  // mid-sheet (which flips `view` away from the 'offline' kind, same as the
-  // chip itself disappearing) doesn't yank the sheet's own title/body out
-  // from under the user — only the refresh button reacts live to `offline`.
-  // Mall/trip sheets don't need this: their kind never depends on `offline`.
-  const [openedAsOffline, setOpenedAsOffline] = useState(false);
 
   const scrimOpacity    = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(screenHeight)).current;
 
+  const todayIso = todayISO();
   const view = useMemo(
-    () => resolveContextChipView({ placeContext, todayIso: todayISO(), offline, hasCache }),
-    [placeContext, offline, hasCache],
+    () => resolveContextChipView({ placeContext, todayIso, offline, hasCache }),
+    [placeContext, todayIso, offline, hasCache],
   );
 
-  const sheetKind: ContextChipView['kind'] =
-    view.kind === 'mall' || view.kind === 'trip' ? view.kind : (openedAsOffline ? 'offline' : view.kind);
+  // Frozen at the moment the sheet is opened, so a connectivity/position
+  // update mid-interaction (which can change `view`/`placeContext` live)
+  // doesn't yank the sheet's title/body out from under the user or flip it
+  // to a different state — only the refresh button(s) react live to
+  // `offline`/`refreshing`. The chip itself is unaffected and always
+  // reflects the live `view`.
+  const [openedSheet, setOpenedSheet] = useState<{ view: ContextChipView; placeContext: PlaceContext }>({
+    view: { kind: 'none' },
+    placeContext: null,
+  });
 
   useEffect(() => {
     if (sheetOpen) {
@@ -181,7 +184,7 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
             { backgroundColor: palette.surface, borderColor: palette.line },
           ]}
           onPress={() => {
-            setOpenedAsOffline(view.kind === 'offline');
+            setOpenedSheet({ view, placeContext });
             setSheetOpen(true);
           }}
           hitSlop={8}
@@ -231,7 +234,7 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
             </View>
 
             <View style={styles.headerRow}>
-              <Text style={[styles.headerTitle, { color: palette.text }]}>{sheetTitleFor(view)}</Text>
+              <Text style={[styles.headerTitle, { color: palette.text }]}>{sheetTitleFor(openedSheet.view)}</Text>
               <Pressable
                 style={[styles.closeBtn, { backgroundColor: palette.surface2 }]}
                 onPress={() => setSheetOpen(false)}
@@ -242,29 +245,29 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
               </Pressable>
             </View>
 
-            {sheetKind === 'offline' && (
+            {openedSheet.view.kind === 'offline' && (
               <Text style={[styles.body, { color: palette.muted }]}>
                 {COPY.contextChip.sheetBody(lastUpdatedAt != null ? formatLearnedDate(lastUpdatedAt) : undefined)}
               </Text>
             )}
 
-            {sheetKind === 'mall' && placeContext?.kind === 'mall' && (
+            {openedSheet.view.kind === 'mall' && openedSheet.placeContext?.kind === 'mall' && (
               <Text style={[styles.body, { color: palette.muted }]}>
                 {COPY.contextChip.placeSheetCoverageLine}
                 {'\n'}
-                {COPY.contextChip.mallSheetFreshnessLine(formatLearnedDate(placeContext.snapshot.createdAt.toMillis()))}
+                {COPY.contextChip.mallSheetFreshnessLine(formatLearnedDate(openedSheet.placeContext.snapshot.createdAt.toMillis()))}
               </Text>
             )}
 
-            {sheetKind === 'trip' && view.kind === 'trip' && (
+            {openedSheet.view.kind === 'trip' && (
               <>
                 <Text style={[styles.body, { color: palette.muted }]}>
-                  {view.startDate && view.endDate
-                    ? COPY.tripPlanner.tripRowDates(formatDateShort(view.startDate), formatDateShort(view.endDate))
+                  {openedSheet.view.startDate && openedSheet.view.endDate
+                    ? COPY.tripPlanner.tripRowDates(formatDateShort(openedSheet.view.startDate), formatDateShort(openedSheet.view.endDate))
                     : COPY.tripPlanner.tripRowNoDates}
                   {'\n'}
                   {COPY.contextChip.placeSheetCoverageLine}
-                  {view.endDate && `\n${COPY.tripPlanner.tripRowKnownUntil(formatDateShort(view.endDate))}`}
+                  {openedSheet.view.endDate && `\n${COPY.tripPlanner.tripRowKnownUntil(formatDateShort(openedSheet.view.endDate))}`}
                 </Text>
                 <Pressable
                   style={[styles.refreshBtn, { backgroundColor: palette.surface2, opacity: refreshing || offline ? 0.6 : 1 }]}
@@ -280,7 +283,7 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
               </>
             )}
 
-            {sheetKind === 'offline' && !offline && (
+            {openedSheet.view.kind === 'offline' && !offline && (
               <Pressable
                 style={[styles.refreshBtn, { backgroundColor: palette.surface2, opacity: refreshing ? 0.6 : 1 }]}
                 onPress={handleRefresh}
@@ -329,7 +332,7 @@ const styles = StyleSheet.create({
   placeChipDot: {
     width:        5,
     height:       5,
-    borderRadius: 9999,
+    borderRadius: radius.chip,
     flexShrink:   0,
   },
 
