@@ -17,6 +17,7 @@
 
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import React from 'react';
+import { View } from 'react-native';
 import CalendarScreen from '../../src/screens/CalendarScreen';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -26,10 +27,17 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
+const mockNavigate = jest.fn();
+const mockPush     = jest.fn();
+const mockGoBack   = jest.fn();
 jest.mock('@react-navigation/native', () => {
   const actualReact = require('react');
   return {
-    useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+    useNavigation: () => ({
+      navigate: (...args: unknown[]) => mockNavigate(...args),
+      push:     (...args: unknown[]) => mockPush(...args),
+      goBack:   (...args: unknown[]) => mockGoBack(...args),
+    }),
     useRoute:      () => ({ params: {} }),
     // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
     useFocusEffect: (cb: () => void | (() => void)) => actualReact.useEffect(cb, []),
@@ -46,12 +54,14 @@ const mockGetTasksForMonth = jest.fn();
 const mockGetAchievements  = jest.fn();
 const mockGetCategories    = jest.fn();
 const mockSetTaskDone      = jest.fn();
+const mockGetTrips         = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForMonth: (...args: unknown[]) => mockGetTasksForMonth(...args),
   getAchievements:  (...args: unknown[]) => mockGetAchievements(...args),
   getCategories:    (...args: unknown[]) => mockGetCategories(...args),
   setTaskDone:      (...args: unknown[]) => mockSetTaskDone(...args),
+  getTrips:         (...args: unknown[]) => mockGetTrips(...args),
 }));
 
 jest.mock('../../src/theme', () => ({
@@ -105,6 +115,7 @@ describe('CalendarScreen', () => {
     mockGetAchievements.mockResolvedValue({});
     mockGetCategories.mockResolvedValue([]);
     mockSetTaskDone.mockResolvedValue(undefined);
+    mockGetTrips.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -242,9 +253,104 @@ describe('CalendarScreen', () => {
     expect(screen.getByText('First brush · unlocked')).toBeTruthy();
   });
 
+  describe('trip range band (KAN-234)', () => {
+    function flattenStyle(style: unknown): Record<string, unknown> {
+      return Array.isArray(style) ? Object.assign({}, ...style) : (style as Record<string, unknown>);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function cellHasTripBand(cellInstance: any): boolean {
+      return cellInstance.findAllByType(View).some((v: any) => flattenStyle(v.props.style)?.backgroundColor === '#e8c9a0');
+    }
+    const trip = {
+      id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+      startDate: '2026-06-10', endDate: '2026-06-20', areaRadius: 15_000,
+      cacheAreaId: 'ta_1', expiresAt: 0, createdAt: fakeTimestamp('2026-06-01'),
+    };
+
+    it('fetches trips for the current uid', async () => {
+      await renderScreen();
+      expect(mockGetTrips).toHaveBeenCalledWith('test-uid');
+    });
+
+    it('marks a day inside a dated trip range, and not one outside it', async () => {
+      mockGetTrips.mockResolvedValue([trip]);
+      await renderScreen();
+
+      const inRangeCell    = screen.getByLabelText(/^16, today/);
+      const outOfRangeCell = screen.getByLabelText('25');
+      expect(cellHasTripBand(inRangeCell)).toBe(true);
+      expect(cellHasTripBand(outOfRangeCell)).toBe(false);
+    });
+
+    it('does not mark any day when the trip has no dates', async () => {
+      mockGetTrips.mockResolvedValue([{ ...trip, startDate: undefined, endDate: undefined }]);
+      await renderScreen();
+      expect(cellHasTripBand(screen.getByLabelText(/^16, today/))).toBe(false);
+    });
+
+    it('does not change the selected day stats line — ring/streak math unaffected (regression guard)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'A', category: 'errands', done: true, date: '2026-06-16', createdAt: {} },
+      ]);
+      mockGetTrips.mockResolvedValue([trip]);
+      await renderScreen();
+      expect(screen.getByText('1 of 1 done · 100%')).toBeTruthy();
+    });
+  });
+
   it('renders an "Open today" CTA only when today is selected', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Open today')).toBeTruthy();
+  });
+
+  describe('"Going somewhere?" Trip Planner entry (KAN-243)', () => {
+    // Both the persistent row and the future-day CTA share the "Going
+    // somewhere?" label — disambiguated by their distinct accessibility labels.
+    const FUTURE_DAY_CTA_LABEL = /^Plan a trip starting/;
+
+    it('renders a persistent entry row that opens the flow with no prefill', async () => {
+      await renderScreen();
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Plan a trip'));
+      });
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner');
+    });
+
+    it('shows the future-day CTA in the detail card only for a future day', async () => {
+      await renderScreen();
+      // Today (the 16th) selected by default — no future-day CTA yet, only the persistent row.
+      expect(screen.queryByLabelText(FUTURE_DAY_CTA_LABEL)).toBeNull();
+      expect(screen.getAllByText('Going somewhere?')).toHaveLength(1);
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+      expect(screen.getByLabelText(FUTURE_DAY_CTA_LABEL)).toBeTruthy();
+      expect(screen.getAllByText('Going somewhere?')).toHaveLength(2);
+    });
+
+    it('does not show the future-day CTA for a past day', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
+      expect(screen.queryByLabelText(FUTURE_DAY_CTA_LABEL)).toBeNull();
+    });
+
+    it('opens the flow with that day pre-filled as the trip start when the future-day CTA is tapped', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText(FUTURE_DAY_CTA_LABEL));
+      });
+
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-25' });
+    });
+
+    it('leaves past/today day-tap selection behavior unchanged (still just selects the day)', async () => {
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
+      expect(screen.getByText('Past')).toBeTruthy();
+      expect(mockNavigate).not.toHaveBeenCalled();
+      expect(mockPush).not.toHaveBeenCalled();
+    });
   });
 
   it('toggling a task applies the change locally and calls setTaskDone (KAN-218 — no live listener to reflect it)', async () => {

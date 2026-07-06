@@ -29,10 +29,15 @@ function patchFile(filePath, patches) {
   }
 }
 
-const EXPO_CONSTANTS_PATH = path.join(
-  __dirname, '..', 'node_modules', 'expo', 'node_modules', 'expo-constants',
-  'scripts', 'get-app-config-android.gradle'
-);
+// npm's hoisting of expo-constants (nested under expo/node_modules/ vs
+// top-level node_modules/) isn't stable across installs — it flips depending
+// on what else is in the dependency tree (e.g. adding expo-asset moved it to
+// top-level). Patch whichever copy actually exists so this doesn't silently
+// stop working next time `npm install` re-hoists things.
+const EXPO_CONSTANTS_CANDIDATES = [
+  path.join(__dirname, '..', 'node_modules', 'expo-constants', 'scripts', 'get-app-config-android.gradle'),
+  path.join(__dirname, '..', 'node_modules', 'expo', 'node_modules', 'expo-constants', 'scripts', 'get-app-config-android.gradle'),
+].filter(fs.existsSync);
 
 const NODE_BINARY_BLOCK =
   'def localProps = new Properties()\n' +
@@ -54,22 +59,28 @@ patchFile(path.join(SHARE_MENU_ROOT, 'ios', 'ShareMenuManager.m'), [
   ['#import "RNShareMenu-Swift.h"', '#import <RNShareMenu/RNShareMenu-Swift.h>'],
 ]);
 
-// Fix: expo/node_modules/expo-constants get-app-config-android.gradle
-// Uses hardcoded "node" — replace with NODE_BINARY from local.properties.
-patchFile(EXPO_CONSTANTS_PATH, [
-  // Insert local.properties reader block after the Os import
-  [
-    'import org.apache.tools.ant.taskdefs.condition.Os\n\n\ndef expoConstantsDir',
-    'import org.apache.tools.ant.taskdefs.condition.Os\n\n' + NODE_BINARY_BLOCK + '\ndef expoConstantsDir',
-  ],
-  // Fix hardcoded "node" in providers.exec commandLine
-  [
-    '  commandLine("node", "-e", "console.log(require(\'path\').dirname(require.resolve(\'expo-constants/package.json\')));")' ,
-    '  commandLine(nodeBinary, "-e", "console.log(require(\'path\').dirname(require.resolve(\'expo-constants/package.json\')));")' ,
-  ],
-  // Fix hardcoded ["node"] fallback in nodeExecutableAndArgs
-  [
-    'def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: ["node"]',
-    'def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: [nodeBinary]',
-  ],
-]);
+// Fix: expo-constants get-app-config-android.gradle uses hardcoded "node" —
+// replace with NODE_BINARY from local.properties. Patch every copy present
+// (see EXPO_CONSTANTS_CANDIDATES comment above — hoisting isn't stable).
+if (EXPO_CONSTANTS_CANDIDATES.length === 0) {
+  console.warn('[patch-nested] WARNING: no expo-constants get-app-config-android.gradle found at either candidate path — Android Gradle builds may fail with a bare "node" exec error (see NODE_BINARY fix in this script)');
+}
+for (const expoConstantsPath of EXPO_CONSTANTS_CANDIDATES) {
+  patchFile(expoConstantsPath, [
+    // Insert local.properties reader block after the Os import
+    [
+      'import org.apache.tools.ant.taskdefs.condition.Os\n\n\ndef expoConstantsDir',
+      'import org.apache.tools.ant.taskdefs.condition.Os\n\n' + NODE_BINARY_BLOCK + '\ndef expoConstantsDir',
+    ],
+    // Fix hardcoded "node" in providers.exec commandLine
+    [
+      '  commandLine("node", "-e", "console.log(require(\'path\').dirname(require.resolve(\'expo-constants/package.json\')));")' ,
+      '  commandLine(nodeBinary, "-e", "console.log(require(\'path\').dirname(require.resolve(\'expo-constants/package.json\')));")' ,
+    ],
+    // Fix hardcoded ["node"] fallback in nodeExecutableAndArgs
+    [
+      'def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: ["node"]',
+      'def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: [nodeBinary]',
+    ],
+  ]);
+}

@@ -4,14 +4,12 @@
  * Covers:
  *   - All 5 sections render (TASKS, APPEARANCE, LOCATION & BATTERY, IMPORT TASKS, ACCOUNT)
  *   - Settings rows: Manage Categories, Notification Preferences, Dark mode,
- *     Pause nearby alerts, import rows, Sign out
+ *     Pause nearby alerts, Home (KAN-247), import rows, Sign out
  *   - Dark mode toggle calls setDark
- *   - Low battery toggle: optimistic update + Firestore write
- *   - Notification Preferences item count: base 4 + custom category pois
+ *   - Low battery pref: fetched once on mount + optimistic update on toggle
  *   - Sign out triggers confirmation Alert
  *   - Back navigation
  *   - Footer renders app version
- *   - Firestore subscriptions are cleaned up on unmount
  */
 
 import React from 'react';
@@ -20,15 +18,15 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
-const mockSubscribeLowBatteryPausePref = jest.fn();
-const mockSetLowBatteryPausePref       = jest.fn();
-const mockSubscribeToCategories        = jest.fn();
-const mockLogout                       = jest.fn();
+const mockGetLowBatteryPausePref = jest.fn();
+const mockSetLowBatteryPausePref = jest.fn();
+const mockLogout                 = jest.fn();
+const mockGetUser                = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
-  subscribeLowBatteryPausePref: (...args: unknown[]) => mockSubscribeLowBatteryPausePref(...args),
-  setLowBatteryPausePref:       (...args: unknown[]) => mockSetLowBatteryPausePref(...args),
-  subscribeToCategories:        (...args: unknown[]) => mockSubscribeToCategories(...args),
+  getLowBatteryPausePref: (...args: unknown[]) => mockGetLowBatteryPausePref(...args),
+  setLowBatteryPausePref: (...args: unknown[]) => mockSetLowBatteryPausePref(...args),
+  getUser:                (...args: unknown[]) => mockGetUser(...args),
 }));
 
 jest.mock('../../src/services/auth', () => ({
@@ -52,6 +50,9 @@ const mockGoBack   = jest.fn();
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack, navigate: mockNavigate }),
+  // Real useFocusEffect re-runs on every focus; a plain mount-effect is
+  // enough here since these tests never leave/re-enter the screen.
+  useFocusEffect: (callback: () => void) => require('react').useEffect(callback, []),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -95,6 +96,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
   GridIcon:         () => null,
+  HomeIcon:         () => null,
   ListCheckIcon:    () => null,
   LogOutIcon:       () => null,
   MoonIcon:         () => null,
@@ -107,27 +109,17 @@ import SettingsScreen from '../../src/screens/SettingsScreen';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const noopUnsub = jest.fn();
-
 function setupDefaultMocks() {
-  mockSubscribeLowBatteryPausePref.mockReturnValue(noopUnsub);
-  mockSubscribeToCategories.mockReturnValue(noopUnsub);
+  mockGetLowBatteryPausePref.mockResolvedValue(false);
   mockSetLowBatteryPausePref.mockResolvedValue(undefined);
   mockLogout.mockResolvedValue(undefined);
+  mockGetUser.mockResolvedValue(null);
 }
 
-function firePausePref(value: boolean) {
-  const call = mockSubscribeLowBatteryPausePref.mock.calls[0];
-  if (call) { act(() => { call[1](value); }); }
-}
-
-function fireCategories(items: object[]) {
-  const call = mockSubscribeToCategories.mock.calls[0];
-  if (call) { act(() => { call[1](items); }); }
-}
-
-function renderScreen() {
-  return render(<SettingsScreen />);
+async function renderScreen() {
+  const result = render(<SettingsScreen />);
+  await act(async () => {}); // flush the getLowBatteryPausePref/getUser promises
+  return result;
 }
 
 // ─── Rendering ───────────────────────────────────────────────────────────────
@@ -135,38 +127,38 @@ function renderScreen() {
 describe('SettingsScreen — KAN-113: rendering', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders without crashing', () => {
-    renderScreen();
+  it('renders without crashing', async () => {
+    await renderScreen();
     expect(screen.getByText('Settings')).toBeTruthy();
   });
 
-  it('renders TASKS section label', () => {
-    renderScreen();
+  it('renders TASKS section label', async () => {
+    await renderScreen();
     expect(screen.getByText('TASKS')).toBeTruthy();
   });
 
-  it('renders APPEARANCE section label', () => {
-    renderScreen();
+  it('renders APPEARANCE section label', async () => {
+    await renderScreen();
     expect(screen.getByText('APPEARANCE')).toBeTruthy();
   });
 
-  it('renders LOCATION & BATTERY section label', () => {
-    renderScreen();
+  it('renders LOCATION & BATTERY section label', async () => {
+    await renderScreen();
     expect(screen.getByText('LOCATION & BATTERY')).toBeTruthy();
   });
 
-  it('renders IMPORT TASKS section label', () => {
-    renderScreen();
+  it('renders IMPORT TASKS section label', async () => {
+    await renderScreen();
     expect(screen.getByText('IMPORT TASKS')).toBeTruthy();
   });
 
-  it('renders ACCOUNT section label', () => {
-    renderScreen();
+  it('renders ACCOUNT section label', async () => {
+    await renderScreen();
     expect(screen.getByText('ACCOUNT')).toBeTruthy();
   });
 
-  it('renders the footer with app version', () => {
-    renderScreen();
+  it('renders the footer with app version', async () => {
+    await renderScreen();
     expect(screen.getByText(/Brush Away · v/)).toBeTruthy();
   });
 });
@@ -176,46 +168,26 @@ describe('SettingsScreen — KAN-113: rendering', () => {
 describe('SettingsScreen — KAN-113: TASKS section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders Manage Categories row', () => {
-    renderScreen();
+  it('renders Manage Categories row', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Manage Categories')).toBeTruthy();
   });
 
-  it('navigates to Categories when Manage Categories is pressed', () => {
-    renderScreen();
+  it('navigates to Categories when Manage Categories is pressed', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Manage Categories'));
     expect(mockNavigate).toHaveBeenCalledWith('Categories');
   });
 
-  it('renders Notification Preferences row', () => {
-    renderScreen();
+  it('renders Notification Preferences row', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Notification Preferences')).toBeTruthy();
   });
 
-  it('shows base count of 4 items when no custom categories', () => {
-    renderScreen();
-    fireCategories([]);
-    expect(screen.getByText('4 items')).toBeTruthy();
-  });
-
-  it('adds custom poi types to the item count', () => {
-    renderScreen();
-    fireCategories([
-      { id: 'cat1', name: 'Gym', color: '#fff', poi: 'gym',        isBuiltIn: false },
-      { id: 'cat2', name: 'Bar', color: '#fff', poi: 'bar',        isBuiltIn: false },
-      { id: 'cat3', name: 'Spa', color: '#fff', poi: 'gym',        isBuiltIn: false }, // duplicate poi
-      { id: 'cat4', name: 'Sup', color: '#fff', poi: 'supermarket', isBuiltIn: false }, // already built-in
-    ]);
-    // unique new pois: gym, bar → +2 → total 6
-    expect(screen.getByText('6 items')).toBeTruthy();
-  });
-
-  it('does not add built-in poi types from custom categories', () => {
-    renderScreen();
-    fireCategories([
-      { id: 'c1', name: 'Drugstore', color: '#fff', poi: 'pharmacy', isBuiltIn: false },
-    ]);
-    expect(screen.getByText('4 items')).toBeTruthy();
+  it('navigates to NotificationPreferences when pressed', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Notification Preferences'));
+    expect(mockNavigate).toHaveBeenCalledWith('NotificationPreferences');
   });
 });
 
@@ -224,13 +196,13 @@ describe('SettingsScreen — KAN-113: TASKS section', () => {
 describe('SettingsScreen — KAN-113: APPEARANCE section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); mockDark = false; });
 
-  it('renders Dark mode row', () => {
-    renderScreen();
+  it('renders Dark mode row', async () => {
+    await renderScreen();
     expect(screen.getByText('Dark mode')).toBeTruthy();
   });
 
-  it('calls setDark when dark mode switch is toggled', () => {
-    renderScreen();
+  it('calls setDark when dark mode switch is toggled', async () => {
+    await renderScreen();
     const toggle = screen.getByLabelText('Dark mode toggle');
     fireEvent(toggle, 'valueChange', true);
     expect(mockSetDark).toHaveBeenCalledWith(true);
@@ -242,33 +214,71 @@ describe('SettingsScreen — KAN-113: APPEARANCE section', () => {
 describe('SettingsScreen — KAN-113: LOCATION & BATTERY section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders Pause nearby alerts row', () => {
-    renderScreen();
+  it('renders Pause nearby alerts row', async () => {
+    await renderScreen();
     expect(screen.getByText('Pause nearby alerts on low battery')).toBeTruthy();
   });
 
-  it('subscribes to low battery pref on mount', () => {
-    renderScreen();
-    expect(mockSubscribeLowBatteryPausePref).toHaveBeenCalledWith(
-      'test-uid',
-      expect.any(Function),
-    );
+  it('fetches low battery pref on mount', async () => {
+    await renderScreen();
+    expect(mockGetLowBatteryPausePref).toHaveBeenCalledWith('test-uid');
   });
 
-  it('reflects the stored pref value', () => {
-    renderScreen();
-    firePausePref(true);
+  it('reflects the stored pref value', async () => {
+    mockGetLowBatteryPausePref.mockResolvedValue(true);
+    await renderScreen();
     const toggle = screen.getByLabelText('Pause nearby alerts on low battery toggle');
     expect(toggle.props.value).toBe(true);
   });
 
   it('calls setLowBatteryPausePref when toggle is pressed', async () => {
-    renderScreen();
+    await renderScreen();
     const toggle = screen.getByLabelText('Pause nearby alerts on low battery toggle');
     await act(async () => {
       fireEvent(toggle, 'valueChange', true);
     });
     expect(mockSetLowBatteryPausePref).toHaveBeenCalledWith('test-uid', true);
+  });
+
+  it('renders without crashing when getLowBatteryPausePref rejects on mount', async () => {
+    mockGetLowBatteryPausePref.mockRejectedValue(new Error('fetch failed'));
+    await renderScreen();
+    expect(screen.getByText('Pause nearby alerts on low battery')).toBeTruthy();
+  });
+
+  it('reverts the low battery toggle when setLowBatteryPausePref rejects', async () => {
+    mockSetLowBatteryPausePref.mockRejectedValue(new Error('write failed'));
+    await renderScreen();
+    const toggle = screen.getByLabelText('Pause nearby alerts on low battery toggle');
+    await act(async () => {
+      fireEvent(toggle, 'valueChange', true);
+    });
+    expect(toggle.props.value).toBe(false);
+  });
+});
+
+// ─── LOCATION & BATTERY: Home row (KAN-247) ───────────────────────────────────
+
+describe('SettingsScreen — KAN-247: Home row', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('renders the Home row with an empty sublabel when unset', async () => {
+    mockGetUser.mockResolvedValue(null);
+    await renderScreen();
+    expect(screen.getByLabelText('Home')).toBeTruthy();
+    expect(screen.getByText('Not set')).toBeTruthy();
+  });
+
+  it('shows the stored address as the sublabel once getUser resolves', async () => {
+    mockGetUser.mockResolvedValue({ home: { address: '221B Baker Street, London', lat: 51.5, lng: -0.1 } });
+    await renderScreen();
+    expect(screen.getByText('221B Baker Street, London')).toBeTruthy();
+  });
+
+  it('navigates to HomeAddress when the Home row is pressed', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Home'));
+    expect(mockNavigate).toHaveBeenCalledWith('HomeAddress');
   });
 });
 
@@ -277,18 +287,18 @@ describe('SettingsScreen — KAN-113: LOCATION & BATTERY section', () => {
 describe('SettingsScreen — KAN-113: IMPORT TASKS section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders at least one import row', () => {
-    renderScreen();
+  it('renders at least one import row', async () => {
+    await renderScreen();
     // Platform.OS is 'ios' in Jest — Reminders and Calendar
     const rows = screen.queryAllByRole('button');
     expect(rows.length).toBeGreaterThan(0);
   });
 
-  it('renders Google Tasks row on android', () => {
+  it('renders Google Tasks row on android', async () => {
     const original = require('react-native').Platform.OS;
     Object.defineProperty(require('react-native').Platform, 'OS', { value: 'android', writable: true });
     try {
-      renderScreen();
+      await renderScreen();
       expect(screen.getByLabelText('Google Tasks')).toBeTruthy();
     } finally {
       Object.defineProperty(require('react-native').Platform, 'OS', { value: original, writable: true });
@@ -301,14 +311,14 @@ describe('SettingsScreen — KAN-113: IMPORT TASKS section', () => {
 describe('SettingsScreen — KAN-113: ACCOUNT section', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('renders Sign out row', () => {
-    renderScreen();
+  it('renders Sign out row', async () => {
+    await renderScreen();
     expect(screen.getByLabelText('Sign out')).toBeTruthy();
   });
 
-  it('shows a confirmation Alert when Sign out is pressed', () => {
+  it('shows a confirmation Alert when Sign out is pressed', async () => {
     const spy = jest.spyOn(Alert, 'alert');
-    renderScreen();
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Sign out'));
     expect(spy).toHaveBeenCalledWith(
       'Sign out',
@@ -323,7 +333,7 @@ describe('SettingsScreen — KAN-113: ACCOUNT section', () => {
       const destructive = (buttons as any[])?.find(b => b.style === 'destructive');
       confirmCb = destructive?.onPress;
     });
-    renderScreen();
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Sign out'));
     await act(async () => { confirmCb?.(); });
     expect(mockLogout).toHaveBeenCalled();
@@ -335,29 +345,9 @@ describe('SettingsScreen — KAN-113: ACCOUNT section', () => {
 describe('SettingsScreen — KAN-113: navigation', () => {
   beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
 
-  it('calls goBack when Back button is pressed', () => {
-    renderScreen();
+  it('calls goBack when Back button is pressed', async () => {
+    await renderScreen();
     fireEvent.press(screen.getByLabelText('Back'));
     expect(mockGoBack).toHaveBeenCalled();
-  });
-});
-
-// ─── Subscription cleanup ─────────────────────────────────────────────────────
-
-describe('SettingsScreen — KAN-113: subscription lifecycle', () => {
-  it('unsubscribes from both subscriptions on unmount', () => {
-    jest.clearAllMocks();
-    const unsubPause = jest.fn();
-    const unsubCats  = jest.fn();
-    mockSubscribeLowBatteryPausePref.mockReturnValue(unsubPause);
-    mockSubscribeToCategories.mockReturnValue(unsubCats);
-    mockSetLowBatteryPausePref.mockResolvedValue(undefined);
-    mockLogout.mockResolvedValue(undefined);
-
-    const { unmount } = renderScreen();
-    unmount();
-
-    expect(unsubPause).toHaveBeenCalledTimes(1);
-    expect(unsubCats).toHaveBeenCalledTimes(1);
   });
 });

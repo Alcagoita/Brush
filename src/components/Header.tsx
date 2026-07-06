@@ -29,6 +29,8 @@ interface Props {
   onPeoplePress?: () => void;
   /** Navigate to Achievements when streak chip is tapped (KAN-134). */
   onAchievementsPress?: () => void;
+  /** Context chip (KAN-241) — rendered next to the greeting. Absent by default. */
+  contextChip?: React.ReactNode;
 }
 
 function greeting(): string {
@@ -49,6 +51,7 @@ export default function Header({
   onBellPress,
   onPeoplePress,
   onAchievementsPress,
+  contextChip,
 }: Props) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
@@ -81,9 +84,12 @@ export default function Header({
 
       {/* Greeting + name row + optional streak chip */}
       <View style={styles.greetingWrap}>
-        <Text style={[styles.greeting, { color: palette.muted }]} numberOfLines={1}>
-          {greet}
-        </Text>
+        <View style={styles.greetingRow}>
+          <Text style={[styles.greeting, { color: palette.muted }]} numberOfLines={1}>
+            {greet}
+          </Text>
+          {contextChip}
+        </View>
         <View style={styles.nameRow}>
           <Text style={[styles.name, { color: palette.text }]} numberOfLines={1}>
             {displayName}
@@ -143,6 +149,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 12,
     minWidth: 0,
+  },
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   greeting: {
     fontSize: 11,

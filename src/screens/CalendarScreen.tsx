@@ -56,15 +56,16 @@ import Svg, { Path } from 'react-native-svg';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, categories as builtInCategories } from '../theme/tokens';
-import { getTasksForMonth, getAchievements, getCategories, setTaskDone } from '../services/firestore';
-import { Task, Category, MonthTasksUiState, AchievementsMap } from '../types';
+import { spacing, radius, fonts, categories as builtInCategories } from '../theme/tokens';
+import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips } from '../services/firestore';
+import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { ChevronLeftIcon, ChevronRightIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/AppIcon';
 import { AchievementIcon, AchievementIconKey, ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
+import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -275,12 +276,14 @@ interface DayCellProps {
   total:       number;
   isComplete:  boolean;
   chainsBack:  boolean;
+  /** Day falls within an active Trip's date range (KAN-234) — purely decorative, never affects ring/streak math. */
+  inTripRange: boolean;
   achievement: { icon: AchievementIconKey; label: string } | undefined;
   onPress:     () => void;
 }
 
 function DayCell({
-  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, achievement, onPress,
+  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, inTripRange, achievement, onPress,
 }: DayCellProps) {
   const { palette, dark } = useTheme();
 
@@ -307,6 +310,14 @@ function DayCell({
         <View
           pointerEvents="none"
           style={[styles.chainLink, { backgroundColor: palette.accent }]}
+        />
+      )}
+
+      {/* Trip range band — decorative only, never touches ring/streak state (KAN-234) */}
+      {inTripRange && (
+        <View
+          pointerEvents="none"
+          style={[styles.tripBand, { backgroundColor: palette.nearBorder }]}
         />
       )}
 
@@ -371,6 +382,7 @@ export default function CalendarScreen() {
   const [retryKey, setRetryKey] = useState(0);
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const [achievementsMap, setAchievementsMap]   = useState<AchievementsMap>({});
+  const [trips, setTrips] = useState<Trip[]>([]);
 
   const today     = todayISO();
   const todayYear = Number(today.split('-')[0]);
@@ -428,6 +440,15 @@ export default function CalendarScreen() {
     getAchievements(uid).then(setAchievementsMap).catch(err => console.warn('[CalendarScreen] achievements error', err));
   }, [uid]));
 
+  // ── Trips — drives the trip-range band (KAN-234). One-shot, re-run on
+  // every focus so a trip planned/deleted from Places I Know shows up.
+  // Purely additive: only DayCell's decorative band reads this — never
+  // touches dayStats/runLength/ring math.
+  useFocusEffect(useCallback(() => {
+    if (!uid) { return; }
+    getTrips(uid).then(setTrips).catch(err => console.warn('[CalendarScreen] trips error', err));
+  }, [uid]));
+
   // Wrapped in its own useMemo so the fallback `[]` keeps a stable identity
   // across renders — otherwise every render (even unrelated ones) would
   // create a new empty array, defeating the downstream useMemo deps below.
@@ -472,6 +493,16 @@ export default function CalendarScreen() {
     const db = new Date(by, bm - 1, bd).getTime();
     return Math.round((db - da) / 86400000) + 1;
   }, [isDayComplete]);
+
+  // Dated trips only — a dateless trip has nothing to mark on the Calendar.
+  const datedTrips = useMemo(
+    () => trips.filter((t): t is Trip & { startDate: string; endDate: string } => !!t.startDate && !!t.endDate),
+    [trips],
+  );
+  const isInTripRange = useCallback(
+    (iso: string): boolean => datedTrips.some(t => iso >= t.startDate && iso <= t.endDate),
+    [datedTrips],
+  );
 
   // ── Achievement milestones for the displayed month ──
   // Only the single most-recent earnedAt per type is available (see header note).
@@ -657,6 +688,7 @@ export default function CalendarScreen() {
           const col        = i % 7;
           const chainsBack = isComplete && col > 0 && isDayComplete(isoAddDays(iso, -1));
           const ach        = achievementsByDay[day];
+          const inTrip     = isInTripRange(iso);
 
           return (
             <DayCell
@@ -669,12 +701,24 @@ export default function CalendarScreen() {
               total={stats.total}
               isComplete={isComplete}
               chainsBack={chainsBack}
+              inTripRange={inTrip}
               achievement={ach}
               onPress={() => onDayPress(day)}
             />
           );
         })}
       </View>
+
+      {/* ── "Going somewhere?" persistent entry (KAN-243) — always visible, no prefill ── */}
+      <Pressable
+        style={[styles.tripEntryRow, { borderColor: palette.line }]}
+        onPress={() => navigation.push('TripPlanner')}
+        accessibilityRole="button"
+        accessibilityLabel={COPY.tripPlanner.entryRowA11y}>
+        <SuitcaseIcon color={palette.muted} size={16} />
+        <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
+        <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+      </Pressable>
 
       {/* ── Hairline divider ── */}
       <View style={[styles.divider, { backgroundColor: palette.line }]} />
@@ -776,10 +820,22 @@ export default function CalendarScreen() {
             {isSelToday && (
               <Pressable
                 onPress={() => navigation.goBack()}
-                style={[styles.openTodayBtn, { backgroundColor: palette.text }]}
+                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
                 accessibilityRole="button"
                 accessibilityLabel="Open today">
-                <Text style={[styles.openTodayLabel, { color: palette.bg }]}>Open today</Text>
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>Open today</Text>
+                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
+              </Pressable>
+            )}
+
+            {/* "Going somewhere?" CTA — future days only (KAN-243) */}
+            {isSelFuture && (
+              <Pressable
+                onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
+                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate))}>
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.tripPlanner.entryRowLabel}</Text>
                 <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
               </Pressable>
             )}
@@ -921,6 +977,34 @@ const styles = StyleSheet.create({
     height:       2,
     borderRadius: 1,
     opacity:      0.4,
+  },
+  tripBand: {
+    position:     'absolute',
+    bottom:        1,
+    left:          6,
+    right:         6,
+    height:        2,
+    borderRadius:  1,
+  },
+
+  // ── "Going somewhere?" persistent entry (KAN-243) ──
+  tripEntryRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               8,
+    minHeight:         44,
+    marginHorizontal:  spacing[4],
+    marginBottom:      10,
+    paddingVertical:   10,
+    paddingHorizontal: 12,
+    borderRadius:      radius.ctaBtn,
+    borderWidth:       1,
+  },
+  tripEntryLabel: {
+    flex:       1,
+    fontSize:   fonts.sizes.label,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
   },
 
   // ── Hairline divider ──
@@ -1076,8 +1160,8 @@ const styles = StyleSheet.create({
     flexShrink:   0,
   },
 
-  // ── Open today CTA ──
-  openTodayBtn: {
+  // ── Detail card CTA — "Open today" / "Going somewhere?" (future day) ──
+  detailCtaBtn: {
     marginTop:      18,
     paddingVertical: 12,
     borderRadius:    14,
@@ -1086,7 +1170,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap:             8,
   },
-  openTodayLabel: {
+  detailCtaLabel: {
     fontSize:      14,
     fontWeight:    '500',
     fontFamily:    'Geist-Regular',

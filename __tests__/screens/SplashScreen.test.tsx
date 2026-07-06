@@ -14,17 +14,38 @@ jest.mock('../../src/hooks/useAuth', () => ({
 }));
 
 jest.mock('../../src/services/firestore', () => ({
-  getTasksForDate:         jest.fn(),
-  getUser:                 jest.fn(),
-  getUserPreferences:      jest.fn(),
-  getPoiPreferencesMap:    jest.fn(),
-  getCategories:           jest.fn(),
-  getTotalPoints:          jest.fn(),
-  rolloverIncompleteTasks: jest.fn(),
+  getTasksForDate:            jest.fn(),
+  getUser:                    jest.fn(),
+  getUserPreferences:         jest.fn(),
+  getPoiPreferencesMap:       jest.fn(),
+  getCategories:              jest.fn(),
+  getTotalPoints:             jest.fn(),
+  getInboxUnreadCount:        jest.fn(),
+  getTrips:                   jest.fn(),
+  loadLearnedKeywords:        jest.fn(),
+  rolloverIncompleteTasks:    jest.fn(),
+  backfillLearnedPlaceCounts: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/sharing', () => ({
   getIncomingSharedTasksCount: jest.fn(),
+}));
+
+const mockCheckAndRunTripPreRefresh = jest.fn();
+jest.mock('../../src/services/tripDownload', () => ({
+  checkAndRunTripPreRefresh: (...args: unknown[]) => mockCheckAndRunTripPreRefresh(...args),
+}));
+
+const mockDeleteExpiredTripPlaces = jest.fn();
+const mockRefreshHabitatCacheIfStale = jest.fn();
+jest.mock('../../src/services/habitatCache', () => ({
+  deleteExpiredTripPlaces: (...args: unknown[]) => mockDeleteExpiredTripPlaces(...args),
+  refreshHabitatCacheIfStale: (...args: unknown[]) => mockRefreshHabitatCacheIfStale(...args),
+}));
+
+const mockGetMallSnapshot = jest.fn();
+jest.mock('../../src/services/mallSnapshots', () => ({
+  getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
 }));
 
 jest.mock('../../src/utils/date', () => ({
@@ -50,6 +71,9 @@ import {
   getPoiPreferencesMap,
   getCategories,
   getTotalPoints,
+  getInboxUnreadCount,
+  getTrips,
+  loadLearnedKeywords,
   rolloverIncompleteTasks,
 } from '../../src/services/firestore';
 import { getIncomingSharedTasksCount } from '../../src/services/sharing';
@@ -64,6 +88,9 @@ const mockGetPoiPreferencesMap = getPoiPreferencesMap as jest.Mock;
 const mockGetCategories        = getCategories        as jest.Mock;
 const mockGetTotalPoints       = getTotalPoints       as jest.Mock;
 const mockGetIncomingCount     = getIncomingSharedTasksCount as jest.Mock;
+const mockGetInboxUnreadCount  = getInboxUnreadCount  as jest.Mock;
+const mockGetTrips             = getTrips             as jest.Mock;
+const mockLoadLearnedKeywords  = loadLearnedKeywords  as jest.Mock;
 const mockRolloverIncompleteTasks = rolloverIncompleteTasks as jest.Mock;
 
 beforeEach(() => {
@@ -77,7 +104,14 @@ beforeEach(() => {
   mockGetCategories.mockResolvedValue([]);
   mockGetTotalPoints.mockResolvedValue(5);
   mockGetIncomingCount.mockResolvedValue(2);
+  mockGetInboxUnreadCount.mockResolvedValue(0);
+  mockGetTrips.mockResolvedValue([]);
+  mockGetMallSnapshot.mockResolvedValue(null);
+  mockLoadLearnedKeywords.mockResolvedValue(undefined);
   mockRolloverIncompleteTasks.mockResolvedValue(undefined);
+  mockCheckAndRunTripPreRefresh.mockResolvedValue(undefined);
+  mockDeleteExpiredTripPlaces.mockReturnValue(undefined);
+  mockRefreshHabitatCacheIfStale.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -158,6 +192,96 @@ describe('SplashScreen', () => {
 
       expect(useAppStore.getState().bootData?.totalPoints).toBe(0);
     });
+
+    // ── Trip areas boot wiring (KAN-234) ──
+    it('stores trips in boot data and runs the pre-refresh check with the custom-category POI union', async () => {
+      const trip = {
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-06-20', endDate: '2026-06-25', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: 0, createdAt: {},
+      };
+      mockGetTrips.mockResolvedValue([trip]);
+      mockGetCategories.mockResolvedValue([{ id: 'c1', name: 'Custom', poi: 'library' }]);
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.trips).toEqual([trip]);
+      expect(mockCheckAndRunTripPreRefresh).toHaveBeenCalledWith('u1', [trip], ['library']);
+      expect(mockDeleteExpiredTripPlaces).toHaveBeenCalled();
+    });
+
+    it('still marks the store ready when checkAndRunTripPreRefresh fails (non-fatal)', async () => {
+      mockCheckAndRunTripPreRefresh.mockRejectedValue(new Error('offline'));
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData).not.toBeNull();
+    });
+
+    // ── Mall snapshot boot wiring (KAN-237) ──
+    it('stores the mall snapshot in boot data when one exists', async () => {
+      const snapshot = {
+        placeId: 'mall-1', name: 'Test Mall', centerLat: 1, centerLng: 2, radius: 300,
+        cacheAreaId: 'mall_snapshot', expiresAt: 0, createdAt: {},
+      };
+      mockGetMallSnapshot.mockResolvedValue(snapshot);
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.mallSnapshot).toEqual(snapshot);
+    });
+
+    it('stores a null mall snapshot when the user has none', async () => {
+      mockGetMallSnapshot.mockResolvedValue(null);
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.mallSnapshot).toBeNull();
+    });
+
+    // ── Home anchor habitat prefetch (KAN-247) ──
+    describe('home anchor habitat prefetch', () => {
+      it('prefetches the habitat cache around home when a home anchor is set', async () => {
+        mockGetUser.mockResolvedValue({
+          uid: 'u1', username: 'alice', onboardingDone: true,
+          home: { address: '221B Baker Street', lat: 51.5, lng: -0.1 },
+        });
+        mockGetCategories.mockResolvedValue([{ id: 'c1', name: 'Custom', poi: 'library' }]);
+
+        render(<SplashScreen onExit={jest.fn()} />);
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+        expect(mockRefreshHabitatCacheIfStale).toHaveBeenCalledTimes(1);
+        const [lat, lng, prefetchTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
+        expect(lat).toBe(51.5);
+        expect(lng).toBe(-0.1);
+        expect(prefetchTypes).toEqual(expect.arrayContaining(['library']));
+      });
+
+      it('does not prefetch when no home anchor is set', async () => {
+        render(<SplashScreen onExit={jest.fn()} />);
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+        expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
+      });
+
+      it('still marks the store ready when the home prefetch fails (non-fatal)', async () => {
+        mockGetUser.mockResolvedValue({
+          uid: 'u1', username: 'alice', onboardingDone: true,
+          home: { address: '221B Baker Street', lat: 51.5, lng: -0.1 },
+        });
+        mockRefreshHabitatCacheIfStale.mockRejectedValue(new Error('offline'));
+
+        render(<SplashScreen onExit={jest.fn()} />);
+        await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+        expect(useAppStore.getState().bootData).not.toBeNull();
+      });
+    });
   });
 
   describe('when user is not authenticated', () => {
@@ -171,6 +295,18 @@ describe('SplashScreen', () => {
 
       expect(mockGetTasksForDate).not.toHaveBeenCalled();
       expect(mockGetUser).not.toHaveBeenCalled();
+      expect(mockGetUserPreferences).not.toHaveBeenCalled();
+      expect(mockGetPoiPreferencesMap).not.toHaveBeenCalled();
+      expect(mockGetCategories).not.toHaveBeenCalled();
+      expect(mockGetTotalPoints).not.toHaveBeenCalled();
+      expect(mockGetIncomingCount).not.toHaveBeenCalled();
+      expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockGetTrips).not.toHaveBeenCalled();
+      expect(mockGetMallSnapshot).not.toHaveBeenCalled();
+      expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
+      expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
+      expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
+      expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
     });
 
     it('does not populate the store', async () => {
@@ -199,6 +335,19 @@ describe('SplashScreen', () => {
       await act(async () => { await Promise.resolve(); });
 
       expect(mockGetTasksForDate).not.toHaveBeenCalled();
+      expect(mockGetUser).not.toHaveBeenCalled();
+      expect(mockGetUserPreferences).not.toHaveBeenCalled();
+      expect(mockGetPoiPreferencesMap).not.toHaveBeenCalled();
+      expect(mockGetCategories).not.toHaveBeenCalled();
+      expect(mockGetTotalPoints).not.toHaveBeenCalled();
+      expect(mockGetIncomingCount).not.toHaveBeenCalled();
+      expect(mockGetInboxUnreadCount).not.toHaveBeenCalled();
+      expect(mockGetTrips).not.toHaveBeenCalled();
+      expect(mockGetMallSnapshot).not.toHaveBeenCalled();
+      expect(mockLoadLearnedKeywords).not.toHaveBeenCalled();
+      expect(mockRolloverIncompleteTasks).not.toHaveBeenCalled();
+      expect(mockCheckAndRunTripPreRefresh).not.toHaveBeenCalled();
+      expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
     });
   });
 

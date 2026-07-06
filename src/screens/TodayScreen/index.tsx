@@ -47,7 +47,9 @@ import Header from '../../components/Header';
 import ProgressRing from '../../components/ProgressRing';
 import TaskRow from '../../components/TaskRow';
 import NearbyCard from '../../components/NearbyCard';
+import ErrandBundleCard from '../../components/ErrandBundleCard';
 import NetworkBanner from '../../components/NetworkBanner';
+import ContextChip from '../../components/ContextChip';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
 import { useNewTaskSheetStore } from '../../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
@@ -90,6 +92,7 @@ export default function TodayScreen() {
     refresh,
     nearbyPoiType,
     poiPlaces,
+    placeContext,
     storeTuningActive,
     showStoreTuningPrompt,
     onStoreTuningTurnOn,
@@ -105,6 +108,8 @@ export default function TodayScreen() {
     handleToggle,
     permissionGranted,
     refreshProximity,
+    errandBundle,
+    dismissErrandBundle,
   } = useTodayScreen(uid);
 
   const [nearbyHasContent, setNearbyHasContent] = useState(false);
@@ -204,8 +209,13 @@ export default function TodayScreen() {
       />
       )}
 
+      {/* ── Errand bundle card (KAN-235) — absent by default ── */}
+      {errandBundle && (
+        <ErrandBundleCard bundle={errandBundle} onDismiss={dismissErrandBundle} />
+      )}
+
       {/* ── Task list section header ── */}
-      <View style={[styles.sectionHeaderBlock, nearbyHasContent && { marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line }]}>
+      <View style={[styles.sectionHeaderBlock, (nearbyHasContent || !!errandBundle) && { marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
             {`TODAY · `}
@@ -227,6 +237,7 @@ export default function TodayScreen() {
     permissionGranted, nearbyCount, isLoading,
     palette, doneTasks, totalTasks, remaining,
     nearbyHasContent, setNearbyHasContent,
+    errandBundle, dismissErrandBundle,
   ]);
 
   const listEmpty = isLoading ? (
@@ -269,6 +280,7 @@ export default function TodayScreen() {
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
           onPeoplePress={() => navigation.navigate('SocialHub')}
           onAchievementsPress={() => navigation.navigate('Achievements')}
+          contextChip={<ContextChip placeContext={placeContext} />}
         />
       </View>
 

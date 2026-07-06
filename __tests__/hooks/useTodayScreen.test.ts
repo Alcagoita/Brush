@@ -22,6 +22,15 @@ const mockGetPoiPreferencesMap   = jest.fn();
 const mockGetTotalPoints         = jest.fn();
 const mockSetTaskDone            = jest.fn();
 const mockRunProximitySearch     = jest.fn();
+const mockGetInboxUnreadCount    = jest.fn();
+const mockGetLearnedPlaceCounts = jest.fn().mockResolvedValue([]);
+const mockGetTrips = jest.fn().mockResolvedValue([]);
+const mockGetMallSnapshot = jest.fn().mockResolvedValue(null);
+const mockSetLearnedPlaces           = jest.fn();
+const mockSetCustomCategoryPoiTypes  = jest.fn();
+const mockSetActiveTrips             = jest.fn();
+const mockSetMallSnapshot            = jest.fn();
+const mockSetHomeLocation            = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
@@ -30,9 +39,26 @@ jest.mock('../../src/services/firestore', () => ({
   getUserPreferences:   (...args: unknown[]) => mockGetUserPreferences(...args),
   getPoiPreferencesMap: (...args: unknown[]) => mockGetPoiPreferencesMap(...args),
   getTotalPoints:       (...args: unknown[]) => mockGetTotalPoints(...args),
+  getInboxUnreadCount:  (...args: unknown[]) => mockGetInboxUnreadCount(...args),
   setStoreTuningPref:   jest.fn().mockResolvedValue(undefined),
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
+  getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
+  getTrips:              (...args: unknown[]) => mockGetTrips(...args),
+}));
+
+jest.mock('../../src/services/mallSnapshots', () => ({
+  getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
+}));
+
+// errandBundles.ts opens its own expo-sqlite db — not under test here (see
+// errandBundles.test.ts / useErrandBundle.test.ts), so stub it out wholesale.
+jest.mock('../../src/services/errandBundles', () => ({
+  computeErrandBundles: jest.fn().mockReturnValue([]),
+  errandBundleKey: (bundle: { anchor: { placeId: string } }) => bundle.anchor.placeId,
+  isBundleDismissedToday: jest.fn().mockReturnValue(false),
+  getDismissedBundleKeysToday: jest.fn().mockReturnValue(new Set()),
+  dismissBundleForToday: jest.fn(),
 }));
 
 jest.mock('../../src/services/sharing', () => ({
@@ -73,8 +99,17 @@ jest.mock('../../src/services/proximity', () => ({
   getLastSearchCoords:           jest.fn().mockReturnValue(null),
   updateProximityPoiPreferences: jest.fn(),
   setLocationTap:                jest.fn(),
+  setPlaceContextTap:            jest.fn(),
   updateNotifNearbyEnabled:      jest.fn(),
   updateExitPromptPref:          jest.fn(),
+  setLearnedPlaces:              (...args: unknown[]) => mockSetLearnedPlaces(...args),
+  setCustomCategoryPoiTypes:     (...args: unknown[]) => mockSetCustomCategoryPoiTypes(...args),
+  setActiveTrips:                (...args: unknown[]) => mockSetActiveTrips(...args),
+  setMallSnapshot:               (...args: unknown[]) => mockSetMallSnapshot(...args),
+}));
+
+jest.mock('../../src/services/home', () => ({
+  setHomeLocation: (...args: unknown[]) => mockSetHomeLocation(...args),
 }));
 
 jest.mock('../../src/services/maps', () => ({
@@ -141,6 +176,7 @@ function setupDefaults() {
   mockGetUserPreferences.mockResolvedValue({});
   mockGetPoiPreferencesMap.mockResolvedValue({});
   mockGetTotalPoints.mockResolvedValue(0);
+  mockGetInboxUnreadCount.mockResolvedValue(0);
   mockSetTaskDone.mockResolvedValue(undefined);
   mockRunProximitySearch.mockResolvedValue(undefined);
 }
@@ -243,6 +279,58 @@ describe('useTodayScreen — proximity engine', () => {
   });
 });
 
+describe('useTodayScreen — custom category POI types (KAN-238)', () => {
+  it('feeds the habitat cache prefetch with custom category place types', async () => {
+    mockGetCategories.mockResolvedValue([
+      { id: 'cat-1', name: 'Climbing', color: '#123456', poi: 'climbing_gym', isBuiltIn: false },
+      { id: 'cat-2', name: 'No Place', color: '#654321', poi: null, isBuiltIn: false },
+    ]);
+
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetCustomCategoryPoiTypes).toHaveBeenCalledWith(['climbing_gym']);
+  });
+});
+
+describe('useTodayScreen — cache-first proximity boot wiring (KAN-237)', () => {
+  it('feeds active trips and the mall snapshot into the proximity engine', async () => {
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetActiveTrips).toHaveBeenCalledWith([]);
+    expect(mockSetMallSnapshot).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('useTodayScreen — home anchor wiring (KAN-247)', () => {
+  it('feeds home.ts with null when the user has no home anchor set', async () => {
+    mockGetUser.mockResolvedValue(null);
+
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetHomeLocation).toHaveBeenCalledWith(null);
+  });
+
+  it('feeds home.ts with the user\'s home anchor when one is set', async () => {
+    const home = { address: '221B Baker Street', lat: 51.5, lng: -0.1 };
+    mockGetUser.mockResolvedValue({ home });
+
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(mockSetHomeLocation).toHaveBeenCalledWith(home);
+  });
+
+  it('clears home.ts when uid is undefined', async () => {
+    renderHook(() => useTodayScreen(undefined));
+    await act(async () => {});
+
+    expect(mockSetHomeLocation).toHaveBeenCalledWith(null);
+  });
+});
+
 describe('useTodayScreen — progress derived values', () => {
   it('computes totalTasks, doneTasks, progress, and nearbyCount correctly', async () => {
     const done = { ...TASK, id: 'task-done', done: true };
@@ -272,6 +360,63 @@ describe('useTodayScreen — optimistic toggle', () => {
     });
 
     expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true);
+  });
+
+  it('refreshes the learned-place ranking after both a done:true and a done:false toggle (KAN-230)', async () => {
+    // setTaskDone deletes completedPlace* fields on done:false too — the
+    // ranking must refresh either way, not just on completion.
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+    mockGetLearnedPlaceCounts.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+    expect(mockGetLearnedPlaceCounts).toHaveBeenCalledTimes(1); // initial mount fetch
+
+    await act(async () => { await result.current.handleToggle('task-1', true); });
+    expect(mockGetLearnedPlaceCounts).toHaveBeenCalledTimes(2);
+
+    await act(async () => { await result.current.handleToggle('task-1', false); });
+    expect(mockGetLearnedPlaceCounts).toHaveBeenCalledTimes(3);
+  });
+
+  it('passes completedPlace to setTaskDone when brushing a task near its own POI type (KAN-226)', async () => {
+    mockGetTasksForDate.mockResolvedValue([POI_TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    // Drive the proximity engine's onUpdate callback to set a hero place
+    // matching POI_TASK's poi type ('pharmacy').
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    const place = { placeId: 'place-abc', name: 'Corner Pharmacy', lat: 1, lng: 2, distanceMeters: 30 };
+    await act(async () => { onUpdate('pharmacy', place, { pharmacy: [place] }); });
+
+    await act(async () => {
+      await result.current.handleToggle('poi-task-1', true);
+    });
+
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'poi-task-1', true, {
+      placeId: 'place-abc',
+      name: 'Corner Pharmacy',
+      poiType: 'pharmacy',
+    });
+  });
+
+  it('does NOT pass completedPlace when the nearby place does not match the task POI type', async () => {
+    mockGetTasksForDate.mockResolvedValue([POI_TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    const place = { placeId: 'place-abc', name: 'Corner Cafe', lat: 1, lng: 2, distanceMeters: 30 };
+    await act(async () => { onUpdate('cafe', place, { cafe: [place] }); });
+
+    await act(async () => {
+      await result.current.handleToggle('poi-task-1', true);
+    });
+
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'poi-task-1', true);
   });
 
   it('calls evaluateAchievements when marking done', async () => {

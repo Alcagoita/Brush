@@ -30,6 +30,7 @@ import {
   validatePoi,
   isLlmAvailable,
   classifyPoi,
+  inferPoiForQuickAdd,
   learnPoiKeyword,
   learnFromClassification,
   learnFromUserEdit,
@@ -37,7 +38,7 @@ import {
   MODEL_LOAD_TIMEOUT_MS,
   __resetModelForTests,
 } from '../../src/services/poiLlm';
-import { inferPoiFromRules, clearLearnedKeywords } from '../../src/services/poiInference';
+import { inferPoiFromRules, registerLearnedKeyword, clearLearnedKeywords } from '../../src/services/poiInference';
 import labels from '../../assets/poi-model/labels.json';
 
 const LABELS = labels as string[];
@@ -155,6 +156,42 @@ describe('classifyPoi', () => {
     mockLoad.mockReset();
     mockLoad.mockRejectedValue(new Error('no runtime'));
     expect(await classifyPoi('buy milk', 'en')).toBeNull();
+  });
+});
+
+// ─── inferPoiForQuickAdd (KAN-232) ─────────────────────────────────────────────
+
+describe('inferPoiForQuickAdd', () => {
+  it('returns the rule match without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('pick up prescription')).toBe('pharmacy');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('matches a pt-PT keyword when the EN dictionary misses', async () => {
+    expect(await inferPoiForQuickAdd('ir à farmácia')).toBe('pharmacy');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the LLM classifier when no rule matches', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('gym'), 0.9)]);
+    expect(await inferPoiForQuickAdd('leg day')).toBe('gym');
+    expect(mockLoad).toHaveBeenCalled();
+  });
+
+  it('returns null when neither the rules nor the LLM match', async () => {
+    mockRunSync.mockReturnValue([probs(idxOf('none'), 0.95)]);
+    expect(await inferPoiForQuickAdd('call mom')).toBeNull();
+  });
+
+  it('still tries pt-PT rules when the EN rule match is a non-catalog custom type', async () => {
+    // EN resolves to a custom (non-PoiType) category string; pt-PT resolves to
+    // a valid built-in type for the same normalized keyword. A non-null EN
+    // result must not short-circuit the pt-PT lookup.
+    registerLearnedKeyword('foobar', 'bakery', 'en');
+    registerLearnedKeyword('foobar', 'pharmacy', 'pt-PT');
+
+    expect(await inferPoiForQuickAdd('foobar')).toBe('pharmacy');
+    expect(mockLoad).not.toHaveBeenCalled();
   });
 });
 

@@ -62,9 +62,43 @@ service cloud.firestore {
         allow read, write: if isOwner(userId);
       }
 
+      // ─── Trips (KAN-234) ──────────────────────────────────────────────────────
+      match /trips/{tripId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      // ─── Mall snapshot (KAN-237) ─────────────────────────────────────────────
+      match /mallSnapshot/{docId} {
+        allow read, write: if isOwner(userId);
+      }
+
       // ─── POI preferences ─────────────────────────────────────────────────────
       match /pois/{poiType} {
         allow read, write: if isOwner(userId);
+      }
+
+      // ─── Learned POI keywords (KAN-196) ──────────────────────────────────────
+      match /learnedPoiKeywords/{docId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['keyword', 'poi', 'lang', 'source', 'updatedAt'])
+          && validString(request.resource.data.keyword, 200)
+          && validString(request.resource.data.poi, 50)
+          && request.resource.data.lang in ['en', 'pt-PT']
+          && request.resource.data.source in ['llm', 'user']
+          && request.resource.data.updatedAt is timestamp;
+      }
+
+      // ─── Learned place visit counters (KAN-240) ──────────────────────────────
+      match /learnedPlaceCounts/{placeId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['placeId', 'name', 'poiType', 'visitCount'])
+          && request.resource.data.placeId == placeId
+          && validString(request.resource.data.name, 200)
+          && validString(request.resource.data.poiType, 50)
+          && request.resource.data.visitCount is int
+          && request.resource.data.visitCount >= 0;
       }
 
       // ─── Achievements ────────────────────────────────────────────────────────

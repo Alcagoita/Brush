@@ -24,7 +24,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
@@ -32,19 +32,18 @@ import { radius, spacing } from '../theme/tokens';
 import {
   getLowBatteryPausePref,
   setLowBatteryPausePref,
-  getStoreTuningPref,
-  setStoreTuningPref,
+  getUser,
 } from '../services/firestore';
 import { logout } from '../services/auth';
 import { logTap } from '../services/analytics';
 import {
   BatteryIcon,
   BellIcon,
-  BuildingIcon,
   CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
   GridIcon,
+  HomeIcon,
   ListCheckIcon,
   LogOutIcon,
   MoonIcon,
@@ -52,6 +51,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ImportResult } from '../types';
+import { COPY } from '../constants/copy';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -222,14 +222,20 @@ export default function SettingsScreen() {
 
   const uid = getAuth().currentUser?.uid ?? '';
 
-  const [lowBatteryPause,    setLowBatteryPause]    = useState(false);
-  const [storeTuningEnabled, setStoreTuningEnabled] = useState<boolean | undefined>(undefined);
+  const [lowBatteryPause, setLowBatteryPause] = useState(false);
 
   useEffect(() => {
     if (!uid) { return; }
     getLowBatteryPausePref(uid).then(setLowBatteryPause).catch(() => {});
-    getStoreTuningPref(uid).then(setStoreTuningEnabled).catch(() => {});
   }, [uid]);
+
+  // ── Home address (KAN-247) — re-fetched on every focus so returning from
+  // HomeAddressScreen after a set/change/clear shows the current value. ──
+  const [homeAddress, setHomeAddress] = useState<string | null>(null);
+  useFocusEffect(useCallback(() => {
+    if (!uid) { setHomeAddress(null); return; }
+    getUser(uid).then(u => setHomeAddress(u?.home?.address ?? null)).catch(() => {});
+  }, [uid]));
 
   const handleDarkToggle = useCallback((value: boolean) => {
     setDark(value);
@@ -242,15 +248,6 @@ export default function SettingsScreen() {
       await setLowBatteryPausePref(uid, value);
     } catch {
       setLowBatteryPause(!value);
-    }
-  }, [uid]);
-
-  const handleStoreTuningToggle = useCallback(async (value: boolean) => {
-    setStoreTuningEnabled(value);
-    try {
-      await setStoreTuningPref(uid, value);
-    } catch {
-      setStoreTuningEnabled(!value);
     }
   }, [uid]);
 
@@ -355,8 +352,16 @@ export default function SettingsScreen() {
         {/* LOCATION & BATTERY */}
         <Section title="LOCATION & BATTERY">
           <SettingsRow
+            Icon={HomeIcon}
+            label={COPY.home.settingsRowLabel}
+            sublabel={homeAddress ?? COPY.home.settingsRowEmptySublabel}
+            onPress={() => navigation.navigate('HomeAddress')}
+            accessibilityLabel={COPY.home.settingsRowLabel}
+          />
+          <SettingsRow
             Icon={BatteryIcon}
             label="Pause nearby alerts on low battery"
+            isLast
             trailing={
               <Switch
                 value={lowBatteryPause}
@@ -364,21 +369,6 @@ export default function SettingsScreen() {
                 trackColor={{ false: palette.surface2, true: palette.accent }}
                 thumbColor={palette.bg}
                 accessibilityLabel="Pause nearby alerts on low battery toggle"
-              />
-            }
-          />
-          <SettingsRow
-            Icon={BuildingIcon}
-            label="Store fine tuning"
-            sublabel="Automatically switch to store-level proximity when inside a mall. Uses more battery."
-            isLast
-            trailing={
-              <Switch
-                value={storeTuningEnabled === true}
-                onValueChange={handleStoreTuningToggle}
-                trackColor={{ false: palette.surface2, true: palette.accent }}
-                thumbColor={palette.bg}
-                accessibilityLabel="Store fine tuning toggle"
               />
             }
           />
@@ -410,6 +400,9 @@ export default function SettingsScreen() {
 
         <Text style={[s.footer, { color: palette.faint }]}>
           Brush Away · v{APP_VERSION}
+        </Text>
+        <Text style={[s.footer, { color: palette.faint }]}>
+          Place data © OpenStreetMap contributors (ODbL)
         </Text>
       </ScrollView>
     </View>

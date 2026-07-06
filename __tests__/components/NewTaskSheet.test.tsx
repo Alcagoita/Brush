@@ -20,6 +20,7 @@ import type { Category } from '../../src/types';
 
 const mockAddTask = jest.fn();
 const mockNavigateTo = jest.fn();
+const mockInferPoiForQuickAdd = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   createNavigationContainerRef: () => ({ current: null, navigate: jest.fn() }),
@@ -28,6 +29,16 @@ jest.mock('@react-navigation/native', () => ({
 
 jest.mock('../../src/services/firestore', () => ({
   addTask: (...args: unknown[]) => mockAddTask(...args),
+}));
+
+jest.mock('../../src/services/poiLlm', () => ({
+  inferPoiForQuickAdd: (...args: unknown[]) => mockInferPoiForQuickAdd(...args),
+}));
+
+const mockEvaluateAddTaskAchievement = jest.fn();
+
+jest.mock('../../src/services/achievements', () => ({
+  evaluateAddTaskAchievement: (...args: unknown[]) => mockEvaluateAddTaskAchievement(...args),
 }));
 
 jest.mock('../../src/navigation/navigationRef', () => ({
@@ -80,6 +91,10 @@ function renderSheet(overrides = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockAddTask.mockResolvedValue(undefined);
+  // Safe default for every pre-existing test: no auto-suggestion fires unless
+  // a KAN-232 test below explicitly opts in with a resolved POI.
+  mockInferPoiForQuickAdd.mockResolvedValue(null);
+  mockEvaluateAddTaskAchievement.mockResolvedValue(undefined);
 });
 
 describe('canSubmit: requires title AND POI', () => {
@@ -151,6 +166,95 @@ describe('POI carousel toggle', () => {
     fireEvent.press(cafeTile);
     expect(cafeTile.props.accessibilityState?.selected).toBe(true);
     expect(atmTile.props.accessibilityState?.selected).toBe(false);
+  });
+});
+
+// ─── KAN-232 — POI inference auto-suggestion ───────────────────────────────────
+
+describe('KAN-232 POI inference auto-suggestion', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('does not call inferPoiForQuickAdd before the debounce window elapses', () => {
+    jest.useFakeTimers();
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy bread');
+
+    act(() => { jest.advanceTimersByTime(100); });
+    expect(mockInferPoiForQuickAdd).not.toHaveBeenCalled();
+  });
+
+  it('pre-selects the suggested POI tile once the debounced inference resolves', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(mockInferPoiForQuickAdd).toHaveBeenCalledWith('buy aspirin');
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+  });
+
+  it('never overrides a manually-selected POI, even when a later suggestion resolves', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.press(screen.getByLabelText('Market')); // manual pick: supermarket
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(screen.getByLabelText('Market').props.accessibilityState?.selected).toBe(true);
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(false);
+  });
+
+  it('clears an auto-suggested POI back to null when the title no longer matches anything', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValueOnce('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+
+    mockInferPoiForQuickAdd.mockResolvedValueOnce(null);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'xyz nonsense title');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(false);
+  });
+
+  it('ignores a stale inference result superseded by a newer keystroke', async () => {
+    jest.useFakeTimers();
+    let resolveFirst: (v: string | null) => void = () => {};
+    mockInferPoiForQuickAdd.mockImplementationOnce(
+      () => new Promise<string | null>(res => { resolveFirst = res; }),
+    );
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'first title');
+    await act(async () => { await jest.advanceTimersByTimeAsync(350); });
+
+    mockInferPoiForQuickAdd.mockResolvedValueOnce('gym');
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'second title');
+    await act(async () => { await jest.advanceTimersByTimeAsync(350); });
+
+    // The stale (first) request resolves late, after the second has already won.
+    await act(async () => { resolveFirst('pharmacy'); });
+
+    expect(screen.getByLabelText('Gym').props.accessibilityState?.selected).toBe(true);
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(false);
+  });
+
+  it('does not schedule inference while the sheet is not visible', () => {
+    jest.useFakeTimers();
+    renderSheet({ visible: false });
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    act(() => { jest.advanceTimersByTime(1000); });
+    expect(mockInferPoiForQuickAdd).not.toHaveBeenCalled();
   });
 });
 

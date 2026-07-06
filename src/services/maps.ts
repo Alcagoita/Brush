@@ -443,28 +443,34 @@ export interface PlaceAutocompleteSuggestion {
   address: string;
 }
 
-/**
- * Search for establishments matching the user-typed `query` string.
- * Results are optionally biased towards `lat`/`lng` when the device location
- * is available (50 km radius — covers most metro areas).
- *
- * Returns up to 5 establishment suggestions, sorted by relevance.
- * Returns an empty array on API error (search is best-effort).
- *
- * Uses the Places Autocomplete (New) API:
- *   POST https://places.googleapis.com/v1/places:autocomplete
- */
-export async function searchPlacesAutocomplete(
+interface AutocompleteResponse {
+  suggestions?: Array<{
+    placePrediction?: {
+      placeId?: string;
+      structuredFormat?: {
+        mainText?:      { text?: string };
+        secondaryText?: { text?: string };
+      };
+    };
+  }>;
+}
+
+async function fetchPlacesAutocomplete(
   query: string,
+  includedPrimaryTypes: string[],
   lat?: number,
   lng?: number,
 ): Promise<PlaceAutocompleteSuggestion[]> {
   if (!query.trim()) { return []; }
 
-  const body: Record<string, unknown> = {
-    input:                query,
-    includedPrimaryTypes: ['establishment'],
-  };
+  const body: Record<string, unknown> = { input: query };
+  // Omit the field entirely rather than sending an empty array — an empty
+  // array signals "no primary-type restriction" (broadest match, used by
+  // searchAddressAutocomplete for street addresses/premises), and leaving it
+  // out avoids relying on undocumented API behavior for an empty list.
+  if (includedPrimaryTypes.length > 0) {
+    body.includedPrimaryTypes = includedPrimaryTypes;
+  }
 
   if (lat != null && lng != null) {
     body.locationBias = {
@@ -473,18 +479,6 @@ export async function searchPlacesAutocomplete(
         radius: 50_000,
       },
     };
-  }
-
-  interface AutocompleteResponse {
-    suggestions?: Array<{
-      placePrediction?: {
-        placeId?: string;
-        structuredFormat?: {
-          mainText?:      { text?: string };
-          secondaryText?: { text?: string };
-        };
-      };
-    }>;
   }
 
   let data: AutocompleteResponse;
@@ -516,4 +510,159 @@ export async function searchPlacesAutocomplete(
     if (results.length >= 5) { break; }
   }
   return results;
+}
+
+/**
+ * Search for establishments matching the user-typed `query` string.
+ * Results are optionally biased towards `lat`/`lng` when the device location
+ * is available (50 km radius — covers most metro areas).
+ *
+ * Returns up to 5 establishment suggestions, sorted by relevance.
+ * Returns an empty array on API error (search is best-effort).
+ *
+ * Uses the Places Autocomplete (New) API:
+ *   POST https://places.googleapis.com/v1/places:autocomplete
+ */
+export async function searchPlacesAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, ['establishment'], lat, lng);
+}
+
+/**
+ * Search for cities/towns/regions matching the user-typed `query` string
+ * (KAN-234 Trip Planner destination search) — excludes individual businesses/
+ * landmarks/airports, unlike searchPlacesAutocomplete's establishment search.
+ * `"(cities)"` is the Places API's documented shorthand for city/town-level
+ * results (matches the legacy Autocomplete API's `types=(cities)`).
+ *
+ * `lat`/`lng`, when available, bias ambiguous queries (e.g. "Faro" — several
+ * exist worldwide) toward the caller's current region, same soft-bias
+ * mechanism as searchPlacesAutocomplete — it doesn't exclude far-away
+ * matches, just ranks nearby ones higher.
+ */
+export async function searchDestinationAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, ['(cities)'], lat, lng);
+}
+
+/**
+ * Free-form address search for the Settings "Home" flow (KAN-247) — no
+ * primary-type restriction, so a specific street address/premise resolves
+ * just as well as a named place. Same 5-result cap and best-effort (never
+ * throws) contract as the rest of this file's search functions.
+ */
+export async function searchAddressAutocomplete(
+  query: string,
+  lat?: number,
+  lng?: number,
+): Promise<PlaceAutocompleteSuggestion[]> {
+  return fetchPlacesAutocomplete(query, [], lat, lng);
+}
+
+// ─── Place Details (KAN-234) ──────────────────────────────────────────────────
+
+/** Resolved coordinates + display name for a Places Autocomplete suggestion. */
+export interface PlaceDetails {
+  lat: number;
+  lng: number;
+  name: string;
+}
+
+/**
+ * Resolves a Places Autocomplete `placeId` (which carries no coordinates —
+ * see `searchPlacesAutocomplete`) to its lat/lng, for centering a Trip
+ * Planner download on the chosen destination.
+ *
+ * Uses the Places Details (New) API:
+ *   GET https://places.googleapis.com/v1/places/{placeId}
+ *
+ * Returns null on any error/non-200 response — best-effort, same contract
+ * as the rest of this file's search functions. Never throws.
+ */
+export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | null> {
+  interface PlaceDetailsResponse {
+    location?: { latitude?: number; longitude?: number };
+    displayName?: { text?: string };
+  }
+
+  try {
+    const response = await fetchWithTimeout(
+      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
+      {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key':   GOOGLE_PLACES_API_KEY,
+          'X-Goog-FieldMask': 'location,displayName',
+        },
+      },
+    );
+    if (!response.ok) { return null; }
+
+    const data = (await response.json()) as PlaceDetailsResponse;
+    if (data.location?.latitude == null || data.location?.longitude == null) { return null; }
+
+    return {
+      lat:  data.location.latitude,
+      lng:  data.location.longitude,
+      name: data.displayName?.text ?? placeId,
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ─── Static map preview (KAN-234) ─────────────────────────────────────────────
+
+const STATIC_MAP_URL = 'https://maps.googleapis.com/maps/api/staticmap';
+
+/**
+ * A trip radius circle should occupy roughly this fraction of the preview
+ * frame's smaller half-dimension, leaving visible padding around it rather
+ * than touching the image edges.
+ */
+export const CIRCLE_FRACTION_OF_HALF_DIM = 0.4;
+
+/**
+ * Builds a Google Static Maps API URL centered on `lat`/`lng`, at a zoom
+ * level chosen so a circle of `radiusMeters` (drawn separately, as an
+ * overlay View on top of this image — see TripPlannerScreen) visually fits
+ * within the given frame. Deliberately doesn't use the Static Maps `path=`
+ * polygon param to draw the circle itself (avoids query-length limits and
+ * true-circle-from-lat/lng-offsets math) — the image is just the backdrop.
+ *
+ * Zoom is derived from the standard Web Mercator meters-per-pixel formula:
+ *   metersPerPixel = 156543.03392 * cos(lat) / 2^zoom
+ * solved for the zoom that makes the desired radius match
+ * CIRCLE_FRACTION_OF_HALF_DIM of the frame's half-dimension.
+ *
+ * KAN-21 still applies — this is a single static image request, not an
+ * embedded interactive map SDK.
+ */
+export function buildStaticMapPreviewUrl(
+  lat: number,
+  lng: number,
+  radiusMeters: number,
+  width: number,
+  height: number,
+): string {
+  const halfDim = Math.min(width, height) / 2;
+  const desiredMetersPerPixel = radiusMeters / (halfDim * CIRCLE_FRACTION_OF_HALF_DIM);
+  const metersPerPixelAtZoom0 = 156_543.03392 * Math.cos(lat * DEG_TO_RAD);
+  const zoom = Math.round(Math.log2(metersPerPixelAtZoom0 / desiredMetersPerPixel));
+  const clampedZoom = Math.max(1, Math.min(20, zoom));
+
+  const params = new URLSearchParams({
+    center:  `${lat},${lng}`,
+    zoom:    String(clampedZoom),
+    size:    `${Math.round(width)}x${Math.round(height)}`,
+    maptype: 'roadmap',
+    key:     GOOGLE_PLACES_API_KEY,
+  });
+  return `${STATIC_MAP_URL}?${params.toString()}`;
 }

@@ -312,6 +312,16 @@ export function PinIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Home (Settings home-address row, KAN-247) ─────────────────────────────────
+export function HomeIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M4 11.5L12 4l8 7.5" stroke={color} strokeWidth={1.8} {...S} />
+      <Path d="M6 10v9a1 1 0 0 0 1 1h4v-6h2v6h4a1 1 0 0 0 1-1v-9" stroke={color} strokeWidth={1.8} {...S} />
+    </Svg>
+  );
+}
+
 // ── Star ──────────────────────────────────────────────────────────────────────
 export function StarIcon({ color, size = 24 }: IconProps) {
   return (
@@ -412,6 +422,30 @@ export function BuildingIcon({ color, size = 24 }: IconProps) {
       <Rect x="14" y="13" width="3" height="3" rx="0.5" stroke={color} strokeWidth={1.4} {...S} />
       {/* Door */}
       <Path d="M10 21v-4h4v4" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Suitcase (Trip Planner entry point, KAN-234) ──────────────────────────────
+export function SuitcaseIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Rect x="3" y="7" width="18" height="13" rx="2" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="3" y1="12" x2="21" y2="12" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Cloud-off (ContextChip offline-with-coverage glyph, KAN-241) ──────────────
+export function CloudOffIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M17.5 18H6.5a4 4 0 0 1-.9-7.9 5.5 5.5 0 0 1 10.6-2.02A4.5 4.5 0 0 1 17.5 18z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Line x1="4" y1="4" x2="20" y2="20" stroke={color} strokeWidth={1.6} {...S} />
     </Svg>
   );
 }

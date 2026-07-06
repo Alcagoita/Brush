@@ -95,4 +95,16 @@ describe('loadLearnedKeywords', () => {
     expect(inferPoiFromRules('no poi here', 'en')).toBeNull();
     expect(inferPoiFromRules('good one', 'en')).toBe('gym');
   });
+
+  it('skips a doc with an unsupported lang instead of throwing and aborting the rest of the batch (review fix)', async () => {
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        { id: 'bad', data: () => ({ keyword: 'bomba', poi: 'gas_station', lang: 'es' }) }, // unsupported lang
+        { id: 'good', data: () => ({ keyword: 'after the bad doc', poi: 'gym', lang: 'en' }) },
+      ],
+    });
+    await expect(loadLearnedKeywords('uid-1')).resolves.toBeUndefined();
+    expect(inferPoiFromRules('bomba', 'en')).toBeNull();
+    expect(inferPoiFromRules('after the bad doc', 'en')).toBe('gym');
+  });
 });

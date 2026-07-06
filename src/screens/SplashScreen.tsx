@@ -40,17 +40,23 @@ import Svg, { Path } from 'react-native-svg';
 import { useAuth } from '../hooks/useAuth';
 import { useAppStore } from '../store/appStore';
 import {
+  backfillLearnedPlaceCounts,
   getCategories,
   getInboxUnreadCount,
   getPoiPreferencesMap,
   getTasksForDate,
   getTotalPoints,
+  getTrips,
   getUser,
   getUserPreferences,
   loadLearnedKeywords,
   rolloverIncompleteTasks,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
+import { checkAndRunTripPreRefresh } from '../services/tripDownload';
+import { deleteExpiredTripPlaces, refreshHabitatCacheIfStale } from '../services/habitatCache';
+import { getMallSnapshot } from '../services/mallSnapshots';
+import { ALL_POI_TYPES } from '../types';
 import { todayISO } from '../utils/date';
 import { lightPalette } from '../theme/tokens';
 
@@ -350,6 +356,12 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     // separately by getCategories below.)
     loadLearnedKeywords(uid)
       .catch(err => console.warn('[SplashScreen] loadLearnedKeywords failed (non-critical)', err));
+    // One-time migration (KAN-240) for users who brushed tasks before the
+    // learnedPlaceCounts counter existed — no-ops after the first successful
+    // run (gated by a flag on the user doc). Non-fatal: worst case is the
+    // learned-places ranking is missing historical visits until next boot.
+    backfillLearnedPlaceCounts(uid)
+      .catch(err => console.warn('[SplashScreen] backfillLearnedPlaceCounts failed (non-critical)', err));
     // Roll forward yesterday's undone tasks before fetching today's list, so
     // they're already included (KAN-146 — tasks persist until brushed away).
     // This is the per-user-timezone-correct fallback to the best-effort UTC
@@ -366,8 +378,10 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         getTotalPoints(uid),
         getIncomingSharedTasksCount(uid),
         getInboxUnreadCount(uid),
+        getTrips(uid),
+        getMallSnapshot(uid),
       ]))
-      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount]) => {
+      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount, trips, mallSnapshot]) => {
         if (cancelled) { return; }
         useAppStore.getState().setBootData({
           ownerUid: uid,
@@ -379,8 +393,28 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
           socialUnreadCount,
           userPrefs,
           poiPrefsMap,
+          trips,
+          mallSnapshot,
         });
         markReady();
+
+        // Trip areas (KAN-234): app is foreground-only (KAN-231), so the
+        // day-before-departure refresh has no native scheduler to run on —
+        // piggyback on this boot path instead, same "non-fatal, best effort,
+        // once per boot" shape as rolloverIncompleteTasks above.
+        const customCategoryPoiTypes = categories.map(c => c.poi).filter((p): p is string => !!p);
+        checkAndRunTripPreRefresh(uid, trips, customCategoryPoiTypes)
+          .catch(err => console.warn('[SplashScreen] checkAndRunTripPreRefresh failed (non-critical)', err));
+        try { deleteExpiredTripPlaces(); } catch (err) { console.warn('[SplashScreen] deleteExpiredTripPlaces failed (non-critical)', err); }
+
+        // Home anchor (KAN-247): a guaranteed prefetch point alongside the
+        // opportunistic habitat pool — same "non-fatal, best effort, once per
+        // boot" shape as the trip pre-refresh above. No-ops when unset.
+        if (userData?.home) {
+          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+          refreshHabitatCacheIfStale(userData.home.lat, userData.home.lng, prefetchTypes)
+            .catch(err => console.warn('[SplashScreen] home habitat prefetch failed (non-critical)', err));
+        }
       })
       .catch(() => {
         if (cancelled) { return; }

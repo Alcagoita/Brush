@@ -20,13 +20,16 @@ import {
   getUser,
   getTotalPoints,
   getInboxUnreadCount,
+  getTrips,
 } from '../../services/firestore';
+import { getMallSnapshot } from '../../services/mallSnapshots';
 import { getIncomingSharedTasksCount } from '../../services/sharing';
-import { updateNotifNearbyEnabled, updateProximityPoiPreferences } from '../../services/proximity';
+import { setHomeLocation } from '../../services/home';
+import { updateNotifNearbyEnabled, updateProximityPoiPreferences, setActiveTrips, setMallSnapshot as setProximityMallSnapshot } from '../../services/proximity';
 import { updateExitPromptPref } from '../../services/proximity';
 import { updateIndoorExitPromptPref } from '../../services/indoorProximity';
 import { syncTasksToWatch } from '../../services/wearSync';
-import type { Category, Task } from '../../types';
+import type { Category, MallSnapshot, Task, Trip } from '../../types';
 import { todayISO } from '../../utils/date';
 import { useAppStore } from '../../store/appStore';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
@@ -56,6 +59,12 @@ export interface TodayScreenData {
   socialUnreadCount: number;
   lowBatteryPausePref: boolean;
   storeTuningEnabled:  boolean | undefined;
+  /** Active trip areas + current mall snapshot (KAN-237) — fed into the
+   *  proximity engine's cache-first check. Refetched on every load (boot
+   *  fast path, initial non-boot fetch, and refresh) so cache-first coverage
+   *  doesn't go stale after the boot path is consumed. */
+  trips:               Trip[];
+  mallSnapshot:        MallSnapshot | null;
   /** Always-current tasks array, readable from stable callbacks without
    *  needing `tasks` in their dependency array (avoids identity churn). */
   latestTasksRef:    React.RefObject<Task[]>;
@@ -76,6 +85,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
   const [socialUnreadCount, setSocialUnreadCount] = useState(0);
   const [lowBatteryPausePref, setLowBatteryPausePref] = useState(false);
   const [storeTuningEnabled, setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
+  const [trips, setTrips] = useState<Trip[]>([]);
+  const [mallSnapshot, setMallSnapshot] = useState<MallSnapshot | null>(null);
 
   const latestTasksRef = useRef<Task[]>([]);
   useEffect(() => { latestTasksRef.current = tasks; }, [tasks]);
@@ -103,6 +114,11 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setSocialUnreadCount(0);
       setLowBatteryPausePref(false);
       setStoreTuningEnabled(undefined);
+      setTrips([]);
+      setMallSnapshot(null);
+      setActiveTrips(null);
+      setProximityMallSnapshot(null);
+      setHomeLocation(null);
       setIsLoading(false);
       return;
     }
@@ -123,6 +139,16 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
             setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
             setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
           }
+          setTrips(bootData.trips);
+          setMallSnapshot(bootData.mallSnapshot);
+          // Feed the proximity engine synchronously here (not via a separate
+          // effect in useTodayScreen/index.ts) so cache-first coverage is
+          // installed before useProximityEngine's own effect runs its first
+          // search — avoids one extra live API call at startup (KAN-237
+          // review fix).
+          setActiveTrips(bootData.trips);
+          setProximityMallSnapshot(bootData.mallSnapshot);
+          setHomeLocation(bootData.userData?.home ?? null);
           updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
           updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
           updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
@@ -151,6 +177,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         points,
         inbox,
         socialUnread,
+        fetchedTrips,
+        fetchedMallSnapshot,
       ] = await withTimeout(
         Promise.all([
           getTasksForDate(uid, todayISO()),
@@ -161,6 +189,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
           getTotalPoints(uid),
           getIncomingSharedTasksCount(uid),
           getInboxUnreadCount(uid),
+          getTrips(uid),
+          getMallSnapshot(uid),
         ]),
         DATA_FETCH_TIMEOUT_MS,
       );
@@ -172,6 +202,11 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setTotalPoints(points);
       setInboxCount(inbox);
       setSocialUnreadCount(socialUnread);
+      setTrips(fetchedTrips);
+      setMallSnapshot(fetchedMallSnapshot);
+      setActiveTrips(fetchedTrips);
+      setProximityMallSnapshot(fetchedMallSnapshot);
+      setHomeLocation(userData?.home ?? null);
 
       if (userData) {
         setLowBatteryPausePref(userData.poiPreferences?.lowBatteryPause ?? false);
@@ -220,6 +255,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     socialUnreadCount,
     lowBatteryPausePref,
     storeTuningEnabled,
+    trips,
+    mallSnapshot,
     latestTasksRef,
   };
 }

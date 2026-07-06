@@ -1,19 +1,55 @@
 import {
   getFirestore,
   addDoc,
+  getDoc,
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
+  setDoc,
   writeBatch,
+  runTransaction,
   query,
   where,
   orderBy,
   Timestamp,
 } from '@react-native-firebase/firestore';
+import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { getCurrentWeekBoundaries, todayISO } from '../../utils/date';
-import type { Task } from '../../types';
-import { tasksRef, taskRef } from './refs';
+import type { Task, User } from '../../types';
+import { tasksRef, taskRef, userRef, learnedPlaceCountsRef, learnedPlaceCountRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
+import type { LearnedPlace } from '../learnedPlaces';
+
+/** Firestore caps a single batch at 500 writes — chunk any bulk write to stay under it. */
+const BATCH_LIMIT = 500;
+
+/**
+ * Shared chunk-and-commit helper for bulk writes (KAN-240 review — this
+ * logic was previously duplicated across rolloverIncompleteTasks,
+ * markAllPoiAlertsSeen, and backfillLearnedPlaceCounts). `writeItem` may be
+ * async so callers can do a read-before-write per item (e.g. merging against
+ * the latest value of a doc) without leaving the batch API.
+ */
+async function commitInChunks<T>(
+  items: T[],
+  writeItem: (batch: FirebaseFirestoreTypes.WriteBatch, item: T) => void | Promise<void>,
+): Promise<void> {
+  const db = getFirestore();
+  for (let i = 0; i < items.length; i += BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const item of items.slice(i, i + BATCH_LIMIT)) {
+      await writeItem(batch, item);
+    }
+    await batch.commit();
+  }
+}
+
+/** Coerces a possibly-corrupted stored visitCount into a safe non-negative integer. */
+function toSafeVisitCount(value: unknown): number {
+  const n = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
 
 /**
  * Add a new task for the given user.
@@ -68,17 +104,9 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   const snap = await getDocs(q);
   if (snap.empty) { return; }
 
-  // Firestore caps a single batch at 500 writes — chunk to stay under it
-  // (matches the server-side rolloverIncompleteTasks Cloud Function).
-  const BATCH_LIMIT = 500;
-  const db = getFirestore();
-  for (let i = 0; i < snap.docs.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    snap.docs.slice(i, i + BATCH_LIMIT).forEach(d => {
-      batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
-    });
-    await batch.commit();
-  }
+  await commitInChunks(snap.docs, (batch, d) => {
+    batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
+  });
 }
 
 /**
@@ -105,15 +133,73 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
 /**
  * Mark a task as done or undone.
  * Sets completedAt to now when marking done; clears it when marking undone.
+ *
+ * `completedPlace` is the hero/nearby place snapshotted at brush time
+ * (KAN-226). It's a snapshot of the current completion, not sticky history —
+ * `completedPlaceId` / `completedPlaceName` / `completedPoiType` are written
+ * when passed on a `done: true` call, and deleted from the doc in every
+ * other case (`done: false`, or `done: true` with no matching place), so a
+ * later re-completion without a place can never resurrect stale metadata.
+ *
+ * Transactional (KAN-240): alongside the task doc, keeps the per-place visit
+ * counter at `/users/{uid}/learnedPlaceCounts/{placeId}` in lockstep —
+ * decrementing the venue this task previously counted toward (if any) and
+ * incrementing the one it counts toward now. This is what lets
+ * learnedPlaces.ts rank venues by reading a handful of counter docs instead
+ * of re-scanning the user's entire completed-task history on every toggle.
+ * A same-place re-brush without an intervening undo nets to zero and is
+ * skipped. All `tx.get` calls happen before any writes — required by
+ * Firestore transaction semantics.
  */
 export async function setTaskDone(
   uid: string,
   taskId: string,
   done: boolean,
+  completedPlace?: { placeId: string; name: string; poiType: string },
 ): Promise<void> {
-  await updateDoc(taskRef(uid, taskId), {
-    done,
-    completedAt: done ? Timestamp.now() : null,
+  const hasPlace    = done && !!completedPlace;
+  const nextPlaceId = hasPlace ? completedPlace!.placeId : undefined;
+  const db   = getFirestore();
+  const tRef = taskRef(uid, taskId);
+
+  await runTransaction(db, async (tx) => {
+    const taskSnap    = await tx.get(tRef);
+    const prevPlaceId = (taskSnap.data() as Task | undefined)?.completedPlaceId;
+
+    const decrementPrev = !!prevPlaceId && prevPlaceId !== nextPlaceId;
+    const incrementNext = hasPlace && completedPlace!.placeId !== prevPlaceId;
+
+    const prevRef  = decrementPrev ? learnedPlaceCountRef(uid, prevPlaceId!) : null;
+    const prevSnap = prevRef ? await tx.get(prevRef) : null;
+    const nextRef  = incrementNext ? learnedPlaceCountRef(uid, completedPlace!.placeId) : null;
+    const nextSnap = nextRef ? await tx.get(nextRef) : null;
+
+    tx.update(tRef, {
+      done,
+      completedAt: done ? Timestamp.now() : null,
+      completedPlaceId:   hasPlace ? completedPlace!.placeId : deleteField(),
+      completedPlaceName: hasPlace ? completedPlace!.name   : deleteField(),
+      completedPoiType:   hasPlace ? completedPlace!.poiType : deleteField(),
+    });
+
+    if (prevRef && prevSnap?.exists()) {
+      const visitCount = toSafeVisitCount((prevSnap.data() as LearnedPlace).visitCount) - 1;
+      if (visitCount <= 0) {
+        tx.delete(prevRef);
+      } else {
+        tx.update(prevRef, { visitCount });
+      }
+    }
+
+    if (nextRef) {
+      const visitCount = (nextSnap?.exists() ? toSafeVisitCount((nextSnap.data() as LearnedPlace).visitCount) : 0) + 1;
+      tx.set(nextRef, {
+        placeId:    completedPlace!.placeId,
+        name:       completedPlace!.name,
+        poiType:    completedPlace!.poiType,
+        visitCount,
+      });
+    }
   });
 }
 
@@ -156,17 +242,9 @@ export async function markAllPoiAlertsSeen(
 ): Promise<void> {
   if (taskIds.length === 0) { return; }
 
-  // Firestore caps a single batch at 500 writes — chunk to stay under it
-  // (matches the chunking in rolloverIncompleteTasks above).
-  const BATCH_LIMIT = 500;
-  const db = getFirestore();
-  for (let i = 0; i < taskIds.length; i += BATCH_LIMIT) {
-    const batch = writeBatch(db);
-    taskIds.slice(i, i + BATCH_LIMIT).forEach(id => {
-      batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
-    });
-    await batch.commit();
-  }
+  await commitInChunks(taskIds, (batch, id) => {
+    batch.update(taskRef(uid, id), { poiAlertSeenDate: date });
+  });
 }
 
 /**
@@ -211,4 +289,75 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
 
   const snap = await getDocs(q);
   return snap.docs.length;
+}
+
+/**
+ * Fetch the per-place visit-count ranking source for learnedPlaces.ts
+ * (KAN-240). Reads `/users/{uid}/learnedPlaceCounts/{placeId}` — one small
+ * doc per distinct venue the user has ever brushed a task at, kept current by
+ * setTaskDone's transaction — instead of re-scanning the user's entire
+ * completed-task history on every call (the previous getCompletedTasksWithPlace
+ * behaviour, unbounded and called on every task toggle).
+ */
+export async function getLearnedPlaceCounts(uid: string): Promise<LearnedPlace[]> {
+  const snap = await getDocs(learnedPlaceCountsRef(uid));
+  return mapSnapshotDocs<LearnedPlace>(snap, 'placeId');
+}
+
+/**
+ * One-time migration (KAN-240): tallies every historical `completedPlaceId`
+ * brush (the same unbounded scan getCompletedTasksWithPlace used to run on
+ * every toggle) into `/users/{uid}/learnedPlaceCounts/{placeId}`, for users
+ * who brushed tasks before the incremental counter existed.
+ *
+ * Gated by `learnedPlaceCountsBackfilled` on the user doc, so this full scan
+ * runs at most once per user — safe to call unconditionally on every boot.
+ * The flag is only set after every counter write below has committed
+ * successfully, so a failure partway through leaves the flag unset and the
+ * migration simply retries in full on the next boot.
+ *
+ * Race note: a setTaskDone() increment can land on the same placeId while
+ * this is still tallying. Each counter write below re-reads the doc
+ * immediately beforehand and keeps whichever value is higher — the tally
+ * (source of truth for everything up to the initial scan) or the current
+ * doc (which may already reflect a newer, concurrent increment) — instead of
+ * blindly overwriting with the possibly-stale tallied value. This narrows
+ * the race to the read-to-write gap of a single doc rather than the whole
+ * scan-to-commit window.
+ */
+export async function backfillLearnedPlaceCounts(uid: string): Promise<void> {
+  const userSnap = await getDoc(userRef(uid));
+  if ((userSnap.data() as User | undefined)?.learnedPlaceCountsBackfilled) { return; }
+
+  const q = query(tasksRef(uid), where('completedPlaceId', '!=', null));
+  const snap = await getDocs(q);
+  const tasks = mapSnapshotDocs<Task>(snap);
+
+  const counts = new Map<string, { name: string; poiType: string; visitCount: number }>();
+  for (const task of tasks) {
+    if (!task.completedPlaceId) { continue; }
+    const existing = counts.get(task.completedPlaceId);
+    if (existing) {
+      existing.visitCount += 1;
+    } else {
+      counts.set(task.completedPlaceId, {
+        name:       task.completedPlaceName ?? '',
+        poiType:    task.completedPoiType ?? '',
+        visitCount: 1,
+      });
+    }
+  }
+
+  await commitInChunks([...counts.entries()], async (batch, [placeId, info]) => {
+    const ref = learnedPlaceCountRef(uid, placeId);
+    const existingSnap = await getDoc(ref);
+    const existingCount = existingSnap.exists() ? toSafeVisitCount((existingSnap.data() as LearnedPlace).visitCount) : 0;
+    batch.set(ref, { placeId, ...info, visitCount: Math.max(info.visitCount, existingCount) });
+  });
+
+  // setDoc + merge, not updateDoc — the user doc may not exist yet (getUser
+  // returns null in that case elsewhere), and updateDoc throws on a missing
+  // doc, which would otherwise strand this flag unset and force the full
+  // scan to re-run on every boot.
+  await setDoc(userRef(uid), { learnedPlaceCountsBackfilled: true }, { merge: true });
 }

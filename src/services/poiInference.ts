@@ -36,6 +36,11 @@ export type SupportedLang = 'en' | 'pt-PT';
 /** Fallback language when a caller does not specify one. */
 export const DEFAULT_LANG: SupportedLang = 'en';
 
+/** Narrows an arbitrary value (e.g. a Firestore doc field) to SupportedLang — registerLearnedKeyword indexes `learned[lang]` directly, so an unsupported value would throw rather than silently no-op. */
+export function isSupportedLang(value: unknown): value is SupportedLang {
+  return value === 'en' || value === 'pt-PT';
+}
+
 /**
  * What a keyword can resolve to: one of the 16 built-in `PoiType`s, or — for
  * dynamically registered custom categories — any Google Places type string

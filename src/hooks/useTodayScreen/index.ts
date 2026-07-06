@@ -1,21 +1,34 @@
 /**
  * useTodayScreen — KAN-59 / KAN-214
  *
- * ViewModel-layer hook for TodayScreen. Composes three focused sub-hooks:
+ * ViewModel-layer hook for TodayScreen. Composes four focused sub-hooks:
  *   - useTodayScreenData    — Firestore fetch, loading/error, task/points state
  *   - useProximityEngine    — location permission, outdoor/indoor proximity,
  *                             Store fine tuning
  *   - useTaskCompletion     — task-done toggle + achievements/challenges
+ *   - useLearnedPlaces      — on-device learned-place ranking (KAN-230),
+ *                             fed into the proximity engine and refreshed
+ *                             after every completion
+ *
+ * Also feeds the user's custom category place types into the proximity
+ * engine's habitat-cache prefetch (KAN-238) — the built-in 16 types don't
+ * need wiring here (proximity.ts already knows ALL_POI_TYPES), only the
+ * per-user custom ones, which live in Firestore via useTodayScreenData.
  *
  * No JSX — independently testable with renderHook.
  */
 
+import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
-import type { PlacesMap } from '../../services/proximity';
+import { setLearnedPlaces, setCustomCategoryPoiTypes } from '../../services/proximity';
+import type { PlacesMap, PlaceContext } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
 import { useTaskCompletion } from './useTaskCompletion';
+import { useLearnedPlaces } from './useLearnedPlaces';
+import { useErrandBundle } from '../useErrandBundle';
+import type { ErrandBundle } from '../../services/errandBundles';
 
 export interface TodayScreenState {
   /** Today's tasks. Empty while loading. */
@@ -33,6 +46,8 @@ export interface TodayScreenState {
   nearbyPlace:      NearbyPlace | null;
   /** Nearest known place per POI type — drives NearbyCard "Also close" rows. */
   poiPlaces:        PlacesMap;
+  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip. */
+  placeContext:     PlaceContext;
   storeTuningActive:        boolean;
   showStoreTuningPrompt:    boolean;
   onStoreTuningTurnOn:      () => void;
@@ -57,6 +72,10 @@ export interface TodayScreenState {
   refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
   locationUnavailable: boolean;
+  /** Top-ranked errand bundle (KAN-235), or null when none exists / all are dismissed for today. */
+  errandBundle: ErrandBundle | null;
+  /** Hides the current errandBundle for the rest of the day. */
+  dismissErrandBundle: () => void;
 }
 
 export function useTodayScreen(uid: string | undefined): TodayScreenState {
@@ -68,13 +87,44 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     data.lowBatteryPausePref,
     data.storeTuningEnabled,
   );
-  const { handleToggle } = useTaskCompletion(
+  const { handleToggle: handleToggleInner } = useTaskCompletion(
     uid,
     data.setTasks,
     data.latestTasksRef,
     proximity.nearbyPoiTypeRef,
     data.setTotalPoints,
+    proximity.nearbyPlaceRef,
   );
+
+  const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
+
+  // Pure computation over data useProximityEngine already holds each tick
+  // (KAN-235) — no new timer, no new location subscription.
+  const { bundle: errandBundle, dismiss: dismissErrandBundle } = useErrandBundle(data.tasks, proximity.poiPlaces);
+
+  useEffect(() => {
+    setLearnedPlaces(learnedPlaces);
+  }, [learnedPlaces]);
+
+  useEffect(() => {
+    setCustomCategoryPoiTypes(
+      data.customCategories.map(c => c.poi).filter((poi): poi is string => !!poi),
+    );
+  }, [data.customCategories]);
+
+  // setActiveTrips/setMallSnapshot (KAN-237) are fed synchronously from
+  // useTodayScreenData's loadData, not from an effect here — see that file
+  // for why (ordering vs. useProximityEngine's own effect below).
+
+  // A toggle in either direction changes the completedPlaceId brush history
+  // the ranking is derived from: `done: true` adds a data point, `done:
+  // false` deletes the previous completion's completedPlace* fields
+  // (setTaskDone) — refresh after both so the ranking never drifts from
+  // what's actually in Firestore.
+  const handleToggle = useCallback(async (taskId: string, done: boolean) => {
+    await handleToggleInner(taskId, done);
+    void refreshLearnedPlaces();
+  }, [handleToggleInner, refreshLearnedPlaces]);
 
   const totalTasks  = data.tasks.length;
   const doneTasks   = data.tasks.filter(t => t.done).length;
@@ -90,6 +140,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     nearbyPoiType: proximity.nearbyPoiType,
     nearbyPlace: proximity.nearbyPlace,
     poiPlaces: proximity.poiPlaces,
+    placeContext: proximity.placeContext,
     storeTuningActive:     proximity.storeTuningActive,
     showStoreTuningPrompt: proximity.showStoreTuningPrompt,
     onStoreTuningTurnOn: proximity.onStoreTuningTurnOn,
@@ -106,5 +157,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     permissionGranted: proximity.permissionGranted,
     refreshProximity: proximity.refreshProximity,
     locationUnavailable: proximity.locationUnavailable,
+    errandBundle,
+    dismissErrandBundle,
   };
 }

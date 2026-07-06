@@ -8,9 +8,13 @@
  * Functions moved from nativeGeofence.ts to proximity.ts in KAN-162.
  */
 
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
-}));
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
+
+// KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
+// pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
+jest.mock('../../src/services/habitatCache');
 
 jest.mock('../../src/services/geolocation', () => ({
   getPositionLowAccuracy: jest.fn().mockResolvedValue({ lat: 0, lng: 0, accuracy: 10 }),
@@ -32,8 +36,9 @@ jest.mock('../../src/services/notifications', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Platform:      { OS: 'ios' },
-  NativeModules: {},
+  Platform:            { OS: 'ios' },
+  NativeModules:       {},
+  InteractionManager:  { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 jest.mock('@notifee/react-native', () => ({

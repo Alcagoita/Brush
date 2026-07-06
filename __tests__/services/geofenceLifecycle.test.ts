@@ -14,6 +14,14 @@
  * display or entry notifications.
  */
 
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
+
+// KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
+// pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
+jest.mock('../../src/services/habitatCache');
+
 // ─── Notifee mock ─────────────────────────────────────────────────────────────
 
 const mockDisplayNotification = jest.fn().mockResolvedValue(undefined);
@@ -28,8 +36,9 @@ jest.mock('@notifee/react-native', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Platform:      { OS: 'android' },
-  NativeModules: { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  Platform:            { OS: 'android' },
+  NativeModules:       { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  InteractionManager:  { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 // ─── Service mocks ────────────────────────────────────────────────────────────
@@ -44,10 +53,6 @@ const mockGetPosition = jest.fn();
 jest.mock('../../src/services/geolocation', () => ({
   getPositionLowAccuracy: (...args: unknown[]) => mockGetPosition(...args),
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
-}));
-
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/notifications', () => ({
@@ -146,7 +151,7 @@ describe('distance accuracy — 400 m threshold', () => {
     expect(onUpdate).toHaveBeenCalledWith(
       null,
       null,
-      expect.objectContaining({ atm: expect.objectContaining({ name: 'Close ATM' }) }),
+      expect.objectContaining({ atm: [expect.objectContaining({ name: 'Close ATM' })] }),
     );
   });
 
@@ -201,7 +206,7 @@ describe('distance accuracy — 400 m threshold', () => {
     expect(onUpdate).toHaveBeenCalledWith(
       null,
       null,
-      expect.objectContaining({ atm: expect.objectContaining({ name: 'Nearby ATM' }) }),
+      expect.objectContaining({ atm: [expect.objectContaining({ name: 'Nearby ATM' })] }),
     );
   });
 });
@@ -258,7 +263,7 @@ describe('no store field leakage after KAN-143', () => {
     expect(onUpdate).toHaveBeenCalledWith(
       null,
       null,
-      expect.objectContaining({ cafe: expect.objectContaining({ name: 'Nice Café' }) }),
+      expect.objectContaining({ cafe: [expect.objectContaining({ name: 'Nice Café' })] }),
     );
   });
 });

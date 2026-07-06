@@ -13,6 +13,10 @@ jest.mock('../../src/config/keys', () => ({
   GOOGLE_PLACES_API_KEY: 'TEST_KEY',
 }));
 
+// KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
+// pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
+jest.mock('../../src/services/habitatCache');
+
 // ─── Notifee / geolocation / firestore stubs ──────────────────────────────────
 
 jest.mock('@notifee/react-native', () => ({
@@ -26,8 +30,9 @@ jest.mock('@notifee/react-native', () => ({
 }));
 
 jest.mock('react-native', () => ({
-  Platform:      { OS: 'android' },
-  NativeModules: { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  Platform:            { OS: 'android' },
+  NativeModules:       { WearNotificationModule: { sendProximityAlert: jest.fn() } },
+  InteractionManager:  { runAfterInteractions: (cb: () => void) => cb() },
 }));
 
 const mockStartTracking = jest.fn();
@@ -36,10 +41,6 @@ jest.mock('../../src/services/geolocation', () => ({
   startTracking:        (...args: unknown[]) => mockStartTracking(...args),
   stopTracking:         ()                   => mockStopTracking(),
   setTrackingAccuracy:  jest.fn(),
-}));
-
-jest.mock('expo-location', () => ({
-  stopGeofencingAsync: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/firestore', () => ({

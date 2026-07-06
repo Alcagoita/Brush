@@ -16,21 +16,83 @@
  * Notifications (KAN-28):
  *   Fires once when a type transitions INTO the hero zone (< HERO_RADIUS_M).
  *   Suppressed if the type was already alerted today or during quiet hours.
+ *
+ * Exit-prompt (KAN-119 / KAN-233):
+ *   No native OS geofencing — the app only has foreground ("when in use")
+ *   location permission. Instead: the first time a POI type's nearest place
+ *   is within the hero zone (< HERO_RADIUS_M), a timestamp is recorded.
+ *   Location is NOT re-checked during the following EXIT_PROMPT_MIN_DWELL_MS
+ *   — whatever happens in between (moving away, the type briefly vanishing
+ *   from results) is ignored. Once EXIT_PROMPT_MIN_DWELL_MS has elapsed, the
+ *   very next tick where that place is still roughly nearby (hero zone
+ *   again — no stricter check needed) fires the prompt. Only fires while
+ *   the app is open, matching the rest of this engine's foreground-only
+ *   model.
+ *
+ * Habitat POI cache (KAN-228):
+ *   Every successful live search opportunistically feeds the offline habitat
+ *   cache (habitatCache.ts) — Google hits seed its cross-source identity
+ *   table, and a stale-check triggers a background OSM refresh around the
+ *   same origin. Deferred via InteractionManager so the synchronous SQLite
+ *   writes never delay this search's own hero-card/notification result.
+ *
+ * Cache-backed offline proximity (KAN-229):
+ *   When a live search fails while offline, the cache answers instead
+ *   (queryHabitatCache impersonates searchNearbyPlaces's return shape) and
+ *   the search is queued (KAN-205) so a live refresh replaces it on
+ *   reconnect. Live results are reconciled against the cache's cross-source
+ *   identity table (findExistingPlaceId) before the hero split runs: a
+ *   place already known to both sources gets the same internal id
+ *   regardless of which one answered, so the Nearby card's carousel and the
+ *   exit-prompt's per-place dwell timer don't reset on a source flip. A
+ *   place with no cache counterpart yet keeps its own Google placeId
+ *   unchanged (never invented — see findExistingPlaceId's docs).
+ *
+ * Offline expectations messaging (KAN-236):
+ *   A cache miss (nothing cached near this position) fires a one-time,
+ *   once-per-session toast telling the user they've walked beyond what the
+ *   cache knows — but only when the cache has data *somewhere* (hasCachedPlaces).
+ *   If the cache is empty everywhere (fresh install/new phone), that's a
+ *   different, more persistent state — NetworkBanner handles it directly
+ *   (it doesn't need a position, just "is there anything cached at all"), so
+ *   this file doesn't duplicate that check into a toast.
+ *
+ * Learned places (KAN-230):
+ *   setLearnedPlaces feeds in the on-device ranking computed elsewhere
+ *   (learnedPlaces.ts, from completedPlaceId brush history). The learned
+ *   venue only ever affects which PLACE represents the type that already
+ *   won the cross-type hero race on true distance — applied strictly after
+ *   heroType is locked in, so it can never change WHICH type wins by
+ *   inflating the distance used for that comparison. Within the winning
+ *   type, its learned venue is preferred as the displayed/notified place
+ *   over an arbitrary closer stranger, but only when the learned venue is
+ *   itself within HERO_RADIUS_M on its own real distance.
+ *
+ * Habitat cache prefetch — all POI types (KAN-238):
+ *   The habitat cache's OSM-backed refresh (refreshHabitatCacheIfStale) is
+ *   fed ALL_POI_TYPES plus the user's custom category place types
+ *   (setCustomCategoryPoiTypes), not just this tick's open-task types — a
+ *   task created after caching (e.g. "buy aspirin" offline, no prior
+ *   pharmacy task) must still find candidates. Only the refresh/seed side
+ *   changes; queryHabitatCache and the live Places search both stay
+ *   filtered to this tick's actual open-task types, unchanged.
  */
 
 import notifee, { AndroidImportance } from '@notifee/react-native';
 import NetInfo from '@react-native-community/netinfo';
-import * as Location from 'expo-location';
-import { Platform } from 'react-native';
+import { InteractionManager, Platform } from 'react-native';
 import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { Task, POI_GEOFENCE_RADIUS } from '../types';
+import { Task, ALL_POI_TYPES, Trip, MallSnapshot } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
+import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
+import { useToastStore } from '../store/toastStore';
+import { LearnedPlace, getLearnedPlaceForPoiType } from './learnedPlaces';
 
 // ─── Error reporting ──────────────────────────────────────────────────────────
 //
@@ -43,8 +105,6 @@ function reportProximityError(context: string, err: unknown): void {
 }
 
 // ─── Geofence ID helpers (exit-prompt, KAN-119) ───────────────────────────────
-
-const GEOFENCE_TASK_NAME = 'brush-exit-geofence';
 
 export function buildGeofenceId(poiType: string, placeId: string): string {
   return `brush_geo_${poiType}_${placeId}`;
@@ -73,6 +133,19 @@ export function parseGeofenceId(id: string): { poiType: string; placeId: string 
  */
 export type PlacesMap = Partial<Record<string, NearbyPlace[]>>;
 
+/**
+ * KAN-242 — which place context (if any) the last position fell inside,
+ * mall-first per the header context chip's display priority (mall > trip).
+ * Distinct from findActiveCacheArea below: that one is a pure boolean
+ * cache-routing signal for runProximitySearch, and its trip-then-mall check
+ * order doesn't affect behavior (queryHabitatCache never keys off the
+ * specific cacheAreaId) — this one's order is a real product requirement.
+ */
+export type PlaceContext =
+  | { kind: 'mall'; snapshot: MallSnapshot }
+  | { kind: 'trip'; trip: Trip }
+  | null;
+
 /** Callback fired whenever nearby state or place data changes. */
 export type ProximityCallback = (
   nearbyPoiType: string | null,
@@ -93,9 +166,6 @@ const POSITION_CHECK_INTERVAL_MS = 3 * 60 * 1_000; // 3 minutes
 
 /** Minimum movement from last search origin before re-calling the Places API. */
 const MIN_MOVEMENT_M = 200;
-
-/** Default geofence radius for custom POI types (exit-prompt only). */
-const DEFAULT_GEOFENCE_RADIUS = 75;
 
 /** Notifee Android channel id for proximity alerts. */
 const CHANNEL_ID = 'proximity_alerts';
@@ -122,6 +192,21 @@ const _alertedTodayTypes = new Set<string>();
 
 /** Guards against concurrent search calls. */
 let _isSearching = false;
+
+/** KAN-236 — the "you've moved beyond cached coverage" toast fires at most once per session. */
+let _offlineUncoveredNoticeShown = false;
+
+/** KAN-230 — on-device learned-place ranking, fed in from outside (see setLearnedPlaces). */
+let _learnedPlaces: LearnedPlace[] = [];
+
+/** KAN-238 — user's custom category place types, fed in from outside (see setCustomCategoryPoiTypes). */
+let _customCategoryPoiTypes: string[] = [];
+
+/** KAN-237 — active trip areas, fed in from outside (see setActiveTrips). Used only to decide cache-first coverage, never for trip-specific business logic. */
+let _activeTrips: Trip[] = [];
+
+/** KAN-237 — the current mall snapshot, if any, fed in from outside (see setMallSnapshot). */
+let _mallSnapshot: MallSnapshot | null = null;
 
 /**
  * Optional tap into the GPS stream (KAN-75 indoor detection).
@@ -196,7 +281,7 @@ function _enqueueSearch(uid: string, tasks: Task[], onUpdate: ProximityCallback)
   _ensureNetInfoListener();
 }
 
-// ─── Native geofence state (exit-prompt only, KAN-119) ───────────────────────
+// ─── Foreground geofence state (exit-prompt only, KAN-119 / KAN-233) ─────────
 
 const geofenceEntryTimes = new Map<string, number>();
 const EXIT_PROMPT_MIN_DWELL_MS = 5 * 60 * 1_000;
@@ -207,8 +292,33 @@ export function updateNotifNearbyEnabled(enabled: boolean): void {
   notifNearbyEnabled = enabled;
 }
 
+/** KAN-230 — feed in the on-device learned-place ranking. Pass null/empty to clear (e.g. on sign-out). */
+export function setLearnedPlaces(places: LearnedPlace[] | null): void {
+  _learnedPlaces = places ?? [];
+}
+
+/** KAN-238 — feed in the user's custom category place types for the habitat cache's all-types prefetch. */
+export function setCustomCategoryPoiTypes(types: string[] | null): void {
+  _customCategoryPoiTypes = types ?? [];
+}
+
+/** KAN-237 — feed in the user's active (unexpired) trip areas, for cache-first coverage. Pass null/empty to clear (e.g. on sign-out). */
+export function setActiveTrips(trips: Trip[] | null): void {
+  _activeTrips = trips ?? [];
+}
+
+/** KAN-237 — feed in the current mall snapshot (or null when there isn't one / the toggle is off), for cache-first coverage. */
+export function setMallSnapshot(snapshot: MallSnapshot | null): void {
+  _mallSnapshot = snapshot;
+}
+
 export function updateExitPromptPref(enabled: boolean): void {
   exitPromptEnabled = enabled;
+  if (!enabled) {
+    // Don't let a stale dwell timer (accrued while disabled) resurrect an
+    // exit prompt the instant the user re-enables the setting.
+    geofenceEntryTimes.clear();
+  }
 }
 
 export function updateProximityPoiPreferences(prefs: Record<string, number>): void {
@@ -220,14 +330,6 @@ export function updateProximityPoiPreferences(prefs: Record<string, number>): vo
 export function isQuietHours(): boolean {
   const hour = new Date().getHours();
   return hour >= 22 || hour < 8;
-}
-
-// ─── Radius helper ────────────────────────────────────────────────────────────
-
-function getGeofenceRadius(poiType: string): number {
-  return poiRadiusPrefs[poiType]
-    ?? (POI_GEOFENCE_RADIUS as Record<string, number>)[poiType]
-    ?? DEFAULT_GEOFENCE_RADIUS;
 }
 
 // ─── Notification channel ─────────────────────────────────────────────────────
@@ -295,6 +397,99 @@ export async function handleGeofenceExit(
   }
 }
 
+/**
+ * Foreground dwell check for exit-prompt (KAN-233). The first time a POI
+ * type's nearest place is in the hero zone (< HERO_RADIUS_M), records a
+ * timestamp and stops — location is deliberately NOT re-checked on every
+ * tick during the following EXIT_PROMPT_MIN_DWELL_MS. Once that much time
+ * has elapsed, the next tick where the same place is roughly nearby again
+ * (hero zone — no stricter distance check) fires the prompt directly, with
+ * no "left the area" transition required.
+ */
+function trackExitPromptGeofence(
+  poiType: string,
+  nearest: NearbyPlace | null,
+  uid: string,
+  tasks: Task[],
+): void {
+  if (!exitPromptEnabled || !nearest || nearest.distanceMeters >= HERO_RADIUS_M) { return; }
+
+  const geofenceId = buildGeofenceId(poiType, nearest.placeId);
+  const entryTime = geofenceEntryTimes.get(geofenceId);
+
+  if (!entryTime) {
+    geofenceEntryTimes.set(geofenceId, Date.now()); // first sighting — start the clock
+    return;
+  }
+
+  if (Date.now() - entryTime < EXIT_PROMPT_MIN_DWELL_MS) { return; }
+
+  // handleGeofenceExit does its own entryTime lookup + deletion — don't
+  // delete it here first, or its internal check finds nothing and no-ops.
+  handleGeofenceExit(geofenceId, uid, tasks).catch(err =>
+    reportProximityError('dwell-prompt check failed', err),
+  );
+}
+
+// ─── Cache-first coverage (KAN-237) ───────────────────────────────────────────
+
+/**
+ * Returns the cacheAreaId to query if `lat`/`lng` falls inside an active
+ * (unexpired) trip area or the current mall snapshot — trip areas checked
+ * first, mall snapshot second (arbitrary but stable order; the two are never
+ * expected to overlap in practice). Returns null if neither applies, meaning
+ * the caller should fall through to the normal live-API-first flow.
+ *
+ * Deliberately narrow: only these two deliberately-downloaded, bounded areas
+ * trigger cache-first. The opportunistic habitat pool (KAN-228/229) is
+ * unaffected — it still only answers on a live-search failure, same as
+ * before this ticket.
+ */
+function findActiveCacheArea(lat: number, lng: number): string | null {
+  const now = Date.now();
+  for (const trip of _activeTrips) {
+    if (trip.expiresAt < now) { continue; }
+    if (getDistanceMeters(lat, lng, trip.centerLat, trip.centerLng) <= trip.areaRadius) {
+      return trip.cacheAreaId;
+    }
+  }
+  if (_mallSnapshot && _mallSnapshot.expiresAt >= now) {
+    if (getDistanceMeters(lat, lng, _mallSnapshot.centerLat, _mallSnapshot.centerLng) <= _mallSnapshot.radius) {
+      return _mallSnapshot.cacheAreaId;
+    }
+  }
+  return null;
+}
+
+/** KAN-242 — see PlaceContext's doc comment for why this mall-first order is distinct from findActiveCacheArea's above. */
+function findActivePlaceContext(lat: number, lng: number): PlaceContext {
+  const now = Date.now();
+  if (_mallSnapshot && _mallSnapshot.expiresAt >= now &&
+      getDistanceMeters(lat, lng, _mallSnapshot.centerLat, _mallSnapshot.centerLng) <= _mallSnapshot.radius) {
+    return { kind: 'mall', snapshot: _mallSnapshot };
+  }
+  for (const trip of _activeTrips) {
+    if (trip.expiresAt < now) { continue; }
+    if (getDistanceMeters(lat, lng, trip.centerLat, trip.centerLng) <= trip.areaRadius) {
+      return { kind: 'trip', trip };
+    }
+  }
+  return null;
+}
+
+let _placeContextTap: ((ctx: PlaceContext) => void) | null = null;
+
+/**
+ * KAN-242 — register a tap fired with the resolved place context on every
+ * position fix taken by runProximitySearch, independent of onUpdate/
+ * ProximityCallback (mirrors setLocationTap below). Feeds the header context
+ * chip without changing ProximityCallback's signature or any of its existing
+ * call-site tests. Pass null to unregister.
+ */
+export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): void {
+  _placeContextTap = cb;
+}
+
 // ─── Core: one-shot proximity search ─────────────────────────────────────────
 
 /**
@@ -315,12 +510,16 @@ async function runProximitySearch(
   try {
     const coords = await getPositionLowAccuracy();
     _locationTap?.(coords.lat, coords.lng, coords.accuracy);
+    _placeContextTap?.(findActivePlaceContext(coords.lat, coords.lng));
 
     const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
     const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];
 
     if (uniquePoiTypes.length === 0) {
       _currentNearbyType = null;
+      // No undone POI tasks left to prompt for — nothing to fire, just
+      // clear any in-progress dwell tracking.
+      geofenceEntryTimes.clear();
       onUpdate(null, null, {});
       _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
       return;
@@ -328,21 +527,106 @@ async function runProximitySearch(
 
     // One API call covers all POI types.
     let results: Record<string, NearbyPlace[]> = {};
-    try {
-      results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
-    } catch (err) {
-      // If offline, queue this search for retry when connection returns.
-      // Otherwise (timeout, API error) keep showing whatever was shown before.
-      reportProximityError('searchNearbyPlaces failed', err);
-      let isConnected: boolean | null = null;
-      try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
-      if (isConnected === false) {
+    let answeredFromCache = false;
+    // True only for the "live call failed, falling back to cache" path below
+    // — distinct from the KAN-237 cache-first hit, where an empty result is
+    // a confident "nothing here" (the snapshot was downloaded specifically
+    // to answer this), not an ambiguous cache-miss to bail out on.
+    let isConnectivityFallback = false;
+
+    // KAN-237 — inside an active trip area or the current mall snapshot,
+    // skip the live API entirely: this is a deliberately-downloaded, bounded
+    // area, so the cache is trusted the same way the offline fallback below
+    // already trusts it, without needing a failed live call first.
+    const cacheAreaId = findActiveCacheArea(coords.lat, coords.lng);
+    if (cacheAreaId != null) {
+      results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+      answeredFromCache = true;
+    } else {
+      try {
+        results = await searchNearbyPlaces(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+      } catch (err) {
+        // If offline, queue this search for retry when connection returns, and
+        // answer from the habitat cache in the meantime (KAN-229) — the cache
+        // impersonates the Places response, so hero split, notification,
+        // exit-prompt and wear alert all run unchanged below. Otherwise
+        // (timeout, API error while online) keep showing whatever was shown
+        // before.
+        reportProximityError('searchNearbyPlaces failed', err);
+        // Same offline predicate as NetworkBanner — isConnected===true but
+        // isInternetReachable===false (captive portal, no real internet) must
+        // still fall back to the cache, not sit on a silent "keep showing
+        // what's there" state that never resolves.
+        let offline = false;
+        try {
+          const state = await NetInfo.fetch();
+          offline = state.isConnected === false || state.isInternetReachable === false;
+        } catch { /* treat as unknown — not offline */ }
+        if (!offline) { return; }
+
         _enqueueSearch(uid, tasks, onUpdate);
+        results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
+        answeredFromCache = true;
+        isConnectivityFallback = true;
+      }
+    }
+
+    _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
+
+    // A cache miss (nothing cached for this area yet) is not the same as
+    // "nothing nearby" — it just means this tick has no answer. Bail out
+    // before onUpdate so whatever hero/grey state was already on screen
+    // (and any in-progress exit-prompt dwell clock) survives untouched; the
+    // search stays queued above for a live retry on reconnect. Only applies
+    // to the connectivity-fallback path — a KAN-237 cache-first empty result
+    // is a confident "nothing here," not an ambiguous miss, so it proceeds
+    // through to onUpdate normally (hero clears like any other empty tick).
+    if (isConnectivityFallback && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
+      // KAN-236 — only worth telling the user if the cache has data
+      // *somewhere* (they've genuinely walked past its coverage); if it's
+      // empty everywhere, NetworkBanner's own "still learning your area"
+      // copy already covers that — no need to also fire a toast for it.
+      if (!_offlineUncoveredNoticeShown && hasCachedPlaces()) {
+        _offlineUncoveredNoticeShown = true;
+        useToastStore.getState().showToast(COPY.offline.uncoveredAreaToast);
       }
       return;
     }
 
-    _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
+    // Habitat cache (KAN-228): seed the cross-source identity table with
+    // these live Google hits, and opportunistically refresh the OSM-backed
+    // cache around this origin. Deferred until after interactions settle —
+    // the seeding loop's synchronous SQLite writes must not delay the
+    // hero-card/notification logic below, which needs this tick's result now.
+    // Skipped when this tick was itself answered by the cache — there's no
+    // new live data to feed back into it.
+    if (!answeredFromCache) {
+      InteractionManager.runAfterInteractions(() => {
+        try {
+          for (const poiType of uniquePoiTypes) {
+            for (const place of results[poiType] ?? []) {
+              recordLiveResult({
+                poiType,
+                name:          place.name,
+                lat:           place.lat,
+                lng:           place.lng,
+                googlePlaceId: place.placeId,
+              });
+            }
+          }
+          // KAN-238 — refresh ALL built-in types + the user's custom
+          // category types, not just this tick's open-task types
+          // (uniquePoiTypes), so a task created after caching (no prior
+          // task of that type) still finds cached candidates offline.
+          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ..._customCategoryPoiTypes])];
+          refreshHabitatCacheIfStale(coords.lat, coords.lng, prefetchTypes).catch(err =>
+            reportProximityError('habitat cache refresh failed', err),
+          );
+        } catch (err) {
+          reportProximityError('habitat cache seed failed', err);
+        }
+      });
+    }
 
     // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
     let heroType:  string | null = null;
@@ -352,20 +636,90 @@ async function runProximitySearch(
 
     for (const poiType of uniquePoiTypes) {
       const places = results[poiType] ?? [];
-      if (places.length === 0) { continue; }
 
-      const nearest = places[0];
+      // Reconcile live results against the cache's cross-source identity
+      // (KAN-229): a place already known to both Google and the OSM cache
+      // gets its stable internal id instead of this tick's raw Google
+      // placeId, so a later source flip (cache ↔ live) doesn't look like a
+      // different place downstream (exit-prompt dwell clock, hero card's
+      // carousel). A place with no cache counterpart yet keeps its own
+      // Google placeId — findExistingPlaceId never invents a new identity.
+      //
+      // Only the nearest place is reconciled here (one sync SQLite read per
+      // type, not per place) — that's the only one trackExitPromptGeofence
+      // and a potential heroPlace ever look at. The rest of a type's list
+      // only matters once we know it's the hero type and its carousel is
+      // actually shown — reconciled in a second pass below.
+      let nearest = places[0] ?? null;
+      if (!answeredFromCache && nearest) {
+        const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
+        if (existingId) { nearest = { ...nearest, placeId: existingId }; }
+      }
+
+      // Exit-prompt dwell check runs for every type regardless of the
+      // display threshold below. A type with zero results this tick is
+      // simply skipped here (nothing to check) — an in-progress dwell clock
+      // is left untouched, not reset; see trackExitPromptGeofence's docs.
+      trackExitPromptGeofence(poiType, nearest, uid, tasks);
+
+      if (!nearest) { continue; }
+
       const dist = nearest.distanceMeters;
       if (dist >= NEARBY_RADIUS) { continue; }
 
-      // Store all places within NEARBY_RADIUS, ordered nearest-first.
-      allPlaces[poiType] = places;
+      // Store all places within NEARBY_RADIUS, ordered nearest-first (index
+      // 0 already reconciled above; the rest keep their raw ids for now).
+      allPlaces[poiType] = [nearest, ...places.slice(1)];
 
-      // Closest place under HERO_RADIUS_M wins the orange hero.
+      // Closest place under HERO_RADIUS_M wins the orange hero. Decided on
+      // the TRUE nearest distance only — KAN-230's learned-place preference
+      // (below) must never influence which TYPE wins the cross-type race,
+      // only which specific PLACE represents the type that already won.
       if (dist < HERO_RADIUS_M && dist < heroDistance) {
         heroType     = poiType;
         heroPlace    = nearest;
         heroDistance = dist;
+      }
+    }
+
+    // Reconcile the rest of the hero type's carousel now that it's known —
+    // NearbyCard's "Try another place" carousel only ever shows the winning
+    // hero type's list, so there's no reason to pay for the other ≤4 places
+    // of every non-hero type too.
+    if (!answeredFromCache && heroType !== null) {
+      const winningType = heroType;
+      allPlaces[winningType] = (allPlaces[winningType] ?? []).map((place, i) => {
+        if (i === 0) { return place; } // already reconciled above
+        const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
+        return existingId ? { ...place, placeId: existingId } : place;
+      });
+    }
+
+    // KAN-230 — now that the hero type is locked in on true distance alone,
+    // see if ITS OWN learned venue (≥3 brushes) is among its candidates and
+    // still within HERO_RADIUS_M on its own real distance. If so, prefer it
+    // as the displayed/notified place for this type — "top priority" only
+    // ever affects which place represents the type that already won, never
+    // which type wins. Non-hero (grey) types are left alone: nothing to
+    // prioritize for a type that isn't being shown as the hero anyway.
+    if (heroType !== null) {
+      const winningType = heroType;
+      const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, winningType);
+      const currentPlaces = allPlaces[winningType] ?? [];
+      if (learnedForType && currentPlaces[0]?.placeId !== learnedForType.placeId) {
+        for (const candidate of currentPlaces.slice(1)) {
+          let candidateId = candidate.placeId;
+          if (!answeredFromCache) {
+            const existingId = findExistingPlaceId(winningType, candidate.name, candidate.lat, candidate.lng);
+            if (existingId) { candidateId = existingId; }
+          }
+          if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
+            const promoted = { ...candidate, placeId: candidateId };
+            allPlaces[winningType] = [promoted, ...currentPlaces.filter(p => p !== candidate)];
+            heroPlace = promoted;
+            break;
+          }
+        }
       }
     }
 
@@ -472,11 +826,13 @@ export function resetProximityState(): void {
   _pendingQueue   = [];
   _netInfoUnsubscribe?.();
   _netInfoUnsubscribe = null;
+  _offlineUncoveredNoticeShown = false;
+  _learnedPlaces = [];
+  _customCategoryPoiTypes = [];
+  _activeTrips = [];
+  _mallSnapshot = null;
 
   geofenceEntryTimes.clear();
-  Location.stopGeofencingAsync(GEOFENCE_TASK_NAME).catch(err =>
-    reportProximityError('stopGeofencingAsync failed', err),
-  );
 }
 
 /**

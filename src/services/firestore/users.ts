@@ -1,5 +1,5 @@
 import { getAuth } from '@react-native-firebase/auth';
-import { getDoc, setDoc, updateDoc, serverTimestamp } from '@react-native-firebase/firestore';
+import { getDoc, setDoc, updateDoc, deleteField, serverTimestamp } from '@react-native-firebase/firestore';
 import type { User } from '../../types';
 import { userRef } from './refs';
 
@@ -92,4 +92,25 @@ export async function updateDisplayName(uid: string, displayName: string): Promi
 export async function getUser(uid: string): Promise<User | null> {
   const snap = await getDoc(userRef(uid));
   return snap.exists() ? (snap.data() as User) : null;
+}
+
+/**
+ * Set/replace the user's explicit home anchor (KAN-247) — never inferred,
+ * only ever written from the Settings "Home" flow. Only the signed-in user
+ * may write their own home anchor.
+ */
+export async function setHome(
+  uid: string,
+  home: { address: string; lat: number; lng: number },
+): Promise<void> {
+  if (getAuth().currentUser?.uid !== uid) { throw new Error('setHome: uid does not match the signed-in user'); }
+  await updateDoc(userRef(uid), {
+    home: { ...home, updatedAt: serverTimestamp() },
+  });
+}
+
+/** Clears the user's home anchor. Only the signed-in user may clear their own. */
+export async function clearHome(uid: string): Promise<void> {
+  if (getAuth().currentUser?.uid !== uid) { throw new Error('clearHome: uid does not match the signed-in user'); }
+  await updateDoc(userRef(uid), { home: deleteField() });
 }

@@ -59,6 +59,13 @@ export interface User {
    */
   /** Set to true once the user completes the guided first-run onboarding (KAN-140). */
   onboardingDone?: boolean;
+  /**
+   * Set to true once this user's historical `completedPlaceId` brush data has
+   * been tallied into `/users/{uid}/learnedPlaceCounts/{placeId}` (KAN-240).
+   * Gates `backfillLearnedPlaceCounts` so the one-time full-history scan never
+   * repeats on subsequent boots.
+   */
+  learnedPlaceCountsBackfilled?: boolean;
   poiPreferences?: {
     /**
      * When true, geofence monitoring is paused whenever battery drops below
@@ -76,6 +83,17 @@ export interface User {
      *                        prompt is suppressed permanently.
      */
     storeTuningEnabled?: boolean;
+  };
+  /**
+   * Explicit home anchor (KAN-247) — set by the user in Settings, never
+   * inferred. Optional; absent when the user hasn't set (or has cleared) it.
+   * Never used server-side.
+   */
+  home?: {
+    address: string;
+    lat: number;
+    lng: number;
+    updatedAt: FirebaseFirestoreTypes.Timestamp;
   };
 }
 
@@ -106,6 +124,15 @@ export const POI_CATALOG: { type: PoiType; label: string }[] = [
   { type: 'bus',         label: 'Bus'        },
   { type: 'school',      label: 'School'     },
 ];
+
+/**
+ * All 16 built-in POI types, derived from POI_CATALOG. Used by the habitat
+ * cache's prefetch (KAN-238) to warm the cache for every type regardless of
+ * open tasks — a task created after caching (e.g. "buy aspirin" while
+ * offline) must still find pharmacy candidates even though no pharmacy task
+ * existed when the area was last refreshed online.
+ */
+export const ALL_POI_TYPES: PoiType[] = POI_CATALOG.map(c => c.type);
 
 /** /users/{uid}/pois/{poiType} */
 export interface PoiPreference {
@@ -146,6 +173,16 @@ export interface Task {
   poi?: string;
   /** Google Places ID if the user pinned a specific place — optional. */
   poiPlaceId?: string;
+  /**
+   * Google Places ID of the hero/nearby place the user was next to when this
+   * task was brushed away — undefined when no matching place was known at
+   * brush time (KAN-226). Prerequisite data for learned places (KAN-230).
+   */
+  completedPlaceId?: string;
+  /** Human-readable name of `completedPlaceId`, snapshotted at brush time. */
+  completedPlaceName?: string;
+  /** POI type of `completedPlaceId`, snapshotted at brush time. */
+  completedPoiType?: string;
   /**
    * The date (YYYY-MM-DD) on which a geofence-entry notification was last
    * fired for this task. Suppresses repeat alerts on the same day (KAN-24).
@@ -218,6 +255,32 @@ export const POI_GOOGLE_TYPES: Record<PoiType, string> = {
   salon:        'hair_care',
   bus:          'bus_station',
   school:       'school',
+};
+
+/**
+ * Maps our PoiType to the corresponding OpenStreetMap tag (key=value) used to
+ * query the Overpass API for the offline habitat cache (KAN-228). Google
+ * Places' ToS forbids long-term caching of coordinates, so the offline cache
+ * is sourced from OSM instead — this is the OSM equivalent of
+ * POI_GOOGLE_TYPES above.
+ */
+export const POI_OSM_TAGS: Record<PoiType, { key: string; value: string }> = {
+  atm:         { key: 'amenity', value: 'atm' },
+  cafe:        { key: 'amenity', value: 'cafe' },
+  supermarket: { key: 'shop',    value: 'supermarket' },
+  pharmacy:    { key: 'amenity', value: 'pharmacy' },
+  gas:         { key: 'amenity', value: 'fuel' },
+  gym:         { key: 'leisure', value: 'fitness_centre' },
+  bank:        { key: 'amenity', value: 'bank' },
+  restaurant:  { key: 'amenity', value: 'restaurant' },
+  park:        { key: 'leisure', value: 'park' },
+  library:     { key: 'amenity', value: 'library' },
+  post:        { key: 'amenity', value: 'post_office' },
+  store:       { key: 'shop',    value: 'convenience' },
+  clinic:      { key: 'amenity', value: 'clinic' },
+  salon:       { key: 'shop',    value: 'hairdresser' },
+  bus:         { key: 'highway', value: 'bus_stop' },
+  school:      { key: 'amenity', value: 'school' },
 };
 
 /** Default geofence radius in metres per POI type. */
@@ -567,4 +630,63 @@ export interface InboxEntry {
   fromDisplayName: string;
   read:            boolean;
   createdAt:       FirebaseFirestoreTypes.Timestamp;
+}
+
+// ─── Trip (KAN-234) ───────────────────────────────────────────────────────────
+
+/** The 3 area-size presets offered in the Trip Planner flow. */
+export type TripRadiusPreset = 'town' | 'town_and_around' | 'region';
+
+/**
+ * /users/{uid}/trips/{tripId} — a manually-downloaded offline area for
+ * travel. First-class entity (not just a cache region) so it can carry
+ * dates, appear on the Calendar, and serve as the extension point for a
+ * future Vacation Planner (KAN-239) — do not collapse this into the habitat
+ * cache's SQLite table.
+ */
+export interface Trip {
+  id: string;
+  /** Free-text destination label as typed/selected, e.g. "Faro, Portugal". */
+  destination: string;
+  /** Google Place ID the destination resolved to. */
+  placeRef: string;
+  /**
+   * Center coordinates snapshotted at download time — this is the trip's own
+   * datum (a destination the user chose), not a re-cached POI, so Google
+   * Places' no-long-term-coordinate-caching ToS (see maps.ts/habitatCache.ts)
+   * doesn't apply to it the way it does to individual POI rows.
+   */
+  centerLat: number;
+  centerLng: number;
+  /** YYYY-MM-DD — optional; the flow encourages but doesn't require dates. */
+  startDate?: string;
+  endDate?: string;
+  /** Meters — one of tripDownload.ts's TRIP_RADIUS_PRESETS values. */
+  areaRadius: number;
+  /** Joins to habitatCache's habitat_places.cache_area_id. */
+  cacheAreaId: string;
+  /** Epoch ms this trip's cached rows are considered valid until. */
+  expiresAt: number;
+  /** Set once the day-before-departure pre-refresh has run, so it isn't repeated every app open during the trip window. */
+  preRefreshedAt?: number;
+  createdAt: FirebaseFirestoreTypes.Timestamp;
+}
+
+/**
+ * /users/{uid}/mallSnapshot/current — the single currently-active mall
+ * snapshot, if any (KAN-237). Singleton (not a collection like Trip) since
+ * only one mall can be "learned" at a time via the Profile toggle.
+ */
+export interface MallSnapshot {
+  placeId: string;
+  name: string;
+  centerLat: number;
+  centerLng: number;
+  /** Meters — MALL_SEARCH_RADIUS_M, reused from indoorDetection.ts. */
+  radius: number;
+  /** Joins to habitatCache's habitat_places.cache_area_id — fixed constant, see mallSnapshots.ts. */
+  cacheAreaId: string;
+  /** Epoch ms — short-term per Google Places ToS (session/visit scale). */
+  expiresAt: number;
+  createdAt: FirebaseFirestoreTypes.Timestamp;
 }

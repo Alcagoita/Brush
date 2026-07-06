@@ -11,6 +11,7 @@ import { Platform, Vibration, InteractionManager } from 'react-native';
 import { setTaskDone, getTotalPoints } from '../../services/firestore';
 import { evaluateAchievements, checkAndFireAchievementNudge } from '../../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../../services/challenges';
+import type { NearbyPlace } from '../../services/maps';
 import type { Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
@@ -20,6 +21,7 @@ export function useTaskCompletion(
   latestTasksRef: React.RefObject<Task[]>,
   nearbyPoiTypeRef: React.RefObject<string | null>,
   setTotalPoints: React.Dispatch<React.SetStateAction<number>>,
+  nearbyPlaceRef: React.RefObject<NearbyPlace | null>,
 ) {
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     if (!uid) { return; }
@@ -29,7 +31,21 @@ export function useTaskCompletion(
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done, pendingSync: true } : t));
 
     try {
-      await setTaskDone(uid, taskId, done);
+      // Persist the hero/nearby place at brush time (KAN-226) — only when it
+      // matches this task's own POI type, so we never tag a task with an
+      // unrelated place the user happened to be near.
+      const brushedTask = latestTasksRef.current.find(t => t.id === taskId);
+      const nearbyPlace = nearbyPlaceRef.current;
+      const completedPlace =
+        done && brushedTask?.poi && brushedTask.poi === nearbyPoiTypeRef.current && nearbyPlace
+          ? { placeId: nearbyPlace.placeId, name: nearbyPlace.name, poiType: brushedTask.poi }
+          : undefined;
+
+      if (completedPlace) {
+        await setTaskDone(uid, taskId, done, completedPlace);
+      } else {
+        await setTaskDone(uid, taskId, done);
+      }
       // Only clear pendingSync if the row still reflects this write (same
       // optimistic done value) — a newer toggle that landed while this write
       // was in flight already owns the row's pendingSync state.
@@ -90,7 +106,7 @@ export function useTaskCompletion(
       ));
       console.warn('[useTodayScreen] toggle failed — reverting', err);
     }
-  }, [uid, setTasks, latestTasksRef, nearbyPoiTypeRef, setTotalPoints]);
+  }, [uid, setTasks, latestTasksRef, nearbyPoiTypeRef, setTotalPoints, nearbyPlaceRef]);
 
   return { handleToggle };
 }

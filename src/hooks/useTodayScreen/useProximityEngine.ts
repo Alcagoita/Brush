@@ -16,8 +16,9 @@ import {
   runProximitySearch,
   getLastSearchCoords,
   setLocationTap,
+  setPlaceContextTap,
 } from '../../services/proximity';
-import type { PlacesMap } from '../../services/proximity';
+import type { PlacesMap, PlaceContext } from '../../services/proximity';
 import { getDistanceMeters } from '../../services/maps';
 import type { NearbyPlace } from '../../services/maps';
 import {
@@ -42,7 +43,11 @@ export interface ProximityEngine {
   /** Mirror of nearbyPoiType for stable callbacks (e.g. useTaskCompletion). */
   nearbyPoiTypeRef:   React.RefObject<string | null>;
   nearbyPlace:        NearbyPlace | null;
+  /** Mirror of nearbyPlace for stable callbacks (e.g. useTaskCompletion, KAN-226). */
+  nearbyPlaceRef:     React.RefObject<NearbyPlace | null>;
   poiPlaces:          PlacesMap;
+  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip. */
+  placeContext:       PlaceContext;
   locationUnavailable: boolean;
   storeTuningActive:      boolean;
   showStoreTuningPrompt:  boolean;
@@ -71,7 +76,9 @@ export function useProximityEngine(
   const [nearbyPoiType,       setNearbyPoiType]       = useState<string | null>(null);
   const nearbyPoiTypeRef = useRef<string | null>(null);
   const [nearbyPlace,         setNearbyPlace]         = useState<NearbyPlace | null>(null);
+  const nearbyPlaceRef = useRef<NearbyPlace | null>(null);
   const [poiPlaces,           setPoiPlaces]           = useState<PlacesMap>({});
+  const [placeContext,        setPlaceContext]        = useState<PlaceContext>(null);
   const [locationUnavailable, setLocationUnavailable] = useState(false);
 
   // ── Battery level (KAN-52) — read on foreground only; not used for pausing ──
@@ -135,9 +142,11 @@ export function useProximityEngine(
     });
 
     setLocationTap((lat, lng, accuracy) => { feedLocation(lat, lng, accuracy); });
+    setPlaceContextTap(setPlaceContext);
 
     return () => {
       setLocationTap(null);
+      setPlaceContextTap(null);
       stopTuning();
       stopDetection();
     };
@@ -169,6 +178,7 @@ export function useProximityEngine(
     (poiType: string | null, place: NearbyPlace | null, allPlaces: PlacesMap) => {
       nearbyPoiTypeRef.current = poiType;
       setNearbyPoiType(poiType);
+      nearbyPlaceRef.current = place;
       setNearbyPlace(place);
       setPoiPlaces(allPlaces);
       setLocationUnavailable(false);
@@ -181,9 +191,16 @@ export function useProximityEngine(
   useEffect(() => {
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) {
       if (!hasPOITasks || isStoreTuningActive) {
+        nearbyPoiTypeRef.current = null;
         setNearbyPoiType(null);
+        nearbyPlaceRef.current = null;
         setNearbyPlace(null);
         setPoiPlaces({});
+        // Otherwise the header ContextChip keeps showing a mall/trip context
+        // from the last tick before the engine stopped searching (KAN-242
+        // review fix) — e.g. the user's last POI task got completed while
+        // inside a mall, and the chip would freeze there indefinitely.
+        setPlaceContext(null);
       }
       return;
     }
@@ -254,6 +271,7 @@ export function useProximityEngine(
         (task, place) => {
           nearbyPoiTypeRef.current = task?.poi ?? null;
           setNearbyPoiType(task?.poi ?? null);
+          nearbyPlaceRef.current = place;
           setNearbyPlace(place);
           // Populate poiPlaces so NearbyCard heroEntries computation can find
           // the indoor match (it derives hero cards from poiPlaces, not nearbyPlace).
@@ -309,7 +327,9 @@ export function useProximityEngine(
     nearbyPoiType,
     nearbyPoiTypeRef,
     nearbyPlace,
+    nearbyPlaceRef,
     poiPlaces,
+    placeContext,
     locationUnavailable,
     storeTuningActive: isStoreTuningActive,
     showStoreTuningPrompt: storeTuningState === 'prompt_shown',

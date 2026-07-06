@@ -10,12 +10,25 @@
 // ─── Firestore mocks ─────────────────────────────────────────────────────────
 
 const mockAddDoc      = jest.fn();
-const mockUpdateDoc   = jest.fn();
 const mockGetDocs     = jest.fn();
 const mockBatchUpdate = jest.fn();
 const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
 const mockWhere       = jest.fn((...a: unknown[]) => a);
 const mockQuery       = jest.fn((...a: unknown[]) => a);
+
+// setTaskDone (KAN-240) reads/writes through a transaction rather than a bare
+// updateDoc — this stub has tx.get() report "no prior place" (task doc has no
+// completedPlaceId) so the tests below only need to inspect the task doc write.
+const mockTxUpdate = jest.fn();
+const mockRunTransaction = jest.fn(async (_db: unknown, cb: (tx: unknown) => Promise<void>) => {
+  const tx = {
+    get: jest.fn().mockResolvedValue({ exists: () => false, data: () => undefined }),
+    update: (...args: unknown[]) => mockTxUpdate(...args),
+    set: jest.fn(),
+    delete: jest.fn(),
+  };
+  return cb(tx);
+});
 
 const NOW_TIMESTAMP = { seconds: 1_700_000_000, nanoseconds: 0, _isNow: true };
 
@@ -26,8 +39,9 @@ jest.mock('@react-native-firebase/firestore', () => ({
   addDoc:          (...args: unknown[]) => mockAddDoc(...args),
   getDoc:          jest.fn(),
   getDocs:         (...args: unknown[]) => mockGetDocs(...args),
-  updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
+  updateDoc:       jest.fn(),
   deleteDoc:       jest.fn(),
+  deleteField:     jest.fn(() => ({ _delete: true })),
   setDoc:          jest.fn(),
   writeBatch:      jest.fn(() => ({ update: mockBatchUpdate, commit: mockBatchCommit })),
   query:           (...args: unknown[]) => mockQuery(...args),
@@ -37,7 +51,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   serverTimestamp: jest.fn(() => ({ _serverTimestamp: true })),
   increment:       jest.fn(),
   Timestamp:       { now: jest.fn(() => NOW_TIMESTAMP) },
-  runTransaction:  jest.fn(),
+  runTransaction:  (...args: [unknown, (tx: unknown) => Promise<void>]) => mockRunTransaction(...args),
 }));
 
 jest.mock('../../src/services/poiInference', () => ({
@@ -95,14 +109,13 @@ describe('addTask — offline-first timestamps', () => {
 describe('setTaskDone — offline-first timestamps', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockUpdateDoc.mockResolvedValue(undefined);
   });
 
   it('uses Timestamp.now() for completedAt when marking done', async () => {
     await setTaskDone('uid-1', 'task-1', true);
 
-    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
-    const payload = mockUpdateDoc.mock.calls[0][1];
+    expect(mockTxUpdate).toHaveBeenCalledTimes(1);
+    const payload = mockTxUpdate.mock.calls[0][1];
     expect(payload.done).toBe(true);
     expect(payload.completedAt).toBe(NOW_TIMESTAMP);
     expect(payload.completedAt).not.toEqual({ _serverTimestamp: true });
@@ -111,7 +124,7 @@ describe('setTaskDone — offline-first timestamps', () => {
   it('sets completedAt to null when marking undone', async () => {
     await setTaskDone('uid-1', 'task-1', false);
 
-    const payload = mockUpdateDoc.mock.calls[0][1];
+    const payload = mockTxUpdate.mock.calls[0][1];
     expect(payload.done).toBe(false);
     expect(payload.completedAt).toBeNull();
   });
