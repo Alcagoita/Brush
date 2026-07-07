@@ -42,6 +42,7 @@ import {
   CalendarIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  GlobeIcon,
   GridIcon,
   HomeIcon,
   ListCheckIcon,
@@ -51,7 +52,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ImportResult } from '../types';
-import { COPY } from '../constants/copy';
+import { COPY, type SupportedLanguage } from '../constants/copy';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -215,8 +216,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
+/** Reads COPY live at call time (not module load) since COPY's active
+ *  language can change at runtime — see constants/copy.ts. */
+function languageLabel(lang: SupportedLanguage): string {
+  return lang === 'pt-PT' ? COPY.settings.languagePortuguese : COPY.settings.languageEnglish;
+}
+
 export default function SettingsScreen() {
-  const { palette, dark, setDark } = useTheme();
+  const { palette, dark, setDark, language, setLanguage } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets     = useSafeAreaInsets();
 
@@ -242,6 +249,18 @@ export default function SettingsScreen() {
     logTap('settings_theme_toggle', { dark: value });
   }, [setDark]);
 
+  const handleLanguagePress = useCallback(() => {
+    Alert.alert(
+      COPY.settings.languageSheetTitle,
+      undefined,
+      [
+        { text: COPY.settings.languageEnglish, onPress: () => { setLanguage('en'); logTap('settings_language_change', { language: 'en' }); } },
+        { text: COPY.settings.languagePortuguese, onPress: () => { setLanguage('pt-PT'); logTap('settings_language_change', { language: 'pt-PT' }); } },
+        { text: COPY.settings.languageCancel, style: 'cancel' },
+      ],
+    );
+  }, [setLanguage]);
+
   const handleLowBatteryToggle = useCallback(async (value: boolean) => {
     setLowBatteryPause(value);
     try {
@@ -253,12 +272,12 @@ export default function SettingsScreen() {
 
   const handleSignOut = useCallback(() => {
     Alert.alert(
-      'Sign out',
-      'Are you sure you want to sign out?',
+      COPY.settings.signOutConfirmTitle,
+      COPY.settings.signOutConfirmBody,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: COPY.settings.signOutCancelAction, style: 'cancel' },
         {
-          text: 'Sign out',
+          text: COPY.settings.signOutConfirmAction,
           style: 'destructive',
           onPress: async () => {
             try {
@@ -336,7 +355,6 @@ export default function SettingsScreen() {
           <SettingsRow
             Icon={AppearanceIcon}
             label="Dark mode"
-            isLast
             trailing={
               <Switch
                 value={dark}
@@ -346,6 +364,14 @@ export default function SettingsScreen() {
                 accessibilityLabel="Dark mode toggle"
               />
             }
+          />
+          <SettingsRow
+            Icon={GlobeIcon}
+            label={COPY.settings.languageRowLabel}
+            sublabel={languageLabel(language)}
+            onPress={handleLanguagePress}
+            isLast
+            accessibilityLabel={COPY.settings.languageRowLabel}
           />
         </Section>
 

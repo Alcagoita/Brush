@@ -16,6 +16,7 @@ export type AnalyticsEvent =
   | 'challenge_create'
   | 'achievement_unlocked'
   | 'settings_theme_toggle'
+  | 'settings_language_change'
   | 'errand_bundle_open_sheet'
   | 'errand_bundle_open_maps'
   | 'errand_bundle_dismiss';

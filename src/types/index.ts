@@ -28,6 +28,9 @@ export interface User {
   email: string;
   displayName: string;
   darkMode: boolean;
+  /** UI language (KAN-252) — defaults to the device's system language until
+   *  explicitly set. 'en' | 'pt-PT' (never pt-BR). */
+  language?: 'en' | 'pt-PT';
   createdAt: FirebaseFirestoreTypes.Timestamp;
   /**
    * Unique handle chosen at sign-up (KAN-97).
