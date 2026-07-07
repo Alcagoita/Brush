@@ -79,17 +79,42 @@ function chipFgColor(hex: string): string {
 // COPY is language-dynamic (KAN-252) and a module-scope read would freeze
 // this text in whatever language was active on first import.
 
-const NUDGE_META: { poi?: PoiType; color?: string }[] = [
-  { poi: 'supermarket', color: '#8b6bc4' },
-  { poi: 'cafe',        color: '#e8a86a' },
-  {},
-  {},
-  {},
-  { poi: 'supermarket', color: '#8b6bc4' },
+type OnboardingNudgeId = 'bread' | 'coffeeOutside' | 'postOffice' | 'sportOutside' | 'pendingErrand' | 'fridgeReplacement';
+
+const ONBOARDING_NUDGE_ORDER: OnboardingNudgeId[] = [
+  'bread',
+  'coffeeOutside',
+  'postOffice',
+  'sportOutside',
+  'pendingErrand',
+  'fridgeReplacement',
 ];
 
+const NUDGE_META: Record<OnboardingNudgeId, { poi?: PoiType; color?: string }> = {
+  bread:              { poi: 'supermarket', color: '#8b6bc4' },
+  coffeeOutside:      { poi: 'cafe',        color: '#e8a86a' },
+  postOffice:         {},
+  sportOutside:       {},
+  pendingErrand:      {},
+  fridgeReplacement:  { poi: 'supermarket', color: '#8b6bc4' },
+};
+
 function buildOnboardingNudges(): NudgeMessage[] {
-  return COPY.onboarding.nudgeTexts.map((text, i) => ({ text, ...NUDGE_META[i] }));
+  const texts = COPY.onboarding.nudgeTexts as Record<OnboardingNudgeId, string>;
+
+  if (__DEV__) {
+    const textCount = Object.keys(texts).length;
+    if (textCount !== ONBOARDING_NUDGE_ORDER.length) {
+      throw new Error(
+        `[OnboardingScreen] nudgeTexts count (${textCount}) does not match meta count (${ONBOARDING_NUDGE_ORDER.length}).`,
+      );
+    }
+  }
+
+  return ONBOARDING_NUDGE_ORDER.map(id => ({
+    text: texts[id],
+    ...NUDGE_META[id],
+  }));
 }
 
 interface SuggestionChip { label: string; poi: PoiType; category: Category; }

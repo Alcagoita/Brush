@@ -215,6 +215,18 @@ describe('SettingsScreen — KAN-113: APPEARANCE section', () => {
   });
 });
 
+// ─── LANGUAGE sheet ───────────────────────────────────────────────────────────
+
+describe('SettingsScreen — KAN-252: language picker sheet', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('wraps language options in a radiogroup', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Language'));
+    expect(screen.UNSAFE_getByProps({ accessibilityRole: 'radiogroup' })).toBeTruthy();
+  });
+});
+
 // ─── LOCATION & BATTERY section ───────────────────────────────────────────────
 
 describe('SettingsScreen — KAN-113: LOCATION & BATTERY section', () => {

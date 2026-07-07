@@ -63,10 +63,12 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ImportConnector = (uid: string) => Promise<ImportResult>;
 
 interface ImportSource {
-  key:       string;
+  key:       ImportSourceKey;
   Icon:      React.FC<{ color: string; size?: number }>;
   connector: ImportConnector;
 }
+
+type ImportSourceKey = 'google_tasks' | 'google_calendar' | 'eventkit_reminders' | 'eventkit_calendar';
 
 type ImportStatus =
   | { kind: 'idle' }
@@ -248,7 +250,7 @@ function LanguagePickerSheet({ visible, current, onSelect, onClose }: LanguagePi
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable
-        style={[StyleSheet.absoluteFill, s.sheetScrim]}
+        style={[StyleSheet.absoluteFill, { backgroundColor: palette.scrim }]}
         onPress={onClose}
         accessibilityRole="button"
         accessibilityLabel={COPY.settings.languageCancel}
@@ -258,27 +260,29 @@ function LanguagePickerSheet({ visible, current, onSelect, onClose }: LanguagePi
           <Text style={[s.sheetTitle, { color: palette.muted }]}>
             {COPY.settings.languageSheetTitle}
           </Text>
-          {LANGUAGE_OPTIONS.map((lang, idx) => {
-            const selected = lang === current;
-            return (
-              <React.Fragment key={lang}>
-                <Pressable
-                  style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
-                  onPress={() => onSelect(lang)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={languageLabel(lang)}>
-                  <Text style={[s.rowLabel, { color: palette.text, flex: 1 }]}>
-                    {languageLabel(lang)}
-                  </Text>
-                  {selected && <CheckIcon color={palette.accent} size={18} />}
-                </Pressable>
-                {idx < LANGUAGE_OPTIONS.length - 1 && (
-                  <View style={[s.divider, { backgroundColor: palette.line, marginLeft: 16 }]} />
-                )}
-              </React.Fragment>
-            );
-          })}
+          <View accessibilityRole="radiogroup">
+            {LANGUAGE_OPTIONS.map((lang, idx) => {
+              const selected = lang === current;
+              return (
+                <React.Fragment key={lang}>
+                  <Pressable
+                    style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
+                    onPress={() => onSelect(lang)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={languageLabel(lang)}>
+                    <Text style={[s.rowLabel, { color: palette.text, flex: 1 }]}>
+                      {languageLabel(lang)}
+                    </Text>
+                    {selected && <CheckIcon color={palette.accent} size={18} />}
+                  </Pressable>
+                  {idx < LANGUAGE_OPTIONS.length - 1 && (
+                    <View style={[s.divider, { backgroundColor: palette.line, marginLeft: 16 }]} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </View>
         </View>
         <Pressable
           style={({ pressed }) => [s.sheetCancel, { backgroundColor: palette.surface }, pressed && { opacity: 0.6 }]}
@@ -378,7 +382,7 @@ export default function SettingsScreen() {
     ];
   })()).current;
 
-  const importLabels: Record<string, string> = {
+  const importLabels: Record<ImportSourceKey, string> = {
     google_tasks:        COPY.settings.importGoogleTasks,
     google_calendar:     COPY.settings.importGoogleCalendar,
     eventkit_reminders:  COPY.settings.importReminders,
@@ -625,10 +629,6 @@ const s = StyleSheet.create({
     marginTop:  8,
   },
 
-  // ── Language picker sheet ──
-  sheetScrim: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
   sheetWrap: {
     position:          'absolute',
     left:              0,
