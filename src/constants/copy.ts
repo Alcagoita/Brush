@@ -857,6 +857,31 @@ const en = {
     openToday: 'Open today',
   },
 
+  shareToDo: {
+    shareA11y: (title: string) => `Share ${title}`,
+    backA11y: 'Back',
+    subtitle: 'Brush this over to a friend', // brand verb — stays literal
+    noOpenTasks: 'No open tasks for today.',
+  },
+
+  sharedTaskInbox: {
+    startedFollowingA11y: (handle: string) => `${handle} started following you`,
+    startedFollowingSuffix: ' started following you',
+    followBackA11y: (handle: string) => `Follow back ${handle}`,
+    followBack: 'Follow back',
+    following: 'Following',
+    avatarA11y: (name: string) => `${name} avatar`,
+    acceptTaskA11y: 'Accept task',
+    accept: 'Accept',
+    declineTaskA11y: 'Decline task',
+    decline: 'Decline',
+    followPrompt: (handle: string) => `+ Follow ${handle}`,
+    backA11y: 'Back',
+    notifications: 'Notifications',
+    unreadSuffix: (n: number) => ` (${n})`,
+    allCaughtUp: 'All caught up',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -1627,6 +1652,31 @@ const ptPT: typeof en = {
     nothingOnThisDay: 'Nada para este dia.',
     openTodayA11y: 'Abrir hoje',
     openToday: 'Abrir hoje',
+  },
+
+  shareToDo: {
+    shareA11y: (title: string) => `Share ${title}`,
+    backA11y: 'Voltar',
+    subtitle: 'Brush this over to a friend',
+    noOpenTasks: 'Sem tarefas por fazer hoje.',
+  },
+
+  sharedTaskInbox: {
+    startedFollowingA11y: (handle: string) => `${handle} começou a seguir-te`,
+    startedFollowingSuffix: ' começou a seguir-te',
+    followBackA11y: (handle: string) => `Seguir de volta ${handle}`,
+    followBack: 'Seguir de volta',
+    following: 'A seguir',
+    avatarA11y: (name: string) => `Avatar de ${name}`,
+    acceptTaskA11y: 'Aceitar tarefa',
+    accept: 'Aceitar',
+    declineTaskA11y: 'Recusar tarefa',
+    decline: 'Recusar',
+    followPrompt: (handle: string) => `+ Seguir ${handle}`,
+    backA11y: 'Voltar',
+    notifications: 'Notificações',
+    unreadSuffix: (n: number) => ` (${n})`,
+    allCaughtUp: 'Tudo em dia',
   },
 
 };
