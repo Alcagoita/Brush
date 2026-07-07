@@ -97,6 +97,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   BatteryIcon:      () => null,
   BellIcon:         () => null,
   CalendarIcon:     () => null,
+  CheckIcon:        () => null,
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
   GlobeIcon:        () => null,
