@@ -41,6 +41,9 @@ const mockDb = {
     if (s.startsWith('SELECT 1 as one FROM poi_type_search')) {
       return (rows.length > 0 ? [{ one: 1 }] : []) as unknown as T[];
     }
+    if (s.startsWith("SELECT COUNT(*) as count FROM poi_type_search WHERE source = 'api'")) {
+      return [{ count: rows.filter(r => r.source === 'api').length }] as unknown as T[];
+    }
     throw new Error(`mockDb.getAllSync: unrecognized query: ${s}`);
   }),
   runSync: jest.fn((sql: string, params: unknown[] = []) => {
@@ -57,6 +60,13 @@ const mockDb = {
       if (!rows.some(r => r.query_key === query_key)) {
         rows.push({ query_key, results_json, source, created_at });
       }
+      return {} as any;
+    }
+    if (s.startsWith("DELETE FROM poi_type_search WHERE query_key IN ( SELECT query_key FROM poi_type_search WHERE source = 'api' ORDER BY created_at ASC LIMIT ? )")) {
+      const [limit] = params as [number];
+      const apiOldestFirst = rows.filter(r => r.source === 'api').sort((a, b) => a.created_at - b.created_at);
+      const toDelete = new Set(apiOldestFirst.slice(0, limit).map(r => r.query_key));
+      rows = rows.filter(r => !toDelete.has(r.query_key));
       return {} as any;
     }
     throw new Error(`mockDb.runSync: unrecognized query: ${s}`);
@@ -78,7 +88,10 @@ jest.mock('../../src/services/maps', () => {
 });
 
 jest.mock('../../src/constants/googlePlaceTypes', () => ({
-  GOOGLE_PLACE_TYPES_TABLE_A: ['gym', 'cafe', 'sushi_restaurant'],
+  // 'store' is a real GENERIC_PLACE_TYPES member (maps.ts) — included here so
+  // the seed-exclusion test exercises the real isGenericPlaceType() filter,
+  // not a hand-rolled substitute.
+  GOOGLE_PLACE_TYPES_TABLE_A: ['gym', 'cafe', 'sushi_restaurant', 'store'],
 }));
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
@@ -98,12 +111,20 @@ beforeEach(() => {
 });
 
 describe('seedPoiTypeCacheIfEmpty', () => {
-  it('seeds one row per bundled type, keyed by its normalized label', () => {
+  it('seeds one row per non-generic bundled type, keyed by its normalized label', () => {
     seedPoiTypeCacheIfEmpty();
 
+    // 4 bundled types minus 1 generic ('store') = 3 rows.
     expect(rows).toHaveLength(3);
     expect(lookupPoiTypeCache('Gym')).toEqual([{ type: 'gym', label: 'Gym' }]);
     expect(lookupPoiTypeCache('sushi restaurant')).toEqual([{ type: 'sushi_restaurant', label: 'Sushi Restaurant' }]);
+  });
+
+  it('skips a generic type (e.g. "store") — same exclusion policy as the live searchPlaceTypes results', () => {
+    seedPoiTypeCacheIfEmpty();
+
+    expect(lookupPoiTypeCache('store')).toBeNull();
+    expect(rows.some(r => JSON.parse(r.results_json).some((s: { type: string }) => s.type === 'store'))).toBe(false);
   });
 
   it('matches a seeded type by its raw slug too (underscores normalize to spaces same as the label)', () => {
@@ -149,6 +170,17 @@ describe('lookupPoiTypeCache', () => {
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
   });
+
+  // ── Boundary: empty/whitespace-only query ──────────────────────────────
+  it('returns null for an empty string without touching the DB', () => {
+    expect(lookupPoiTypeCache('')).toBeNull();
+    expect(mockDb.getAllSync).not.toHaveBeenCalled();
+  });
+
+  it('returns null for a whitespace-only query without touching the DB', () => {
+    expect(lookupPoiTypeCache('   ')).toBeNull();
+    expect(mockDb.getAllSync).not.toHaveBeenCalled();
+  });
 });
 
 describe('recordPoiTypeSearch', () => {
@@ -164,6 +196,61 @@ describe('recordPoiTypeSearch', () => {
     expect(() => recordPoiTypeSearch('anything', [])).not.toThrow();
     expect(warnSpy).toHaveBeenCalled();
     warnSpy.mockRestore();
+  });
+
+  // ── Boundary: empty/whitespace-only query ──────────────────────────────
+  it('is a no-op for an empty string — no row written, DB never touched', () => {
+    recordPoiTypeSearch('', [{ type: 'gym', label: 'Gym' }]);
+    expect(rows).toHaveLength(0);
+    expect(mockDb.runSync).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for a whitespace-only query', () => {
+    recordPoiTypeSearch('   ', [{ type: 'gym', label: 'Gym' }]);
+    expect(rows).toHaveLength(0);
+    expect(mockDb.runSync).not.toHaveBeenCalled();
+  });
+
+  // ── Boundary: too-short query (KAN-253 review — churn guard) ───────────
+  it('does not persist a query shorter than the minimum cacheable length', () => {
+    recordPoiTypeSearch('ab', [{ type: 'gym', label: 'Gym' }]);
+    expect(rows).toHaveLength(0);
+    expect(mockDb.runSync).not.toHaveBeenCalled();
+  });
+
+  it('does persist a query right at the minimum cacheable length', () => {
+    recordPoiTypeSearch('gym', [{ type: 'gym', label: 'Gym' }]);
+    expect(rows).toHaveLength(1);
+  });
+});
+
+describe('API cache budget (KAN-253 review — bounded eviction)', () => {
+  it('evicts the oldest api rows once the cap is exceeded, exempting seed rows', () => {
+    const CAP = 500; // MAX_CACHED_API_QUERIES
+    // Pre-fill one seed row (very old — must survive regardless) and exactly
+    // the cap's worth of api rows, oldest first.
+    rows.push({ query_key: 'a seeded gym', results_json: '[]', source: 'seed', created_at: 0 });
+    for (let i = 0; i < CAP; i++) {
+      rows.push({ query_key: `api query ${i}`, results_json: '[]', source: 'api', created_at: i + 1 });
+    }
+
+    // One more api write pushes the api count to CAP + 1 — must evict exactly 1.
+    recordPoiTypeSearch('one more query', [{ type: 'cafe', label: 'Cafe' }]);
+
+    const apiRows = rows.filter(r => r.source === 'api');
+    expect(apiRows).toHaveLength(CAP);
+    // The very oldest api row ("api query 0", created_at: 1) is the one evicted.
+    expect(rows.some(r => r.query_key === 'api query 0')).toBe(false);
+    expect(rows.some(r => r.query_key === 'one more query')).toBe(true);
+    // The seed row is untouched despite being the oldest row overall.
+    expect(rows.some(r => r.query_key === 'a seeded gym')).toBe(true);
+  });
+
+  it('does not evict anything while at or below the cap', () => {
+    recordPoiTypeSearch('first query', [{ type: 'cafe', label: 'Cafe' }]);
+    recordPoiTypeSearch('second query', [{ type: 'gym', label: 'Gym' }]);
+
+    expect(rows).toHaveLength(2);
   });
 });
 

@@ -24,10 +24,22 @@
 
 import * as SQLite from 'expo-sqlite';
 import { normalize } from './poiInference';
-import { searchPlaceTypes, placeTypeLabel, type PlaceTypeSuggestion } from './maps';
+import { searchPlaceTypes, placeTypeLabel, isGenericPlaceType, type PlaceTypeSuggestion } from './maps';
 import { GOOGLE_PLACE_TYPES_TABLE_A } from '../constants/googlePlaceTypes';
 
 const DB_NAME = 'poi_type_cache.db';
+
+/** Skip persisting an API-resolved query this short — early keystrokes in a
+ *  debounced search churn the table with near-meaningless partial queries
+ *  that are unlikely to ever repeat verbatim. Seed rows (real, complete type
+ *  labels) are never this short, so this never affects seed lookups. */
+const MIN_CACHEABLE_QUERY_LENGTH = 3;
+
+/** Hard cap on API-resolved (non-seed) rows — keeps the on-device footprint
+ *  bounded under per-keystroke searching. Seed rows are exempt: they're a
+ *  fixed-size bundled taxonomy, not user-driven growth, so they never count
+ *  against or get evicted by this budget. */
+export const MAX_CACHED_API_QUERIES = 500;
 
 // ─── DB handle (lazy, cached) ─────────────────────────────────────────────────
 
@@ -87,6 +99,10 @@ export function lookupPoiTypeCache(query: string): PlaceTypeSuggestion[] | null 
  * confirmed "no match" is still worth remembering so an unresolvable phrase
  * doesn't keep round-tripping to Google). Best-effort: a write failure is
  * swallowed since the caller already has its (uncached) result in hand.
+ *
+ * Skips anything shorter than MIN_CACHEABLE_QUERY_LENGTH (early keystrokes in
+ * a debounced search) and enforces MAX_CACHED_API_QUERIES afterwards — see
+ * both constants above.
  */
 export function recordPoiTypeSearch(
   query: string,
@@ -94,14 +110,39 @@ export function recordPoiTypeSearch(
   source: 'api' | 'seed' = 'api',
 ): void {
   const key = normalize(query);
-  if (!key) { return; }
+  if (!key || key.length < MIN_CACHEABLE_QUERY_LENGTH) { return; }
   try {
     getDb().runSync(
       'INSERT OR REPLACE INTO poi_type_search (query_key, results_json, source, created_at) VALUES (?, ?, ?, ?)',
       [key, JSON.stringify(results), source, Date.now()],
     );
+    if (source === 'api') { enforceApiCacheBudget(); }
   } catch (err) {
     console.warn('[poiTypeCache] recordPoiTypeSearch failed', err);
+  }
+}
+
+/**
+ * Deletes the oldest (by created_at) 'api'-sourced rows beyond
+ * MAX_CACHED_API_QUERIES. Scoped to source = 'api' only — the bundled seed
+ * rows are a fixed, known size and are never evicted by this budget.
+ */
+function enforceApiCacheBudget(): void {
+  try {
+    const database = getDb();
+    const [{ count } = { count: 0 }] = database.getAllSync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM poi_type_search WHERE source = 'api'",
+    );
+    if (count <= MAX_CACHED_API_QUERIES) { return; }
+
+    database.runSync(
+      `DELETE FROM poi_type_search WHERE query_key IN (
+         SELECT query_key FROM poi_type_search WHERE source = 'api' ORDER BY created_at ASC LIMIT ?
+       )`,
+      [count - MAX_CACHED_API_QUERIES],
+    );
+  } catch (err) {
+    console.warn('[poiTypeCache] enforceApiCacheBudget failed', err);
   }
 }
 
@@ -140,6 +181,10 @@ export function seedPoiTypeCacheIfEmpty(): void {
     const now = Date.now();
     database.withTransactionSync(() => {
       for (const type of GOOGLE_PLACE_TYPES_TABLE_A) {
+        // Same exclusion policy as the live searchPlaceTypes() results — a
+        // seed/cache hit must never surface a type the live path would have
+        // filtered out (e.g. 'store', 'locality', 'country').
+        if (isGenericPlaceType(type)) { continue; }
         const label = placeTypeLabel(type);
         const key = normalize(label);
         if (!key) { continue; }

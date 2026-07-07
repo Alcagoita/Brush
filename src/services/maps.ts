@@ -249,6 +249,17 @@ const GENERIC_PLACE_TYPES = new Set([
 ]);
 
 /**
+ * True for a generic Google Places type that conveys no useful information to
+ * a user (see GENERIC_PLACE_TYPES above). Exported so other callers building
+ * their own type list — e.g. poiTypeCache.ts's seed step — apply the exact
+ * same exclusion policy as searchPlaceTypes' live results, instead of a
+ * separately-maintained copy that can drift out of sync.
+ */
+export function isGenericPlaceType(type: string): boolean {
+  return GENERIC_PLACE_TYPES.has(type);
+}
+
+/**
  * Human-readable labels for common Google Places primary types.
  * Covers the full taxonomy that users are likely to search for as
  * category location types.
