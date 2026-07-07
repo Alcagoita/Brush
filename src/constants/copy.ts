@@ -731,6 +731,21 @@ const en = {
     discard: 'Discard',
   },
 
+  shareTaskSheet: {
+    cannotSendToSelf: 'You cannot send a task to yourself.',
+    searchError: 'Could not search users. Check your connection.',
+    sendFailedDefault: 'Failed to send task.',
+    closeA11y: 'Close share sheet',
+    title: 'Share task',
+    closeButtonA11y: 'Close',
+    emailPlaceholder: 'Recipient email address',
+    emailA11y: 'Recipient email',
+    findA11y: 'Find user',
+    find: 'Find',
+    noUserFound: 'No user found with that email.',
+    sentTo: (name: string) => `✓ Task sent to ${name}`,
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -1375,6 +1390,21 @@ const ptPT: typeof en = {
     addBrush: 'Add brush',
     saving: 'A guardar…',
     discard: 'Descartar',
+  },
+
+  shareTaskSheet: {
+    cannotSendToSelf: 'Não podes enviar uma tarefa a ti próprio.',
+    searchError: 'Não foi possível procurar utilizadores. Verifica a tua ligação.',
+    sendFailedDefault: 'Falha ao enviar a tarefa.',
+    closeA11y: 'Fechar folha de partilha',
+    title: 'Partilhar tarefa',
+    closeButtonA11y: 'Fechar',
+    emailPlaceholder: 'Endereço de email do destinatário',
+    emailA11y: 'Email do destinatário',
+    findA11y: 'Procurar utilizador',
+    find: 'Procurar',
+    noUserFound: 'Nenhum utilizador encontrado com esse email.',
+    sentTo: (name: string) => `✓ Tarefa enviada para ${name}`,
   },
 
 };

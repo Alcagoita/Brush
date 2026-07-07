@@ -86,7 +86,7 @@ export default function ShareTaskSheet({
     if (!trimmed) { return; }
 
     if (trimmed === senderUid) {
-      setLookupState({ status: 'error', message: 'You cannot send a task to yourself.' });
+      setLookupState({ status: 'error', message: COPY.shareTaskSheet.cannotSendToSelf });
       return;
     }
 
@@ -98,12 +98,12 @@ export default function ShareTaskSheet({
         return;
       }
       if (user.uid === senderUid) {
-        setLookupState({ status: 'error', message: 'You cannot send a task to yourself.' });
+        setLookupState({ status: 'error', message: COPY.shareTaskSheet.cannotSendToSelf });
         return;
       }
       setLookupState({ status: 'found', user });
     } catch {
-      setLookupState({ status: 'error', message: 'Could not search users. Check your connection.' });
+      setLookupState({ status: 'error', message: COPY.shareTaskSheet.searchError });
     }
   }, [email, senderUid]);
 
@@ -123,7 +123,7 @@ export default function ShareTaskSheet({
       logTap('share_task');
       setSendState({ status: 'sent', recipientName: user.displayName });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Failed to send task.';
+      const msg = err instanceof Error ? err.message : COPY.shareTaskSheet.sendFailedDefault;
       setSendState({ status: 'error', message: msg });
     }
   }, [lookupState, senderUid, senderName, task]);
@@ -139,7 +139,7 @@ export default function ShareTaskSheet({
       <Pressable
         style={styles.scrim}
         onPress={handleClose}
-        accessibilityLabel="Close share sheet"
+        accessibilityLabel={COPY.shareTaskSheet.closeA11y}
       />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -154,11 +154,11 @@ export default function ShareTaskSheet({
         ]}>
           {/* ── Header ── */}
           <View style={[styles.header, { borderBottomColor: palette.line }]}>
-            <Text style={[styles.title, { color: palette.text }]}>Share task</Text>
+            <Text style={[styles.title, { color: palette.text }]}>{COPY.shareTaskSheet.title}</Text>
             <Pressable
               onPress={handleClose}
               hitSlop={12}
-              accessibilityLabel="Close">
+              accessibilityLabel={COPY.shareTaskSheet.closeButtonA11y}>
               <Text style={[styles.closeBtn, { color: palette.muted }]}>✕</Text>
             </Pressable>
           </View>
@@ -181,7 +181,7 @@ export default function ShareTaskSheet({
                   borderColor:     palette.line,
                 },
               ]}
-              placeholder="Recipient email address"
+              placeholder={COPY.shareTaskSheet.emailPlaceholder}
               placeholderTextColor={palette.faint}
               value={email}
               onChangeText={v => {
@@ -195,7 +195,7 @@ export default function ShareTaskSheet({
               returnKeyType="search"
               onSubmitEditing={handleFindUser}
               editable={!isSending}
-              accessibilityLabel="Recipient email"
+              accessibilityLabel={COPY.shareTaskSheet.emailA11y}
             />
             <Pressable
               onPress={handleFindUser}
@@ -207,10 +207,10 @@ export default function ShareTaskSheet({
                   opacity: (!email.trim() || lookupState.status === 'searching' || isSending) ? 0.5 : 1,
                 },
               ]}
-              accessibilityLabel="Find user">
+              accessibilityLabel={COPY.shareTaskSheet.findA11y}>
               {lookupState.status === 'searching'
                 ? <ActivityIndicator size="small" color={palette.bg} />
-                : <Text style={[styles.findBtnLabel, { color: palette.bg }]}>Find</Text>
+                : <Text style={[styles.findBtnLabel, { color: palette.bg }]}>{COPY.shareTaskSheet.find}</Text>
               }
             </Pressable>
           </View>
@@ -231,7 +231,7 @@ export default function ShareTaskSheet({
 
           {lookupState.status === 'notFound' && (
             <Text style={[styles.inlineMsg, { color: palette.muted }]}>
-              No user found with that email.
+              {COPY.shareTaskSheet.noUserFound}
             </Text>
           )}
 
@@ -244,7 +244,7 @@ export default function ShareTaskSheet({
           {/* ── Send result ── */}
           {sendState.status === 'sent' && (
             <Text style={[styles.inlineMsg, { color: palette.accent }]}>
-              ✓ Task sent to {sendState.recipientName}
+              {COPY.shareTaskSheet.sentTo(sendState.recipientName)}
             </Text>
           )}
 
