@@ -699,6 +699,38 @@ const en = {
     continue: 'Continue',
   },
 
+  shareReceive: {
+    poiNone: 'None',
+    poiLabelAtm: 'ATM',
+    poiLabelCafe: 'Café',
+    poiLabelSupermarket: 'Market',
+    poiLabelPharmacy: 'Pharmacy',
+    discardA11y: 'Discard',
+    navTitle: 'Add from message',
+    parsingMessage: 'Parsing message…',
+    couldntParse: "We couldn't parse a brush automatically. Add the details manually.",
+    tryAgainA11y: 'Try again',
+    tryAgain: 'Try again',
+    aiSuggestion: 'AI suggestion — tap to edit',
+    titlePlaceholder: 'Brush title', // brand noun — stays literal
+    titleA11y: 'Title',
+    titleRequired: 'Title is required.',
+    sectionLocation: 'LOCATION',
+    sectionTime: 'TIME',
+    sectionDueDate: 'DUE DATE',
+    sectionCategory: 'CATEGORY',
+    clearTimeA11y: 'Clear time',
+    setTimeA11y: 'Set time',
+    setTime: 'Set time',
+    clearDateA11y: 'Clear date',
+    setDateA11y: 'Set due date',
+    setDate: 'Set date',
+    addBrushA11y: 'Add brush', // brand noun — stays literal
+    addBrush: 'Add brush', // brand noun — stays literal
+    saving: 'Saving…',
+    discard: 'Discard',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -1311,6 +1343,38 @@ const ptPT: typeof en = {
     continueA11y: 'Continuar',
     sendChallenge: 'Enviar desafio',
     continue: 'Continuar',
+  },
+
+  shareReceive: {
+    poiNone: 'Nenhum',
+    poiLabelAtm: 'ATM',
+    poiLabelCafe: 'Café',
+    poiLabelSupermarket: 'Mercado',
+    poiLabelPharmacy: 'Farmácia',
+    discardA11y: 'Descartar',
+    navTitle: 'Adicionar a partir de mensagem',
+    parsingMessage: 'A analisar mensagem…',
+    couldntParse: 'Não conseguimos analisar automaticamente. Adiciona os detalhes manualmente.',
+    tryAgainA11y: 'Tentar novamente',
+    tryAgain: 'Tentar novamente',
+    aiSuggestion: 'Sugestão da IA — toca para editar',
+    titlePlaceholder: 'Brush title',
+    titleA11y: 'Título',
+    titleRequired: 'O título é obrigatório.',
+    sectionLocation: 'LOCALIZAÇÃO',
+    sectionTime: 'HORA',
+    sectionDueDate: 'DATA LIMITE',
+    sectionCategory: 'CATEGORIA',
+    clearTimeA11y: 'Limpar hora',
+    setTimeA11y: 'Definir hora',
+    setTime: 'Definir hora',
+    clearDateA11y: 'Limpar data',
+    setDateA11y: 'Definir data limite',
+    setDate: 'Definir data',
+    addBrushA11y: 'Add brush',
+    addBrush: 'Add brush',
+    saving: 'A guardar…',
+    discard: 'Descartar',
   },
 
 };
