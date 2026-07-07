@@ -285,20 +285,23 @@ const en = {
 
 const ptPT: typeof en = {
 
+  // "Brush"/"brush away"/"unbrush"/"brushed" — the app's own name and its
+  // defining completion-verb wordplay — are kept in English even here, per
+  // an explicit product decision: the brand verb never gets localized.
   taskRow: {
-    brushAway: (title: string) => `Risca ${title}`,
-    unbrush:   (title: string) => `Desrisca ${title}`,
+    brushAway: (title: string) => `Brush away ${title}`,
+    unbrush:   (title: string) => `Unbrush ${title}`,
   },
 
   progress: {
-    ringA11y: (done: number, total: number) => `${done} de ${total} tarefas riscadas`,
+    ringA11y: (done: number, total: number) => `${done} of ${total} tasks brushed`,
   },
 
   emptyState: {
-    todayNoTasks:    'Nada para riscar hoje',
+    todayNoTasks:    'Nothing to brush away today',
     todayAllBrushed: 'Tela limpa. 🖌',
-    calendarNoTasks: 'Nada para riscar',
-    inboxNoShared:   'Ainda ninguém te enviou nada',
+    calendarNoTasks: 'Nothing to brush away',
+    inboxNoShared:   "No one's brushed anything your way yet",
   },
 
   notification: {
@@ -308,31 +311,31 @@ const ptPT: typeof en = {
     // guessing the wrong gender.
     proximityTitle: (poiLabel: string) => `Estás perto de: ${poiLabel}`,
     proximityBody: (count: number) =>
-      `Tens ${count} coisa${count === 1 ? '' : 's'} para riscar.`,
+      `You have ${count} thing${count === 1 ? '' : 's'} to brush away.`,
 
-    dailyCompleteTitle: 'Riscaste tudo hoje 🖌',
-    dailyCompleteBody:  'Todas as tarefas riscadas. Tela limpa!',
+    dailyCompleteTitle: "You've brushed it all away today 🖌",
+    dailyCompleteBody:  'Every task brushed. Tela limpa!',
   },
 
   achievement: {
-    challengeWinnerTitle:    'O primeiro a riscar tudo',
-    challengeWonBody:        'Conquista desbloqueada: O primeiro a riscar tudo',
+    challengeWinnerTitle:    'First to brush it away',
+    challengeWonBody:        'Achievement unlocked: First to brush it away',
     challengeEndedBody:      'Mais sorte para a próxima!',
     challengeWonNotifTitle:  '🏆 Ganhaste o desafio!',
-    dailyCompleteTitle:      'Tudo riscado por hoje!',
-    dailyCompleteBody:       'Riscaste todas as tarefas da tua lista. Bom trabalho!',
+    dailyCompleteTitle:      'All brushed for today!',
+    dailyCompleteBody:       "You've brushed every task on your list. Great work!",
   },
 
   challenge: {
-    goalTypeLabel: (count: number) => `O primeiro a riscar ${count} tarefas`,
+    goalTypeLabel: (count: number) => `First to brush away ${count} tasks`,
     inviteTitle:   (handle: string, typeLabel: string) =>
       `${handle} desafiou-te: [${typeLabel}] 🏆 — Aceitar?`,
   },
 
   share: {
-    screenTitle:          'Envia um To-do a um amigo',
-    sendButton:           (name: string) => `Envia isto para ${name}`,
-    activityFeedReceived: (senderName: string) => `${senderName} enviou-te um to-do`,
+    screenTitle:          'Brush a To-do with a friend',
+    sendButton:           (name: string) => `Brush this over to ${name}`,
+    activityFeedReceived: (senderName: string) => `${senderName} brushed a to-do your way`,
   },
 
   newTaskSheet: {
