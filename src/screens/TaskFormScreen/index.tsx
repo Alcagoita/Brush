@@ -33,7 +33,7 @@ import { learnFromUserEdit } from '../../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
-import { POI_CATALOG } from '../../types';
+import { POI_CATALOG, poiCatalogLabel } from '../../types';
 import { todayISO } from '../../utils/date';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { COPY } from '../../constants/copy';
@@ -367,11 +367,11 @@ export default function TaskFormScreen() {
 
           {/* Quick-pick grid — 4 columns */}
           <View style={styles.poiGrid}>
-            {POI_CATALOG.map(({ type, label }) => (
+            {POI_CATALOG.map(({ type }) => (
               <PoiTile
                 key={type}
                 type={type}
-                label={label}
+                label={poiCatalogLabel(type)}
                 selected={poiKey === type}
                 onPress={() => {
                   const next = poiKey === type ? null : type;

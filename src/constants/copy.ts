@@ -403,6 +403,39 @@ const en = {
     chipGroceries: 'Groceries',
   },
 
+  // ─── Built-in category labels (KAN-252) — read live by theme/tokens.ts's
+  // `categories` object (a getter per key) so every existing
+  // `categories.work.label` / `categories[key].label` call site across the
+  // app stays language-aware without changing. ──────────────────────────────
+  categories: {
+    work: 'Work',
+    health: 'Health',
+    errands: 'Errands',
+    personal: 'Personal',
+  },
+
+  // ─── Built-in POI catalog labels (KAN-252) — read live via
+  // poiCatalogLabel(type) in types/index.ts, same reasoning as categories
+  // above. ─────────────────────────────────────────────────────────────────
+  poiCatalog: {
+    atm: 'ATM',
+    cafe: 'Café',
+    supermarket: 'Market',
+    pharmacy: 'Pharmacy',
+    gas: 'Gas',
+    gym: 'Gym',
+    bank: 'Bank',
+    restaurant: 'Restaurant',
+    park: 'Park',
+    library: 'Library',
+    post: 'Post',
+    store: 'Store',
+    clinic: 'Clinic',
+    salon: 'Salon',
+    bus: 'Bus',
+    school: 'School',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -735,6 +768,32 @@ const ptPT: typeof en = {
     chipGoForRun: 'Ir correr',
     chipWithdrawCash: 'Levantar dinheiro',
     chipGroceries: 'Compras',
+  },
+
+  categories: {
+    work: 'Trabalho',
+    health: 'Saúde',
+    errands: 'Recados',
+    personal: 'Pessoal',
+  },
+
+  poiCatalog: {
+    atm: 'Multibanco',
+    cafe: 'Café',
+    supermarket: 'Mercado',
+    pharmacy: 'Farmácia',
+    gas: 'Combustível',
+    gym: 'Ginásio',
+    bank: 'Banco',
+    restaurant: 'Restaurante',
+    park: 'Parque',
+    library: 'Biblioteca',
+    post: 'Correios',
+    store: 'Loja',
+    clinic: 'Clínica',
+    salon: 'Salão',
+    bus: 'Autocarro',
+    school: 'Escola',
   },
 
 };
