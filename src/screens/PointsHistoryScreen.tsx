@@ -220,7 +220,7 @@ export default function PointsHistoryScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.pointsHistoryScreen.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>Points & Achievements</Text>
@@ -250,7 +250,7 @@ export default function PointsHistoryScreen() {
                   <ActivityIndicator
                     color={palette.accent}
                     style={styles.loader}
-                    accessibilityLabel="Loading points history"
+                    accessibilityLabel={COPY.pointsHistoryScreen.loadingA11y}
                   />
                 ) : (
                   <View style={styles.emptyWrap}>
@@ -279,7 +279,7 @@ export default function PointsHistoryScreen() {
                 onPress={handleLoadMore}
                 disabled={loadingMore}
                 accessibilityRole="button"
-                accessibilityLabel="Load more history">
+                accessibilityLabel={COPY.pointsHistoryScreen.loadMoreA11y}>
                 {loadingMore ? (
                   <ActivityIndicator color={palette.accent} />
                 ) : (

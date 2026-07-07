@@ -98,7 +98,7 @@ export default function TripPlannerScreen() {
             style={styles.navBtn}
             onPress={() => (stepIndex <= 0 ? navigation.goBack() : goBack())}
             accessibilityRole="button"
-            accessibilityLabel="Back">
+            accessibilityLabel={COPY.tripPlannerScreen.backA11y}>
             <ChevronLeftIcon color={palette.text} size={22} />
           </Pressable>
           <Text style={[styles.title, { color: palette.text }]}>{stepTitle}</Text>
@@ -165,7 +165,7 @@ export default function TripPlannerScreen() {
               style={[styles.dateField, { borderColor: palette.line, backgroundColor: palette.surface }]}
               onPress={() => setShowStartPicker(true)}
               accessibilityRole="button"
-              accessibilityLabel="Start date">
+              accessibilityLabel={COPY.tripPlannerScreen.startDateA11y}>
               <Text style={[styles.dateFieldText, { color: startDate ? palette.text : palette.muted }]}>
                 {startDate ? formatDateShort(startDate) : 'Start date'}
               </Text>
@@ -187,7 +187,7 @@ export default function TripPlannerScreen() {
               style={[styles.dateField, { borderColor: palette.line, backgroundColor: palette.surface }]}
               onPress={() => setShowEndPicker(true)}
               accessibilityRole="button"
-              accessibilityLabel="End date">
+              accessibilityLabel={COPY.tripPlannerScreen.endDateA11y}>
               <Text style={[styles.dateFieldText, { color: endDate ? palette.text : palette.muted }]}>
                 {endDate ? formatDateShort(endDate) : 'End date'}
               </Text>
@@ -289,7 +289,7 @@ export default function TripPlannerScreen() {
             style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
             onPress={goToRadius}
             accessibilityRole="button"
-            accessibilityLabel="Continue">
+            accessibilityLabel={COPY.tripPlannerScreen.continueA11y}>
             <Text style={[styles.ctaLabel, { color: palette.bg }]}>Continue</Text>
           </Pressable>
         </View>

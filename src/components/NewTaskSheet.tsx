@@ -462,7 +462,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 style={[styles.closeBtn, { backgroundColor: palette.surface }]}
                 onPress={handleClose}
                 accessibilityRole="button"
-                accessibilityLabel="Close">
+                accessibilityLabel={COPY.newTaskSheet2.closeA11y}>
                 <CloseIcon color={palette.muted} />
               </Pressable>
             </View>
@@ -629,7 +629,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   style={[styles.ctaGhost, { borderColor: palette.line }]}
                   onPress={handleMoreDetails}
                   accessibilityRole="button"
-                  accessibilityLabel="More details">
+                  accessibilityLabel={COPY.newTaskSheet2.moreDetailsA11y}>
                   <Text style={[styles.ctaGhostLabel, { color: palette.muted }]}>
                     {COPY.newTaskSheet.moreDetails}
                   </Text>

@@ -31,6 +31,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { BuildingIcon } from './AppIcon';
+import { COPY } from '../constants/copy';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -122,7 +123,7 @@ export default function StoreTuningPromptSheet({
           style={StyleSheet.absoluteFill}
           onPress={handleNotNow}
           accessibilityRole="button"
-          accessibilityLabel="Dismiss prompt"
+          accessibilityLabel={COPY.storeTuningPromptSheet.dismissA11y}
         />
       </Animated.View>
 
@@ -186,7 +187,7 @@ export default function StoreTuningPromptSheet({
             ]}
             onPress={handleTurnOn}
             accessibilityRole="button"
-            accessibilityLabel="Turn on Store fine tuning">
+            accessibilityLabel={COPY.storeTuningPromptSheet.turnOnA11y}>
             <Text style={[styles.ctaPrimaryLabel, { color: palette.bg }]}>
               Turn on
             </Text>
@@ -204,7 +205,7 @@ export default function StoreTuningPromptSheet({
             ]}
             onPress={handleNotNow}
             accessibilityRole="button"
-            accessibilityLabel="Not now">
+            accessibilityLabel={COPY.storeTuningPromptSheet.notNowA11y}>
             <Text style={[styles.ctaSecondaryLabel, { color: palette.muted }]}>
               Not now
             </Text>

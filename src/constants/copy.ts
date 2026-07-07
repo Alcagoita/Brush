@@ -847,6 +847,45 @@ const en = {
     deleteTaskA11y: 'Delete task',
   },
 
+  pointsHistoryScreen: {
+    backA11y: 'Back',
+    loadingA11y: 'Loading points history',
+    loadMoreA11y: 'Load more history',
+  },
+
+  tripPlannerScreen: {
+    backA11y: 'Back',
+    startDateA11y: 'Start date',
+    endDateA11y: 'End date',
+    continueA11y: 'Continue',
+  },
+
+  nearbyCard: {
+    tryAnotherPlaceA11y: 'Try another place',
+    refreshLocationA11y: 'Refresh location',
+  },
+
+  newTaskSheet2: {
+    closeA11y: 'Close',
+    moreDetailsA11y: 'More details',
+  },
+
+  storeTuningPromptSheet: {
+    dismissA11y: 'Dismiss prompt',
+    turnOnA11y: 'Turn on Store fine tuning',
+    notNowA11y: 'Not now',
+  },
+
+  importTasksSection: {
+    inProgressA11y: 'Import in progress',
+    cancelledA11y: 'Import cancelled',
+    sectionA11y: 'Import tasks section',
+  },
+
+  errorBoundary: {
+    tryAgainA11y: 'Try again',
+  },
+
   calendar: {
     weekdayLabels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
     monthNamesFull: [
@@ -1666,6 +1705,45 @@ const ptPT: typeof en = {
     categoryNamePlaceholder: 'Nome da categoria',
     notesPlaceholder: 'Adiciona uma nota, link ou lembrete…',
     deleteTaskA11y: 'Eliminar tarefa',
+  },
+
+  pointsHistoryScreen: {
+    backA11y: 'Voltar',
+    loadingA11y: 'A carregar histórico de pontos',
+    loadMoreA11y: 'Carregar mais histórico',
+  },
+
+  tripPlannerScreen: {
+    backA11y: 'Voltar',
+    startDateA11y: 'Data de início',
+    endDateA11y: 'Data de fim',
+    continueA11y: 'Continuar',
+  },
+
+  nearbyCard: {
+    tryAnotherPlaceA11y: 'Tentar outro local',
+    refreshLocationA11y: 'Atualizar localização',
+  },
+
+  newTaskSheet2: {
+    closeA11y: 'Fechar',
+    moreDetailsA11y: 'Mais detalhes',
+  },
+
+  storeTuningPromptSheet: {
+    dismissA11y: 'Dispensar aviso',
+    turnOnA11y: 'Ativar afinação da loja',
+    notNowA11y: 'Agora não',
+  },
+
+  importTasksSection: {
+    inProgressA11y: 'Importação em curso',
+    cancelledA11y: 'Importação cancelada',
+    sectionA11y: 'Secção de importação de tarefas',
+  },
+
+  errorBoundary: {
+    tryAgainA11y: 'Tentar novamente',
   },
 
   calendar: {

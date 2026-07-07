@@ -50,6 +50,7 @@ import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
 import { ChevronRightIcon, PoiIcon, RefreshIcon } from './AppIcon';
 import { logTap } from '../services/analytics';
+import { COPY } from '../constants/copy';
 
 // Distance threshold that separates the orange hero zone from the grey zone.
 const HERO_RADIUS_M = 100;
@@ -241,7 +242,7 @@ function HeroCard({
           ]}
           onPress={handleTryAnother}
           accessibilityRole="button"
-          accessibilityLabel="Try another place">
+          accessibilityLabel={COPY.nearbyCard.tryAnotherPlaceA11y}>
           <Text style={[styles.tryAnotherLabel, { color: palette.nearText }]}>
             Try another place
           </Text>
@@ -425,7 +426,7 @@ function NearbyCard({
               onPress={handleRefresh}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel="Refresh location">
+              accessibilityLabel={COPY.nearbyCard.refreshLocationA11y}>
               <Animated.View style={spinStyle}>
                 <RefreshIcon color={palette.muted} size={14} />
               </Animated.View>
