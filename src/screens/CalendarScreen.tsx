@@ -94,12 +94,6 @@ const CHAIN_LEFT  = -(CELL_W + CELL_GAP) + CELL_W / 2 + RING_R; // distance from
 const CHAIN_RIGHT = CELL_W - (CELL_W / 2 - RING_R);             // distance from cell's right edge
 const CHAIN_TOP   = CELL_W / 2 - 1; // vertical center of a CELL_W-tall cell, minus half the 2px line height
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const FULL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const CARD_ANIM_MS = 300;
 
@@ -142,7 +136,7 @@ function buildGrid(year: number, month: number): (number | null)[] {
 function formatFullDateLabel(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  return `${FULL_WEEKDAYS[date.getDay()]}, ${MONTH_NAMES[m - 1]} ${d}`;
+  return `${COPY.calendar.fullWeekdays[date.getDay()]}, ${COPY.calendar.monthNamesFull[m - 1]} ${d}`;
 }
 
 /** Shift an ISO date string by `delta` days (handles month/year rollover). */
@@ -303,7 +297,7 @@ function DayCell({
       onPress={onPress}
       style={[styles.cell, { backgroundColor: bg }]}
       accessibilityRole="button"
-      accessibilityLabel={`${day}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`}>
+      accessibilityLabel={COPY.calendar.dayCellA11y(day, isToday, isSelected)}>
 
       {/* Streak chain link — reaches back toward yesterday's ring */}
       {chainsBack && (
@@ -409,7 +403,7 @@ export default function CalendarScreen() {
       .catch(err => {
         if (cancelled) { return; }
         console.warn('[CalendarScreen] tasks fetch error', err);
-        setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
+        setMonthTasksState({ status: 'error', message: COPY.calendar.loadError });
       });
     return () => { cancelled = true; };
   }, [uid, displayYear, displayMonth, retryKey]));
@@ -609,10 +603,10 @@ export default function CalendarScreen() {
 
   // ── Status label (detail card) ──
   const statusLabel =
-    isSelToday ? 'Today' :
-    isSelFuture ? 'Upcoming' :
-    isSelComplete ? 'Day complete' :
-    'Past';
+    isSelToday ? COPY.calendar.statusToday :
+    isSelFuture ? COPY.calendar.statusUpcoming :
+    isSelComplete ? COPY.calendar.statusComplete :
+    COPY.calendar.statusPast;
   const statusColor =
     isSelToday ? palette.accent :
     isSelFuture ? palette.faint :
@@ -621,10 +615,10 @@ export default function CalendarScreen() {
 
   // ── Stats line copy ──
   const statsLine =
-    selTotal === 0 ? 'No tasks' :
-    isSelFuture ? `${selTotal} task${selTotal === 1 ? '' : 's'} planned` :
-    isSelZero ? `${selTotal} task${selTotal === 1 ? '' : 's'} · none completed` :
-    `${selDone} of ${selTotal} done · ${selPct}%`;
+    selTotal === 0 ? COPY.calendar.noTasks :
+    isSelFuture ? COPY.calendar.tasksPlanned(selTotal) :
+    isSelZero ? COPY.calendar.tasksNoneCompleted(selTotal) :
+    COPY.calendar.tasksDoneStats(selDone, selTotal, selPct);
 
   const detailRingColor = isSelComplete ? palette.accent : palette.text;
 
@@ -639,18 +633,18 @@ export default function CalendarScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.calendar.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
 
-        <Text style={[styles.topBarTitle, { color: palette.text }]}>Calendar</Text>
+        <Text style={[styles.topBarTitle, { color: palette.text }]}>{COPY.calendar.screenTitle}</Text>
 
         <Pressable
           style={[styles.todayPill, { borderColor: palette.line }]}
           onPress={goToToday}
           accessibilityRole="button"
-          accessibilityLabel="Jump to today">
-          <Text style={[styles.todayPillLabel, { color: palette.text }]}>Today</Text>
+          accessibilityLabel={COPY.calendar.jumpToTodayA11y}>
+          <Text style={[styles.todayPillLabel, { color: palette.text }]}>{COPY.calendar.today}</Text>
         </Pressable>
       </View>
 
@@ -660,13 +654,13 @@ export default function CalendarScreen() {
           onPress={goToPrevMonth}
           style={styles.navBtn}
           accessibilityRole="button"
-          accessibilityLabel="Previous month">
+          accessibilityLabel={COPY.calendar.previousMonthA11y}>
           <ChevronLeftIcon color={palette.muted} size={18} />
         </Pressable>
 
         <View style={styles.monthLabelWrap}>
           <Text style={[styles.monthLabel, { color: palette.text }]}>
-            {MONTH_NAMES[displayMonth - 1]}
+            {COPY.calendar.monthNamesFull[displayMonth - 1]}
           </Text>
           <Text style={[styles.yearLabel, { color: palette.muted }]}>
             {displayYear}
@@ -677,14 +671,14 @@ export default function CalendarScreen() {
           onPress={goToNextMonth}
           style={styles.navBtn}
           accessibilityRole="button"
-          accessibilityLabel="Next month">
+          accessibilityLabel={COPY.calendar.nextMonthA11y}>
           <ChevronRightIcon color={palette.muted} size={18} />
         </Pressable>
       </View>
 
       {/* ── Weekday header ── */}
       <View style={styles.weekdayRow}>
-        {WEEKDAY_LABELS.map((label, i) => (
+        {COPY.calendar.weekdayLabels.map((label, i) => (
           <Text
             key={i}
             style={[styles.weekdayLabel, { width: CELL_W, color: palette.muted }]}>
@@ -766,14 +760,14 @@ export default function CalendarScreen() {
             <Text
               style={[styles.detailEmptyText, { color: palette.muted }]}
               accessibilityRole="alert">
-              {monthTasksState.message || 'Could not load tasks. Please try again.'}
+              {monthTasksState.message || COPY.calendar.loadErrorRetry}
             </Text>
             <Pressable
               onPress={() => setRetryKey(k => k + 1)}
               style={[styles.retryBtn, { borderColor: palette.line }]}
               accessibilityRole="button"
-              accessibilityLabel="Try again">
-              <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+              accessibilityLabel={COPY.calendar.tryAgainA11y}>
+              <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.calendar.tryAgain}</Text>
             </Pressable>
           </View>
         ) : (
@@ -824,10 +818,10 @@ export default function CalendarScreen() {
             {(selAch || (isSelComplete && selRun >= 2)) && (
               <View style={styles.chipsRow}>
                 {isSelComplete && selRun >= 2 && (
-                  <CalAchChip icon="flame">{`${selRun}-day run`}</CalAchChip>
+                  <CalAchChip icon="flame">{COPY.calendar.dayRun(selRun)}</CalAchChip>
                 )}
                 {selAch && (
-                  <CalAchChip icon={selAch.icon}>{`${selAch.label} · unlocked`}</CalAchChip>
+                  <CalAchChip icon={selAch.icon}>{COPY.calendar.unlockedSuffix(selAch.label)}</CalAchChip>
                 )}
               </View>
             )}
@@ -835,7 +829,7 @@ export default function CalendarScreen() {
             {/* Task list */}
             {selTotal === 0 ? (
               <Text style={[styles.emptyLabel, { color: palette.faint }]}>
-                Nothing on this day.
+                {COPY.calendar.nothingOnThisDay}
               </Text>
             ) : (
               <View style={[styles.taskList, { borderTopColor: palette.line }]}>
@@ -858,8 +852,8 @@ export default function CalendarScreen() {
                 onPress={() => navigation.goBack()}
                 style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
                 accessibilityRole="button"
-                accessibilityLabel="Open today">
-                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>Open today</Text>
+                accessibilityLabel={COPY.calendar.openTodayA11y}>
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.calendar.openToday}</Text>
                 <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
               </Pressable>
             )}

@@ -823,6 +823,40 @@ const en = {
     settingsSub: 'App & account',
   },
 
+  calendar: {
+    weekdayLabels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
+    monthNamesFull: [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ],
+    fullWeekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    dayCellA11y: (day: number, isToday: boolean, isSelected: boolean) =>
+      `${day}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`,
+    loadError: 'Could not load tasks. Check your connection.',
+    loadErrorRetry: 'Could not load tasks. Please try again.',
+    statusToday: 'Today',
+    statusUpcoming: 'Upcoming',
+    statusComplete: 'Day complete',
+    statusPast: 'Past',
+    noTasks: 'No tasks',
+    tasksPlanned: (n: number) => `${n} task${n === 1 ? '' : 's'} planned`,
+    tasksNoneCompleted: (n: number) => `${n} task${n === 1 ? '' : 's'} · none completed`,
+    tasksDoneStats: (done: number, total: number, pct: number) => `${done} of ${total} done · ${pct}%`,
+    backA11y: 'Back',
+    screenTitle: 'Calendar',
+    jumpToTodayA11y: 'Jump to today',
+    today: 'Today',
+    previousMonthA11y: 'Previous month',
+    nextMonthA11y: 'Next month',
+    tryAgainA11y: 'Try again',
+    tryAgain: 'Try again',
+    dayRun: (n: number) => `${n}-day run`,
+    unlockedSuffix: (label: string) => `${label} · unlocked`,
+    nothingOnThisDay: 'Nothing on this day.',
+    openTodayA11y: 'Open today',
+    openToday: 'Open today',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -1559,6 +1593,40 @@ const ptPT: typeof en = {
     settingsA11y: 'Definições',
     settingsTitle: 'Definições',
     settingsSub: 'Aplicação e conta',
+  },
+
+  calendar: {
+    weekdayLabels: ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'],
+    monthNamesFull: [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+    ],
+    fullWeekdays: ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'],
+    dayCellA11y: (day: number, isToday: boolean, isSelected: boolean) =>
+      `${day}${isToday ? ', hoje' : ''}${isSelected ? ', selecionado' : ''}`,
+    loadError: 'Não foi possível carregar as tarefas. Verifica a tua ligação.',
+    loadErrorRetry: 'Não foi possível carregar as tarefas. Tenta novamente.',
+    statusToday: 'Hoje',
+    statusUpcoming: 'Em breve',
+    statusComplete: 'Dia concluído',
+    statusPast: 'Passado',
+    noTasks: 'Sem tarefas',
+    tasksPlanned: (n: number) => `${n} tarefa${n === 1 ? '' : 's'} planeada${n === 1 ? '' : 's'}`,
+    tasksNoneCompleted: (n: number) => `${n} tarefa${n === 1 ? '' : 's'} · nenhuma concluída`,
+    tasksDoneStats: (done: number, total: number, pct: number) => `${done} de ${total} concluídas · ${pct}%`,
+    backA11y: 'Voltar',
+    screenTitle: 'Calendário',
+    jumpToTodayA11y: 'Ir para hoje',
+    today: 'Hoje',
+    previousMonthA11y: 'Mês anterior',
+    nextMonthA11y: 'Mês seguinte',
+    tryAgainA11y: 'Tentar novamente',
+    tryAgain: 'Tentar novamente',
+    dayRun: (n: number) => `${n} dias seguidos`,
+    unlockedSuffix: (label: string) => `${label} · desbloqueado`,
+    nothingOnThisDay: 'Nada para este dia.',
+    openTodayA11y: 'Abrir hoje',
+    openToday: 'Abrir hoje',
   },
 
 };
