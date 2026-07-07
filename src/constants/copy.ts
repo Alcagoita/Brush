@@ -550,6 +550,17 @@ const en = {
     },
   },
 
+  // ─── Compare achievements (KAN-105, KAN-252) ────────────────────────────────
+  compareAchievements: {
+    backA11y: 'Back',
+    screenTitle: 'Compare',
+    loadError: 'Could not load comparison. Try again later.',
+    you: 'You',
+    totalPoints: 'Total points',
+    achievements: 'Achievements',
+    streakDays: 'Streak (days)',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -1019,6 +1030,16 @@ const ptPT: typeof en = {
       outAboutCondition: 'Brush tasks at a few different kinds of places',
       challengeWinnerCondition: 'Ganha um desafio contra um amigo',
     },
+  },
+
+  compareAchievements: {
+    backA11y: 'Voltar',
+    screenTitle: 'Comparar',
+    loadError: 'Não consegui carregar a comparação. Tenta mais tarde.',
+    you: 'Tu',
+    totalPoints: 'Pontos totais',
+    achievements: 'Conquistas',
+    streakDays: 'Sequência (dias)',
   },
 
 };

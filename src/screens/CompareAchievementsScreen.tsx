@@ -34,6 +34,7 @@ import {
 } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { User } from '../types';
+import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'CompareAchievements'>;
 type Route = RouteProp<RootStackParamList, 'CompareAchievements'>;
@@ -82,10 +83,10 @@ export default function CompareAchievementsScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.compareAchievements.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Compare</Text>
+        <Text style={[styles.title, { color: palette.text }]}>{COPY.compareAchievements.screenTitle}</Text>
         <View style={styles.navBtn} />
       </View>
 
@@ -96,7 +97,7 @@ export default function CompareAchievementsScreen() {
       ) : error || !mine || !theirs ? (
         <View style={styles.center}>
           <Text style={[styles.errorText, { color: palette.muted }]}>
-            Could not load comparison. Try again later.
+            {COPY.compareAchievements.loadError}
           </Text>
         </View>
       ) : (
@@ -108,7 +109,7 @@ export default function CompareAchievementsScreen() {
           <View style={[styles.headerRow, { borderBottomColor: palette.line }]}>
             <View style={styles.labelCell} />
             <Text style={[styles.colHeader, { color: palette.text }]} numberOfLines={1}>
-              You
+              {COPY.compareAchievements.you}
             </Text>
             <Text style={[styles.colHeader, { color: palette.muted }]} numberOfLines={1}>
               @{friendUsername}
@@ -117,19 +118,19 @@ export default function CompareAchievementsScreen() {
 
           {/* ── Comparison rows ── */}
           <CompareRow
-            label="Total points"
+            label={COPY.compareAchievements.totalPoints}
             myValue={mine.user.totalPoints ?? 0}
             theirValue={theirs.user.totalPoints ?? 0}
             palette={palette}
           />
           <CompareRow
-            label="Achievements"
+            label={COPY.compareAchievements.achievements}
             myValue={mine.achievementCount}
             theirValue={theirs.achievementCount}
             palette={palette}
           />
           <CompareRow
-            label="Streak (days)"
+            label={COPY.compareAchievements.streakDays}
             myValue={mine.user.currentStreak ?? 0}
             theirValue={theirs.user.currentStreak ?? 0}
             palette={palette}
