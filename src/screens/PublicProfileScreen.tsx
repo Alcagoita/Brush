@@ -25,11 +25,12 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
+import { COPY } from '../constants/copy';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import AchievementTile, {
-  ACHIEVEMENT_CATALOGUE,
+  buildAchievementCatalogue,
   achievementsGridStyle,
 } from '../components/AchievementTile';
 import {
@@ -250,7 +251,7 @@ export default function PublicProfileScreen() {
               <Text style={[styles.statNum, { color: palette.text }]}>
                 {achievementCount}
               </Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Achievements</Text>
+              <Text style={[styles.statLabel, { color: palette.muted }]}>{COPY.achievements.screenTitle}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: palette.line }]} />
             <View style={styles.statItem}>
@@ -279,10 +280,10 @@ export default function PublicProfileScreen() {
           )}
 
           {/* ── Achievements grid ── */}
-          <Text style={[styles.sectionHeading, { color: palette.text }]}>Achievements</Text>
+          <Text style={[styles.sectionHeading, { color: palette.text }]}>{COPY.achievements.screenTitle}</Text>
 
           <View style={achievementsGridStyle}>
-            {ACHIEVEMENT_CATALOGUE.map(def => {
+            {buildAchievementCatalogue().map(def => {
               const earned   = earnedMap[def.type];
               const earnedAt = earned ? formatTimestamp(earned.earnedAt) : undefined;
               return (

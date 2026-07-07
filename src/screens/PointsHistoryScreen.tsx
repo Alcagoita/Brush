@@ -32,10 +32,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
+import { COPY } from '../constants/copy';
 import { radius, spacing } from '../theme/tokens';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import AchievementTile, {
-  ACHIEVEMENT_CATALOGUE,
+  buildAchievementCatalogue,
   achievementsGridStyle,
 } from '../components/AchievementTile';
 import {
@@ -288,9 +289,9 @@ export default function PointsHistoryScreen() {
                 )}
               </Pressable>
             )}
-            <Text style={[styles.sectionHeading, { color: palette.text, marginTop: 12 }]}>Achievements</Text>
+            <Text style={[styles.sectionHeading, { color: palette.text, marginTop: 12 }]}>{COPY.achievements.screenTitle}</Text>
             <View style={achievementsGridStyle}>
-              {ACHIEVEMENT_CATALOGUE.map(def => {
+              {buildAchievementCatalogue().map(def => {
                 const entry  = earnedMap[def.type];
                 const earned = (entry?.earnCount ?? 0) > 0;
                 const earnedAt = earned ? formatTimestamp(entry?.earnedAt) : undefined;

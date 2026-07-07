@@ -42,21 +42,29 @@ export interface AchievementDef {
   condition: string;
 }
 
-// ── Tin tier (KAN-150) ────────────────────────────────────────────────────────
-export const ACHIEVEMENT_CATALOGUE: AchievementDef[] = [
-  { type: 'first_task',  label: 'Off your mind',           icon: 'check', condition: 'Add your first task'                           },
-  { type: 'first_brush', label: 'First brush',             icon: 'check', condition: 'Brush away your first task'                    },
-  { type: 'right_place', label: 'Right place, right time', icon: 'pin',   condition: 'Brush a task while near where it happens'      },
-  { type: 'worth_wait',  label: 'Worth the wait',          icon: 'flame', condition: 'Brush a task that stuck around for a few days' },
-  { type: 'custom_cat',  label: 'Make it yours',           icon: 'star',  condition: 'Create a custom category'                      },
-  { type: 'out_about',   label: 'Out and about',           icon: 'pin',   condition: 'Brush tasks at a few different kinds of places' },
-  {
-    type:      'challenge_winner',
-    label:     COPY.achievement.challengeWinnerTitle,
-    icon:      'medal',
-    condition: 'Win a challenge against a friend',
-  },
-];
+/**
+ * Tin tier (KAN-150) — built by a function called inside the component
+ * instead of a module-scope constant, since COPY is language-dynamic
+ * (KAN-252) and a module-scope read would freeze the text in whatever
+ * language was active on first import.
+ */
+export function buildAchievementCatalogue(): AchievementDef[] {
+  const c = COPY.achievements.catalogue;
+  return [
+    { type: 'first_task',  label: c.firstTaskLabel,   icon: 'check', condition: c.firstTaskCondition },
+    { type: 'first_brush', label: c.firstBrushLabel,  icon: 'check', condition: c.firstBrushCondition },
+    { type: 'right_place', label: c.rightPlaceLabel,  icon: 'pin',   condition: c.rightPlaceCondition },
+    { type: 'worth_wait',  label: c.worthWaitLabel,   icon: 'flame', condition: c.worthWaitCondition },
+    { type: 'custom_cat',  label: c.customCatLabel,   icon: 'star',  condition: c.customCatCondition },
+    { type: 'out_about',   label: c.outAboutLabel,    icon: 'pin',   condition: c.outAboutCondition },
+    {
+      type:      'challenge_winner',
+      label:     COPY.achievement.challengeWinnerTitle,
+      icon:      'medal',
+      condition: c.challengeWinnerCondition,
+    },
+  ];
+}
 
 // ─── Tile ─────────────────────────────────────────────────────────────────────
 
@@ -79,7 +87,7 @@ export default function AchievementTile({ def, earned, earnedAt, palette }: Prop
           borderColor:     earned ? palette.nearBorder : palette.line,
         },
       ]}
-      accessibilityLabel={`${def.label} achievement, ${earned ? 'earned' : 'locked'}`}>
+      accessibilityLabel={COPY.achievements.cardA11y(def.label, earned)}>
 
       <View style={[
         styles.iconCircle,
@@ -102,7 +110,7 @@ export default function AchievementTile({ def, earned, earnedAt, palette }: Prop
 
       {!earned && (
         <View style={[styles.lockedBadge, { backgroundColor: palette.surface }]}>
-          <Text style={[styles.lockedText, { color: palette.faint }]}>Locked</Text>
+          <Text style={[styles.lockedText, { color: palette.faint }]}>{COPY.achievements.lockedBadge}</Text>
         </View>
       )}
     </View>

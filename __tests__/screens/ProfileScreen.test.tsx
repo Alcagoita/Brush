@@ -12,7 +12,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { AchievementsMap } from '../../src/types';
-import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
+import { buildAchievementCatalogue } from '../../src/components/AchievementTile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -366,7 +366,7 @@ describe('ProfileScreen — achievement medal strip', () => {
 
   it('shows all 7 V1 catalogue labels in the medal strip', async () => {
     await renderScreen();
-    for (const def of ACHIEVEMENT_CATALOGUE) {
+    for (const def of buildAchievementCatalogue()) {
       expect(screen.getByText(def.label)).toBeTruthy();
     }
   });

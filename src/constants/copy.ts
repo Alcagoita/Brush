@@ -518,6 +518,38 @@ const en = {
     notificationsA11y: 'Notifications',
   },
 
+  // ─── Achievements (KAN-114, KAN-252) ────────────────────────────────────────
+  achievements: {
+    screenTitle: 'Achievements',
+    backA11y: 'Back',
+    totalPointsLabel: 'TOTAL POINTS',
+    totalPointsCaption: 'points earned so far',
+    topTierPrefix: 'Top tier · ',
+    tinFallback: 'Tin',
+    onItsWay: (nextTierName: string) => ` · ${nextTierName} is on its way`,
+    earnedSection: (count: number) => `EARNED · ${count}`,
+    lockedSection: (count: number) => `LOCKED · ${count}`,
+    cardA11y: (label: string, earned: boolean) => `${label} achievement, ${earned ? 'earned' : 'locked'}`,
+    ptsEarned: (total: number) => `${total} pts earned`,
+    ptsAvailable: (points: number) => `${points} pts available`,
+    lockedBadge: 'Locked',
+    catalogue: {
+      firstTaskLabel: 'Off your mind',
+      firstTaskCondition: 'Add your first task',
+      firstBrushLabel: 'First brush',
+      firstBrushCondition: 'Brush away your first task',
+      rightPlaceLabel: 'Right place, right time',
+      rightPlaceCondition: 'Brush a task while near where it happens',
+      worthWaitLabel: 'Worth the wait',
+      worthWaitCondition: 'Brush a task that stuck around for a few days',
+      customCatLabel: 'Make it yours',
+      customCatCondition: 'Create a custom category',
+      outAboutLabel: 'Out and about',
+      outAboutCondition: 'Brush tasks at a few different kinds of places',
+      challengeWinnerCondition: 'Win a challenge against a friend',
+    },
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -955,6 +987,38 @@ const ptPT: typeof en = {
     socialA11yNoBadge: 'Social',
     notificationsA11yUnread: 'Notificações, por ler',
     notificationsA11y: 'Notificações',
+  },
+
+  achievements: {
+    screenTitle: 'Conquistas',
+    backA11y: 'Voltar',
+    totalPointsLabel: 'PONTOS TOTAIS',
+    totalPointsCaption: 'pontos ganhos até agora',
+    topTierPrefix: 'Nível máximo · ',
+    tinFallback: 'Estanho',
+    onItsWay: (nextTierName: string) => ` · ${nextTierName} está a chegar`,
+    earnedSection: (count: number) => `GANHAS · ${count}`,
+    lockedSection: (count: number) => `BLOQUEADAS · ${count}`,
+    cardA11y: (label: string, earned: boolean) => `Conquista ${label}, ${earned ? 'ganha' : 'bloqueada'}`,
+    ptsEarned: (total: number) => `${total} pts ganhos`,
+    ptsAvailable: (points: number) => `${points} pts disponíveis`,
+    lockedBadge: 'Bloqueada',
+    catalogue: {
+      firstTaskLabel: 'Tirado da cabeça',
+      firstTaskCondition: 'Adiciona a tua primeira tarefa',
+      // "brush"/"Brush away" is the brand verb — kept in English (see taskRow above).
+      firstBrushLabel: 'First brush',
+      firstBrushCondition: 'Brush away your first task',
+      rightPlaceLabel: 'Sítio certo, hora certa',
+      rightPlaceCondition: 'Brush a task while near where it happens',
+      worthWaitLabel: 'Valeu a pena esperar',
+      worthWaitCondition: 'Brush a task that stuck around for a few days',
+      customCatLabel: 'Torna-a tua',
+      customCatCondition: 'Cria uma categoria personalizada',
+      outAboutLabel: 'Por aí fora',
+      outAboutCondition: 'Brush tasks at a few different kinds of places',
+      challengeWinnerCondition: 'Ganha um desafio contra um amigo',
+    },
   },
 
 };

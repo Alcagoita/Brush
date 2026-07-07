@@ -53,7 +53,7 @@ import {
   USERNAME_COOLDOWN_DAYS,
 } from '../services/firestore';
 import type { AchievementsMap } from '../types';
-import { ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
+import { buildAchievementCatalogue } from '../components/AchievementTile';
 import { deriveTierStanding } from '../constants/tiers';
 import TierMedal from '../components/TierMedal';
 import ShareProfileSheet from '../components/ShareProfileSheet';
@@ -61,14 +61,16 @@ import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-const V1_ACHIEVEMENTS = ACHIEVEMENT_CATALOGUE;
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
   const { palette } = useTheme();
   const navigation  = useNavigation<Nav>();
   const insets      = useSafeAreaInsets();
+  // Read live inside the component (KAN-252) — COPY is language-dynamic, a
+  // module-scope read would freeze this list in whatever language was active
+  // on first import.
+  const V1_ACHIEVEMENTS = buildAchievementCatalogue();
 
   const currentUser  = getAuth().currentUser;
   const uid          = currentUser?.uid;

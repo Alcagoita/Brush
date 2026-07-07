@@ -61,7 +61,7 @@ import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/AppIcon';
-import { AchievementIcon, AchievementIconKey, ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
+import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
@@ -527,7 +527,7 @@ export default function CalendarScreen() {
   // Only the single most-recent earnedAt per type is available (see header note).
   const achievementsByDay = useMemo<Record<number, { icon: AchievementIconKey; label: string }>>(() => {
     const map: Record<number, { icon: AchievementIconKey; label: string }> = {};
-    for (const def of ACHIEVEMENT_CATALOGUE) {
+    for (const def of buildAchievementCatalogue()) {
       if (def.type === 'challenge_winner') { continue; } // not part of the day-attributable V1 set
       const entry = achievementsMap[def.type];
       if (!entry?.earnedAt) { continue; }
