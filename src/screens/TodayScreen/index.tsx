@@ -58,9 +58,9 @@ import { useTodayScreen } from '../../hooks/useTodayScreen';
 import { COPY } from '../../constants/copy';
 import {
   SECTION_H_REST,
-  EMPTY_MESSAGES,
-  WEEKDAYS,
-  MONTHS,
+  buildEmptyMessages,
+  getWeekdays,
+  getMonths,
   DEBUG_SHOW_LIST,
   DEBUG_SHOW_NEARBY,
   DEBUG_SHOW_RING,
@@ -130,8 +130,8 @@ export default function TodayScreen() {
 
   // ── Date display ──────────────────────────────────────────────────────────────
   const now     = new Date();
-  const weekday = WEEKDAYS[now.getDay()];
-  const month   = MONTHS[now.getMonth()];
+  const weekday = getWeekdays()[now.getDay()];
+  const month   = getMonths()[now.getMonth()];
   const day     = now.getDate();
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
@@ -218,7 +218,7 @@ export default function TodayScreen() {
       <View style={[styles.sectionHeaderBlock, (nearbyHasContent || !!errandBundle) && { marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
-            {`TODAY · `}
+            {COPY.today.sectionTitlePrefix}
             <Text style={[styles.sectionTitleCount, { color: palette.text }]}
               accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
               {`${doneTasks}/${totalTasks}`}
@@ -226,7 +226,7 @@ export default function TodayScreen() {
           </Text>
           {remaining > 0 && (
             <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
-              {`${remaining} left`}
+              {COPY.today.leftCount(remaining)}
             </Text>
           )}
         </View>
@@ -257,8 +257,8 @@ export default function TodayScreen() {
         onPress={refresh}
         style={[styles.retryBtn, { borderColor: palette.line }]}
         accessibilityRole="button"
-        accessibilityLabel="Try again">
-        <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+        accessibilityLabel={COPY.today.retry}>
+        <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.today.retry}</Text>
       </Pressable>
     </View>
   ) : null;
@@ -294,7 +294,7 @@ export default function TodayScreen() {
         {DEBUG_SHOW_LIST && (isEmpty ? (
           /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
           <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
-            <ScrRotatingNudge messages={EMPTY_MESSAGES} pace={5} showCategoryIcon />
+            <ScrRotatingNudge messages={buildEmptyMessages()} pace={5} showCategoryIcon />
             <View style={styles.emptyCTAWrap}>
               <Pressable
                 style={({ pressed }) => [
@@ -304,14 +304,14 @@ export default function TodayScreen() {
                 ]}
                 onPress={openSheet}
                 accessibilityRole="button"
-                accessibilityLabel="Add something">
+                accessibilityLabel={COPY.today.addSomething}>
                 <PlusIcon color={palette.text} size={20} />
                 <Text style={[styles.emptyCTALabel, { color: palette.text }]}>
-                  Add something
+                  {COPY.today.addSomething}
                 </Text>
               </Pressable>
               <Text style={[styles.emptyCTAHelper, { color: palette.faint }]}>
-                {'Those are just passing thoughts. Add what’s actually yours.'}
+                {COPY.today.addSomethingHelper}
               </Text>
             </View>
           </View>
@@ -388,7 +388,7 @@ export default function TodayScreen() {
             <Pressable
               onPress={() => navigation.navigate('Calendar')}
               accessibilityRole="button"
-              accessibilityLabel={`Open calendar for ${weekday} ${day}`}
+              accessibilityLabel={COPY.today.openCalendarA11y(weekday, day)}
               hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}>
               <Text style={[styles.captionDay, { color: palette.text }]}>
                 {day}
@@ -400,7 +400,7 @@ export default function TodayScreen() {
               <Text style={[styles.captionSub, { color: palette.muted }]}>
                 {`${month} · `}
                 <Text style={[styles.captionSubBold, { color: palette.text }]}>
-                  {`${nearbyCount} nearby`}
+                  {COPY.today.nearbyCount(nearbyCount)}
                 </Text>
               </Text>
             )}
@@ -426,7 +426,7 @@ export default function TodayScreen() {
             accessibilityRole="text"
             pointerEvents="none">
             <Text style={[styles.progressLabel, { color: palette.muted }]}>
-              PROGRESS
+              {COPY.today.progressLabel}
             </Text>
             <View style={styles.fractionRow}>
               <Text style={[styles.counterDone, { color: palette.text }]}>
@@ -438,7 +438,7 @@ export default function TodayScreen() {
               </Text>
             </View>
             <Text style={[styles.progressSub, { color: palette.muted }]}>
-              {`${pct}% complete · ${remaining} left`}
+              {COPY.today.progressSummary(pct, remaining)}
             </Text>
           </Animated.View>
         </View>
@@ -457,7 +457,7 @@ export default function TodayScreen() {
           ]}
           onPress={openSheet}
           accessibilityRole="button"
-          accessibilityLabel="Add task">
+          accessibilityLabel={COPY.today.addTaskA11y}>
           <PlusIcon color={palette.onAccent} size={24} />
         </Pressable>
       )}

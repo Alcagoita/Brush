@@ -477,6 +477,47 @@ const en = {
     quickPickPharmacy: 'Pharmacy',
   },
 
+  // ─── Today screen (KAN-45, KAN-252) ─────────────────────────────────────────
+  today: {
+    weekdays: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'],
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+    emptyMessages: [
+      'Nothing on today. That doesn’t mean nothing matters.',
+      'Don’t you feel the need for bread?',
+      'Maybe today’s a good day for coffee outside.',
+      'Might be worth grabbing some cash while you’re out.',
+      'Anything in the cabinet running low?',
+      'Something in the fridge is probably asking to be replaced.',
+      'A clear day is a gift. What will you do with it?',
+      'What’s the one thing future-you will thank you for?',
+    ],
+    sectionTitlePrefix: 'TODAY · ',
+    leftCount: (n: number) => `${n} left`,
+    retry: 'Try again',
+    addSomething: 'Add something',
+    addSomethingHelper: 'Those are just passing thoughts. Add what’s actually yours.',
+    openCalendarA11y: (weekday: string, day: number) => `Open calendar for ${weekday} ${day}`,
+    nearbyCount: (n: number) => `${n} nearby`,
+    addTaskA11y: 'Add task',
+    progressLabel: 'PROGRESS',
+    progressSummary: (pct: number, remaining: number) => `${pct}% complete · ${remaining} left`,
+  },
+
+  // ─── Header (KAN-252) ───────────────────────────────────────────────────────
+  header: {
+    goodMorning: 'Good morning',
+    goodAfternoon: 'Good afternoon',
+    goodEvening: 'Good evening',
+    goodNight: 'Good night',
+    openProfileA11y: 'Open profile',
+    pointsA11y: (points: number) => `${points} achievement points · view achievements`,
+    pointsSuffix: (points: number) => `${points} pts`,
+    socialA11y: (badge: number) => `Social, ${badge} pending`,
+    socialA11yNoBadge: 'Social',
+    notificationsA11yUnread: 'Notifications, unread',
+    notificationsA11y: 'Notifications',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -875,6 +916,45 @@ const ptPT: typeof en = {
     quickPickCafe: 'Café',
     quickPickSupermarket: 'Supermercado',
     quickPickPharmacy: 'Farmácia',
+  },
+
+  today: {
+    weekdays: ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'],
+    months: ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'],
+    emptyMessages: [
+      'Nada para hoje. Isso não significa que nada importa.',
+      'Não sentes falta de pão?',
+      'Talvez hoje seja um bom dia para um café na rua.',
+      'Pode valer a pena levantar dinheiro enquanto sais.',
+      'Falta alguma coisa no armário?',
+      'Provavelmente há algo no frigorífico que precisa de ser reposto.',
+      'Um dia livre é um presente. O que vais fazer com ele?',
+      'Qual é a coisa pela qual o teu eu futuro te vai agradecer?',
+    ],
+    sectionTitlePrefix: 'HOJE · ',
+    leftCount: (n: number) => `faltam ${n}`,
+    retry: 'Tentar outra vez',
+    addSomething: 'Adiciona algo',
+    addSomethingHelper: 'Isso são só pensamentos passageiros. Adiciona o que é realmente teu.',
+    openCalendarA11y: (weekday: string, day: number) => `Abrir calendário de ${weekday} ${day}`,
+    nearbyCount: (n: number) => `${n} perto`,
+    addTaskA11y: 'Adicionar tarefa',
+    progressLabel: 'PROGRESSO',
+    progressSummary: (pct: number, remaining: number) => `${pct}% concluído · faltam ${remaining}`,
+  },
+
+  header: {
+    goodMorning: 'Bom dia',
+    goodAfternoon: 'Boa tarde',
+    goodEvening: 'Boa noite',
+    goodNight: 'Boa noite',
+    openProfileA11y: 'Abrir perfil',
+    pointsA11y: (points: number) => `${points} pontos de conquistas · ver conquistas`,
+    pointsSuffix: (points: number) => `${points} pts`,
+    socialA11y: (badge: number) => `Social, ${badge} pendentes`,
+    socialA11yNoBadge: 'Social',
+    notificationsA11yUnread: 'Notificações, por ler',
+    notificationsA11y: 'Notificações',
   },
 
 };
