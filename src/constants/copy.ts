@@ -1517,9 +1517,9 @@ const ptPT: typeof en = {
     sentToHandle: (username: string) => `Brushed to @${username}`,
     sentCheck: 'Brushed ✓',
     sendAtLeastOneA11y: (count: number) => `Brush it over to ${count} friend${count > 1 ? 's' : ''}`,
-    selectFriendsFirstA11y: 'Select friends first',
+    selectFriendsFirstA11y: 'Seleciona amigos primeiro',
     sendButton: 'Brush it over',
-    selectFriendsFirstButton: 'Select friends first',
+    selectFriendsFirstButton: 'Seleciona amigos primeiro',
     sendFailed: (names: string) => `Não foi possível enviar para: ${names}`,
   },
 
@@ -1802,7 +1802,7 @@ const ptPT: typeof en = {
   },
 
   shareToDo: {
-    shareA11y: (title: string) => `Share ${title}`,
+    shareA11y: (title: string) => `Partilhar ${title}`,
     backA11y: 'Voltar',
     subtitle: 'Brush this over to a friend',
     noOpenTasks: 'Sem tarefas por fazer hoje.',
