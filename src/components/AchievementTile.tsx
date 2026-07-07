@@ -59,7 +59,7 @@ export function buildAchievementCatalogue(): AchievementDef[] {
     { type: 'out_about',   label: c.outAboutLabel,    icon: 'pin',   condition: c.outAboutCondition },
     {
       type:      'challenge_winner',
-      label:     COPY.achievement.challengeWinnerTitle,
+      label:     c.challengeWinnerLabel,
       icon:      'medal',
       condition: c.challengeWinnerCondition,
     },
