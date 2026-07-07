@@ -42,10 +42,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { categories } from '../theme/tokens';
+import { categories, fonts } from '../theme/tokens';
 import { PoiType, CategoryKey, Category, POI_CATALOG } from '../types';
 import { addTask } from '../services/firestore';
-import { inferPoiForQuickAdd } from '../services/poiLlm';
+import { inferPoiForQuickAdd, learnFromClassification, learnFromUserEdit } from '../services/poiLlm';
 import { CloseIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
 import { todayISO } from '../utils/date';
@@ -86,12 +86,17 @@ interface NewTaskSheetProps {
 interface PoiTileProps {
   type: PoiType;
   label: string;
+  /** True whenever this tile is the current `poi` value — suggested or confirmed. */
   selected: boolean;
+  /** KAN-249 — true only while `selected` came from inference and hasn't been
+   *  touched (tapped/replaced) by the user yet. Renders the "suggestion" look
+   *  (nearTint + dashed border + hint) instead of the normal selected look. */
+  suggested: boolean;
   onPress: () => void;
   palette: ReturnType<typeof useTheme>['palette'];
 }
 
-function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
+function PoiTile({ type, label, selected, suggested, onPress, palette }: PoiTileProps) {
   const iconColor = selected ? palette.nearText : palette.muted;
   return (
     <Pressable
@@ -101,13 +106,21 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
       accessibilityState={{ selected }}
       style={[
         styles.poiTile,
+        suggested && styles.poiTileSuggested,
         {
-          backgroundColor: selected ? palette.nearTint2  : palette.surface,
+          backgroundColor: suggested ? palette.nearTint : selected ? palette.nearTint2  : palette.surface,
           borderColor:     selected ? palette.nearBorder : palette.line,
         },
       ]}>
       <PoiIcon type={type} color={iconColor} size={22} />
       <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>
+      {suggested && (
+        <Text
+          style={[styles.poiTileHint, { color: palette.nearText }]}
+          numberOfLines={1}>
+          {COPY.newTaskSheet.poiSuggestionHint}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -122,6 +135,19 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [title,    setTitle]    = useState('');
     const [category, setCategory] = useState<string | null>(null);
     const [poi,      setPoi]      = useState<PoiType | null>(null);
+    // KAN-249 — the raw inference result, frozen the moment the user touches
+    // the carousel. Compared against `poi` at submit time to tell a Confirm
+    // (poi === suggestedPoi) from a Replace (poi !== suggestedPoi); null means
+    // no suggestion ever fired for this title, so no learn-back applies.
+    const [suggestedPoi, setSuggestedPoi] = useState<PoiType | null>(null);
+    // The exact trimmed title the suggestion above was inferred for. Inference
+    // is skipped once the carousel is touched, so a later title edit can leave
+    // `suggestedPoi` stale relative to the title actually being submitted —
+    // learn-back at submit time is only valid when this still matches.
+    const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
+    // True once the user has tapped any POI tile — drives the suggested-vs-
+    // confirmed visual (a ref alone wouldn't trigger a re-render).
+    const [poiTouched, setPoiTouched] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     // Rotating title placeholder freezes permanently once the user taps the field (KAN-148).
     const [titleFocused, setTitleFocused] = useState(false);
@@ -157,6 +183,9 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setTitle('');
       setCategory(null);
       setPoi(null);
+      setSuggestedPoi(null);
+      setSuggestedTitle(null);
+      setPoiTouched(false);
       setSubmitting(false);
       setTitleFocused(false);
       dragOffset.value = 0;
@@ -180,12 +209,14 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       const timer = setTimeout(() => {
         if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
 
-        if (!trimmed) { setPoi(null); return; }
+        if (!trimmed) { setPoi(null); setSuggestedPoi(null); setSuggestedTitle(null); return; }
 
         inferPoiForQuickAdd(trimmed)
           .then(suggestion => {
             if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
             setPoi(suggestion);
+            setSuggestedPoi(suggestion);
+            setSuggestedTitle(trimmed);
           })
           .catch(() => {});
       }, POI_INFERENCE_DEBOUNCE_MS);
@@ -272,6 +303,22 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           date:     todayISO(),
           poi,
         });
+        // KAN-249 learn-back — only meaningful when a suggestion actually
+        // fired for THIS title. Inference is skipped once the carousel is
+        // touched, so a title edit after that point can leave `suggestedPoi`
+        // referring to a now-unrelated title; `suggestedTitle` guards against
+        // persisting a learned mapping for the wrong keyword.
+        if (suggestedPoi && suggestedTitle === trimmed) {
+          if (suggestedPoi === poi) {
+            // Confirmed (tapped the suggested chip) or Ignored (saved
+            // untouched) — both are a positive signal on the same mapping.
+            learnFromClassification(uid, trimmed, poi, 'en').catch(() => {});
+          } else {
+            // Replaced — the user's pick corrects the suggestion.
+            learnFromUserEdit(uid, trimmed, poi, 'en').catch(() => {});
+          }
+        }
+
         evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
         // Close (store flips visible → effect animates out + resets the form).
@@ -281,7 +328,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
       }
-    }, [title, category, poi, uid, submitting, resetForm]);
+    }, [title, category, poi, suggestedPoi, suggestedTitle, uid, submitting, resetForm]);
 
     const handleMoreDetails = useCallback(() => {
       handleClose();
@@ -395,19 +442,26 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 snapToInterval={POI_TILE_WIDTH + 10}
                 decelerationRate="fast"
                 style={styles.carouselMask}>
-                {POI_CATALOG.map(({ type, label }) => (
-                  <PoiTile
-                    key={type}
-                    type={type}
-                    label={label}
-                    selected={poi === type}
-                    onPress={() => {
-                      userTouchedPoiRef.current = true;
-                      setPoi(prev => prev === type ? null : type);
-                    }}
-                    palette={palette}
-                  />
-                ))}
+                {POI_CATALOG.map(({ type, label }) => {
+                  const isSuggested = poi === type && !poiTouched;
+                  return (
+                    <PoiTile
+                      key={type}
+                      type={type}
+                      label={label}
+                      selected={poi === type}
+                      suggested={isSuggested}
+                      onPress={() => {
+                        userTouchedPoiRef.current = true;
+                        setPoiTouched(true);
+                        // Tapping the suggested chip confirms it in place
+                        // (KAN-249) instead of the usual toggle-off.
+                        setPoi(prev => isSuggested ? type : (prev === type ? null : type));
+                      }}
+                      palette={palette}
+                    />
+                  );
+                })}
               </ScrollView>
 
               {/* ── Category question (optional) ── */}
@@ -652,6 +706,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     textAlign:  'center',
     letterSpacing: 0.01,
+  },
+  // KAN-249 — dashed border marks a suggestion as distinct from a chosen POI.
+  poiTileSuggested: {
+    borderStyle: 'dashed',
+  },
+  poiTileHint: {
+    fontSize:   9,
+    fontFamily: fonts.families.regular,
+    textAlign:  'center',
   },
   categoryRow: {
     flexDirection:     'row',

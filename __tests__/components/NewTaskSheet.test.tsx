@@ -21,6 +21,8 @@ import type { Category } from '../../src/types';
 const mockAddTask = jest.fn();
 const mockNavigateTo = jest.fn();
 const mockInferPoiForQuickAdd = jest.fn();
+const mockLearnFromClassification = jest.fn();
+const mockLearnFromUserEdit = jest.fn();
 
 jest.mock('@react-navigation/native', () => ({
   createNavigationContainerRef: () => ({ current: null, navigate: jest.fn() }),
@@ -33,6 +35,8 @@ jest.mock('../../src/services/firestore', () => ({
 
 jest.mock('../../src/services/poiLlm', () => ({
   inferPoiForQuickAdd: (...args: unknown[]) => mockInferPoiForQuickAdd(...args),
+  learnFromClassification: (...args: unknown[]) => mockLearnFromClassification(...args),
+  learnFromUserEdit: (...args: unknown[]) => mockLearnFromUserEdit(...args),
 }));
 
 const mockEvaluateAddTaskAchievement = jest.fn();
@@ -52,7 +56,7 @@ jest.mock('../../src/theme', () => ({
       bg: '#fdfdfb', surface: '#f6f5f1', surface2: '#efeeea',
       line: 'rgba(20,20,18,0.08)', text: '#1a1a18', muted: '#8a8a85',
       faint: '#bdbdb7', accent: '#e8a86a',
-      nearTint2: '#f9ede0', nearBorder: '#e8c9a0', nearText: '#7a4a20',
+      nearTint: '#fdf7f0', nearTint2: '#f9ede0', nearBorder: '#e8c9a0', nearText: '#7a4a20',
     },
   }),
 }));
@@ -95,6 +99,8 @@ beforeEach(() => {
   // a KAN-232 test below explicitly opts in with a resolved POI.
   mockInferPoiForQuickAdd.mockResolvedValue(null);
   mockEvaluateAddTaskAchievement.mockResolvedValue(undefined);
+  mockLearnFromClassification.mockResolvedValue(undefined);
+  mockLearnFromUserEdit.mockResolvedValue(undefined);
 });
 
 describe('canSubmit: requires title AND POI', () => {
@@ -255,6 +261,142 @@ describe('KAN-232 POI inference auto-suggestion', () => {
 
     act(() => { jest.advanceTimersByTime(1000); });
     expect(mockInferPoiForQuickAdd).not.toHaveBeenCalled();
+  });
+});
+
+// ─── KAN-249 — suggested POI visual states + learn-back ────────────────────────
+
+describe('KAN-249 suggested POI states', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('renders the "my guess?" hint on an auto-suggested tile, still selected', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+    expect(screen.getByText('my guess?')).toBeTruthy();
+  });
+
+  it('tapping the suggested tile confirms it: stays selected, hint clears', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    expect(screen.getByText('my guess?')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Pharmacy'));
+
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+    expect(screen.queryByText('my guess?')).toBeNull();
+  });
+
+  it('tapping a different tile replaces the suggestion: old tile deselects, new tile selects normally', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    expect(screen.getByText('my guess?')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Market'));
+
+    expect(screen.getByLabelText('Market').props.accessibilityState?.selected).toBe(true);
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(false);
+    expect(screen.queryByText('my guess?')).toBeNull();
+  });
+
+  it('learn-back: confirming an inferred suggestion registers a positive signal on save', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    fireEvent.press(screen.getByLabelText('Pharmacy')); // confirm
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockLearnFromClassification).toHaveBeenCalledWith('test-uid', 'buy aspirin', 'pharmacy', 'en');
+    expect(mockLearnFromUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('learn-back: saving with an ignored (untouched) suggestion registers a positive signal', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockLearnFromClassification).toHaveBeenCalledWith('test-uid', 'buy aspirin', 'pharmacy', 'en');
+    expect(mockLearnFromUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('learn-back: replacing a suggestion registers a corrective signal for the picked POI', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    fireEvent.press(screen.getByLabelText('Market')); // replace
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockLearnFromUserEdit).toHaveBeenCalledWith('test-uid', 'buy aspirin', 'supermarket', 'en');
+    expect(mockLearnFromClassification).not.toHaveBeenCalled();
+  });
+
+  it('does not fire any learn-back when no suggestion ever existed (null inference)', async () => {
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy milk');
+    fireEvent.press(screen.getByLabelText('Market'));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockLearnFromClassification).not.toHaveBeenCalled();
+    expect(mockLearnFromUserEdit).not.toHaveBeenCalled();
+  });
+
+  it('does not fire learn-back when the title is edited after confirming a suggestion (stale suggestion)', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    fireEvent.press(screen.getByLabelText('Pharmacy')); // confirm
+
+    // Editing the title after the carousel is touched does not re-run
+    // inference (KAN-232), so `suggestedPoi` now refers to a stale title.
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin and bandages');
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockLearnFromClassification).not.toHaveBeenCalled();
+    expect(mockLearnFromUserEdit).not.toHaveBeenCalled();
   });
 });
 
