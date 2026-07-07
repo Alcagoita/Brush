@@ -72,7 +72,7 @@ export default function HomeAddressScreen() {
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.home.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>{COPY.home.screenTitle}</Text>
@@ -84,7 +84,7 @@ export default function HomeAddressScreen() {
         keyboardShouldPersistTaps="handled">
 
         {loading ? (
-          <ActivityIndicator color={palette.muted} accessibilityLabel="Loading home address" />
+          <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.home.loadingA11y} />
         ) : showSearch ? (
           <View style={styles.searchSection}>
             <View style={[styles.searchWrap, { backgroundColor: palette.surface, borderColor: palette.line }]}>
@@ -123,12 +123,12 @@ export default function HomeAddressScreen() {
               </View>
             )}
 
-            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel="Saving" />}
+            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.home.savingA11y} />}
             {!!error && <Text style={[styles.errorText, { color: palette.nearText }]}>{error}</Text>}
 
             {home && (
               <Pressable onPress={() => setSearching(false)} accessibilityRole="button">
-                <Text style={[styles.cancelLink, { color: palette.muted }]}>Cancel</Text>
+                <Text style={[styles.cancelLink, { color: palette.muted }]}>{COPY.home.cancel}</Text>
               </Pressable>
             )}
           </View>
@@ -158,7 +158,7 @@ export default function HomeAddressScreen() {
               </Pressable>
             </View>
 
-            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel="Saving" />}
+            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.home.savingA11y} />}
             {!!error && <Text style={[styles.errorText, { color: palette.nearText }]}>{error}</Text>}
           </View>
         )}

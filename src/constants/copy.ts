@@ -29,6 +29,8 @@ const en = {
     brushAway:   (title: string) => `Brush away ${title}`,
     /** Reverse action — mark a done task as undone. */
     unbrush:     (title: string) => `Unbrush ${title}`,
+    syncingA11y: 'Syncing',
+    editA11y:    (title: string) => `Edit ${title}`,
   },
 
   // ─── Progress ring / counters ──────────────────────────────────────────────
@@ -135,6 +137,10 @@ const en = {
   // Never say "POI"/"cache"/"download region" here — frame everything in the
   // app's first-person voice, same as offline/newTaskSheet above.
   tripPlanner: {
+    placesIKnowBackA11y: 'Back',
+    refreshTripA11y: (destination: string) => `Refresh ${destination}`,
+    refresh: 'Refresh',
+    deleteTripA11y: (destination: string) => `Delete ${destination}`,
     entryRowLabel: 'Going somewhere?',
     entryRowA11y:  'Plan a trip',
     /** KAN-243 — the future-day CTA in Calendar's detail card; dateLabel is the full formatted date (e.g. "Friday, July 24"). */
@@ -231,6 +237,10 @@ const en = {
   // ─── Home address (KAN-247) ────────────────────────────────────────────────
   // Explicit beats inferred — never "detection"/"fill this" form language.
   home: {
+    backA11y: 'Back',
+    loadingA11y: 'Loading home address',
+    savingA11y: 'Saving',
+    cancel: 'Cancel',
     settingsRowLabel: 'Home',
     settingsRowEmptySublabel: 'Not set',
     screenTitle: 'Home',
@@ -823,6 +833,20 @@ const en = {
     settingsSub: 'App & account',
   },
 
+  taskFormScreen: {
+    deleteConfirmTitle: 'Delete this task?',
+    cancel: 'Cancel',
+    delete: 'Delete',
+    goBackA11y: 'Go back',
+    editTaskTitle: 'Edit task',
+    taskTitleA11y: 'Task title',
+    clearSearchA11y: 'Clear search',
+    createNewCategoryA11y: 'Create new category',
+    categoryNamePlaceholder: 'Category name',
+    notesPlaceholder: 'Add a note, link, or reminder…',
+    deleteTaskA11y: 'Delete task',
+  },
+
   calendar: {
     weekdayLabels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
     monthNamesFull: [
@@ -892,6 +916,8 @@ const ptPT: typeof en = {
   taskRow: {
     brushAway: (title: string) => `Brush away ${title}`,
     unbrush:   (title: string) => `Unbrush ${title}`,
+    syncingA11y: 'A sincronizar',
+    editA11y:    (title: string) => `Editar ${title}`,
   },
 
   progress: {
@@ -971,6 +997,10 @@ const ptPT: typeof en = {
   },
 
   tripPlanner: {
+    placesIKnowBackA11y: 'Voltar',
+    refreshTripA11y: (destination: string) => `Atualizar ${destination}`,
+    refresh: 'Atualizar',
+    deleteTripA11y: (destination: string) => `Eliminar ${destination}`,
     entryRowLabel: 'Vais a algum lado?',
     entryRowA11y:  'Planear uma viagem',
     entryRowA11yWithDate: (dateLabel: string) => `Planear uma viagem a partir de ${dateLabel}`,
@@ -1050,6 +1080,10 @@ const ptPT: typeof en = {
   },
 
   home: {
+    backA11y: 'Voltar',
+    loadingA11y: 'A carregar morada',
+    savingA11y: 'A guardar',
+    cancel: 'Cancelar',
     settingsRowLabel: 'Casa',
     settingsRowEmptySublabel: 'Não definida',
     screenTitle: 'Casa',
@@ -1618,6 +1652,20 @@ const ptPT: typeof en = {
     settingsA11y: 'Definições',
     settingsTitle: 'Definições',
     settingsSub: 'Aplicação e conta',
+  },
+
+  taskFormScreen: {
+    deleteConfirmTitle: 'Eliminar esta tarefa?',
+    cancel: 'Cancelar',
+    delete: 'Eliminar',
+    goBackA11y: 'Voltar',
+    editTaskTitle: 'Editar tarefa',
+    taskTitleA11y: 'Título da tarefa',
+    clearSearchA11y: 'Limpar pesquisa',
+    createNewCategoryA11y: 'Criar nova categoria',
+    categoryNamePlaceholder: 'Nome da categoria',
+    notesPlaceholder: 'Adiciona uma nota, link ou lembrete…',
+    deleteTaskA11y: 'Eliminar tarefa',
   },
 
   calendar: {

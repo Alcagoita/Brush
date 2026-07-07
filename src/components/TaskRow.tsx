@@ -202,7 +202,7 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
               {task.pendingSync ? (
                 <View
                   style={[styles.syncDot, { backgroundColor: palette.faint }]}
-                  accessibilityLabel="Syncing"
+                  accessibilityLabel={COPY.taskRow.syncingA11y}
                   accessibilityRole="none"
                 />
               ) : null}
@@ -241,7 +241,7 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
         style={({ pressed }) => [styles.body, { opacity: pressed && onPress ? 0.65 : 1 }]}
         onPress={onPress ? () => onPress(task) : undefined}
         accessibilityRole={onPress ? 'button' : 'text'}
-        accessibilityLabel={onPress ? `Edit ${task.title}` : task.title}>
+        accessibilityLabel={onPress ? COPY.taskRow.editA11y(task.title) : task.title}>
 
         <View style={styles.content}>
           {/* Title + brushstroke overlay */}
@@ -305,7 +305,7 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
             {task.pendingSync ? (
               <View
                 style={[styles.syncDot, { backgroundColor: palette.faint }]}
-                accessibilityLabel="Syncing"
+                accessibilityLabel={COPY.taskRow.syncingA11y}
                 accessibilityRole="none"
               />
             ) : null}
