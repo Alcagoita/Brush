@@ -36,8 +36,11 @@ jest.mock('../../src/services/firestore', () => ({
 
 const mockSearchPlaceTypes = jest.fn();
 
+jest.mock('../../src/services/poiTypeCache', () => ({
+  searchPlaceTypesCached: (...args: unknown[]) => mockSearchPlaceTypes(...args),
+}));
+
 jest.mock('../../src/services/maps', () => ({
-  searchPlaceTypes: (...args: unknown[]) => mockSearchPlaceTypes(...args),
   placeTypeLabel:   (type: string) =>
     type === 'gym' ? 'Gym' :
     type === 'atm' ? 'ATM' :

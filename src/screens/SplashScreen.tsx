@@ -55,6 +55,7 @@ import {
 import { getIncomingSharedTasksCount } from '../services/sharing';
 import { checkAndRunTripPreRefresh } from '../services/tripDownload';
 import { deleteExpiredTripPlaces, refreshHabitatCacheIfStale } from '../services/habitatCache';
+import { seedPoiTypeCacheIfEmpty } from '../services/poiTypeCache';
 import { getMallSnapshot } from '../services/mallSnapshots';
 import { ALL_POI_TYPES } from '../types';
 import { todayISO } from '../utils/date';
@@ -406,6 +407,11 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         checkAndRunTripPreRefresh(uid, trips, customCategoryPoiTypes)
           .catch(err => console.warn('[SplashScreen] checkAndRunTripPreRefresh failed (non-critical)', err));
         try { deleteExpiredTripPlaces(); } catch (err) { console.warn('[SplashScreen] deleteExpiredTripPlaces failed (non-critical)', err); }
+
+        // POI type search cache (KAN-253): one-time, zero-network seed from
+        // the bundled Google place-type taxonomy — same "non-fatal, once per
+        // boot" shape as the trip cleanup above. No-ops once already seeded.
+        try { seedPoiTypeCacheIfEmpty(); } catch (err) { console.warn('[SplashScreen] seedPoiTypeCacheIfEmpty failed (non-critical)', err); }
 
         // Home anchor (KAN-247): a guaranteed prefetch point alongside the
         // opportunistic habitat pool — same "non-fatal, best effort, once per

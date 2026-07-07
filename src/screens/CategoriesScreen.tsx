@@ -39,10 +39,10 @@ import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius, categories as builtInMeta } from '../theme/tokens';
 import {
-  searchPlaceTypes,
   placeTypeLabel,
   PlaceTypeSuggestion,
 } from '../services/maps';
+import { searchPlaceTypesCached } from '../services/poiTypeCache';
 import { Category } from '../types';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import { useCategoriesScreen } from '../hooks/useCategoriesScreen';
@@ -220,7 +220,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
     setPoiSearching(true);
     searchTimer.current = setTimeout(async () => {
       try {
-        const results = await searchPlaceTypes(text.trim());
+        const results = await searchPlaceTypesCached(text.trim());
         setPoiResults(results);
       } catch {
         setPoiResults([]);

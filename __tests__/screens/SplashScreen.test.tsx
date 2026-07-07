@@ -43,6 +43,11 @@ jest.mock('../../src/services/habitatCache', () => ({
   refreshHabitatCacheIfStale: (...args: unknown[]) => mockRefreshHabitatCacheIfStale(...args),
 }));
 
+const mockSeedPoiTypeCacheIfEmpty = jest.fn();
+jest.mock('../../src/services/poiTypeCache', () => ({
+  seedPoiTypeCacheIfEmpty: (...args: unknown[]) => mockSeedPoiTypeCacheIfEmpty(...args),
+}));
+
 const mockGetMallSnapshot = jest.fn();
 jest.mock('../../src/services/mallSnapshots', () => ({
   getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),

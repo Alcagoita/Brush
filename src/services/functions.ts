@@ -1,17 +1,18 @@
 /**
- * functions.ts — task parsing helpers (KAN-90, updated KAN-116)
+ * functions.ts — task parsing helpers (KAN-90, updated KAN-116, KAN-253)
  *
  * Originally called a Firebase Cloud Function (Claude Haiku) to parse shared
  * text. Now fully client-side:
  *   1. Local keyword dictionary (offline, instant) via poiInference.ts
- *   2. Google Places Text Search fallback (1 network call, no AI cost)
+ *   2. Local poiTypeCache lookup, else Google Places Text Search fallback
+ *      (1 network call, no AI cost) — see poiTypeCache.ts
  *   3. Give up → confidence 'low', user edits manually
  *
  * Same ParseMessageOutput shape as before — ShareReceiveScreen is unchanged.
  */
 
 import { inferPoiFromRules } from './poiInference';
-import { searchPlaceTypes }  from './maps';
+import { searchPlaceTypesCached } from './poiTypeCache';
 import { POI_GOOGLE_TYPES }  from '../types';
 import type { PoiType }      from '../types';
 
@@ -105,9 +106,10 @@ export async function parseMessageToTask(text: string): Promise<ParseMessageOutp
     }
   }
 
-  // Pass 2: Google Places Text Search — extract primary type from top results.
+  // Pass 2: local poiTypeCache lookup, else Google Places Text Search live —
+  // extract primary type from top results (KAN-253: cached read-through).
   try {
-    const suggestions = await searchPlaceTypes(trimmed.slice(0, 200));
+    const suggestions = await searchPlaceTypesCached(trimmed.slice(0, 200));
     for (const { type } of suggestions) {
       const poi = GOOGLE_TYPE_TO_POI[type];
       if (poi) {
