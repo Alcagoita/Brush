@@ -82,6 +82,9 @@ const en = {
     screenTitle:          'Brush a To-do with a friend',
     sendButton:           (name: string) => `Brush this over to ${name}`,
     activityFeedReceived: (senderName: string) => `${senderName} brushed a to-do your way`,
+    /** Same phrase as activityFeedReceived, without the name prefix — for
+     *  callers that already render the sender's name separately (e.g. bold). */
+    activityFeedSuffix:   'brushed a to-do your way',
   },
 
   // ─── New task quick sheet (KAN-148) + More Details (KAN-149) ───────────────
@@ -561,6 +564,55 @@ const en = {
     streakDays: 'Streak (days)',
   },
 
+  // ─── Social hub (KAN-100, KAN-252) ──────────────────────────────────────────
+  socialHub: {
+    backA11y: 'Back',
+    screenTitle: 'Friends',
+    refreshA11y: 'Refresh',
+    loadError: 'Could not load Friends. Check your connection.',
+    retry: 'Retry',
+    // "Brush a To-do" is the brand verb — kept in English (see taskRow above).
+    brushToDoAction: 'Brush a To-do',
+    challengeAction: 'Challenge',
+    sectionSharedTasks: 'SHARED TASKS',
+    noSharedTasks: 'No shared tasks yet.',
+    sharedTaskA11y: (name: string) => `Shared task from ${name}`,
+    sectionChallenges: 'CHALLENGES',
+    challengesComingSoon: 'Challenge alerts coming soon.',
+    sectionFollowing: 'FOLLOWING',
+    sectionFollowingCount: (n: number) => `FOLLOWING (${n})`,
+    notFollowingAnyone: "You're not following anyone yet.",
+    findMoreFriendsA11y: 'Find more friends',
+    findMore: 'Find more',
+  },
+
+  // ─── Contact suggestions (KAN-99, KAN-252) ──────────────────────────────────
+  contactSuggestions: {
+    backA11y: 'Back',
+    screenTitle: 'Find friends',
+    idleTitle: 'Find friends from contacts',
+    idleSub: 'Your contacts are hashed on-device — raw data never leaves your phone.',
+    scanA11y: 'Scan contacts',
+    scanButton: 'Scan contacts',
+    requestingPermission: 'Requesting permission…',
+    scanning: 'Scanning contacts…',
+    deniedTitle: 'Permission required',
+    deniedSub: 'Contacts access was denied. Open Settings to allow it.',
+    openSettingsA11y: 'Open settings',
+    openSettingsButton: 'Open Settings',
+    unavailableTitle: 'Not available',
+    unavailableSub: 'Contacts scanning is not available on this device or build.',
+    emptyTitle: 'No matches found',
+    emptySub: 'None of your contacts are on Brush Away yet — share your link to invite them!',
+    errorTitle: 'Something went wrong',
+    errorGeneric: 'Could not scan contacts. Please try again.',
+    tryAgain: 'Try again',
+    followingA11y: (name: string) => `Following ${name}`,
+    followA11y: (name: string) => `Follow ${name}`,
+    following: 'Following',
+    follow: 'Follow',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -616,6 +668,7 @@ const ptPT: typeof en = {
     screenTitle:          'Brush a To-do with a friend',
     sendButton:           (name: string) => `Brush this over to ${name}`,
     activityFeedReceived: (senderName: string) => `${senderName} brushed a to-do your way`,
+    activityFeedSuffix:   'brushed a to-do your way',
   },
 
   newTaskSheet: {
@@ -1040,6 +1093,52 @@ const ptPT: typeof en = {
     totalPoints: 'Pontos totais',
     achievements: 'Conquistas',
     streakDays: 'Sequência (dias)',
+  },
+
+  socialHub: {
+    backA11y: 'Voltar',
+    screenTitle: 'Amigos',
+    refreshA11y: 'Atualizar',
+    loadError: 'Não consegui carregar os Amigos. Verifica a tua ligação.',
+    retry: 'Tentar novamente',
+    brushToDoAction: 'Brush a To-do',
+    challengeAction: 'Desafio',
+    sectionSharedTasks: 'TAREFAS PARTILHADAS',
+    noSharedTasks: 'Ainda não há tarefas partilhadas.',
+    sharedTaskA11y: (name: string) => `Tarefa partilhada por ${name}`,
+    sectionChallenges: 'DESAFIOS',
+    challengesComingSoon: 'Alertas de desafios brevemente.',
+    sectionFollowing: 'A SEGUIR',
+    sectionFollowingCount: (n: number) => `A SEGUIR (${n})`,
+    notFollowingAnyone: 'Ainda não segues ninguém.',
+    findMoreFriendsA11y: 'Encontrar mais amigos',
+    findMore: 'Encontrar mais',
+  },
+
+  contactSuggestions: {
+    backA11y: 'Voltar',
+    screenTitle: 'Encontrar amigos',
+    idleTitle: 'Encontrar amigos nos contactos',
+    idleSub: 'Os teus contactos são cifrados no dispositivo — os dados nunca saem do telemóvel.',
+    scanA11y: 'Procurar contactos',
+    scanButton: 'Procurar contactos',
+    requestingPermission: 'A pedir permissão…',
+    scanning: 'A procurar contactos…',
+    deniedTitle: 'Permissão necessária',
+    deniedSub: 'O acesso aos contactos foi negado. Abre as Definições para o permitir.',
+    openSettingsA11y: 'Abrir definições',
+    openSettingsButton: 'Abrir Definições',
+    unavailableTitle: 'Não disponível',
+    unavailableSub: 'A procura de contactos não está disponível neste dispositivo ou versão.',
+    emptyTitle: 'Nenhuma correspondência encontrada',
+    emptySub: 'Nenhum dos teus contactos está no Brush Away ainda — partilha o teu link para os convidar!',
+    errorTitle: 'Algo correu mal',
+    errorGeneric: 'Não foi possível procurar contactos. Tenta novamente.',
+    tryAgain: 'Tentar novamente',
+    followingA11y: (name: string) => `A seguir ${name}`,
+    followA11y: (name: string) => `Seguir ${name}`,
+    following: 'A seguir',
+    follow: 'Seguir',
   },
 
 };
