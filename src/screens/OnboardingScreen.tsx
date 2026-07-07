@@ -43,6 +43,8 @@ import { PoiIcon } from '../components/AppIcon';
 import PoiChip from '../components/PoiChip';
 import { categories } from '../theme/tokens';
 import type { PoiType, Category } from '../types';
+import { useTheme } from '../theme';
+import { COPY } from '../constants/copy';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
 
@@ -71,25 +73,36 @@ function chipFgColor(hex: string): string {
 }
 
 // ─── Onboarding message set (KAN-140 — 6 messages) ───────────────────────────
+//
+// Text is pulled live from COPY inside the component (buildOnboardingNudges /
+// buildSuggestionChips below) instead of baked into a module-scope constant —
+// COPY is language-dynamic (KAN-252) and a module-scope read would freeze
+// this text in whatever language was active on first import.
 
-const ONBOARDING_NUDGES: NudgeMessage[] = [
-  { text: 'Don’t you feel the need for bread?',              poi: 'supermarket', color: '#8b6bc4' },
-  { text: 'Maybe today it’s a good day for coffee outside.', poi: 'cafe',        color: '#e8a86a' },
-  { text: 'This is the week to go to the post office.',                                              },
-  { text: 'What a lovely day to do some sport outside.'                                              },
-  { text: 'That errand you’ve been putting off? Still there.'                                   },
-  { text: 'There’s probably something in the fridge that needs replacing.', poi: 'supermarket', color: '#8b6bc4' },
+const NUDGE_META: { poi?: PoiType; color?: string }[] = [
+  { poi: 'supermarket', color: '#8b6bc4' },
+  { poi: 'cafe',        color: '#e8a86a' },
+  {},
+  {},
+  {},
+  { poi: 'supermarket', color: '#8b6bc4' },
 ];
+
+function buildOnboardingNudges(): NudgeMessage[] {
+  return COPY.onboarding.nudgeTexts.map((text, i) => ({ text, ...NUDGE_META[i] }));
+}
 
 interface SuggestionChip { label: string; poi: PoiType; category: Category; }
 
-const SUGGESTION_CHIPS: SuggestionChip[] = [
-  { label: 'Buy bread',      poi: 'store',       category: 'errands'  },
-  { label: 'Coffee outside', poi: 'cafe',        category: 'personal' },
-  { label: 'Go for a run',   poi: 'park',        category: 'health'   },
-  { label: 'Withdraw cash',  poi: 'atm',         category: 'personal' },
-  { label: 'Groceries',      poi: 'supermarket', category: 'errands'  },
-];
+function buildSuggestionChips(): SuggestionChip[] {
+  return [
+    { label: COPY.onboarding.chipBuyBread,      poi: 'store',       category: 'errands'  },
+    { label: COPY.onboarding.chipCoffeeOutside, poi: 'cafe',        category: 'personal' },
+    { label: COPY.onboarding.chipGoForRun,      poi: 'park',        category: 'health'   },
+    { label: COPY.onboarding.chipWithdrawCash,  poi: 'atm',         category: 'personal' },
+    { label: COPY.onboarding.chipGroceries,     poi: 'supermarket', category: 'errands'  },
+  ];
+}
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -196,6 +209,10 @@ type Stage = 'welcome' | 'empty' | 'create' | 'post' | 'full';
 
 export default function OnboardingScreen({ uid, onComplete }: Props) {
   const insets = useSafeAreaInsets();
+  const { language } = useTheme();
+  const dateLocale = language === 'pt-PT' ? 'pt-PT' : 'en-US';
+  const onboardingNudges = buildOnboardingNudges();
+  const suggestionChips = buildSuggestionChips();
   const [stage, setStage]             = useState<Stage>('welcome');
   const [taskTitle, setTaskTitle]     = useState('');
   const [taskDone, setTaskDone]       = useState(false);
@@ -307,7 +324,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
     closeSheet();
 
     try {
-      const chip = SUGGESTION_CHIPS.find(c => c.label === taskTitle.trim());
+      const chip = suggestionChips.find(c => c.label === taskTitle.trim());
 
       const id = await addTask(uid, {
         title:    taskTitle.trim(),
@@ -375,9 +392,9 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
         <View style={styles.centerContent}>
           <Animated.View style={[{ alignItems: 'center' }, welcomeStyle]}>
             <BrushLogo size={66} />
-            <Text style={styles.eyebrow}>BRUSH AWAY</Text>
+            <Text style={styles.eyebrow}>{COPY.onboarding.eyebrow}</Text>
             <Text style={styles.tagline}>
-              A calm home for the things your days keep quietly asking for.
+              {COPY.onboarding.welcomeTagline}
             </Text>
           </Animated.View>
         </View>
@@ -387,10 +404,10 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
             style={styles.inkBtn}
             onPress={() => setStage('empty')}
             accessibilityRole="button"
-            accessibilityLabel="Let's begin">
-            <Text style={styles.inkBtnText}>Let’s begin</Text>
+            accessibilityLabel={COPY.onboarding.letsBegin}>
+            <Text style={styles.inkBtnText}>{COPY.onboarding.letsBegin}</Text>
           </Pressable>
-          <Text style={styles.reassurance}>No setup. No tour. Just your day.</Text>
+          <Text style={styles.reassurance}>{COPY.onboarding.reassurance}</Text>
         </View>
       </View>
     );
@@ -403,13 +420,13 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
         <View style={styles.stage2Header}>
           <BrushLogo size={23} />
           <Text style={[styles.dateText, { fontVariant: ['tabular-nums'] }]}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            {new Date().toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' })}
           </Text>
         </View>
 
         {/* Rotating nudge */}
         <View style={styles.nudgeArea}>
-          <ScrRotatingNudge messages={ONBOARDING_NUDGES} pace={5} showCategoryIcon />
+          <ScrRotatingNudge messages={onboardingNudges} pace={5} showCategoryIcon />
         </View>
 
         {/* CTA */}
@@ -418,11 +435,11 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
             style={styles.accentBtn}
             onPress={openSheet}
             accessibilityRole="button"
-            accessibilityLabel="Add your first thing">
-            <Text style={styles.accentBtnText}>+ Add your first thing</Text>
+            accessibilityLabel={COPY.onboarding.addFirstThingA11y}>
+            <Text style={styles.accentBtnText}>{COPY.onboarding.addFirstThing}</Text>
           </Pressable>
           <Text style={styles.helperText}>
-            Those are just passing thoughts. Add what’s actually yours.
+            {COPY.onboarding.emptyHelper}
           </Text>
         </View>
 
@@ -438,7 +455,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                 {/* Handle */}
                 <View style={styles.sheetHandle} />
 
-                <Text style={styles.sheetEyebrow}>The first thing on your mind…</Text>
+                <Text style={styles.sheetEyebrow}>{COPY.onboarding.sheetEyebrow}</Text>
 
                 {/* Chip-only selection — no free text */}
                 <FlatList
@@ -446,7 +463,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                   showsHorizontalScrollIndicator={false}
                   style={styles.chipScroll}
                   contentContainerStyle={styles.chipRow}
-                  data={SUGGESTION_CHIPS}
+                  data={suggestionChips}
                   keyExtractor={chip => chip.label}
                   renderItem={({ item: chip }) => {
                     const selected = taskTitle === chip.label;
@@ -481,16 +498,16 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
                 {/* Footer */}
                 <View style={styles.sheetFooter}>
                   <Text style={styles.sheetHelper}>
-                    Time &amp; place can wait. Just get it out of your head.
+                    {COPY.onboarding.sheetHelper}
                   </Text>
                   <Pressable
                     style={[styles.addBtn, !taskTitle.trim() && styles.addBtnDisabled]}
                     onPress={handleAddTask}
                     disabled={!taskTitle.trim()}
                     accessibilityRole="button"
-                    accessibilityLabel="Add task">
+                    accessibilityLabel={COPY.onboarding.addTaskA11y}>
                     <Text style={[styles.addBtnText, !taskTitle.trim() && styles.addBtnTextDisabled]}>
-                      Add it
+                      {COPY.onboarding.addItButton}
                     </Text>
                   </Pressable>
                 </View>
@@ -508,9 +525,9 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
         {/* Header */}
         <View style={styles.stage4Header}>
           <View>
-            <Text style={styles.greeting}>Good morning</Text>
+            <Text style={styles.greeting}>{COPY.onboarding.greeting}</Text>
             <Text style={[styles.dateHeading, { fontVariant: ['tabular-nums'] }]}>
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
+              {new Date().toLocaleDateString(dateLocale, { weekday: 'long', month: 'long', day: 'numeric' })}
             </Text>
           </View>
           <BrushLogo size={23} />
@@ -518,9 +535,9 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
 
         {/* Section label */}
         <View style={styles.sectionRow}>
-          <Text style={styles.sectionLabel}>TODAY</Text>
+          <Text style={styles.sectionLabel}>{COPY.onboarding.todayLabel}</Text>
           <Text style={styles.sectionCount}>
-            {taskDone ? '1 / 1 done' : '0 / 1'}
+            {taskDone ? COPY.onboarding.doneCountDone : COPY.onboarding.doneCountPending}
           </Text>
         </View>
 
@@ -550,7 +567,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
               style={styles.titleWrapper}
               onLayout={e => setTitleWidth(e.nativeEvent.layout.width)}>
               <Text style={[styles.taskTitle, { color: taskDone ? T.muted : T.text }]}>
-                {taskTitle || 'Your task'}
+                {taskTitle || COPY.onboarding.defaultTaskTitle}
               </Text>
               {titleWidth > 0 && (
                 <Animated.View style={[StyleSheet.absoluteFill, strokeStyle]} pointerEvents="none">
@@ -559,7 +576,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
               )}
             </View>
             {(() => {
-              const chip = SUGGESTION_CHIPS.find(c => c.label === taskTitle);
+              const chip = suggestionChips.find(c => c.label === taskTitle);
               const cat  = categories[chip?.category as keyof typeof categories] ?? categories.errands;
               return (
                 <View style={styles.chips}>
@@ -578,7 +595,7 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
           <View style={styles.hintRow}>
             <BobbingArrow visible reduceMotion={reduceMotion} />
             <Text style={styles.hintText}>
-              Tap the circle to <Text style={{ color: T.text, fontFamily: 'Geist-Medium' }}>brush it away.</Text>
+              {COPY.onboarding.hintPrefix}<Text style={{ color: T.text, fontFamily: 'Geist-Medium' }}>{COPY.onboarding.hintBold}</Text>
             </Text>
           </View>
         )}
@@ -597,9 +614,9 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
               </Animated.View>
 
               <View style={styles.rewardBody}>
-                <Text style={styles.rewardHeadline}>That’s one. Brushed away.</Text>
+                <Text style={styles.rewardHeadline}>{COPY.onboarding.rewardHeadline}</Text>
                 <Text style={styles.rewardCaption}>
-                  Day 1 of your streak starts here. That’s the whole app, really — see it, pass it, let it go.
+                  {COPY.onboarding.rewardCaption}
                 </Text>
               </View>
 
@@ -613,8 +630,8 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
               style={[styles.inkBtn, { marginTop: 14 }]}
               onPress={handleComplete}
               accessibilityRole="button"
-              accessibilityLabel="See a full day">
-              <Text style={styles.inkBtnText}>See a full day →</Text>
+              accessibilityLabel={COPY.onboarding.seeFullDay}>
+              <Text style={styles.inkBtnText}>{COPY.onboarding.seeFullDay}</Text>
             </Pressable>
           </Animated.View>
         )}
