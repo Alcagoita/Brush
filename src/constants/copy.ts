@@ -613,6 +613,47 @@ const en = {
     follow: 'Follow',
   },
 
+  friendPicker: {
+    followingLoadError: 'Could not load your friends list. Check your connection.',
+    title: 'Brush this over to…', // brand verb — stays literal
+    closeA11y: 'Close',
+    taskLabel: 'Task',
+    searchPlaceholder: 'Search friends…',
+    searchA11y: 'Search friends',
+    loadingA11y: 'Loading friends',
+    notFollowingAnyone: "You're not following anyone yet.",
+    noMatches: (query: string) => `No friends match "${query}".`,
+    sentToHandle: (username: string) => `Brushed to @${username}`, // brand verb
+    sentCheck: 'Brushed ✓', // brand verb
+    sendAtLeastOneA11y: (count: number) => `Brush it over to ${count} friend${count > 1 ? 's' : ''}`, // brand verb
+    selectFriendsFirstA11y: 'Select friends first',
+    sendButton: 'Brush it over', // brand verb
+    selectFriendsFirstButton: 'Select friends first',
+    sendFailed: (names: string) => `Could not send to: ${names}`,
+  },
+
+  challengeDetail: {
+    mostTasksByDeadline: (deadline: string) => `Most tasks by ${deadline}`,
+    loadError: 'Could not load challenge.',
+    acceptFailed: 'Failed to accept. Please try again.',
+    declineFailed: 'Failed to decline. Please try again.',
+    backA11y: 'Back',
+    screenTitle: 'Challenge',
+    youSuffix: ' (you)',
+    acceptA11y: 'Accept challenge',
+    accept: 'Accept',
+    declineA11y: 'Decline challenge',
+    decline: 'Decline',
+    finalResults: 'FINAL RESULTS',
+    live: 'LIVE',
+    participants: 'PARTICIPANTS',
+    rowA11y: (handle: string, count: number, goal?: number) => `${handle}: ${count}${goal ? `/${goal}` : ''} tasks`,
+    countA11y: (count: number) => `${count} tasks`,
+    statusPending: 'pending',
+    statusAccepted: 'accepted',
+    statusDeclined: 'declined',
+  },
+
 };
 
 const ptPT: typeof en = {
@@ -1139,6 +1180,47 @@ const ptPT: typeof en = {
     followA11y: (name: string) => `Seguir ${name}`,
     following: 'A seguir',
     follow: 'Seguir',
+  },
+
+  friendPicker: {
+    followingLoadError: 'Não foi possível carregar a tua lista de amigos. Verifica a tua ligação.',
+    title: 'Brush this over to…',
+    closeA11y: 'Fechar',
+    taskLabel: 'Tarefa',
+    searchPlaceholder: 'Procurar amigos…',
+    searchA11y: 'Procurar amigos',
+    loadingA11y: 'A carregar amigos',
+    notFollowingAnyone: 'Ainda não segues ninguém.',
+    noMatches: (query: string) => `Nenhum amigo corresponde a "${query}".`,
+    sentToHandle: (username: string) => `Brushed to @${username}`,
+    sentCheck: 'Brushed ✓',
+    sendAtLeastOneA11y: (count: number) => `Brush it over to ${count} friend${count > 1 ? 's' : ''}`,
+    selectFriendsFirstA11y: 'Select friends first',
+    sendButton: 'Brush it over',
+    selectFriendsFirstButton: 'Select friends first',
+    sendFailed: (names: string) => `Não foi possível enviar para: ${names}`,
+  },
+
+  challengeDetail: {
+    mostTasksByDeadline: (deadline: string) => `Mais tarefas até ${deadline}`,
+    loadError: 'Não foi possível carregar o desafio.',
+    acceptFailed: 'Falha ao aceitar. Tenta novamente.',
+    declineFailed: 'Falha ao recusar. Tenta novamente.',
+    backA11y: 'Voltar',
+    screenTitle: 'Desafio',
+    youSuffix: ' (tu)',
+    acceptA11y: 'Aceitar desafio',
+    accept: 'Aceitar',
+    declineA11y: 'Recusar desafio',
+    decline: 'Recusar',
+    finalResults: 'RESULTADOS FINAIS',
+    live: 'AO VIVO',
+    participants: 'PARTICIPANTES',
+    rowA11y: (handle: string, count: number, goal?: number) => `${handle}: ${count}${goal ? `/${goal}` : ''} tarefas`,
+    countA11y: (count: number) => `${count} tarefas`,
+    statusPending: 'pendente',
+    statusAccepted: 'aceite',
+    statusDeclined: 'recusado',
   },
 
 };
