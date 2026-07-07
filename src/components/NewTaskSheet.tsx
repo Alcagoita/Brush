@@ -86,17 +86,12 @@ interface NewTaskSheetProps {
 interface PoiTileProps {
   type: PoiType;
   label: string;
-  /** True whenever this tile is the current `poi` value — suggested or confirmed. */
   selected: boolean;
-  /** KAN-249 — true only while `selected` came from inference and hasn't been
-   *  touched (tapped/replaced) by the user yet. Renders the "suggestion" look
-   *  (nearTint + dashed border + hint) instead of the normal selected look. */
-  suggested: boolean;
   onPress: () => void;
   palette: ReturnType<typeof useTheme>['palette'];
 }
 
-function PoiTile({ type, label, selected, suggested, onPress, palette }: PoiTileProps) {
+function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
   const iconColor = selected ? palette.nearText : palette.muted;
   return (
     <Pressable
@@ -106,15 +101,73 @@ function PoiTile({ type, label, selected, suggested, onPress, palette }: PoiTile
       accessibilityState={{ selected }}
       style={[
         styles.poiTile,
-        suggested && styles.poiTileSuggested,
         {
-          backgroundColor: suggested ? palette.nearTint : selected ? palette.nearTint2  : palette.surface,
+          backgroundColor: selected ? palette.nearTint2  : palette.surface,
           borderColor:     selected ? palette.nearBorder : palette.line,
         },
       ]}>
       <PoiIcon type={type} color={iconColor} size={22} />
       <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>
-      {suggested && (
+    </Pressable>
+  );
+}
+
+// ─── Suggestion tile (KAN-249) — dedicated leading carousel slot ─────────────
+//
+// Always the first item in the POI carousel, separate from the 16 catalog
+// tiles (which stay exactly as they were pre-KAN-249). Once inference lands
+// on a type, this tile keeps showing that guess's icon/label for the rest of
+// the compose session — replacing it with a different catalog pick must NOT
+// blank it back out, only change its look:
+//   - never inferred yet → empty placeholder, no icon, just the "my guess?" hint.
+//   - guess is live and untouched (poi === the guess) → dashed/suggested look + hint.
+//   - the user accepted it (poi === the guess, carousel touched) → normal
+//     confirmed look (solid border, no hint).
+//   - the user picked something else instead (poi !== the guess) → plain
+//     unselected look, same as an ordinary catalog tile — icon/label stay put.
+// Tapping it re-selects the guess (same toggle rule as a catalog tile);
+// inert only while there's no guess to act on.
+
+interface SuggestionTileProps {
+  /** The inferred guess — sticky once known, regardless of what's replaced it. */
+  type: PoiType | null;
+  label: string | null;
+  /** True when this guess is the current `poi` value (live or confirmed). */
+  selected: boolean;
+  /** True once the user has interacted with the carousel at all. */
+  touched: boolean;
+  onPress: () => void;
+  palette: ReturnType<typeof useTheme>['palette'];
+}
+
+function SuggestionTile({ type, label, selected, touched, onPress, palette }: SuggestionTileProps) {
+  const known     = type !== null;
+  const live      = known && selected && !touched;
+  const confirmed = known && selected && touched;
+  // Dashed + hint whenever there's no accepted/rejected verdict yet: the
+  // still-live guess, or the placeholder before anything has been inferred.
+  const showHint  = live || !known;
+
+  const iconColor = selected ? palette.nearText : palette.muted;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!known}
+      accessibilityRole="radio"
+      accessibilityLabel={known ? `${label}, ${COPY.newTaskSheet.poiSuggestionHint}` : COPY.newTaskSheet.poiSuggestionHint}
+      accessibilityState={{ selected }}
+      style={[
+        styles.poiTile,
+        showHint && styles.poiTileSuggested,
+        {
+          backgroundColor: live ? palette.nearTint : confirmed ? palette.nearTint2 : known ? palette.surface : palette.nearTint,
+          borderColor:     live || confirmed || !known ? palette.nearBorder : palette.line,
+        },
+      ]}>
+      {known && <PoiIcon type={type} color={iconColor} size={22} />}
+      {known && <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>}
+      {showHint && (
         <Text
           style={[styles.poiTileHint, { color: palette.nearText }]}
           numberOfLines={1}>
@@ -290,6 +343,16 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
     const canSubmit = title.trim().length > 0 && poi !== null;
 
+    // KAN-249 — the leading suggestion tile's content. `suggestionType` is
+    // sticky once inference lands on something: replacing it with a
+    // different catalog pick must NOT blank the guess back out, it only
+    // stops being the current `poi` value (handled inside SuggestionTile).
+    const suggestionType     = suggestedPoi;
+    const suggestionLabel    = suggestionType
+      ? POI_CATALOG.find(c => c.type === suggestionType)?.label ?? null
+      : null;
+    const suggestionSelected = suggestionType !== null && poi === suggestionType;
+
     const handleSubmit = useCallback(async () => {
       const trimmed = title.trim();
       if (!trimmed || !poi || !uid || submitting) { return; }
@@ -442,26 +505,36 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 snapToInterval={POI_TILE_WIDTH + 10}
                 decelerationRate="fast"
                 style={styles.carouselMask}>
-                {POI_CATALOG.map(({ type, label }) => {
-                  const isSuggested = poi === type && !poiTouched;
-                  return (
-                    <PoiTile
-                      key={type}
-                      type={type}
-                      label={label}
-                      selected={poi === type}
-                      suggested={isSuggested}
-                      onPress={() => {
-                        userTouchedPoiRef.current = true;
-                        setPoiTouched(true);
-                        // Tapping the suggested chip confirms it in place
-                        // (KAN-249) instead of the usual toggle-off.
-                        setPoi(prev => isSuggested ? type : (prev === type ? null : type));
-                      }}
-                      palette={palette}
-                    />
-                  );
-                })}
+                <SuggestionTile
+                  type={suggestionType}
+                  label={suggestionLabel}
+                  selected={suggestionSelected}
+                  touched={poiTouched}
+                  onPress={() => {
+                    // Same toggle rule as a catalog tile, just targeting the
+                    // sticky guess — a no-op while there's no guess at all
+                    // (Pressable is `disabled` in that case).
+                    if (suggestionType === null) { return; }
+                    userTouchedPoiRef.current = true;
+                    setPoiTouched(true);
+                    setPoi(prev => prev === suggestionType ? null : suggestionType);
+                  }}
+                  palette={palette}
+                />
+                {POI_CATALOG.map(({ type, label }) => (
+                  <PoiTile
+                    key={type}
+                    type={type}
+                    label={label}
+                    selected={poi === type}
+                    onPress={() => {
+                      userTouchedPoiRef.current = true;
+                      setPoiTouched(true);
+                      setPoi(prev => prev === type ? null : type);
+                    }}
+                    palette={palette}
+                  />
+                ))}
               </ScrollView>
 
               {/* ── Category question (optional) ── */}
@@ -692,6 +765,10 @@ const styles = StyleSheet.create({
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
+    // Fixed height (fits the tallest variant: icon + label + hint) so a tile
+    // never resizes when the "my guess?" hint appears/disappears on it, and
+    // every tile in the row — suggestion or catalog — stays the same size.
+    height:         84,
     borderRadius:   14,
     borderWidth:     1,
     alignItems:     'center',
