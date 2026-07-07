@@ -107,7 +107,12 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
         },
       ]}>
       <PoiIcon type={type} color={iconColor} size={22} />
-      <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>
+      <Text
+        style={[styles.poiTileLabel, { color: iconColor }]}
+        numberOfLines={1}
+        ellipsizeMode="tail">
+        {label}
+      </Text>
     </Pressable>
   );
 }
@@ -150,13 +155,25 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
 
   const iconColor = selected ? palette.nearText : palette.muted;
 
+  // Mirrors the same three-way state the visual hint uses (showHint) instead
+  // of just `known` — otherwise a screen reader keeps announcing "my guess?"
+  // on the confirmed/rejected tile after the on-screen hint has disappeared.
+  // Always keeps a "suggestion" qualifier (rather than collapsing to the bare
+  // `label`) so this tile's accessibilityLabel never exactly matches the
+  // separate catalog tile for the same type once both are on screen.
+  const accessibilityLabel = !known
+    ? COPY.newTaskSheet.poiSuggestionHint
+    : showHint
+      ? `${label}, ${COPY.newTaskSheet.poiSuggestionHint}`
+      : `${label} suggestion`;
+
   return (
     <Pressable
       onPress={onPress}
       disabled={!known}
       accessibilityRole="radio"
-      accessibilityLabel={known ? `${label}, ${COPY.newTaskSheet.poiSuggestionHint}` : COPY.newTaskSheet.poiSuggestionHint}
-      accessibilityState={{ selected }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected, disabled: !known }}
       style={[
         styles.poiTile,
         showHint && styles.poiTileSuggested,
@@ -166,7 +183,14 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
         },
       ]}>
       {known && <PoiIcon type={type} color={iconColor} size={22} />}
-      {known && <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>}
+      {known && (
+        <Text
+          style={[styles.poiTileLabel, { color: iconColor }]}
+          numberOfLines={1}
+          ellipsizeMode="tail">
+          {label}
+        </Text>
+      )}
       {showHint && (
         <Text
           style={[styles.poiTileHint, { color: palette.nearText }]}
@@ -511,12 +535,17 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   selected={suggestionSelected}
                   touched={poiTouched}
                   onPress={() => {
-                    // Same toggle rule as a catalog tile, just targeting the
-                    // sticky guess — a no-op while there's no guess at all
-                    // (Pressable is `disabled` in that case).
+                    // A no-op while there's no guess at all (Pressable is
+                    // `disabled` in that case, but guard anyway).
                     if (suggestionType === null) { return; }
+                    // First tap on a still-live guess confirms it in place —
+                    // poi already equals suggestionType, so it must NOT fall
+                    // into the toggle-off branch below. Any later tap (once
+                    // touched) behaves like an ordinary catalog tile toggle.
+                    const isLiveGuess = !poiTouched && poi === suggestionType;
                     userTouchedPoiRef.current = true;
                     setPoiTouched(true);
+                    if (isLiveGuess) { return; }
                     setPoi(prev => prev === suggestionType ? null : suggestionType);
                   }}
                   palette={palette}

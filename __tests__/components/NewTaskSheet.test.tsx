@@ -292,10 +292,37 @@ describe('KAN-249 suggested POI states', () => {
     await act(async () => { await jest.advanceTimersByTimeAsync(400); });
     expect(screen.getByText('my guess?')).toBeTruthy();
 
-    fireEvent.press(screen.getByLabelText('Pharmacy'));
+    // The leading suggestion chip itself — distinct accessibilityLabel from
+    // the plain catalog "Pharmacy" tile — is what carries the confirm action.
+    fireEvent.press(screen.getByLabelText('Pharmacy, my guess?'));
 
     expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
     expect(screen.queryByText('my guess?')).toBeNull();
+  });
+
+  it('tapping the suggestion chip a second time (after confirming) toggles it off, same as a catalog tile', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    fireEvent.press(screen.getByLabelText('Pharmacy, my guess?')); // confirm
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+
+    fireEvent.press(screen.getByLabelText('Pharmacy')); // now plain — toggles off like any catalog tile
+    expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(false);
+  });
+
+  it('pressing the empty placeholder (no guess yet) is a no-op — no POI gets selected', async () => {
+    renderSheet();
+
+    fireEvent.press(screen.getByLabelText('my guess?'));
+
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+    expect(screen.getByLabelText('ATM').props.accessibilityState?.selected).toBe(false);
+    expect(screen.getByLabelText('Market').props.accessibilityState?.selected).toBe(false);
   });
 
   it('tapping a different tile replaces the suggestion: old tile deselects, new tile selects normally', async () => {
@@ -321,7 +348,7 @@ describe('KAN-249 suggested POI states', () => {
 
     fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
     await act(async () => { await jest.advanceTimersByTimeAsync(400); });
-    fireEvent.press(screen.getByLabelText('Pharmacy')); // confirm
+    fireEvent.press(screen.getByLabelText('Pharmacy, my guess?')); // confirm
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Add it'));
@@ -385,7 +412,7 @@ describe('KAN-249 suggested POI states', () => {
 
     fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
     await act(async () => { await jest.advanceTimersByTimeAsync(400); });
-    fireEvent.press(screen.getByLabelText('Pharmacy')); // confirm
+    fireEvent.press(screen.getByLabelText('Pharmacy, my guess?')); // confirm
 
     // Editing the title after the carousel is touched does not re-run
     // inference (KAN-232), so `suggestedPoi` now refers to a stale title.
