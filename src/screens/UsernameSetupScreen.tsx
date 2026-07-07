@@ -33,6 +33,7 @@ import {
   getUser,
   validateUsername,
 } from '../services/firestore';
+import { COPY } from '../constants/copy';
 
 interface Props {
   onComplete: () => void;
@@ -68,7 +69,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
     try {
       const available = await checkUsernameAvailable(value);
       if (!available) {
-        setSubmitError('@' + value + ' is already taken. Please choose another.');
+        setSubmitError(COPY.usernameSetup.errorTaken(value));
         return;
       }
       // Ensure a complete user document exists before claiming the username.
@@ -87,7 +88,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
       await claimUsername(uid, value);
       onComplete();
     } catch {
-      setSubmitError('Something went wrong. Please try again.');
+      setSubmitError(COPY.usernameSetup.errorGeneric);
     } finally {
       setSubmitting(false);
     }
@@ -113,9 +114,9 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
         showsVerticalScrollIndicator={false}>
 
         <View style={styles.header}>
-          <Text style={[styles.title, { color: palette.text }]}>Choose a username</Text>
+          <Text style={[styles.title, { color: palette.text }]}>{COPY.usernameSetup.title}</Text>
           <Text style={[styles.subtitle, { color: palette.muted }]}>
-            Your unique handle for sharing tasks and connecting with friends.
+            {COPY.usernameSetup.subtitle}
           </Text>
         </View>
 
@@ -125,7 +126,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
             <Text style={[styles.prefix, { color: palette.faint }]}>@</Text>
             <TextInput
               style={[styles.input, { color: palette.text }]}
-              placeholder="yourhandle"
+              placeholder={COPY.usernameSetup.placeholder}
               placeholderTextColor={palette.faint}
               value={value}
               onChangeText={handleChange}
@@ -134,7 +135,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
               autoComplete="username-new"
               returnKeyType="done"
               onSubmitEditing={handleSubmit}
-              accessibilityLabel="Username"
+              accessibilityLabel={COPY.usernameSetup.inputA11y}
               maxLength={20}
             />
           </View>
@@ -145,7 +146,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
             <Text style={[styles.hint, { color: palette.danger }]}>{submitError}</Text>
           ) : (
             <Text style={[styles.hint, { color: palette.muted }]}>
-              3–20 chars · letters, numbers, underscores only
+              {COPY.usernameSetup.hint}
             </Text>
           )}
         </View>
@@ -160,19 +161,19 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
           onPress={handleSubmit}
           disabled={!canSubmit}
           accessibilityRole="button"
-          accessibilityLabel="Continue">
+          accessibilityLabel={COPY.usernameSetup.continueButton}>
           {submitting
             ? <ActivityIndicator color={palette.bg} />
             : (
               <Text style={[styles.ctaLabel, { color: canSubmit ? palette.bg : palette.faint }]}>
-                Continue
+                {COPY.usernameSetup.continueButton}
               </Text>
             )
           }
         </Pressable>
 
         <Text style={[styles.note, { color: palette.faint }]}>
-          You can change your username once every 30 days.
+          {COPY.usernameSetup.note}
         </Text>
       </ScrollView>
     </KeyboardAvoidingView>
