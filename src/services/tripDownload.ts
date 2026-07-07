@@ -27,15 +27,20 @@ import { searchOsmPlacesStrict } from './osmPlaces';
 import { writeTripAreaPlaces, HABITAT_BYTES_PER_ROW } from './habitatCache';
 import { updateTrip } from './firestore/trips';
 import { todayISO } from '../utils/date';
-import { COPY } from '../constants/copy';
-
 // ─── Radius presets ───────────────────────────────────────────────────────────
 
-/** The 3 area-size presets offered in the Trip Planner flow, in plain words. */
-export const TRIP_RADIUS_PRESETS: { key: TripRadiusPreset; label: string; radiusMeters: number }[] = [
-  { key: 'town',            label: COPY.tripPlanner.radiusTown,          radiusMeters: 5_000 },  // == HABITAT_RADIUS_M — the same "walkable metro area" assumption already validated by the opportunistic habitat cache
-  { key: 'town_and_around', label: COPY.tripPlanner.radiusTownAndAround, radiusMeters: 15_000 },
-  { key: 'region',          label: COPY.tripPlanner.radiusRegion,        radiusMeters: 40_000 },
+/**
+ * The 3 area-size presets offered in the Trip Planner flow.
+ * No `label` here on purpose (KAN-252 review) — COPY is language-dynamic, and
+ * this is a module-scope constant evaluated once at import time. Reading
+ * COPY.* here would freeze the label in whatever language was active on
+ * first import, never updating on a later language change. Callers look up
+ * the label at render time instead — see TripPlannerScreen's `radiusLabel`.
+ */
+export const TRIP_RADIUS_PRESETS: { key: TripRadiusPreset; radiusMeters: number }[] = [
+  { key: 'town',            radiusMeters: 5_000 },  // == HABITAT_RADIUS_M — the same "walkable metro area" assumption already validated by the opportunistic habitat cache
+  { key: 'town_and_around', radiusMeters: 15_000 },
+  { key: 'region',          radiusMeters: 40_000 },
 ];
 
 /** A larger request (16+ types, up to 40km) than the opportunistic 5km refresh has ever needed — give Overpass more time before giving up (see osmPlaces.searchOsmPlaces's timeoutMs param). Shared by trip and mall snapshot downloads. */
@@ -101,10 +106,16 @@ export function estimateTripDownloadBytes(radiusMeters: number, poiTypeCount: nu
   return Math.round(estimatedRows * HABITAT_BYTES_PER_ROW);
 }
 
-/** "About 4 MB" / "Less than 1 MB" — shared display formatting for both the pre-download estimate and the "Places I Know" list's habitat-area size. */
+/**
+ * "4 MB" / "< 1 MB" — language-neutral size token only (KAN-252 review): no
+ * leading words like "About"/"Less than" here, since callers wrap this in
+ * their own localized phrasing (see COPY.tripPlanner.sizeEstimateLine) —
+ * baking English wording in here produced mixed-language output once pt-PT
+ * was added (e.g. "Cerca de Less than 1 MB").
+ */
 export function formatTripSizeMb(bytes: number): string {
   const mb = bytes / (1_000 * 1_000);
-  return mb < 1 ? 'Less than 1 MB' : `About ${Math.round(mb)} MB`;
+  return mb < 1 ? '< 1 MB' : `${Math.round(mb)} MB`;
 }
 
 // ─── Download orchestration ───────────────────────────────────────────────────

@@ -35,12 +35,24 @@ import { useTripPlanner, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT } from '../hook
 import { CIRCLE_FRACTION_OF_HALF_DIM } from '../services/maps';
 import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import type { TripRadiusPreset } from '../types';
 import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
 type Route = RouteProp<RootStackParamList, 'TripPlanner'>;
 
 const CIRCLE_DIAMETER = Math.min(TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT) * CIRCLE_FRACTION_OF_HALF_DIM;
+
+/** Looks up a radius preset's label live at render time (KAN-252 review) —
+ *  TRIP_RADIUS_PRESETS itself carries no label since COPY is language-dynamic
+ *  and that constant is only evaluated once, at import time. */
+function radiusPresetLabel(key: TripRadiusPreset): string {
+  switch (key) {
+    case 'town':            return COPY.tripPlanner.radiusTown;
+    case 'town_and_around': return COPY.tripPlanner.radiusTownAndAround;
+    case 'region':           return COPY.tripPlanner.radiusRegion;
+  }
+}
 
 function formatDateShort(iso: string): string {
   const [, m, d] = iso.split('-').map(Number);
@@ -236,7 +248,7 @@ export default function TripPlannerScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}>
                     <Text style={[styles.radiusChipLabel, { color: selected ? palette.bg : palette.text }]}>
-                      {preset.label}
+                      {radiusPresetLabel(preset.key)}
                     </Text>
                   </Pressable>
                 );
