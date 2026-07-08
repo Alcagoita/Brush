@@ -4,8 +4,7 @@
  * Originally called a Firebase Cloud Function (Claude Haiku) to parse shared
  * text. Now fully client-side:
  *   1. Local keyword dictionary (offline, instant) via poiInference.ts
- *   2. Local poiTypeCache lookup, else Google Places Text Search fallback
- *      (1 network call, no AI cost) — see poiTypeCache.ts
+ *   2. Local poiType dictionary lookup (bundled app data) — see poiTypeCache.ts
  *   3. Give up → confidence 'low', user edits manually
  *
  * Same ParseMessageOutput shape as before — ShareReceiveScreen is unchanged.
@@ -74,8 +73,7 @@ function extractTime(text: string): string | null {
 /**
  * Parse a free-text shared message into structured task data.
  *
- * No AI, no Cloud Function — runs entirely on-device with a Google Places
- * fallback for unknown vocabulary.
+ * No AI, no Cloud Function — runs entirely on-device.
  *
  * @param text  Raw shared message.
  * @returns     Structured task data. confidence 'low' → user should review.
@@ -106,8 +104,7 @@ export async function parseMessageToTask(text: string): Promise<ParseMessageOutp
     }
   }
 
-  // Pass 2: local poiTypeCache lookup, else Google Places Text Search live —
-  // extract primary type from top results (KAN-253: cached read-through).
+  // Pass 2: bundled local POI-type dictionary.
   try {
     const suggestions = await searchPlaceTypesCached(trimmed.slice(0, 200));
     for (const { type } of suggestions) {

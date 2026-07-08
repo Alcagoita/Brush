@@ -1856,6 +1856,11 @@ export function setCopyLanguage(lang: SupportedLanguage): void {
   currentLang = lang;
 }
 
+/** Read the currently-active copy language outside React render paths. */
+export function getCopyLanguage(): SupportedLanguage {
+  return currentLang;
+}
+
 /** Test-only: read back the active language without a full render cycle. */
 export function __getCopyLanguageForTests(): SupportedLanguage {
   return currentLang;
