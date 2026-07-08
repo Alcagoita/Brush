@@ -18,4 +18,13 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.nearbyCard.placesCount(1)).toBe('1 local');
     expect(COPY.nearbyCard.placesCount(2)).toBe('2 locais');
   });
+
+  it('keeps Brush in English and localizes achievements tiers', () => {
+    expect(COPY.achievements.earnedSection(3)).toBe('DESBLOQUEADAS · 3');
+    expect(COPY.achievements.onItsWay('Bronze')).toBe(' · Bronze está perto');
+    expect(COPY.achievements.tierLabel('Tin')).toBe('Estanho');
+    expect(COPY.achievements.tierLabel('Silver')).toBe('Prata');
+    expect(COPY.achievements.tierLabel('Vibranium')).toBe('Vibrânio');
+    expect(COPY.achievements.catalogue.firstBrushLabel).toBe('Primeira Brush');
+  });
 });

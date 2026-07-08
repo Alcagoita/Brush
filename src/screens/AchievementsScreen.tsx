@@ -234,14 +234,14 @@ export default function AchievementsScreen() {
           {maxed ? (
             <Text style={[styles.medalCaption, { color: palette.muted }]}>
               {COPY.achievements.topTierPrefix}
-              <Text style={{ color: nextTier.color, fontWeight: '600' }}>{nextTier.name}</Text>
+              <Text style={{ color: nextTier.color, fontWeight: '600' }}>{COPY.achievements.tierLabel(nextTier.name)}</Text>
             </Text>
           ) : (
             <Text style={[styles.medalCaption, { color: palette.muted }]}>
               <Text style={{ color: curTier?.color || palette.muted, fontWeight: '600' }}>
-                {curTier?.name || COPY.achievements.tinFallback}
+                {curTier?.name ? COPY.achievements.tierLabel(curTier.name) : COPY.achievements.tinFallback}
               </Text>
-              {COPY.achievements.onItsWay(nextTier.name)}
+              {COPY.achievements.onItsWay(COPY.achievements.tierLabel(nextTier.name))}
             </Text>
           )}
         </View>

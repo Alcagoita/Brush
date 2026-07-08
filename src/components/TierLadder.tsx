@@ -3,6 +3,7 @@ import { ScrollView, View, Text, StyleSheet } from 'react-native';
 import { StarIcon } from './AppIcon';
 import { useTheme } from '../theme/ThemeContext';
 import { TIERS, deriveTierStanding } from '../constants/tiers';
+import { COPY } from '../constants/copy';
 
 interface TierLadderProps {
   points: number;
@@ -53,7 +54,7 @@ export default function TierLadder({ points }: TierLadderProps) {
               <StarIcon color={tier.color} size={14} />
             </View>
             <Text style={[styles.name, { color: nameColor }]} numberOfLines={1}>
-              {tier.name}
+              {COPY.achievements.tierLabel(tier.name)}
             </Text>
             <Text style={[styles.threshold, { color: palette.muted }]} numberOfLines={1}>
               {threshLabel}
