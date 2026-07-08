@@ -1,4 +1,27 @@
-import { COPY, setCopyLanguage } from '../../src/constants/copy';
+import { COPY, __getCopyLanguageForTests, setCopyLanguage } from '../../src/constants/copy';
+
+describe('COPY language switching', () => {
+  beforeEach(() => {
+    setCopyLanguage('en');
+  });
+
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it('reads nested values from the active dictionary and tracks current language', () => {
+    expect(__getCopyLanguageForTests()).toBe('en');
+    expect(COPY.challenge.goalTypeLabel(3)).toBe('First to brush away 3 tasks');
+
+    setCopyLanguage('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
+    expect(COPY.challenge.goalTypeLabel(3)).toBe('Primeiro a tratar 3 tarefas');
+
+    setCopyLanguage('en');
+    expect(__getCopyLanguageForTests()).toBe('en');
+    expect(COPY.challenge.goalTypeLabel(3)).toBe('First to brush away 3 tasks');
+  });
+});
 
 describe('COPY — pt-PT localized count strings', () => {
   beforeEach(() => {
