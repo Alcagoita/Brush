@@ -20,7 +20,7 @@ import type { SupportedLanguage } from '../constants/copy';
  * "pt_BR"). Never throws — an unexpected/missing native shape falls back to
  * an empty string, which `detectDeviceLanguage` treats as English.
  */
-function rawDeviceLocale(): string {
+export function rawDeviceLocale(): string {
   try {
     if (Platform.OS === 'ios') {
       const settings = NativeModules.SettingsManager?.settings;
