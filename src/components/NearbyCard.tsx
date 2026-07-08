@@ -405,7 +405,7 @@ function NearbyCard({
         <View style={styles.headerLeft}>
           {isHero && <PulsingDot color={palette.accent} />}
           <Text style={[styles.headerLabel, { color: palette.muted }]}>
-            {isHero ? 'NEARBY · NOW' : 'NEARBY'}
+            {(isHero ? COPY.nearbyCard.headerNowLabel : COPY.nearbyCard.headerLabel).toUpperCase()}
           </Text>
         </View>
 
@@ -419,7 +419,7 @@ function NearbyCard({
             {refreshResult === 'ok' ? 'Updated' : 'Failed'}
           </Animated.Text>
           <Text style={[styles.placesCount, { color: palette.muted }]}>
-            {totalPlaces === 1 ? '1 place' : `${totalPlaces} places`}
+            {COPY.nearbyCard.placesCount(totalPlaces)}
           </Text>
           {onRefreshLocation && (
             <Pressable

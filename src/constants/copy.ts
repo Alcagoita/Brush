@@ -872,6 +872,9 @@ const en = {
   },
 
   nearbyCard: {
+    headerLabel: 'Nearby',
+    headerNowLabel: 'Nearby · now',
+    placesCount: (n: number) => (n === 1 ? '1 place' : `${n} places`),
     tryAnotherPlaceA11y: 'Try another place',
     refreshLocationA11y: 'Refresh location',
   },
@@ -1381,12 +1384,12 @@ const ptPT: typeof en = {
       'Qual é a coisa pela qual o teu eu futuro te vai agradecer?',
     ],
     sectionTitlePrefix: 'HOJE · ',
-    leftCount: (n: number) => `faltam ${n}`,
+    leftCount: (n: number) => (n === 1 ? 'Falta 1' : `Faltam ${n}`),
     retry: 'Tentar outra vez',
     addSomething: 'Adiciona algo',
     addSomethingHelper: 'Isso são só pensamentos passageiros. Adiciona o que é realmente teu.',
     openCalendarA11y: (weekday: string, day: number) => `Abrir calendário de ${weekday} ${day}`,
-    nearbyCount: (n: number) => `${n} perto`,
+    nearbyCount: (n: number) => (n === 1 ? '1 local' : `${n} locais`),
     addTaskA11y: 'Adicionar tarefa',
     progressLabel: 'PROGRESSO',
     progressSummary: (pct: number, remaining: number) => `${pct}% concluído · faltam ${remaining}`,
@@ -1742,6 +1745,9 @@ const ptPT: typeof en = {
   },
 
   nearbyCard: {
+    headerLabel: 'Na proximidade',
+    headerNowLabel: 'Na proximidade · agora',
+    placesCount: (n: number) => (n === 1 ? '1 local' : `${n} locais`),
     tryAnotherPlaceA11y: 'Tentar outro local',
     refreshLocationA11y: 'Atualizar localização',
   },
