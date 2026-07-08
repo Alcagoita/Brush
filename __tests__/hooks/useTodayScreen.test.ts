@@ -216,7 +216,19 @@ describe('useTodayScreen — one-shot fetch', () => {
     await act(async () => {});
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.error).not.toBeNull();
+    expect(result.current.error).toBeNull();
+  });
+
+  it('keeps cached task data when an auxiliary offline read fails', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+    mockGetCategories.mockRejectedValue(new Error('offline'));
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(result.current.tasks).toEqual([TASK]);
   });
 
   it('returns empty tasks and no error when uid is undefined', async () => {

@@ -88,6 +88,7 @@ export default function TodayScreen() {
   const {
     tasks,
     isLoading,
+    isRefreshing,
     error,
     refresh,
     nearbyPoiType,
@@ -160,7 +161,8 @@ export default function TodayScreen() {
   );
 
   // ── Empty state flag ──────────────────────────────────────────────────────────
-  const isEmpty = !isLoading && !error && tasks.length === 0;
+  const isBusy = isLoading || isRefreshing;
+  const isEmpty = !isBusy && !error && tasks.length === 0;
 
   // ── Virtualized task list (KAN-157 follow-up) ─────────────────────────────────
   // Post-rollover (KAN-146) the Today list can hold every undone task carried
@@ -240,7 +242,7 @@ export default function TodayScreen() {
     errandBundle, dismissErrandBundle,
   ]);
 
-  const listEmpty = isLoading ? (
+  const listEmpty = isBusy ? (
     <View style={styles.rowPad}>
       {[0, 1, 2].map(i => (
         <SkeletonRow key={i} index={i} faint={palette.faint} />
@@ -329,7 +331,7 @@ export default function TodayScreen() {
               styles.scrollContent,
               { backgroundColor: palette.bg },
             ]}
-            data={isLoading || error ? [] : sortedTasks}
+            data={isBusy ? [] : sortedTasks}
             renderItem={renderTask}
             keyExtractor={keyExtractor}
             ListHeaderComponent={listHeader}

@@ -177,6 +177,19 @@ describe('SplashScreen', () => {
       expect(useAppStore.getState().bootData).not.toBeNull();
     });
 
+    it('stores partial boot data when an auxiliary offline read fails', async () => {
+      mockGetTasksForDate.mockResolvedValue([{ id: 'task-1', title: 'Cached', category: 'errands', done: false, date: '2026-06-15', createdAt: {} }]);
+      mockGetCategories.mockRejectedValue(new Error('offline'));
+
+      render(<SplashScreen onExit={jest.fn()} />);
+      await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+
+      expect(useAppStore.getState().bootData?.tasks).toEqual([
+        { id: 'task-1', title: 'Cached', category: 'errands', done: false, date: '2026-06-15', createdAt: {} },
+      ]);
+      expect(useAppStore.getState().bootData?.customCategories).toEqual([]);
+    });
+
     it('calls onExit after the abort timer when rest phase is not reached', async () => {
       const onExit = jest.fn();
       render(<SplashScreen onExit={onExit} />);

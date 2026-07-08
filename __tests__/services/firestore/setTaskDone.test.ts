@@ -22,6 +22,7 @@ const mockTxGet    = jest.fn();
 const mockTxUpdate = jest.fn();
 const mockTxSet    = jest.fn();
 const mockTxDelete = jest.fn();
+const mockUpdateDoc = jest.fn();
 
 function applyFieldUpdate(path: string, data: Record<string, unknown>) {
   const current = { ...(store[path] ?? {}) };
@@ -61,7 +62,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   addDoc:          jest.fn(),
   getDoc:          jest.fn(),
   getDocs:         jest.fn(),
-  updateDoc:       jest.fn(),
+  updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
   deleteDoc:       jest.fn(),
   deleteField:     jest.fn(() => DELETE_FIELD_SENTINEL),
   setDoc:          jest.fn(),
@@ -261,5 +262,27 @@ describe('setTaskDone', () => {
 
     expect(store[TASK_PATH]).toEqual({ done: true, completedAt: NOW_TIMESTAMP });
     expect(store[COUNTER_PATH('place-abc')]).toBeUndefined();
+  });
+
+  it('falls back to a direct task-doc update when the transaction cannot run offline', async () => {
+    mockRunTransaction.mockRejectedValueOnce(new Error('offline'));
+
+    await setTaskDone('uid-1', 'task-1', true, {
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+    });
+
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      { _type: 'doc', path: TASK_PATH },
+      {
+        done: true,
+        completedAt: NOW_TIMESTAMP,
+        completedPlaceId: 'place-abc',
+        completedPlaceName: 'Whole Foods',
+        completedPoiType: 'supermarket',
+      },
+    );
+    expect(mockTxUpdate).not.toHaveBeenCalled();
   });
 });
