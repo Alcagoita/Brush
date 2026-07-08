@@ -26,5 +26,7 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.achievements.tierLabel('Silver')).toBe('Prata');
     expect(COPY.achievements.tierLabel('Vibranium')).toBe('Vibrânio');
     expect(COPY.achievements.catalogue.firstBrushLabel).toBe('Primeira Brush');
+    expect(COPY.achievements.catalogue.firstBrushCondition).toBe('Brush away a tua primeira tarefa');
+    expect(COPY.achievements.catalogue.explorerCondition).toBe('Brush 10 tarefas ligadas a localizações');
   });
 });

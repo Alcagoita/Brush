@@ -433,10 +433,10 @@ export default function ProfileScreen() {
                 {totalPoints}
               </Text>
               <Text style={[styles.toGoCaption, { color: palette.muted }]}>
-                {maxed ? (
-                  <>{COPY.profile.topTierPrefix}<Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>{nextTier.name}</Text></>
+              {maxed ? (
+                  <>{COPY.profile.topTierPrefix}<Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>{COPY.achievements.tierLabel(nextTier.name)}</Text></>
                 ) : (
-                  <><Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>{COPY.profile.ptsToGo(toGo)}</Text>{COPY.profile.toGoSuffix(nextTier.name)}</>
+                  <><Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>{COPY.profile.ptsToGo(toGo)}</Text>{COPY.profile.toGoSuffix(COPY.achievements.tierLabel(nextTier.name))}</>
                 )}
               </Text>
 

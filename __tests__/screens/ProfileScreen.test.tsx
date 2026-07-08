@@ -13,6 +13,7 @@ import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { AchievementsMap } from '../../src/types';
 import { buildAchievementCatalogue } from '../../src/components/AchievementTile';
+import { setCopyLanguage } from '../../src/constants/copy';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -302,6 +303,32 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
     expect(screen.queryByText(/earned through achievements/)).toBeNull();
     expect(screen.queryByText(/NEXT REWARD/)).toBeNull();
     expect(screen.queryByText(/badge$/)).toBeNull();
+  });
+});
+
+describe('ProfileScreen — pt-PT tier copy', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDefaultMocks();
+    setCopyLanguage('pt-PT');
+  });
+
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it('localizes the next tier name in the points caption', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 100, currentStreak: 0, achievements: {} });
+    await renderScreen();
+    expect(screen.getByText('100 pts para Prata')).toBeTruthy();
+    expect(screen.queryByText(/Gold/)).toBeNull();
+  });
+
+  it('localizes the maxed tier name in the points caption', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
+    await renderScreen();
+    expect(screen.getByText('Nível máximo · Vibrânio')).toBeTruthy();
+    expect(screen.queryByText(/Vibranium/)).toBeNull();
   });
 });
 
