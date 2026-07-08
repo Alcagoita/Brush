@@ -25,6 +25,7 @@ import {
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ImportResult } from '../types';
+import { COPY } from '../constants/copy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -159,7 +160,7 @@ function ImportRow({ source, uid, palette }: RowProps) {
             <ActivityIndicator
               size="small"
               color={palette.muted}
-              accessibilityLabel="Import in progress"
+              accessibilityLabel={COPY.importTasksSection.inProgressA11y}
             />
             <Text style={[styles.importBtnText, retryLabel ? styles.tabularNums : undefined, { color: palette.muted }]}>
               {retryLabel ?? 'Importing…'}
@@ -186,7 +187,7 @@ function ImportRow({ source, uid, palette }: RowProps) {
         <Animated.View style={{ opacity: fadeAnim }}>
           <Text
             style={[styles.resultText, { color: palette.muted }]}
-            accessibilityLabel="Import cancelled">
+            accessibilityLabel={COPY.importTasksSection.cancelledA11y}>
             Import cancelled.
           </Text>
         </Animated.View>
@@ -220,7 +221,7 @@ export default function ImportTasksSection({ uid }: Props) {
   return (
     <View
       style={[styles.section, { backgroundColor: palette.surface2 }]}
-      accessibilityLabel="Import tasks section">
+      accessibilityLabel={COPY.importTasksSection.sectionA11y}>
       {/* Section heading */}
       <Text style={[styles.sectionTitle, { color: palette.muted }]}>
         IMPORT TASKS

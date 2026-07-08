@@ -49,6 +49,7 @@ import {
   signUpWithEmail,
 } from '../services/auth';
 import { logTap } from '../services/analytics';
+import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -232,27 +233,27 @@ function errorCode(error: unknown): string {
 function parseAuthError(code: string, isSignUp: boolean): ParsedError {
   switch (code) {
     case 'auth/invalid-email':
-      return { field: 'email', message: 'Please enter a valid email address.' };
+      return { field: 'email', message: COPY.login.errorInvalidEmail };
     case 'auth/user-not-found':
-      return { field: 'email', message: 'No account found with this email.' };
+      return { field: 'email', message: COPY.login.errorUserNotFound };
     case 'auth/invalid-credential':
-      return { field: 'general', message: 'Invalid email or password. Please check your credentials.' };
+      return { field: 'general', message: COPY.login.errorInvalidCredential };
     case 'auth/wrong-password':
-      return { field: 'password', message: 'Incorrect password. Please try again.' };
+      return { field: 'password', message: COPY.login.errorWrongPassword };
     case 'auth/email-already-in-use':
-      return { field: 'email', message: 'An account already exists with this email.' };
+      return { field: 'email', message: COPY.login.errorEmailInUse };
     case 'auth/weak-password':
-      return { field: 'password', message: 'Password must be at least 6 characters.' };
+      return { field: 'password', message: COPY.login.errorWeakPassword };
     case 'auth/too-many-requests':
-      return { field: 'general', message: 'Too many attempts. Please wait a moment and try again.' };
+      return { field: 'general', message: COPY.login.errorTooManyRequests };
     case 'auth/network-request-failed':
-      return { field: 'general', message: 'Network error — check your connection.' };
+      return { field: 'general', message: COPY.login.errorNetwork };
     default:
       return {
         field: 'general',
         message: isSignUp
-          ? 'Could not create account. Please try again.'
-          : 'Sign in failed. Please try again.',
+          ? COPY.login.errorCreateAccountGeneric
+          : COPY.login.errorSignInGeneric,
       };
   }
 }
@@ -321,9 +322,9 @@ function Field({
             onPress={() => setShowPass(p => !p)}
             style={styles.showHideBtn}
             accessibilityRole="button"
-            accessibilityLabel={showPass ? 'Hide password' : 'Show password'}>
+            accessibilityLabel={showPass ? COPY.login.hidePasswordA11y : COPY.login.showPasswordA11y}>
             <Text style={[styles.showHideLabel, { color: palette.muted }]}>
-              {showPass ? 'Hide' : 'Show'}
+              {showPass ? COPY.login.hidePassword : COPY.login.showPassword}
             </Text>
           </Pressable>
         )}
@@ -400,8 +401,8 @@ export default function LoginScreen() {
   // ── Auth handlers ─────────────────────────────────────────────────────────
   const handleSubmit = async () => {
     clearErrors();
-    if (!email.trim()) { setEmailError('Please enter your email address.'); return; }
-    if (!password)     { setPasswordError('Please enter your password.'); return; }
+    if (!email.trim()) { setEmailError(COPY.login.errorEmailRequired); return; }
+    if (!password)     { setPasswordError(COPY.login.errorPasswordRequired); return; }
 
     setLoading(true);
     try {
@@ -427,7 +428,7 @@ export default function LoginScreen() {
     } catch (error: unknown) {
       const code = errorCode(error);
       if (code === 'SIGN_IN_CANCELLED' || code === '12501') { return; }
-      setGeneralError('Google sign-in failed. Please try again.');
+      setGeneralError(COPY.login.errorGoogleSignIn);
     } finally {
       setGoogleLoading(false);
     }
@@ -471,7 +472,7 @@ export default function LoginScreen() {
           {/* ── Tagline ── */}
           <Animated.View style={{ transform: [{ translateY: taglineY }] }}>
             <Text style={[styles.tagline, { color: palette.muted }]}>
-              Brush away your to-dos, as you pass them.
+              {COPY.login.tagline}
             </Text>
           </Animated.View>
 
@@ -480,10 +481,10 @@ export default function LoginScreen() {
             style={[styles.form, { transform: [{ translateY: formY }] }]}>
 
             <Field
-              label="Email"
+              label={COPY.login.emailLabel}
               value={email}
               onChange={v => { setEmail(v); if (emailError) { setEmailError(''); } }}
-              placeholder="you@example.com"
+              placeholder={COPY.login.emailPlaceholder}
               error={emailError}
               keyboardType="email-address"
               autoComplete="email"
@@ -493,20 +494,20 @@ export default function LoginScreen() {
 
             <Field
               inputRef={passwordRef}
-              label="Password"
+              label={COPY.login.passwordLabel}
               labelRight={
                 <Pressable
                   onPress={() => {/* Forgot password — future KAN */}}
                   accessibilityRole="button"
-                  accessibilityLabel="Forgot password">
+                  accessibilityLabel={COPY.login.forgotPassword}>
                   <Text style={[styles.forgotLabel, { color: palette.muted }]}>
-                    Forgot password?
+                    {COPY.login.forgotPassword}
                   </Text>
                 </Pressable>
               }
               value={password}
               onChange={v => { setPassword(v); if (passwordError) { setPasswordError(''); } }}
-              placeholder={isSignUp ? 'Min. 6 characters' : '••••••••'}
+              placeholder={isSignUp ? COPY.login.passwordPlaceholderSignup : COPY.login.passwordPlaceholderSignin}
               error={passwordError}
               secure
               autoComplete={isSignUp ? 'new-password' : 'current-password'}
@@ -536,12 +537,12 @@ export default function LoginScreen() {
               onPress={handleSubmit}
               disabled={loading || googleLoading}
               accessibilityRole="button"
-              accessibilityLabel={isSignUp ? 'Create account' : 'Sign in'}>
+              accessibilityLabel={isSignUp ? COPY.login.createAccountA11y : COPY.login.signInA11y}>
               {loading ? (
                 <ActivityIndicator color={palette.bg} />
               ) : (
                 <Text style={[styles.ctaLabel, { color: palette.bg }]}>
-                  {isSignUp ? 'Create Account' : 'Sign In'}
+                  {isSignUp ? COPY.login.createAccount : COPY.login.signIn}
                 </Text>
               )}
             </Pressable>
@@ -549,7 +550,7 @@ export default function LoginScreen() {
             {/* Or divider */}
             <View style={styles.dividerWrap}>
               <View style={[styles.dividerLine, { backgroundColor: palette.line }]} />
-              <Text style={[styles.dividerLabel, { color: palette.muted }]}>or</Text>
+              <Text style={[styles.dividerLabel, { color: palette.muted }]}>{COPY.login.orDivider}</Text>
               <View style={[styles.dividerLine, { backgroundColor: palette.line }]} />
             </View>
 
@@ -563,14 +564,14 @@ export default function LoginScreen() {
               onPress={handleGoogleSignIn}
               disabled={loading || googleLoading}
               accessibilityRole="button"
-              accessibilityLabel="Continue with Google">
+              accessibilityLabel={COPY.login.continueWithGoogle}>
               {googleLoading ? (
                 <ActivityIndicator color={palette.text} />
               ) : (
                 <>
                   <GoogleIcon />
                   <Text style={[styles.socialLabel, { color: palette.text }]}>
-                    Continue with Google
+                    {COPY.login.continueWithGoogle}
                   </Text>
                 </>
               )}
@@ -584,9 +585,9 @@ export default function LoginScreen() {
             onPress={handleToggleMode}
             accessibilityRole="button">
             <Text style={[styles.footerText, { color: palette.muted }]}>
-              {isSignUp ? 'Already have an account? ' : "Don't have an account? "}
+              {isSignUp ? COPY.login.alreadyHaveAccount : COPY.login.dontHaveAccount}
               <Text style={[styles.footerAction, { color: palette.text }]}>
-                {isSignUp ? 'Sign in' : 'Sign up'}
+                {isSignUp ? COPY.login.signInLink : COPY.login.signUpLink}
               </Text>
             </Text>
           </Pressable>

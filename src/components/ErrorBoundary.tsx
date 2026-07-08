@@ -11,6 +11,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { recordError, logBreadcrumb } from '../services/crashlytics';
+import { COPY } from '../constants/copy';
 
 interface Props {
   children: ReactNode;
@@ -59,7 +60,7 @@ export default class ErrorBoundary extends Component<Props, State> {
             style={styles.button}
             onPress={this.handleReset}
             accessibilityRole="button"
-            accessibilityLabel="Try again">
+            accessibilityLabel={COPY.errorBoundary.tryAgainA11y}>
             <Text style={styles.buttonText}>Try Again</Text>
           </TouchableOpacity>
         </View>

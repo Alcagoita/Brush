@@ -38,6 +38,7 @@ import {
   followUser,
 } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ContactSuggestions'>;
 
@@ -90,7 +91,7 @@ export default function ContactSuggestionsScreen() {
       if (filtered.length === 0) { setState({ status: 'empty' }); return; }
       setState({ status: 'results', matches: filtered });
     } catch (e) {
-      setState({ status: 'error', message: 'Could not scan contacts. Please try again.' });
+      setState({ status: 'error', message: COPY.contactSuggestions.errorGeneric });
     }
   };
 
@@ -138,11 +139,13 @@ export default function ContactSuggestionsScreen() {
           onPress={() => handleFollow(item)}
           disabled={isFollowed || isInProgress}
           accessibilityRole="button"
-          accessibilityLabel={isFollowed ? `Following ${item.displayName}` : `Follow ${item.displayName}`}>
+          accessibilityLabel={isFollowed
+            ? COPY.contactSuggestions.followingA11y(item.displayName)
+            : COPY.contactSuggestions.followA11y(item.displayName)}>
           {isInProgress
             ? <ActivityIndicator size="small" color={isFollowed ? palette.text : palette.bg} />
             : <Text style={[styles.followLabel, { color: isFollowed ? palette.text : palette.bg }]}>
-                {isFollowed ? 'Following' : 'Follow'}
+                {isFollowed ? COPY.contactSuggestions.following : COPY.contactSuggestions.follow}
               </Text>
           }
         </Pressable>
@@ -156,10 +159,10 @@ export default function ContactSuggestionsScreen() {
       {/* Top bar */}
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
         <Pressable style={styles.navBtn} onPress={() => navigation.goBack()}
-          accessibilityRole="button" accessibilityLabel="Back">
+          accessibilityRole="button" accessibilityLabel={COPY.contactSuggestions.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Find friends</Text>
+        <Text style={[styles.title, { color: palette.text }]}>{COPY.contactSuggestions.screenTitle}</Text>
         <View style={styles.navBtn} />
       </View>
 
@@ -167,16 +170,16 @@ export default function ContactSuggestionsScreen() {
       {state.status === 'idle' && (
         <View style={styles.center}>
           <UsersIcon color={palette.faint} size={40} />
-          <Text style={[styles.h2, { color: palette.text }]}>Find friends from contacts</Text>
+          <Text style={[styles.h2, { color: palette.text }]}>{COPY.contactSuggestions.idleTitle}</Text>
           <Text style={[styles.sub, { color: palette.muted }]}>
-            Your contacts are hashed on-device — raw data never leaves your phone.
+            {COPY.contactSuggestions.idleSub}
           </Text>
           <Pressable
             style={[styles.cta, { backgroundColor: palette.text }]}
             onPress={handleScan}
             accessibilityRole="button"
-            accessibilityLabel="Scan contacts">
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>Scan contacts</Text>
+            accessibilityLabel={COPY.contactSuggestions.scanA11y}>
+            <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.contactSuggestions.scanButton}</Text>
           </Pressable>
         </View>
       )}
@@ -185,32 +188,32 @@ export default function ContactSuggestionsScreen() {
         <View style={styles.center}>
           <ActivityIndicator size="large" color={palette.accent} />
           <Text style={[styles.sub, { color: palette.muted }]}>
-            {state.status === 'requesting' ? 'Requesting permission…' : 'Scanning contacts…'}
+            {state.status === 'requesting' ? COPY.contactSuggestions.requestingPermission : COPY.contactSuggestions.scanning}
           </Text>
         </View>
       )}
 
       {state.status === 'denied' && (
         <View style={styles.center}>
-          <Text style={[styles.h2, { color: palette.text }]}>Permission required</Text>
+          <Text style={[styles.h2, { color: palette.text }]}>{COPY.contactSuggestions.deniedTitle}</Text>
           <Text style={[styles.sub, { color: palette.muted }]}>
-            Contacts access was denied. Open Settings to allow it.
+            {COPY.contactSuggestions.deniedSub}
           </Text>
           <Pressable
             style={[styles.cta, { backgroundColor: palette.text }]}
             onPress={() => Linking.openSettings()}
             accessibilityRole="button"
-            accessibilityLabel="Open settings">
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open Settings</Text>
+            accessibilityLabel={COPY.contactSuggestions.openSettingsA11y}>
+            <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.contactSuggestions.openSettingsButton}</Text>
           </Pressable>
         </View>
       )}
 
       {state.status === 'unavailable' && (
         <View style={styles.center}>
-          <Text style={[styles.h2, { color: palette.text }]}>Not available</Text>
+          <Text style={[styles.h2, { color: palette.text }]}>{COPY.contactSuggestions.unavailableTitle}</Text>
           <Text style={[styles.sub, { color: palette.muted }]}>
-            Contacts scanning is not available on this device or build.
+            {COPY.contactSuggestions.unavailableSub}
           </Text>
         </View>
       )}
@@ -218,19 +221,19 @@ export default function ContactSuggestionsScreen() {
       {state.status === 'empty' && (
         <View style={styles.center}>
           <UsersIcon color={palette.faint} size={40} />
-          <Text style={[styles.h2, { color: palette.text }]}>No matches found</Text>
+          <Text style={[styles.h2, { color: palette.text }]}>{COPY.contactSuggestions.emptyTitle}</Text>
           <Text style={[styles.sub, { color: palette.muted }]}>
-            None of your contacts are on Brush Away yet — share your link to invite them!
+            {COPY.contactSuggestions.emptySub}
           </Text>
         </View>
       )}
 
       {state.status === 'error' && (
         <View style={styles.center}>
-          <Text style={[styles.h2, { color: palette.text }]}>Something went wrong</Text>
+          <Text style={[styles.h2, { color: palette.text }]}>{COPY.contactSuggestions.errorTitle}</Text>
           <Text style={[styles.sub, { color: palette.muted }]}>{state.message}</Text>
           <Pressable style={[styles.cta, { backgroundColor: palette.text }]} onPress={handleScan}>
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>Try again</Text>
+            <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.contactSuggestions.tryAgain}</Text>
           </Pressable>
         </View>
       )}

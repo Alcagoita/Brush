@@ -30,9 +30,10 @@ import TierMedal from '../components/TierMedal';
 import TierLadder from '../components/TierLadder';
 import type { AchievementsMap, AchievementType } from '../types';
 import {
-  ACHIEVEMENT_CATALOGUE,
+  buildAchievementCatalogue,
   AchievementDef as CatalogueDef,
 } from '../components/AchievementTile';
+import { COPY } from '../constants/copy';
 import {
   CheckIcon,
   SunIcon,
@@ -90,7 +91,7 @@ function AchievementCard({
           borderColor:     earned ? palette.nearBorder : palette.line,
         },
       ]}
-      accessibilityLabel={`${catalogueDef.label} achievement, ${earned ? 'earned' : 'locked'}`}>
+      accessibilityLabel={COPY.achievements.cardA11y(catalogueDef.label, earned)}>
 
       {/* Icon circle */}
       <View style={[
@@ -148,8 +149,8 @@ function AchievementCard({
           { color: earned ? palette.accent : palette.faint },
         ]}>
           {earned
-            ? `${points * earnCount} pts earned`
-            : `${points} pts available`
+            ? COPY.achievements.ptsEarned(points * earnCount)
+            : COPY.achievements.ptsAvailable(points)
           }
         </Text>
       </View>
@@ -175,8 +176,8 @@ function buildRows(
       rows.push({ kind: 'cards', id: `${earned ? 'e' : 'l'}-${i}`, left: defs[i], right: defs[i + 1] ?? null, earned });
     }
   };
-  push(earnedDefs, true,  `EARNED · ${earnedDefs.length}`);
-  push(lockedDefs, false, `LOCKED · ${lockedDefs.length}`);
+  push(earnedDefs, true,  COPY.achievements.earnedSection(earnedDefs.length));
+  push(lockedDefs, false, COPY.achievements.lockedSection(lockedDefs.length));
   return rows;
 }
 
@@ -205,10 +206,11 @@ export default function AchievementsScreen() {
   const { curTier, nextTier, maxed, bandPct } = deriveTierStanding(totalPoints);
 
   // ── Achievement lists ─────────────────────────────────────────────────────────
-  const earnedDefs = ACHIEVEMENT_CATALOGUE.filter(
+  const achievementCatalogue = buildAchievementCatalogue();
+  const earnedDefs = achievementCatalogue.filter(
     d => (achievementsMap[d.type as AchievementType]?.earnCount ?? 0) > 0,
   );
-  const lockedDefs = ACHIEVEMENT_CATALOGUE.filter(
+  const lockedDefs = achievementCatalogue.filter(
     d => (achievementsMap[d.type as AchievementType]?.earnCount ?? 0) === 0,
   );
 
@@ -221,25 +223,25 @@ export default function AchievementsScreen() {
     <View style={[styles.tierCard, { backgroundColor: palette.surface, borderColor: palette.line }]}>
       <View style={styles.tierRow}>
         <View style={styles.tierLeft}>
-          <Text style={[styles.totalLabel, { color: palette.muted }]}>TOTAL POINTS</Text>
+          <Text style={[styles.totalLabel, { color: palette.muted }]}>{COPY.achievements.totalPointsLabel}</Text>
           <Text style={[styles.totalNumber, { color: palette.text }]}>
             <Text style={{ fontVariant: ['tabular-nums'] }}>{totalPoints}</Text>
           </Text>
-          <Text style={[styles.totalCaption, { color: palette.muted }]}>points earned so far</Text>
+          <Text style={[styles.totalCaption, { color: palette.muted }]}>{COPY.achievements.totalPointsCaption}</Text>
         </View>
         <View style={styles.tierRight}>
           <TierMedal tier={nextTier} earned={maxed} pct={maxed ? null : bandPct} size={96} />
           {maxed ? (
             <Text style={[styles.medalCaption, { color: palette.muted }]}>
-              {'Top tier · '}
-              <Text style={{ color: nextTier.color, fontWeight: '600' }}>{nextTier.name}</Text>
+              {COPY.achievements.topTierPrefix}
+              <Text style={{ color: nextTier.color, fontWeight: '600' }}>{COPY.achievements.tierLabel(nextTier.name)}</Text>
             </Text>
           ) : (
             <Text style={[styles.medalCaption, { color: palette.muted }]}>
               <Text style={{ color: curTier?.color || palette.muted, fontWeight: '600' }}>
-                {curTier?.name || 'Tin'}
+                {curTier?.name ? COPY.achievements.tierLabel(curTier.name) : COPY.achievements.tinFallback}
               </Text>
-              {' · '}{nextTier.name} is on its way
+              {COPY.achievements.onItsWay(COPY.achievements.tierLabel(nextTier.name))}
             </Text>
           )}
         </View>
@@ -258,10 +260,10 @@ export default function AchievementsScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.achievements.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.topBarTitle, { color: palette.text }]}>Achievements</Text>
+        <Text style={[styles.topBarTitle, { color: palette.text }]}>{COPY.achievements.screenTitle}</Text>
         <View style={styles.navBtn} />
       </View>
 

@@ -33,6 +33,7 @@ import { getFollowing } from '../services/firestore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { SharedTask, FollowEntry } from '../types';
 import { relativeTime } from '../utils/date';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'SocialHub'>;
 
@@ -106,16 +107,16 @@ export default function SocialHubScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.socialHub.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Friends</Text>
+        <Text style={[styles.title, { color: palette.text }]}>{COPY.socialHub.screenTitle}</Text>
         <Pressable
           style={styles.navBtn}
           onPress={loadData}
           disabled={loading}
           accessibilityRole="button"
-          accessibilityLabel="Refresh">
+          accessibilityLabel={COPY.socialHub.refreshA11y}>
           <RefreshIcon color={loading ? palette.faint : palette.text} size={20} />
         </Pressable>
       </View>
@@ -127,14 +128,14 @@ export default function SocialHubScreen() {
       ) : error ? (
         <View style={styles.errorCenter}>
           <Text style={[styles.errorText, { color: palette.muted }]}>
-            {'Could not load Friends. Check your connection.'}
+            {COPY.socialHub.loadError}
           </Text>
           <TouchableOpacity
             style={[styles.retryBtn, { backgroundColor: palette.text }]}
             onPress={loadData}
             accessibilityRole="button"
-            accessibilityLabel="Retry">
-            <Text style={[styles.retryLabel, { color: palette.bg }]}>Retry</Text>
+            accessibilityLabel={COPY.socialHub.retry}>
+            <Text style={[styles.retryLabel, { color: palette.bg }]}>{COPY.socialHub.retry}</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -152,27 +153,27 @@ export default function SocialHubScreen() {
                   style={[styles.actionBtn, { backgroundColor: palette.text }]}
                   onPress={() => navigation.navigate('ShareToDo')}
                   accessibilityRole="button"
-                  accessibilityLabel="Brush a To-do with a friend">
+                  accessibilityLabel={COPY.share.screenTitle}>
                   <ShareIcon color={palette.bg} size={18} />
-                  <Text style={[styles.actionLabel, { color: palette.bg }]}>Brush a To-do</Text>
+                  <Text style={[styles.actionLabel, { color: palette.bg }]}>{COPY.socialHub.brushToDoAction}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.actionBtn, { backgroundColor: palette.surface2 }]}
                   onPress={() => navigation.navigate('CreateChallenge')}
                   accessibilityRole="button"
-                  accessibilityLabel="Challenge a friend">
+                  accessibilityLabel={COPY.socialHub.challengeAction}>
                   <TrophyIcon color={palette.text} size={18} />
-                  <Text style={[styles.actionLabel, { color: palette.text }]}>Challenge</Text>
+                  <Text style={[styles.actionLabel, { color: palette.text }]}>{COPY.socialHub.challengeAction}</Text>
                 </TouchableOpacity>
               </View>
 
               {/* ── Shared tasks ── */}
-              <SectionHeader title="SHARED TASKS" palette={palette} />
+              <SectionHeader title={COPY.socialHub.sectionSharedTasks} palette={palette} />
               {pendingTasks.length === 0 ? (
                 <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
                   <ShareIcon color={palette.faint} size={28} />
                   <Text style={[styles.emptyText, { color: palette.muted }]}>
-                    No shared tasks yet.
+                    {COPY.socialHub.noSharedTasks}
                   </Text>
                 </View>
               ) : (
@@ -183,12 +184,12 @@ export default function SocialHubScreen() {
                         style={[styles.feedRow, { backgroundColor: palette.surface2 }]}
                         onPress={() => navigation.navigate('SharedTaskInbox')}
                         accessibilityRole="button"
-                        accessibilityLabel={`Shared task from ${task.sentByName}`}>
+                        accessibilityLabel={COPY.socialHub.sharedTaskA11y(task.sentByName)}>
                         <Avatar photoURL={null} size={32} accessibilityLabel={task.sentByName} />
                         <View style={styles.feedText}>
                           <Text style={[styles.feedMain, { color: palette.text }]} numberOfLines={1}>
                             <Text style={{ fontFamily: 'Geist-SemiBold' }}>{task.sentByName}</Text>
-                            {' brushed a to-do your way'}
+                            {' '}{COPY.share.activityFeedSuffix}
                           </Text>
                           <Text style={[styles.feedSub, { color: palette.muted }]} numberOfLines={1}>
                             {task.title}
@@ -205,24 +206,24 @@ export default function SocialHubScreen() {
               )}
 
               {/* ── Challenges ── */}
-              <SectionHeader title="CHALLENGES" palette={palette} />
+              <SectionHeader title={COPY.socialHub.sectionChallenges} palette={palette} />
               <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
                 <TrophyIcon color={palette.faint} size={28} />
                 <Text style={[styles.emptyText, { color: palette.muted }]}>
-                  Challenge alerts coming soon.
+                  {COPY.socialHub.challengesComingSoon}
                 </Text>
               </View>
 
               {/* ── Following list ── */}
               <SectionHeader
-                title={following.length > 0 ? `FOLLOWING (${following.length})` : 'FOLLOWING'}
+                title={following.length > 0 ? COPY.socialHub.sectionFollowingCount(following.length) : COPY.socialHub.sectionFollowing}
                 palette={palette}
               />
               {following.length === 0 ? (
                 <View style={[styles.emptyCard, { backgroundColor: palette.surface2 }]}>
                   <UsersIcon color={palette.faint} size={28} />
                   <Text style={[styles.emptyText, { color: palette.muted }]}>
-                    You're not following anyone yet.
+                    {COPY.socialHub.notFollowingAnyone}
                   </Text>
                 </View>
               ) : (
@@ -252,8 +253,8 @@ export default function SocialHubScreen() {
                       style={[styles.findMoreChip, { backgroundColor: palette.surface2, borderColor: palette.line, marginLeft: 16 }]}
                       onPress={() => navigation.navigate('ContactSuggestions')}
                       accessibilityRole="button"
-                      accessibilityLabel="Find more friends">
-                      <Text style={[styles.findMoreLabel, { color: palette.accent }]}>Find more</Text>
+                      accessibilityLabel={COPY.socialHub.findMoreFriendsA11y}>
+                      <Text style={[styles.findMoreLabel, { color: palette.accent }]}>{COPY.socialHub.findMore}</Text>
                     </TouchableOpacity>
                   }
                 />

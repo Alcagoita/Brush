@@ -25,11 +25,12 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
+import { COPY } from '../constants/copy';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import AchievementTile, {
-  ACHIEVEMENT_CATALOGUE,
+  buildAchievementCatalogue,
   achievementsGridStyle,
 } from '../components/AchievementTile';
 import {
@@ -133,7 +134,7 @@ export default function PublicProfileScreen() {
       setFollowError('');
     } catch (err) {
       console.warn('[PublicProfileScreen] follow toggle failed', err);
-      setFollowError('Something went wrong. Please try again.');
+      setFollowError(COPY.publicProfile.followToggleFailed);
     } finally {
       setToggling(false);
     }
@@ -153,7 +154,7 @@ export default function PublicProfileScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.publicProfile.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>@{username}</Text>
@@ -167,7 +168,7 @@ export default function PublicProfileScreen() {
       ) : notFound ? (
         <View style={styles.center}>
           <Text style={[styles.notFoundText, { color: palette.muted }]}>
-            User @{username} not found.
+            {COPY.publicProfile.userNotFound(username)}
           </Text>
         </View>
       ) : targetUser ? (
@@ -180,7 +181,7 @@ export default function PublicProfileScreen() {
             <Avatar
               photoURL={null}
               size={72}
-              accessibilityLabel={`${targetUser.displayName} avatar`}
+              accessibilityLabel={COPY.publicProfile.avatarA11y(targetUser.displayName)}
             />
             <Text style={[styles.displayName, { color: palette.text }]}>
               {targetUser.displayName}
@@ -195,14 +196,14 @@ export default function PublicProfileScreen() {
                 <Text style={[styles.countNum, { color: palette.text }]}>
                   {targetUser.followersCount ?? 0}
                 </Text>
-                <Text style={[styles.countLabel, { color: palette.muted }]}>Followers</Text>
+                <Text style={[styles.countLabel, { color: palette.muted }]}>{COPY.publicProfile.followers}</Text>
               </View>
               <View style={[styles.countDivider, { backgroundColor: palette.line }]} />
               <View style={styles.countItem}>
                 <Text style={[styles.countNum, { color: palette.text }]}>
                   {targetUser.followingCount ?? 0}
                 </Text>
-                <Text style={[styles.countLabel, { color: palette.muted }]}>Following</Text>
+                <Text style={[styles.countLabel, { color: palette.muted }]}>{COPY.publicProfile.following}</Text>
               </View>
             </View>
 
@@ -222,7 +223,7 @@ export default function PublicProfileScreen() {
                 onPress={handleToggleFollow}
                 disabled={toggling}
                 accessibilityRole="button"
-                accessibilityLabel={following ? `Unfollow ${targetUser.displayName}` : `Follow ${targetUser.displayName}`}>
+                accessibilityLabel={following ? COPY.publicProfile.unfollowA11y(targetUser.displayName) : COPY.publicProfile.followA11y(targetUser.displayName)}>
                 {toggling ? (
                   <ActivityIndicator size="small" color={following ? palette.text : palette.bg} />
                 ) : (
@@ -230,7 +231,7 @@ export default function PublicProfileScreen() {
                     styles.followLabel,
                     { color: following ? palette.text : palette.bg },
                   ]}>
-                    {following ? 'Following' : 'Follow'}
+                    {following ? COPY.publicProfile.followingLabel : COPY.publicProfile.followLabel}
                   </Text>
                 )}
               </Pressable>
@@ -243,21 +244,21 @@ export default function PublicProfileScreen() {
               <Text style={[styles.statNum, { color: palette.text }]}>
                 {targetUser.totalPoints ?? 0}
               </Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Points</Text>
+              <Text style={[styles.statLabel, { color: palette.muted }]}>{COPY.publicProfile.points}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: palette.line }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statNum, { color: palette.text }]}>
                 {achievementCount}
               </Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Achievements</Text>
+              <Text style={[styles.statLabel, { color: palette.muted }]}>{COPY.achievements.screenTitle}</Text>
             </View>
             <View style={[styles.statDivider, { backgroundColor: palette.line }]} />
             <View style={styles.statItem}>
               <Text style={[styles.statNum, { color: palette.text }]}>
                 {targetUser.currentStreak ?? 0}
               </Text>
-              <Text style={[styles.statLabel, { color: palette.muted }]}>Streak</Text>
+              <Text style={[styles.statLabel, { color: palette.muted }]}>{COPY.publicProfile.streak}</Text>
             </View>
           </View>
 
@@ -271,18 +272,18 @@ export default function PublicProfileScreen() {
               ]}
               onPress={() => navigation.navigate('CompareAchievements', { friendUid: targetUser.uid, friendUsername: targetUser.username ?? username })}
               accessibilityRole="button"
-              accessibilityLabel={`Compare achievements with ${targetUser.displayName}`}>
+              accessibilityLabel={COPY.publicProfile.compareAchievementsA11y(targetUser.displayName)}>
               <Text style={[styles.compareBtnLabel, { color: palette.text }]}>
-                Compare achievements
+                {COPY.publicProfile.compareAchievements}
               </Text>
             </Pressable>
           )}
 
           {/* ── Achievements grid ── */}
-          <Text style={[styles.sectionHeading, { color: palette.text }]}>Achievements</Text>
+          <Text style={[styles.sectionHeading, { color: palette.text }]}>{COPY.achievements.screenTitle}</Text>
 
           <View style={achievementsGridStyle}>
-            {ACHIEVEMENT_CATALOGUE.map(def => {
+            {buildAchievementCatalogue().map(def => {
               const earned   = earnedMap[def.type];
               const earnedAt = earned ? formatTimestamp(earned.earnedAt) : undefined;
               return (

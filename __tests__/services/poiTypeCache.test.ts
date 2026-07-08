@@ -1,285 +1,89 @@
 /**
- * KAN-253 — poiTypeCache: local SQLite read-through cache in front of
- * maps.ts's searchPlaceTypes (Google Places Text Search, a live/billed call).
- *
- * expo-sqlite has no official Jest mock, so this file uses a small in-memory
- * mock DB that recognizes the exact queries poiTypeCache.ts issues, same
- * approach as __tests__/services/habitatCache.test.ts.
+ * KAN-253 — poiTypeCache now resolves from bundled local JSON only.
  *
  * Covers:
- *   - seedPoiTypeCacheIfEmpty seeds one row per bundled type, keyed by its
- *     normalized label, and no-ops if the table already has anything in it
- *   - lookupPoiTypeCache returns a seeded/cached hit, or null on a genuine miss
- *   - searchPlaceTypesCached short-circuits on a cache hit (no network call)
- *   - searchPlaceTypesCached falls through to the live API on a miss and
- *     persists the result (including an empty result) so it's never re-fetched
- *   - every exported function degrades to a safe default (never throws) when
- *     the underlying DB call itself throws
+ *   - English and pt-PT labels come from the active app language
+ *   - Slug / prefix matching works locally with no network path
+ *   - Generic Google types filtered out by the old live-search policy stay hidden
+ *   - Legacy compatibility exports are harmless no-ops
  */
 
-interface MockRow {
-  query_key: string;
-  results_json: string;
-  source: string;
-  created_at: number;
-}
-
-// ─── In-memory expo-sqlite mock ────────────────────────────────────────────────
-
-let rows: MockRow[] = [];
-
-const mockDb = {
-  execSync: jest.fn(),
-  getAllSync: jest.fn(<T>(sql: string, params: unknown[] = []): T[] => {
-    const s = sql.replace(/\s+/g, ' ').trim();
-
-    if (s.startsWith('SELECT results_json FROM poi_type_search WHERE query_key = ?')) {
-      const [key] = params as [string];
-      const row = rows.find(r => r.query_key === key);
-      return (row ? [{ results_json: row.results_json }] : []) as unknown as T[];
-    }
-    if (s.startsWith('SELECT 1 as one FROM poi_type_search')) {
-      return (rows.length > 0 ? [{ one: 1 }] : []) as unknown as T[];
-    }
-    if (s.startsWith("SELECT COUNT(*) as count FROM poi_type_search WHERE source = 'api'")) {
-      return [{ count: rows.filter(r => r.source === 'api').length }] as unknown as T[];
-    }
-    throw new Error(`mockDb.getAllSync: unrecognized query: ${s}`);
-  }),
-  runSync: jest.fn((sql: string, params: unknown[] = []) => {
-    const s = sql.replace(/\s+/g, ' ').trim();
-
-    if (s.startsWith('INSERT OR REPLACE INTO poi_type_search')) {
-      const [query_key, results_json, source, created_at] = params as [string, string, string, number];
-      rows = rows.filter(r => r.query_key !== query_key);
-      rows.push({ query_key, results_json, source, created_at });
-      return {} as any;
-    }
-    if (s.startsWith('INSERT OR IGNORE INTO poi_type_search')) {
-      const [query_key, results_json, source, created_at] = params as [string, string, string, number];
-      if (!rows.some(r => r.query_key === query_key)) {
-        rows.push({ query_key, results_json, source, created_at });
-      }
-      return {} as any;
-    }
-    if (s.startsWith("DELETE FROM poi_type_search WHERE query_key IN ( SELECT query_key FROM poi_type_search WHERE source = 'api' ORDER BY created_at ASC LIMIT ? )")) {
-      const [limit] = params as [number];
-      const apiOldestFirst = rows.filter(r => r.source === 'api').sort((a, b) => a.created_at - b.created_at);
-      const toDelete = new Set(apiOldestFirst.slice(0, limit).map(r => r.query_key));
-      rows = rows.filter(r => !toDelete.has(r.query_key));
-      return {} as any;
-    }
-    throw new Error(`mockDb.runSync: unrecognized query: ${s}`);
-  }),
-  withTransactionSync: jest.fn((task: () => void) => { task(); }),
-};
-
-jest.mock('expo-sqlite', () => ({
-  openDatabaseSync: jest.fn(() => mockDb),
-}));
-
-const mockSearchPlaceTypes = jest.fn();
-jest.mock('../../src/services/maps', () => {
-  const actual = jest.requireActual('../../src/services/maps');
-  return {
-    ...actual,
-    searchPlaceTypes: (...args: unknown[]) => mockSearchPlaceTypes(...args),
-  };
-});
-
-jest.mock('../../src/constants/googlePlaceTypes', () => ({
-  // 'store' is a real GENERIC_PLACE_TYPES member (maps.ts) — included here so
-  // the seed-exclusion test exercises the real isGenericPlaceType() filter,
-  // not a hand-rolled substitute.
-  GOOGLE_PLACE_TYPES_TABLE_A: ['gym', 'cafe', 'sushi_restaurant', 'store'],
-}));
-
-// ─── Imports (after mocks) ────────────────────────────────────────────────────
-
+import { setCopyLanguage } from '../../src/constants/copy';
 import {
+  __resetPoiTypeCacheDbForTests,
   lookupPoiTypeCache,
   recordPoiTypeSearch,
-  seedPoiTypeCacheIfEmpty,
   searchPlaceTypesCached,
-  __resetPoiTypeCacheDbForTests,
+  seedPoiTypeCacheIfEmpty,
 } from '../../src/services/poiTypeCache';
 
+jest.mock('../../src/config/keys', () => ({
+  GOOGLE_PLACES_API_KEY: 'TEST_KEY',
+}));
+
 beforeEach(() => {
-  rows = [];
-  jest.clearAllMocks();
+  setCopyLanguage('en');
   __resetPoiTypeCacheDbForTests();
 });
 
-describe('seedPoiTypeCacheIfEmpty', () => {
-  it('seeds one row per non-generic bundled type, keyed by its normalized label', () => {
-    seedPoiTypeCacheIfEmpty();
+afterEach(() => {
+  setCopyLanguage('en');
+});
 
-    // 4 bundled types minus 1 generic ('store') = 3 rows.
-    expect(rows).toHaveLength(3);
-    expect(lookupPoiTypeCache('Gym')).toEqual([{ type: 'gym', label: 'Gym' }]);
-    expect(lookupPoiTypeCache('sushi restaurant')).toEqual([{ type: 'sushi_restaurant', label: 'Sushi Restaurant' }]);
+describe('searchPlaceTypesCached', () => {
+  it('returns English labels from the bundled dictionary', async () => {
+    await expect(searchPlaceTypesCached('gym')).resolves.toEqual([
+      { type: 'gym', label: 'Gym' },
+    ]);
   });
 
-  it('skips a generic type (e.g. "store") — same exclusion policy as the live searchPlaceTypes results', () => {
-    seedPoiTypeCacheIfEmpty();
+  it('returns pt-PT labels from the bundled dictionary', async () => {
+    setCopyLanguage('pt-PT');
 
-    expect(lookupPoiTypeCache('store')).toBeNull();
-    expect(rows.some(r => JSON.parse(r.results_json).some((s: { type: string }) => s.type === 'store'))).toBe(false);
+    await expect(searchPlaceTypesCached('ginasio')).resolves.toEqual([
+      { type: 'gym', label: 'Ginásio' },
+    ]);
   });
 
-  it('matches a seeded type by its raw slug too (underscores normalize to spaces same as the label)', () => {
-    seedPoiTypeCacheIfEmpty();
-
-    expect(lookupPoiTypeCache('sushi_restaurant')).toEqual([{ type: 'sushi_restaurant', label: 'Sushi Restaurant' }]);
+  it('matches a raw type slug locally', async () => {
+    await expect(searchPlaceTypesCached('sushi_restaurant')).resolves.toEqual([
+      { type: 'sushi_restaurant', label: 'Sushi Restaurant' },
+    ]);
   });
 
-  it('no-ops if the table already has anything in it', () => {
-    rows.push({ query_key: 'preexisting', results_json: '[]', source: 'api', created_at: 1 });
+  it('supports prefix search without any live API fallback', async () => {
+    const results = await searchPlaceTypesCached('sushi');
 
-    seedPoiTypeCacheIfEmpty();
-
-    expect(rows).toHaveLength(1);
-    expect(mockDb.withTransactionSync).not.toHaveBeenCalled();
+    expect(results.some(result => result.type === 'sushi_restaurant')).toBe(true);
   });
 
-  it('never throws when the underlying DB call fails', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+  it('returns an empty list on a miss', async () => {
+    await expect(searchPlaceTypesCached('totally made up poi xyz')).resolves.toEqual([]);
+  });
 
-    expect(() => seedPoiTypeCacheIfEmpty()).not.toThrow();
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
+  it('keeps generic Google types hidden from results', async () => {
+    const results = await searchPlaceTypesCached('country');
+
+    expect(results.some(result => result.type === 'country')).toBe(false);
   });
 });
 
 describe('lookupPoiTypeCache', () => {
-  it('returns null on a genuine miss', () => {
-    expect(lookupPoiTypeCache('nonexistent query')).toBeNull();
+  it('returns null on a miss', () => {
+    expect(lookupPoiTypeCache('nothing here')).toBeNull();
   });
 
-  it('returns a previously recorded result on a hit', () => {
-    recordPoiTypeSearch('a nice bakery', [{ type: 'bakery', label: 'Bakery' }]);
-    expect(lookupPoiTypeCache('A Nice Bakery')).toEqual([{ type: 'bakery', label: 'Bakery' }]);
-  });
-
-  it('returns null (never throws) when the underlying DB call fails', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
-
-    expect(lookupPoiTypeCache('anything')).toBeNull();
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
-
-  // ── Boundary: empty/whitespace-only query ──────────────────────────────
-  it('returns null for an empty string without touching the DB', () => {
-    expect(lookupPoiTypeCache('')).toBeNull();
-    expect(mockDb.getAllSync).not.toHaveBeenCalled();
-  });
-
-  it('returns null for a whitespace-only query without touching the DB', () => {
-    expect(lookupPoiTypeCache('   ')).toBeNull();
-    expect(mockDb.getAllSync).not.toHaveBeenCalled();
+  it('returns local bundled suggestions on a hit', () => {
+    expect(lookupPoiTypeCache('florist')).toEqual([
+      { type: 'florist', label: 'Florist' },
+    ]);
   });
 });
 
-describe('recordPoiTypeSearch', () => {
-  it('persists an empty result too, so an unresolvable query is remembered as a miss', () => {
-    recordPoiTypeSearch('gibberish xyz', []);
-    expect(lookupPoiTypeCache('gibberish xyz')).toEqual([]);
-  });
-
-  it('never throws when the underlying DB call fails', () => {
-    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    mockDb.runSync.mockImplementationOnce(() => { throw new Error('disk full'); });
-
-    expect(() => recordPoiTypeSearch('anything', [])).not.toThrow();
-    expect(warnSpy).toHaveBeenCalled();
-    warnSpy.mockRestore();
-  });
-
-  // ── Boundary: empty/whitespace-only query ──────────────────────────────
-  it('is a no-op for an empty string — no row written, DB never touched', () => {
-    recordPoiTypeSearch('', [{ type: 'gym', label: 'Gym' }]);
-    expect(rows).toHaveLength(0);
-    expect(mockDb.runSync).not.toHaveBeenCalled();
-  });
-
-  it('is a no-op for a whitespace-only query', () => {
-    recordPoiTypeSearch('   ', [{ type: 'gym', label: 'Gym' }]);
-    expect(rows).toHaveLength(0);
-    expect(mockDb.runSync).not.toHaveBeenCalled();
-  });
-
-  // ── Boundary: too-short query (KAN-253 review — churn guard) ───────────
-  it('does not persist a query shorter than the minimum cacheable length', () => {
-    recordPoiTypeSearch('ab', [{ type: 'gym', label: 'Gym' }]);
-    expect(rows).toHaveLength(0);
-    expect(mockDb.runSync).not.toHaveBeenCalled();
-  });
-
-  it('does persist a query right at the minimum cacheable length', () => {
-    recordPoiTypeSearch('gym', [{ type: 'gym', label: 'Gym' }]);
-    expect(rows).toHaveLength(1);
-  });
-});
-
-describe('API cache budget (KAN-253 review — bounded eviction)', () => {
-  it('evicts the oldest api rows once the cap is exceeded, exempting seed rows', () => {
-    const CAP = 500; // MAX_CACHED_API_QUERIES
-    // Pre-fill one seed row (very old — must survive regardless) and exactly
-    // the cap's worth of api rows, oldest first.
-    rows.push({ query_key: 'a seeded gym', results_json: '[]', source: 'seed', created_at: 0 });
-    for (let i = 0; i < CAP; i++) {
-      rows.push({ query_key: `api query ${i}`, results_json: '[]', source: 'api', created_at: i + 1 });
-    }
-
-    // One more api write pushes the api count to CAP + 1 — must evict exactly 1.
-    recordPoiTypeSearch('one more query', [{ type: 'cafe', label: 'Cafe' }]);
-
-    const apiRows = rows.filter(r => r.source === 'api');
-    expect(apiRows).toHaveLength(CAP);
-    // The very oldest api row ("api query 0", created_at: 1) is the one evicted.
-    expect(rows.some(r => r.query_key === 'api query 0')).toBe(false);
-    expect(rows.some(r => r.query_key === 'one more query')).toBe(true);
-    // The seed row is untouched despite being the oldest row overall.
-    expect(rows.some(r => r.query_key === 'a seeded gym')).toBe(true);
-  });
-
-  it('does not evict anything while at or below the cap', () => {
-    recordPoiTypeSearch('first query', [{ type: 'cafe', label: 'Cafe' }]);
-    recordPoiTypeSearch('second query', [{ type: 'gym', label: 'Gym' }]);
-
-    expect(rows).toHaveLength(2);
-  });
-});
-
-describe('searchPlaceTypesCached', () => {
-  it('returns the cached result on a hit without calling the live API', async () => {
-    recordPoiTypeSearch('gym', [{ type: 'gym', label: 'Gym' }]);
-
-    const results = await searchPlaceTypesCached('gym');
-
-    expect(results).toEqual([{ type: 'gym', label: 'Gym' }]);
-    expect(mockSearchPlaceTypes).not.toHaveBeenCalled();
-  });
-
-  it('falls through to the live API on a miss and persists the result', async () => {
-    mockSearchPlaceTypes.mockResolvedValue([{ type: 'florist', label: 'Florist' }]);
-
-    const results = await searchPlaceTypesCached('flowers nearby');
-
-    expect(mockSearchPlaceTypes).toHaveBeenCalledWith('flowers nearby');
-    expect(results).toEqual([{ type: 'florist', label: 'Florist' }]);
-    expect(lookupPoiTypeCache('flowers nearby')).toEqual([{ type: 'florist', label: 'Florist' }]);
-  });
-
-  it('never re-fetches the same query once it has been resolved and cached', async () => {
-    mockSearchPlaceTypes.mockResolvedValue([{ type: 'florist', label: 'Florist' }]);
-
-    await searchPlaceTypesCached('flowers nearby');
-    await searchPlaceTypesCached('flowers nearby');
-
-    expect(mockSearchPlaceTypes).toHaveBeenCalledTimes(1);
+describe('legacy compatibility exports', () => {
+  it('keeps the old seed/record/reset exports as harmless no-ops', () => {
+    expect(() => seedPoiTypeCacheIfEmpty()).not.toThrow();
+    expect(() => recordPoiTypeSearch('gym', [{ type: 'gym', label: 'Gym' }])).not.toThrow();
+    expect(() => __resetPoiTypeCacheDbForTests()).not.toThrow();
   });
 });

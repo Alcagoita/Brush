@@ -46,6 +46,7 @@ import { searchPlaceTypesCached } from '../services/poiTypeCache';
 import { Category } from '../types';
 import { ChevronLeftIcon } from '../components/AppIcon';
 import { useCategoriesScreen } from '../hooks/useCategoriesScreen';
+import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -79,21 +80,31 @@ export const CATEGORY_COLORS = [
   '#7a7a7a', // gray
 ] as const;
 
-/** Quick-pick POI types shown as chips at the top of the location picker. */
-const QUICK_POI_OPTIONS: { value: string; label: string }[] = [
-  { value: 'atm',         label: 'ATM' },
-  { value: 'cafe',        label: 'Café' },
-  { value: 'supermarket', label: 'Supermarket' },
-  { value: 'pharmacy',    label: 'Pharmacy' },
-];
+/**
+ * Quick-pick POI types shown as chips at the top of the location picker, and
+ * the built-in categories derived from design tokens (never stored in
+ * Firestore) — both built by functions called inside the component instead
+ * of a module-scope constant, since COPY/`categories` are language-dynamic
+ * (KAN-252) and a module-scope read would freeze the text in whatever
+ * language was active on first import.
+ */
+function buildQuickPoiOptions(): { value: string; label: string }[] {
+  return [
+    { value: 'atm',         label: COPY.categoriesScreen.quickPickAtm },
+    { value: 'cafe',        label: COPY.categoriesScreen.quickPickCafe },
+    { value: 'supermarket', label: COPY.categoriesScreen.quickPickSupermarket },
+    { value: 'pharmacy',    label: COPY.categoriesScreen.quickPickPharmacy },
+  ];
+}
 
-/** Built-in categories derived from design tokens — never stored in Firestore. */
-const BUILT_IN_CATEGORIES: Category[] = [
-  { id: 'work',     name: 'Work',     color: builtInMeta.work.color,     poi: null,          isBuiltIn: true },
-  { id: 'health',   name: 'Health',   color: builtInMeta.health.color,   poi: 'pharmacy',    isBuiltIn: true },
-  { id: 'errands',  name: 'Errands',  color: builtInMeta.errands.color,  poi: 'supermarket', isBuiltIn: true },
-  { id: 'personal', name: 'Personal', color: builtInMeta.personal.color, poi: 'cafe',        isBuiltIn: true },
-];
+function buildBuiltInCategories(): Category[] {
+  return [
+    { id: 'work',     name: builtInMeta.work.label,     color: builtInMeta.work.color,     poi: null,          isBuiltIn: true },
+    { id: 'health',   name: builtInMeta.health.label,    color: builtInMeta.health.color,   poi: 'pharmacy',    isBuiltIn: true },
+    { id: 'errands',  name: builtInMeta.errands.label,   color: builtInMeta.errands.color,  poi: 'supermarket', isBuiltIn: true },
+    { id: 'personal', name: builtInMeta.personal.label,  color: builtInMeta.personal.color, poi: 'cafe',        isBuiltIn: true },
+  ];
+}
 
 // ─── CategoryRow ──────────────────────────────────────────────────────────────
 
@@ -109,7 +120,7 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
   return (
     <View
       style={[styles.row, { borderBottomColor: palette.line }]}
-      accessibilityLabel={`${category.name} category`}>
+      accessibilityLabel={COPY.categoriesScreen.rowA11y(category.name)}>
       {/* Colour dot */}
       <View style={[styles.colorDot, { backgroundColor: category.color }]} />
 
@@ -132,14 +143,14 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
             onPress={() => onEdit(category)}
             style={styles.actionBtn}
             accessibilityRole="button"
-            accessibilityLabel={`Edit ${category.name}`}>
-            <Text style={[styles.actionLabel, { color: palette.muted }]}>Edit</Text>
+            accessibilityLabel={COPY.categoriesScreen.editA11y(category.name)}>
+            <Text style={[styles.actionLabel, { color: palette.muted }]}>{COPY.categoriesScreen.editButton}</Text>
           </Pressable>
           <Pressable
             onPress={() => onDelete(category)}
             style={styles.deleteBtn}
             accessibilityRole="button"
-            accessibilityLabel={`Delete ${category.name}`}>
+            accessibilityLabel={COPY.categoriesScreen.deleteA11y(category.name)}>
             <Text style={styles.deleteX}>×</Text>
           </Pressable>
         </View>
@@ -160,6 +171,7 @@ interface SheetProps {
 function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
+  const quickPoiOptions = buildQuickPoiOptions();
 
   const [name,         setName]         = useState('');
   const [color,        setColor]        = useState<string>(CATEGORY_COLORS[0]);
@@ -238,7 +250,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
 
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed) { setNameErr('Please enter a category name.'); return; }
+    if (!trimmed) { setNameErr(COPY.categoriesScreen.nameRequiredError); return; }
     onSave({ name: trimmed, color, poi });
   };
 
@@ -269,31 +281,31 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
           <View style={[styles.handle, { backgroundColor: palette.faint }]} />
 
           <Text style={[styles.sheetTitle, { color: palette.text }]}>
-            {isAdd ? 'New Category' : 'Edit Category'}
+            {isAdd ? COPY.categoriesScreen.sheetTitleNew : COPY.categoriesScreen.sheetTitleEdit}
           </Text>
 
           {/* ── Name ── */}
-          <Text style={[styles.fieldLabel, { color: palette.muted }]}>NAME</Text>
+          <Text style={[styles.fieldLabel, { color: palette.muted }]}>{COPY.categoriesScreen.nameFieldLabel}</Text>
           <View style={[
             styles.nameInputWrap,
             { backgroundColor: palette.surface2, borderColor: nameErr ? ERROR_COLOR : palette.line },
           ]}>
             <TextInput
               style={[styles.nameInput, { color: palette.text }]}
-              placeholder="Category name"
+              placeholder={COPY.categoriesScreen.namePlaceholder}
               placeholderTextColor={palette.faint}
               value={name}
               onChangeText={v => { setName(v); if (nameErr) { setNameErr(''); } }}
               autoFocus={visible}
               returnKeyType="done"
               onSubmitEditing={handleSave}
-              accessibilityLabel="Category name"
+              accessibilityLabel={COPY.categoriesScreen.nameA11y}
             />
           </View>
           {nameErr ? <Text style={styles.nameErr}>{nameErr}</Text> : null}
 
           {/* ── Colour ── */}
-          <Text style={[styles.fieldLabel, { color: palette.muted }]}>COLOUR</Text>
+          <Text style={[styles.fieldLabel, { color: palette.muted }]}>{COPY.categoriesScreen.colorFieldLabel}</Text>
 
           {/* 18-colour grid */}
           <View style={styles.colorGrid}>
@@ -307,7 +319,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
                   color === c && styles.colorSwatchSelected,
                 ]}
                 accessibilityRole="radio"
-                accessibilityLabel={`Color ${c}`}
+                accessibilityLabel={COPY.categoriesScreen.swatchA11y(c)}
                 accessibilityState={{ checked: color === c }}
               />
             ))}
@@ -332,18 +344,18 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
                 style={[styles.hexInput, { color: palette.text }]}
                 value={hexInput}
                 onChangeText={handleHexChange}
-                placeholder="#rrggbb"
+                placeholder={COPY.categoriesScreen.hexPlaceholder}
                 placeholderTextColor={palette.faint}
                 autoCapitalize="none"
                 autoCorrect={false}
                 maxLength={7}
-                accessibilityLabel="Custom hex colour"
+                accessibilityLabel={COPY.categoriesScreen.hexA11y}
               />
             </View>
           </View>
 
           {/* ── Location type ── */}
-          <Text style={[styles.fieldLabel, { color: palette.muted }]}>LOCATION TYPE</Text>
+          <Text style={[styles.fieldLabel, { color: palette.muted }]}>{COPY.categoriesScreen.locationFieldLabel}</Text>
 
           {/* Quick-pick chips + None */}
           <View style={styles.quickPickRow}>
@@ -358,14 +370,14 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
                 },
               ]}
               accessibilityRole="radio"
-              accessibilityLabel="None"
+              accessibilityLabel={COPY.categoriesScreen.locationNone}
               accessibilityState={{ checked: poi === null }}>
               <Text style={[styles.poiChipText, { color: poi === null ? palette.bg : palette.muted }]}>
-                None
+                {COPY.categoriesScreen.locationNone}
               </Text>
             </Pressable>
 
-            {QUICK_POI_OPTIONS.map(opt => {
+            {quickPoiOptions.map(opt => {
               const active = poi === opt.value;
               return (
                 <Pressable
@@ -398,12 +410,12 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
               style={[styles.poiSearchInput, { color: palette.text }]}
               value={poiQuery}
               onChangeText={handlePoiSearch}
-              placeholder="Search more types…"
+              placeholder={COPY.categoriesScreen.locationSearchPlaceholder}
               placeholderTextColor={palette.faint}
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="search"
-              accessibilityLabel="Search location type"
+              accessibilityLabel={COPY.categoriesScreen.locationSearchA11y}
             />
             {poiSearching && (
               <ActivityIndicator
@@ -436,10 +448,10 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
           )}
 
           {/* Currently selected (non-quick-pick) */}
-          {poi !== null && !QUICK_POI_OPTIONS.some(o => o.value === poi) && (
+          {poi !== null && !quickPoiOptions.some(o => o.value === poi) && (
             <View style={styles.poiSelectedRow}>
               <Text style={[styles.poiSelectedLabel, { color: palette.muted }]}>
-                Selected:
+                {COPY.categoriesScreen.locationSelectedLabel}
               </Text>
               <View style={[styles.poiSelectedChip, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
                 <Text style={[styles.poiSelectedChipText, { color: palette.text }]}>
@@ -449,7 +461,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
               <Pressable
                 onPress={() => handlePoiSelect(null)}
                 accessibilityRole="button"
-                accessibilityLabel="Clear location type">
+                accessibilityLabel={COPY.categoriesScreen.locationClearA11y}>
                 <Text style={[styles.poiClearX, { color: palette.muted }]}>×</Text>
               </Pressable>
             </View>
@@ -461,8 +473,8 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
               onPress={onCancel}
               style={[styles.cancelBtn, { borderColor: palette.line }]}
               accessibilityRole="button"
-              accessibilityLabel="Cancel">
-              <Text style={[styles.cancelLabel, { color: palette.muted }]}>Cancel</Text>
+              accessibilityLabel={COPY.categoriesScreen.cancel}>
+              <Text style={[styles.cancelLabel, { color: palette.muted }]}>{COPY.categoriesScreen.cancel}</Text>
             </Pressable>
             <Pressable
               onPress={handleSave}
@@ -471,8 +483,8 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
                 { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
               ]}
               accessibilityRole="button"
-              accessibilityLabel="Save category">
-              <Text style={[styles.saveLabel, { color: palette.bg }]}>Save</Text>
+              accessibilityLabel={COPY.categoriesScreen.saveA11y}>
+              <Text style={[styles.saveLabel, { color: palette.bg }]}>{COPY.categoriesScreen.save}</Text>
             </Pressable>
           </View>
 
@@ -488,6 +500,7 @@ export default function CategoriesScreen() {
   const { palette } = useTheme();
   const insets     = useSafeAreaInsets();
   const navigation = useNavigation();
+  const builtInCategories = buildBuiltInCategories();
 
   // ── Auth ─────────────────────────────────────────────────────────────────────
   const uid = getAuth().currentUser?.uid ?? '';
@@ -518,10 +531,10 @@ export default function CategoriesScreen() {
           style={styles.backBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.categoriesScreen.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Categories</Text>
+        <Text style={[styles.title, { color: palette.text }]}>{COPY.categoriesScreen.screenTitle}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -532,9 +545,9 @@ export default function CategoriesScreen() {
         keyboardShouldPersistTaps="handled">
 
         {/* ── Built-in ── */}
-        <Text style={[styles.sectionLabel, { color: palette.muted }]}>BUILT-IN</Text>
+        <Text style={[styles.sectionLabel, { color: palette.muted }]}>{COPY.categoriesScreen.sectionBuiltIn}</Text>
         <View style={[styles.section, { borderColor: palette.line, backgroundColor: palette.surface }]}>
-          {BUILT_IN_CATEGORIES.map(cat => (
+          {builtInCategories.map(cat => (
             <CategoryRow
               key={cat.id}
               category={cat}
@@ -545,7 +558,7 @@ export default function CategoriesScreen() {
         </View>
 
         {/* ── Custom ── */}
-        <Text style={[styles.sectionLabel, { color: palette.muted }]}>CUSTOM</Text>
+        <Text style={[styles.sectionLabel, { color: palette.muted }]}>{COPY.categoriesScreen.sectionCustom}</Text>
         <View style={[styles.section, { borderColor: palette.line, backgroundColor: palette.surface }]}>
           {categoriesState.status === 'error' ? (
             // Error branch (KAN-58): show message + retry button
@@ -553,19 +566,19 @@ export default function CategoriesScreen() {
               <Text
                 style={[styles.emptyText, { color: palette.muted }]}
                 accessibilityRole="alert">
-                {categoriesState.message || 'Could not load categories. Please try again.'}
+                {categoriesState.message || COPY.categoriesScreen.loadError}
               </Text>
               <Pressable
                 onPress={() => setRetryKey(k => k + 1)}
                 style={[styles.retryBtn, { borderColor: palette.line }]}
                 accessibilityRole="button"
-                accessibilityLabel="Try again">
-                <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+                accessibilityLabel={COPY.categoriesScreen.retry}>
+                <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.categoriesScreen.retry}</Text>
               </Pressable>
             </View>
           ) : customCategories.length === 0 ? (
             <Text style={[styles.emptyText, { color: palette.muted }]}>
-              {categoriesState.status === 'loading' ? 'Loading…' : 'No custom categories yet'}
+              {categoriesState.status === 'loading' ? COPY.categoriesScreen.loading : COPY.categoriesScreen.emptyCustom}
             </Text>
           ) : (
             customCategories.map(cat => (
@@ -586,8 +599,8 @@ export default function CategoriesScreen() {
               { borderColor: palette.line, opacity: pressed ? 0.7 : 1 },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Add category">
-            <Text style={[styles.addBtnLabel, { color: palette.accent }]}>+ Add Category</Text>
+            accessibilityLabel={COPY.categoriesScreen.addCategoryA11y}>
+            <Text style={[styles.addBtnLabel, { color: palette.accent }]}>{COPY.categoriesScreen.addCategory}</Text>
           </Pressable>
         </View>
       </ScrollView>

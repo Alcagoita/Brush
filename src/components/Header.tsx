@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { BellIcon, FilledStarIcon, UsersIcon } from './AppIcon';
 import Avatar from './Avatar';
+import { COPY } from '../constants/copy';
 
 interface Props {
   displayName: string;
@@ -35,10 +36,10 @@ interface Props {
 
 function greeting(): string {
   const h = new Date().getHours();
-  if (h >= 5 && h < 12) return 'Good morning';
-  if (h >= 12 && h < 17) return 'Good afternoon';
-  if (h >= 17 && h < 22) return 'Good evening';
-  return 'Good night';
+  if (h >= 5 && h < 12) return COPY.header.goodMorning;
+  if (h >= 12 && h < 17) return COPY.header.goodAfternoon;
+  if (h >= 17 && h < 22) return COPY.header.goodEvening;
+  return COPY.header.goodNight;
 }
 
 export default function Header({
@@ -79,7 +80,7 @@ export default function Header({
         photoURL={photoURL}
         size={36}
         onPress={onAvatarPress}
-        accessibilityLabel="Open profile"
+        accessibilityLabel={COPY.header.openProfileA11y}
       />
 
       {/* Greeting + name row + optional streak chip */}
@@ -99,12 +100,12 @@ export default function Header({
               onPress={onAchievementsPress}
               disabled={!onAchievementsPress}
               accessibilityRole={onAchievementsPress ? 'button' : 'text'}
-              accessibilityLabel={`${points} achievement points · view achievements`}
+              accessibilityLabel={COPY.header.pointsA11y(points)}
               accessibilityState={{ disabled: !onAchievementsPress }}
               hitSlop={onAchievementsPress ? 6 : undefined}>
               <FilledStarIcon color={palette.accent} size={12} />
               <Text style={[styles.streakCount, { color: palette.nearText }]}>
-                {`${points} pts`}
+                {COPY.header.pointsSuffix(points)}
               </Text>
             </TouchableOpacity>
         </View>
@@ -115,7 +116,7 @@ export default function Header({
         style={styles.iconBtn}
         onPress={onPeoplePress}
         accessibilityRole="button"
-        accessibilityLabel={socialBadge > 0 ? `Social, ${socialBadge} pending` : 'Social'}>
+        accessibilityLabel={socialBadge > 0 ? COPY.header.socialA11y(socialBadge) : COPY.header.socialA11yNoBadge}>
         <UsersIcon color={palette.text} size={20} />
         {socialBadge > 0 && (
           <View style={[styles.dot, { backgroundColor: palette.accent, shadowColor: palette.bg }]} />
@@ -127,7 +128,7 @@ export default function Header({
         style={styles.iconBtn}
         onPress={onBellPress}
         accessibilityRole="button"
-        accessibilityLabel={hasUnread ? 'Notifications, unread' : 'Notifications'}>
+        accessibilityLabel={hasUnread ? COPY.header.notificationsA11yUnread : COPY.header.notificationsA11y}>
         <BellIcon color={palette.text} size={20} />
         {hasUnread && (
           <View style={[styles.dot, { backgroundColor: palette.accent, shadowColor: palette.bg }]} />

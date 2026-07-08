@@ -35,6 +35,7 @@ import { createChallenge } from '../services/challenges';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { FollowEntry } from '../types';
 import { logTap } from '../services/analytics';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateChallenge'>;
 
@@ -93,7 +94,7 @@ export default function CreateChallengeScreen() {
       .then(setFollowing)
       .catch(err => {
         console.warn('[CreateChallengeScreen] following error', err);
-        setFollowingError('Could not load your friends list. Check your connection.');
+        setFollowingError(COPY.createChallenge.followingLoadError);
       })
       .finally(() => setLoadingFollowing(false));
   }, [uid]);
@@ -148,7 +149,7 @@ export default function CreateChallengeScreen() {
       logTap('challenge_create', { type: challengeType });
       setSent(true);
     } catch (e) {
-      setError('Failed to send challenge. Please try again.');
+      setError(COPY.createChallenge.sendFailed);
     } finally {
       setSending(false);
     }
@@ -156,10 +157,10 @@ export default function CreateChallengeScreen() {
 
   // ── Render helpers ────────────────────────────────────────────────────────
   const stepTitle = {
-    type:    'New challenge',
-    params:  challengeType === 'goal' ? 'Set goal' : 'Set deadline',
-    friends: 'Choose opponents',
-    message: 'Add a message',
+    type:    COPY.createChallenge.stepTitleNew,
+    params:  challengeType === 'goal' ? COPY.createChallenge.stepTitleGoal : COPY.createChallenge.stepTitleDeadline,
+    friends: COPY.createChallenge.stepTitleFriends,
+    message: COPY.createChallenge.stepTitleMessage,
   }[step];
 
   const canContinue = (
@@ -175,14 +176,14 @@ export default function CreateChallengeScreen() {
       <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
         <View style={styles.center}>
           <TrophyIcon color={palette.accent} size={48} />
-          <Text style={[styles.sentTitle, { color: palette.text }]}>Challenge sent!</Text>
+          <Text style={[styles.sentTitle, { color: palette.text }]}>{COPY.createChallenge.sentTitle}</Text>
           <Text style={[styles.sentSub, { color: palette.muted }]}>
-            Your {isGroup ? 'group' : ''} challenge is on its way.
+            {isGroup ? COPY.createChallenge.sentSubGroup : COPY.createChallenge.sentSub}
           </Text>
           <Pressable
             style={[styles.doneBtn, { backgroundColor: palette.text }]}
             onPress={() => navigation.goBack()}>
-            <Text style={[styles.doneBtnLabel, { color: palette.bg }]}>Done</Text>
+            <Text style={[styles.doneBtnLabel, { color: palette.bg }]}>{COPY.createChallenge.done}</Text>
           </Pressable>
         </View>
       </View>
@@ -197,7 +198,7 @@ export default function CreateChallengeScreen() {
 
         {/* Top bar */}
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
-          <Pressable style={styles.navBtn} onPress={goBack} accessibilityRole="button" accessibilityLabel="Back">
+          <Pressable style={styles.navBtn} onPress={goBack} accessibilityRole="button" accessibilityLabel={COPY.createChallenge.backA11y}>
             <ChevronLeftIcon color={palette.text} size={22} />
           </Pressable>
           <Text style={[styles.title, { color: palette.text }]}>{stepTitle}</Text>
@@ -238,15 +239,15 @@ export default function CreateChallengeScreen() {
                   onPress={() => setChallengeType(t)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: isSelected }}
-                  accessibilityLabel={t === 'goal' ? 'Goal-based challenge' : 'Time-based challenge'}>
+                  accessibilityLabel={t === 'goal' ? COPY.createChallenge.goalTypeA11y : COPY.createChallenge.timeTypeA11y}>
                   <TrophyIcon color={isSelected ? palette.bg : palette.muted} size={24} />
                   <Text style={[styles.typeTitle, { color: isSelected ? palette.bg : palette.text }]}>
-                    {t === 'goal' ? 'First to X tasks' : 'Most tasks by deadline'}
+                    {t === 'goal' ? COPY.createChallenge.goalTypeTitle : COPY.createChallenge.timeTypeTitle}
                   </Text>
                   <Text style={[styles.typeSub, { color: isSelected ? palette.bg + 'cc' : palette.muted }]}>
                     {t === 'goal'
-                      ? 'Race to complete a set number of tasks'
-                      : 'Whoever completes the most tasks wins'}
+                      ? COPY.createChallenge.goalTypeSub
+                      : COPY.createChallenge.timeTypeSub}
                   </Text>
                 </Pressable>
               );
@@ -258,7 +259,7 @@ export default function CreateChallengeScreen() {
         {step === 'params' && challengeType === 'goal' && (
           <View style={styles.paramSection}>
             <Text style={[styles.paramLabel, { color: palette.muted }]}>
-              First to complete how many tasks?
+              {COPY.createChallenge.goalCountPrompt}
             </Text>
             <View style={styles.chips}>
               {GOAL_PRESETS.map(n => (
@@ -271,7 +272,7 @@ export default function CreateChallengeScreen() {
                   ]}
                   onPress={() => { setGoalCount(n); setCustomGoal(''); }}
                   accessibilityRole="button"
-                  accessibilityLabel={`${n} tasks`}>
+                  accessibilityLabel={COPY.createChallenge.taskCountA11y(n)}>
                   <Text style={[styles.chipLabel, {
                     color: goalCount === n && !customGoal ? palette.bg : palette.text,
                   }]}>{n}</Text>
@@ -280,13 +281,13 @@ export default function CreateChallengeScreen() {
             </View>
             <TextInput
               style={[styles.customInput, { color: palette.text, borderColor: customGoal ? palette.accent : palette.line, backgroundColor: palette.surface2 }]}
-              placeholder="Custom number…"
+              placeholder={COPY.createChallenge.customNumberPlaceholder}
               placeholderTextColor={palette.faint}
               keyboardType="number-pad"
               value={customGoal}
               onChangeText={v => { setCustomGoal(v.replace(/[^0-9]/g, '')); }}
               maxLength={4}
-              accessibilityLabel="Custom task count"
+              accessibilityLabel={COPY.createChallenge.customTaskCountA11y}
             />
           </View>
         )}
@@ -294,13 +295,13 @@ export default function CreateChallengeScreen() {
         {step === 'params' && challengeType === 'time' && (
           <View style={styles.paramSection}>
             <Text style={[styles.paramLabel, { color: palette.muted }]}>
-              Challenge ends at:
+              {COPY.createChallenge.challengeEndsAt}
             </Text>
             <Pressable
               style={[styles.deadlineDisplay, { backgroundColor: palette.surface2, borderColor: palette.line }]}
               onPress={() => setShowPicker(true)}
               accessibilityRole="button"
-              accessibilityLabel="Select deadline">
+              accessibilityLabel={COPY.createChallenge.selectDeadlineA11y}>
               <Text style={[styles.deadlineText, { color: palette.text }]}>
                 {deadline.toLocaleDateString()} · {deadline.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </Text>
@@ -321,22 +322,22 @@ export default function CreateChallengeScreen() {
         {step === 'friends' && (
           <View style={styles.friendsSection}>
             <Text style={[styles.paramLabel, { color: palette.muted }]}>
-              {isGroup ? `Group challenge (${selected.size} selected)` : 'Select opponents'}
+              {isGroup ? COPY.createChallenge.groupChallengeCount(selected.size) : COPY.createChallenge.selectOpponents}
             </Text>
             <View style={[styles.searchRow, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
               <TextInput
                 style={[styles.searchInput, { color: palette.text }]}
-                placeholder="Search friends…"
+                placeholder={COPY.createChallenge.searchPlaceholder}
                 placeholderTextColor={palette.faint}
                 value={query}
                 onChangeText={setQuery}
                 autoCapitalize="none"
                 autoCorrect={false}
-                accessibilityLabel="Search friends"
+                accessibilityLabel={COPY.createChallenge.searchA11y}
               />
             </View>
             {loadingFollowing ? (
-              <ActivityIndicator color={palette.muted} accessibilityLabel="Loading friends" />
+              <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.createChallenge.loadingFriendsA11y} />
             ) : followingError ? (
               <Text style={[styles.emptyText, { color: '#e05252' }]} accessibilityRole="alert">
                 {followingError}
@@ -376,7 +377,7 @@ export default function CreateChallengeScreen() {
                 }}
                 ListEmptyComponent={
                   <Text style={[styles.emptyText, { color: palette.muted }]}>
-                    {following.length === 0 ? "You're not following anyone yet." : `No friends match "${query}".`}
+                    {following.length === 0 ? COPY.createChallenge.notFollowingAnyone : COPY.createChallenge.noMatches(query)}
                   </Text>
                 }
               />
@@ -388,17 +389,17 @@ export default function CreateChallengeScreen() {
         {step === 'message' && (
           <View style={styles.messageSection}>
             <Text style={[styles.paramLabel, { color: palette.muted }]}>
-              Add a message (optional)
+              {COPY.createChallenge.addMessageOptional}
             </Text>
             <TextInput
               style={[styles.messageInput, { color: palette.text, borderColor: palette.line, backgroundColor: palette.surface2 }]}
-              placeholder="Let's see what you've got! 💪"
+              placeholder={COPY.createChallenge.messagePlaceholder}
               placeholderTextColor={palette.faint}
               value={message}
               onChangeText={v => setMessage(v.slice(0, 100))}
               multiline
               maxLength={100}
-              accessibilityLabel="Challenge message"
+              accessibilityLabel={COPY.createChallenge.messageA11y}
             />
             <Text style={[styles.charCount, { color: palette.faint }]}>
               {message.length}/100
@@ -406,14 +407,14 @@ export default function CreateChallengeScreen() {
 
             {/* Summary */}
             <View style={[styles.summary, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
-              <Text style={[styles.summaryLabel, { color: palette.muted }]}>Challenge summary</Text>
+              <Text style={[styles.summaryLabel, { color: palette.muted }]}>{COPY.createChallenge.challengeSummary}</Text>
               <Text style={[styles.summaryLine, { color: palette.text }]}>
-                Type: {challengeType === 'goal'
-                  ? `First to ${customGoal || goalCount} tasks`
-                  : `Most tasks by ${deadline.toLocaleDateString()}`}
+                {challengeType === 'goal'
+                  ? COPY.createChallenge.typeGoalSummary(customGoal || goalCount)
+                  : COPY.createChallenge.typeDeadlineSummary(deadline.toLocaleDateString())}
               </Text>
               <Text style={[styles.summaryLine, { color: palette.text }]}>
-                Opponents: {selectedFriends.map(f => f.username ? `@${f.username}` : f.displayName).join(', ')}
+                {COPY.createChallenge.opponentsSummary(selectedFriends.map(f => f.username ? `@${f.username}` : f.displayName).join(', '))}
               </Text>
             </View>
 
@@ -435,13 +436,13 @@ export default function CreateChallengeScreen() {
           onPress={step === 'message' ? handleSend : goNext}
           disabled={step === 'message' ? sending : !canContinue}
           accessibilityRole="button"
-          accessibilityLabel={step === 'message' ? 'Send challenge' : 'Continue'}>
+          accessibilityLabel={step === 'message' ? COPY.createChallenge.sendChallengeA11y : COPY.createChallenge.continueA11y}>
           {sending
             ? <ActivityIndicator color={palette.bg} />
             : <Text style={[styles.ctaLabel, {
                 color: (step === 'message' ? true : canContinue) ? palette.bg : palette.faint,
               }]}>
-                {step === 'message' ? 'Send challenge' : 'Continue'}
+                {step === 'message' ? COPY.createChallenge.sendChallenge : COPY.createChallenge.continue}
               </Text>
           }
         </Pressable>

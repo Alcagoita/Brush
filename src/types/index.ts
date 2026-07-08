@@ -1,4 +1,5 @@
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
+import { COPY } from '../constants/copy';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -28,6 +29,9 @@ export interface User {
   email: string;
   displayName: string;
   darkMode: boolean;
+  /** UI language (KAN-252) — defaults to the device's system language until
+   *  explicitly set. 'en' | 'pt-PT' (never pt-BR). */
+  language?: 'en' | 'pt-PT';
   createdAt: FirebaseFirestoreTypes.Timestamp;
   /**
    * Unique handle chosen at sign-up (KAN-97).
@@ -105,25 +109,21 @@ export type PoiType =
   | 'library' | 'post' | 'store' | 'clinic' | 'salon'
   | 'bus' | 'school';
 
-/** Display label for each POI type. */
-export const POI_CATALOG: { type: PoiType; label: string }[] = [
-  { type: 'atm',         label: 'ATM'        },
-  { type: 'cafe',        label: 'Café'       },
-  { type: 'supermarket', label: 'Market'     },
-  { type: 'pharmacy',    label: 'Pharmacy'   },
-  { type: 'gas',         label: 'Gas'        },
-  { type: 'gym',         label: 'Gym'        },
-  { type: 'bank',        label: 'Bank'       },
-  { type: 'restaurant',  label: 'Restaurant' },
-  { type: 'park',        label: 'Park'       },
-  { type: 'library',     label: 'Library'    },
-  { type: 'post',        label: 'Post'       },
-  { type: 'store',       label: 'Store'      },
-  { type: 'clinic',      label: 'Clinic'     },
-  { type: 'salon',       label: 'Salon'      },
-  { type: 'bus',         label: 'Bus'        },
-  { type: 'school',      label: 'School'     },
+/** The 16 built-in POI types, in catalog display order. */
+export const POI_CATALOG: { type: PoiType }[] = [
+  { type: 'atm' }, { type: 'cafe' }, { type: 'supermarket' }, { type: 'pharmacy' },
+  { type: 'gas' }, { type: 'gym' }, { type: 'bank' }, { type: 'restaurant' },
+  { type: 'park' }, { type: 'library' }, { type: 'post' }, { type: 'store' },
+  { type: 'clinic' }, { type: 'salon' }, { type: 'bus' }, { type: 'school' },
 ];
+
+/**
+ * Display label for a built-in POI type — reads live from COPY (KAN-252)
+ * rather than a static field on POI_CATALOG, so it stays language-aware.
+ */
+export function poiCatalogLabel(type: PoiType): string {
+  return COPY.poiCatalog[type];
+}
 
 /**
  * All 16 built-in POI types, derived from POI_CATALOG. Used by the habitat

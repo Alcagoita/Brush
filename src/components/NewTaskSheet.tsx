@@ -43,7 +43,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
 import { categories, fonts } from '../theme/tokens';
-import { PoiType, CategoryKey, Category, POI_CATALOG } from '../types';
+import { PoiType, CategoryKey, Category, POI_CATALOG, poiCatalogLabel } from '../types';
 import { addTask } from '../services/firestore';
 import { inferPoiForQuickAdd, learnFromClassification, learnFromUserEdit } from '../services/poiLlm';
 import { CloseIcon, PoiIcon } from './AppIcon';
@@ -372,9 +372,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     // different catalog pick must NOT blank the guess back out, it only
     // stops being the current `poi` value (handled inside SuggestionTile).
     const suggestionType     = suggestedPoi;
-    const suggestionLabel    = suggestionType
-      ? POI_CATALOG.find(c => c.type === suggestionType)?.label ?? null
-      : null;
+    const suggestionLabel    = suggestionType ? poiCatalogLabel(suggestionType) : null;
     const suggestionSelected = suggestionType !== null && poi === suggestionType;
 
     const handleSubmit = useCallback(async () => {
@@ -464,7 +462,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 style={[styles.closeBtn, { backgroundColor: palette.surface }]}
                 onPress={handleClose}
                 accessibilityRole="button"
-                accessibilityLabel="Close">
+                accessibilityLabel={COPY.newTaskSheet2.closeA11y}>
                 <CloseIcon color={palette.muted} />
               </Pressable>
             </View>
@@ -550,11 +548,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   }}
                   palette={palette}
                 />
-                {POI_CATALOG.map(({ type, label }) => (
+                {POI_CATALOG.map(({ type }) => (
                   <PoiTile
                     key={type}
                     type={type}
-                    label={label}
+                    label={poiCatalogLabel(type)}
                     selected={poi === type}
                     onPress={() => {
                       userTouchedPoiRef.current = true;
@@ -631,7 +629,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   style={[styles.ctaGhost, { borderColor: palette.line }]}
                   onPress={handleMoreDetails}
                   accessibilityRole="button"
-                  accessibilityLabel="More details">
+                  accessibilityLabel={COPY.newTaskSheet2.moreDetailsA11y}>
                   <Text style={[styles.ctaGhostLabel, { color: palette.muted }]}>
                     {COPY.newTaskSheet.moreDetails}
                   </Text>

@@ -32,6 +32,7 @@ import Avatar from './Avatar';
 import { getFollowing } from '../services/firestore';
 import { sendSharedTask } from '../services/sharing';
 import type { FollowEntry, Task } from '../types';
+import { COPY } from '../constants/copy';
 
 export interface FriendPickerSheetProps {
   visible:         boolean;
@@ -66,7 +67,7 @@ export default function FriendPickerSheet({
       .then(setFollowing)
       .catch(err => {
         console.warn('[FriendPickerSheet] following error', err);
-        setFollowingError('Could not load your friends list. Check your connection.');
+        setFollowingError(COPY.friendPicker.followingLoadError);
       })
       .finally(() => setLoadingFollowing(false));
   }, [visible, senderUid]);
@@ -122,7 +123,7 @@ export default function FriendPickerSheet({
     setSentTo(newSent);
     setSelected(new Set());
     if (failed.length > 0) {
-      setError(`Could not send to: ${failed.join(', ')}`);
+      setError(COPY.friendPicker.sendFailed(failed.join(', ')));
     }
     setSending(false);
   };
@@ -148,7 +149,7 @@ export default function FriendPickerSheet({
         </View>
         {isSent ? (
           <Text style={[styles.sentLabel, { color: palette.accent }]}>
-            {item.username ? `Brushed to @${item.username}` : 'Brushed ✓'}
+            {item.username ? COPY.friendPicker.sentToHandle(item.username) : COPY.friendPicker.sentCheck}
           </Text>
         ) : (
           <View style={[
@@ -165,7 +166,7 @@ export default function FriendPickerSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.scrim} onPress={handleClose} accessibilityLabel="Close" />
+      <Pressable style={styles.scrim} onPress={handleClose} accessibilityLabel={COPY.friendPicker.closeA11y} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.wrapper}>
@@ -177,15 +178,15 @@ export default function FriendPickerSheet({
 
           {/* Header */}
           <View style={[styles.header, { borderBottomColor: palette.line }]}>
-            <Text style={[styles.title, { color: palette.text }]}>Brush this over to…</Text>
-            <Pressable onPress={handleClose} hitSlop={12} accessibilityLabel="Close">
+            <Text style={[styles.title, { color: palette.text }]}>{COPY.friendPicker.title}</Text>
+            <Pressable onPress={handleClose} hitSlop={12} accessibilityLabel={COPY.friendPicker.closeA11y}>
               <Text style={[styles.closeBtn, { color: palette.muted }]}>✕</Text>
             </Pressable>
           </View>
 
           {/* Task preview */}
           <View style={[styles.taskPreview, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
-            <Text style={[styles.taskLabel, { color: palette.muted }]}>Task</Text>
+            <Text style={[styles.taskLabel, { color: palette.muted }]}>{COPY.friendPicker.taskLabel}</Text>
             <Text style={[styles.taskTitle, { color: palette.text }]} numberOfLines={1}>
               {task.title}
             </Text>
@@ -195,20 +196,20 @@ export default function FriendPickerSheet({
           <View style={[styles.searchRow, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
             <TextInput
               style={[styles.searchInput, { color: palette.text }]}
-              placeholder="Search friends…"
+              placeholder={COPY.friendPicker.searchPlaceholder}
               placeholderTextColor={palette.faint}
               value={query}
               onChangeText={setQuery}
               autoCapitalize="none"
               autoCorrect={false}
-              accessibilityLabel="Search friends"
+              accessibilityLabel={COPY.friendPicker.searchA11y}
             />
           </View>
 
           {/* Friend list */}
           {loadingFollowing ? (
             <View style={styles.emptyWrap}>
-              <ActivityIndicator color={palette.muted} accessibilityLabel="Loading friends" />
+              <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.friendPicker.loadingA11y} />
             </View>
           ) : followingError ? (
             <View style={styles.emptyWrap}>
@@ -219,7 +220,7 @@ export default function FriendPickerSheet({
           ) : following.length === 0 ? (
             <View style={styles.emptyWrap}>
               <Text style={[styles.emptyText, { color: palette.muted }]}>
-                You're not following anyone yet.
+                {COPY.friendPicker.notFollowingAnyone}
               </Text>
             </View>
           ) : (
@@ -232,7 +233,7 @@ export default function FriendPickerSheet({
               ListEmptyComponent={
                 <View style={styles.emptyWrap}>
                   <Text style={[styles.emptyText, { color: palette.muted }]}>
-                    No friends match "{query}".
+                    {COPY.friendPicker.noMatches(query)}
                   </Text>
                 </View>
               }
@@ -254,11 +255,11 @@ export default function FriendPickerSheet({
             onPress={handleSend}
             disabled={!canSend}
             accessibilityRole="button"
-            accessibilityLabel={selected.size > 0 ? `Brush it over to ${selected.size} friend${selected.size > 1 ? 's' : ''}` : 'Select friends first'}>
+            accessibilityLabel={selected.size > 0 ? COPY.friendPicker.sendAtLeastOneA11y(selected.size) : COPY.friendPicker.selectFriendsFirstA11y}>
             {sending
               ? <ActivityIndicator color={palette.bg} />
               : <Text style={[styles.sendLabel, { color: canSend ? palette.bg : palette.faint }]}>
-                  {selected.size > 0 ? 'Brush it over' : 'Select friends first'}
+                  {selected.size > 0 ? COPY.friendPicker.sendButton : COPY.friendPicker.selectFriendsFirstButton}
                 </Text>
             }
           </Pressable>

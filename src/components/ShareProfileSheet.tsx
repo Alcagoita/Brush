@@ -42,6 +42,7 @@ import {
   StarIcon,
 } from './AppIcon';
 import Avatar from './Avatar';
+import { COPY } from '../constants/copy';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -171,7 +172,7 @@ export default function ShareProfileSheet({
           style={StyleSheet.absoluteFill}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close sheet"
+          accessibilityLabel={COPY.shareProfileSheet.closeSheetA11y}
         />
       </Animated.View>
 
@@ -195,13 +196,13 @@ export default function ShareProfileSheet({
         {/* Header row */}
         <View style={styles.headerRow}>
           <Text style={[styles.headerTitle, { color: palette.text }]}>
-            Share my profile
+            {COPY.shareProfileSheet.headerTitle}
           </Text>
           <Pressable
             style={[styles.closeBtn, { backgroundColor: palette.surface2 }]}
             onPress={onClose}
             accessibilityRole="button"
-            accessibilityLabel="Close">
+            accessibilityLabel={COPY.shareProfileSheet.closeA11y}>
             <CloseIcon color={palette.muted} size={16} />
           </Pressable>
         </View>
@@ -216,7 +217,7 @@ export default function ShareProfileSheet({
             photoURL={photoURL ?? null}
             displayName={displayName}
             size={46}
-            accessibilityLabel="Profile photo"
+            accessibilityLabel={COPY.shareProfileSheet.profilePhotoA11y}
           />
           <View style={styles.miniCardText}>
             <Text style={[styles.miniCardName, { color: palette.text }]} numberOfLines={1}>
@@ -237,7 +238,7 @@ export default function ShareProfileSheet({
             ]}>
             <StarIcon color={palette.nearText} size={10} />
             <Text style={[styles.pointsPillText, { color: palette.nearText }]}>
-              {`${totalPoints} pts`}
+              {COPY.shareProfileSheet.pointsPill(totalPoints)}
             </Text>
           </View>
         </View>
@@ -246,19 +247,19 @@ export default function ShareProfileSheet({
         {!username ? (
           <View style={styles.noUsernameWrap}>
             <Text style={[styles.noUsernameTitle, { color: palette.text }]}>
-              Set a username first
+              {COPY.shareProfileSheet.setUsernameFirst}
             </Text>
             <Text style={[styles.noUsernameBody, { color: palette.muted }]}>
-              Your profile link uses your username — add one to share your profile.
+              {COPY.shareProfileSheet.setUsernameBody}
             </Text>
             {onSetUsername ? (
               <Pressable
                 style={[styles.setUsernameBtn, { backgroundColor: palette.text }]}
                 onPress={() => { onClose(); onSetUsername(); }}
                 accessibilityRole="button"
-                accessibilityLabel="Set username">
+                accessibilityLabel={COPY.shareProfileSheet.setUsernameA11y}>
                 <Text style={[styles.setUsernameBtnLabel, { color: palette.bg }]}>
-                  Set username
+                  {COPY.shareProfileSheet.setUsername}
                 </Text>
               </Pressable>
             ) : null}
@@ -271,7 +272,7 @@ export default function ShareProfileSheet({
               style={[styles.targetTile, { backgroundColor: palette.surface }]}
               onPress={handleCopyLink}
               accessibilityRole="button"
-              accessibilityLabel={copied ? 'Link copied' : 'Copy link'}>
+              accessibilityLabel={copied ? COPY.shareProfileSheet.linkCopiedA11y : COPY.shareProfileSheet.copyLinkA11y}>
               <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
                 {copied
                   ? <CheckIcon color={palette.accent} size={22} />
@@ -279,7 +280,7 @@ export default function ShareProfileSheet({
                 }
               </View>
               <Text style={[styles.targetLabel, { color: copied ? palette.accent : palette.muted }]}>
-                {copied ? 'Copied!' : 'Copy link'}
+                {copied ? COPY.shareProfileSheet.copied : COPY.shareProfileSheet.copyLink}
               </Text>
             </Pressable>
 
@@ -288,11 +289,11 @@ export default function ShareProfileSheet({
               style={[styles.targetTile, { backgroundColor: palette.surface }]}
               onPress={handleShare}
               accessibilityRole="button"
-              accessibilityLabel="Share via message">
+              accessibilityLabel={COPY.shareProfileSheet.shareViaMessageA11y}>
               <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
                 <MessageIcon color={palette.muted} size={22} />
               </View>
-              <Text style={[styles.targetLabel, { color: palette.muted }]}>Message</Text>
+              <Text style={[styles.targetLabel, { color: palette.muted }]}>{COPY.shareProfileSheet.message}</Text>
             </Pressable>
 
             {/* QR code — v1 placeholder */}
@@ -300,11 +301,11 @@ export default function ShareProfileSheet({
               style={[styles.targetTile, { backgroundColor: palette.surface }]}
               onPress={() => { /* v1 placeholder — no destination */ }}
               accessibilityRole="button"
-              accessibilityLabel="Show QR code (coming soon)">
+              accessibilityLabel={COPY.shareProfileSheet.qrCodeComingSoonA11y}>
               <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
                 <QrCodeIcon color={palette.faint} size={22} />
               </View>
-              <Text style={[styles.targetLabel, { color: palette.faint }]}>QR code</Text>
+              <Text style={[styles.targetLabel, { color: palette.faint }]}>{COPY.shareProfileSheet.qrCode}</Text>
             </Pressable>
 
             {/* More */}
@@ -312,11 +313,11 @@ export default function ShareProfileSheet({
               style={[styles.targetTile, { backgroundColor: palette.surface }]}
               onPress={handleShare}
               accessibilityRole="button"
-              accessibilityLabel="More sharing options">
+              accessibilityLabel={COPY.shareProfileSheet.moreSharingA11y}>
               <View style={[styles.targetIconWell, { backgroundColor: palette.surface2 }]}>
                 <GridIcon color={palette.muted} size={22} />
               </View>
-              <Text style={[styles.targetLabel, { color: palette.muted }]}>More</Text>
+              <Text style={[styles.targetLabel, { color: palette.muted }]}>{COPY.shareProfileSheet.more}</Text>
             </Pressable>
 
           </View>

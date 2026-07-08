@@ -10,6 +10,7 @@ import { getDoc, writeBatch, getFirestore, serverTimestamp, Timestamp } from '@r
 import type { User } from '../../types';
 import { userRef, usernameIndexRef } from './refs';
 import { getUser } from './users';
+import { COPY } from '../../constants/copy';
 
 /**
  * Usernames are stored and compared in lowercase only — `alice` and `Alice`
@@ -29,9 +30,9 @@ export const USERNAME_GRACE_HOURS   = 24;
  * passing (e.g. `raw.toLowerCase()`).
  */
 export function validateUsername(v: string): string | null {
-  if (v.length < USERNAME_MIN) { return `At least ${USERNAME_MIN} characters required.`; }
-  if (v.length > USERNAME_MAX) { return `Maximum ${USERNAME_MAX} characters.`; }
-  if (!USERNAME_REGEX.test(v)) { return 'Only lowercase letters, numbers, and underscores.'; }
+  if (v.length < USERNAME_MIN) { return COPY.usernameSetup.errorTooShort(USERNAME_MIN); }
+  if (v.length > USERNAME_MAX) { return COPY.usernameSetup.errorTooLong(USERNAME_MAX); }
+  if (!USERNAME_REGEX.test(v)) { return COPY.usernameSetup.errorInvalidChars; }
   return null;
 }
 

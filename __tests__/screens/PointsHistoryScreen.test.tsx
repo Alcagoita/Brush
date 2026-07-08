@@ -18,7 +18,7 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import PointsHistoryScreen from '../../src/screens/PointsHistoryScreen';
-import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
+import { buildAchievementCatalogue } from '../../src/components/AchievementTile';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -256,7 +256,7 @@ describe('PointsHistoryScreen — points history', () => {
 describe('PointsHistoryScreen — achievements gallery', () => {
   it('renders all catalogue achievements', async () => {
     await renderScreen();
-    ACHIEVEMENT_CATALOGUE.forEach((def) => {
+    buildAchievementCatalogue().forEach((def) => {
       expect(screen.getByLabelText(`${def.label} achievement, locked`)).toBeTruthy();
     });
   });

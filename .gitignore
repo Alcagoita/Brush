@@ -141,3 +141,4 @@ web-build/
 
 # Project instructions — local-only, not committed (see chore/untrack-claude-md)
 /CLAUDE.md
+/AGENTS.md

@@ -39,6 +39,7 @@ import { PoiIcon } from '../components/AppIcon';
 import type { PoiType } from '../types';
 import { todayISO } from '../utils/date';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import { COPY } from '../constants/copy';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -47,12 +48,14 @@ type ScreenState =
   | { kind: 'confirmation'; title: string; poi: PoiType | null; time: string | null }
   | { kind: 'failure' };
 
-const POI_OPTIONS: { type: PoiType; label: string }[] = [
-  { type: 'atm',         label: 'ATM'      },
-  { type: 'cafe',        label: 'Café'     },
-  { type: 'supermarket', label: 'Market'   },
-  { type: 'pharmacy',    label: 'Pharmacy' },
-];
+function buildPoiOptions(): { type: PoiType; label: string }[] {
+  return [
+    { type: 'atm',         label: COPY.shareReceive.poiLabelAtm         },
+    { type: 'cafe',        label: COPY.shareReceive.poiLabelCafe        },
+    { type: 'supermarket', label: COPY.shareReceive.poiLabelSupermarket },
+    { type: 'pharmacy',    label: COPY.shareReceive.poiLabelPharmacy    },
+  ];
+}
 
 function formatDueDate(d: Date): string {
   return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -115,6 +118,7 @@ export default function ShareReceiveScreen() {
   const route       = useRoute<RouteProp<RootStackParamList, 'ShareReceive'>>();
 
   const { sharedText } = route.params;
+  const poiOptions = buildPoiOptions();
 
   // ── Screen state (loading → confirmation | failure) ─────────────────────────
   const [screenState, setScreenState] = useState<ScreenState>({ kind: 'loading' });
@@ -189,7 +193,7 @@ export default function ShareReceiveScreen() {
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
     if (!trimmed) {
-      setTitleError('Title is required.');
+      setTitleError(COPY.shareReceive.titleRequired);
       titleRef.current?.focus();
       return;
     }
@@ -254,12 +258,12 @@ export default function ShareReceiveScreen() {
           onPress={handleDiscard}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Discard">
-          <Text style={[styles.navCancel, { color: palette.muted }]}>Discard</Text>
+          accessibilityLabel={COPY.shareReceive.discardA11y}>
+          <Text style={[styles.navCancel, { color: palette.muted }]}>{COPY.shareReceive.discard}</Text>
         </Pressable>
-        <Text style={[styles.navTitle, { color: palette.text }]}>Add from message</Text>
+        <Text style={[styles.navTitle, { color: palette.text }]}>{COPY.shareReceive.navTitle}</Text>
         {/* spacer — keeps title centred */}
-        <Text style={[styles.navCancel, { color: 'transparent' }]}>Discard</Text>
+        <Text style={[styles.navCancel, { color: 'transparent' }]}>{COPY.shareReceive.discard}</Text>
       </View>
 
       {/* ── Loading ── */}
@@ -275,7 +279,7 @@ export default function ShareReceiveScreen() {
             </Text>
           </View>
           <ActivityIndicator size="large" color={palette.accent} style={styles.spinner} />
-          <Text style={[styles.loadingLabel, { color: palette.muted }]}>Parsing message…</Text>
+          <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.shareReceive.parsingMessage}</Text>
         </View>
       )}
 
@@ -294,15 +298,15 @@ export default function ShareReceiveScreen() {
             <View style={[styles.failureNote, { backgroundColor: palette.surface, borderColor: palette.line }]}
               testID="failure-note">
               <Text style={[styles.failureNoteText, { color: palette.muted }]}>
-                We couldn't parse a brush automatically. Add the details manually.
+                {COPY.shareReceive.couldntParse}
               </Text>
               <Pressable
                 onPress={handleRetry}
                 hitSlop={8}
                 accessibilityRole="button"
-                accessibilityLabel="Try again"
+                accessibilityLabel={COPY.shareReceive.tryAgainA11y}
                 testID="retry-btn">
-                <Text style={[styles.retryLabel, { color: palette.accent }]}>Try again</Text>
+                <Text style={[styles.retryLabel, { color: palette.accent }]}>{COPY.shareReceive.tryAgain}</Text>
               </Pressable>
             </View>
           )}
@@ -310,7 +314,7 @@ export default function ShareReceiveScreen() {
           {/* ── AI suggestion label (confirmation only) ── */}
           {screenState.kind === 'confirmation' && (
             <Text style={[styles.aiLabel, { color: palette.accent }]}>
-              AI suggestion — tap to edit
+              {COPY.shareReceive.aiSuggestion}
             </Text>
           )}
 
@@ -318,13 +322,13 @@ export default function ShareReceiveScreen() {
           <TextInput
             ref={titleRef}
             style={[styles.titleInput, { color: palette.text, borderBottomColor: palette.line }]}
-            placeholder="Brush title"
+            placeholder={COPY.shareReceive.titlePlaceholder}
             placeholderTextColor={palette.faint}
             value={title}
             onChangeText={v => { setTitle(v); if (titleError) { setTitleError(''); } }}
             autoFocus={screenState.kind === 'failure'}
             returnKeyType="done"
-            accessibilityLabel="Title"
+            accessibilityLabel={COPY.shareReceive.titleA11y}
             maxLength={200}
             testID="title-input"
           />
@@ -338,7 +342,7 @@ export default function ShareReceiveScreen() {
               {/* POI chips */}
               <View style={[styles.divider, { backgroundColor: palette.line }]} />
               <View style={styles.section}>
-                <SectionLabel label="LOCATION" color={palette.muted} />
+                <SectionLabel label={COPY.shareReceive.sectionLocation} color={palette.muted} />
                 <View style={styles.poiRow}>
                   {/* None pill */}
                   <Pressable
@@ -353,10 +357,10 @@ export default function ShareReceiveScreen() {
                       },
                     ]}>
                     <Text style={[styles.poiChipLabel, { color: poi === null ? palette.text : palette.muted }]}>
-                      None
+                      {COPY.shareReceive.poiNone}
                     </Text>
                   </Pressable>
-                  {POI_OPTIONS.map(opt => (
+                  {poiOptions.map(opt => (
                     <PoiChipBtn
                       key={opt.type}
                       type={opt.type}
@@ -372,7 +376,7 @@ export default function ShareReceiveScreen() {
               {/* Time */}
               <View style={[styles.divider, { backgroundColor: palette.line }]} />
               <View style={styles.section}>
-                <SectionLabel label="TIME" color={palette.muted} />
+                <SectionLabel label={COPY.shareReceive.sectionTime} color={palette.muted} />
                 {time ? (
                   <View style={styles.chipRow}>
                     <Pressable
@@ -384,7 +388,7 @@ export default function ShareReceiveScreen() {
                       onPress={() => setTime(null)}
                       hitSlop={8}
                       style={[styles.chipClear, { borderColor: palette.line }]}
-                      accessibilityLabel="Clear time">
+                      accessibilityLabel={COPY.shareReceive.clearTimeA11y}>
                       <Text style={[styles.chipClearLabel, { color: palette.accent }]}>✕</Text>
                     </Pressable>
                   </View>
@@ -392,8 +396,8 @@ export default function ShareReceiveScreen() {
                   <Pressable
                     onPress={() => setShowTimePicker(true)}
                     style={[styles.addChipBtn, { borderColor: palette.line }]}
-                    accessibilityLabel="Set time">
-                    <Text style={[styles.addChipLabel, { color: palette.muted }]}>Set time</Text>
+                    accessibilityLabel={COPY.shareReceive.setTimeA11y}>
+                    <Text style={[styles.addChipLabel, { color: palette.muted }]}>{COPY.shareReceive.setTime}</Text>
                   </Pressable>
                 )}
                 {showTimePicker && (
@@ -416,7 +420,7 @@ export default function ShareReceiveScreen() {
               {/* Due date */}
               <View style={[styles.divider, { backgroundColor: palette.line }]} />
               <View style={styles.section}>
-                <SectionLabel label="DUE DATE" color={palette.muted} />
+                <SectionLabel label={COPY.shareReceive.sectionDueDate} color={palette.muted} />
                 {dueDate ? (
                   <View style={styles.chipRow}>
                     <Pressable
@@ -430,7 +434,7 @@ export default function ShareReceiveScreen() {
                       onPress={() => setDueDate(null)}
                       hitSlop={8}
                       style={[styles.chipClear, { borderColor: palette.line }]}
-                      accessibilityLabel="Clear date">
+                      accessibilityLabel={COPY.shareReceive.clearDateA11y}>
                       <Text style={[styles.chipClearLabel, { color: palette.accent }]}>✕</Text>
                     </Pressable>
                   </View>
@@ -438,8 +442,8 @@ export default function ShareReceiveScreen() {
                   <Pressable
                     onPress={() => setShowDatePicker(true)}
                     style={[styles.addChipBtn, { borderColor: palette.line }]}
-                    accessibilityLabel="Set due date">
-                    <Text style={[styles.addChipLabel, { color: palette.muted }]}>Set date</Text>
+                    accessibilityLabel={COPY.shareReceive.setDateA11y}>
+                    <Text style={[styles.addChipLabel, { color: palette.muted }]}>{COPY.shareReceive.setDate}</Text>
                   </Pressable>
                 )}
                 {showDatePicker && (
@@ -459,7 +463,7 @@ export default function ShareReceiveScreen() {
               {/* Category */}
               <View style={[styles.divider, { backgroundColor: palette.line }]} />
               <View style={styles.section}>
-                <SectionLabel label="CATEGORY" color={palette.muted} />
+                <SectionLabel label={COPY.shareReceive.sectionCategory} color={palette.muted} />
                 <View style={styles.pillWrap}>
                   {allCategories.map(cat => (
                     <Pressable
@@ -494,10 +498,10 @@ export default function ShareReceiveScreen() {
               { backgroundColor: submitting ? palette.faint : palette.text },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Add brush"
+            accessibilityLabel={COPY.shareReceive.addBrushA11y}
             testID="add-task-btn">
             <Text style={[styles.addBtnLabel, { color: palette.bg }]}>
-              {submitting ? 'Saving…' : 'Add brush'}
+              {submitting ? COPY.shareReceive.saving : COPY.shareReceive.addBrush}
             </Text>
           </Pressable>
 
@@ -506,9 +510,9 @@ export default function ShareReceiveScreen() {
             disabled={submitting}
             style={styles.discardBtn}
             accessibilityRole="button"
-            accessibilityLabel="Discard"
+            accessibilityLabel={COPY.shareReceive.discardA11y}
             testID="discard-btn">
-            <Text style={[styles.discardBtnLabel, { color: palette.muted }]}>Discard</Text>
+            <Text style={[styles.discardBtnLabel, { color: palette.muted }]}>{COPY.shareReceive.discard}</Text>
           </Pressable>
 
         </ScrollView>

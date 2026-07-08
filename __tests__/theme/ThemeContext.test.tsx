@@ -3,10 +3,13 @@
  *
  * Covers:
  *   - Initial state follows device Appearance API
+ *   - Initial language follows the mocked device locale
  *   - Children are not rendered until the saved preference is known (themeReady gate)
  *   - setDark() updates local state immediately (before Firestore resolves)
  *   - setDark() persists the preference to Firestore
+ *   - setLanguage() updates local state immediately and persists best-effort
  *   - Firestore load does NOT overwrite an explicit user toggle (race-condition guard)
+ *   - Firestore language load does NOT overwrite an explicit user choice
  *   - Firestore read error falls back to device preference silently
  *   - Appearance listener follows OS only when signed out
  *   - useTheme() throws when used outside <ThemeProvider>
@@ -16,6 +19,7 @@ import React from 'react';
 import { act, renderHook } from '@testing-library/react-native';
 import { Appearance } from 'react-native';
 import { ThemeProvider, useTheme } from '../../src/theme/ThemeContext';
+import { __getCopyLanguageForTests, setCopyLanguage } from '../../src/constants/copy';
 import { lightPalette, darkPalette } from '../../src/theme/tokens';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -40,12 +44,17 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 }));
 jest.mock('@react-native-firebase/auth', () => ({}));
 
+const mockDetectDeviceLanguage = jest.fn();
+jest.mock('../../src/services/deviceLocale', () => ({
+  detectDeviceLanguage: () => mockDetectDeviceLanguage(),
+}));
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function firestoreResolves(darkMode: boolean) {
+function firestoreResolves(darkMode: boolean, language?: 'en' | 'pt-PT' | 'fr') {
   mockGetDoc.mockResolvedValue({
     exists: () => true,
-    data:   () => ({ darkMode }),
+    data:   () => ({ darkMode, language }),
   });
 }
 
@@ -100,8 +109,14 @@ const wrapper = ({ children }: { children: React.ReactNode }) => (
 beforeEach(() => {
   jest.clearAllMocks();
   jest.spyOn(Appearance, 'getColorScheme').mockReturnValue('light');
+  mockDetectDeviceLanguage.mockReturnValue('en');
+  setCopyLanguage('en');
   firestoreEmpty();
   signedOut();
+});
+
+afterEach(() => {
+  setCopyLanguage('en');
 });
 
 // ── Initial state ─────────────────────────────────────────────────────────────
@@ -114,6 +129,16 @@ describe('initial state', () => {
     await act(async () => {});
     expect(result.current.dark).toBe(false);
     expect(result.current.palette).toEqual(lightPalette);
+  });
+
+  it('defaults language from the detected device locale', async () => {
+    mockDetectDeviceLanguage.mockReturnValue('pt-PT');
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    expect(result.current.language).toBe('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
   });
 
   it('defaults to dark mode when OS is dark', async () => {
@@ -214,6 +239,64 @@ describe('setDark', () => {
   });
 });
 
+describe('setLanguage', () => {
+  it('updates local state immediately', async () => {
+    signedOut();
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.setLanguage('pt-PT');
+    });
+
+    expect(result.current.language).toBe('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
+  });
+
+  it('persists the language preference to Firestore when signed in', async () => {
+    signedIn('user-abc');
+    mockSetDoc.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.setLanguage('pt-PT');
+    });
+
+    expect(mockSetDoc).toHaveBeenCalledWith(
+      expect.anything(),
+      { language: 'pt-PT' },
+      { merge: true },
+    );
+  });
+
+  it('does not call Firestore when signed out', async () => {
+    signedOut();
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.setLanguage('pt-PT');
+    });
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('keeps local state even when Firestore write fails', async () => {
+    signedIn();
+    mockSetDoc.mockRejectedValue(new Error('Write failed'));
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.setLanguage('pt-PT');
+    });
+
+    expect(result.current.language).toBe('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
+  });
+});
+
 // ── Race condition guard ──────────────────────────────────────────────────────
 
 describe('race condition guard', () => {
@@ -261,6 +344,49 @@ describe('race condition guard', () => {
     await act(async () => {}); // flush getDoc resolution
 
     expect(result.current.dark).toBe(true);
+  });
+
+  it('applies Firestore language when no explicit language choice occurred', async () => {
+    signedIn();
+    firestoreResolves(false, 'pt-PT');
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    expect(result.current.language).toBe('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
+  });
+
+  it('ignores an invalid saved language and keeps the device default', async () => {
+    signedIn();
+    mockDetectDeviceLanguage.mockReturnValue('pt-PT');
+    firestoreResolves(false, 'fr');
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+
+    expect(result.current.language).toBe('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
+  });
+
+  it('does not revert an explicit language choice when Firestore resolves later', async () => {
+    signedIn();
+    let resolveGetDoc!: (value: unknown) => void;
+    mockGetDoc.mockReturnValue(
+      new Promise(resolve => { resolveGetDoc = resolve; }),
+    );
+
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {
+      resolveGetDoc({ exists: () => false, data: () => ({}) });
+    });
+
+    await act(async () => {
+      await result.current.setLanguage('pt-PT');
+    });
+
+    expect(result.current.language).toBe('pt-PT');
+    expect(__getCopyLanguageForTests()).toBe('pt-PT');
   });
 });
 

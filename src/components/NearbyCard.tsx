@@ -50,9 +50,15 @@ import { PlacesMap } from '../services/proximity';
 import { Task } from '../types';
 import { ChevronRightIcon, PoiIcon, RefreshIcon } from './AppIcon';
 import { logTap } from '../services/analytics';
+import { COPY } from '../constants/copy';
 
 // Distance threshold that separates the orange hero zone from the grey zone.
 const HERO_RADIUS_M = 100;
+
+function capitalizeFirstLetter(text: string): string {
+  if (!text) { return text; }
+  return text[0].toUpperCase() + text.slice(1);
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -241,7 +247,7 @@ function HeroCard({
           ]}
           onPress={handleTryAnother}
           accessibilityRole="button"
-          accessibilityLabel="Try another place">
+          accessibilityLabel={COPY.nearbyCard.tryAnotherPlaceA11y}>
           <Text style={[styles.tryAnotherLabel, { color: palette.nearText }]}>
             Try another place
           </Text>
@@ -286,7 +292,7 @@ function AlsoCloseRow({
         <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
           {place
             ? `${place.name} · ${formatDistance(place.distanceMeters)}`
-            : task.poi ? placeTypeLabel(task.poi) : ''}
+            : task.poi ? capitalizeFirstLetter(placeTypeLabel(task.poi)) : ''}
         </Text>
       </View>
 
@@ -404,7 +410,7 @@ function NearbyCard({
         <View style={styles.headerLeft}>
           {isHero && <PulsingDot color={palette.accent} />}
           <Text style={[styles.headerLabel, { color: palette.muted }]}>
-            {isHero ? 'NEARBY · NOW' : 'NEARBY'}
+            {(isHero ? COPY.nearbyCard.headerNowLabel : COPY.nearbyCard.headerLabel).toUpperCase()}
           </Text>
         </View>
 
@@ -418,14 +424,14 @@ function NearbyCard({
             {refreshResult === 'ok' ? 'Updated' : 'Failed'}
           </Animated.Text>
           <Text style={[styles.placesCount, { color: palette.muted }]}>
-            {totalPlaces === 1 ? '1 place' : `${totalPlaces} places`}
+            {COPY.nearbyCard.placesCount(totalPlaces)}
           </Text>
           {onRefreshLocation && (
             <Pressable
               onPress={handleRefresh}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel="Refresh location">
+              accessibilityLabel={COPY.nearbyCard.refreshLocationA11y}>
               <Animated.View style={spinStyle}>
                 <RefreshIcon color={palette.muted} size={14} />
               </Animated.View>

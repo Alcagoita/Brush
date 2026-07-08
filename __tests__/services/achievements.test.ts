@@ -91,6 +91,7 @@ import {
   evaluateCustomCatAchievement,
   awardChallengeWinnerAchievement,
 } from '../../src/services/achievements';
+import { COPY } from '../../src/constants/copy';
 import type { Task } from '../../src/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -166,11 +167,26 @@ describe('ACHIEVEMENT_DEFS', () => {
   });
 
   it('each def has id, label, desc, icon, points, target, repeatable', () => {
+    const c = COPY.achievements.catalogue;
+    const expectedCopy = {
+      first_task:   { label: c.firstTaskLabel,   desc: c.firstTaskCondition },
+      first_brush:  { label: c.firstBrushLabel,  desc: c.firstBrushCondition },
+      right_place:  { label: c.rightPlaceLabel,  desc: c.rightPlaceCondition },
+      worth_wait:   { label: c.worthWaitLabel,   desc: c.worthWaitCondition },
+      custom_cat:   { label: c.customCatLabel,   desc: c.customCatCondition },
+      out_about:    { label: c.outAboutLabel,    desc: c.outAboutCondition },
+      early_bird:   { label: c.earlyBirdLabel,   desc: c.earlyBirdCondition },
+      day_complete: { label: c.dayCompleteLabel, desc: c.dayCompleteCondition },
+      on_a_roll:    { label: c.onARollLabel,     desc: c.onARollCondition },
+      explorer:     { label: c.explorerLabel,    desc: c.explorerCondition },
+      centurion:    { label: c.centurionLabel,   desc: c.centurionCondition },
+    } as const;
+
     for (const id of ALL_IDS) {
       const def = ACHIEVEMENT_DEFS[id];
       expect(typeof def.id).toBe('string');
-      expect(typeof def.label).toBe('string');
-      expect(typeof def.desc).toBe('string');
+      expect(def.label).toBe(expectedCopy[id].label);
+      expect(def.desc).toBe(expectedCopy[id].desc);
       expect(typeof def.icon).toBe('string');
       expect(typeof def.points).toBe('number');
       expect(def.points).toBeGreaterThan(0);
