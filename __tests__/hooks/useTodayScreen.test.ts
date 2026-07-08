@@ -216,7 +216,7 @@ describe('useTodayScreen — one-shot fetch', () => {
     await act(async () => {});
 
     expect(result.current.isLoading).toBe(false);
-    expect(result.current.error).toBeNull();
+    expect(result.current.error).toBe('Could not load tasks. Check your connection.');
   });
 
   it('keeps cached task data when an auxiliary offline read fails', async () => {
@@ -229,6 +229,43 @@ describe('useTodayScreen — one-shot fetch', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(result.current.tasks).toEqual([TASK]);
+  });
+
+  it('keeps cached task data when a refresh tasks read fails offline', async () => {
+    mockGetTasksForDate
+      .mockResolvedValueOnce([TASK])
+      .mockRejectedValueOnce(new Error('offline'));
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => { result.current.refresh(); });
+    await act(async () => {});
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isRefreshing).toBe(false);
+    expect(result.current.error).toBeNull();
+    expect(result.current.tasks).toEqual([TASK]);
+  });
+
+  it('times out a hung auxiliary read instead of staying in loading forever', async () => {
+    jest.useFakeTimers();
+    try {
+      mockGetTasksForDate.mockResolvedValue([TASK]);
+      mockGetCategories.mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() => useTodayScreen(UID));
+      await act(async () => {
+        jest.advanceTimersByTime(5_000);
+      });
+      await act(async () => {});
+
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+      expect(result.current.tasks).toEqual([TASK]);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('returns empty tasks and no error when uid is undefined', async () => {

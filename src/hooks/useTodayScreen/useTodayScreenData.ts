@@ -34,6 +34,18 @@ import { todayISO } from '../../utils/date';
 import { useAppStore } from '../../store/appStore';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
+const DATA_FETCH_TIMEOUT_MS = 5_000;
+const TASKS_LOAD_ERROR = 'Could not load tasks. Check your connection.';
+
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} fetch timed out`)), DATA_FETCH_TIMEOUT_MS),
+    ),
+  ]);
+}
+
 function logFetchFailure(label: string, result: PromiseSettledResult<unknown>) {
   if (result.status === 'rejected') {
     console.warn(`[useTodayScreenData] ${label} fetch failed`, result.reason);
@@ -207,16 +219,16 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         fetchedTripsResult,
         fetchedMallSnapshotResult,
       ] = await Promise.allSettled([
-        getTasksForDate(uid, todayISO()),
-        getUser(uid),
-        getUserPreferences(uid),
-        getPoiPreferencesMap(uid),
-        getCategories(uid),
-        getTotalPoints(uid),
-        getIncomingSharedTasksCount(uid),
-        getInboxUnreadCount(uid),
-        getTrips(uid),
-        getMallSnapshot(uid),
+        withTimeout(getTasksForDate(uid, todayISO()), 'tasks'),
+        withTimeout(getUser(uid), 'user'),
+        withTimeout(getUserPreferences(uid), 'userPrefs'),
+        withTimeout(getPoiPreferencesMap(uid), 'poiPrefs'),
+        withTimeout(getCategories(uid), 'categories'),
+        withTimeout(getTotalPoints(uid), 'points'),
+        withTimeout(getIncomingSharedTasksCount(uid), 'sharedInbox'),
+        withTimeout(getInboxUnreadCount(uid), 'socialInbox'),
+        withTimeout(getTrips(uid), 'trips'),
+        withTimeout(getMallSnapshot(uid), 'mallSnapshot'),
       ]);
 
       if (isStale()) { return; }
@@ -232,11 +244,15 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       logFetchFailure('trips', fetchedTripsResult);
       logFetchFailure('mallSnapshot', fetchedMallSnapshotResult);
 
+      const cachedTasks = latestTasksRef.current;
       setTasks(
         fetchedTasksResult.status === 'fulfilled'
           ? fetchedTasksResult.value
-          : latestTasksRef.current,
+          : cachedTasks,
       );
+      if (fetchedTasksResult.status === 'rejected' && cachedTasks.length === 0) {
+        setError(TASKS_LOAD_ERROR);
+      }
 
       const categories = categoriesResult.status === 'fulfilled'
         ? categoriesResult.value
@@ -287,6 +303,11 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
 
       if (poiPrefsMapResult.status === 'fulfilled') {
         updateProximityPoiPreferences(poiPrefsMapResult.value);
+      }
+    } catch (err) {
+      if (!isStale()) {
+        console.warn('[useTodayScreenData] loadData failed', err);
+        setError(TASKS_LOAD_ERROR);
       }
     } finally {
       if (!isStale()) {
