@@ -444,14 +444,14 @@ describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
     });
   });
 
-  it('renders the "Learn this mall" row', async () => {
+  it('renders the "Activate Mall mode" row', async () => {
     await renderScreen();
-    expect(screen.getByText('Learn this mall')).toBeTruthy();
+    expect(screen.getByText('Activate Mall mode')).toBeTruthy();
   });
 
   it('flips the toggle on when the switch is pressed', async () => {
     await renderScreen();
-    fireEvent(screen.getByLabelText('Learn this mall'), 'valueChange', true);
+    fireEvent(screen.getByLabelText('Activate Mall mode'), 'valueChange', true);
     expect(mockToggleMallSnapshot).toHaveBeenCalledWith(true);
   });
 
@@ -462,7 +462,7 @@ describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
       toggle: mockToggleMallSnapshot,
     });
     await renderScreen();
-    expect(screen.getByLabelText('Learn this mall').props.value).toBe(true);
+    expect(screen.getByLabelText('Activate Mall mode').props.value).toBe(true);
   });
 
   it('shows the downloading label and hides the switch while loading', async () => {
@@ -473,6 +473,6 @@ describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
     });
     await renderScreen();
     expect(screen.getByText('Downloading Shopping mall data…')).toBeTruthy();
-    expect(screen.queryByLabelText('Learn this mall')).toBeNull();
+    expect(screen.queryByLabelText('Activate Mall mode')).toBeNull();
   });
 });

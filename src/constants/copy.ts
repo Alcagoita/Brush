@@ -210,8 +210,8 @@ const en = {
 
   // ─── Mall snapshot (KAN-237) ───────────────────────────────────────────────
   mallSnapshot: {
-    rowLabel: 'Learn this mall',
-    rowSublabel: "Download this mall's places so I work here without signal.",
+    rowLabel: 'Activate Mall mode',
+    rowSublabel: 'Download this mall\'s places so I can help you faster without a signal.',
     downloadingLabel: 'Downloading Shopping mall data…',
     noMallFoundToast: "I can't find a mall nearby — try this again once you're inside one.",
     errorToast: "Couldn't learn this mall — check your connection and try again.",
@@ -1113,8 +1113,8 @@ const ptPT: typeof en = {
   },
 
   mallSnapshot: {
-    rowLabel: 'Aprender este centro comercial',
-    rowSublabel: 'Descarrega os sítios deste centro comercial para funcionar aqui sem sinal.',
+    rowLabel: 'Activar modo Shopping',
+    rowSublabel: 'Descarregue os locais deste Shopping para que eu te ajude mais rapidamente e sem internet.',
     downloadingLabel: 'A descarregar dados do centro comercial…',
     noMallFoundToast: 'Não encontro nenhum centro comercial por perto — tenta outra vez quando estiveres dentro de um.',
     errorToast: 'Não consegui aprender este centro comercial — verifica a tua ligação e tenta outra vez.',

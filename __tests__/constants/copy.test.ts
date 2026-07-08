@@ -29,4 +29,13 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.achievements.catalogue.firstBrushCondition).toBe('Brush away a tua primeira tarefa');
     expect(COPY.achievements.catalogue.explorerCondition).toBe('Brush 10 tarefas ligadas a localizações');
   });
+
+  it('localizes the mall snapshot row copy', () => {
+    setCopyLanguage('en');
+    expect(COPY.mallSnapshot.rowLabel).toBe('Activate Mall mode');
+    expect(COPY.mallSnapshot.rowSublabel).toBe("Download this mall's places so I can help you faster without a signal.");
+    setCopyLanguage('pt-PT');
+    expect(COPY.mallSnapshot.rowLabel).toBe('Activar modo Shopping');
+    expect(COPY.mallSnapshot.rowSublabel).toBe('Descarregue os locais deste Shopping para que eu te ajude mais rapidamente e sem internet.');
+  });
 });
