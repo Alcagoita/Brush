@@ -18,7 +18,7 @@
 
 import { Linking, Platform } from 'react-native';
 import { GOOGLE_PLACES_API_KEY } from '../config/keys';
-import { Category, PoiType, POI_GOOGLE_TYPES } from '../types';
+import { Category, PoiType, POI_GOOGLE_TYPES, poiCatalogLabel } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -361,6 +361,7 @@ export const PLACE_TYPE_LABELS: Record<string, string> = {
  */
 export function placeTypeLabel(type: string): string {
   return (
+    poiCatalogLabel(type as PoiType) ??
     PLACE_TYPE_LABELS[type] ??
     type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   );

@@ -16,6 +16,9 @@ jest.mock('../../src/config/keys', () => ({
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
 jest.mock('../../src/services/habitatCache');
+jest.mock('@react-native-community/netinfo', () =>
+  require('@react-native-community/netinfo/jest/netinfo-mock'),
+);
 
 // ─── Notifee / geolocation / firestore stubs ──────────────────────────────────
 
@@ -65,6 +68,7 @@ function mockPlacesResponse(
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import { resolveCategoryPlaceType, searchNearbyPlaces, placeTypeLabel } from '../../src/services/maps';
+import { setCopyLanguage } from '../../src/constants/copy';
 import { startProximityMonitoring, stopProximityMonitoring, PlacesMap } from '../../src/services/proximity';
 import { Category } from '../../src/types';
 import type { NearbyPlace } from '../../src/services/maps';
@@ -109,7 +113,7 @@ describe('placeTypeLabel', () => {
   it('returns known labels for built-in POI types', () => {
     expect(placeTypeLabel('atm')).toBe('ATM');
     expect(placeTypeLabel('cafe')).toBe('Café');
-    expect(placeTypeLabel('supermarket')).toBe('Supermarket');
+    expect(placeTypeLabel('supermarket')).toBe('Market');
     expect(placeTypeLabel('pharmacy')).toBe('Pharmacy');
   });
 
@@ -123,6 +127,18 @@ describe('placeTypeLabel', () => {
   it('title-cases unknown type strings as a fallback', () => {
     expect(placeTypeLabel('nail_salon')).toBe('Nail Salon');
     expect(placeTypeLabel('ice_cream_shop')).toBe('Ice Cream Shop');
+  });
+});
+
+describe('placeTypeLabel — pt-PT', () => {
+  beforeEach(() => { setCopyLanguage('pt-PT'); });
+  afterEach(() => { setCopyLanguage('en'); });
+
+  it('reads built-in POI labels from the active pt-PT copy dictionary', () => {
+    expect(placeTypeLabel('atm')).toBe('Multibanco');
+    expect(placeTypeLabel('cafe')).toBe('Café');
+    expect(placeTypeLabel('supermarket')).toBe('Mercado');
+    expect(placeTypeLabel('pharmacy')).toBe('Farmácia');
   });
 });
 
