@@ -55,6 +55,11 @@ import { COPY } from '../constants/copy';
 // Distance threshold that separates the orange hero zone from the grey zone.
 const HERO_RADIUS_M = 100;
 
+function capitalizeFirstLetter(text: string): string {
+  if (!text) { return text; }
+  return text[0].toUpperCase() + text.slice(1);
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface NearbyCardProps {
@@ -287,7 +292,7 @@ function AlsoCloseRow({
         <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
           {place
             ? `${place.name} · ${formatDistance(place.distanceMeters)}`
-            : task.poi ? placeTypeLabel(task.poi) : ''}
+            : task.poi ? capitalizeFirstLetter(placeTypeLabel(task.poi)) : ''}
         </Text>
       </View>
 
