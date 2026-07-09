@@ -103,6 +103,12 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'park', label: 'Park' });
   });
 
+  it('prefers park for relaxing-place phrasing', async () => {
+    const results = await searchPlaceTypesCached('relaxing place');
+
+    expect(results[0]).toEqual({ type: 'park', label: 'Park' });
+  });
+
   it('prefers florist for flower-buying intent', async () => {
     const results = await searchPlaceTypesCached('buy flowers');
 
