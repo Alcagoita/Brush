@@ -138,8 +138,8 @@ const POI_CONCEPTS: PoiConcept[] = [
     intents: ['fitness'],
     types: ['gym'],
     terms: {
-      en: ['gym', 'workout', 'fitness', 'exercise', 'training'],
-      'pt-PT': ['ginasio', 'ginásio', 'treino', 'fitness', 'exercicio', 'exercício'],
+      en: ['gym', 'work out', 'workout', 'fitness', 'exercise', 'train', 'training'],
+      'pt-PT': ['ginasio', 'ginásio', 'treinar', 'treino', 'fitness', 'exercicio', 'exercício'],
     },
   },
   {
@@ -148,6 +148,14 @@ const POI_CONCEPTS: PoiConcept[] = [
     terms: {
       en: ['jog', 'jogging', 'run', 'running', 'trail', 'park', 'outdoor run', 'relax', 'relaxing', 'calm place'],
       'pt-PT': ['correr', 'corrida', 'jogging', 'trilho', 'parque', 'corrida ao ar livre', 'relaxar', 'relaxante', 'lugar calmo'],
+    },
+  },
+  {
+    intents: ['postal'],
+    types: ['post_office'],
+    terms: {
+      en: ['mail', 'post', 'ship', 'send package', 'post office'],
+      'pt-PT': ['correio', 'posta', 'enviar encomenda', 'correios'],
     },
   },
 ];

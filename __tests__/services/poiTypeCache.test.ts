@@ -109,6 +109,18 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'park', label: 'Park' });
   });
 
+  it('surfaces gym for direct work-out phrasing', async () => {
+    const results = await searchPlaceTypesCached('work out');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Gym' });
+  });
+
+  it('surfaces gym for training phrasing', async () => {
+    const results = await searchPlaceTypesCached('place to train');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Gym' });
+  });
+
   it('prefers florist for flower-buying intent', async () => {
     const results = await searchPlaceTypesCached('buy flowers');
 
@@ -153,6 +165,26 @@ describe('searchPlaceTypesCached', () => {
     const results = await searchPlaceTypesCached('comprar pão');
 
     expect(results[0]).toEqual({ type: 'bakery', label: 'Padaria' });
+  });
+
+  it('supports Portuguese gym intent offline', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('treinar');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Ginásio' });
+  });
+
+  it('surfaces post office for package-mail phrasing', async () => {
+    const results = await searchPlaceTypesCached('send package');
+
+    expect(results[0]).toEqual({ type: 'post_office', label: 'Post Office' });
+  });
+
+  it('surfaces post office for mail phrasing', async () => {
+    const results = await searchPlaceTypesCached('mail');
+
+    expect(results[0]).toEqual({ type: 'post_office', label: 'Post Office' });
   });
 
   it('keeps exact built-in label matches stable', async () => {
