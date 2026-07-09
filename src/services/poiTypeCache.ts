@@ -81,6 +81,7 @@ const QUERY_NOISE_WORDS: Record<SupportedLanguage, string[]> = {
 
 type PoiConcept = {
   intents: SearchIntent[];
+  intentRequiredTerms?: Record<SupportedLanguage, string[]>;
   terms: Record<SupportedLanguage, string[]>;
   types: string[];
 };
@@ -97,6 +98,10 @@ const POI_CONCEPTS: PoiConcept[] = [
   {
     intents: ['retail'],
     types: ['book_store'],
+    intentRequiredTerms: {
+      en: ['book', 'books'],
+      'pt-PT': ['livro', 'livros'],
+    },
     terms: {
       en: ['book', 'books', 'book shop', 'bookstore', 'novel', 'notebook'],
       'pt-PT': ['livro', 'livros', 'livraria', 'romance', 'caderno'],
@@ -179,6 +184,18 @@ const POI_ALIASES: Partial<Record<string, Record<SupportedLanguage, string[]>>> 
       const existing = acc[type] ?? { en: [], 'pt-PT': [] };
       existing.en.push(...concept.terms.en);
       existing['pt-PT'].push(...concept.terms['pt-PT']);
+      acc[type] = existing;
+    }
+    return acc;
+  }, {} as Partial<Record<string, Record<SupportedLanguage, string[]>>>);
+
+const INTENT_REQUIRED_ALIAS_KEYS: Partial<Record<string, Record<SupportedLanguage, string[]>>> = POI_CONCEPTS
+  .reduce((acc, concept) => {
+    if (!concept.intentRequiredTerms) { return acc; }
+    for (const type of concept.types) {
+      const existing = acc[type] ?? { en: [], 'pt-PT': [] };
+      existing.en.push(...concept.intentRequiredTerms.en);
+      existing['pt-PT'].push(...concept.intentRequiredTerms['pt-PT']);
       acc[type] = existing;
     }
     return acc;
@@ -294,18 +311,25 @@ function inferConceptMatches(
 
   for (const concept of POI_CONCEPTS) {
     let matchedTerms = 0;
+    let matchedIntentRequiredTerm = false;
     for (const queryVariant of queryVariants) {
       if (concept.terms[lang].some(term => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term))) {
         matchedTerms += 1;
       }
+      if ((concept.intentRequiredTerms?.[lang] ?? [])
+        .some(term => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term))) {
+        matchedIntentRequiredTerm = true;
+      }
     }
     if (matchedTerms === 0) { continue; }
+    const hasAlignedIntent = concept.intents.some(intent => intents.has(intent));
+    if (matchedIntentRequiredTerm && !hasAlignedIntent) { continue; }
 
     for (const type of concept.types) {
       const current = matches.get(type);
       const next: ConceptMatch = {
         termCount: Math.max(current?.termCount ?? 0, matchedTerms),
-        intentAligned: (current?.intentAligned ?? false) || concept.intents.some(intent => intents.has(intent)),
+        intentAligned: (current?.intentAligned ?? false) || hasAlignedIntent,
       };
       matches.set(type, next);
     }
@@ -372,14 +396,26 @@ function entryScore(
   entry: PoiDictionaryEntry,
   lang: SupportedLanguage,
 ): number | null {
+  const hasAlignedIntent = conceptMatches.get(entry.type)?.intentAligned ?? false;
+  const restrictedAliases = normalizeKeys(INTENT_REQUIRED_ALIAS_KEYS[entry.type]?.[lang] ?? []);
+  const restrictedAliasSet = new Set(restrictedAliases);
+  const matchedRestrictedAlias = restrictedAliases.some(alias =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, alias)),
+  );
+  if (matchedRestrictedAlias && !hasAlignedIntent) {
+    return null;
+  }
   const preferred = lang === 'pt-PT'
     ? [entry.ptKey, entry.enKey, entry.slugKey, ...entry.ptAliasKeys, ...entry.enAliasKeys]
     : [entry.enKey, entry.ptKey, entry.slugKey, ...entry.enAliasKeys, ...entry.ptAliasKeys];
+  const matchablePreferred = preferred.filter(candidate =>
+    hasAlignedIntent || !restrictedAliasSet.has(candidate),
+  );
 
   let best: number | null = null;
   for (const queryVariant of queryVariants) {
-    for (let i = 0; i < preferred.length; i++) {
-      const score = scoreMatch(queryVariant, preferred[i], i);
+    for (let i = 0; i < matchablePreferred.length; i++) {
+      const score = scoreMatch(queryVariant, matchablePreferred[i], i);
       if (score == null) { continue; }
       if (best == null || score < best) {
         best = score;

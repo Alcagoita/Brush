@@ -75,6 +75,12 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
   });
 
+  it('does not treat verb-style booking phrases as shopping intent', async () => {
+    const results = await searchPlaceTypesCached('book a flight');
+
+    expect(results[0]?.type).not.toBe('book_store');
+  });
+
   it('prefers bakery over broad retail buckets for bread shopping intent', async () => {
     const results = await searchPlaceTypesCached('buy some bread');
 
