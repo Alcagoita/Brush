@@ -21,6 +21,10 @@ type ConceptMatch = {
   termCount: number;
   intentAligned: boolean;
 };
+type CandidateKey = {
+  key: string;
+  tokens: string[];
+};
 
 const COMMERCIAL_POI_TYPES = new Set([
   'bakery',
@@ -169,11 +173,11 @@ interface PoiDictionaryEntry {
   type: string;
   enLabel: string;
   ptLabel: string;
-  slugKey: string;
-  enKey: string;
-  ptKey: string;
-  enAliasKeys: string[];
-  ptAliasKeys: string[];
+  slugKey: CandidateKey;
+  enKey: CandidateKey;
+  ptKey: CandidateKey;
+  enAliasKeys: CandidateKey[];
+  ptAliasKeys: CandidateKey[];
   isCommercial: boolean;
   isBroadCommercial: boolean;
 }
@@ -207,6 +211,14 @@ function normalizeKeys(values: string[]): string[] {
 
 function tokenize(normalizedText: string): string[] {
   return normalizedText.split(' ').filter(Boolean);
+}
+
+function buildCandidateKey(value: string): CandidateKey {
+  return { key: value, tokens: tokenize(value) };
+}
+
+function buildCandidateKeys(values: string[]): CandidateKey[] {
+  return values.map(buildCandidateKey);
 }
 
 function generateNgrams(tokens: string[], maxLength: number): string[] {
@@ -277,11 +289,11 @@ const SEARCH_ENTRIES: PoiDictionaryEntry[] = Object.keys(EN_DICTIONARY)
       type,
       enLabel,
       ptLabel,
-      slugKey: normalize(type),
-      enKey:   normalize(enLabel),
-      ptKey:   normalize(ptLabel),
-      enAliasKeys: normalizeKeys(aliases?.en ?? []),
-      ptAliasKeys: normalizeKeys(aliases?.['pt-PT'] ?? []),
+      slugKey: buildCandidateKey(normalize(type)),
+      enKey:   buildCandidateKey(normalize(enLabel)),
+      ptKey:   buildCandidateKey(normalize(ptLabel)),
+      enAliasKeys: buildCandidateKeys(normalizeKeys(aliases?.en ?? [])),
+      ptAliasKeys: buildCandidateKeys(normalizeKeys(aliases?.['pt-PT'] ?? [])),
       isCommercial: COMMERCIAL_POI_TYPES.has(type),
       isBroadCommercial: BROAD_COMMERCIAL_POI_TYPES.has(type),
     };
@@ -370,22 +382,21 @@ function intentScoreAdjustment(
 
 function scoreMatch(
   queryVariant: QueryVariant,
-  candidateKey: string,
+  candidate: CandidateKey,
   baseScore: number,
 ): number | null {
-  if (!candidateKey) { return null; }
-  const candidateTokens = tokenize(candidateKey);
-  const specificityBonus = Math.min(candidateKey.length, 99) / 100;
+  if (!candidate.key) { return null; }
+  const specificityBonus = Math.min(candidate.key.length, 99) / 100;
 
-  if (candidateKey === queryVariant.key) { return queryVariant.penalty + baseScore - specificityBonus; }
-  if (queryVariant.haystack.includes(` ${candidateKey} `)) {
+  if (candidate.key === queryVariant.key) { return queryVariant.penalty + baseScore - specificityBonus; }
+  if (queryVariant.haystack.includes(` ${candidate.key} `)) {
     return queryVariant.penalty + 10 + baseScore - specificityBonus;
   }
-  if (candidateTokens.length > 0 && candidateTokens.every(token => queryVariant.tokens.has(token))) {
+  if (candidate.tokens.length > 0 && candidate.tokens.every(token => queryVariant.tokens.has(token))) {
     return queryVariant.penalty + 20 + baseScore - specificityBonus;
   }
-  if (candidateKey.startsWith(queryVariant.key)) { return queryVariant.penalty + 30 + baseScore - specificityBonus; }
-  if (candidateKey.includes(queryVariant.key)) { return queryVariant.penalty + 40 + baseScore - specificityBonus; }
+  if (candidate.key.startsWith(queryVariant.key)) { return queryVariant.penalty + 30 + baseScore - specificityBonus; }
+  if (candidate.key.includes(queryVariant.key)) { return queryVariant.penalty + 40 + baseScore - specificityBonus; }
   return null;
 }
 
@@ -405,11 +416,11 @@ function entryScore(
   if (matchedRestrictedAlias && !hasAlignedIntent) {
     return null;
   }
-  const preferred = lang === 'pt-PT'
+  const preferred: CandidateKey[] = lang === 'pt-PT'
     ? [entry.ptKey, entry.enKey, entry.slugKey, ...entry.ptAliasKeys, ...entry.enAliasKeys]
     : [entry.enKey, entry.ptKey, entry.slugKey, ...entry.enAliasKeys, ...entry.ptAliasKeys];
   const matchablePreferred = preferred.filter(candidate =>
-    hasAlignedIntent || !restrictedAliasSet.has(candidate),
+    hasAlignedIntent || !restrictedAliasSet.has(candidate.key),
   );
 
   let best: number | null = null;

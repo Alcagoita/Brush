@@ -222,9 +222,10 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   const hexValid = /^#[0-9a-fA-F]{6}$/.test(hexInput);
 
   const handlePoiSearch = (text: string) => {
+    const trimmed = text.trim();
     setPoiQuery(text);
     if (searchTimer.current) { clearTimeout(searchTimer.current); }
-    if (!text.trim()) {
+    if (!trimmed) {
       setPoiResults([]);
       setPoiSearching(false);
       return;
@@ -232,7 +233,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
     setPoiSearching(true);
     searchTimer.current = setTimeout(async () => {
       try {
-        const results = await searchPlaceTypesCached(text.trim());
+        const results = await searchPlaceTypesCached(trimmed);
         setPoiResults(results);
       } catch {
         setPoiResults([]);
