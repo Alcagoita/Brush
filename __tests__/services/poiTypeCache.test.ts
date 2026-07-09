@@ -63,6 +63,22 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
   });
 
+  it('handles filler words in longer retail phrasing', async () => {
+    const results = await searchPlaceTypesCached('buy a new book');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
+  });
+
+  it('prefers bakery over broad retail buckets for bread shopping intent', async () => {
+    const results = await searchPlaceTypesCached('buy some bread');
+
+    expect(results[0]).toEqual({ type: 'bakery', label: 'Bakery' });
+    const marketIndex = results.findIndex(result => result.type === 'market');
+    if (marketIndex !== -1) {
+      expect(results.findIndex(result => result.type === 'bakery')).toBeLessThan(marketIndex);
+    }
+  });
+
   it('prefers florist for flower-buying intent', async () => {
     const results = await searchPlaceTypesCached('buy flowers');
 
@@ -99,6 +115,14 @@ describe('searchPlaceTypesCached', () => {
     const results = await searchPlaceTypesCached('comprar um livro');
 
     expect(results[0]).toEqual({ type: 'book_store', label: 'Livraria' });
+  });
+
+  it('supports Portuguese bakery intent offline', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('comprar pão');
+
+    expect(results[0]).toEqual({ type: 'bakery', label: 'Padaria' });
   });
 
   it('keeps exact built-in label matches stable', async () => {
