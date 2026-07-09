@@ -369,7 +369,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     // server-side job (or tomorrow's rollover) will catch anything missed.
     rolloverIncompleteTasks(uid)
       .catch(err => console.warn('[SplashScreen] rolloverIncompleteTasks failed (non-critical)', err))
-      .then(() => Promise.all([
+      .then(() => Promise.allSettled([
         getTasksForDate(uid, todayISO()),
         getUser(uid),
         getUserPreferences(uid),
@@ -381,8 +381,42 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         getTrips(uid),
         getMallSnapshot(uid),
       ]))
-      .then(([tasks, userData, userPrefs, poiPrefsMap, categories, totalPoints, inboxCount, socialUnreadCount, trips, mallSnapshot]) => {
+      .then(([
+        tasksResult,
+        userDataResult,
+        userPrefsResult,
+        poiPrefsMapResult,
+        categoriesResult,
+        totalPointsResult,
+        inboxCountResult,
+        socialUnreadCountResult,
+        tripsResult,
+        mallSnapshotResult,
+      ]) => {
         if (cancelled) { return; }
+
+        if (tasksResult.status === 'rejected') { console.warn('[SplashScreen] getTasksForDate failed (non-critical)', tasksResult.reason); }
+        if (userDataResult.status === 'rejected') { console.warn('[SplashScreen] getUser failed (non-critical)', userDataResult.reason); }
+        if (userPrefsResult.status === 'rejected') { console.warn('[SplashScreen] getUserPreferences failed (non-critical)', userPrefsResult.reason); }
+        if (poiPrefsMapResult.status === 'rejected') { console.warn('[SplashScreen] getPoiPreferencesMap failed (non-critical)', poiPrefsMapResult.reason); }
+        if (categoriesResult.status === 'rejected') { console.warn('[SplashScreen] getCategories failed (non-critical)', categoriesResult.reason); }
+        if (totalPointsResult.status === 'rejected') { console.warn('[SplashScreen] getTotalPoints failed (non-critical)', totalPointsResult.reason); }
+        if (inboxCountResult.status === 'rejected') { console.warn('[SplashScreen] getIncomingSharedTasksCount failed (non-critical)', inboxCountResult.reason); }
+        if (socialUnreadCountResult.status === 'rejected') { console.warn('[SplashScreen] getInboxUnreadCount failed (non-critical)', socialUnreadCountResult.reason); }
+        if (tripsResult.status === 'rejected') { console.warn('[SplashScreen] getTrips failed (non-critical)', tripsResult.reason); }
+        if (mallSnapshotResult.status === 'rejected') { console.warn('[SplashScreen] getMallSnapshot failed (non-critical)', mallSnapshotResult.reason); }
+
+        const tasks = tasksResult.status === 'fulfilled' ? tasksResult.value : [];
+        const userData = userDataResult.status === 'fulfilled' ? userDataResult.value : null;
+        const userPrefs = userPrefsResult.status === 'fulfilled' ? userPrefsResult.value : {};
+        const poiPrefsMap = poiPrefsMapResult.status === 'fulfilled' ? poiPrefsMapResult.value : {};
+        const categories = categoriesResult.status === 'fulfilled' ? categoriesResult.value : [];
+        const totalPoints = totalPointsResult.status === 'fulfilled' ? totalPointsResult.value : 0;
+        const inboxCount = inboxCountResult.status === 'fulfilled' ? inboxCountResult.value : 0;
+        const socialUnreadCount = socialUnreadCountResult.status === 'fulfilled' ? socialUnreadCountResult.value : 0;
+        const trips = tripsResult.status === 'fulfilled' ? tripsResult.value : [];
+        const mallSnapshot = mallSnapshotResult.status === 'fulfilled' ? mallSnapshotResult.value : null;
+
         useAppStore.getState().setBootData({
           ownerUid: uid,
           tasks,

@@ -17,38 +17,43 @@
 const NOW_TIMESTAMP = { _isNow: true };
 const DELETE_FIELD_SENTINEL = { _delete: true };
 
-let store: Record<string, Record<string, unknown> | undefined>;
+let mockStore: Record<string, Record<string, unknown> | undefined>;
 const mockTxGet    = jest.fn();
 const mockTxUpdate = jest.fn();
 const mockTxSet    = jest.fn();
 const mockTxDelete = jest.fn();
+const mockUpdateDoc = jest.fn();
+const mockBatchUpdate = jest.fn();
+const mockBatchSet = jest.fn();
+const mockBatchDelete = jest.fn();
+const mockBatchCommit = jest.fn();
 
-function applyFieldUpdate(path: string, data: Record<string, unknown>) {
-  const current = { ...(store[path] ?? {}) };
+function mockApplyFieldUpdate(path: string, data: Record<string, unknown>) {
+  const current = { ...(mockStore[path] ?? {}) };
   for (const [key, value] of Object.entries(data)) {
     if (value === DELETE_FIELD_SENTINEL) { delete current[key]; } else { current[key] = value; }
   }
-  store[path] = current;
+  mockStore[path] = current;
 }
 
 const mockRunTransaction = jest.fn(async (_db: unknown, cb: (tx: unknown) => Promise<void>) => {
   const tx = {
     get: (ref: { path: string }) => {
       mockTxGet(ref.path);
-      const data = store[ref.path];
+      const data = mockStore[ref.path];
       return Promise.resolve({ exists: () => data !== undefined, data: () => data });
     },
     update: (ref: { path: string }, data: Record<string, unknown>) => {
       mockTxUpdate(ref.path, data);
-      applyFieldUpdate(ref.path, data);
+      mockApplyFieldUpdate(ref.path, data);
     },
     set: (ref: { path: string }, data: Record<string, unknown>) => {
       mockTxSet(ref.path, data);
-      store[ref.path] = data;
+      mockStore[ref.path] = data;
     },
     delete: (ref: { path: string }) => {
       mockTxDelete(ref.path);
-      delete store[ref.path];
+      delete mockStore[ref.path];
     },
   };
   return cb(tx);
@@ -59,13 +64,37 @@ jest.mock('@react-native-firebase/firestore', () => ({
   collection:      jest.fn(),
   doc:             jest.fn((...args: unknown[]) => ({ _type: 'doc', path: args.slice(1).join('/') })),
   addDoc:          jest.fn(),
-  getDoc:          jest.fn(),
+  getDoc:          jest.fn((ref: { path: string }) => {
+    const data = mockStore[ref.path];
+    return Promise.resolve({ exists: () => data !== undefined, data: () => data });
+  }),
   getDocs:         jest.fn(),
-  updateDoc:       jest.fn(),
+  updateDoc:       (...args: unknown[]) => mockUpdateDoc(...args),
   deleteDoc:       jest.fn(),
   deleteField:     jest.fn(() => DELETE_FIELD_SENTINEL),
   setDoc:          jest.fn(),
-  writeBatch:      jest.fn(),
+  writeBatch:      jest.fn(() => {
+    const ops: Array<() => void> = [];
+    return {
+      update: (ref: { path: string }, data: Record<string, unknown>) => {
+        mockBatchUpdate(ref.path, data);
+        ops.push(() => mockApplyFieldUpdate(ref.path, data));
+      },
+      set: (ref: { path: string }, data: Record<string, unknown>) => {
+        mockBatchSet(ref.path, data);
+        ops.push(() => { mockStore[ref.path] = data; });
+      },
+      delete: (ref: { path: string }) => {
+        mockBatchDelete(ref.path);
+        ops.push(() => { delete mockStore[ref.path]; });
+      },
+      commit: () => {
+        ops.forEach(op => op());
+        mockBatchCommit();
+        return Promise.resolve();
+      },
+    };
+  }),
   query:           jest.fn(),
   where:           jest.fn(),
   orderBy:         jest.fn(),
@@ -84,11 +113,11 @@ const COUNTER_PATH = (placeId: string) => `users/uid-1/learnedPlaceCounts/${plac
 describe('setTaskDone', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    store = {};
+    mockStore = {};
   });
 
   it('marks done and deletes completedPlace* fields when completedPlace is omitted', async () => {
-    store[TASK_PATH] = {};
+    mockStore[TASK_PATH] = {};
 
     await setTaskDone('uid-1', 'task-1', true);
 
@@ -104,7 +133,7 @@ describe('setTaskDone', () => {
   });
 
   it('persists completedPlaceId/Name/PoiType and creates a new counter doc at visitCount 1', async () => {
-    store[TASK_PATH] = {};
+    mockStore[TASK_PATH] = {};
 
     await setTaskDone('uid-1', 'task-1', true, {
       placeId: 'place-abc',
@@ -128,8 +157,8 @@ describe('setTaskDone', () => {
   });
 
   it('increments an existing counter doc rather than overwriting the visit history', async () => {
-    store[TASK_PATH] = {};
-    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 2 };
+    mockStore[TASK_PATH] = {};
+    mockStore[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 2 };
 
     await setTaskDone('uid-1', 'task-1', true, {
       placeId: 'place-abc',
@@ -146,7 +175,7 @@ describe('setTaskDone', () => {
   });
 
   it('deletes completedPlace* fields when marking a task undone, even if a place is passed', async () => {
-    store[TASK_PATH] = {};
+    mockStore[TASK_PATH] = {};
 
     await setTaskDone('uid-1', 'task-1', false, {
       placeId: 'place-abc',
@@ -167,8 +196,8 @@ describe('setTaskDone', () => {
   });
 
   it('decrements and deletes the counter when undoing the only visit to a place', async () => {
-    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
-    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 1 };
+    mockStore[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+    mockStore[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 1 };
 
     await setTaskDone('uid-1', 'task-1', false);
 
@@ -176,8 +205,8 @@ describe('setTaskDone', () => {
   });
 
   it('decrements without deleting the counter when other visits remain', async () => {
-    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
-    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 3 };
+    mockStore[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+    mockStore[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 3 };
 
     await setTaskDone('uid-1', 'task-1', false);
 
@@ -188,7 +217,7 @@ describe('setTaskDone', () => {
   it('undoing at a place whose counter doc is missing (corrupted/partial data) still updates the task and touches no counter', async () => {
     // The task doc claims a prior completedPlaceId, but no counter doc exists
     // for it — e.g. partial migration, manual deletion, or corruption.
-    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+    mockStore[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
 
     await setTaskDone('uid-1', 'task-1', false);
 
@@ -205,8 +234,8 @@ describe('setTaskDone', () => {
   });
 
   it('treats a corrupted (non-numeric) stored visitCount as 0 rather than propagating NaN', async () => {
-    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
-    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 'not-a-number' };
+    mockStore[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+    mockStore[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 'not-a-number' };
 
     await setTaskDone('uid-1', 'task-1', false);
 
@@ -216,8 +245,8 @@ describe('setTaskDone', () => {
   });
 
   it('treats a missing visitCount on increment as 0 rather than propagating NaN', async () => {
-    store[TASK_PATH] = {};
-    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket' };
+    mockStore[TASK_PATH] = {};
+    mockStore[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket' };
 
     await setTaskDone('uid-1', 'task-1', true, {
       placeId: 'place-abc',
@@ -234,8 +263,8 @@ describe('setTaskDone', () => {
   });
 
   it('does not touch any counter when re-brushing at the same place (net-zero change)', async () => {
-    store[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
-    store[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 2 };
+    mockStore[TASK_PATH] = { completedPlaceId: 'place-abc', completedPlaceName: 'Whole Foods', completedPoiType: 'supermarket' };
+    mockStore[COUNTER_PATH('place-abc')] = { placeId: 'place-abc', name: 'Whole Foods', poiType: 'supermarket', visitCount: 2 };
 
     await setTaskDone('uid-1', 'task-1', true, {
       placeId: 'place-abc',
@@ -249,7 +278,7 @@ describe('setTaskDone', () => {
   });
 
   it('done(with place) -> undone -> done(without place) leaves no completedPlace* and no dangling counter', async () => {
-    store[TASK_PATH] = {};
+    mockStore[TASK_PATH] = {};
 
     await setTaskDone('uid-1', 'task-1', true, {
       placeId: 'place-abc',
@@ -259,7 +288,55 @@ describe('setTaskDone', () => {
     await setTaskDone('uid-1', 'task-1', false);
     await setTaskDone('uid-1', 'task-1', true);
 
-    expect(store[TASK_PATH]).toEqual({ done: true, completedAt: NOW_TIMESTAMP });
-    expect(store[COUNTER_PATH('place-abc')]).toBeUndefined();
+    expect(mockStore[TASK_PATH]).toEqual({ done: true, completedAt: NOW_TIMESTAMP });
+    expect(mockStore[COUNTER_PATH('place-abc')]).toBeUndefined();
+  });
+
+  it('falls back to an offline batch update when the transaction cannot run offline', async () => {
+    mockRunTransaction.mockRejectedValueOnce({ code: 'firestore/unavailable' });
+    mockStore[TASK_PATH] = {};
+
+    await setTaskDone('uid-1', 'task-1', true, {
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+    });
+
+    expect(mockBatchUpdate).toHaveBeenCalledWith(TASK_PATH, {
+      done: true,
+      completedAt: NOW_TIMESTAMP,
+      completedPlaceId: 'place-abc',
+      completedPlaceName: 'Whole Foods',
+      completedPoiType: 'supermarket',
+    });
+    expect(mockBatchSet).toHaveBeenCalledWith(COUNTER_PATH('place-abc'), {
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+      visitCount: 1,
+    });
+    expect(mockBatchCommit).toHaveBeenCalled();
+    expect(mockStore[COUNTER_PATH('place-abc')]).toEqual({
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+      visitCount: 1,
+    });
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockTxUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rethrows non-offline transaction failures instead of silently drifting counters', async () => {
+    const error = new Error('permission denied');
+    mockRunTransaction.mockRejectedValueOnce(error);
+
+    await expect(setTaskDone('uid-1', 'task-1', true, {
+      placeId: 'place-abc',
+      name: 'Whole Foods',
+      poiType: 'supermarket',
+    })).rejects.toBe(error);
+
+    expect(mockBatchCommit).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
   });
 });
