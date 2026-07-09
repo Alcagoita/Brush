@@ -69,6 +69,12 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
   });
 
+  it('generalizes book shopping beyond the original phrase', async () => {
+    const results = await searchPlaceTypesCached('purchase a novel');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
+  });
+
   it('prefers bakery over broad retail buckets for bread shopping intent', async () => {
     const results = await searchPlaceTypesCached('buy some bread');
 
@@ -77,6 +83,12 @@ describe('searchPlaceTypesCached', () => {
     if (marketIndex !== -1) {
       expect(results.findIndex(result => result.type === 'bakery')).toBeLessThan(marketIndex);
     }
+  });
+
+  it('generalizes bakery matching for other bread-like nouns', async () => {
+    const results = await searchPlaceTypesCached('get a loaf of bread');
+
+    expect(results[0]).toEqual({ type: 'bakery', label: 'Bakery' });
   });
 
   it('prefers florist for flower-buying intent', async () => {

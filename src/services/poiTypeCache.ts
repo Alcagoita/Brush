@@ -17,6 +17,10 @@ const PT_DICTIONARY = require('../constants/poiDictionary.pt-PT.json') as Record
 
 const MAX_RESULTS = 8;
 type SearchIntent = 'retail' | 'food' | 'fitness' | 'medical' | 'postal';
+type ConceptMatch = {
+  termCount: number;
+  intentAligned: boolean;
+};
 
 const COMMERCIAL_POI_TYPES = new Set([
   'bakery',
@@ -75,36 +79,70 @@ const QUERY_NOISE_WORDS: Record<SupportedLanguage, string[]> = {
   'pt-PT': ['o', 'a', 'os', 'as', 'ir', 'um', 'uma', 'uns', 'umas', 'novo', 'nova', 'algum', 'alguma', 'meu', 'minha', 'para', 'perto'],
 };
 
-const POI_ALIASES: Partial<Record<string, Record<SupportedLanguage, string[]>>> = {
-  bakery: {
-    en: ['bakery', 'bread', 'loaf', 'pastry', 'cake', 'croissant'],
-    'pt-PT': ['padaria', 'pao', 'pão', 'broa', 'pastel', 'croissant', 'bolo'],
-  },
-  book_store: {
-    en: ['book', 'books', 'book shop', 'bookstore', 'novel', 'notebook'],
-    'pt-PT': ['livro', 'livros', 'livraria', 'romance', 'caderno'],
-  },
-  florist: {
-    en: ['flower', 'flowers', 'bouquet'],
-    'pt-PT': ['flor', 'flores', 'ramo de flores'],
-  },
-  coffee_shop: {
-    en: ['coffee', 'coffee shop', 'espresso'],
-    'pt-PT': ['cafe', 'café', 'cafetaria', 'café para levar'],
-  },
-  pharmacy: {
-    en: ['medicine', 'medicines', 'medication', 'prescription', 'chemist'],
-    'pt-PT': ['medicamento', 'medicamentos', 'farmacia', 'farmácia', 'remedio', 'remédios'],
-  },
-  shoe_store: {
-    en: ['shoe', 'shoes', 'sneakers', 'footwear'],
-    'pt-PT': ['sapato', 'sapatos', 'tenis', 'ténis', 'calcado', 'calçado'],
-  },
-  gym: {
-    en: ['gym', 'workout', 'fitness', 'exercise'],
-    'pt-PT': ['ginasio', 'ginásio', 'treino', 'fitness', 'exercicio', 'exercício'],
-  },
+type PoiConcept = {
+  intents: SearchIntent[];
+  terms: Record<SupportedLanguage, string[]>;
+  types: string[];
 };
+
+const POI_CONCEPTS: PoiConcept[] = [
+  {
+    intents: ['retail'],
+    types: ['bakery'],
+    terms: {
+      en: ['bread', 'loaf', 'pastry', 'cake', 'croissant', 'bakery'],
+      'pt-PT': ['pao', 'pão', 'broa', 'pastel', 'croissant', 'bolo', 'padaria'],
+    },
+  },
+  {
+    intents: ['retail'],
+    types: ['book_store'],
+    terms: {
+      en: ['book', 'books', 'book shop', 'bookstore', 'novel', 'notebook'],
+      'pt-PT': ['livro', 'livros', 'livraria', 'romance', 'caderno'],
+    },
+  },
+  {
+    intents: ['retail'],
+    types: ['florist'],
+    terms: {
+      en: ['flower', 'flowers', 'bouquet'],
+      'pt-PT': ['flor', 'flores', 'ramo de flores'],
+    },
+  },
+  {
+    intents: ['retail', 'food'],
+    types: ['coffee_shop', 'cafe'],
+    terms: {
+      en: ['coffee', 'coffee shop', 'espresso', 'latte'],
+      'pt-PT': ['cafe', 'café', 'cafetaria', 'expresso', 'galão'],
+    },
+  },
+  {
+    intents: ['retail', 'medical'],
+    types: ['pharmacy', 'drugstore'],
+    terms: {
+      en: ['medicine', 'medicines', 'medication', 'prescription', 'chemist'],
+      'pt-PT': ['medicamento', 'medicamentos', 'farmacia', 'farmácia', 'remedio', 'remédios', 'receita'],
+    },
+  },
+  {
+    intents: ['retail'],
+    types: ['shoe_store'],
+    terms: {
+      en: ['shoe', 'shoes', 'sneakers', 'footwear', 'boots'],
+      'pt-PT': ['sapato', 'sapatos', 'tenis', 'ténis', 'calcado', 'calçado', 'botas'],
+    },
+  },
+  {
+    intents: ['fitness'],
+    types: ['gym'],
+    terms: {
+      en: ['gym', 'workout', 'fitness', 'exercise', 'training'],
+      'pt-PT': ['ginasio', 'ginásio', 'treino', 'fitness', 'exercicio', 'exercício'],
+    },
+  },
+];
 
 interface PoiDictionaryEntry {
   type: string;
@@ -118,6 +156,17 @@ interface PoiDictionaryEntry {
   isCommercial: boolean;
   isBroadCommercial: boolean;
 }
+
+const POI_ALIASES: Partial<Record<string, Record<SupportedLanguage, string[]>>> = POI_CONCEPTS
+  .reduce((acc, concept) => {
+    for (const type of concept.types) {
+      const existing = acc[type] ?? { en: [], 'pt-PT': [] };
+      existing.en.push(...concept.terms.en);
+      existing['pt-PT'].push(...concept.terms['pt-PT']);
+      acc[type] = existing;
+    }
+    return acc;
+  }, {} as Partial<Record<string, Record<SupportedLanguage, string[]>>>);
 
 function normalizeKeys(values: string[]): string[] {
   return Array.from(new Set(values.map(value => normalize(value)).filter(Boolean)));
@@ -171,6 +220,20 @@ function buildQueryVariants(queryKey: string, lang: SupportedLanguage): QueryVar
     }));
 }
 
+function conceptTermMatches(
+  queryHaystack: string,
+  queryTokens: Set<string>,
+  conceptTerm: string,
+): boolean {
+  const term = normalize(conceptTerm);
+  if (!term) { return false; }
+  const termTokens = tokenize(term);
+  return (
+    queryHaystack.includes(` ${term} `) ||
+    (termTokens.length > 0 && termTokens.every(token => queryTokens.has(token)))
+  );
+}
+
 const SEARCH_ENTRIES: PoiDictionaryEntry[] = Object.keys(EN_DICTIONARY)
   .filter(type => !isGenericPlaceType(type))
   .map(type => {
@@ -206,8 +269,49 @@ function inferIntents(queryKey: string, lang: SupportedLanguage): Set<SearchInte
   return intents;
 }
 
-function intentScoreAdjustment(entry: PoiDictionaryEntry, intents: Set<SearchIntent>): number {
+function inferConceptMatches(
+  queryVariants: QueryVariant[],
+  intents: Set<SearchIntent>,
+  lang: SupportedLanguage,
+): Map<string, ConceptMatch> {
+  const matches = new Map<string, ConceptMatch>();
+
+  for (const concept of POI_CONCEPTS) {
+    let matchedTerms = 0;
+    for (const queryVariant of queryVariants) {
+      if (concept.terms[lang].some(term => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term))) {
+        matchedTerms += 1;
+      }
+    }
+    if (matchedTerms === 0) { continue; }
+
+    for (const type of concept.types) {
+      const current = matches.get(type);
+      const next: ConceptMatch = {
+        termCount: Math.max(current?.termCount ?? 0, matchedTerms),
+        intentAligned: (current?.intentAligned ?? false) || concept.intents.some(intent => intents.has(intent)),
+      };
+      matches.set(type, next);
+    }
+  }
+
+  return matches;
+}
+
+function intentScoreAdjustment(
+  entry: PoiDictionaryEntry,
+  intents: Set<SearchIntent>,
+  conceptMatches: Map<string, ConceptMatch>,
+): number {
   let adjustment = 0;
+  const conceptMatch = conceptMatches.get(entry.type);
+
+  if (conceptMatch) {
+    adjustment -= 8 + conceptMatch.termCount;
+    if (conceptMatch.intentAligned) {
+      adjustment -= 4;
+    }
+  }
 
   if (intents.has('retail') && entry.isCommercial) { adjustment -= 2; }
   if (intents.has('retail') && entry.isBroadCommercial) { adjustment += 6; }
@@ -248,6 +352,7 @@ function scoreMatch(
 function entryScore(
   queryVariants: QueryVariant[],
   intents: Set<SearchIntent>,
+  conceptMatches: Map<string, ConceptMatch>,
   entry: PoiDictionaryEntry,
   lang: SupportedLanguage,
 ): number | null {
@@ -267,7 +372,7 @@ function entryScore(
   }
 
   if (best == null) { return null; }
-  return best + intentScoreAdjustment(entry, intents);
+  return best + intentScoreAdjustment(entry, intents, conceptMatches);
 }
 
 function sortSuggestions(
@@ -288,9 +393,10 @@ function localPoiSuggestions(query: string): PlaceTypeSuggestion[] {
   const lang = getCopyLanguage();
   const queryVariants = buildQueryVariants(queryKey, lang);
   const intents = inferIntents(queryKey, lang);
+  const conceptMatches = inferConceptMatches(queryVariants, intents, lang);
   const ranked = SEARCH_ENTRIES
     .map(entry => {
-      const score = entryScore(queryVariants, intents, entry, lang);
+      const score = entryScore(queryVariants, intents, conceptMatches, entry, lang);
       if (score == null) { return null; }
       return {
         score,
