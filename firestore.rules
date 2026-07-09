@@ -89,6 +89,19 @@ service cloud.firestore {
           && request.resource.data.updatedAt is timestamp;
       }
 
+      // ─── POI inference misses (KAN-254) ──────────────────────────────────────
+      // Best-effort telemetry for phrases the local POI parser could not map.
+      // Payload is intentionally tiny and contains no user identifiers beyond
+      // the owning document path.
+      match /poiInferenceMisses/{docId} {
+        allow create: if isOwner(userId)
+          && request.resource.data.keys().hasOnly(['sentence', 'createdAt'])
+          && validString(request.resource.data.sentence, 200)
+          && request.resource.data.sentence.size() > 0
+          && request.resource.data.createdAt is timestamp;
+        allow read, update, delete: if false;
+      }
+
       // ─── Learned place visit counters (KAN-240) ──────────────────────────────
       match /learnedPlaceCounts/{placeId} {
         allow read, delete: if isOwner(userId);
