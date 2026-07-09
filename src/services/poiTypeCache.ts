@@ -61,14 +61,14 @@ const INTENT_TERMS: Record<SupportedLanguage, Record<SearchIntent, string[]>> = 
   en: {
     retail: ['buy', 'shop', 'purchase', 'get', 'pick up'],
     food: ['eat', 'drink', 'grab'],
-    fitness: ['work out', 'train', 'exercise'],
+    fitness: ['work out', 'train', 'exercise', 'jog', 'jogging', 'run', 'running'],
     medical: ['pick up medicine', 'pick up prescription', 'get medicine', 'get prescription'],
     postal: ['mail', 'post', 'ship', 'send package'],
   },
   'pt-PT': {
     retail: ['comprar', 'loja', 'buscar', 'ir buscar', 'levantar'],
     food: ['comer', 'beber', 'lanchar'],
-    fitness: ['treinar', 'exercicio', 'exercício', 'ginasio', 'ginásio'],
+    fitness: ['treinar', 'exercicio', 'exercício', 'ginasio', 'ginásio', 'correr', 'corrida', 'jogging'],
     medical: ['buscar medicamento', 'levantar receita', 'comprar remedios', 'comprar remédios'],
     postal: ['correio', 'enviar encomenda', 'posta'],
   },
@@ -140,6 +140,14 @@ const POI_CONCEPTS: PoiConcept[] = [
     terms: {
       en: ['gym', 'workout', 'fitness', 'exercise', 'training'],
       'pt-PT': ['ginasio', 'ginásio', 'treino', 'fitness', 'exercicio', 'exercício'],
+    },
+  },
+  {
+    intents: ['fitness'],
+    types: ['park'],
+    terms: {
+      en: ['jog', 'jogging', 'run', 'running', 'trail', 'park', 'outdoor run'],
+      'pt-PT': ['correr', 'corrida', 'jogging', 'trilho', 'parque', 'corrida ao ar livre'],
     },
   },
 ];

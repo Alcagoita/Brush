@@ -91,6 +91,18 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'bakery', label: 'Bakery' });
   });
 
+  it('prefers park for jogging intent', async () => {
+    const results = await searchPlaceTypesCached('find a place to jog');
+
+    expect(results[0]).toEqual({ type: 'park', label: 'Park' });
+  });
+
+  it('prefers park for running-place phrasing', async () => {
+    const results = await searchPlaceTypesCached('place to run');
+
+    expect(results[0]).toEqual({ type: 'park', label: 'Park' });
+  });
+
   it('prefers florist for flower-buying intent', async () => {
     const results = await searchPlaceTypesCached('buy flowers');
 
