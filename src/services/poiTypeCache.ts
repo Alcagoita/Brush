@@ -16,6 +16,60 @@ const EN_DICTIONARY = require('../constants/poiDictionary.en.json') as Record<st
 const PT_DICTIONARY = require('../constants/poiDictionary.pt-PT.json') as Record<string, string>;
 
 const MAX_RESULTS = 8;
+const COMMERCIAL_POI_TYPES = new Set([
+  'book_store',
+  'clothing_store',
+  'coffee_shop',
+  'convenience_store',
+  'department_store',
+  'discount_store',
+  'drugstore',
+  'electronics_store',
+  'florist',
+  'furniture_store',
+  'grocery_store',
+  'home_goods_store',
+  'liquor_store',
+  'pet_store',
+  'pharmacy',
+  'shoe_store',
+  'sporting_goods_store',
+  'store',
+  'supermarket',
+  'warehouse_store',
+]);
+
+const COMMERCIAL_INTENT_TERMS: Record<SupportedLanguage, string[]> = {
+  en: ['buy', 'shop', 'purchase', 'get', 'pick up'],
+  'pt-PT': ['comprar', 'loja', 'buscar', 'ir buscar', 'levantar'],
+};
+
+const POI_ALIASES: Partial<Record<string, Record<SupportedLanguage, string[]>>> = {
+  book_store: {
+    en: ['book', 'books', 'book shop', 'bookstore'],
+    'pt-PT': ['livro', 'livros', 'livraria'],
+  },
+  florist: {
+    en: ['flower', 'flowers', 'bouquet'],
+    'pt-PT': ['flor', 'flores', 'ramo de flores'],
+  },
+  coffee_shop: {
+    en: ['coffee', 'coffee shop', 'espresso'],
+    'pt-PT': ['cafe', 'café', 'cafetaria', 'café para levar'],
+  },
+  pharmacy: {
+    en: ['medicine', 'medicines', 'medication', 'prescription', 'chemist'],
+    'pt-PT': ['medicamento', 'medicamentos', 'farmacia', 'farmácia', 'remedio', 'remédios'],
+  },
+  shoe_store: {
+    en: ['shoe', 'shoes', 'sneakers', 'footwear'],
+    'pt-PT': ['sapato', 'sapatos', 'tenis', 'ténis', 'calcado', 'calçado'],
+  },
+  gym: {
+    en: ['gym', 'workout', 'fitness', 'exercise'],
+    'pt-PT': ['ginasio', 'ginásio', 'treino', 'fitness', 'exercicio', 'exercício'],
+  },
+};
 
 interface PoiDictionaryEntry {
   type: string;
@@ -24,6 +78,17 @@ interface PoiDictionaryEntry {
   slugKey: string;
   enKey: string;
   ptKey: string;
+  enAliasKeys: string[];
+  ptAliasKeys: string[];
+  isCommercial: boolean;
+}
+
+function normalizeKeys(values: string[]): string[] {
+  return Array.from(new Set(values.map(value => normalize(value)).filter(Boolean)));
+}
+
+function tokenize(normalizedText: string): string[] {
+  return normalizedText.split(' ').filter(Boolean);
 }
 
 const SEARCH_ENTRIES: PoiDictionaryEntry[] = Object.keys(EN_DICTIONARY)
@@ -31,6 +96,7 @@ const SEARCH_ENTRIES: PoiDictionaryEntry[] = Object.keys(EN_DICTIONARY)
   .map(type => {
     const enLabel = EN_DICTIONARY[type] ?? type;
     const ptLabel = PT_DICTIONARY[type] ?? enLabel;
+    const aliases = POI_ALIASES[type];
     return {
       type,
       enLabel,
@@ -38,6 +104,9 @@ const SEARCH_ENTRIES: PoiDictionaryEntry[] = Object.keys(EN_DICTIONARY)
       slugKey: normalize(type),
       enKey:   normalize(enLabel),
       ptKey:   normalize(ptLabel),
+      enAliasKeys: normalizeKeys(aliases?.en ?? []),
+      ptAliasKeys: normalizeKeys(aliases?.['pt-PT'] ?? []),
+      isCommercial: COMMERCIAL_POI_TYPES.has(type),
     };
   });
 
@@ -45,21 +114,58 @@ function activeLabel(entry: PoiDictionaryEntry, lang: SupportedLanguage): string
   return lang === 'pt-PT' ? entry.ptLabel : entry.enLabel;
 }
 
-function entryScore(queryKey: string, entry: PoiDictionaryEntry, lang: SupportedLanguage): number | null {
-  const preferred = lang === 'pt-PT'
-    ? [entry.ptKey, entry.enKey, entry.slugKey]
-    : [entry.enKey, entry.ptKey, entry.slugKey];
+function hasCommercialIntent(queryKey: string, lang: SupportedLanguage): boolean {
+  return COMMERCIAL_INTENT_TERMS[lang].some(term =>
+    queryKey === term || queryKey.includes(` ${term} `) || queryKey.startsWith(`${term} `),
+  );
+}
 
-  for (let i = 0; i < preferred.length; i++) {
-    if (preferred[i] === queryKey) { return i; }
+function scoreMatch(
+  queryKey: string,
+  queryHaystack: string,
+  queryTokens: Set<string>,
+  candidateKey: string,
+  baseScore: number,
+): number | null {
+  if (!candidateKey) { return null; }
+  const candidateTokens = tokenize(candidateKey);
+  const specificityBonus = Math.min(candidateKey.length, 99) / 100;
+
+  if (candidateKey === queryKey) { return baseScore - specificityBonus; }
+  if (queryHaystack.includes(` ${candidateKey} `)) { return 10 + baseScore - specificityBonus; }
+  if (candidateTokens.length > 0 && candidateTokens.every(token => queryTokens.has(token))) {
+    return 20 + baseScore - specificityBonus;
   }
-  for (let i = 0; i < preferred.length; i++) {
-    if (preferred[i].startsWith(queryKey)) { return 10 + i; }
-  }
-  for (let i = 0; i < preferred.length; i++) {
-    if (preferred[i].includes(queryKey)) { return 20 + i; }
-  }
+  if (candidateKey.startsWith(queryKey)) { return 30 + baseScore - specificityBonus; }
+  if (candidateKey.includes(queryKey)) { return 40 + baseScore - specificityBonus; }
   return null;
+}
+
+function entryScore(
+  queryKey: string,
+  queryHaystack: string,
+  queryTokens: Set<string>,
+  entry: PoiDictionaryEntry,
+  lang: SupportedLanguage,
+): number | null {
+  const preferred = lang === 'pt-PT'
+    ? [entry.ptKey, entry.enKey, entry.slugKey, ...entry.ptAliasKeys, ...entry.enAliasKeys]
+    : [entry.enKey, entry.ptKey, entry.slugKey, ...entry.enAliasKeys, ...entry.ptAliasKeys];
+
+  let best: number | null = null;
+  for (let i = 0; i < preferred.length; i++) {
+    const score = scoreMatch(queryKey, queryHaystack, queryTokens, preferred[i], i);
+    if (score == null) { continue; }
+    if (best == null || score < best) {
+      best = score;
+    }
+  }
+
+  if (best == null) { return null; }
+  if (entry.isCommercial && hasCommercialIntent(queryKey, lang)) {
+    return best - 2;
+  }
+  return best;
 }
 
 function sortSuggestions(
@@ -78,9 +184,11 @@ function localPoiSuggestions(query: string): PlaceTypeSuggestion[] {
   if (!queryKey) { return []; }
 
   const lang = getCopyLanguage();
+  const queryHaystack = ` ${queryKey} `;
+  const queryTokens = new Set(tokenize(queryKey));
   const ranked = SEARCH_ENTRIES
     .map(entry => {
-      const score = entryScore(queryKey, entry, lang);
+      const score = entryScore(queryKey, queryHaystack, queryTokens, entry, lang);
       if (score == null) { return null; }
       return {
         score,

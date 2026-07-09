@@ -46,15 +46,65 @@ describe('searchPlaceTypesCached', () => {
   });
 
   it('matches a raw type slug locally', async () => {
-    await expect(searchPlaceTypesCached('sushi_restaurant')).resolves.toEqual([
-      { type: 'sushi_restaurant', label: 'Sushi Restaurant' },
-    ]);
+    const results = await searchPlaceTypesCached('sushi_restaurant');
+
+    expect(results[0]).toEqual({ type: 'sushi_restaurant', label: 'Sushi Restaurant' });
   });
 
   it('supports prefix search without any live API fallback', async () => {
     const results = await searchPlaceTypesCached('sushi');
 
     expect(results.some(result => result.type === 'sushi_restaurant')).toBe(true);
+  });
+
+  it('prefers commercial POIs for "buy a book"', async () => {
+    const results = await searchPlaceTypesCached('buy a book');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
+  });
+
+  it('prefers florist for flower-buying intent', async () => {
+    const results = await searchPlaceTypesCached('buy flowers');
+
+    expect(results[0]).toEqual({ type: 'florist', label: 'Florist' });
+  });
+
+  it('prefers coffee shops for coffee-buying intent', async () => {
+    const results = await searchPlaceTypesCached('get coffee');
+
+    expect(results[0]).toEqual({ type: 'coffee_shop', label: 'Coffee Shop' });
+  });
+
+  it('prefers pharmacy for medicine pickup intent', async () => {
+    const results = await searchPlaceTypesCached('pick up medicine');
+
+    expect(results[0]).toEqual({ type: 'pharmacy', label: 'Pharmacy' });
+  });
+
+  it('prefers shoe stores for shoe-buying intent', async () => {
+    const results = await searchPlaceTypesCached('buy shoes');
+
+    expect(results[0]).toEqual({ type: 'shoe_store', label: 'Shoe Store' });
+  });
+
+  it('matches built-in labels inside longer task phrasing', async () => {
+    const results = await searchPlaceTypesCached('go to the gym');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Gym' });
+  });
+
+  it('supports Portuguese synonym ranking offline', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('comprar um livro');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Livraria' });
+  });
+
+  it('keeps exact built-in label matches stable', async () => {
+    await expect(searchPlaceTypesCached('library')).resolves.toEqual([
+      { type: 'library', label: 'Library' },
+    ]);
   });
 
   it('returns an empty list on a miss', async () => {

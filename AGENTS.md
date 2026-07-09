@@ -294,6 +294,8 @@ docs/
 14. **Never display raw MCP tool responses.** After calling any Jira (or other MCP) tool, only report the outcome in plain text (e.g. "KAN-129 → Testing"). Never paste the raw JSON response into the conversation.
 15. **Keep answers concise and direct.** Prefer short, plain responses unless the user explicitly asks for detail.
 16. **At the end of every task, commit the code and open a PR.** Unless the user explicitly says not to, finish implementation by creating the commit and opening a PR targeting `develop`, then stop and wait for review.
+17. **Admin merge requires explicit approval after review.** If a PR is blocked by branch protection but has already been reviewed and the user explicitly approves the override in that conversation, `--admin` may be used to merge it.
+18. **After a PR is merged into `develop`, delete the local feature branch.** Switch back to `develop` first, then remove the merged local branch before starting the next ticket.
 
 ---
 
