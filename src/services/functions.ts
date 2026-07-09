@@ -10,8 +10,10 @@
  * Same ParseMessageOutput shape as before — ShareReceiveScreen is unchanged.
  */
 
+import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { inferPoiFromRules } from './poiInference';
 import { searchPlaceTypesCached } from './poiTypeCache';
+import { logPoiInferenceMiss } from './firestore';
 import { POI_GOOGLE_TYPES }  from '../types';
 import type { PoiType }      from '../types';
 
@@ -117,6 +119,12 @@ export async function parseMessageToTask(text: string): Promise<ParseMessageOutp
     if (__DEV__) {
       console.warn('[parseMessageToTask] searchPlaceTypes failed:', err);
     }
+  }
+
+  const uid = getAuth().currentUser?.uid;
+  if (uid) {
+    // Best-effort logging only — failed telemetry must never block parsing.
+    void logPoiInferenceMiss(uid, trimmed).catch(() => {});
   }
 
   return { title, suggestedPoi: null, suggestedTime, confidence: 'low' };
