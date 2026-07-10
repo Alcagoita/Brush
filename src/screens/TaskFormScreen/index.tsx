@@ -28,6 +28,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import { categories as builtInCategories, categoryHues } from '../../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding';
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { learnFromUserEdit } from '../../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
@@ -238,7 +239,7 @@ export default function TaskFormScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
 
       {/* ── Sticky top bar ── */}
       <View style={[

@@ -146,7 +146,7 @@ function ImportRow({ source, label, uid, isLast }: ImportRowProps) {
         <View style={[s.iconTile, { backgroundColor: palette.surface2 }]}>
           <Icon color={palette.muted} size={19} />
         </View>
-        <Text style={[s.rowLabel, { color: palette.text }]}>{label}</Text>
+        <Text style={[s.rowLabel, s.rowLabelStandalone, { color: palette.text }]}>{label}</Text>
         <View style={s.trailingSlot}>{trailing}</View>
       </Pressable>
       {!isLast && <View style={[s.divider, { backgroundColor: palette.line }]} />}
@@ -412,7 +412,9 @@ export default function SettingsScreen() {
       </View>
 
       <ScrollView
+        style={[s.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
 
         {/* TASKS */}
@@ -551,8 +553,12 @@ const s = StyleSheet.create({
   },
 
   scroll: {
+    flexGrow:   1,
     paddingTop: 20,
     gap:        16,
+  },
+  scrollView: {
+    flex: 1,
   },
 
   sectionWrapper: {
@@ -593,15 +599,20 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   rowLabel: {
-    flex:       1,     // expands in ImportRow (no rowLabelGroup wrapper)
     fontSize:   15,
     fontWeight: '400',
     fontFamily: 'Geist-Regular',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
+  rowLabelStandalone: {
+    flex: 1,
   },
   rowSublabel: {
     fontSize:   12,
     fontFamily: 'Geist-Regular',
     lineHeight: 16,
+    includeFontPadding: false,
   },
   trailingSlot: {
     alignItems:     'center',

@@ -28,6 +28,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { ChevronLeftIcon, HomeIcon } from '../components/AppIcon';
 import { useHomeAddress } from '../hooks/useHomeAddress';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -66,7 +67,7 @@ export default function HomeAddressScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: palette.line }]}>
         <Pressable
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}

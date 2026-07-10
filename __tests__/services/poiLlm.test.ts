@@ -172,6 +172,11 @@ describe('inferPoiForQuickAdd', () => {
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
+  it('treats book-buying phrasing as store without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('buy a book')).toBe('store');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
   it('falls back to the LLM classifier when no rule matches', async () => {
     mockRunSync.mockReturnValue([probs(idxOf('gym'), 0.9)]);
     expect(await inferPoiForQuickAdd('leg day')).toBe('gym');

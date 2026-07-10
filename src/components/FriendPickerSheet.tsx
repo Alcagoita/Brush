@@ -28,6 +28,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import Avatar from './Avatar';
 import { getFollowing } from '../services/firestore';
 import { sendSharedTask } from '../services/sharing';
@@ -168,7 +169,7 @@ export default function FriendPickerSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
       <Pressable style={styles.scrim} onPress={handleClose} accessibilityLabel={COPY.friendPicker.closeA11y} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={getScreenKeyboardAvoidingBehavior()}
         style={styles.wrapper}>
         <View style={[styles.sheet, {
           backgroundColor: palette.surface,

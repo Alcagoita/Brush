@@ -32,6 +32,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { addTask } from '../services/firestore';
 import { parseMessageToTask } from '../services/functions';
 import { getCurrentUser } from '../services/auth';
@@ -243,7 +244,7 @@ export default function ShareReceiveScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
 
       {/* ── Nav bar ── */}
       <View style={[

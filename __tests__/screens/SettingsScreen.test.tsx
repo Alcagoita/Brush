@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -167,6 +167,15 @@ describe('SettingsScreen — KAN-113: rendering', () => {
     await renderScreen();
     expect(screen.getByText(/Brush Away · v/)).toBeTruthy();
   });
+
+  it('keeps the scroll view keyboard-safe and full-height', async () => {
+    const rendered = await renderScreen();
+    const scrollView = rendered.UNSAFE_getByType(ScrollView);
+    const contentStyle = StyleSheet.flatten(scrollView.props.contentContainerStyle);
+
+    expect(scrollView.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(contentStyle.flexGrow).toBe(1);
+  });
 });
 
 // ─── TASKS section ────────────────────────────────────────────────────────────
@@ -177,6 +186,14 @@ describe('SettingsScreen — KAN-113: TASKS section', () => {
   it('renders Manage Categories row', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Manage Categories')).toBeTruthy();
+  });
+
+  it('renders row labels without extra font padding', async () => {
+    await renderScreen();
+    const style = StyleSheet.flatten(screen.getByText('Manage Categories').props.style);
+
+    expect(style.includeFontPadding).toBe(false);
+    expect(style.textAlignVertical).toBe('center');
   });
 
   it('navigates to Categories when Manage Categories is pressed', async () => {

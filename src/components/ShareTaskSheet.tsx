@@ -30,6 +30,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { findUserByEmail, sendSharedTask, UserSummary } from '../services/sharing';
 import { Task } from '../types';
 import { COPY } from '../constants/copy';
@@ -142,7 +143,7 @@ export default function ShareTaskSheet({
         accessibilityLabel={COPY.shareTaskSheet.closeA11y}
       />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={getScreenKeyboardAvoidingBehavior()}
         style={styles.sheetWrapper}>
         <View style={[
           styles.sheet,
