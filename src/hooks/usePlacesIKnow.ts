@@ -37,7 +37,13 @@ export function usePlacesIKnow(): PlacesIKnowState {
     setLoading(true);
     try {
       const [fetchedTrips, categories] = await Promise.all([getTrips(uid), getCategories(uid)]);
-      setTrips(fetchedTrips);
+      // Trip docs outlive their downloaded data (SplashScreen's
+      // deleteExpiredTripPlaces purges only the on-device place cache, never
+      // the doc — CalendarScreen still reads the full list for its
+      // underline/"used to know" label). Here, an expired trip has nothing
+      // left to refresh or delete, so it's dropped from this screen's list.
+      const now = Date.now();
+      setTrips(fetchedTrips.filter(t => t.expiresAt > now));
       setCustomCategoryPoiTypes(categories.map(c => c.poi).filter((p): p is string => !!p));
       setHabitatSizeBytes(estimateHabitatAreaSizeBytes());
     } catch (err) {

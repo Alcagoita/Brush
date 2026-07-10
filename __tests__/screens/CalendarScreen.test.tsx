@@ -136,6 +136,13 @@ describe('CalendarScreen', () => {
     expect(screen.getByLabelText('Jump to today')).toBeTruthy();
   });
 
+  it('back button always returns to Today, not whatever screen pushed Calendar', async () => {
+    await renderScreen();
+    await act(async () => { fireEvent.press(screen.getByLabelText('Back')); });
+    expect(mockNavigate).toHaveBeenCalledWith('Today');
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
   it('renders previous and next month navigation buttons', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Previous month')).toBeTruthy();
@@ -347,7 +354,7 @@ describe('CalendarScreen', () => {
     const coveredTrip = {
       id: 'trip-2', destination: 'Faro', placeRef: 'p2', centerLat: 1, centerLng: 2,
       startDate: '2026-06-24', endDate: '2026-06-27', areaRadius: 15_000,
-      cacheAreaId: 'ta_2', expiresAt: 0, createdAt: fakeTimestamp('2026-06-01'),
+      cacheAreaId: 'ta_2', expiresAt: new Date('2026-07-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
     };
 
     it('shows "Places I know: {destination}" instead of "Going somewhere?" for a day inside an existing trip', async () => {
@@ -391,6 +398,29 @@ describe('CalendarScreen', () => {
       await renderScreen();
 
       expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
+    });
+
+    it('shows "Places I used to know: {destination}" once the trip\'s data has expired (doc kept, cache purged elsewhere)', async () => {
+      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByLabelText('Places I used to know — Faro')).toBeTruthy();
+      expect(screen.getByText('Places I used to know: Faro')).toBeTruthy();
+      expect(screen.queryByText('Places I know: Faro')).toBeNull();
+    });
+
+    it('still navigates to PlacesIKnow when the expired-trip row is tapped', async () => {
+      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Places I used to know — Faro'));
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
     });
 
     it('picks the latest-starting trip deterministically when trips overlap a day', async () => {

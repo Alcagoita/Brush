@@ -555,6 +555,11 @@ export default function CalendarScreen() {
   const selRun        = runLength(selectedDate);
   const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
   const selTrip       = tripForDate(selectedDate);
+  // A trip's Firestore doc outlives its downloaded data (SplashScreen only
+  // purges the on-device place cache on expiry, never the doc itself — see
+  // deleteExpiredTripPlaces) so the underline/entry row can still reference
+  // it here; the label just switches to past tense once expired.
+  const selTripExpired = !!selTrip && selTrip.expiresAt <= Date.now();
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -631,7 +636,7 @@ export default function CalendarScreen() {
       <View style={styles.topBar}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Today')}
           accessibilityRole="button"
           accessibilityLabel={COPY.calendar.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
@@ -733,9 +738,17 @@ export default function CalendarScreen() {
           style={[styles.tripEntryRow, { borderColor: palette.line }]}
           onPress={() => navigation.navigate('PlacesIKnow')}
           accessibilityRole="button"
-          accessibilityLabel={COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)}>
+          accessibilityLabel={
+            selTripExpired
+              ? COPY.tripPlanner.placesIKnowRowA11yExpired(selTrip.destination)
+              : COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)
+          }>
           <SuitcaseIcon color={palette.muted} size={16} />
-          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}</Text>
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+            {selTripExpired
+              ? COPY.tripPlanner.placesIKnowRowLabelExpired(selTrip.destination)
+              : COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}
+          </Text>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
         </Pressable>
       ) : (

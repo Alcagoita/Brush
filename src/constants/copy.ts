@@ -167,6 +167,9 @@ const en = {
     /** KAN-250 — Calendar's day CTA when the selected future day already falls within a downloaded trip; replaces entryRowLabel for that day. */
     placesIKnowRowLabel: (destination: string) => `Places I know: ${destination}`,
     placesIKnowRowA11y:  (destination: string) => `Places I know — ${destination}`,
+    /** Same row, once the trip's data has expired (doc kept, cache purged) — past tense instead of hiding the destination entirely. */
+    placesIKnowRowLabelExpired: (destination: string) => `Places I used to know: ${destination}`,
+    placesIKnowRowA11yExpired:  (destination: string) => `Places I used to know — ${destination}`,
     habitatRowLabel: 'Everywhere I usually go',
     habitatRowSub:   'Updated automatically as you go about your day',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
@@ -1078,6 +1081,8 @@ const ptPT: typeof en = {
     placesIKnowEmpty: 'Ainda não conheço nenhuma zona de viagem — adiciona uma acima.',
     placesIKnowRowLabel: (destination: string) => `Sítios que conheço: ${destination}`,
     placesIKnowRowA11y:  (destination: string) => `Sítios que conheço — ${destination}`,
+    placesIKnowRowLabelExpired: (destination: string) => `Sítios que já conheci: ${destination}`,
+    placesIKnowRowA11yExpired:  (destination: string) => `Sítios que já conheci — ${destination}`,
     habitatRowLabel: 'Onde costumo andar',
     habitatRowSub:   'Atualizado automaticamente ao longo do teu dia',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
