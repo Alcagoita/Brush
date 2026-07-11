@@ -127,6 +127,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   StarIcon:         () => null,
   SuitcaseIcon:     () => null,
   BuildingIcon:     () => null,
+  CloudOffIcon:     () => null,
 }));
 
 jest.mock('../../src/components/Avatar', () => {
@@ -428,6 +429,24 @@ describe('ProfileScreen — navigation entries', () => {
     await renderScreen();
     fireEvent.press(screen.getByLabelText('Settings'));
     expect(mockNavigate).toHaveBeenCalledWith('Settings');
+  });
+});
+
+// ─── Off-grid entry row (KAN-246) ─────────────────────────────────────────────
+
+describe('ProfileScreen — off-grid entry row (KAN-246)', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('renders the off-grid row label and sublabel', async () => {
+    await renderScreen();
+    expect(screen.getByText('Going off-grid?')).toBeTruthy();
+    expect(screen.getByText('Heading somewhere with no signal for a while? I can get ready.')).toBeTruthy();
+  });
+
+  it('navigates to OffGrid when the row is pressed', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Set up an off-grid window'));
+    expect(mockNavigate).toHaveBeenCalledWith('OffGrid');
   });
 });
 

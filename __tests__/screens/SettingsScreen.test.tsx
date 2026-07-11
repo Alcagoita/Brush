@@ -100,7 +100,6 @@ jest.mock('../../src/components/AppIcon', () => ({
   CheckIcon:        () => null,
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
-  CloudOffIcon:     () => null,
   GlobeIcon:        () => null,
   GridIcon:         () => null,
   HomeIcon:         () => null,
@@ -315,22 +314,6 @@ describe('SettingsScreen — KAN-247: Home row', () => {
     await renderScreen();
     fireEvent.press(screen.getByLabelText('Home'));
     expect(mockNavigate).toHaveBeenCalledWith('HomeAddress');
-  });
-});
-
-// ─── Off-grid row (KAN-246) ────────────────────────────────────────────────────
-
-describe('SettingsScreen — off-grid row', () => {
-  it('renders the off-grid row label and sublabel', async () => {
-    await renderScreen();
-    expect(screen.getByText('Going off-grid?')).toBeTruthy();
-    expect(screen.getByText('Heading somewhere with no signal for a while? I can get ready.')).toBeTruthy();
-  });
-
-  it('navigates to OffGrid when the row is pressed', async () => {
-    await renderScreen();
-    fireEvent.press(screen.getByLabelText('Set up an off-grid window'));
-    expect(mockNavigate).toHaveBeenCalledWith('OffGrid');
   });
 });
 
