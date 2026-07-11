@@ -196,6 +196,26 @@ let _isSearching = false;
 /** KAN-236 — the "you've moved beyond cached coverage" toast fires at most once per session. */
 let _offlineUncoveredNoticeShown = false;
 
+/**
+ * KAN-244 — how many times the coverage toast has shown the Trip Planner
+ * invitation variant (copy + "Show me" action) rather than the plain
+ * apology. Deliberately NOT reset by resetProximityState() (sign-out/day
+ * boundary) — an invitation repeated forever becomes marketing, so the cap
+ * must survive across sessions within the same app install, unlike the
+ * once-per-session `_offlineUncoveredNoticeShown` flag above. Resets only
+ * on a fresh app process (no local-persistence layer exists in this app
+ * yet to survive a full restart — acceptable for this ticket's scope).
+ */
+let _coverageInvitationShownCount = 0;
+
+/** KAN-244 — invitation variant shows at most this many times (lifetime), then reverts to the plain apology copy. */
+export const COVERAGE_INVITATION_LIFETIME_CAP = 3;
+
+/** KAN-244 — pure cap check, exported for unit testing in isolation. */
+export function shouldShowCoverageInvitation(invitationShownCount: number): boolean {
+  return invitationShownCount < COVERAGE_INVITATION_LIFETIME_CAP;
+}
+
 /** KAN-230 — on-device learned-place ranking, fed in from outside (see setLearnedPlaces). */
 let _learnedPlaces: LearnedPlace[] = [];
 
@@ -490,6 +510,20 @@ export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): vo
   _placeContextTap = cb;
 }
 
+/**
+ * KAN-244 — navigates to the Trip Planner flow from the coverage-invitation
+ * toast action. Injected via setNavigateToTripPlanner rather than importing
+ * navigationRef directly — this file must stay usable from plain Jest unit
+ * tests that only stub `react-native`'s bare essentials, and importing
+ * `@react-navigation/native` here would pull its full theming/container code
+ * into every test that touches this module. Pass null to unregister.
+ */
+let _navigateToTripPlanner: (() => void) | null = null;
+
+export function setNavigateToTripPlanner(cb: (() => void) | null): void {
+  _navigateToTripPlanner = cb;
+}
+
 // ─── Core: one-shot proximity search ─────────────────────────────────────────
 
 /**
@@ -588,7 +622,19 @@ async function runProximitySearch(
       // copy already covers that — no need to also fire a toast for it.
       if (!_offlineUncoveredNoticeShown && hasCachedPlaces()) {
         _offlineUncoveredNoticeShown = true;
-        useToastStore.getState().showToast(COPY.offline.uncoveredAreaToast);
+        // KAN-244 — the user who just felt the offline gap is the most
+        // receptive audience for the fix: teach it instead of just
+        // apologizing, up to the lifetime cap, then fall back to the
+        // plain copy so the invitation doesn't repeat forever.
+        if (shouldShowCoverageInvitation(_coverageInvitationShownCount)) {
+          _coverageInvitationShownCount += 1;
+          useToastStore.getState().showToast(COPY.offline.uncoveredAreaInvitationToast, {
+            label: COPY.offline.uncoveredAreaInvitationAction,
+            onPress: () => _navigateToTripPlanner?.(),
+          });
+        } else {
+          useToastStore.getState().showToast(COPY.offline.uncoveredAreaToast);
+        }
       }
       return;
     }
@@ -871,3 +917,5 @@ export function __clearGeofenceEntryTimes(): void {
 export function __getPendingQueue(): PendingSearch[] { return _pendingQueue; }
 export function __clearPendingQueue(): void { _pendingQueue = []; }
 export function __setNetInfoUnsubscribe(fn: (() => void) | null): void { _netInfoUnsubscribe = fn; }
+/** KAN-244 — test-only: resetProximityState() deliberately doesn't touch the lifetime cap counter (see its declaration). */
+export function __resetCoverageInvitationCount(): void { _coverageInvitationShownCount = 0; }

@@ -105,6 +105,8 @@ jest.mock('../../src/constants/copy', () => ({
       genericBanner:       'Offline — changes may not sync',
       noCacheYetBanner:    "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
       uncoveredAreaToast:  "You're outside the area I know by heart — I'll need a connection to spot places here.",
+      uncoveredAreaInvitationToast:  "You're outside the area I know by heart. Next time, tell me before you go — I can learn a place ahead of time.",
+      uncoveredAreaInvitationAction: 'Show me',
     },
   },
 }));
@@ -114,7 +116,16 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
-import { runProximitySearch, resetProximityState, __getPendingQueue, setActiveTrips, setMallSnapshot, setPlaceContextTap } from '../../src/services/proximity';
+import {
+  runProximitySearch,
+  resetProximityState,
+  __getPendingQueue,
+  __resetCoverageInvitationCount,
+  setActiveTrips,
+  setMallSnapshot,
+  setPlaceContextTap,
+  setNavigateToTripPlanner,
+} from '../../src/services/proximity';
 import type { Task, Trip, MallSnapshot } from '../../src/types';
 import type { NearbyPlace } from '../../src/services/maps';
 import NetInfo from '@react-native-community/netinfo';
@@ -182,11 +193,12 @@ beforeEach(() => {
   mockQueryHabitatCache.mockReturnValue({});
   mockFindExistingPlaceId.mockReturnValue(null);
   mockHasCachedPlaces.mockReturnValue(false);
-  useToastStore.setState({ message: null });
+  useToastStore.setState({ message: null, action: null });
   // Pin the clock to business hours so isQuietHours() never suppresses
   // the notification assertions below.
   jest.spyOn(Date.prototype, 'getHours').mockReturnValue(10);
   resetProximityState();
+  __resetCoverageInvitationCount();
 });
 
 describe('offline branch answers from the habitat cache', () => {
@@ -374,8 +386,8 @@ describe('alert dedup survives a source switch', () => {
   });
 });
 
-describe('offline expectations messaging — "moved beyond coverage" toast (KAN-236)', () => {
-  it('fires the toast on a cache miss when the cache has data elsewhere', async () => {
+describe('offline expectations messaging — "moved beyond coverage" toast (KAN-236 / KAN-244)', () => {
+  it('fires the invitation-variant toast (under the lifetime cap) on a cache miss when the cache has data elsewhere', async () => {
     goOffline();
     mockFetch.mockRejectedValueOnce(new Error('network down'));
     mockQueryHabitatCache.mockReturnValue({ atm: [] });
@@ -383,7 +395,37 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
 
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
-    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
+    expect(useToastStore.getState().action?.label).toBe(COPY.offline.uncoveredAreaInvitationAction);
+  });
+
+  it('the invitation action navigates to the Trip Planner flow via the injected callback', async () => {
+    const mockNavigate = jest.fn();
+    setNavigateToTripPlanner(mockNavigate);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    useToastStore.getState().action?.onPress();
+
+    expect(mockNavigate).toHaveBeenCalledTimes(1);
+    setNavigateToTripPlanner(null);
+  });
+
+  it('the invitation action is a safe no-op when no navigate callback is registered', async () => {
+    setNavigateToTripPlanner(null);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(() => useToastStore.getState().action?.onPress()).not.toThrow();
   });
 
   it('does not fire the toast on a cache miss when the cache is empty everywhere (state 1, NetworkBanner\'s job)', async () => {
@@ -415,7 +457,7 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
     mockFetch.mockRejectedValueOnce(new Error('network down'));
     mockQueryHabitatCache.mockReturnValue({ atm: [] });
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
-    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
 
     // Dismiss it, then hit another cache miss in the same session.
     useToastStore.getState().hideToast();
@@ -452,7 +494,7 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
     mockFetch.mockRejectedValueOnce(new Error('network down'));
     mockQueryHabitatCache.mockReturnValue({ atm: [] });
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
-    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
 
     useToastStore.getState().hideToast();
     resetProximityState();
@@ -462,7 +504,32 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
     mockQueryHabitatCache.mockReturnValue({ atm: [] });
     await runProximitySearch('uid-1', [makeTask()], jest.fn());
 
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
+  });
+
+  it('KAN-244 — reverts to the plain copy once the invitation lifetime cap is reached, even across new sessions', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+
+    // Three sessions, each fires the invitation variant (count 0 → 1 → 2 → 3).
+    for (let i = 0; i < 3; i += 1) {
+      goOffline();
+      mockFetch.mockRejectedValueOnce(new Error('network down'));
+      mockQueryHabitatCache.mockReturnValue({ atm: [] });
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
+
+      useToastStore.getState().hideToast();
+      resetProximityState(); // new session — only resets the once-per-session flag, NOT the lifetime cap
+    }
+
+    // Fourth session, cap now reached — plain apology copy, no action.
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
     expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaToast);
+    expect(useToastStore.getState().action).toBeNull();
   });
 });
 

@@ -17,8 +17,10 @@ import {
   getLastSearchCoords,
   setLocationTap,
   setPlaceContextTap,
+  setNavigateToTripPlanner,
 } from '../../services/proximity';
 import type { PlacesMap, PlaceContext } from '../../services/proximity';
+import { navigateTo } from '../../navigation/navigationRef';
 import { getDistanceMeters } from '../../services/maps';
 import type { NearbyPlace } from '../../services/maps';
 import {
@@ -143,10 +145,12 @@ export function useProximityEngine(
 
     setLocationTap((lat, lng, accuracy) => { feedLocation(lat, lng, accuracy); });
     setPlaceContextTap(setPlaceContext);
+    setNavigateToTripPlanner(() => navigateTo('TripPlanner'));
 
     return () => {
       setLocationTap(null);
       setPlaceContextTap(null);
+      setNavigateToTripPlanner(null);
       stopTuning();
       stopDetection();
     };

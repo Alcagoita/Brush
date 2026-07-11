@@ -100,6 +100,7 @@ jest.mock('../../src/services/proximity', () => ({
   updateProximityPoiPreferences: jest.fn(),
   setLocationTap:                jest.fn(),
   setPlaceContextTap:            jest.fn(),
+  setNavigateToTripPlanner:      jest.fn(),
   updateNotifNearbyEnabled:      jest.fn(),
   updateExitPromptPref:          jest.fn(),
   setLearnedPlaces:              (...args: unknown[]) => mockSetLearnedPlaces(...args),
