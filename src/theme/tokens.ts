@@ -33,18 +33,18 @@ export const lightPalette = {
 
 export const darkPalette = {
   bg:         '#0e0e0c',
-  surface:    '#171715',
-  surface2:   '#1f1f1d',
-  line:       'rgba(255,255,255,0.08)',
+  surface:    '#232321',   // oklch(0.19 0.004 95) — bg→surface≥1.2:1, the only elevation cue with shadows banned
+  surface2:   '#2c2c2a',   // oklch(0.22 0.004 95) — continues the surface→surface2 luminance ladder
+  line:       'rgba(255,255,255,0.13)',
   text:       '#f6f5f2',
-  muted:      '#8a8a85',
-  faint:      '#525250',
-  ringTrack:  'rgba(255,255,255,0.07)',
+  muted:      '#96968f',   // oklch(0.63 0.006 95) — keeps ≥4.5:1 on surface2, the tightest of the three surfaces
+  faint:      '#6e6e69',   // oklch(0.47 0.006 95) — ≥3:1 on bg
+  ringTrack:  'rgba(255,255,255,0.12)',
   ringFill:   '#f6f5f2',
   accent:     '#d4955a',   // oklch(0.72 0.14 65)
   nearTint:   '#2a1e12',   // oklch(0.22 0.045 65)
   nearTint2:  '#362514',   // oklch(0.27 0.06 65)
-  nearBorder: '#6b4020',   // oklch(0.42 0.10 65)
+  nearBorder: '#a06f40',   // oklch(0.52 0.10 65) — ≥3:1 vs both nearTint and nearTint2
   nearText:   '#dba87a',   // oklch(0.86 0.10 65)
   success:    '#5fc090',   // accepted / positive status (brighter for dark bg)
   danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
