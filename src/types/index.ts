@@ -214,7 +214,7 @@ export interface Category {
   /** 'work' | 'health' | 'errands' | 'personal' for built-ins; Firestore ID for custom. */
   id: string;
   name: string;
-  /** Hex colour string (e.g. "#5b7fd4"). */
+  /** Hex colour string, e.g. one from `categories` or `categoryHues` in theme/tokens.ts. */
   color: string;
   /**
    * Google Places primary type string (e.g. "gym", "restaurant", "atm").

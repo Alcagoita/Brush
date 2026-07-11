@@ -29,6 +29,9 @@ export const lightPalette = {
   danger:     '#e05252',   // declined / error status
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
   scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
+  selectedRingTrack: 'rgba(255,255,255,0.20)', // CalendarRing inside a selected cell (bg = palette.text) — opposite tone of the theme
+  selectedRingArc:   'rgba(255,255,255,0.88)',
+  separatorStrong:   'rgba(20,20,18,0.14)',    // NearbyCard row divider — stronger than the default `line` token
 } as const;
 
 export const darkPalette = {
@@ -50,6 +53,9 @@ export const darkPalette = {
   danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
   scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
+  selectedRingTrack: 'rgba(0,0,0,0.16)',       // CalendarRing inside a selected cell (bg = palette.text) — opposite tone of the theme
+  selectedRingArc:   'rgba(20,18,14,0.82)',
+  separatorStrong:   'rgba(255,255,255,0.14)', // NearbyCard row divider — stronger than the default `line` token
 } as const;
 
 export type Palette = {
@@ -71,6 +77,9 @@ export type Palette = {
   danger: string;
   onAccent: string;
   scrim: string;
+  selectedRingTrack: string;
+  selectedRingArc: string;
+  separatorStrong: string;
 };
 
 // ─── Category colors ──────────────────────────────────────────────────────────
@@ -116,6 +125,57 @@ export const categoryHues = [
   '#8b6bc4', // oklch(0.62 0.12 305)
   '#c45b7a', // oklch(0.62 0.12 350)
 ] as const;
+
+/**
+ * 18-swatch grid offered by CategoriesScreen's colour picker (KAN-259).
+ * Same rationale as `categoryHues` above — fixed identity colours the user
+ * picks from, not app-theme colours, so they don't vary between light/dark.
+ */
+export const categoryPickerColors = [
+  // Row 1 — blues & purples
+  '#5b7fd4', // Work — soft blue (legacy)
+  '#4f9ee8', // sky blue
+  '#3b78e8', // bright blue
+  '#8b6bc4', // Errands — muted purple (legacy)
+  '#a06ed4', // lavender
+  '#c47aa0', // mauve
+  // Row 2 — greens, yellows, warm
+  '#5ba87a', // Health — sage (legacy)
+  '#3da890', // teal
+  '#4dc880', // mint
+  '#8ab84a', // olive
+  '#d4c84a', // yellow
+  '#e8a86a', // Personal — peach (legacy)
+  // Row 3 — warm spectrum + neutrals
+  '#e87a4a', // orange
+  '#e05252', // red
+  '#e05294', // hot pink
+  '#c45294', // magenta
+  '#8a9ab4', // slate
+  '#7a7a7a', // gray
+] as const;
+
+/**
+ * Selection ring drawn over an already-vivid swatch (CategoriesScreen colour
+ * grid, KAN-259). Darkens whatever saturated colour is underneath it, which
+ * is independent of app theme — same value in both palettes, like `onAccent`.
+ */
+export const swatchSelectedRing = 'rgba(0,0,0,0.28)';
+
+/**
+ * Warm-tinted modal scrim used only by the light-mode-only OnboardingScreen
+ * (KAN-140 — "All tokens are hardcoded to the light palette per spec").
+ * Matches `lightPalette.text` at low opacity; kept separate from the
+ * app-wide `scrim` token since Onboarding never renders in dark mode.
+ */
+export const onboardingScrim = 'rgba(31,28,22,0.34)';
+
+/**
+ * Fallback identity color for tasks whose category ID doesn't match any
+ * known category (TaskRow.tsx, CalendarScreen.tsx — KAN-259). Fixed like
+ * `categoryHues` — an identity color, not theme-dependent.
+ */
+export const fallbackCategoryColor = '#8a8a85';
 
 // ─── Typography ───────────────────────────────────────────────────────────────
 

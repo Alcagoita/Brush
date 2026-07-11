@@ -166,7 +166,7 @@ export default function FriendPickerSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <Pressable style={styles.scrim} onPress={handleClose} accessibilityLabel={COPY.friendPicker.closeA11y} />
+      <Pressable style={[styles.scrim, { backgroundColor: palette.scrim }]} onPress={handleClose} accessibilityLabel={COPY.friendPicker.closeA11y} />
       <KeyboardAvoidingView
         behavior={getScreenKeyboardAvoidingBehavior()}
         style={styles.wrapper}>
@@ -213,7 +213,7 @@ export default function FriendPickerSheet({
             </View>
           ) : followingError ? (
             <View style={styles.emptyWrap}>
-              <Text style={[styles.emptyText, { color: '#e05252' }]} accessibilityRole="alert">
+              <Text style={[styles.emptyText, { color: palette.danger }]} accessibilityRole="alert">
                 {followingError}
               </Text>
             </View>
@@ -242,7 +242,7 @@ export default function FriendPickerSheet({
 
           {/* Error */}
           {error ? (
-            <Text style={[styles.errorText, { color: '#e05252' }]}>{error}</Text>
+            <Text style={[styles.errorText, { color: palette.danger }]}>{error}</Text>
           ) : null}
 
           {/* Send button */}
@@ -270,7 +270,7 @@ export default function FriendPickerSheet({
 }
 
 const styles = StyleSheet.create({
-  scrim: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)' },
+  scrim: { ...StyleSheet.absoluteFillObject },
   wrapper: { flex: 1, justifyContent: 'flex-end' },
   sheet: {
     borderTopLeftRadius:  20,

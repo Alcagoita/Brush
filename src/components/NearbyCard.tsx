@@ -268,8 +268,8 @@ function AlsoCloseRow({
   place:   NearbyPlace | undefined;
   isFirst: boolean;
 }) {
-  const { palette, dark } = useTheme();
-  const separatorColor = dark ? 'rgba(255,255,255,0.14)' : 'rgba(20,20,18,0.14)';
+  const { palette } = useTheme();
+  const separatorColor = palette.separatorStrong;
 
   return (
     <Pressable

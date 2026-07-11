@@ -433,7 +433,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
         {/* ── Scrim ── */}
         <Animated.View
-          style={[StyleSheet.absoluteFill, styles.scrim, scrimStyle]}
+          style={[StyleSheet.absoluteFill, styles.scrim, { backgroundColor: palette.scrim }, scrimStyle]}
           pointerEvents={visible ? 'box-only' : 'none'}>
           <Pressable style={StyleSheet.absoluteFill} onPress={handleClose} />
         </Animated.View>
@@ -677,7 +677,6 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   scrim: {
-    backgroundColor: 'rgba(0,0,0,0.4)',
     zIndex: 10,
   },
   kavContainer: {

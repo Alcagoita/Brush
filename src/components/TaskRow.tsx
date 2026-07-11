@@ -30,7 +30,7 @@ import Svg, {
   Stop,
 } from 'react-native-svg';
 import { useTheme } from '../theme';
-import { categories } from '../theme/tokens';
+import { categories, fallbackCategoryColor } from '../theme/tokens';
 import PoiChip from './PoiChip';
 import BrushStroke from './BrushStroke';
 import { COPY } from '../constants/copy';
@@ -50,7 +50,7 @@ interface TaskRowProps {
 }
 
 /** Fallback for tasks whose category ID doesn't match any known category. */
-const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
+const FALLBACK_CAT = { color: fallbackCategoryColor, label: 'Other' };
 
 /** DEBUG — strip the react-native-svg pieces (BrushStroke overlay + brush-away
  *  sweep gradient) to test whether SVG-per-row is what locks the Today screen. */

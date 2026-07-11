@@ -335,7 +335,7 @@ export default function ShareReceiveScreen() {
             testID="title-input"
           />
           {titleError ? (
-            <Text style={styles.titleError}>{titleError}</Text>
+            <Text style={[styles.titleError, { color: palette.danger }]}>{titleError}</Text>
           ) : null}
 
           {/* ── Full form (confirmation state only) ── */}
@@ -620,7 +620,6 @@ const styles = StyleSheet.create({
     marginTop:  4,
     fontSize:   12,
     fontFamily: 'Geist-Regular',
-    color:      '#e05252',
   },
 
   // ── Divider ──

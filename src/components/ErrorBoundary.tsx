@@ -12,6 +12,12 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { recordError, logBreadcrumb } from '../services/crashlytics';
 import { COPY } from '../constants/copy';
+import { lightPalette } from '../theme/tokens';
+
+// ErrorBoundary wraps the whole app above ThemeProvider (App.tsx) so it can
+// still render if the provider itself fails — useTheme() isn't safe here,
+// so the fallback references lightPalette directly instead of hardcoding hex.
+const T = lightPalette;
 
 interface Props {
   children: ReactNode;
@@ -77,7 +83,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-    backgroundColor: '#f8f9fb',
+    backgroundColor: T.bg,
   },
   icon: {
     fontSize: 48,
@@ -86,25 +92,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#1a1a2e',
+    color: T.text,
     marginBottom: 8,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#6b7280',
+    color: T.muted,
     textAlign: 'center',
     marginBottom: 32,
     lineHeight: 20,
   },
   button: {
-    backgroundColor: '#6366f1',
+    backgroundColor: T.text,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 32,
   },
   buttonText: {
-    color: '#ffffff',
+    color: T.bg,
     fontSize: 15,
     fontWeight: '700',
   },

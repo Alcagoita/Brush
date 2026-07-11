@@ -41,27 +41,18 @@ import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUse
 import { todayISO } from '../utils/date';
 import { PoiIcon } from '../components/AppIcon';
 import PoiChip from '../components/PoiChip';
-import { categories } from '../theme/tokens';
+import { categories, lightPalette, onboardingScrim } from '../theme/tokens';
 import type { PoiType, Category } from '../types';
 import { useTheme } from '../theme';
 import { COPY } from '../constants/copy';
 
 // ─── Design tokens (light-mode only per spec) ─────────────────────────────────
+//
+// Onboarding always renders the light palette regardless of device theme —
+// referencing lightPalette directly (not useTheme()) keeps that intentional
+// and avoids re-typing values that could drift from tokens.ts.
 
-const T = {
-  bg:         '#fdfcfa',
-  surface:    '#f4f2ed',
-  surface2:   '#ece9e2',
-  text:       '#1f1c16',
-  muted:      '#8b857a',
-  faint:      '#c1bbac',
-  line:       'rgba(31,28,22,0.08)',
-  accent:     '#e8a86a',
-  nearTint:   '#fdf7f0',
-  nearTint2:  '#f9ede0',
-  nearBorder: '#e8c9a0',
-  nearText:   '#7a4a20',
-};
+const T = lightPalette;
 
 function chipFgColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -69,7 +60,7 @@ function chipFgColor(hex: string): string {
   const b = parseInt(hex.slice(5, 7), 16) / 255;
   const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
   const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.35 ? T.text : '#fff';
+  return L > 0.35 ? T.text : T.onAccent;
 }
 
 // ─── Onboarding message set (KAN-140 — 6 messages) ───────────────────────────
@@ -91,12 +82,12 @@ const ONBOARDING_NUDGE_ORDER: OnboardingNudgeId[] = [
 ];
 
 const NUDGE_META: Record<OnboardingNudgeId, { poi?: PoiType; color?: string }> = {
-  bread:              { poi: 'supermarket', color: '#8b6bc4' },
-  coffeeOutside:      { poi: 'cafe',        color: '#e8a86a' },
+  bread:              { poi: 'supermarket', color: categories.errands.color },
+  coffeeOutside:      { poi: 'cafe',        color: categories.personal.color },
   postOffice:         {},
   sportOutside:       {},
   pendingErrand:      {},
-  fridgeReplacement:  { poi: 'supermarket', color: '#8b6bc4' },
+  fridgeReplacement:  { poi: 'supermarket', color: categories.errands.color },
 };
 
 function buildOnboardingNudges(): NudgeMessage[] {
@@ -760,7 +751,7 @@ const styles = StyleSheet.create({
 
   // Bottom sheet
   scrim: {
-    backgroundColor: 'rgba(31,28,22,0.34)',
+    backgroundColor: onboardingScrim,
     zIndex: 10,
   },
   sheet: {
