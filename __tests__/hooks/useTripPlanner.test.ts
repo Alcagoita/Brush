@@ -201,6 +201,24 @@ describe('initialStartDate prefill (KAN-243)', () => {
   });
 });
 
+describe('initialDestinationQuery prefill (KAN-245)', () => {
+  it('seeds the query field, still requiring the user to pick a suggestion', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), undefined, 'Berlin, Germany'));
+    expect(result.current.query).toBe('Berlin, Germany');
+    expect(result.current.destination).toBeNull();
+  });
+
+  it('trims the prefill', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn(), undefined, '  Berlin, Germany  '));
+    expect(result.current.query).toBe('Berlin, Germany');
+  });
+
+  it('defaults to an empty query when omitted', () => {
+    const { result } = renderHook(() => useTripPlanner(jest.fn()));
+    expect(result.current.query).toBe('');
+  });
+});
+
 describe('radius step', () => {
   async function goToRadiusStep() {
     mockGetPlaceDetails.mockResolvedValue({ lat: 1, lng: 2, name: 'Faro' });

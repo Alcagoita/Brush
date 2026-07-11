@@ -14,6 +14,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   Animated,
+  Pressable,
+  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -26,6 +28,8 @@ export interface NudgeMessage {
   text:   string;
   poi?:   string;
   color?: string;
+  /** KAN-245 — when set, this message becomes tappable (e.g. the "Going somewhere soon?" slot taps into the trip flow). Absent on every other message — the rotator stays non-interactive by default. */
+  onPress?: () => void;
 }
 
 interface Props {
@@ -91,32 +95,58 @@ export default function ScrRotatingNudge({
 
   const current = messages[index] ?? messages[0];
 
+  const content = (
+    <>
+      {/* Icon slot — always reserved so text never shifts vertically */}
+      <View style={styles.iconSlot}>
+        {showCategoryIcon && current.poi && current.color
+          ? <PoiIcon type={current.poi} color={current.color} size={27} />
+          : null}
+      </View>
+
+      <Text style={[styles.text, { color: palette.muted }]}>
+        {current.text}
+      </Text>
+    </>
+  );
+
   return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 36, minHeight: 150 }}>
-      <Animated.View style={{ alignItems: 'center', opacity, transform: [{ translateY }] }}>
-
-        {/* Icon slot — always reserved so text never shifts vertically */}
-        <View style={{ height: 28, marginBottom: 20, alignItems: 'center', justifyContent: 'center' }}>
-          {showCategoryIcon && current.poi && current.color
-            ? <PoiIcon type={current.poi} color={current.color} size={27} />
-            : null}
-        </View>
-
-        <Text
-          style={{
-            fontSize:      22,
-            fontFamily:    'Geist-Regular',
-            fontWeight:    '400',
-            lineHeight:    33,
-            color:         palette.muted,
-            maxWidth:      300,
-            letterSpacing: -0.22,
-            textAlign:     'center',
-          }}>
-          {current.text}
-        </Text>
-
+    <View style={styles.wrapper}>
+      <Animated.View style={[styles.animatedInner, { opacity, transform: [{ translateY }] }]}>
+        {current.onPress ? (
+          <Pressable onPress={current.onPress} accessibilityRole="button" accessibilityLabel={current.text}>
+            {content}
+          </Pressable>
+        ) : content}
       </Animated.View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  wrapper: {
+    flex:              1,
+    alignItems:        'center',
+    justifyContent:    'center',
+    paddingHorizontal: 36,
+    minHeight:         150,
+  },
+  animatedInner: {
+    alignItems: 'center',
+  },
+  iconSlot: {
+    height:         28,
+    marginBottom:   20,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
+  text: {
+    fontSize:      22,
+    fontFamily:    'Geist-Regular',
+    fontWeight:    '400',
+    lineHeight:    33,
+    maxWidth:      300,
+    letterSpacing: -0.22,
+    textAlign:     'center',
+  },
+});

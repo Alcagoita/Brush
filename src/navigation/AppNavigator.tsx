@@ -67,8 +67,8 @@ export type RootStackParamList = {
   NotificationPreferences: undefined;
   /** Full achievements list with progress and point values (KAN-114 / KAN-129 / KAN-122). */
   Achievements: { achievementId?: string } | undefined;
-  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). Optional prefillStartDate (YYYY-MM-DD) when opened from a future Calendar day (KAN-243). */
-  TripPlanner: { prefillStartDate?: string } | undefined;
+  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). Optional prefillStartDate (YYYY-MM-DD) when opened from a future Calendar day (KAN-243). Optional prefillDestinationQuery — free-text search-box seed from the calendar trip-suggestion signal (KAN-245), never a resolved place (that signal never geocodes). */
+  TripPlanner: { prefillStartDate?: string; prefillDestinationQuery?: string } | undefined;
   /** "Places I know" — the always-on habitat area + downloaded trips, with refresh/delete (KAN-234). */
   PlacesIKnow: undefined;
   /** Explicit home address — set/edit/clear (KAN-247). */

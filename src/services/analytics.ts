@@ -19,7 +19,9 @@ export type AnalyticsEvent =
   | 'settings_language_change'
   | 'errand_bundle_open_sheet'
   | 'errand_bundle_open_maps'
-  | 'errand_bundle_dismiss';
+  | 'errand_bundle_dismiss'
+  | 'trip_suggestion_open'
+  | 'trip_suggestion_dismiss';
 
 type EventParams = Record<string, string | number | boolean>;
 

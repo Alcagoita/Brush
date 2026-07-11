@@ -481,6 +481,21 @@ function findActiveCacheArea(lat: number, lng: number): string | null {
   return null;
 }
 
+/**
+ * KAN-245 — "does the app already know this area?" Broader than
+ * findActiveCacheArea above (trip/mall bounded downloads only): also true
+ * for any point within the ambient habitat pool (KAN-228/229) — anywhere
+ * the user has organically used the app, not just paid/downloaded areas.
+ * This is the same "known" the coverage-invitation toast (KAN-236/244)
+ * means by "the area I know by heart," just location-scoped instead of
+ * evaluated at the current position.
+ */
+export function isLocationKnown(lat: number, lng: number): boolean {
+  if (findActiveCacheArea(lat, lng) !== null) { return true; }
+  const nearby = queryHabitatCache(lat, lng, ALL_POI_TYPES);
+  return Object.values(nearby).some(places => places.length > 0);
+}
+
 /** KAN-242 — see PlaceContext's doc comment for why this mall-first order is distinct from findActiveCacheArea's above. */
 function findActivePlaceContext(lat: number, lng: number): PlaceContext {
   const now = Date.now();

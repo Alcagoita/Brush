@@ -29,6 +29,9 @@ import { useTaskCompletion } from './useTaskCompletion';
 import { useLearnedPlaces } from './useLearnedPlaces';
 import { useErrandBundle } from '../useErrandBundle';
 import type { ErrandBundle } from '../../services/errandBundles';
+import { useFirstSessionGate } from './useFirstSessionGate';
+import { useTripSuggestion } from './useTripSuggestion';
+import type { CalendarSuggestion } from '../../services/tripSuggestions';
 
 export interface TodayScreenState {
   /** Today's tasks. Empty while loading. */
@@ -76,6 +79,10 @@ export interface TodayScreenState {
   errandBundle: ErrandBundle | null;
   /** Hides the current errandBundle for the rest of the day. */
   dismissErrandBundle: () => void;
+  /** Contextual trip suggestion (KAN-245 calendar signal), or null when none qualifies / already dismissed / first session. */
+  tripSuggestion: CalendarSuggestion | null;
+  /** Permanently dismisses the current tripSuggestion. */
+  dismissTripSuggestion: () => void;
 }
 
 export function useTodayScreen(uid: string | undefined): TodayScreenState {
@@ -97,6 +104,10 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   );
 
   const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
+
+  const isFirstSession = useFirstSessionGate(uid);
+  const { suggestion: tripSuggestion, dismiss: dismissTripSuggestion } =
+    useTripSuggestion(isFirstSession, data.trips, data.mallSnapshot);
 
   // Pure computation over data useProximityEngine already holds each tick
   // (KAN-235) — no new timer, no new location subscription.
@@ -159,5 +170,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     locationUnavailable: proximity.locationUnavailable,
     errandBundle,
     dismissErrandBundle,
+    tripSuggestion,
+    dismissTripSuggestion,
   };
 }

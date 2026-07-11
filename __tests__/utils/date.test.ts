@@ -1,4 +1,42 @@
-import { toDateSafe, relativeTime } from '../../src/utils/date';
+import { toDateSafe, relativeTime, localDateISO } from '../../src/utils/date';
+
+describe('localDateISO', () => {
+  it('formats a plain local date as YYYY-MM-DD', () => {
+    expect(localDateISO(new Date(2026, 6, 15))).toBe('2026-07-15');
+  });
+
+  it('pads single-digit month and day', () => {
+    expect(localDateISO(new Date(2026, 0, 5))).toBe('2026-01-05');
+  });
+
+  // Changing process.env.TZ mid-test doesn't reliably repropagate to Date
+  // in Node/Jest (the timezone table is cached at process start), so these
+  // simulate a timezone boundary directly via the local-getter methods
+  // localDateISO reads, rather than relying on the runner's real TZ.
+  it('reads the local calendar day even when it differs from the UTC day (behind UTC)', () => {
+    // e.g. 2026-07-16T02:30 UTC is 2026-07-15 22:30 in New York (UTC-4,
+    // July DST) — a naive `date.toISOString().slice(0, 10)` would read
+    // '2026-07-16', the UTC day, not the local one.
+    const utcLate = new Date('2026-07-16T02:30:00.000Z');
+    jest.spyOn(utcLate, 'getFullYear').mockReturnValue(2026);
+    jest.spyOn(utcLate, 'getMonth').mockReturnValue(6); // July (0-indexed)
+    jest.spyOn(utcLate, 'getDate').mockReturnValue(15);
+
+    expect(localDateISO(utcLate)).toBe('2026-07-15');
+    expect(utcLate.toISOString().slice(0, 10)).toBe('2026-07-16'); // the bug this guards against
+  });
+
+  it('reads the local calendar day even when it differs from the UTC day (ahead of UTC)', () => {
+    // e.g. 2026-07-15T23:30 UTC is 2026-07-16 01:30 in a UTC+2 zone.
+    const utcEarly = new Date('2026-07-15T23:30:00.000Z');
+    jest.spyOn(utcEarly, 'getFullYear').mockReturnValue(2026);
+    jest.spyOn(utcEarly, 'getMonth').mockReturnValue(6);
+    jest.spyOn(utcEarly, 'getDate').mockReturnValue(16);
+
+    expect(localDateISO(utcEarly)).toBe('2026-07-16');
+    expect(utcEarly.toISOString().slice(0, 10)).toBe('2026-07-15'); // the bug this guards against
+  });
+});
 
 describe('toDateSafe', () => {
   it('returns null for null/undefined', () => {

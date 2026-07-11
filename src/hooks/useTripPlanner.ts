@@ -79,11 +79,20 @@ export interface TripPlannerState {
   goBack: () => void;
 }
 
-export function useTripPlanner(onDone: () => void, initialStartDate?: string): TripPlannerState {
+export function useTripPlanner(
+  onDone: () => void,
+  initialStartDate?: string,
+  initialDestinationQuery?: string,
+): TripPlannerState {
   const uid = getAuth().currentUser?.uid ?? '';
 
   const [step, setStep] = useState<TripPlannerStep>('destination');
-  const [query, setQuery] = useState('');
+  // KAN-245 — pre-filled from the calendar signal's free-text event location.
+  // Only ever a search-box seed, never a resolved place: the calendar signal
+  // deliberately never geocodes (on-device text match only), so there are no
+  // coordinates to hand the destination step directly — the user still picks
+  // from the resulting autocomplete suggestions, same as typing it manually.
+  const [query, setQuery] = useState(initialDestinationQuery?.trim() ?? '');
   const [suggestions, setSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
   const [destination, setDestination] = useState<ResolvedDestination | null>(null);
   // Pre-filled when opened from a future Calendar day (KAN-243) — still just

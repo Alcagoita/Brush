@@ -22,10 +22,14 @@ export interface ReminderItem {
 }
 
 export interface CalendarEventItem {
+  /** Native calendar event id — stable across fetches, used as the KAN-245 trip-suggestion signal identity. */
+  id: string;
   title: string;
   startDateString: string;
   isAllDay: boolean;
   notes?: string;  // EKEvent.notes → Task.description (KAN-95)
+  /** Free-text event location (KAN-245) — matched against known area names on-device, never geocoded. */
+  location?: string;
 }
 
 function permissionDeniedError(resource: string): Error {
@@ -86,9 +90,11 @@ export async function fetchCalendarEvents(daysAhead: number): Promise<CalendarEv
   return events
     .filter((e): e is typeof e & { title: string } => !!e.title?.trim())
     .map(e => ({
+      id:              e.id,
       title:           e.title,
       startDateString: new Date(e.startDate).toISOString(),
       isAllDay:        e.allDay,
       notes:           e.notes ?? undefined,
+      location:        e.location ?? undefined,
     }));
 }

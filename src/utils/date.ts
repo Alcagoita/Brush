@@ -2,10 +2,19 @@
  * date.ts — Shared date utilities.
  */
 
+/**
+ * Returns `date` as a YYYY-MM-DD string using its device-local calendar day
+ * — never `date.toISOString().slice(0, 10)`, which reads the UTC day and
+ * silently drifts by one near local midnight (e.g. 11pm local in a
+ * negative-UTC-offset timezone is already "tomorrow" in UTC).
+ */
+export function localDateISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 /** Returns today's date as a YYYY-MM-DD string in the device's local timezone. */
 export function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return localDateISO(new Date());
 }
 
 /**
