@@ -129,8 +129,12 @@ const en = {
   offline: {
     /** NetworkBanner text when offline AND the habitat cache has never been seeded (fresh install/new phone) — the only fully broken case (KAN-241: every other offline case is now a quiet ContextChip glyph instead of a banner). */
     noCacheYetBanner: "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
-    /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. */
+    /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. Plain apology variant, shown after the invitation variant below has reached its lifetime cap (KAN-244). */
     uncoveredAreaToast: "You're outside the area I know by heart — I'll need a connection to spot places here.",
+    /** KAN-244 — same trigger as uncoveredAreaToast, but teaches the fix instead of just apologizing. Shown up to COVERAGE_INVITATION_LIFETIME_CAP times (see proximity.ts), then this moment reverts to the plain copy above. */
+    uncoveredAreaInvitationToast: "You're outside the area I know by heart. Next time, tell me before you go — I can learn a place ahead of time.",
+    /** Action label on the invitation toast — navigates to the Calendar's "Going somewhere?" trip flow (KAN-243). */
+    uncoveredAreaInvitationAction: 'Show me',
   },
 
   // ─── Trip Planner (KAN-234) ────────────────────────────────────────────────
@@ -1051,6 +1055,8 @@ const ptPT: typeof en = {
   offline: {
     noCacheYetBanner: 'Sem ligação — ainda não consigo procurar sítios por perto. Vou começar a aprender a tua zona assim que estiveres online.',
     uncoveredAreaToast: 'Estás fora da zona que já conheço bem — vou precisar de ligação para encontrar sítios aqui.',
+    uncoveredAreaInvitationToast: 'Estás fora da zona que já conheço bem. Para a próxima, diz-me antes de saíres — posso aprender um sítio com antecedência.',
+    uncoveredAreaInvitationAction: 'Mostra-me',
   },
 
   tripPlanner: {

@@ -34,4 +34,23 @@ describe('toastStore', () => {
     expect(() => useToastStore.getState().hideToast()).not.toThrow();
     expect(useToastStore.getState().message).toBeNull();
   });
+
+  // KAN-244 — actionable toast
+  it('showToast with an action stores it', () => {
+    const onPress = jest.fn();
+    useToastStore.getState().showToast('Show me', { label: 'Show me', onPress });
+    expect(useToastStore.getState().action).toEqual({ label: 'Show me', onPress });
+  });
+
+  it('showToast without an action clears any previous one', () => {
+    useToastStore.getState().showToast('First', { label: 'Go', onPress: jest.fn() });
+    useToastStore.getState().showToast('Second');
+    expect(useToastStore.getState().action).toBeNull();
+  });
+
+  it('hideToast clears the action', () => {
+    useToastStore.getState().showToast('Show me', { label: 'Go', onPress: jest.fn() });
+    useToastStore.getState().hideToast();
+    expect(useToastStore.getState().action).toBeNull();
+  });
 });
