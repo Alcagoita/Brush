@@ -241,6 +241,17 @@ const en = {
     openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
   },
 
+  // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
+  // Discoverability through moments, not menus. No badges, no counters, no
+  // urgency copy — a quiet, dismissible offer, never a notification-style nag.
+  tripSuggestion: {
+    cardLine: (place: string, day: string) =>
+      `Off to ${place} on ${day}? I can learn it before you go.`,
+    cardA11y: (place: string, day: string) =>
+      `Off to ${place} on ${day}? I can learn it before you go — tap to set it up`,
+    dismissA11y: 'Not now',
+  },
+
   // ─── Home address (KAN-247) ────────────────────────────────────────────────
   // Explicit beats inferred — never "detection"/"fill this" form language.
   home: {
@@ -510,6 +521,7 @@ const en = {
       'Something in the fridge is probably asking to be replaced.',
       'A clear day is a gift. What will you do with it?',
       'What’s the one thing future-you will thank you for?',
+      'Going somewhere soon?',
     ],
     sectionTitlePrefix: 'TODAY · ',
     leftCount: (n: number) => `${n} left`,
@@ -1144,6 +1156,14 @@ const ptPT: typeof en = {
     openAnchorInMaps: (anchorName: string) => `Abrir ${anchorName} no Maps`,
   },
 
+  tripSuggestion: {
+    cardLine: (place: string, day: string) =>
+      `Vais a ${place} no dia ${day}? Posso aprender o sítio antes de saíres.`,
+    cardA11y: (place: string, day: string) =>
+      `Vais a ${place} no dia ${day}? Posso aprender o sítio antes de saíres — toca para configurar`,
+    dismissA11y: 'Agora não',
+  },
+
   home: {
     backA11y: 'Voltar',
     loadingA11y: 'A carregar morada',
@@ -1394,6 +1414,7 @@ const ptPT: typeof en = {
       'Provavelmente há algo no frigorífico que precisa de ser reposto.',
       'Um dia livre é um presente. O que vais fazer com ele?',
       'Qual é a coisa pela qual o teu eu futuro te vai agradecer?',
+      'Vais a algum lado em breve?',
     ],
     sectionTitlePrefix: 'HOJE · ',
     leftCount: (n: number) => (n === 1 ? 'Falta 1' : `Faltam ${n}`),

@@ -64,6 +64,13 @@ export interface User {
   /** Set to true once the user completes the guided first-run onboarding (KAN-140). */
   onboardingDone?: boolean;
   /**
+   * Stamped the first time the Today screen mounts with no prior value
+   * (KAN-245) — marks "the user has now had one full session to learn the
+   * core app before any contextual suggestion is allowed to appear."
+   * Never overwritten once set.
+   */
+  firstSessionSeenAt?: FirebaseFirestoreTypes.Timestamp;
+  /**
    * Set to true once this user's historical `completedPlaceId` brush data has
    * been tallied into `/users/{uid}/learnedPlaceCounts/{placeId}` (KAN-240).
    * Gates `backfillLearnedPlaceCounts` so the one-time full-history scan never

@@ -73,7 +73,11 @@ export default function TripPlannerScreen() {
     startDate, endDate, setStartDate, setEndDate, goToRadius, skipDates,
     radiusKey, setRadiusKey, estimatedBytes, previewUrl,
     confirmDownload, error, goBack,
-  } = useTripPlanner(() => navigation.navigate('PlacesIKnow'), route.params?.prefillStartDate);
+  } = useTripPlanner(
+    () => navigation.navigate('PlacesIKnow'),
+    route.params?.prefillStartDate,
+    route.params?.prefillDestinationQuery,
+  );
 
   const [showStartPicker, setShowStartPicker] = React.useState(false);
   const [showEndPicker, setShowEndPicker] = React.useState(false);

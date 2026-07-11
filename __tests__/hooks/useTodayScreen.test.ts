@@ -36,6 +36,8 @@ jest.mock('../../src/services/firestore', () => ({
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
   getCategories:        (...args: unknown[]) => mockGetCategories(...args),
   getUser:              (...args: unknown[]) => mockGetUser(...args),
+  upsertUser:           jest.fn().mockResolvedValue(undefined),
+  serverTimestamp:      jest.fn().mockReturnValue('SERVER_TIMESTAMP'),
   getUserPreferences:   (...args: unknown[]) => mockGetUserPreferences(...args),
   getPoiPreferencesMap: (...args: unknown[]) => mockGetPoiPreferencesMap(...args),
   getTotalPoints:       (...args: unknown[]) => mockGetTotalPoints(...args),
@@ -45,6 +47,17 @@ jest.mock('../../src/services/firestore', () => ({
   awardPoint:           jest.fn().mockResolvedValue(undefined),
   getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
   getTrips:              (...args: unknown[]) => mockGetTrips(...args),
+}));
+
+jest.mock('../../src/services/calendar', () => ({
+  fetchCalendarEvents: jest.fn().mockResolvedValue([]),
+}));
+
+jest.mock('../../src/services/tripSuggestions', () => ({
+  detectCalendarSignal:    jest.fn().mockReturnValue(null),
+  getDismissedSignalIds:   jest.fn().mockReturnValue(new Set()),
+  dismissSignal:           jest.fn(),
+  CALENDAR_SIGNAL_LOOKAHEAD_DAYS: 7,
 }));
 
 jest.mock('../../src/services/mallSnapshots', () => ({

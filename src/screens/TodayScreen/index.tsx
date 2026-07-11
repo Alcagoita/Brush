@@ -48,6 +48,7 @@ import ProgressRing from '../../components/ProgressRing';
 import TaskRow from '../../components/TaskRow';
 import NearbyCard from '../../components/NearbyCard';
 import ErrandBundleCard from '../../components/ErrandBundleCard';
+import TripSuggestionCard from '../../components/TripSuggestionCard';
 import NetworkBanner from '../../components/NetworkBanner';
 import ContextChip from '../../components/ContextChip';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
@@ -76,7 +77,7 @@ import { styles } from './styles';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
 
 export default function TodayScreen() {
-  const { palette } = useTheme();
+  const { palette, language } = useTheme();
   const navigation  = useNavigation<Nav>();
 
   // ── Auth / display info ──────────────────────────────────────────────────────
@@ -111,6 +112,8 @@ export default function TodayScreen() {
     refreshProximity,
     errandBundle,
     dismissErrandBundle,
+    tripSuggestion,
+    dismissTripSuggestion,
   } = useTodayScreen(uid);
 
   const [nearbyHasContent, setNearbyHasContent] = useState(false);
@@ -159,6 +162,17 @@ export default function TodayScreen() {
     (t: typeof tasks[number]) => navigation.navigate('TaskForm', { uid: uid ?? '', task: t }),
     [navigation, uid],
   );
+
+  // KAN-245 — acting on the trip suggestion resolves it, same as an explicit
+  // dismiss: it shouldn't still be sitting there when the user comes back.
+  const handleTripSuggestionPress = useCallback(() => {
+    if (!tripSuggestion) { return; }
+    navigation.push('TripPlanner', {
+      prefillStartDate: tripSuggestion.dateISO.slice(0, 10),
+      prefillDestinationQuery: tripSuggestion.place,
+    });
+    dismissTripSuggestion();
+  }, [navigation, tripSuggestion, dismissTripSuggestion]);
 
   // ── Empty state flag ──────────────────────────────────────────────────────────
   const isBusy = isLoading || isRefreshing;
@@ -216,8 +230,18 @@ export default function TodayScreen() {
         <ErrandBundleCard bundle={errandBundle} onDismiss={dismissErrandBundle} />
       )}
 
+      {/* ── Trip suggestion card (KAN-245 calendar signal) — absent by default ── */}
+      {tripSuggestion && (
+        <TripSuggestionCard
+          suggestion={tripSuggestion}
+          language={language}
+          onPress={handleTripSuggestionPress}
+          onDismiss={dismissTripSuggestion}
+        />
+      )}
+
       {/* ── Task list section header ── */}
-      <View style={[styles.sectionHeaderBlock, (nearbyHasContent || !!errandBundle) && { marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line }]}>
+      <View style={[styles.sectionHeaderBlock, (nearbyHasContent || !!errandBundle || !!tripSuggestion) && { marginTop: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: palette.line }]}>
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
             {COPY.today.sectionTitlePrefix}
@@ -240,6 +264,7 @@ export default function TodayScreen() {
     palette, doneTasks, totalTasks, remaining,
     nearbyHasContent, setNearbyHasContent,
     errandBundle, dismissErrandBundle,
+    tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,
   ]);
 
   const listEmpty = isBusy ? (
@@ -296,7 +321,11 @@ export default function TodayScreen() {
         {DEBUG_SHOW_LIST && (isEmpty ? (
           /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
           <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
-            <ScrRotatingNudge messages={buildEmptyMessages()} pace={5} showCategoryIcon />
+            <ScrRotatingNudge
+              messages={buildEmptyMessages(() => navigation.push('TripPlanner'))}
+              pace={5}
+              showCategoryIcon
+            />
             <View style={styles.emptyCTAWrap}>
               <Pressable
                 style={({ pressed }) => [
