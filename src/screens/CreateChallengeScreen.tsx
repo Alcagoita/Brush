@@ -341,7 +341,7 @@ export default function CreateChallengeScreen() {
             {loadingFollowing ? (
               <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.createChallenge.loadingFriendsA11y} />
             ) : followingError ? (
-              <Text style={[styles.emptyText, { color: '#e05252' }]} accessibilityRole="alert">
+              <Text style={[styles.emptyText, { color: palette.danger }]} accessibilityRole="alert">
                 {followingError}
               </Text>
             ) : (

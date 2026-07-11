@@ -137,7 +137,7 @@ export default function ShareTaskSheet({
       animationType="slide"
       onRequestClose={handleClose}>
       <Pressable
-        style={styles.scrim}
+        style={[styles.scrim, { backgroundColor: palette.scrim }]}
         onPress={handleClose}
         accessibilityLabel={COPY.shareTaskSheet.closeA11y}
       />
@@ -236,7 +236,7 @@ export default function ShareTaskSheet({
           )}
 
           {lookupState.status === 'error' && (
-            <Text style={[styles.inlineMsg, { color: '#e05252' }]}>
+            <Text style={[styles.inlineMsg, { color: palette.danger }]}>
               {lookupState.message}
             </Text>
           )}
@@ -249,7 +249,7 @@ export default function ShareTaskSheet({
           )}
 
           {sendState.status === 'error' && (
-            <Text style={[styles.inlineMsg, { color: '#e05252' }]}>
+            <Text style={[styles.inlineMsg, { color: palette.danger }]}>
               {sendState.message}
             </Text>
           )}
@@ -282,7 +282,6 @@ export default function ShareTaskSheet({
 const styles = StyleSheet.create({
   scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
   sheetWrapper: {
     flex:           1,

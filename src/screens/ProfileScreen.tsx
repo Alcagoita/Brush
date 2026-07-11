@@ -505,7 +505,7 @@ export default function ProfileScreen() {
                     {/* Count badge for multi-earned */}
                     {earnCount > 1 ? (
                       <View style={[styles.countBadge, { backgroundColor: palette.accent, borderColor: palette.surface }]}>
-                        <Text style={styles.countBadgeText}>×{earnCount}</Text>
+                        <Text style={[styles.countBadgeText, { color: palette.onAccent }]}>×{earnCount}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -868,7 +868,6 @@ const styles = StyleSheet.create({
     fontSize:   9,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
-    color:      '#ffffff',
   },
   medalLabel: {
     fontSize:   11,

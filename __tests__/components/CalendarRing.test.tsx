@@ -32,10 +32,11 @@ const BASE_PROPS = {
   stroke: 2.6,
   isFuture: false,
   isSelected: false,
-  dark: false,
   ringTrack: 'rgba(40,33,20,0.08)',
   ringFill: '#d9a87a',
   accent: '#e8a86a',
+  selTrack: 'rgba(255,255,255,0.20)',
+  selArc: 'rgba(255,255,255,0.88)',
 };
 
 describe('CalendarRing', () => {
@@ -88,7 +89,7 @@ describe('CalendarRing', () => {
 
   it('selected cell in light mode uses the theme-aware inverted tones, not hard-coded white', () => {
     const { UNSAFE_getAllByProps } = render(
-      <CalendarRing {...BASE_PROPS} done={1} total={3} isSelected dark={false} />,
+      <CalendarRing {...BASE_PROPS} done={1} total={3} isSelected />,
     );
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });
     expect(circles[0].props.stroke).toBe('rgba(255,255,255,0.20)');
@@ -97,7 +98,14 @@ describe('CalendarRing', () => {
 
   it('selected cell in dark mode uses the dark-mode inverted tones', () => {
     const { UNSAFE_getAllByProps } = render(
-      <CalendarRing {...BASE_PROPS} done={1} total={3} isSelected dark={true} />,
+      <CalendarRing
+        {...BASE_PROPS}
+        done={1}
+        total={3}
+        isSelected
+        selTrack="rgba(0,0,0,0.16)"
+        selArc="rgba(20,18,14,0.82)"
+      />,
     );
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });
     expect(circles[0].props.stroke).toBe('rgba(0,0,0,0.16)');
@@ -106,7 +114,7 @@ describe('CalendarRing', () => {
 
   it('a complete ring stays accent-colored even when selected', () => {
     const { UNSAFE_getAllByProps } = render(
-      <CalendarRing {...BASE_PROPS} done={3} total={3} isSelected dark={false} />,
+      <CalendarRing {...BASE_PROPS} done={3} total={3} isSelected />,
     );
     const circles = UNSAFE_getAllByProps({ testID: 'Circle' });
     expect(circles[1].props.stroke).toBe(BASE_PROPS.accent);

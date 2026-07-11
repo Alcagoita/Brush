@@ -56,7 +56,7 @@ import Svg, { Path } from 'react-native-svg';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, radius, fonts, categories as builtInCategories } from '../theme/tokens';
+import { spacing, radius, fonts, categories as builtInCategories, fallbackCategoryColor } from '../theme/tokens';
 import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips } from '../services/firestore';
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -148,10 +148,9 @@ function isoAddDays(iso: string, delta: number): string {
 
 // ─── Category color resolution (matches TaskRow.tsx) ─────────────────────────
 
-// Matches TaskRow.tsx's FALLBACK_CAT exactly — category colors are a fixed
-// design-system constant set (see theme/tokens.ts `categories`), not
-// theme-dependent, so this intentionally isn't a useTheme() palette value.
-const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
+// Matches TaskRow.tsx's FALLBACK_CAT exactly — both import the same
+// tokens.ts constant now (KAN-259), single source of truth.
+const FALLBACK_CAT = { color: fallbackCategoryColor, label: 'Other' };
 
 function resolveCategory(task: Task, customCategories: Category[]) {
   const builtIn = builtInCategories[task.category as keyof typeof builtInCategories];
@@ -205,7 +204,7 @@ function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalT
           <Svg width={10} height={10} viewBox="0 0 12 12" fill="none">
             <Path
               d="M2.5 6.5L5 9l4.5-5.5"
-              stroke="#fff"
+              stroke={palette.onAccent}
               strokeWidth={1.7}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -334,10 +333,11 @@ function DayCell({
           total={total}
           isFuture={isFuture}
           isSelected={isSelected}
-          dark={dark}
           ringTrack={palette.ringTrack}
           ringFill={palette.ringFill}
           accent={palette.accent}
+          selTrack={palette.selectedRingTrack}
+          selArc={palette.selectedRingArc}
         />
       </View>
 
@@ -368,7 +368,7 @@ type Nav   = NativeStackNavigationProp<RootStackParamList, 'Calendar'>;
 type Route = RouteProp<RootStackParamList, 'Calendar'>;
 
 export default function CalendarScreen() {
-  const { palette, dark } = useTheme();
+  const { palette } = useTheme();
   const insets      = useSafeAreaInsets();
   const navigation  = useNavigation<Nav>();
   const route       = useRoute<Route>();
@@ -819,10 +819,11 @@ export default function CalendarScreen() {
                   total={selTotal}
                   isFuture={false}
                   isSelected={false}
-                  dark={dark}
                   ringTrack={palette.ringTrack}
                   ringFill={palette.ringFill}
                   accent={palette.accent}
+                  selTrack={palette.selectedRingTrack}
+                  selArc={palette.selectedRingArc}
                 />
                 <View style={styles.detailRingNumberWrap}>
                   <Text style={[styles.detailRingNumber, { color: detailRingColor }]}>

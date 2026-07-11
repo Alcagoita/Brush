@@ -3,6 +3,16 @@ import React from 'react';
 import EventCard from '../../src/components/EventCard';
 import { Event } from '../../src/types';
 
+jest.mock('../../src/theme', () => ({
+  useTheme: () => ({
+    palette: {
+      bg: '#fdfdfb', surface: '#f6f5f1', surface2: '#efeeea',
+      line: 'rgba(20,20,18,0.08)', text: '#1a1a18', muted: '#8a8a85',
+      faint: '#bdbdb7', accent: '#e8a86a',
+    },
+  }),
+}));
+
 const mockEvent: Event = {
   id: '1',
   title: 'Team Standup',
