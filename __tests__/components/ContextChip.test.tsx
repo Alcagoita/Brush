@@ -56,8 +56,15 @@ jest.mock('../../src/services/habitatCache', () => ({
 }));
 
 const mockGetLastSearchCoords = jest.fn();
+const mockGetActiveOffGridWindow = jest.fn().mockReturnValue(null);
 jest.mock('../../src/services/proximity', () => ({
   getLastSearchCoords: () => mockGetLastSearchCoords(),
+  getActiveOffGridWindow: () => mockGetActiveOffGridWindow(),
+}));
+
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: mockNavigate }),
 }));
 
 const mockGetCategories = jest.fn().mockResolvedValue([]);
@@ -80,6 +87,7 @@ beforeEach(() => {
   mockGetMostRecentHabitatUpdateAt.mockReturnValue(null);
   mockGetCategories.mockResolvedValue([]);
   mockGetLastSearchCoords.mockReturnValue({ lat: 1, lng: 2 });
+  mockGetActiveOffGridWindow.mockReturnValue(null);
   mockRefreshTripArea.mockResolvedValue(undefined);
   mockUseOfflineCoverage.mockReturnValue({ offline: false, hasCache: false });
 });
@@ -369,5 +377,68 @@ describe('ContextChip — trip context (KAN-242)', () => {
     expect(useToastStore.getState().message).toBe(COPY.contextChip.placeRefreshErrorToast);
     const refreshBtn = screen.getByLabelText(COPY.contextChip.refreshButton);
     expect(refreshBtn.props.accessibilityState?.disabled ?? refreshBtn.props.disabled).toBeFalsy();
+  });
+});
+
+describe('ContextChip — off-grid window (KAN-246)', () => {
+  const window = { destination: 'this area', expiresAt: new Date(2026, 6, 15, 18, 0).getTime() };
+
+  it('shows the off-grid glyph + "until HH:mm" instead of the offline glyph', () => {
+    mockGetActiveOffGridWindow.mockReturnValue(window);
+    render(<ContextChip />);
+    expect(screen.getByLabelText(COPY.offGrid.chipA11y('18:00'))).toBeTruthy();
+  });
+
+  it('off-grid wins over the plain offline glyph when both would otherwise apply', () => {
+    mockGetActiveOffGridWindow.mockReturnValue(window);
+    mockUseOfflineCoverage.mockReturnValue({ offline: true, hasCache: true });
+    render(<ContextChip />);
+    expect(screen.getByLabelText(COPY.offGrid.chipA11y('18:00'))).toBeTruthy();
+    expect(screen.queryByLabelText(COPY.contextChip.offlineGlyphA11y)).toBeNull();
+  });
+
+  it('a real trip context still wins over an active off-grid window', () => {
+    mockGetActiveOffGridWindow.mockReturnValue(window);
+    render(<ContextChip placeContext={makeTripContext({ destination: 'Faro' })} />);
+    expect(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro'))).toBeTruthy();
+  });
+
+  it('opens a sheet with the off-grid title and "know until" body, no entry-point action', async () => {
+    mockGetActiveOffGridWindow.mockReturnValue(window);
+    render(<ContextChip />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.offGrid.chipA11y('18:00')));
+    });
+
+    expect(screen.getByText(COPY.offGrid.sheetTitle)).toBeTruthy();
+    expect(screen.getByText(COPY.offGrid.sheetBody('18:00'))).toBeTruthy();
+    expect(screen.queryByLabelText(COPY.offGrid.profileRowA11y)).toBeNull();
+  });
+
+  it('shows the "Going off-grid?" entry action in the offline sheet and navigates to OffGrid on tap', async () => {
+    mockUseOfflineCoverage.mockReturnValue({ offline: true, hasCache: true });
+    render(<ContextChip />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.offlineGlyphA11y));
+    });
+
+    expect(screen.getByLabelText(COPY.offGrid.profileRowA11y)).toBeTruthy();
+    fireEvent.press(screen.getByLabelText(COPY.offGrid.profileRowA11y));
+    expect(mockNavigate).toHaveBeenCalledWith('OffGrid');
+  });
+
+  it('shows the "Going off-grid?" entry action in a mall/trip sheet too', async () => {
+    render(<ContextChip placeContext={makeTripContext({ destination: 'Faro' })} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.contextChip.tripChipA11y('Faro')));
+    });
+    expect(screen.getByLabelText(COPY.offGrid.profileRowA11y)).toBeTruthy();
+  });
+
+  it('renders nothing extra when there is no off-grid window and everything else is quiet', () => {
+    render(<ContextChip />);
+    expect(screen.queryByLabelText(COPY.offGrid.chipA11y('18:00'))).toBeNull();
   });
 });

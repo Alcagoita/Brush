@@ -481,6 +481,21 @@ function findActiveCacheArea(lat: number, lng: number): string | null {
   return null;
 }
 
+/** KAN-246 — the active off-grid window, if any (not yet expired). At most one is expected — the setup flow doesn't allow starting a second while one is active. */
+function getActiveOffGridTrip(now: number = Date.now()): Trip | null {
+  return _activeTrips.find(t => t.kind === 'offgrid' && t.expiresAt >= now) ?? null;
+}
+
+/**
+ * KAN-246 — exposes the active off-grid window (destination label + expiry)
+ * for the ContextChip, independent of exact position (shown whenever the
+ * window is active, not just while physically inside its area).
+ */
+export function getActiveOffGridWindow(): { destination: string; expiresAt: number } | null {
+  const trip = getActiveOffGridTrip();
+  return trip ? { destination: trip.destination, expiresAt: trip.expiresAt } : null;
+}
+
 /**
  * KAN-245 — "does the app already know this area?" Broader than
  * findActiveCacheArea above (trip/mall bounded downloads only): also true
@@ -630,6 +645,13 @@ async function runProximitySearch(
     // to the connectivity-fallback path — a KAN-237 cache-first empty result
     // is a confident "nothing here," not an ambiguous miss, so it proceeds
     // through to onUpdate normally (hero clears like any other empty tick).
+    //
+    // KAN-246 note: this also means an active off-grid window already
+    // suppresses the toast below for free — off-grid windows are stored as
+    // Trip docs, so findActiveCacheArea (above) already routes any position
+    // inside one through the cache-first branch, which never reaches here.
+    // No dedicated off-grid check needed; see proximityOfflineCache.test.ts's
+    // "off-grid window suppresses the coverage toast" suite for the proof.
     if (isConnectivityFallback && uniquePoiTypes.every(t => (results[t] ?? []).length === 0)) {
       // KAN-236 — only worth telling the user if the cache has data
       // *somewhere* (they've genuinely walked past its coverage); if it's

@@ -57,7 +57,7 @@ jest.mock('../../src/native/WearNotificationModule', () => ({
   sendProximityAlert: jest.fn(),
 }));
 
-import { isLocationKnown, setActiveTrips, setMallSnapshot, resetProximityState } from '../../src/services/proximity';
+import { isLocationKnown, setActiveTrips, setMallSnapshot, resetProximityState, getActiveOffGridWindow } from '../../src/services/proximity';
 import type { Trip, MallSnapshot } from '../../src/types';
 
 function makeTrip(overrides: Partial<Trip> = {}): Trip {
@@ -120,5 +120,34 @@ describe('isLocationKnown', () => {
   it('is false when the habitat cache returns only empty arrays', () => {
     mockQueryHabitatCache.mockReturnValue({ atm: [], cafe: [] });
     expect(isLocationKnown(0, 0)).toBe(false);
+  });
+});
+
+describe('getActiveOffGridWindow (KAN-246)', () => {
+  it('is null when there is no active off-grid trip', () => {
+    expect(getActiveOffGridWindow()).toBeNull();
+  });
+
+  it('is null when a regular (non-offgrid) trip is active', () => {
+    setActiveTrips([makeTrip()]);
+    expect(getActiveOffGridWindow()).toBeNull();
+  });
+
+  it('returns the destination + expiresAt of an active off-grid trip', () => {
+    setActiveTrips([makeTrip({ kind: 'offgrid', destination: 'this area', expiresAt: Date.now() + 500_000 })]);
+    const window = getActiveOffGridWindow();
+    expect(window?.destination).toBe('this area');
+    expect(window?.expiresAt).toBeGreaterThan(Date.now());
+  });
+
+  it('is null once the off-grid trip has expired', () => {
+    setActiveTrips([makeTrip({ kind: 'offgrid', expiresAt: Date.now() - 1_000 })]);
+    expect(getActiveOffGridWindow()).toBeNull();
+  });
+
+  it('does not depend on position — active regardless of where the caller is', () => {
+    setActiveTrips([makeTrip({ kind: 'offgrid', centerLat: 80, centerLng: 80, areaRadius: 100, expiresAt: Date.now() + 500_000 })]);
+    // The caller is nowhere near (80, 80), but the window is still "active".
+    expect(getActiveOffGridWindow()).not.toBeNull();
   });
 });

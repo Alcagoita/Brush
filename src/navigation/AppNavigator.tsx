@@ -30,6 +30,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import TripPlannerScreen from '../screens/TripPlannerScreen';
+import OffGridScreen from '../screens/OffGridScreen';
 import PlacesIKnowScreen from '../screens/PlacesIKnowScreen';
 import HomeAddressScreen from '../screens/HomeAddressScreen';
 
@@ -73,6 +74,8 @@ export type RootStackParamList = {
   PlacesIKnow: undefined;
   /** Explicit home address — set/edit/clear (KAN-247). */
   HomeAddress: undefined;
+  /** Off-grid window — "I'll be offline for a while, keep my tasks going" (KAN-246). Now + duration, never dated like TripPlanner. */
+  OffGrid: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -107,6 +110,7 @@ export default function AppNavigator() {
       <Stack.Screen name="NotificationPreferences"    component={NotificationPreferencesScreen} />
       <Stack.Screen name="Achievements"               component={AchievementsScreen} />
       <Stack.Screen name="TripPlanner"                component={TripPlannerScreen} />
+      <Stack.Screen name="OffGrid"                    component={OffGridScreen} />
       <Stack.Screen name="PlacesIKnow"                component={PlacesIKnowScreen} />
       <Stack.Screen name="HomeAddress"                component={HomeAddressScreen} />
     </Stack.Navigator>

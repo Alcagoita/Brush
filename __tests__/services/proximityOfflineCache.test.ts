@@ -541,6 +541,87 @@ describe('offline expectations messaging — "moved beyond coverage" toast (KAN-
   });
 });
 
+describe('off-grid window suppresses the coverage toast for free (KAN-246 — via KAN-237 cache-first, no dedicated check)', () => {
+  afterEach(() => { setActiveTrips(null); });
+
+  it('does not fire the toast anywhere inside an active off-grid window\'s area', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+    setActiveTrips([makeTrip({
+      kind: 'offgrid', centerLat: 0, centerLng: 0, areaRadius: 15_000, expiresAt: Date.now() + 1_000_000,
+    })]);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('does not consume the once-per-session flag or the invitation cap while suppressed', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+    setActiveTrips([makeTrip({
+      kind: 'offgrid', centerLat: 0, centerLng: 0, areaRadius: 15_000, expiresAt: Date.now() + 1_000_000,
+    })]);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    expect(useToastStore.getState().message).toBeNull();
+
+    // Once outside the window's area, the toast fires normally — proving
+    // the earlier tick didn't quietly mark the session/notice as "shown".
+    setActiveTrips(null);
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
+  });
+
+  it('fires the toast normally once the off-grid window has expired', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+    setActiveTrips([makeTrip({
+      kind: 'offgrid', centerLat: 0, centerLng: 0, areaRadius: 15_000, expiresAt: Date.now() - 1_000,
+    })]);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
+  });
+
+  it('fires the toast normally outside the off-grid window\'s area radius', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+    setActiveTrips([makeTrip({
+      kind: 'offgrid', centerLat: 50, centerLng: 50, areaRadius: 15_000, expiresAt: Date.now() + 1_000_000,
+    })]);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn()); // position is (0,0) per ORIGIN
+
+    expect(useToastStore.getState().message).toBe(COPY.offline.uncoveredAreaInvitationToast);
+  });
+
+  it('a regular (non-offgrid) trip suppresses it the same way — both kinds route through findActiveCacheArea', async () => {
+    mockHasCachedPlaces.mockReturnValue(true);
+    setActiveTrips([makeTrip({ centerLat: 0, centerLng: 0, areaRadius: 15_000, expiresAt: Date.now() + 1_000_000 })]);
+
+    goOffline();
+    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+
+    expect(useToastStore.getState().message).toBeNull();
+  });
+});
+
 describe('cache-first coverage (KAN-237) — trip areas and the mall snapshot skip the live API entirely', () => {
   afterEach(() => {
     setActiveTrips(null);

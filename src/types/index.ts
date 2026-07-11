@@ -676,6 +676,15 @@ export interface Trip {
   expiresAt: number;
   /** Set once the day-before-departure pre-refresh has run, so it isn't repeated every app open during the trip window. */
   preRefreshedAt?: number;
+  /**
+   * KAN-246 — absent (undefined) for a regular future/destination trip.
+   * `'offgrid'` marks a now + duration connectivity window instead (center =
+   * current location or a chosen override, startDate = today, expiresAt =
+   * precise end time, no day-level grace margin). Off-grid trips never
+   * appear on the Calendar and are excluded from "Where we've been" — a
+   * Tuesday hike is not a trip memory.
+   */
+  kind?: 'offgrid';
   createdAt: FirebaseFirestoreTypes.Timestamp;
 }
 

@@ -44,6 +44,7 @@ import {
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  CloudOffIcon,
   GlobeIcon,
   GridIcon,
   HomeIcon,
@@ -467,6 +468,13 @@ export default function SettingsScreen() {
             sublabel={homeAddress ?? COPY.home.settingsRowEmptySublabel}
             onPress={() => navigation.navigate('HomeAddress')}
             accessibilityLabel={COPY.home.settingsRowLabel}
+          />
+          <SettingsRow
+            Icon={CloudOffIcon}
+            label={COPY.offGrid.profileRowLabel}
+            sublabel={COPY.offGrid.profileRowSublabel}
+            onPress={() => navigation.navigate('OffGrid')}
+            accessibilityLabel={COPY.offGrid.profileRowA11y}
           />
           <SettingsRow
             Icon={BatteryIcon}
