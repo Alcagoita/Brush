@@ -95,6 +95,17 @@ describe('Toast', () => {
     expect(useToastStore.getState().action).toBeNull();
   });
 
+  it('still hides the toast even when onPress throws', () => {
+    const onPress = jest.fn(() => { throw new Error('boom'); });
+    render(<Toast />);
+    act(() => { useToastStore.getState().showToast('Invitation', { label: 'Show me', onPress }); });
+
+    expect(() => fireEvent.press(screen.getByRole('button', { name: 'Show me' }))).toThrow('boom');
+
+    expect(useToastStore.getState().message).toBeNull();
+    expect(useToastStore.getState().action).toBeNull();
+  });
+
   it('a plain toast (no action) renders no action button', () => {
     render(<Toast />);
     act(() => { useToastStore.getState().showToast('Just a message'); });

@@ -62,8 +62,11 @@ export default function Toast() {
 
   const handleActionPress = () => {
     if (dismissTimer.current !== null) { clearTimeout(dismissTimer.current); }
-    action?.onPress();
-    hideToast();
+    try {
+      action?.onPress();
+    } finally {
+      hideToast();
+    }
   };
 
   return (
@@ -85,7 +88,7 @@ export default function Toast() {
         <View style={styles.actionRow} pointerEvents="box-none">
           <Pressable
             onPress={handleActionPress}
-            hitSlop={8}
+            hitSlop={16}
             accessibilityRole="button"
             accessibilityLabel={action.label}>
             <Text style={[styles.actionLabel, { color: palette.accent }]}>{action.label}</Text>
