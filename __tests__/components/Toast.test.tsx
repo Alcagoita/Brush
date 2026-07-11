@@ -29,7 +29,7 @@ jest.mock('../../src/theme', () => ({
 
 beforeEach(() => {
   jest.useFakeTimers();
-  useToastStore.setState({ message: null });
+  useToastStore.setState({ message: null, action: null });
   jest.spyOn(AccessibilityInfo, 'announceForAccessibility').mockImplementation(() => {});
 });
 
@@ -118,5 +118,34 @@ describe('Toast', () => {
     act(() => { jest.advanceTimersByTime(250); }); // fade-out animation callback
 
     expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('re-showing the same message with an action added resets the timer to the longer window', () => {
+    render(<Toast />);
+    act(() => { useToastStore.getState().showToast('Same text'); });
+
+    // Just under the plain 2.5s window.
+    act(() => { jest.advanceTimersByTime(2000); });
+
+    // Same message text, but now with an action — must not inherit the
+    // already-running plain-dismiss timer.
+    act(() => { useToastStore.getState().showToast('Same text', { label: 'Show me', onPress: jest.fn() }); });
+
+    act(() => { jest.advanceTimersByTime(500); }); // 2500ms since first show — old plain timer would fire here
+    expect(useToastStore.getState().message).toBe('Same text'); // would have fired under the old bug
+
+    act(() => { jest.advanceTimersByTime(4000); }); // 4500ms since the action was added (2000 + 500 + 4000)
+    act(() => { jest.advanceTimersByTime(250); }); // fade-out animation callback
+    expect(useToastStore.getState().message).toBeNull();
+  });
+
+  it('re-showing the same message with an action added re-announces for screen readers', () => {
+    render(<Toast />);
+    act(() => { useToastStore.getState().showToast('Same text'); });
+    (AccessibilityInfo.announceForAccessibility as jest.Mock).mockClear();
+
+    act(() => { useToastStore.getState().showToast('Same text', { label: 'Show me', onPress: jest.fn() }); });
+
+    expect(AccessibilityInfo.announceForAccessibility).toHaveBeenCalledWith('Same text');
   });
 });

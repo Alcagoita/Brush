@@ -108,6 +108,14 @@ jest.mock('../../src/constants/copy', () => ({
       uncoveredAreaInvitationToast:  "You're outside the area I know by heart. Next time, tell me before you go — I can learn a place ahead of time.",
       uncoveredAreaInvitationAction: 'Show me',
     },
+    // placeTypeLabel() → poiCatalogLabel() reads this for every built-in
+    // PoiType touched by these tests (exit prompts, notification bodies).
+    poiCatalog: {
+      atm: 'ATM', cafe: 'Café', supermarket: 'Market', pharmacy: 'Pharmacy',
+      gas: 'Gas', gym: 'Gym', bank: 'Bank', restaurant: 'Restaurant',
+      park: 'Park', library: 'Library', post: 'Post', store: 'Store',
+      clinic: 'Clinic', salon: 'Salon', bus: 'Bus', school: 'School',
+    },
   },
 }));
 

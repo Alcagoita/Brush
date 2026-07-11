@@ -56,7 +56,7 @@ export default function Toast() {
       if (dismissTimer.current !== null) { clearTimeout(dismissTimer.current); }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [message]);
+  }, [message, action]);
 
   if (!message) { return null; }
 
