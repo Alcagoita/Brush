@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
@@ -28,12 +27,13 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import { categories as builtInCategories, categoryHues } from '../../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding';
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { learnFromUserEdit } from '../../services/poiLlm';
 import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
-import { POI_CATALOG } from '../../types';
+import { POI_CATALOG, poiCatalogLabel } from '../../types';
 import { todayISO } from '../../utils/date';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { COPY } from '../../constants/copy';
@@ -201,12 +201,12 @@ export default function TaskFormScreen() {
   const handleDelete = useCallback(() => {
     if (!existingTask) { return; }
     Alert.alert(
-      'Delete this task?',
+      COPY.taskFormScreen.deleteConfirmTitle,
       existingTask.title,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: COPY.taskFormScreen.cancel, style: 'cancel' },
         {
-          text: 'Delete',
+          text: COPY.taskFormScreen.delete,
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
@@ -238,7 +238,7 @@ export default function TaskFormScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
 
       {/* ── Sticky top bar ── */}
       <View style={[
@@ -253,17 +253,18 @@ export default function TaskFormScreen() {
           onPress={() => navigation.goBack()}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={COPY.taskFormScreen.goBackA11y}
           style={styles.backBtn}>
           <Text style={[styles.backLabel, { color: palette.muted }]}>‹</Text>
         </Pressable>
         <Text style={[styles.topBarTitle, { color: palette.text }]}>
-          {isEdit ? 'Edit task' : COPY.newTaskSheet.title}
+          {isEdit ? COPY.taskFormScreen.editTaskTitle : COPY.newTaskSheet.title}
         </Text>
         <View style={styles.topBarRight} />
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + 120 },
@@ -289,7 +290,7 @@ export default function TaskFormScreen() {
               onFocus={() => setTitleFocused(true)}
               returnKeyType="next"
               maxLength={200}
-              accessibilityLabel={isEdit ? 'Task title' : COPY.newTaskSheet.title}
+              accessibilityLabel={isEdit ? COPY.taskFormScreen.taskTitleA11y : COPY.newTaskSheet.title}
             />
             {/* Rotating example placeholder — same component as the quick sheet (KAN-148) */}
             {!isEdit && !titleFocused && title.length === 0 && (
@@ -337,7 +338,7 @@ export default function TaskFormScreen() {
               <Pressable
                 onPress={() => { setQuery(''); setCustomPoiType(null); }}
                 hitSlop={8}
-                accessibilityLabel="Clear search">
+                accessibilityLabel={COPY.taskFormScreen.clearSearchA11y}>
                 <CloseIcon color={palette.muted} size={16} />
               </Pressable>
             )}
@@ -367,11 +368,11 @@ export default function TaskFormScreen() {
 
           {/* Quick-pick grid — 4 columns */}
           <View style={styles.poiGrid}>
-            {POI_CATALOG.map(({ type, label }) => (
+            {POI_CATALOG.map(({ type }) => (
               <PoiTile
                 key={type}
                 type={type}
-                label={label}
+                label={poiCatalogLabel(type)}
                 selected={poiKey === type}
                 onPress={() => {
                   const next = poiKey === type ? null : type;
@@ -428,7 +429,7 @@ export default function TaskFormScreen() {
               <Pressable
                 onPress={handleOpenNewCat}
                 accessibilityRole="button"
-                accessibilityLabel="Create new category"
+                accessibilityLabel={COPY.taskFormScreen.createNewCategoryA11y}
                 style={[styles.newCatChip, { borderColor: palette.line, backgroundColor: palette.surface }]}>
                 <Text style={[styles.newCatChipLabel, { color: palette.muted }]}>＋ New</Text>
               </Pressable>
@@ -442,7 +443,7 @@ export default function TaskFormScreen() {
                 <View style={[styles.catColorPreview, { backgroundColor: newCatColor }]} />
                 <TextInput
                   style={[styles.catNameInput, { color: palette.text }]}
-                  placeholder="Category name"
+                  placeholder={COPY.taskFormScreen.categoryNamePlaceholder}
                   placeholderTextColor={palette.faint}
                   value={newCatName}
                   onChangeText={setNewCatName}
@@ -470,7 +471,7 @@ export default function TaskFormScreen() {
                   onPress={() => setAddingCat(false)}
                   style={[styles.catActionBtn, { borderColor: palette.line }]}
                   accessibilityRole="button">
-                  <Text style={[styles.catActionLabel, { color: palette.muted }]}>Cancel</Text>
+                  <Text style={[styles.catActionLabel, { color: palette.muted }]}>{COPY.taskFormScreen.cancel}</Text>
                 </Pressable>
                 <Pressable
                   onPress={handleSaveNewCat}
@@ -549,7 +550,7 @@ export default function TaskFormScreen() {
                 color:           palette.text,
               },
             ]}
-            placeholder="Add a note, link, or reminder…"
+            placeholder={COPY.taskFormScreen.notesPlaceholder}
             placeholderTextColor={palette.muted}
             value={notes}
             onChangeText={setNotes}
@@ -570,7 +571,7 @@ export default function TaskFormScreen() {
               (deleting || pressed) && { opacity: 0.6 },
             ]}
             accessibilityRole="button"
-            accessibilityLabel="Delete task">
+            accessibilityLabel={COPY.taskFormScreen.deleteTaskA11y}>
             <Text style={[styles.deleteBtnLabel, { color: palette.danger }]}>
               {deleting ? 'Deleting…' : 'Delete task'}
             </Text>

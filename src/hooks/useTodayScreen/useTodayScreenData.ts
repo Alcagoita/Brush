@@ -35,14 +35,21 @@ import { useAppStore } from '../../store/appStore';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
 const DATA_FETCH_TIMEOUT_MS = 5_000;
+const TASKS_LOAD_ERROR = 'Could not load tasks. Check your connection.';
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, label: string): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error('Data fetch timed out')), ms),
+      setTimeout(() => reject(new Error(`${label} fetch timed out`)), DATA_FETCH_TIMEOUT_MS),
     ),
   ]);
+}
+
+function logFetchFailure(label: string, result: PromiseSettledResult<unknown>) {
+  if (result.status === 'rejected') {
+    console.warn(`[useTodayScreenData] ${label} fetch failed`, result.reason);
+  }
 }
 
 export interface TodayScreenData {
@@ -90,6 +97,38 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
 
   const latestTasksRef = useRef<Task[]>([]);
   useEffect(() => { latestTasksRef.current = tasks; }, [tasks]);
+
+  const latestDataRef = useRef({
+    customCategories: [] as Category[],
+    totalPoints: 0,
+    inboxCount: 0,
+    socialUnreadCount: 0,
+    lowBatteryPausePref: false,
+    storeTuningEnabled: undefined as boolean | undefined,
+    trips: [] as Trip[],
+    mallSnapshot: null as MallSnapshot | null,
+  });
+  useEffect(() => {
+    latestDataRef.current = {
+      customCategories,
+      totalPoints,
+      inboxCount,
+      socialUnreadCount,
+      lowBatteryPausePref,
+      storeTuningEnabled,
+      trips,
+      mallSnapshot,
+    };
+  }, [
+    customCategories,
+    totalPoints,
+    inboxCount,
+    socialUnreadCount,
+    lowBatteryPausePref,
+    storeTuningEnabled,
+    trips,
+    mallSnapshot,
+  ]);
 
   // ── One-shot data fetch ────────────────────────────────────────────────────
   //
@@ -169,57 +208,107 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
 
     try {
       const [
-        fetchedTasks,
-        userData,
-        userPrefs,
-        poiPrefsMap,
-        categories,
-        points,
-        inbox,
-        socialUnread,
-        fetchedTrips,
-        fetchedMallSnapshot,
-      ] = await withTimeout(
-        Promise.all([
-          getTasksForDate(uid, todayISO()),
-          getUser(uid),
-          getUserPreferences(uid),
-          getPoiPreferencesMap(uid),
-          getCategories(uid),
-          getTotalPoints(uid),
-          getIncomingSharedTasksCount(uid),
-          getInboxUnreadCount(uid),
-          getTrips(uid),
-          getMallSnapshot(uid),
-        ]),
-        DATA_FETCH_TIMEOUT_MS,
-      );
+        fetchedTasksResult,
+        userDataResult,
+        userPrefsResult,
+        poiPrefsMapResult,
+        categoriesResult,
+        pointsResult,
+        inboxResult,
+        socialUnreadResult,
+        fetchedTripsResult,
+        fetchedMallSnapshotResult,
+      ] = await Promise.allSettled([
+        withTimeout(getTasksForDate(uid, todayISO()), 'tasks'),
+        withTimeout(getUser(uid), 'user'),
+        withTimeout(getUserPreferences(uid), 'userPrefs'),
+        withTimeout(getPoiPreferencesMap(uid), 'poiPrefs'),
+        withTimeout(getCategories(uid), 'categories'),
+        withTimeout(getTotalPoints(uid), 'points'),
+        withTimeout(getIncomingSharedTasksCount(uid), 'sharedInbox'),
+        withTimeout(getInboxUnreadCount(uid), 'socialInbox'),
+        withTimeout(getTrips(uid), 'trips'),
+        withTimeout(getMallSnapshot(uid), 'mallSnapshot'),
+      ]);
 
       if (isStale()) { return; }
 
-      setTasks(fetchedTasks);
-      setCustomCategories(categories.filter(c => !c.isBuiltIn));
-      setTotalPoints(points);
-      setInboxCount(inbox);
-      setSocialUnreadCount(socialUnread);
-      setTrips(fetchedTrips);
-      setMallSnapshot(fetchedMallSnapshot);
-      setActiveTrips(fetchedTrips);
-      setProximityMallSnapshot(fetchedMallSnapshot);
-      setHomeLocation(userData?.home ?? null);
+      logFetchFailure('tasks', fetchedTasksResult);
+      logFetchFailure('user', userDataResult);
+      logFetchFailure('userPrefs', userPrefsResult);
+      logFetchFailure('poiPrefs', poiPrefsMapResult);
+      logFetchFailure('categories', categoriesResult);
+      logFetchFailure('points', pointsResult);
+      logFetchFailure('sharedInbox', inboxResult);
+      logFetchFailure('socialInbox', socialUnreadResult);
+      logFetchFailure('trips', fetchedTripsResult);
+      logFetchFailure('mallSnapshot', fetchedMallSnapshotResult);
 
-      if (userData) {
-        setLowBatteryPausePref(userData.poiPreferences?.lowBatteryPause ?? false);
-        setStoreTuningEnabled(userData.poiPreferences?.storeTuningEnabled);
+      const cachedTasks = latestTasksRef.current;
+      setTasks(
+        fetchedTasksResult.status === 'fulfilled'
+          ? fetchedTasksResult.value
+          : cachedTasks,
+      );
+      if (fetchedTasksResult.status === 'rejected' && cachedTasks.length === 0) {
+        setError(TASKS_LOAD_ERROR);
       }
 
-      updateNotifNearbyEnabled(userPrefs.notif_nearby_enabled ?? true);
-      updateExitPromptPref(userPrefs.exitPrompt ?? true);
-      updateIndoorExitPromptPref(userPrefs.exitPrompt ?? true);
-      updateProximityPoiPreferences(poiPrefsMap);
+      const categories = categoriesResult.status === 'fulfilled'
+        ? categoriesResult.value
+        : latestDataRef.current.customCategories;
+      setCustomCategories(categories.filter(c => !c.isBuiltIn));
 
+      setTotalPoints(
+        pointsResult.status === 'fulfilled'
+          ? pointsResult.value
+          : latestDataRef.current.totalPoints,
+      );
+      setInboxCount(
+        inboxResult.status === 'fulfilled'
+          ? inboxResult.value
+          : latestDataRef.current.inboxCount,
+      );
+      setSocialUnreadCount(
+        socialUnreadResult.status === 'fulfilled'
+          ? socialUnreadResult.value
+          : latestDataRef.current.socialUnreadCount,
+      );
+
+      const fetchedTrips = fetchedTripsResult.status === 'fulfilled'
+        ? fetchedTripsResult.value
+        : latestDataRef.current.trips;
+      setTrips(fetchedTrips);
+      setActiveTrips(fetchedTrips);
+
+      const fetchedMallSnapshot = fetchedMallSnapshotResult.status === 'fulfilled'
+        ? fetchedMallSnapshotResult.value
+        : latestDataRef.current.mallSnapshot;
+      setMallSnapshot(fetchedMallSnapshot);
+      setProximityMallSnapshot(fetchedMallSnapshot);
+
+      if (userDataResult.status === 'fulfilled') {
+        const userData = userDataResult.value;
+        setHomeLocation(userData?.home ?? null);
+        setLowBatteryPausePref(userData?.poiPreferences?.lowBatteryPause ?? false);
+        setStoreTuningEnabled(userData?.poiPreferences?.storeTuningEnabled);
+      }
+
+      if (userPrefsResult.status === 'fulfilled') {
+        const userPrefs = userPrefsResult.value;
+        updateNotifNearbyEnabled(userPrefs.notif_nearby_enabled ?? true);
+        updateExitPromptPref(userPrefs.exitPrompt ?? true);
+        updateIndoorExitPromptPref(userPrefs.exitPrompt ?? true);
+      }
+
+      if (poiPrefsMapResult.status === 'fulfilled') {
+        updateProximityPoiPreferences(poiPrefsMapResult.value);
+      }
     } catch (err) {
-      if (!isStale()) { setError('Could not load tasks. Check your connection.'); }
+      if (!isStale()) {
+        console.warn('[useTodayScreenData] loadData failed', err);
+        setError(TASKS_LOAD_ERROR);
+      }
     } finally {
       if (!isStale()) {
         setIsLoading(false);

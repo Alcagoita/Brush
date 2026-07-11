@@ -109,13 +109,13 @@ function FollowRow({ entry, currentUid, currentUsername, currentName, palette, o
       style={[styles.row, { backgroundColor: palette.surface2 }]}
       onPress={() => entry.fromUsername && onViewProfile(entry.fromUsername)}
       accessibilityRole="button"
-      accessibilityLabel={`${handle} started following you`}>
+      accessibilityLabel={COPY.sharedTaskInbox.startedFollowingA11y(handle)}>
       <View style={styles.rowTop}>
         <Avatar photoURL={null} size={32} accessibilityLabel={handle} />
         <View style={styles.rowText}>
           <Text style={[styles.rowMain, { color: palette.text }]} numberOfLines={2}>
             <Text style={{ fontFamily: 'Geist-SemiBold' }}>{handle}</Text>
-            {' started following you'}
+            {COPY.sharedTaskInbox.startedFollowingSuffix}
           </Text>
           <Text style={[styles.time, { color: palette.faint }]}>
             {relativeTime(entry.createdAt)}
@@ -131,14 +131,14 @@ function FollowRow({ entry, currentUid, currentUsername, currentName, palette, o
           onPress={handleFollowBack}
           disabled={followingBack}
           accessibilityRole="button"
-          accessibilityLabel={`Follow back ${handle}`}>
+          accessibilityLabel={COPY.sharedTaskInbox.followBackA11y(handle)}>
           <Text style={[styles.followBackLabel, { color: palette.bg }]}>
-            {followingBack ? '…' : 'Follow back'}
+            {followingBack ? '…' : COPY.sharedTaskInbox.followBack}
           </Text>
         </Pressable>
       )}
       {alreadyFollowing === true && (
-        <Text style={[styles.followingLabel, { color: palette.muted }]}>Following</Text>
+        <Text style={[styles.followingLabel, { color: palette.muted }]}>{COPY.sharedTaskInbox.following}</Text>
       )}
     </Pressable>
   );
@@ -192,7 +192,7 @@ function SharedTaskRow({
   return (
     <View style={[styles.row, { backgroundColor: palette.surface2 }]}>
       <View style={styles.rowTop}>
-        <Avatar photoURL={null} size={32} accessibilityLabel={`${item.sentByName} avatar`} />
+        <Avatar photoURL={null} size={32} accessibilityLabel={COPY.sharedTaskInbox.avatarA11y(item.sentByName)} />
         <View style={styles.rowText}>
           <Text style={[styles.senderName, { color: palette.text }]}>
             {senderHandle ?? item.sentByName}
@@ -214,24 +214,24 @@ function SharedTaskRow({
           onPress={handleAccept}
           disabled={actioning}
           accessibilityRole="button"
-          accessibilityLabel="Accept task">
+          accessibilityLabel={COPY.sharedTaskInbox.acceptTaskA11y}>
           {actioning
             ? <ActivityIndicator size="small" color={palette.bg} />
-            : <Text style={[styles.actionLabel, { color: palette.bg }]}>Accept</Text>}
+            : <Text style={[styles.actionLabel, { color: palette.bg }]}>{COPY.sharedTaskInbox.accept}</Text>}
         </Pressable>
         <Pressable
           style={({ pressed }) => [styles.actionBtn, styles.declineBtn, { borderColor: palette.line }, (pressed || actioning) && { opacity: 0.7 }]}
           onPress={handleDecline}
           disabled={actioning}
           accessibilityRole="button"
-          accessibilityLabel="Decline task">
-          <Text style={[styles.actionLabel, { color: palette.muted }]}>Decline</Text>
+          accessibilityLabel={COPY.sharedTaskInbox.declineTaskA11y}>
+          <Text style={[styles.actionLabel, { color: palette.muted }]}>{COPY.sharedTaskInbox.decline}</Text>
         </Pressable>
       </View>
       {followed === false && !following && item.sentBy !== currentUid && (
         <Pressable onPress={handleFollow} style={styles.followPrompt} accessibilityRole="button">
           <Text style={[styles.followLabel, { color: palette.accent }]}>
-            + Follow {senderHandle ?? item.sentByName}
+            {COPY.sharedTaskInbox.followPrompt(senderHandle ?? item.sentByName)}
           </Text>
         </Pressable>
       )}
@@ -305,12 +305,12 @@ export default function SharedTaskInboxScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.sharedTaskInbox.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>
-          {'Notifications'}
-          {unreadCount > 0 ? ` (${unreadCount})` : ''}
+          {COPY.sharedTaskInbox.notifications}
+          {unreadCount > 0 ? COPY.sharedTaskInbox.unreadSuffix(unreadCount) : ''}
         </Text>
         <View style={styles.navBtn} />
       </View>
@@ -350,7 +350,7 @@ export default function SharedTaskInboxScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyTitle, { color: palette.text }]}>All caught up</Text>
+            <Text style={[styles.emptyTitle, { color: palette.text }]}>{COPY.sharedTaskInbox.allCaughtUp}</Text>
             <Text style={[styles.emptySubtitle, { color: palette.muted }]}>
               {COPY.emptyState.inboxNoShared}
             </Text>

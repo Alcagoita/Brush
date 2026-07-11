@@ -1,12 +1,18 @@
 /**
- * ThemeContext.tsx — Light / dark mode provider.
+ * ThemeContext.tsx — Light / dark mode + language provider.
  *
- * Priority chain (highest → lowest):
- *   1. User's explicit preference stored in Firestore (/users/{uid}.darkMode)
- *   2. Device OS appearance (Appearance API)
+ * Priority chain (highest → lowest), identical for both preferences:
+ *   1. User's explicit preference stored in Firestore (/users/{uid}.darkMode / .language)
+ *   2. Device OS default (Appearance API for theme, system locale for language)
+ *
+ * Language joined this provider (KAN-252) rather than getting its own context
+ * because it reads/writes the exact same user doc, with the exact same
+ * race-guard + cold-start-flash concerns as dark mode — duplicating a second
+ * onAuthStateChanged/getDoc listener pair for one extra field would just be
+ * two copies of the same bug surface.
  *
  * Usage:
- *   const { palette, dark, setDark } = useTheme();
+ *   const { palette, dark, setDark, language, setLanguage } = useTheme();
  */
 
 import React, {
@@ -23,6 +29,8 @@ import { getFirestore, doc, getDoc, setDoc } from '@react-native-firebase/firest
 import { getAuth, onAuthStateChanged } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { darkPalette, lightPalette, Palette } from './tokens';
+import { setCopyLanguage, type SupportedLanguage } from '../constants/copy';
+import { detectDeviceLanguage } from '../services/deviceLocale';
 
 // ─── Context shape ────────────────────────────────────────────────────────────
 
@@ -33,6 +41,10 @@ interface ThemeContextValue {
   dark: boolean;
   /** Toggle dark mode and persist the preference to Firestore. */
   setDark: (value: boolean) => Promise<void>;
+  /** Current resolved UI language (KAN-252). */
+  language: SupportedLanguage;
+  /** Change the UI language and persist the preference to Firestore. */
+  setLanguage: (value: SupportedLanguage) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -50,6 +62,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // before children are rendered (see themeReady below).
   const [dark, setDarkState] = useState<boolean>(deviceIsDark());
 
+  // Same device-default-then-Firestore-override shape as `dark` above.
+  const [language, setLanguageState] = useState<SupportedLanguage>(() => {
+    const initial = detectDeviceLanguage();
+    // Set synchronously so the very first render (behind the themeReady
+    // backdrop below) already reads COPY in the right language — no flash.
+    setCopyLanguage(initial);
+    return initial;
+  });
+
   /**
    * Guards against a race condition where the Firestore load completes AFTER
    * the user has already explicitly toggled the theme. Without this flag the
@@ -63,11 +84,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
    * With guard: t=2 getDoc sees userHasExplicitlySet=true and no-ops.
    */
   const userHasExplicitlySet = useRef(false);
+  /** Same race guard as above, tracked separately since toggling theme and
+   *  toggling language are independent user actions. */
+  const languageHasExplicitlySet = useRef(false);
 
   /**
    * Set to true once we have resolved the user's saved preference (or
    * determined there is none). Children are not rendered until this is true,
-   * which prevents the light→dark colour flash on cold start.
+   * which prevents the light→dark colour flash on cold start (and, since
+   * KAN-252, a language flash too).
    *
    * With Firestore offline persistence, the getDoc resolves from the
    * on-device cache in < 50 ms, so the gate is imperceptible.
@@ -94,18 +119,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       authLoaded = true;
 
       if (!user) {
-        // No signed-in user → no Firestore preference → device theme is fine.
+        // No signed-in user → no Firestore preference → device defaults are fine.
         setThemeReady(true);
         return;
       }
 
       try {
         const snapshot = await getDoc(doc(getFirestore(), 'users', user.uid));
-        // If the user toggled before the load finished, respect their choice.
-        if (!userHasExplicitlySet.current && snapshot.exists()) {
+        if (snapshot.exists()) {
           const data = snapshot.data();
-          if (typeof data?.darkMode === 'boolean') {
+          // If the user toggled before the load finished, respect their choice.
+          if (!userHasExplicitlySet.current && typeof data?.darkMode === 'boolean') {
             setDarkState(data.darkMode);
+          }
+          if (!languageHasExplicitlySet.current && (data?.language === 'en' || data?.language === 'pt-PT')) {
+            setLanguageState(data.language);
+            setCopyLanguage(data.language);
           }
         }
       } catch {
@@ -151,11 +180,28 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setLanguage = useCallback(async (value: SupportedLanguage) => {
+    languageHasExplicitlySet.current = true;
+    setLanguageState(value);
+    setCopyLanguage(value);
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    try {
+      await setDoc(
+        doc(getFirestore(), 'users', uid),
+        { language: value },
+        { merge: true },
+      );
+    } catch {
+      // Preference update is best-effort; local state already applied.
+    }
+  }, []);
+
   const palette: Palette = dark ? darkPalette : lightPalette;
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ palette, dark, setDark }),
-    [palette, dark, setDark],
+    () => ({ palette, dark, setDark, language, setLanguage }),
+    [palette, dark, setDark, language, setLanguage],
   );
 
   // Block the first paint until the saved preference is known.
@@ -173,7 +219,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 /**
- * Returns the current theme palette and helpers.
+ * Returns the current theme palette, language, and their setters.
  * Must be used inside <ThemeProvider>.
  */
 export function useTheme(): ThemeContextValue {

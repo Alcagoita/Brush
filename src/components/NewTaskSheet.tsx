@@ -42,10 +42,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { categories } from '../theme/tokens';
-import { PoiType, CategoryKey, Category, POI_CATALOG } from '../types';
+import { categories, fonts } from '../theme/tokens';
+import { PoiType, CategoryKey, Category, POI_CATALOG, poiCatalogLabel } from '../types';
 import { addTask } from '../services/firestore';
-import { inferPoiForQuickAdd } from '../services/poiLlm';
+import { inferPoiForQuickAdd, learnFromClassification, learnFromUserEdit } from '../services/poiLlm';
 import { CloseIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
 import { todayISO } from '../utils/date';
@@ -107,7 +107,97 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
         },
       ]}>
       <PoiIcon type={type} color={iconColor} size={22} />
-      <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>
+      <Text
+        style={[styles.poiTileLabel, { color: iconColor }]}
+        numberOfLines={1}
+        ellipsizeMode="tail">
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+// ─── Suggestion tile (KAN-249) — dedicated leading carousel slot ─────────────
+//
+// Always the first item in the POI carousel, separate from the 16 catalog
+// tiles (which stay exactly as they were pre-KAN-249). Once inference lands
+// on a type, this tile keeps showing that guess's icon/label for the rest of
+// the compose session — replacing it with a different catalog pick must NOT
+// blank it back out, only change its look:
+//   - never inferred yet → empty placeholder, no icon, just the "my guess?" hint.
+//   - guess is live and untouched (poi === the guess) → dashed/suggested look + hint.
+//   - the user accepted it (poi === the guess, carousel touched) → normal
+//     confirmed look (solid border, no hint).
+//   - the user picked something else instead (poi !== the guess) → plain
+//     unselected look, same as an ordinary catalog tile — icon/label stay put.
+// Tapping it re-selects the guess (same toggle rule as a catalog tile);
+// inert only while there's no guess to act on.
+
+interface SuggestionTileProps {
+  /** The inferred guess — sticky once known, regardless of what's replaced it. */
+  type: PoiType | null;
+  label: string | null;
+  /** True when this guess is the current `poi` value (live or confirmed). */
+  selected: boolean;
+  /** True once the user has interacted with the carousel at all. */
+  touched: boolean;
+  onPress: () => void;
+  palette: ReturnType<typeof useTheme>['palette'];
+}
+
+function SuggestionTile({ type, label, selected, touched, onPress, palette }: SuggestionTileProps) {
+  const known     = type !== null;
+  const live      = known && selected && !touched;
+  const confirmed = known && selected && touched;
+  // Dashed + hint whenever there's no accepted/rejected verdict yet: the
+  // still-live guess, or the placeholder before anything has been inferred.
+  const showHint  = live || !known;
+
+  const iconColor = selected ? palette.nearText : palette.muted;
+
+  // Mirrors the same three-way state the visual hint uses (showHint) instead
+  // of just `known` — otherwise a screen reader keeps announcing "my guess?"
+  // on the confirmed/rejected tile after the on-screen hint has disappeared.
+  // Always keeps a "suggestion" qualifier (rather than collapsing to the bare
+  // `label`) so this tile's accessibilityLabel never exactly matches the
+  // separate catalog tile for the same type once both are on screen.
+  const accessibilityLabel = !known
+    ? COPY.newTaskSheet.poiSuggestionHint
+    : showHint
+      ? `${label}, ${COPY.newTaskSheet.poiSuggestionHint}`
+      : `${label} suggestion`;
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={!known}
+      accessibilityRole="radio"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected, disabled: !known }}
+      style={[
+        styles.poiTile,
+        showHint && styles.poiTileSuggested,
+        {
+          backgroundColor: live ? palette.nearTint : confirmed ? palette.nearTint2 : known ? palette.surface : palette.nearTint,
+          borderColor:     live || confirmed || !known ? palette.nearBorder : palette.line,
+        },
+      ]}>
+      {known && <PoiIcon type={type} color={iconColor} size={22} />}
+      {known && (
+        <Text
+          style={[styles.poiTileLabel, { color: iconColor }]}
+          numberOfLines={1}
+          ellipsizeMode="tail">
+          {label}
+        </Text>
+      )}
+      {showHint && (
+        <Text
+          style={[styles.poiTileHint, { color: palette.nearText }]}
+          numberOfLines={1}>
+          {COPY.newTaskSheet.poiSuggestionHint}
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -122,6 +212,19 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [title,    setTitle]    = useState('');
     const [category, setCategory] = useState<string | null>(null);
     const [poi,      setPoi]      = useState<PoiType | null>(null);
+    // KAN-249 — the raw inference result, frozen the moment the user touches
+    // the carousel. Compared against `poi` at submit time to tell a Confirm
+    // (poi === suggestedPoi) from a Replace (poi !== suggestedPoi); null means
+    // no suggestion ever fired for this title, so no learn-back applies.
+    const [suggestedPoi, setSuggestedPoi] = useState<PoiType | null>(null);
+    // The exact trimmed title the suggestion above was inferred for. Inference
+    // is skipped once the carousel is touched, so a later title edit can leave
+    // `suggestedPoi` stale relative to the title actually being submitted —
+    // learn-back at submit time is only valid when this still matches.
+    const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
+    // True once the user has tapped any POI tile — drives the suggested-vs-
+    // confirmed visual (a ref alone wouldn't trigger a re-render).
+    const [poiTouched, setPoiTouched] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     // Rotating title placeholder freezes permanently once the user taps the field (KAN-148).
     const [titleFocused, setTitleFocused] = useState(false);
@@ -157,6 +260,9 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setTitle('');
       setCategory(null);
       setPoi(null);
+      setSuggestedPoi(null);
+      setSuggestedTitle(null);
+      setPoiTouched(false);
       setSubmitting(false);
       setTitleFocused(false);
       dragOffset.value = 0;
@@ -180,12 +286,14 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       const timer = setTimeout(() => {
         if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
 
-        if (!trimmed) { setPoi(null); return; }
+        if (!trimmed) { setPoi(null); setSuggestedPoi(null); setSuggestedTitle(null); return; }
 
         inferPoiForQuickAdd(trimmed)
           .then(suggestion => {
             if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
             setPoi(suggestion);
+            setSuggestedPoi(suggestion);
+            setSuggestedTitle(trimmed);
           })
           .catch(() => {});
       }, POI_INFERENCE_DEBOUNCE_MS);
@@ -259,6 +367,14 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
 
     const canSubmit = title.trim().length > 0 && poi !== null;
 
+    // KAN-249 — the leading suggestion tile's content. `suggestionType` is
+    // sticky once inference lands on something: replacing it with a
+    // different catalog pick must NOT blank the guess back out, it only
+    // stops being the current `poi` value (handled inside SuggestionTile).
+    const suggestionType     = suggestedPoi;
+    const suggestionLabel    = suggestionType ? poiCatalogLabel(suggestionType) : null;
+    const suggestionSelected = suggestionType !== null && poi === suggestionType;
+
     const handleSubmit = useCallback(async () => {
       const trimmed = title.trim();
       if (!trimmed || !poi || !uid || submitting) { return; }
@@ -272,6 +388,22 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           date:     todayISO(),
           poi,
         });
+        // KAN-249 learn-back — only meaningful when a suggestion actually
+        // fired for THIS title. Inference is skipped once the carousel is
+        // touched, so a title edit after that point can leave `suggestedPoi`
+        // referring to a now-unrelated title; `suggestedTitle` guards against
+        // persisting a learned mapping for the wrong keyword.
+        if (suggestedPoi && suggestedTitle === trimmed) {
+          if (suggestedPoi === poi) {
+            // Confirmed (tapped the suggested chip) or Ignored (saved
+            // untouched) — both are a positive signal on the same mapping.
+            learnFromClassification(uid, trimmed, poi, 'en').catch(() => {});
+          } else {
+            // Replaced — the user's pick corrects the suggestion.
+            learnFromUserEdit(uid, trimmed, poi, 'en').catch(() => {});
+          }
+        }
+
         evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
         // Close (store flips visible → effect animates out + resets the form).
@@ -281,7 +413,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
       }
-    }, [title, category, poi, uid, submitting, resetForm]);
+    }, [title, category, poi, suggestedPoi, suggestedTitle, uid, submitting, resetForm]);
 
     const handleMoreDetails = useCallback(() => {
       handleClose();
@@ -330,7 +462,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 style={[styles.closeBtn, { backgroundColor: palette.surface }]}
                 onPress={handleClose}
                 accessibilityRole="button"
-                accessibilityLabel="Close">
+                accessibilityLabel={COPY.newTaskSheet2.closeA11y}>
                 <CloseIcon color={palette.muted} />
               </Pressable>
             </View>
@@ -395,14 +527,36 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 snapToInterval={POI_TILE_WIDTH + 10}
                 decelerationRate="fast"
                 style={styles.carouselMask}>
-                {POI_CATALOG.map(({ type, label }) => (
+                <SuggestionTile
+                  type={suggestionType}
+                  label={suggestionLabel}
+                  selected={suggestionSelected}
+                  touched={poiTouched}
+                  onPress={() => {
+                    // A no-op while there's no guess at all (Pressable is
+                    // `disabled` in that case, but guard anyway).
+                    if (suggestionType === null) { return; }
+                    // First tap on a still-live guess confirms it in place —
+                    // poi already equals suggestionType, so it must NOT fall
+                    // into the toggle-off branch below. Any later tap (once
+                    // touched) behaves like an ordinary catalog tile toggle.
+                    const isLiveGuess = !poiTouched && poi === suggestionType;
+                    userTouchedPoiRef.current = true;
+                    setPoiTouched(true);
+                    if (isLiveGuess) { return; }
+                    setPoi(prev => prev === suggestionType ? null : suggestionType);
+                  }}
+                  palette={palette}
+                />
+                {POI_CATALOG.map(({ type }) => (
                   <PoiTile
                     key={type}
                     type={type}
-                    label={label}
+                    label={poiCatalogLabel(type)}
                     selected={poi === type}
                     onPress={() => {
                       userTouchedPoiRef.current = true;
+                      setPoiTouched(true);
                       setPoi(prev => prev === type ? null : type);
                     }}
                     palette={palette}
@@ -475,7 +629,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   style={[styles.ctaGhost, { borderColor: palette.line }]}
                   onPress={handleMoreDetails}
                   accessibilityRole="button"
-                  accessibilityLabel="More details">
+                  accessibilityLabel={COPY.newTaskSheet2.moreDetailsA11y}>
                   <Text style={[styles.ctaGhostLabel, { color: palette.muted }]}>
                     {COPY.newTaskSheet.moreDetails}
                   </Text>
@@ -638,6 +792,10 @@ const styles = StyleSheet.create({
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
+    // Fixed height (fits the tallest variant: icon + label + hint) so a tile
+    // never resizes when the "my guess?" hint appears/disappears on it, and
+    // every tile in the row — suggestion or catalog — stays the same size.
+    height:         84,
     borderRadius:   14,
     borderWidth:     1,
     alignItems:     'center',
@@ -652,6 +810,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     textAlign:  'center',
     letterSpacing: 0.01,
+  },
+  // KAN-249 — dashed border marks a suggestion as distinct from a chosen POI.
+  poiTileSuggested: {
+    borderStyle: 'dashed',
+  },
+  poiTileHint: {
+    fontSize:   9,
+    fontFamily: fonts.families.regular,
+    textAlign:  'center',
   },
   categoryRow: {
     flexDirection:     'row',

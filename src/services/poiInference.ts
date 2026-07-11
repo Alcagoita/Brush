@@ -97,6 +97,8 @@ const SEED_DICTIONARY: Record<SupportedLang, KeywordMap> = {
     stamp: 'post', stamps: 'post', 'ship package': 'post',
     // ── store ──
     store: 'store', shop: 'store', mall: 'store', 'shopping mall': 'store',
+    'book store': 'store', bookstore: 'store', bookshop: 'store',
+    'buy book': 'store', 'buy a book': 'store', 'purchase a book': 'store',
     // ── clinic ──
     clinic: 'clinic', doctor: 'clinic', 'doctor appointment': 'clinic',
     checkup: 'clinic', dentist: 'clinic', 'medical appointment': 'clinic',
@@ -141,6 +143,7 @@ const SEED_DICTIONARY: Record<SupportedLang, KeywordMap> = {
     'enviar encomenda': 'post',
     // ── store ──
     loja: 'store', 'centro comercial': 'store', shopping: 'store',
+    livraria: 'store', 'comprar livro': 'store', 'comprar um livro': 'store',
     // ── clinic ──
     'clínica': 'clinic', 'médico': 'clinic', consulta: 'clinic',
     dentista: 'clinic', exame: 'clinic',

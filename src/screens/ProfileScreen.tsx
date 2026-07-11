@@ -53,7 +53,7 @@ import {
   USERNAME_COOLDOWN_DAYS,
 } from '../services/firestore';
 import type { AchievementsMap } from '../types';
-import { ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
+import { buildAchievementCatalogue } from '../components/AchievementTile';
 import { deriveTierStanding } from '../constants/tiers';
 import TierMedal from '../components/TierMedal';
 import ShareProfileSheet from '../components/ShareProfileSheet';
@@ -61,14 +61,16 @@ import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Profile'>;
 
-const V1_ACHIEVEMENTS = ACHIEVEMENT_CATALOGUE;
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function ProfileScreen() {
   const { palette } = useTheme();
   const navigation  = useNavigation<Nav>();
   const insets      = useSafeAreaInsets();
+  // Read live inside the component (KAN-252) — COPY is language-dynamic, a
+  // module-scope read would freeze this list in whatever language was active
+  // on first import.
+  const V1_ACHIEVEMENTS = buildAchievementCatalogue();
 
   const currentUser  = getAuth().currentUser;
   const uid          = currentUser?.uid;
@@ -175,7 +177,7 @@ export default function ProfileScreen() {
     try {
       const available = await checkUsernameAvailable(trimmed);
       if (!available) {
-        setUsernameError('@' + trimmed + ' is already taken.');
+        setUsernameError(COPY.profile.usernameTaken(trimmed));
         return;
       }
       await updateUsername(uid, trimmed);
@@ -187,9 +189,9 @@ export default function ProfileScreen() {
       if (msg.startsWith('username_cooldown:')) {
         const days = parseInt(msg.split(':')[1], 10);
         setCooldownDays(days);
-        setUsernameError(`You can change your username in ${days} day${days !== 1 ? 's' : ''}.`);
+        setUsernameError(COPY.profile.cooldownError(days));
       } else {
-        setUsernameError('Failed to save. Please try again.');
+        setUsernameError(COPY.profile.saveFailed);
       }
     } finally {
       setSavingUsername(false);
@@ -223,10 +225,10 @@ export default function ProfileScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.profile.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.topBarTitle, { color: palette.text }]}>Profile</Text>
+        <Text style={[styles.topBarTitle, { color: palette.text }]}>{COPY.profile.screenTitle}</Text>
         <View style={styles.navBtn} />
       </View>
 
@@ -245,7 +247,7 @@ export default function ProfileScreen() {
                 photoURL={userPhotoURL}
                 displayName={displayName}
                 size={60}
-                accessibilityLabel="Profile photo"
+                accessibilityLabel={COPY.profile.profilePhotoA11y}
               />
               {/* Camera badge — visible, press is no-op for v1 */}
               <View style={[styles.cameraBadge, { backgroundColor: palette.surface2, borderColor: palette.bg }]}>
@@ -271,7 +273,7 @@ export default function ProfileScreen() {
                 </>
               ) : (
                 <Text style={[styles.identityEditHint, { color: palette.muted }]}>
-                  Editing profile
+                  {COPY.profile.editingProfile}
                 </Text>
               )}
             </View>
@@ -281,7 +283,7 @@ export default function ProfileScreen() {
               style={[styles.editBtn, { backgroundColor: palette.surface2, borderColor: palette.line }]}
               onPress={editOpen ? closeEdit : openEdit}
               accessibilityRole="button"
-              accessibilityLabel={editOpen ? 'Close edit' : 'Edit profile'}>
+              accessibilityLabel={editOpen ? COPY.profile.closeEditA11y : COPY.profile.editProfileA11y}>
               <PencilIcon color={editOpen ? palette.accent : palette.muted} size={18} />
             </Pressable>
           </View>
@@ -291,7 +293,7 @@ export default function ProfileScreen() {
             <View style={[styles.editPanel, { borderTopColor: palette.line }]}>
               {/* Name field */}
               <View style={styles.editField}>
-                <Text style={[styles.editFieldLabel, { color: palette.muted }]}>Name</Text>
+                <Text style={[styles.editFieldLabel, { color: palette.muted }]}>{COPY.profile.nameLabel}</Text>
                 <TextInput
                   ref={nameInputRef}
                   style={[styles.editFieldInput, { color: palette.text, borderBottomColor: palette.line }]}
@@ -300,14 +302,14 @@ export default function ProfileScreen() {
                   autoCapitalize="words"
                   returnKeyType="next"
                   onFocus={() => setEditingField('name')}
-                  accessibilityLabel="Edit name"
+                  accessibilityLabel={COPY.profile.editNameA11y}
                   maxLength={80}
                 />
               </View>
 
               {/* Username field */}
               <View style={styles.editField}>
-                <Text style={[styles.editFieldLabel, { color: palette.muted }]}>Username</Text>
+                <Text style={[styles.editFieldLabel, { color: palette.muted }]}>{COPY.profile.usernameLabel}</Text>
                 <View style={styles.editFieldRow}>
                   <Text style={[styles.usernameAt, { color: palette.faint }]}>@</Text>
                   <TextInput
@@ -320,14 +322,14 @@ export default function ProfileScreen() {
                     returnKeyType="done"
                     editable={cooldownDays === null}
                     onFocus={() => setEditingField('username')}
-                    accessibilityLabel="Edit username"
+                    accessibilityLabel={COPY.profile.editUsernameA11y}
                     maxLength={20}
                   />
                   {savingUsername ? <ActivityIndicator size="small" color={palette.muted} style={{ marginLeft: 6 }} /> : null}
                 </View>
                 {cooldownDays !== null ? (
                   <Text style={[styles.editFieldHint, { color: palette.faint }]}>
-                    {cooldownDays}d cooldown remaining
+                    {COPY.profile.cooldownRemaining(cooldownDays)}
                   </Text>
                 ) : usernameError ? (
                   <Text style={[styles.editFieldHint, { color: palette.danger }]}>{usernameError}</Text>
@@ -340,8 +342,8 @@ export default function ProfileScreen() {
                   onPress={closeEdit}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Cancel">
-                  <Text style={[styles.editActionLabel, { color: palette.muted }]}>Cancel</Text>
+                  accessibilityLabel={COPY.profile.cancelA11y}>
+                  <Text style={[styles.editActionLabel, { color: palette.muted }]}>{COPY.profile.cancel}</Text>
                 </Pressable>
                 <Pressable
                   onPress={async () => {
@@ -358,12 +360,12 @@ export default function ProfileScreen() {
                   disabled={savingName || savingUsername || !nameValue.trim()}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Save profile">
+                  accessibilityLabel={COPY.profile.saveProfileA11y}>
                   <Text style={[styles.editActionLabel, {
                     color: (savingName || savingUsername || !nameValue.trim())
                       ? palette.faint : palette.accent,
                   }]}>
-                    {savingName || savingUsername ? 'Saving…' : 'Save'}
+                    {savingName || savingUsername ? COPY.profile.saving : COPY.profile.save}
                   </Text>
                 </Pressable>
               </View>
@@ -376,11 +378,11 @@ export default function ProfileScreen() {
           style={[styles.shareRow, { backgroundColor: palette.surface, borderColor: palette.line }]}
           onPress={() => setShareSheetOpen(true)}
           accessibilityRole="button"
-          accessibilityLabel="Share my profile">
+          accessibilityLabel={COPY.profile.shareMyProfileA11y}>
           <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
             <ShareIcon color={palette.muted} size={20} />
           </View>
-          <Text style={[styles.shareRowLabel, { color: palette.text }]}>Share my profile</Text>
+          <Text style={[styles.shareRowLabel, { color: palette.text }]}>{COPY.profile.shareMyProfile}</Text>
           <ChevronRightIcon color={palette.faint} size={18} />
         </Pressable>
 
@@ -415,7 +417,7 @@ export default function ProfileScreen() {
 
         {/* ── Section label ── */}
         <Text style={[styles.sectionLabel, { color: palette.muted }]}>
-          POINTS &amp; ACHIEVEMENTS
+          {COPY.profile.pointsAndAchievements}
         </Text>
 
         {/* ── 3. Points hero card (KAN-137) ── */}
@@ -424,17 +426,17 @@ export default function ProfileScreen() {
 
             {/* Left column */}
             <View style={styles.heroLeft}>
-              <Text style={[styles.totalPtsLabel, { color: palette.muted }]}>TOTAL POINTS</Text>
+              <Text style={[styles.totalPtsLabel, { color: palette.muted }]}>{COPY.profile.totalPointsLabel}</Text>
               <Text
                 style={[styles.totalPtsNumber, { color: palette.text }]}
-                accessibilityLabel={`${totalPoints} points`}>
+                accessibilityLabel={COPY.profile.totalPointsA11y(totalPoints)}>
                 {totalPoints}
               </Text>
               <Text style={[styles.toGoCaption, { color: palette.muted }]}>
-                {maxed ? (
-                  <>{'Top tier · '}<Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>{nextTier.name}</Text></>
+              {maxed ? (
+                  <>{COPY.profile.topTierPrefix}<Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold' }}>{COPY.achievements.tierLabel(nextTier.name)}</Text></>
                 ) : (
-                  <><Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>{toGo} pts</Text>{` to ${nextTier.name}`}</>
+                  <><Text style={{ color: nextTier.color, fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>{COPY.profile.ptsToGo(toGo)}</Text>{COPY.profile.toGoSuffix(COPY.achievements.tierLabel(nextTier.name))}</>
                 )}
               </Text>
 
@@ -445,7 +447,7 @@ export default function ProfileScreen() {
                     <Text style={{ fontWeight: '600', fontFamily: 'Geist-SemiBold', fontVariant: ['tabular-nums'] }}>
                       {currentStreak}
                     </Text>
-                    {'-day streak'}
+                    {COPY.profile.dayStreakSuffix}
                   </Text>
                 </View>
               ) : null}
@@ -466,14 +468,14 @@ export default function ProfileScreen() {
           {/* Header */}
           <View style={styles.achievementsHeader}>
             <Text style={[styles.achievementsTitle, { color: palette.text }]}>
-              Achievements
-              <Text style={{ color: palette.muted }}>{` · ${earnedCount}/${V1_ACHIEVEMENTS.length}`}</Text>
+              {COPY.profile.achievements}
+              <Text style={{ color: palette.muted }}>{COPY.profile.achievementsCount(earnedCount, V1_ACHIEVEMENTS.length)}</Text>
             </Text>
             <Pressable
               onPress={() => navigation.navigate('Achievements')}
               accessibilityRole="button"
-              accessibilityLabel="See all achievements">
-              <Text style={[styles.seeAllLabel, { color: palette.accent }]}>See all ›</Text>
+              accessibilityLabel={COPY.profile.seeAllA11y}>
+              <Text style={[styles.seeAllLabel, { color: palette.accent }]}>{COPY.profile.seeAll}</Text>
             </Pressable>
           </View>
 
@@ -523,14 +525,14 @@ export default function ProfileScreen() {
           style={[styles.settingsRow, { borderColor: palette.line }]}
           onPress={() => navigation.navigate('Settings')}
           accessibilityRole="button"
-          accessibilityLabel="Settings">
+          accessibilityLabel={COPY.profile.settingsA11y}>
           <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
             <SettingsIcon color={palette.muted} size={20} />
           </View>
           <View style={styles.settingsTextBlock}>
-            <Text style={[styles.settingsTitle, { color: palette.text }]}>Settings</Text>
+            <Text style={[styles.settingsTitle, { color: palette.text }]}>{COPY.profile.settingsTitle}</Text>
             <Text style={[styles.settingsSub, { color: palette.muted }]} numberOfLines={1}>
-              App &amp; account
+              {COPY.profile.settingsSub}
             </Text>
           </View>
           <ChevronRightIcon color={palette.faint} size={18} />

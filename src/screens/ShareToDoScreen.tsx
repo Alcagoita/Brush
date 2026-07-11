@@ -83,7 +83,7 @@ export default function ShareToDoScreen() {
       style={[styles.row, { backgroundColor: palette.surface2, borderColor: palette.line }]}
       onPress={() => handleSelectTask(item)}
       accessibilityRole="button"
-      accessibilityLabel={`Share ${item.title}`}>
+      accessibilityLabel={COPY.shareToDo.shareA11y(item.title)}>
       <View style={styles.rowContent}>
         <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>
           {item.title}
@@ -105,7 +105,7 @@ export default function ShareToDoScreen() {
           style={styles.navBtn}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.shareToDo.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>{COPY.share.screenTitle}</Text>
@@ -113,7 +113,7 @@ export default function ShareToDoScreen() {
       </View>
 
       <Text style={[styles.subtitle, { color: palette.muted }]}>
-        Brush this over to a friend
+        {COPY.shareToDo.subtitle}
       </Text>
 
       {loading ? (
@@ -123,7 +123,7 @@ export default function ShareToDoScreen() {
       ) : tasks.length === 0 ? (
         <View style={styles.center}>
           <Text style={[styles.emptyText, { color: palette.muted }]}>
-            No open tasks for today.
+            {COPY.shareToDo.noOpenTasks}
           </Text>
         </View>
       ) : (

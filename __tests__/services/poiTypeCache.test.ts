@@ -1,0 +1,231 @@
+/**
+ * KAN-253 — poiTypeCache now resolves from bundled local JSON only.
+ *
+ * Covers:
+ *   - English and pt-PT labels come from the active app language
+ *   - Slug / prefix matching works locally with no network path
+ *   - Generic Google types filtered out by the old live-search policy stay hidden
+ *   - Legacy compatibility exports are harmless no-ops
+ */
+
+import { setCopyLanguage } from '../../src/constants/copy';
+import {
+  __resetPoiTypeCacheDbForTests,
+  lookupPoiTypeCache,
+  recordPoiTypeSearch,
+  searchPlaceTypesCached,
+  seedPoiTypeCacheIfEmpty,
+} from '../../src/services/poiTypeCache';
+
+jest.mock('../../src/config/keys', () => ({
+  GOOGLE_PLACES_API_KEY: 'TEST_KEY',
+}));
+
+beforeEach(() => {
+  setCopyLanguage('en');
+  __resetPoiTypeCacheDbForTests();
+});
+
+afterEach(() => {
+  setCopyLanguage('en');
+});
+
+describe('searchPlaceTypesCached', () => {
+  it('returns English labels from the bundled dictionary', async () => {
+    await expect(searchPlaceTypesCached('gym')).resolves.toEqual([
+      { type: 'gym', label: 'Gym' },
+    ]);
+  });
+
+  it('returns pt-PT labels from the bundled dictionary', async () => {
+    setCopyLanguage('pt-PT');
+
+    await expect(searchPlaceTypesCached('ginasio')).resolves.toEqual([
+      { type: 'gym', label: 'Ginásio' },
+    ]);
+  });
+
+  it('matches a raw type slug locally', async () => {
+    const results = await searchPlaceTypesCached('sushi_restaurant');
+
+    expect(results[0]).toEqual({ type: 'sushi_restaurant', label: 'Sushi Restaurant' });
+  });
+
+  it('supports prefix search without any live API fallback', async () => {
+    const results = await searchPlaceTypesCached('sushi');
+
+    expect(results.some(result => result.type === 'sushi_restaurant')).toBe(true);
+  });
+
+  it('prefers commercial POIs for "buy a book"', async () => {
+    const results = await searchPlaceTypesCached('buy a book');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
+  });
+
+  it('handles filler words in longer retail phrasing', async () => {
+    const results = await searchPlaceTypesCached('buy a new book');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
+  });
+
+  it('generalizes book shopping beyond the original phrase', async () => {
+    const results = await searchPlaceTypesCached('purchase a novel');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
+  });
+
+  it('does not treat verb-style booking phrases as shopping intent', async () => {
+    const results = await searchPlaceTypesCached('book a flight');
+
+    expect(results[0]?.type).not.toBe('book_store');
+  });
+
+  it('prefers bakery over broad retail buckets for bread shopping intent', async () => {
+    const results = await searchPlaceTypesCached('buy some bread');
+
+    expect(results[0]).toEqual({ type: 'bakery', label: 'Bakery' });
+    const marketIndex = results.findIndex(result => result.type === 'market');
+    if (marketIndex !== -1) {
+      expect(results.findIndex(result => result.type === 'bakery')).toBeLessThan(marketIndex);
+    }
+  });
+
+  it('generalizes bakery matching for other bread-like nouns', async () => {
+    const results = await searchPlaceTypesCached('get a loaf of bread');
+
+    expect(results[0]).toEqual({ type: 'bakery', label: 'Bakery' });
+  });
+
+  it('prefers park for jogging intent', async () => {
+    const results = await searchPlaceTypesCached('find a place to jog');
+
+    expect(results[0]).toEqual({ type: 'park', label: 'Park' });
+  });
+
+  it('prefers park for running-place phrasing', async () => {
+    const results = await searchPlaceTypesCached('place to run');
+
+    expect(results[0]).toEqual({ type: 'park', label: 'Park' });
+  });
+
+  it('prefers park for relaxing-place phrasing', async () => {
+    const results = await searchPlaceTypesCached('relaxing place');
+
+    expect(results[0]).toEqual({ type: 'park', label: 'Park' });
+  });
+
+  it('surfaces gym for direct work-out phrasing', async () => {
+    const results = await searchPlaceTypesCached('work out');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Gym' });
+  });
+
+  it('surfaces gym for training phrasing', async () => {
+    const results = await searchPlaceTypesCached('place to train');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Gym' });
+  });
+
+  it('prefers florist for flower-buying intent', async () => {
+    const results = await searchPlaceTypesCached('buy flowers');
+
+    expect(results[0]).toEqual({ type: 'florist', label: 'Florist' });
+  });
+
+  it('prefers coffee shops for coffee-buying intent', async () => {
+    const results = await searchPlaceTypesCached('get coffee');
+
+    expect(results[0]).toEqual({ type: 'coffee_shop', label: 'Coffee Shop' });
+  });
+
+  it('prefers pharmacy for medicine pickup intent', async () => {
+    const results = await searchPlaceTypesCached('pick up medicine');
+
+    expect(results[0]).toEqual({ type: 'pharmacy', label: 'Pharmacy' });
+  });
+
+  it('prefers shoe stores for shoe-buying intent', async () => {
+    const results = await searchPlaceTypesCached('buy shoes');
+
+    expect(results[0]).toEqual({ type: 'shoe_store', label: 'Shoe Store' });
+  });
+
+  it('matches built-in labels inside longer task phrasing', async () => {
+    const results = await searchPlaceTypesCached('go to the gym');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Gym' });
+  });
+
+  it('supports Portuguese synonym ranking offline', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('comprar um livro');
+
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Livraria' });
+  });
+
+  it('supports Portuguese bakery intent offline', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('comprar pão');
+
+    expect(results[0]).toEqual({ type: 'bakery', label: 'Padaria' });
+  });
+
+  it('supports Portuguese gym intent offline', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('treinar');
+
+    expect(results[0]).toEqual({ type: 'gym', label: 'Ginásio' });
+  });
+
+  it('surfaces post office for package-mail phrasing', async () => {
+    const results = await searchPlaceTypesCached('send package');
+
+    expect(results[0]).toEqual({ type: 'post_office', label: 'Post Office' });
+  });
+
+  it('surfaces post office for mail phrasing', async () => {
+    const results = await searchPlaceTypesCached('mail');
+
+    expect(results[0]).toEqual({ type: 'post_office', label: 'Post Office' });
+  });
+
+  it('keeps exact built-in label matches stable', async () => {
+    await expect(searchPlaceTypesCached('library')).resolves.toEqual([
+      { type: 'library', label: 'Library' },
+    ]);
+  });
+
+  it('returns an empty list on a miss', async () => {
+    await expect(searchPlaceTypesCached('totally made up poi xyz')).resolves.toEqual([]);
+  });
+
+  it('keeps generic Google types hidden from results', async () => {
+    const results = await searchPlaceTypesCached('country');
+
+    expect(results.some(result => result.type === 'country')).toBe(false);
+  });
+});
+
+describe('lookupPoiTypeCache', () => {
+  it('returns null on a miss', () => {
+    expect(lookupPoiTypeCache('nothing here')).toBeNull();
+  });
+
+  it('returns local bundled suggestions on a hit', () => {
+    expect(lookupPoiTypeCache('florist')).toEqual([
+      { type: 'florist', label: 'Florist' },
+    ]);
+  });
+});
+
+describe('legacy compatibility exports', () => {
+  it('keeps the old seed/record/reset exports as harmless no-ops', () => {
+    expect(() => seedPoiTypeCacheIfEmpty()).not.toThrow();
+    expect(() => recordPoiTypeSearch('gym', [{ type: 'gym', label: 'Gym' }])).not.toThrow();
+    expect(() => __resetPoiTypeCacheDbForTests()).not.toThrow();
+  });
+});

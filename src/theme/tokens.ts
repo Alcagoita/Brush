@@ -6,6 +6,8 @@
  *  - Always consume via useTheme() so light/dark switching works automatically.
  */
 
+import { COPY } from '../constants/copy';
+
 // ─── Color palettes ───────────────────────────────────────────────────────────
 
 export const lightPalette = {
@@ -73,12 +75,16 @@ export type Palette = {
 
 // ─── Category colors ──────────────────────────────────────────────────────────
 
+// Getters (KAN-252) instead of plain object literals — `label` reads live
+// from COPY on every access, so every existing `categories.work.label` /
+// `categories[key].label` call site across the app stays language-aware
+// without any change at the call site.
 export const categories = {
-  work:     { label: 'Work',     color: '#5b7fd4' }, // oklch(0.62 0.12 250) soft blue
-  health:   { label: 'Health',   color: '#5ba87a' }, // oklch(0.62 0.12 165) sage
-  errands:  { label: 'Errands',  color: '#8b6bc4' }, // oklch(0.62 0.12 305) muted purple
-  personal: { label: 'Personal', color: '#e8a86a' }, // oklch(0.66 0.13 70)  peach
-} as const;
+  get work()     { return { label: COPY.categories.work,     color: '#5b7fd4' }; }, // oklch(0.62 0.12 250) soft blue
+  get health()   { return { label: COPY.categories.health,   color: '#5ba87a' }; }, // oklch(0.62 0.12 165) sage
+  get errands()  { return { label: COPY.categories.errands,  color: '#8b6bc4' }; }, // oklch(0.62 0.12 305) muted purple
+  get personal() { return { label: COPY.categories.personal, color: '#e8a86a' }; }, // oklch(0.66 0.13 70)  peach
+};
 
 export type CategoryKey = keyof typeof categories;
 
@@ -120,6 +126,15 @@ export const fonts = {
     regular:  '400' as const,
     medium:   '500' as const,
     semibold: '600' as const,
+  },
+  /** Single shared source of the per-weight linked font names — reference
+   *  these instead of a hard-coded 'Geist-Weight' string literal in a
+   *  component. Falls back to `fallback` (the platform's system font) if the
+   *  named font fails to load, same as any other RN fontFamily. */
+  families: {
+    regular:  'Geist-Regular',
+    medium:   'Geist-Medium',
+    semibold: 'Geist-SemiBold',
   },
   /** Reusable font sizes — add to this instead of a raw literal in a component. */
   sizes: {

@@ -72,9 +72,13 @@ export default function PlacesIKnowScreen() {
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.goBack()}
+          // Not goBack() — this screen has two entry points (TripPlanner's
+          // post-download "done" flow, and CalendarScreen's trip-covered-day
+          // entry row), and goBack() would land back on whichever of those was
+          // current instead of always returning to Calendar.
+          onPress={() => navigation.navigate('Calendar')}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.tripPlanner.placesIKnowBackA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>{COPY.tripPlanner.placesIKnowTitle}</Text>
@@ -129,15 +133,15 @@ export default function PlacesIKnowScreen() {
                       hitSlop={8}
                       style={styles.actionBtn}
                       accessibilityRole="button"
-                      accessibilityLabel={`Refresh ${trip.destination}`}>
-                      <Text style={[styles.actionLabel, { color: palette.accent }]}>Refresh</Text>
+                      accessibilityLabel={COPY.tripPlanner.refreshTripA11y(trip.destination)}>
+                      <Text style={[styles.actionLabel, { color: palette.accent }]}>{COPY.tripPlanner.refresh}</Text>
                     </Pressable>
                     <Pressable
                       onPress={() => confirmDelete(trip)}
                       hitSlop={8}
                       style={styles.actionBtn}
                       accessibilityRole="button"
-                      accessibilityLabel={`Delete ${trip.destination}`}>
+                      accessibilityLabel={COPY.tripPlanner.deleteTripA11y(trip.destination)}>
                       <Text style={[styles.deleteX, { color: palette.muted }]}>×</Text>
                     </Pressable>
                   </>

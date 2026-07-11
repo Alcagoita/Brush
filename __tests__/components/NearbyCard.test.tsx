@@ -13,6 +13,7 @@ import { render, screen } from '@testing-library/react-native';
 import NearbyCard from '../../src/components/NearbyCard';
 import type { Task } from '../../src/types';
 import { Timestamp } from '@react-native-firebase/firestore';
+import { COPY, setCopyLanguage } from '../../src/constants/copy';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -92,6 +93,9 @@ const PLACES_MAP   = { pharmacy: [NEARBY_PLACE] };
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('NearbyCard — hidden when service has not triggered', () => {
+  beforeEach(() => { setCopyLanguage('en'); });
+  afterEach(() => { setCopyLanguage('en'); });
+
   it('renders nothing when nearbyPoiType is null', () => {
     const { toJSON } = render(
       <NearbyCard
@@ -127,7 +131,10 @@ describe('NearbyCard — hidden when service has not triggered', () => {
 });
 
 describe('NearbyCard — hero state', () => {
-  it('renders "NEARBY · NOW" when a POI is active', () => {
+  beforeEach(() => { setCopyLanguage('en'); });
+  afterEach(() => { setCopyLanguage('en'); });
+
+  it('renders the localized nearby header and count', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -135,7 +142,8 @@ describe('NearbyCard — hero state', () => {
         poiPlaces={PLACES_MAP}
       />,
     );
-    expect(screen.getByText('NEARBY · NOW')).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.headerNowLabel.toUpperCase())).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.placesCount(1))).toBeTruthy();
   });
 
   it('renders the nearby place name in the hero block', () => {
@@ -184,6 +192,9 @@ describe('NearbyCard — hero state', () => {
 });
 
 describe('NearbyCard — also close section', () => {
+  beforeEach(() => { setCopyLanguage('en'); });
+  afterEach(() => { setCopyLanguage('en'); });
+
   it('renders "ALSO CLOSE" label and the secondary task title', () => {
     const heroTask  = makeTask({ id: 'hero', poi: 'pharmacy' });
     const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Buy groceries' });
@@ -214,6 +225,9 @@ describe('NearbyCard — also close section', () => {
 });
 
 describe('NearbyCard — hero carousel page indicator', () => {
+  beforeEach(() => { setCopyLanguage('en'); });
+  afterEach(() => { setCopyLanguage('en'); });
+
   const SUPERMARKET_PLACE = { ...NEARBY_PLACE, placeId: 'place-2', name: 'Target', distanceMeters: 80 };
 
   it('shows page dots (one per hero slide) when multiple POI types are in the hero zone', () => {
@@ -244,5 +258,38 @@ describe('NearbyCard — hero carousel page indicator', () => {
       />,
     );
     expect(screen.queryByTestId('nearby-page-dots')).toBeNull();
+  });
+});
+
+describe('NearbyCard — pt-PT localization', () => {
+  beforeEach(() => { setCopyLanguage('pt-PT'); });
+  afterEach(() => { setCopyLanguage('en'); });
+
+  it('localizes the nearby header and place count', () => {
+    render(
+      <NearbyCard
+        tasks={[makeTask()]}
+        nearbyPoiType="pharmacy"
+        poiPlaces={PLACES_MAP}
+      />,
+    );
+
+    expect(screen.getByText(COPY.nearbyCard.headerNowLabel.toUpperCase())).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.placesCount(1))).toBeTruthy();
+  });
+
+  it('uses the plural form for multiple places', () => {
+    render(
+      <NearbyCard
+        tasks={[makeTask(), makeTask({ id: 'task-2', title: 'Buy bread', poi: 'supermarket', category: 'errands' })]}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy: [NEARBY_PLACE],
+          supermarket: [GREY_PLACE, { ...GREY_PLACE, placeId: 'place-2', distanceMeters: 210 }],
+        }}
+      />,
+    );
+
+    expect(screen.getByText(COPY.nearbyCard.placesCount(2))).toBeTruthy();
   });
 });

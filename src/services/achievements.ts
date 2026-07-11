@@ -31,6 +31,8 @@ import { fireAchievementNudge } from './notifications';
 
 // ─── V1 achievement definitions ───────────────────────────────────────────────
 
+const c = COPY.achievements.catalogue;
+
 export interface AchievementDef {
   id:          AchievementType;
   label:       string;
@@ -50,18 +52,18 @@ export interface AchievementDef {
 
 export const ACHIEVEMENT_DEFS: Record<string, AchievementDef> = {
   // ── Tin tier (KAN-150) — 50 pts total = Bronze threshold ─────────────────
-  first_task:   { id: 'first_task',   label: 'Off your mind',           desc: 'Add your first task',                            icon: 'check', points: 5,  target: 1,  repeatable: false },
-  first_brush:  { id: 'first_brush',  label: 'First brush',             desc: 'Brush away your first task',                     icon: 'check', points: 10, target: 1,  repeatable: false },
-  right_place:  { id: 'right_place',  label: 'Right place, right time', desc: 'Brush a task while near where it happens',       icon: 'pin',   points: 10, target: 1,  repeatable: false },
-  worth_wait:   { id: 'worth_wait',   label: 'Worth the wait',          desc: 'Brush a task that stuck around for a few days',  icon: 'flame', points: 10, target: 1,  repeatable: false },
-  custom_cat:   { id: 'custom_cat',   label: 'Make it yours',           desc: 'Create a custom category',                       icon: 'star',  points: 5,  target: 1,  repeatable: false },
-  out_about:    { id: 'out_about',    label: 'Out and about',           desc: 'Brush tasks at a few different kinds of places', icon: 'pin',   points: 10, target: 3,  repeatable: false },
+  first_task:   { id: 'first_task',   label: c.firstTaskLabel,   desc: c.firstTaskCondition,   icon: 'check', points: 5,  target: 1,  repeatable: false },
+  first_brush:  { id: 'first_brush',  label: c.firstBrushLabel,  desc: c.firstBrushCondition,  icon: 'check', points: 10, target: 1,  repeatable: false },
+  right_place:  { id: 'right_place',  label: c.rightPlaceLabel,  desc: c.rightPlaceCondition,  icon: 'pin',   points: 10, target: 1,  repeatable: false },
+  worth_wait:   { id: 'worth_wait',   label: c.worthWaitLabel,   desc: c.worthWaitCondition,   icon: 'flame', points: 10, target: 1,  repeatable: false },
+  custom_cat:   { id: 'custom_cat',   label: c.customCatLabel,   desc: c.customCatCondition,   icon: 'star',  points: 5,  target: 1,  repeatable: false },
+  out_about:    { id: 'out_about',    label: c.outAboutLabel,    desc: c.outAboutCondition,    icon: 'pin',   points: 10, target: 3,  repeatable: false },
   // ── Legacy V1 (kept for existing user data — no longer awarded to new users)
-  early_bird:   { id: 'early_bird',   label: 'Early bird',   desc: 'Brush a task away before 9 AM',            icon: 'sun',   points: 10, target: 1,   repeatable: true  },
-  day_complete: { id: 'day_complete', label: 'Day complete', desc: 'Brush away every task in a single day',    icon: 'check', points: 15, target: 1,   repeatable: true  },
-  on_a_roll:    { id: 'on_a_roll',    label: 'On a roll',    desc: '3-day brushing streak',                    icon: 'flame', points: 20, target: 3,   repeatable: true  },
-  explorer:     { id: 'explorer',     label: 'Explorer',     desc: 'Brush away 10 location-based tasks',       icon: 'pin',   points: 25, target: 10,  repeatable: false },
-  centurion:    { id: 'centurion',    label: 'Centurion',    desc: 'Reach 100 achievement points',             icon: 'star',  points: 30, target: 100, repeatable: false },
+  early_bird:   { id: 'early_bird',   label: c.earlyBirdLabel,   desc: c.earlyBirdCondition,   icon: 'sun',   points: 10, target: 1,   repeatable: true  },
+  day_complete: { id: 'day_complete', label: c.dayCompleteLabel, desc: c.dayCompleteCondition, icon: 'check', points: 15, target: 1,   repeatable: true  },
+  on_a_roll:    { id: 'on_a_roll',    label: c.onARollLabel,    desc: c.onARollCondition,      icon: 'flame', points: 20, target: 3,   repeatable: true  },
+  explorer:     { id: 'explorer',     label: c.explorerLabel,   desc: c.explorerCondition,     icon: 'pin',   points: 25, target: 10,  repeatable: false },
+  centurion:    { id: 'centurion',    label: c.centurionLabel,  desc: c.centurionCondition,    icon: 'star',  points: 30, target: 100, repeatable: false },
 } as const;
 
 const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;

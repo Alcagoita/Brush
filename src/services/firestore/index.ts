@@ -21,6 +21,7 @@ export * from './preferences';
 export * from './usernames';
 export * from './social';
 export * from './learnedKeywords';
+export * from './poiInferenceMisses';
 export * from './trips';
 
 // ─── Re-exports for convenience ───────────────────────────────────────────────

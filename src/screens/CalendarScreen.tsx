@@ -61,7 +61,7 @@ import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/AppIcon';
-import { AchievementIcon, AchievementIconKey, ACHIEVEMENT_CATALOGUE } from '../components/AchievementTile';
+import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
@@ -94,12 +94,6 @@ const CHAIN_LEFT  = -(CELL_W + CELL_GAP) + CELL_W / 2 + RING_R; // distance from
 const CHAIN_RIGHT = CELL_W - (CELL_W / 2 - RING_R);             // distance from cell's right edge
 const CHAIN_TOP   = CELL_W / 2 - 1; // vertical center of a CELL_W-tall cell, minus half the 2px line height
 
-const WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-const FULL_WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 const CARD_ANIM_MS = 300;
 
@@ -142,7 +136,7 @@ function buildGrid(year: number, month: number): (number | null)[] {
 function formatFullDateLabel(iso: string): string {
   const [y, m, d] = iso.split('-').map(Number);
   const date = new Date(y, m - 1, d);
-  return `${FULL_WEEKDAYS[date.getDay()]}, ${MONTH_NAMES[m - 1]} ${d}`;
+  return `${COPY.calendar.fullWeekdays[date.getDay()]}, ${COPY.calendar.monthNamesFull[m - 1]} ${d}`;
 }
 
 /** Shift an ISO date string by `delta` days (handles month/year rollover). */
@@ -276,14 +270,16 @@ interface DayCellProps {
   total:       number;
   isComplete:  boolean;
   chainsBack:  boolean;
-  /** Day falls within an active Trip's date range (KAN-234) — purely decorative, never affects ring/streak math. */
+  /** Day falls within a Trip's date range (KAN-234) — purely decorative, never affects ring/streak math. */
   inTripRange: boolean;
+  /** That trip's data has since expired (KAN-256) — band renders faded instead of solid, same "used to know" distinction as the entry row. */
+  tripExpired: boolean;
   achievement: { icon: AchievementIconKey; label: string } | undefined;
   onPress:     () => void;
 }
 
 function DayCell({
-  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, inTripRange, achievement, onPress,
+  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, inTripRange, tripExpired, achievement, onPress,
 }: DayCellProps) {
   const { palette, dark } = useTheme();
 
@@ -303,7 +299,7 @@ function DayCell({
       onPress={onPress}
       style={[styles.cell, { backgroundColor: bg }]}
       accessibilityRole="button"
-      accessibilityLabel={`${day}${isToday ? ', today' : ''}${isSelected ? ', selected' : ''}`}>
+      accessibilityLabel={COPY.calendar.dayCellA11y(day, isToday, isSelected)}>
 
       {/* Streak chain link — reaches back toward yesterday's ring */}
       {chainsBack && (
@@ -313,11 +309,19 @@ function DayCell({
         />
       )}
 
-      {/* Trip range band — decorative only, never touches ring/streak state (KAN-234) */}
+      {/* Trip range band — decorative only, never touches ring/streak state (KAN-234).
+          dark.nearBorder is too dark/low-contrast against the dark bg — use
+          nearText's brighter amber instead in dark mode. Faded once the
+          trip's data has expired (KAN-256) — distinguishes past coverage
+          from a still-downloaded trip without hiding it outright. */}
       {inTripRange && (
         <View
           pointerEvents="none"
-          style={[styles.tripBand, { backgroundColor: palette.nearBorder }]}
+          style={[
+            styles.tripBand,
+            { backgroundColor: dark ? palette.nearText : palette.nearBorder },
+            tripExpired && styles.tripBandExpired,
+          ]}
         />
       )}
 
@@ -407,7 +411,7 @@ export default function CalendarScreen() {
       .catch(err => {
         if (cancelled) { return; }
         console.warn('[CalendarScreen] tasks fetch error', err);
-        setMonthTasksState({ status: 'error', message: 'Could not load tasks. Check your connection.' });
+        setMonthTasksState({ status: 'error', message: COPY.calendar.loadError });
       });
     return () => { cancelled = true; };
   }, [uid, displayYear, displayMonth, retryKey]));
@@ -495,12 +499,25 @@ export default function CalendarScreen() {
   }, [isDayComplete]);
 
   // Dated trips only — a dateless trip has nothing to mark on the Calendar.
+  // Sorted by startDate ascending so tripForDate's overlap tie-break below is
+  // deterministic regardless of getTrips' fetch order (Firestore gives no
+  // ordering guarantee — see trips.ts).
   const datedTrips = useMemo(
-    () => trips.filter((t): t is Trip & { startDate: string; endDate: string } => !!t.startDate && !!t.endDate),
+    () => trips
+      .filter((t): t is Trip & { startDate: string; endDate: string } => !!t.startDate && !!t.endDate)
+      .sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [trips],
   );
-  const isInTripRange = useCallback(
-    (iso: string): boolean => datedTrips.some(t => iso >= t.startDate && iso <= t.endDate),
+  // Returns the actual Trip covering `iso` (KAN-250) — lets the entry row and
+  // the day grid's trip band both know which place is already known instead
+  // of prompting to plan the trip again. When trips overlap, the one with the
+  // latest startDate wins (most specific/recent) — deterministic thanks to
+  // datedTrips' sort above.
+  const tripForDate = useCallback(
+    (iso: string): (Trip & { startDate: string; endDate: string }) | undefined => {
+      const matches = datedTrips.filter(t => iso >= t.startDate && iso <= t.endDate);
+      return matches[matches.length - 1];
+    },
     [datedTrips],
   );
 
@@ -508,7 +525,7 @@ export default function CalendarScreen() {
   // Only the single most-recent earnedAt per type is available (see header note).
   const achievementsByDay = useMemo<Record<number, { icon: AchievementIconKey; label: string }>>(() => {
     const map: Record<number, { icon: AchievementIconKey; label: string }> = {};
-    for (const def of ACHIEVEMENT_CATALOGUE) {
+    for (const def of buildAchievementCatalogue()) {
       if (def.type === 'challenge_winner') { continue; } // not part of the day-attributable V1 set
       const entry = achievementsMap[def.type];
       if (!entry?.earnedAt) { continue; }
@@ -541,6 +558,12 @@ export default function CalendarScreen() {
   const isSelZero     = selTotal > 0 && selDone === 0 && isSelPast;
   const selRun        = runLength(selectedDate);
   const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
+  const selTrip       = tripForDate(selectedDate);
+  // A trip's Firestore doc outlives its downloaded data (SplashScreen only
+  // purges the on-device place cache on expiry, never the doc itself — see
+  // deleteExpiredTripPlaces) so the underline/entry row can still reference
+  // it here; the label just switches to past tense once expired.
+  const selTripExpired = !!selTrip && selTrip.expiresAt <= Date.now();
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -589,10 +612,10 @@ export default function CalendarScreen() {
 
   // ── Status label (detail card) ──
   const statusLabel =
-    isSelToday ? 'Today' :
-    isSelFuture ? 'Upcoming' :
-    isSelComplete ? 'Day complete' :
-    'Past';
+    isSelToday ? COPY.calendar.statusToday :
+    isSelFuture ? COPY.calendar.statusUpcoming :
+    isSelComplete ? COPY.calendar.statusComplete :
+    COPY.calendar.statusPast;
   const statusColor =
     isSelToday ? palette.accent :
     isSelFuture ? palette.faint :
@@ -601,10 +624,10 @@ export default function CalendarScreen() {
 
   // ── Stats line copy ──
   const statsLine =
-    selTotal === 0 ? 'No tasks' :
-    isSelFuture ? `${selTotal} task${selTotal === 1 ? '' : 's'} planned` :
-    isSelZero ? `${selTotal} task${selTotal === 1 ? '' : 's'} · none completed` :
-    `${selDone} of ${selTotal} done · ${selPct}%`;
+    selTotal === 0 ? COPY.calendar.noTasks :
+    isSelFuture ? COPY.calendar.tasksPlanned(selTotal) :
+    isSelZero ? COPY.calendar.tasksNoneCompleted(selTotal) :
+    COPY.calendar.tasksDoneStats(selDone, selTotal, selPct);
 
   const detailRingColor = isSelComplete ? palette.accent : palette.text;
 
@@ -617,20 +640,20 @@ export default function CalendarScreen() {
       <View style={styles.topBar}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Today')}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.calendar.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
 
-        <Text style={[styles.topBarTitle, { color: palette.text }]}>Calendar</Text>
+        <Text style={[styles.topBarTitle, { color: palette.text }]}>{COPY.calendar.screenTitle}</Text>
 
         <Pressable
           style={[styles.todayPill, { borderColor: palette.line }]}
           onPress={goToToday}
           accessibilityRole="button"
-          accessibilityLabel="Jump to today">
-          <Text style={[styles.todayPillLabel, { color: palette.text }]}>Today</Text>
+          accessibilityLabel={COPY.calendar.jumpToTodayA11y}>
+          <Text style={[styles.todayPillLabel, { color: palette.text }]}>{COPY.calendar.today}</Text>
         </Pressable>
       </View>
 
@@ -640,13 +663,13 @@ export default function CalendarScreen() {
           onPress={goToPrevMonth}
           style={styles.navBtn}
           accessibilityRole="button"
-          accessibilityLabel="Previous month">
+          accessibilityLabel={COPY.calendar.previousMonthA11y}>
           <ChevronLeftIcon color={palette.muted} size={18} />
         </Pressable>
 
         <View style={styles.monthLabelWrap}>
           <Text style={[styles.monthLabel, { color: palette.text }]}>
-            {MONTH_NAMES[displayMonth - 1]}
+            {COPY.calendar.monthNamesFull[displayMonth - 1]}
           </Text>
           <Text style={[styles.yearLabel, { color: palette.muted }]}>
             {displayYear}
@@ -657,14 +680,14 @@ export default function CalendarScreen() {
           onPress={goToNextMonth}
           style={styles.navBtn}
           accessibilityRole="button"
-          accessibilityLabel="Next month">
+          accessibilityLabel={COPY.calendar.nextMonthA11y}>
           <ChevronRightIcon color={palette.muted} size={18} />
         </Pressable>
       </View>
 
       {/* ── Weekday header ── */}
       <View style={styles.weekdayRow}>
-        {WEEKDAY_LABELS.map((label, i) => (
+        {COPY.calendar.weekdayLabels.map((label, i) => (
           <Text
             key={i}
             style={[styles.weekdayLabel, { width: CELL_W, color: palette.muted }]}>
@@ -688,7 +711,7 @@ export default function CalendarScreen() {
           const col        = i % 7;
           const chainsBack = isComplete && col > 0 && isDayComplete(isoAddDays(iso, -1));
           const ach        = achievementsByDay[day];
-          const inTrip     = isInTripRange(iso);
+          const cellTrip   = tripForDate(iso);
 
           return (
             <DayCell
@@ -701,7 +724,8 @@ export default function CalendarScreen() {
               total={stats.total}
               isComplete={isComplete}
               chainsBack={chainsBack}
-              inTripRange={inTrip}
+              inTripRange={!!cellTrip}
+              tripExpired={!!cellTrip && cellTrip.expiresAt <= Date.now()}
               achievement={ach}
               onPress={() => onDayPress(day)}
             />
@@ -709,16 +733,40 @@ export default function CalendarScreen() {
         })}
       </View>
 
-      {/* ── "Going somewhere?" persistent entry (KAN-243) — always visible, no prefill ── */}
-      <Pressable
-        style={[styles.tripEntryRow, { borderColor: palette.line }]}
-        onPress={() => navigation.push('TripPlanner')}
-        accessibilityRole="button"
-        accessibilityLabel={COPY.tripPlanner.entryRowA11y}>
-        <SuitcaseIcon color={palette.muted} size={16} />
-        <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
-        <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
-      </Pressable>
+      {/* ── Trip entry row (KAN-243 / KAN-250) — always visible, just under the
+          day grid. Trip-aware: shows "Places I know: {destination}" when the
+          selected day already falls within a downloaded trip, else the plain
+          "Going somewhere?" invite (prefilled with that date when it's a
+          future day). Single row — no separate day-specific CTA elsewhere. ── */}
+      {selTrip ? (
+        <Pressable
+          style={[styles.tripEntryRow, { borderColor: palette.line }]}
+          onPress={() => navigation.navigate('PlacesIKnow')}
+          accessibilityRole="button"
+          accessibilityLabel={
+            selTripExpired
+              ? COPY.tripPlanner.placesIKnowRowA11yExpired(selTrip.destination)
+              : COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)
+          }>
+          <SuitcaseIcon color={palette.muted} size={16} />
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+            {selTripExpired
+              ? COPY.tripPlanner.placesIKnowRowLabelExpired(selTrip.destination)
+              : COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      ) : (
+        <Pressable
+          style={[styles.tripEntryRow, { borderColor: palette.line }]}
+          onPress={() => navigation.push('TripPlanner', isSelFuture ? { prefillStartDate: selectedDate } : undefined)}
+          accessibilityRole="button"
+          accessibilityLabel={isSelFuture ? COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate)) : COPY.tripPlanner.entryRowA11y}>
+          <SuitcaseIcon color={palette.muted} size={16} />
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      )}
 
       {/* ── Hairline divider ── */}
       <View style={[styles.divider, { backgroundColor: palette.line }]} />
@@ -730,14 +778,14 @@ export default function CalendarScreen() {
             <Text
               style={[styles.detailEmptyText, { color: palette.muted }]}
               accessibilityRole="alert">
-              {monthTasksState.message || 'Could not load tasks. Please try again.'}
+              {monthTasksState.message || COPY.calendar.loadErrorRetry}
             </Text>
             <Pressable
               onPress={() => setRetryKey(k => k + 1)}
               style={[styles.retryBtn, { borderColor: palette.line }]}
               accessibilityRole="button"
-              accessibilityLabel="Try again">
-              <Text style={[styles.retryLabel, { color: palette.text }]}>Try again</Text>
+              accessibilityLabel={COPY.calendar.tryAgainA11y}>
+              <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.calendar.tryAgain}</Text>
             </Pressable>
           </View>
         ) : (
@@ -788,10 +836,10 @@ export default function CalendarScreen() {
             {(selAch || (isSelComplete && selRun >= 2)) && (
               <View style={styles.chipsRow}>
                 {isSelComplete && selRun >= 2 && (
-                  <CalAchChip icon="flame">{`${selRun}-day run`}</CalAchChip>
+                  <CalAchChip icon="flame">{COPY.calendar.dayRun(selRun)}</CalAchChip>
                 )}
                 {selAch && (
-                  <CalAchChip icon={selAch.icon}>{`${selAch.label} · unlocked`}</CalAchChip>
+                  <CalAchChip icon={selAch.icon}>{COPY.calendar.unlockedSuffix(selAch.label)}</CalAchChip>
                 )}
               </View>
             )}
@@ -799,7 +847,7 @@ export default function CalendarScreen() {
             {/* Task list */}
             {selTotal === 0 ? (
               <Text style={[styles.emptyLabel, { color: palette.faint }]}>
-                Nothing on this day.
+                {COPY.calendar.nothingOnThisDay}
               </Text>
             ) : (
               <View style={[styles.taskList, { borderTopColor: palette.line }]}>
@@ -822,20 +870,8 @@ export default function CalendarScreen() {
                 onPress={() => navigation.goBack()}
                 style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
                 accessibilityRole="button"
-                accessibilityLabel="Open today">
-                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>Open today</Text>
-                <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
-              </Pressable>
-            )}
-
-            {/* "Going somewhere?" CTA — future days only (KAN-243) */}
-            {isSelFuture && (
-              <Pressable
-                onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
-                style={[styles.detailCtaBtn, { backgroundColor: palette.text }]}
-                accessibilityRole="button"
-                accessibilityLabel={COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate))}>
-                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.tripPlanner.entryRowLabel}</Text>
+                accessibilityLabel={COPY.calendar.openTodayA11y}>
+                <Text style={[styles.detailCtaLabel, { color: palette.bg }]}>{COPY.calendar.openToday}</Text>
                 <ChevronRightIcon color={palette.bg} size={14} strokeWidth={2} />
               </Pressable>
             )}
@@ -985,6 +1021,9 @@ const styles = StyleSheet.create({
     right:         6,
     height:        2,
     borderRadius:  1,
+  },
+  tripBandExpired: {
+    opacity: 0.35,
   },
 
   // ── "Going somewhere?" persistent entry (KAN-243) ──

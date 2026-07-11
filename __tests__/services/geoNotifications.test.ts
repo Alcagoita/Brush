@@ -267,14 +267,14 @@ describe('geo-triggered notifications', () => {
     expect(call.title).toBe("You're near an ATM");
   });
 
-  it('uses "a" before consonant-starting POI labels (e.g. "a Supermarket")', async () => {
+  it('uses "a" before consonant-starting POI labels (e.g. "a Market")', async () => {
     const supermarketTask = makeTask({ id: 'sm', poi: 'supermarket', category: 'errands' });
     mockPlacesResponse([SUPERMARKET_NEARBY]);
     await runProximitySearch('uid-1', [supermarketTask], jest.fn());
     await flushAsync();
 
     const call = mockDisplayNotification.mock.calls[0][0];
-    expect(call.title).toBe("You're near a Supermarket");
+    expect(call.title).toBe("You're near a Market");
   });
 
   it('notification body says "You have N thing(s) to brush away."', async () => {

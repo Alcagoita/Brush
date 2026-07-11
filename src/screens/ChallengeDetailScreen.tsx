@@ -48,7 +48,7 @@ function formatDeadline(ts: Challenge['deadline']): string {
 
 function typeLabel(c: Challenge): string {
   if (c.type === 'goal') { return COPY.challenge.goalTypeLabel(c.goalCount ?? 0); }
-  return `Most tasks by ${formatDeadline(c.deadline)}`;
+  return COPY.challengeDetail.mostTasksByDeadline(formatDeadline(c.deadline));
 }
 
 // ─── Progress bar row ─────────────────────────────────────────────────────────
@@ -68,10 +68,10 @@ function LeaderboardRow({ uid: _uid, p, goal, isMe, isWinner, palette }: Leaderb
   const handle   = p.username ? `@${p.username}` : p.displayName;
 
   return (
-    <View style={styles.lbRow} accessibilityLabel={`${handle}: ${p.completedCount}${goal ? `/${goal}` : ''} tasks`}>
+    <View style={styles.lbRow} accessibilityLabel={COPY.challengeDetail.rowA11y(handle, p.completedCount, goal)}>
       <View style={styles.lbLeft}>
         <Text style={[styles.lbHandle, { color: isMe ? palette.accent : palette.text }]}>
-          {handle}{isMe ? ' (you)' : ''}
+          {handle}{isMe ? COPY.challengeDetail.youSuffix : ''}
         </Text>
       </View>
       <View style={[styles.progressTrack, { backgroundColor: palette.line }]}>
@@ -86,7 +86,7 @@ function LeaderboardRow({ uid: _uid, p, goal, isMe, isWinner, palette }: Leaderb
         />
       </View>
       <View style={styles.lbRight}>
-        <Text style={[styles.lbCount, { color: palette.text }]} accessibilityLabel={`${p.completedCount} tasks`}>
+        <Text style={[styles.lbCount, { color: palette.text }]} accessibilityLabel={COPY.challengeDetail.countA11y(p.completedCount)}>
           {p.completedCount}{goal ? `/${goal}` : ''}
         </Text>
         {isWinner && <TrophyIcon color={palette.accent} size={14} />}
@@ -115,7 +115,7 @@ export default function ChallengeDetailScreen() {
     return subscribeToChallenge(
       challengeId,
       c => { setChallenge(c); setLoading(false); },
-      _err => { setLoading(false); setError('Could not load challenge.'); },
+      _err => { setLoading(false); setError(COPY.challengeDetail.loadError); },
     );
   }, [challengeId]);
 
@@ -144,7 +144,7 @@ export default function ChallengeDetailScreen() {
         await updateDoc(challengeRef(challengeId), { status: 'active' });
       }
     } catch {
-      setError('Failed to accept. Please try again.');
+      setError(COPY.challengeDetail.acceptFailed);
     } finally {
       setActioning(false);
     }
@@ -168,7 +168,7 @@ export default function ChallengeDetailScreen() {
         await updateDoc(challengeRef(challengeId), { status: 'completed' });
       }
     } catch {
-      setError('Failed to decline. Please try again.');
+      setError(COPY.challengeDetail.declineFailed);
     } finally {
       setActioning(false);
     }
@@ -179,10 +179,10 @@ export default function ChallengeDetailScreen() {
 
       {/* Top bar */}
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
-        <Pressable style={styles.navBtn} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel="Back">
+        <Pressable style={styles.navBtn} onPress={() => navigation.goBack()} accessibilityRole="button" accessibilityLabel={COPY.challengeDetail.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[styles.title, { color: palette.text }]}>Challenge</Text>
+        <Text style={[styles.title, { color: palette.text }]}>{COPY.challengeDetail.screenTitle}</Text>
         <View style={styles.navBtn} />
       </View>
 
@@ -220,18 +220,18 @@ export default function ChallengeDetailScreen() {
                 onPress={handleAccept}
                 disabled={actioning}
                 accessibilityRole="button"
-                accessibilityLabel="Accept challenge">
+                accessibilityLabel={COPY.challengeDetail.acceptA11y}>
                 {actioning
                   ? <ActivityIndicator size="small" color={palette.bg} />
-                  : <Text style={[styles.btnLabel, { color: palette.bg }]}>Accept</Text>
+                  : <Text style={[styles.btnLabel, { color: palette.bg }]}>{COPY.challengeDetail.accept}</Text>
                 }
               </Pressable>
               <Pressable
                 onPress={handleDecline}
                 disabled={actioning}
                 accessibilityRole="button"
-                accessibilityLabel="Decline challenge">
-                <Text style={[styles.declineLabel, { color: palette.muted }]}>Decline</Text>
+                accessibilityLabel={COPY.challengeDetail.declineA11y}>
+                <Text style={[styles.declineLabel, { color: palette.muted }]}>{COPY.challengeDetail.decline}</Text>
               </Pressable>
             </View>
           )}
@@ -240,7 +240,7 @@ export default function ChallengeDetailScreen() {
           {(challenge.status === 'active' || challenge.status === 'completed') && (
             <View style={[styles.leaderboard, { backgroundColor: palette.surface2 }]}>
               <Text style={[styles.lbTitle, { color: palette.muted }]}>
-                {challenge.status === 'completed' ? 'FINAL RESULTS' : 'LIVE'}
+                {challenge.status === 'completed' ? COPY.challengeDetail.finalResults : COPY.challengeDetail.live}
               </Text>
               <FlatList<[string, ChallengeParticipant]>
                 data={leaderboard}
@@ -264,7 +264,7 @@ export default function ChallengeDetailScreen() {
           {/* Pending participants list */}
           {challenge.status === 'pending' && (
             <View style={[styles.pendingList, { backgroundColor: palette.surface2 }]}>
-              <Text style={[styles.lbTitle, { color: palette.muted }]}>PARTICIPANTS</Text>
+              <Text style={[styles.lbTitle, { color: palette.muted }]}>{COPY.challengeDetail.participants}</Text>
               <FlatList<[string, ChallengeParticipant]>
                 data={Object.entries(challenge.participants)}
                 keyExtractor={([pUid]) => pUid}
@@ -272,12 +272,14 @@ export default function ChallengeDetailScreen() {
                   <View style={styles.pendingRow}>
                     <Text style={[styles.pendingName, { color: palette.text }]}>
                       {p.username ? `@${p.username}` : p.displayName}
-                      {pUid === uid ? ' (you)' : ''}
+                      {pUid === uid ? COPY.challengeDetail.youSuffix : ''}
                     </Text>
                     <Text style={[styles.pendingStatus, {
                       color: p.status === 'accepted' ? palette.success : p.status === 'declined' ? palette.danger : palette.muted,
                     }]}>
-                      {p.status}
+                      {p.status === 'accepted' ? COPY.challengeDetail.statusAccepted
+                        : p.status === 'declined' ? COPY.challengeDetail.statusDeclined
+                        : COPY.challengeDetail.statusPending}
                     </Text>
                   </View>
                 )}

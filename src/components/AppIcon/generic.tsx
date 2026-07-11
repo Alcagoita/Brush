@@ -1,5 +1,5 @@
 import React from 'react';
-import Svg, { Circle, Line, Path, Rect } from 'react-native-svg';
+import Svg, { Circle, Ellipse, Line, Path, Rect } from 'react-native-svg';
 import { S } from './shared';
 import type { IconProps } from './shared';
 
@@ -92,6 +92,17 @@ export function MoonIcon({ color, size = 24 }: IconProps) {
         d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
         stroke={color} strokeWidth={1.6} {...S}
       />
+    </Svg>
+  );
+}
+
+// ── Globe (language setting) ──────────────────────────────────────────────────
+export function GlobeIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.6} {...S} />
+      <Ellipse cx="12" cy="12" rx="4" ry="9" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="3" y1="12" x2="21" y2="12" stroke={color} strokeWidth={1.6} {...S} />
     </Svg>
   );
 }

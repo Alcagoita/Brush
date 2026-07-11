@@ -14,6 +14,9 @@ export const styles = StyleSheet.create({
   root: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
 
   // ── Top bar ──
   topBar: {
@@ -46,6 +49,7 @@ export const styles = StyleSheet.create({
 
   // ── Scroll body ──
   scrollContent: {
+    flexGrow:          1,
     paddingHorizontal: spacing.page,
     paddingTop:        20,
     gap:               28,

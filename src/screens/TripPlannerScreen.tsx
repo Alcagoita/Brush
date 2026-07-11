@@ -29,18 +29,31 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import { useTripPlanner, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT } from '../hooks/useTripPlanner';
 import { CIRCLE_FRACTION_OF_HALF_DIM } from '../services/maps';
 import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import type { TripRadiusPreset } from '../types';
 import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
 type Route = RouteProp<RootStackParamList, 'TripPlanner'>;
 
 const CIRCLE_DIAMETER = Math.min(TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT) * CIRCLE_FRACTION_OF_HALF_DIM;
+
+/** Looks up a radius preset's label live at render time (KAN-252 review) —
+ *  TRIP_RADIUS_PRESETS itself carries no label since COPY is language-dynamic
+ *  and that constant is only evaluated once, at import time. */
+function radiusPresetLabel(key: TripRadiusPreset): string {
+  switch (key) {
+    case 'town':            return COPY.tripPlanner.radiusTown;
+    case 'town_and_around': return COPY.tripPlanner.radiusTownAndAround;
+    case 'region':           return COPY.tripPlanner.radiusRegion;
+  }
+}
 
 function formatDateShort(iso: string): string {
   const [, m, d] = iso.split('-').map(Number);
@@ -79,14 +92,14 @@ export default function TripPlannerScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={{ paddingTop: insets.top }}>
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
           <Pressable
             style={styles.navBtn}
             onPress={() => (stepIndex <= 0 ? navigation.goBack() : goBack())}
             accessibilityRole="button"
-            accessibilityLabel="Back">
+            accessibilityLabel={COPY.tripPlannerScreen.backA11y}>
             <ChevronLeftIcon color={palette.text} size={22} />
           </Pressable>
           <Text style={[styles.title, { color: palette.text }]}>{stepTitle}</Text>
@@ -106,6 +119,7 @@ export default function TripPlannerScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
         keyboardShouldPersistTaps="handled">
 
@@ -153,7 +167,7 @@ export default function TripPlannerScreen() {
               style={[styles.dateField, { borderColor: palette.line, backgroundColor: palette.surface }]}
               onPress={() => setShowStartPicker(true)}
               accessibilityRole="button"
-              accessibilityLabel="Start date">
+              accessibilityLabel={COPY.tripPlannerScreen.startDateA11y}>
               <Text style={[styles.dateFieldText, { color: startDate ? palette.text : palette.muted }]}>
                 {startDate ? formatDateShort(startDate) : 'Start date'}
               </Text>
@@ -175,7 +189,7 @@ export default function TripPlannerScreen() {
               style={[styles.dateField, { borderColor: palette.line, backgroundColor: palette.surface }]}
               onPress={() => setShowEndPicker(true)}
               accessibilityRole="button"
-              accessibilityLabel="End date">
+              accessibilityLabel={COPY.tripPlannerScreen.endDateA11y}>
               <Text style={[styles.dateFieldText, { color: endDate ? palette.text : palette.muted }]}>
                 {endDate ? formatDateShort(endDate) : 'End date'}
               </Text>
@@ -236,7 +250,7 @@ export default function TripPlannerScreen() {
                     accessibilityRole="radio"
                     accessibilityState={{ selected }}>
                     <Text style={[styles.radiusChipLabel, { color: selected ? palette.bg : palette.text }]}>
-                      {preset.label}
+                      {radiusPresetLabel(preset.key)}
                     </Text>
                   </Pressable>
                 );
@@ -277,7 +291,7 @@ export default function TripPlannerScreen() {
             style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
             onPress={goToRadius}
             accessibilityRole="button"
-            accessibilityLabel="Continue">
+            accessibilityLabel={COPY.tripPlannerScreen.continueA11y}>
             <Text style={[styles.ctaLabel, { color: palette.bg }]}>Continue</Text>
           </Pressable>
         </View>
@@ -290,6 +304,7 @@ export default function TripPlannerScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.page, paddingVertical: 12,
@@ -304,7 +319,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
 
-  content: { paddingHorizontal: spacing.page, paddingTop: 16, gap: 16 },
+  content: { flexGrow: 1, paddingHorizontal: spacing.page, paddingTop: 16, gap: 16 },
 
   // Destination
   destinationSection: { gap: 10 },

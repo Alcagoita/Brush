@@ -12,7 +12,8 @@
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import type { AchievementsMap } from '../../src/types';
-import { ACHIEVEMENT_CATALOGUE } from '../../src/components/AchievementTile';
+import { buildAchievementCatalogue } from '../../src/components/AchievementTile';
+import { setCopyLanguage } from '../../src/constants/copy';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -305,6 +306,32 @@ describe('ProfileScreen — KAN-137: points hero card', () => {
   });
 });
 
+describe('ProfileScreen — pt-PT tier copy', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    setupDefaultMocks();
+    setCopyLanguage('pt-PT');
+  });
+
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it('localizes the next tier name in the points caption', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 100, currentStreak: 0, achievements: {} });
+    await renderScreen();
+    expect(screen.getByText('100 pts para Prata')).toBeTruthy();
+    expect(screen.queryByText(/Gold/)).toBeNull();
+  });
+
+  it('localizes the maxed tier name in the points caption', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({ totalPoints: 3000, currentStreak: 0, achievements: {} });
+    await renderScreen();
+    expect(screen.getByText('Nível máximo · Vibrânio')).toBeTruthy();
+    expect(screen.queryByText(/Vibranium/)).toBeNull();
+  });
+});
+
 // ─── Streak chip ─────────────────────────────────────────────────────────────
 
 describe('ProfileScreen — KAN-137: streak chip', () => {
@@ -366,7 +393,7 @@ describe('ProfileScreen — achievement medal strip', () => {
 
   it('shows all 7 V1 catalogue labels in the medal strip', async () => {
     await renderScreen();
-    for (const def of ACHIEVEMENT_CATALOGUE) {
+    for (const def of buildAchievementCatalogue()) {
       expect(screen.getByText(def.label)).toBeTruthy();
     }
   });
@@ -417,14 +444,14 @@ describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
     });
   });
 
-  it('renders the "Learn this mall" row', async () => {
+  it('renders the "Activate Mall mode" row', async () => {
     await renderScreen();
-    expect(screen.getByText('Learn this mall')).toBeTruthy();
+    expect(screen.getByText('Activate Mall mode')).toBeTruthy();
   });
 
   it('flips the toggle on when the switch is pressed', async () => {
     await renderScreen();
-    fireEvent(screen.getByLabelText('Learn this mall'), 'valueChange', true);
+    fireEvent(screen.getByLabelText('Activate Mall mode'), 'valueChange', true);
     expect(mockToggleMallSnapshot).toHaveBeenCalledWith(true);
   });
 
@@ -435,7 +462,7 @@ describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
       toggle: mockToggleMallSnapshot,
     });
     await renderScreen();
-    expect(screen.getByLabelText('Learn this mall').props.value).toBe(true);
+    expect(screen.getByLabelText('Activate Mall mode').props.value).toBe(true);
   });
 
   it('shows the downloading label and hides the switch while loading', async () => {
@@ -446,6 +473,6 @@ describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
     });
     await renderScreen();
     expect(screen.getByText('Downloading Shopping mall data…')).toBeTruthy();
-    expect(screen.queryByLabelText('Learn this mall')).toBeNull();
+    expect(screen.queryByLabelText('Activate Mall mode')).toBeNull();
   });
 });

@@ -78,8 +78,11 @@ jest.mock('react-native-safe-area-context', () => ({
 // ─── Maps ─────────────────────────────────────────────────────────────────────
 
 jest.mock('../../src/services/maps', () => ({
-  searchPlaceTypes: jest.fn().mockResolvedValue([]),
-  placeTypeLabel:   (t: string) => t,
+  placeTypeLabel: (t: string) => t,
+}));
+
+jest.mock('../../src/services/poiTypeCache', () => ({
+  searchPlaceTypesCached: jest.fn().mockResolvedValue([]),
 }));
 
 // ─── AppIcon ──────────────────────────────────────────────────────────────────

@@ -51,6 +51,84 @@ function toSafeVisitCount(value: unknown): number {
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
+function buildTaskDonePatch(
+  done: boolean,
+  completedPlace?: { placeId: string; name: string; poiType: string },
+) {
+  const hasPlace = done && !!completedPlace;
+  return {
+    done,
+    completedAt: done ? Timestamp.now() : null,
+    completedPlaceId: hasPlace ? completedPlace!.placeId : deleteField(),
+    completedPlaceName: hasPlace ? completedPlace!.name : deleteField(),
+    completedPoiType: hasPlace ? completedPlace!.poiType : deleteField(),
+  };
+}
+
+function isOfflineLikeFirestoreError(error: unknown): boolean {
+  const code = typeof error === 'object' && error !== null && 'code' in error
+    ? String((error as { code: unknown }).code).toLowerCase()
+    : '';
+  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  return (
+    code.includes('unavailable') ||
+    code.includes('network') ||
+    code.includes('offline') ||
+    message.includes('unavailable') ||
+    message.includes('network') ||
+    message.includes('offline')
+  );
+}
+
+async function applyTaskDoneOfflineFallback(
+  uid: string,
+  taskId: string,
+  taskPatch: ReturnType<typeof buildTaskDonePatch>,
+  done: boolean,
+  completedPlace?: { placeId: string; name: string; poiType: string },
+): Promise<void> {
+  const hasPlace = done && !!completedPlace;
+  const nextPlaceId = hasPlace ? completedPlace!.placeId : undefined;
+  const db = getFirestore();
+  const tRef = taskRef(uid, taskId);
+  const taskSnap = await getDoc(tRef);
+  const prevPlaceId = (taskSnap.data() as Task | undefined)?.completedPlaceId;
+
+  const decrementPrev = !!prevPlaceId && prevPlaceId !== nextPlaceId;
+  const incrementNext = hasPlace && completedPlace!.placeId !== prevPlaceId;
+
+  const prevRef = decrementPrev ? learnedPlaceCountRef(uid, prevPlaceId!) : null;
+  const nextRef = incrementNext ? learnedPlaceCountRef(uid, completedPlace!.placeId) : null;
+  const [prevSnap, nextSnap] = await Promise.all([
+    prevRef ? getDoc(prevRef) : Promise.resolve(null),
+    nextRef ? getDoc(nextRef) : Promise.resolve(null),
+  ]);
+
+  const batch = writeBatch(db);
+  batch.update(tRef, taskPatch);
+
+  if (prevRef && prevSnap?.exists()) {
+    const visitCount = toSafeVisitCount((prevSnap.data() as LearnedPlace).visitCount) - 1;
+    if (visitCount <= 0) {
+      batch.delete(prevRef);
+    } else {
+      batch.update(prevRef, { visitCount });
+    }
+  }
+
+  if (nextRef) {
+    const visitCount = (nextSnap?.exists() ? toSafeVisitCount((nextSnap.data() as LearnedPlace).visitCount) : 0) + 1;
+    batch.set(nextRef, {
+      placeId: completedPlace!.placeId,
+      name: completedPlace!.name,
+      poiType: completedPlace!.poiType,
+      visitCount,
+    });
+  }
+
+  await batch.commit();
+}
+
 /**
  * Add a new task for the given user.
  * Returns the auto-generated Firestore document ID.
@@ -161,46 +239,51 @@ export async function setTaskDone(
   const nextPlaceId = hasPlace ? completedPlace!.placeId : undefined;
   const db   = getFirestore();
   const tRef = taskRef(uid, taskId);
+  const taskPatch = buildTaskDonePatch(done, completedPlace);
 
-  await runTransaction(db, async (tx) => {
-    const taskSnap    = await tx.get(tRef);
-    const prevPlaceId = (taskSnap.data() as Task | undefined)?.completedPlaceId;
+  try {
+    await runTransaction(db, async (tx) => {
+      const taskSnap    = await tx.get(tRef);
+      const prevPlaceId = (taskSnap.data() as Task | undefined)?.completedPlaceId;
 
-    const decrementPrev = !!prevPlaceId && prevPlaceId !== nextPlaceId;
-    const incrementNext = hasPlace && completedPlace!.placeId !== prevPlaceId;
+      const decrementPrev = !!prevPlaceId && prevPlaceId !== nextPlaceId;
+      const incrementNext = hasPlace && completedPlace!.placeId !== prevPlaceId;
 
-    const prevRef  = decrementPrev ? learnedPlaceCountRef(uid, prevPlaceId!) : null;
-    const prevSnap = prevRef ? await tx.get(prevRef) : null;
-    const nextRef  = incrementNext ? learnedPlaceCountRef(uid, completedPlace!.placeId) : null;
-    const nextSnap = nextRef ? await tx.get(nextRef) : null;
+      const prevRef  = decrementPrev ? learnedPlaceCountRef(uid, prevPlaceId!) : null;
+      const prevSnap = prevRef ? await tx.get(prevRef) : null;
+      const nextRef  = incrementNext ? learnedPlaceCountRef(uid, completedPlace!.placeId) : null;
+      const nextSnap = nextRef ? await tx.get(nextRef) : null;
 
-    tx.update(tRef, {
-      done,
-      completedAt: done ? Timestamp.now() : null,
-      completedPlaceId:   hasPlace ? completedPlace!.placeId : deleteField(),
-      completedPlaceName: hasPlace ? completedPlace!.name   : deleteField(),
-      completedPoiType:   hasPlace ? completedPlace!.poiType : deleteField(),
-    });
+      tx.update(tRef, taskPatch);
 
-    if (prevRef && prevSnap?.exists()) {
-      const visitCount = toSafeVisitCount((prevSnap.data() as LearnedPlace).visitCount) - 1;
-      if (visitCount <= 0) {
-        tx.delete(prevRef);
-      } else {
-        tx.update(prevRef, { visitCount });
+      if (prevRef && prevSnap?.exists()) {
+        const visitCount = toSafeVisitCount((prevSnap.data() as LearnedPlace).visitCount) - 1;
+        if (visitCount <= 0) {
+          tx.delete(prevRef);
+        } else {
+          tx.update(prevRef, { visitCount });
+        }
       }
-    }
 
-    if (nextRef) {
-      const visitCount = (nextSnap?.exists() ? toSafeVisitCount((nextSnap.data() as LearnedPlace).visitCount) : 0) + 1;
-      tx.set(nextRef, {
-        placeId:    completedPlace!.placeId,
-        name:       completedPlace!.name,
-        poiType:    completedPlace!.poiType,
-        visitCount,
-      });
+      if (nextRef) {
+        const visitCount = (nextSnap?.exists() ? toSafeVisitCount((nextSnap.data() as LearnedPlace).visitCount) : 0) + 1;
+        tx.set(nextRef, {
+          placeId:    completedPlace!.placeId,
+          name:       completedPlace!.name,
+          poiType:    completedPlace!.poiType,
+          visitCount,
+        });
+      }
+    });
+  } catch (error) {
+    if (!isOfflineLikeFirestoreError(error)) {
+      throw error;
     }
-  });
+    // Firestore transactions do not reliably queue offline. Rebuild the same
+    // task + learned-place writes in a batch so they can still queue together.
+    console.warn('[tasks] setTaskDone transaction failed, falling back to offline batch update', error);
+    await applyTaskDoneOfflineFallback(uid, taskId, taskPatch, done, completedPlace);
+  }
 }
 
 /** Update any mutable fields on a task (title, category, time, poi, date…). */

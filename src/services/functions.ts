@@ -1,17 +1,19 @@
 /**
- * functions.ts — task parsing helpers (KAN-90, updated KAN-116)
+ * functions.ts — task parsing helpers (KAN-90, updated KAN-116, KAN-253)
  *
  * Originally called a Firebase Cloud Function (Claude Haiku) to parse shared
  * text. Now fully client-side:
  *   1. Local keyword dictionary (offline, instant) via poiInference.ts
- *   2. Google Places Text Search fallback (1 network call, no AI cost)
+ *   2. Local poiType dictionary lookup (bundled app data) — see poiTypeCache.ts
  *   3. Give up → confidence 'low', user edits manually
  *
  * Same ParseMessageOutput shape as before — ShareReceiveScreen is unchanged.
  */
 
+import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { inferPoiFromRules } from './poiInference';
-import { searchPlaceTypes }  from './maps';
+import { searchPlaceTypesCached } from './poiTypeCache';
+import { logPoiInferenceMiss } from './firestore';
 import { POI_GOOGLE_TYPES }  from '../types';
 import type { PoiType }      from '../types';
 
@@ -73,8 +75,7 @@ function extractTime(text: string): string | null {
 /**
  * Parse a free-text shared message into structured task data.
  *
- * No AI, no Cloud Function — runs entirely on-device with a Google Places
- * fallback for unknown vocabulary.
+ * No AI, no Cloud Function — runs entirely on-device.
  *
  * @param text  Raw shared message.
  * @returns     Structured task data. confidence 'low' → user should review.
@@ -105,9 +106,9 @@ export async function parseMessageToTask(text: string): Promise<ParseMessageOutp
     }
   }
 
-  // Pass 2: Google Places Text Search — extract primary type from top results.
+  // Pass 2: bundled local POI-type dictionary.
   try {
-    const suggestions = await searchPlaceTypes(trimmed.slice(0, 200));
+    const suggestions = await searchPlaceTypesCached(trimmed.slice(0, 200));
     for (const { type } of suggestions) {
       const poi = GOOGLE_TYPE_TO_POI[type];
       if (poi) {
@@ -118,6 +119,12 @@ export async function parseMessageToTask(text: string): Promise<ParseMessageOutp
     if (__DEV__) {
       console.warn('[parseMessageToTask] searchPlaceTypes failed:', err);
     }
+  }
+
+  const uid = getAuth().currentUser?.uid;
+  if (uid) {
+    // Best-effort logging only — failed telemetry must never block parsing.
+    void logPoiInferenceMiss(uid, trimmed).catch(() => {});
   }
 
   return { title, suggestedPoi: null, suggestedTime, confidence: 'low' };

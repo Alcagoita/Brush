@@ -292,6 +292,10 @@ docs/
 12. **One ticket at a time.** Never start a new ticket until the PR for the current one has been reviewed and merged into **develop**. After opening a PR, stop and wait for explicit confirmation before picking up the next ticket. PRs merge into develop during the sprint; develop merges into main only at sprint end.
 13. **Never merge without explicit user consent.** Do not merge any PR — even with `--admin` — unless the user has explicitly said to merge in that conversation turn.
 14. **Never display raw MCP tool responses.** After calling any Jira (or other MCP) tool, only report the outcome in plain text (e.g. "KAN-129 → Testing"). Never paste the raw JSON response into the conversation.
+15. **Keep answers concise and direct.** Prefer short, plain responses unless the user explicitly asks for detail.
+16. **At the end of every task, commit the code and open a PR.** Unless the user explicitly says not to, finish implementation by creating the commit and opening a PR targeting `develop`, then stop and wait for review.
+17. **Admin merge requires explicit approval after review.** If a PR is blocked by branch protection but has already been reviewed and the user explicitly approves the override in that conversation, `--admin` may be used to merge it.
+18. **After a PR is merged into `develop`, delete the local feature branch.** Switch back to `develop` first, then remove the merged local branch before starting the next ticket.
 
 ---
 
@@ -316,6 +320,16 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ---
 
+## Current Ticket In Progress
+
+- **KAN-252** (Language support: Português-Portugal) — status **Testing**, PR [#234](https://github.com/Alcagoita/Brush/pull/234) open against `develop`, awaiting review/merge.
+  - Full-app bilingual sweep complete: Settings, Login, Onboarding, Categories, Today, Achievements, Friends/Challenges (SocialHub, ContactSuggestions, FriendPicker, ChallengeDetail, CreateChallenge), Share flow (ShareReceive, ShareTaskSheet, ShareProfileSheet, ShareToDo, SharedTaskInbox), Profile/PublicProfile, Calendar, TaskForm/TaskRow, PlacesIKnow/HomeAddress, and misc accessibility labels (PointsHistory, TripPlanner, NearbyCard, NewTaskSheet, StoreTuningPromptSheet, ImportTasksSection, ErrorBoundary).
+  - Architecture: `src/constants/copy.ts` exports a `COPY` Proxy over `en`/`ptPT` dictionaries, switched at runtime via `setCopyLanguage()`; module-scope constants that read `COPY.*` were converted to builder functions called inside component bodies to stay reactive.
+  - Explicitly out of scope per ticket ("just translations, no business logic"): POI-inference language wiring (reverted), unit tests (skipped, `tsc --noEmit` used for compile safety only).
+  - Deferred, not blocking: DevToolsScreen (dev-only, `__DEV__` gated) and AddEventModal (dead code, unused — flagged separately for removal).
+
+---
+
 ## Sprint History
 
 - **Sprint 1** — ✅ Done (v0.1.0)
@@ -331,3 +345,5 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 - **Sprint 11** — ✅ Done (v0.11.0)
 - **Sprint 13** — ✅ Done (v0.13.0)
 - **Sprint 14** — ✅ Done (v0.14.0)
+- **Sprint 15** — ✅ Done (v0.15.0)
+- **Sprint 16** — ✅ Done (v0.16.0)

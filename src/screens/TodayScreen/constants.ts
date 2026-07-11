@@ -1,5 +1,6 @@
 import { Dimensions } from 'react-native';
 import { categories } from '../../theme/tokens';
+import { COPY } from '../../constants/copy';
 import type { NudgeMessage } from '../../components/ScrRotatingNudge';
 
 // ─── Layout constants ─────────────────────────────────────────────────────────
@@ -35,19 +36,29 @@ export const DEBUG_SIMPLE_ROWS  = false; // render dumb <Text> rows instead of <
 export const DEBUG_MINIMAL = !DEBUG_SHOW_LIST && !DEBUG_SHOW_RING;
 
 // ─── Empty-state message set (KAN-139) ───────────────────────────────────────
+//
+// Built by a function called inside the component instead of a module-scope
+// constant — COPY/categories are language-dynamic (KAN-252) and a
+// module-scope read would freeze the text in whatever language was active on
+// first import.
 
-export const EMPTY_MESSAGES: NudgeMessage[] = [
-  { text: "Nothing on today. That doesn’t mean nothing matters." },
-  { text: "Don’t you feel the need for bread?",                  poi: "supermarket", color: categories.errands.color },
-  { text: "Maybe today’s a good day for coffee outside.",        poi: "cafe",        color: categories.personal.color },
-  { text: "Might be worth grabbing some cash while you’re out.", poi: "atm",         color: categories.errands.color },
-  { text: "Anything in the cabinet running low?",                     poi: "pharmacy",    color: categories.health.color },
-  { text: "Something in the fridge is probably asking to be replaced.", poi: "supermarket", color: categories.errands.color },
-  { text: "A clear day is a gift. What will you do with it?" },
-  { text: "What’s the one thing future-you will thank you for?" },
+const EMPTY_MESSAGE_META: { poi?: string; color?: string }[] = [
+  {},
+  { poi: 'supermarket', color: categories.errands.color },
+  { poi: 'cafe',        color: categories.personal.color },
+  { poi: 'atm',         color: categories.errands.color },
+  { poi: 'pharmacy',    color: categories.health.color },
+  { poi: 'supermarket', color: categories.errands.color },
+  {},
+  {},
 ];
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
+export function buildEmptyMessages(): NudgeMessage[] {
+  return COPY.today.emptyMessages.map((text, i) => ({ text, ...EMPTY_MESSAGE_META[i] }));
+}
 
-export const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-export const MONTHS   = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+// Also read live (see buildEmptyMessages above) rather than module-scope.
+
+export function getWeekdays(): string[] { return COPY.today.weekdays; }
+export function getMonths(): string[] { return COPY.today.months; }

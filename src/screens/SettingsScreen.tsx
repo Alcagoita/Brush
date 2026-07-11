@@ -15,6 +15,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -40,8 +41,10 @@ import {
   BatteryIcon,
   BellIcon,
   CalendarIcon,
+  CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  GlobeIcon,
   GridIcon,
   HomeIcon,
   ListCheckIcon,
@@ -51,7 +54,7 @@ import {
 } from '../components/AppIcon';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ImportResult } from '../types';
-import { COPY } from '../constants/copy';
+import { COPY, type SupportedLanguage } from '../constants/copy';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -60,11 +63,12 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type ImportConnector = (uid: string) => Promise<ImportResult>;
 
 interface ImportSource {
-  key:       string;
-  label:     string;
+  key:       ImportSourceKey;
   Icon:      React.FC<{ color: string; size?: number }>;
   connector: ImportConnector;
 }
+
+type ImportSourceKey = 'google_tasks' | 'google_calendar' | 'eventkit_reminders' | 'eventkit_calendar';
 
 type ImportStatus =
   | { kind: 'idle' }
@@ -77,11 +81,16 @@ type ImportStatus =
 
 interface ImportRowProps {
   source: ImportSource;
+  /** Looked up live at render time (KAN-252 review) — never bundled into the
+   *  ref-cached `source` object, which is only computed once on first mount
+   *  and would otherwise freeze this label in whatever language was active
+   *  at that point. */
+  label:  string;
   uid:    string;
   isLast: boolean;
 }
 
-function ImportRow({ source, uid, isLast }: ImportRowProps) {
+function ImportRow({ source, label, uid, isLast }: ImportRowProps) {
   const { palette } = useTheme();
   const [status, setStatus] = useState<ImportStatus>({ kind: 'idle' });
 
@@ -93,7 +102,7 @@ function ImportRow({ source, uid, isLast }: ImportRowProps) {
       setStatus({ kind: 'success', result });
       logTap('calendar_import', { source: source.key });
     } catch {
-      setStatus({ kind: 'error', message: 'Import failed. Please try again.' });
+      setStatus({ kind: 'error', message: COPY.settings.importErrorMessage });
     }
   }, [status.kind, source, uid]);
 
@@ -106,19 +115,19 @@ function ImportRow({ source, uid, isLast }: ImportRowProps) {
       <ActivityIndicator
         size="small"
         color={palette.muted}
-        accessibilityLabel="Import in progress"
+        accessibilityLabel={COPY.settings.importInProgressA11y}
       />
     );
   } else if (status.kind === 'success') {
     trailing = (
       <Text style={[s.trailingText, { color: palette.muted }]}>
-        {status.result.imported} imported
+        {COPY.settings.importedCount(status.result.imported)}
       </Text>
     );
   } else if (status.kind === 'error') {
     trailing = (
       <Text style={[s.trailingText, { color: palette.accent }]}>
-        Failed · retry
+        {COPY.settings.importFailedRetry}
       </Text>
     );
   } else {
@@ -132,12 +141,12 @@ function ImportRow({ source, uid, isLast }: ImportRowProps) {
         onPress={handlePress}
         disabled={isLoading}
         accessibilityRole="button"
-        accessibilityLabel={source.label}
+        accessibilityLabel={label}
         accessibilityState={{ busy: isLoading }}>
         <View style={[s.iconTile, { backgroundColor: palette.surface2 }]}>
           <Icon color={palette.muted} size={19} />
         </View>
-        <Text style={[s.rowLabel, { color: palette.text }]}>{source.label}</Text>
+        <Text style={[s.rowLabel, s.rowLabelStandalone, { color: palette.text }]}>{label}</Text>
         <View style={s.trailingSlot}>{trailing}</View>
       </Pressable>
       {!isLast && <View style={[s.divider, { backgroundColor: palette.line }]} />}
@@ -213,10 +222,84 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+/** Reads COPY live at call time (not module load) since COPY's active
+ *  language can change at runtime — see constants/copy.ts. */
+function languageLabel(lang: SupportedLanguage): string {
+  return lang === 'pt-PT' ? COPY.settings.languagePortuguese : COPY.settings.languageEnglish;
+}
+
+// ─── Language picker sheet ────────────────────────────────────────────────────
+//
+// A native Alert.alert has OS chrome that never matches the app's own theme
+// (radius, palette, typography) — this is a themed bottom sheet instead,
+// styled the same way as the rest of Settings (card + row + divider).
+
+interface LanguagePickerSheetProps {
+  visible:  boolean;
+  current:  SupportedLanguage;
+  onSelect: (lang: SupportedLanguage) => void;
+  onClose:  () => void;
+}
+
+const LANGUAGE_OPTIONS: SupportedLanguage[] = ['en', 'pt-PT'];
+
+function LanguagePickerSheet({ visible, current, onSelect, onClose }: LanguagePickerSheetProps) {
+  const { palette } = useTheme();
+  const insets = useSafeAreaInsets();
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable
+        style={[StyleSheet.absoluteFill, { backgroundColor: palette.scrim }]}
+        onPress={onClose}
+        accessibilityRole="button"
+        accessibilityLabel={COPY.settings.languageCancel}
+      />
+      <View style={[s.sheetWrap, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[s.sheetCard, { backgroundColor: palette.surface }]}>
+          <Text style={[s.sheetTitle, { color: palette.muted }]}>
+            {COPY.settings.languageSheetTitle}
+          </Text>
+          <View accessibilityRole="radiogroup">
+            {LANGUAGE_OPTIONS.map((lang, idx) => {
+              const selected = lang === current;
+              return (
+                <React.Fragment key={lang}>
+                  <Pressable
+                    style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
+                    onPress={() => onSelect(lang)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={languageLabel(lang)}>
+                    <Text style={[s.rowLabel, { color: palette.text, flex: 1 }]}>
+                      {languageLabel(lang)}
+                    </Text>
+                    {selected && <CheckIcon color={palette.accent} size={18} />}
+                  </Pressable>
+                  {idx < LANGUAGE_OPTIONS.length - 1 && (
+                    <View style={[s.divider, { backgroundColor: palette.line, marginLeft: 16 }]} />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </View>
+        <Pressable
+          style={({ pressed }) => [s.sheetCancel, { backgroundColor: palette.surface }, pressed && { opacity: 0.6 }]}
+          onPress={onClose}>
+          <Text style={[s.sheetCancelLabel, { color: palette.text }]}>
+            {COPY.settings.languageCancel}
+          </Text>
+        </Pressable>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const { palette, dark, setDark } = useTheme();
+  const { palette, dark, setDark, language, setLanguage } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets     = useSafeAreaInsets();
 
@@ -242,6 +325,14 @@ export default function SettingsScreen() {
     logTap('settings_theme_toggle', { dark: value });
   }, [setDark]);
 
+  const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
+
+  const handleLanguageSelect = useCallback((value: SupportedLanguage) => {
+    setLanguage(value);
+    logTap('settings_language_change', { language: value });
+    setLanguageSheetOpen(false);
+  }, [setLanguage]);
+
   const handleLowBatteryToggle = useCallback(async (value: boolean) => {
     setLowBatteryPause(value);
     try {
@@ -253,19 +344,19 @@ export default function SettingsScreen() {
 
   const handleSignOut = useCallback(() => {
     Alert.alert(
-      'Sign out',
-      'Are you sure you want to sign out?',
+      COPY.settings.signOutConfirmTitle,
+      COPY.settings.signOutConfirmBody,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: COPY.settings.signOutCancelAction, style: 'cancel' },
         {
-          text: 'Sign out',
+          text: COPY.settings.signOutConfirmAction,
           style: 'destructive',
           onPress: async () => {
             try {
               await logout();
               logTap('logout');
             } catch {
-              Alert.alert('Error', 'Failed to sign out. Please try again.');
+              Alert.alert(COPY.settings.signOutErrorTitle, COPY.settings.signOutErrorBody);
             }
           },
         },
@@ -273,20 +364,30 @@ export default function SettingsScreen() {
     );
   }, []);
 
+  // Stable across the component's lifetime — the platform-specific connector
+  // choice never changes at runtime, only the label needs to stay live (see
+  // importLabels below).
   const importSources = useRef<ImportSource[]>((() => {
     if (Platform.OS === 'android') {
       const { importFromGoogleTasks, importFromGoogleCalendar } = require('../services/import');
       return [
-        { key: 'google_tasks',    label: 'Google Tasks',    Icon: ListCheckIcon, connector: importFromGoogleTasks    },
-        { key: 'google_calendar', label: 'Google Calendar', Icon: CalendarIcon,  connector: importFromGoogleCalendar },
+        { key: 'google_tasks',    Icon: ListCheckIcon, connector: importFromGoogleTasks    },
+        { key: 'google_calendar', Icon: CalendarIcon,  connector: importFromGoogleCalendar },
       ];
     }
     const { importFromReminders, importFromCalendar } = require('../services/import');
     return [
-      { key: 'eventkit_reminders', label: 'Reminders', Icon: ListCheckIcon, connector: importFromReminders },
-      { key: 'eventkit_calendar',  label: 'Calendar',  Icon: CalendarIcon,  connector: importFromCalendar  },
+      { key: 'eventkit_reminders', Icon: ListCheckIcon, connector: importFromReminders },
+      { key: 'eventkit_calendar',  Icon: CalendarIcon,  connector: importFromCalendar  },
     ];
   })()).current;
+
+  const importLabels: Record<ImportSourceKey, string> = {
+    google_tasks:        COPY.settings.importGoogleTasks,
+    google_calendar:     COPY.settings.importGoogleCalendar,
+    eventkit_reminders:  COPY.settings.importReminders,
+    eventkit_calendar:   COPY.settings.importCalendar,
+  };
 
   const AppearanceIcon = dark ? MoonIcon : SunIcon;
 
@@ -302,55 +403,64 @@ export default function SettingsScreen() {
           style={({ pressed }) => [s.headerBtn, pressed && { opacity: 0.6 }]}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.settings.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[s.headerTitle, { color: palette.text }]}>Settings</Text>
+        <Text style={[s.headerTitle, { color: palette.text }]}>{COPY.settings.screenTitle}</Text>
         {/* balance the back button so title centers */}
         <View style={s.headerBtn} />
       </View>
 
       <ScrollView
+        style={[s.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[s.scroll, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
 
         {/* TASKS */}
-        <Section title="TASKS">
+        <Section title={COPY.settings.sectionTasks}>
           <SettingsRow
             Icon={GridIcon}
-            label="Manage Categories"
+            label={COPY.settings.manageCategories}
             onPress={() => navigation.navigate('Categories')}
-            accessibilityLabel="Manage Categories"
+            accessibilityLabel={COPY.settings.manageCategories}
           />
           <SettingsRow
             Icon={BellIcon}
-            label="Notification Preferences"
+            label={COPY.settings.notificationPreferences}
             onPress={() => navigation.navigate('NotificationPreferences')}
             isLast
-            accessibilityLabel="Notification Preferences"
+            accessibilityLabel={COPY.settings.notificationPreferences}
           />
         </Section>
 
         {/* APPEARANCE */}
-        <Section title="APPEARANCE">
+        <Section title={COPY.settings.sectionAppearance}>
           <SettingsRow
             Icon={AppearanceIcon}
-            label="Dark mode"
-            isLast
+            label={COPY.settings.darkMode}
             trailing={
               <Switch
                 value={dark}
                 onValueChange={handleDarkToggle}
                 trackColor={{ false: palette.surface2, true: palette.accent }}
                 thumbColor={palette.bg}
-                accessibilityLabel="Dark mode toggle"
+                accessibilityLabel={COPY.settings.darkModeToggleA11y}
               />
             }
+          />
+          <SettingsRow
+            Icon={GlobeIcon}
+            label={COPY.settings.languageRowLabel}
+            sublabel={languageLabel(language)}
+            onPress={() => setLanguageSheetOpen(true)}
+            isLast
+            accessibilityLabel={COPY.settings.languageRowLabel}
           />
         </Section>
 
         {/* LOCATION & BATTERY */}
-        <Section title="LOCATION & BATTERY">
+        <Section title={COPY.settings.sectionLocationBattery}>
           <SettingsRow
             Icon={HomeIcon}
             label={COPY.home.settingsRowLabel}
@@ -360,7 +470,7 @@ export default function SettingsScreen() {
           />
           <SettingsRow
             Icon={BatteryIcon}
-            label="Pause nearby alerts on low battery"
+            label={COPY.settings.pauseLowBattery}
             isLast
             trailing={
               <Switch
@@ -368,17 +478,18 @@ export default function SettingsScreen() {
                 onValueChange={handleLowBatteryToggle}
                 trackColor={{ false: palette.surface2, true: palette.accent }}
                 thumbColor={palette.bg}
-                accessibilityLabel="Pause nearby alerts on low battery toggle"
+                accessibilityLabel={COPY.settings.pauseLowBatteryToggleA11y}
               />
             }
           />
         </Section>
 
         {/* IMPORT TASKS */}
-        <Section title="IMPORT TASKS">
+        <Section title={COPY.settings.sectionImportTasks}>
           {importSources.map((src, idx) => (
             <ImportRow
               key={src.key}
+              label={importLabels[src.key]}
               source={src}
               uid={uid}
               isLast={idx === importSources.length - 1}
@@ -387,24 +498,31 @@ export default function SettingsScreen() {
         </Section>
 
         {/* ACCOUNT */}
-        <Section title="ACCOUNT">
+        <Section title={COPY.settings.sectionAccount}>
           <SettingsRow
             Icon={LogOutIcon}
-            label="Sign out"
+            label={COPY.settings.signOutConfirmAction}
             onPress={handleSignOut}
             danger
             isLast
-            accessibilityLabel="Sign out"
+            accessibilityLabel={COPY.settings.signOutConfirmAction}
           />
         </Section>
 
         <Text style={[s.footer, { color: palette.faint }]}>
-          Brush Away · v{APP_VERSION}
+          {COPY.settings.footerVersion(APP_VERSION)}
         </Text>
         <Text style={[s.footer, { color: palette.faint }]}>
-          Place data © OpenStreetMap contributors (ODbL)
+          {COPY.settings.footerAttribution}
         </Text>
       </ScrollView>
+
+      <LanguagePickerSheet
+        visible={languageSheetOpen}
+        current={language}
+        onSelect={handleLanguageSelect}
+        onClose={() => setLanguageSheetOpen(false)}
+      />
     </View>
   );
 }
@@ -435,8 +553,12 @@ const s = StyleSheet.create({
   },
 
   scroll: {
+    flexGrow:   1,
     paddingTop: 20,
     gap:        16,
+  },
+  scrollView: {
+    flex: 1,
   },
 
   sectionWrapper: {
@@ -477,15 +599,20 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   rowLabel: {
-    flex:       1,     // expands in ImportRow (no rowLabelGroup wrapper)
     fontSize:   15,
     fontWeight: '400',
     fontFamily: 'Geist-Regular',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
+  },
+  rowLabelStandalone: {
+    flex: 1,
   },
   rowSublabel: {
     fontSize:   12,
     fontFamily: 'Geist-Regular',
     lineHeight: 16,
+    includeFontPadding: false,
   },
   trailingSlot: {
     alignItems:     'center',
@@ -511,5 +638,37 @@ const s = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     textAlign:  'center',
     marginTop:  8,
+  },
+
+  sheetWrap: {
+    position:          'absolute',
+    left:              0,
+    right:             0,
+    bottom:            0,
+    paddingHorizontal: spacing.page,
+    gap:               8,
+  },
+  sheetCard: {
+    borderRadius: radius.card,
+    overflow:     'hidden',
+  },
+  sheetTitle: {
+    fontSize:          12,
+    fontWeight:        '500',
+    fontFamily:        'Geist-Medium',
+    letterSpacing:     0.5,
+    paddingHorizontal: 16,
+    paddingTop:        14,
+    paddingBottom:     8,
+  },
+  sheetCancel: {
+    borderRadius:   radius.card,
+    paddingVertical: 14,
+    alignItems:     'center',
+  },
+  sheetCancelLabel: {
+    fontSize:   15,
+    fontWeight: '600',
+    fontFamily: 'Geist-SemiBold',
   },
 });

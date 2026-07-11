@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,6 +27,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { ChevronLeftIcon, HomeIcon } from '../components/AppIcon';
 import { useHomeAddress } from '../hooks/useHomeAddress';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -66,13 +66,13 @@ export default function HomeAddressScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: palette.line }]}>
         <Pressable
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.home.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: palette.text }]}>{COPY.home.screenTitle}</Text>
@@ -80,11 +80,12 @@ export default function HomeAddressScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled">
 
         {loading ? (
-          <ActivityIndicator color={palette.muted} accessibilityLabel="Loading home address" />
+          <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.home.loadingA11y} />
         ) : showSearch ? (
           <View style={styles.searchSection}>
             <View style={[styles.searchWrap, { backgroundColor: palette.surface, borderColor: palette.line }]}>
@@ -123,12 +124,12 @@ export default function HomeAddressScreen() {
               </View>
             )}
 
-            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel="Saving" />}
+            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.home.savingA11y} />}
             {!!error && <Text style={[styles.errorText, { color: palette.nearText }]}>{error}</Text>}
 
             {home && (
               <Pressable onPress={() => setSearching(false)} accessibilityRole="button">
-                <Text style={[styles.cancelLink, { color: palette.muted }]}>Cancel</Text>
+                <Text style={[styles.cancelLink, { color: palette.muted }]}>{COPY.home.cancel}</Text>
               </Pressable>
             )}
           </View>
@@ -158,7 +159,7 @@ export default function HomeAddressScreen() {
               </Pressable>
             </View>
 
-            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel="Saving" />}
+            {saving && <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.home.savingA11y} />}
             {!!error && <Text style={[styles.errorText, { color: palette.nearText }]}>{error}</Text>}
           </View>
         )}
@@ -171,6 +172,7 @@ export default function HomeAddressScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   header: {
     flexDirection:     'row',
     alignItems:        'center',
@@ -186,6 +188,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: 'Geist-SemiBold', fontWeight: '600' },
 
   content: {
+    flexGrow:          1,
     paddingTop:        24,
     paddingHorizontal: spacing.page,
     gap:               20,

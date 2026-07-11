@@ -17,8 +17,8 @@
  */
 
 import { Linking, Platform } from 'react-native';
-import { GOOGLE_PLACES_API_KEY } from '../config/keys';
-import { Category, PoiType, POI_GOOGLE_TYPES } from '../types';
+import { GOOGLE_PLACES_API_KEY, GOOGLE_MAPS_STATIC_ANDROID_API_KEY, GOOGLE_MAPS_STATIC_IOS_API_KEY } from '../config/keys';
+import { Category, PoiType, POI_GOOGLE_TYPES, poiCatalogLabel } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -249,6 +249,17 @@ const GENERIC_PLACE_TYPES = new Set([
 ]);
 
 /**
+ * True for a generic Google Places type that conveys no useful information to
+ * a user (see GENERIC_PLACE_TYPES above). Exported so other callers building
+ * their own type list — e.g. poiTypeCache.ts's seed step — apply the exact
+ * same exclusion policy as searchPlaceTypes' live results, instead of a
+ * separately-maintained copy that can drift out of sync.
+ */
+export function isGenericPlaceType(type: string): boolean {
+  return GENERIC_PLACE_TYPES.has(type);
+}
+
+/**
  * Human-readable labels for common Google Places primary types.
  * Covers the full taxonomy that users are likely to search for as
  * category location types.
@@ -350,6 +361,7 @@ export const PLACE_TYPE_LABELS: Record<string, string> = {
  */
 export function placeTypeLabel(type: string): string {
   return (
+    poiCatalogLabel(type as PoiType) ??
     PLACE_TYPE_LABELS[type] ??
     type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
   );
@@ -636,6 +648,12 @@ export const CIRCLE_FRACTION_OF_HALF_DIM = 0.4;
  * polygon param to draw the circle itself (avoids query-length limits and
  * true-circle-from-lat/lng-offsets math) — the image is just the backdrop.
  *
+ * Uses GOOGLE_MAPS_STATIC_ANDROID_API_KEY / GOOGLE_MAPS_STATIC_IOS_API_KEY —
+ * NOT the shared GOOGLE_PLACES_API_KEY. This request goes out through
+ * <Image>, a real app request an Android/iOS-app-restricted key can verify
+ * (unlike the plain fetch() REST calls elsewhere in this file, which need an
+ * app-unrestricted key since fetch carries no app signature).
+ *
  * Zoom is derived from the standard Web Mercator meters-per-pixel formula:
  *   metersPerPixel = 156543.03392 * cos(lat) / 2^zoom
  * solved for the zoom that makes the desired radius match
@@ -662,7 +680,7 @@ export function buildStaticMapPreviewUrl(
     zoom:    String(clampedZoom),
     size:    `${Math.round(width)}x${Math.round(height)}`,
     maptype: 'roadmap',
-    key:     GOOGLE_PLACES_API_KEY,
+    key:     Platform.OS === 'ios' ? GOOGLE_MAPS_STATIC_IOS_API_KEY : GOOGLE_MAPS_STATIC_ANDROID_API_KEY,
   });
   return `${STATIC_MAP_URL}?${params.toString()}`;
 }

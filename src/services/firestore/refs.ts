@@ -80,6 +80,11 @@ export function learnedKeywordsRef(uid: string) {
   return collection(getFirestore(), 'users', uid, 'learnedPoiKeywords');
 }
 
+/** users/{uid}/poiInferenceMisses/{id} — low-confidence POI parse phrases for dictionary review. */
+export function poiInferenceMissesRef(uid: string) {
+  return collection(getFirestore(), 'users', uid, 'poiInferenceMisses');
+}
+
 /** users/{uid}/learnedPlaceCounts/{placeId} — per-place visit tally (KAN-240). */
 export function learnedPlaceCountsRef(uid: string) {
   return collection(getFirestore(), 'users', uid, 'learnedPlaceCounts');

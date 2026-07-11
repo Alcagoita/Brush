@@ -55,6 +55,7 @@ import {
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { UserPreferences, DEFAULT_USER_PREFERENCES } from '../types';
 import { isThisWeek, toDateSafe, todayISO } from '../utils/date';
+import { COPY } from '../constants/copy';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -145,11 +146,11 @@ function TimePickerRow({ selectedTime, onSelect, isLast = false }: TimePickerRow
         style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
         onPress={() => setExpanded(v => !v)}
         accessibilityRole="button"
-        accessibilityLabel={`Reminder time: ${formatTime(selectedTime)}`}>
+        accessibilityLabel={COPY.notificationPreferences.reminderTimeA11y(formatTime(selectedTime))}>
         <View style={[s.iconTile, { backgroundColor: palette.surface2 }]}>
           <ClockIcon color={palette.muted} size={19} />
         </View>
-        <Text style={[s.rowLabel, { color: palette.text }]}>Reminder time</Text>
+        <Text style={[s.rowLabel, { color: palette.text }]}>{COPY.notificationPreferences.reminderTimeLabel}</Text>
         <Text style={[s.timeValue, { color: palette.muted }]}>
           {formatTime(selectedTime)}
         </Text>
@@ -352,7 +353,7 @@ export default function NotificationPreferencesScreen() {
   if (loading) {
     return (
       <View style={[s.loadingContainer, { backgroundColor: palette.bg }]}>
-        <ActivityIndicator color={palette.muted} accessibilityLabel="Loading preferences" />
+        <ActivityIndicator color={palette.muted} accessibilityLabel={COPY.notificationPreferences.loadingA11y} />
       </View>
     );
   }
@@ -365,10 +366,10 @@ export default function NotificationPreferencesScreen() {
           style={({ pressed }) => [s.backBtn, pressed && { opacity: 0.6 }]}
           onPress={() => navigation.goBack()}
           accessibilityRole="button"
-          accessibilityLabel="Back">
+          accessibilityLabel={COPY.notificationPreferences.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
-        <Text style={[s.headerTitle, { color: palette.text }]}>Notifications</Text>
+        <Text style={[s.headerTitle, { color: palette.text }]}>{COPY.notificationPreferences.screenTitle}</Text>
         <View style={s.backBtn} />
       </View>
 
@@ -377,11 +378,11 @@ export default function NotificationPreferencesScreen() {
         showsVerticalScrollIndicator={false}>
 
         {/* DAILY */}
-        <Section title="DAILY">
+        <Section title={COPY.notificationPreferences.sectionDaily}>
           <PrefRow
             Icon={BellIcon}
-            label="End-of-day check-in"
-            sublabel="Reminds you of any unfinished location tasks."
+            label={COPY.notificationPreferences.eodLabel}
+            sublabel={COPY.notificationPreferences.eodSublabel}
             value={eodEnabled}
             onToggle={handleEodToggle}
           />
@@ -393,11 +394,11 @@ export default function NotificationPreferencesScreen() {
         </Section>
 
         {/* STREAKS */}
-        <Section title="STREAKS">
+        <Section title={COPY.notificationPreferences.sectionStreaks}>
           <PrefRow
             Icon={BellIcon}
-            label="Streak at risk"
-            sublabel="Alerts you at 8 PM when your streak is at risk."
+            label={COPY.notificationPreferences.streakLabel}
+            sublabel={COPY.notificationPreferences.streakSublabel}
             value={streakOn}
             onToggle={handleStreakToggle}
             isLast
@@ -405,11 +406,11 @@ export default function NotificationPreferencesScreen() {
         </Section>
 
         {/* SUMMARY */}
-        <Section title="SUMMARY">
+        <Section title={COPY.notificationPreferences.sectionSummary}>
           <PrefRow
             Icon={CalendarIcon}
-            label="Weekly recap"
-            sublabel="Sunday evening summary of your week."
+            label={COPY.notificationPreferences.weeklyLabel}
+            sublabel={COPY.notificationPreferences.weeklySublabel}
             value={weeklyOn}
             onToggle={handleWeeklyToggle}
             isLast
@@ -417,11 +418,11 @@ export default function NotificationPreferencesScreen() {
         </Section>
 
         {/* ENGAGEMENT */}
-        <Section title="ENGAGEMENT">
+        <Section title={COPY.notificationPreferences.sectionEngagement}>
           <PrefRow
             Icon={BellIcon}
-            label="Re-engagement reminders"
-            sublabel="A nudge after 3 days away from the app."
+            label={COPY.notificationPreferences.reengageLabel}
+            sublabel={COPY.notificationPreferences.reengageSublabel}
             value={reengageOn}
             onToggle={handleReengageToggle}
             isLast
@@ -429,11 +430,11 @@ export default function NotificationPreferencesScreen() {
         </Section>
 
         {/* LOCATION */}
-        <Section title="LOCATION">
+        <Section title={COPY.notificationPreferences.sectionLocation}>
           <PrefRow
             Icon={BellIcon}
-            label="Exit prompt"
-            sublabel="Asks if you completed a task after leaving a tagged location."
+            label={COPY.notificationPreferences.exitPromptLabel}
+            sublabel={COPY.notificationPreferences.exitPromptSublabel}
             value={exitPromptOn}
             onToggle={handleExitPromptToggle}
             isLast
@@ -441,11 +442,11 @@ export default function NotificationPreferencesScreen() {
         </Section>
 
         {/* ACHIEVEMENTS */}
-        <Section title="ACHIEVEMENTS">
+        <Section title={COPY.notificationPreferences.sectionAchievements}>
           <PrefRow
             Icon={BellIcon}
-            label="Achievement nudges"
-            sublabel="Notifies you when you're 1 step away from unlocking a badge."
+            label={COPY.notificationPreferences.achievementNudgesLabel}
+            sublabel={COPY.notificationPreferences.achievementNudgesSublabel}
             value={achievementNudgesOn}
             onToggle={handleAchievementNudgesToggle}
             isLast

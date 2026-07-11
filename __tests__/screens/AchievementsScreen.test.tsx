@@ -11,6 +11,7 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react-native';
 import type { AchievementsMap } from '../../src/types';
+import { setCopyLanguage } from '../../src/constants/copy';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,11 @@ async function renderScreen() {
 beforeEach(() => {
   jest.clearAllMocks();
   setupDefaultMocks();
+  setCopyLanguage('en');
+});
+
+afterEach(() => {
+  setCopyLanguage('en');
 });
 
 // ─── Basic render ─────────────────────────────────────────────────────────────
@@ -283,5 +289,32 @@ describe('AchievementsScreen — KAN-150: anti-guilt design', () => {
     await renderScreen();
     // progress fraction rendered as "3" + "/" + "3" in two sibling Text nodes
     expect(screen.getAllByText('3').length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe('AchievementsScreen — pt-PT localization', () => {
+  beforeEach(() => {
+    setCopyLanguage('pt-PT');
+  });
+
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it('keeps Brush in English and localizes the tier copy', async () => {
+    mockGetUserPointsSummary.mockResolvedValue({
+      totalPoints: 10,
+      currentStreak: 0,
+      achievements: {
+        first_brush: { earnCount: 1, progress: 1, target: 1, earnedAt: null },
+      },
+    });
+
+    await renderScreen();
+
+    expect(screen.getByText(/Estanho/)).toBeTruthy();
+    expect(screen.getByText(/Bronze está perto/)).toBeTruthy();
+    expect(screen.getByText(/DESBLOQUEADAS · 1/)).toBeTruthy();
+    expect(screen.getByText('Primeira Brush')).toBeTruthy();
   });
 });

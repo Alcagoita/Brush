@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, ScrollView, StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -60,7 +60,9 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 const mockSetDark = jest.fn();
+const mockSetLanguage = jest.fn();
 let mockDark = false;
+let mockLanguage: 'en' | 'pt-PT' = 'en';
 jest.mock('../../src/theme', () => ({
   useTheme: () => ({
     palette: {
@@ -73,8 +75,10 @@ jest.mock('../../src/theme', () => ({
       line:     'rgba(20,20,18,0.08)',
       accent:   '#e8a86a',
     },
-    dark:    mockDark,
-    setDark: mockSetDark,
+    dark:        mockDark,
+    setDark:     mockSetDark,
+    language:    mockLanguage,
+    setLanguage: mockSetLanguage,
   }),
 }));
 
@@ -93,8 +97,10 @@ jest.mock('../../src/components/AppIcon', () => ({
   BatteryIcon:      () => null,
   BellIcon:         () => null,
   CalendarIcon:     () => null,
+  CheckIcon:        () => null,
   ChevronLeftIcon:  () => null,
   ChevronRightIcon: () => null,
+  GlobeIcon:        () => null,
   GridIcon:         () => null,
   HomeIcon:         () => null,
   ListCheckIcon:    () => null,
@@ -161,6 +167,15 @@ describe('SettingsScreen — KAN-113: rendering', () => {
     await renderScreen();
     expect(screen.getByText(/Brush Away · v/)).toBeTruthy();
   });
+
+  it('keeps the scroll view keyboard-safe and full-height', async () => {
+    const rendered = await renderScreen();
+    const scrollView = rendered.UNSAFE_getByType(ScrollView);
+    const contentStyle = StyleSheet.flatten(scrollView.props.contentContainerStyle);
+
+    expect(scrollView.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(contentStyle.flexGrow).toBe(1);
+  });
 });
 
 // ─── TASKS section ────────────────────────────────────────────────────────────
@@ -171,6 +186,14 @@ describe('SettingsScreen — KAN-113: TASKS section', () => {
   it('renders Manage Categories row', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Manage Categories')).toBeTruthy();
+  });
+
+  it('renders row labels without extra font padding', async () => {
+    await renderScreen();
+    const style = StyleSheet.flatten(screen.getByText('Manage Categories').props.style);
+
+    expect(style.includeFontPadding).toBe(false);
+    expect(style.textAlignVertical).toBe('center');
   });
 
   it('navigates to Categories when Manage Categories is pressed', async () => {
@@ -206,6 +229,18 @@ describe('SettingsScreen — KAN-113: APPEARANCE section', () => {
     const toggle = screen.getByLabelText('Dark mode toggle');
     fireEvent(toggle, 'valueChange', true);
     expect(mockSetDark).toHaveBeenCalledWith(true);
+  });
+});
+
+// ─── LANGUAGE sheet ───────────────────────────────────────────────────────────
+
+describe('SettingsScreen — KAN-252: language picker sheet', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('wraps language options in a radiogroup', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Language'));
+    expect(screen.UNSAFE_getByProps({ accessibilityRole: 'radiogroup' })).toBeTruthy();
   });
 });
 

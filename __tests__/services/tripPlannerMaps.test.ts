@@ -20,7 +20,13 @@ global.fetch = mockFetch as unknown as typeof fetch;
 
 jest.mock('../../src/config/keys', () => ({
   GOOGLE_PLACES_API_KEY: 'TEST_KEY',
+  GOOGLE_MAPS_STATIC_ANDROID_API_KEY: 'TEST_ANDROID_KEY',
+  GOOGLE_MAPS_STATIC_IOS_API_KEY: 'TEST_IOS_KEY',
 }));
+
+// buildStaticMapPreviewUrl picks its key by platform (see maps.ts) — pin to
+// android so the test isn't coupled to the RN jest preset's default OS.
+jest.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
 beforeEach(() => {
   mockFetch.mockReset();
@@ -87,7 +93,18 @@ describe('buildStaticMapPreviewUrl', () => {
     expect(parsed.origin + parsed.pathname).toBe('https://maps.googleapis.com/maps/api/staticmap');
     expect(parsed.searchParams.get('center')).toBe('37.0179,-7.9304');
     expect(parsed.searchParams.get('size')).toBe('300x200');
-    expect(parsed.searchParams.get('key')).toBe('TEST_KEY');
+    expect(parsed.searchParams.get('key')).toBe('TEST_ANDROID_KEY');
+  });
+
+  it('uses the iOS-restricted key on iOS instead of the Android one', () => {
+    const RN = require('react-native');
+    RN.Platform.OS = 'ios';
+    try {
+      const url = new URL(buildStaticMapPreviewUrl(37.0179, -7.9304, 5_000, 300, 200));
+      expect(url.searchParams.get('key')).toBe('TEST_IOS_KEY');
+    } finally {
+      RN.Platform.OS = 'android';
+    }
   });
 
   it('produces a smaller zoom for a larger radius (zooms out to fit a bigger circle)', () => {
