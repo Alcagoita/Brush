@@ -265,6 +265,7 @@ export default function TaskFormScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
           styles.scrollContent,
           { paddingBottom: insets.bottom + 120 },

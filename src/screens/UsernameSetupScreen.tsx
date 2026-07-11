@@ -107,6 +107,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
       style={[styles.root, { backgroundColor: palette.bg }]}
       behavior={getScreenKeyboardAvoidingBehavior()}>
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 28 },
@@ -183,6 +184,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   content: {
     flexGrow:          1,
     paddingHorizontal: spacing.page,

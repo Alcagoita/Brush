@@ -443,6 +443,7 @@ export default function LoginScreen() {
       style={[styles.root, { backgroundColor: palette.bg }]}
       behavior={getScreenKeyboardAvoidingBehavior()}>
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
           styles.scrollContent,
           {
@@ -603,6 +604,9 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  scrollView: {
     flex: 1,
   },
   scrollContent: {

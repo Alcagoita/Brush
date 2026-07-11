@@ -119,6 +119,7 @@ export default function TripPlannerScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
         keyboardShouldPersistTaps="handled">
 
@@ -303,6 +304,7 @@ export default function TripPlannerScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.page, paddingVertical: 12,
@@ -317,7 +319,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
 
-  content: { paddingHorizontal: spacing.page, paddingTop: 16, gap: 16 },
+  content: { flexGrow: 1, paddingHorizontal: spacing.page, paddingTop: 16, gap: 16 },
 
   // Destination
   destinationSection: { gap: 10 },

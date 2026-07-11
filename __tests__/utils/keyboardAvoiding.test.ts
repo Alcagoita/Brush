@@ -5,7 +5,7 @@ describe('getScreenKeyboardAvoidingBehavior', () => {
     expect(getScreenKeyboardAvoidingBehavior('ios')).toBe('padding');
   });
 
-  it('disables explicit keyboard avoiding behavior on Android', () => {
-    expect(getScreenKeyboardAvoidingBehavior('android')).toBeUndefined();
+  it('uses height on Android', () => {
+    expect(getScreenKeyboardAvoidingBehavior('android')).toBe('height');
   });
 });

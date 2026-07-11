@@ -81,6 +81,7 @@ export default function HomeAddressScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled">
 
@@ -172,6 +173,7 @@ export default function HomeAddressScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   header: {
     flexDirection:     'row',
     alignItems:        'center',
@@ -187,6 +189,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: 'Geist-SemiBold', fontWeight: '600' },
 
   content: {
+    flexGrow:          1,
     paddingTop:        24,
     paddingHorizontal: spacing.page,
     gap:               20,

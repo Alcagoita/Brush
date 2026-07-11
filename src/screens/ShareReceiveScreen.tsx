@@ -287,6 +287,7 @@ export default function ShareReceiveScreen() {
       {/* ── Confirmation + Failure (share form) ── */}
       {screenState.kind !== 'loading' && (
         <ScrollView
+          style={[styles.scrollView, { backgroundColor: palette.bg }]}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + 32 },
@@ -526,6 +527,7 @@ export default function ShareReceiveScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
 
   // ── Nav bar ──
   navBar: {
@@ -574,6 +576,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ──
   scrollContent: {
+    flexGrow:          1,
     paddingHorizontal: spacing.page,
     paddingTop:        8,
   },
