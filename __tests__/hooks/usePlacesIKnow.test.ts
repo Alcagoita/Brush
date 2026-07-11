@@ -64,6 +64,10 @@ beforeEach(() => {
   mockGetAuth.mockReturnValue({ currentUser: { uid: 'test-uid' } });
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('refresh (initial load)', () => {
   it('fetches trips + habitat size, then stops loading', async () => {
     mockGetTrips.mockResolvedValue([makeTrip()]);
@@ -76,6 +80,18 @@ describe('refresh (initial load)', () => {
 
     expect(result.current.trips).toHaveLength(1);
     expect(result.current.habitatSizeBytes).toBe(50_000);
+  });
+
+  it('excludes expired trips from the list (data already purged elsewhere — nothing left to refresh/delete)', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-10'));
+    const active  = makeTrip({ id: 'trip-active',  expiresAt: new Date('2026-08-01').getTime() });
+    const expired = makeTrip({ id: 'trip-expired', expiresAt: new Date('2026-07-01').getTime() });
+    mockGetTrips.mockResolvedValue([active, expired]);
+
+    const { result } = renderHook(() => usePlacesIKnow());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.trips.map(t => t.id)).toEqual(['trip-active']);
   });
 
   it('degrades safely (empty state, loading false) when the fetch fails', async () => {

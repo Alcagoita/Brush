@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -28,6 +27,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { ChevronLeftIcon, HomeIcon } from '../components/AppIcon';
 import { useHomeAddress } from '../hooks/useHomeAddress';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -66,7 +66,7 @@ export default function HomeAddressScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={[styles.header, { paddingTop: insets.top + 12, borderBottomColor: palette.line }]}>
         <Pressable
           style={({ pressed }) => [styles.backBtn, pressed && { opacity: 0.6 }]}
@@ -80,6 +80,7 @@ export default function HomeAddressScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled">
 
@@ -171,6 +172,7 @@ export default function HomeAddressScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   header: {
     flexDirection:     'row',
     alignItems:        'center',
@@ -186,6 +188,7 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 17, fontFamily: 'Geist-SemiBold', fontWeight: '600' },
 
   content: {
+    flexGrow:          1,
     paddingTop:        24,
     paddingHorizontal: spacing.page,
     gap:               20,

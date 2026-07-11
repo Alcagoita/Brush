@@ -24,7 +24,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -38,6 +37,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius, categories as builtInMeta } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import {
   placeTypeLabel,
   PlaceTypeSuggestion,
@@ -267,7 +267,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       onRequestClose={onCancel}>
       <Pressable style={styles.scrim} onPress={onCancel} />
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={getScreenKeyboardAvoidingBehavior()}
         style={styles.sheetOuter}>
         <View
           style={[

@@ -17,7 +17,7 @@
  */
 
 import { Linking, Platform } from 'react-native';
-import { GOOGLE_PLACES_API_KEY } from '../config/keys';
+import { GOOGLE_PLACES_API_KEY, GOOGLE_MAPS_STATIC_ANDROID_API_KEY, GOOGLE_MAPS_STATIC_IOS_API_KEY } from '../config/keys';
 import { Category, PoiType, POI_GOOGLE_TYPES, poiCatalogLabel } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -648,6 +648,12 @@ export const CIRCLE_FRACTION_OF_HALF_DIM = 0.4;
  * polygon param to draw the circle itself (avoids query-length limits and
  * true-circle-from-lat/lng-offsets math) — the image is just the backdrop.
  *
+ * Uses GOOGLE_MAPS_STATIC_ANDROID_API_KEY / GOOGLE_MAPS_STATIC_IOS_API_KEY —
+ * NOT the shared GOOGLE_PLACES_API_KEY. This request goes out through
+ * <Image>, a real app request an Android/iOS-app-restricted key can verify
+ * (unlike the plain fetch() REST calls elsewhere in this file, which need an
+ * app-unrestricted key since fetch carries no app signature).
+ *
  * Zoom is derived from the standard Web Mercator meters-per-pixel formula:
  *   metersPerPixel = 156543.03392 * cos(lat) / 2^zoom
  * solved for the zoom that makes the desired radius match
@@ -674,7 +680,7 @@ export function buildStaticMapPreviewUrl(
     zoom:    String(clampedZoom),
     size:    `${Math.round(width)}x${Math.round(height)}`,
     maptype: 'roadmap',
-    key:     GOOGLE_PLACES_API_KEY,
+    key:     Platform.OS === 'ios' ? GOOGLE_MAPS_STATIC_IOS_API_KEY : GOOGLE_MAPS_STATIC_ANDROID_API_KEY,
   });
   return `${STATIC_MAP_URL}?${params.toString()}`;
 }

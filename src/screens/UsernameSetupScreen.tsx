@@ -14,7 +14,6 @@ import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,6 +25,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import {
   checkUsernameAvailable,
   claimUsername,
@@ -104,8 +104,9 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 28 },
@@ -182,6 +183,7 @@ export default function UsernameSetupScreen({ onComplete }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   content: {
     flexGrow:          1,
     paddingHorizontal: spacing.page,

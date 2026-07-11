@@ -29,6 +29,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import { useTripPlanner, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT } from '../hooks/useTripPlanner';
@@ -91,7 +92,7 @@ export default function TripPlannerScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={{ paddingTop: insets.top }}>
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
           <Pressable
@@ -118,6 +119,7 @@ export default function TripPlannerScreen() {
       </View>
 
       <ScrollView
+        style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 120 }]}
         keyboardShouldPersistTaps="handled">
 
@@ -302,6 +304,7 @@ export default function TripPlannerScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
   topBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: spacing.page, paddingVertical: 12,
@@ -316,7 +319,7 @@ const styles = StyleSheet.create({
   },
   dot: { width: 8, height: 8, borderRadius: 4 },
 
-  content: { paddingHorizontal: spacing.page, paddingTop: 16, gap: 16 },
+  content: { flexGrow: 1, paddingHorizontal: spacing.page, paddingTop: 16, gap: 16 },
 
   // Destination
   destinationSection: { gap: 10 },

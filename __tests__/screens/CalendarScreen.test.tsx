@@ -136,6 +136,13 @@ describe('CalendarScreen', () => {
     expect(screen.getByLabelText('Jump to today')).toBeTruthy();
   });
 
+  it('back button always returns to Today, not whatever screen pushed Calendar', async () => {
+    await renderScreen();
+    await act(async () => { fireEvent.press(screen.getByLabelText('Back')); });
+    expect(mockNavigate).toHaveBeenCalledWith('Today');
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
+
   it('renders previous and next month navigation buttons', async () => {
     await renderScreen();
     expect(screen.getByLabelText('Previous month')).toBeTruthy();
@@ -261,6 +268,11 @@ describe('CalendarScreen', () => {
     function cellHasTripBand(cellInstance: any): boolean {
       return cellInstance.findAllByType(View).some((v: any) => flattenStyle(v.props.style)?.backgroundColor === '#e8c9a0');
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function tripBandOpacity(cellInstance: any): number | undefined {
+      const band = cellInstance.findAllByType(View).find((v: any) => flattenStyle(v.props.style)?.backgroundColor === '#e8c9a0');
+      return flattenStyle(band.props.style)?.opacity as number | undefined;
+    }
     const trip = {
       id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
       startDate: '2026-06-10', endDate: '2026-06-20', areaRadius: 15_000,
@@ -280,6 +292,16 @@ describe('CalendarScreen', () => {
       const outOfRangeCell = screen.getByLabelText('25');
       expect(cellHasTripBand(inRangeCell)).toBe(true);
       expect(cellHasTripBand(outOfRangeCell)).toBe(false);
+    });
+
+    it('renders the band faded once the trip has expired, solid while still active', async () => {
+      mockGetTrips.mockResolvedValue([trip]); // expiresAt: 0 — already expired
+      await renderScreen();
+      expect(tripBandOpacity(screen.getByLabelText(/^16, today/))).toBe(0.35);
+
+      mockGetTrips.mockResolvedValue([{ ...trip, expiresAt: new Date('2026-12-01').getTime() }]);
+      await renderScreen();
+      expect(tripBandOpacity(screen.getByLabelText(/^16, today/))).toBeUndefined();
     });
 
     it('does not mark any day when the trip has no dates', async () => {
@@ -347,7 +369,7 @@ describe('CalendarScreen', () => {
     const coveredTrip = {
       id: 'trip-2', destination: 'Faro', placeRef: 'p2', centerLat: 1, centerLng: 2,
       startDate: '2026-06-24', endDate: '2026-06-27', areaRadius: 15_000,
-      cacheAreaId: 'ta_2', expiresAt: 0, createdAt: fakeTimestamp('2026-06-01'),
+      cacheAreaId: 'ta_2', expiresAt: new Date('2026-07-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
     };
 
     it('shows "Places I know: {destination}" instead of "Going somewhere?" for a day inside an existing trip', async () => {
@@ -391,6 +413,29 @@ describe('CalendarScreen', () => {
       await renderScreen();
 
       expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
+    });
+
+    it('shows "Places I used to know: {destination}" once the trip\'s data has expired (doc kept, cache purged elsewhere)', async () => {
+      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByLabelText('Places I used to know — Faro')).toBeTruthy();
+      expect(screen.getByText('Places I used to know: Faro')).toBeTruthy();
+      expect(screen.queryByText('Places I know: Faro')).toBeNull();
+    });
+
+    it('still navigates to PlacesIKnow when the expired-trip row is tapped', async () => {
+      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Places I used to know — Faro'));
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
     });
 
     it('picks the latest-starting trip deterministically when trips overlap a day', async () => {

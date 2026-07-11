@@ -32,6 +32,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories as builtInCategories, radius, spacing } from '../theme/tokens';
+import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { addTask } from '../services/firestore';
 import { parseMessageToTask } from '../services/functions';
 import { getCurrentUser } from '../services/auth';
@@ -243,7 +244,7 @@ export default function ShareReceiveScreen() {
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      behavior={getScreenKeyboardAvoidingBehavior()}>
 
       {/* ── Nav bar ── */}
       <View style={[
@@ -286,6 +287,7 @@ export default function ShareReceiveScreen() {
       {/* ── Confirmation + Failure (share form) ── */}
       {screenState.kind !== 'loading' && (
         <ScrollView
+          style={[styles.scrollView, { backgroundColor: palette.bg }]}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingBottom: insets.bottom + 32 },
@@ -525,6 +527,7 @@ export default function ShareReceiveScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  scrollView: { flex: 1 },
 
   // ── Nav bar ──
   navBar: {
@@ -573,6 +576,7 @@ const styles = StyleSheet.create({
 
   // ── Scroll ──
   scrollContent: {
+    flexGrow:          1,
     paddingHorizontal: spacing.page,
     paddingTop:        8,
   },

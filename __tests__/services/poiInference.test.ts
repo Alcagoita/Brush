@@ -86,6 +86,10 @@ describe('inferPoiFromRules (en)', () => {
     expect(inferPoiFromRules('pick up prescription')).toBe('pharmacy');
   });
 
+  it('maps book-buying phrasing to store instead of library', () => {
+    expect(inferPoiFromRules('buy a book')).toBe('store');
+  });
+
   it('is case-insensitive', () => {
     expect(inferPoiFromRules('BUY MILK')).toBe('supermarket');
   });
@@ -112,6 +116,10 @@ describe('inferPoiFromRules (pt-PT)', () => {
 
   it('maps a farmácia task to pharmacy', () => {
     expect(inferPoiFromRules('ir à farmácia', 'pt-PT')).toBe('pharmacy');
+  });
+
+  it('maps book-buying phrasing to store instead of library', () => {
+    expect(inferPoiFromRules('comprar um livro', 'pt-PT')).toBe('store');
   });
 
   it('matches accent-folded input (cafe without accent)', () => {

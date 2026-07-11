@@ -270,14 +270,16 @@ interface DayCellProps {
   total:       number;
   isComplete:  boolean;
   chainsBack:  boolean;
-  /** Day falls within an active Trip's date range (KAN-234) — purely decorative, never affects ring/streak math. */
+  /** Day falls within a Trip's date range (KAN-234) — purely decorative, never affects ring/streak math. */
   inTripRange: boolean;
+  /** That trip's data has since expired (KAN-256) — band renders faded instead of solid, same "used to know" distinction as the entry row. */
+  tripExpired: boolean;
   achievement: { icon: AchievementIconKey; label: string } | undefined;
   onPress:     () => void;
 }
 
 function DayCell({
-  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, inTripRange, achievement, onPress,
+  day, isToday, isSelected, isFuture, done, total, isComplete, chainsBack, inTripRange, tripExpired, achievement, onPress,
 }: DayCellProps) {
   const { palette, dark } = useTheme();
 
@@ -309,11 +311,17 @@ function DayCell({
 
       {/* Trip range band — decorative only, never touches ring/streak state (KAN-234).
           dark.nearBorder is too dark/low-contrast against the dark bg — use
-          nearText's brighter amber instead in dark mode. */}
+          nearText's brighter amber instead in dark mode. Faded once the
+          trip's data has expired (KAN-256) — distinguishes past coverage
+          from a still-downloaded trip without hiding it outright. */}
       {inTripRange && (
         <View
           pointerEvents="none"
-          style={[styles.tripBand, { backgroundColor: dark ? palette.nearText : palette.nearBorder }]}
+          style={[
+            styles.tripBand,
+            { backgroundColor: dark ? palette.nearText : palette.nearBorder },
+            tripExpired && styles.tripBandExpired,
+          ]}
         />
       )}
 
@@ -500,13 +508,9 @@ export default function CalendarScreen() {
       .sort((a, b) => a.startDate.localeCompare(b.startDate)),
     [trips],
   );
-  const isInTripRange = useCallback(
-    (iso: string): boolean => datedTrips.some(t => iso >= t.startDate && iso <= t.endDate),
-    [datedTrips],
-  );
-  // Same range check as isInTripRange, but returns the actual Trip (KAN-250) —
-  // lets the entry row show which place is already known instead of
-  // prompting to plan the trip again. When trips overlap, the one with the
+  // Returns the actual Trip covering `iso` (KAN-250) — lets the entry row and
+  // the day grid's trip band both know which place is already known instead
+  // of prompting to plan the trip again. When trips overlap, the one with the
   // latest startDate wins (most specific/recent) — deterministic thanks to
   // datedTrips' sort above.
   const tripForDate = useCallback(
@@ -555,6 +559,11 @@ export default function CalendarScreen() {
   const selRun        = runLength(selectedDate);
   const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
   const selTrip       = tripForDate(selectedDate);
+  // A trip's Firestore doc outlives its downloaded data (SplashScreen only
+  // purges the on-device place cache on expiry, never the doc itself — see
+  // deleteExpiredTripPlaces) so the underline/entry row can still reference
+  // it here; the label just switches to past tense once expired.
+  const selTripExpired = !!selTrip && selTrip.expiresAt <= Date.now();
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -631,7 +640,7 @@ export default function CalendarScreen() {
       <View style={styles.topBar}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate('Today')}
           accessibilityRole="button"
           accessibilityLabel={COPY.calendar.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
@@ -702,7 +711,7 @@ export default function CalendarScreen() {
           const col        = i % 7;
           const chainsBack = isComplete && col > 0 && isDayComplete(isoAddDays(iso, -1));
           const ach        = achievementsByDay[day];
-          const inTrip     = isInTripRange(iso);
+          const cellTrip   = tripForDate(iso);
 
           return (
             <DayCell
@@ -715,7 +724,8 @@ export default function CalendarScreen() {
               total={stats.total}
               isComplete={isComplete}
               chainsBack={chainsBack}
-              inTripRange={inTrip}
+              inTripRange={!!cellTrip}
+              tripExpired={!!cellTrip && cellTrip.expiresAt <= Date.now()}
               achievement={ach}
               onPress={() => onDayPress(day)}
             />
@@ -733,9 +743,17 @@ export default function CalendarScreen() {
           style={[styles.tripEntryRow, { borderColor: palette.line }]}
           onPress={() => navigation.navigate('PlacesIKnow')}
           accessibilityRole="button"
-          accessibilityLabel={COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)}>
+          accessibilityLabel={
+            selTripExpired
+              ? COPY.tripPlanner.placesIKnowRowA11yExpired(selTrip.destination)
+              : COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)
+          }>
           <SuitcaseIcon color={palette.muted} size={16} />
-          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}</Text>
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+            {selTripExpired
+              ? COPY.tripPlanner.placesIKnowRowLabelExpired(selTrip.destination)
+              : COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}
+          </Text>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
         </Pressable>
       ) : (
@@ -1003,6 +1021,9 @@ const styles = StyleSheet.create({
     right:         6,
     height:        2,
     borderRadius:  1,
+  },
+  tripBandExpired: {
+    opacity: 0.35,
   },
 
   // ── "Going somewhere?" persistent entry (KAN-243) ──
