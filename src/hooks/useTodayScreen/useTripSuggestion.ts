@@ -13,7 +13,7 @@
  * best-effort signal in this app.
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { fetchCalendarEvents } from '../../services/calendar';
 import {
   detectCalendarSignal,
@@ -38,7 +38,14 @@ export function useTripSuggestion(
   const [suggestion, setSuggestion] = useState<CalendarSuggestion | null>(null);
 
   useEffect(() => {
-    if (isFirstSession) { return; }
+    if (isFirstSession) {
+      // useFirstSessionGate starts false and may resolve to true after this
+      // effect already ran once and fetched a candidate — clear it so a
+      // suggestion fetched during that initial false window never lingers
+      // once the session is identified as the first one.
+      setSuggestion(null);
+      return;
+    }
     let cancelled = false;
 
     fetchCalendarEvents(CALENDAR_SIGNAL_LOOKAHEAD_DAYS)
@@ -59,11 +66,11 @@ export function useTripSuggestion(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFirstSession]);
 
-  const dismiss = () => {
+  const dismiss = useCallback(() => {
     if (!suggestion) { return; }
     dismissSignal(suggestion.signalId);
     setSuggestion(null);
-  };
+  }, [suggestion]);
 
   return { suggestion, dismiss };
 }

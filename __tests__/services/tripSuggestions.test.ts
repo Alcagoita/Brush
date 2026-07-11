@@ -161,6 +161,29 @@ describe('detectCalendarSignal', () => {
     expect(result).toBeNull();
   });
 
+  it('does not fire when the location shares a meaningful word with a known area, even without matching the whole name', () => {
+    // Token match, not substring: "Faro Airport" shares "faro" with "Faro, Portugal".
+    const result = detectCalendarSignal(
+      [makeEvent({ location: 'Faro Airport' })],
+      KNOWN_AREAS,
+      new Set(),
+      NOW,
+    );
+    expect(result).toBeNull();
+  });
+
+  it('does not treat a short known-area token as matching an unrelated word containing it as a substring', () => {
+    // A known area named "NY" must not match "Tiffany's" just because "ny"
+    // is a substring of it — token matching requires a whole-word match.
+    const result = detectCalendarSignal(
+      [makeEvent({ location: "Tiffany's, New York" })],
+      ['NY'],
+      new Set(),
+      NOW,
+    );
+    expect(result).not.toBeNull();
+  });
+
   it(`does not fire for an event beyond the ${CALENDAR_SIGNAL_LOOKAHEAD_DAYS}-day lookahead window`, () => {
     const tooFar = new Date(NOW);
     tooFar.setDate(tooFar.getDate() + CALENDAR_SIGNAL_LOOKAHEAD_DAYS + 1);

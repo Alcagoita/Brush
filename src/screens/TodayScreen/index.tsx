@@ -57,6 +57,7 @@ import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
 import { COPY } from '../../constants/copy';
+import { localDateISO } from '../../utils/date';
 import {
   SECTION_H_REST,
   buildEmptyMessages,
@@ -168,7 +169,7 @@ export default function TodayScreen() {
   const handleTripSuggestionPress = useCallback(() => {
     if (!tripSuggestion) { return; }
     navigation.push('TripPlanner', {
-      prefillStartDate: tripSuggestion.dateISO.slice(0, 10),
+      prefillStartDate: localDateISO(new Date(tripSuggestion.dateISO)),
       prefillDestinationQuery: tripSuggestion.place,
     });
     dismissTripSuggestion();

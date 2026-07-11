@@ -32,19 +32,26 @@ export interface CalendarSuggestion {
   dateISO: string;
 }
 
+/** Below this length a token is too generic to trust as a match on its own (e.g. "de", "of", "St"). */
+const MIN_MATCH_TOKEN_LENGTH = 3;
+
+function tokenize(s: string): string[] {
+  return s.toLowerCase().split(/[^a-z0-9]+/).filter(t => t.length >= MIN_MATCH_TOKEN_LENGTH);
+}
+
 /**
  * On-device text match — never geocodes (KAN-245 privacy note: "nothing
- * leaves the device"). A location counts as known if it names, or is named
- * by, a known area (trip destination / mall name) — e.g. event location
- * "Faro Airport" matches a trip to "Faro, Portugal" either direction.
+ * leaves the device"). Token-based, not raw substring: a location counts as
+ * known if it shares at least one meaningful (≥3-char) word with a known
+ * area (trip destination / mall name) — e.g. event location "Faro Airport"
+ * matches a trip to "Faro, Portugal" on the shared token "faro". Plain
+ * substring matching was tried first and dropped: short known names (e.g.
+ * "NY") were matching as substrings inside unrelated words.
  */
 function matchesKnownAreaName(location: string, knownAreaNames: readonly string[]): boolean {
-  const normalized = location.trim().toLowerCase();
-  if (!normalized) { return false; }
-  return knownAreaNames.some(name => {
-    const n = name.trim().toLowerCase();
-    return n.length > 0 && (normalized.includes(n) || n.includes(normalized));
-  });
+  const locationTokens = new Set(tokenize(location));
+  if (locationTokens.size === 0) { return false; }
+  return knownAreaNames.some(name => tokenize(name).some(t => locationTokens.has(t)));
 }
 
 /**
