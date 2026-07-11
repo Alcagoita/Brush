@@ -268,6 +268,11 @@ describe('CalendarScreen', () => {
     function cellHasTripBand(cellInstance: any): boolean {
       return cellInstance.findAllByType(View).some((v: any) => flattenStyle(v.props.style)?.backgroundColor === '#e8c9a0');
     }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function tripBandOpacity(cellInstance: any): number | undefined {
+      const band = cellInstance.findAllByType(View).find((v: any) => flattenStyle(v.props.style)?.backgroundColor === '#e8c9a0');
+      return flattenStyle(band.props.style)?.opacity as number | undefined;
+    }
     const trip = {
       id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
       startDate: '2026-06-10', endDate: '2026-06-20', areaRadius: 15_000,
@@ -287,6 +292,16 @@ describe('CalendarScreen', () => {
       const outOfRangeCell = screen.getByLabelText('25');
       expect(cellHasTripBand(inRangeCell)).toBe(true);
       expect(cellHasTripBand(outOfRangeCell)).toBe(false);
+    });
+
+    it('renders the band faded once the trip has expired, solid while still active', async () => {
+      mockGetTrips.mockResolvedValue([trip]); // expiresAt: 0 — already expired
+      await renderScreen();
+      expect(tripBandOpacity(screen.getByLabelText(/^16, today/))).toBe(0.35);
+
+      mockGetTrips.mockResolvedValue([{ ...trip, expiresAt: new Date('2026-12-01').getTime() }]);
+      await renderScreen();
+      expect(tripBandOpacity(screen.getByLabelText(/^16, today/))).toBeUndefined();
     });
 
     it('does not mark any day when the trip has no dates', async () => {
