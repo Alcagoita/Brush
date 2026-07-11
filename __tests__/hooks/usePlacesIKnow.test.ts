@@ -64,6 +64,10 @@ beforeEach(() => {
   mockGetAuth.mockReturnValue({ currentUser: { uid: 'test-uid' } });
 });
 
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('refresh (initial load)', () => {
   it('fetches trips + habitat size, then stops loading', async () => {
     mockGetTrips.mockResolvedValue([makeTrip()]);
@@ -88,7 +92,6 @@ describe('refresh (initial load)', () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.trips.map(t => t.id)).toEqual(['trip-active']);
-    jest.useRealTimers();
   });
 
   it('degrades safely (empty state, loading false) when the fetch fails', async () => {

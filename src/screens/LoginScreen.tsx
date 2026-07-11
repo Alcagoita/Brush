@@ -31,7 +31,6 @@ import {
   Animated,
   Easing,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,

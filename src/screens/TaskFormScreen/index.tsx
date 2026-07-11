@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
