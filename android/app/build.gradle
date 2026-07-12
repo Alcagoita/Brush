@@ -37,6 +37,10 @@ def releaseStoreFilePath = readReleaseSigningValue("BRUSH_UPLOAD_STORE_FILE", "B
 def releaseStorePassword = readReleaseSigningValue("BRUSH_UPLOAD_STORE_PASSWORD", "BRUSH_UPLOAD_STORE_PASSWORD")
 def releaseKeyAlias = readReleaseSigningValue("BRUSH_UPLOAD_KEY_ALIAS", "BRUSH_UPLOAD_KEY_ALIAS")
 def releaseKeyPassword = readReleaseSigningValue("BRUSH_UPLOAD_KEY_PASSWORD", "BRUSH_UPLOAD_KEY_PASSWORD")
+def allowDebugReleaseSigning = (readReleaseSigningValue(
+    "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING",
+    "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING"
+) ?: "false").toBoolean()
 def hasReleaseSigningConfig = [
     releaseStoreFilePath,
     releaseStorePassword,
@@ -185,15 +189,20 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
-            if (!hasReleaseSigningConfig) {
+            if (hasReleaseSigningConfig) {
+                signingConfig signingConfigs.release
+            } else if (allowDebugReleaseSigning) {
+                signingConfig signingConfigs.debug
+            } else {
                 throw new GradleException(
                     "Android release signing is not configured. " +
                     "Set BRUSH_UPLOAD_STORE_FILE, BRUSH_UPLOAD_STORE_PASSWORD, " +
                     "BRUSH_UPLOAD_KEY_ALIAS, and BRUSH_UPLOAD_KEY_PASSWORD " +
-                    "via environment variables, Gradle properties, or android/keystore.properties."
+                    "via environment variables, Gradle properties, or android/keystore.properties. " +
+                    "For internal test APKs only, you may opt in to debug signing with " +
+                    "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING=true."
                 )
             }
-            signingConfig signingConfigs.release
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
