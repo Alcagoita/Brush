@@ -53,6 +53,13 @@ jest.mock('../../src/services/calendar', () => ({
   fetchCalendarEvents: jest.fn().mockResolvedValue([]),
 }));
 
+// useOffGridWelcomeBack's own behavior (toast + cleanup) is covered by its
+// dedicated test file — stub it here so this file only tests useTodayScreen's
+// composition, without also needing habitatCache/deleteTrip mocks.
+jest.mock('../../src/hooks/useOffGridWelcomeBack', () => ({
+  useOffGridWelcomeBack: jest.fn(),
+}));
+
 jest.mock('../../src/services/tripSuggestions', () => ({
   detectCalendarSignal:    jest.fn().mockReturnValue(null),
   getDismissedSignalIds:   jest.fn().mockReturnValue(new Set()),

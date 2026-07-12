@@ -252,6 +252,31 @@ const en = {
     dismissA11y: 'Not now',
   },
 
+  // ─── Off-grid window (KAN-246) ─────────────────────────────────────────────
+  // Never "mode"/"offline mode"/"cache" — human words only. Sister feature to
+  // tripPlanner above: now + duration instead of future + destination.
+  offGrid: {
+    profileRowLabel: 'Going off-grid?',
+    profileRowSublabel: 'Heading somewhere with no signal for a while? I can get ready.',
+    profileRowA11y: 'Set up an off-grid window',
+    screenTitle: 'Going off-grid for a bit?',
+    durationFewHours: 'A few hours',
+    durationUntilTonight: 'Until tonight',
+    durationPickTime: 'Pick a time',
+    destinationOverridePrompt: 'Somewhere else?',
+    destinationPlaceholder: 'Faro, Lisbon, Tokyo…',
+    /** Trip.destination label when no override is chosen — center = current location. */
+    currentAreaLabel: 'this area',
+    confirmButton: 'Get ready',
+    confirmingLabel: 'Getting ready…',
+    confirmToast: (until: string) => `Got it — I'll know this area until ${until}.`,
+    errorToast: "Couldn't get this area ready — check your connection and try again.",
+    welcomeBackToast: (n: number) => `Welcome back — ${n} ${n === 1 ? 'thing' : 'things'} brushed away while you were off-grid.`,
+    chipA11y: (until: string) => `Off-grid until ${until}`,
+    sheetTitle: 'Off-grid',
+    sheetBody: (until: string) => `I'll know this area until ${until}.`,
+  },
+
   // ─── Home address (KAN-247) ────────────────────────────────────────────────
   // Explicit beats inferred — never "detection"/"fill this" form language.
   home: {
@@ -1162,6 +1187,27 @@ const ptPT: typeof en = {
     cardA11y: (place: string, day: string) =>
       `Vais a ${place} no dia ${day}? Posso aprender o sítio antes de saíres — toca para configurar`,
     dismissA11y: 'Agora não',
+  },
+
+  offGrid: {
+    profileRowLabel: 'Vais ficar sem rede?',
+    profileRowSublabel: 'Vais para algum sítio sem rede por umas horas? Posso preparar-me.',
+    profileRowA11y: 'Configurar um período sem rede',
+    screenTitle: 'Vais ficar sem rede por umas horas?',
+    durationFewHours: 'Umas horas',
+    durationUntilTonight: 'Até logo à noite',
+    durationPickTime: 'Escolher uma hora',
+    destinationOverridePrompt: 'Noutro sítio?',
+    destinationPlaceholder: 'Faro, Lisboa, Tóquio…',
+    currentAreaLabel: 'esta zona',
+    confirmButton: 'Preparar',
+    confirmingLabel: 'A preparar…',
+    confirmToast: (until: string) => `Entendido — vou conhecer esta zona até às ${until}.`,
+    errorToast: 'Não consegui preparar esta zona — verifica a tua ligação e tenta outra vez.',
+    welcomeBackToast: (n: number) => `Bem-vindo de volta — ${n} ${n === 1 ? 'coisa foi' : 'coisas foram'} riscada${n === 1 ? '' : 's'} enquanto estavas sem rede.`,
+    chipA11y: (until: string) => `Sem rede até às ${until}`,
+    sheetTitle: 'Sem rede',
+    sheetBody: (until: string) => `Vou conhecer esta zona até às ${until}.`,
   },
 
   home: {

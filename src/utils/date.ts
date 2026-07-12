@@ -17,6 +17,12 @@ export function todayISO(): string {
   return localDateISO(new Date());
 }
 
+/** "18:00" — 24h local time, no seconds. Not COPY (numeric, not language-dependent). */
+export function formatLocalTime(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
 /**
  * Returns the Monday 00:00:00.000 and Sunday 23:59:59.999 boundaries of the
  * current local calendar week (ISO week: Mon–Sun).

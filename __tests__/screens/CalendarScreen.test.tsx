@@ -310,6 +310,14 @@ describe('CalendarScreen', () => {
       expect(cellHasTripBand(screen.getByLabelText(/^16, today/))).toBe(false);
     });
 
+    it('KAN-246 — an off-grid window never renders a band (no endDate by design)', async () => {
+      mockGetTrips.mockResolvedValue([{
+        ...trip, kind: 'offgrid', startDate: '2026-06-16', endDate: undefined,
+      }]);
+      await renderScreen();
+      expect(cellHasTripBand(screen.getByLabelText(/^16, today/))).toBe(false);
+    });
+
     it('does not change the selected day stats line — ring/streak math unaffected (regression guard)', async () => {
       mockGetTasksForMonth.mockResolvedValue([
         { id: 't1', title: 'A', category: 'errands', done: true, date: '2026-06-16', createdAt: {} },

@@ -32,6 +32,7 @@ import type { ErrandBundle } from '../../services/errandBundles';
 import { useFirstSessionGate } from './useFirstSessionGate';
 import { useTripSuggestion } from './useTripSuggestion';
 import type { CalendarSuggestion } from '../../services/tripSuggestions';
+import { useOffGridWelcomeBack } from '../useOffGridWelcomeBack';
 
 export interface TodayScreenState {
   /** Today's tasks. Empty while loading. */
@@ -108,6 +109,10 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const isFirstSession = useFirstSessionGate(uid);
   const { suggestion: tripSuggestion, dismiss: dismissTripSuggestion } =
     useTripSuggestion(isFirstSession, data.trips, data.mallSnapshot);
+
+  // KAN-246 — "welcome back" payoff moment + auto-expiry cleanup, checked
+  // on every Today mount/refresh (the trips list is already loaded here).
+  useOffGridWelcomeBack(uid, data.tasks, data.trips);
 
   // Pure computation over data useProximityEngine already holds each tick
   // (KAN-235) — no new timer, no new location subscription.

@@ -22,12 +22,13 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, SuitcaseIcon, CloudOffIcon } from '../components/AppIcon';
 import { usePlacesIKnow } from '../hooks/usePlacesIKnow';
 import { formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Trip } from '../types';
 import { COPY } from '../constants/copy';
+import { formatLocalTime } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlacesIKnow'>;
 
@@ -113,15 +114,19 @@ export default function PlacesIKnowScreen() {
             trips.map(trip => (
               <View key={trip.id} style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.line }]}>
                 <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
-                  <SuitcaseIcon color={palette.muted} size={20} />
+                  {trip.kind === 'offgrid'
+                    ? <CloudOffIcon color={palette.muted} size={20} />
+                    : <SuitcaseIcon color={palette.muted} size={20} />}
                 </View>
                 <View style={styles.rowText}>
                   <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>{trip.destination}</Text>
                   <Text style={[styles.rowSub, { color: palette.muted }]} numberOfLines={1}>
-                    {trip.startDate && trip.endDate
-                      ? COPY.tripPlanner.tripRowDates(formatDateShort(trip.startDate), formatDateShort(trip.endDate))
-                      : COPY.tripPlanner.tripRowNoDates}
-                    {' · '}{formatExpiry(trip.expiresAt)}
+                    {trip.kind === 'offgrid'
+                      ? COPY.offGrid.sheetBody(formatLocalTime(trip.expiresAt))
+                      : (trip.startDate && trip.endDate
+                        ? COPY.tripPlanner.tripRowDates(formatDateShort(trip.startDate), formatDateShort(trip.endDate))
+                        : COPY.tripPlanner.tripRowNoDates)}
+                    {trip.kind !== 'offgrid' && (<>{' · '}{formatExpiry(trip.expiresAt)}</>)}
                   </Text>
                 </View>
                 {refreshingTripId === trip.id ? (
