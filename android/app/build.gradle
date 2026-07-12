@@ -47,6 +47,27 @@ def hasReleaseSigningConfig = [
     releaseKeyAlias,
     releaseKeyPassword,
 ].every { it != null }
+def requiresConfiguredReleaseSigning = { task ->
+    def taskName = task.name.toLowerCase()
+    task.path.startsWith(":app:") &&
+        taskName.contains("release") &&
+        ["assemble", "bundle", "package"].any { taskName.contains(it) }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    if (!hasReleaseSigningConfig &&
+        !allowDebugReleaseSigning &&
+        taskGraph.allTasks.any(requiresConfiguredReleaseSigning)) {
+        throw new GradleException(
+            "Android release signing is not configured. " +
+            "Set BRUSH_UPLOAD_STORE_FILE, BRUSH_UPLOAD_STORE_PASSWORD, " +
+            "BRUSH_UPLOAD_KEY_ALIAS, and BRUSH_UPLOAD_KEY_PASSWORD " +
+            "via environment variables, Gradle properties, or android/keystore.properties. " +
+            "For internal test APKs only, you may opt in to debug signing with " +
+            "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING=true."
+        )
+    }
+}
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -193,15 +214,6 @@ android {
                 signingConfig signingConfigs.release
             } else if (allowDebugReleaseSigning) {
                 signingConfig signingConfigs.debug
-            } else {
-                throw new GradleException(
-                    "Android release signing is not configured. " +
-                    "Set BRUSH_UPLOAD_STORE_FILE, BRUSH_UPLOAD_STORE_PASSWORD, " +
-                    "BRUSH_UPLOAD_KEY_ALIAS, and BRUSH_UPLOAD_KEY_PASSWORD " +
-                    "via environment variables, Gradle properties, or android/keystore.properties. " +
-                    "For internal test APKs only, you may opt in to debug signing with " +
-                    "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING=true."
-                )
             }
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
