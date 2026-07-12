@@ -206,6 +206,14 @@ export interface Task {
   date: string;
   /** True when this task has a local write not yet confirmed by the server (KAN-198). */
   pendingSync?: boolean;
+  /**
+   * KAN-248 — marks a date-bound, unscored, auto-expiring task imported from a
+   * calendar birthday event (or retroactively flagged via the edit-screen
+   * toggle). A deliberate, narrow exception to "no POI required" and "no
+   * auto-expiry" — never generalize beyond this one kind. undefined for
+   * every other task.
+   */
+  kind?: 'birthday';
 }
 
 // ─── Category ─────────────────────────────────────────────────────────────────

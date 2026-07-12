@@ -416,6 +416,21 @@ describe('useTodayScreen — progress derived values', () => {
     expect(result.current.progress).toBeCloseTo(1 / 3);
     expect(result.current.nearbyCount).toBe(1);
   });
+
+  it('excludes birthday tasks (KAN-248) from totalTasks/doneTasks/progress but not the task list', async () => {
+    const birthday = { ...TASK, id: 'bday-1', kind: 'birthday' as const, done: false };
+    const done     = { ...TASK, id: 'task-done', done: true };
+
+    mockGetTasksForDate.mockResolvedValue([TASK, done, birthday]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(result.current.tasks).toHaveLength(3); // still rendered on Today
+    expect(result.current.totalTasks).toBe(2);    // birthday excluded from the ring
+    expect(result.current.doneTasks).toBe(1);
+    expect(result.current.progress).toBeCloseTo(1 / 2);
+  });
 });
 
 describe('useTodayScreen — optimistic toggle', () => {
@@ -505,6 +520,45 @@ describe('useTodayScreen — optimistic toggle', () => {
       UID,
       expect.objectContaining({ id: 'task-1' }),
       expect.any(Object),
+    );
+  });
+
+  it('never calls evaluateAchievements when marking a birthday task done (KAN-248 — unscored)', async () => {
+    const { evaluateAchievements } = jest.requireMock('../../src/services/achievements');
+    const birthday = { ...TASK, id: 'bday-1', kind: 'birthday' as const };
+    mockGetTasksForDate.mockResolvedValue([birthday]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.handleToggle('bday-1', true);
+    });
+    await act(async () => {});
+
+    expect(evaluateAchievements).not.toHaveBeenCalled();
+  });
+
+  it('excludes a birthday task from allTasksDone/remainingTaskCount passed to evaluateAchievements', async () => {
+    const { evaluateAchievements } = jest.requireMock('../../src/services/achievements');
+    const birthday = { ...TASK, id: 'bday-1', kind: 'birthday' as const, done: false };
+    mockGetTasksForDate.mockResolvedValue([TASK, birthday]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.handleToggle('task-1', true);
+    });
+    await act(async () => {});
+
+    // Only TASK is scorable; with it done and excluded from its own
+    // "others done" check, allTasksDone should be true despite the
+    // still-undone birthday task sitting alongside it.
+    expect(evaluateAchievements).toHaveBeenCalledWith(
+      UID,
+      expect.objectContaining({ id: 'task-1' }),
+      expect.objectContaining({ allTasksDone: true, remainingTaskCount: 0 }),
     );
   });
 

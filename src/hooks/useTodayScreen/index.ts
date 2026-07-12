@@ -142,8 +142,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     void refreshLearnedPlaces();
   }, [handleToggleInner, refreshLearnedPlaces]);
 
-  const totalTasks  = data.tasks.length;
-  const doneTasks   = data.tasks.filter(t => t.done).length;
+  // Birthday tasks (KAN-248) are unscored — excluded from the ring/progress
+  // count entirely so they can never affect day-state, only shown in the
+  // task list itself.
+  const scorableTasks = data.tasks.filter(t => t.kind !== 'birthday');
+  const totalTasks  = scorableTasks.length;
+  const doneTasks   = scorableTasks.filter(t => t.done).length;
   const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
   const nearbyCount = data.tasks.filter(t => t.poi).length;
 

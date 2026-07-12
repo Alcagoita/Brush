@@ -164,6 +164,11 @@ export async function getTasksForDate(uid: string, date: string): Promise<Task[]
  * Bumps both `date` and `createdAt` to now — the task is treated as freshly
  * created today, matching how it will appear and score on the Today screen.
  *
+ * Exception (KAN-248): an unbrushed `kind: 'birthday'` task is deleted
+ * instead of rolled forward — the only auto-expiry exception in the app,
+ * gated strictly on `kind === 'birthday'`. A birthday wish three days late
+ * is meaningless, so persistence has no value for this one kind.
+ *
  * This is the client-side correctness fallback: the per-user `today` here is
  * computed in the device's local timezone, unlike the best-effort UTC-anchored
  * server-side `rolloverIncompleteTasks` Cloud Function. Calling this is safe
@@ -183,7 +188,11 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   if (snap.empty) { return; }
 
   await commitInChunks(snap.docs, (batch, d) => {
-    batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
+    if ((d.data() as Task).kind === 'birthday') {
+      batch.delete(d.ref);
+    } else {
+      batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
+    }
   });
 }
 

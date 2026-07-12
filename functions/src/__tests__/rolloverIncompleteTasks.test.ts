@@ -28,14 +28,15 @@ describe('todayISOUTC', () => {
 describe('rolloverAllUsers', () => {
   const TODAY = '2024-06-09';
 
-  function makeDoc(id: string) {
-    return { ref: { id } };
+  function makeDoc(id: string, data: Record<string, unknown> = {}) {
+    return { ref: { id }, data: () => data };
   }
 
   function makeDb(docs: ReturnType<typeof makeDoc>[]) {
     const updateMock = jest.fn();
+    const deleteMock = jest.fn();
     const commitMock = jest.fn().mockResolvedValue(undefined);
-    const batchMock   = jest.fn(() => ({ update: updateMock, commit: commitMock }));
+    const batchMock   = jest.fn(() => ({ update: updateMock, delete: deleteMock, commit: commitMock }));
 
     const whereMock: jest.Mock = jest.fn();
     const getMock = jest.fn().mockResolvedValue({ empty: docs.length === 0, docs });
@@ -46,7 +47,7 @@ describe('rolloverAllUsers', () => {
       batch: batchMock,
     } as unknown as import('firebase-admin').firestore.Firestore;
 
-    return { db, updateMock, commitMock, batchMock, getMock };
+    return { db, updateMock, deleteMock, commitMock, batchMock, getMock };
   }
 
   it('returns 0 and writes nothing when no tasks are stale', async () => {
@@ -93,5 +94,32 @@ describe('rolloverAllUsers', () => {
     expect(count).toBe(501);
     expect(commitMock).toHaveBeenCalledTimes(2); // 500 + 1
     expect(updateMock).toHaveBeenCalledTimes(501);
+  });
+
+  // ─── Birthday auto-expiry (KAN-248) ───────────────────────────────────────
+
+  it('deletes an unbrushed birthday task instead of rolling it forward', async () => {
+    const docs = [makeDoc('t1', { kind: 'birthday' })];
+    const { db, updateMock, deleteMock } = makeDb(docs);
+
+    const count = await rolloverAllUsers(db, TODAY);
+
+    expect(count).toBe(1);
+    expect(deleteMock).toHaveBeenCalledWith(docs[0].ref);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it('rolls forward a non-birthday task while deleting a birthday task in the same batch', async () => {
+    const docs = [makeDoc('t1'), makeDoc('t2', { kind: 'birthday' })];
+    const { db, updateMock, deleteMock, commitMock } = makeDb(docs);
+
+    await rolloverAllUsers(db, TODAY);
+
+    expect(updateMock).toHaveBeenCalledWith(
+      docs[0].ref,
+      expect.objectContaining({ date: TODAY, createdAt: expect.anything() }),
+    );
+    expect(deleteMock).toHaveBeenCalledWith(docs[1].ref);
+    expect(commitMock).toHaveBeenCalledTimes(1);
   });
 });

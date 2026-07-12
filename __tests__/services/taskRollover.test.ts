@@ -9,6 +9,7 @@
 
 const mockGetDocs     = jest.fn();
 const mockBatchUpdate = jest.fn();
+const mockBatchDelete = jest.fn();
 const mockBatchCommit = jest.fn().mockResolvedValue(undefined);
 const mockWhere       = jest.fn((...a: unknown[]) => a);
 const mockQuery       = jest.fn((...a: unknown[]) => a);
@@ -25,7 +26,7 @@ jest.mock('@react-native-firebase/firestore', () => ({
   updateDoc:       jest.fn(),
   deleteDoc:       jest.fn(),
   setDoc:          jest.fn(),
-  writeBatch:      jest.fn(() => ({ update: mockBatchUpdate, commit: mockBatchCommit })),
+  writeBatch:      jest.fn(() => ({ update: mockBatchUpdate, delete: mockBatchDelete, commit: mockBatchCommit })),
   query:           (...args: unknown[]) => mockQuery(...args),
   where:           (...args: unknown[]) => mockWhere(...args),
   orderBy:         jest.fn(),
@@ -35,6 +36,11 @@ jest.mock('@react-native-firebase/firestore', () => ({
   Timestamp:       { now: jest.fn(() => NOW_TIMESTAMP) },
   runTransaction:  jest.fn(),
 }));
+
+/** Non-birthday doc fixture — data() must exist since rolloverIncompleteTasks reads d.data().kind (KAN-248). */
+function makeDoc(id: string, data: Record<string, unknown> = {}) {
+  return { ref: { id }, data: () => data };
+}
 
 import { rolloverIncompleteTasks } from '../../src/services/firestore';
 
@@ -65,10 +71,7 @@ describe('rolloverIncompleteTasks', () => {
   });
 
   it('bumps date and createdAt to today for every stale task, then commits once', async () => {
-    const docs = [
-      { ref: { id: 't1' } },
-      { ref: { id: 't2' } },
-    ];
+    const docs = [makeDoc('t1'), makeDoc('t2')];
     mockGetDocs.mockResolvedValue({ empty: false, docs });
 
     await rolloverIncompleteTasks('uid-1', TODAY);
@@ -86,13 +89,36 @@ describe('rolloverIncompleteTasks', () => {
   });
 
   it('splits writes into multiple batches when over the 500 limit', async () => {
-    const docs = Array.from({ length: 501 }, (_, i) => ({ ref: { id: `t${i}` } }));
+    const docs = Array.from({ length: 501 }, (_, i) => makeDoc(`t${i}`));
     mockGetDocs.mockResolvedValue({ empty: false, docs });
 
     await rolloverIncompleteTasks('uid-1', TODAY);
 
     expect(mockBatchUpdate).toHaveBeenCalledTimes(501);
     expect(mockBatchCommit).toHaveBeenCalledTimes(2); // 500 + 1
+  });
+
+  // ─── Birthday auto-expiry (KAN-248) ───────────────────────────────────────
+
+  it('deletes an unbrushed birthday task instead of rolling it forward', async () => {
+    const docs = [makeDoc('t1', { kind: 'birthday' })];
+    mockGetDocs.mockResolvedValue({ empty: false, docs });
+
+    await rolloverIncompleteTasks('uid-1', TODAY);
+
+    expect(mockBatchDelete).toHaveBeenCalledWith(docs[0].ref);
+    expect(mockBatchUpdate).not.toHaveBeenCalled();
+  });
+
+  it('rolls forward a non-birthday task while deleting a birthday task in the same batch', async () => {
+    const docs = [makeDoc('t1'), makeDoc('t2', { kind: 'birthday' })];
+    mockGetDocs.mockResolvedValue({ empty: false, docs });
+
+    await rolloverIncompleteTasks('uid-1', TODAY);
+
+    expect(mockBatchUpdate).toHaveBeenCalledWith(docs[0].ref, { date: TODAY, createdAt: NOW_TIMESTAMP });
+    expect(mockBatchDelete).toHaveBeenCalledWith(docs[1].ref);
+    expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });
 
   it('defaults `today` to the device-local date when not passed', async () => {
