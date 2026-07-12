@@ -93,16 +93,9 @@ export default function TripPlannerScreen() {
     : undefined;
 
   return (
-    // Outer background-filled wrapper (KAN-257 follow-up fix) — KeyboardAvoidingView's
-    // Android 'height' behavior shrinks its own box when the keyboard opens, and the
-    // absolutely-positioned footer moves up with it, exposing the screen's default
-    // (unstyled) background in the vacated strip beneath. This wrapper always covers
-    // the full screen with palette.bg, so that strip reads as the app's own
-    // background instead of a stray grey flash.
-    <View style={[styles.root, { backgroundColor: palette.bg }]}>
-      <KeyboardAvoidingView
-        style={styles.root}
-        behavior={getScreenKeyboardAvoidingBehavior()}>
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: palette.bg }]}
+      behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={{ paddingTop: insets.top }}>
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
           <Pressable
@@ -302,8 +295,7 @@ export default function TripPlannerScreen() {
           </Pressable>
         </View>
       )}
-      </KeyboardAvoidingView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
