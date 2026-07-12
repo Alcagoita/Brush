@@ -14,7 +14,6 @@ import React from 'react';
 import {
   Image,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,7 +21,6 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,11 +30,13 @@ import { spacing, radius as radii } from '../theme/tokens';
 import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
+import MiniCalendar from '../components/MiniCalendar';
 import { useTripPlanner, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT } from '../hooks/useTripPlanner';
 import { CIRCLE_FRACTION_OF_HALF_DIM } from '../services/maps';
 import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { TripRadiusPreset } from '../types';
+import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
@@ -79,8 +79,7 @@ export default function TripPlannerScreen() {
     route.params?.prefillDestinationQuery,
   );
 
-  const [showStartPicker, setShowStartPicker] = React.useState(false);
-  const [showEndPicker, setShowEndPicker] = React.useState(false);
+  const [openPicker, setOpenPicker] = React.useState<'start' | 'end' | null>(null);
 
   const stepIndex = STEPS.indexOf(step as (typeof STEPS)[number]);
   const stepTitle =
@@ -94,9 +93,16 @@ export default function TripPlannerScreen() {
     : undefined;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: palette.bg }]}
-      behavior={getScreenKeyboardAvoidingBehavior()}>
+    // Outer background-filled wrapper (KAN-257 follow-up fix) — KeyboardAvoidingView's
+    // Android 'height' behavior shrinks its own box when the keyboard opens, and the
+    // absolutely-positioned footer moves up with it, exposing the screen's default
+    // (unstyled) background in the vacated strip beneath. This wrapper always covers
+    // the full screen with palette.bg, so that strip reads as the app's own
+    // background instead of a stray grey flash.
+    <View style={[styles.root, { backgroundColor: palette.bg }]}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={getScreenKeyboardAvoidingBehavior()}>
       <View style={{ paddingTop: insets.top }}>
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
           <Pressable
@@ -168,46 +174,42 @@ export default function TripPlannerScreen() {
         {step === 'dates' && (
           <View style={styles.datesSection}>
             <Pressable
-              style={[styles.dateField, { borderColor: palette.line, backgroundColor: palette.surface }]}
-              onPress={() => setShowStartPicker(true)}
+              style={[
+                styles.dateField,
+                { borderColor: openPicker === 'start' ? palette.text : palette.line, backgroundColor: palette.surface },
+              ]}
+              onPress={() => setOpenPicker(p => p === 'start' ? null : 'start')}
               accessibilityRole="button"
               accessibilityLabel={COPY.tripPlannerScreen.startDateA11y}>
               <Text style={[styles.dateFieldText, { color: startDate ? palette.text : palette.muted }]}>
                 {startDate ? formatDateShort(startDate) : 'Start date'}
               </Text>
             </Pressable>
-            {(showStartPicker || Platform.OS === 'ios') && (
-              <DateTimePicker
-                value={startDate ? new Date(`${startDate}T00:00:00`) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                minimumDate={new Date()}
-                onChange={(_, d) => {
-                  setShowStartPicker(false);
-                  if (d) { setStartDate(d.toISOString().slice(0, 10)); }
-                }}
+            {openPicker === 'start' && (
+              <MiniCalendar
+                value={startDate ?? null}
+                minimumDate={todayISO()}
+                onChange={iso => { setStartDate(iso); setOpenPicker(null); }}
               />
             )}
 
             <Pressable
-              style={[styles.dateField, { borderColor: palette.line, backgroundColor: palette.surface }]}
-              onPress={() => setShowEndPicker(true)}
+              style={[
+                styles.dateField,
+                { borderColor: openPicker === 'end' ? palette.text : palette.line, backgroundColor: palette.surface },
+              ]}
+              onPress={() => setOpenPicker(p => p === 'end' ? null : 'end')}
               accessibilityRole="button"
               accessibilityLabel={COPY.tripPlannerScreen.endDateA11y}>
               <Text style={[styles.dateFieldText, { color: endDate ? palette.text : palette.muted }]}>
                 {endDate ? formatDateShort(endDate) : 'End date'}
               </Text>
             </Pressable>
-            {(showEndPicker || Platform.OS === 'ios') && (
-              <DateTimePicker
-                value={endDate ? new Date(`${endDate}T00:00:00`) : new Date()}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'inline' : 'default'}
-                minimumDate={startDate ? new Date(`${startDate}T00:00:00`) : new Date()}
-                onChange={(_, d) => {
-                  setShowEndPicker(false);
-                  if (d) { setEndDate(d.toISOString().slice(0, 10)); }
-                }}
+            {openPicker === 'end' && (
+              <MiniCalendar
+                value={endDate ?? null}
+                minimumDate={startDate ?? todayISO()}
+                onChange={iso => { setEndDate(iso); setOpenPicker(null); }}
               />
             )}
 
@@ -300,7 +302,8 @@ export default function TripPlannerScreen() {
           </Pressable>
         </View>
       )}
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
