@@ -18,6 +18,7 @@ import {
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
+  Switch,
   Text,
   TextInput,
   useWindowDimensions,
@@ -29,8 +30,9 @@ import { useTheme } from '../../theme';
 import { categories as builtInCategories, categoryHues } from '../../theme/tokens';
 import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding';
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
+import { deleteField } from '@react-native-firebase/firestore';
 import { learnFromUserEdit } from '../../services/poiLlm';
-import { CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
+import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
 import { POI_CATALOG, poiCatalogLabel } from '../../types';
@@ -84,6 +86,45 @@ export default function TaskFormScreen() {
 
   // Time
   const [time, setTime] = useState<string>(existingTask?.time ?? '');
+
+  // Birthday toggle (KAN-248) — edit-mode-only correction path for import
+  // detection misses. Never shown/settable from the create flow.
+  const [isBirthday, setIsBirthday] = useState(existingTask?.kind === 'birthday');
+
+  const handleBirthdayToggle = useCallback((next: boolean) => {
+    if (next) {
+      Alert.alert(
+        COPY.taskFormScreen.birthdayWarningTitle,
+        COPY.taskFormScreen.birthdayWarningBody,
+        [
+          { text: COPY.taskFormScreen.cancel, style: 'cancel' },
+          {
+            text: COPY.taskFormScreen.birthdayWarningConfirm,
+            onPress: () => {
+              setIsBirthday(true);
+              setPoiKey(null);
+              setCustomPoiType(null);
+              setQuery('');
+              setCategory('personal');
+            },
+          },
+        ],
+      );
+    } else {
+      Alert.alert(
+        COPY.taskFormScreen.birthdayUnsetWarningTitle,
+        COPY.taskFormScreen.birthdayUnsetWarningBody,
+        [
+          { text: COPY.taskFormScreen.cancel, style: 'cancel' },
+          {
+            text: COPY.taskFormScreen.birthdayUnsetWarningConfirm,
+            style: 'destructive',
+            onPress: () => setIsBirthday(false),
+          },
+        ],
+      );
+    }
+  }, []);
 
   // POI — two mutually exclusive sources
   const [poiKey,   setPoiKey]   = useState<PoiType | null>(
@@ -147,21 +188,22 @@ export default function TaskFormScreen() {
 
   // Suggestions shown while the user is actively typing (hidden once a suggestion is selected)
   const suggestions = !customPoiType && query.trim() ? getTypeSuggestions(query) : [];
-  const canSubmit = title.trim().length > 0 && effectivePoi !== null;
+  // Birthday tasks are exempt from the POI requirement (KAN-248) — date-shaped, not place-shaped.
+  const canSubmit = title.trim().length > 0 && (isBirthday || effectivePoi !== null);
 
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
-    if (!trimmed || !effectivePoi) { return; }
+    if (!trimmed || (!isBirthday && !effectivePoi)) { return; }
 
     setSubmitting(true);
     try {
       const payload: Omit<Task, 'id' | 'createdAt' | 'completedAt'> = {
         title:    trimmed,
-        category: category ?? 'personal',
+        category: isBirthday ? 'personal' : (category ?? 'personal'),
         done:     existingTask?.done ?? false,
-        poi:      effectivePoi,
         date,
         ...(time.trim() ? { time: time.trim() } : {}),
+        ...(isBirthday ? { kind: 'birthday' as const } : { poi: effectivePoi! }),
       };
 
       if (notes.trim()) {
@@ -170,7 +212,16 @@ export default function TaskFormScreen() {
       }
 
       if (isEdit && existingTask) {
-        await updateTask(uid, existingTask.id, payload);
+        // Toggling the birthday flag needs an explicit field delete on the
+        // side that's turning off — updateDoc merges, it never clears a
+        // field just because the new payload omits it.
+        const updateData: Record<string, unknown> = { ...payload };
+        if (isBirthday) {
+          updateData.poi = deleteField();
+        } else if (existingTask.kind === 'birthday') {
+          updateData.kind = deleteField();
+        }
+        await updateTask(uid, existingTask.id, updateData as Partial<Task>);
         logTap('task_edit', { category: payload.category });
       } else {
         await addTask(uid, payload);
@@ -192,7 +243,7 @@ export default function TaskFormScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [title, category, effectivePoi, time, date, notes, uid, isEdit, existingTask, navigation]);
+  }, [title, category, effectivePoi, time, date, notes, uid, isEdit, existingTask, isBirthday, navigation]);
 
   // ── Delete (edit mode only) ─────────────────────────────────────────────────
 
@@ -303,7 +354,36 @@ export default function TaskFormScreen() {
           </View>
         </View>
 
+        {/* ── Birthday toggle (KAN-248, edit-mode-only correction path) ── */}
+        {isEdit && (
+          <View style={styles.section}>
+            <Pressable
+              onPress={() => handleBirthdayToggle(!isBirthday)}
+              style={styles.birthdayToggleRow}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: isBirthday }}
+              accessibilityLabel={COPY.taskFormScreen.birthdayToggleA11y}>
+              <CakeIcon color={palette.muted} size={18} />
+              <View style={styles.birthdayToggleText}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.taskFormScreen.birthdayToggleLabel}
+                </Text>
+                <Text style={[styles.birthdayToggleSublabel, { color: palette.muted }]}>
+                  {COPY.taskFormScreen.birthdayToggleSublabel}
+                </Text>
+              </View>
+              <Switch
+                value={isBirthday}
+                onValueChange={handleBirthdayToggle}
+                trackColor={{ false: palette.surface2, true: palette.accent }}
+                thumbColor={palette.bg}
+              />
+            </Pressable>
+          </View>
+        )}
+
         {/* ── Where does this happen? ── */}
+        {!isBirthday && (
         <View style={styles.section}>
           <View style={styles.questionRow}>
             <Text style={[styles.questionLabel, { color: palette.text }]}>
@@ -389,8 +469,10 @@ export default function TaskFormScreen() {
             ))}
           </View>
         </View>
+        )}
 
         {/* ── Which part of your life? (optional) ── */}
+        {!isBirthday && (
         <View style={styles.section}>
           <View style={styles.questionRow}>
             <Text style={[styles.questionLabel, { color: palette.text }]}>
@@ -493,6 +575,7 @@ export default function TaskFormScreen() {
             </View>
           )}
         </View>
+        )}
 
         {/* ── Around when? (optional) ── */}
         <View style={styles.section}>

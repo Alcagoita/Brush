@@ -460,3 +460,20 @@ export function CloudOffIcon({ color, size = 24 }: IconProps) {
     </Svg>
   );
 }
+
+// ── Cake (birthday task glyph, KAN-248) ────────────────────────────────────────
+export function CakeIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Candles */}
+      <Line x1="8"  y1="3" x2="8"  y2="6" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="12" y1="2" x2="12" y2="6" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="16" y1="3" x2="16" y2="6" stroke={color} strokeWidth={1.6} {...S} />
+      {/* Top layer with wavy icing */}
+      <Path d="M5 10c.8-1 1.7-1 2.5 0s1.7 1 2.5 0 1.7-1 2.5 0 1.7 1 2.5 0 1.7-1 2.5 0v3H5v-3z" stroke={color} strokeWidth={1.6} {...S} />
+      {/* Base */}
+      <Path d="M4 13h16v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-6z" stroke={color} strokeWidth={1.6} {...S} />
+      <Line x1="4" y1="17" x2="20" y2="17" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}

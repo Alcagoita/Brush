@@ -901,6 +901,15 @@ const en = {
     categoryNamePlaceholder: 'Category name',
     notesPlaceholder: 'Add a note, link, or reminder…',
     deleteTaskA11y: 'Delete task',
+    birthdayToggleLabel: "It's a birthday",
+    birthdayToggleSublabel: 'No place needed, never affects your ring or streak, and clears itself the day after.',
+    birthdayToggleA11y: 'Mark as a birthday',
+    birthdayWarningTitle: 'Mark this as a birthday?',
+    birthdayWarningBody: "This removes the place it's tied to, drops it from your ring and streak, and it'll quietly disappear the day after — no missed mark, no trace.",
+    birthdayWarningConfirm: 'Mark as birthday',
+    birthdayUnsetWarningTitle: 'Unmark this birthday?',
+    birthdayUnsetWarningBody: "This task becomes a normal task again — you'll need to give it a place before you can save.",
+    birthdayUnsetWarningConfirm: 'Unmark',
   },
 
   pointsHistoryScreen: {
@@ -1816,6 +1825,15 @@ const ptPT: typeof en = {
     categoryNamePlaceholder: 'Nome da categoria',
     notesPlaceholder: 'Adiciona uma nota, link ou lembrete…',
     deleteTaskA11y: 'Eliminar tarefa',
+    birthdayToggleLabel: 'É um aniversário',
+    birthdayToggleSublabel: 'Não precisa de local, nunca afeta o teu anel ou sequência, e desaparece sozinha no dia seguinte.',
+    birthdayToggleA11y: 'Marcar como aniversário',
+    birthdayWarningTitle: 'Marcar isto como aniversário?',
+    birthdayWarningBody: 'Isto remove o local associado, tira a tarefa do teu anel e sequência, e ela vai desaparecer sozinha no dia seguinte — sem marca de falha, sem rasto.',
+    birthdayWarningConfirm: 'Marcar como aniversário',
+    birthdayUnsetWarningTitle: 'Desmarcar este aniversário?',
+    birthdayUnsetWarningBody: 'Esta tarefa volta a ser uma tarefa normal — vais precisar de lhe dar um local antes de conseguires guardar.',
+    birthdayUnsetWarningConfirm: 'Desmarcar',
   },
 
   pointsHistoryScreen: {

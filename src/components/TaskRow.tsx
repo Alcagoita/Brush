@@ -33,6 +33,7 @@ import { useTheme } from '../theme';
 import { categories, fallbackCategoryColor } from '../theme/tokens';
 import PoiChip from './PoiChip';
 import BrushStroke from './BrushStroke';
+import { CakeIcon } from './AppIcon';
 import { COPY } from '../constants/copy';
 import { Task, Category } from '../types';
 import { logTap } from '../services/analytics';
@@ -194,6 +195,14 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
               {task.poi && (
                 <PoiChip poi={task.poi} isNearby={task.poi === nearbyPoiType} />
               )}
+              {task.kind === 'birthday' && (
+                <View
+                  testID="birthday-cake-icon"
+                  accessible
+                  accessibilityLabel={COPY.taskFormScreen.birthdayToggleLabel}>
+                  <CakeIcon color={cat.color} size={14} />
+                </View>
+              )}
             </View>
           </View>
           {(task.time || task.pendingSync) ? (
@@ -289,6 +298,16 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
                 poi={task.poi}
                 isNearby={task.poi === nearbyPoiType}
               />
+            )}
+
+            {/* Birthday glyph (KAN-248) — quiet, no chip background, just the icon */}
+            {task.kind === 'birthday' && (
+              <View
+                testID="birthday-cake-icon"
+                accessible
+                accessibilityLabel={COPY.taskFormScreen.birthdayToggleLabel}>
+                <CakeIcon color={cat.color} size={14} />
+              </View>
             )}
 
           </View>

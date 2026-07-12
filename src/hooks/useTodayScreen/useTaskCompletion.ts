@@ -62,14 +62,18 @@ export function useTaskCompletion(
         // a full-list re-render storm on each proximity tick (KAN-157 follow-up).
         const current = latestTasksRef.current;
         const task = current.find(t => t.id === taskId);
+        // Birthday tasks (KAN-248) are unscored — excluded from the day-state
+        // calc so brushing/missing one can never flip "all done" or the
+        // remaining count, and never evaluated for achievements at all below.
+        const scorable = current.filter(t => t.kind !== 'birthday');
         const allOthersDone =
-          current.length > 0 &&
-          current.filter(t => t.id !== taskId).every(t => t.done);
-        const remainingTaskCount = current.filter(
+          scorable.length > 0 &&
+          scorable.filter(t => t.id !== taskId).every(t => t.done);
+        const remainingTaskCount = scorable.filter(
           t => t.id !== taskId && !t.done,
         ).length;
 
-        if (task && !DEBUG_DISABLE_BACKGROUND) {
+        if (task && task.kind !== 'birthday' && !DEBUG_DISABLE_BACKGROUND) {
           // Defer achievement + challenge work until after the completion
           // animation / in-flight interactions settle (KAN-157). Previously the
           // heavy Firestore achievements transaction ran concurrently with the

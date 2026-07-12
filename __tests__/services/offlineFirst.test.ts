@@ -139,7 +139,7 @@ describe('rolloverIncompleteTasks — offline-first timestamps', () => {
   });
 
   it('uses Timestamp.now() for createdAt in batch updates', async () => {
-    const docs = [{ ref: { id: 't1' } }, { ref: { id: 't2' } }];
+    const docs = [{ ref: { id: 't1' }, data: () => ({}) }, { ref: { id: 't2' }, data: () => ({}) }];
     mockGetDocs.mockResolvedValue({ empty: false, docs });
 
     await rolloverIncompleteTasks('uid-1', TODAY);

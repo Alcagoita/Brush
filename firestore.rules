@@ -54,7 +54,10 @@ service cloud.firestore {
         allow create, update: if isOwner(userId)
           && validString(request.resource.data.title, 500)
           && request.resource.data.title.size() > 0
-          && validString(request.resource.data.date, 10);
+          && validString(request.resource.data.date, 10)
+          // KAN-248 — kind is a narrow, closed set. Absent is the default
+          // (every task except birthday); anything else is rejected.
+          && (!('kind' in request.resource.data.keys()) || request.resource.data.kind == 'birthday');
       }
 
       // ─── Custom categories ───────────────────────────────────────────────────

@@ -631,4 +631,40 @@ describe('importFromCalendar', () => {
     await importFromCalendar('uid-1');
     expect(mockFetchCalendarEvents).toHaveBeenCalledWith(30);
   });
+
+  // ─── Birthday detection (KAN-248) ─────────────────────────────────────────
+
+  it('imports a title-matched birthday event as kind:birthday, category:personal, no poi', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Maria\'s Birthday', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: true },
+    ]);
+
+    await importFromCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+    expect('poi' in setCall).toBe(false);
+  });
+
+  it('imports a description-matched birthday event as kind:birthday when the title has no match', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Dinner', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: true, notes: 'Happy Birthday Maria!' },
+    ]);
+
+    await importFromCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+  });
+
+  it('imports a non-birthday event as a normal task (no kind, category:work)', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Team standup', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: false },
+    ]);
+
+    await importFromCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('kind' in setCall).toBe(false);
+    expect(setCall.category).toBe('work');
+  });
 });

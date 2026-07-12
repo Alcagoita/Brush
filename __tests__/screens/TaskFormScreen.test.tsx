@@ -25,12 +25,32 @@ const mockAddCategory           = jest.fn();
 const mockSubscribeToCategories = jest.fn(() => jest.fn());
 const mockGoBack                = jest.fn();
 
+const mockGetCategories = jest.fn().mockResolvedValue([]);
+
 jest.mock('../../src/services/firestore', () => ({
   addTask:               jest.fn((...args: unknown[]) => mockAddTask(...args)),
   updateTask:            jest.fn((...args: unknown[]) => mockUpdateTask(...args)),
   deleteTask:            jest.fn((...args: unknown[]) => mockDeleteTask(...args)),
   addCategory:           jest.fn((...args: unknown[]) => mockAddCategory(...args)),
   subscribeToCategories: jest.fn((...args: unknown[]) => mockSubscribeToCategories(...args)),
+  getCategories:         jest.fn((...args: unknown[]) => mockGetCategories(...args)),
+}));
+
+// KAN-248 — deleteField is imported directly (not via the src/services/firestore
+// barrel) to clear poi/kind when the birthday toggle flips. Mocked as a
+// recognizable sentinel so tests can assert it was used without pulling in
+// the real @react-native-firebase/firestore native module.
+const DELETE_FIELD_SENTINEL = { _deleteField: true };
+jest.mock('@react-native-firebase/firestore', () => ({
+  deleteField: jest.fn(() => DELETE_FIELD_SENTINEL),
+}));
+
+// achievements.ts transitively imports @notifee/react-native (native module,
+// unavailable under Jest) — mocked at the service boundary rather than the
+// native module, matching this suite's existing mocking style.
+jest.mock('../../src/services/achievements', () => ({
+  evaluateAddTaskAchievement:   jest.fn().mockResolvedValue(undefined),
+  evaluateCustomCatAchievement: jest.fn().mockResolvedValue(undefined),
 }));
 
 // CategoriesScreen exports CATEGORY_COLORS — provide a stub so the import resolves
@@ -72,6 +92,7 @@ jest.mock('../../src/components/AppIcon', () => {
   const { View } = require('react-native');
   const stub = (props: any) => React.createElement(View, props);
   return {
+    CakeIcon:     stub,
     CalendarIcon: stub,
     ClockIcon:    stub,
     CloseIcon:    stub,
@@ -623,5 +644,143 @@ describe('TaskFormScreen — confirmation toast', () => {
     });
 
     expect(useToastStore.getState().message).toBeNull();
+  });
+});
+
+// ── Birthday toggle (KAN-248) ───────────────────────────────────────────────
+
+/** Presses whichever Alert.alert button matches `label`, mimicking the user tapping it. */
+function mockAlertPress(label: string) {
+  return jest
+    .spyOn(require('react-native').Alert, 'alert')
+    .mockImplementation((_title: any, _msg: any, buttons: any[]) => {
+      buttons.find((b: any) => b.text === label)?.onPress?.();
+    });
+}
+
+describe('TaskFormScreen — birthday toggle (KAN-248)', () => {
+  afterEach(() => {
+    (require('react-native').Alert.alert as jest.Mock).mockRestore?.();
+  });
+
+  it('does not render the birthday toggle in create mode', () => {
+    setRouteParams({ uid: 'user-123' });
+    render(<TaskFormScreen />);
+    expect(screen.queryByLabelText('Mark as a birthday')).toBeNull();
+  });
+
+  it('renders the birthday toggle in edit mode, unchecked for a normal task', () => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    const toggle = screen.getByLabelText('Mark as a birthday');
+    expect(toggle.props.accessibilityState?.checked).toBe(false);
+  });
+
+  it('renders the toggle pre-checked when editing an existing birthday task', () => {
+    setRouteParams({ uid: 'user-123', task: makeTask({ kind: 'birthday', poi: undefined }) });
+    render(<TaskFormScreen />);
+    const toggle = screen.getByLabelText('Mark as a birthday');
+    expect(toggle.props.accessibilityState?.checked).toBe(true);
+  });
+
+  it('shows a warning before turning the toggle on, and does nothing if cancelled', () => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    const alertSpy = mockAlertPress('Cancel');
+    render(<TaskFormScreen />);
+
+    fireEvent.press(screen.getByLabelText('Mark as a birthday'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Mark this as a birthday?',
+      expect.any(String),
+      expect.any(Array),
+    );
+    expect(screen.getByLabelText('Mark as a birthday').props.accessibilityState?.checked).toBe(false);
+    // Still in the normal flow — POI section untouched.
+    expect(screen.getByText('Where does this happen?')).toBeTruthy();
+  });
+
+  it('turning the toggle on (confirmed) hides the POI and category sections', () => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    mockAlertPress('Mark as birthday');
+    render(<TaskFormScreen />);
+
+    fireEvent.press(screen.getByLabelText('Mark as a birthday'));
+
+    expect(screen.queryByText('Where does this happen?')).toBeNull();
+    expect(screen.queryByText('Which part of your life?')).toBeNull();
+    expect(screen.getByLabelText('Mark as a birthday').props.accessibilityState?.checked).toBe(true);
+  });
+
+  it('saves with kind:birthday, category:personal, and poi cleared once confirmed on', async () => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    mockAlertPress('Mark as birthday');
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+
+    fireEvent.press(screen.getByLabelText('Mark as a birthday'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+
+    await waitFor(() => {
+      expect(mockUpdateTask).toHaveBeenCalledWith(
+        'user-123',
+        'task-1',
+        expect.objectContaining({
+          kind:     'birthday',
+          category: 'personal',
+          poi:      DELETE_FIELD_SENTINEL,
+        }),
+      );
+    });
+  });
+
+  it('does not require a POI to save once the toggle is on', async () => {
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    mockAlertPress('Mark as birthday');
+    render(<TaskFormScreen />);
+
+    fireEvent.press(screen.getByLabelText('Mark as a birthday'));
+
+    expect(screen.getByLabelText('Save changes').props.accessibilityState?.disabled).toBe(false);
+  });
+
+  it('shows an unmark warning when turning an existing birthday task off, and clears kind once confirmed', async () => {
+    setRouteParams({ uid: 'user-123', task: makeTask({ kind: 'birthday', poi: undefined }) });
+    mockAlertPress('Unmark');
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+
+    fireEvent.press(screen.getByLabelText('Mark as a birthday'));
+    // POI section is back — pick one so the now-required field is satisfied.
+    fireEvent.press(screen.getByText('Market'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+
+    await waitFor(() => {
+      expect(mockUpdateTask).toHaveBeenCalledWith(
+        'user-123',
+        'task-1',
+        expect.objectContaining({ kind: DELETE_FIELD_SENTINEL, poi: 'supermarket' }),
+      );
+    });
+  });
+
+  it('never includes kind in the addTask payload from the create-mode flow (kind is import/edit-toggle only)', async () => {
+    setRouteParams({ uid: 'user-123' });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalled());
+    const payload = mockAddTask.mock.calls[0][1];
+    expect('kind' in payload).toBe(false);
   });
 });

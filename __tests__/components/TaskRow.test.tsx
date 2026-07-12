@@ -117,6 +117,18 @@ describe('TaskRow — built-in categories', () => {
   });
 });
 
+describe('TaskRow — birthday tasks (KAN-248)', () => {
+  it('renders the cake glyph for a kind:birthday task', () => {
+    render(<TaskRow task={{ ...BASE_TASK, category: 'personal', kind: 'birthday' }} onToggle={onToggle} />);
+    expect(screen.getByTestId('birthday-cake-icon')).toBeTruthy();
+  });
+
+  it('does not render the cake glyph for a normal task', () => {
+    render(<TaskRow task={BASE_TASK} onToggle={onToggle} />);
+    expect(screen.queryByTestId('birthday-cake-icon')).toBeNull();
+  });
+});
+
 describe('TaskRow — custom categories (KAN-61)', () => {
   it('renders custom category name when ID matches customCategories prop', () => {
     render(

@@ -91,6 +91,21 @@ export const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
   },
 
+  // ── Birthday toggle row (KAN-248) ──
+  birthdayToggleRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           12,
+  },
+  birthdayToggleText: {
+    flex: 1,
+    gap:  2,
+  },
+  birthdayToggleSublabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+
   // ── Title input ──
   titleInputWrap: {
     position: 'relative',
