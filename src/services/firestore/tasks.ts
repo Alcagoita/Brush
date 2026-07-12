@@ -221,13 +221,21 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
   // First day of next month as exclusive upper bound (ISO string comparison works)
   const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  const q = query(
-    tasksRef(uid),
-    where('date', '>=', start),
-    where('date', '<',  nextMonth),
-  );
-  const snap = await getDocs(q);
-  return mapSnapshotDocs<Task>(snap);
+  // KAN-264 review fix — a task that rolled across a month boundary (e.g. due
+  // June 30, still undone into July) has `date` pointing at the new month but
+  // `originDate` still pointing at this one. CalendarScreen attributes it to
+  // `originDate ?? date`, so it needs to be fetched here too, or it silently
+  // vanishes from its origin month. Two separate range queries (rather than
+  // a single `or()` composite) to avoid requiring a new composite index.
+  const [byDate, byOriginDate] = await Promise.all([
+    getDocs(query(tasksRef(uid), where('date', '>=', start), where('date', '<', nextMonth))),
+    getDocs(query(tasksRef(uid), where('originDate', '>=', start), where('originDate', '<', nextMonth))),
+  ]);
+
+  const byId = new Map<string, Task>();
+  for (const t of mapSnapshotDocs<Task>(byDate))       { byId.set(t.id, t); }
+  for (const t of mapSnapshotDocs<Task>(byOriginDate)) { byId.set(t.id, t); }
+  return [...byId.values()];
 }
 
 /**

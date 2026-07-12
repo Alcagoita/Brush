@@ -53,6 +53,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
+import { Timestamp } from '@react-native-firebase/firestore';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
@@ -440,13 +441,17 @@ export default function CalendarScreen() {
   // Toggling a task doesn't refetch the whole month — apply the flip locally
   // (setTaskDone itself persists it) so the checkbox updates immediately.
   const handleToggleTask = useCallback((taskId: string, done: boolean) => {
+    // completedAt must move with `done` optimistically too (KAN-264 review
+    // fix) — the redemption line reads task.completedAt to name the weekday
+    // it was brushed on, so without this it wouldn't appear until the next
+    // month refetch. Mirrors setTaskDone's own contract exactly (Timestamp.now() / null).
     setMonthTasksState(prev => prev.status === 'success'
-      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done } : t) }
+      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done, completedAt: done ? Timestamp.now() : undefined } : t) }
       : prev);
     setTaskDone(uid, taskId, done).catch(err => {
       console.warn('[CalTaskRow] setTaskDone failed', err);
       setMonthTasksState(prev => prev.status === 'success'
-        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done } : t) }
+        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done, completedAt: !done ? Timestamp.now() : undefined } : t) }
         : prev);
     });
   }, [uid]);

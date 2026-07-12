@@ -50,6 +50,13 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 
 jest.mock('@react-native-firebase/auth', () => ({}));
 
+// Timestamp is imported directly (not via the services/firestore barrel) for
+// the optimistic completedAt stamp in handleToggleTask (KAN-264 review fix) —
+// mocked to avoid pulling in the real native firestore module.
+jest.mock('@react-native-firebase/firestore', () => ({
+  Timestamp: { now: () => ({ toDate: () => new Date() }) },
+}));
+
 const mockGetTasksForMonth = jest.fn();
 const mockGetAchievements  = jest.fn();
 const mockGetCategories    = jest.fn();
@@ -622,6 +629,21 @@ describe('CalendarScreen', () => {
       await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
       expect(screen.getByText('Still open')).toBeTruthy();
       expect(screen.queryByText(/Brushed away on/)).toBeNull();
+    });
+
+    it('shows the redemption line immediately after brushing a rolled task, before any refetch (KAN-264 review fix)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Brush me now', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+      await act(async () => { fireEvent.press(screen.getByRole('checkbox')); });
+
+      expect(screen.getByText(/^Brushed away on /)).toBeTruthy();
+      expect(mockGetTasksForMonth).toHaveBeenCalledTimes(1); // no refetch triggered the redemption line
     });
   });
 
