@@ -168,13 +168,21 @@ const en = {
     downloadSuccessToast: (destination: string) => `Got it — I know ${destination} now.`,
     placesIKnowTitle: 'Places I know',
     placesIKnowEmpty: "I don't know any trip areas yet — add one above.",
-    /** KAN-250 — Calendar's day CTA when the selected future day already falls within a downloaded trip; replaces entryRowLabel for that day. */
-    placesIKnowRowLabel: (destination: string) => `Places I know: ${destination}`,
-    placesIKnowRowA11y:  (destination: string) => `Places I know — ${destination}`,
-    /** Same row, once the trip's data has expired (doc kept, cache purged) — past tense instead of hiding the destination entirely. */
-    placesIKnowRowLabelExpired: (destination: string) => `Places I used to know: ${destination}`,
-    placesIKnowRowA11yExpired:  (destination: string) => `Places I used to know — ${destination}`,
-    /** KAN-257 — Calendar's day CTA when the selected day falls inside a trip whose dates are over. Replaces placesIKnowRowLabel(Expired) for that day; navigates to the "Where we've been" timeline instead of Places I Know. */
+    /**
+     * KAN-251 — Calendar's day CTA for a selected day inside a stored trip's
+     * range. Two states only (dropped the old cache-expiry-based wording):
+     * "upcoming" (today hasn't reached the trip's startDate yet) and
+     * "active" (today is within the trip's dates). Deliberately never
+     * claims presence ("you're here") — that's the ContextChip's job, which
+     * has real location; this row is date-based only and must never lie
+     * about a delayed flight.
+     */
+    tripUpcomingRowLabel: (destination: string) => `Off to ${destination} soon`,
+    tripUpcomingRowSubtitle: (untilDate: string) => `I'll know my way around · until ${untilDate}`,
+    tripUpcomingRowA11y: (destination: string) => `Off to ${destination} soon`,
+    tripActiveRowLabel: (destination: string, untilDate: string) => `${destination} · until ${untilDate}`,
+    tripActiveRowA11y: (destination: string) => `${destination} — trip in progress`,
+    /** KAN-257 — Calendar's day CTA when the selected day falls inside a trip whose dates are over. Replaces the states above for that day; navigates to the "Where we've been" timeline instead of Places I Know. */
     whereWeveBeenRowLabel: (destination: string) => `Where we've been · ${destination}`,
     whereWeveBeenRowA11y:  (destination: string) => `Where we've been — ${destination}`,
     /** KAN-257 — always-visible secondary row under the trip entry row, shown only when at least one past trip exists. */
@@ -189,6 +197,17 @@ const en = {
     deleteConfirmBody:   "I'll stop recognizing places there. You can always learn it again later.",
     deleteConfirmAction: 'Forget it',
     deleteCancelAction:  'Keep it',
+    /**
+     * KAN-251 — "forget" is reserved for past-trip memories (KAN-257); an
+     * upcoming/active trip is a plan, not a memory, so cancelling it reads
+     * "not going anymore" throughout the whole dialog (title included —
+     * showing "Forget Faro?" as the title with this button would visibly
+     * contradict the reasoning). Off-grid windows are untouched, still use
+     * deleteConfirmTitle/Body/Action above.
+     */
+    cancelConfirmTitle:  (destination: string) => `Not going to ${destination} anymore?`,
+    cancelConfirmBody:   "I'll stop preparing for this trip.",
+    cancelConfirmAction: 'Not going anymore',
   },
 
   // ─── "Where we've been" (KAN-257) ──────────────────────────────────────────
@@ -1154,10 +1173,11 @@ const ptPT: typeof en = {
     downloadSuccessToast: (destination: string) => `Entendido — já conheço ${destination}.`,
     placesIKnowTitle: 'Sítios que conheço',
     placesIKnowEmpty: 'Ainda não conheço nenhuma zona de viagem — adiciona uma acima.',
-    placesIKnowRowLabel: (destination: string) => `Sítios que conheço: ${destination}`,
-    placesIKnowRowA11y:  (destination: string) => `Sítios que conheço — ${destination}`,
-    placesIKnowRowLabelExpired: (destination: string) => `Sítios que já conheci: ${destination}`,
-    placesIKnowRowA11yExpired:  (destination: string) => `Sítios que já conheci — ${destination}`,
+    tripUpcomingRowLabel: (destination: string) => `Vou a ${destination} em breve`,
+    tripUpcomingRowSubtitle: (untilDate: string) => `Vou saber orientar-me · até ${untilDate}`,
+    tripUpcomingRowA11y: (destination: string) => `Vou a ${destination} em breve`,
+    tripActiveRowLabel: (destination: string, untilDate: string) => `${destination} · até ${untilDate}`,
+    tripActiveRowA11y: (destination: string) => `${destination} — viagem em curso`,
     whereWeveBeenRowLabel: (destination: string) => `Onde já estivemos · ${destination}`,
     whereWeveBeenRowA11y:  (destination: string) => `Onde já estivemos — ${destination}`,
     whereWeveBeenEntryRowLabel: 'Onde já estivemos',
@@ -1171,6 +1191,9 @@ const ptPT: typeof en = {
     deleteConfirmBody:   'Vou deixar de reconhecer sítios aí. Podes sempre voltar a aprender mais tarde.',
     deleteConfirmAction: 'Esquecer',
     deleteCancelAction:  'Manter',
+    cancelConfirmTitle:  (destination: string) => `Já não vais a ${destination}?`,
+    cancelConfirmBody:   'Vou deixar de me preparar para esta viagem.',
+    cancelConfirmAction: 'Já não vou',
   },
 
   // ─── "Onde já estivemos" (KAN-257) ─────────────────────────────────────────
