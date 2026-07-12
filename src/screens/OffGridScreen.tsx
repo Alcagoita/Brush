@@ -62,6 +62,7 @@ export default function OffGridScreen() {
           <Pressable
             style={styles.navBtn}
             onPress={() => navigation.goBack()}
+            hitSlop={4}
             accessibilityRole="button"
             accessibilityLabel={COPY.tripPlannerScreen.backA11y}>
             <ChevronLeftIcon color={palette.text} size={22} />
@@ -76,7 +77,7 @@ export default function OffGridScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
         keyboardShouldPersistTaps="handled">
 
-        <View style={styles.chipRow}>
+        <View style={styles.chipRow} accessibilityRole="radiogroup">
           {DURATION_OPTIONS.map(opt => {
             const selected = duration === opt.key;
             return (
@@ -102,7 +103,7 @@ export default function OffGridScreen() {
         </View>
 
         {!showDestinationSearch && !destinationOverride && (
-          <Pressable onPress={() => setShowDestinationSearch(true)} accessibilityRole="button">
+          <Pressable onPress={() => setShowDestinationSearch(true)} hitSlop={12} accessibilityRole="button">
             <Text style={[styles.linkText, { color: palette.muted }]}>{COPY.offGrid.destinationOverridePrompt}</Text>
           </Pressable>
         )}
@@ -213,7 +214,7 @@ const styles = StyleSheet.create({
     alignSelf:         'flex-start',
     gap:               8,
     paddingHorizontal: 12,
-    paddingVertical:    8,
+    paddingVertical:   12,
     borderRadius:      9999,
     borderWidth:        1,
   },

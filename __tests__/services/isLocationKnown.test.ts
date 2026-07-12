@@ -134,10 +134,9 @@ describe('getActiveOffGridWindow (KAN-246)', () => {
   });
 
   it('returns the destination + expiresAt of an active off-grid trip', () => {
-    setActiveTrips([makeTrip({ kind: 'offgrid', destination: 'this area', expiresAt: Date.now() + 500_000 })]);
-    const window = getActiveOffGridWindow();
-    expect(window?.destination).toBe('this area');
-    expect(window?.expiresAt).toBeGreaterThan(Date.now());
+    const expiresAt = Date.now() + 500_000;
+    setActiveTrips([makeTrip({ kind: 'offgrid', destination: 'this area', expiresAt })]);
+    expect(getActiveOffGridWindow()).toEqual({ destination: 'this area', expiresAt });
   });
 
   it('is null once the off-grid trip has expired', () => {

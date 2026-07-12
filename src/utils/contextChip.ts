@@ -49,7 +49,7 @@ export function resolveContextChipView({
     return { kind: 'mall', name: placeContext.snapshot.name, offlineDot: offline };
   }
 
-  if (placeContext?.kind === 'trip' && isTodayWithinTripDates(placeContext.trip, todayIso)) {
+  if (placeContext?.kind === 'trip' && placeContext.trip.kind !== 'offgrid' && isTodayWithinTripDates(placeContext.trip, todayIso)) {
     return {
       kind: 'trip',
       destination: placeContext.trip.destination,

@@ -58,6 +58,11 @@ describe('computeOffGridExpiresAt', () => {
   it('pick_time falls back to now + 5h when no time is supplied', () => {
     expect(computeOffGridExpiresAt('pick_time', undefined, NOW)).toBe(NOW + 5 * 60 * 60 * 1_000);
   });
+
+  it('pick_time clamps a supplied time less than a minute ahead to now + 1min', () => {
+    const almostNow = NOW + 10_000;
+    expect(computeOffGridExpiresAt('pick_time', almostNow, NOW)).toBe(NOW + 60_000);
+  });
 });
 
 describe('countBrushedDuringWindow', () => {

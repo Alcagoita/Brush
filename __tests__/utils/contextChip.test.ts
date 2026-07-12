@@ -174,4 +174,14 @@ describe('off-grid window priority (KAN-246)', () => {
     const view = resolveContextChipView({ ...baseInput, placeContext: null });
     expect(view).toEqual({ kind: 'none' });
   });
+
+  it('an off-grid trip inside its own geofence still resolves to the offgrid view, not the generic trip view', () => {
+    const offgridTrip = makeTrip({ kind: 'offgrid', destination: 'this area' });
+    const view = resolveContextChipView({
+      ...baseInput,
+      placeContext: { kind: 'trip', trip: offgridTrip },
+      offGridWindow,
+    });
+    expect(view).toEqual({ kind: 'offgrid', destination: 'this area', expiresAt: 1_800_000_000_000 });
+  });
 });

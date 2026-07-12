@@ -24,7 +24,7 @@ import { computeOffGridExpiresAt, OFFGRID_AREA_RADIUS_M } from '../services/offG
 import type { OffGridDurationKey } from '../services/offGrid';
 import { getCurrentPosition } from '../services/geolocation';
 import { useToastStore } from '../store/toastStore';
-import { todayISO } from '../utils/date';
+import { todayISO, formatLocalTime } from '../utils/date';
 import { COPY } from '../constants/copy';
 
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
@@ -100,7 +100,7 @@ export function useOffGridWindow(onDone: () => void): OffGridWindowState {
     setDestinationSuggestions([]);
   }, []);
 
-  const canConfirm = duration !== null && !confirming;
+  const canConfirm = duration !== null && !!uid && !confirming;
 
   const confirm = useCallback(async () => {
     if (!duration || !uid || confirming) { return; }
@@ -157,10 +157,4 @@ export function useOffGridWindow(onDone: () => void): OffGridWindowState {
     destinationSuggestions, selectDestinationOverride, clearDestinationOverride,
     confirming, error, canConfirm, confirm,
   };
-}
-
-/** "18:00" — 24h local time, no seconds. Not COPY (numeric, not language-dependent). */
-export function formatLocalTime(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }

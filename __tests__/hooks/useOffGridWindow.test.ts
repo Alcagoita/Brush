@@ -58,7 +58,7 @@ jest.mock('../../src/store/toastStore', () => ({
   useToastStore: { getState: () => ({ showToast: mockShowToast }) },
 }));
 
-import { act, renderHook, waitFor } from '@testing-library/react-native';
+import { act, renderHook } from '@testing-library/react-native';
 import { useOffGridWindow } from '../../src/hooks/useOffGridWindow';
 import { COPY } from '../../src/constants/copy';
 

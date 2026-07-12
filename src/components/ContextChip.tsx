@@ -46,7 +46,7 @@ import type { PlaceContext } from '../services/proximity';
 import { refreshTripArea } from '../services/tripDownload';
 import { getCategories } from '../services/firestore';
 import { resolveContextChipView, ContextChipView } from '../utils/contextChip';
-import { todayISO } from '../utils/date';
+import { todayISO, formatLocalTime } from '../utils/date';
 import { useToastStore } from '../store/toastStore';
 import { ALL_POI_TYPES } from '../types';
 import { COPY } from '../constants/copy';
@@ -58,12 +58,6 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /** How often to re-check the off-grid window's active/expired state — it's time-based, not tied to a position fix like everything else this chip reflects. */
 const OFFGRID_POLL_MS = 60_000;
-
-/** "18:00" — 24h local time, no seconds. */
-function formatLocalTime(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
 
 function formatLearnedDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });

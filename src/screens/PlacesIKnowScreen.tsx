@@ -28,6 +28,7 @@ import { formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Trip } from '../types';
 import { COPY } from '../constants/copy';
+import { formatLocalTime } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlacesIKnow'>;
 
@@ -40,12 +41,6 @@ function formatExpiry(expiresAt: number): string {
   return COPY.tripPlanner.tripRowKnownUntil(
     new Date(expiresAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
   );
-}
-
-/** "18:00" — off-grid windows are hours-long, not day-level like a trip's endDate. */
-function formatLocalTime(ms: number): string {
-  const d = new Date(ms);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 export default function PlacesIKnowScreen() {

@@ -24,6 +24,8 @@ const FEW_HOURS_MS = 5 * 60 * 60 * 1_000;
 const TONIGHT_HOUR = 22;
 /** Fallback window length if 'until_tonight' is chosen after the cutoff has already passed today. */
 const LATE_NIGHT_FALLBACK_MS = 3 * 60 * 60 * 1_000;
+/** Minimum lead time enforced on a 'pick_time' choice so a picked time seconds from now can't produce a near-instant expiry. */
+const MIN_PICK_TIME_LEAD_MS = 60 * 1_000;
 
 /**
  * Resolves a duration choice to an absolute expiry timestamp.
@@ -48,7 +50,7 @@ export function computeOffGridExpiresAt(
   }
 
   // 'pick_time'
-  if (pickedTimeMs !== undefined && pickedTimeMs > now) { return pickedTimeMs; }
+  if (pickedTimeMs !== undefined && pickedTimeMs > now) { return Math.max(pickedTimeMs, now + MIN_PICK_TIME_LEAD_MS); }
   return now + FEW_HOURS_MS;
 }
 

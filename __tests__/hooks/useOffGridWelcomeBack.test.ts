@@ -125,5 +125,6 @@ describe('useOffGridWelcomeBack', () => {
     const trip = makeTrip();
     expect(() => renderHook(() => useOffGridWelcomeBack('u1', [], [trip]))).not.toThrow();
     await waitFor(() => expect(mockDeleteTrip).toHaveBeenCalled());
+    expect(mockDeleteTripAreaPlaces).toHaveBeenCalledWith('og_1');
   });
 });
