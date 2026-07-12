@@ -5,12 +5,17 @@
  * auto-expiry") — kept in its own module so the detection heuristic stays
  * easy to audit and never accidentally generalizes to other task kinds.
  *
- * Two independent signals, checked in priority order by isBirthdayEvent:
+ * Signals, checked in priority order by isBirthdayEvent:
  *   1. eventType — Google Calendar's own classification ("birthday"),
  *      authoritative when present.
  *   2. Title heuristic — per-locale keyword match, tried in both supported
  *      languages regardless of device locale (an imported event's language
  *      is unknown — same reasoning as inferImportedPoi in import.ts).
+ *   3. Description heuristic — same keyword match against the event's notes,
+ *      for events with a generic title ("Dinner", "Reminder") that only
+ *      state the occasion in the body. Same false-positive risk as the
+ *      title match, accepted for the same reason: the edit-screen Birthday
+ *      toggle exists specifically to correct a wrong/missed classification.
  */
 
 const TITLE_KEYWORDS = ['birthday', 'aniversario'];
@@ -20,19 +25,20 @@ function stripDiacritics(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
-/** True if `title` contains a birthday keyword in any supported language, case/diacritics-insensitive. */
-export function titleLooksLikeBirthday(title: string): boolean {
-  const normalized = stripDiacritics(title.toLowerCase());
+/** True if `text` contains a birthday keyword in any supported language, case/diacritics-insensitive. */
+export function textLooksLikeBirthday(text: string): boolean {
+  const normalized = stripDiacritics(text.toLowerCase());
   return TITLE_KEYWORDS.some(kw => normalized.includes(kw));
 }
 
 /**
  * Resolves whether a calendar event is a birthday.
  * `eventType` is Google Calendar-only (undefined for EventKit, which has no
- * equivalent field) — when present it wins outright; otherwise falls back
- * to the title heuristic.
+ * equivalent field) — when present it wins outright; otherwise falls back to
+ * the title heuristic, then the description heuristic.
  */
-export function isBirthdayEvent(title: string, eventType?: string): boolean {
+export function isBirthdayEvent(title: string, eventType?: string, description?: string): boolean {
   if (eventType === 'birthday') { return true; }
-  return titleLooksLikeBirthday(title);
+  if (textLooksLikeBirthday(title)) { return true; }
+  return !!description && textLooksLikeBirthday(description);
 }

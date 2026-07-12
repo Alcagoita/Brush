@@ -591,6 +591,20 @@ describe('importFromGoogleCalendar', () => {
     expect(setCall.category).toBe('personal');
   });
 
+  it('imports a description-matched birthday event as kind:birthday when the title has no match', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([{
+      id: '1', summary: 'Dinner', description: 'Happy Birthday Maria!',
+      start: { date: '2026-06-20' },
+    }]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+  });
+
   it('imports a non-birthday event as a normal task (no kind, category:work)', async () => {
     mockAccessToken();
     mockExistingTitles([]);

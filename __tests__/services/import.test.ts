@@ -646,6 +646,17 @@ describe('importFromCalendar', () => {
     expect('poi' in setCall).toBe(false);
   });
 
+  it('imports a description-matched birthday event as kind:birthday when the title has no match', async () => {
+    mockFetchCalendarEvents.mockResolvedValueOnce([
+      { title: 'Dinner', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: true, notes: 'Happy Birthday Maria!' },
+    ]);
+
+    await importFromCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+  });
+
   it('imports a non-birthday event as a normal task (no kind, category:work)', async () => {
     mockFetchCalendarEvents.mockResolvedValueOnce([
       { title: 'Team standup', startDateString: '2026-06-05T09:00:00.000Z', isAllDay: false },

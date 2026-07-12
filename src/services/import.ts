@@ -471,7 +471,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.description, { html: true });
-      const isBirthday = isBirthdayEvent(title, item.eventType);
+      const isBirthday = isBirthdayEvent(title, item.eventType, description);
       // Birthday tasks are date-shaped, not place-shaped (KAN-248) — never
       // worth a POI lookup, and POI/place fields must stay empty for them.
       const poi = isBirthday ? null : await inferImportedPoi(title, poiCache);
@@ -623,8 +623,8 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.notes);
-      // EventKit exposes no event-type field equivalent to Google's — title heuristic only.
-      const isBirthday = isBirthdayEvent(title);
+      // EventKit exposes no event-type field equivalent to Google's — title/description heuristic only.
+      const isBirthday = isBirthdayEvent(title, undefined, description);
       const poi = isBirthday ? null : await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
