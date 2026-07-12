@@ -46,7 +46,7 @@ import type { PlaceContext } from '../services/proximity';
 import { refreshTripArea } from '../services/tripDownload';
 import { getCategories } from '../services/firestore';
 import { resolveContextChipView, ContextChipView } from '../utils/contextChip';
-import { todayISO, formatLocalTime } from '../utils/date';
+import { todayISO, formatLocalTime, formatDateShort } from '../utils/date';
 import { useToastStore } from '../store/toastStore';
 import { ALL_POI_TYPES } from '../types';
 import { COPY } from '../constants/copy';
@@ -63,11 +63,6 @@ function formatLearnedDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** YYYY-MM-DD → "Jun 28", without the UTC-parsing off-by-one (see PlacesIKnowScreen/TripPlannerScreen's own copy of this helper). */
-function formatDateShort(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 function chipA11yLabel(view: ContextChipView): string {
   switch (view.kind) {

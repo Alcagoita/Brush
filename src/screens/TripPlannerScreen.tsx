@@ -36,7 +36,7 @@ import { CIRCLE_FRACTION_OF_HALF_DIM } from '../services/maps';
 import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { TripRadiusPreset } from '../types';
-import { todayISO } from '../utils/date';
+import { todayISO, formatDateShort } from '../utils/date';
 import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
@@ -53,11 +53,6 @@ function radiusPresetLabel(key: TripRadiusPreset): string {
     case 'town_and_around': return COPY.tripPlanner.radiusTownAndAround;
     case 'region':           return COPY.tripPlanner.radiusRegion;
   }
-}
-
-function formatDateShort(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 const STEPS = ['destination', 'dates', 'radius'] as const;
@@ -182,7 +177,11 @@ export default function TripPlannerScreen() {
               <MiniCalendar
                 value={startDate ?? null}
                 minimumDate={todayISO()}
-                onChange={iso => { setStartDate(iso); setOpenPicker(null); }}
+                onChange={iso => {
+                  setStartDate(iso);
+                  if (endDate && iso > endDate) { setEndDate(undefined); }
+                  setOpenPicker(null);
+                }}
               />
             )}
 

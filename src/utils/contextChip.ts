@@ -31,6 +31,16 @@ export function isTripPast(trip: Trip, todayIso: string): boolean {
   return !!trip.endDate && trip.endDate < todayIso;
 }
 
+/**
+ * KAN-257 — a trip worth remembering on "Where we've been": past (per
+ * isTripPast) AND not an off-grid window (KAN-246 — a Tuesday hike isn't a
+ * trip memory). Both useWhereWeveBeen and CalendarScreen need exactly this
+ * combined check; kept here rather than duplicated at each call site.
+ */
+export function isPastMemorableTrip(trip: Trip, todayIso: string): boolean {
+  return trip.kind !== 'offgrid' && isTripPast(trip, todayIso);
+}
+
 export type ContextChipView =
   | { kind: 'mall'; name: string; offlineDot: boolean }
   | { kind: 'trip'; destination: string; startDate?: string; endDate?: string; offlineDot: boolean }

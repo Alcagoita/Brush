@@ -27,14 +27,10 @@ import { useWhereWeveBeen } from '../hooks/useWhereWeveBeen';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Trip } from '../types';
 import { COPY } from '../constants/copy';
+import { formatDateShort } from '../utils/date';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'WhereWeveBeen'>;
 type Route = RouteProp<RootStackParamList, 'WhereWeveBeen'>;
-
-function formatDateShort(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 export default function WhereWeveBeenScreen() {
   const { palette } = useTheme();
@@ -72,7 +68,7 @@ export default function WhereWeveBeenScreen() {
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={palette.accent} />
+          <ActivityIndicator testID="where-weve-been-loading" color={palette.accent} />
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
@@ -101,7 +97,6 @@ export default function WhereWeveBeenScreen() {
                     </View>
                     <Pressable
                       onPress={() => confirmForget(trip)}
-                      hitSlop={8}
                       style={styles.actionBtn}
                       accessibilityRole="button"
                       accessibilityLabel={COPY.whereWeveBeenScreen.forgetTripA11y(trip.destination)}>
@@ -149,6 +144,6 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontFamily: 'Geist-Medium', fontWeight: '500' },
   rowSub: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
-  actionBtn: { paddingHorizontal: 4, paddingVertical: 4 },
+  actionBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   deleteX: { fontSize: 22, lineHeight: 22 },
 });

@@ -68,6 +68,18 @@ beforeEach(() => {
 });
 
 describe('WhereWeveBeenScreen — rendering', () => {
+  it('shows a loading indicator instead of the list while loading', () => {
+    mockUseWhereWeveBeen.mockReturnValue({
+      loading: true,
+      yearGroups: [],
+      forgetTrip: mockForgetTrip,
+    });
+
+    render(<WhereWeveBeenScreen />);
+
+    expect(screen.getByTestId('where-weve-been-loading')).toBeTruthy();
+  });
+
   it('renders destination and dates, grouped by year, with no counts anywhere', () => {
     mockUseWhereWeveBeen.mockReturnValue({
       loading: false,

@@ -43,7 +43,7 @@ function makeTrip(overrides: Partial<Trip> = {}): Trip {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  jest.useFakeTimers().setSystemTime(new Date('2026-06-16'));
+  jest.useFakeTimers().setSystemTime(new Date(2026, 5, 16)); // local calendar day, not UTC midnight
   mockGetAuth.mockReturnValue({ currentUser: { uid: 'test-uid' } });
 });
 

@@ -475,10 +475,10 @@ describe('CalendarScreen', () => {
       expect(screen.queryByLabelText("See where we've been")).toBeNull();
     });
 
-    it('does not render the entry row for an off-grid trip even if its (nonexistent) dates would otherwise qualify', async () => {
+    it('does not render the entry row for an off-grid trip even with valid past dates (kind-based exclusion, not just the dateless filter)', async () => {
       mockGetTrips.mockResolvedValue([{
         id: 'trip-1', destination: 'this area', placeRef: 'p1', centerLat: 1, centerLng: 2,
-        kind: 'offgrid', areaRadius: 15_000,
+        kind: 'offgrid', startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
         cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
       }]);
       await renderScreen();

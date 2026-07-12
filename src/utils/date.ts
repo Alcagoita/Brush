@@ -23,6 +23,12 @@ export function formatLocalTime(ms: number): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
+/** "May 22" — short month + day, locale-aware. Not COPY (relies on the device locale's Intl formatting, not the app's two-language dictionary). */
+export function formatDateShort(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number);
+  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
 /**
  * Returns the Monday 00:00:00.000 and Sunday 23:59:59.999 boundaries of the
  * current local calendar week (ISO week: Mon–Sun).

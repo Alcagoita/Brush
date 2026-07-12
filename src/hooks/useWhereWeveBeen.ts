@@ -8,12 +8,12 @@
  * genuinely gone; the memory remains). No JSX — independently testable.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { getTrips, deleteTrip as deleteTripDoc } from '../services/firestore';
 import { deleteTripAreaPlaces } from '../services/habitatCache';
-import { isTripPast } from '../utils/contextChip';
+import { isPastMemorableTrip } from '../utils/contextChip';
 import { todayISO } from '../utils/date';
 import type { Trip } from '../types';
 
@@ -51,17 +51,26 @@ export function useWhereWeveBeen(): WhereWeveBeenState {
   const [loading, setLoading] = useState(true);
   const [trips, setTrips] = useState<Trip[]>([]);
 
+  // Guards against a stale getTrips response landing after uid has already
+  // changed (sign-out/sign-in while this screen is mounted) — without this,
+  // a slow fetch for the old user could overwrite state with the wrong
+  // user's trips after the new user's fetch already resolved.
+  const uidRef = useRef(uid);
+  uidRef.current = uid;
+
   const refresh = useCallback(async () => {
     if (!uid) { setLoading(false); return; }
     setLoading(true);
     try {
       const today = todayISO();
       const fetched = await getTrips(uid);
-      setTrips(fetched.filter(t => t.kind !== 'offgrid' && isTripPast(t, today)));
+      if (uidRef.current !== uid) { return; }
+      setTrips(fetched.filter(t => isPastMemorableTrip(t, today)));
     } catch (err) {
+      if (uidRef.current !== uid) { return; }
       console.warn('[useWhereWeveBeen] refresh failed', err);
     } finally {
-      setLoading(false);
+      if (uidRef.current === uid) { setLoading(false); }
     }
   }, [uid]);
 
@@ -78,5 +87,7 @@ export function useWhereWeveBeen(): WhereWeveBeenState {
     }
   }, [uid]);
 
-  return { loading, yearGroups: groupTripsByYear(trips), forgetTrip };
+  const yearGroups = useMemo(() => groupTripsByYear(trips), [trips]);
+
+  return { loading, yearGroups, forgetTrip };
 }

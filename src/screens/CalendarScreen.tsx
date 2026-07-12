@@ -65,7 +65,7 @@ import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
-import { isTripPast } from '../utils/contextChip';
+import { isTripPast, isPastMemorableTrip } from '../utils/contextChip';
 import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -526,7 +526,7 @@ export default function CalendarScreen() {
   // "Where we've been ›" entry row's visibility — absence is the default,
   // same rule as the ContextChip.
   const hasPastTrips = useMemo(
-    () => datedTrips.some(t => t.kind !== 'offgrid' && isTripPast(t, today)),
+    () => datedTrips.some(t => isPastMemorableTrip(t, today)),
     [datedTrips, today],
   );
 
@@ -802,6 +802,7 @@ export default function CalendarScreen() {
       {hasPastTrips && (
         <Pressable
           style={styles.whereWeveBeenRow}
+          hitSlop={4}
           onPress={() => navigation.navigate('WhereWeveBeen')}
           accessibilityRole="button"
           accessibilityLabel={COPY.tripPlanner.whereWeveBeenEntryRowA11y}>

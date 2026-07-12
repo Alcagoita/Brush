@@ -13,6 +13,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme';
 import { radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, ChevronRightIcon } from './AppIcon';
+import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
 
 export interface MiniCalendarProps {
@@ -48,7 +49,7 @@ function buildGrid(year: number, month: number): (number | null)[] {
 export default function MiniCalendar({ value, onChange, minimumDate }: MiniCalendarProps) {
   const { palette } = useTheme();
 
-  const initial = value ?? minimumDate ?? toDateISO(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+  const initial = value ?? minimumDate ?? todayISO();
   const [initY, initM] = initial.split('-').map(Number);
   const [displayYear, setDisplayYear]   = useState(initY);
   const [displayMonth, setDisplayMonth] = useState(initM);
@@ -95,12 +96,14 @@ export default function MiniCalendar({ value, onChange, minimumDate }: MiniCalen
               key={iso}
               disabled={isDisabled}
               onPress={() => onChange(iso)}
+              hitSlop={8}
               style={[
                 styles.cell,
                 styles.cellPressable,
                 isSelected && { backgroundColor: palette.accent },
               ]}
               accessibilityRole="button"
+              accessibilityLabel={`${COPY.calendar.monthNamesFull[displayMonth - 1]} ${day}, ${displayYear}`}
               accessibilityState={{ selected: isSelected, disabled: isDisabled }}>
               <Text style={[
                 styles.cellDay,

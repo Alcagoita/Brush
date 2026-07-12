@@ -82,6 +82,11 @@ describe('isTripPast (KAN-257)', () => {
     const trip = makeTrip({ startDate: '2026-06-01', endDate: undefined });
     expect(isTripPast(trip, '2026-07-06')).toBe(false);
   });
+
+  it('is evaluated purely from endDate, regardless of kind (off-grid or otherwise) — kind filtering is the caller\'s job', () => {
+    const trip = makeTrip({ kind: 'offgrid', startDate: '2026-06-01', endDate: '2026-06-10' });
+    expect(isTripPast(trip, '2026-07-06')).toBe(true);
+  });
 });
 
 describe('resolveContextChipView — priority mall > trip > offline > none', () => {
