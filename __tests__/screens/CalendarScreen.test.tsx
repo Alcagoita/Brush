@@ -458,6 +458,101 @@ describe('CalendarScreen', () => {
     });
   });
 
+  describe('"Where we\'ve been" — entry row visibility (KAN-257)', () => {
+    it('does not render the entry row when there are no past trips', async () => {
+      mockGetTrips.mockResolvedValue([]);
+      await renderScreen();
+      expect(screen.queryByLabelText("See where we've been")).toBeNull();
+    });
+
+    it('does not render the entry row for a trip whose dates are still in the future', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-07-01', endDate: '2026-07-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-08-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
+      }]);
+      await renderScreen();
+      expect(screen.queryByLabelText("See where we've been")).toBeNull();
+    });
+
+    it('does not render the entry row for an off-grid trip even if its (nonexistent) dates would otherwise qualify', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'this area', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        kind: 'offgrid', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
+      }]);
+      await renderScreen();
+      expect(screen.queryByLabelText("See where we've been")).toBeNull();
+    });
+
+    it('renders the entry row when at least one past, non-off-grid trip exists', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-04-01'),
+      }]);
+      await renderScreen();
+      expect(screen.getByLabelText("See where we've been")).toBeTruthy();
+      expect(screen.getByText("Where we've been")).toBeTruthy();
+    });
+
+    it('navigates to WhereWeveBeen with no highlightTripId when the general entry row is tapped', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-04-01'),
+      }]);
+      await renderScreen();
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("See where we've been"));
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('WhereWeveBeen');
+    });
+  });
+
+  describe('Trip entry row — past-day tap row-state switch (KAN-257)', () => {
+    const pastTrip = {
+      id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+      startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+      cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-04-01'),
+    };
+
+    it('shows "Where we\'ve been · {destination}" for a day inside a past trip\'s range', async () => {
+      mockGetTrips.mockResolvedValue([pastTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('Previous month')); });
+      await act(async () => { fireEvent.press(screen.getByLabelText('5')); });
+
+      expect(screen.getByLabelText('Where we\'ve been — Faro')).toBeTruthy();
+      expect(screen.getByText("Where we've been · Faro")).toBeTruthy();
+      expect(screen.queryByText('Places I know: Faro')).toBeNull();
+      expect(screen.queryByText('Places I used to know: Faro')).toBeNull();
+    });
+
+    it('navigates to WhereWeveBeen with highlightTripId when that row is tapped', async () => {
+      mockGetTrips.mockResolvedValue([pastTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('Previous month')); });
+      await act(async () => { fireEvent.press(screen.getByLabelText('5')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Where we\'ve been — Faro'));
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('WhereWeveBeen', { highlightTripId: 'trip-1' });
+    });
+
+    it('leaves an active (non-past) trip day showing the existing "Places I know" row, not "Where we\'ve been"', async () => {
+      const activeTrip = { ...pastTrip, startDate: '2026-06-24', endDate: '2026-06-27', expiresAt: new Date('2026-07-01').getTime() };
+      mockGetTrips.mockResolvedValue([activeTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.queryByText("Where we've been · Faro")).toBeNull();
+    });
+  });
+
   it('toggling a task applies the change locally and calls setTaskDone (KAN-218 — no live listener to reflect it)', async () => {
     mockGetTasksForMonth.mockResolvedValue([
       { id: 't1', title: 'Buy groceries', category: 'errands', done: false,

@@ -174,6 +174,12 @@ const en = {
     /** Same row, once the trip's data has expired (doc kept, cache purged) — past tense instead of hiding the destination entirely. */
     placesIKnowRowLabelExpired: (destination: string) => `Places I used to know: ${destination}`,
     placesIKnowRowA11yExpired:  (destination: string) => `Places I used to know — ${destination}`,
+    /** KAN-257 — Calendar's day CTA when the selected day falls inside a trip whose dates are over. Replaces placesIKnowRowLabel(Expired) for that day; navigates to the "Where we've been" timeline instead of Places I Know. */
+    whereWeveBeenRowLabel: (destination: string) => `Where we've been · ${destination}`,
+    whereWeveBeenRowA11y:  (destination: string) => `Where we've been — ${destination}`,
+    /** KAN-257 — always-visible secondary row under the trip entry row, shown only when at least one past trip exists. */
+    whereWeveBeenEntryRowLabel: "Where we've been",
+    whereWeveBeenEntryRowA11y:  "See where we've been",
     habitatRowLabel: 'Everywhere I usually go',
     habitatRowSub:   'Updated automatically as you go about your day',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
@@ -183,6 +189,21 @@ const en = {
     deleteConfirmBody:   "I'll stop recognizing places there. You can always learn it again later.",
     deleteConfirmAction: 'Forget it',
     deleteCancelAction:  'Keep it',
+  },
+
+  // ─── "Where we've been" (KAN-257) ──────────────────────────────────────────
+  // Companion voice — the app forgets the place data but remembers being
+  // there together. Never "history"/"archive"/"records" here or in the row
+  // that links to this screen.
+  whereWeveBeenScreen: {
+    screenTitle: "Where we've been",
+    backA11y: 'Back',
+    forgetTripLabel: 'Forget this trip',
+    forgetTripA11y: (destination: string) => `Forget this trip — ${destination}`,
+    forgetConfirmTitle: (destination: string) => `Forget ${destination}?`,
+    forgetConfirmBody: "This trip won't show up here again.",
+    forgetConfirmAction: 'Forget it',
+    cancel: 'Cancel',
   },
 
   // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
@@ -1135,6 +1156,10 @@ const ptPT: typeof en = {
     placesIKnowRowA11y:  (destination: string) => `Sítios que conheço — ${destination}`,
     placesIKnowRowLabelExpired: (destination: string) => `Sítios que já conheci: ${destination}`,
     placesIKnowRowA11yExpired:  (destination: string) => `Sítios que já conheci — ${destination}`,
+    whereWeveBeenRowLabel: (destination: string) => `Onde já estivemos · ${destination}`,
+    whereWeveBeenRowA11y:  (destination: string) => `Onde já estivemos — ${destination}`,
+    whereWeveBeenEntryRowLabel: 'Onde já estivemos',
+    whereWeveBeenEntryRowA11y:  'Ver onde já estivemos',
     habitatRowLabel: 'Onde costumo andar',
     habitatRowSub:   'Atualizado automaticamente ao longo do teu dia',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
@@ -1144,6 +1169,18 @@ const ptPT: typeof en = {
     deleteConfirmBody:   'Vou deixar de reconhecer sítios aí. Podes sempre voltar a aprender mais tarde.',
     deleteConfirmAction: 'Esquecer',
     deleteCancelAction:  'Manter',
+  },
+
+  // ─── "Onde já estivemos" (KAN-257) ─────────────────────────────────────────
+  whereWeveBeenScreen: {
+    screenTitle: 'Onde já estivemos',
+    backA11y: 'Voltar',
+    forgetTripLabel: 'Esquecer esta viagem',
+    forgetTripA11y: (destination: string) => `Esquecer esta viagem — ${destination}`,
+    forgetConfirmTitle: (destination: string) => `Esquecer ${destination}?`,
+    forgetConfirmBody: 'Esta viagem deixa de aparecer aqui.',
+    forgetConfirmAction: 'Esquecer',
+    cancel: 'Cancelar',
   },
 
   contextChip: {

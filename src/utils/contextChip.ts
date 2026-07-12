@@ -19,6 +19,18 @@ export function isTodayWithinTripDates(trip: Trip, todayIso: string): boolean {
   return true;
 }
 
+/**
+ * KAN-257 — true when a trip is over: it has an endDate and that date is
+ * before today. A dateless trip (endDate never set) is never "past" — there's
+ * nothing to remember it by yet. Off-grid trips (kind:'offgrid') are a
+ * separate concept entirely (KAN-246) and must be filtered by the caller —
+ * this helper doesn't know about kind, deliberately, since past-ness is a
+ * pure date question independent of what kind of trip it is.
+ */
+export function isTripPast(trip: Trip, todayIso: string): boolean {
+  return !!trip.endDate && trip.endDate < todayIso;
+}
+
 export type ContextChipView =
   | { kind: 'mall'; name: string; offlineDot: boolean }
   | { kind: 'trip'; destination: string; startDate?: string; endDate?: string; offlineDot: boolean }

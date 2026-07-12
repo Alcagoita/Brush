@@ -65,6 +65,7 @@ import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
 import { todayISO } from '../utils/date';
+import { isTripPast } from '../utils/contextChip';
 import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -521,6 +522,14 @@ export default function CalendarScreen() {
     [datedTrips],
   );
 
+  // KAN-257 — whether at least one past, non-off-grid trip exists. Drives the
+  // "Where we've been ›" entry row's visibility — absence is the default,
+  // same rule as the ContextChip.
+  const hasPastTrips = useMemo(
+    () => datedTrips.some(t => t.kind !== 'offgrid' && isTripPast(t, today)),
+    [datedTrips, today],
+  );
+
   // ── Achievement milestones for the displayed month ──
   // Only the single most-recent earnedAt per type is available (see header note).
   const achievementsByDay = useMemo<Record<number, { icon: AchievementIconKey; label: string }>>(() => {
@@ -564,6 +573,11 @@ export default function CalendarScreen() {
   // deleteExpiredTripPlaces) so the underline/entry row can still reference
   // it here; the label just switches to past tense once expired.
   const selTripExpired = !!selTrip && selTrip.expiresAt <= Date.now();
+  // KAN-257 — distinct from selTripExpired (cache-purge, KAN-256): whether
+  // the trip's *dates* are over. A date-past trip switches the entry row to
+  // "Where we've been" instead of "Places I know", regardless of whether its
+  // cache happens to still be around.
+  const isSelTripPast  = !!selTrip && isTripPast(selTrip, today);
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -733,12 +747,26 @@ export default function CalendarScreen() {
         })}
       </View>
 
-      {/* ── Trip entry row (KAN-243 / KAN-250) — always visible, just under the
-          day grid. Trip-aware: shows "Places I know: {destination}" when the
-          selected day already falls within a downloaded trip, else the plain
-          "Going somewhere?" invite (prefilled with that date when it's a
-          future day). Single row — no separate day-specific CTA elsewhere. ── */}
-      {selTrip ? (
+      {/* ── Trip entry row (KAN-243 / KAN-250 / KAN-257) — always visible, just
+          under the day grid. Trip-aware: for a past trip's day, shows
+          "Where we've been · {destination}" and opens the timeline anchored
+          at that trip; for an active/future trip's day, shows "Places I
+          know: {destination}"; else the plain "Going somewhere?" invite
+          (prefilled with that date when it's a future day). Single row —
+          no separate day-specific CTA elsewhere. ── */}
+      {selTrip && isSelTripPast ? (
+        <Pressable
+          style={[styles.tripEntryRow, { borderColor: palette.line }]}
+          onPress={() => navigation.navigate('WhereWeveBeen', { highlightTripId: selTrip.id })}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.tripPlanner.whereWeveBeenRowA11y(selTrip.destination)}>
+          <SuitcaseIcon color={palette.muted} size={16} />
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+            {COPY.tripPlanner.whereWeveBeenRowLabel(selTrip.destination)}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      ) : selTrip ? (
         <Pressable
           style={[styles.tripEntryRow, { borderColor: palette.line }]}
           onPress={() => navigation.navigate('PlacesIKnow')}
@@ -765,6 +793,22 @@ export default function CalendarScreen() {
           <SuitcaseIcon color={palette.muted} size={16} />
           <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      )}
+
+      {/* ── "Where we've been ›" secondary entry row (KAN-257) — quiet,
+          always keyed to whether ANY past trip exists (not the selected
+          day). Absence is the default, same rule as the ContextChip. ── */}
+      {hasPastTrips && (
+        <Pressable
+          style={styles.whereWeveBeenRow}
+          onPress={() => navigation.navigate('WhereWeveBeen')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.tripPlanner.whereWeveBeenEntryRowA11y}>
+          <Text style={[styles.whereWeveBeenLabel, { color: palette.muted }]}>
+            {COPY.tripPlanner.whereWeveBeenEntryRowLabel}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={13} strokeWidth={1.8} />
         </Pressable>
       )}
 
@@ -1043,6 +1087,24 @@ const styles = StyleSheet.create({
   tripEntryLabel: {
     flex:       1,
     fontSize:   fonts.sizes.label,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── "Where we've been ›" secondary entry (KAN-257) — quieter than the
+  // primary trip row: no border/background, just text + chevron. ──
+  whereWeveBeenRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               6,
+    minHeight:         36,
+    marginHorizontal:  spacing[4],
+    marginBottom:      10,
+    paddingHorizontal: 12,
+  },
+  whereWeveBeenLabel: {
+    flex:       1,
+    fontSize:   13,
     fontWeight: '500',
     fontFamily: 'Geist-Regular',
   },
