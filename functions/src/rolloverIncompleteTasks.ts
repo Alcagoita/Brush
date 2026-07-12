@@ -34,6 +34,11 @@ export function todayISOUTC(now: Date = new Date()): string {
  * Exception (KAN-248): an unbrushed `kind: 'birthday'` task is deleted
  * instead — mirrors the client-side rolloverIncompleteTasks fallback so
  * whichever one runs first for a given task produces the same outcome.
+ *
+ * KAN-264 — also stamps `originDate` the FIRST time a task rolls (never
+ * overwritten on subsequent rolls): `existing.originDate ?? existing.date`.
+ * Mirrors the client-side fallback's stamping so whichever one runs first
+ * for a given task produces the same `originDate`.
  */
 export async function rolloverAllUsers(
   db:    admin.firestore.Firestore,
@@ -52,12 +57,14 @@ export async function rolloverAllUsers(
   for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
     const batch = db.batch();
     docs.slice(i, i + BATCH_LIMIT).forEach(d => {
-      if (d.data().kind === 'birthday') {
+      const existing = d.data();
+      if (existing.kind === 'birthday') {
         batch.delete(d.ref);
       } else {
         batch.update(d.ref, {
-          date:      today,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          date:       today,
+          createdAt:  admin.firestore.FieldValue.serverTimestamp(),
+          originDate: existing.originDate ?? existing.date,
         });
       }
     });

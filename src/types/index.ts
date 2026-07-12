@@ -204,6 +204,17 @@ export interface Task {
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
   date: string;
+  /**
+   * KAN-264 — the day this task was FIRST due, stamped once by rollover the
+   * first time it rolls forward and never overwritten again. `date` keeps
+   * moving forward each rollover (so Today always shows it); `originDate`
+   * stays put, so the Calendar can attribute an undone rolled task to the
+   * day it was actually meant for — a task rolling Mon→Wed was never a
+   * Tuesday intention, so Tuesday's ring is untouched, and Monday's ring
+   * correctly stays open instead of vanishing. Undefined for a task that
+   * has never rolled — treat `originDate ?? date` as its calendar day.
+   */
+  originDate?: string;
   /** True when this task has a local write not yet confirmed by the server (KAN-198). */
   pendingSync?: boolean;
   /**

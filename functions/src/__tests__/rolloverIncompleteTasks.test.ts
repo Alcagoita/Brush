@@ -122,4 +122,30 @@ describe('rolloverAllUsers', () => {
     expect(deleteMock).toHaveBeenCalledWith(docs[1].ref);
     expect(commitMock).toHaveBeenCalledTimes(1);
   });
+
+  // ─── originDate stamping (KAN-264) ────────────────────────────────────────
+
+  it('stamps originDate with the task\'s current date the first time it rolls', async () => {
+    const docs = [makeDoc('t1', { date: '2024-06-05' })];
+    const { db, updateMock } = makeDb(docs);
+
+    await rolloverAllUsers(db, TODAY);
+
+    expect(updateMock).toHaveBeenCalledWith(
+      docs[0].ref,
+      expect.objectContaining({ date: TODAY, originDate: '2024-06-05' }),
+    );
+  });
+
+  it('never overwrites an existing originDate on a second (or later) roll', async () => {
+    const docs = [makeDoc('t1', { date: '2024-06-07', originDate: '2024-06-05' })];
+    const { db, updateMock } = makeDb(docs);
+
+    await rolloverAllUsers(db, TODAY);
+
+    expect(updateMock).toHaveBeenCalledWith(
+      docs[0].ref,
+      expect.objectContaining({ date: TODAY, originDate: '2024-06-05' }),
+    );
+  });
 });
