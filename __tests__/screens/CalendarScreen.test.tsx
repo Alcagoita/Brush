@@ -380,21 +380,22 @@ describe('CalendarScreen', () => {
     });
   });
 
-  describe('Trip entry row — "Places I know" state for a day covered by a trip (KAN-250)', () => {
+  describe('Trip entry row — stored-trip states for a day covered by a trip (KAN-250 / KAN-251)', () => {
     const coveredTrip = {
       id: 'trip-2', destination: 'Faro', placeRef: 'p2', centerLat: 1, centerLng: 2,
       startDate: '2026-06-24', endDate: '2026-06-27', areaRadius: 15_000,
       cacheAreaId: 'ta_2', expiresAt: new Date('2026-07-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
     };
 
-    it('shows "Places I know: {destination}" instead of "Going somewhere?" for a day inside an existing trip', async () => {
+    it('shows "Off to {destination} soon" + subtitle for a day inside an upcoming trip (today before startDate)', async () => {
       mockGetTrips.mockResolvedValue([coveredTrip]);
       await renderScreen();
 
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
-      expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
-      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.getByLabelText('Off to Faro soon')).toBeTruthy();
+      expect(screen.getByText('Off to Faro soon')).toBeTruthy();
+      expect(screen.getByText("I'll know my way around · until Jun 27")).toBeTruthy();
       expect(screen.queryByLabelText(/^Plan a trip starting/)).toBeNull();
       expect(screen.queryByLabelText('Plan a trip')).toBeNull();
     });
@@ -405,7 +406,7 @@ describe('CalendarScreen', () => {
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
       await act(async () => {
-        fireEvent.press(screen.getByLabelText('Places I know — Faro'));
+        fireEvent.press(screen.getByLabelText('Off to Faro soon'));
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
@@ -419,38 +420,18 @@ describe('CalendarScreen', () => {
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
       expect(screen.getByLabelText(/^Plan a trip starting/)).toBeTruthy();
-      expect(screen.queryByLabelText(/^Places I know —/)).toBeNull();
+      expect(screen.queryByLabelText('Off to Faro soon')).toBeNull();
     });
 
-    it('shows "Places I know" for today when today falls inside a trip range, without needing a future day', async () => {
+    it('shows the factual "{destination} · until {date}" for today when today falls within the trip\'s dates — no presence claim', async () => {
       // FIXED_NOW is 2026-06-16 — cover today in the trip range.
       mockGetTrips.mockResolvedValue([{ ...coveredTrip, startDate: '2026-06-15', endDate: '2026-06-17' }]);
       await renderScreen();
 
-      expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
-    });
-
-    it('shows "Places I used to know: {destination}" once the trip\'s data has expired (doc kept, cache purged elsewhere)', async () => {
-      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
-      await renderScreen();
-
-      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
-
-      expect(screen.getByLabelText('Places I used to know — Faro')).toBeTruthy();
-      expect(screen.getByText('Places I used to know: Faro')).toBeTruthy();
-      expect(screen.queryByText('Places I know: Faro')).toBeNull();
-    });
-
-    it('still navigates to PlacesIKnow when the expired-trip row is tapped', async () => {
-      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
-      await renderScreen();
-      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
-
-      await act(async () => {
-        fireEvent.press(screen.getByLabelText('Places I used to know — Faro'));
-      });
-
-      expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
+      expect(screen.getByLabelText('Faro — trip in progress')).toBeTruthy();
+      expect(screen.getByText('Faro · until Jun 17')).toBeTruthy();
+      expect(screen.queryByText(/^You're in/)).toBeNull();
+      expect(screen.queryByText('Off to Faro soon')).toBeNull();
     });
 
     it('picks the latest-starting trip deterministically when trips overlap a day', async () => {
@@ -461,7 +442,7 @@ describe('CalendarScreen', () => {
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
-      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.getByText('Off to Faro soon')).toBeTruthy();
     });
   });
 
@@ -532,8 +513,8 @@ describe('CalendarScreen', () => {
 
       expect(screen.getByLabelText('Where we\'ve been — Faro')).toBeTruthy();
       expect(screen.getByText("Where we've been · Faro")).toBeTruthy();
-      expect(screen.queryByText('Places I know: Faro')).toBeNull();
-      expect(screen.queryByText('Places I used to know: Faro')).toBeNull();
+      expect(screen.queryByText('Off to Faro soon')).toBeNull();
+      expect(screen.queryByText(/^Faro · until/)).toBeNull();
     });
 
     it('navigates to WhereWeveBeen with highlightTripId when that row is tapped', async () => {
@@ -549,13 +530,13 @@ describe('CalendarScreen', () => {
       expect(mockNavigate).toHaveBeenCalledWith('WhereWeveBeen', { highlightTripId: 'trip-1' });
     });
 
-    it('leaves an active (non-past) trip day showing the existing "Places I know" row, not "Where we\'ve been"', async () => {
-      const activeTrip = { ...pastTrip, startDate: '2026-06-24', endDate: '2026-06-27', expiresAt: new Date('2026-07-01').getTime() };
-      mockGetTrips.mockResolvedValue([activeTrip]);
+    it('leaves a non-past trip day showing the existing upcoming/active state row, not "Where we\'ve been"', async () => {
+      const upcomingTrip = { ...pastTrip, startDate: '2026-06-24', endDate: '2026-06-27', expiresAt: new Date('2026-07-01').getTime() };
+      mockGetTrips.mockResolvedValue([upcomingTrip]);
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
-      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.getByText('Off to Faro soon')).toBeTruthy();
       expect(screen.queryByText("Where we've been · Faro")).toBeNull();
     });
   });

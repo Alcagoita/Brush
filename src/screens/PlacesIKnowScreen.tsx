@@ -52,13 +52,21 @@ export default function PlacesIKnowScreen() {
     setRefreshing(false);
   };
 
+  // KAN-251 — cancelling an upcoming/active trip reads "not going anymore"
+  // throughout (a plan, not a memory — "forget" stays reserved for past-trip
+  // memories, KAN-257). Off-grid windows are untouched, keep the original copy.
   const confirmDelete = (trip: Trip) => {
+    const isOffGrid = trip.kind === 'offgrid';
     Alert.alert(
-      COPY.tripPlanner.deleteConfirmTitle(trip.destination),
-      COPY.tripPlanner.deleteConfirmBody,
+      isOffGrid ? COPY.tripPlanner.deleteConfirmTitle(trip.destination) : COPY.tripPlanner.cancelConfirmTitle(trip.destination),
+      isOffGrid ? COPY.tripPlanner.deleteConfirmBody : COPY.tripPlanner.cancelConfirmBody,
       [
         { text: COPY.tripPlanner.deleteCancelAction, style: 'cancel' },
-        { text: COPY.tripPlanner.deleteConfirmAction, style: 'destructive', onPress: () => deleteTrip(trip) },
+        {
+          text: isOffGrid ? COPY.tripPlanner.deleteConfirmAction : COPY.tripPlanner.cancelConfirmAction,
+          style: 'destructive',
+          onPress: () => deleteTrip(trip),
+        },
       ],
     );
   };

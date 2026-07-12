@@ -65,7 +65,7 @@ import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/A
 import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
-import { todayISO, toDateSafe } from '../utils/date';
+import { todayISO, toDateSafe, formatDateShort } from '../utils/date';
 import { isTripPast, isPastMemorableTrip } from '../utils/contextChip';
 import { COPY } from '../constants/copy';
 
@@ -602,16 +602,15 @@ export default function CalendarScreen() {
   const selRun        = runLength(selectedDate);
   const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
   const selTrip       = tripForDate(selectedDate);
-  // A trip's Firestore doc outlives its downloaded data (SplashScreen only
-  // purges the on-device place cache on expiry, never the doc itself — see
-  // deleteExpiredTripPlaces) so the underline/entry row can still reference
-  // it here; the label just switches to past tense once expired.
-  const selTripExpired = !!selTrip && selTrip.expiresAt <= Date.now();
-  // KAN-257 — distinct from selTripExpired (cache-purge, KAN-256): whether
-  // the trip's *dates* are over. A date-past trip switches the entry row to
-  // "Where we've been" instead of "Places I know", regardless of whether its
-  // cache happens to still be around.
-  const isSelTripPast  = !!selTrip && isTripPast(selTrip, today);
+  // KAN-257 — whether the trip's *dates* are over. A date-past trip switches
+  // the entry row to "Where we've been" instead of the trip states below.
+  const isSelTripPast    = !!selTrip && isTripPast(selTrip, today);
+  // KAN-251 — the row states the trip, date-based, never the user's location
+  // (presence belongs to the ContextChip, which uses real location — a
+  // delayed flight must never make this row lie). "Upcoming" vs "active" is
+  // about the real today, not the selected day: viewing a future day already
+  // inside the trip's range while today hasn't arrived yet is still upcoming.
+  const isSelTripUpcoming = !!selTrip && selTrip.startDate > today;
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -781,13 +780,16 @@ export default function CalendarScreen() {
         })}
       </View>
 
-      {/* ── Trip entry row (KAN-243 / KAN-250 / KAN-257) — always visible, just
-          under the day grid. Trip-aware: for a past trip's day, shows
-          "Where we've been · {destination}" and opens the timeline anchored
-          at that trip; for an active/future trip's day, shows "Places I
-          know: {destination}"; else the plain "Going somewhere?" invite
-          (prefilled with that date when it's a future day). Single row —
-          no separate day-specific CTA elsewhere. ── */}
+      {/* ── Trip entry row (KAN-243 / KAN-250 / KAN-257 / KAN-251) — always
+          visible, just under the day grid. Trip-aware: for a past trip's
+          day, shows "Where we've been · {destination}" and opens the
+          timeline anchored at that trip; for an upcoming trip's day, "Off
+          to {destination} soon" + a subtitle; for an active trip's day, the
+          factual "{destination} · until {date}" (no presence claim — that's
+          the ContextChip's job, since it has real location and this row
+          doesn't); else the plain "Going somewhere?" invite (prefilled with
+          that date when it's a future day). Single row — no separate
+          day-specific CTA elsewhere. ── */}
       {selTrip && isSelTripPast ? (
         <Pressable
           style={[styles.tripEntryRow, { borderColor: palette.line }]}
@@ -806,16 +808,23 @@ export default function CalendarScreen() {
           onPress={() => navigation.navigate('PlacesIKnow')}
           accessibilityRole="button"
           accessibilityLabel={
-            selTripExpired
-              ? COPY.tripPlanner.placesIKnowRowA11yExpired(selTrip.destination)
-              : COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)
+            isSelTripUpcoming
+              ? COPY.tripPlanner.tripUpcomingRowA11y(selTrip.destination)
+              : COPY.tripPlanner.tripActiveRowA11y(selTrip.destination)
           }>
           <SuitcaseIcon color={palette.muted} size={16} />
-          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
-            {selTripExpired
-              ? COPY.tripPlanner.placesIKnowRowLabelExpired(selTrip.destination)
-              : COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}
-          </Text>
+          <View style={styles.tripEntryTextWrap}>
+            <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+              {isSelTripUpcoming
+                ? COPY.tripPlanner.tripUpcomingRowLabel(selTrip.destination)
+                : COPY.tripPlanner.tripActiveRowLabel(selTrip.destination, formatDateShort(selTrip.endDate))}
+            </Text>
+            {isSelTripUpcoming && (
+              <Text style={[styles.tripEntrySubLabel, { color: palette.muted }]} numberOfLines={1}>
+                {COPY.tripPlanner.tripUpcomingRowSubtitle(formatDateShort(selTrip.endDate))}
+              </Text>
+            )}
+          </View>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
         </Pressable>
       ) : (
@@ -1123,6 +1132,14 @@ const styles = StyleSheet.create({
     flex:       1,
     fontSize:   fonts.sizes.label,
     fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
+  tripEntryTextWrap: {
+    flex: 1,
+    gap:  1,
+  },
+  tripEntrySubLabel: {
+    fontSize:   12,
     fontFamily: 'Geist-Regular',
   },
 
