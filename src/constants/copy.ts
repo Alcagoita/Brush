@@ -1007,6 +1007,8 @@ const en = {
     nothingOnThisDay: 'Nothing on this day.',
     openTodayA11y: 'Open today',
     openToday: 'Open today',
+    /** KAN-264 — shown under a rolled task on its origin day, once it's later brushed. Neutral/redemptive — never "missed"/"expired"/"overdue". */
+    brushedAwayOn: (weekday: string) => `Brushed away on ${weekday}`,
   },
 
   shareToDo: {
@@ -1947,6 +1949,8 @@ const ptPT: typeof en = {
     nothingOnThisDay: 'Nada para este dia.',
     openTodayA11y: 'Abrir hoje',
     openToday: 'Abrir hoje',
+    // "Brush away" stays in English here too — brand verb, never localized (see taskRow's note above).
+    brushedAwayOn: (weekday: string) => `Brushed away on ${weekday}`,
   },
 
   shareToDo: {

@@ -53,6 +53,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
+import { Timestamp } from '@react-native-firebase/firestore';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
@@ -64,7 +65,7 @@ import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/A
 import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
-import { todayISO } from '../utils/date';
+import { todayISO, toDateSafe } from '../utils/date';
 import { isTripPast, isPastMemorableTrip } from '../utils/contextChip';
 import { COPY } from '../constants/copy';
 
@@ -140,6 +141,16 @@ function formatFullDateLabel(iso: string): string {
   return `${COPY.calendar.fullWeekdays[date.getDay()]}, ${COPY.calendar.monthNamesFull[m - 1]} ${d}`;
 }
 
+/**
+ * KAN-264 — "Wednesday" for whatever day `ts` falls on. Used for the
+ * "brushed away on {day}" redemption line — never a full date, just the
+ * weekday name, matching the guardrail's neutral, conversational framing.
+ */
+function formatWeekdayName(ts: unknown): string | null {
+  const date = toDateSafe(ts);
+  return date ? COPY.calendar.fullWeekdays[date.getDay()] : null;
+}
+
 /** Shift an ISO date string by `delta` days (handles month/year rollover). */
 function isoAddDays(iso: string, delta: number): string {
   const [y, m, d] = iso.split('-').map(Number);
@@ -177,6 +188,7 @@ function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalT
   const { palette } = useTheme();
   const cat = resolveCategory(task, customCategories);
   const [titleWidth, setTitleWidth] = useState(0);
+  const brushedAwayWeekday = formatWeekdayName(task.completedAt);
 
   const handleToggle = () => {
     if (isFuture) { return; }
@@ -230,6 +242,15 @@ function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalT
             </View>
           )}
         </View>
+        {/* KAN-264 redemption line — only for a task that rolled (has an
+            originDate, so it's showing here on a day other than where it now
+            lives) and was later brushed. Tells the honest story without
+            "missed"/"expired" framing. */}
+        {task.done && task.originDate && brushedAwayWeekday && (
+          <Text style={[styles.taskRedemption, { color: palette.faint }]} numberOfLines={1}>
+            {COPY.calendar.brushedAwayOn(brushedAwayWeekday)}
+          </Text>
+        )}
       </View>
 
       {/* Category dot */}
@@ -420,13 +441,17 @@ export default function CalendarScreen() {
   // Toggling a task doesn't refetch the whole month — apply the flip locally
   // (setTaskDone itself persists it) so the checkbox updates immediately.
   const handleToggleTask = useCallback((taskId: string, done: boolean) => {
+    // completedAt must move with `done` optimistically too (KAN-264 review
+    // fix) — the redemption line reads task.completedAt to name the weekday
+    // it was brushed on, so without this it wouldn't appear until the next
+    // month refetch. Mirrors setTaskDone's own contract exactly (Timestamp.now() / null).
     setMonthTasksState(prev => prev.status === 'success'
-      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done } : t) }
+      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done, completedAt: done ? Timestamp.now() : undefined } : t) }
       : prev);
     setTaskDone(uid, taskId, done).catch(err => {
       console.warn('[CalTaskRow] setTaskDone failed', err);
       setMonthTasksState(prev => prev.status === 'success'
-        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done } : t) }
+        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done, completedAt: !done ? Timestamp.now() : undefined } : t) }
         : prev);
     });
   }, [uid]);
@@ -469,12 +494,18 @@ export default function CalendarScreen() {
   );
 
   // ── Per-day aggregates, keyed by ISO date ──
+  // KAN-264 — a task belongs to its origin day (originDate ?? date), not
+  // wherever `date` currently points after rolling forward. Without this, a
+  // task that rolled Mon→Tue vanishes from Monday's stats, falsely reading
+  // Monday as 100% complete (or empty) — a fake reward. Tasks that never
+  // rolled have no originDate, so this is a no-op for them.
   const dayStats = useMemo<Record<string, { done: number; total: number }>>(() => {
     const map: Record<string, { done: number; total: number }> = {};
     for (const t of monthTasks) {
-      if (!map[t.date]) { map[t.date] = { done: 0, total: 0 }; }
-      map[t.date].total += 1;
-      if (t.done) { map[t.date].done += 1; }
+      const day = t.originDate ?? t.date;
+      if (!map[day]) { map[day] = { done: 0, total: 0 }; }
+      map[day].total += 1;
+      if (t.done) { map[day].done += 1; }
     }
     return map;
   }, [monthTasks]);
@@ -547,8 +578,11 @@ export default function CalendarScreen() {
   }, [achievementsMap, displayYear, displayMonth]);
 
   // ── Tasks for selected day (detail card) ──
+  // KAN-264 — same origin-day attribution as dayStats: a rolled task shows
+  // up in its origin day's list (to tell the redemption story), not
+  // wherever it currently lives.
   const selectedTasks = useMemo(
-    () => monthTasks.filter(t => t.date === selectedDate).sort((a, b) => {
+    () => monthTasks.filter(t => (t.originDate ?? t.date) === selectedDate).sort((a, b) => {
       const ta = a.time ?? '';
       const tb = b.time ?? '';
       return ta.localeCompare(tb);
@@ -1255,6 +1289,11 @@ const styles = StyleSheet.create({
     fontFamily:    'Geist-Regular',
     letterSpacing: -0.14,
     lineHeight:     18,
+  },
+  taskRedemption: {
+    fontSize:      11,
+    fontFamily:    'Geist-Regular',
+    marginTop:      1,
   },
   categoryDot: {
     width:        7,

@@ -121,6 +121,32 @@ describe('rolloverIncompleteTasks', () => {
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });
 
+  // ─── originDate stamping (KAN-264) ────────────────────────────────────────
+
+  it('stamps originDate with the task\'s current date the first time it rolls', async () => {
+    const docs = [makeDoc('t1', { date: '2026-06-10' })];
+    mockGetDocs.mockResolvedValue({ empty: false, docs });
+
+    await rolloverIncompleteTasks('uid-1', TODAY);
+
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
+      docs[0].ref,
+      { date: TODAY, createdAt: NOW_TIMESTAMP, originDate: '2026-06-10' },
+    );
+  });
+
+  it('never overwrites an existing originDate on a second (or later) roll', async () => {
+    const docs = [makeDoc('t1', { date: '2026-06-12', originDate: '2026-06-10' })];
+    mockGetDocs.mockResolvedValue({ empty: false, docs });
+
+    await rolloverIncompleteTasks('uid-1', TODAY);
+
+    expect(mockBatchUpdate).toHaveBeenCalledWith(
+      docs[0].ref,
+      { date: TODAY, createdAt: NOW_TIMESTAMP, originDate: '2026-06-10' },
+    );
+  });
+
   it('defaults `today` to the device-local date when not passed', async () => {
     mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
 

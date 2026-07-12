@@ -50,6 +50,13 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 
 jest.mock('@react-native-firebase/auth', () => ({}));
 
+// Timestamp is imported directly (not via the services/firestore barrel) for
+// the optimistic completedAt stamp in handleToggleTask (KAN-264 review fix) —
+// mocked to avoid pulling in the real native firestore module.
+jest.mock('@react-native-firebase/firestore', () => ({
+  Timestamp: { now: () => ({ toDate: () => new Date() }) },
+}));
+
 const mockGetTasksForMonth = jest.fn();
 const mockGetAchievements  = jest.fn();
 const mockGetCategories    = jest.fn();
@@ -550,6 +557,93 @@ describe('CalendarScreen', () => {
 
       expect(screen.getByText('Places I know: Faro')).toBeTruthy();
       expect(screen.queryByText("Where we've been · Faro")).toBeNull();
+    });
+  });
+
+  describe('origin-day attribution for rolled tasks (KAN-264)', () => {
+    it('attributes a rolled undone task to its origin day, not wherever `date` currently points', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Old undone', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+
+      // Origin day (Monday the 15th) shows the task, not empty.
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Old undone')).toBeTruthy();
+      expect(screen.getByText('1 task · none completed')).toBeTruthy();
+
+      // Today (the 16th, where `date` currently points post-rollover) does NOT
+      // show it — it was never a Tuesday intention.
+      await act(async () => { fireEvent.press(screen.getByLabelText(/^16, today/)); });
+      expect(screen.queryByText('Old undone')).toBeNull();
+      expect(screen.getByText('No tasks')).toBeTruthy();
+    });
+
+    it('leaves the day in between origin and current date untouched (Mon→Wed roll leaves Tue empty)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Skipped a day', category: 'errands', done: false,
+          date: '2026-06-17', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText(/^16, today/)); });
+      expect(screen.queryByText('Skipped a day')).toBeNull();
+      expect(screen.getByText('No tasks')).toBeTruthy();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Skipped a day')).toBeTruthy();
+    });
+
+    it('shows a muted "Brushed away on {weekday}" line on the origin day once a rolled task is later completed', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Finally done', category: 'errands', done: true,
+          date: '2026-06-16', originDate: '2026-06-15',
+          completedAt: fakeTimestamp('2026-06-16'), createdAt: {} },
+      ]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Finally done')).toBeTruthy();
+      expect(screen.getByText('Brushed away on Tuesday')).toBeTruthy();
+    });
+
+    it('does not show the redemption line for a task that never rolled', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Same-day task', category: 'errands', done: true,
+          date: '2026-06-16', completedAt: fakeTimestamp('2026-06-16'), createdAt: {} },
+      ]);
+      await renderScreen();
+
+      expect(screen.getByText('Same-day task')).toBeTruthy();
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+    });
+
+    it('does not show the redemption line for a rolled task that is still undone', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Still open', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Still open')).toBeTruthy();
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+    });
+
+    it('shows the redemption line immediately after brushing a rolled task, before any refetch (KAN-264 review fix)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Brush me now', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+      await act(async () => { fireEvent.press(screen.getByRole('checkbox')); });
+
+      expect(screen.getByText(/^Brushed away on /)).toBeTruthy();
+      expect(mockGetTasksForMonth).toHaveBeenCalledTimes(1); // no refetch triggered the redemption line
     });
   });
 
