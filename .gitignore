@@ -65,7 +65,9 @@ local.properties
 .cxx/
 .kotlin/
 android/app/build/
+android/keystore.properties
 *.keystore
+*.jks
 !debug.keystore
 
 # ─── Android Studio ──────────────────────────────────────────────────────────
@@ -137,7 +139,7 @@ dist/
 web-build/
 
 # CodeGraph local index (per-developer, not committed)
-.codegraph/CLAUDE.md
+.codegraph/
 
 # Project instructions — local-only, not committed (see chore/untrack-claude-md)
 /CLAUDE.md

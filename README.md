@@ -67,6 +67,17 @@ npm start
 
 Place `google-services.json` in `android/app/`.
 
+Android `release` builds also require a dedicated upload keystore. Copy
+`android/keystore.properties.example` to `android/keystore.properties`, then set:
+
+- `BRUSH_UPLOAD_STORE_FILE`
+- `BRUSH_UPLOAD_STORE_PASSWORD`
+- `BRUSH_UPLOAD_KEY_ALIAS`
+- `BRUSH_UPLOAD_KEY_PASSWORD`
+
+Those same four values can be supplied in CI or EAS as environment variables or
+Gradle properties instead of a local `android/keystore.properties` file.
+
 ### iOS
 
 Place `GoogleService-Info.plist` in `ios/Brush/`.
