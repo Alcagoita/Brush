@@ -26,6 +26,7 @@ import { fetchReminders, fetchCalendarEvents } from './calendar';
 import { ImportResult } from '../types';
 import { inferPoiFromRules } from './poiInference';
 import { classifyPoi } from './poiLlm';
+import { isBirthdayEvent } from './birthday';
 
 // ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
 
@@ -470,17 +471,21 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.description, { html: true });
-      const poi = await inferImportedPoi(title, poiCache);
+      const isBirthday = isBirthdayEvent(title, item.eventType, description);
+      // Birthday tasks are date-shaped, not place-shaped (KAN-248) — never
+      // worth a POI lookup, and POI/place fields must stay empty for them.
+      const poi = isBirthday ? null : await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('google_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
-        category:  'work',
+        category:  isBirthday ? 'personal' : 'work',
         done:      false,
         date:      formatDateString(startDate),
         source:    'google_calendar',
         ...(description ? { description } : {}),
         ...(poi ? { poi } : {}),
+        ...(isBirthday ? { kind: 'birthday' as const } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());
@@ -512,6 +517,8 @@ interface GoogleCalendarEvent {
     date?:     string;  // "YYYY-MM-DD" for all-day
     dateTime?: string;  // RFC 3339 for timed
   };
+  /** Google's own event classification, e.g. "default" | "birthday" | "outOfOffice" | "workingLocation" (KAN-248). */
+  eventType?: string;
 }
 
 /**
@@ -616,17 +623,20 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
       if (shouldSkipCalendarEvent(startDate, item.isAllDay, now)) { result.skipped++; continue; }
 
       const description = toDescription(item.notes);
-      const poi = await inferImportedPoi(title, poiCache);
+      // EventKit exposes no event-type field equivalent to Google's — title/description heuristic only.
+      const isBirthday = isBirthdayEvent(title, undefined, description);
+      const poi = isBirthday ? null : await inferImportedPoi(title, poiCache);
       const docRef = tasksRef.doc(makeImportDocId('eventkit_calendar', title));
       batch.set(docRef, {
         id:        docRef.id,
         title,
-        category:  'work',
+        category:  isBirthday ? 'personal' : 'work',
         done:      false,
         date:      formatDateString(startDate),
         source:    'eventkit_calendar',
         ...(description ? { description } : {}),
         ...(poi ? { poi } : {}),
+        ...(isBirthday ? { kind: 'birthday' as const } : {}),
         createdAt: firestore.FieldValue.serverTimestamp(),
       });
       existingTitles.add(title.toLowerCase());

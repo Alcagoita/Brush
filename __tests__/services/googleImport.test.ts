@@ -561,6 +561,62 @@ describe('importFromGoogleCalendar', () => {
     const result = await importFromGoogleCalendar('uid-1');
     expect(result).toEqual({ imported: 0, skipped: 0, failed: 0, cancelled: 1 });
   });
+
+  // ─── Birthday detection (KAN-248) ─────────────────────────────────────────
+
+  it('imports an eventType:"birthday" event as kind:birthday, category:personal, no poi', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team standup', eventType: 'birthday', start: { date: '2026-06-20' } },
+    ]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+    expect('poi' in setCall).toBe(false);
+  });
+
+  it('imports a title-matched birthday event as kind:birthday even when eventType is "default"', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Aniversário do João', eventType: 'default', start: { date: '2026-06-20' } },
+    ]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+  });
+
+  it('imports a description-matched birthday event as kind:birthday when the title has no match', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([{
+      id: '1', summary: 'Dinner', description: 'Happy Birthday Maria!',
+      start: { date: '2026-06-20' },
+    }]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect(setCall.kind).toBe('birthday');
+    expect(setCall.category).toBe('personal');
+  });
+
+  it('imports a non-birthday event as a normal task (no kind, category:work)', async () => {
+    mockAccessToken();
+    mockExistingTitles([]);
+    mockCalendarResponse([
+      { id: '1', summary: 'Team standup', start: { dateTime: '2026-06-05T09:00:00Z' } },
+    ]);
+
+    await importFromGoogleCalendar('uid-1');
+    const setCall = mockBatchSet.mock.calls[0][1];
+    expect('kind' in setCall).toBe(false);
+    expect(setCall.category).toBe('work');
+  });
 });
 
 // ─── OAuth scopes ─────────────────────────────────────────────────────────────

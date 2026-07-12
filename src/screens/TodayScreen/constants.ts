@@ -51,10 +51,23 @@ const EMPTY_MESSAGE_META: { poi?: string; color?: string }[] = [
   { poi: 'supermarket', color: categories.errands.color },
   {},
   {},
+  {}, // "Going somewhere soon?" (KAN-245) — tap target wired by the caller, not an icon
 ];
 
-export function buildEmptyMessages(): NudgeMessage[] {
-  return COPY.today.emptyMessages.map((text, i) => ({ text, ...EMPTY_MESSAGE_META[i] }));
+/**
+ * onGoingSomewherePress (KAN-245) taps the last rotation slot ("Going
+ * somewhere soon?") into the trip flow — the only message in this rotation
+ * that's ever tappable. Optional so callers that don't need it (none today,
+ * but keeps this function safe to call without a navigation context) still
+ * get the full message set, just non-interactive.
+ */
+export function buildEmptyMessages(onGoingSomewherePress?: () => void): NudgeMessage[] {
+  const lastIndex = COPY.today.emptyMessages.length - 1;
+  return COPY.today.emptyMessages.map((text, i) => ({
+    text,
+    ...EMPTY_MESSAGE_META[i],
+    onPress: i === lastIndex ? onGoingSomewherePress : undefined,
+  }));
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────

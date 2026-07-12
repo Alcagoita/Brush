@@ -2,10 +2,31 @@
  * date.ts — Shared date utilities.
  */
 
+/**
+ * Returns `date` as a YYYY-MM-DD string using its device-local calendar day
+ * — never `date.toISOString().slice(0, 10)`, which reads the UTC day and
+ * silently drifts by one near local midnight (e.g. 11pm local in a
+ * negative-UTC-offset timezone is already "tomorrow" in UTC).
+ */
+export function localDateISO(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
 /** Returns today's date as a YYYY-MM-DD string in the device's local timezone. */
 export function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return localDateISO(new Date());
+}
+
+/** "18:00" — 24h local time, no seconds. Not COPY (numeric, not language-dependent). */
+export function formatLocalTime(ms: number): string {
+  const d = new Date(ms);
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** "May 22" — short month + day, locale-aware. Not COPY (relies on the device locale's Intl formatting, not the app's two-language dictionary). */
+export function formatDateShort(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number);
+  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 /**

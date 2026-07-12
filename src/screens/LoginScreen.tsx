@@ -55,12 +55,12 @@ import { COPY } from '../constants/copy';
 
 const LOGO_SIZE    = 62;   // px — font-size of "brus" / SVG height
 const DOT_SIZE     = 7;    // px — accent dot diameter
-const ERROR_COLOR  = '#e05252';
 const PAGE_PADDING = 28;
 
-// ─── Google "G" icon (official brand colours) ─────────────────────────────────
+// ─── Google "G" icon (official brand colours — fixed regardless of app theme) ─
 
 function GoogleIcon() {
+  /* eslint-disable no-restricted-syntax -- official Google brand colours, documented exception */
   return (
     <Svg width={20} height={20} viewBox="0 0 48 48" style={{ marginRight: 10 }}>
       <Path fill="#FFC107" d="M43.6 20.1H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 7.9 3l5.7-5.7C34.2 6.5 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.6-.4-3.9z"/>
@@ -69,6 +69,7 @@ function GoogleIcon() {
       <Path fill="#1976D2" d="M43.6 20.1H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.2 5.7l6.2 5.2C40.8 36.2 44 30.5 44 24c0-1.3-.1-2.6-.4-3.9z"/>
     </Svg>
   );
+  /* eslint-enable no-restricted-syntax */
 }
 
 // ─── Custom "h" glyph (react-native-svg) ─────────────────────────────────────
@@ -285,7 +286,7 @@ function Field({
   const [showPass, setShowPass] = useState(false);
 
   const borderColor = error
-    ? ERROR_COLOR
+    ? palette.danger
     : focused
     ? palette.accent
     : palette.line;
@@ -331,7 +332,7 @@ function Field({
       </View>
 
       {error ? (
-        <Text style={styles.fieldError} accessibilityRole="alert">
+        <Text style={[styles.fieldError, { color: palette.danger }]} accessibilityRole="alert">
           {error}
         </Text>
       ) : null}
@@ -520,9 +521,9 @@ export default function LoginScreen() {
             {generalError ? (
               <View style={[
                 styles.generalError,
-                { backgroundColor: ERROR_COLOR + '18', borderColor: ERROR_COLOR + '40' },
+                { backgroundColor: palette.danger + '18', borderColor: palette.danger + '40' },
               ]}>
-                <Text style={[styles.generalErrorText, { color: ERROR_COLOR }]}>
+                <Text style={[styles.generalErrorText, { color: palette.danger }]}>
                   {generalError}
                 </Text>
               </View>
@@ -705,7 +706,6 @@ const styles = StyleSheet.create({
     marginTop:  6,
     fontSize:   12,
     fontFamily: 'Geist-Regular',
-    color:      ERROR_COLOR,
   },
 
   // ── General error ──

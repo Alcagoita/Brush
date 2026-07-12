@@ -50,7 +50,7 @@ describe('KAN-133 — dark palette unchanged', () => {
     expect(darkPalette.ringFill).toBe('#f6f5f2');
   });
 
-  it('dark surface is unchanged', () => {
-    expect(darkPalette.surface).toBe('#171715');
+  it('dark surface was retuned by KAN-258 for elevation contrast', () => {
+    expect(darkPalette.surface).toBe('#232321');
   });
 });

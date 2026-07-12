@@ -30,8 +30,10 @@ import SettingsScreen from '../screens/SettingsScreen';
 import NotificationPreferencesScreen from '../screens/NotificationPreferencesScreen';
 import AchievementsScreen from '../screens/AchievementsScreen';
 import TripPlannerScreen from '../screens/TripPlannerScreen';
+import OffGridScreen from '../screens/OffGridScreen';
 import PlacesIKnowScreen from '../screens/PlacesIKnowScreen';
 import HomeAddressScreen from '../screens/HomeAddressScreen';
+import WhereWeveBeenScreen from '../screens/WhereWeveBeenScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -67,12 +69,16 @@ export type RootStackParamList = {
   NotificationPreferences: undefined;
   /** Full achievements list with progress and point values (KAN-114 / KAN-129 / KAN-122). */
   Achievements: { achievementId?: string } | undefined;
-  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). Optional prefillStartDate (YYYY-MM-DD) when opened from a future Calendar day (KAN-243). */
-  TripPlanner: { prefillStartDate?: string } | undefined;
+  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). Optional prefillStartDate (YYYY-MM-DD) when opened from a future Calendar day (KAN-243). Optional prefillDestinationQuery — free-text search-box seed from the calendar trip-suggestion signal (KAN-245), never a resolved place (that signal never geocodes). */
+  TripPlanner: { prefillStartDate?: string; prefillDestinationQuery?: string } | undefined;
   /** "Places I know" — the always-on habitat area + downloaded trips, with refresh/delete (KAN-234). */
   PlacesIKnow: undefined;
   /** Explicit home address — set/edit/clear (KAN-247). */
   HomeAddress: undefined;
+  /** Off-grid window — "I'll be offline for a while, keep my tasks going" (KAN-246). Now + duration, never dated like TripPlanner. */
+  OffGrid: undefined;
+  /** "Where we've been" — past-trip timeline, destination + dates only (KAN-257). Optional highlightTripId when opened from a past day's Calendar row, to draw the eye to that trip. */
+  WhereWeveBeen: { highlightTripId?: string } | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -107,8 +113,10 @@ export default function AppNavigator() {
       <Stack.Screen name="NotificationPreferences"    component={NotificationPreferencesScreen} />
       <Stack.Screen name="Achievements"               component={AchievementsScreen} />
       <Stack.Screen name="TripPlanner"                component={TripPlannerScreen} />
+      <Stack.Screen name="OffGrid"                    component={OffGridScreen} />
       <Stack.Screen name="PlacesIKnow"                component={PlacesIKnowScreen} />
       <Stack.Screen name="HomeAddress"                component={HomeAddressScreen} />
+      <Stack.Screen name="WhereWeveBeen"              component={WhereWeveBeenScreen} />
     </Stack.Navigator>
   );
 }

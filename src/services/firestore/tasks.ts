@@ -164,6 +164,19 @@ export async function getTasksForDate(uid: string, date: string): Promise<Task[]
  * Bumps both `date` and `createdAt` to now — the task is treated as freshly
  * created today, matching how it will appear and score on the Today screen.
  *
+ * KAN-264 — also stamps `originDate` the FIRST time a task rolls (never
+ * overwritten on subsequent rolls): `existing.originDate ?? existing.date`,
+ * i.e. the day it was due before this roll. This lets the Calendar attribute
+ * an undone rolled task to the day it was actually meant for, instead of it
+ * vanishing from that day once `date` moves forward — see dayStats in
+ * CalendarScreen.tsx. `date` itself keeps moving every rollover so Today
+ * still shows it; only `originDate` is set-once.
+ *
+ * Exception (KAN-248): an unbrushed `kind: 'birthday'` task is deleted
+ * instead of rolled forward — the only auto-expiry exception in the app,
+ * gated strictly on `kind === 'birthday'`. A birthday wish three days late
+ * is meaningless, so persistence has no value for this one kind.
+ *
  * This is the client-side correctness fallback: the per-user `today` here is
  * computed in the device's local timezone, unlike the best-effort UTC-anchored
  * server-side `rolloverIncompleteTasks` Cloud Function. Calling this is safe
@@ -183,7 +196,16 @@ export async function rolloverIncompleteTasks(uid: string, today: string = today
   if (snap.empty) { return; }
 
   await commitInChunks(snap.docs, (batch, d) => {
-    batch.update(d.ref, { date: today, createdAt: Timestamp.now() });
+    const existing = d.data() as Task;
+    if (existing.kind === 'birthday') {
+      batch.delete(d.ref);
+    } else {
+      batch.update(d.ref, {
+        date:       today,
+        createdAt:  Timestamp.now(),
+        originDate: existing.originDate ?? existing.date,
+      });
+    }
   });
 }
 
@@ -199,13 +221,21 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
   // First day of next month as exclusive upper bound (ISO string comparison works)
   const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  const q = query(
-    tasksRef(uid),
-    where('date', '>=', start),
-    where('date', '<',  nextMonth),
-  );
-  const snap = await getDocs(q);
-  return mapSnapshotDocs<Task>(snap);
+  // KAN-264 review fix — a task that rolled across a month boundary (e.g. due
+  // June 30, still undone into July) has `date` pointing at the new month but
+  // `originDate` still pointing at this one. CalendarScreen attributes it to
+  // `originDate ?? date`, so it needs to be fetched here too, or it silently
+  // vanishes from its origin month. Two separate range queries (rather than
+  // a single `or()` composite) to avoid requiring a new composite index.
+  const [byDate, byOriginDate] = await Promise.all([
+    getDocs(query(tasksRef(uid), where('date', '>=', start), where('date', '<', nextMonth))),
+    getDocs(query(tasksRef(uid), where('originDate', '>=', start), where('originDate', '<', nextMonth))),
+  ]);
+
+  const byId = new Map<string, Task>();
+  for (const t of mapSnapshotDocs<Task>(byDate))       { byId.set(t.id, t); }
+  for (const t of mapSnapshotDocs<Task>(byOriginDate)) { byId.set(t.id, t); }
+  return [...byId.values()];
 }
 
 /**

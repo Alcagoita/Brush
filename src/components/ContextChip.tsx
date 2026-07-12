@@ -41,30 +41,34 @@ import { radius, spacing } from '../theme/tokens';
 import { CloudOffIcon, CloseIcon, RefreshIcon } from './AppIcon';
 import { useOfflineCoverage } from '../hooks/useOfflineCoverage';
 import { getMostRecentHabitatUpdateAt, refreshHabitatCacheIfStale } from '../services/habitatCache';
-import { getLastSearchCoords } from '../services/proximity';
+import { getLastSearchCoords, getActiveOffGridWindow } from '../services/proximity';
 import type { PlaceContext } from '../services/proximity';
 import { refreshTripArea } from '../services/tripDownload';
 import { getCategories } from '../services/firestore';
 import { resolveContextChipView, ContextChipView } from '../utils/contextChip';
-import { todayISO } from '../utils/date';
+import { todayISO, formatLocalTime, formatDateShort } from '../utils/date';
 import { useToastStore } from '../store/toastStore';
 import { ALL_POI_TYPES } from '../types';
 import { COPY } from '../constants/copy';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../navigation/AppNavigator';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+/** How often to re-check the off-grid window's active/expired state — it's time-based, not tied to a position fix like everything else this chip reflects. */
+const OFFGRID_POLL_MS = 60_000;
 
 function formatLearnedDate(ms: number): string {
   return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-/** YYYY-MM-DD → "Jun 28", without the UTC-parsing off-by-one (see PlacesIKnowScreen/TripPlannerScreen's own copy of this helper). */
-function formatDateShort(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 function chipA11yLabel(view: ContextChipView): string {
   switch (view.kind) {
     case 'mall':    return COPY.contextChip.mallChipA11y(view.name);
     case 'trip':    return COPY.contextChip.tripChipA11y(view.destination);
+    case 'offgrid': return COPY.offGrid.chipA11y(formatLocalTime(view.expiresAt));
     case 'offline': return COPY.contextChip.offlineGlyphA11y;
     case 'none':    return '';
   }
@@ -72,9 +76,10 @@ function chipA11yLabel(view: ContextChipView): string {
 
 function sheetTitleFor(view: ContextChipView): string {
   switch (view.kind) {
-    case 'mall': return COPY.contextChip.mallSheetTitle(view.name);
-    case 'trip': return COPY.contextChip.tripSheetTitle(view.destination);
-    default:     return COPY.contextChip.sheetTitle;
+    case 'mall':    return COPY.contextChip.mallSheetTitle(view.name);
+    case 'trip':    return COPY.contextChip.tripSheetTitle(view.destination);
+    case 'offgrid': return COPY.offGrid.sheetTitle;
+    default:        return COPY.contextChip.sheetTitle;
   }
 }
 
@@ -85,6 +90,7 @@ export interface ContextChipProps {
 
 export default function ContextChip({ placeContext = null }: ContextChipProps) {
   const { palette } = useTheme();
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const { offline, hasCache } = useOfflineCoverage();
@@ -93,14 +99,23 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
   const [modalVisible, setModalVisible]   = useState(false);
   const [refreshing, setRefreshing]       = useState(false);
   const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
+  const [offGridWindow, setOffGridWindow] = useState(() => getActiveOffGridWindow());
 
   const scrimOpacity    = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(screenHeight)).current;
 
+  // KAN-246 — the off-grid window is time-based, not tied to a position fix
+  // (unlike placeContext/offline, which update on every proximity tick), so
+  // it needs its own poll to notice a natural expiry without one.
+  useEffect(() => {
+    const timer = setInterval(() => setOffGridWindow(getActiveOffGridWindow()), OFFGRID_POLL_MS);
+    return () => clearInterval(timer);
+  }, []);
+
   const todayIso = todayISO();
   const view = useMemo(
-    () => resolveContextChipView({ placeContext, todayIso, offline, hasCache }),
-    [placeContext, todayIso, offline, hasCache],
+    () => resolveContextChipView({ placeContext, todayIso, offline, hasCache, offGridWindow }),
+    [placeContext, todayIso, offline, hasCache, offGridWindow],
   );
 
   // Frozen at the moment the sheet is opened, so a connectivity/position
@@ -192,6 +207,13 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
           accessibilityLabel={chipA11yLabel(view)}>
           {view.kind === 'offline' ? (
             <CloudOffIcon color={palette.muted} size={14} />
+          ) : view.kind === 'offgrid' ? (
+            <>
+              <CloudOffIcon color={palette.muted} size={12} />
+              <Text style={[styles.placeChipText, { color: palette.muted }]} numberOfLines={1}>
+                {`· ${formatLocalTime(view.expiresAt)}`}
+              </Text>
+            </>
           ) : (
             <>
               <Text style={[styles.placeChipText, { color: palette.muted }]} numberOfLines={1}>
@@ -293,6 +315,29 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
                 <RefreshIcon color={palette.text} size={16} />
                 <Text style={[styles.refreshLabel, { color: palette.text }]}>
                   {refreshing ? COPY.contextChip.refreshingLabel : COPY.contextChip.refreshButton}
+                </Text>
+              </Pressable>
+            )}
+
+            {openedSheet.view.kind === 'offgrid' && (
+              <Text style={[styles.body, { color: palette.muted }]}>
+                {COPY.offGrid.sheetBody(formatLocalTime(openedSheet.view.expiresAt))}
+              </Text>
+            )}
+
+            {/* KAN-246 — entry point 2/2: offer it whenever the chip is visible, except from its own sheet. */}
+            {openedSheet.view.kind !== 'offgrid' && (
+              <Pressable
+                style={[styles.refreshBtn, { backgroundColor: palette.surface2 }]}
+                onPress={() => {
+                  setSheetOpen(false);
+                  navigation.navigate('OffGrid');
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.offGrid.profileRowA11y}>
+                <CloudOffIcon color={palette.text} size={16} />
+                <Text style={[styles.refreshLabel, { color: palette.text }]}>
+                  {COPY.offGrid.profileRowLabel}
                 </Text>
               </Pressable>
             )}

@@ -166,7 +166,7 @@ export default function ShareProfileSheet({
 
       {/* ── Scrim ── */}
       <Animated.View
-        style={[styles.scrim, { opacity: scrimOpacity }]}
+        style={[styles.scrim, { backgroundColor: palette.scrim, opacity: scrimOpacity }]}
         pointerEvents="box-none">
         <Pressable
           style={StyleSheet.absoluteFill}
@@ -334,7 +334,6 @@ const styles = StyleSheet.create({
   // ── Scrim ──
   scrim: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(0,0,0,0.4)',
   },
 
   // ── Sheet ──

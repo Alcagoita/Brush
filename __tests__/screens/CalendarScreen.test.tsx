@@ -50,6 +50,13 @@ jest.mock('@react-native-firebase/auth/lib/modular', () => ({
 
 jest.mock('@react-native-firebase/auth', () => ({}));
 
+// Timestamp is imported directly (not via the services/firestore barrel) for
+// the optimistic completedAt stamp in handleToggleTask (KAN-264 review fix) —
+// mocked to avoid pulling in the real native firestore module.
+jest.mock('@react-native-firebase/firestore', () => ({
+  Timestamp: { now: () => ({ toDate: () => new Date() }) },
+}));
+
 const mockGetTasksForMonth = jest.fn();
 const mockGetAchievements  = jest.fn();
 const mockGetCategories    = jest.fn();
@@ -310,6 +317,14 @@ describe('CalendarScreen', () => {
       expect(cellHasTripBand(screen.getByLabelText(/^16, today/))).toBe(false);
     });
 
+    it('KAN-246 — an off-grid window never renders a band (no endDate by design)', async () => {
+      mockGetTrips.mockResolvedValue([{
+        ...trip, kind: 'offgrid', startDate: '2026-06-16', endDate: undefined,
+      }]);
+      await renderScreen();
+      expect(cellHasTripBand(screen.getByLabelText(/^16, today/))).toBe(false);
+    });
+
     it('does not change the selected day stats line — ring/streak math unaffected (regression guard)', async () => {
       mockGetTasksForMonth.mockResolvedValue([
         { id: 't1', title: 'A', category: 'errands', done: true, date: '2026-06-16', createdAt: {} },
@@ -365,21 +380,22 @@ describe('CalendarScreen', () => {
     });
   });
 
-  describe('Trip entry row — "Places I know" state for a day covered by a trip (KAN-250)', () => {
+  describe('Trip entry row — stored-trip states for a day covered by a trip (KAN-250 / KAN-251)', () => {
     const coveredTrip = {
       id: 'trip-2', destination: 'Faro', placeRef: 'p2', centerLat: 1, centerLng: 2,
       startDate: '2026-06-24', endDate: '2026-06-27', areaRadius: 15_000,
       cacheAreaId: 'ta_2', expiresAt: new Date('2026-07-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
     };
 
-    it('shows "Places I know: {destination}" instead of "Going somewhere?" for a day inside an existing trip', async () => {
+    it('shows "Off to {destination} soon" + subtitle for a day inside an upcoming trip (today before startDate)', async () => {
       mockGetTrips.mockResolvedValue([coveredTrip]);
       await renderScreen();
 
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
-      expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
-      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.getByLabelText('Off to Faro soon')).toBeTruthy();
+      expect(screen.getByText('Off to Faro soon')).toBeTruthy();
+      expect(screen.getByText("I'll know my way around · until Jun 27")).toBeTruthy();
       expect(screen.queryByLabelText(/^Plan a trip starting/)).toBeNull();
       expect(screen.queryByLabelText('Plan a trip')).toBeNull();
     });
@@ -390,7 +406,7 @@ describe('CalendarScreen', () => {
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
       await act(async () => {
-        fireEvent.press(screen.getByLabelText('Places I know — Faro'));
+        fireEvent.press(screen.getByLabelText('Off to Faro soon'));
       });
 
       expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
@@ -404,38 +420,18 @@ describe('CalendarScreen', () => {
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
       expect(screen.getByLabelText(/^Plan a trip starting/)).toBeTruthy();
-      expect(screen.queryByLabelText(/^Places I know —/)).toBeNull();
+      expect(screen.queryByLabelText('Off to Faro soon')).toBeNull();
     });
 
-    it('shows "Places I know" for today when today falls inside a trip range, without needing a future day', async () => {
+    it('shows the factual "{destination} · until {date}" for today when today falls within the trip\'s dates — no presence claim', async () => {
       // FIXED_NOW is 2026-06-16 — cover today in the trip range.
       mockGetTrips.mockResolvedValue([{ ...coveredTrip, startDate: '2026-06-15', endDate: '2026-06-17' }]);
       await renderScreen();
 
-      expect(screen.getByLabelText('Places I know — Faro')).toBeTruthy();
-    });
-
-    it('shows "Places I used to know: {destination}" once the trip\'s data has expired (doc kept, cache purged elsewhere)', async () => {
-      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
-      await renderScreen();
-
-      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
-
-      expect(screen.getByLabelText('Places I used to know — Faro')).toBeTruthy();
-      expect(screen.getByText('Places I used to know: Faro')).toBeTruthy();
-      expect(screen.queryByText('Places I know: Faro')).toBeNull();
-    });
-
-    it('still navigates to PlacesIKnow when the expired-trip row is tapped', async () => {
-      mockGetTrips.mockResolvedValue([{ ...coveredTrip, expiresAt: new Date('2026-06-01').getTime() }]);
-      await renderScreen();
-      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
-
-      await act(async () => {
-        fireEvent.press(screen.getByLabelText('Places I used to know — Faro'));
-      });
-
-      expect(mockNavigate).toHaveBeenCalledWith('PlacesIKnow');
+      expect(screen.getByLabelText('Faro — trip in progress')).toBeTruthy();
+      expect(screen.getByText('Faro · until Jun 17')).toBeTruthy();
+      expect(screen.queryByText(/^You're in/)).toBeNull();
+      expect(screen.queryByText('Off to Faro soon')).toBeNull();
     });
 
     it('picks the latest-starting trip deterministically when trips overlap a day', async () => {
@@ -446,7 +442,189 @@ describe('CalendarScreen', () => {
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
 
-      expect(screen.getByText('Places I know: Faro')).toBeTruthy();
+      expect(screen.getByText('Off to Faro soon')).toBeTruthy();
+    });
+  });
+
+  describe('"Where we\'ve been" — entry row visibility (KAN-257)', () => {
+    it('does not render the entry row when there are no past trips', async () => {
+      mockGetTrips.mockResolvedValue([]);
+      await renderScreen();
+      expect(screen.queryByLabelText("See where we've been")).toBeNull();
+    });
+
+    it('does not render the entry row for a trip whose dates are still in the future', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-07-01', endDate: '2026-07-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-08-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
+      }]);
+      await renderScreen();
+      expect(screen.queryByLabelText("See where we've been")).toBeNull();
+    });
+
+    it('does not render the entry row for an off-grid trip even with valid past dates (kind-based exclusion, not just the dateless filter)', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'this area', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        kind: 'offgrid', startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-06-01'),
+      }]);
+      await renderScreen();
+      expect(screen.queryByLabelText("See where we've been")).toBeNull();
+    });
+
+    it('renders the entry row when at least one past, non-off-grid trip exists', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-04-01'),
+      }]);
+      await renderScreen();
+      expect(screen.getByLabelText("See where we've been")).toBeTruthy();
+      expect(screen.getByText("Where we've been")).toBeTruthy();
+    });
+
+    it('navigates to WhereWeveBeen with no highlightTripId when the general entry row is tapped', async () => {
+      mockGetTrips.mockResolvedValue([{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+        startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-04-01'),
+      }]);
+      await renderScreen();
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText("See where we've been"));
+      });
+      expect(mockNavigate).toHaveBeenCalledWith('WhereWeveBeen');
+    });
+  });
+
+  describe('Trip entry row — past-day tap row-state switch (KAN-257)', () => {
+    const pastTrip = {
+      id: 'trip-1', destination: 'Faro', placeRef: 'p1', centerLat: 1, centerLng: 2,
+      startDate: '2026-05-01', endDate: '2026-05-10', areaRadius: 15_000,
+      cacheAreaId: 'ta_1', expiresAt: new Date('2026-06-01').getTime(), createdAt: fakeTimestamp('2026-04-01'),
+    };
+
+    it('shows "Where we\'ve been · {destination}" for a day inside a past trip\'s range', async () => {
+      mockGetTrips.mockResolvedValue([pastTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('Previous month')); });
+      await act(async () => { fireEvent.press(screen.getByLabelText('5')); });
+
+      expect(screen.getByLabelText('Where we\'ve been — Faro')).toBeTruthy();
+      expect(screen.getByText("Where we've been · Faro")).toBeTruthy();
+      expect(screen.queryByText('Off to Faro soon')).toBeNull();
+      expect(screen.queryByText(/^Faro · until/)).toBeNull();
+    });
+
+    it('navigates to WhereWeveBeen with highlightTripId when that row is tapped', async () => {
+      mockGetTrips.mockResolvedValue([pastTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('Previous month')); });
+      await act(async () => { fireEvent.press(screen.getByLabelText('5')); });
+
+      await act(async () => {
+        fireEvent.press(screen.getByLabelText('Where we\'ve been — Faro'));
+      });
+
+      expect(mockNavigate).toHaveBeenCalledWith('WhereWeveBeen', { highlightTripId: 'trip-1' });
+    });
+
+    it('leaves a non-past trip day showing the existing upcoming/active state row, not "Where we\'ve been"', async () => {
+      const upcomingTrip = { ...pastTrip, startDate: '2026-06-24', endDate: '2026-06-27', expiresAt: new Date('2026-07-01').getTime() };
+      mockGetTrips.mockResolvedValue([upcomingTrip]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('25')); });
+
+      expect(screen.getByText('Off to Faro soon')).toBeTruthy();
+      expect(screen.queryByText("Where we've been · Faro")).toBeNull();
+    });
+  });
+
+  describe('origin-day attribution for rolled tasks (KAN-264)', () => {
+    it('attributes a rolled undone task to its origin day, not wherever `date` currently points', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Old undone', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+
+      // Origin day (Monday the 15th) shows the task, not empty.
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Old undone')).toBeTruthy();
+      expect(screen.getByText('1 task · none completed')).toBeTruthy();
+
+      // Today (the 16th, where `date` currently points post-rollover) does NOT
+      // show it — it was never a Tuesday intention.
+      await act(async () => { fireEvent.press(screen.getByLabelText(/^16, today/)); });
+      expect(screen.queryByText('Old undone')).toBeNull();
+      expect(screen.getByText('No tasks')).toBeTruthy();
+    });
+
+    it('leaves the day in between origin and current date untouched (Mon→Wed roll leaves Tue empty)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Skipped a day', category: 'errands', done: false,
+          date: '2026-06-17', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText(/^16, today/)); });
+      expect(screen.queryByText('Skipped a day')).toBeNull();
+      expect(screen.getByText('No tasks')).toBeTruthy();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Skipped a day')).toBeTruthy();
+    });
+
+    it('shows a muted "Brushed away on {weekday}" line on the origin day once a rolled task is later completed', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Finally done', category: 'errands', done: true,
+          date: '2026-06-16', originDate: '2026-06-15',
+          completedAt: fakeTimestamp('2026-06-16'), createdAt: {} },
+      ]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Finally done')).toBeTruthy();
+      expect(screen.getByText('Brushed away on Tuesday')).toBeTruthy();
+    });
+
+    it('does not show the redemption line for a task that never rolled', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Same-day task', category: 'errands', done: true,
+          date: '2026-06-16', completedAt: fakeTimestamp('2026-06-16'), createdAt: {} },
+      ]);
+      await renderScreen();
+
+      expect(screen.getByText('Same-day task')).toBeTruthy();
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+    });
+
+    it('does not show the redemption line for a rolled task that is still undone', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Still open', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+      expect(screen.getByText('Still open')).toBeTruthy();
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+    });
+
+    it('shows the redemption line immediately after brushing a rolled task, before any refetch (KAN-264 review fix)', async () => {
+      mockGetTasksForMonth.mockResolvedValue([
+        { id: 't1', title: 'Brush me now', category: 'errands', done: false,
+          date: '2026-06-16', originDate: '2026-06-15', createdAt: {} },
+      ]);
+      await renderScreen();
+      await act(async () => { fireEvent.press(screen.getByLabelText('15')); });
+
+      expect(screen.queryByText(/Brushed away on/)).toBeNull();
+      await act(async () => { fireEvent.press(screen.getByRole('checkbox')); });
+
+      expect(screen.getByText(/^Brushed away on /)).toBeTruthy();
+      expect(mockGetTasksForMonth).toHaveBeenCalledTimes(1); // no refetch triggered the redemption line
     });
   });
 

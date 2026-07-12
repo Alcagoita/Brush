@@ -48,6 +48,7 @@ jest.mock('../../src/theme', () => ({
 jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon: () => null,
   SuitcaseIcon:     () => null,
+  CloudOffIcon:     () => null,
 }));
 
 import PlacesIKnowScreen from '../../src/screens/PlacesIKnowScreen';
@@ -72,5 +73,147 @@ describe('PlacesIKnowScreen — back navigation (KAN-250)', () => {
 
     expect(mockNavigate).toHaveBeenCalledWith('Calendar');
     expect(mockGoBack).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlacesIKnowScreen — off-grid rows (KAN-246)', () => {
+  it('shows the off-grid "until HH:mm" line instead of the trip dates/expiry line', () => {
+    mockUsePlacesIKnow.mockReturnValue({
+      loading: false,
+      habitatSizeBytes: 0,
+      trips: [{
+        id: 'og-1', destination: 'this area', placeRef: '',
+        centerLat: 0, centerLng: 0, areaRadius: 15_000,
+        cacheAreaId: 'og_1', expiresAt: new Date(2026, 6, 15, 18, 0).getTime(),
+        kind: 'offgrid',
+        createdAt: {} as unknown,
+      }],
+      refresh: jest.fn().mockResolvedValue(undefined),
+      refreshingTripId: null,
+      refreshTrip: jest.fn(),
+      deleteTrip: jest.fn(),
+    });
+
+    render(<PlacesIKnowScreen />);
+
+    expect(screen.getByText('this area')).toBeTruthy();
+    expect(screen.getByText("I'll know this area until 18:00.")).toBeTruthy();
+    expect(screen.queryByText('No dates set')).toBeNull();
+  });
+
+  it('a regular trip still shows the normal dates/expiry line, unaffected', () => {
+    mockUsePlacesIKnow.mockReturnValue({
+      loading: false,
+      habitatSizeBytes: 0,
+      trips: [{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1',
+        centerLat: 0, centerLng: 0, areaRadius: 5_000,
+        cacheAreaId: 'ta_1', expiresAt: Date.now() + 1_000_000,
+        createdAt: {} as unknown,
+      }],
+      refresh: jest.fn().mockResolvedValue(undefined),
+      refreshingTripId: null,
+      refreshTrip: jest.fn(),
+      deleteTrip: jest.fn(),
+    });
+
+    render(<PlacesIKnowScreen />);
+
+    expect(screen.getByText('Faro')).toBeTruthy();
+    expect(screen.getByText(/No dates set/)).toBeTruthy();
+  });
+});
+
+describe('PlacesIKnowScreen — cancel/forget delete-confirm copy (KAN-251)', () => {
+  const mockDeleteTrip = jest.fn();
+
+  function setupTrips(trips: unknown[]) {
+    mockUsePlacesIKnow.mockReturnValue({
+      loading: false,
+      habitatSizeBytes: 0,
+      trips,
+      refresh: jest.fn().mockResolvedValue(undefined),
+      refreshingTripId: null,
+      refreshTrip: jest.fn(),
+      deleteTrip: mockDeleteTrip,
+    });
+  }
+
+  beforeEach(() => {
+    mockDeleteTrip.mockClear();
+  });
+
+  it('an upcoming/active trip\'s delete confirm reads "Not going anymore" throughout — never "forget"', () => {
+    setupTrips([{
+      id: 'trip-1', destination: 'Faro', placeRef: 'p1',
+      centerLat: 0, centerLng: 0, areaRadius: 5_000,
+      cacheAreaId: 'ta_1', expiresAt: Date.now() + 1_000_000,
+      createdAt: {} as unknown,
+    }]);
+
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation(() => {});
+
+    render(<PlacesIKnowScreen />);
+    fireEvent.press(screen.getByLabelText('Delete Faro'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Not going to Faro anymore?',
+      "I'll stop preparing for this trip.",
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Not going anymore', style: 'destructive' }),
+      ]),
+    );
+    alertSpy.mockRestore();
+  });
+
+  it('an off-grid window keeps the original "Forget it" copy, unaffected', () => {
+    setupTrips([{
+      id: 'og-1', destination: 'this area', placeRef: '',
+      centerLat: 0, centerLng: 0, areaRadius: 15_000,
+      cacheAreaId: 'og_1', expiresAt: new Date(2026, 6, 15, 18, 0).getTime(),
+      kind: 'offgrid',
+      createdAt: {} as unknown,
+    }]);
+
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation(() => {});
+
+    render(<PlacesIKnowScreen />);
+    fireEvent.press(screen.getByLabelText('Delete this area'));
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Forget this area?',
+      "I'll stop recognizing places there. You can always learn it again later.",
+      expect.arrayContaining([
+        expect.objectContaining({ text: 'Forget it', style: 'destructive' }),
+      ]),
+    );
+    alertSpy.mockRestore();
+  });
+
+  it('calls deleteTrip when the destructive action is confirmed', () => {
+    const trip = {
+      id: 'trip-1', destination: 'Faro', placeRef: 'p1',
+      centerLat: 0, centerLng: 0, areaRadius: 5_000,
+      cacheAreaId: 'ta_1', expiresAt: Date.now() + 1_000_000,
+      createdAt: {} as unknown,
+    };
+    setupTrips([trip]);
+
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation((_title: any, _msg: any, buttons: any[]) => {
+        const destructive = buttons?.find((b: any) => b.style === 'destructive');
+        destructive?.onPress?.();
+      });
+
+    render(<PlacesIKnowScreen />);
+    fireEvent.press(screen.getByLabelText('Delete Faro'));
+
+    expect(mockDeleteTrip).toHaveBeenCalledWith(trip);
+    alertSpy.mockRestore();
   });
 });

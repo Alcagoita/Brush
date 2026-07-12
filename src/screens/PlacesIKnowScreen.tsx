@@ -22,19 +22,15 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, SuitcaseIcon, CloudOffIcon } from '../components/AppIcon';
 import { usePlacesIKnow } from '../hooks/usePlacesIKnow';
 import { formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Trip } from '../types';
 import { COPY } from '../constants/copy';
+import { formatLocalTime, formatDateShort } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlacesIKnow'>;
-
-function formatDateShort(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 function formatExpiry(expiresAt: number): string {
   return COPY.tripPlanner.tripRowKnownUntil(
@@ -56,13 +52,21 @@ export default function PlacesIKnowScreen() {
     setRefreshing(false);
   };
 
+  // KAN-251 — cancelling an upcoming/active trip reads "not going anymore"
+  // throughout (a plan, not a memory — "forget" stays reserved for past-trip
+  // memories, KAN-257). Off-grid windows are untouched, keep the original copy.
   const confirmDelete = (trip: Trip) => {
+    const isOffGrid = trip.kind === 'offgrid';
     Alert.alert(
-      COPY.tripPlanner.deleteConfirmTitle(trip.destination),
-      COPY.tripPlanner.deleteConfirmBody,
+      isOffGrid ? COPY.tripPlanner.deleteConfirmTitle(trip.destination) : COPY.tripPlanner.cancelConfirmTitle(trip.destination),
+      isOffGrid ? COPY.tripPlanner.deleteConfirmBody : COPY.tripPlanner.cancelConfirmBody,
       [
         { text: COPY.tripPlanner.deleteCancelAction, style: 'cancel' },
-        { text: COPY.tripPlanner.deleteConfirmAction, style: 'destructive', onPress: () => deleteTrip(trip) },
+        {
+          text: isOffGrid ? COPY.tripPlanner.deleteConfirmAction : COPY.tripPlanner.cancelConfirmAction,
+          style: 'destructive',
+          onPress: () => deleteTrip(trip),
+        },
       ],
     );
   };
@@ -113,15 +117,19 @@ export default function PlacesIKnowScreen() {
             trips.map(trip => (
               <View key={trip.id} style={[styles.row, { backgroundColor: palette.surface, borderColor: palette.line }]}>
                 <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
-                  <SuitcaseIcon color={palette.muted} size={20} />
+                  {trip.kind === 'offgrid'
+                    ? <CloudOffIcon color={palette.muted} size={20} />
+                    : <SuitcaseIcon color={palette.muted} size={20} />}
                 </View>
                 <View style={styles.rowText}>
                   <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>{trip.destination}</Text>
                   <Text style={[styles.rowSub, { color: palette.muted }]} numberOfLines={1}>
-                    {trip.startDate && trip.endDate
-                      ? COPY.tripPlanner.tripRowDates(formatDateShort(trip.startDate), formatDateShort(trip.endDate))
-                      : COPY.tripPlanner.tripRowNoDates}
-                    {' · '}{formatExpiry(trip.expiresAt)}
+                    {trip.kind === 'offgrid'
+                      ? COPY.offGrid.sheetBody(formatLocalTime(trip.expiresAt))
+                      : (trip.startDate && trip.endDate
+                        ? COPY.tripPlanner.tripRowDates(formatDateShort(trip.startDate), formatDateShort(trip.endDate))
+                        : COPY.tripPlanner.tripRowNoDates)}
+                    {trip.kind !== 'offgrid' && (<>{' · '}{formatExpiry(trip.expiresAt)}</>)}
                   </Text>
                 </View>
                 {refreshingTripId === trip.id ? (

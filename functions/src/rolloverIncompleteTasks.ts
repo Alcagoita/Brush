@@ -30,6 +30,15 @@ export function todayISOUTC(now: Date = new Date()): string {
  * Finds every undone task across all users still dated before `today` and
  * bumps `date` + `createdAt` to now. Writes in batches of 500 (Firestore's
  * per-batch limit). Returns the number of tasks rolled over.
+ *
+ * Exception (KAN-248): an unbrushed `kind: 'birthday'` task is deleted
+ * instead — mirrors the client-side rolloverIncompleteTasks fallback so
+ * whichever one runs first for a given task produces the same outcome.
+ *
+ * KAN-264 — also stamps `originDate` the FIRST time a task rolls (never
+ * overwritten on subsequent rolls): `existing.originDate ?? existing.date`.
+ * Mirrors the client-side fallback's stamping so whichever one runs first
+ * for a given task produces the same `originDate`.
  */
 export async function rolloverAllUsers(
   db:    admin.firestore.Firestore,
@@ -48,10 +57,16 @@ export async function rolloverAllUsers(
   for (let i = 0; i < docs.length; i += BATCH_LIMIT) {
     const batch = db.batch();
     docs.slice(i, i + BATCH_LIMIT).forEach(d => {
-      batch.update(d.ref, {
-        date:      today,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
+      const existing = d.data();
+      if (existing.kind === 'birthday') {
+        batch.delete(d.ref);
+      } else {
+        batch.update(d.ref, {
+          date:       today,
+          createdAt:  admin.firestore.FieldValue.serverTimestamp(),
+          originDate: existing.originDate ?? existing.date,
+        });
+      }
     });
     await batch.commit();
   }

@@ -129,8 +129,12 @@ const en = {
   offline: {
     /** NetworkBanner text when offline AND the habitat cache has never been seeded (fresh install/new phone) — the only fully broken case (KAN-241: every other offline case is now a quiet ContextChip glyph instead of a banner). */
     noCacheYetBanner: "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
-    /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. */
+    /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. Plain apology variant, shown after the invitation variant below has reached its lifetime cap (KAN-244). */
     uncoveredAreaToast: "You're outside the area I know by heart — I'll need a connection to spot places here.",
+    /** KAN-244 — same trigger as uncoveredAreaToast, but teaches the fix instead of just apologizing. Shown up to COVERAGE_INVITATION_LIFETIME_CAP times (see proximity.ts), then this moment reverts to the plain copy above. */
+    uncoveredAreaInvitationToast: "You're outside the area I know by heart. Next time, tell me before you go — I can learn a place ahead of time.",
+    /** Action label on the invitation toast — navigates to the Calendar's "Going somewhere?" trip flow (KAN-243). */
+    uncoveredAreaInvitationAction: 'Show me',
   },
 
   // ─── Trip Planner (KAN-234) ────────────────────────────────────────────────
@@ -164,12 +168,26 @@ const en = {
     downloadSuccessToast: (destination: string) => `Got it — I know ${destination} now.`,
     placesIKnowTitle: 'Places I know',
     placesIKnowEmpty: "I don't know any trip areas yet — add one above.",
-    /** KAN-250 — Calendar's day CTA when the selected future day already falls within a downloaded trip; replaces entryRowLabel for that day. */
-    placesIKnowRowLabel: (destination: string) => `Places I know: ${destination}`,
-    placesIKnowRowA11y:  (destination: string) => `Places I know — ${destination}`,
-    /** Same row, once the trip's data has expired (doc kept, cache purged) — past tense instead of hiding the destination entirely. */
-    placesIKnowRowLabelExpired: (destination: string) => `Places I used to know: ${destination}`,
-    placesIKnowRowA11yExpired:  (destination: string) => `Places I used to know — ${destination}`,
+    /**
+     * KAN-251 — Calendar's day CTA for a selected day inside a stored trip's
+     * range. Two states only (dropped the old cache-expiry-based wording):
+     * "upcoming" (today hasn't reached the trip's startDate yet) and
+     * "active" (today is within the trip's dates). Deliberately never
+     * claims presence ("you're here") — that's the ContextChip's job, which
+     * has real location; this row is date-based only and must never lie
+     * about a delayed flight.
+     */
+    tripUpcomingRowLabel: (destination: string) => `Off to ${destination} soon`,
+    tripUpcomingRowSubtitle: (untilDate: string) => `I'll know my way around · until ${untilDate}`,
+    tripUpcomingRowA11y: (destination: string) => `Off to ${destination} soon`,
+    tripActiveRowLabel: (destination: string, untilDate: string) => `${destination} · until ${untilDate}`,
+    tripActiveRowA11y: (destination: string) => `${destination} — trip in progress`,
+    /** KAN-257 — Calendar's day CTA when the selected day falls inside a trip whose dates are over. Replaces the states above for that day; navigates to the "Where we've been" timeline instead of Places I Know. */
+    whereWeveBeenRowLabel: (destination: string) => `Where we've been · ${destination}`,
+    whereWeveBeenRowA11y:  (destination: string) => `Where we've been — ${destination}`,
+    /** KAN-257 — always-visible secondary row under the trip entry row, shown only when at least one past trip exists. */
+    whereWeveBeenEntryRowLabel: "Where we've been",
+    whereWeveBeenEntryRowA11y:  "See where we've been",
     habitatRowLabel: 'Everywhere I usually go',
     habitatRowSub:   'Updated automatically as you go about your day',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
@@ -179,6 +197,32 @@ const en = {
     deleteConfirmBody:   "I'll stop recognizing places there. You can always learn it again later.",
     deleteConfirmAction: 'Forget it',
     deleteCancelAction:  'Keep it',
+    /**
+     * KAN-251 — "forget" is reserved for past-trip memories (KAN-257); an
+     * upcoming/active trip is a plan, not a memory, so cancelling it reads
+     * "not going anymore" throughout the whole dialog (title included —
+     * showing "Forget Faro?" as the title with this button would visibly
+     * contradict the reasoning). Off-grid windows are untouched, still use
+     * deleteConfirmTitle/Body/Action above.
+     */
+    cancelConfirmTitle:  (destination: string) => `Not going to ${destination} anymore?`,
+    cancelConfirmBody:   "I'll stop preparing for this trip.",
+    cancelConfirmAction: 'Not going anymore',
+  },
+
+  // ─── "Where we've been" (KAN-257) ──────────────────────────────────────────
+  // Companion voice — the app forgets the place data but remembers being
+  // there together. Never "history"/"archive"/"records" here or in the row
+  // that links to this screen.
+  whereWeveBeenScreen: {
+    screenTitle: "Where we've been",
+    backA11y: 'Back',
+    forgetTripLabel: 'Forget this trip',
+    forgetTripA11y: (destination: string) => `Forget this trip — ${destination}`,
+    forgetConfirmTitle: (destination: string) => `Forget ${destination}?`,
+    forgetConfirmBody: "This trip won't show up here again.",
+    forgetConfirmAction: 'Forget it',
+    cancel: 'Cancel',
   },
 
   // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
@@ -235,6 +279,42 @@ const en = {
     closeA11y: 'Close',
     closeSheetA11y: 'Close sheet',
     openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
+  },
+
+  // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
+  // Discoverability through moments, not menus. No badges, no counters, no
+  // urgency copy — a quiet, dismissible offer, never a notification-style nag.
+  tripSuggestion: {
+    cardLine: (place: string, day: string) =>
+      `Off to ${place} on ${day}? I can learn it before you go.`,
+    cardA11y: (place: string, day: string) =>
+      `Off to ${place} on ${day}? I can learn it before you go — tap to set it up`,
+    dismissA11y: 'Not now',
+  },
+
+  // ─── Off-grid window (KAN-246) ─────────────────────────────────────────────
+  // Never "mode"/"offline mode"/"cache" — human words only. Sister feature to
+  // tripPlanner above: now + duration instead of future + destination.
+  offGrid: {
+    profileRowLabel: 'Going off-grid?',
+    profileRowSublabel: 'Heading somewhere with no signal for a while? I can get ready.',
+    profileRowA11y: 'Set up an off-grid window',
+    screenTitle: 'Going off-grid for a bit?',
+    durationFewHours: 'A few hours',
+    durationUntilTonight: 'Until tonight',
+    durationPickTime: 'Pick a time',
+    destinationOverridePrompt: 'Somewhere else?',
+    destinationPlaceholder: 'Faro, Lisbon, Tokyo…',
+    /** Trip.destination label when no override is chosen — center = current location. */
+    currentAreaLabel: 'this area',
+    confirmButton: 'Get ready',
+    confirmingLabel: 'Getting ready…',
+    confirmToast: (until: string) => `Got it — I'll know this area until ${until}.`,
+    errorToast: "Couldn't get this area ready — check your connection and try again.",
+    welcomeBackToast: (n: number) => `Welcome back — ${n} ${n === 1 ? 'thing' : 'things'} brushed away while you were off-grid.`,
+    chipA11y: (until: string) => `Off-grid until ${until}`,
+    sheetTitle: 'Off-grid',
+    sheetBody: (until: string) => `I'll know this area until ${until}.`,
   },
 
   // ─── Home address (KAN-247) ────────────────────────────────────────────────
@@ -506,6 +586,7 @@ const en = {
       'Something in the fridge is probably asking to be replaced.',
       'A clear day is a gift. What will you do with it?',
       'What’s the one thing future-you will thank you for?',
+      'Going somewhere soon?',
     ],
     sectionTitlePrefix: 'TODAY · ',
     leftCount: (n: number) => `${n} left`,
@@ -860,6 +941,15 @@ const en = {
     categoryNamePlaceholder: 'Category name',
     notesPlaceholder: 'Add a note, link, or reminder…',
     deleteTaskA11y: 'Delete task',
+    birthdayToggleLabel: "It's a birthday",
+    birthdayToggleSublabel: 'No place needed, never affects your ring or streak, and clears itself the day after.',
+    birthdayToggleA11y: 'Mark as a birthday',
+    birthdayWarningTitle: 'Mark this as a birthday?',
+    birthdayWarningBody: "This removes the place it's tied to, drops it from your ring and streak, and it'll quietly disappear the day after — no missed mark, no trace.",
+    birthdayWarningConfirm: 'Mark as birthday',
+    birthdayUnsetWarningTitle: 'Unmark this birthday?',
+    birthdayUnsetWarningBody: "This task becomes a normal task again — you'll need to give it a place before you can save.",
+    birthdayUnsetWarningConfirm: 'Unmark',
   },
 
   pointsHistoryScreen: {
@@ -936,6 +1026,8 @@ const en = {
     nothingOnThisDay: 'Nothing on this day.',
     openTodayA11y: 'Open today',
     openToday: 'Open today',
+    /** KAN-264 — shown under a rolled task on its origin day, once it's later brushed. Neutral/redemptive — never "missed"/"expired"/"overdue". */
+    brushedAwayOn: (weekday: string) => `Brushed away on ${weekday}`,
   },
 
   shareToDo: {
@@ -1051,6 +1143,8 @@ const ptPT: typeof en = {
   offline: {
     noCacheYetBanner: 'Sem ligação — ainda não consigo procurar sítios por perto. Vou começar a aprender a tua zona assim que estiveres online.',
     uncoveredAreaToast: 'Estás fora da zona que já conheço bem — vou precisar de ligação para encontrar sítios aqui.',
+    uncoveredAreaInvitationToast: 'Estás fora da zona que já conheço bem. Para a próxima, diz-me antes de saíres — posso aprender um sítio com antecedência.',
+    uncoveredAreaInvitationAction: 'Mostra-me',
   },
 
   tripPlanner: {
@@ -1079,10 +1173,15 @@ const ptPT: typeof en = {
     downloadSuccessToast: (destination: string) => `Entendido — já conheço ${destination}.`,
     placesIKnowTitle: 'Sítios que conheço',
     placesIKnowEmpty: 'Ainda não conheço nenhuma zona de viagem — adiciona uma acima.',
-    placesIKnowRowLabel: (destination: string) => `Sítios que conheço: ${destination}`,
-    placesIKnowRowA11y:  (destination: string) => `Sítios que conheço — ${destination}`,
-    placesIKnowRowLabelExpired: (destination: string) => `Sítios que já conheci: ${destination}`,
-    placesIKnowRowA11yExpired:  (destination: string) => `Sítios que já conheci — ${destination}`,
+    tripUpcomingRowLabel: (destination: string) => `Vou a ${destination} em breve`,
+    tripUpcomingRowSubtitle: (untilDate: string) => `Vou saber orientar-me · até ${untilDate}`,
+    tripUpcomingRowA11y: (destination: string) => `Vou a ${destination} em breve`,
+    tripActiveRowLabel: (destination: string, untilDate: string) => `${destination} · até ${untilDate}`,
+    tripActiveRowA11y: (destination: string) => `${destination} — viagem em curso`,
+    whereWeveBeenRowLabel: (destination: string) => `Onde já estivemos · ${destination}`,
+    whereWeveBeenRowA11y:  (destination: string) => `Onde já estivemos — ${destination}`,
+    whereWeveBeenEntryRowLabel: 'Onde já estivemos',
+    whereWeveBeenEntryRowA11y:  'Ver onde já estivemos',
     habitatRowLabel: 'Onde costumo andar',
     habitatRowSub:   'Atualizado automaticamente ao longo do teu dia',
     tripRowDates:      (start: string, end: string) => `${start} – ${end}`,
@@ -1092,6 +1191,21 @@ const ptPT: typeof en = {
     deleteConfirmBody:   'Vou deixar de reconhecer sítios aí. Podes sempre voltar a aprender mais tarde.',
     deleteConfirmAction: 'Esquecer',
     deleteCancelAction:  'Manter',
+    cancelConfirmTitle:  (destination: string) => `Já não vais a ${destination}?`,
+    cancelConfirmBody:   'Vou deixar de me preparar para esta viagem.',
+    cancelConfirmAction: 'Já não vou',
+  },
+
+  // ─── "Onde já estivemos" (KAN-257) ─────────────────────────────────────────
+  whereWeveBeenScreen: {
+    screenTitle: 'Onde já estivemos',
+    backA11y: 'Voltar',
+    forgetTripLabel: 'Esquecer esta viagem',
+    forgetTripA11y: (destination: string) => `Esquecer esta viagem — ${destination}`,
+    forgetConfirmTitle: (destination: string) => `Esquecer ${destination}?`,
+    forgetConfirmBody: 'Esta viagem deixa de aparecer aqui.',
+    forgetConfirmAction: 'Esquecer',
+    cancel: 'Cancelar',
   },
 
   contextChip: {
@@ -1136,6 +1250,35 @@ const ptPT: typeof en = {
     closeA11y: 'Fechar',
     closeSheetA11y: 'Fechar painel',
     openAnchorInMaps: (anchorName: string) => `Abrir ${anchorName} no Maps`,
+  },
+
+  tripSuggestion: {
+    cardLine: (place: string, day: string) =>
+      `Vais a ${place} no dia ${day}? Posso aprender o sítio antes de saíres.`,
+    cardA11y: (place: string, day: string) =>
+      `Vais a ${place} no dia ${day}? Posso aprender o sítio antes de saíres — toca para configurar`,
+    dismissA11y: 'Agora não',
+  },
+
+  offGrid: {
+    profileRowLabel: 'Vais ficar sem rede?',
+    profileRowSublabel: 'Vais para algum sítio sem rede por umas horas? Posso preparar-me.',
+    profileRowA11y: 'Configurar um período sem rede',
+    screenTitle: 'Vais ficar sem rede por umas horas?',
+    durationFewHours: 'Umas horas',
+    durationUntilTonight: 'Até logo à noite',
+    durationPickTime: 'Escolher uma hora',
+    destinationOverridePrompt: 'Noutro sítio?',
+    destinationPlaceholder: 'Faro, Lisboa, Tóquio…',
+    currentAreaLabel: 'esta zona',
+    confirmButton: 'Preparar',
+    confirmingLabel: 'A preparar…',
+    confirmToast: (until: string) => `Entendido — vou conhecer esta zona até às ${until}.`,
+    errorToast: 'Não consegui preparar esta zona — verifica a tua ligação e tenta outra vez.',
+    welcomeBackToast: (n: number) => `Bem-vindo de volta — ${n} ${n === 1 ? 'coisa foi' : 'coisas foram'} riscada${n === 1 ? '' : 's'} enquanto estavas sem rede.`,
+    chipA11y: (until: string) => `Sem rede até às ${until}`,
+    sheetTitle: 'Sem rede',
+    sheetBody: (until: string) => `Vou conhecer esta zona até às ${until}.`,
   },
 
   home: {
@@ -1388,6 +1531,7 @@ const ptPT: typeof en = {
       'Provavelmente há algo no frigorífico que precisa de ser reposto.',
       'Um dia livre é um presente. O que vais fazer com ele?',
       'Qual é a coisa pela qual o teu eu futuro te vai agradecer?',
+      'Vais a algum lado em breve?',
     ],
     sectionTitlePrefix: 'HOJE · ',
     leftCount: (n: number) => (n === 1 ? 'Falta 1' : `Faltam ${n}`),
@@ -1743,6 +1887,15 @@ const ptPT: typeof en = {
     categoryNamePlaceholder: 'Nome da categoria',
     notesPlaceholder: 'Adiciona uma nota, link ou lembrete…',
     deleteTaskA11y: 'Eliminar tarefa',
+    birthdayToggleLabel: 'É um aniversário',
+    birthdayToggleSublabel: 'Não precisa de local, nunca afeta o teu anel ou sequência, e desaparece sozinha no dia seguinte.',
+    birthdayToggleA11y: 'Marcar como aniversário',
+    birthdayWarningTitle: 'Marcar isto como aniversário?',
+    birthdayWarningBody: 'Isto remove o local associado, tira a tarefa do teu anel e sequência, e ela vai desaparecer sozinha no dia seguinte — sem marca de falha, sem rasto.',
+    birthdayWarningConfirm: 'Marcar como aniversário',
+    birthdayUnsetWarningTitle: 'Desmarcar este aniversário?',
+    birthdayUnsetWarningBody: 'Esta tarefa volta a ser uma tarefa normal — vais precisar de lhe dar um local antes de conseguires guardar.',
+    birthdayUnsetWarningConfirm: 'Desmarcar',
   },
 
   pointsHistoryScreen: {
@@ -1819,6 +1972,8 @@ const ptPT: typeof en = {
     nothingOnThisDay: 'Nada para este dia.',
     openTodayA11y: 'Abrir hoje',
     openToday: 'Abrir hoje',
+    // "Brush away" stays in English here too — brand verb, never localized (see taskRow's note above).
+    brushedAwayOn: (weekday: string) => `Brushed away on ${weekday}`,
   },
 
   shareToDo: {

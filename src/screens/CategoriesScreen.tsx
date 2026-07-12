@@ -36,7 +36,13 @@ import { useNavigation } from '@react-navigation/native';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, radius, categories as builtInMeta } from '../theme/tokens';
+import {
+  spacing,
+  radius,
+  categories as builtInMeta,
+  categoryPickerColors,
+  swatchSelectedRing,
+} from '../theme/tokens';
 import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import {
   placeTypeLabel,
@@ -50,35 +56,11 @@ import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const ERROR_COLOR = '#e05252';
-
 /**
  * 18 preset colours arranged in 3 rows of 6.
  * The 4 original design-system colours are kept at their legacy positions.
  */
-export const CATEGORY_COLORS = [
-  // Row 1 — blues & purples
-  '#5b7fd4', // Work — soft blue (legacy)
-  '#4f9ee8', // sky blue
-  '#3b78e8', // bright blue
-  '#8b6bc4', // Errands — muted purple (legacy)
-  '#a06ed4', // lavender
-  '#c47aa0', // mauve
-  // Row 2 — greens, yellows, warm
-  '#5ba87a', // Health — sage (legacy)
-  '#3da890', // teal
-  '#4dc880', // mint
-  '#8ab84a', // olive
-  '#d4c84a', // yellow
-  '#e8a86a', // Personal — peach (legacy)
-  // Row 3 — warm spectrum + neutrals
-  '#e87a4a', // orange
-  '#e05252', // red
-  '#e05294', // hot pink
-  '#c45294', // magenta
-  '#8a9ab4', // slate
-  '#7a7a7a', // gray
-] as const;
+export const CATEGORY_COLORS = categoryPickerColors;
 
 /**
  * Quick-pick POI types shown as chips at the top of the location picker, and
@@ -151,7 +133,7 @@ function CategoryRow({ category, onEdit, onDelete }: CategoryRowProps) {
             style={styles.deleteBtn}
             accessibilityRole="button"
             accessibilityLabel={COPY.categoriesScreen.deleteA11y(category.name)}>
-            <Text style={styles.deleteX}>×</Text>
+            <Text style={[styles.deleteX, { color: palette.danger }]}>×</Text>
           </Pressable>
         </View>
       )}
@@ -265,7 +247,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
-      <Pressable style={styles.scrim} onPress={onCancel} />
+      <Pressable style={[styles.scrim, { backgroundColor: palette.scrim }]} onPress={onCancel} />
       <KeyboardAvoidingView
         behavior={getScreenKeyboardAvoidingBehavior()}
         style={styles.sheetOuter}>
@@ -289,7 +271,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
           <Text style={[styles.fieldLabel, { color: palette.muted }]}>{COPY.categoriesScreen.nameFieldLabel}</Text>
           <View style={[
             styles.nameInputWrap,
-            { backgroundColor: palette.surface2, borderColor: nameErr ? ERROR_COLOR : palette.line },
+            { backgroundColor: palette.surface2, borderColor: nameErr ? palette.danger : palette.line },
           ]}>
             <TextInput
               style={[styles.nameInput, { color: palette.text }]}
@@ -303,7 +285,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
               accessibilityLabel={COPY.categoriesScreen.nameA11y}
             />
           </View>
-          {nameErr ? <Text style={styles.nameErr}>{nameErr}</Text> : null}
+          {nameErr ? <Text style={[styles.nameErr, { color: palette.danger }]}>{nameErr}</Text> : null}
 
           {/* ── Colour ── */}
           <Text style={[styles.fieldLabel, { color: palette.muted }]}>{COPY.categoriesScreen.colorFieldLabel}</Text>
@@ -339,7 +321,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
             />
             <View style={[
               styles.hexInputWrap,
-              { backgroundColor: palette.surface2, borderColor: hexValid || hexInput === '' ? palette.line : ERROR_COLOR },
+              { backgroundColor: palette.surface2, borderColor: hexValid || hexInput === '' ? palette.line : palette.danger },
             ]}>
               <TextInput
                 style={[styles.hexInput, { color: palette.text }]}
@@ -715,7 +697,6 @@ const styles = StyleSheet.create({
   deleteX: {
     fontSize:   20,
     lineHeight: 24,
-    color:      ERROR_COLOR,
     fontFamily: 'Geist-Regular',
   },
 
@@ -757,8 +738,7 @@ const styles = StyleSheet.create({
 
   // ── Sheet ──
   scrim: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    flex: 1,
   },
   sheetOuter: {
     position: 'absolute',
@@ -806,7 +786,6 @@ const styles = StyleSheet.create({
   nameErr: {
     fontSize:     12,
     fontFamily:   'Geist-Regular',
-    color:        ERROR_COLOR,
     marginBottom:  8,
   },
 
@@ -824,7 +803,7 @@ const styles = StyleSheet.create({
   },
   colorSwatchSelected: {
     borderWidth: 3,
-    borderColor: 'rgba(0,0,0,0.28)',
+    borderColor: swatchSelectedRing,
   },
 
   // ── Hex input ──

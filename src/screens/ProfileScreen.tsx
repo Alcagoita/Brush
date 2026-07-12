@@ -39,6 +39,7 @@ import {
   ShareIcon,
   CameraIcon,
   BuildingIcon,
+  CloudOffIcon,
 } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
 import LoadingDots from '../components/LoadingDots';
@@ -505,7 +506,7 @@ export default function ProfileScreen() {
                     {/* Count badge for multi-earned */}
                     {earnCount > 1 ? (
                       <View style={[styles.countBadge, { backgroundColor: palette.accent, borderColor: palette.surface }]}>
-                        <Text style={styles.countBadgeText}>×{earnCount}</Text>
+                        <Text style={[styles.countBadgeText, { color: palette.onAccent }]}>×{earnCount}</Text>
                       </View>
                     ) : null}
                   </View>
@@ -533,6 +534,24 @@ export default function ProfileScreen() {
             <Text style={[styles.settingsTitle, { color: palette.text }]}>{COPY.profile.settingsTitle}</Text>
             <Text style={[styles.settingsSub, { color: palette.muted }]} numberOfLines={1}>
               {COPY.profile.settingsSub}
+            </Text>
+          </View>
+          <ChevronRightIcon color={palette.faint} size={18} />
+        </Pressable>
+
+        {/* ── 6. Off-grid entry row (KAN-246) ── */}
+        <Pressable
+          style={[styles.settingsRow, { borderColor: palette.line }]}
+          onPress={() => navigation.navigate('OffGrid')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.offGrid.profileRowA11y}>
+          <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
+            <CloudOffIcon color={palette.muted} size={20} />
+          </View>
+          <View style={styles.settingsTextBlock}>
+            <Text style={[styles.settingsTitle, { color: palette.text }]}>{COPY.offGrid.profileRowLabel}</Text>
+            <Text style={[styles.settingsSub, { color: palette.muted }]} numberOfLines={1}>
+              {COPY.offGrid.profileRowSublabel}
             </Text>
           </View>
           <ChevronRightIcon color={palette.faint} size={18} />
@@ -868,7 +887,6 @@ const styles = StyleSheet.create({
     fontSize:   9,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
-    color:      '#ffffff',
   },
   medalLabel: {
     fontSize:   11,

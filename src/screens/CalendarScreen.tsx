@@ -53,10 +53,11 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Svg, { Path } from 'react-native-svg';
+import { Timestamp } from '@react-native-firebase/firestore';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
-import { spacing, radius, fonts, categories as builtInCategories } from '../theme/tokens';
+import { spacing, radius, fonts, categories as builtInCategories, fallbackCategoryColor } from '../theme/tokens';
 import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips } from '../services/firestore';
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
@@ -64,7 +65,8 @@ import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/A
 import { AchievementIcon, AchievementIconKey, buildAchievementCatalogue } from '../components/AchievementTile';
 import BrushStroke from '../components/BrushStroke';
 import CalendarRing from '../components/CalendarRing';
-import { todayISO } from '../utils/date';
+import { todayISO, toDateSafe, formatDateShort } from '../utils/date';
+import { isTripPast, isPastMemorableTrip } from '../utils/contextChip';
 import { COPY } from '../constants/copy';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -139,6 +141,16 @@ function formatFullDateLabel(iso: string): string {
   return `${COPY.calendar.fullWeekdays[date.getDay()]}, ${COPY.calendar.monthNamesFull[m - 1]} ${d}`;
 }
 
+/**
+ * KAN-264 — "Wednesday" for whatever day `ts` falls on. Used for the
+ * "brushed away on {day}" redemption line — never a full date, just the
+ * weekday name, matching the guardrail's neutral, conversational framing.
+ */
+function formatWeekdayName(ts: unknown): string | null {
+  const date = toDateSafe(ts);
+  return date ? COPY.calendar.fullWeekdays[date.getDay()] : null;
+}
+
 /** Shift an ISO date string by `delta` days (handles month/year rollover). */
 function isoAddDays(iso: string, delta: number): string {
   const [y, m, d] = iso.split('-').map(Number);
@@ -148,10 +160,9 @@ function isoAddDays(iso: string, delta: number): string {
 
 // ─── Category color resolution (matches TaskRow.tsx) ─────────────────────────
 
-// Matches TaskRow.tsx's FALLBACK_CAT exactly — category colors are a fixed
-// design-system constant set (see theme/tokens.ts `categories`), not
-// theme-dependent, so this intentionally isn't a useTheme() palette value.
-const FALLBACK_CAT = { color: '#8a8a85', label: 'Other' };
+// Matches TaskRow.tsx's FALLBACK_CAT exactly — both import the same
+// tokens.ts constant now (KAN-259), single source of truth.
+const FALLBACK_CAT = { color: fallbackCategoryColor, label: 'Other' };
 
 function resolveCategory(task: Task, customCategories: Category[]) {
   const builtIn = builtInCategories[task.category as keyof typeof builtInCategories];
@@ -177,6 +188,7 @@ function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalT
   const { palette } = useTheme();
   const cat = resolveCategory(task, customCategories);
   const [titleWidth, setTitleWidth] = useState(0);
+  const brushedAwayWeekday = formatWeekdayName(task.completedAt);
 
   const handleToggle = () => {
     if (isFuture) { return; }
@@ -205,7 +217,7 @@ function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalT
           <Svg width={10} height={10} viewBox="0 0 12 12" fill="none">
             <Path
               d="M2.5 6.5L5 9l4.5-5.5"
-              stroke="#fff"
+              stroke={palette.onAccent}
               strokeWidth={1.7}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -230,6 +242,15 @@ function CalTaskRow({ task, customCategories, isLast, onToggle, isFuture }: CalT
             </View>
           )}
         </View>
+        {/* KAN-264 redemption line — only for a task that rolled (has an
+            originDate, so it's showing here on a day other than where it now
+            lives) and was later brushed. Tells the honest story without
+            "missed"/"expired" framing. */}
+        {task.done && task.originDate && brushedAwayWeekday && (
+          <Text style={[styles.taskRedemption, { color: palette.faint }]} numberOfLines={1}>
+            {COPY.calendar.brushedAwayOn(brushedAwayWeekday)}
+          </Text>
+        )}
       </View>
 
       {/* Category dot */}
@@ -334,10 +355,11 @@ function DayCell({
           total={total}
           isFuture={isFuture}
           isSelected={isSelected}
-          dark={dark}
           ringTrack={palette.ringTrack}
           ringFill={palette.ringFill}
           accent={palette.accent}
+          selTrack={palette.selectedRingTrack}
+          selArc={palette.selectedRingArc}
         />
       </View>
 
@@ -368,7 +390,7 @@ type Nav   = NativeStackNavigationProp<RootStackParamList, 'Calendar'>;
 type Route = RouteProp<RootStackParamList, 'Calendar'>;
 
 export default function CalendarScreen() {
-  const { palette, dark } = useTheme();
+  const { palette } = useTheme();
   const insets      = useSafeAreaInsets();
   const navigation  = useNavigation<Nav>();
   const route       = useRoute<Route>();
@@ -419,13 +441,17 @@ export default function CalendarScreen() {
   // Toggling a task doesn't refetch the whole month — apply the flip locally
   // (setTaskDone itself persists it) so the checkbox updates immediately.
   const handleToggleTask = useCallback((taskId: string, done: boolean) => {
+    // completedAt must move with `done` optimistically too (KAN-264 review
+    // fix) — the redemption line reads task.completedAt to name the weekday
+    // it was brushed on, so without this it wouldn't appear until the next
+    // month refetch. Mirrors setTaskDone's own contract exactly (Timestamp.now() / null).
     setMonthTasksState(prev => prev.status === 'success'
-      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done } : t) }
+      ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done, completedAt: done ? Timestamp.now() : undefined } : t) }
       : prev);
     setTaskDone(uid, taskId, done).catch(err => {
       console.warn('[CalTaskRow] setTaskDone failed', err);
       setMonthTasksState(prev => prev.status === 'success'
-        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done } : t) }
+        ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done, completedAt: !done ? Timestamp.now() : undefined } : t) }
         : prev);
     });
   }, [uid]);
@@ -468,12 +494,18 @@ export default function CalendarScreen() {
   );
 
   // ── Per-day aggregates, keyed by ISO date ──
+  // KAN-264 — a task belongs to its origin day (originDate ?? date), not
+  // wherever `date` currently points after rolling forward. Without this, a
+  // task that rolled Mon→Tue vanishes from Monday's stats, falsely reading
+  // Monday as 100% complete (or empty) — a fake reward. Tasks that never
+  // rolled have no originDate, so this is a no-op for them.
   const dayStats = useMemo<Record<string, { done: number; total: number }>>(() => {
     const map: Record<string, { done: number; total: number }> = {};
     for (const t of monthTasks) {
-      if (!map[t.date]) { map[t.date] = { done: 0, total: 0 }; }
-      map[t.date].total += 1;
-      if (t.done) { map[t.date].done += 1; }
+      const day = t.originDate ?? t.date;
+      if (!map[day]) { map[day] = { done: 0, total: 0 }; }
+      map[day].total += 1;
+      if (t.done) { map[day].done += 1; }
     }
     return map;
   }, [monthTasks]);
@@ -521,6 +553,14 @@ export default function CalendarScreen() {
     [datedTrips],
   );
 
+  // KAN-257 — whether at least one past, non-off-grid trip exists. Drives the
+  // "Where we've been ›" entry row's visibility — absence is the default,
+  // same rule as the ContextChip.
+  const hasPastTrips = useMemo(
+    () => datedTrips.some(t => isPastMemorableTrip(t, today)),
+    [datedTrips, today],
+  );
+
   // ── Achievement milestones for the displayed month ──
   // Only the single most-recent earnedAt per type is available (see header note).
   const achievementsByDay = useMemo<Record<number, { icon: AchievementIconKey; label: string }>>(() => {
@@ -538,8 +578,11 @@ export default function CalendarScreen() {
   }, [achievementsMap, displayYear, displayMonth]);
 
   // ── Tasks for selected day (detail card) ──
+  // KAN-264 — same origin-day attribution as dayStats: a rolled task shows
+  // up in its origin day's list (to tell the redemption story), not
+  // wherever it currently lives.
   const selectedTasks = useMemo(
-    () => monthTasks.filter(t => t.date === selectedDate).sort((a, b) => {
+    () => monthTasks.filter(t => (t.originDate ?? t.date) === selectedDate).sort((a, b) => {
       const ta = a.time ?? '';
       const tb = b.time ?? '';
       return ta.localeCompare(tb);
@@ -559,11 +602,15 @@ export default function CalendarScreen() {
   const selRun        = runLength(selectedDate);
   const selAch        = achievementsByDay[Number(selectedDate.split('-')[2])];
   const selTrip       = tripForDate(selectedDate);
-  // A trip's Firestore doc outlives its downloaded data (SplashScreen only
-  // purges the on-device place cache on expiry, never the doc itself — see
-  // deleteExpiredTripPlaces) so the underline/entry row can still reference
-  // it here; the label just switches to past tense once expired.
-  const selTripExpired = !!selTrip && selTrip.expiresAt <= Date.now();
+  // KAN-257 — whether the trip's *dates* are over. A date-past trip switches
+  // the entry row to "Where we've been" instead of the trip states below.
+  const isSelTripPast    = !!selTrip && isTripPast(selTrip, today);
+  // KAN-251 — the row states the trip, date-based, never the user's location
+  // (presence belongs to the ContextChip, which uses real location — a
+  // delayed flight must never make this row lie). "Upcoming" vs "active" is
+  // about the real today, not the selected day: viewing a future day already
+  // inside the trip's range while today hasn't arrived yet is still upcoming.
+  const isSelTripUpcoming = !!selTrip && selTrip.startDate > today;
 
   // ── Detail card slide-up animation (re-triggers on selection change) ──
   const cardOpacity   = useRef(new Animated.Value(0)).current;
@@ -733,27 +780,51 @@ export default function CalendarScreen() {
         })}
       </View>
 
-      {/* ── Trip entry row (KAN-243 / KAN-250) — always visible, just under the
-          day grid. Trip-aware: shows "Places I know: {destination}" when the
-          selected day already falls within a downloaded trip, else the plain
-          "Going somewhere?" invite (prefilled with that date when it's a
-          future day). Single row — no separate day-specific CTA elsewhere. ── */}
-      {selTrip ? (
+      {/* ── Trip entry row (KAN-243 / KAN-250 / KAN-257 / KAN-251) — always
+          visible, just under the day grid. Trip-aware: for a past trip's
+          day, shows "Where we've been · {destination}" and opens the
+          timeline anchored at that trip; for an upcoming trip's day, "Off
+          to {destination} soon" + a subtitle; for an active trip's day, the
+          factual "{destination} · until {date}" (no presence claim — that's
+          the ContextChip's job, since it has real location and this row
+          doesn't); else the plain "Going somewhere?" invite (prefilled with
+          that date when it's a future day). Single row — no separate
+          day-specific CTA elsewhere. ── */}
+      {selTrip && isSelTripPast ? (
+        <Pressable
+          style={[styles.tripEntryRow, { borderColor: palette.line }]}
+          onPress={() => navigation.navigate('WhereWeveBeen', { highlightTripId: selTrip.id })}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.tripPlanner.whereWeveBeenRowA11y(selTrip.destination)}>
+          <SuitcaseIcon color={palette.muted} size={16} />
+          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+            {COPY.tripPlanner.whereWeveBeenRowLabel(selTrip.destination)}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      ) : selTrip ? (
         <Pressable
           style={[styles.tripEntryRow, { borderColor: palette.line }]}
           onPress={() => navigation.navigate('PlacesIKnow')}
           accessibilityRole="button"
           accessibilityLabel={
-            selTripExpired
-              ? COPY.tripPlanner.placesIKnowRowA11yExpired(selTrip.destination)
-              : COPY.tripPlanner.placesIKnowRowA11y(selTrip.destination)
+            isSelTripUpcoming
+              ? COPY.tripPlanner.tripUpcomingRowA11y(selTrip.destination)
+              : COPY.tripPlanner.tripActiveRowA11y(selTrip.destination)
           }>
           <SuitcaseIcon color={palette.muted} size={16} />
-          <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
-            {selTripExpired
-              ? COPY.tripPlanner.placesIKnowRowLabelExpired(selTrip.destination)
-              : COPY.tripPlanner.placesIKnowRowLabel(selTrip.destination)}
-          </Text>
+          <View style={styles.tripEntryTextWrap}>
+            <Text style={[styles.tripEntryLabel, { color: palette.text }]}>
+              {isSelTripUpcoming
+                ? COPY.tripPlanner.tripUpcomingRowLabel(selTrip.destination)
+                : COPY.tripPlanner.tripActiveRowLabel(selTrip.destination, formatDateShort(selTrip.endDate))}
+            </Text>
+            {isSelTripUpcoming && (
+              <Text style={[styles.tripEntrySubLabel, { color: palette.muted }]} numberOfLines={1}>
+                {COPY.tripPlanner.tripUpcomingRowSubtitle(formatDateShort(selTrip.endDate))}
+              </Text>
+            )}
+          </View>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
         </Pressable>
       ) : (
@@ -765,6 +836,23 @@ export default function CalendarScreen() {
           <SuitcaseIcon color={palette.muted} size={16} />
           <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      )}
+
+      {/* ── "Where we've been ›" secondary entry row (KAN-257) — quiet,
+          always keyed to whether ANY past trip exists (not the selected
+          day). Absence is the default, same rule as the ContextChip. ── */}
+      {hasPastTrips && (
+        <Pressable
+          style={styles.whereWeveBeenRow}
+          hitSlop={4}
+          onPress={() => navigation.navigate('WhereWeveBeen')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.tripPlanner.whereWeveBeenEntryRowA11y}>
+          <Text style={[styles.whereWeveBeenLabel, { color: palette.muted }]}>
+            {COPY.tripPlanner.whereWeveBeenEntryRowLabel}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={13} strokeWidth={1.8} />
         </Pressable>
       )}
 
@@ -819,10 +907,11 @@ export default function CalendarScreen() {
                   total={selTotal}
                   isFuture={false}
                   isSelected={false}
-                  dark={dark}
                   ringTrack={palette.ringTrack}
                   ringFill={palette.ringFill}
                   accent={palette.accent}
+                  selTrack={palette.selectedRingTrack}
+                  selArc={palette.selectedRingArc}
                 />
                 <View style={styles.detailRingNumberWrap}>
                   <Text style={[styles.detailRingNumber, { color: detailRingColor }]}>
@@ -1045,6 +1134,32 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: 'Geist-Regular',
   },
+  tripEntryTextWrap: {
+    flex: 1,
+    gap:  1,
+  },
+  tripEntrySubLabel: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+
+  // ── "Where we've been ›" secondary entry (KAN-257) — quieter than the
+  // primary trip row: no border/background, just text + chevron. ──
+  whereWeveBeenRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               6,
+    minHeight:         36,
+    marginHorizontal:  spacing[4],
+    marginBottom:      10,
+    paddingHorizontal: 12,
+  },
+  whereWeveBeenLabel: {
+    flex:       1,
+    fontSize:   13,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
 
   // ── Hairline divider ──
   divider: {
@@ -1191,6 +1306,11 @@ const styles = StyleSheet.create({
     fontFamily:    'Geist-Regular',
     letterSpacing: -0.14,
     lineHeight:     18,
+  },
+  taskRedemption: {
+    fontSize:      11,
+    fontFamily:    'Geist-Regular',
+    marginTop:      1,
   },
   categoryDot: {
     width:        7,

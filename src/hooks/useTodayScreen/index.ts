@@ -29,6 +29,10 @@ import { useTaskCompletion } from './useTaskCompletion';
 import { useLearnedPlaces } from './useLearnedPlaces';
 import { useErrandBundle } from '../useErrandBundle';
 import type { ErrandBundle } from '../../services/errandBundles';
+import { useFirstSessionGate } from './useFirstSessionGate';
+import { useTripSuggestion } from './useTripSuggestion';
+import type { CalendarSuggestion } from '../../services/tripSuggestions';
+import { useOffGridWelcomeBack } from '../useOffGridWelcomeBack';
 
 export interface TodayScreenState {
   /** Today's tasks. Empty while loading. */
@@ -76,6 +80,10 @@ export interface TodayScreenState {
   errandBundle: ErrandBundle | null;
   /** Hides the current errandBundle for the rest of the day. */
   dismissErrandBundle: () => void;
+  /** Contextual trip suggestion (KAN-245 calendar signal), or null when none qualifies / already dismissed / first session. */
+  tripSuggestion: CalendarSuggestion | null;
+  /** Permanently dismisses the current tripSuggestion. */
+  dismissTripSuggestion: () => void;
 }
 
 export function useTodayScreen(uid: string | undefined): TodayScreenState {
@@ -97,6 +105,14 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   );
 
   const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
+
+  const isFirstSession = useFirstSessionGate(uid);
+  const { suggestion: tripSuggestion, dismiss: dismissTripSuggestion } =
+    useTripSuggestion(isFirstSession, data.trips, data.mallSnapshot);
+
+  // KAN-246 — "welcome back" payoff moment + auto-expiry cleanup, checked
+  // on every Today mount/refresh (the trips list is already loaded here).
+  useOffGridWelcomeBack(uid, data.tasks, data.trips);
 
   // Pure computation over data useProximityEngine already holds each tick
   // (KAN-235) — no new timer, no new location subscription.
@@ -126,8 +142,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     void refreshLearnedPlaces();
   }, [handleToggleInner, refreshLearnedPlaces]);
 
-  const totalTasks  = data.tasks.length;
-  const doneTasks   = data.tasks.filter(t => t.done).length;
+  // Birthday tasks (KAN-248) are unscored — excluded from the ring/progress
+  // count entirely so they can never affect day-state, only shown in the
+  // task list itself.
+  const scorableTasks = data.tasks.filter(t => t.kind !== 'birthday');
+  const totalTasks  = scorableTasks.length;
+  const doneTasks   = scorableTasks.filter(t => t.done).length;
   const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
   const nearbyCount = data.tasks.filter(t => t.poi).length;
 
@@ -159,5 +179,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     locationUnavailable: proximity.locationUnavailable,
     errandBundle,
     dismissErrandBundle,
+    tripSuggestion,
+    dismissTripSuggestion,
   };
 }

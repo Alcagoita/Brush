@@ -34,15 +34,17 @@ interface CalendarRingProps {
   total:  number;
   isFuture:   boolean;
   isSelected: boolean;
-  dark:   boolean;
   /** palette.ringTrack / palette.ringFill / palette.accent for the current theme. */
   ringTrack: string;
   ringFill:  string;
   accent:    string;
+  /** palette.selectedRingTrack / palette.selectedRingArc — theme-aware inversion for a selected cell. */
+  selTrack: string;
+  selArc:   string;
 }
 
 export default function CalendarRing({
-  size, stroke, done, total, isFuture, isSelected, dark, ringTrack, ringFill, accent,
+  size, stroke, done, total, isFuture, isSelected, ringTrack, ringFill, accent, selTrack, selArc,
 }: CalendarRingProps) {
   if (total === 0 || isFuture) { return null; }
 
@@ -53,10 +55,6 @@ export default function CalendarRing({
   const r    = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const cx   = size / 2;
-
-  // Theme-aware inversion for the selected cell (bg = palette.text).
-  const selTrack = dark ? 'rgba(0,0,0,0.16)'    : 'rgba(255,255,255,0.20)';
-  const selArc   = dark ? 'rgba(20,18,14,0.82)' : 'rgba(255,255,255,0.88)';
 
   const trackColor   = isSelected ? selTrack : ringTrack;
   const trackOpacity = isZero ? 0.5 : 1;

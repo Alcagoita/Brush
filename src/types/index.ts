@@ -64,6 +64,13 @@ export interface User {
   /** Set to true once the user completes the guided first-run onboarding (KAN-140). */
   onboardingDone?: boolean;
   /**
+   * Stamped the first time the Today screen mounts with no prior value
+   * (KAN-245) — marks "the user has now had one full session to learn the
+   * core app before any contextual suggestion is allowed to appear."
+   * Never overwritten once set.
+   */
+  firstSessionSeenAt?: FirebaseFirestoreTypes.Timestamp;
+  /**
    * Set to true once this user's historical `completedPlaceId` brush data has
    * been tallied into `/users/{uid}/learnedPlaceCounts/{placeId}` (KAN-240).
    * Gates `backfillLearnedPlaceCounts` so the one-time full-history scan never
@@ -197,8 +204,27 @@ export interface Task {
   completedAt?: FirebaseFirestoreTypes.Timestamp;
   /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
   date: string;
+  /**
+   * KAN-264 — the day this task was FIRST due, stamped once by rollover the
+   * first time it rolls forward and never overwritten again. `date` keeps
+   * moving forward each rollover (so Today always shows it); `originDate`
+   * stays put, so the Calendar can attribute an undone rolled task to the
+   * day it was actually meant for — a task rolling Mon→Wed was never a
+   * Tuesday intention, so Tuesday's ring is untouched, and Monday's ring
+   * correctly stays open instead of vanishing. Undefined for a task that
+   * has never rolled — treat `originDate ?? date` as its calendar day.
+   */
+  originDate?: string;
   /** True when this task has a local write not yet confirmed by the server (KAN-198). */
   pendingSync?: boolean;
+  /**
+   * KAN-248 — marks a date-bound, unscored, auto-expiring task imported from a
+   * calendar birthday event (or retroactively flagged via the edit-screen
+   * toggle). A deliberate, narrow exception to "no POI required" and "no
+   * auto-expiry" — never generalize beyond this one kind. undefined for
+   * every other task.
+   */
+  kind?: 'birthday';
 }
 
 // ─── Category ─────────────────────────────────────────────────────────────────
@@ -214,7 +240,7 @@ export interface Category {
   /** 'work' | 'health' | 'errands' | 'personal' for built-ins; Firestore ID for custom. */
   id: string;
   name: string;
-  /** Hex colour string (e.g. "#5b7fd4"). */
+  /** Hex colour string, e.g. one from `categories` or `categoryHues` in theme/tokens.ts. */
   color: string;
   /**
    * Google Places primary type string (e.g. "gym", "restaurant", "atm").
@@ -669,6 +695,15 @@ export interface Trip {
   expiresAt: number;
   /** Set once the day-before-departure pre-refresh has run, so it isn't repeated every app open during the trip window. */
   preRefreshedAt?: number;
+  /**
+   * KAN-246 — absent (undefined) for a regular future/destination trip.
+   * `'offgrid'` marks a now + duration connectivity window instead (center =
+   * current location or a chosen override, startDate = today, expiresAt =
+   * precise end time, no day-level grace margin). Off-grid trips never
+   * appear on the Calendar and are excluded from "Where we've been" — a
+   * Tuesday hike is not a trip memory.
+   */
+  kind?: 'offgrid';
   createdAt: FirebaseFirestoreTypes.Timestamp;
 }
 
