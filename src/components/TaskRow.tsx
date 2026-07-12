@@ -196,7 +196,10 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
                 <PoiChip poi={task.poi} isNearby={task.poi === nearbyPoiType} />
               )}
               {task.kind === 'birthday' && (
-                <View testID="birthday-cake-icon">
+                <View
+                  testID="birthday-cake-icon"
+                  accessible
+                  accessibilityLabel={COPY.taskFormScreen.birthdayToggleLabel}>
                   <CakeIcon color={cat.color} size={14} />
                 </View>
               )}
@@ -299,7 +302,10 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
 
             {/* Birthday glyph (KAN-248) — quiet, no chip background, just the icon */}
             {task.kind === 'birthday' && (
-              <View testID="birthday-cake-icon">
+              <View
+                testID="birthday-cake-icon"
+                accessible
+                accessibilityLabel={COPY.taskFormScreen.birthdayToggleLabel}>
                 <CakeIcon color={cat.color} size={14} />
               </View>
             )}
