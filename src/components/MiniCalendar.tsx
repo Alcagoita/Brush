@@ -98,13 +98,13 @@ export default function MiniCalendar({ value, onChange, minimumDate }: MiniCalen
               style={[
                 styles.cell,
                 styles.cellPressable,
-                isSelected && { backgroundColor: palette.text },
+                isSelected && { backgroundColor: palette.accent },
               ]}
               accessibilityRole="button"
               accessibilityState={{ selected: isSelected, disabled: isDisabled }}>
               <Text style={[
                 styles.cellDay,
-                { color: isSelected ? palette.bg : isDisabled ? palette.faint : palette.text },
+                { color: isSelected ? palette.onAccent : isDisabled ? palette.faint : palette.text },
               ]}>
                 {day}
               </Text>
