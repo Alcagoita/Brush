@@ -28,14 +28,9 @@ import { formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Trip } from '../types';
 import { COPY } from '../constants/copy';
-import { formatLocalTime } from '../utils/date';
+import { formatLocalTime, formatDateShort } from '../utils/date';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'PlacesIKnow'>;
-
-function formatDateShort(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return new Date(2000, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
 
 function formatExpiry(expiresAt: number): string {
   return COPY.tripPlanner.tripRowKnownUntil(
