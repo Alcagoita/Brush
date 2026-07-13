@@ -27,3 +27,9 @@ export {
   onTaskCreatedRewards,
   onCategoryCreatedRewards,
 } from './rewards';
+export {
+  searchNearbyPlacesProxy,
+  searchPlaceTypesProxy,
+  placesAutocompleteProxy,
+  getPlaceDetailsProxy,
+} from './places';
