@@ -1,5 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const googlePlacesApiKey = defineSecret('GOOGLE_PLACES_API_KEY');
 
@@ -8,6 +9,9 @@ const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby'
 const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
 const PLACES_DETAILS_URL = 'https://places.googleapis.com/v1/places';
+const PLACES_PROXY_MAX_INSTANCES = 10;
+const PLACES_RATE_LIMIT_WINDOW_MS = 60_000;
+const PLACES_RATE_LIMIT_MAX_REQUESTS = 30;
 
 type AutocompleteMode = 'establishment' | 'cities' | 'address';
 
@@ -31,6 +35,12 @@ interface PlacesAutocompleteInput {
 
 interface PlaceDetailsInput {
   placeId: string;
+}
+
+interface PlacesRateLimitDoc {
+  windowStartedAt: number;
+  requestCount: number;
+  updatedAt: Date;
 }
 
 function assertAuthenticated(auth: unknown): void {
@@ -90,9 +100,37 @@ async function requireOkJson<T>(url: string, init: RequestInit): Promise<T> {
   const response = await fetchWithTimeout(url, init);
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    throw new HttpsError('unavailable', `Google Places API ${response.status}: ${text}`);
+    console.error('[places] Upstream Google Places request failed', {
+      url,
+      status: response.status,
+      body: text.slice(0, 500),
+    });
+    throw new HttpsError('unavailable', 'Google Places proxy request failed.');
   }
   return (await response.json()) as T;
+}
+
+async function enforceUserRateLimit(uid: string, action: string): Promise<void> {
+  const db = getFirestore();
+  const docRef = db.collection('_placesProxyRateLimits').doc(`${uid}:${action}`);
+  const now = Date.now();
+
+  await db.runTransaction(async transaction => {
+    const snap = await transaction.get(docRef);
+    const current = snap.data() as Omit<PlacesRateLimitDoc, 'updatedAt'> | undefined;
+    const withinWindow = current != null && now - current.windowStartedAt < PLACES_RATE_LIMIT_WINDOW_MS;
+    const nextCount = withinWindow ? current.requestCount + 1 : 1;
+
+    if (withinWindow && current.requestCount >= PLACES_RATE_LIMIT_MAX_REQUESTS) {
+      throw new HttpsError('resource-exhausted', 'Too many Places requests. Please try again soon.');
+    }
+
+    transaction.set(docRef, {
+      windowStartedAt: withinWindow ? current!.windowStartedAt : now,
+      requestCount: nextCount,
+      updatedAt: new Date(),
+    } satisfies PlacesRateLimitDoc);
+  });
 }
 
 function buildAutocompleteBody(query: string, mode: AutocompleteMode, lat?: number, lng?: number): Record<string, unknown> {
@@ -120,6 +158,7 @@ export const searchNearbyPlacesProxy = onCall(
     secrets: [googlePlacesApiKey],
     timeoutSeconds: 30,
     memory: '256MiB',
+    maxInstances: PLACES_PROXY_MAX_INSTANCES,
   },
   async (request) => {
     assertAuthenticated(request.auth);
@@ -133,6 +172,7 @@ export const searchNearbyPlacesProxy = onCall(
     if (!Number.isInteger(data?.radiusMeters) || data.radiusMeters <= 0 || data.radiusMeters > 5_000) {
       throw new HttpsError('invalid-argument', '"radiusMeters" must be an integer between 1 and 5000.');
     }
+    await enforceUserRateLimit(request.auth!.uid, 'nearby');
 
     return requireOkJson(
       PLACES_NEARBY_URL,
@@ -164,11 +204,13 @@ export const searchPlaceTypesProxy = onCall(
     secrets: [googlePlacesApiKey],
     timeoutSeconds: 30,
     memory: '256MiB',
+    maxInstances: PLACES_PROXY_MAX_INSTANCES,
   },
   async (request) => {
     assertAuthenticated(request.auth);
     const data = request.data as PlaceTypeSearchInput;
     const query = assertString(data?.query, 'query', 120);
+    await enforceUserRateLimit(request.auth!.uid, 'type-search');
 
     return requireOkJson(
       PLACES_TEXT_SEARCH_URL,
@@ -194,6 +236,7 @@ export const placesAutocompleteProxy = onCall(
     secrets: [googlePlacesApiKey],
     timeoutSeconds: 30,
     memory: '256MiB',
+    maxInstances: PLACES_PROXY_MAX_INSTANCES,
   },
   async (request) => {
     assertAuthenticated(request.auth);
@@ -208,6 +251,7 @@ export const placesAutocompleteProxy = onCall(
     if (data.lat != null && data.lng != null) {
       assertCoordinate(data.lat, data.lng);
     }
+    await enforceUserRateLimit(request.auth!.uid, `autocomplete:${data.mode}`);
 
     return requireOkJson(
       PLACES_AUTOCOMPLETE_URL,
@@ -229,11 +273,13 @@ export const getPlaceDetailsProxy = onCall(
     secrets: [googlePlacesApiKey],
     timeoutSeconds: 30,
     memory: '256MiB',
+    maxInstances: PLACES_PROXY_MAX_INSTANCES,
   },
   async (request) => {
     assertAuthenticated(request.auth);
     const data = request.data as PlaceDetailsInput;
     const placeId = assertString(data?.placeId, 'placeId', 200);
+    await enforceUserRateLimit(request.auth!.uid, 'details');
 
     return requireOkJson(
       `${PLACES_DETAILS_URL}/${encodeURIComponent(placeId)}`,
