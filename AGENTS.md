@@ -320,16 +320,6 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 
 ---
 
-## Current Ticket In Progress
-
-- **KAN-252** (Language support: Português-Portugal) — status **Testing**, PR [#234](https://github.com/Alcagoita/Brush/pull/234) open against `develop`, awaiting review/merge.
-  - Full-app bilingual sweep complete: Settings, Login, Onboarding, Categories, Today, Achievements, Friends/Challenges (SocialHub, ContactSuggestions, FriendPicker, ChallengeDetail, CreateChallenge), Share flow (ShareReceive, ShareTaskSheet, ShareProfileSheet, ShareToDo, SharedTaskInbox), Profile/PublicProfile, Calendar, TaskForm/TaskRow, PlacesIKnow/HomeAddress, and misc accessibility labels (PointsHistory, TripPlanner, NearbyCard, NewTaskSheet, StoreTuningPromptSheet, ImportTasksSection, ErrorBoundary).
-  - Architecture: `src/constants/copy.ts` exports a `COPY` Proxy over `en`/`ptPT` dictionaries, switched at runtime via `setCopyLanguage()`; module-scope constants that read `COPY.*` were converted to builder functions called inside component bodies to stay reactive.
-  - Explicitly out of scope per ticket ("just translations, no business logic"): POI-inference language wiring (reverted), unit tests (skipped, `tsc --noEmit` used for compile safety only).
-  - Deferred, not blocking: DevToolsScreen (dev-only, `__DEV__` gated) and AddEventModal (dead code, unused — flagged separately for removal).
-
----
-
 ## Sprint History
 
 - **Sprint 1** — ✅ Done (v0.1.0)
@@ -347,3 +337,4 @@ When all tickets in a sprint are merged into `develop`, follow these steps **in 
 - **Sprint 14** — ✅ Done (v0.14.0)
 - **Sprint 15** — ✅ Done (v0.15.0)
 - **Sprint 16** — ✅ Done (v0.16.0)
+- **Sprint 19** — ✅ Done (v0.19.0)
