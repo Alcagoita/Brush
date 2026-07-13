@@ -8,12 +8,13 @@
 
 import { useCallback } from 'react';
 import { Platform, Vibration, InteractionManager } from 'react-native';
-import { setTaskDone, getTotalPoints } from '../../services/firestore';
-import { evaluateAchievements, checkAndFireAchievementNudge } from '../../services/achievements';
+import { setTaskDone } from '../../services/firestore';
+import { checkAndFireAchievementNudge } from '../../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../../services/challenges';
 import type { NearbyPlace } from '../../services/maps';
 import type { Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
+import { processTaskCompletionRewards } from '../../services/rewardFunctions';
 
 export function useTaskCompletion(
   uid: string | undefined,
@@ -65,14 +66,6 @@ export function useTaskCompletion(
         // Birthday tasks (KAN-248) are unscored — excluded from the day-state
         // calc so brushing/missing one can never flip "all done" or the
         // remaining count, and never evaluated for achievements at all below.
-        const scorable = current.filter(t => t.kind !== 'birthday');
-        const allOthersDone =
-          scorable.length > 0 &&
-          scorable.filter(t => t.id !== taskId).every(t => t.done);
-        const remainingTaskCount = scorable.filter(
-          t => t.id !== taskId && !t.done,
-        ).length;
-
         if (task && task.kind !== 'birthday' && !DEBUG_DISABLE_BACKGROUND) {
           // Defer achievement + challenge work until after the completion
           // animation / in-flight interactions settle (KAN-157). Previously the
@@ -82,12 +75,12 @@ export function useTaskCompletion(
           // achievements here — once the work lands we refresh only the points
           // total for the header badge.
           InteractionManager.runAfterInteractions(() => {
-            evaluateAchievements(uid, task, { allTasksDone: allOthersDone, remainingTaskCount, isNearby: !!task.poi && task.poi === nearbyPoiTypeRef.current })
-              .then(({ nudgeCandidate }) => {
+            processTaskCompletionRewards(taskId, new Date().getHours())
+              .then(({ nudgeCandidate, totalPoints }) => {
                 if (nudgeCandidate) {
                   checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
                 }
-                getTotalPoints(uid).then(setTotalPoints).catch(() => {});
+                setTotalPoints(totalPoints);
               })
               .catch(() => {});
 

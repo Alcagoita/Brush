@@ -52,7 +52,6 @@ import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
 import { useToastStore } from '../store/toastStore';
 import RotatingTitlePlaceholder from './RotatingTitlePlaceholder';
-import { evaluateAddTaskAchievement } from '../services/achievements';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -404,7 +403,6 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           }
         }
 
-        evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
         // Close (store flips visible → effect animates out + resets the form).
         onCloseRef.current();

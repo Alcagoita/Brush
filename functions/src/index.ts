@@ -21,3 +21,9 @@ export { sweepPoiInferenceMisses } from './sweepPoiInferenceMisses';
 export { onFollowRequest } from './onFollowRequest';
 export { onSharedTaskCreated } from './onSharedTaskCreated';
 export { onChallengeNotifications } from './onChallengeNotifications';
+export {
+  processTaskCompletionRewards,
+  awardOnboardingBonus,
+  onTaskCreatedRewards,
+  onCategoryCreatedRewards,
+} from './rewards';
