@@ -132,6 +132,7 @@ export const parseMessageToTask = onCall(
     // Keep the function lightweight — Haiku is fast
     timeoutSeconds: 30,
     memory: '256MiB',
+    maxInstances: 10,
   },
   async (request): Promise<ParseMessageOutput> => {
     // Auth check — Firebase Callable verifies the token automatically, but

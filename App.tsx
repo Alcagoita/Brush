@@ -20,6 +20,7 @@ import UsernameSetupScreen from './src/screens/UsernameSetupScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import Toast from './src/components/Toast';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { ensureAppCheckInitialized } from './src/services/appCheck';
 import { ThemeProvider, useTheme } from './src/theme/ThemeContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { navigationRef, navigateTo } from './src/navigation/navigationRef';
@@ -349,6 +350,13 @@ function AppShell() {
 }
 
 export default function App() {
+  useEffect(() => {
+    ensureAppCheckInitialized()
+      .catch(error => {
+        console.warn('[AppCheck] initialization failed', error);
+      });
+  }, []);
+
   return (
     <ErrorBoundary>
       <SafeAreaProvider>

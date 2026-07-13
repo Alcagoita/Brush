@@ -414,6 +414,10 @@ export async function awardChallengeWinnerReward(
 }
 
 export const processTaskCompletionRewards = onCall(
+  {
+    enforceAppCheck: true,
+    maxInstances: 10,
+  },
   async (request): Promise<TaskCompletionRewardResult> => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Authentication required.');
@@ -435,6 +439,10 @@ export const processTaskCompletionRewards = onCall(
 );
 
 export const awardOnboardingBonus = onCall(
+  {
+    enforceAppCheck: true,
+    maxInstances: 10,
+  },
   async (request): Promise<{ ok: true }> => {
     if (!request.auth?.uid) {
       throw new HttpsError('unauthenticated', 'Authentication required.');

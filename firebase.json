@@ -7,6 +7,7 @@
     "source": "functions"
   },
   "react-native": {
+    "app_check_token_auto_refresh": true,
     "crashlytics_disable_auto_disabler": true
   }
 }

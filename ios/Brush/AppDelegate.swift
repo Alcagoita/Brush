@@ -18,6 +18,7 @@ class AppDelegate: ExpoAppDelegate {
   ) -> Bool {
     if FirebaseApp.app() == nil {
       do {
+        RNFBAppCheckModule.sharedInstance()
         FirebaseApp.configure()
         print("[Firebase] Initialized successfully.")
       } catch {

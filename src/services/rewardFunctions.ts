@@ -1,5 +1,6 @@
-import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
+import { httpsCallable } from '@react-native-firebase/functions';
 import type { AchievementNudgeCandidate } from './achievements';
+import { functionsService } from './firebase';
 
 interface TaskCompletionRewardResponse {
   totalPoints: number;
@@ -8,7 +9,7 @@ interface TaskCompletionRewardResponse {
 
 export async function processTaskCompletionRewards(taskId: string, completedHour: number): Promise<TaskCompletionRewardResponse> {
   const callable = httpsCallable<{ taskId: string; completedHour: number }, TaskCompletionRewardResponse>(
-    getFunctions(),
+    functionsService,
     'processTaskCompletionRewards',
   );
   const result = await callable({ taskId, completedHour });
@@ -17,7 +18,7 @@ export async function processTaskCompletionRewards(taskId: string, completedHour
 
 export async function awardOnboardingBonus(taskId: string): Promise<void> {
   const callable = httpsCallable<{ taskId: string }, { ok: true }>(
-    getFunctions(),
+    functionsService,
     'awardOnboardingBonus',
   );
   await callable({ taskId });
