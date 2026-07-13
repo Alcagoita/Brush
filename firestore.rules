@@ -273,7 +273,21 @@ service cloud.firestore {
     // Only the document owner may write their own data.
     match /users/{userId} {
       allow read:  if request.auth != null;
-      allow write: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny([
+          'totalPoints',
+          'achievements',
+          'currentStreak',
+          'brushedPoiTypes',
+        ]);
+      allow delete: if false;
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'totalPoints',
+          'achievements',
+          'currentStreak',
+          'brushedPoiTypes',
+        ]);
       // Cross-user counter update: only the followed user's followersCount may be
       // touched by a non-owner (the follower increments it on follow, decrements on
       // unfollow). followingCount is always on the caller's own doc, already covered
@@ -361,19 +375,16 @@ service cloud.firestore {
 
       // ─── Achievements ────────────────────────────────────────────────────────
       // Any authenticated user may read achievements (KAN-105: friend comparison).
-      // Only the owner may write.
+      // All writes are server-side only (KAN-271).
       match /achievements/{achievementId} {
         allow read:  if request.auth != null;
-        allow delete: if isOwner(userId);
-        allow create, update: if isOwner(userId)
-          && validAchievementDocData(request.resource.data);
+        allow create, update, delete: if false;
       }
 
       // ─── Points history ──────────────────────────────────────────────────────
       match /pointsHistory/{entryId} {
-        allow read, delete: if isOwner(userId);
-        allow create, update: if isOwner(userId)
-          && validPointsHistoryData(request.resource.data);
+        allow read: if isOwner(userId);
+        allow create, update, delete: if false;
       }
 
       // ─── FCM device tokens ───────────────────────────────────────────────────
@@ -394,6 +405,11 @@ service cloud.firestore {
         allow create, update: if isOwner(userId)
           && validUserPreferencesData(request.resource.data);
         allow delete: if false;
+      }
+
+      // ─── Reward claims (server-side idempotency markers) ─────────────────────
+      match /rewardClaims/{claimId} {
+        allow read, write: if false;
       }
 
       // ─── Social inbox (KAN-212) ──────────────────────────────────────────────

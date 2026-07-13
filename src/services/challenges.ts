@@ -25,7 +25,6 @@ import {
   Timestamp,
 } from '@react-native-firebase/firestore';
 import type { Challenge, ChallengeParticipant, FollowEntry } from '../types';
-import { awardChallengeWinnerAchievement } from './achievements';
 
 // ─── Ref helpers ──────────────────────────────────────────────────────────────
 
@@ -197,11 +196,6 @@ export async function incrementCompletedCount(
     // is written server-side by the onChallengeNotifications Cloud Function
     // (KAN-221), triggered off the `won` flag flip above.
 
-    // Award winner achievement + bonus points (KAN-104) — fire-and-forget.
-    awardChallengeWinnerAchievement(uid, challengeId).catch(err =>
-      console.warn('[challenges] awardChallengeWinnerAchievement failed', err),
-    );
-
     return true;
   }
 
@@ -237,10 +231,6 @@ export async function resolveTimeBasedChallenge(
   // onChallengeNotifications Cloud Function (KAN-221), triggered off the
   // `won` flag flip above.
 
-  // Award winner achievement + bonus points (KAN-104) — fire-and-forget.
-  awardChallengeWinnerAchievement(winnerUid, challengeId).catch(err =>
-    console.warn('[challenges] awardChallengeWinnerAchievement failed', err),
-  );
 }
 
 /**

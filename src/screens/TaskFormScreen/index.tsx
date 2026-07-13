@@ -40,7 +40,6 @@ import { todayISO } from '../../utils/date';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { COPY } from '../../constants/copy';
 import { useToastStore } from '../../store/toastStore';
-import { evaluateAddTaskAchievement, evaluateCustomCatAchievement } from '../../services/achievements';
 import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
@@ -166,7 +165,6 @@ export default function TaskFormScreen() {
     setNewCatSaving(true);
     try {
       const id = await addCategory(uid, { name: trimmed, color: newCatColor, poi: null });
-      evaluateCustomCatAchievement(uid).catch(() => {});
       // No live listener anymore (KAN-218) — append locally instead of refetching.
       setCustomCategories(prev => [...prev, { id, name: trimmed, color: newCatColor, poi: null, isBuiltIn: false }]);
       setCategory(id);
@@ -226,7 +224,6 @@ export default function TaskFormScreen() {
       } else {
         await addTask(uid, payload);
         logTap('task_create', { category: payload.category });
-        evaluateAddTaskAchievement(uid).catch(() => {});
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
       }
 

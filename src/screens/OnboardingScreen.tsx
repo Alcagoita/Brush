@@ -37,7 +37,8 @@ import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ScrRotatingNudge, { NudgeMessage } from '../components/ScrRotatingNudge';
 import BrushStroke from '../components/BrushStroke';
-import { addTask, awardPointsOnboardingBonus, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
+import { addTask, ONBOARDING_BONUS_POINTS, upsertUser } from '../services/firestore';
+import { awardOnboardingBonus } from '../services/rewardFunctions';
 import { todayISO } from '../utils/date';
 import { PoiIcon } from '../components/AppIcon';
 import PoiChip from '../components/PoiChip';
@@ -359,9 +360,9 @@ export default function OnboardingScreen({ uid, onComplete }: Props) {
 
   const completeOnboardingTask = useCallback(() => {
     if (createdTaskId) {
-      awardPointsOnboardingBonus(uid, createdTaskId, taskTitle).catch(() => {});
+      awardOnboardingBonus(createdTaskId).catch(() => {});
     }
-  }, [uid, createdTaskId, taskTitle]);
+  }, [createdTaskId]);
 
   const handleBrushAway = useCallback(() => {
     if (taskDone) { return; }
