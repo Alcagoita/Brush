@@ -209,6 +209,34 @@ service cloud.firestore {
         && (!('metadata' in data.keys()) || (data.metadata is map && data.metadata.size() <= 5));
     }
 
+    function validSharedTaskIncomingData(data) {
+      return data.keys().hasOnly([
+          'taskId',
+          'title',
+          'category',
+          'poi',
+          'sentBy',
+          'sentByName',
+          'sentByUsername',
+          'sentAt',
+          'status',
+        ])
+        && validNonEmptyString(data.taskId, 200)
+        && validNonEmptyString(data.title, 500)
+        && validNonEmptyString(data.category, 120)
+        && (!('poi' in data.keys()) || validString(data.poi, 100))
+        && validNonEmptyString(data.sentBy, 128)
+        && validNonEmptyString(data.sentByName, 80)
+        && (!('sentByUsername' in data.keys()) || validString(data.sentByUsername, 30))
+        && data.sentAt is timestamp
+        && data.status == 'pending';
+    }
+
+    function hasSharedTaskRelationship(senderUid, recipientUid) {
+      return exists(/databases/$(database)/documents/users/$(senderUid)/following/$(recipientUid))
+        || exists(/databases/$(database)/documents/users/$(senderUid)/followers/$(recipientUid));
+    }
+
     function validTokenData(data) {
       return data.keys().hasOnly(['createdAt'])
         && data.createdAt is timestamp;
@@ -440,10 +468,12 @@ service cloud.firestore {
     // create incoming entries; recipients read and delete their own.
     match /sharedTasks/{userId}/incoming/{docId} {
       allow read, delete: if isOwner(userId);
-      // Sender must be authenticated and the sentBy field must match their uid
-      // to prevent impersonation.
+      // Sender must match auth, payload must be well-formed, and an existing
+      // follow relationship must already connect sender and recipient.
       allow create: if request.auth != null
-                    && request.resource.data.sentBy == request.auth.uid;
+                    && request.resource.data.sentBy == request.auth.uid
+                    && validSharedTaskIncomingData(request.resource.data)
+                    && hasSharedTaskRelationship(request.auth.uid, userId);
       allow update: if false;
     }
 
