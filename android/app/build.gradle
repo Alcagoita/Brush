@@ -6,6 +6,69 @@ apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 apply plugin: "com.google.firebase.crashlytics"
 
+def releaseKeystoreProperties = new Properties()
+def releaseKeystorePropertiesFile = rootProject.file("keystore.properties")
+if (releaseKeystorePropertiesFile.exists()) {
+    releaseKeystorePropertiesFile.withInputStream { stream ->
+        releaseKeystoreProperties.load(stream)
+    }
+}
+
+def readReleaseSigningValue = { String envKey, String propertyKey ->
+    def envValue = System.getenv(envKey)
+    if (envValue != null && !envValue.trim().isEmpty()) {
+        return envValue.trim()
+    }
+
+    def gradlePropertyValue = project.findProperty(propertyKey)
+    if (gradlePropertyValue != null && !gradlePropertyValue.toString().trim().isEmpty()) {
+        return gradlePropertyValue.toString().trim()
+    }
+
+    def keystorePropertyValue = releaseKeystoreProperties.getProperty(propertyKey)
+    if (keystorePropertyValue != null && !keystorePropertyValue.trim().isEmpty()) {
+        return keystorePropertyValue.trim()
+    }
+
+    return null
+}
+
+def releaseStoreFilePath = readReleaseSigningValue("BRUSH_UPLOAD_STORE_FILE", "BRUSH_UPLOAD_STORE_FILE")
+def releaseStorePassword = readReleaseSigningValue("BRUSH_UPLOAD_STORE_PASSWORD", "BRUSH_UPLOAD_STORE_PASSWORD")
+def releaseKeyAlias = readReleaseSigningValue("BRUSH_UPLOAD_KEY_ALIAS", "BRUSH_UPLOAD_KEY_ALIAS")
+def releaseKeyPassword = readReleaseSigningValue("BRUSH_UPLOAD_KEY_PASSWORD", "BRUSH_UPLOAD_KEY_PASSWORD")
+def allowDebugReleaseSigning = (readReleaseSigningValue(
+    "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING",
+    "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING"
+) ?: "false").toBoolean()
+def hasReleaseSigningConfig = [
+    releaseStoreFilePath,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+].every { it != null }
+def requiresConfiguredReleaseSigning = { task ->
+    def taskName = task.name.toLowerCase()
+    task.path.startsWith(":app:") &&
+        taskName.contains("release") &&
+        ["assemble", "bundle", "package"].any { taskName.contains(it) }
+}
+
+gradle.taskGraph.whenReady { taskGraph ->
+    if (!hasReleaseSigningConfig &&
+        !allowDebugReleaseSigning &&
+        taskGraph.allTasks.any(requiresConfiguredReleaseSigning)) {
+        throw new GradleException(
+            "Android release signing is not configured. " +
+            "Set BRUSH_UPLOAD_STORE_FILE, BRUSH_UPLOAD_STORE_PASSWORD, " +
+            "BRUSH_UPLOAD_KEY_ALIAS, and BRUSH_UPLOAD_KEY_PASSWORD " +
+            "via environment variables, Gradle properties, or android/keystore.properties. " +
+            "For internal test APKs only, you may opt in to debug signing with " +
+            "BRUSH_ALLOW_DEBUG_RELEASE_SIGNING=true."
+        )
+    }
+}
+
 /**
  * This is the configuration block to customize your React Native Android app.
  * By default you don't need to apply any configuration, just uncomment the lines you need.
@@ -91,9 +154,10 @@ clean {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Enable R8 for release builds so Java/Kotlin bytecode and unused resources
+ * are both stripped in production artifacts.
  */
-def enableProguardInReleaseBuilds = false
+def enableMinificationInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -133,16 +197,27 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasReleaseSigningConfig) {
+            release {
+                storeFile file(releaseStoreFilePath)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
-            minifyEnabled enableProguardInReleaseBuilds
+            if (hasReleaseSigningConfig) {
+                signingConfig signingConfigs.release
+            } else if (allowDebugReleaseSigning) {
+                signingConfig signingConfigs.debug
+            }
+            minifyEnabled enableMinificationInReleaseBuilds
+            shrinkResources enableMinificationInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }

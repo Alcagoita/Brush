@@ -7,7 +7,7 @@
  * The Cloud Function itself is exercised in integration tests only.
  */
 
-import { buildFallback, argsToOutput } from '../parseMessageToTask';
+import { buildFallback, argsToOutput, consumeParseRateLimit } from '../parseMessageToTask';
 
 // ─── buildFallback ────────────────────────────────────────────────────────────
 
@@ -136,5 +136,62 @@ describe('argsToOutput', () => {
       });
       expect(result.confidence).toBe(confidence);
     }
+  });
+});
+
+describe('consumeParseRateLimit', () => {
+  const windowMs = 5 * 60 * 1000;
+
+  it('allows the first request in a new window', () => {
+    const result = consumeParseRateLimit(null, 1_000);
+    expect(result).toEqual({
+      allowed: true,
+      next: {
+        count: 1,
+        windowStartedAtMs: 1_000,
+      },
+    });
+  });
+
+  it('allows requests until the window cap is reached', () => {
+    const result = consumeParseRateLimit({
+      count: 4,
+      windowStartedAtMs: 10_000,
+    }, 10_500);
+    expect(result).toEqual({
+      allowed: true,
+      next: {
+        count: 5,
+        windowStartedAtMs: 10_000,
+      },
+    });
+  });
+
+  it('blocks requests after the cap within the same window', () => {
+    const result = consumeParseRateLimit({
+      count: 5,
+      windowStartedAtMs: 20_000,
+    }, 20_100);
+    expect(result).toEqual({
+      allowed: false,
+      next: {
+        count: 5,
+        windowStartedAtMs: 20_000,
+      },
+    });
+  });
+
+  it('resets the window after it expires', () => {
+    const result = consumeParseRateLimit({
+      count: 5,
+      windowStartedAtMs: 30_000,
+    }, 30_000 + windowMs);
+    expect(result).toEqual({
+      allowed: true,
+      next: {
+        count: 1,
+        windowStartedAtMs: 30_000 + windowMs,
+      },
+    });
   });
 });

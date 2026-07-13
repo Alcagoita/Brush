@@ -86,7 +86,8 @@
       <!-- Receives mark-done MessageClient messages from the watch companion. -->
       <service
         android:name=".WearMessageListenerService"
-        android:exported="true">
+        android:exported="true"
+        android:permission="com.google.android.gms.wearable.BIND_LISTENER">
         <intent-filter>
           <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
           <data

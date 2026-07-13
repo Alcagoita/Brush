@@ -67,6 +67,22 @@ npm start
 
 Place `google-services.json` in `android/app/`.
 
+Android `release` builds also require a dedicated upload keystore. Copy
+`android/keystore.properties.example` to `android/keystore.properties`, then set:
+
+- `BRUSH_UPLOAD_STORE_FILE`
+- `BRUSH_UPLOAD_STORE_PASSWORD`
+- `BRUSH_UPLOAD_KEY_ALIAS`
+- `BRUSH_UPLOAD_KEY_PASSWORD`
+
+Those same four values can be supplied in CI or EAS as environment variables or
+Gradle properties instead of a local `android/keystore.properties` file.
+
+For internal test APKs only, you can intentionally keep the `release` build type
+but sign it with `debug.keystore` by setting
+`BRUSH_ALLOW_DEBUG_RELEASE_SIGNING=true`. Production and store builds should use
+the dedicated upload keystore instead.
+
 ### iOS
 
 Place `GoogleService-Info.plist` in `ios/Brush/`.

@@ -13,6 +13,273 @@ service cloud.firestore {
       return s is string && s.size() <= maxLen;
     }
 
+    function validNonEmptyString(s, maxLen) {
+      return validString(s, maxLen) && s.size() > 0;
+    }
+
+    function validDateString(s) {
+      return s is string
+        && s.size() == 10
+        && s.matches('^\\d{4}-\\d{2}-\\d{2}$');
+    }
+
+    function validTimeString(s) {
+      return s is string && s.matches('^([01]\\d|2[0-3]):[0-5]\\d$');
+    }
+
+    function isNumber(value) {
+      return value is int || value is float;
+    }
+
+    function validTaskSource(source) {
+      return source in [
+        'google_tasks',
+        'google_calendar',
+        'eventkit_reminders',
+        'eventkit_calendar',
+      ];
+    }
+
+    function validPointsReason(reason) {
+      return reason in [
+        'task_completed',
+        'achievement_bonus',
+        'daily_complete_bonus',
+        'streak_bonus',
+        'onboarding_bonus',
+      ];
+    }
+
+    function validAchievementType(type) {
+      return type in [
+        'first_task',
+        'first_brush',
+        'right_place',
+        'worth_wait',
+        'custom_cat',
+        'out_about',
+        'early_bird',
+        'day_complete',
+        'on_a_roll',
+        'explorer',
+        'centurion',
+        'challenge_winner',
+      ];
+    }
+
+    function validTaskData(data) {
+      return data.keys().hasOnly([
+          'title',
+          'category',
+          'done',
+          'description',
+          'time',
+          'source',
+          'poi',
+          'poiPlaceId',
+          'completedPlaceId',
+          'completedPlaceName',
+          'completedPoiType',
+          'poiAlertSeenDate',
+          'exitPromptSeenDate',
+          'createdAt',
+          'completedAt',
+          'date',
+          'originDate',
+          'pendingSync',
+          'kind',
+        ])
+        && validNonEmptyString(data.title, 500)
+        && validNonEmptyString(data.category, 120)
+        && data.done is bool
+        && (!('description' in data.keys()) || validString(data.description, 2000))
+        && (!('time' in data.keys()) || validTimeString(data.time))
+        && (!('source' in data.keys()) || validTaskSource(data.source))
+        && (!('poi' in data.keys()) || validString(data.poi, 100))
+        && (!('poiPlaceId' in data.keys()) || validString(data.poiPlaceId, 200))
+        && (!('completedPlaceId' in data.keys()) || validString(data.completedPlaceId, 200))
+        && (!('completedPlaceName' in data.keys()) || validString(data.completedPlaceName, 200))
+        && (!('completedPoiType' in data.keys()) || validString(data.completedPoiType, 100))
+        && (!('poiAlertSeenDate' in data.keys()) || validDateString(data.poiAlertSeenDate))
+        && (!('exitPromptSeenDate' in data.keys()) || validDateString(data.exitPromptSeenDate))
+        && data.createdAt is timestamp
+        && (!('completedAt' in data.keys()) || data.completedAt is timestamp)
+        && validDateString(data.date)
+        && (!('originDate' in data.keys()) || validDateString(data.originDate))
+        && (!('pendingSync' in data.keys()) || data.pendingSync is bool)
+        && (!('kind' in data.keys()) || data.kind == 'birthday');
+    }
+
+    function validCategoryData(data) {
+      return data.keys().hasOnly(['name', 'color', 'poi', 'isBuiltIn'])
+        && validNonEmptyString(data.name, 80)
+        && data.color is string
+        && data.color.matches('^#[0-9A-Fa-f]{6}$')
+        && (data.poi == null || validString(data.poi, 100))
+        && data.isBuiltIn == false;
+    }
+
+    function validTripData(data) {
+      return data.keys().hasOnly([
+          'destination',
+          'placeRef',
+          'centerLat',
+          'centerLng',
+          'startDate',
+          'endDate',
+          'areaRadius',
+          'cacheAreaId',
+          'expiresAt',
+          'preRefreshedAt',
+          'kind',
+          'createdAt',
+        ])
+        && validNonEmptyString(data.destination, 120)
+        && validNonEmptyString(data.placeRef, 200)
+        && isNumber(data.centerLat)
+        && data.centerLat >= -90
+        && data.centerLat <= 90
+        && isNumber(data.centerLng)
+        && data.centerLng >= -180
+        && data.centerLng <= 180
+        && (!('startDate' in data.keys()) || validDateString(data.startDate))
+        && (!('endDate' in data.keys()) || validDateString(data.endDate))
+        && data.areaRadius is int
+        && data.areaRadius > 0
+        && validNonEmptyString(data.cacheAreaId, 200)
+        && data.expiresAt is int
+        && data.expiresAt > 0
+        && (!('preRefreshedAt' in data.keys()) || (data.preRefreshedAt is int && data.preRefreshedAt > 0))
+        && (!('kind' in data.keys()) || data.kind == 'offgrid')
+        && data.createdAt is timestamp;
+    }
+
+    function validMallSnapshotData(data) {
+      return data.keys().hasOnly([
+          'placeId',
+          'name',
+          'centerLat',
+          'centerLng',
+          'radius',
+          'cacheAreaId',
+          'expiresAt',
+          'createdAt',
+        ])
+        && validNonEmptyString(data.placeId, 200)
+        && validNonEmptyString(data.name, 120)
+        && isNumber(data.centerLat)
+        && data.centerLat >= -90
+        && data.centerLat <= 90
+        && isNumber(data.centerLng)
+        && data.centerLng >= -180
+        && data.centerLng <= 180
+        && data.radius is int
+        && data.radius > 0
+        && validNonEmptyString(data.cacheAreaId, 200)
+        && data.expiresAt is int
+        && data.expiresAt > 0
+        && data.createdAt is timestamp;
+    }
+
+    function validPoiPreferenceData(data, poiType) {
+      return data.keys().hasOnly(['type', 'radiusMeters'])
+        && data.type == poiType
+        && validNonEmptyString(data.type, 100)
+        && data.radiusMeters is int
+        && data.radiusMeters > 0
+        && data.radiusMeters <= 1000;
+    }
+
+    function validPointsHistoryData(data) {
+      return data.keys().hasOnly(['taskId', 'taskTitle', 'awardedAt', 'points', 'reason'])
+        && data.taskId is string
+        && data.taskId.size() <= 200
+        && validString(data.taskTitle, 500)
+        && data.awardedAt is timestamp
+        && data.points is int
+        && data.points > 0
+        && data.points <= 100
+        && validPointsReason(data.reason);
+    }
+
+    function validAchievementDocData(data) {
+      return data.keys().hasOnly(['type', 'earnedAt', 'metadata'])
+        && validAchievementType(data.type)
+        && data.earnedAt is timestamp
+        && (!('metadata' in data.keys()) || (data.metadata is map && data.metadata.size() <= 5));
+    }
+
+    function validSharedTaskIncomingData(data) {
+      return data.keys().hasOnly([
+          'taskId',
+          'title',
+          'category',
+          'poi',
+          'sentBy',
+          'sentByName',
+          'sentByUsername',
+          'sentAt',
+          'status',
+        ])
+        && validNonEmptyString(data.taskId, 200)
+        && validNonEmptyString(data.title, 500)
+        && validNonEmptyString(data.category, 120)
+        && (!('poi' in data.keys()) || validString(data.poi, 100))
+        && validNonEmptyString(data.sentBy, 128)
+        && validNonEmptyString(data.sentByName, 80)
+        && (!('sentByUsername' in data.keys()) || validString(data.sentByUsername, 30))
+        && data.sentAt is timestamp
+        && data.status == 'pending';
+    }
+
+    function hasSharedTaskRelationship(senderUid, recipientUid) {
+      return exists(/databases/$(database)/documents/users/$(senderUid)/following/$(recipientUid))
+        || exists(/databases/$(database)/documents/users/$(senderUid)/followers/$(recipientUid));
+    }
+
+    function validTokenData(data) {
+      return data.keys().hasOnly(['createdAt'])
+        && data.createdAt is timestamp;
+    }
+
+    function validEodReminder(data) {
+      return data is map
+        && data.keys().hasOnly(['enabled', 'time'])
+        && data.enabled is bool
+        && validTimeString(data.time);
+    }
+
+    function validUserPreferencesData(data) {
+      return data.keys().hasOnly([
+          'exitPrompt',
+          'eodReminder',
+          'streakReminder',
+          'achievementNudges',
+          'weeklyRecap',
+          'reengagementReminders',
+          'friendActivity',
+          'notif_nearby_enabled',
+          'lastOpenedAt',
+          'lastReengagementNudge',
+          'reengagementChurned',
+          'lastAchievementNudgeDate',
+          'lastFriendNudgeFrom',
+        ])
+        && (!('exitPrompt' in data.keys()) || data.exitPrompt is bool)
+        && (!('eodReminder' in data.keys()) || validEodReminder(data.eodReminder))
+        && (!('streakReminder' in data.keys()) || data.streakReminder is bool)
+        && (!('achievementNudges' in data.keys()) || data.achievementNudges is bool)
+        && (!('weeklyRecap' in data.keys()) || data.weeklyRecap is bool)
+        && (!('reengagementReminders' in data.keys()) || data.reengagementReminders is bool)
+        && (!('friendActivity' in data.keys()) || data.friendActivity is bool)
+        && (!('notif_nearby_enabled' in data.keys()) || data.notif_nearby_enabled is bool)
+        && (!('lastOpenedAt' in data.keys()) || data.lastOpenedAt is timestamp)
+        && (!('lastReengagementNudge' in data.keys()) || data.lastReengagementNudge is timestamp)
+        && (!('reengagementChurned' in data.keys()) || data.reengagementChurned is timestamp)
+        && (!('lastAchievementNudgeDate' in data.keys()) || validDateString(data.lastAchievementNudgeDate))
+        && (!('lastFriendNudgeFrom' in data.keys()) || data.lastFriendNudgeFrom is map);
+    }
+
     // ─── Username index (KAN-97) ──────────────────────────────────────────────
     // Public read so checkUsernameAvailable / getUserByUsername work for all
     // authenticated users. Write is restricted: you may only create/delete an
@@ -34,7 +301,21 @@ service cloud.firestore {
     // Only the document owner may write their own data.
     match /users/{userId} {
       allow read:  if request.auth != null;
-      allow write: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && !request.resource.data.keys().hasAny([
+          'totalPoints',
+          'achievements',
+          'currentStreak',
+          'brushedPoiTypes',
+        ]);
+      allow delete: if false;
+      allow update: if isOwner(userId)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+          'totalPoints',
+          'achievements',
+          'currentStreak',
+          'brushedPoiTypes',
+        ]);
       // Cross-user counter update: only the followed user's followersCount may be
       // touched by a non-owner (the follower increments it on follow, decrements on
       // unfollow). followingCount is always on the caller's own doc, already covered
@@ -52,32 +333,35 @@ service cloud.firestore {
       match /tasks/{taskId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
-          && validString(request.resource.data.title, 500)
-          && request.resource.data.title.size() > 0
-          && validString(request.resource.data.date, 10)
-          // KAN-248 — kind is a narrow, closed set. Absent is the default
-          // (every task except birthday); anything else is rejected.
-          && (!('kind' in request.resource.data.keys()) || request.resource.data.kind == 'birthday');
+          && validTaskData(request.resource.data);
       }
 
       // ─── Custom categories ───────────────────────────────────────────────────
       match /categories/{categoryId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validCategoryData(request.resource.data);
       }
 
       // ─── Trips (KAN-234) ──────────────────────────────────────────────────────
       match /trips/{tripId} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validTripData(request.resource.data);
       }
 
       // ─── Mall snapshot (KAN-237) ─────────────────────────────────────────────
-      match /mallSnapshot/{docId} {
-        allow read, write: if isOwner(userId);
+      match /mallSnapshot/current {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validMallSnapshotData(request.resource.data);
       }
 
       // ─── POI preferences ─────────────────────────────────────────────────────
       match /pois/{poiType} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validPoiPreferenceData(request.resource.data, poiType);
       }
 
       // ─── Learned POI keywords (KAN-196) ──────────────────────────────────────
@@ -119,20 +403,23 @@ service cloud.firestore {
 
       // ─── Achievements ────────────────────────────────────────────────────────
       // Any authenticated user may read achievements (KAN-105: friend comparison).
-      // Only the owner may write.
+      // All writes are server-side only (KAN-271).
       match /achievements/{achievementId} {
         allow read:  if request.auth != null;
-        allow write: if isOwner(userId);
+        allow create, update, delete: if false;
       }
 
       // ─── Points history ──────────────────────────────────────────────────────
       match /pointsHistory/{entryId} {
-        allow read, write: if isOwner(userId);
+        allow read: if isOwner(userId);
+        allow create, update, delete: if false;
       }
 
       // ─── FCM device tokens ───────────────────────────────────────────────────
       match /tokens/{token} {
-        allow read, write: if isOwner(userId);
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validTokenData(request.resource.data);
       }
 
       // ─── Notification preferences ────────────────────────────────────────────
@@ -141,8 +428,16 @@ service cloud.firestore {
       }
 
       // ─── User preferences (exitPrompt, lastOpenedAt, etc.) ───────────────────
-      match /userPreferences/{doc} {
-        allow read, write: if isOwner(userId);
+      match /userPreferences/prefs {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validUserPreferencesData(request.resource.data);
+        allow delete: if false;
+      }
+
+      // ─── Reward claims (server-side idempotency markers) ─────────────────────
+      match /rewardClaims/{claimId} {
+        allow read, write: if false;
       }
 
       // ─── Social inbox (KAN-212) ──────────────────────────────────────────────
@@ -189,10 +484,12 @@ service cloud.firestore {
     // create incoming entries; recipients read and delete their own.
     match /sharedTasks/{userId}/incoming/{docId} {
       allow read, delete: if isOwner(userId);
-      // Sender must be authenticated and the sentBy field must match their uid
-      // to prevent impersonation.
+      // Sender must match auth, payload must be well-formed, and an existing
+      // follow relationship must already connect sender and recipient.
       allow create: if request.auth != null
-                    && request.resource.data.sentBy == request.auth.uid;
+                    && request.resource.data.sentBy == request.auth.uid
+                    && validSharedTaskIncomingData(request.resource.data)
+                    && hasSharedTaskRelationship(request.auth.uid, userId);
       allow update: if false;
     }
 

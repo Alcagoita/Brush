@@ -18,6 +18,7 @@
       "expo-build-properties",
       "react-native-fast-tflite",
       "@react-native-firebase/app",
+      "@react-native-firebase/app-check",
       "@react-native-firebase/messaging",
       "@react-native-firebase/crashlytics",
       [

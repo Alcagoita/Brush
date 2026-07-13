@@ -158,7 +158,7 @@ export async function processFollower(
         android: { priority: 'normal' },
       }).catch(err =>
         console.warn(
-          `[onFriendActivity] send failed follower=${followerUid} token=${token.slice(0, 10)}…`,
+          '[onFriendActivity] send failed',
           (err as Error)?.message,
         ),
       ),
@@ -184,7 +184,7 @@ export const onFriendActivity = onDocumentWritten(
     // midnight edge cases where server time and task date differ).
     const taskDate = after?.date as string | undefined;
     if (!taskDate) {
-      console.warn(`[onFriendActivity] task ${event.params.taskId} has no date field`);
+      console.warn('[onFriendActivity] completion event missing date field');
       return;
     }
 

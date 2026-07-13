@@ -20,6 +20,7 @@
 
 import { onDocumentWritten } from 'firebase-functions/v2/firestore';
 import * as admin from 'firebase-admin';
+import { awardChallengeWinnerReward } from './rewards';
 
 export interface ChallengeParticipant {
   username:       string;
@@ -153,6 +154,7 @@ export const onChallengeNotifications = onDocumentWritten(
     } else {
       const winnerUid = detectNewWinner(before, after);
       if (winnerUid) {
+        await awardChallengeWinnerReward(winnerUid, challengeId, db);
         notifications = buildChallengeOutcomeNotifications(challengeId, after, winnerUid);
         idPrefix = 'challenge_ended_';
       }
