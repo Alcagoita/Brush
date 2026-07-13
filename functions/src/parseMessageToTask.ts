@@ -17,6 +17,7 @@
 
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
+import { FieldValue, Timestamp, getFirestore } from 'firebase-admin/firestore';
 import Anthropic from '@anthropic-ai/sdk';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -46,6 +47,9 @@ interface CreateTaskArgs {
 // ─── Secret ───────────────────────────────────────────────────────────────────
 
 const anthropicApiKey = defineSecret('ANTHROPIC_API_KEY');
+
+const PARSE_RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const PARSE_RATE_LIMIT_MAX_REQUESTS = 5;
 
 // ─── Tool definition ──────────────────────────────────────────────────────────
 
@@ -124,6 +128,79 @@ export function argsToOutput(args: CreateTaskArgs): ParseMessageOutput {
   };
 }
 
+interface ParseRateLimitState {
+  count: number;
+  windowStartedAtMs: number;
+}
+
+interface ParseRateLimitDecision {
+  allowed: boolean;
+  next: ParseRateLimitState;
+}
+
+export function consumeParseRateLimit(
+  current: ParseRateLimitState | null,
+  nowMs: number,
+): ParseRateLimitDecision {
+  if (!current || nowMs - current.windowStartedAtMs >= PARSE_RATE_LIMIT_WINDOW_MS) {
+    return {
+      allowed: true,
+      next: {
+        count: 1,
+        windowStartedAtMs: nowMs,
+      },
+    };
+  }
+
+  if (current.count >= PARSE_RATE_LIMIT_MAX_REQUESTS) {
+    return {
+      allowed: false,
+      next: current,
+    };
+  }
+
+  return {
+    allowed: true,
+    next: {
+      count: current.count + 1,
+      windowStartedAtMs: current.windowStartedAtMs,
+    },
+  };
+}
+
+function parseRateLimitDocRef(uid: string) {
+  return getFirestore().collection('functionRateLimits').doc(`parseMessageToTask:${uid}`);
+}
+
+export async function enforceParseMessageRateLimit(uid: string, nowMs = Date.now()): Promise<void> {
+  const ref = parseRateLimitDocRef(uid);
+
+  await getFirestore().runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    const data = snap.data() as { count?: number; windowStartedAt?: Timestamp } | undefined;
+    const current = data?.windowStartedAt instanceof Timestamp
+      ? {
+          count: typeof data.count === 'number' && Number.isFinite(data.count) ? data.count : 0,
+          windowStartedAtMs: data.windowStartedAt.toMillis(),
+        }
+      : null;
+
+    const decision = consumeParseRateLimit(current, nowMs);
+    if (!decision.allowed) {
+      throw new HttpsError(
+        'resource-exhausted',
+        'Too many parse requests. Please wait a moment and try again.',
+      );
+    }
+
+    tx.set(ref, {
+      count: decision.next.count,
+      windowStartedAt: Timestamp.fromMillis(decision.next.windowStartedAtMs),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+}
+
 // ─── Cloud Function ───────────────────────────────────────────────────────────
 
 export const parseMessageToTask = onCall(
@@ -151,6 +228,8 @@ export const parseMessageToTask = onCall(
     if (text.length === 0) {
       throw new HttpsError('invalid-argument', '"text" must not be empty.');
     }
+
+    await enforceParseMessageRateLimit(request.auth.uid);
 
     // Fallback: if the message is already very short and clear, skip API call
     // to save tokens (optional optimisation — remove if purity is preferred).
