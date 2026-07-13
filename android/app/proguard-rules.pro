@@ -10,17 +10,9 @@
 # Add any project specific keep options here:
 
 # ─── Firebase ────────────────────────────────────────────────────────────────
-# Keep Firebase classes from being stripped by R8/ProGuard in release builds.
-
-# FirebaseCore
--keep class com.google.firebase.** { *; }
--keep class com.google.android.gms.** { *; }
--dontwarn com.google.firebase.**
--dontwarn com.google.android.gms.**
-
-# Firestore
--keep class com.google.firestore.** { *; }
--dontwarn com.google.firestore.**
+# Keep only the app-specific pieces that still need help beyond the SDKs'
+# bundled consumer rules. Broad Firebase/Play Services keeps block R8 from
+# shrinking and obfuscating release artifacts effectively.
 
 # Firebase Auth
 -keepattributes Signature
