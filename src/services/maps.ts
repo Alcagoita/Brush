@@ -17,7 +17,13 @@
  */
 
 import { Linking, Platform } from 'react-native';
-import { GOOGLE_PLACES_API_KEY, GOOGLE_MAPS_STATIC_ANDROID_API_KEY, GOOGLE_MAPS_STATIC_IOS_API_KEY } from '../config/keys';
+import { GOOGLE_MAPS_STATIC_ANDROID_API_KEY, GOOGLE_MAPS_STATIC_IOS_API_KEY } from '../config/keys';
+import {
+  getPlaceDetailsProxy,
+  placesAutocompleteProxy,
+  searchNearbyPlacesProxy,
+  searchPlaceTypesProxy,
+} from './placesFunctions';
 import { Category, PoiType, POI_GOOGLE_TYPES, poiCatalogLabel } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -48,17 +54,6 @@ interface PlacesApiResponse {
   places?: PlacesApiPlace[];
 }
 
-// ─── Fetch with timeout ────────────────────────────────────────────────────────
-
-const FETCH_TIMEOUT_MS = 8_000;
-
-function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(timer));
-}
-
 // ─── Haversine distance ────────────────────────────────────────────────────────
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -82,8 +77,6 @@ export function getDistanceMeters(
 }
 
 // ─── Places API — Nearby Search ───────────────────────────────────────────────
-
-const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
 
 /**
  * Search for places of all given POI types within `radiusMeters` of `lat`/`lng`
@@ -116,34 +109,7 @@ export async function searchNearbyPlaces(
     googleToInternal[googleTypes[i]] = poiTypes[i];
   }
 
-  const body = {
-    locationRestriction: {
-      circle: {
-        center: { latitude: lat, longitude: lng },
-        radius: radiusMeters,
-      },
-    },
-    includedTypes: googleTypes,
-    maxResultCount: 20,
-    rankPreference: 'DISTANCE',
-  };
-
-  const response = await fetchWithTimeout(PLACES_NEARBY_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Goog-Api-Key': GOOGLE_PLACES_API_KEY,
-      'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.types',
-    },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Places API ${response.status}: ${text}`);
-  }
-
-  const data = (await response.json()) as PlacesApiResponse;
+  const data = await searchNearbyPlacesProxy(lat, lng, googleTypes, radiusMeters) as PlacesApiResponse;
 
   // Initialise result buckets for every requested type.
   const result: Record<string, NearbyPlace[]> = {};
@@ -233,8 +199,6 @@ export function formatDistance(meters: number): string {
 }
 
 // ─── Place type search ────────────────────────────────────────────────────────
-
-const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 
 /**
  * Generic place type strings that convey no useful information to a user
@@ -403,27 +367,7 @@ export function resolveCategoryPlaceType(category: Category): string | null {
  * Throws on network error or non-200 response.
  */
 export async function searchPlaceTypes(query: string): Promise<PlaceTypeSuggestion[]> {
-  const response = await fetchWithTimeout(PLACES_TEXT_SEARCH_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type':     'application/json',
-      'X-Goog-Api-Key':   GOOGLE_PLACES_API_KEY,
-      // Request only the primary type — minimal billing impact.
-      'X-Goog-FieldMask': 'places.primaryType',
-    },
-    body: JSON.stringify({
-      textQuery:      query,
-      maxResultCount: 10,
-      languageCode:   'en',
-    }),
-  });
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    throw new Error(`Places API ${response.status}: ${text}`);
-  }
-
-  const data = (await response.json()) as {
+  const data = await searchPlaceTypesProxy(query) as {
     places?: Array<{ primaryType?: string }>;
   };
 
@@ -442,8 +386,6 @@ export async function searchPlaceTypes(query: string): Promise<PlaceTypeSuggesti
 }
 
 // ─── Places Autocomplete (KAN-76) ─────────────────────────────────────────────
-
-const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
 
 /** A single autocomplete suggestion returned by the Places Autocomplete API. */
 export interface PlaceAutocompleteSuggestion {
@@ -475,37 +417,15 @@ async function fetchPlacesAutocomplete(
 ): Promise<PlaceAutocompleteSuggestion[]> {
   if (!query.trim()) { return []; }
 
-  const body: Record<string, unknown> = { input: query };
-  // Omit the field entirely rather than sending an empty array — an empty
-  // array signals "no primary-type restriction" (broadest match, used by
-  // searchAddressAutocomplete for street addresses/premises), and leaving it
-  // out avoids relying on undocumented API behavior for an empty list.
-  if (includedPrimaryTypes.length > 0) {
-    body.includedPrimaryTypes = includedPrimaryTypes;
-  }
-
-  if (lat != null && lng != null) {
-    body.locationBias = {
-      circle: {
-        center: { latitude: lat, longitude: lng },
-        radius: 50_000,
-      },
-    };
-  }
-
   let data: AutocompleteResponse;
   try {
-    const response = await fetchWithTimeout(PLACES_AUTOCOMPLETE_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type':    'application/json',
-        'X-Goog-Api-Key':  GOOGLE_PLACES_API_KEY,
-        'X-Goog-FieldMask': 'suggestions.placePrediction.placeId,suggestions.placePrediction.structuredFormat',
-      },
-      body: JSON.stringify(body),
-    });
-    if (!response.ok) { return []; }
-    data = (await response.json()) as AutocompleteResponse;
+    const mode =
+      includedPrimaryTypes.length === 0
+        ? 'address'
+        : includedPrimaryTypes[0] === '(cities)'
+          ? 'cities'
+          : 'establishment';
+    data = await placesAutocompleteProxy(query, mode, lat, lng) as AutocompleteResponse;
   } catch {
     return [];
   }
@@ -604,19 +524,7 @@ export async function getPlaceDetails(placeId: string): Promise<PlaceDetails | n
   }
 
   try {
-    const response = await fetchWithTimeout(
-      `https://places.googleapis.com/v1/places/${encodeURIComponent(placeId)}`,
-      {
-        method: 'GET',
-        headers: {
-          'X-Goog-Api-Key':   GOOGLE_PLACES_API_KEY,
-          'X-Goog-FieldMask': 'location,displayName',
-        },
-      },
-    );
-    if (!response.ok) { return null; }
-
-    const data = (await response.json()) as PlaceDetailsResponse;
+    const data = await getPlaceDetailsProxy(placeId) as PlaceDetailsResponse;
     if (data.location?.latitude == null || data.location?.longitude == null) { return null; }
 
     return {
