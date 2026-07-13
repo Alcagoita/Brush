@@ -1,6 +1,6 @@
 import { httpsCallable } from '@react-native-firebase/functions';
-import { functionsService } from './firebase';
 import type { AchievementNudgeCandidate } from './achievements';
+import { functionsService } from './firebase';
 
 interface TaskCompletionRewardResponse {
   totalPoints: number;

@@ -10,6 +10,8 @@ import { getApp } from '@react-native-firebase/app';
 import '@react-native-firebase/auth'; // registers RNFBAuth native module
 import { getAuth, connectAuthEmulator } from '@react-native-firebase/auth/lib/modular';
 import {
+  collection,
+  getDocs,
   getFirestore,
   collection,
   connectFirestoreEmulator,
