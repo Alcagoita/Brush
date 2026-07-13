@@ -104,7 +104,7 @@ export async function processUser(
         android: { priority: 'normal' },
       }).catch(err =>
         console.warn(
-          `[onUserInactive] send failed uid=${uid} token=${token.slice(0, 10)}…`,
+          '[onUserInactive] send failed',
           (err as Error)?.message,
         ),
       ),

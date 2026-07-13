@@ -93,7 +93,7 @@ export async function processLapsedUser(
         android: { priority: 'normal' },
       }).catch(err =>
         console.warn(
-          `[onUserLapsed] send failed uid=${uid} token=${token.slice(0, 10)}…`,
+          '[onUserLapsed] send failed',
           (err as Error)?.message,
         ),
       ),

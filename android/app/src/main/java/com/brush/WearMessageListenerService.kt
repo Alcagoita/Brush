@@ -62,10 +62,10 @@ class WearMessageListenerService : WearableListenerService() {
                 )
             )
             .addOnSuccessListener {
-                Log.d(TAG, "Task $taskId marked done for user $uid")
+                Log.d(TAG, "mark-done sync completed")
             }
             .addOnFailureListener { e ->
-                Log.w(TAG, "Failed to mark task $taskId done: ${e.message}")
+                Log.w(TAG, "mark-done sync failed: ${e.message}")
             }
     }
 }

@@ -172,7 +172,7 @@ function AppShell() {
   // Log a Crashlytics breadcrumb on auth changes. User identifier is set in useAuth.
   useEffect(() => {
     if (!loading) {
-      logBreadcrumb(user ? `User signed in: ${user.uid}` : 'User signed out');
+      logBreadcrumb(user ? 'User signed in' : 'User signed out');
     }
   }, [user, loading]);
 
@@ -197,7 +197,7 @@ function AppShell() {
         // Exit prompt quick-action: mark task done directly from notification.
         if (detail.pressAction?.id === EXIT_ACTION_MARK_DONE && data.taskId && displayUser) {
           setTaskDone(displayUser.uid, data.taskId as string, true).catch(err =>
-            console.warn('[App] exit action: failed to mark task done', err, 'taskId:', data.taskId),
+            console.warn('[App] exit action: failed to mark task done', err),
           );
         }
         return;
