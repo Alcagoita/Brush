@@ -130,7 +130,7 @@ Authentication → Sign-in method → Apple → Enable
 ```
 src/
   screens/
-    TodayScreen.tsx               — main task list + proximity hero
+    TodayScreen/                  — main task list + proximity hero
     LoginScreen.tsx
     OnboardingScreen.tsx
     ProfileScreen.tsx
@@ -146,13 +146,18 @@ src/
     ShareReceiveScreen.tsx        — handles share-extension imports
     ShareToDoScreen.tsx
     CalendarScreen.tsx
-    TaskFormScreen.tsx
+    TaskFormScreen/
     CategoriesScreen.tsx
     SettingsScreen.tsx
     NotificationPreferencesScreen.tsx
     UsernameSetupScreen.tsx
     SplashScreen.tsx
     DevToolsScreen.tsx
+    HomeAddressScreen.tsx         — set/edit home base for off-grid + errand logic
+    PlacesIKnowScreen.tsx         — user-learned places
+    OffGridScreen.tsx             — off-grid window management
+    TripPlannerScreen.tsx
+    WhereWeveBeenScreen.tsx
 
   components/
     NearbyCard.tsx                — hero proximity card
@@ -161,22 +166,37 @@ src/
     PoiChip.tsx
     Header.tsx
     Avatar.tsx
-    AppIcon.tsx
+    AppIcon/
     ShareProfileSheet.tsx
     ShareTaskSheet.tsx
+    ErrandBundleCard.tsx
+    TripSuggestionCard.tsx
+    TierLadder.tsx / TierMedal.tsx
+    EventCard.tsx / MiniCalendar.tsx / CalendarRing.tsx
+    NetworkBanner.tsx / ErrorBoundary.tsx / Toast.tsx
     …
 
   services/
     firebase.ts                   — Firebase init
+    appCheck.ts                   — App Check abuse controls
     auth.ts                       — email, Google, Apple sign-in
-    firestore.ts                  — Firestore helpers + points
+    firestore/                    — Firestore helpers + points
     proximity.ts                  — Places API search + distance logic
     indoorProximity.ts            — GPS accuracy-based indoor detection
     indoorDetection.ts
     geolocation.ts                — background location via expo-location
-    maps.ts                       — Google Places API calls
-    poiInference.ts               — local keyword → POI type dictionary
+    maps.ts / placesFunctions.ts  — Google Places API calls (client + Cloud Function proxy)
+    osmPlaces.ts                  — OpenStreetMap fallback places source
+    mallSnapshots.ts              — indoor mall/venue snapshot caching
+    poiTypeCache.ts / poiInference.ts — POI classification + local keyword dictionary
+    learnedPlaces.ts              — user-specific learned place memory
+    habitatCache.ts               — cached routine/habitat area data
+    errandBundles.ts              — grouped errand suggestions
+    tripDownload.ts / tripSuggestions.ts — offline trip planning
+    offGrid.ts                    — off-grid window logic
+    home.ts                       — home address handling
     functions.ts                  — on-device task parsing (no AI cost)
+    rewardFunctions.ts            — points/rewards Cloud Function calls
     sharing.ts                    — friend task send/receive
     achievements.ts
     challenges.ts
@@ -185,18 +205,29 @@ src/
     import.ts
     contacts.ts
     events.ts
+    birthday.ts
     wearSync.ts                   — Wear OS companion bridge
     battery.ts
     storeTuning.ts
     crashlytics.ts
+    analytics.ts
+    deviceLocale.ts
     poiLlm.ts
 
   hooks/
     useAuth.ts
-    useTodayScreen.ts
+    useTodayScreen/
     useFCM.ts
     useEvents.ts
     useCategoriesScreen.ts
+    useHomeAddress.ts
+    useOffGridWindow.ts / useOffGridWelcomeBack.ts
+    useOfflineCoverage.ts
+    useTripPlanner.ts
+    usePlacesIKnow.ts
+    useWhereWeveBeen.ts
+    useErrandBundle.ts
+    useMallSnapshotToggle.ts
 
   theme/
     tokens.ts                     — color, spacing, radius constants
@@ -205,12 +236,27 @@ src/
   constants/
     copy.ts                       — all user-facing strings
     tiers.ts                      — points tier data + deriveTierStanding()
+    googlePlaceTypes.ts
+    poiDictionary.en.json / poiDictionary.pt-PT.json
 
   types/
     index.ts                      — Task, User, PoiType, etc.
 
   native/
-    WearNotificationModule        — Wear OS native bridge
+    WearNotificationModule.ts     — Wear OS native bridge
+    WearSyncModule.ts
+
+functions/
+  src/
+    index.ts
+    parseMessageToTask.ts         — rate-limited AI task parsing
+    places.ts                     — Places API proxy with abuse controls
+    rewards.ts
+    onSharedTaskCreated.ts / onFriendActivity.ts / onFollowRequest.ts
+    onChallengeNotifications.ts
+    onUserInactive.ts / onUserLapsed.ts
+    rolloverIncompleteTasks.ts
+    sweepPoiInferenceMisses.ts
 
 __tests__/                        — Jest + @testing-library/react-native
 docs/
@@ -222,15 +268,20 @@ docs/
 ## Features
 
 - **Proximity alerts** — Places API search within 400 m; hero card at < 100 m; silent notification on geofence entry
-- **Indoor detection** — GPS accuracy heuristic for indoor proximity matching
+- **Indoor detection** — GPS accuracy heuristic for indoor proximity matching, with mall/venue snapshot caching
+- **Learned places & habitats** — remembers user-specific places and routine areas over time
+- **Errand bundles** — groups nearby errands into a single suggested trip
+- **Trip planner & offline coverage** — plan trips and check offline map coverage ahead of time
+- **Off-grid mode** — scheduled windows where location tracking and alerts pause
 - **Points + tiers** — earn points on task completion; Tin → Vibranium ladder
 - **Achievements** — badge system tied to task and proximity streaks
 - **Social** — friend list, task sharing (send/receive), public profiles, challenges
 - **Deep links** — `brushaway.app/u/:username` opens public profiles in-app
 - **Calendar import** — pull tasks from device calendar via expo-calendar
-- **Wear OS companion** — proximity alerts forwarded to paired watch
+- **Wear OS companion** — proximity alerts forwarded to paired watch, hardened message service
 - **Dark / light theme** — stored in Firestore + system `Appearance` API
 - **Share extension** — import text shared from other apps as tasks
+- **Backend abuse controls** — App Check enforcement, rate-limited Cloud Functions, Places API proxy limits
 
 ---
 
