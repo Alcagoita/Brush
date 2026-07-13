@@ -154,9 +154,10 @@ clean {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Enable R8 for release builds so Java/Kotlin bytecode and unused resources
+ * are both stripped in production artifacts.
  */
-def enableProguardInReleaseBuilds = false
+def enableMinificationInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -215,7 +216,8 @@ android {
             } else if (allowDebugReleaseSigning) {
                 signingConfig signingConfigs.debug
             }
-            minifyEnabled enableProguardInReleaseBuilds
+            minifyEnabled enableMinificationInReleaseBuilds
+            shrinkResources enableMinificationInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
         }
     }
