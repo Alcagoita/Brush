@@ -833,7 +833,7 @@ export default function CalendarScreen() {
         <Pressable
           style={[styles.tripEntryRow, { borderColor: palette.line }, isSelPast && styles.tripEntryRowDisabled]}
           disabled={isSelPast}
-          onPress={() => navigation.push('TripPlanner', !isSelPast ? { prefillStartDate: selectedDate } : undefined)}
+          onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
           accessibilityRole="button"
           accessibilityState={{ disabled: isSelPast }}
           accessibilityLabel={!isSelPast ? COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate)) : COPY.tripPlanner.entryRowA11y}>
