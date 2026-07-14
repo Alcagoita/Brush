@@ -144,13 +144,19 @@ react {
 }
 
 /**
- * When "Clean Project" runs, also delete the CMake configuration cache (.cxx).
- * Without this, CMake detects a stale GLOB mismatch (codegen JNI dirs were wiped
- * by clean) and tries to re-configure BEFORE the codegen tasks re-run, causing
- * the externalNativeBuildClean task to fail with "not an existing directory".
+ * When Android Studio runs "Clean Project", also clear native CMake caches from
+ * app-owned and node_modules-owned Android libraries. Reanimated and Worklets
+ * keep their own `.cxx` state under node_modules, and stale entries there can
+ * survive project syncs and cause Studio to fail on subsequent debug builds.
  */
+def nativeCxxCacheDirs = [
+    "${projectDir}/.cxx",
+    "${rootDir}/../node_modules/react-native-reanimated/android/.cxx",
+    "${rootDir}/../node_modules/react-native-worklets/android/.cxx",
+]
+
 clean {
-    delete "${projectDir}/.cxx"
+    delete nativeCxxCacheDirs
 }
 
 /**
