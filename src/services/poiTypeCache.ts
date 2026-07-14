@@ -475,12 +475,17 @@ function localPoiSuggestions(query: string): PlaceTypeSuggestion[] {
   return ranked.slice(0, MAX_RESULTS).map(item => item.suggestion);
 }
 
+/** Synchronous local search for UI paths that render suggestions inline. */
+export function searchPlaceTypesLocal(query: string): PlaceTypeSuggestion[] {
+  return localPoiSuggestions(query);
+}
+
 /**
  * Local lookup against the bundled dictionary. Kept nullable to preserve the
  * previous contract used by tests and callers.
  */
 export function lookupPoiTypeCache(query: string): PlaceTypeSuggestion[] | null {
-  const results = localPoiSuggestions(query);
+  const results = searchPlaceTypesLocal(query);
   return results.length > 0 ? results : null;
 }
 
@@ -499,5 +504,5 @@ export function __resetPoiTypeCacheDbForTests(): void {}
 
 /** Fully-local search wrapper kept for existing callers. */
 export async function searchPlaceTypesCached(query: string): Promise<PlaceTypeSuggestion[]> {
-  return localPoiSuggestions(query);
+  return searchPlaceTypesLocal(query);
 }

@@ -317,6 +317,7 @@ export default function TaskFormScreen() {
           styles.scrollContent,
           { paddingBottom: insets.bottom + 120 },
         ]}
+        automaticallyAdjustKeyboardInsets
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}>
 

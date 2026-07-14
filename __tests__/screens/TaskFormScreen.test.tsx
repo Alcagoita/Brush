@@ -13,6 +13,7 @@
  */
 
 import React from 'react';
+import { ScrollView } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
 
@@ -34,6 +35,13 @@ jest.mock('../../src/services/firestore', () => ({
   addCategory:           jest.fn((...args: unknown[]) => mockAddCategory(...args)),
   subscribeToCategories: jest.fn((...args: unknown[]) => mockSubscribeToCategories(...args)),
   getCategories:         jest.fn((...args: unknown[]) => mockGetCategories(...args)),
+}));
+
+jest.mock('../../src/services/placesFunctions', () => ({
+  getPlaceDetailsProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  searchNearbyPlacesProxy: jest.fn(),
+  searchPlaceTypesProxy: jest.fn(),
 }));
 
 // KAN-248 — deleteField is imported directly (not via the src/services/firestore
@@ -274,6 +282,12 @@ describe('TaskFormScreen — POI free-text type', () => {
   it('renders the POI type input with the correct placeholder', () => {
     render(<TaskFormScreen />);
     expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…')).toBeTruthy();
+  });
+
+  it('adjusts the form scroll view for the keyboard', () => {
+    const { UNSAFE_getByType } = render(<TaskFormScreen />);
+
+    expect(UNSAFE_getByType(ScrollView).props.automaticallyAdjustKeyboardInsets).toBe(true);
   });
 
   it('enables submit when title + typed POI type are both set', () => {

@@ -21,6 +21,13 @@ jest.mock('../../src/config/keys', () => ({
   GOOGLE_PLACES_API_KEY: 'TEST_KEY',
 }));
 
+jest.mock('../../src/services/placesFunctions', () => ({
+  getPlaceDetailsProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  searchNearbyPlacesProxy: jest.fn(),
+  searchPlaceTypesProxy: jest.fn(),
+}));
+
 beforeEach(() => {
   setCopyLanguage('en');
   __resetPoiTypeCacheDbForTests();
