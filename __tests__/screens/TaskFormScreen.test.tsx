@@ -25,6 +25,8 @@ const mockDeleteTask            = jest.fn();
 const mockAddCategory           = jest.fn();
 const mockSubscribeToCategories = jest.fn(() => jest.fn());
 const mockGoBack                = jest.fn();
+const mockInferPoiForQuickAdd   = jest.fn();
+const mockLearnFromUserEdit     = jest.fn();
 
 const mockGetCategories = jest.fn().mockResolvedValue([]);
 
@@ -35,6 +37,11 @@ jest.mock('../../src/services/firestore', () => ({
   addCategory:           jest.fn((...args: unknown[]) => mockAddCategory(...args)),
   subscribeToCategories: jest.fn((...args: unknown[]) => mockSubscribeToCategories(...args)),
   getCategories:         jest.fn((...args: unknown[]) => mockGetCategories(...args)),
+}));
+
+jest.mock('../../src/services/poiLlm', () => ({
+  inferPoiForQuickAdd: (...args: unknown[]) => mockInferPoiForQuickAdd(...args),
+  learnFromUserEdit: (...args: unknown[]) => mockLearnFromUserEdit(...args),
 }));
 
 jest.mock('../../src/services/placesFunctions', () => ({
@@ -144,6 +151,8 @@ function makeTask(overrides: Partial<any> = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockSubscribeToCategories.mockReturnValue(jest.fn()); // unsubscribe no-op
+  mockInferPoiForQuickAdd.mockResolvedValue(null);
+  mockLearnFromUserEdit.mockResolvedValue(undefined);
   setRouteParams({ uid: 'user-123' });
 });
 
@@ -284,6 +293,17 @@ describe('TaskFormScreen — POI free-text type', () => {
     expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…')).toBeTruthy();
   });
 
+  it('shows Police in the local dropdown suggestions', () => {
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…'),
+      'Police',
+    );
+
+    expect(screen.getByText('Police')).toBeTruthy();
+  });
+
   it('adjusts the form scroll view for the keyboard', () => {
     const { UNSAFE_getByType } = render(<TaskFormScreen />);
 
@@ -324,6 +344,41 @@ describe('TaskFormScreen — POI free-text type', () => {
         'user-123',
         expect.objectContaining({ poi: 'sushi restaurant' }),
       );
+    });
+  });
+
+  it('prefills a custom POI passed from the sheet', () => {
+    setRouteParams({
+      uid: 'user-123',
+      initialTitle: 'Visit police',
+      initialPoi: 'police',
+    });
+
+    render(<TaskFormScreen />);
+
+    expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…').props.value).toBe('Police');
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+  });
+
+  it('auto-suggests a built-in poi from the title', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+    });
+  });
+
+  it('auto-suggests a custom poi from the title', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('police');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'visit police');
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…').props.value).toBe('Police');
     });
   });
 

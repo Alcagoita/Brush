@@ -303,6 +303,13 @@ function activeLabel(entry: PoiDictionaryEntry, lang: SupportedLanguage): string
   return lang === 'pt-PT' ? entry.ptLabel : entry.enLabel;
 }
 
+export function localPoiLabel(type: string): string {
+  const lang = getCopyLanguage();
+  const enLabel = EN_DICTIONARY[type] ?? type;
+  const ptLabel = PT_DICTIONARY[type] ?? enLabel;
+  return lang === 'pt-PT' ? ptLabel : enLabel;
+}
+
 function inferIntents(queryKey: string, lang: SupportedLanguage): Set<SearchIntent> {
   const intents = new Set<SearchIntent>();
   const haystack = ` ${queryKey} `;

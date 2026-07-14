@@ -31,7 +31,7 @@ import { categories as builtInCategories, categoryHues } from '../../theme/token
 import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding';
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { deleteField } from '@react-native-firebase/firestore';
-import { learnFromUserEdit } from '../../services/poiLlm';
+import { inferPoiForQuickAdd, learnFromUserEdit } from '../../services/poiLlm';
 import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
@@ -44,6 +44,7 @@ import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder'
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { styles, getPoiTileWidth } from './styles';
+import { localPoiLabel } from '../../services/poiTypeCache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -52,7 +53,7 @@ export interface TaskFormParams {
   task?: Task;
   initialDate?: string;
   initialTitle?: string;
-  initialPoi?: PoiType;
+  initialPoi?: string;
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -67,6 +68,9 @@ export default function TaskFormScreen() {
 
   const { uid, task: existingTask, initialDate, initialTitle, initialPoi } = route.params;
   const isEdit = !!existingTask;
+  const isCatalogPoiType = (value: string | null | undefined): value is PoiType => (
+    value != null && POI_CATALOG.some(item => item.type === value)
+  );
 
   // ── Form state ──────────────────────────────────────────────────────────────
 
@@ -101,6 +105,7 @@ export default function TaskFormScreen() {
             text: COPY.taskFormScreen.birthdayWarningConfirm,
             onPress: () => {
               setIsBirthday(true);
+              userTouchedPoiRef.current = true;
               setPoiKey(null);
               setCustomPoiType(null);
               setQuery('');
@@ -127,15 +132,29 @@ export default function TaskFormScreen() {
 
   // POI — two mutually exclusive sources
   const [poiKey,   setPoiKey]   = useState<PoiType | null>(
-    (existingTask?.poi as PoiType | undefined) ?? initialPoi ?? null,
+    isCatalogPoiType(existingTask?.poi)
+      ? existingTask!.poi
+      : isCatalogPoiType(initialPoi)
+        ? initialPoi
+        : null,
   );
 
   // Free-text POI type — mutually exclusive with poiKey.
   // query    = display text in the input (friendly label after a suggestion is picked)
   // customPoiType = resolved type key to save (e.g. "bus_station"); null while still typing
-  const [query,         setQuery]         = useState('');
-  const [customPoiType, setCustomPoiType] = useState<string | null>(null);
+  const [query,         setQuery]         = useState(() => {
+    if (existingTask?.poi && !isCatalogPoiType(existingTask.poi)) { return localPoiLabel(existingTask.poi); }
+    if (initialPoi && !isCatalogPoiType(initialPoi)) { return localPoiLabel(initialPoi); }
+    return '';
+  });
+  const [customPoiType, setCustomPoiType] = useState<string | null>(() => {
+    if (existingTask?.poi && !isCatalogPoiType(existingTask.poi)) { return existingTask.poi; }
+    if (initialPoi && !isCatalogPoiType(initialPoi)) { return initialPoi; }
+    return null;
+  });
   const [focused,       setFocused]       = useState(false);
+  const userTouchedPoiRef = useRef(Boolean(existingTask?.poi || initialPoi));
+  const inferenceRequestIdRef = useRef(0);
 
   // Custom categories — one-shot fetch on mount (KAN-218). handleSaveNewCat
   // appends the newly created category locally rather than refetching.
@@ -180,6 +199,50 @@ export default function TaskFormScreen() {
 
   const [submitting, setSubmitting] = useState(false);
   const titleRef = useRef<TextInput>(null);
+
+  useEffect(() => {
+    if (isEdit || userTouchedPoiRef.current) { return; }
+
+    const myRequestId = ++inferenceRequestIdRef.current;
+    const trimmed = title.trim();
+
+    const timer = setTimeout(() => {
+      if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+
+      if (!trimmed) {
+        setPoiKey(null);
+        setCustomPoiType(null);
+        setQuery('');
+        return;
+      }
+
+      inferPoiForQuickAdd(trimmed)
+        .then(suggestion => {
+          if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+
+          if (!suggestion) {
+            setPoiKey(null);
+            setCustomPoiType(null);
+            setQuery('');
+            return;
+          }
+
+          if (isCatalogPoiType(suggestion)) {
+            setPoiKey(suggestion);
+            setCustomPoiType(null);
+            setQuery('');
+            return;
+          }
+
+          setPoiKey(null);
+          setCustomPoiType(suggestion);
+          setQuery(localPoiLabel(suggestion));
+        })
+        .catch(() => {});
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [title, isEdit]);
 
   // poi is required: quick-pick key → customPoiType (from suggestion) → raw query text
   const effectivePoi: string | null = poiKey ?? customPoiType ?? (query.trim() || null);
@@ -404,6 +467,7 @@ export default function TaskFormScreen() {
               placeholderTextColor={palette.muted}
               value={query}
               onChangeText={v => {
+                userTouchedPoiRef.current = true;
                 setQuery(v);
                 setCustomPoiType(null); // user is typing freely again
                 if (v) { setPoiKey(null); }
@@ -433,6 +497,7 @@ export default function TaskFormScreen() {
                     i < suggestions.length - 1 && { borderBottomWidth: 1, borderBottomColor: palette.line },
                   ]}
                   onPress={() => {
+                    userTouchedPoiRef.current = true;
                     setQuery(s.label);
                     setCustomPoiType(s.type);
                     setPoiKey(null);
@@ -453,6 +518,7 @@ export default function TaskFormScreen() {
                 label={poiCatalogLabel(type)}
                 selected={poiKey === type}
                 onPress={() => {
+                  userTouchedPoiRef.current = true;
                   const next = poiKey === type ? null : type;
                   setPoiKey(next);
                   if (next) {
