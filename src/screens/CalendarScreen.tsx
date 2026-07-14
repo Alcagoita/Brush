@@ -788,7 +788,9 @@ export default function CalendarScreen() {
           factual "{destination} · until {date}" (no presence claim — that's
           the ContextChip's job, since it has real location and this row
           doesn't); else the plain "Going somewhere?" invite (prefilled with
-          that date when it's a future day). Single row — no separate
+          that date when it's today or a future day — a past day can't be a
+          trip start date, matching MiniCalendar's minimumDate gate, so the
+          row is disabled entirely for past days). Single row — no separate
           day-specific CTA elsewhere. ── */}
       {selTrip && isSelTripPast ? (
         <Pressable
@@ -829,10 +831,12 @@ export default function CalendarScreen() {
         </Pressable>
       ) : (
         <Pressable
-          style={[styles.tripEntryRow, { borderColor: palette.line }]}
-          onPress={() => navigation.push('TripPlanner', isSelFuture ? { prefillStartDate: selectedDate } : undefined)}
+          style={[styles.tripEntryRow, { borderColor: palette.line }, isSelPast && styles.tripEntryRowDisabled]}
+          disabled={isSelPast}
+          onPress={() => navigation.push('TripPlanner', { prefillStartDate: selectedDate })}
           accessibilityRole="button"
-          accessibilityLabel={isSelFuture ? COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate)) : COPY.tripPlanner.entryRowA11y}>
+          accessibilityState={{ disabled: isSelPast }}
+          accessibilityLabel={!isSelPast ? COPY.tripPlanner.entryRowA11yWithDate(formatFullDateLabel(selectedDate)) : COPY.tripPlanner.entryRowA11y}>
           <SuitcaseIcon color={palette.muted} size={16} />
           <Text style={[styles.tripEntryLabel, { color: palette.text }]}>{COPY.tripPlanner.entryRowLabel}</Text>
           <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
@@ -1127,6 +1131,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius:      radius.ctaBtn,
     borderWidth:       1,
+  },
+  tripEntryRowDisabled: {
+    opacity: 0.35,
   },
   tripEntryLabel: {
     flex:       1,

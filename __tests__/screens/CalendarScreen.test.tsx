@@ -341,12 +341,12 @@ describe('CalendarScreen', () => {
   });
 
   describe('Trip entry row — "Going somewhere?" state (KAN-243)', () => {
-    it('opens the flow with no prefill when today is selected (default)', async () => {
+    it('opens the flow with today pre-filled as the trip start when today is selected (default)', async () => {
       await renderScreen();
       await act(async () => {
-        fireEvent.press(screen.getByLabelText('Plan a trip'));
+        fireEvent.press(screen.getByLabelText(/^Plan a trip starting/));
       });
-      expect(mockPush).toHaveBeenCalledWith('TripPlanner', undefined);
+      expect(mockPush).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-16' });
     });
 
     it('opens the flow with that day pre-filled as the trip start when a future day is selected', async () => {
@@ -360,15 +360,15 @@ describe('CalendarScreen', () => {
       expect(mockPush).toHaveBeenCalledWith('TripPlanner', { prefillStartDate: '2026-06-25' });
     });
 
-    it('opens the flow with no prefill when a past day is selected', async () => {
+    it('disables the row entirely when a past day is selected — a past day can\'t be a trip start', async () => {
       await renderScreen();
       await act(async () => { fireEvent.press(screen.getByLabelText('10')); });
 
-      await act(async () => {
-        fireEvent.press(screen.getByLabelText('Plan a trip'));
-      });
+      const row = screen.getByLabelText('Plan a trip');
+      expect(row.props.accessibilityState?.disabled).toBe(true);
 
-      expect(mockPush).toHaveBeenCalledWith('TripPlanner', undefined);
+      await act(async () => { fireEvent.press(row); });
+      expect(mockPush).not.toHaveBeenCalled();
     });
 
     it('leaves past/today day-tap selection behavior unchanged (still just selects the day)', async () => {
