@@ -24,6 +24,7 @@ import React, {
 import {
   BackHandler,
   Dimensions,
+  Keyboard,
   KeyboardAvoidingView,
   PanResponder,
   Platform,
@@ -41,6 +42,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { categories, fonts } from '../theme/tokens';
 import { PoiType, CategoryKey, Category, POI_CATALOG, poiCatalogLabel } from '../types';
@@ -207,6 +209,7 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
 const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
   function NewTaskSheet({ visible, uid, onClose, onTaskAdded, customCategories = [] }, ref) {
     const { palette } = useTheme();
+    const insets = useSafeAreaInsets();
 
     // Form state
     const [title,    setTitle]    = useState('');
@@ -248,13 +251,34 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const translateY   = useSharedValue(SCREEN_H);
     const scrimOpacity = useSharedValue(0);
     const dragOffset   = useSharedValue(0);
+    // Android: KeyboardAvoidingView's `height` mode doesn't reliably reset
+    // once the keyboard hides (known RN/Android quirk with flex-end
+    // containers) — leaves a permanent gap. Driven explicitly off Keyboard
+    // events instead, so hide always forces this back to 0.
+    const kbOffset      = useSharedValue(0);
 
     const sheetStyle = useAnimatedStyle(() => ({
-      transform: [{ translateY: translateY.value + dragOffset.value }],
+      transform: [{ translateY: translateY.value + dragOffset.value + kbOffset.value }],
     }));
     const scrimStyle = useAnimatedStyle(() => ({
       opacity: scrimOpacity.value,
     }));
+
+    // Android only — iOS keeps KeyboardAvoidingView's `padding` behavior,
+    // which resets correctly on its own.
+    useEffect(() => {
+      if (Platform.OS !== 'android') return;
+      const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
+        kbOffset.value = withTiming(-e.endCoordinates.height, { duration: 200 });
+      });
+      const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+        kbOffset.value = withTiming(0, { duration: 200 });
+      });
+      return () => {
+        showSub.remove();
+        hideSub.remove();
+      };
+    }, [kbOffset]);
 
     const resetForm = useCallback(() => {
       setTitle('');
@@ -266,34 +290,43 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setSubmitting(false);
       setTitleFocused(false);
       dragOffset.value = 0;
+      kbOffset.value = 0;
       userTouchedPoiRef.current = false;
       // Invalidate any in-flight (debounced or async) inference so a late
       // result can't repopulate `poi` after the sheet has been reset/closed.
       inferenceRequestIdRef.current++;
-    }, [dragOffset]);
+    }, [dragOffset, kbOffset]);
 
     // KAN-232 — auto-suggest a POI as the title is typed: cheap offline
-    // keyword rules first, on-device TFLite classifier as fallback. Never
-    // overrides a manual pick (userTouchedPoiRef) and clears back to null if
-    // the (debounced) inference no longer matches anything. Skipped while
-    // closed so no timer/promise is scheduled against an off-screen sheet.
+    // keyword rules first, on-device TFLite classifier as fallback. The
+    // guess itself (suggestedPoi/suggestedTitle) always keeps computing,
+    // even after a manual pick — the submit-time learn-back comparison
+    // (poi === suggestedPoi) needs it current. `userTouchedPoiRef` only
+    // stops it from auto-overwriting the user's manual `poi` selection.
+    // Skipped while closed so no timer/promise is scheduled against an
+    // off-screen sheet.
     useEffect(() => {
-      if (!visible || userTouchedPoiRef.current) { return; }
+      if (!visible) { return; }
 
       const myRequestId = ++inferenceRequestIdRef.current;
       const trimmed = title.trim();
 
       const timer = setTimeout(() => {
-        if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+        if (inferenceRequestIdRef.current !== myRequestId) { return; }
 
-        if (!trimmed) { setPoi(null); setSuggestedPoi(null); setSuggestedTitle(null); return; }
+        if (!trimmed) {
+          setSuggestedPoi(null);
+          setSuggestedTitle(null);
+          if (!userTouchedPoiRef.current) { setPoi(null); }
+          return;
+        }
 
         inferPoiForQuickAdd(trimmed)
           .then(suggestion => {
-            if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
-            setPoi(suggestion);
+            if (inferenceRequestIdRef.current !== myRequestId) { return; }
             setSuggestedPoi(suggestion);
             setSuggestedTitle(trimmed);
+            if (!userTouchedPoiRef.current) { setPoi(suggestion); }
           })
           .catch(() => {});
       }, POI_INFERENCE_DEBOUNCE_MS);
@@ -523,14 +556,8 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 </Text>
               </View>
 
-              {/* ── POI carousel ── */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.carousel}
-                snapToInterval={POI_TILE_WIDTH + 10}
-                decelerationRate="fast"
-                style={styles.carouselMask}>
+              {/* ── POI row: guess tile static, only the catalog scrolls ── */}
+              <View style={styles.poiRow}>
                 <SuggestionTile
                   type={suggestionType}
                   label={suggestionLabel}
@@ -552,6 +579,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   }}
                   palette={palette}
                 />
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.carousel}
+                snapToInterval={POI_TILE_WIDTH + 10}
+                decelerationRate="fast"
+                style={styles.carouselMask}>
                 {POI_CATALOG.map(({ type }) => (
                   <PoiTile
                     key={type}
@@ -567,6 +601,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                   />
                 ))}
               </ScrollView>
+              </View>
 
               {/* ── Category question (optional) ── */}
               <View style={styles.questionRow}>
@@ -661,7 +696,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 </Pressable>
               </View>
 
-              <View style={styles.bottomSpacer} />
+              <View style={[styles.bottomSpacer, { height: 28 + insets.bottom }]} />
             </ScrollView>
           </Animated.View>
         </KeyboardAvoidingView>
@@ -785,13 +820,18 @@ const styles = StyleSheet.create({
     fontSize:   11,
     fontFamily: 'Geist-Regular',
   },
+  poiRow: {
+    flexDirection:     'row',
+    paddingLeft:        22,
+    paddingBottom:       4,
+    gap:                10,
+  },
   carouselMask: {
-    // Soft fade on edges via paddingHorizontal on the content and overflow
+    // Soft fade on the trailing edge via paddingRight on the content and overflow
   },
   carousel: {
-    paddingHorizontal: 22,
-    gap:               10,
-    paddingBottom:      4,
+    paddingRight: 22,
+    gap:          10,
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
