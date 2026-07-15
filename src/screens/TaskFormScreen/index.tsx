@@ -53,6 +53,7 @@ export interface TaskFormParams {
   initialDate?: string;
   initialTitle?: string;
   initialPoi?: string;
+  initialPoiExplicitlySelected?: boolean;
 }
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
@@ -63,8 +64,9 @@ export default function TaskFormScreen() {
   const insets       = useSafeAreaInsets();
   const route        = useRoute<RouteProp<RootStackParamList, 'TaskForm'>>();
 
-  const { uid, task: existingTask, initialDate, initialTitle, initialPoi } = route.params;
+  const { uid, task: existingTask, initialDate, initialTitle, initialPoi, initialPoiExplicitlySelected } = route.params;
   const isEdit = !!existingTask;
+  const hasExplicitInitialPoi = Boolean(existingTask?.poi || initialPoiExplicitlySelected);
   const isCatalogPoiType = (value: string | null | undefined): value is PoiType => (
     value != null && POI_CATALOG.some(item => item.type === value)
   );
@@ -151,13 +153,13 @@ export default function TaskFormScreen() {
   });
   const [focused,       setFocused]       = useState(false);
   const [suggestedPoi, setSuggestedPoi] = useState<string | null>(
-    existingTask?.poi ?? initialPoi ?? null,
+    existingTask?.poi ?? (hasExplicitInitialPoi ? null : initialPoi ?? null),
   );
   const [suggestedTitle, setSuggestedTitle] = useState<string | null>(
-    initialTitle?.trim() || existingTask?.title?.trim() || null,
+    hasExplicitInitialPoi ? (existingTask?.title?.trim() || null) : (initialTitle?.trim() || existingTask?.title?.trim() || null),
   );
-  const [poiTouched, setPoiTouched] = useState(Boolean(existingTask?.poi || initialPoi));
-  const userTouchedPoiRef = useRef(Boolean(existingTask?.poi || initialPoi));
+  const [poiTouched, setPoiTouched] = useState(hasExplicitInitialPoi);
+  const userTouchedPoiRef = useRef(hasExplicitInitialPoi);
   const inferenceRequestIdRef = useRef(0);
 
   // Custom categories — one-shot fetch on mount (KAN-218). handleSaveNewCat
@@ -210,17 +212,18 @@ export default function TaskFormScreen() {
     const myRequestId = ++inferenceRequestIdRef.current;
     const trimmed = title.trim();
 
+    // Title edits invalidate any still-unconfirmed inferred POI immediately,
+    // so a stale guess never remains active while the next debounce runs.
+    setPoiKey(null);
+    setCustomPoiType(null);
+    setQuery('');
+    setSuggestedPoi(null);
+    setSuggestedTitle(trimmed || null);
+
+    if (!trimmed) { return; }
+
     const timer = setTimeout(() => {
       if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
-
-      if (!trimmed) {
-        setPoiKey(null);
-        setCustomPoiType(null);
-        setQuery('');
-        setSuggestedPoi(null);
-        setSuggestedTitle(null);
-        return;
-      }
 
       inferPoiForQuickAdd(trimmed)
         .then(suggestion => {
@@ -249,7 +252,14 @@ export default function TaskFormScreen() {
           setCustomPoiType(suggestion);
           setQuery(localPoiLabel(suggestion));
         })
-        .catch(() => {});
+        .catch(() => {
+          if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+          setPoiKey(null);
+          setCustomPoiType(null);
+          setQuery('');
+          setSuggestedPoi(null);
+          setSuggestedTitle(trimmed);
+        });
     }, 350);
 
     return () => clearTimeout(timer);
@@ -394,6 +404,7 @@ export default function TaskFormScreen() {
       </View>
 
       <ScrollView
+        testID="task-form-scroll"
         style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
           styles.scrollContent,
@@ -572,7 +583,7 @@ export default function TaskFormScreen() {
                   ? COPY.newTaskSheet.poiSuggestionHint
                   : showSuggestionHint
                     ? `${suggestionLabel}, ${COPY.newTaskSheet.poiSuggestionHint}`
-                    : `${suggestionLabel} suggestion`
+                    : `${suggestionLabel} ${COPY.newTaskSheet.poiSuggestionConfirmedSuffix}`
               }
               accessibilityState={{ selected: suggestionSelected, disabled: suggestionType === null }}
               style={[

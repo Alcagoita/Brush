@@ -165,7 +165,7 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
     ? COPY.newTaskSheet.poiSuggestionHint
     : showHint
       ? `${label}, ${COPY.newTaskSheet.poiSuggestionHint}`
-      : `${label} suggestion`;
+      : `${label} ${COPY.newTaskSheet.poiSuggestionConfirmedSuffix}`;
 
   return (
     <Pressable
@@ -424,6 +424,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         uid,
         initialTitle: title.trim() || undefined,
         initialPoi:   poi ?? undefined,
+        initialPoiExplicitlySelected: poiTouched,
       }), 80);
     }, [handleClose, uid, title, poi]);
 

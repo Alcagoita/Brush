@@ -13,7 +13,6 @@
  */
 
 import React from 'react';
-import { ScrollView } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
 
@@ -123,6 +122,7 @@ type RouteParams = {
   initialDate?: string;
   initialTitle?: string;
   initialPoi?: string;
+  initialPoiExplicitlySelected?: boolean;
 };
 
 let mockRouteParams: RouteParams = { uid: 'user-123' };
@@ -305,9 +305,9 @@ describe('TaskFormScreen — POI free-text type', () => {
   });
 
   it('adjusts the form scroll view for the keyboard', () => {
-    const { UNSAFE_getByType } = render(<TaskFormScreen />);
+    render(<TaskFormScreen />);
 
-    expect(UNSAFE_getByType(ScrollView).props.automaticallyAdjustKeyboardInsets).toBe(true);
+    expect(screen.getByTestId('task-form-scroll').props.automaticallyAdjustKeyboardInsets).toBe(true);
   });
 
   it('enables submit when title + typed POI type are both set', () => {
@@ -352,11 +352,42 @@ describe('TaskFormScreen — POI free-text type', () => {
       uid: 'user-123',
       initialTitle: 'Visit police',
       initialPoi: 'police',
+      initialPoiExplicitlySelected: true,
     });
 
     render(<TaskFormScreen />);
 
     expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…').props.value).toBe('Police');
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+  });
+
+  it('keeps an inferred initial poi reinferable during title edits', () => {
+    setRouteParams({
+      uid: 'user-123',
+      initialTitle: 'Visit police',
+      initialPoi: 'police',
+      initialPoiExplicitlySelected: false,
+    });
+
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Call mum');
+
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('preserves an explicitly selected initial poi during title edits', () => {
+    setRouteParams({
+      uid: 'user-123',
+      initialTitle: 'Visit police',
+      initialPoi: 'police',
+      initialPoiExplicitlySelected: true,
+    });
+
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Call mum');
+
     expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
   });
 
@@ -391,6 +422,48 @@ describe('TaskFormScreen — POI free-text type', () => {
     await waitFor(() => {
       expect(screen.getByPlaceholderText('A café, a pharmacy, a gym…').props.value).toBe('Police');
     });
+  });
+
+  it('clears a previous inferred poi immediately when the title changes', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+    });
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'call mum');
+
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+
+    jest.useRealTimers();
+  });
+
+  it('keeps the inference cleared when title inference rejects', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockRejectedValueOnce(new Error('boom'));
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+    });
+
+    jest.useRealTimers();
   });
 
   it('selecting a quick-pick tile clears the typed text', () => {
