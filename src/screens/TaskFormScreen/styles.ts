@@ -172,6 +172,7 @@ export const styles = StyleSheet.create({
   },
   poiCarousel: {
     gap: 10,
+    paddingRight: spacing.page,
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
