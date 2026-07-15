@@ -371,6 +371,17 @@ describe('TaskFormScreen — POI free-text type', () => {
     });
   });
 
+  it('shows the suggestion tile hint for an inferred guess', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    await waitFor(() => {
+      expect(screen.getByText('my guess?')).toBeTruthy();
+    });
+  });
+
   it('auto-suggests a custom poi from the title', async () => {
     mockInferPoiForQuickAdd.mockResolvedValue('police');
     render(<TaskFormScreen />);

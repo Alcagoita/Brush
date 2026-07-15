@@ -1,14 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { radius, spacing } from '../../theme/tokens';
 
-// 4-column POI quick-pick grid — tile width is derived from live window width
-// (see useWindowDimensions() in index.tsx) so the fixed gaps between tiles are
-// accounted for and the grid stays correct across rotation/split-screen/fold
-// (a plain 22.5% width ignores `gap` and can overflow on narrow screens).
-export const POI_GRID_GAP = 10;
-export function getPoiTileWidth(windowWidth: number): number {
-  return (windowWidth - spacing.page * 2 - POI_GRID_GAP * 3) / 4;
-}
+export const POI_TILE_WIDTH = 72;
 
 export const styles = StyleSheet.create({
   root: {
@@ -165,26 +158,47 @@ export const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
   },
 
-  // ── POI grid (4 columns) ──
-  poiGrid: {
-    flexDirection: 'row',
-    flexWrap:      'wrap',
-    gap:           POI_GRID_GAP,
+  swipeHintRow: {
+    alignItems: 'flex-end',
+    marginTop:  -2,
+  },
+  quickPicksHint: {
+    fontSize:   12,
+    fontFamily: 'Geist-Regular',
+  },
+  poiCarouselMask: {
+    marginHorizontal: -spacing.page,
+    paddingHorizontal: spacing.page,
+  },
+  poiCarousel: {
+    gap: 10,
   },
   poiTile: {
-    // width applied at the call site via getPoiTileWidth(useWindowDimensions().width)
+    width:          POI_TILE_WIDTH,
     borderRadius:   14,
     borderWidth:     1,
     alignItems:     'center',
     justifyContent: 'center',
     gap:             6,
+    minHeight:      88,
     paddingTop:     12,
     paddingBottom:  10,
     paddingHorizontal: 4,
   },
+  poiSuggestionTile: {
+    borderStyle: 'dashed',
+  },
+  poiTileSuggested: {
+    borderStyle: 'solid',
+  },
   poiTileLabel: {
     fontSize:   11,
     fontFamily: 'Geist-Regular',
+    textAlign:  'center',
+  },
+  poiTileHint: {
+    fontSize:   11,
+    fontFamily: 'Geist-Medium',
     textAlign:  'center',
   },
 

@@ -21,7 +21,6 @@ import {
   Switch,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -43,7 +42,7 @@ import { useToastStore } from '../../store/toastStore';
 import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
-import { styles, getPoiTileWidth } from './styles';
+import { POI_TILE_WIDTH, styles } from './styles';
 import { localPoiLabel } from '../../services/poiTypeCache';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -62,8 +61,6 @@ export default function TaskFormScreen() {
   const { palette }  = useTheme();
   const navigation   = useNavigation();
   const insets       = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
-  const poiTileWidth = getPoiTileWidth(windowWidth);
   const route        = useRoute<RouteProp<RootStackParamList, 'TaskForm'>>();
 
   const { uid, task: existingTask, initialDate, initialTitle, initialPoi } = route.params;
@@ -153,6 +150,13 @@ export default function TaskFormScreen() {
     return null;
   });
   const [focused,       setFocused]       = useState(false);
+  const [suggestedPoi, setSuggestedPoi] = useState<string | null>(
+    existingTask?.poi ?? initialPoi ?? null,
+  );
+  const [suggestedTitle, setSuggestedTitle] = useState<string | null>(
+    initialTitle?.trim() || existingTask?.title?.trim() || null,
+  );
+  const [poiTouched, setPoiTouched] = useState(Boolean(existingTask?.poi || initialPoi));
   const userTouchedPoiRef = useRef(Boolean(existingTask?.poi || initialPoi));
   const inferenceRequestIdRef = useRef(0);
 
@@ -213,6 +217,8 @@ export default function TaskFormScreen() {
         setPoiKey(null);
         setCustomPoiType(null);
         setQuery('');
+        setSuggestedPoi(null);
+        setSuggestedTitle(null);
         return;
       }
 
@@ -224,8 +230,13 @@ export default function TaskFormScreen() {
             setPoiKey(null);
             setCustomPoiType(null);
             setQuery('');
+            setSuggestedPoi(null);
+            setSuggestedTitle(trimmed);
             return;
           }
+
+          setSuggestedPoi(suggestion);
+          setSuggestedTitle(trimmed);
 
           if (isCatalogPoiType(suggestion)) {
             setPoiKey(suggestion);
@@ -251,6 +262,14 @@ export default function TaskFormScreen() {
   const suggestions = !customPoiType && query.trim() ? getTypeSuggestions(query) : [];
   // Birthday tasks are exempt from the POI requirement (KAN-248) — date-shaped, not place-shaped.
   const canSubmit = title.trim().length > 0 && (isBirthday || effectivePoi !== null);
+  const suggestionType = suggestedTitle === title.trim() ? suggestedPoi : null;
+  const suggestionLabel = suggestionType
+    ? (isCatalogPoiType(suggestionType) ? poiCatalogLabel(suggestionType) : localPoiLabel(suggestionType))
+    : null;
+  const suggestionSelected = suggestionType !== null && effectivePoi === suggestionType;
+  const liveSuggestion = suggestionType !== null && suggestionSelected && !poiTouched;
+  const confirmedSuggestion = suggestionType !== null && suggestionSelected && poiTouched;
+  const showSuggestionHint = liveSuggestion || suggestionType === null;
 
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
@@ -509,8 +528,96 @@ export default function TaskFormScreen() {
             </View>
           )}
 
-          {/* Quick-pick grid — 4 columns */}
-          <View style={styles.poiGrid}>
+          <View style={styles.swipeHintRow}>
+            <Text style={[styles.quickPicksHint, { color: palette.faint }]}>
+              {COPY.newTaskSheet.swipeHint}
+            </Text>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.poiCarousel}
+            snapToInterval={POI_TILE_WIDTH + 10}
+            decelerationRate="fast"
+            style={styles.poiCarouselMask}>
+            <Pressable
+              onPress={() => {
+                if (suggestionType === null) { return; }
+                const isLiveGuess = !poiTouched && effectivePoi === suggestionType;
+                userTouchedPoiRef.current = true;
+                setPoiTouched(true);
+                if (isLiveGuess) { return; }
+                if (effectivePoi === suggestionType) {
+                  setPoiKey(null);
+                  setCustomPoiType(null);
+                  setQuery('');
+                  return;
+                }
+                if (isCatalogPoiType(suggestionType)) {
+                  setPoiKey(suggestionType);
+                  setCustomPoiType(null);
+                  setQuery('');
+                  logTap('poi_chip_tap', { poi_type: suggestionType });
+                  return;
+                }
+                setPoiKey(null);
+                setCustomPoiType(suggestionType);
+                setQuery(localPoiLabel(suggestionType));
+              }}
+              disabled={suggestionType === null}
+              accessibilityRole="radio"
+              accessibilityLabel={
+                !suggestionLabel
+                  ? COPY.newTaskSheet.poiSuggestionHint
+                  : showSuggestionHint
+                    ? `${suggestionLabel}, ${COPY.newTaskSheet.poiSuggestionHint}`
+                    : `${suggestionLabel} suggestion`
+              }
+              accessibilityState={{ selected: suggestionSelected, disabled: suggestionType === null }}
+              style={[
+                styles.poiTile,
+                showSuggestionHint && styles.poiSuggestionTile,
+                confirmedSuggestion && styles.poiTileSuggested,
+                {
+                  width: POI_TILE_WIDTH,
+                  backgroundColor: liveSuggestion
+                    ? palette.nearTint
+                    : confirmedSuggestion
+                      ? palette.nearTint2
+                      : suggestionType
+                        ? palette.surface
+                        : palette.nearTint,
+                  borderColor: liveSuggestion || confirmedSuggestion || suggestionType === null
+                    ? palette.nearBorder
+                    : palette.line,
+                },
+              ]}>
+              {suggestionType !== null && suggestionLabel && (
+                <>
+                  <PoiIcon
+                    type={suggestionType}
+                    color={suggestionSelected ? palette.nearText : palette.muted}
+                    size={22}
+                  />
+                  <Text
+                    style={[
+                      styles.poiTileLabel,
+                      { color: suggestionSelected ? palette.nearText : palette.muted },
+                    ]}
+                    numberOfLines={1}>
+                    {suggestionLabel}
+                  </Text>
+                </>
+              )}
+              {showSuggestionHint && (
+                <Text
+                  style={[styles.poiTileHint, { color: palette.nearText }]}
+                  numberOfLines={1}>
+                  {COPY.newTaskSheet.poiSuggestionHint}
+                </Text>
+              )}
+            </Pressable>
             {POI_CATALOG.map(({ type }) => (
               <PoiTile
                 key={type}
@@ -519,6 +626,7 @@ export default function TaskFormScreen() {
                 selected={poiKey === type}
                 onPress={() => {
                   userTouchedPoiRef.current = true;
+                  setPoiTouched(true);
                   const next = poiKey === type ? null : type;
                   setPoiKey(next);
                   if (next) {
@@ -528,10 +636,10 @@ export default function TaskFormScreen() {
                   }
                 }}
                 palette={palette}
-                width={poiTileWidth}
+                width={POI_TILE_WIDTH}
               />
             ))}
-          </View>
+          </ScrollView>
         </View>
         )}
 
