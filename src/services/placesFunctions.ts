@@ -12,10 +12,6 @@ interface NearbySearchResponse {
   }>;
 }
 
-interface PlaceTypeSearchResponse {
-  places?: Array<{ primaryType?: string }>;
-}
-
 interface PlacesAutocompleteResponse {
   suggestions?: Array<{
     placePrediction?: {
@@ -44,15 +40,6 @@ export async function searchNearbyPlacesProxy(
     NearbySearchResponse
   >(functionsService, 'searchNearbyPlacesProxy');
   const result = await callable({ lat, lng, poiTypes, radiusMeters });
-  return result.data;
-}
-
-export async function searchPlaceTypesProxy(query: string): Promise<PlaceTypeSearchResponse> {
-  const callable = httpsCallable<{ query: string }, PlaceTypeSearchResponse>(
-    functionsService,
-    'searchPlaceTypesProxy',
-  );
-  const result = await callable({ query });
   return result.data;
 }
 
