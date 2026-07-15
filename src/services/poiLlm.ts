@@ -35,6 +35,7 @@ import {
   type SupportedLang,
 } from './poiInference';
 import { persistLearnedKeyword } from './firestore';
+import { searchPlaceTypesLocal } from './poiTypeCache';
 import vocabJson from '../../assets/poi-model/vocab.json';
 import labelsJson from '../../assets/poi-model/labels.json';
 
@@ -190,14 +191,14 @@ export async function classifyPoi(
  * neither pass matches — never throws, both underlying calls already degrade
  * to `null` on failure, so this works fully offline (airplane mode).
  */
-export async function inferPoiForQuickAdd(title: string): Promise<PoiType | null> {
-  // Validated per language before moving on — inferPoiFromRules can return a
-  // non-catalog string (custom category Google Places type) for one language
-  // that validatePoi rejects; that must not block trying the other language.
-  const en = validatePoi(inferPoiFromRules(title, 'en'));
+export async function inferPoiForQuickAdd(title: string): Promise<PoiResolution | null> {
+  const localSuggestion = searchPlaceTypesLocal(title)[0]?.type ?? null;
+  if (localSuggestion) { return localSuggestion; }
+
+  const en = inferPoiFromRules(title, 'en');
   if (en) { return en; }
 
-  const pt = validatePoi(inferPoiFromRules(title, 'pt-PT'));
+  const pt = inferPoiFromRules(title, 'pt-PT');
   if (pt) { return pt; }
 
   return classifyPoi(title, 'en');

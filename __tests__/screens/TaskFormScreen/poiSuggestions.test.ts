@@ -1,4 +1,20 @@
 import { getTypeSuggestions } from '../../../src/screens/TaskFormScreen/poiSuggestions';
+import { setCopyLanguage } from '../../../src/constants/copy';
+
+jest.mock('../../../src/services/placesFunctions', () => ({
+  getPlaceDetailsProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  searchNearbyPlacesProxy: jest.fn(),
+  searchPlaceTypesProxy: jest.fn(),
+}));
+
+beforeEach(() => {
+  setCopyLanguage('en');
+});
+
+afterEach(() => {
+  setCopyLanguage('en');
+});
 
 describe('getTypeSuggestions', () => {
   it('returns an empty array for an empty query', () => {
@@ -9,30 +25,30 @@ describe('getTypeSuggestions', () => {
     expect(getTypeSuggestions('   ')).toEqual([]);
   });
 
-  it('matches labels by word-start prefix', () => {
+  it('matches labels from the shared bundled dictionary', () => {
     const results = getTypeSuggestions('bus');
     expect(results.some(r => r.label === 'Bus Station')).toBe(true);
   });
 
-  it('does not match a prefix that is not at the start of a label word', () => {
-    const results = getTypeSuggestions('bus');
-    expect(results.some(r => r.label === 'Night Club')).toBe(false);
+  it('surfaces police from the shared bundled dictionary', () => {
+    const results = getTypeSuggestions('police');
+    expect(results.some(r => r.type === 'police')).toBe(true);
   });
 
-  it('normalizes underscores to spaces before matching', () => {
-    const results = getTypeSuggestions('bus_stat');
-    expect(results.some(r => r.label === 'Bus Station')).toBe(true);
+  it('supports concept search from the shared dictionary', () => {
+    const results = getTypeSuggestions('buy a book');
+    expect(results[0]).toEqual({ type: 'book_store', label: 'Book Store' });
   });
 
-  it('requires every query word to match some label word (multi-word prefix matching)', () => {
-    const results = getTypeSuggestions('bus stat');
-    expect(results.some(r => r.label === 'Bus Station')).toBe(true);
-    expect(results.every(r => r.label !== 'Bank')).toBe(true);
+  it('returns localized labels for pt-PT', () => {
+    setCopyLanguage('pt-PT');
+
+    const results = getTypeSuggestions('policia');
+    expect(results.some(r => r.label === 'Polícia')).toBe(true);
   });
 
   it('caps results at 6', () => {
-    // Single common letter matches many labels across the catalog.
-    const results = getTypeSuggestions('a');
+    const results = getTypeSuggestions('place');
     expect(results.length).toBeLessThanOrEqual(6);
   });
 

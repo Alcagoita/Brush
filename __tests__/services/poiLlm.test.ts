@@ -25,6 +25,13 @@ jest.mock('../../src/services/firestore', () => ({
   persistLearnedKeyword: (...a: unknown[]) => mockPersist(...a),
 }));
 
+jest.mock('../../src/services/placesFunctions', () => ({
+  getPlaceDetailsProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  searchNearbyPlacesProxy: jest.fn(),
+  searchPlaceTypesProxy: jest.fn(),
+}));
+
 import {
   tokenize,
   validatePoi,
@@ -172,13 +179,18 @@ describe('inferPoiForQuickAdd', () => {
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
-  it('treats book-buying phrasing as store without calling the LLM classifier', async () => {
-    expect(await inferPoiForQuickAdd('buy a book')).toBe('store');
+  it('treats book-buying phrasing as book_store without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('buy a book')).toBe('book_store');
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
-  it('treats pt-PT book-buying phrasing as store without calling the LLM classifier', async () => {
-    expect(await inferPoiForQuickAdd('comprar um livro')).toBe('store');
+  it('treats pt-PT book-buying phrasing as book_store without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('comprar um livro')).toBe('book_store');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('uses the local dictionary for police phrasing without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('visit police')).toBe('police');
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
@@ -193,14 +205,11 @@ describe('inferPoiForQuickAdd', () => {
     expect(await inferPoiForQuickAdd('call mom')).toBeNull();
   });
 
-  it('still tries pt-PT rules when the EN rule match is a non-catalog custom type', async () => {
-    // EN resolves to a custom (non-PoiType) category string; pt-PT resolves to
-    // a valid built-in type for the same normalized keyword. A non-null EN
-    // result must not short-circuit the pt-PT lookup.
+  it('returns a non-catalog learned type when the local dictionary misses', async () => {
     registerLearnedKeyword('foobar', 'bakery', 'en');
     registerLearnedKeyword('foobar', 'pharmacy', 'pt-PT');
 
-    expect(await inferPoiForQuickAdd('foobar')).toBe('pharmacy');
+    expect(await inferPoiForQuickAdd('foobar')).toBe('bakery');
     expect(mockLoad).not.toHaveBeenCalled();
   });
 });

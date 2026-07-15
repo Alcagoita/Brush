@@ -52,6 +52,7 @@ import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
 import { useToastStore } from '../store/toastStore';
 import RotatingTitlePlaceholder from './RotatingTitlePlaceholder';
+import { localPoiLabel } from '../services/poiTypeCache';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -134,7 +135,7 @@ function PoiTile({ type, label, selected, onPress, palette }: PoiTileProps) {
 
 interface SuggestionTileProps {
   /** The inferred guess — sticky once known, regardless of what's replaced it. */
-  type: PoiType | null;
+  type: string | null;
   label: string | null;
   /** True when this guess is the current `poi` value (live or confirmed). */
   selected: boolean;
@@ -164,7 +165,7 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
     ? COPY.newTaskSheet.poiSuggestionHint
     : showHint
       ? `${label}, ${COPY.newTaskSheet.poiSuggestionHint}`
-      : `${label} suggestion`;
+      : `${label} ${COPY.newTaskSheet.poiSuggestionConfirmedSuffix}`;
 
   return (
     <Pressable
@@ -210,12 +211,12 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     // Form state
     const [title,    setTitle]    = useState('');
     const [category, setCategory] = useState<string | null>(null);
-    const [poi,      setPoi]      = useState<PoiType | null>(null);
+    const [poi,      setPoi]      = useState<string | null>(null);
     // KAN-249 — the raw inference result, frozen the moment the user touches
     // the carousel. Compared against `poi` at submit time to tell a Confirm
     // (poi === suggestedPoi) from a Replace (poi !== suggestedPoi); null means
     // no suggestion ever fired for this title, so no learn-back applies.
-    const [suggestedPoi, setSuggestedPoi] = useState<PoiType | null>(null);
+    const [suggestedPoi, setSuggestedPoi] = useState<string | null>(null);
     // The exact trimmed title the suggestion above was inferred for. Inference
     // is skipped once the carousel is touched, so a later title edit can leave
     // `suggestedPoi` stale relative to the title actually being submitted —
@@ -371,7 +372,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     // different catalog pick must NOT blank the guess back out, it only
     // stops being the current `poi` value (handled inside SuggestionTile).
     const suggestionType     = suggestedPoi;
-    const suggestionLabel    = suggestionType ? poiCatalogLabel(suggestionType) : null;
+    const suggestionLabel    = suggestionType
+      ? (POI_CATALOG.some(item => item.type === suggestionType)
+        ? poiCatalogLabel(suggestionType as PoiType)
+        : localPoiLabel(suggestionType))
+      : null;
     const suggestionSelected = suggestionType !== null && poi === suggestionType;
 
     const handleSubmit = useCallback(async () => {
@@ -419,6 +424,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         uid,
         initialTitle: title.trim() || undefined,
         initialPoi:   poi ?? undefined,
+        initialPoiExplicitlySelected: poiTouched,
       }), 80);
     }, [handleClose, uid, title, poi]);
 

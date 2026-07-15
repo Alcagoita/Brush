@@ -22,7 +22,6 @@ import {
   getPlaceDetailsProxy,
   placesAutocompleteProxy,
   searchNearbyPlacesProxy,
-  searchPlaceTypesProxy,
 } from './placesFunctions';
 import { Category, PoiType, POI_GOOGLE_TYPES, poiCatalogLabel } from '../types';
 
@@ -331,12 +330,6 @@ export function placeTypeLabel(type: string): string {
   );
 }
 
-/** Result item returned by searchPlaceTypes. */
-export interface PlaceTypeSuggestion {
-  type:  string;
-  label: string;
-}
-
 // ─── Category → place type mapping ───────────────────────────────────────────
 
 /**
@@ -352,37 +345,6 @@ export interface PlaceTypeSuggestion {
  */
 export function resolveCategoryPlaceType(category: Category): string | null {
   return category.poi ?? null;
-}
-
-// ─── Place type search ────────────────────────────────────────────────────────
-
-/**
- * Search Google Places for place types matching the given query.
- *
- * Uses the Places API (New) Text Search endpoint and extracts unique
- * primary types from the top results — giving the user real Google Maps
- * categories to choose from as a category location type.
- *
- * Returns up to 8 distinct, non-generic type suggestions.
- * Throws on network error or non-200 response.
- */
-export async function searchPlaceTypes(query: string): Promise<PlaceTypeSuggestion[]> {
-  const data = await searchPlaceTypesProxy(query) as {
-    places?: Array<{ primaryType?: string }>;
-  };
-
-  const seen    = new Set<string>();
-  const results: PlaceTypeSuggestion[] = [];
-
-  for (const place of data.places ?? []) {
-    const type = place.primaryType;
-    if (!type || GENERIC_PLACE_TYPES.has(type) || seen.has(type)) { continue; }
-    seen.add(type);
-    results.push({ type, label: placeTypeLabel(type) });
-    if (results.length >= 8) { break; }
-  }
-
-  return results;
 }
 
 // ─── Places Autocomplete (KAN-76) ─────────────────────────────────────────────

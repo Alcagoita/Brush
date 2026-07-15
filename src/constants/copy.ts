@@ -120,6 +120,8 @@ const en = {
     confirmToast:         "Got it — I'll keep an eye out.",
     /** KAN-249 — shown on a POI tile that's the app's inferred guess, not yet confirmed. */
     poiSuggestionHint:    'my guess?',
+    /** Accessibility-only suffix once an inferred suggestion is confirmed/reselected. */
+    poiSuggestionConfirmedSuffix: 'suggestion',
   },
 
   // ─── Offline expectations messaging (KAN-236) ──────────────────────────────
@@ -1138,6 +1140,7 @@ const ptPT: typeof en = {
     footerHint:           'Só o quê e o onde',
     confirmToast:         'Entendido — vou estar atento.',
     poiSuggestionHint:    'o meu palpite?',
+    poiSuggestionConfirmedSuffix: 'sugestão',
   },
 
   offline: {
