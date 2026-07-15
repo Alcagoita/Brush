@@ -10,4 +10,15 @@ describe('resolvePoiIconType', () => {
     expect(resolvePoiIconType('atm')).toBe('atm');
     expect(resolvePoiIconType('supermarket')).toBe('supermarket');
   });
+
+  it('maps common API families with suffix rules', () => {
+    expect(resolvePoiIconType('portuguese_restaurant')).toBe('restaurant');
+    expect(resolvePoiIconType('candy_store')).toBe('store');
+    expect(resolvePoiIconType('dog_park')).toBe('park');
+    expect(resolvePoiIconType('bus_stop')).toBe('bus');
+    expect(resolvePoiIconType('general_hospital')).toBe('clinic');
+    expect(resolvePoiIconType('hair_salon')).toBe('salon');
+    expect(resolvePoiIconType('church')).toBe('library');
+    expect(resolvePoiIconType('parking_garage')).toBe('gas');
+  });
 });
