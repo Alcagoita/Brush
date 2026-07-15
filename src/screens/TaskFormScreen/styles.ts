@@ -166,9 +166,15 @@ export const styles = StyleSheet.create({
     fontSize:   12,
     fontFamily: 'Geist-Regular',
   },
+  poiRow: {
+    flexDirection: 'row',
+    gap:             10,
+  },
   poiCarouselMask: {
-    marginHorizontal: -spacing.page,
-    paddingHorizontal: spacing.page,
+    // Guess tile (outside the scroller) sits at the row's left edge already —
+    // only bleed the trailing edge so the last catalog tile can scroll flush.
+    marginRight:  -spacing.page,
+    paddingRight:  spacing.page,
   },
   poiCarousel: {
     gap: 10,

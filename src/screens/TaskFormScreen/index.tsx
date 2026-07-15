@@ -35,11 +35,12 @@ import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../com
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
 import { POI_CATALOG, poiCatalogLabel } from '../../types';
-import { todayISO } from '../../utils/date';
+import { todayISO, formatDateShort } from '../../utils/date';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { COPY } from '../../constants/copy';
 import { useToastStore } from '../../store/toastStore';
 import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder';
+import MiniCalendar from '../../components/MiniCalendar';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { POI_TILE_WIDTH, styles } from './styles';
@@ -85,6 +86,8 @@ export default function TaskFormScreen() {
     if (initialDate)        { return initialDate; }
     return todayISO();
   });
+
+  const [dateFieldOpen, setDateFieldOpen] = useState(false);
 
   // Time
   const [time, setTime] = useState<string>(existingTask?.time ?? '');
@@ -545,13 +548,7 @@ export default function TaskFormScreen() {
             </Text>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.poiCarousel}
-            snapToInterval={POI_TILE_WIDTH + 10}
-            decelerationRate="fast"
-            style={styles.poiCarouselMask}>
+          <View style={styles.poiRow}>
             <Pressable
               onPress={() => {
                 if (suggestionType === null) { return; }
@@ -629,28 +626,36 @@ export default function TaskFormScreen() {
                 </Text>
               )}
             </Pressable>
-            {POI_CATALOG.map(({ type }) => (
-              <PoiTile
-                key={type}
-                type={type}
-                label={poiCatalogLabel(type)}
-                selected={poiKey === type}
-                onPress={() => {
-                  userTouchedPoiRef.current = true;
-                  setPoiTouched(true);
-                  const next = poiKey === type ? null : type;
-                  setPoiKey(next);
-                  if (next) {
-                    setQuery('');
-                    setCustomPoiType(null);
-                    logTap('poi_chip_tap', { poi_type: type });
-                  }
-                }}
-                palette={palette}
-                width={POI_TILE_WIDTH}
-              />
-            ))}
-          </ScrollView>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.poiCarousel}
+              snapToInterval={POI_TILE_WIDTH + 10}
+              decelerationRate="fast"
+              style={styles.poiCarouselMask}>
+              {POI_CATALOG.map(({ type }) => (
+                <PoiTile
+                  key={type}
+                  type={type}
+                  label={poiCatalogLabel(type)}
+                  selected={poiKey === type}
+                  onPress={() => {
+                    userTouchedPoiRef.current = true;
+                    setPoiTouched(true);
+                    const next = poiKey === type ? null : type;
+                    setPoiKey(next);
+                    if (next) {
+                      setQuery('');
+                      setCustomPoiType(null);
+                      logTap('poi_chip_tap', { poi_type: type });
+                    }
+                  }}
+                  palette={palette}
+                  width={POI_TILE_WIDTH}
+                />
+              ))}
+            </ScrollView>
+          </View>
         </View>
         )}
 
@@ -772,17 +777,19 @@ export default function TaskFormScreen() {
           </View>
           <View style={styles.scheduleRow}>
             {/* Date */}
-            <View style={[styles.scheduleField, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+            <Pressable
+              style={[
+                styles.scheduleField,
+                { backgroundColor: palette.surface, borderColor: dateFieldOpen ? palette.text : palette.line },
+              ]}
+              onPress={() => setDateFieldOpen(o => !o)}
+              accessibilityRole="button"
+              accessibilityLabel={COPY.newTaskSheet.timeQuestion}>
               <CalendarIcon color={palette.faint} size={16} />
-              <TextInput
-                style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}
-                placeholder={`Today · ${todayISO()}`}
-                placeholderTextColor={palette.muted}
-                value={date === todayISO() ? '' : date}
-                onChangeText={setDate}
-                maxLength={10}
-              />
-            </View>
+              <Text style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}>
+                {date === todayISO() ? `Today · ${formatDateShort(date)}` : formatDateShort(date)}
+              </Text>
+            </Pressable>
             {/* Time */}
             <View style={[styles.scheduleField, { backgroundColor: palette.surface, borderColor: palette.line }]}>
               <ClockIcon color={palette.faint} size={16} />
@@ -797,6 +804,13 @@ export default function TaskFormScreen() {
               />
             </View>
           </View>
+          {dateFieldOpen && (
+            <MiniCalendar
+              value={date}
+              minimumDate={todayISO()}
+              onChange={iso => { setDate(iso); setDateFieldOpen(false); }}
+            />
+          )}
         </View>
 
         {/* ── NOTES section ── */}
