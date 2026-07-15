@@ -42,6 +42,7 @@ import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import Header from '../../components/Header';
 import ProgressRing from '../../components/ProgressRing';
@@ -79,6 +80,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
 
 export default function TodayScreen() {
   const { palette, language } = useTheme();
+  const insets      = useSafeAreaInsets();
   const navigation  = useNavigation<Nav>();
 
   // ── Auth / display info ──────────────────────────────────────────────────────
@@ -484,7 +486,7 @@ export default function TodayScreen() {
         <Pressable
           style={({ pressed }) => [
             styles.fab,
-            { backgroundColor: palette.accent },
+            { backgroundColor: palette.accent, bottom: 20 + insets.bottom },
             pressed && styles.fabPressed,
           ]}
           onPress={openSheet}
