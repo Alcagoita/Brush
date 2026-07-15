@@ -32,6 +32,8 @@ export const GOOGLE_TYPE_ICON: Record<string, string> = {
   beer_garden:          'cafe',
   bistro:               'restaurant',
   breakfast_restaurant: 'restaurant',
+  brewery:              'cafe',
+  brewpub:              'cafe',
   brunch_restaurant:    'restaurant',
   cafe:                 'cafe',
   cafeteria:            'cafe',
@@ -455,6 +457,7 @@ export function resolvePoiIconType(type: string): string {
   if (type.endsWith('_store') || type.endsWith('_shop')) { return 'store'; }
   if (type.endsWith('_park') || type.endsWith('_garden')) { return 'park'; }
   if (type.endsWith('_school')) { return 'school'; }
+  if (type.endsWith('_pub') || type.endsWith('_stand')) { return 'cafe'; }
   if (
     type.endsWith('_station') ||
     type.endsWith('_stop') ||
@@ -473,7 +476,9 @@ export function resolvePoiIconType(type: string): string {
     type.includes('spa') ||
     type.includes('beaut') ||
     type.includes('hair') ||
-    type.includes('massage')
+    type.includes('massage') ||
+    type.includes('tanning') ||
+    type.includes('bath')
   ) { return 'salon'; }
   if (
     type.includes('government') ||
@@ -511,6 +516,92 @@ export function resolvePoiIconType(type: string): string {
     type.includes('guest_house') ||
     type.includes('resort')
   ) { return 'store'; }
+  if (
+    type.includes('museum') ||
+    type.includes('theater') ||
+    type.includes('theatre') ||
+    type.includes('auditorium') ||
+    type.includes('opera') ||
+    type.includes('philharmonic') ||
+    type.includes('planetarium') ||
+    type.includes('studio') ||
+    type.includes('sculpture') ||
+    type.includes('historical') ||
+    type.includes('landmark') ||
+    type.includes('monument')
+  ) { return 'library'; }
+  if (
+    type.includes('fitness_center')
+  ) { return 'gym'; }
+  if (
+    type.includes('center') ||
+    type.includes('venue') ||
+    type.includes('hall') ||
+    type.includes('camp') ||
+    type.includes('casino') ||
+    type.includes('bowling') ||
+    type.includes('golf') ||
+    type.includes('karaoke') ||
+    type.includes('playground') ||
+    type.includes('arcade') ||
+    type.includes('sports') ||
+    type.includes('athletic') ||
+    type.includes('swimming_pool') ||
+    type.includes('tennis_court') ||
+    type.includes('fishing') ||
+    type.includes('race_course') ||
+    type.includes('roller_coaster') ||
+    type.includes('ferris_wheel') ||
+    type.includes('observation_deck') ||
+    type.includes('plaza') ||
+    type.includes('beach') ||
+    type.includes('island') ||
+    type.includes('lake') ||
+    type.includes('river') ||
+    type.includes('mountain') ||
+    type.includes('woods') ||
+    type.includes('nature_preserve') ||
+    type.includes('fountain') ||
+    type.includes('vineyard')
+  ) { return 'park'; }
+  if (
+    type.includes('academic_department') ||
+    type.includes('educational_institution') ||
+    type.includes('school_district')
+  ) { return 'school'; }
+  if (
+    type.includes('apartment') ||
+    type.includes('condominium') ||
+    type.includes('housing_complex') ||
+    type.includes('private_guest_room') ||
+    type.includes('camping_cabin') ||
+    type.includes('cottage') ||
+    type.includes('farmstay')
+  ) { return 'store'; }
+  if (
+    type.includes('farm') ||
+    type.includes('ranch') ||
+    type.includes('stable') ||
+    type.includes('manufacturer') ||
+    type.includes('supplier') ||
+    type.includes('factory')
+  ) { return 'store'; }
+  if (
+    type.includes('service') ||
+    type.includes('agency') ||
+    type.includes('consultant') ||
+    type.includes('organization') ||
+    type.includes('provider') ||
+    type.includes('lawyer') ||
+    type.includes('electrician') ||
+    type.includes('plumber') ||
+    type.includes('contractor') ||
+    type.includes('tailor') ||
+    type.includes('tour_') ||
+    type.includes('travel_') ||
+    type.includes('child_care') ||
+    type.includes('employment')
+  ) { return 'bank'; }
 
   return type;
 }

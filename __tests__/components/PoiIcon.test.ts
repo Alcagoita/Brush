@@ -21,4 +21,13 @@ describe('resolvePoiIconType', () => {
     expect(resolvePoiIconType('church')).toBe('library');
     expect(resolvePoiIconType('parking_garage')).toBe('gas');
   });
+
+  it('maps broader leisure and building families away from the fallback pin', () => {
+    expect(resolvePoiIconType('movie_theater')).toBe('library');
+    expect(resolvePoiIconType('concert_hall')).toBe('park');
+    expect(resolvePoiIconType('fitness_center')).toBe('gym');
+    expect(resolvePoiIconType('apartment_building')).toBe('store');
+    expect(resolvePoiIconType('travel_agency')).toBe('bank');
+    expect(resolvePoiIconType('brewery')).toBe('cafe');
+  });
 });
