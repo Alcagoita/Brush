@@ -22,7 +22,7 @@ interface PoiIconProps extends IconProps {
  * the nearest built-in icon key. Only types NOT already handled by the switch
  * cases below need to be listed here.
  */
-const GOOGLE_TYPE_ICON: Record<string, string> = {
+export const GOOGLE_TYPE_ICON: Record<string, string> = {
   // Food & drink
   bakery:               'store',
   bar:                  'cafe',
@@ -69,8 +69,12 @@ const GOOGLE_TYPE_ICON: Record<string, string> = {
   city_hall:            'bank',
   courthouse:           'bank',
   embassy:              'bank',
+  fire_station:         'bank',
+  government_office:    'bank',
   insurance_agency:     'bank',
   local_government_office: 'bank',
+  neighborhood_police_station: 'bank',
+  police:               'bank',
   real_estate_agency:   'bank',
 
   // Transport
@@ -116,7 +120,7 @@ const GOOGLE_TYPE_ICON: Record<string, string> = {
 
 export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
   // If the type isn't a built-in case, check the Google mapping before the pin fallback.
-  const resolved = GOOGLE_TYPE_ICON[type] ?? type;
+  const resolved = resolvePoiIconType(type);
 
   const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none' };
 
@@ -296,4 +300,8 @@ export function PoiIcon({ type, color, size = 24 }: PoiIconProps) {
         </Svg>
       );
   }
+}
+
+export function resolvePoiIconType(type: string): string {
+  return GOOGLE_TYPE_ICON[type] ?? type;
 }
