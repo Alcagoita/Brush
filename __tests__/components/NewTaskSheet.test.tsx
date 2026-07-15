@@ -33,6 +33,13 @@ jest.mock('../../src/services/firestore', () => ({
   addTask: (...args: unknown[]) => mockAddTask(...args),
 }));
 
+jest.mock('../../src/services/placesFunctions', () => ({
+  getPlaceDetailsProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  searchNearbyPlacesProxy: jest.fn(),
+  searchPlaceTypesProxy: jest.fn(),
+}));
+
 jest.mock('../../src/services/poiLlm', () => ({
   inferPoiForQuickAdd: (...args: unknown[]) => mockInferPoiForQuickAdd(...args),
   learnFromClassification: (...args: unknown[]) => mockLearnFromClassification(...args),
@@ -201,6 +208,17 @@ describe('KAN-232 POI inference auto-suggestion', () => {
 
     expect(mockInferPoiForQuickAdd).toHaveBeenCalledWith('buy aspirin');
     expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+  });
+
+  it('supports non-catalog suggestions like Police', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('police');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'visit police');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(screen.getByLabelText('Police, my guess?').props.accessibilityState?.selected).toBe(true);
   });
 
   it('never overrides a manually-selected POI, even when a later suggestion resolves', async () => {
@@ -519,6 +537,24 @@ describe('addTask submission', () => {
 });
 
 describe('"More details" navigation', () => {
+  it('passes a non-catalog suggested poi through to TaskForm', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('police');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Visit police');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
+        uid:          'test-uid',
+        initialTitle: 'Visit police',
+        initialPoi:   'police',
+      });
+    }, { timeout: 500 });
+  });
+
   it('navigates to TaskForm with initialTitle and initialPoi when "More details ›" is pressed', async () => {
     renderSheet();
 

@@ -22,10 +22,6 @@ interface NearbySearchInput {
   radiusMeters: number;
 }
 
-interface PlaceTypeSearchInput {
-  query: string;
-}
-
 interface PlacesAutocompleteInput {
   query: string;
   mode: AutocompleteMode;
@@ -193,38 +189,6 @@ export const searchNearbyPlacesProxy = onCall(
           includedTypes: poiTypes,
           maxResultCount: 20,
           rankPreference: 'DISTANCE',
-        }),
-      },
-    );
-  },
-);
-
-export const searchPlaceTypesProxy = onCall(
-  {
-    secrets: [googlePlacesApiKey],
-    timeoutSeconds: 30,
-    memory: '256MiB',
-    maxInstances: PLACES_PROXY_MAX_INSTANCES,
-  },
-  async (request) => {
-    assertAuthenticated(request.auth);
-    const data = request.data as PlaceTypeSearchInput;
-    const query = assertString(data?.query, 'query', 120);
-    await enforceUserRateLimit(request.auth!.uid, 'type-search');
-
-    return requireOkJson(
-      PLACES_TEXT_SEARCH_URL,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Goog-Api-Key': getApiKey(),
-          'X-Goog-FieldMask': 'places.primaryType',
-        },
-        body: JSON.stringify({
-          textQuery: query,
-          maxResultCount: 10,
-          languageCode: 'en',
         }),
       },
     );

@@ -29,7 +29,6 @@ export {
 } from './rewards';
 export {
   searchNearbyPlacesProxy,
-  searchPlaceTypesProxy,
   placesAutocompleteProxy,
   getPlaceDetailsProxy,
 } from './places';
