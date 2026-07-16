@@ -252,9 +252,11 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
           a11yLabel={COPY.timePicker.minuteA11y}
           palette={palette}
         />
-        {/* Gone entirely (not hidden/grayed) in 24h mode — the columns
-            re-center in the freed space via `columns`'s justifyContent. */}
-        {hour12Mode && (
+        {/* AM/PM buttons are gone entirely in 24h mode (not hidden/grayed) —
+            but a dumb, non-interactive spacer of the same width stays in
+            their place so the hour/minute columns never shift sideways
+            when switching modes (columns row is centered as a whole). */}
+        {hour12Mode ? (
           <View style={styles.meridiemColumn}>
             {(['AM', 'PM'] as const).map((label, i) => {
               const selected = (i === 1) === isPM;
@@ -276,6 +278,8 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
               );
             })}
           </View>
+        ) : (
+          <View style={styles.meridiemSpacer} />
         )}
       </View>
     </View>
@@ -335,6 +339,11 @@ const styles = StyleSheet.create({
   },
   meridiemColumn: {
     gap: 6,
+  },
+  // Matches meridiemColumn's intrinsic width (a single meridiemBtn) so the
+  // hour/minute columns don't shift when AM/PM is gone in 24h mode.
+  meridiemSpacer: {
+    width: 44,
   },
   meridiemBtn: {
     width: 44,
