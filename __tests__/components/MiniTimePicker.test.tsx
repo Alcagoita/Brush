@@ -90,4 +90,28 @@ describe('MiniTimePicker', () => {
       jest.useRealTimers();
     }
   });
+
+  it('the format toggle overrides the device default for this picker session', () => {
+    mockHour12(false); // device prefers 24h
+    render(<MiniTimePicker value="09:30" onChange={jest.fn()} />);
+    expect(screen.getByTestId('time-hour24-9')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('time-format-toggle'));
+
+    expect(screen.getByTestId('time-hour12-9')).toBeTruthy();
+    expect(screen.getByTestId('time-meridiem-AM')).toBeTruthy();
+    expect(screen.queryByTestId('time-hour24-9')).toBeNull();
+  });
+
+  it('toggling format twice returns to the device default', () => {
+    mockHour12(true); // device prefers 12h
+    render(<MiniTimePicker value="14:00" onChange={jest.fn()} />);
+    expect(screen.getByTestId('time-hour12-2')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('time-format-toggle'));
+    expect(screen.getByTestId('time-hour24-14')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('time-format-toggle'));
+    expect(screen.getByTestId('time-hour12-2')).toBeTruthy();
+  });
 });

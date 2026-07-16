@@ -7,11 +7,12 @@
  * rounded cells) instead of OS chrome.
  *
  * Value/onChange always use 24-hour "HH:MM" — the app's persisted Task.time
- * format. Display follows the device's 12h/24h preference automatically via
- * Intl.DateTimeFormat, with no manual toggle.
+ * format. Display defaults to the device's 12h/24h preference (via
+ * Intl.DateTimeFormat) but a small in-picker toggle lets the user override it
+ * for the current session.
  */
 
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme';
 import { radius as radii } from '../theme/tokens';
@@ -81,6 +82,11 @@ function Column({
       contentContainerStyle={styles.columnContent}
       showsVerticalScrollIndicator={false}
       accessibilityLabel={a11yLabel}
+      // Android disables scrolling on a nested ScrollView by default when an
+      // ancestor (TaskFormScreen's body) scrolls the same direction — this is
+      // what makes the picker un-scrollable on device despite working fine
+      // in tests/iOS. Opts this inner scroll back in.
+      nestedScrollEnabled
       contentOffset={{ x: 0, y: Math.max(0, selectedIndex - Math.floor(VISIBLE_ROWS / 2)) * ROW_HEIGHT }}>
       {items.map((n) => {
         const isSelected = n === items[selectedIndex];
@@ -108,7 +114,11 @@ function Column({
 
 export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps) {
   const { palette } = useTheme();
-  const hour12Mode = useMemo(detectHour12, []);
+  const deviceHour12 = useMemo(detectHour12, []);
+  // Defaults to the device preference but the user can flip it for this
+  // picker session via the small toggle below — not persisted.
+  const [hour12Override, setHour12Override] = useState<boolean | null>(null);
+  const hour12Mode = hour12Override ?? deviceHour12;
 
   const now = new Date();
   const [initHour, initMinute] = value
@@ -127,6 +137,17 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
 
   return (
     <View style={[styles.root, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+      <Pressable
+        onPress={() => setHour12Override(!hour12Mode)}
+        style={styles.formatToggle}
+        hitSlop={8}
+        accessibilityRole="button"
+        testID="time-format-toggle"
+        accessibilityLabel={hour12Mode ? COPY.timePicker.switchTo24hA11y : COPY.timePicker.switchTo12hA11y}>
+        <Text style={[styles.formatToggleLabel, { color: palette.muted }]}>
+          {hour12Mode ? '12h' : '24h'}
+        </Text>
+      </Pressable>
       <View style={styles.columns}>
         {hour12Mode ? (
           <Column
@@ -194,6 +215,18 @@ const styles = StyleSheet.create({
     borderRadius: radii.card,
     borderWidth: 1,
     padding: 12,
+  },
+  formatToggle: {
+    alignSelf: 'flex-end',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginBottom: 4,
+  },
+  formatToggleLabel: {
+    fontSize: 11,
+    fontFamily: 'Geist-Medium',
+    letterSpacing: 0.3,
+    textDecorationLine: 'underline',
   },
   columns: {
     flexDirection: 'row',
