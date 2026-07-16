@@ -35,7 +35,7 @@ jest.mock('../../src/theme', () => ({
 jest.mock('../../src/components/AppIcon', () => {
   const React = require('react');
   const { View } = require('react-native');
-  const stub = (props: any) => React.createElement(View, props);
+  const stub = (props: React.ComponentProps<typeof View>) => React.createElement(View, props);
   return { ChevronLeftIcon: stub, PoiIcon: stub };
 });
 
@@ -149,7 +149,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     });
 
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
-      { lat: 38.7, lng: -9.1 },
+      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
       [stops[0].place, stops[1].place],
       'walking',
     );
@@ -164,7 +164,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     });
 
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
-      { lat: 38.7, lng: -9.1 },
+      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
       [stops[0].place, stops[1].place],
       'driving',
     );

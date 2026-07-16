@@ -34,15 +34,16 @@ jest.mock('../../src/services/firestore', () => ({
 }));
 
 import NetInfo from '@react-native-community/netinfo';
-import { resolveTripDestinations, planTrip, MAX_WAYPOINTS } from '../../src/services/oneTripForAll';
+import { resolveTripDestinations, planTrip, MAX_WAYPOINTS, type TripStop } from '../../src/services/oneTripForAll';
 import type { Task } from '../../src/types';
 
 const COORDS = { lat: 38.7, lng: -9.1 };
+const FAKE_TIMESTAMP = { seconds: 0, nanoseconds: 0 } as unknown as Task['createdAt'];
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: 'task-1', title: 'Task', category: 'errands', done: false,
-    date: '2026-07-16', createdAt: {} as any, poi: 'pharmacy',
+    date: '2026-07-16', createdAt: FAKE_TIMESTAMP, poi: 'pharmacy',
     ...overrides,
   };
 }
@@ -126,10 +127,38 @@ describe('resolveTripDestinations', () => {
     const { resolved } = await resolveTripDestinations(tasks, COORDS, 'uid-1');
     expect(resolved).toHaveLength(0);
   });
+
+  it('does NOT throw when NetInfo.fetch() rejects — treats it as offline, keeps local-only results', async () => {
+    (NetInfo.fetch as jest.Mock).mockRejectedValue(new Error('netinfo error'));
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
+    });
+
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' })];
+    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+    expect(result.resolved.map(r => r.task.id)).toEqual(['t1']);
+    expect(result.excludedCount).toBe(1);
+  });
+
+  it('does NOT throw when searchNearbyPlaces rejects — proceeds with whatever resolved locally', async () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
+    });
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('timeout'));
+
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' })];
+    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    expect(result.resolved.map(r => r.task.id)).toEqual(['t1']);
+    expect(result.excludedCount).toBe(1);
+  });
 });
 
 describe('planTrip', () => {
-  function stop(id: string, lat: number, lng: number, name = id): any {
+  function stop(id: string, lat: number, lng: number, name = id): TripStop {
     return { task: makeTask({ id }), place: { internalId: id, name, lat, lng, distanceMeters: 0, source: 'cache' } };
   }
 

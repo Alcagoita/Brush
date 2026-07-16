@@ -26,10 +26,12 @@ import type { LearnedPlace } from '../../src/services/learnedPlaces';
 
 const COORDS = { lat: 38.7, lng: -9.1 };
 
+const FAKE_TIMESTAMP = { seconds: 0, nanoseconds: 0 } as unknown as Task['createdAt'];
+
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: 'task-1', title: 'Pick up aspirin', category: 'health', done: false,
-    date: '2026-07-16', createdAt: {} as any, poi: 'pharmacy',
+    date: '2026-07-16', createdAt: FAKE_TIMESTAMP, poi: 'pharmacy',
     ...overrides,
   };
 }

@@ -49,9 +49,13 @@ export async function resolveTaskDestination(
   coords: { lat: number; lng: number },
   learnedPlaces: LearnedPlace[],
   liveResults: PlacesMap = {},
+  options: { skipPinned?: boolean } = {},
 ): Promise<ResolvedPlace | null> {
-  // 1. Pinned place wins over everything.
-  if (task.poiPlaceId) {
+  // 1. Pinned place wins over everything. `skipPinned` opts out of this
+  // branch's network call — used by TodayScreen's local-only eligibility
+  // check, which must never fire an uninvited Places API request just to
+  // decide whether to show a discovery row.
+  if (task.poiPlaceId && !options.skipPinned) {
     const pinned = await getPlaceDetails(task.poiPlaceId).catch(() => null);
     if (pinned) {
       return {

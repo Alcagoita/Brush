@@ -251,6 +251,9 @@ const en = {
     exclusionLine:  (n: number) => (n === 1 ? "Couldn't find a place for 1 of them" : `Couldn't find a place for ${n} of them`),
     openInMapsA11y: (mode: string) => `Open ${mode} directions in Maps`,
     emptyStateBody: "Couldn't find places for any of these right now.",
+    errorBody:      "Something went wrong finding the way.",
+    retryLabel:     'Try again',
+    mapsOpenFailed: "Couldn't open Maps — try again.",
   },
 
   // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
@@ -1277,6 +1280,9 @@ const ptPT: typeof en = {
     exclusionLine:  (n: number) => (n === 1 ? 'Não encontrei um local para 1 delas' : `Não encontrei um local para ${n} delas`),
     openInMapsA11y: (mode: string) => `Abrir direções ${mode} no Maps`,
     emptyStateBody: 'Não encontrei locais para nenhuma delas agora.',
+    errorBody:      'Algo correu mal ao encontrar o caminho.',
+    retryLabel:     'Tentar novamente',
+    mapsOpenFailed: 'Não consegui abrir o Maps — tenta outra vez.',
   },
 
   contextChip: {

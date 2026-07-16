@@ -164,10 +164,16 @@ export default function TodayScreen() {
   );
 
   // ── "One trip for all of these" entry row (KAN-281) ───────────────────────────
-  // Local-only check (pinned/learned/cache — no live search) so this never
-  // fires an uninvited network call just to decide whether to show a quiet
+  // Local-only check (learned/cache, skipPinned — no network at all) so this
+  // never fires an uninvited call just to decide whether to show a quiet
   // discovery row. Absence is the default: no cached position yet, or fewer
   // than 2 resolvable tasks, and the row simply doesn't render.
+  //
+  // `poiPlaces` (not just `sortedTasks`/`uid`) is a dependency so this reruns
+  // once a position becomes available after mount — proximity.ts sets a new
+  // poiPlaces object on every completed scan regardless of whether the hero
+  // type changed, so it's a reliable "a scan just finished" signal, unlike
+  // nearbyPoiType which can stay null even once a fix exists.
   const [oneTripEligibleCount, setOneTripEligibleCount] = useState(0);
   useEffect(() => {
     let cancelled = false;
@@ -181,14 +187,16 @@ export default function TodayScreen() {
       try {
         const counts = await getLearnedPlaceCounts(uid).catch(() => []);
         const learned = computeLearnedPlaces(counts);
-        const results = await Promise.all(eligible.map(t => resolveTaskDestination(t, coords, learned)));
+        const results = await Promise.all(
+          eligible.map(t => resolveTaskDestination(t, coords, learned, {}, { skipPinned: true })),
+        );
         if (!cancelled) { setOneTripEligibleCount(results.filter(r => r !== null).length); }
       } catch {
         if (!cancelled) { setOneTripEligibleCount(0); }
       }
     })();
     return () => { cancelled = true; };
-  }, [sortedTasks, uid]);
+  }, [sortedTasks, uid, poiPlaces]);
 
   const oneTripVisible = oneTripEligibleCount >= 2;
 

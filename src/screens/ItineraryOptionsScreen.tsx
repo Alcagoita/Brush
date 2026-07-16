@@ -28,6 +28,7 @@ import { getPositionLowAccuracy } from '../services/geolocation';
 import { getLastSearchCoords } from '../services/proximity';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
+import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ItineraryOptions'>;
@@ -44,33 +45,50 @@ export default function ItineraryOptionsScreen() {
   const insets = useSafeAreaInsets();
 
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
     (async () => {
       const uid = getAuth().currentUser?.uid;
-      if (!uid) { if (!cancelled) { setLoading(false); } return; }
+      if (!uid) { if (!cancelled) { setLoadError(true); setLoading(false); } return; }
 
       try {
-        const coords = getLastSearchCoords() ?? await getPositionLowAccuracy();
+        // A user-requested trip deserves the freshest position we can get —
+        // the last proximity-engine fix (getLastSearchCoords) is only a
+        // fallback if a fresh read fails (permission hiccup, GPS cold start).
+        let coords: { lat: number; lng: number };
+        try {
+          coords = await getPositionLowAccuracy();
+        } catch {
+          const cached = getLastSearchCoords();
+          if (!cached) { throw new Error('no position available'); }
+          coords = cached;
+        }
+
         const tasks = await getTasksForDate(uid, todayISO());
         const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
         const tripPlan = planTrip(coords, resolved, excludedCount);
         if (!cancelled) { setPlan(tripPlan); setOrigin(coords); }
       } catch {
-        if (!cancelled) { setPlan({ stops: [], excludedCount: 0, totalDistanceMeters: 0 }); }
+        if (!cancelled) { setLoadError(true); }
       } finally {
         if (!cancelled) { setLoading(false); }
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [retryCount]);
 
   const openCard = (travelMode: 'walking' | 'driving') => {
     if (!plan || plan.stops.length === 0 || !origin) { return; }
-    openMultiStopDirections(origin, plan.stops.map(s => s.place), travelMode).catch(() => {});
+    openMultiStopDirections(origin, plan.stops.map(s => s.place), travelMode).catch(() => {
+      useToastStore.getState().showToast(COPY.itineraryOptionsScreen.mapsOpenFailed);
+    });
   };
 
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
@@ -93,6 +111,16 @@ export default function ItineraryOptionsScreen() {
         <View style={styles.loadingWrap}>
           <ActivityIndicator color={palette.accent} />
           <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
+        </View>
+      ) : loadError ? (
+        <View style={styles.loadingWrap}>
+          <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
+          <Pressable
+            onPress={() => setRetryCount(c => c + 1)}
+            accessibilityRole="button"
+            accessibilityLabel={COPY.itineraryOptionsScreen.retryLabel}>
+            <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.itineraryOptionsScreen.retryLabel}</Text>
+          </Pressable>
         </View>
       ) : !plan || plan.stops.length === 0 ? (
         <View style={styles.loadingWrap}>
@@ -122,10 +150,10 @@ export default function ItineraryOptionsScreen() {
               {plan.stops.map((stop, i) => (
                 <View key={stop.task.id} style={styles.stopRow}>
                   <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
-                    <PoiIcon type={stop.task.poi ?? ''} color={palette.muted} size={16} />
+                    <PoiIcon type={stop.task.poi ?? ''} color={palette.muted} size={20} />
                   </View>
                   <Text style={[styles.stopLabel, { color: palette.text }]} numberOfLines={1}>
-                    {i + 1}. {stopLine(stop)}
+                    <Text style={styles.stopNumber}>{i + 1}.</Text> {stopLine(stop)}
                   </Text>
                 </View>
               ))}
@@ -162,6 +190,7 @@ const styles = StyleSheet.create({
   loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.page },
   loadingLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
   emptyText: { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center' },
+  retryLabel: { fontSize: 14, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 
   content: { paddingHorizontal: spacing.page, paddingTop: 16, gap: 12 },
 
@@ -180,8 +209,9 @@ const styles = StyleSheet.create({
   cardStopsCount: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  iconTile: { width: 28, height: 28, borderRadius: radii.listIcon, alignItems: 'center', justifyContent: 'center' },
+  iconTile: { width: 36, height: 36, borderRadius: radii.listIcon, alignItems: 'center', justifyContent: 'center' },
   stopLabel: { flex: 1, fontSize: 14, fontFamily: 'Geist-Regular' },
+  stopNumber: { fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   totalDistance: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
   exclusionLine: { fontSize: 12, fontFamily: 'Geist-Regular' },
