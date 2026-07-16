@@ -35,11 +35,12 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PlusIcon } from '../../components/AppIcon';
+import { ChevronRightIcon, NavigateIcon, PlusIcon } from '../../components/AppIcon';
 import { resolveTaskDestination } from '../../services/destinationResolver';
 import { getLearnedPlaceCounts } from '../../services/firestore';
 import { computeLearnedPlaces } from '../../services/learnedPlaces';
 import { getLastSearchCoords } from '../../services/proximity';
+import { getDistanceMeters } from '../../services/maps';
 import ScrRotatingNudge from '../../components/ScrRotatingNudge';
 import Animated from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -169,12 +170,16 @@ export default function TodayScreen() {
   // discovery row. Absence is the default: no cached position yet, or fewer
   // than 2 resolvable tasks, and the row simply doesn't render.
   //
-  // `poiPlaces` (not just `sortedTasks`/`uid`) is a dependency so this reruns
-  // once a position becomes available after mount — proximity.ts sets a new
-  // poiPlaces object on every completed scan regardless of whether the hero
-  // type changed, so it's a reliable "a scan just finished" signal, unlike
-  // nearbyPoiType which can stay null even once a fix exists.
+  // `poiPlaces` reruns this effect on every completed proximity scan
+  // (reliable "a scan just finished" signal — see nearbyPoiType comment
+  // elsewhere), but a scan finishing doesn't mean anything worth
+  // recomputing changed. `getLearnedPlaceCounts` is a real Firestore read,
+  // so we gate the actual recompute behind two conditions: the position
+  // moved more than 500m since the last compute, or the done-task count
+  // changed (a task was completed/uncompleted, which can add or remove
+  // eligible tasks). Neither → skip, keep the last result.
   const [oneTripEligibleCount, setOneTripEligibleCount] = useState(0);
+  const lastOneTripComputeRef = useRef<{ coords: { lat: number; lng: number }; doneTasks: number } | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -182,21 +187,31 @@ export default function TodayScreen() {
       const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
       if (!coords || !uid || eligible.length < 2) {
         if (!cancelled) { setOneTripEligibleCount(0); }
+        lastOneTripComputeRef.current = null;
         return;
       }
+
+      const last = lastOneTripComputeRef.current;
+      const locationMoved = !last || getDistanceMeters(last.coords.lat, last.coords.lng, coords.lat, coords.lng) > 500;
+      const taskCompletionChanged = !last || last.doneTasks !== doneTasks;
+      if (!locationMoved && !taskCompletionChanged) { return; }
+
       try {
         const counts = await getLearnedPlaceCounts(uid).catch(() => []);
         const learned = computeLearnedPlaces(counts);
         const results = await Promise.all(
           eligible.map(t => resolveTaskDestination(t, coords, learned, {}, { skipPinned: true })),
         );
-        if (!cancelled) { setOneTripEligibleCount(results.filter(r => r !== null).length); }
+        if (!cancelled) {
+          setOneTripEligibleCount(results.filter(r => r !== null).length);
+          lastOneTripComputeRef.current = { coords, doneTasks };
+        }
       } catch {
         if (!cancelled) { setOneTripEligibleCount(0); }
       }
     })();
     return () => { cancelled = true; };
-  }, [sortedTasks, uid, poiPlaces]);
+  }, [sortedTasks, uid, poiPlaces, doneTasks]);
 
   const oneTripVisible = oneTripEligibleCount >= 2;
 
@@ -318,17 +333,20 @@ export default function TodayScreen() {
   const listFooter = useMemo(() => (
     <>
       {/* ── "One trip for all of these" (KAN-281) — quiet, absence-is-default,
-          same pattern as CalendarScreen's "Where we've been" entry row. ── */}
+          same bordered-row template as CalendarScreen's "Going somewhere?"
+          entry row (tripEntryRow). ── */}
       {oneTripVisible && (
         <Pressable
-          style={styles.oneTripForAllRow}
+          style={[styles.oneTripForAllRow, { borderColor: palette.line }]}
           hitSlop={4}
           onPress={() => navigation.navigate('ItineraryOptions')}
           accessibilityRole="button"
           accessibilityLabel={COPY.oneTripForAll.entryA11y}>
-          <Text style={[styles.oneTripForAllLabel, { color: palette.muted }]}>
+          <NavigateIcon color={palette.muted} size={16} />
+          <Text style={[styles.oneTripForAllLabel, { color: palette.text }]}>
             {COPY.oneTripForAll.entryLabel}
           </Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
         </Pressable>
       )}
       <View style={styles.bottomPad} />
