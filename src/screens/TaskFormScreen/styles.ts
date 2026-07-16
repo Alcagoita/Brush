@@ -327,8 +327,6 @@ export const styles = StyleSheet.create({
     padding:     0,
   },
   clearTimeBtn: {
-    width:          44,
-    height:         44,
     alignItems:     'center',
     justifyContent: 'center',
   },
