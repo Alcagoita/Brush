@@ -11,8 +11,8 @@
  * Intl.DateTimeFormat, with no manual toggle.
  */
 
-import React, { useMemo } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { useMemo, useRef } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useTheme } from '../theme';
 import { radius as radii } from '../theme/tokens';
 import { COPY } from '../constants/copy';
@@ -67,24 +67,26 @@ function Column({
   a11yLabel: string;
   palette: ReturnType<typeof useTheme>['palette'];
 }) {
+  // A FlatList here would trip "VirtualizedLists should never be nested
+  // inside plain ScrollViews with the same orientation" — TaskFormScreen's
+  // body is itself a vertical ScrollView. These lists max out at 60 rows of
+  // plain Text, so a plain ScrollView (all rows mounted, no virtualization
+  // needed) is both correct and simplest.
+  const scrollRef = useRef<ScrollView>(null);
+
   return (
-    <FlatList
+    <ScrollView
+      ref={scrollRef}
       style={styles.column}
       contentContainerStyle={styles.columnContent}
-      data={items}
-      keyExtractor={(n) => String(n)}
       showsVerticalScrollIndicator={false}
       accessibilityLabel={a11yLabel}
-      initialScrollIndex={Math.max(0, selectedIndex - Math.floor(VISIBLE_ROWS / 2))}
-      getItemLayout={(_, index) => ({ length: ROW_HEIGHT, offset: ROW_HEIGHT * index, index })}
-      // Lists here max out at 60 rows of plain Text — trivial to mount in
-      // full. Keeps every row tappable immediately (no virtualization gap on
-      // first render) while still getting getItemLayout's cheap initial scroll.
-      initialNumToRender={items.length}
-      renderItem={({ item: n }) => {
+      contentOffset={{ x: 0, y: Math.max(0, selectedIndex - Math.floor(VISIBLE_ROWS / 2)) * ROW_HEIGHT }}>
+      {items.map((n) => {
         const isSelected = n === items[selectedIndex];
         return (
           <Pressable
+            key={n}
             testID={`${testIDPrefix}-${n}`}
             onPress={() => onSelect(n)}
             hitSlop={4}
@@ -99,8 +101,8 @@ function Column({
             </Text>
           </Pressable>
         );
-      }}
-    />
+      })}
+    </ScrollView>
   );
 }
 
