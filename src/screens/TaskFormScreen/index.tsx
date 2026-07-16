@@ -833,7 +833,7 @@ export default function TaskFormScreen() {
                 <Pressable
                   onPress={(e) => { e.stopPropagation(); setTime(''); setTimeFieldOpen(false); }}
                   style={styles.clearTimeBtn}
-                  hitSlop={12}
+                  hitSlop={15}
                   accessibilityRole="button"
                   accessibilityLabel={COPY.newTaskSheet.clearTimeA11y}>
                   <CloseIcon color={palette.faint} size={14} />

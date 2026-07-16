@@ -211,7 +211,7 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
     <View style={[styles.root, { backgroundColor: palette.surface, borderColor: palette.line }]}>
       <Pressable
         onPress={() => setHour12Override(!hour12Mode)}
-        hitSlop={8}
+        hitSlop={10}
         accessibilityRole="button"
         testID="time-format-toggle"
         accessibilityLabel={hour12Mode ? COPY.timePicker.formatToggleTo24 : COPY.timePicker.formatToggleTo12}
