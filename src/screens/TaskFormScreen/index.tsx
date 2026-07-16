@@ -375,7 +375,9 @@ export default function TaskFormScreen() {
             setDeleting(true);
             try {
               await deleteTask(uid, existingTask.id);
-              await cancelTaskReminder(existingTask.id);
+              // Best-effort — a notifee failure here must never block
+              // navigation or be reported as a delete failure.
+              cancelTaskReminder(existingTask.id).catch(() => {});
               logTap('task_delete', { category: existingTask.category });
               navigation.goBack();
             } catch (err) {
@@ -830,7 +832,7 @@ export default function TaskFormScreen() {
               {time.length > 0 && (
                 <Pressable
                   onPress={(e) => { e.stopPropagation(); setTime(''); setTimeFieldOpen(false); }}
-                  hitSlop={8}
+                  style={styles.clearTimeBtn}
                   accessibilityRole="button"
                   accessibilityLabel={COPY.newTaskSheet.clearTimeA11y}>
                   <CloseIcon color={palette.faint} size={14} />

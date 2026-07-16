@@ -16,9 +16,9 @@ jest.mock('../../src/theme', () => ({
 }));
 
 function mockHour12(hour12: boolean) {
-  jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(((..._args: any[]) => ({
+  jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(((..._args: ConstructorParameters<typeof Intl.DateTimeFormat>) => ({
     resolvedOptions: () => ({ hour12 }),
-  })) as any);
+  })) as unknown as typeof Intl.DateTimeFormat);
 }
 
 describe('MiniTimePicker', () => {
@@ -77,12 +77,17 @@ describe('MiniTimePicker', () => {
   });
 
   it('defaults to the current hour and :00 when value is null', () => {
-    mockHour12(false);
-    const onChange = jest.fn();
-    render(<MiniTimePicker value={null} onChange={onChange} />);
-    const nowHour = new Date().getHours();
-    expect(screen.getByTestId(`time-hour24-${nowHour}`)).toBeTruthy();
-    fireEvent.press(screen.getByTestId('time-minute-5'));
-    expect(onChange).toHaveBeenCalledWith(`${String(nowHour).padStart(2, '0')}:05`);
+    jest.useFakeTimers().setSystemTime(new Date('2026-07-16T09:00:00'));
+    try {
+      mockHour12(false);
+      const onChange = jest.fn();
+      render(<MiniTimePicker value={null} onChange={onChange} />);
+      const nowHour = new Date().getHours();
+      expect(screen.getByTestId(`time-hour24-${nowHour}`)).toBeTruthy();
+      fireEvent.press(screen.getByTestId('time-minute-5'));
+      expect(onChange).toHaveBeenCalledWith(`${String(nowHour).padStart(2, '0')}:05`);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

@@ -14,7 +14,9 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type { Alert as AlertType } from 'react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
+import { todayISO } from '../../src/utils/date';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -691,6 +693,40 @@ describe('TaskFormScreen — reminder scheduling', () => {
     expect(mockScheduleTaskReminder).not.toHaveBeenCalled();
   });
 
+  it('create: schedules a reminder for the new task id when a time is picked', async () => {
+    // Force 24h columns so the picker's testIDs are deterministic regardless
+    // of the test environment's default ICU locale.
+    const intlSpy = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(((..._args: ConstructorParameters<typeof Intl.DateTimeFormat>) => ({
+      resolvedOptions: () => ({ hour12: false }),
+    })) as unknown as typeof Intl.DateTimeFormat);
+
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+
+    // Both the date and time fields share the "Around when?" label — the
+    // time field is the second one.
+    fireEvent.press(screen.getAllByLabelText('Around when?')[1]);
+    fireEvent.press(screen.getByTestId('time-hour24-14'));
+    fireEvent.press(screen.getByTestId('time-minute-30'));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    await waitFor(() => {
+      expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+        taskId:    'new-id',
+        taskTitle: 'Walk the dog',
+        date:      todayISO(),
+        time:      '14:30',
+      });
+    });
+
+    intlSpy.mockRestore();
+  });
+
   it('edit: reschedules the reminder with the task\'s id, title, date, and time', async () => {
     mockUpdateTask.mockResolvedValueOnce(undefined);
     setRouteParams({ uid: 'user-123', task: makeTask({ time: '14:00' }) });
@@ -727,10 +763,10 @@ describe('TaskFormScreen — reminder scheduling', () => {
     setRouteParams({ uid: 'user-123', task: makeTask({ time: '14:00' }) });
     const alertSpy = jest
       .spyOn(require('react-native').Alert, 'alert')
-      .mockImplementation((_title: any, _msg: any, buttons: any[]) => {
-        const destructive = buttons.find((b: any) => b.style === 'destructive');
+      .mockImplementation(((_title: string, _msg?: string, buttons?: Parameters<typeof AlertType.alert>[2]) => {
+        const destructive = buttons?.find(b => b.style === 'destructive');
         destructive?.onPress?.();
-      });
+      }) as typeof AlertType.alert);
     render(<TaskFormScreen />);
     await act(async () => {
       fireEvent.press(screen.getByLabelText('Delete task'));

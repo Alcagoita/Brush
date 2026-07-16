@@ -326,6 +326,12 @@ export const styles = StyleSheet.create({
     fontFamily: 'Geist-Regular',
     padding:     0,
   },
+  clearTimeBtn: {
+    width:          44,
+    height:         44,
+    alignItems:     'center',
+    justifyContent: 'center',
+  },
 
   // ── Notes ──
   notesInput: {
