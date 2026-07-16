@@ -14,7 +14,9 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import type { Alert as AlertType } from 'react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
+import { todayISO } from '../../src/utils/date';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +50,16 @@ jest.mock('../../src/services/placesFunctions', () => ({
   placesAutocompleteProxy: jest.fn(),
   searchNearbyPlacesProxy: jest.fn(),
   searchPlaceTypesProxy: jest.fn(),
+}));
+
+// KAN-280 — notifications.ts transitively imports @notifee/react-native
+// (native module, unavailable under Jest) — mocked at the service boundary,
+// matching this suite's existing mocking style (see achievements.ts above).
+const mockScheduleTaskReminder = jest.fn().mockResolvedValue(undefined);
+const mockCancelTaskReminder   = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/notifications', () => ({
+  scheduleTaskReminder: (...args: unknown[]) => mockScheduleTaskReminder(...args),
+  cancelTaskReminder:   (...args: unknown[]) => mockCancelTaskReminder(...args),
 }));
 
 // KAN-248 — deleteField is imported directly (not via the src/services/firestore
@@ -662,6 +674,111 @@ describe('TaskFormScreen — save (edit)', () => {
   });
 });
 
+// ── Task reminder scheduling (KAN-280) ──────────────────────────────────────
+
+describe('TaskFormScreen — reminder scheduling', () => {
+  it('create: does NOT schedule a reminder when no time was set', async () => {
+    // Driving the MiniTimePicker to actually pick a time is covered by
+    // MiniTimePicker.test.tsx; the edit-mode test below confirms the create/edit
+    // wiring end-to-end via an existing time. This test only needs to confirm
+    // the `if (time.trim())` guard around scheduleTaskReminder in the create path.
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalled());
+    expect(mockScheduleTaskReminder).not.toHaveBeenCalled();
+  });
+
+  it('create: schedules a reminder for the new task id when a time is picked', async () => {
+    // Force 24h columns so the picker's testIDs are deterministic regardless
+    // of the test environment's default ICU locale.
+    const intlSpy = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(((..._args: ConstructorParameters<typeof Intl.DateTimeFormat>) => ({
+      resolvedOptions: () => ({ hour12: false }),
+    })) as unknown as typeof Intl.DateTimeFormat);
+
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+
+    // Both the date and time fields share the "Around when?" label — the
+    // time field is the second one.
+    fireEvent.press(screen.getAllByLabelText('Around when?')[1]);
+    fireEvent.press(screen.getByTestId('time-hour24-14'));
+    fireEvent.press(screen.getByTestId('time-minute-30'));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    await waitFor(() => {
+      expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+        taskId:    'new-id',
+        taskTitle: 'Walk the dog',
+        date:      todayISO(),
+        time:      '14:30',
+      });
+    });
+
+    intlSpy.mockRestore();
+  });
+
+  it('edit: reschedules the reminder with the task\'s id, title, date, and time', async () => {
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    setRouteParams({ uid: 'user-123', task: makeTask({ time: '14:00' }) });
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+    await waitFor(() => {
+      expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+        taskId:    'task-1',
+        taskTitle: 'Buy milk',
+        date:      '2026-06-03',
+        time:      '14:00',
+      });
+    });
+  });
+
+  it('edit: calling scheduleTaskReminder with an empty time is how a cleared time cancels the reminder (no-ops downstream)', async () => {
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    setRouteParams({ uid: 'user-123', task: makeTask() }); // no `time` field
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+    await waitFor(() => {
+      expect(mockScheduleTaskReminder).toHaveBeenCalledWith(
+        expect.objectContaining({ taskId: 'task-1', time: '' }),
+      );
+    });
+  });
+
+  it('delete: cancels the task\'s reminder', async () => {
+    mockDeleteTask.mockResolvedValueOnce(undefined);
+    setRouteParams({ uid: 'user-123', task: makeTask({ time: '14:00' }) });
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation(((_title: string, _msg?: string, buttons?: Parameters<typeof AlertType.alert>[2]) => {
+        const destructive = buttons?.find(b => b.style === 'destructive');
+        destructive?.onPress?.();
+      }) as typeof AlertType.alert);
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Delete task'));
+    });
+    await waitFor(() => {
+      expect(mockDeleteTask).toHaveBeenCalledWith('user-123', 'task-1');
+      expect(mockCancelTaskReminder).toHaveBeenCalledWith('task-1');
+    });
+    alertSpy.mockRestore();
+  });
+});
+
 // ── Go back ───────────────────────────────────────────────────────────────────
 
 describe('TaskFormScreen — go back', () => {
@@ -748,10 +865,10 @@ describe('TaskFormScreen — KAN-149 copy', () => {
     expect(screen.getByText('Which part of your life?')).toBeTruthy();
   });
 
-  it('time question reads "Around when?" with "Anytime is fine" placeholder', () => {
+  it('time question reads "Around when?" with "Anytime is fine" placeholder text (KAN-280 — now a pressable field, not free text)', () => {
     render(<TaskFormScreen />);
     expect(screen.getByText('Around when?')).toBeTruthy();
-    expect(screen.getByPlaceholderText('Anytime is fine')).toBeTruthy();
+    expect(screen.getByText('Anytime is fine')).toBeTruthy();
   });
 
   it('renders a rotating example as the title input\'s faux placeholder in create mode', () => {

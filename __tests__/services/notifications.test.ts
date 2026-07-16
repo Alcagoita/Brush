@@ -39,6 +39,8 @@ import {
   fireExitPrompt,
   registerExitPromptCategory,
   EXIT_ACTION_MARK_DONE,
+  scheduleTaskReminder,
+  cancelTaskReminder,
 } from '../../src/services/notifications';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -81,6 +83,28 @@ function pastTime(): string {
   const h = new Date().getHours();
   const safeHour = h === 0 ? 23 : h - 1;
   return `${String(safeHour).padStart(2, '0')}:00`;
+}
+
+/** "YYYY-MM-DD" for a given Date, local time (matches Task.date format). */
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** "HH:MM" for a given Date, local time (matches Task.time format). */
+function hm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** A {date, time} pair `hoursAhead` from now — always resolves in the future. */
+function futureDateTime(hoursAhead = 2): { date: string; time: string } {
+  const d = new Date(Date.now() + hoursAhead * 3600_000);
+  return { date: ymd(d), time: hm(d) };
+}
+
+/** A {date, time} pair `hoursBehind` from now — always resolves in the past. */
+function pastDateTime(hoursBehind = 1): { date: string; time: string } {
+  const d = new Date(Date.now() - hoursBehind * 3600_000);
+  return { date: ymd(d), time: hm(d) };
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -468,5 +492,74 @@ describe('registerExitPromptCategory', () => {
     const action = exitCat.actions.find((a: any) => a.id === EXIT_ACTION_MARK_DONE);
     expect(action).toBeDefined();
     expect(action.title).toContain('brushed');
+  });
+});
+
+// ─── KAN-280: user-set task time reminder ─────────────────────────────────────
+
+describe('scheduleTaskReminder', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('cancels any existing reminder for the task before scheduling', async () => {
+    const { date, time } = futureDateTime();
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date, time });
+    expect(mockCancelNotification).toHaveBeenCalledWith('task-reminder-t1');
+  });
+
+  it('does NOT schedule when time is empty', async () => {
+    const { date } = futureDateTime();
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date, time: '' });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('does NOT schedule when the date+time has already passed, and never rolls forward to tomorrow', async () => {
+    const { date, time } = pastDateTime();
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date, time });
+    expect(mockCreateTriggerNotification).not.toHaveBeenCalled();
+  });
+
+  it('schedules a trigger notification with the calm copy when date+time is in the future', async () => {
+    const { date, time } = futureDateTime();
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date, time });
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(1);
+    const [notif, trigger] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.id).toBe('task-reminder-t1');
+    expect(notif.title).toBe(`You wanted this at ${time}`);
+    expect(notif.body).toBe('Buy milk');
+    expect(trigger.type).toBe(0); // TriggerType.TIMESTAMP
+    expect(trigger.timestamp).toBeGreaterThan(Date.now());
+  });
+
+  it('notification data contains screen:Today and taskId for tap routing', async () => {
+    const { date, time } = futureDateTime();
+    await scheduleTaskReminder({ taskId: 't42', taskTitle: 'Buy milk', date, time });
+    const [notif] = mockCreateTriggerNotification.mock.calls[0];
+    expect(notif.data?.screen).toBe('Today');
+    expect(notif.data?.taskId).toBe('t42');
+  });
+
+  it('schedules regardless of quiet hours — an explicit user-set time beats the 22:00-08:00 suppression', async () => {
+    // Tomorrow at 23:00 — inside the quiet-hours window, but still a future timestamp.
+    const tomorrow = new Date(Date.now() + 24 * 3600_000);
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date: ymd(tomorrow), time: '23:00' });
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-scheduling (edit) replaces the previous notification rather than stacking a second one', async () => {
+    const first = futureDateTime(2);
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date: first.date, time: first.time });
+    const second = futureDateTime(4);
+    await scheduleTaskReminder({ taskId: 't1', taskTitle: 'Buy milk', date: second.date, time: second.time });
+    expect(mockCancelNotification).toHaveBeenCalledTimes(2);
+    expect(mockCreateTriggerNotification).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('cancelTaskReminder', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('calls notifee.cancelNotification with the task-scoped id', async () => {
+    await cancelTaskReminder('abc123');
+    expect(mockCancelNotification).toHaveBeenCalledWith('task-reminder-abc123');
   });
 });

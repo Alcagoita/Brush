@@ -11,6 +11,7 @@ import { Platform, Vibration, InteractionManager } from 'react-native';
 import { setTaskDone } from '../../services/firestore';
 import { checkAndFireAchievementNudge } from '../../services/achievements';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../../services/challenges';
+import { cancelTaskReminder } from '../../services/notifications';
 import type { NearbyPlace } from '../../services/maps';
 import type { Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
@@ -46,6 +47,11 @@ export function useTaskCompletion(
         await setTaskDone(uid, taskId, done, completedPlace);
       } else {
         await setTaskDone(uid, taskId, done);
+      }
+      // Brushing cancels any pending time reminder for this task (KAN-280).
+      // Best-effort — never let a notifee failure surface as a toggle failure.
+      if (done) {
+        cancelTaskReminder(taskId).catch(() => {});
       }
       // Only clear pendingSync if the row still reflects this write (same
       // optimistic done value) — a newer toggle that landed while this write

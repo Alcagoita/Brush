@@ -59,6 +59,7 @@ import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius, fonts, categories as builtInCategories, fallbackCategoryColor } from '../theme/tokens';
 import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips } from '../services/firestore';
+import { cancelTaskReminder } from '../services/notifications';
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/AppIcon';
@@ -454,6 +455,10 @@ export default function CalendarScreen() {
         ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done, completedAt: !done ? Timestamp.now() : undefined } : t) }
         : prev);
     });
+    // Brushing cancels any pending time reminder for this task (KAN-280).
+    if (done) {
+      cancelTaskReminder(taskId).catch(() => {});
+    }
   }, [uid]);
 
   // ── Custom categories — one-shot, mirrors TaskRow's resolution. Re-run on
