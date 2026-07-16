@@ -4,8 +4,9 @@
  * Covers:
  *  - loading state while resolving
  *  - empty state when nothing resolves
- *  - renders both "On foot" / "By car" cards from the same computed plan
- *  - tapping a card opens Maps with the correct origin/stops/travelmode
+ *  - renders the single suggestion card from the computed plan
+ *  - tapping the card opens Maps with the correct origin/stops (no travelmode
+ *    — the user picks that inside Maps itself)
  *  - back button navigates back
  */
 
@@ -116,57 +117,39 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     mockPlanTrip.mockReturnValue({ stops, excludedCount: 1, totalDistanceMeters: 1500 });
   });
 
-  it('renders both On foot and By car cards from the same plan', async () => {
+  it('renders the suggestion card with every stop from the plan', async () => {
     render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getByText('On foot')).toBeTruthy());
-    expect(screen.getByText('By car')).toBeTruthy();
-    expect(screen.getAllByText(/Farmácia Silva/)).toHaveLength(2); // once per card
-    expect(screen.getAllByText(/Mercado da Vila/)).toHaveLength(2);
+    await waitFor(() => expect(screen.getByText(/Farmácia Silva/)).toBeTruthy());
+    expect(screen.getByText(/Mercado da Vila/)).toBeTruthy();
   });
 
   it('shows the learned-place and distance labels correctly', async () => {
     render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getAllByText(/Farmácia Silva · your usual/)[0]).toBeTruthy());
-    expect(screen.getAllByText(/Mercado da Vila · 400 m/)[0]).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Farmácia Silva · your usual/)).toBeTruthy());
+    expect(screen.getByText(/Mercado da Vila · 400 m/)).toBeTruthy();
   });
 
   it('shows the exclusion line when tasks were excluded', async () => {
     render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getAllByText("Couldn't find a place for 1 of them")[0]).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Couldn't find a place for 1 of them")).toBeTruthy());
   });
 
   it('shows the approximate total distance line', async () => {
     render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getAllByText('About 1.5 km all together')[0]).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('About 1.5 km all together')).toBeTruthy());
   });
 
-  it('tapping the "On foot" card opens Maps with walking mode', async () => {
+  it('tapping the card opens Maps with the origin and stops, no travelmode', async () => {
     render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getByText('On foot')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
 
     await act(async () => {
-      fireEvent.press(screen.getByTestId('itinerary-card-walking'));
+      fireEvent.press(screen.getByTestId('itinerary-card'));
     });
 
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
       { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
       [stops[0].place, stops[1].place],
-      'walking',
-    );
-  });
-
-  it('tapping the "By car" card opens Maps with driving mode', async () => {
-    render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getByText('By car')).toBeTruthy());
-
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('itinerary-card-driving'));
-    });
-
-    expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
-      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
-      [stops[0].place, stops[1].place],
-      'driving',
     );
   });
 });

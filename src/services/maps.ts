@@ -231,17 +231,17 @@ export async function openMapsSearch(
 export async function openMultiStopDirections(
   origin: { lat: number; lng: number },
   stops: { lat: number; lng: number }[],
-  travelMode: 'walking' | 'driving',
 ): Promise<void> {
   if (stops.length === 0) { return; }
 
   const destination = stops[stops.length - 1];
   const waypoints = stops.slice(0, -1);
 
+  // No travelmode param — Maps opens with its own default and the user
+  // picks walking/driving/etc. themselves inside the app.
   let url = `https://www.google.com/maps/dir/?api=1`
     + `&origin=${origin.lat},${origin.lng}`
-    + `&destination=${destination.lat},${destination.lng}`
-    + `&travelmode=${travelMode}`;
+    + `&destination=${destination.lat},${destination.lng}`;
 
   if (waypoints.length > 0) {
     const waypointsParam = waypoints.map(w => `${w.lat},${w.lng}`).join('|');

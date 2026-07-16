@@ -13,7 +13,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +21,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, PoiIcon } from '../components/AppIcon';
+import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { getTasksForDate } from '../services/firestore';
@@ -84,9 +85,9 @@ export default function ItineraryOptionsScreen() {
     return () => { cancelled = true; };
   }, [retryCount]);
 
-  const openCard = (travelMode: 'walking' | 'driving') => {
+  const openCard = () => {
     if (!plan || plan.stops.length === 0 || !origin) { return; }
-    openMultiStopDirections(origin, plan.stops.map(s => s.place), travelMode).catch(() => {
+    openMultiStopDirections(origin, plan.stops.map(s => s.place)).catch(() => {
       useToastStore.getState().showToast(COPY.itineraryOptionsScreen.mapsOpenFailed);
     });
   };
@@ -109,7 +110,7 @@ export default function ItineraryOptionsScreen() {
 
       {loading ? (
         <View style={styles.loadingWrap}>
-          <ActivityIndicator color={palette.accent} />
+          <LoadingDots color={palette.accent} />
           <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
         </View>
       ) : loadError ? (
@@ -128,47 +129,37 @@ export default function ItineraryOptionsScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-          {(['walking', 'driving'] as const).map((travelMode) => (
-            <Pressable
-              key={travelMode}
-              testID={`itinerary-card-${travelMode}`}
-              onPress={() => openCard(travelMode)}
-              style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.line }]}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.itineraryOptionsScreen.openInMapsA11y(
-                travelMode === 'walking' ? COPY.itineraryOptionsScreen.onFootLabel : COPY.itineraryOptionsScreen.byCarLabel,
-              )}>
-              <View style={styles.cardHeader}>
-                <Text style={[styles.cardTitle, { color: palette.text }]}>
-                  {travelMode === 'walking' ? COPY.itineraryOptionsScreen.onFootLabel : COPY.itineraryOptionsScreen.byCarLabel}
-                </Text>
-                <Text style={[styles.cardStopsCount, { color: palette.muted }]}>
-                  {COPY.itineraryOptionsScreen.stopsCount(plan.stops.length)}
+          <Pressable
+            testID="itinerary-card"
+            onPress={openCard}
+            style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.line }]}
+            accessibilityRole="button"
+            accessibilityLabel={COPY.itineraryOptionsScreen.openInMapsA11y}>
+            <Text style={[styles.cardStopsCount, { color: palette.muted }]}>
+              {COPY.itineraryOptionsScreen.stopsCount(plan.stops.length)}
+            </Text>
+
+            {plan.stops.map((stop, i) => (
+              <View key={stop.task.id} style={styles.stopRow}>
+                <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
+                  <PoiIcon type={stop.task.poi ?? ''} color={palette.muted} size={20} />
+                </View>
+                <Text style={[styles.stopLabel, { color: palette.text }]} numberOfLines={1}>
+                  <Text style={styles.stopNumber}>{i + 1}.</Text> {stopLine(stop)}
                 </Text>
               </View>
+            ))}
 
-              {plan.stops.map((stop, i) => (
-                <View key={stop.task.id} style={styles.stopRow}>
-                  <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
-                    <PoiIcon type={stop.task.poi ?? ''} color={palette.muted} size={20} />
-                  </View>
-                  <Text style={[styles.stopLabel, { color: palette.text }]} numberOfLines={1}>
-                    <Text style={styles.stopNumber}>{i + 1}.</Text> {stopLine(stop)}
-                  </Text>
-                </View>
-              ))}
+            <Text style={[styles.totalDistance, { color: palette.muted }]}>
+              {COPY.itineraryOptionsScreen.totalDistance(totalKm)}
+            </Text>
 
-              <Text style={[styles.totalDistance, { color: palette.muted }]}>
-                {COPY.itineraryOptionsScreen.totalDistance(totalKm)}
+            {plan.excludedCount > 0 && (
+              <Text style={[styles.exclusionLine, { color: palette.faint }]}>
+                {COPY.itineraryOptionsScreen.exclusionLine(plan.excludedCount)}
               </Text>
-
-              {plan.excludedCount > 0 && (
-                <Text style={[styles.exclusionLine, { color: palette.faint }]}>
-                  {COPY.itineraryOptionsScreen.exclusionLine(plan.excludedCount)}
-                </Text>
-              )}
-            </Pressable>
-          ))}
+            )}
+          </Pressable>
         </ScrollView>
       )}
     </View>
@@ -200,12 +191,6 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
   },
-  cardHeader: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  cardTitle: { fontSize: 16, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
   cardStopsCount: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },

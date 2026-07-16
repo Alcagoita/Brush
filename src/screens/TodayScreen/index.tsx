@@ -35,7 +35,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ChevronRightIcon, PlusIcon } from '../../components/AppIcon';
+import { PlusIcon } from '../../components/AppIcon';
 import { resolveTaskDestination } from '../../services/destinationResolver';
 import { getLearnedPlaceCounts } from '../../services/firestore';
 import { computeLearnedPlaces } from '../../services/learnedPlaces';
@@ -317,7 +317,7 @@ export default function TodayScreen() {
 
   const listFooter = useMemo(() => (
     <>
-      {/* ── "One trip for all of these ›" (KAN-281) — quiet, absence-is-default,
+      {/* ── "One trip for all of these" (KAN-281) — quiet, absence-is-default,
           same pattern as CalendarScreen's "Where we've been" entry row. ── */}
       {oneTripVisible && (
         <Pressable
@@ -329,7 +329,6 @@ export default function TodayScreen() {
           <Text style={[styles.oneTripForAllLabel, { color: palette.muted }]}>
             {COPY.oneTripForAll.entryLabel}
           </Text>
-          <ChevronRightIcon color={palette.faint} size={13} strokeWidth={1.8} />
         </Pressable>
       )}
       <View style={styles.bottomPad} />
