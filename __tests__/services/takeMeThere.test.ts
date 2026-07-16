@@ -52,7 +52,7 @@ describe('getPoiSearchLabel', () => {
 
   it('returns the localized custom-category label for a non-catalog type', () => {
     // "bakery" isn't one of the 16 built-ins — falls through to localPoiLabel.
-    expect(getPoiSearchLabel('bakery')).toBe(getPoiSearchLabel('bakery'));
+    expect(getPoiSearchLabel('bakery')).toBe('Bakery');
     expect(typeof getPoiSearchLabel('bakery')).toBe('string');
   });
 });

@@ -180,7 +180,7 @@ export default function TaskFormScreen() {
   // card? Synchronous, no location fetch — visibility never depends on a
   // permission/GPS round-trip. The actual position is only fetched at tap
   // time, right before opening Maps.
-  const takeMeThereFar = isEdit && !!existingTask && existingTask.kind !== 'birthday'
+  const takeMeThereFar = isEdit && !!existingTask && !isBirthday
     && !!existingTask.poi && isTaskPoiFarAway(existingTask.poi);
 
   // Inline new-category editor
