@@ -139,13 +139,18 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
     <View style={[styles.root, { backgroundColor: palette.surface, borderColor: palette.line }]}>
       <Pressable
         onPress={() => setHour12Override(!hour12Mode)}
-        style={[styles.formatToggle, { backgroundColor: palette.text }]}
+        style={styles.formatToggle}
         hitSlop={8}
         accessibilityRole="button"
         testID="time-format-toggle"
         accessibilityLabel={hour12Mode ? COPY.timePicker.switchTo24hA11y : COPY.timePicker.switchTo12hA11y}>
-        <Text style={[styles.formatToggleLabel, { color: palette.bg }]}>
-          {hour12Mode ? '12h' : '24h'}
+        <View style={[styles.formatToggleActivePill, { backgroundColor: palette.accent }]}>
+          <Text style={[styles.formatToggleActiveLabel, { color: palette.onAccent }]}>
+            {hour12Mode ? '12h' : '24h'}
+          </Text>
+        </View>
+        <Text style={[styles.formatToggleGhostLabel, { color: palette.muted }]}>
+          {hour12Mode ? '24h' : '12h'}
         </Text>
       </Pressable>
       <View style={styles.columns}>
@@ -180,29 +185,38 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
           a11yLabel={COPY.timePicker.minuteA11y}
           palette={palette}
         />
-        {hour12Mode && (
-          <View style={styles.meridiemColumn}>
-            {(['AM', 'PM'] as const).map((label, i) => {
-              const selected = (i === 1) === isPM;
-              return (
-                <Pressable
-                  key={label}
-                  testID={`time-meridiem-${label}`}
-                  onPress={() => commit(to24Hour(hour12, i === 1), initMinute)}
-                  style={[styles.meridiemBtn, selected && { backgroundColor: palette.accent }]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}>
-                  <Text style={[
-                    styles.meridiemLabel,
-                    { color: selected ? palette.onAccent : palette.text },
-                  ]}>
-                    {label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
+        {/* Hidden (not unmounted) in 24h mode — keeps the row's width/center
+            stable instead of the hour/minute columns visibly resizing and
+            re-centering each time the format is toggled. */}
+        <View
+          style={styles.meridiemColumn}
+          pointerEvents={hour12Mode ? 'auto' : 'none'}
+          accessibilityElementsHidden={!hour12Mode}
+          importantForAccessibility={hour12Mode ? 'auto' : 'no-hide-descendants'}>
+          {(['AM', 'PM'] as const).map((label, i) => {
+            const selected = (i === 1) === isPM;
+            return (
+              <Pressable
+                key={label}
+                testID={`time-meridiem-${label}`}
+                onPress={() => commit(to24Hour(hour12, i === 1), initMinute)}
+                style={[
+                  styles.meridiemBtn,
+                  selected && { backgroundColor: palette.accent },
+                  !hour12Mode && styles.meridiemBtnHidden,
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}>
+                <Text style={[
+                  styles.meridiemLabel,
+                  { color: selected ? palette.onAccent : palette.text },
+                ]}>
+                  {label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
     </View>
   );
@@ -218,16 +232,27 @@ const styles = StyleSheet.create({
   },
   formatToggle: {
     alignSelf: 'flex-end',
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  formatToggleActivePill: {
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.chip,
-    marginBottom: 8,
   },
-  formatToggleLabel: {
-    fontSize: 11,
+  formatToggleActiveLabel: {
+    fontSize: 12,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     letterSpacing: 0.3,
+  },
+  formatToggleGhostLabel: {
+    fontSize: 9,
+    fontFamily: 'Geist-Medium',
+    letterSpacing: 0.2,
+    marginTop: -2,
+    marginLeft: -4,
   },
   columns: {
     flexDirection: 'row',
@@ -271,5 +296,8 @@ const styles = StyleSheet.create({
   meridiemLabel: {
     fontSize: 12,
     fontFamily: 'Geist-Medium',
+  },
+  meridiemBtnHidden: {
+    opacity: 0,
   },
 });
