@@ -27,7 +27,7 @@
  * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -35,7 +35,11 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PlusIcon } from '../../components/AppIcon';
+import { ChevronRightIcon, PlusIcon } from '../../components/AppIcon';
+import { resolveTaskDestination } from '../../services/destinationResolver';
+import { getLearnedPlaceCounts } from '../../services/firestore';
+import { computeLearnedPlaces } from '../../services/learnedPlaces';
+import { getLastSearchCoords } from '../../services/proximity';
 import ScrRotatingNudge from '../../components/ScrRotatingNudge';
 import Animated from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -159,6 +163,35 @@ export default function TodayScreen() {
     [tasks],
   );
 
+  // ── "One trip for all of these" entry row (KAN-281) ───────────────────────────
+  // Local-only check (pinned/learned/cache — no live search) so this never
+  // fires an uninvited network call just to decide whether to show a quiet
+  // discovery row. Absence is the default: no cached position yet, or fewer
+  // than 2 resolvable tasks, and the row simply doesn't render.
+  const [oneTripEligibleCount, setOneTripEligibleCount] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const coords = getLastSearchCoords();
+      const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+      if (!coords || !uid || eligible.length < 2) {
+        if (!cancelled) { setOneTripEligibleCount(0); }
+        return;
+      }
+      try {
+        const counts = await getLearnedPlaceCounts(uid).catch(() => []);
+        const learned = computeLearnedPlaces(counts);
+        const results = await Promise.all(eligible.map(t => resolveTaskDestination(t, coords, learned)));
+        if (!cancelled) { setOneTripEligibleCount(results.filter(r => r !== null).length); }
+      } catch {
+        if (!cancelled) { setOneTripEligibleCount(0); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [sortedTasks, uid]);
+
+  const oneTripVisible = oneTripEligibleCount >= 2;
+
   // Stable row-press handler — an inline arrow here would change identity every
   // render and defeat React.memo on TaskRow.
   const handleTaskPress = useCallback(
@@ -274,6 +307,27 @@ export default function TodayScreen() {
     tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,
   ]);
 
+  const listFooter = useMemo(() => (
+    <>
+      {/* ── "One trip for all of these ›" (KAN-281) — quiet, absence-is-default,
+          same pattern as CalendarScreen's "Where we've been" entry row. ── */}
+      {oneTripVisible && (
+        <Pressable
+          style={styles.oneTripForAllRow}
+          hitSlop={4}
+          onPress={() => navigation.navigate('ItineraryOptions')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.oneTripForAll.entryA11y}>
+          <Text style={[styles.oneTripForAllLabel, { color: palette.muted }]}>
+            {COPY.oneTripForAll.entryLabel}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={13} strokeWidth={1.8} />
+        </Pressable>
+      )}
+      <View style={styles.bottomPad} />
+    </>
+  ), [oneTripVisible, navigation, palette]);
+
   const listEmpty = isBusy ? (
     <View style={styles.rowPad}>
       {[0, 1, 2].map(i => (
@@ -372,7 +426,7 @@ export default function TodayScreen() {
             keyExtractor={keyExtractor}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={listEmpty}
-            ListFooterComponent={<View style={styles.bottomPad} />}
+            ListFooterComponent={listFooter}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={scrollHandler}

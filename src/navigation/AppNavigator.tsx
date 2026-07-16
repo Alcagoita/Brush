@@ -34,6 +34,7 @@ import OffGridScreen from '../screens/OffGridScreen';
 import PlacesIKnowScreen from '../screens/PlacesIKnowScreen';
 import HomeAddressScreen from '../screens/HomeAddressScreen';
 import WhereWeveBeenScreen from '../screens/WhereWeveBeenScreen';
+import ItineraryOptionsScreen from '../screens/ItineraryOptionsScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -79,6 +80,9 @@ export type RootStackParamList = {
   OffGrid: undefined;
   /** "Where we've been" — past-trip timeline, destination + dates only (KAN-257). Optional highlightTripId when opened from a past day's Calendar row, to draw the eye to that trip. */
   WhereWeveBeen: { highlightTripId?: string } | undefined;
+  /** "One trip for all of these" — resolves + orders open POI tasks into a
+   *  multi-stop route, on-foot/by-car option cards (KAN-281). */
+  ItineraryOptions: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -117,6 +121,7 @@ export default function AppNavigator() {
       <Stack.Screen name="PlacesIKnow"                component={PlacesIKnowScreen} />
       <Stack.Screen name="HomeAddress"                component={HomeAddressScreen} />
       <Stack.Screen name="WhereWeveBeen"              component={WhereWeveBeenScreen} />
+      <Stack.Screen name="ItineraryOptions"           component={ItineraryOptionsScreen} />
     </Stack.Navigator>
   );
 }

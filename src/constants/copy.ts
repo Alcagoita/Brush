@@ -228,6 +228,31 @@ const en = {
     cancel: 'Cancel',
   },
 
+  // ─── One trip for all of these (KAN-281) — offer, never a command; no
+  // "itinerary"/"optimize" jargon anywhere in this copy. ────────────────────
+  oneTripForAll: {
+    entryLabel: 'One trip for all of these ›',
+    entryA11y:  'One trip for all of these',
+  },
+
+  itineraryOptionsScreen: {
+    screenTitle:  'One trip for all of these',
+    backA11y:     'Back',
+    loadingLabel: 'Finding the way…',
+    onFootLabel:  'On foot',
+    byCarLabel:   'By car',
+    stopsCount:   (n: number) => (n === 1 ? '1 stop' : `${n} stops`),
+    /** "{name} · your usual" — learned-place stop. */
+    destinationLearned: (name: string) => `${name} · your usual`,
+    /** "{name} · {distance}" — cache/live-resolved stop. */
+    destinationWithDistance: (name: string, distance: string) => `${name} · ${distance}`,
+    /** Straight-line sum, clearly approximate — Maps owns real routing. */
+    totalDistance:  (km: string) => `About ${km} km all together`,
+    exclusionLine:  (n: number) => (n === 1 ? "Couldn't find a place for 1 of them" : `Couldn't find a place for ${n} of them`),
+    openInMapsA11y: (mode: string) => `Open ${mode} directions in Maps`,
+    emptyStateBody: "Couldn't find places for any of these right now.",
+  },
+
   // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
   // Never say "mode"/"cache"/"snapshot" here — same first-person voice as
   // offline/tripPlanner above. The offline glyph's sheet copy stays
@@ -1232,6 +1257,26 @@ const ptPT: typeof en = {
     forgetConfirmBody: 'Esta viagem deixa de aparecer aqui.',
     forgetConfirmAction: 'Esquecer',
     cancel: 'Cancelar',
+  },
+
+  oneTripForAll: {
+    entryLabel: 'Uma viagem para todas estas ›',
+    entryA11y:  'Uma viagem para todas estas',
+  },
+
+  itineraryOptionsScreen: {
+    screenTitle:  'Uma viagem para todas estas',
+    backA11y:     'Voltar',
+    loadingLabel: 'A encontrar o caminho…',
+    onFootLabel:  'A pé',
+    byCarLabel:   'De carro',
+    stopsCount:   (n: number) => (n === 1 ? '1 paragem' : `${n} paragens`),
+    destinationLearned: (name: string) => `${name} · o teu habitual`,
+    destinationWithDistance: (name: string, distance: string) => `${name} · ${distance}`,
+    totalDistance:  (km: string) => `Cerca de ${km} km no total`,
+    exclusionLine:  (n: number) => (n === 1 ? 'Não encontrei um local para 1 delas' : `Não encontrei um local para ${n} delas`),
+    openInMapsA11y: (mode: string) => `Abrir direções ${mode} no Maps`,
+    emptyStateBody: 'Não encontrei locais para nenhuma delas agora.',
   },
 
   contextChip: {

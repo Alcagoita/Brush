@@ -219,6 +219,38 @@ export async function openMapsSearch(
   await Linking.openURL(url);
 }
 
+/**
+ * Opens a multi-stop Google Maps directions URL (KAN-281) — origin, ordered
+ * waypoints, and a final destination, handed off to whatever Maps app the
+ * device resolves the universal link to. We never compute the route
+ * ourselves; this is purely a stop-order handoff.
+ *
+ * `stops` must already be in the desired visit order (see oneTripForAll.ts's
+ * greedy ordering) and capped to Maps' own ~9-waypoint limit by the caller.
+ */
+export async function openMultiStopDirections(
+  origin: { lat: number; lng: number },
+  stops: { lat: number; lng: number }[],
+  travelMode: 'walking' | 'driving',
+): Promise<void> {
+  if (stops.length === 0) { return; }
+
+  const destination = stops[stops.length - 1];
+  const waypoints = stops.slice(0, -1);
+
+  let url = `https://www.google.com/maps/dir/?api=1`
+    + `&origin=${origin.lat},${origin.lng}`
+    + `&destination=${destination.lat},${destination.lng}`
+    + `&travelmode=${travelMode}`;
+
+  if (waypoints.length > 0) {
+    const waypointsParam = waypoints.map(w => `${w.lat},${w.lng}`).join('|');
+    url += `&waypoints=${encodeURIComponent(waypointsParam)}`;
+  }
+
+  await Linking.openURL(url);
+}
+
 // ─── Distance display helper ───────────────────────────────────────────────────
 
 /**

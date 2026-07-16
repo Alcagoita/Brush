@@ -253,6 +253,21 @@ export const styles = StyleSheet.create({
   // even with a short task list.
   // Clears the floating add-task FAB at the end of the list.
   bottomPad: { height: 96 },
+  // ── "One trip for all of these" entry row (KAN-281) ──
+  oneTripForAllRow: {
+    flexDirection:    'row',
+    alignItems:       'center',
+    gap:              6,
+    minHeight:        36,
+    marginHorizontal: spacing.page,
+    marginTop:        10,
+  },
+  oneTripForAllLabel: {
+    flex:       1,
+    fontSize:   13,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
   // ── Empty state CTA ──
   emptyCTAWrap: {
     paddingHorizontal: spacing.page,
