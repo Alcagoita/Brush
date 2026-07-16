@@ -62,6 +62,20 @@ jest.mock('../../src/services/notifications', () => ({
   cancelTaskReminder:   (...args: unknown[]) => mockCancelTaskReminder(...args),
 }));
 
+// KAN-279 — mocked at the service boundary (same style as notifications/
+// achievements above) rather than mocking takeMeThere.ts's own transitive
+// deps (proximity.ts pulls in notifee/NetInfo/expo-sqlite, unavailable
+// under Jest). poiSuggestions.ts (via poiTypeCache.ts) still needs the
+// real services/maps/geolocation exports, so those are left unmocked here.
+const mockIsTaskPoiFarAway     = jest.fn().mockReturnValue(false);
+const mockOpenTakeMeThereMaps  = jest.fn().mockResolvedValue(undefined);
+const mockGetTakeMeThereA11yLabel = jest.fn().mockReturnValue('Take me to a Pharmacy');
+jest.mock('../../src/services/takeMeThere', () => ({
+  isTaskPoiFarAway:        (...args: unknown[]) => mockIsTaskPoiFarAway(...args),
+  openTakeMeThereMaps:     (...args: unknown[]) => mockOpenTakeMeThereMaps(...args),
+  getTakeMeThereA11yLabel: (...args: unknown[]) => mockGetTakeMeThereA11yLabel(...args),
+}));
+
 // KAN-248 — deleteField is imported directly (not via the src/services/firestore
 // barrel) to clear poi/kind when the birthday toggle flips. Mocked as a
 // recognizable sentinel so tests can assert it was used without pulling in
@@ -122,6 +136,7 @@ jest.mock('../../src/components/AppIcon', () => {
     CalendarIcon: stub,
     ClockIcon:    stub,
     CloseIcon:    stub,
+    NavigateIcon: stub,
     PoiIcon:      stub,
   };
 });
@@ -1052,5 +1067,59 @@ describe('TaskFormScreen — birthday toggle (KAN-248)', () => {
     await waitFor(() => expect(mockAddTask).toHaveBeenCalled());
     const payload = mockAddTask.mock.calls[0][1];
     expect('kind' in payload).toBe(false);
+  });
+});
+
+// ── Take me there (KAN-279) ─────────────────────────────────────────────────
+
+describe('TaskFormScreen — take me there', () => {
+  it('does NOT render in create mode', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123' });
+    render(<TaskFormScreen />);
+    expect(mockIsTaskPoiFarAway).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
+  });
+
+  it('does NOT render when the POI is in the Nearby list (not far)', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(false);
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
+  });
+
+  it('renders the top-bar icon when the POI is far (not in the Nearby list)', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    expect(screen.getByLabelText('Take me to a Pharmacy')).toBeTruthy();
+  });
+
+  it('checks farness against the task\'s saved poi', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy' }) });
+    render(<TaskFormScreen />);
+    expect(mockIsTaskPoiFarAway).toHaveBeenCalledWith('pharmacy');
+    expect(mockGetTakeMeThereA11yLabel).toHaveBeenCalledWith('pharmacy');
+  });
+
+  it('does NOT render for a birthday task', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ kind: 'birthday' }) });
+    render(<TaskFormScreen />);
+    expect(mockIsTaskPoiFarAway).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
+  });
+
+  it('tapping the top-bar icon opens a Maps search for the task\'s poi', async () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy' }) });
+    render(<TaskFormScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Take me to a Pharmacy'));
+    });
+
+    expect(mockOpenTakeMeThereMaps).toHaveBeenCalledWith('pharmacy');
   });
 });

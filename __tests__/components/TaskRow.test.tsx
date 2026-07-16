@@ -35,6 +35,16 @@ jest.mock('react-native-reanimated', () => require('react-native-reanimated/mock
 
 jest.mock('../../src/components/PoiChip', () => 'PoiChip');
 
+// KAN-279 — mocked at the service boundary: openTakeMeThereMaps/getTakeMeThereA11yLabel
+// live in services/takeMeThere.ts, which pulls in proximity.ts (notifee/NetInfo/
+// expo-sqlite, unavailable under Jest).
+const mockOpenTakeMeThereMaps = jest.fn().mockResolvedValue(undefined);
+const mockGetTakeMeThereA11yLabel = jest.fn((poiType: string) => `Take me to a ${poiType}`);
+jest.mock('../../src/services/takeMeThere', () => ({
+  openTakeMeThereMaps:     (...args: unknown[]) => mockOpenTakeMeThereMaps(...args),
+  getTakeMeThereA11yLabel: (...args: unknown[]) => mockGetTakeMeThereA11yLabel(...(args as [string])),
+}));
+
 // BrushStroke is mocked with a testID so tests can assert presence/absence
 // and verify the width prop received. The real SVG component cannot render
 // in the Jest/JSDOM environment.
@@ -279,5 +289,33 @@ describe('TaskRow — interaction', () => {
     // KAN-110: accessibility label uses "Unbrush X" for done tasks
     fireEvent.press(screen.getByRole('checkbox', { name: 'Unbrush Buy groceries' }));
     expect(onToggle).toHaveBeenCalledWith('task-1', false);
+  });
+});
+
+describe('TaskRow — far-away indicator (KAN-279)', () => {
+  it('does NOT render when isFar is false', () => {
+    render(<TaskRow task={{ ...BASE_TASK, poi: 'pharmacy' }} onToggle={onToggle} isFar={false} />);
+    expect(screen.queryByLabelText('Take me to a pharmacy')).toBeNull();
+  });
+
+  it('does NOT render when isFar is true but the task has no poi', () => {
+    render(<TaskRow task={BASE_TASK} onToggle={onToggle} isFar />);
+    expect(screen.queryByLabelText(/Take me to/)).toBeNull();
+  });
+
+  it('renders when isFar is true and the task has a poi', () => {
+    render(<TaskRow task={{ ...BASE_TASK, poi: 'pharmacy' }} onToggle={onToggle} isFar />);
+    expect(screen.getByLabelText('Take me to a pharmacy')).toBeTruthy();
+    expect(mockGetTakeMeThereA11yLabel).toHaveBeenCalledWith('pharmacy');
+  });
+
+  it('tapping it opens a Maps search without triggering the row\'s onPress (edit)', () => {
+    const onPress = jest.fn();
+    render(<TaskRow task={{ ...BASE_TASK, poi: 'pharmacy' }} onToggle={onToggle} onPress={onPress} isFar />);
+
+    fireEvent.press(screen.getByLabelText('Take me to a pharmacy'));
+
+    expect(mockOpenTakeMeThereMaps).toHaveBeenCalledWith('pharmacy');
+    expect(onPress).not.toHaveBeenCalled();
   });
 });

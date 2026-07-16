@@ -33,10 +33,11 @@ import { useTheme } from '../theme';
 import { categories, fallbackCategoryColor } from '../theme/tokens';
 import PoiChip from './PoiChip';
 import BrushStroke from './BrushStroke';
-import { CakeIcon } from './AppIcon';
+import { CakeIcon, NavigateIcon } from './AppIcon';
 import { COPY } from '../constants/copy';
 import { Task, Category } from '../types';
 import { logTap } from '../services/analytics';
+import { openTakeMeThereMaps, getTakeMeThereA11yLabel } from '../services/takeMeThere';
 
 interface TaskRowProps {
   task: Task;
@@ -48,6 +49,9 @@ interface TaskRowProps {
   onPress?: (task: Task) => void;
   /** Custom categories from Firestore — used to resolve non-built-in category IDs (KAN-61). */
   customCategories?: Category[];
+  /** True when this task's POI is far from here (KAN-279) — shows a quiet
+   *  nav-arrow indicator so the user knows "Take me there" is available. */
+  isFar?: boolean;
 }
 
 /** Fallback for tasks whose category ID doesn't match any known category. */
@@ -57,7 +61,7 @@ const FALLBACK_CAT = { color: fallbackCategoryColor, label: 'Other' };
  *  sweep gradient) to test whether SVG-per-row is what locks the Today screen. */
 const DEBUG_TASKROW_LIGHT = false;
 
-function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategories = [] }: TaskRowProps) {
+function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategories = [], isFar = false }: TaskRowProps) {
   const { palette } = useTheme();
   const builtIn = categories[task.category as keyof typeof categories];
   const custom  = customCategories.find(c => c.id === task.category);
@@ -205,9 +209,19 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
               )}
             </View>
           </View>
-          {(task.time || task.pendingSync) ? (
+          {(task.time || task.pendingSync || isFar) ? (
             <View style={styles.trailing}>
               {task.time ? <Text style={[styles.time, { color: palette.muted }]}>{task.time}</Text> : null}
+              {isFar && task.poi ? (
+                <Pressable
+                  onPress={() => { openTakeMeThereMaps(task.poi!).catch(() => {}); }}
+                  hitSlop={16}
+                  style={styles.farAwayIcon}
+                  accessibilityRole="button"
+                  accessibilityLabel={getTakeMeThereA11yLabel(task.poi)}>
+                  <NavigateIcon color={palette.muted} size={13} />
+                </Pressable>
+              ) : null}
               {task.pendingSync ? (
                 <View
                   style={[styles.syncDot, { backgroundColor: palette.faint }]}
@@ -313,13 +327,23 @@ function TaskRow({ task, nearbyPoiType = null, onToggle, onPress, customCategori
           </View>
         </View>
 
-        {/* Trailing: scheduled time + pending-sync dot */}
-        {(task.time || task.pendingSync) ? (
+        {/* Trailing: scheduled time + far-away indicator + pending-sync dot */}
+        {(task.time || task.pendingSync || isFar) ? (
           <View style={styles.trailing}>
             {task.time ? (
               <Text style={[styles.time, { color: palette.muted }]}>
                 {task.time}
               </Text>
+            ) : null}
+            {isFar && task.poi ? (
+              <Pressable
+                onPress={() => { openTakeMeThereMaps(task.poi!).catch(() => {}); }}
+                hitSlop={16}
+                style={styles.farAwayIcon}
+                accessibilityRole="button"
+                accessibilityLabel={getTakeMeThereA11yLabel(task.poi)}>
+                <NavigateIcon color={palette.muted} size={13} />
+              </Pressable>
             ) : null}
             {task.pendingSync ? (
               <View
@@ -440,5 +464,8 @@ const styles = StyleSheet.create({
     height:       5,
     borderRadius: 9999,
     alignSelf:    'flex-end',
+  },
+  farAwayIcon: {
+    marginRight: 4,
   },
 });

@@ -15,6 +15,7 @@ export const upsertPlace = jest.fn().mockReturnValue('hp_mock');
 export const upsertTripPlace = jest.fn().mockReturnValue('hp_mock_trip');
 export const writeTripAreaPlaces = jest.fn().mockReturnValue(0);
 export const queryHabitatCache = jest.fn().mockReturnValue({});
+export const getHabitatPlaceById = jest.fn().mockReturnValue(null);
 export const findExistingPlaceId = jest.fn().mockReturnValue(null);
 export const hasCachedPlaces = jest.fn().mockReturnValue(false);
 export const enforceSizeBudget = jest.fn();

@@ -202,6 +202,10 @@ export default function TodayScreen() {
           // every other row keeps a stable `null` across location ticks and its
           // memo holds (no re-render).
           nearbyPoiType={item.poi && item.poi === nearbyPoiType ? nearbyPoiType : null}
+          // KAN-279 — quiet nav-arrow indicator: this task's POI isn't in
+          // the Nearby list at all (same hero+grey set NearbyCard renders
+          // from poiPlaces), so "Take me there" is available for it.
+          isFar={!!item.poi && !poiPlaces[item.poi]?.length}
           onToggle={handleToggle}
           onPress={handleTaskPress}
           customCategories={customCategories}
@@ -209,7 +213,7 @@ export default function TodayScreen() {
       </View>
       )
     ),
-    [nearbyPoiType, handleToggle, handleTaskPress, customCategories, palette.text],
+    [nearbyPoiType, poiPlaces, handleToggle, handleTaskPress, customCategories, palette.text],
   );
 
   const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);

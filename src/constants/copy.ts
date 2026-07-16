@@ -955,6 +955,14 @@ const en = {
     birthdayUnsetWarningConfirm: 'Unmark',
   },
 
+  takeMeThere: {
+    /** Never "Navigate to nearest POI" — no jargon, no urgency (KAN-279). */
+    a11yFor: (poiLabel: string) => {
+      const article = /^[aeiou]/i.test(poiLabel) ? 'an' : 'a';
+      return `Take me to ${article} ${poiLabel}`;
+    },
+  },
+
   pointsHistoryScreen: {
     backA11y: 'Back',
     loadingA11y: 'Loading points history',
@@ -1914,6 +1922,11 @@ const ptPT: typeof en = {
     birthdayUnsetWarningTitle: 'Desmarcar este aniversário?',
     birthdayUnsetWarningBody: 'Esta tarefa volta a ser uma tarefa normal — vais precisar de lhe dar um local antes de conseguires guardar.',
     birthdayUnsetWarningConfirm: 'Desmarcar',
+  },
+
+  takeMeThere: {
+    /** "até" sidesteps o/a gender agreement on the POI label. */
+    a11yFor: (poiLabel: string) => `Leva-me até ${poiLabel}`,
   },
 
   pointsHistoryScreen: {

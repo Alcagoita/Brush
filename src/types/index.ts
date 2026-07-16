@@ -132,6 +132,11 @@ export function poiCatalogLabel(type: PoiType): string {
   return COPY.poiCatalog[type];
 }
 
+/** Is `value` one of the 16 built-in catalog types (vs. a custom category's free-text POI)? */
+export function isCatalogPoiType(value: string | null | undefined): value is PoiType {
+  return value != null && POI_CATALOG.some(item => item.type === value);
+}
+
 /**
  * All 16 built-in POI types, derived from POI_CATALOG. Used by the habitat
  * cache's prefetch (KAN-238) to warm the cache for every type regardless of

@@ -183,6 +183,42 @@ export async function openInMaps(
   await Linking.openURL(url);
 }
 
+/**
+ * Opens the device's native Maps app with a text search for `queryText`
+ * anchored near `lat`/`lng` — Maps resolves the nearest matching place
+ * itself (KAN-279). Unlike `openInMaps`, this never pins a specific place
+ * we picked; the app deliberately doesn't rank/resolve a destination.
+ *
+ * Android: `geo:{lat},{lng}?q={queryText}` — a search, not a pin
+ * iOS:     `maps://?q={queryText}&near={lat},{lng}` — Apple Maps search
+ *          Falls back to a Google Maps search URL if Apple Maps can't open.
+ */
+export async function openMapsSearch(
+  lat: number,
+  lng: number,
+  queryText: string,
+): Promise<void> {
+  const encodedQuery = encodeURIComponent(queryText);
+
+  let url: string;
+  if (Platform.OS === 'android') {
+    url = `geo:${lat},${lng}?q=${encodedQuery}`;
+  } else {
+    const appleMapsUrl = `maps://?q=${encodedQuery}&near=${lat},${lng}`;
+    const canOpenApple = await Linking.canOpenURL(appleMapsUrl);
+    url = canOpenApple
+      ? appleMapsUrl
+      : `https://www.google.com/maps/search/?api=1&query=${encodedQuery}+near+${lat},${lng}`;
+  }
+
+  const canOpen = await Linking.canOpenURL(url);
+  if (!canOpen) {
+    url = `https://www.google.com/maps/search/?api=1&query=${encodedQuery}+near+${lat},${lng}`;
+  }
+
+  await Linking.openURL(url);
+}
+
 // ─── Distance display helper ───────────────────────────────────────────────────
 
 /**
