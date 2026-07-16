@@ -1000,9 +1000,8 @@ const en = {
   timePicker: {
     hourA11y: 'Hour',
     minuteA11y: 'Minute',
-    /** e.g. "Clock format: 12 hour. Tap to switch to 24 hour." */
-    clockFormatA11y: (current: '12' | '24', target: '12' | '24') =>
-      `Clock format: ${current} hour. Tap to switch to ${target} hour.`,
+    formatToggleTo24: 'Clock format: 12 hour. Switch to 24 hour.',
+    formatToggleTo12: 'Clock format: 24 hour. Switch to 12 hour.',
   },
 
   taskReminder: {
@@ -1962,8 +1961,8 @@ const ptPT: typeof en = {
   timePicker: {
     hourA11y: 'Hora',
     minuteA11y: 'Minuto',
-    clockFormatA11y: (current: '12' | '24', target: '12' | '24') =>
-      `Formato do relógio: ${current} horas. Toca para mudar para ${target} horas.`,
+    formatToggleTo24: 'Formato do relógio: 12 horas. Mudar para 24 horas.',
+    formatToggleTo12: 'Formato do relógio: 24 horas. Mudar para 12 horas.',
   },
 
   taskReminder: {

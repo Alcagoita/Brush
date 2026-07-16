@@ -116,4 +116,19 @@ describe('MiniTimePicker', () => {
     fireEvent.press(screen.getByTestId('time-format-toggle'));
     expect(screen.getByTestId('time-hour12-2')).toBeTruthy();
   });
+
+  it('the pill label flips 12h -> 24h -> 12h across taps', () => {
+    mockHour12(true); // starts in 12h
+    render(<MiniTimePicker value="14:00" onChange={jest.fn()} />);
+    expect(screen.getByText('12h')).toBeTruthy();
+    expect(screen.queryByText('24h')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('time-format-toggle'));
+    expect(screen.getByText('24h')).toBeTruthy();
+    expect(screen.queryByText('12h')).toBeNull();
+
+    fireEvent.press(screen.getByTestId('time-format-toggle'));
+    expect(screen.getByText('12h')).toBeTruthy();
+    expect(screen.queryByText('24h')).toBeNull();
+  });
 });

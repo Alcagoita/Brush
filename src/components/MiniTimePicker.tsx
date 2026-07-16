@@ -17,20 +17,18 @@
  * drives only transform/opacity.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, Vibration, View } from 'react-native';
 import Animated, {
-  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
-  withTiming,
 } from 'react-native-reanimated';
 import { useTheme } from '../theme';
-import { radius as radii } from '../theme/tokens';
+import { radius as radii, fonts } from '../theme/tokens';
 import { COPY } from '../constants/copy';
 
 export interface MiniTimePickerProps {
@@ -70,17 +68,6 @@ function fireRowHaptic(): void {
 const ROW_HEIGHT = 36;
 const VISIBLE_ROWS = 5;
 const CENTER_ROW_OFFSET = Math.floor(VISIBLE_ROWS / 2);
-
-// ─── Format toggle geometry (KAN-280 polish) ───────────────────────────────────
-// Superscript-style cluster: both labels sit at the same anchor and diverge
-// purely via transform (translate + scale) — Fabric-safe per the note above.
-// Tuned empirically for a 15px base / 11px exponent pairing; nudge on sight.
-const TOGGLE_BASE_W = 52;
-const TOGGLE_BASE_H = 26;
-const TOGGLE_EXP_SCALE = 11 / 15;
-const TOGGLE_EXP_DX = 34;   // exponent sits this far right of the base's left edge
-const TOGGLE_ANCHOR_TOP = 13; // base's resting top offset — leaves room for the exponent to rise above it
-const TOGGLE_EXP_DY = -TOGGLE_ANCHOR_TOP; // raises the exponent's center to the base pill's top edge
 
 function Row({
   testID,
@@ -199,70 +186,6 @@ function Column({
   );
 }
 
-function FormatToggle({
-  hour12Mode,
-  onToggle,
-  palette,
-}: {
-  hour12Mode: boolean;
-  onToggle: () => void;
-  palette: ReturnType<typeof useTheme>['palette'];
-}) {
-  // 0 → "12h" is the base (selected); 1 → "24h" is the base.
-  const t = useSharedValue(hour12Mode ? 0 : 1);
-
-  useEffect(() => {
-    t.value = withTiming(hour12Mode ? 0 : 1, { duration: 180, easing: Easing.out(Easing.cubic) });
-  }, [hour12Mode, t]);
-
-  const slot12Style = useAnimatedStyle(() => {
-    const baseness = 1 - t.value;
-    return {
-      transform: [
-        { translateX: interpolate(baseness, [0, 1], [TOGGLE_EXP_DX, 0], Extrapolation.CLAMP) },
-        { translateY: interpolate(baseness, [0, 1], [TOGGLE_EXP_DY, 0], Extrapolation.CLAMP) },
-        { scale: interpolate(baseness, [0, 1], [TOGGLE_EXP_SCALE, 1], Extrapolation.CLAMP) },
-      ],
-    };
-  });
-  const pill12Style = useAnimatedStyle(() => ({
-    opacity: interpolate(1 - t.value, [0, 1], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  const slot24Style = useAnimatedStyle(() => {
-    const baseness = t.value;
-    return {
-      transform: [
-        { translateX: interpolate(baseness, [0, 1], [TOGGLE_EXP_DX, 0], Extrapolation.CLAMP) },
-        { translateY: interpolate(baseness, [0, 1], [TOGGLE_EXP_DY, 0], Extrapolation.CLAMP) },
-        { scale: interpolate(baseness, [0, 1], [TOGGLE_EXP_SCALE, 1], Extrapolation.CLAMP) },
-      ],
-    };
-  });
-  const pill24Style = useAnimatedStyle(() => ({
-    opacity: interpolate(t.value, [0, 1], [0, 1], Extrapolation.CLAMP),
-  }));
-
-  return (
-    <Pressable
-      onPress={onToggle}
-      style={styles.formatToggle}
-      hitSlop={{ top: 4, bottom: 8, left: 4, right: 4 }}
-      accessibilityRole="button"
-      testID="time-format-toggle"
-      accessibilityLabel={COPY.timePicker.clockFormatA11y(hour12Mode ? '12' : '24', hour12Mode ? '24' : '12')}>
-      <Animated.View style={[styles.formatSlot, slot12Style]}>
-        <Animated.View style={[styles.formatPill, { backgroundColor: palette.accent }, pill12Style]} />
-        <Text style={[styles.formatLabel, { color: hour12Mode ? palette.onAccent : palette.muted }]}>12h</Text>
-      </Animated.View>
-      <Animated.View style={[styles.formatSlot, slot24Style]}>
-        <Animated.View style={[styles.formatPill, { backgroundColor: palette.accent }, pill24Style]} />
-        <Text style={[styles.formatLabel, { color: !hour12Mode ? palette.onAccent : palette.muted }]}>24h</Text>
-      </Animated.View>
-    </Pressable>
-  );
-}
-
 export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps) {
   const { palette } = useTheme();
   const deviceHour12 = useMemo(detectHour12, []);
@@ -286,11 +209,17 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
 
   return (
     <View style={[styles.root, { backgroundColor: palette.surface, borderColor: palette.line }]}>
-      <FormatToggle
-        hour12Mode={hour12Mode}
-        onToggle={() => setHour12Override(!hour12Mode)}
-        palette={palette}
-      />
+      <Pressable
+        onPress={() => setHour12Override(!hour12Mode)}
+        hitSlop={8}
+        accessibilityRole="button"
+        testID="time-format-toggle"
+        accessibilityLabel={hour12Mode ? COPY.timePicker.formatToggleTo24 : COPY.timePicker.formatToggleTo12}
+        style={[styles.formatPill, { backgroundColor: palette.surface2 }]}>
+        <Text style={[styles.formatPillText, { color: palette.muted }]}>
+          {hour12Mode ? '12h' : '24h'}
+        </Text>
+      </Pressable>
       <View style={styles.columns}>
         {hour12Mode ? (
           <Column
@@ -361,30 +290,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
   },
-  formatToggle: {
+  formatPill: {
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
     alignSelf: 'flex-end',
-    width: TOGGLE_BASE_W + TOGGLE_EXP_DX,
-    height: TOGGLE_ANCHOR_TOP + TOGGLE_BASE_H,
+    minWidth: 44,
+    alignItems: 'center',
     marginBottom: 8,
   },
-  formatSlot: {
-    position: 'absolute',
-    top: TOGGLE_ANCHOR_TOP,
-    left: 0,
-    width: TOGGLE_BASE_W,
-    height: TOGGLE_BASE_H,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  formatPill: {
-    ...StyleSheet.absoluteFillObject,
-    borderRadius: radii.chip,
-  },
-  formatLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    fontFamily: 'Geist-SemiBold',
-    letterSpacing: 0.3,
+  formatPillText: {
+    fontFamily: fonts.families.medium,
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
   },
   columns: {
     flexDirection: 'row',
