@@ -3,8 +3,8 @@
  *
  * Resolves a destination for every open POI task, orders them into one
  * multi-stop route (greedy nearest-neighbor from the current position),
- * and presents it as two option cards — "On foot" and "By car" — sharing
- * the exact same stops/order, differing only in the Maps travel mode.
+ * and presents it as a single card. Travel mode (walking/driving/etc.) is
+ * picked by the user inside Maps, not pre-judged here.
  *
  * Doctrine: reveal facts freely, order stops on request only, judge/command
  * never. Cards state facts (stop names, distances) — never "best" /
@@ -135,9 +135,12 @@ export default function ItineraryOptionsScreen() {
             style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.line }]}
             accessibilityRole="button"
             accessibilityLabel={COPY.itineraryOptionsScreen.openInMapsA11y}>
-            <Text style={[styles.cardStopsCount, { color: palette.muted }]}>
-              {COPY.itineraryOptionsScreen.stopsCount(plan.stops.length)}
-            </Text>
+            <View style={styles.cardHeader}>
+              <Text style={[styles.cardTitle, { color: palette.text }]}>{COPY.itineraryOptionsScreen.cardLabel}</Text>
+              <Text style={[styles.cardStopsCount, { color: palette.muted }]}>
+                {COPY.itineraryOptionsScreen.stopsCount(plan.stops.length)}
+              </Text>
+            </View>
 
             {plan.stops.map((stop, i) => (
               <View key={stop.task.id} style={styles.stopRow}>
@@ -178,7 +181,13 @@ const styles = StyleSheet.create({
   navBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 17, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 
-  loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.page },
+  // Absolutely positioned over the full screen (not just the area below
+  // topBar) so it centers on the true screen middle — centering only within
+  // the post-topBar flex space visibly sits low and reads as an error state.
+  loadingWrap: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.page,
+  },
   loadingLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
   emptyText: { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center' },
   retryLabel: { fontSize: 14, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
@@ -191,6 +200,12 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 10,
   },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  cardTitle: { fontSize: 16, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
   cardStopsCount: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   stopRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },

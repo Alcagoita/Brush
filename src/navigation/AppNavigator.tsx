@@ -81,7 +81,7 @@ export type RootStackParamList = {
   /** "Where we've been" — past-trip timeline, destination + dates only (KAN-257). Optional highlightTripId when opened from a past day's Calendar row, to draw the eye to that trip. */
   WhereWeveBeen: { highlightTripId?: string } | undefined;
   /** "One trip for all of these" — resolves + orders open POI tasks into a
-   *  multi-stop route, on-foot/by-car option cards (KAN-281). */
+   *  multi-stop route into a single suggestion card (KAN-281). */
   ItineraryOptions: undefined;
 };
 
