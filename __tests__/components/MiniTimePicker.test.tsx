@@ -5,6 +5,7 @@ import MiniTimePicker from '../../src/components/MiniTimePicker';
 jest.mock('../../src/theme', () => ({
   useTheme: () => ({
     palette: {
+      bg:       '#fdfdfb',
       surface:  '#f6f5f1',
       surface2: '#efeeea',
       line:     '#ddd',

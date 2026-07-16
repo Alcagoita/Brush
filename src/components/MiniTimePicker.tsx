@@ -139,12 +139,12 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
     <View style={[styles.root, { backgroundColor: palette.surface, borderColor: palette.line }]}>
       <Pressable
         onPress={() => setHour12Override(!hour12Mode)}
-        style={[styles.formatToggle, { backgroundColor: palette.surface2, borderColor: palette.line }]}
+        style={[styles.formatToggle, { backgroundColor: palette.text }]}
         hitSlop={8}
         accessibilityRole="button"
         testID="time-format-toggle"
         accessibilityLabel={hour12Mode ? COPY.timePicker.switchTo24hA11y : COPY.timePicker.switchTo12hA11y}>
-        <Text style={[styles.formatToggleLabel, { color: palette.text }]}>
+        <Text style={[styles.formatToggleLabel, { color: palette.bg }]}>
           {hour12Mode ? '12h' : '24h'}
         </Text>
       </Pressable>
@@ -221,7 +221,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: radii.chip,
-    borderWidth: StyleSheet.hairlineWidth,
     marginBottom: 8,
   },
   formatToggleLabel: {
