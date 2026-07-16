@@ -64,24 +64,16 @@ jest.mock('../../src/services/notifications', () => ({
 
 // KAN-279 — mocked at the service boundary (same style as notifications/
 // achievements above) rather than mocking takeMeThere.ts's own transitive
-// deps (habitatCache pulls in expo-sqlite, unavailable under Jest).
-const mockResolveTakeMeThereDestination = jest.fn().mockResolvedValue(null);
+// deps (proximity.ts pulls in notifee/NetInfo/expo-sqlite, unavailable
+// under Jest). poiSuggestions.ts (via poiTypeCache.ts) still needs the
+// real services/maps/geolocation exports, so those are left unmocked here.
+const mockIsTaskPoiFarAway     = jest.fn().mockReturnValue(false);
+const mockOpenTakeMeThereMaps  = jest.fn().mockResolvedValue(undefined);
+const mockGetTakeMeThereA11yLabel = jest.fn().mockReturnValue('Take me to a Pharmacy');
 jest.mock('../../src/services/takeMeThere', () => ({
-  resolveTakeMeThereDestination: (...args: unknown[]) => mockResolveTakeMeThereDestination(...args),
-}));
-
-const mockGetPositionLowAccuracy = jest.fn().mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
-jest.mock('../../src/services/geolocation', () => ({
-  getPositionLowAccuracy: (...args: unknown[]) => mockGetPositionLowAccuracy(...args),
-}));
-
-// Partial mock — poiSuggestions.ts (via poiTypeCache.ts) transitively needs
-// the real isGenericPlaceType/formatDistance etc. from this module; only
-// openInMaps is overridden.
-const mockOpenInMaps = jest.fn().mockResolvedValue(undefined);
-jest.mock('../../src/services/maps', () => ({
-  ...jest.requireActual('../../src/services/maps'),
-  openInMaps: (...args: unknown[]) => mockOpenInMaps(...args),
+  isTaskPoiFarAway:        (...args: unknown[]) => mockIsTaskPoiFarAway(...args),
+  openTakeMeThereMaps:     (...args: unknown[]) => mockOpenTakeMeThereMaps(...args),
+  getTakeMeThereA11yLabel: (...args: unknown[]) => mockGetTakeMeThereA11yLabel(...args),
 }));
 
 // KAN-248 — deleteField is imported directly (not via the src/services/firestore
@@ -140,12 +132,12 @@ jest.mock('../../src/components/AppIcon', () => {
   const { View } = require('react-native');
   const stub = (props: any) => React.createElement(View, props);
   return {
-    CakeIcon:       stub,
-    CalendarIcon:   stub,
-    ClockIcon:      stub,
-    CloseIcon:      stub,
-    NavigationIcon: stub,
-    PoiIcon:        stub,
+    CakeIcon:     stub,
+    CalendarIcon: stub,
+    ClockIcon:    stub,
+    CloseIcon:    stub,
+    NavigateIcon: stub,
+    PoiIcon:      stub,
   };
 });
 
@@ -1082,58 +1074,52 @@ describe('TaskFormScreen — birthday toggle (KAN-248)', () => {
 
 describe('TaskFormScreen — take me there', () => {
   it('does NOT render in create mode', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
     setRouteParams({ uid: 'user-123' });
     render(<TaskFormScreen />);
-    expect(screen.queryByLabelText('Take me there')).toBeNull();
+    expect(mockIsTaskPoiFarAway).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
   });
 
-  it('does NOT render in edit mode when no destination resolves', async () => {
-    mockResolveTakeMeThereDestination.mockResolvedValue(null);
+  it('does NOT render when the POI is in the Nearby list (not far)', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(false);
     setRouteParams({ uid: 'user-123', task: makeTask() });
     render(<TaskFormScreen />);
-    await waitFor(() => expect(mockResolveTakeMeThereDestination).toHaveBeenCalled());
-    expect(screen.queryByLabelText('Take me there')).toBeNull();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
   });
 
-  it('renders the top-bar icon action when a destination resolves', async () => {
-    mockResolveTakeMeThereDestination.mockResolvedValue({
-      lat: 1, lng: 2, name: 'Farmácia Silva', distanceMeters: 850, source: 'cache',
-    });
+  it('renders the top-bar icon when the POI is far (not in the Nearby list)', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
     setRouteParams({ uid: 'user-123', task: makeTask() });
     render(<TaskFormScreen />);
-    await waitFor(() => expect(screen.getByLabelText('Take me there')).toBeTruthy());
+    expect(screen.getByLabelText('Take me to a Pharmacy')).toBeTruthy();
   });
 
-  it('resolves against the uid/poi/poiPlaceId from the route params', async () => {
-    mockResolveTakeMeThereDestination.mockResolvedValue(null);
-    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy', poiPlaceId: 'pinned-1' }) });
+  it('checks farness against the task\'s saved poi', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy' }) });
     render(<TaskFormScreen />);
-    await waitFor(() => {
-      expect(mockResolveTakeMeThereDestination).toHaveBeenCalledWith(
-        expect.objectContaining({ uid: 'user-123', poiType: 'pharmacy', poiPlaceId: 'pinned-1' }),
-      );
-    });
+    expect(mockIsTaskPoiFarAway).toHaveBeenCalledWith('pharmacy');
+    expect(mockGetTakeMeThereA11yLabel).toHaveBeenCalledWith('pharmacy');
   });
 
-  it('does NOT resolve for a birthday task', async () => {
+  it('does NOT render for a birthday task', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
     setRouteParams({ uid: 'user-123', task: makeTask({ kind: 'birthday' }) });
     render(<TaskFormScreen />);
-    await act(async () => {});
-    expect(mockResolveTakeMeThereDestination).not.toHaveBeenCalled();
+    expect(mockIsTaskPoiFarAway).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
   });
 
-  it('tapping the top-bar icon opens maps at the resolved coordinates', async () => {
-    mockResolveTakeMeThereDestination.mockResolvedValue({
-      lat: 38.7, lng: -9.1, name: 'Farmácia Silva', distanceMeters: 850, source: 'cache',
-    });
-    setRouteParams({ uid: 'user-123', task: makeTask() });
+  it('tapping the top-bar icon opens a Maps search for the task\'s poi', async () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy' }) });
     render(<TaskFormScreen />);
-    await waitFor(() => expect(screen.getByLabelText('Take me there')).toBeTruthy());
 
     await act(async () => {
-      fireEvent.press(screen.getByLabelText('Take me there'));
+      fireEvent.press(screen.getByLabelText('Take me to a Pharmacy'));
     });
 
-    expect(mockOpenInMaps).toHaveBeenCalledWith(38.7, -9.1, 'Farmácia Silva');
+    expect(mockOpenTakeMeThereMaps).toHaveBeenCalledWith('pharmacy');
   });
 });

@@ -957,7 +957,10 @@ const en = {
 
   takeMeThere: {
     /** Never "Navigate to nearest POI" — no jargon, no urgency (KAN-279). */
-    a11y: 'Take me there',
+    a11yFor: (poiLabel: string) => {
+      const article = /^[aeiou]/i.test(poiLabel) ? 'an' : 'a';
+      return `Take me to ${article} ${poiLabel}`;
+    },
   },
 
   pointsHistoryScreen: {
@@ -1922,7 +1925,8 @@ const ptPT: typeof en = {
   },
 
   takeMeThere: {
-    a11y: 'Leva-me lá',
+    /** "até" sidesteps o/a gender agreement on the POI label. */
+    a11yFor: (poiLabel: string) => `Leva-me até ${poiLabel}`,
   },
 
   pointsHistoryScreen: {

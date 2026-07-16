@@ -136,13 +136,15 @@ jest.mock('react-native-reanimated', () => {
 // needing real SVG/Reanimated rendering. Calls onToggle(task.id, !task.done).
 jest.mock('../../src/components/TaskRow', () => {
   const { TouchableOpacity, Text } = require('react-native');
-  return function MockTaskRow({ task, onToggle }: {
+  return function MockTaskRow({ task, onToggle, isFar }: {
     task: { id: string; title: string; done: boolean };
     onToggle: (id: string, done: boolean) => void;
+    isFar?: boolean;
   }) {
     return (
       <TouchableOpacity
         testID={`task-row-${task.id}`}
+        accessibilityState={{ selected: !!isFar }}
         onPress={() => onToggle(task.id, !task.done)}
       >
         <Text>{task.title}</Text>
@@ -254,6 +256,26 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockUid = 'user-test';
   mockSubscribeToTotalPoints.mockReturnValue(jest.fn());
+});
+
+describe('KAN-279 — far-away indicator wiring', () => {
+  it('marks a task with a poi as far when nothing is in the Nearby list', async () => {
+    setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    // The mocked proximity module never invokes its onUpdate callback here,
+    // so poiPlaces stays {} — every task with a poi is "far" by default.
+    expect(screen.getByTestId('task-row-task-1').props.accessibilityState.selected).toBe(true);
+  });
+
+  it('does NOT mark a task without a poi as far', async () => {
+    setupFirestoreMocks([TASK]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.getByTestId('task-row-task-1').props.accessibilityState.selected).toBe(false);
+  });
 });
 
 describe('KAN-31 — point awarding on task toggle', () => {

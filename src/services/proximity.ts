@@ -181,6 +181,10 @@ let _lastSearchCoords: { lat: number; lng: number } | null = null;
 /** Currently active orange-hero POI type. Null when nothing is < HERO_RADIUS_M. */
 let _currentNearbyType: string | null = null;
 
+/** Every POI type with ≥1 place within NEARBY_RADIUS_M from the last search —
+ *  the same set NearbyCard's hero+grey lists are built from (KAN-279). */
+let _lastAllPlaces: PlacesMap = {};
+
 /** Count of undone POI tasks from the last search call. Detects new POI tasks. */
 let _prevUndonePoiTaskCount = 0;
 
@@ -581,6 +585,7 @@ async function runProximitySearch(
 
     if (uniquePoiTypes.length === 0) {
       _currentNearbyType = null;
+      _lastAllPlaces = {};
       // No undone POI tasks left to prompt for — nothing to fire, just
       // clear any in-progress dwell tracking.
       geofenceEntryTimes.clear();
@@ -834,6 +839,7 @@ async function runProximitySearch(
     }
 
     _currentNearbyType = heroType;
+    _lastAllPlaces = allPlaces;
     onUpdate(heroType, heroPlace, allPlaces);
   } finally {
     _isSearching = false;
@@ -898,9 +904,21 @@ export function getLastSearchCoords(): { lat: number; lng: number } | null {
   return _lastSearchCoords;
 }
 
+/**
+ * Is `poiType` currently in the Nearby list — the same hero+grey set
+ * NearbyCard renders (anything with ≥1 place within NEARBY_RADIUS_M), not
+ * just the single orange-hero type. Used by KAN-279's "Take me there"
+ * action so a task showing in the Nearby card's grey ("also close") rows
+ * never gets flagged as far away too.
+ */
+export function isPoiTypeNearby(poiType: string): boolean {
+  return !!_lastAllPlaces[poiType]?.length;
+}
+
 /** Reset deduplication state (call on sign-out or day boundary). */
 export function resetProximityState(): void {
   _currentNearbyType      = null;
+  _lastAllPlaces          = {};
   _lastSearchCoords       = null;
   _isSearching            = false;
   _prevUndonePoiTaskCount = 0;

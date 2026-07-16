@@ -1,166 +1,88 @@
 /**
- * KAN-279 — "Take me there" destination resolver.
+ * KAN-279 — "Take me there".
  *
- * Covers all four resolution branches plus the hidden (null) case:
- *   pinned poiPlaceId > learned place > habitat cache nearest > live search > null
+ * No destination resolution: the only in-app logic is "is this POI type
+ * NOT in the Nearby list right now" (isTaskPoiFarAway, backed by
+ * proximity.ts's isPoiTypeNearby). Tapping opens a plain Maps text search
+ * anchored at the current position — Maps finds the nearest match itself.
  */
 
-jest.mock('@react-native-community/netinfo', () =>
-  require('@react-native-community/netinfo/jest/netinfo-mock'),
-);
+const mockIsPoiTypeNearby = jest.fn();
+jest.mock('../../src/services/proximity', () => ({
+  isPoiTypeNearby: (...args: unknown[]) => mockIsPoiTypeNearby(...args),
+}));
 
-const mockGetPlaceDetails      = jest.fn();
-const mockSearchNearbyPlaces   = jest.fn();
+const mockGetPositionLowAccuracy = jest.fn();
+jest.mock('../../src/services/geolocation', () => ({
+  getPositionLowAccuracy: (...args: unknown[]) => mockGetPositionLowAccuracy(...args),
+}));
+
+const mockOpenMapsSearch = jest.fn();
 jest.mock('../../src/services/maps', () => ({
-  getPlaceDetails:    (...args: unknown[]) => mockGetPlaceDetails(...args),
-  searchNearbyPlaces: (...args: unknown[]) => mockSearchNearbyPlaces(...args),
+  openMapsSearch:      (...args: unknown[]) => mockOpenMapsSearch(...args),
+  isGenericPlaceType:  () => false,
 }));
 
-const mockQueryHabitatCache  = jest.fn();
-const mockGetHabitatPlaceById = jest.fn();
-jest.mock('../../src/services/habitatCache', () => ({
-  queryHabitatCache:    (...args: unknown[]) => mockQueryHabitatCache(...args),
-  getHabitatPlaceById:  (...args: unknown[]) => mockGetHabitatPlaceById(...args),
-}));
+import {
+  isTaskPoiFarAway,
+  getPoiSearchLabel,
+  getTakeMeThereA11yLabel,
+  openTakeMeThereMaps,
+} from '../../src/services/takeMeThere';
 
-const mockGetLearnedPlaceCounts = jest.fn();
-jest.mock('../../src/services/firestore', () => ({
-  getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
-}));
+describe('isTaskPoiFarAway', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-import NetInfo from '@react-native-community/netinfo';
-import { resolveTakeMeThereDestination } from '../../src/services/takeMeThere';
-
-const ORIGIN = { uid: 'user-1', poiType: 'pharmacy', currentLat: 38.7, currentLng: -9.1 };
-
-describe('resolveTakeMeThereDestination', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-    mockGetLearnedPlaceCounts.mockResolvedValue([]);
-    mockQueryHabitatCache.mockReturnValue({});
-    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true, isInternetReachable: true });
+  it('is true when the POI type is NOT in the Nearby list', () => {
+    mockIsPoiTypeNearby.mockReturnValue(false);
+    expect(isTaskPoiFarAway('pharmacy')).toBe(true);
+    expect(mockIsPoiTypeNearby).toHaveBeenCalledWith('pharmacy');
   });
 
-  it('resolves the pinned poiPlaceId first, skipping every other step', async () => {
-    mockGetPlaceDetails.mockResolvedValue({ lat: 1, lng: 2, name: 'Farmácia Silva' });
+  it('is false when the POI type IS in the Nearby list', () => {
+    mockIsPoiTypeNearby.mockReturnValue(true);
+    expect(isTaskPoiFarAway('pharmacy')).toBe(false);
+  });
+});
 
-    const result = await resolveTakeMeThereDestination({ ...ORIGIN, poiPlaceId: 'place-abc' });
-
-    expect(result).toEqual({ lat: 1, lng: 2, name: 'Farmácia Silva', source: 'pinned' });
-    expect(mockGetLearnedPlaceCounts).not.toHaveBeenCalled();
-    expect(mockQueryHabitatCache).not.toHaveBeenCalled();
-    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+describe('getPoiSearchLabel', () => {
+  it('returns the catalog label for a built-in POI type', () => {
+    expect(getPoiSearchLabel('pharmacy')).toBe('Pharmacy');
   });
 
-  it('falls through to learned/cache/live when the pinned place fails to resolve', async () => {
-    mockGetPlaceDetails.mockResolvedValue(null);
-    mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'cache-1', name: 'Cached Pharmacy', lat: 3, lng: 4, distanceMeters: 900 }],
-    });
+  it('returns the localized custom-category label for a non-catalog type', () => {
+    // "bakery" isn't one of the 16 built-ins — falls through to localPoiLabel.
+    expect(getPoiSearchLabel('bakery')).toBe(getPoiSearchLabel('bakery'));
+    expect(typeof getPoiSearchLabel('bakery')).toBe('string');
+  });
+});
 
-    const result = await resolveTakeMeThereDestination({ ...ORIGIN, poiPlaceId: 'dead-id' });
-
-    expect(result).toEqual({ lat: 3, lng: 4, name: 'Cached Pharmacy', distanceMeters: 900, source: 'cache' });
+describe('getTakeMeThereA11yLabel', () => {
+  it('embeds the POI label in the a11y phrasing', () => {
+    expect(getTakeMeThereA11yLabel('pharmacy')).toBe('Take me to a Pharmacy');
   });
 
-  it('prefers a learned place over a closer cached candidate', async () => {
-    mockGetLearnedPlaceCounts.mockResolvedValue([
-      { placeId: 'internal-1', name: 'Farmácia Silva', poiType: 'pharmacy', visitCount: 5 },
-    ]);
-    mockGetHabitatPlaceById.mockReturnValue({ placeId: 'internal-1', name: 'Farmácia Silva', lat: 10, lng: 20, distanceMeters: 0 });
-    mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'cache-1', name: 'Nearer Pharmacy', lat: 3, lng: 4, distanceMeters: 50 }],
-    });
+  it('uses "an" before a vowel-leading label', () => {
+    expect(getTakeMeThereA11yLabel('atm')).toBe('Take me to an ATM');
+  });
+});
 
-    const result = await resolveTakeMeThereDestination(ORIGIN);
+describe('openTakeMeThereMaps', () => {
+  beforeEach(() => jest.clearAllMocks());
 
-    expect(result).toEqual({ lat: 10, lng: 20, name: 'Farmácia Silva', source: 'learned' });
-    expect(mockQueryHabitatCache).not.toHaveBeenCalled();
+  it('fetches the current position and opens a Maps search with the POI label', async () => {
+    mockGetPositionLowAccuracy.mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
+    mockOpenMapsSearch.mockResolvedValue(undefined);
+
+    await openTakeMeThereMaps('pharmacy');
+
+    expect(mockOpenMapsSearch).toHaveBeenCalledWith(38.7, -9.1, 'Pharmacy');
   });
 
-  it('ignores a learned place below the visit threshold and falls through to cache', async () => {
-    mockGetLearnedPlaceCounts.mockResolvedValue([
-      { placeId: 'internal-1', name: 'Farmácia Silva', poiType: 'pharmacy', visitCount: 1 },
-    ]);
-    mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'cache-1', name: 'Cached Pharmacy', lat: 3, lng: 4, distanceMeters: 900 }],
-    });
+  it('propagates a rejection when the position fetch fails (caller decides how to handle it)', async () => {
+    mockGetPositionLowAccuracy.mockRejectedValue(new Error('permission denied'));
 
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(result?.source).toBe('cache');
-    expect(mockGetHabitatPlaceById).not.toHaveBeenCalled();
-  });
-
-  it('falls through to cache when the learned place has no resolvable coordinates', async () => {
-    mockGetLearnedPlaceCounts.mockResolvedValue([
-      { placeId: 'internal-1', name: 'Farmácia Silva', poiType: 'pharmacy', visitCount: 5 },
-    ]);
-    mockGetHabitatPlaceById.mockReturnValue(null); // evicted from the habitat cache
-    mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'cache-1', name: 'Cached Pharmacy', lat: 3, lng: 4, distanceMeters: 900 }],
-    });
-
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(result).toEqual({ lat: 3, lng: 4, name: 'Cached Pharmacy', distanceMeters: 900, source: 'cache' });
-  });
-
-  it('resolves the nearest cached place when nothing is learned', async () => {
-    mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'cache-1', name: 'Cached Pharmacy', lat: 3, lng: 4, distanceMeters: 900 }],
-    });
-
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(result).toEqual({ lat: 3, lng: 4, name: 'Cached Pharmacy', distanceMeters: 900, source: 'cache' });
-    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
-  });
-
-  it('falls through to a live search when online and nothing is cached', async () => {
-    mockSearchNearbyPlaces.mockResolvedValue({
-      pharmacy: [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 5, lng: 6, distanceMeters: 4000 }],
-    });
-
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(ORIGIN.currentLat, ORIGIN.currentLng, ['pharmacy'], expect.any(Number));
-    expect(result).toEqual({ lat: 5, lng: 6, name: 'Live Pharmacy', distanceMeters: 4000, source: 'live' });
-  });
-
-  it('does NOT attempt a live search when offline', async () => {
-    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
-
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
-    expect(result).toBeNull();
-  });
-
-  it('does NOT attempt a live search when connected but internet is unreachable (captive portal)', async () => {
-    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true, isInternetReachable: false });
-
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
-    expect(result).toBeNull();
-  });
-
-  it('returns null when nothing resolves anywhere (hidden, not an error state)', async () => {
-    mockSearchNearbyPlaces.mockResolvedValue({ pharmacy: [] });
-
-    const result = await resolveTakeMeThereDestination(ORIGIN);
-
-    expect(result).toBeNull();
-  });
-
-  it('never throws even if every downstream call rejects', async () => {
-    mockGetPlaceDetails.mockRejectedValue(new Error('network error'));
-    mockGetLearnedPlaceCounts.mockRejectedValue(new Error('firestore error'));
-    mockSearchNearbyPlaces.mockRejectedValue(new Error('places error'));
-
-    await expect(
-      resolveTakeMeThereDestination({ ...ORIGIN, poiPlaceId: 'place-abc' }),
-    ).resolves.toBeNull();
+    await expect(openTakeMeThereMaps('pharmacy')).rejects.toThrow('permission denied');
+    expect(mockOpenMapsSearch).not.toHaveBeenCalled();
   });
 });

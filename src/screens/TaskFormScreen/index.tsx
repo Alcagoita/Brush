@@ -31,10 +31,10 @@ import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding'
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { deleteField } from '@react-native-firebase/firestore';
 import { inferPoiForQuickAdd, learnFromUserEdit } from '../../services/poiLlm';
-import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, NavigationIcon, PoiIcon } from '../../components/AppIcon';
+import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, NavigateIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
-import { POI_CATALOG, poiCatalogLabel } from '../../types';
+import { POI_CATALOG, isCatalogPoiType, poiCatalogLabel } from '../../types';
 import { todayISO, formatDateShort } from '../../utils/date';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { COPY } from '../../constants/copy';
@@ -43,9 +43,7 @@ import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder'
 import MiniCalendar from '../../components/MiniCalendar';
 import MiniTimePicker from '../../components/MiniTimePicker';
 import { scheduleTaskReminder, cancelTaskReminder } from '../../services/notifications';
-import { resolveTakeMeThereDestination, type TakeMeThereDestination } from '../../services/takeMeThere';
-import { getPositionLowAccuracy } from '../../services/geolocation';
-import { openInMaps } from '../../services/maps';
+import { isTaskPoiFarAway, openTakeMeThereMaps, getTakeMeThereA11yLabel } from '../../services/takeMeThere';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { POI_TILE_WIDTH, styles } from './styles';
@@ -73,9 +71,6 @@ export default function TaskFormScreen() {
   const { uid, task: existingTask, initialDate, initialTitle, initialPoi, initialPoiExplicitlySelected } = route.params;
   const isEdit = !!existingTask;
   const hasExplicitInitialPoi = Boolean(existingTask?.poi || initialPoiExplicitlySelected);
-  const isCatalogPoiType = (value: string | null | undefined): value is PoiType => (
-    value != null && POI_CATALOG.some(item => item.type === value)
-  );
 
   // ── Form state ──────────────────────────────────────────────────────────────
 
@@ -180,34 +175,13 @@ export default function TaskFormScreen() {
       .catch(err => console.warn('[TaskFormScreen] categories error', err));
   }, [uid]);
 
-  // "Take me there" (KAN-279) — edit mode only, resolved against the task's
-  // saved place (not the live in-progress POI edit). Absence over apology:
-  // stays null (action hidden) on any failure — permission denied, offline
-  // with nothing cached, no candidate anywhere.
-  const [takeMeThere, setTakeMeThere] = useState<TakeMeThereDestination | null>(null);
-  useEffect(() => {
-    if (!isEdit || !existingTask || existingTask.kind === 'birthday' || !existingTask.poi) {
-      setTakeMeThere(null);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        const coords = await getPositionLowAccuracy();
-        const destination = await resolveTakeMeThereDestination({
-          uid,
-          poiType:     existingTask.poi!,
-          poiPlaceId:  existingTask.poiPlaceId,
-          currentLat:  coords.lat,
-          currentLng:  coords.lng,
-        });
-        if (!cancelled) { setTakeMeThere(destination); }
-      } catch {
-        if (!cancelled) { setTakeMeThere(null); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [isEdit, existingTask, uid]);
+  // "Take me there" (KAN-279) — edit mode only. Only question the app asks
+  // itself: is this task's POI type NOT the one currently on the Nearby
+  // card? Synchronous, no location fetch — visibility never depends on a
+  // permission/GPS round-trip. The actual position is only fetched at tap
+  // time, right before opening Maps.
+  const takeMeThereFar = isEdit && !!existingTask && existingTask.kind !== 'birthday'
+    && !!existingTask.poi && isTaskPoiFarAway(existingTask.poi);
 
   // Inline new-category editor
   const [addingCat,   setAddingCat]   = useState(false);
@@ -458,14 +432,14 @@ export default function TaskFormScreen() {
         <Text style={[styles.topBarTitle, { color: palette.text }]}>
           {isEdit ? COPY.taskFormScreen.editTaskTitle : COPY.newTaskSheet.title}
         </Text>
-        {isEdit && existingTask && takeMeThere ? (
+        {takeMeThereFar ? (
           <Pressable
-            onPress={() => openInMaps(takeMeThere.lat, takeMeThere.lng, takeMeThere.name).catch(() => {})}
+            onPress={() => { openTakeMeThereMaps(existingTask!.poi!).catch(() => {}); }}
             hitSlop={12}
             style={styles.topBarRight}
             accessibilityRole="button"
-            accessibilityLabel={COPY.takeMeThere.a11y}>
-            <NavigationIcon color={palette.text} size={20} />
+            accessibilityLabel={getTakeMeThereA11yLabel(existingTask!.poi!)}>
+            <NavigateIcon color={palette.muted} size={20} />
           </Pressable>
         ) : (
           <View style={styles.topBarRight} />

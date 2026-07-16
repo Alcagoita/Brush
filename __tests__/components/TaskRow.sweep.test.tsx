@@ -44,7 +44,18 @@ jest.mock('../../src/theme/tokens', () => ({
 
 jest.mock('../../src/components/PoiChip',     () => () => null);
 jest.mock('../../src/components/BrushStroke', () => () => null);
-jest.mock('../../src/components/AppIcon',     () => ({ BuildingIcon: () => null }));
+jest.mock('../../src/components/AppIcon',     () => ({
+  BuildingIcon: () => null,
+  CakeIcon:     () => null,
+  NavigateIcon: () => null,
+}));
+// KAN-279 — takeMeThere.ts pulls in poiTypeCache.ts -> maps.ts ->
+// placesFunctions.ts -> @react-native-firebase/functions (native, unavailable
+// under Jest). Mocked at the service boundary, same as elsewhere.
+jest.mock('../../src/services/takeMeThere', () => ({
+  openTakeMeThereMaps:     jest.fn().mockResolvedValue(undefined),
+  getTakeMeThereA11yLabel: jest.fn(() => 'Take me there'),
+}));
 jest.mock('../../src/constants/copy', () => ({
   COPY: {
     taskRow: {

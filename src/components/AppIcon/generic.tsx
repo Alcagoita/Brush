@@ -323,11 +323,14 @@ export function PinIcon({ color, size = 24 }: IconProps) {
   );
 }
 
-// ── Navigation arrow (KAN-279 "Take me there" top-bar action) ──────────────────
-export function NavigationIcon({ color, size = 24 }: IconProps) {
+// ── Compass/directions (KAN-279 "Take me there") ────────────────────────────────
+// A paper-plane/send glyph reads as "share" (which this app already has a
+// dedicated icon for) — this is a compass needle instead, unambiguous.
+export function NavigateIcon({ color, size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d="M3 11l19-9-9 19-2-8-8-2z" stroke={color} strokeWidth={1.6} {...S} />
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M15.5 8.5l-2 5-5 2 2-5 5-2z" stroke={color} strokeWidth={1.6} {...S} />
     </Svg>
   );
 }
