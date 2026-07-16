@@ -109,6 +109,12 @@ jest.mock('../../src/services/challenges', () => ({
   incrementCompletedCount:    jest.fn().mockResolvedValue(false),
 }));
 
+// KAN-280 — useTaskCompletion cancels a task's reminder on brush.
+const mockCancelTaskReminder = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/notifications', () => ({
+  cancelTaskReminder: (...args: unknown[]) => mockCancelTaskReminder(...args),
+}));
+
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
   LocationContext:           {},
@@ -445,6 +451,32 @@ describe('useTodayScreen — optimistic toggle', () => {
     });
 
     expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true);
+  });
+
+  it('cancels the task\'s pending reminder when brushed (KAN-280)', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.handleToggle('task-1', true);
+    });
+
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('task-1');
+  });
+
+  it('does NOT cancel a reminder when un-brushing (done:false)', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.handleToggle('task-1', false);
+    });
+
+    expect(mockCancelTaskReminder).not.toHaveBeenCalled();
   });
 
   it('refreshes the learned-place ranking after both a done:true and a done:false toggle (KAN-230)', async () => {

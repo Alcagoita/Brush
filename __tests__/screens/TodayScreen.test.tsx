@@ -50,6 +50,12 @@ jest.mock('../../src/services/challenges', () => ({
   incrementCompletedCount:    jest.fn().mockResolvedValue(false),
 }));
 
+// KAN-280 — useTaskCompletion (used by the real useTodayScreen hook rendered
+// here) cancels a task's reminder on brush.
+jest.mock('../../src/services/notifications', () => ({
+  cancelTaskReminder: jest.fn().mockResolvedValue(undefined),
+}));
+
 // ─── Auth mock ────────────────────────────────────────────────────────────────
 
 let mockUid: string | null = 'user-test';

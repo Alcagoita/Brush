@@ -71,6 +71,12 @@ jest.mock('../../src/services/firestore', () => ({
   getTrips:         (...args: unknown[]) => mockGetTrips(...args),
 }));
 
+// KAN-280 — handleToggleTask cancels a task's reminder on brush.
+const mockCancelTaskReminder = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/notifications', () => ({
+  cancelTaskReminder: (...args: unknown[]) => mockCancelTaskReminder(...args),
+}));
+
 jest.mock('../../src/theme', () => ({
   useTheme: () => ({
     palette: {
@@ -640,6 +646,20 @@ describe('CalendarScreen', () => {
     });
 
     expect(mockSetTaskDone).toHaveBeenCalledWith('test-uid', 't1', true);
+  });
+
+  it('cancels the task\'s pending reminder when brushed (KAN-280)', async () => {
+    mockGetTasksForMonth.mockResolvedValue([
+      { id: 't1', title: 'Buy groceries', category: 'errands', done: false,
+        date: new Date().toISOString().slice(0, 10), createdAt: {} },
+    ]);
+    await renderScreen();
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('checkbox'));
+    });
+
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('t1');
   });
 
   it('reverts the optimistic toggle when setTaskDone fails', async () => {

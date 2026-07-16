@@ -17,6 +17,7 @@ import notifee, {
 } from '@notifee/react-native';
 import type { TimestampTrigger } from '@notifee/react-native';
 import type { AchievementType } from '../types';
+import { COPY } from '../constants/copy';
 
 // ─── Channel IDs ──────────────────────────────────────────────────────────────
 
@@ -458,4 +459,80 @@ export async function fireAchievementNudge(options: {
     // achievementId is forwarded so the Achievements screen can scroll to the badge.
     data: { screen: 'Achievements', achievementId },
   });
+}
+
+// ─── KAN-280: user-set task time reminder ─────────────────────────────────────
+
+export const CHANNEL_TASK_REMINDER = 'task-reminder';
+
+function taskReminderNotifId(taskId: string): string {
+  return `task-reminder-${taskId}`;
+}
+
+export async function createTaskReminderChannel(): Promise<void> {
+  await notifee.createChannel({
+    id:         CHANNEL_TASK_REMINDER,
+    name:       'Task reminders',
+    importance: AndroidImportance.DEFAULT,
+    vibration:  false,
+    visibility: AndroidVisibility.PUBLIC,
+  });
+}
+
+/**
+ * Schedule the single calm reminder for a task's user-set time.
+ *
+ * Cancels any existing reminder for this task first, so repeated calls
+ * (e.g. re-saving the form) are idempotent. Silent no-op if `time` is empty
+ * or the moment has already passed — this never rolls forward to tomorrow,
+ * unlike scheduleEodReminder: a reminder that follows the task daily is the
+ * banned nagging mechanic (KAN-280). Explicit time beats quiet hours, so
+ * this intentionally does not check isQuietHours().
+ */
+export async function scheduleTaskReminder(options: {
+  taskId:    string;
+  taskTitle: string;
+  date:      string; // "YYYY-MM-DD"
+  time:      string; // "HH:MM"
+}): Promise<void> {
+  const { taskId, taskTitle, date, time } = options;
+
+  await cancelTaskReminder(taskId);
+
+  if (!time.trim()) { return; }
+
+  const [year, month, day] = date.split('-').map(Number);
+  const [hours, minutes]   = time.split(':').map(Number);
+  const fireAt = new Date(year, month - 1, day, hours, minutes, 0, 0);
+
+  if (fireAt.getTime() <= Date.now()) { return; }
+
+  await createTaskReminderChannel();
+
+  const trigger: TimestampTrigger = {
+    type:      TriggerType.TIMESTAMP,
+    timestamp: fireAt.getTime(),
+  };
+
+  await notifee.createTriggerNotification(
+    {
+      id:    taskReminderNotifId(taskId),
+      title: COPY.taskReminder.title(time),
+      body:  COPY.taskReminder.body(taskTitle),
+      android: {
+        channelId:   CHANNEL_TASK_REMINDER,
+        importance:  AndroidImportance.DEFAULT,
+        pressAction: { id: 'default', launchActivity: 'default' },
+        visibility:  AndroidVisibility.PUBLIC,
+        smallIcon:   'ic_notification',
+      },
+      data: { screen: 'Today', taskId },
+    },
+    trigger,
+  );
+}
+
+/** Cancel any pending reminder for a task (brush, delete, time cleared/edited). */
+export async function cancelTaskReminder(taskId: string): Promise<void> {
+  await notifee.cancelNotification(taskReminderNotifId(taskId));
 }

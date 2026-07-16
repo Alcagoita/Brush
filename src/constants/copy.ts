@@ -115,6 +115,7 @@ const en = {
     timeQuestion:         'Around when?',
     timeOptional:         ' (optional)',
     timePlaceholder:      'Anytime is fine',
+    clearTimeA11y:        'Clear time',
     footerHint:           'Just the what and the where',
     /** Fires after a successful add from either surface — never on edit. */
     confirmToast:         "Got it — I'll keep an eye out.",
@@ -996,6 +997,17 @@ const en = {
     tryAgainA11y: 'Try again',
   },
 
+  timePicker: {
+    hourA11y: 'Hour',
+    minuteA11y: 'Minute',
+  },
+
+  taskReminder: {
+    /** notifee trigger notification fired at the task's user-set time (KAN-280). Never "due"/"deadline"/"overdue" — the user asked for this, it's service, not pressure. */
+    title: (time: string) => `You wanted this at ${time}`,
+    body: (taskTitle: string) => taskTitle,
+  },
+
   calendar: {
     weekdayLabels: ['S', 'M', 'T', 'W', 'T', 'F', 'S'],
     monthNamesFull: [
@@ -1137,6 +1149,7 @@ const ptPT: typeof en = {
     timeQuestion:         'Para quando, mais ou menos?',
     timeOptional:         ' (opcional)',
     timePlaceholder:      'Qualquer altura serve',
+    clearTimeA11y:        'Limpar hora',
     footerHint:           'Só o quê e o onde',
     confirmToast:         'Entendido — vou estar atento.',
     poiSuggestionHint:    'o meu palpite?',
@@ -1941,6 +1954,16 @@ const ptPT: typeof en = {
 
   errorBoundary: {
     tryAgainA11y: 'Tentar novamente',
+  },
+
+  timePicker: {
+    hourA11y: 'Hora',
+    minuteA11y: 'Minuto',
+  },
+
+  taskReminder: {
+    title: (time: string) => `Querias isto às ${time}`,
+    body: (taskTitle: string) => taskTitle,
   },
 
   calendar: {

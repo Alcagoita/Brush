@@ -41,6 +41,8 @@ import { COPY } from '../../constants/copy';
 import { useToastStore } from '../../store/toastStore';
 import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder';
 import MiniCalendar from '../../components/MiniCalendar';
+import MiniTimePicker from '../../components/MiniTimePicker';
+import { scheduleTaskReminder, cancelTaskReminder } from '../../services/notifications';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { POI_TILE_WIDTH, styles } from './styles';
@@ -91,6 +93,7 @@ export default function TaskFormScreen() {
 
   // Time
   const [time, setTime] = useState<string>(existingTask?.time ?? '');
+  const [timeFieldOpen, setTimeFieldOpen] = useState(false);
 
   // Birthday toggle (KAN-248) — edit-mode-only correction path for import
   // detection misses. Never shown/settable from the create flow.
@@ -316,10 +319,27 @@ export default function TaskFormScreen() {
         }
         await updateTask(uid, existingTask.id, updateData as Partial<Task>);
         logTap('task_edit', { category: payload.category });
+        // Time/date edit reschedules; time cleared cancels (KAN-280).
+        // scheduleTaskReminder cancels any existing reminder first, so this
+        // is safe to call unconditionally — it no-ops when time is empty.
+        await scheduleTaskReminder({
+          taskId:    existingTask.id,
+          taskTitle: trimmed,
+          date,
+          time:      time.trim(),
+        }).catch(() => {});
       } else {
-        await addTask(uid, payload);
+        const newTaskId = await addTask(uid, payload);
         logTap('task_create', { category: payload.category });
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
+        if (time.trim()) {
+          await scheduleTaskReminder({
+            taskId:    newTaskId,
+            taskTitle: trimmed,
+            date,
+            time:      time.trim(),
+          }).catch(() => {});
+        }
       }
 
       // Feed the user's title→POI choice back into the inference dictionary
@@ -355,6 +375,7 @@ export default function TaskFormScreen() {
             setDeleting(true);
             try {
               await deleteTask(uid, existingTask.id);
+              await cancelTaskReminder(existingTask.id);
               logTap('task_delete', { category: existingTask.category });
               navigation.goBack();
             } catch (err) {
@@ -791,24 +812,43 @@ export default function TaskFormScreen() {
               </Text>
             </Pressable>
             {/* Time */}
-            <View style={[styles.scheduleField, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+            <Pressable
+              style={[
+                styles.scheduleField,
+                { backgroundColor: palette.surface, borderColor: timeFieldOpen ? palette.text : palette.line },
+              ]}
+              onPress={() => setTimeFieldOpen(o => !o)}
+              accessibilityRole="button"
+              accessibilityLabel={COPY.newTaskSheet.timeQuestion}>
               <ClockIcon color={palette.faint} size={16} />
-              <TextInput
-                style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}
-                placeholder={COPY.newTaskSheet.timePlaceholder}
-                placeholderTextColor={palette.muted}
-                value={time}
-                onChangeText={setTime}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-              />
-            </View>
+              <Text style={[
+                styles.scheduleInput,
+                { color: time ? palette.text : palette.muted, fontVariant: ['tabular-nums'] },
+              ]}>
+                {time || COPY.newTaskSheet.timePlaceholder}
+              </Text>
+              {time.length > 0 && (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); setTime(''); setTimeFieldOpen(false); }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={COPY.newTaskSheet.clearTimeA11y}>
+                  <CloseIcon color={palette.faint} size={14} />
+                </Pressable>
+              )}
+            </Pressable>
           </View>
           {dateFieldOpen && (
             <MiniCalendar
               value={date}
               minimumDate={todayISO()}
               onChange={iso => { setDate(iso); setDateFieldOpen(false); }}
+            />
+          )}
+          {timeFieldOpen && (
+            <MiniTimePicker
+              value={time || null}
+              onChange={hhmm => setTime(hhmm)}
             />
           )}
         </View>
