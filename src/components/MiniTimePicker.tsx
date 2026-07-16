@@ -215,7 +215,7 @@ export default function MiniTimePicker({ value, onChange }: MiniTimePickerProps)
         accessibilityRole="button"
         testID="time-format-toggle"
         accessibilityLabel={hour12Mode ? COPY.timePicker.formatToggleTo24 : COPY.timePicker.formatToggleTo12}
-        style={[styles.formatPill, { backgroundColor: palette.surface2 }]}>
+        style={[styles.formatPill, { backgroundColor: palette.surface2, borderColor: palette.line }]}>
         <Text style={[styles.formatPillText, { color: palette.muted }]}>
           {hour12Mode ? '12h' : '24h'}
         </Text>
@@ -302,6 +302,7 @@ const styles = StyleSheet.create({
     minWidth: 44,
     alignItems: 'center',
     marginBottom: 8,
+    borderWidth: 1,
   },
   formatPillText: {
     fontFamily: fonts.families.medium,
