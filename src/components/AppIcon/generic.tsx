@@ -323,6 +323,15 @@ export function PinIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Navigation arrow (KAN-279 "Take me there" top-bar action) ──────────────────
+export function NavigationIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M3 11l19-9-9 19-2-8-8-2z" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── Home (Settings home-address row, KAN-247) ─────────────────────────────────
 export function HomeIcon({ color, size = 24 }: IconProps) {
   return (

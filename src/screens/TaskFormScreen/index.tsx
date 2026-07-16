@@ -31,7 +31,7 @@ import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding'
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { deleteField } from '@react-native-firebase/firestore';
 import { inferPoiForQuickAdd, learnFromUserEdit } from '../../services/poiLlm';
-import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
+import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, NavigationIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
 import { POI_CATALOG, poiCatalogLabel } from '../../types';
@@ -43,6 +43,9 @@ import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder'
 import MiniCalendar from '../../components/MiniCalendar';
 import MiniTimePicker from '../../components/MiniTimePicker';
 import { scheduleTaskReminder, cancelTaskReminder } from '../../services/notifications';
+import { resolveTakeMeThereDestination, type TakeMeThereDestination } from '../../services/takeMeThere';
+import { getPositionLowAccuracy } from '../../services/geolocation';
+import { openInMaps } from '../../services/maps';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { POI_TILE_WIDTH, styles } from './styles';
@@ -176,6 +179,35 @@ export default function TaskFormScreen() {
       .then(cats => setCustomCategories(cats.filter(c => !c.isBuiltIn)))
       .catch(err => console.warn('[TaskFormScreen] categories error', err));
   }, [uid]);
+
+  // "Take me there" (KAN-279) — edit mode only, resolved against the task's
+  // saved place (not the live in-progress POI edit). Absence over apology:
+  // stays null (action hidden) on any failure — permission denied, offline
+  // with nothing cached, no candidate anywhere.
+  const [takeMeThere, setTakeMeThere] = useState<TakeMeThereDestination | null>(null);
+  useEffect(() => {
+    if (!isEdit || !existingTask || existingTask.kind === 'birthday' || !existingTask.poi) {
+      setTakeMeThere(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const coords = await getPositionLowAccuracy();
+        const destination = await resolveTakeMeThereDestination({
+          uid,
+          poiType:     existingTask.poi!,
+          poiPlaceId:  existingTask.poiPlaceId,
+          currentLat:  coords.lat,
+          currentLng:  coords.lng,
+        });
+        if (!cancelled) { setTakeMeThere(destination); }
+      } catch {
+        if (!cancelled) { setTakeMeThere(null); }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isEdit, existingTask, uid]);
 
   // Inline new-category editor
   const [addingCat,   setAddingCat]   = useState(false);
@@ -426,7 +458,18 @@ export default function TaskFormScreen() {
         <Text style={[styles.topBarTitle, { color: palette.text }]}>
           {isEdit ? COPY.taskFormScreen.editTaskTitle : COPY.newTaskSheet.title}
         </Text>
-        <View style={styles.topBarRight} />
+        {isEdit && existingTask && takeMeThere ? (
+          <Pressable
+            onPress={() => openInMaps(takeMeThere.lat, takeMeThere.lng, takeMeThere.name).catch(() => {})}
+            hitSlop={12}
+            style={styles.topBarRight}
+            accessibilityRole="button"
+            accessibilityLabel={COPY.takeMeThere.a11y}>
+            <NavigationIcon color={palette.text} size={20} />
+          </Pressable>
+        ) : (
+          <View style={styles.topBarRight} />
+        )}
       </View>
 
       <ScrollView

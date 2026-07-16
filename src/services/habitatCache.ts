@@ -460,6 +460,31 @@ export function queryHabitatCache(
   return result;
 }
 
+/**
+ * Look up a single cached place by its internal id — the same id
+ * `queryHabitatCache`/`upsertPlace` key off (KAN-228 cross-source identity),
+ * and what `LearnedPlace.placeId` (learnedPlaces.ts) carries. Unlike
+ * `queryHabitatCache`, this doesn't need a search origin — a learned place's
+ * location is resolved from the id alone, independent of current distance
+ * (KAN-279: "your place wins even if farther").
+ *
+ * Never throws — a DB failure or missing row returns null.
+ */
+export function getHabitatPlaceById(id: string): NearbyPlace | null {
+  try {
+    const database = getDb();
+    const row = database.getFirstSync<HabitatRow>(
+      'SELECT * FROM habitat_places WHERE id = ?',
+      [id],
+    );
+    if (!row) { return null; }
+    return { placeId: row.id, name: row.name, lat: row.lat, lng: row.lng, distanceMeters: 0 };
+  } catch (err) {
+    console.warn('[habitatCache] getHabitatPlaceById failed', err);
+    return null;
+  }
+}
+
 // ─── Refresh ──────────────────────────────────────────────────────────────────
 
 /**

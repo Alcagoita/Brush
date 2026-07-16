@@ -955,6 +955,11 @@ const en = {
     birthdayUnsetWarningConfirm: 'Unmark',
   },
 
+  takeMeThere: {
+    /** Never "Navigate to nearest POI" — no jargon, no urgency (KAN-279). */
+    a11y: 'Take me there',
+  },
+
   pointsHistoryScreen: {
     backA11y: 'Back',
     loadingA11y: 'Loading points history',
@@ -1914,6 +1919,10 @@ const ptPT: typeof en = {
     birthdayUnsetWarningTitle: 'Desmarcar este aniversário?',
     birthdayUnsetWarningBody: 'Esta tarefa volta a ser uma tarefa normal — vais precisar de lhe dar um local antes de conseguires guardar.',
     birthdayUnsetWarningConfirm: 'Desmarcar',
+  },
+
+  takeMeThere: {
+    a11y: 'Leva-me lá',
   },
 
   pointsHistoryScreen: {

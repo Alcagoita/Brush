@@ -62,6 +62,28 @@ jest.mock('../../src/services/notifications', () => ({
   cancelTaskReminder:   (...args: unknown[]) => mockCancelTaskReminder(...args),
 }));
 
+// KAN-279 — mocked at the service boundary (same style as notifications/
+// achievements above) rather than mocking takeMeThere.ts's own transitive
+// deps (habitatCache pulls in expo-sqlite, unavailable under Jest).
+const mockResolveTakeMeThereDestination = jest.fn().mockResolvedValue(null);
+jest.mock('../../src/services/takeMeThere', () => ({
+  resolveTakeMeThereDestination: (...args: unknown[]) => mockResolveTakeMeThereDestination(...args),
+}));
+
+const mockGetPositionLowAccuracy = jest.fn().mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
+jest.mock('../../src/services/geolocation', () => ({
+  getPositionLowAccuracy: (...args: unknown[]) => mockGetPositionLowAccuracy(...args),
+}));
+
+// Partial mock — poiSuggestions.ts (via poiTypeCache.ts) transitively needs
+// the real isGenericPlaceType/formatDistance etc. from this module; only
+// openInMaps is overridden.
+const mockOpenInMaps = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/maps', () => ({
+  ...jest.requireActual('../../src/services/maps'),
+  openInMaps: (...args: unknown[]) => mockOpenInMaps(...args),
+}));
+
 // KAN-248 — deleteField is imported directly (not via the src/services/firestore
 // barrel) to clear poi/kind when the birthday toggle flips. Mocked as a
 // recognizable sentinel so tests can assert it was used without pulling in
@@ -118,11 +140,12 @@ jest.mock('../../src/components/AppIcon', () => {
   const { View } = require('react-native');
   const stub = (props: any) => React.createElement(View, props);
   return {
-    CakeIcon:     stub,
-    CalendarIcon: stub,
-    ClockIcon:    stub,
-    CloseIcon:    stub,
-    PoiIcon:      stub,
+    CakeIcon:       stub,
+    CalendarIcon:   stub,
+    ClockIcon:      stub,
+    CloseIcon:      stub,
+    NavigationIcon: stub,
+    PoiIcon:        stub,
   };
 });
 
@@ -1052,5 +1075,65 @@ describe('TaskFormScreen — birthday toggle (KAN-248)', () => {
     await waitFor(() => expect(mockAddTask).toHaveBeenCalled());
     const payload = mockAddTask.mock.calls[0][1];
     expect('kind' in payload).toBe(false);
+  });
+});
+
+// ── Take me there (KAN-279) ─────────────────────────────────────────────────
+
+describe('TaskFormScreen — take me there', () => {
+  it('does NOT render in create mode', () => {
+    setRouteParams({ uid: 'user-123' });
+    render(<TaskFormScreen />);
+    expect(screen.queryByLabelText('Take me there')).toBeNull();
+  });
+
+  it('does NOT render in edit mode when no destination resolves', async () => {
+    mockResolveTakeMeThereDestination.mockResolvedValue(null);
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    await waitFor(() => expect(mockResolveTakeMeThereDestination).toHaveBeenCalled());
+    expect(screen.queryByLabelText('Take me there')).toBeNull();
+  });
+
+  it('renders the top-bar icon action when a destination resolves', async () => {
+    mockResolveTakeMeThereDestination.mockResolvedValue({
+      lat: 1, lng: 2, name: 'Farmácia Silva', distanceMeters: 850, source: 'cache',
+    });
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    await waitFor(() => expect(screen.getByLabelText('Take me there')).toBeTruthy());
+  });
+
+  it('resolves against the uid/poi/poiPlaceId from the route params', async () => {
+    mockResolveTakeMeThereDestination.mockResolvedValue(null);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy', poiPlaceId: 'pinned-1' }) });
+    render(<TaskFormScreen />);
+    await waitFor(() => {
+      expect(mockResolveTakeMeThereDestination).toHaveBeenCalledWith(
+        expect.objectContaining({ uid: 'user-123', poiType: 'pharmacy', poiPlaceId: 'pinned-1' }),
+      );
+    });
+  });
+
+  it('does NOT resolve for a birthday task', async () => {
+    setRouteParams({ uid: 'user-123', task: makeTask({ kind: 'birthday' }) });
+    render(<TaskFormScreen />);
+    await act(async () => {});
+    expect(mockResolveTakeMeThereDestination).not.toHaveBeenCalled();
+  });
+
+  it('tapping the top-bar icon opens maps at the resolved coordinates', async () => {
+    mockResolveTakeMeThereDestination.mockResolvedValue({
+      lat: 38.7, lng: -9.1, name: 'Farmácia Silva', distanceMeters: 850, source: 'cache',
+    });
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    await waitFor(() => expect(screen.getByLabelText('Take me there')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Take me there'));
+    });
+
+    expect(mockOpenInMaps).toHaveBeenCalledWith(38.7, -9.1, 'Farmácia Silva');
   });
 });
