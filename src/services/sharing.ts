@@ -38,6 +38,7 @@ import {
   writeBatch,
 } from '@react-native-firebase/firestore';
 import { Task, SharedTask, PendingNotification } from '../types';
+import { markTasksDirty } from './taskMutationSignal';
 
 // ─── User lookup ──────────────────────────────────────────────────────────────
 
@@ -206,6 +207,7 @@ export async function acceptSharedTask(
   await deleteDoc(
     doc(db, 'sharedTasks', recipientUid, 'incoming', shared.id),
   );
+  markTasksDirty();
 }
 
 /**

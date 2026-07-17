@@ -54,6 +54,8 @@ jest.mock('../../src/services/habitatCache', () => ({
   hasCachedPlaces:            (...args: unknown[]) => mockHasCachedPlaces(...args),
 }));
 
+jest.mock('../../src/services/proximitySnapshot');
+
 const mockDisplayNotification = jest.fn().mockResolvedValue(undefined);
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,

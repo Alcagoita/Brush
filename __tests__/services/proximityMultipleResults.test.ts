@@ -19,6 +19,7 @@ jest.mock('@react-native-community/netinfo', () => ({
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
 jest.mock('../../src/services/habitatCache');
+jest.mock('../../src/services/proximitySnapshot');
 
 const mockGetCurrentPositionAsync = jest.fn();
 const mockOnUpdate = jest.fn();
