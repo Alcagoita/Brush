@@ -237,7 +237,7 @@ const en = {
 
   itineraryOptionsScreen: {
     screenTitle:  'One trip for all of these',
-    cardLabel:    'One choice',
+    cardLabel:    'Stop by stop',
     backA11y:     'Back',
     loadingLabel: 'Finding the way…',
     stopsCount:   (n: number) => (n === 1 ? '1 stop' : `${n} stops`),
@@ -1268,7 +1268,7 @@ const ptPT: typeof en = {
 
   itineraryOptionsScreen: {
     screenTitle:  'Uma viagem para todas estas',
-    cardLabel:    'Uma opção',
+    cardLabel:    'Paragem a paragem',
     backA11y:     'Voltar',
     loadingLabel: 'A encontrar o caminho…',
     stopsCount:   (n: number) => (n === 1 ? '1 paragem' : `${n} paragens`),

@@ -4,7 +4,7 @@
  * Verifies:
  *   - Builds one node[...] Overpass clause per requested POI type
  *   - Parses elements[] into OsmPlace[], grouped by type, sorted by distance
- *   - Falls back to the tag value as a name when OSM has no name tag
+ *   - Falls back to the POI type's human-readable label when OSM has no name tag
  *   - Unrecognized POI types (no OSM tag mapping) are skipped, not errored
  *   - Never throws: empty poiTypes, non-200 response, network failure, timeout
  */
@@ -70,13 +70,14 @@ describe('searchOsmPlaces', () => {
     expect(result.cafe[0].distanceMeters).toBeLessThan(result.cafe[1].distanceMeters);
   });
 
-  it('falls back to the tag value as the name when OSM has no name tag', async () => {
+  it('falls back to the human-readable POI type label (not the raw lowercase tag) when OSM has no name tag', async () => {
     mockOverpassResponse([
       { id: 3, lat: 0.0001, lon: 0, tags: { amenity: 'pharmacy' } },
     ]);
 
     const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['pharmacy'], 5000);
-    expect(result.pharmacy[0].name).toBe('pharmacy');
+    expect(result.pharmacy[0].name).toBe('Pharmacy');
+    expect(result.pharmacy[0].isGenericName).toBe(true);
   });
 
   it('ignores elements missing lat/lon or tags', async () => {
