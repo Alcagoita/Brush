@@ -91,6 +91,7 @@ import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
+import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
 import { useToastStore } from '../store/toastStore';
 import { LearnedPlace, getLearnedPlaceForPoiType } from './learnedPlaces';
 
@@ -167,6 +168,17 @@ const POSITION_CHECK_INTERVAL_MS = 3 * 60 * 1_000; // 3 minutes
 /** Minimum movement from last search origin before re-calling the Places API. */
 const MIN_MOVEMENT_M = 200;
 
+/**
+ * KAN-285 — how close a persisted snapshot's origin must be to the current
+ * position to reuse it instead of re-hitting the Places API on an
+ * automatic/incidental re-check (screen mount, app reopen, a same-type task
+ * added). Deliberately wider than MIN_MOVEMENT_M's 200m: that constant
+ * governs the *background* freshness poll while the app stays open and the
+ * user may be actively walking; this one governs "does a persisted result
+ * from possibly hours or days ago still basically describe where I am."
+ */
+const SNAPSHOT_REUSE_RADIUS_M = 500;
+
 /** Notifee Android channel id for proximity alerts. */
 const CHANNEL_ID = 'proximity_alerts';
 
@@ -177,6 +189,10 @@ const QUEUE_STALE_MS = 5 * 60 * 1_000;
 
 /** Where the last Places API search was run from. Movement gate. */
 let _lastSearchCoords: { lat: number; lng: number } | null = null;
+
+/** Sorted, comma-joined POI types the last search covered (KAN-285) — the
+ *  "did the POI list change" half of the snapshot-reuse gate. */
+let _lastSearchPoiTypesKey: string | null = null;
 
 /** Currently active orange-hero POI type. Null when nothing is < HERO_RADIUS_M. */
 let _currentNearbyType: string | null = null;
@@ -582,6 +598,7 @@ async function runProximitySearch(
 
     const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
     const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];
+    const poiTypesKey = [...uniquePoiTypes].sort().join(',');
 
     if (uniquePoiTypes.length === 0) {
       _currentNearbyType = null;
@@ -591,6 +608,7 @@ async function runProximitySearch(
       geofenceEntryTimes.clear();
       onUpdate(null, null, {});
       _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
+      _lastSearchPoiTypesKey = poiTypesKey;
       return;
     }
 
@@ -840,7 +858,15 @@ async function runProximitySearch(
 
     _currentNearbyType = heroType;
     _lastAllPlaces = allPlaces;
+    _lastSearchPoiTypesKey = poiTypesKey;
     onUpdate(heroType, heroPlace, allPlaces);
+    // KAN-285 — persist so the next automatic check (screen mount, app
+    // reopen) can reuse this instead of re-hitting the Places API when
+    // neither condition (moved >500m, POI types changed) actually holds.
+    saveProximitySnapshot(uid, {
+      lat: coords.lat, lng: coords.lng, poiTypesKey,
+      nearbyPoiType: heroType, nearbyPlace: heroPlace, poiPlaces: allPlaces,
+    });
   } finally {
     _isSearching = false;
   }
@@ -896,6 +922,67 @@ async function checkPositionAndMaybeSearch(
 export { runProximitySearch };
 
 /**
+ * KAN-285 — entry point for an *automatic* proximity check: screen mount,
+ * app reopen, or a same-type task being added. Reuses a persisted snapshot
+ * instead of calling runProximitySearch (and therefore the Places API — or
+ * even the offline habitat cache) when NEITHER of the two things that would
+ * make the snapshot wrong has happened: the position hasn't moved more than
+ * SNAPSHOT_REUSE_RADIUS_M from the snapshot's origin, and the set of open
+ * POI-task types is identical to what that snapshot covered.
+ *
+ * Deliberately NOT used by runProximitySearch's other callers — the
+ * periodic movement-poll timer (already gates itself on MIN_MOVEMENT_M) and
+ * the explicit manual "refresh location" action (an intentional request for
+ * a fresh check, not an incidental one) both call runProximitySearch
+ * directly and always hit the real path.
+ */
+export async function runProximitySearchOrReuseSnapshot(
+  uid: string,
+  tasks: Task[],
+  onUpdate: ProximityCallback,
+): Promise<void> {
+  const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
+  const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];
+
+  if (uniquePoiTypes.length === 0) {
+    // Nothing to search for — settle immediately without even a position
+    // fix (runProximitySearch always takes one first, needed for its
+    // other callers, but this entry point has no use for it here).
+    _currentNearbyType = null;
+    _lastAllPlaces = {};
+    onUpdate(null, null, {});
+    return;
+  }
+
+  const poiTypesKey = [...uniquePoiTypes].sort().join(',');
+
+  let coords: Coordinates;
+  try {
+    coords = await getPositionLowAccuracy();
+  } catch {
+    // No position available — let runProximitySearch handle this failure
+    // the same way it always has (it'll hit the same error itself).
+    await runProximitySearch(uid, tasks, onUpdate);
+    return;
+  }
+
+  const snapshot = loadProximitySnapshot(uid);
+  if (snapshot && snapshot.poiTypesKey === poiTypesKey) {
+    const moved = getDistanceMeters(coords.lat, coords.lng, snapshot.lat, snapshot.lng);
+    if (moved <= SNAPSHOT_REUSE_RADIUS_M) {
+      _currentNearbyType     = snapshot.nearbyPoiType;
+      _lastAllPlaces         = snapshot.poiPlaces;
+      _lastSearchCoords      = { lat: snapshot.lat, lng: snapshot.lng };
+      _lastSearchPoiTypesKey = snapshot.poiTypesKey;
+      onUpdate(snapshot.nearbyPoiType, snapshot.nearbyPlace, snapshot.poiPlaces);
+      return;
+    }
+  }
+
+  await runProximitySearch(uid, tasks, onUpdate);
+}
+
+/**
  * Returns the coordinates of the last completed search, or null if no search
  * has run yet. Used by the movement gate in useTodayScreen to decide whether
  * to re-search.
@@ -920,6 +1007,7 @@ export function resetProximityState(): void {
   _currentNearbyType      = null;
   _lastAllPlaces          = {};
   _lastSearchCoords       = null;
+  _lastSearchPoiTypesKey  = null;
   _isSearching            = false;
   _prevUndonePoiTaskCount = 0;
   _alertedTodayTypes.clear();

@@ -14,6 +14,7 @@ import { requestLocationPermission } from '../../services/geolocation';
 import type { LocationContext } from '../../services/geolocation';
 import {
   runProximitySearch,
+  runProximitySearchOrReuseSnapshot,
   getLastSearchCoords,
   setLocationTap,
   setPlaceContextTap,
@@ -228,11 +229,15 @@ export function useProximityEngine(
 
     const onSearchError = () => { setLocationUnavailable(true); setHasCompletedScan(true); };
 
-    // A fresh search is starting for this uid/permission/POI-tasks
+    // A fresh check is starting for this uid/permission/POI-tasks
     // combination — the readiness flag from any previous combination (e.g.
-    // "no POI tasks" settling to ready=true) no longer applies.
+    // "no POI tasks" settling to ready=true) no longer applies. This is the
+    // automatic entry point (mount / permission just granted / POI tasks
+    // just appeared) — KAN-285: reuse a persisted snapshot instead of
+    // re-hitting the Places API when the position hasn't moved and the POI
+    // type set hasn't changed since the last time this ran.
     setHasCompletedScan(false);
-    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
+    runProximitySearchOrReuseSnapshot(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
     prevPoiCountRef.current = latestTasksRef.current.filter(t => !t.done && t.poi).length;
 
     positionTimerRef.current = setInterval(async () => {
@@ -259,16 +264,19 @@ export function useProximityEngine(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
 
-  // ── Re-search when a new POI task is added ─────────────────────────────────
+  // ── Re-check when a new POI task is added ─────────────────────────────────
   //
   // tasks changes when refresh() re-fetches after onTaskAdded. This effect
-  // fires an immediate proximity search when the undone POI count increases.
+  // fires an immediate proximity check when the undone POI count increases —
+  // also routed through the snapshot-reuse gate (KAN-285): a second task of
+  // an already-covered POI type doesn't change the search's type set, so it
+  // shouldn't cost a fresh Places API call either.
 
   useEffect(() => {
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return; }
     const count = tasks.filter(t => !t.done && t.poi).length;
     if (count > prevPoiCountRef.current) {
-      runProximitySearch(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
+      runProximitySearchOrReuseSnapshot(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
     }
     prevPoiCountRef.current = count;
   // eslint-disable-next-line react-hooks/exhaustive-deps
