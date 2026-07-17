@@ -85,8 +85,6 @@ export function useProximityEngine(
 
   /** True while a proximity search Promise is in-flight. */
   const isSearchingRef    = useRef(false);
-  /** Count of undone POI tasks from the last effect run — detects new tasks. */
-  const prevPoiCountRef   = useRef(0);
 
   const [nearbyPoiType,       setNearbyPoiType]       = useState<string | null>(null);
   const nearbyPoiTypeRef = useRef<string | null>(null);
@@ -238,7 +236,6 @@ export function useProximityEngine(
     // type set hasn't changed since the last time this ran.
     setHasCompletedScan(false);
     runProximitySearchOrReuseSnapshot(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
-    prevPoiCountRef.current = latestTasksRef.current.filter(t => !t.done && t.poi).length;
 
     positionTimerRef.current = setInterval(async () => {
       try {
@@ -264,21 +261,28 @@ export function useProximityEngine(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
 
-  // ── Re-check when a new POI task is added ─────────────────────────────────
+  // ── Re-check when tasks actually change (KAN-285 follow-up) ────────────────
   //
-  // tasks changes when refresh() re-fetches after onTaskAdded. This effect
-  // fires an immediate proximity check when the undone POI count increases —
-  // also routed through the snapshot-reuse gate (KAN-285): a second task of
-  // an already-covered POI type doesn't change the search's type set, so it
-  // shouldn't cost a fresh Places API call either.
-
+  // `tasks` only gets a new array reference when TodayScreen's focus effect
+  // decided a real mutation happened somewhere (taskMutationSignal) and
+  // called refresh() — reacting to its identity here is a reliable "did
+  // something change" signal, not a guess, and it fires for ANY kind of
+  // change (added, removed, completed, or a task's POI type edited — e.g.
+  // on CalendarScreen), not just a count increase.
+  //
+  // Delegates the "is a real Places API call actually needed" decision to
+  // runProximitySearchOrReuseSnapshot's own POI-type-set/500m gate rather
+  // than re-deriving that here — a previous version of this effect only
+  // compared undone-POI counts, which missed a same-count POI-type swap
+  // entirely (e.g. changing a task's category from pharmacy to cafe left
+  // the Nearby zone searching for the wrong type until the next unrelated
+  // recheck).
+  const isFirstTasksIdentityRef = useRef(true);
   useEffect(() => {
+    if (isFirstTasksIdentityRef.current) { isFirstTasksIdentityRef.current = false; return; }
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return; }
-    const count = tasks.filter(t => !t.done && t.poi).length;
-    if (count > prevPoiCountRef.current) {
-      runProximitySearchOrReuseSnapshot(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
-    }
-    prevPoiCountRef.current = count;
+    setHasCompletedScan(false);
+    runProximitySearchOrReuseSnapshot(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
