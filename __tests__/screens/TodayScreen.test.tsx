@@ -20,9 +20,6 @@ const mockSubscribeToPoiPreferences  = jest.fn();
 const mockSubscribeToCategories      = jest.fn();
 const mockSubscribeLowBatteryPausePref = jest.fn();
 const mockSubscribeToTotalPoints     = jest.fn();
-// KAN-281 — used by the "one trip for all of these" entry-row's local-only
-// eligibility check.
-const mockGetLearnedPlaceCounts      = jest.fn().mockResolvedValue([]);
 
 jest.mock('../../src/services/sharing', () => ({
   subscribeToIncomingSharedTasks: jest.fn(() => jest.fn()),
@@ -38,7 +35,6 @@ jest.mock('../../src/services/firestore', () => ({
   subscribeStoreTuningPref:    jest.fn().mockReturnValue(jest.fn()),
   setStoreTuningPref:          jest.fn().mockResolvedValue(undefined),
   subscribeToTotalPoints:      (...args: unknown[]) => mockSubscribeToTotalPoints(...args),
-  getLearnedPlaceCounts:       (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
 }));
 
 // ─── Achievements mock ────────────────────────────────────────────────────────
@@ -176,9 +172,6 @@ jest.mock('../../src/services/geolocation', () => ({
 }));
 const mockStartProximityMonitoring = jest.fn();
 const mockStopProximityMonitoring  = jest.fn();
-// KAN-281 — null by default: the entry-row check requires a cached position
-// before it does anything, same absence-is-default rule as the row itself.
-const mockGetLastSearchCoords = jest.fn().mockReturnValue(null);
 
 jest.mock('../../src/services/proximity', () => ({
   startProximityMonitoring:      (...args: unknown[]) => mockStartProximityMonitoring(...args),
@@ -188,15 +181,6 @@ jest.mock('../../src/services/proximity', () => ({
   pauseGeofenceMonitoring:       jest.fn(),
   resumeGeofenceMonitoring:      jest.fn(),
   setLocationTap:                jest.fn(),
-  getLastSearchCoords:           (...args: unknown[]) => mockGetLastSearchCoords(...args),
-}));
-
-// KAN-281 — mocked at the service boundary (destinationResolver.ts pulls in
-// maps.ts -> placesFunctions.ts -> @react-native-firebase/functions,
-// unavailable under Jest), same style as elsewhere in this suite.
-const mockResolveTaskDestination = jest.fn();
-jest.mock('../../src/services/destinationResolver', () => ({
-  resolveTaskDestination: (...args: unknown[]) => mockResolveTaskDestination(...args),
 }));
 
 jest.mock('../../src/services/indoorProximity', () => ({
@@ -298,18 +282,11 @@ describe('KAN-279 — far-away indicator wiring', () => {
 describe('KAN-281 — "one trip for all of these" entry row', () => {
   const TASK_ATM = { ...TASK, id: 'task-2', poi: 'atm' };
 
-  it('does NOT render without a cached position (no location fetch triggered just to decide)', async () => {
-    mockGetLastSearchCoords.mockReturnValue(null);
-    setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any, TASK_ATM as any]);
-    render(<TodayScreen />);
-    await act(async () => {});
-
-    expect(screen.queryByLabelText('One trip for all of these')).toBeNull();
-    expect(mockResolveTaskDestination).not.toHaveBeenCalled();
-  });
+  // The mocked proximity module never invokes its onUpdate callback in this
+  // suite (see KAN-279 block above), so poiPlaces stays {} throughout — every
+  // task with a poi reads as "not in the nearby list" by default.
 
   it('does NOT render with fewer than 2 eligible tasks', async () => {
-    mockGetLastSearchCoords.mockReturnValue({ lat: 38.7, lng: -9.1 });
     setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any]);
     render(<TodayScreen />);
     await act(async () => {});
@@ -317,20 +294,19 @@ describe('KAN-281 — "one trip for all of these" entry row', () => {
     expect(screen.queryByLabelText('One trip for all of these')).toBeNull();
   });
 
-  it('does NOT render when fewer than 2 tasks actually resolve', async () => {
-    mockGetLastSearchCoords.mockReturnValue({ lat: 38.7, lng: -9.1 });
-    mockResolveTaskDestination.mockResolvedValueOnce({ internalId: 'p1', name: 'Pharmacy', lat: 1, lng: 2, distanceMeters: 10, source: 'cache' });
-    mockResolveTaskDestination.mockResolvedValueOnce(null);
-    setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any, TASK_ATM as any]);
+  it('does NOT render for a done task or a birthday, even alongside an eligible one', async () => {
+    setupFirestoreMocks([
+      { ...TASK, poi: 'pharmacy' } as any,
+      { ...TASK_ATM, done: true } as any,
+      { ...TASK, id: 'task-3', kind: 'birthday', poi: undefined } as any,
+    ]);
     render(<TodayScreen />);
     await act(async () => {});
 
     expect(screen.queryByLabelText('One trip for all of these')).toBeNull();
   });
 
-  it('renders when >=2 eligible tasks resolve locally, and navigates to ItineraryOptions on tap', async () => {
-    mockGetLastSearchCoords.mockReturnValue({ lat: 38.7, lng: -9.1 });
-    mockResolveTaskDestination.mockResolvedValue({ internalId: 'p1', name: 'Place', lat: 1, lng: 2, distanceMeters: 10, source: 'cache' });
+  it('renders — no Firestore/network call involved — when >=2 open POI tasks exist, and navigates to ItineraryOptions on tap', async () => {
     setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any, TASK_ATM as any]);
     render(<TodayScreen />);
     await act(async () => {});

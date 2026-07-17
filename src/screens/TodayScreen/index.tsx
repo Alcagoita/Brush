@@ -27,7 +27,7 @@
  * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -36,11 +36,6 @@ import {
   View,
 } from 'react-native';
 import { ChevronRightIcon, NavigateIcon, PlusIcon } from '../../components/AppIcon';
-import { resolveTaskDestination } from '../../services/destinationResolver';
-import { getLearnedPlaceCounts } from '../../services/firestore';
-import { computeLearnedPlaces } from '../../services/learnedPlaces';
-import { getLastSearchCoords } from '../../services/proximity';
-import { getDistanceMeters } from '../../services/maps';
 import ScrRotatingNudge from '../../components/ScrRotatingNudge';
 import Animated from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -165,55 +160,17 @@ export default function TodayScreen() {
   );
 
   // ── "One trip for all of these" entry row (KAN-281) ───────────────────────────
-  // Local-only check (learned/cache, skipPinned — no network at all) so this
-  // never fires an uninvited call just to decide whether to show a quiet
-  // discovery row. Absence is the default: no cached position yet, or fewer
-  // than 2 resolvable tasks, and the row simply doesn't render.
-  //
-  // `poiPlaces` reruns this effect on every completed proximity scan
-  // (reliable "a scan just finished" signal — see nearbyPoiType comment
-  // elsewhere), but a scan finishing doesn't mean anything worth
-  // recomputing changed. `getLearnedPlaceCounts` is a real Firestore read,
-  // so we gate the actual recompute behind two conditions: the position
-  // moved more than 500m since the last compute, or the done-task count
-  // changed (a task was completed/uncompleted, which can add or remove
-  // eligible tasks). Neither → skip, keep the last result.
-  const [oneTripEligibleCount, setOneTripEligibleCount] = useState(0);
-  const lastOneTripComputeRef = useRef<{ coords: { lat: number; lng: number }; doneTasks: number } | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const coords = getLastSearchCoords();
-      const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
-      if (!coords || !uid || eligible.length < 2) {
-        if (!cancelled) { setOneTripEligibleCount(0); }
-        lastOneTripComputeRef.current = null;
-        return;
-      }
-
-      const last = lastOneTripComputeRef.current;
-      const locationMoved = !last || getDistanceMeters(last.coords.lat, last.coords.lng, coords.lat, coords.lng) > 500;
-      const taskCompletionChanged = !last || last.doneTasks !== doneTasks;
-      if (!locationMoved && !taskCompletionChanged) { return; }
-
-      try {
-        const counts = await getLearnedPlaceCounts(uid).catch(() => []);
-        const learned = computeLearnedPlaces(counts);
-        const results = await Promise.all(
-          eligible.map(t => resolveTaskDestination(t, coords, learned, {}, { skipPinned: true })),
-        );
-        if (!cancelled) {
-          setOneTripEligibleCount(results.filter(r => r !== null).length);
-          lastOneTripComputeRef.current = { coords, doneTasks };
-        }
-      } catch {
-        if (!cancelled) { setOneTripEligibleCount(0); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [sortedTasks, uid, poiPlaces, doneTasks]);
-
-  const oneTripVisible = oneTripEligibleCount >= 2;
+  // Pure sync check against data already in memory — no Firestore, no network,
+  // nothing async. Visible when there's more than one open POI task AND at
+  // least one of them isn't already covered by the Nearby card (same
+  // hero+grey `poiPlaces` set each row's `isFar` indicator checks). Tasks
+  // that are all already nearby don't need a trip — that's what the Nearby
+  // card is for.
+  const oneTripVisible = useMemo(() => {
+    const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+    if (eligible.length < 2) { return false; }
+    return eligible.some(t => !poiPlaces[t.poi!]?.length);
+  }, [sortedTasks, poiPlaces]);
 
   // Stable row-press handler — an inline arrow here would change identity every
   // render and defeat React.memo on TaskRow.
