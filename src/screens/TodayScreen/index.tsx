@@ -57,6 +57,7 @@ import { useNewTaskSheetStore } from '../../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
+import { consumeTasksDirty } from '../../services/taskMutationSignal';
 import { COPY } from '../../constants/copy';
 import { localDateISO } from '../../utils/date';
 import {
@@ -122,12 +123,18 @@ export default function TodayScreen() {
 
   const [nearbyHasContent, setNearbyHasContent] = useState(false);
 
-  // Refresh tasks on focus so accepted shared tasks appear on return.
+  // Refresh tasks on focus — but only when a real mutation happened
+  // somewhere since the last load (a task edited/added/deleted, a shared
+  // task accepted, an import, a toggle from CalendarScreen). Every task
+  // write marks taskMutationSignal at its source (services/firestore/
+  // tasks.ts, sharing.ts, import.ts); refresh() otherwise did 10 parallel
+  // Firestore reads on every single return to this screen regardless of
+  // whether anything had changed (KAN-285 follow-up).
   // Skip the very first focus — SplashScreen already preloaded data.
   const hasFocusedOnce = useRef(false);
   useFocusEffect(useCallback(() => {
     if (!hasFocusedOnce.current) { hasFocusedOnce.current = true; return; }
-    refresh();
+    if (consumeTasksDirty()) { refresh(); }
   }, [refresh]));
 
   // ── New Task sheet open trigger ───────────────────────────────────────────────

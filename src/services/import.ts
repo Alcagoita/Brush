@@ -27,6 +27,7 @@ import { ImportResult } from '../types';
 import { inferPoiFromRules } from './poiInference';
 import { classifyPoi } from './poiLlm';
 import { isBirthdayEvent } from './birthday';
+import { markTasksDirty } from './taskMutationSignal';
 
 // ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
 
@@ -423,6 +424,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 
@@ -496,6 +498,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 
@@ -580,6 +583,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 
@@ -647,6 +651,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 

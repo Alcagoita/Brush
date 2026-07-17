@@ -20,6 +20,7 @@ import type { Task, User } from '../../types';
 import { tasksRef, taskRef, userRef, learnedPlaceCountsRef, learnedPlaceCountRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
 import type { LearnedPlace } from '../learnedPlaces';
+import { markTasksDirty } from '../taskMutationSignal';
 
 /** Firestore caps a single batch at 500 writes — chunk any bulk write to stay under it. */
 const BATCH_LIMIT = 500;
@@ -142,6 +143,7 @@ export async function addTask(
     done: false,
     createdAt: Timestamp.now(),
   });
+  markTasksDirty();
   return ref.id;
 }
 
@@ -314,6 +316,7 @@ export async function setTaskDone(
     console.warn('[tasks] setTaskDone transaction failed, falling back to offline batch update', error);
     await applyTaskDoneOfflineFallback(uid, taskId, taskPatch, done, completedPlace);
   }
+  markTasksDirty();
 }
 
 /** Update any mutable fields on a task (title, category, time, poi, date…). */
@@ -323,11 +326,13 @@ export async function updateTask(
   data: Partial<Omit<Task, 'id' | 'createdAt'>>,
 ): Promise<void> {
   await updateDoc(taskRef(uid, taskId), data);
+  markTasksDirty();
 }
 
 /** Permanently delete a task. */
 export async function deleteTask(uid: string, taskId: string): Promise<void> {
   await deleteDoc(taskRef(uid, taskId));
+  markTasksDirty();
 }
 
 /**
