@@ -94,8 +94,8 @@ describe('resolveTripDestinations', () => {
   it('piggybacks shopping_mall onto the same batched call and surfaces it as liveMallCandidates (KAN-282 — never a second call)', async () => {
     mockQueryHabitatCache.mockReturnValue({});
     mockSearchNearbyPlaces.mockResolvedValue({
-      pharmacy:      [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 1000 }],
-      shopping_mall: [{ placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800 }],
+      pharmacy:      [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 1000, primaryType: 'pharmacy' }],
+      shopping_mall: [{ placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800, primaryType: 'shopping_mall' }],
     });
 
     const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
@@ -106,8 +106,23 @@ describe('resolveTripDestinations', () => {
       COORDS.lat, COORDS.lng, expect.arrayContaining(['pharmacy', 'shopping_mall']), expect.any(Number),
     );
     expect(result.liveMallCandidates).toEqual([
-      { placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800 },
+      { placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800, primaryType: 'shopping_mall' },
     ]);
+  });
+
+  it('drops a shopping_mall bucket hit whose PRIMARY Google type is something else (KAN-282 review fix — a supermarket tagged shopping_mall as a secondary category must never be offered up as "the mall" under its own name)', async () => {
+    mockQueryHabitatCache.mockReturnValue({});
+    mockSearchNearbyPlaces.mockResolvedValue({
+      pharmacy:      [],
+      // Landed in the shopping_mall bucket because ONE of its types matched
+      // our request, but its true primary type is supermarket.
+      shopping_mall: [{ placeId: 'paulino', name: 'Paulino', lat: 38.72, lng: -9.12, distanceMeters: 530, primaryType: 'supermarket' }],
+    });
+
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
+    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(result.liveMallCandidates).toEqual([]);
   });
 
   it('returns an empty liveMallCandidates when no live search happens (offline or everything resolved locally)', async () => {

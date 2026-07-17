@@ -37,7 +37,7 @@ jest.mock('../../src/components/AppIcon', () => {
   const React = require('react');
   const { View } = require('react-native');
   const stub = (props: React.ComponentProps<typeof View>) => React.createElement(View, props);
-  return { ChevronLeftIcon: stub, PoiIcon: stub };
+  return { ChevronLeftIcon: stub, PoiIcon: stub, ShoppingBagIcon: stub };
 });
 
 const mockGetAuth = jest.fn(() => ({ currentUser: { uid: 'user-123' } }));

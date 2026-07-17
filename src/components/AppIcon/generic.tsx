@@ -460,6 +460,19 @@ export function SuitcaseIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Shopping bag (mall card, KAN-282) ──────────────────────────────────────────
+export function ShoppingBagIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M6 8h12l1 12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1L6 8z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Path d="M9 8V6a3 3 0 0 1 6 0v2" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── Cloud-off (ContextChip offline-with-coverage glyph, KAN-241) ──────────────
 export function CloudOffIcon({ color, size = 24 }: IconProps) {
   return (

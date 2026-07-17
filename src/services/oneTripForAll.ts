@@ -81,7 +81,12 @@ export async function resolveTripDestinations(
       // separate one just to look for a mall) so the mall card can use a
       // live hit when the local-only detection tiers found nothing.
       liveResults = await searchNearbyPlaces(coords.lat, coords.lng, [...unresolvedTypes, 'shopping_mall'], ROUTE_MAX_RADIUS_M);
-      liveMallCandidates = liveResults.shopping_mall ?? [];
+      // A place lands in the shopping_mall bucket if ANY of its Google types
+      // matched our request — a supermarket occasionally also carries
+      // shopping_mall as a secondary tag and would otherwise get offered up
+      // as "the mall" under its own (wrong) name. Only trust it as a mall
+      // when shopping_mall is genuinely its PRIMARY type.
+      liveMallCandidates = (liveResults.shopping_mall ?? []).filter(p => p.primaryType === 'shopping_mall');
     } catch {
       // Timeout/network error — proceed with whatever resolved locally.
     }

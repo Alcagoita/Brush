@@ -38,6 +38,12 @@ export interface NearbyPlace {
   lng: number;
   /** Straight-line distance from the search origin in metres. */
   distanceMeters: number;
+  /** Google's own primary type for this place (types[0]) — a place can
+   *  carry several secondary type tags (e.g. a supermarket occasionally
+   *  also tagged shopping_mall), so anything that needs to trust a SPECIFIC
+   *  type (not just "this place matched one of our requested types") should
+   *  check this, not assume the bucket it landed in reflects its true kind. */
+  primaryType?: string;
 }
 
 // ─── Internal Places API types ─────────────────────────────────────────────────
@@ -124,9 +130,12 @@ export async function searchNearbyPlaces(
       lat:            placeLat,
       lng:            placeLng,
       distanceMeters: getDistanceMeters(lat, lng, placeLat, placeLng),
+      primaryType:    p.types?.[0],
     };
 
-    // Assign this place to the first requested type it matches.
+    // Assign this place to the first requested type it matches — this is
+    // "did it match ANY of what we asked for", not "this IS its type"; see
+    // NearbyPlace.primaryType for anything that needs the latter.
     for (const placeType of (p.types ?? [])) {
       const internalType = googleToInternal[placeType];
       if (internalType && result[internalType]) {

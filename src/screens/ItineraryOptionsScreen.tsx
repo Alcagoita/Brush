@@ -20,7 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, PoiIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, PoiIcon, ShoppingBagIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
@@ -192,7 +192,7 @@ export default function ItineraryOptionsScreen() {
               accessibilityRole="button"
               accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name, mallOption.coveredCount)}>
               <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
-                <PoiIcon type="shopping_mall" color={palette.accent} size={22} />
+                <ShoppingBagIcon color={palette.accent} size={22} />
               </View>
               <View style={styles.mallTextWrap}>
                 {/* nearText is designed to pair with nearTint/nearBorder in
