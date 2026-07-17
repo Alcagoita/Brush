@@ -76,8 +76,18 @@ export function useProximityEngine(
 ): ProximityEngine {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const permissionGrantedRef = useRef(false);
-  const refreshProximityRef  = useRef<() => void>(() => {});
   useEffect(() => { permissionGrantedRef.current = permissionGranted; }, [permissionGranted]);
+
+  // Mirrors for the AppState handler below (empty-deps effect — can't close
+  // over current values directly). KAN-285 follow-up: app foreground/resume
+  // (including an emulator/OS process restart after a low-memory kill, which
+  // looks identical to a normal background→foreground transition) must go
+  // through the same 500m/POI-type-set gate as every other automatic check,
+  // not call the raw unconditional search.
+  const uidRef               = useRef<string | undefined>(uid);
+  const hasPOITasksRef       = useRef(false);
+  const isStoreTuningActiveRef = useRef(false);
+  useEffect(() => { uidRef.current = uid; }, [uid]);
 
   // ── Nearby-list readiness (see ProximityEngine.nearbyReady doc) ────────────
   const [permissionChecked, setPermissionChecked] = useState(DEBUG_DISABLE_BACKGROUND);
@@ -105,9 +115,20 @@ export function useProximityEngine(
       if (nextState === 'active') {
         setBatteryLevel(await getBatteryLevel());
         if (permissionGrantedRef.current) {
-          // User may have toggled GPS back on — re-run immediately rather than
-          // waiting for the next 3-minute interval tick.
-          refreshProximityRef.current();
+          // Foregrounding (including an OS-level process resume after a
+          // low-memory kill, which fires this exact same 'active' event —
+          // not a fresh cold start the snapshot-reuse gate wouldn't see)
+          // must go through the same gate as every other automatic check:
+          // reuse the persisted snapshot unless the position moved >500m or
+          // the POI-type set changed. The user's own "refresh location" tap
+          // (NearbyCard's onRefreshLocation, wired straight to the
+          // refreshProximity this hook returns) is unaffected — that's an
+          // explicit request, always real, never routed through this gate.
+          const uidNow = uidRef.current;
+          if (uidNow && hasPOITasksRef.current && !isStoreTuningActiveRef.current) {
+            runProximitySearchOrReuseSnapshot(uidNow, latestTasksRef.current, onNearbyUpdateRef.current)
+              .catch(() => setLocationUnavailable(true));
+          }
         } else {
           // Re-check in case the user granted permission in Settings while away.
           requestLocationPermission()
@@ -184,8 +205,10 @@ export function useProximityEngine(
     () => tasks.some(t => !t.done && t.poi),
     [tasks],
   );
+  useEffect(() => { hasPOITasksRef.current = hasPOITasks; }, [hasPOITasks]);
 
   const isStoreTuningActive = storeTuningState === 'active';
+  useEffect(() => { isStoreTuningActiveRef.current = isStoreTuningActive; }, [isStoreTuningActive]);
 
   // ── Stable onUpdate callback ───────────────────────────────────────────────
 
@@ -201,6 +224,8 @@ export function useProximityEngine(
     },
     [],
   );
+  const onNearbyUpdateRef = useRef(onNearbyUpdate);
+  useEffect(() => { onNearbyUpdateRef.current = onNearbyUpdate; }, [onNearbyUpdate]);
 
   // ── Outdoor proximity lifecycle (KAN-24 / KAN-53) ─────────────────────────
 
@@ -356,8 +381,6 @@ export function useProximityEngine(
       return false;
     }
   }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
-
-  useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);
 
   // Settled once permission is known AND either nothing was ever going to
   // search (no permission, no POI tasks, Store tuning owns it instead) or a
