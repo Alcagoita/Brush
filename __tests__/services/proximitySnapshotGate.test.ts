@@ -178,4 +178,47 @@ describe('runProximitySearchOrReuseSnapshot', () => {
     expect(mockGetCurrentPositionAsync).not.toHaveBeenCalled();
     expect(mockOnUpdate).toHaveBeenCalledWith(null, null, {});
   });
+
+  it('recomputes distances against the CURRENT position when reusing a snapshot, not the stale stored ones', async () => {
+    // Snapshot origin === place location: was hero (0m). Move ~150m away —
+    // still within the 500m reuse radius (so the API call is still skipped),
+    // but 150m crosses HERO_RADIUS_M (100m): the place must demote to grey,
+    // not keep replaying its stale 0m/hero status from capture time.
+    mockGetCurrentPositionAsync.mockResolvedValue(makePosition(38.7 + 150 / 111_000, -9.1));
+    mockLoadProximitySnapshot.mockReturnValue(makeSnapshot({
+      // Overriding the default fixture's place/nearbyPlace directly since
+      // makeSnapshot's overrides param only covers lat/lng/poiTypesKey.
+    }));
+
+    await runProximitySearchOrReuseSnapshot('uid-1', [makeTask('t1', 'pharmacy')], mockOnUpdate);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+    const [heroType, heroPlace, allPlaces] = mockOnUpdate.mock.calls[0];
+    expect(heroType).toBeNull(); // demoted — no longer within HERO_RADIUS_M
+    expect(heroPlace).toBeNull();
+    expect(allPlaces.pharmacy[0].placeId).toBe('p1'); // still nearby (grey), just not hero
+    expect(allPlaces.pharmacy[0].distanceMeters).toBeGreaterThanOrEqual(100);
+    expect(allPlaces.pharmacy[0].distanceMeters).toBeLessThan(400);
+  });
+
+  it('promotes a snapshot place into hero when the CURRENT position is closer than the stored distance', async () => {
+    // Snapshot captured the place at 300m (grey, not hero). Reusing it from
+    // 50m away must promote it to hero — the opposite direction of the
+    // demotion case above, same underlying bug (replaying stale distances).
+    mockGetCurrentPositionAsync.mockResolvedValue(makePosition(38.7 + 50 / 111_000, -9.1));
+    mockLoadProximitySnapshot.mockReturnValue({
+      lat: ORIGIN.lat, lng: ORIGIN.lng, poiTypesKey: 'pharmacy',
+      nearbyPoiType: null,
+      nearbyPlace: null,
+      poiPlaces: { pharmacy: [{ placeId: 'p1', name: 'Cached Pharmacy', lat: ORIGIN.lat, lng: ORIGIN.lng, distanceMeters: 300 }] },
+    });
+
+    await runProximitySearchOrReuseSnapshot('uid-1', [makeTask('t1', 'pharmacy')], mockOnUpdate);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+    const [heroType, heroPlace] = mockOnUpdate.mock.calls[0];
+    expect(heroType).toBe('pharmacy');
+    expect(heroPlace?.placeId).toBe('p1');
+    expect(heroPlace?.distanceMeters).toBeLessThan(100);
+  });
 });

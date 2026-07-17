@@ -587,20 +587,24 @@ async function runProximitySearch(
   uid: string,
   tasks: Task[],
   onUpdate: ProximityCallback,
+  presetCoords?: Coordinates,
 ): Promise<void> {
   if (_isSearching) { return; }
   _isSearching = true;
 
   try {
-    const coords = await getPositionLowAccuracy();
-    _locationTap?.(coords.lat, coords.lng, coords.accuracy);
-    _placeContextTap?.(findActivePlaceContext(coords.lat, coords.lng));
+    // KAN-285 review fix — runProximitySearchOrReuseSnapshot's fallback path
+    // already has a position fix by the time it falls through here; passing
+    // it through avoids a second GPS read for the same tick.
+    const coords = presetCoords ?? await getPositionLowAccuracy();
 
     const undonePoiTasks = tasks.filter(t => !t.done && t.poi != null);
     const uniquePoiTypes = [...new Set(undonePoiTasks.map(t => t.poi as string))];
     const poiTypesKey = [...uniquePoiTypes].sort().join(',');
 
     if (uniquePoiTypes.length === 0) {
+      _locationTap?.(coords.lat, coords.lng, coords.accuracy);
+      _placeContextTap?.(findActivePlaceContext(coords.lat, coords.lng));
       _currentNearbyType = null;
       _lastAllPlaces = {};
       // No undone POI tasks left to prompt for — nothing to fire, just
@@ -734,142 +738,174 @@ async function runProximitySearch(
       });
     }
 
-    // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
-    let heroType:  string | null = null;
-    let heroPlace: NearbyPlace | null = null;
-    let heroDistance = Infinity;
-    const allPlaces: PlacesMap = {};
-
-    for (const poiType of uniquePoiTypes) {
-      const places = results[poiType] ?? [];
-
-      // Reconcile live results against the cache's cross-source identity
-      // (KAN-229): a place already known to both Google and the OSM cache
-      // gets its stable internal id instead of this tick's raw Google
-      // placeId, so a later source flip (cache ↔ live) doesn't look like a
-      // different place downstream (exit-prompt dwell clock, hero card's
-      // carousel). A place with no cache counterpart yet keeps its own
-      // Google placeId — findExistingPlaceId never invents a new identity.
-      //
-      // Only the nearest place is reconciled here (one sync SQLite read per
-      // type, not per place) — that's the only one trackExitPromptGeofence
-      // and a potential heroPlace ever look at. The rest of a type's list
-      // only matters once we know it's the hero type and its carousel is
-      // actually shown — reconciled in a second pass below.
-      let nearest = places[0] ?? null;
-      if (!answeredFromCache && nearest) {
-        const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
-        if (existingId) { nearest = { ...nearest, placeId: existingId }; }
-      }
-
-      // Exit-prompt dwell check runs for every type regardless of the
-      // display threshold below. A type with zero results this tick is
-      // simply skipped here (nothing to check) — an in-progress dwell clock
-      // is left untouched, not reset; see trackExitPromptGeofence's docs.
-      trackExitPromptGeofence(poiType, nearest, uid, tasks);
-
-      if (!nearest) { continue; }
-
-      const dist = nearest.distanceMeters;
-      if (dist >= NEARBY_RADIUS) { continue; }
-
-      // Store all places within NEARBY_RADIUS, ordered nearest-first (index
-      // 0 already reconciled above; the rest keep their raw ids for now).
-      allPlaces[poiType] = [nearest, ...places.slice(1)];
-
-      // Closest place under HERO_RADIUS_M wins the orange hero. Decided on
-      // the TRUE nearest distance only — KAN-230's learned-place preference
-      // (below) must never influence which TYPE wins the cross-type race,
-      // only which specific PLACE represents the type that already won.
-      if (dist < HERO_RADIUS_M && dist < heroDistance) {
-        heroType     = poiType;
-        heroPlace    = nearest;
-        heroDistance = dist;
-      }
-    }
-
-    // Reconcile the rest of the hero type's carousel now that it's known —
-    // NearbyCard's "Try another place" carousel only ever shows the winning
-    // hero type's list, so there's no reason to pay for the other ≤4 places
-    // of every non-hero type too.
-    if (!answeredFromCache && heroType !== null) {
-      const winningType = heroType;
-      allPlaces[winningType] = (allPlaces[winningType] ?? []).map((place, i) => {
-        if (i === 0) { return place; } // already reconciled above
-        const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
-        return existingId ? { ...place, placeId: existingId } : place;
-      });
-    }
-
-    // KAN-230 — now that the hero type is locked in on true distance alone,
-    // see if ITS OWN learned venue (≥3 brushes) is among its candidates and
-    // still within HERO_RADIUS_M on its own real distance. If so, prefer it
-    // as the displayed/notified place for this type — "top priority" only
-    // ever affects which place represents the type that already won, never
-    // which type wins. Non-hero (grey) types are left alone: nothing to
-    // prioritize for a type that isn't being shown as the hero anyway.
-    if (heroType !== null) {
-      const winningType = heroType;
-      const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, winningType);
-      const currentPlaces = allPlaces[winningType] ?? [];
-      if (learnedForType && currentPlaces[0]?.placeId !== learnedForType.placeId) {
-        for (const candidate of currentPlaces.slice(1)) {
-          let candidateId = candidate.placeId;
-          if (!answeredFromCache) {
-            const existingId = findExistingPlaceId(winningType, candidate.name, candidate.lat, candidate.lng);
-            if (existingId) { candidateId = existingId; }
-          }
-          if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
-            const promoted = { ...candidate, placeId: candidateId };
-            allPlaces[winningType] = [promoted, ...currentPlaces.filter(p => p !== candidate)];
-            heroPlace = promoted;
-            break;
-          }
-        }
-      }
-    }
-
-    // Fire notification when a new type enters the hero zone.
-    if (heroType !== null && heroType !== _currentNearbyType) {
-      const today    = todayISO();
-      const eligible = undonePoiTasks.filter(
-        t => t.poi === heroType && t.poiAlertSeenDate !== today,
-      );
-      if (
-        eligible.length > 0 &&
-        notifNearbyEnabled &&
-        !isQuietHours() &&
-        !_alertedTodayTypes.has(heroType)
-      ) {
-        _alertedTodayTypes.add(heroType);
-        fireNotification(placeTypeLabel(heroType), eligible.length).catch(err =>
-          reportProximityError('notification failed', err),
-        );
-        markAllPoiAlertsSeen(uid, eligible.map(t => t.id), today).catch(err =>
-          reportProximityError('markAllPoiAlertsSeen failed', err),
-        );
-      }
-    }
-
-    // Reset today-alert tracking when hero clears (user walked away).
-    if (heroType === null && _currentNearbyType !== null) {
-      _alertedTodayTypes.delete(_currentNearbyType);
-    }
-
-    _currentNearbyType = heroType;
-    _lastAllPlaces = allPlaces;
-    _lastSearchPoiTypesKey = poiTypesKey;
-    onUpdate(heroType, heroPlace, allPlaces);
-    // KAN-285 — persist so the next automatic check (screen mount, app
-    // reopen) can reuse this instead of re-hitting the Places API when
-    // neither condition (moved >500m, POI types changed) actually holds.
-    saveProximitySnapshot(uid, {
-      lat: coords.lat, lng: coords.lng, poiTypesKey,
-      nearbyPoiType: heroType, nearbyPlace: heroPlace, poiPlaces: allPlaces,
-    });
+    processProximityTick(uid, tasks, undonePoiTasks, uniquePoiTypes, poiTypesKey, coords, results, answeredFromCache, onUpdate);
   } finally {
     _isSearching = false;
   }
+}
+
+/**
+ * Shared result-processing path (KAN-285 review fix): location-context taps,
+ * hero/grey split, KAN-230 learned-place preference, notification
+ * eligibility, exit-prompt dwell tracking, firing onUpdate, and persisting
+ * the new snapshot — everything a proximity tick is responsible for once it
+ * has per-type place candidates and a position, regardless of where those
+ * candidates came from.
+ *
+ * Used by both runProximitySearch (fresh live/cache results) and
+ * runProximitySearchOrReuseSnapshot's reuse path (candidates recovered from
+ * a persisted snapshot, with distances recomputed against the CURRENT
+ * position) — reusing a snapshot must never mean skipping this. Only the
+ * "hit the Places API" step is what the snapshot actually saves.
+ */
+function processProximityTick(
+  uid: string,
+  tasks: Task[],
+  undonePoiTasks: Task[],
+  uniquePoiTypes: string[],
+  poiTypesKey: string,
+  coords: { lat: number; lng: number; accuracy?: number },
+  results: Record<string, NearbyPlace[]>,
+  answeredFromCache: boolean,
+  onUpdate: ProximityCallback,
+): void {
+  _locationTap?.(coords.lat, coords.lng, coords.accuracy ?? 0);
+  _placeContextTap?.(findActivePlaceContext(coords.lat, coords.lng));
+
+  // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
+  let heroType:  string | null = null;
+  let heroPlace: NearbyPlace | null = null;
+  let heroDistance = Infinity;
+  const allPlaces: PlacesMap = {};
+
+  for (const poiType of uniquePoiTypes) {
+    const places = results[poiType] ?? [];
+
+    // Reconcile live results against the cache's cross-source identity
+    // (KAN-229): a place already known to both Google and the OSM cache
+    // gets its stable internal id instead of this tick's raw Google
+    // placeId, so a later source flip (cache ↔ live) doesn't look like a
+    // different place downstream (exit-prompt dwell clock, hero card's
+    // carousel). A place with no cache counterpart yet keeps its own
+    // Google placeId — findExistingPlaceId never invents a new identity.
+    //
+    // Only the nearest place is reconciled here (one sync SQLite read per
+    // type, not per place) — that's the only one trackExitPromptGeofence
+    // and a potential heroPlace ever look at. The rest of a type's list
+    // only matters once we know it's the hero type and its carousel is
+    // actually shown — reconciled in a second pass below.
+    let nearest = places[0] ?? null;
+    if (!answeredFromCache && nearest) {
+      const existingId = findExistingPlaceId(poiType, nearest.name, nearest.lat, nearest.lng);
+      if (existingId) { nearest = { ...nearest, placeId: existingId }; }
+    }
+
+    // Exit-prompt dwell check runs for every type regardless of the
+    // display threshold below. A type with zero results this tick is
+    // simply skipped here (nothing to check) — an in-progress dwell clock
+    // is left untouched, not reset; see trackExitPromptGeofence's docs.
+    trackExitPromptGeofence(poiType, nearest, uid, tasks);
+
+    if (!nearest) { continue; }
+
+    const dist = nearest.distanceMeters;
+    if (dist >= NEARBY_RADIUS) { continue; }
+
+    // Store all places within NEARBY_RADIUS, ordered nearest-first (index
+    // 0 already reconciled above; the rest keep their raw ids for now).
+    allPlaces[poiType] = [nearest, ...places.slice(1)];
+
+    // Closest place under HERO_RADIUS_M wins the orange hero. Decided on
+    // the TRUE nearest distance only — KAN-230's learned-place preference
+    // (below) must never influence which TYPE wins the cross-type race,
+    // only which specific PLACE represents the type that already won.
+    if (dist < HERO_RADIUS_M && dist < heroDistance) {
+      heroType     = poiType;
+      heroPlace    = nearest;
+      heroDistance = dist;
+    }
+  }
+
+  // Reconcile the rest of the hero type's carousel now that it's known —
+  // NearbyCard's "Try another place" carousel only ever shows the winning
+  // hero type's list, so there's no reason to pay for the other ≤4 places
+  // of every non-hero type too.
+  if (!answeredFromCache && heroType !== null) {
+    const winningType = heroType;
+    allPlaces[winningType] = (allPlaces[winningType] ?? []).map((place, i) => {
+      if (i === 0) { return place; } // already reconciled above
+      const existingId = findExistingPlaceId(winningType, place.name, place.lat, place.lng);
+      return existingId ? { ...place, placeId: existingId } : place;
+    });
+  }
+
+  // KAN-230 — now that the hero type is locked in on true distance alone,
+  // see if ITS OWN learned venue (≥3 brushes) is among its candidates and
+  // still within HERO_RADIUS_M on its own real distance. If so, prefer it
+  // as the displayed/notified place for this type — "top priority" only
+  // ever affects which place represents the type that already won, never
+  // which type wins. Non-hero (grey) types are left alone: nothing to
+  // prioritize for a type that isn't being shown as the hero anyway.
+  if (heroType !== null) {
+    const winningType = heroType;
+    const learnedForType = getLearnedPlaceForPoiType(_learnedPlaces, winningType);
+    const currentPlaces = allPlaces[winningType] ?? [];
+    if (learnedForType && currentPlaces[0]?.placeId !== learnedForType.placeId) {
+      for (const candidate of currentPlaces.slice(1)) {
+        let candidateId = candidate.placeId;
+        if (!answeredFromCache) {
+          const existingId = findExistingPlaceId(winningType, candidate.name, candidate.lat, candidate.lng);
+          if (existingId) { candidateId = existingId; }
+        }
+        if (candidateId === learnedForType.placeId && candidate.distanceMeters < HERO_RADIUS_M) {
+          const promoted = { ...candidate, placeId: candidateId };
+          allPlaces[winningType] = [promoted, ...currentPlaces.filter(p => p !== candidate)];
+          heroPlace = promoted;
+          break;
+        }
+      }
+    }
+  }
+
+  // Fire notification when a new type enters the hero zone.
+  if (heroType !== null && heroType !== _currentNearbyType) {
+    const today    = todayISO();
+    const eligible = undonePoiTasks.filter(
+      t => t.poi === heroType && t.poiAlertSeenDate !== today,
+    );
+    if (
+      eligible.length > 0 &&
+      notifNearbyEnabled &&
+      !isQuietHours() &&
+      !_alertedTodayTypes.has(heroType)
+    ) {
+      _alertedTodayTypes.add(heroType);
+      fireNotification(placeTypeLabel(heroType), eligible.length).catch(err =>
+        reportProximityError('notification failed', err),
+      );
+      markAllPoiAlertsSeen(uid, eligible.map(t => t.id), today).catch(err =>
+        reportProximityError('markAllPoiAlertsSeen failed', err),
+      );
+    }
+  }
+
+  // Reset today-alert tracking when hero clears (user walked away).
+  if (heroType === null && _currentNearbyType !== null) {
+    _alertedTodayTypes.delete(_currentNearbyType);
+  }
+
+  _currentNearbyType = heroType;
+  _lastAllPlaces = allPlaces;
+  _lastSearchPoiTypesKey = poiTypesKey;
+  _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
+  onUpdate(heroType, heroPlace, allPlaces);
+  // KAN-285 — persist so the next automatic check (screen mount, app
+  // reopen) can reuse this instead of re-hitting the Places API when
+  // neither condition (moved >500m, POI types changed) actually holds.
+  saveProximitySnapshot(uid, {
+    lat: coords.lat, lng: coords.lng, poiTypesKey,
+    nearbyPoiType: heroType, nearbyPlace: heroPlace, poiPlaces: allPlaces,
+  });
 }
 
 // ─── Position check (runs on 3-minute timer) ──────────────────────────────────
@@ -970,16 +1006,29 @@ export async function runProximitySearchOrReuseSnapshot(
   if (snapshot && snapshot.poiTypesKey === poiTypesKey) {
     const moved = getDistanceMeters(coords.lat, coords.lng, snapshot.lat, snapshot.lng);
     if (moved <= SNAPSHOT_REUSE_RADIUS_M) {
-      _currentNearbyType     = snapshot.nearbyPoiType;
-      _lastAllPlaces         = snapshot.poiPlaces;
-      _lastSearchCoords      = { lat: snapshot.lat, lng: snapshot.lng };
-      _lastSearchPoiTypesKey = snapshot.poiTypesKey;
-      onUpdate(snapshot.nearbyPoiType, snapshot.nearbyPlace, snapshot.poiPlaces);
+      // KAN-285 review fix — a snapshot within the reuse radius can still be
+      // up to SNAPSHOT_REUSE_RADIUS_M (500m) away from the CURRENT position,
+      // easily enough to cross the much tighter HERO_RADIUS_M/NEARBY_RADIUS
+      // thresholds (~100m/400m). Replaying the snapshot's already-computed
+      // hero/allPlaces verbatim would show stale results — instead, recover
+      // each candidate place's raw lat/lng from the snapshot, recompute its
+      // distance against the CURRENT coords, and run the exact same
+      // processProximityTick every other path uses, so hero/grey selection,
+      // notification eligibility, and exit-prompt dwell tracking all react
+      // to where the user actually is right now. Only the "was there an
+      // API/cache call this tick" step is what's actually skipped.
+      const results: Record<string, NearbyPlace[]> = {};
+      for (const [poiType, places] of Object.entries(snapshot.poiPlaces)) {
+        results[poiType] = (places ?? [])
+          .map(p => ({ ...p, distanceMeters: getDistanceMeters(coords.lat, coords.lng, p.lat, p.lng) }))
+          .sort((a, b) => a.distanceMeters - b.distanceMeters);
+      }
+      processProximityTick(uid, tasks, undonePoiTasks, uniquePoiTypes, poiTypesKey, coords, results, true, onUpdate);
       return;
     }
   }
 
-  await runProximitySearch(uid, tasks, onUpdate);
+  await runProximitySearch(uid, tasks, onUpdate, coords);
 }
 
 /**
