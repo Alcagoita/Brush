@@ -692,7 +692,16 @@ export default function CalendarScreen() {
       <View style={styles.topBar}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.navigate('Today')}
+          // popToTop() (not navigate('Today')) — this button must always land
+          // on Today regardless of entry depth (PlacesIKnowScreen can also
+          // push here, one level deeper than Today's own direct push), but
+          // navigate() to an already-in-stack route goes through a different
+          // action path than a plain pop and was remounting Today, resetting
+          // useProximityEngine's state and re-triggering the Nearby-zone
+          // check for no reason. popToTop() pops back to the initial route
+          // (Today) through the same POP mechanism as goBack(), which
+          // doesn't remount it — same fix as "Open today"'s CTA below.
+          onPress={() => navigation.popToTop()}
           accessibilityRole="button"
           accessibilityLabel={COPY.calendar.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />
