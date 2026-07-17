@@ -41,6 +41,14 @@ import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
 export interface ProximityEngine {
   permissionGranted:  boolean;
+  /** True once the Nearby list reflects a real, settled outcome — either a
+   *  proximity search has completed (success or failure), or there was
+   *  never going to be one (no POI tasks, permission denied, Store tuning
+   *  active). False while a first search is genuinely in flight. Anything
+   *  derived from poiPlaces (far-away arrows, "one trip for all of these")
+   *  must gate on this — showing it against the {} default before the real
+   *  list lands means it can vanish moments later with no explanation. */
+  nearbyReady:        boolean;
   nearbyPoiType:      string | null;
   /** Mirror of nearbyPoiType for stable callbacks (e.g. useTaskCompletion). */
   nearbyPoiTypeRef:   React.RefObject<string | null>;
@@ -69,6 +77,10 @@ export function useProximityEngine(
   const permissionGrantedRef = useRef(false);
   const refreshProximityRef  = useRef<() => void>(() => {});
   useEffect(() => { permissionGrantedRef.current = permissionGranted; }, [permissionGranted]);
+
+  // ── Nearby-list readiness (see ProximityEngine.nearbyReady doc) ────────────
+  const [permissionChecked, setPermissionChecked] = useState(DEBUG_DISABLE_BACKGROUND);
+  const [hasCompletedScan,  setHasCompletedScan]  = useState(false);
 
   /** True while a proximity search Promise is in-flight. */
   const isSearchingRef    = useRef(false);
@@ -126,7 +138,7 @@ export function useProximityEngine(
       if (status === 'granted') { setPermissionGranted(true); }
     }).catch(err => {
       console.warn('[useTodayScreen] location permission error', err);
-    });
+    }).finally(() => setPermissionChecked(true));
   }, [uid]);
 
   // ── Indoor detection + store tuning (KAN-73 / KAN-74) ─────────────────────
@@ -186,6 +198,7 @@ export function useProximityEngine(
       setNearbyPlace(place);
       setPoiPlaces(allPlaces);
       setLocationUnavailable(false);
+      setHasCompletedScan(true);
     },
     [],
   );
@@ -205,12 +218,20 @@ export function useProximityEngine(
         // review fix) — e.g. the user's last POI task got completed while
         // inside a mall, and the chip would freeze there indefinitely.
         setPlaceContext(null);
+        // No POI tasks (or Store tuning owns the nearby state instead) means
+        // there was never a search to wait for — {} is already the settled,
+        // correct answer.
+        setHasCompletedScan(true);
       }
       return;
     }
 
-    const onSearchError = () => setLocationUnavailable(true);
+    const onSearchError = () => { setLocationUnavailable(true); setHasCompletedScan(true); };
 
+    // A fresh search is starting for this uid/permission/POI-tasks
+    // combination — the readiness flag from any previous combination (e.g.
+    // "no POI tasks" settling to ready=true) no longer applies.
+    setHasCompletedScan(false);
     runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
     prevPoiCountRef.current = latestTasksRef.current.filter(t => !t.done && t.poi).length;
 
@@ -326,8 +347,14 @@ export function useProximityEngine(
 
   useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);
 
+  // Settled once permission is known AND either nothing was ever going to
+  // search (no permission, no POI tasks, Store tuning owns it instead) or a
+  // real search attempt has completed.
+  const nearbyReady = permissionChecked && (!permissionGranted || !hasPOITasks || isStoreTuningActive || hasCompletedScan);
+
   return {
     permissionGranted,
+    nearbyReady,
     nearbyPoiType,
     nearbyPoiTypeRef,
     nearbyPlace,

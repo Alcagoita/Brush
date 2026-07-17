@@ -355,6 +355,31 @@ describe('useTodayScreen — proximity engine', () => {
   });
 });
 
+describe('useTodayScreen — nearbyReady (KAN-281 follow-up)', () => {
+  it('is false while a first proximity search is in flight, true once it resolves', async () => {
+    mockGetTasksForDate.mockResolvedValue([POI_TASK]);
+    let resolveSearch: (() => void) | undefined;
+    mockRunProximitySearch.mockReturnValue(new Promise<void>(resolve => { resolveSearch = resolve; }));
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(result.current.nearbyReady).toBe(false);
+
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    await act(async () => { onUpdate(null, null, {}); resolveSearch?.(); });
+
+    expect(result.current.nearbyReady).toBe(true);
+  });
+
+  it('is true immediately when there are no POI tasks (nothing to wait for)', async () => {
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(result.current.nearbyReady).toBe(true);
+  });
+});
+
 describe('useTodayScreen — custom category POI types (KAN-238)', () => {
   it('feeds the habitat cache prefetch with custom category place types', async () => {
     mockGetCategories.mockResolvedValue([

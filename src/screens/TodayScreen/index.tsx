@@ -112,6 +112,7 @@ export default function TodayScreen() {
     socialUnreadCount,
     handleToggle,
     permissionGranted,
+    nearbyReady,
     refreshProximity,
     errandBundle,
     dismissErrandBundle,
@@ -166,11 +167,18 @@ export default function TodayScreen() {
   // hero+grey `poiPlaces` set each row's `isFar` indicator checks). Tasks
   // that are all already nearby don't need a trip — that's what the Nearby
   // card is for.
+  //
+  // Gated on `nearbyReady`: before the Nearby list has actually been
+  // computed, poiPlaces is just its {} default, which would make every POI
+  // task read as "not nearby" — showing the button, then yanking it away
+  // moments later once the real scan lands is worse than not showing it at
+  // all, so it waits.
   const oneTripVisible = useMemo(() => {
+    if (!nearbyReady) { return false; }
     const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
     if (eligible.length < 2) { return false; }
     return eligible.some(t => !poiPlaces[t.poi!]?.length);
-  }, [sortedTasks, poiPlaces]);
+  }, [nearbyReady, sortedTasks, poiPlaces]);
 
   // Stable row-press handler — an inline arrow here would change identity every
   // render and defeat React.memo on TaskRow.
@@ -217,8 +225,10 @@ export default function TodayScreen() {
           nearbyPoiType={item.poi && item.poi === nearbyPoiType ? nearbyPoiType : null}
           // KAN-279 — quiet nav-arrow indicator: this task's POI isn't in
           // the Nearby list at all (same hero+grey set NearbyCard renders
-          // from poiPlaces), so "Take me there" is available for it.
-          isFar={!!item.poi && !poiPlaces[item.poi]?.length}
+          // from poiPlaces), so "Take me there" is available for it. Gated
+          // on nearbyReady — see oneTripVisible's comment above, same
+          // "don't show it just to yank it away" reasoning.
+          isFar={nearbyReady && !!item.poi && !poiPlaces[item.poi]?.length}
           onToggle={handleToggle}
           onPress={handleTaskPress}
           customCategories={customCategories}
@@ -226,7 +236,7 @@ export default function TodayScreen() {
       </View>
       )
     ),
-    [nearbyPoiType, poiPlaces, handleToggle, handleTaskPress, customCategories, palette.text],
+    [nearbyReady, nearbyPoiType, poiPlaces, handleToggle, handleTaskPress, customCategories, palette.text],
   );
 
   const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
