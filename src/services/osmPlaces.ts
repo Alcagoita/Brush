@@ -18,7 +18,7 @@
 
 import type { PoiType } from '../types';
 import { POI_OSM_TAGS } from '../types';
-import { getDistanceMeters } from './maps';
+import { getDistanceMeters, placeTypeLabel } from './maps';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -172,7 +172,10 @@ async function fetchOsmPlaces(
 
       result[poiType].push({
         osmId:          `${el.type}/${el.id}`,
-        name:           el.tags.name ?? tag.value.replace(/_/g, ' '),
+        // Raw OSM tag values are lowercase, underscore-separated keys (e.g.
+        // "atm") — route the no-name fallback through the same label helper
+        // every other POI-type display uses, instead of leaking the tag.
+        name:           el.tags.name ?? placeTypeLabel(poiType),
         isGenericName:  el.tags.name == null,
         lat:            el.lat,
         lng:            el.lon,

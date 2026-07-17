@@ -35,7 +35,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PlusIcon } from '../../components/AppIcon';
+import { ChevronRightIcon, NavigateIcon, PlusIcon } from '../../components/AppIcon';
 import ScrRotatingNudge from '../../components/ScrRotatingNudge';
 import Animated from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -112,6 +112,7 @@ export default function TodayScreen() {
     socialUnreadCount,
     handleToggle,
     permissionGranted,
+    nearbyReady,
     refreshProximity,
     errandBundle,
     dismissErrandBundle,
@@ -159,6 +160,26 @@ export default function TodayScreen() {
     [tasks],
   );
 
+  // ── "One trip for all of these" entry row (KAN-281) ───────────────────────────
+  // Pure sync check against data already in memory — no Firestore, no network,
+  // nothing async. Visible when there's more than one open POI task AND at
+  // least one of them isn't already covered by the Nearby card (same
+  // hero+grey `poiPlaces` set each row's `isFar` indicator checks). Tasks
+  // that are all already nearby don't need a trip — that's what the Nearby
+  // card is for.
+  //
+  // Gated on `nearbyReady`: before the Nearby list has actually been
+  // computed, poiPlaces is just its {} default, which would make every POI
+  // task read as "not nearby" — showing the button, then yanking it away
+  // moments later once the real scan lands is worse than not showing it at
+  // all, so it waits.
+  const oneTripVisible = useMemo(() => {
+    if (!nearbyReady) { return false; }
+    const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+    if (eligible.length < 2) { return false; }
+    return eligible.some(t => !poiPlaces[t.poi!]?.length);
+  }, [nearbyReady, sortedTasks, poiPlaces]);
+
   // Stable row-press handler — an inline arrow here would change identity every
   // render and defeat React.memo on TaskRow.
   const handleTaskPress = useCallback(
@@ -204,8 +225,10 @@ export default function TodayScreen() {
           nearbyPoiType={item.poi && item.poi === nearbyPoiType ? nearbyPoiType : null}
           // KAN-279 — quiet nav-arrow indicator: this task's POI isn't in
           // the Nearby list at all (same hero+grey set NearbyCard renders
-          // from poiPlaces), so "Take me there" is available for it.
-          isFar={!!item.poi && !poiPlaces[item.poi]?.length}
+          // from poiPlaces), so "Take me there" is available for it. Gated
+          // on nearbyReady — see oneTripVisible's comment above, same
+          // "don't show it just to yank it away" reasoning.
+          isFar={nearbyReady && !!item.poi && !poiPlaces[item.poi]?.length}
           onToggle={handleToggle}
           onPress={handleTaskPress}
           customCategories={customCategories}
@@ -213,7 +236,7 @@ export default function TodayScreen() {
       </View>
       )
     ),
-    [nearbyPoiType, poiPlaces, handleToggle, handleTaskPress, customCategories, palette.text],
+    [nearbyReady, nearbyPoiType, poiPlaces, handleToggle, handleTaskPress, customCategories, palette.text],
   );
 
   const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
@@ -273,6 +296,29 @@ export default function TodayScreen() {
     errandBundle, dismissErrandBundle,
     tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,
   ]);
+
+  const listFooter = useMemo(() => (
+    <>
+      {/* ── "One trip for all of these" (KAN-281) — quiet, absence-is-default,
+          same bordered-row template as CalendarScreen's "Going somewhere?"
+          entry row (tripEntryRow). ── */}
+      {oneTripVisible && (
+        <Pressable
+          style={[styles.oneTripForAllRow, { borderColor: palette.line }]}
+          hitSlop={4}
+          onPress={() => navigation.navigate('ItineraryOptions')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.oneTripForAll.entryA11y}>
+          <NavigateIcon color={palette.muted} size={16} />
+          <Text style={[styles.oneTripForAllLabel, { color: palette.text }]}>
+            {COPY.oneTripForAll.entryLabel}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      )}
+      <View style={styles.bottomPad} />
+    </>
+  ), [oneTripVisible, navigation, palette]);
 
   const listEmpty = isBusy ? (
     <View style={styles.rowPad}>
@@ -372,7 +418,7 @@ export default function TodayScreen() {
             keyExtractor={keyExtractor}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={listEmpty}
-            ListFooterComponent={<View style={styles.bottomPad} />}
+            ListFooterComponent={listFooter}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={scrollHandler}

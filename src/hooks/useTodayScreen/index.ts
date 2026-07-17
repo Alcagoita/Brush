@@ -72,6 +72,10 @@ export interface TodayScreenState {
   handleToggle: (taskId: string, done: boolean) => Promise<void>;
   /** True when location permission has been granted. */
   permissionGranted: boolean;
+  /** True once the Nearby list reflects a real, settled outcome — see
+   *  ProximityEngine.nearbyReady. Anything derived from poiPlaces (far-away
+   *  arrows, "one trip for all of these") must gate on this. */
+  nearbyReady: boolean;
   /** Re-runs the proximity search immediately — useful for a manual "refresh location" tap. */
   refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
@@ -175,6 +179,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     socialUnreadCount: data.socialUnreadCount,
     handleToggle,
     permissionGranted: proximity.permissionGranted,
+    nearbyReady: proximity.nearbyReady,
     refreshProximity: proximity.refreshProximity,
     locationUnavailable: proximity.locationUnavailable,
     errandBundle,

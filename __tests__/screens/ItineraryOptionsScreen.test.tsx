@@ -1,0 +1,155 @@
+/**
+ * KAN-281 — ItineraryOptionsScreen.
+ *
+ * Covers:
+ *  - loading state while resolving
+ *  - empty state when nothing resolves
+ *  - renders the single suggestion card from the computed plan
+ *  - tapping the card opens Maps with the correct origin/stops (no travelmode
+ *    — the user picks that inside Maps itself)
+ *  - back button navigates back
+ */
+
+import React from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import ItineraryOptionsScreen from '../../src/screens/ItineraryOptionsScreen';
+
+const mockGoBack = jest.fn();
+jest.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ goBack: mockGoBack }),
+}));
+
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}));
+
+jest.mock('../../src/theme', () => ({
+  useTheme: () => ({
+    palette: {
+      bg: '#fdfdfb', surface: '#f6f5f1', surface2: '#efeeea',
+      line: 'rgba(20,20,18,0.08)', text: '#1a1a18', muted: '#8a8a85',
+      faint: '#bdbdb7', accent: '#e8a86a',
+    },
+  }),
+}));
+
+jest.mock('../../src/components/AppIcon', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  const stub = (props: React.ComponentProps<typeof View>) => React.createElement(View, props);
+  return { ChevronLeftIcon: stub, PoiIcon: stub };
+});
+
+const mockGetAuth = jest.fn(() => ({ currentUser: { uid: 'user-123' } }));
+jest.mock('@react-native-firebase/auth/lib/modular', () => ({
+  getAuth: () => mockGetAuth(),
+}));
+
+const mockGetTasksForDate = jest.fn().mockResolvedValue([]);
+jest.mock('../../src/services/firestore', () => ({
+  getTasksForDate: (...args: unknown[]) => mockGetTasksForDate(...args),
+}));
+
+const mockGetPositionLowAccuracy = jest.fn().mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
+jest.mock('../../src/services/geolocation', () => ({
+  getPositionLowAccuracy: (...args: unknown[]) => mockGetPositionLowAccuracy(...args),
+}));
+
+const mockGetLastSearchCoords = jest.fn().mockReturnValue({ lat: 38.7, lng: -9.1 });
+jest.mock('../../src/services/proximity', () => ({
+  getLastSearchCoords: (...args: unknown[]) => mockGetLastSearchCoords(...args),
+}));
+
+const mockOpenMultiStopDirections = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/maps', () => ({
+  openMultiStopDirections: (...args: unknown[]) => mockOpenMultiStopDirections(...args),
+  formatDistance: (m: number) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`),
+}));
+
+const mockResolveTripDestinations = jest.fn();
+const mockPlanTrip = jest.fn();
+jest.mock('../../src/services/oneTripForAll', () => ({
+  resolveTripDestinations: (...args: unknown[]) => mockResolveTripDestinations(...args),
+  planTrip: (...args: unknown[]) => mockPlanTrip(...args),
+}));
+
+function makeStop(id: string, name: string, source: 'learned' | 'cache' = 'cache', distanceMeters = 400) {
+  return {
+    task: { id, title: name, category: 'errands', done: false, date: '2026-07-16', createdAt: {}, poi: 'pharmacy' },
+    place: { internalId: id, name, lat: 38.71, lng: -9.11, distanceMeters, source },
+  };
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockGetAuth.mockReturnValue({ currentUser: { uid: 'user-123' } });
+  mockGetTasksForDate.mockResolvedValue([]);
+  mockGetPositionLowAccuracy.mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
+  mockGetLastSearchCoords.mockReturnValue({ lat: 38.7, lng: -9.1 });
+  mockResolveTripDestinations.mockResolvedValue({ resolved: [], excludedCount: 0 });
+  mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 0, totalDistanceMeters: 0 });
+});
+
+describe('ItineraryOptionsScreen — loading', () => {
+  it('shows a loading state before resolution settles', () => {
+    render(<ItineraryOptionsScreen />);
+    expect(screen.getByText('Finding the way…')).toBeTruthy();
+  });
+
+  it('calls navigation.goBack when the back button is pressed', () => {
+    render(<ItineraryOptionsScreen />);
+    fireEvent.press(screen.getByLabelText('Back'));
+    expect(mockGoBack).toHaveBeenCalled();
+  });
+});
+
+describe('ItineraryOptionsScreen — empty', () => {
+  it('shows the empty state when nothing resolves', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText("Couldn't find places for any of these right now.")).toBeTruthy());
+  });
+});
+
+describe('ItineraryOptionsScreen — resolved trip', () => {
+  const stops = [makeStop('t1', 'Farmácia Silva', 'learned'), makeStop('t2', 'Mercado da Vila', 'cache', 400)];
+
+  beforeEach(() => {
+    mockPlanTrip.mockReturnValue({ stops, excludedCount: 1, totalDistanceMeters: 1500 });
+  });
+
+  it('renders the suggestion card with every stop from the plan', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText(/Farmácia Silva/)).toBeTruthy());
+    expect(screen.getByText(/Mercado da Vila/)).toBeTruthy();
+  });
+
+  it('shows the learned-place and distance labels correctly', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText(/Farmácia Silva · your usual/)).toBeTruthy());
+    expect(screen.getByText(/Mercado da Vila · 400 m/)).toBeTruthy();
+  });
+
+  it('shows the exclusion line when tasks were excluded', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText("Couldn't find a place for 1 of them")).toBeTruthy());
+  });
+
+  it('shows the approximate total distance line', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText('About 1.5 km all together')).toBeTruthy());
+  });
+
+  it('tapping the card opens Maps with the origin and stops, no travelmode', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('itinerary-card'));
+    });
+
+    expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
+      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
+      [stops[0].place, stops[1].place],
+    );
+  });
+});

@@ -253,6 +253,26 @@ export const styles = StyleSheet.create({
   // even with a short task list.
   // Clears the floating add-task FAB at the end of the list.
   bottomPad: { height: 96 },
+  // ── "One trip for all of these" entry row (KAN-281) — same bordered-row
+  // template as CalendarScreen's "Going somewhere?" (tripEntryRow). ──
+  oneTripForAllRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               8,
+    minHeight:         44,
+    marginHorizontal:  spacing.page,
+    marginTop:         10,
+    paddingVertical:   10,
+    paddingHorizontal: 12,
+    borderRadius:      radius.ctaBtn,
+    borderWidth:       1,
+  },
+  oneTripForAllLabel: {
+    flex:       1,
+    fontSize:   14,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
   // ── Empty state CTA ──
   emptyCTAWrap: {
     paddingHorizontal: spacing.page,

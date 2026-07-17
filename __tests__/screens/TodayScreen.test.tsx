@@ -68,8 +68,9 @@ jest.mock('@react-native-firebase/auth', () => ({}));
 
 // ─── Navigation mock ──────────────────────────────────────────────────────────
 
+const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
-  useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
+  useNavigation: () => ({ navigate: (...args: unknown[]) => mockNavigate(...args), goBack: jest.fn() }),
 }));
 jest.mock('@react-navigation/native-stack', () => ({}));
 
@@ -275,6 +276,43 @@ describe('KAN-279 — far-away indicator wiring', () => {
     await act(async () => {});
 
     expect(screen.getByTestId('task-row-task-1').props.accessibilityState.selected).toBe(false);
+  });
+});
+
+describe('KAN-281 — "one trip for all of these" entry row', () => {
+  const TASK_ATM = { ...TASK, id: 'task-2', poi: 'atm' };
+
+  // The mocked proximity module never invokes its onUpdate callback in this
+  // suite (see KAN-279 block above), so poiPlaces stays {} throughout — every
+  // task with a poi reads as "not in the nearby list" by default.
+
+  it('does NOT render with fewer than 2 eligible tasks', async () => {
+    setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText('One trip for all of these')).toBeNull();
+  });
+
+  it('does NOT render for a done task or a birthday, even alongside an eligible one', async () => {
+    setupFirestoreMocks([
+      { ...TASK, poi: 'pharmacy' } as any,
+      { ...TASK_ATM, done: true } as any,
+      { ...TASK, id: 'task-3', kind: 'birthday', poi: undefined } as any,
+    ]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    expect(screen.queryByLabelText('One trip for all of these')).toBeNull();
+  });
+
+  it('renders — no Firestore/network call involved — when >=2 open POI tasks exist, and navigates to ItineraryOptions on tap', async () => {
+    setupFirestoreMocks([{ ...TASK, poi: 'pharmacy' } as any, TASK_ATM as any]);
+    render(<TodayScreen />);
+    await act(async () => {});
+
+    fireEvent.press(screen.getByLabelText('One trip for all of these'));
+    expect(mockNavigate).toHaveBeenCalledWith('ItineraryOptions');
   });
 });
 
