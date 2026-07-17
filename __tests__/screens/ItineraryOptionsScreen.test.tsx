@@ -73,6 +73,18 @@ jest.mock('../../src/services/oneTripForAll', () => ({
   planTrip: (...args: unknown[]) => mockPlanTrip(...args),
 }));
 
+// KAN-282 — mall card. Detection logic itself is covered by mallRoute.test.ts;
+// mocked wholesale here so this file only tests the screen's own wiring.
+const mockGetMallSnapshot = jest.fn().mockResolvedValue(null);
+jest.mock('../../src/services/mallSnapshots', () => ({
+  getMallSnapshot: (...args: unknown[]) => mockGetMallSnapshot(...args),
+}));
+
+const mockFindMallOption = jest.fn().mockReturnValue(null);
+jest.mock('../../src/services/mallRoute', () => ({
+  findMallOption: (...args: unknown[]) => mockFindMallOption(...args),
+}));
+
 function makeStop(id: string, name: string, source: 'learned' | 'cache' = 'cache', distanceMeters = 400) {
   return {
     task: { id, title: name, category: 'errands', done: false, date: '2026-07-16', createdAt: {}, poi: 'pharmacy' },
@@ -86,8 +98,10 @@ beforeEach(() => {
   mockGetTasksForDate.mockResolvedValue([]);
   mockGetPositionLowAccuracy.mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
   mockGetLastSearchCoords.mockReturnValue({ lat: 38.7, lng: -9.1 });
-  mockResolveTripDestinations.mockResolvedValue({ resolved: [], excludedCount: 0 });
+  mockResolveTripDestinations.mockResolvedValue({ resolved: [], excludedCount: 0, liveMallCandidates: [] });
   mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 0, totalDistanceMeters: 0 });
+  mockGetMallSnapshot.mockResolvedValue(null);
+  mockFindMallOption.mockReturnValue(null);
 });
 
 describe('ItineraryOptionsScreen — loading', () => {
@@ -150,6 +164,44 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
       { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
       [stops[0].place, stops[1].place],
+    );
+  });
+
+  it('does NOT render a mall card when findMallOption returns null (the normal outcome)', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+    expect(screen.queryByTestId('mall-card')).toBeNull();
+  });
+});
+
+describe('ItineraryOptionsScreen — mall card (KAN-282)', () => {
+  const stops = [makeStop('t1', 'Farmácia Silva'), makeStop('t2', 'Mercado da Vila')];
+  const mallOption = { placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900, coveredCount: 2 };
+
+  beforeEach(() => {
+    mockPlanTrip.mockReturnValue({ stops, excludedCount: 0, totalDistanceMeters: 1500 });
+    mockFindMallOption.mockReturnValue(mallOption);
+  });
+
+  it('renders below the stop-by-stop card, with the mall name/count/distance', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
+    expect(screen.getByText('All in one place')).toBeTruthy();
+    expect(screen.getByText('Centro Colombo · 2 of these')).toBeTruthy();
+    expect(screen.getByText('900 m away')).toBeTruthy();
+  });
+
+  it('tapping the mall card opens Maps with the mall as the single destination', async () => {
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('mall-card'));
+    });
+
+    expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
+      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
+      [mallOption],
     );
   });
 });

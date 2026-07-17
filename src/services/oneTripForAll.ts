@@ -15,7 +15,7 @@
  */
 
 import NetInfo from '@react-native-community/netinfo';
-import { searchNearbyPlaces, getDistanceMeters } from './maps';
+import { searchNearbyPlaces, getDistanceMeters, type NearbyPlace } from './maps';
 import { getLearnedPlaceCounts } from './firestore';
 import { computeLearnedPlaces } from './learnedPlaces';
 import { resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
@@ -58,7 +58,7 @@ export async function resolveTripDestinations(
   tasks: Task[],
   coords: { lat: number; lng: number },
   uid: string,
-): Promise<{ resolved: TripStop[]; excludedCount: number }> {
+): Promise<{ resolved: TripStop[]; excludedCount: number; liveMallCandidates: NearbyPlace[] }> {
   const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
 
   const counts = await getLearnedPlaceCounts(uid).catch(() => []);
@@ -74,9 +74,14 @@ export async function resolveTripDestinations(
   )];
 
   let liveResults: PlacesMap = {};
+  let liveMallCandidates: NearbyPlace[] = [];
   if (unresolvedTypes.length > 0 && await isOnline()) {
     try {
-      liveResults = await searchNearbyPlaces(coords.lat, coords.lng, unresolvedTypes, ROUTE_MAX_RADIUS_M);
+      // KAN-282 — piggyback 'shopping_mall' onto this same call (never a
+      // separate one just to look for a mall) so the mall card can use a
+      // live hit when the local-only detection tiers found nothing.
+      liveResults = await searchNearbyPlaces(coords.lat, coords.lng, [...unresolvedTypes, 'shopping_mall'], ROUTE_MAX_RADIUS_M);
+      liveMallCandidates = liveResults.shopping_mall ?? [];
     } catch {
       // Timeout/network error — proceed with whatever resolved locally.
     }
@@ -88,7 +93,7 @@ export async function resolveTripDestinations(
   }));
 
   const resolved = finalPass.filter((r): r is TripStop => r.place !== null);
-  return { resolved, excludedCount: eligible.length - resolved.length };
+  return { resolved, excludedCount: eligible.length - resolved.length, liveMallCandidates };
 }
 
 /**

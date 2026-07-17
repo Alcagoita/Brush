@@ -91,6 +91,36 @@ describe('resolveTripDestinations', () => {
     expect(resolved).toHaveLength(2); // cafe never resolved (not in live results)
   });
 
+  it('piggybacks shopping_mall onto the same batched call and surfaces it as liveMallCandidates (KAN-282 — never a second call)', async () => {
+    mockQueryHabitatCache.mockReturnValue({});
+    mockSearchNearbyPlaces.mockResolvedValue({
+      pharmacy:      [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 1000 }],
+      shopping_mall: [{ placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800 }],
+    });
+
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
+    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      COORDS.lat, COORDS.lng, expect.arrayContaining(['pharmacy', 'shopping_mall']), expect.any(Number),
+    );
+    expect(result.liveMallCandidates).toEqual([
+      { placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800 },
+    ]);
+  });
+
+  it('returns an empty liveMallCandidates when no live search happens (offline or everything resolved locally)', async () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
+    });
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
+    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+    expect(result.liveMallCandidates).toEqual([]);
+  });
+
   it('does NOT attempt a live search when offline', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
     mockQueryHabitatCache.mockReturnValue({});

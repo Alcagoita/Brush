@@ -25,10 +25,12 @@ import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { getTasksForDate } from '../services/firestore';
+import { getMallSnapshot } from '../services/mallSnapshots';
 import { getPositionLowAccuracy } from '../services/geolocation';
 import { getLastSearchCoords } from '../services/proximity';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
+import { findMallOption, type MallOption } from '../services/mallRoute';
 import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -48,6 +50,7 @@ export default function ItineraryOptionsScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [plan, setPlan] = useState<TripPlan | null>(null);
+  const [mallOption, setMallOption] = useState<MallOption | null>(null);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -73,9 +76,14 @@ export default function ItineraryOptionsScreen() {
         }
 
         const tasks = await getTasksForDate(uid, todayISO());
-        const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
+        const { resolved, excludedCount, liveMallCandidates } = await resolveTripDestinations(tasks, coords, uid);
         const tripPlan = planTrip(coords, resolved, excludedCount);
-        if (!cancelled) { setPlan(tripPlan); setOrigin(coords); }
+        // KAN-282 — opportunistic only: reuses whatever mall snapshot/cache/
+        // live data is already on hand, never a search of its own. Failure
+        // to fetch the snapshot just means the snapshot tier is skipped.
+        const snapshot = await getMallSnapshot(uid).catch(() => null);
+        const mall = findMallOption(coords, tripPlan.stops, snapshot, liveMallCandidates);
+        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setOrigin(coords); }
       } catch {
         if (!cancelled) { setLoadError(true); }
       } finally {
@@ -88,6 +96,15 @@ export default function ItineraryOptionsScreen() {
   const openCard = () => {
     if (!plan || plan.stops.length === 0 || !origin) { return; }
     openMultiStopDirections(origin, plan.stops.map(s => s.place)).catch(() => {
+      useToastStore.getState().showToast(COPY.itineraryOptionsScreen.mapsOpenFailed);
+    });
+  };
+
+  const openMallCard = () => {
+    if (!mallOption || !origin) { return; }
+    // Single destination, no waypoints/ordering — reuses the same
+    // multi-stop opener with a one-element stops array.
+    openMultiStopDirections(origin, [mallOption]).catch(() => {
       useToastStore.getState().showToast(COPY.itineraryOptionsScreen.mapsOpenFailed);
     });
   };
@@ -163,6 +180,36 @@ export default function ItineraryOptionsScreen() {
               </Text>
             )}
           </Pressable>
+
+          {/* KAN-282 — mall card, only when a venue covers >= 2 tasks. Always
+              below the stop-by-stop card: tinted AND first would read as
+              "recommended", which the doctrine bans. */}
+          {mallOption && (
+            <Pressable
+              testID="mall-card"
+              onPress={openMallCard}
+              style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}
+              accessibilityRole="button"
+              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name, mallOption.coveredCount)}>
+              <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
+                <PoiIcon type="shopping_mall" color={palette.accent} size={22} />
+              </View>
+              <View style={styles.mallTextWrap}>
+                {/* nearText is designed to pair with nearTint/nearBorder in
+                    both palettes (see ContextChip) — no runtime contrast
+                    check needed, the token pairing already guarantees it. */}
+                <Text style={[styles.mallTitle, { color: palette.nearText }]}>
+                  {COPY.itineraryOptionsScreen.mallCardTitle}
+                </Text>
+                <Text style={[styles.mallSubtitle, { color: palette.muted }]} numberOfLines={1}>
+                  {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name, mallOption.coveredCount)}
+                </Text>
+                <Text style={[styles.mallDistance, { color: palette.muted }]}>
+                  {COPY.itineraryOptionsScreen.mallCardDistance(formatDistance(mallOption.distanceMeters))}
+                </Text>
+              </View>
+            </Pressable>
+          )}
         </ScrollView>
       )}
     </View>
@@ -215,4 +262,22 @@ const styles = StyleSheet.create({
 
   totalDistance: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
   exclusionLine: { fontSize: 12, fontFamily: 'Geist-Regular' },
+
+  // ── Mall card (KAN-282) ──
+  mallCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    padding: 16,
+  },
+  mallIconTile: {
+    width: 46, height: 46, borderRadius: radii.heroIcon,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  mallTextWrap: { flex: 1, gap: 2 },
+  mallTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
+  mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular' },
+  mallDistance: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 });
