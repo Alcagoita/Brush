@@ -4,14 +4,24 @@
  * Orchestrates destinationResolver.ts across a whole trip, then orders the
  * resolved stops. Two hard rules (decided 2026-07-16):
  *
- *   - The entire trip computation makes AT MOST ONE Places API call, and
- *     usually zero: every task is first resolved locally (pinned/learned/
- *     cache — no network). Only the POI types still unresolved after that
- *     get bundled into a single `searchNearbyPlaces` call (never one call
- *     per task, never iterative widening).
+ *   - The entire trip computation makes AT MOST ONE Places API call: every
+ *     task is first resolved locally (pinned/learned/cache — no network),
+ *     and whatever POI types are still unresolved after that get bundled
+ *     into a single `searchNearbyPlaces` call (never one call per task,
+ *     never iterative widening).
  *   - We never compute routes — Google does. Ordering here is a trivial
  *     client-side greedy nearest-neighbor pass over straight-line distance,
  *     purely to pick a sensible stop sequence before handing off.
+ *
+ * KAN-282 update (2026-07-18): that one call now always happens when online,
+ * even if every task resolved locally (previously it was skipped entirely
+ * in that case) — it also always requests `shopping_mall`, piggybacked in.
+ * The offline habitat cache (background-refreshed, or an explicitly
+ * downloaded trip area) is the primary, free way the mall card finds a
+ * venue; this online call is what still makes "if I'm in range of a mall,
+ * show it" true the FIRST time in a brand-new area with no cache yet —
+ * "at most one call" stays true, it just no longer requires an unresolved
+ * task to justify making it.
  */
 
 import NetInfo from '@react-native-community/netinfo';
@@ -75,12 +85,17 @@ export async function resolveTripDestinations(
 
   let liveResults: PlacesMap = {};
   let liveMallCandidates: NearbyPlace[] = [];
-  if (unresolvedTypes.length > 0 && await isOnline()) {
+  // KAN-282 — always attempt this when online, even if unresolvedTypes is
+  // empty (every task already resolved locally): that's still "at most one
+  // call," it's just no longer conditional on a task needing it. Without
+  // this, a brand-new area with a warm local cache for the trip's own POI
+  // types but no shopping_mall data yet would never get a chance to check
+  // for a mall at all — "in range" has to be checked on its own, not just
+  // piggybacked when something else happens to need a live search too.
+  if (await isOnline()) {
+    const typesToRequest = unresolvedTypes.length > 0 ? [...unresolvedTypes, 'shopping_mall'] : ['shopping_mall'];
     try {
-      // KAN-282 — piggyback 'shopping_mall' onto this same call (never a
-      // separate one just to look for a mall) so the mall card can use a
-      // live hit when the local-only detection tiers found nothing.
-      liveResults = await searchNearbyPlaces(coords.lat, coords.lng, [...unresolvedTypes, 'shopping_mall'], ROUTE_MAX_RADIUS_M);
+      liveResults = await searchNearbyPlaces(coords.lat, coords.lng, typesToRequest, ROUTE_MAX_RADIUS_M);
       // A place lands in the shopping_mall bucket if ANY of its Google types
       // matched our request — a supermarket occasionally also carries
       // shopping_mall as a secondary tag and would otherwise get offered up

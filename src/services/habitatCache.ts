@@ -50,7 +50,7 @@ import { normalize } from './poiInference';
 import { searchOsmPlaces } from './osmPlaces';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters } from './maps';
-import { POI_OSM_TAGS } from '../types';
+import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS } from '../types';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -495,7 +495,7 @@ export function getHabitatPlaceById(id: string): NearbyPlace | null {
  * capable of ever reaching empty for a custom-only request (KAN-238 review).
  */
 function isOsmMappable(poiType: string): boolean {
-  return poiType in POI_OSM_TAGS;
+  return poiType in POI_OSM_TAGS || poiType in SUPPLEMENTARY_OSM_TAGS;
 }
 
 /** Refetch cooldown for a (poiType, area) pair that came back with zero OSM

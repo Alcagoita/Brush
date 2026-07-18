@@ -30,7 +30,7 @@ import { getPositionLowAccuracy } from '../services/geolocation';
 import { getLastSearchCoords } from '../services/proximity';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
-import { findMallOption, type MallOption } from '../services/mallRoute';
+import { findMallOption, debugAllMallCandidates, type MallOption, type MallCandidateDebugInfo } from '../services/mallRoute';
 import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -51,6 +51,10 @@ export default function ItineraryOptionsScreen() {
   const [loadError, setLoadError] = useState(false);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [mallOption, setMallOption] = useState<MallOption | null>(null);
+  // TEMPORARY (KAN-282 debug) — every mall candidate considered, so a
+  // missing/wrong pick is visible instead of guessed at. Remove once the
+  // detection bug is confirmed fixed.
+  const [mallDebugList, setMallDebugList] = useState<MallCandidateDebugInfo[]>([]);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -83,7 +87,8 @@ export default function ItineraryOptionsScreen() {
         // to fetch the snapshot just means the snapshot tier is skipped.
         const snapshot = await getMallSnapshot(uid).catch(() => null);
         const mall = findMallOption(coords, tripPlan.stops, snapshot, liveMallCandidates);
-        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setOrigin(coords); }
+        const mallDebug = debugAllMallCandidates(coords, tripPlan.stops, snapshot, liveMallCandidates);
+        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setMallDebugList(mallDebug); setOrigin(coords); }
       } catch {
         if (!cancelled) { setLoadError(true); }
       } finally {
@@ -190,7 +195,8 @@ export default function ItineraryOptionsScreen() {
               onPress={openMallCard}
               style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}
               accessibilityRole="button"
-              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name, mallOption.coveredCount)}>
+              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name, mallOption.coveredCount)}
+              accessibilityHint={COPY.itineraryOptionsScreen.mallOpenInMapsA11y}>
               <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
                 <ShoppingBagIcon color={palette.accent} size={22} />
               </View>
@@ -209,6 +215,22 @@ export default function ItineraryOptionsScreen() {
                 </Text>
               </View>
             </Pressable>
+          )}
+
+          {/* TEMPORARY (KAN-282 debug) — every shopping_mall candidate this
+              tick considered, verified but not filtered to qualifying ones.
+              Remove once the detection bug is confirmed fixed. */}
+          {mallDebugList.length > 0 && (
+            <View style={[styles.debugBox, { borderColor: palette.line }]}>
+              <Text style={[styles.debugTitle, { color: palette.faint }]}>
+                DEBUG — mall candidates considered ({mallDebugList.length})
+              </Text>
+              {mallDebugList.map((c, i) => (
+                <Text key={`${c.name}-${i}`} style={[styles.debugRow, { color: palette.faint }]}>
+                  {c.name} · {formatDistance(c.distanceMeters)} · {c.coveredCount} solved
+                </Text>
+              ))}
+            </View>
           )}
         </ScrollView>
       )}
@@ -278,6 +300,11 @@ const styles = StyleSheet.create({
   },
   mallTextWrap: { flex: 1, gap: 2 },
   mallTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
-  mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular' },
+  mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
   mallDistance: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
+
+  // ── TEMPORARY debug list (KAN-282) — remove once detection bug is fixed ──
+  debugBox: { marginTop: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, gap: 4 },
+  debugTitle: { fontSize: 11, fontFamily: 'Geist-SemiBold', fontWeight: '600' },
+  debugRow: { fontSize: 12, fontFamily: 'Geist-Regular' },
 });

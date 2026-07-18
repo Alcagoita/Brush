@@ -17,7 +17,7 @@
  */
 
 import type { PoiType } from '../types';
-import { POI_OSM_TAGS } from '../types';
+import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS } from '../types';
 import { getDistanceMeters, placeTypeLabel } from './maps';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -142,7 +142,7 @@ async function fetchOsmPlaces(
   const tagByType: Record<string, { key: string; value: string }> = {};
   const clauses: string[] = [];
   for (const poiType of poiTypes) {
-    const tag = POI_OSM_TAGS[poiType as PoiType];
+    const tag = POI_OSM_TAGS[poiType as PoiType] ?? SUPPLEMENTARY_OSM_TAGS[poiType];
     if (!tag) { continue; }
     tagByType[poiType] = tag;
     clauses.push(`node["${tag.key}"="${tag.value}"](around:${radiusMeters},${lat},${lng});`);
