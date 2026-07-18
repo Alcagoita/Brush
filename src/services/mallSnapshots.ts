@@ -78,7 +78,15 @@ export async function downloadMallSnapshot(
   poiTypes: string[],
 ): Promise<MallSnapshot> {
   const mallResults = await searchNearbyPlaces(center.lat, center.lng, ['shopping_mall'], MALL_SEARCH_RADIUS_M);
-  const mall = mallResults.shopping_mall?.[0];
+  // A place lands in the shopping_mall bucket if ANY of its Google types
+  // matched our request (searchNearbyPlaces buckets by "matched something
+  // we asked for", not "this IS its type") — a parking/loading-dock feature
+  // near a real mall can carry shopping_mall as a secondary tag and, if
+  // nearest, get taken as "the mall" under its own wrong name (KAN-282
+  // review fix). Only trust a result whose PRIMARY Google type is genuinely
+  // shopping_mall; results stay nearest-first, so the first match here is
+  // still the closest genuine one.
+  const mall = mallResults.shopping_mall?.find(p => p.primaryType === 'shopping_mall');
   if (!mall) { throw new NoMallFoundError(); }
 
   const expiresAt = Date.now() + MALL_SNAPSHOT_STALE_MS;
