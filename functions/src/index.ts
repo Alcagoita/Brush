@@ -12,7 +12,6 @@ if (getApps().length === 0) {
   initializeApp();
 }
 
-export { parseMessageToTask } from './parseMessageToTask';
 export { onUserInactive } from './onUserInactive';
 export { onUserLapsed } from './onUserLapsed';
 export { onFriendActivity } from './onFriendActivity';
