@@ -38,11 +38,13 @@ export interface NearbyPlace {
   lng: number;
   /** Straight-line distance from the search origin in metres. */
   distanceMeters: number;
-  /** Google's own primary type for this place (types[0]) — a place can
-   *  carry several secondary type tags (e.g. a supermarket occasionally
-   *  also tagged shopping_mall), so anything that needs to trust a SPECIFIC
-   *  type (not just "this place matched one of our requested types") should
-   *  check this, not assume the bucket it landed in reflects its true kind. */
+  /** Google Places' own `primaryType` field — a place can carry several
+   *  secondary type tags (e.g. a supermarket occasionally also tagged
+   *  shopping_mall), so anything that needs to trust a SPECIFIC type (not
+   *  just "this place matched one of our requested types") should check
+   *  this, not assume the bucket it landed in reflects its true kind. Comes
+   *  straight from the API — reliable, unlike guessing from `types[0]`
+   *  (that array's order isn't guaranteed to put the primary type first). */
   primaryType?: string;
 }
 
@@ -53,6 +55,10 @@ interface PlacesApiPlace {
   displayName?: { text: string; languageCode?: string };
   location?: { latitude: number; longitude: number };
   types?: string[];
+  /** Google's own single "this IS its type" field — unlike `types` (whose
+   *  order isn't guaranteed to put the primary type first), this is the
+   *  reliable one for anything that needs to trust a SPECIFIC type. */
+  primaryType?: string;
 }
 
 interface PlacesApiResponse {
@@ -130,7 +136,7 @@ export async function searchNearbyPlaces(
       lat:            placeLat,
       lng:            placeLng,
       distanceMeters: getDistanceMeters(lat, lng, placeLat, placeLng),
-      primaryType:    p.types?.[0],
+      primaryType:    p.primaryType,
     };
 
     // Assign this place to the first requested type it matches — this is
