@@ -10,39 +10,36 @@
  * found is a normal outcome, not a failure — findMallOption just returns
  * null and the screen shows only the stop-by-stop card.
  *
- * Detection order (stop at first hit):
- *   1. The user's mall snapshot (KAN-237), if one exists and its center is
- *      within ROUTE_MAX_RADIUS_M — exact: cross-references the trip's POI
- *      types against the snapshot's own downloaded places.
- *   2. The offline habitat cache's nearest `shopping_mall` entry within
- *      ROUTE_MAX_RADIUS_M — heuristic: a generic "malls usually have these"
- *      list (MALL_COVERED_TYPES), not verified against that specific mall's
- *      actual inventory (the cache doesn't necessarily have it).
- *   3. A `shopping_mall` hit piggybacked onto oneTripForAll's live call, if
- *      one happened — same heuristic as (2).
+ * The point is a mall whose OWN premises can actually resolve the trip's
+ * tasks (separate shops inside/around it — a pharmacy, an ATM, a cafe...),
+ * not "this venue is generically the kind of place that tends to have
+ * these" (KAN-282 review fix — a standalone supermarket got offered up as
+ * "the mall" purely because its category loosely overlapped the trip's
+ * needs; it couldn't actually solve anything beyond itself). So detection
+ * is two separate steps:
  *
- * A venue "qualifies" once it covers >= 2 of the trip's tasks.
+ *   1. Find a mall CANDIDATE — three ways, first hit wins:
+ *      a. The user's own mall snapshot (KAN-237), if its center is within
+ *         ROUTE_MAX_RADIUS_M.
+ *      b. The offline habitat cache's nearest `shopping_mall`-typed entry
+ *         within ROUTE_MAX_RADIUS_M.
+ *      c. A `shopping_mall` hit piggybacked onto oneTripForAll's own live
+ *         call (already filtered to genuinely PRIMARY-typed malls there —
+ *         see NearbyPlace.primaryType).
+ *   2. VERIFY it — query the offline habitat cache around THAT CANDIDATE'S
+ *      OWN location (not the user's) for the trip's POI types. Only what's
+ *      actually cached near the mall itself counts; a candidate with no
+ *      verifiable coverage there is rejected, not guessed at.
+ *
+ * A venue "qualifies" once real, verified coverage reaches >= 2 tasks.
  */
 
 import { getDistanceMeters, type NearbyPlace } from './maps';
 import { queryHabitatCache } from './habitatCache';
 import { ROUTE_MAX_RADIUS_M } from './destinationResolver';
+import { MALL_SNAPSHOT_DOWNLOAD_RADIUS_M } from './mallSnapshots';
 import type { MallSnapshot } from '../types';
 import type { TripStop } from './oneTripForAll';
-
-/**
- * Google Places types a typical mall's tenant mix plausibly covers — used
- * only for the heuristic tiers (2) and (3), where we have a mall's location
- * but not a verified inventory. Tune freely; this is deliberately generous
- * rather than precise (a false positive just opens Maps to a mall that
- * turns out not to have everything — a false negative silently hides a
- * genuinely useful option).
- */
-export const MALL_COVERED_TYPES: string[] = [
-  'supermarket', 'pharmacy', 'atm', 'salon',
-  'clothing_store', 'shoe_store', 'electronics_store',
-  'restaurant', 'cafe',
-];
 
 export interface MallOption {
   placeId: string;
@@ -50,17 +47,33 @@ export interface MallOption {
   lat: number;
   lng: number;
   distanceMeters: number;
-  /** How many of the trip's tasks this venue covers (>= 2 to qualify). */
+  /** How many of the trip's tasks this venue's OWN premises cover (verified against the habitat cache around its own location, not guessed) — >= 2 to qualify. */
   coveredCount: number;
 }
 
-function countCoveredStops(stops: TripStop[], coveredTypes: Set<string>): number {
-  return stops.filter(s => !!s.task.poi && coveredTypes.has(s.task.poi)).length;
+interface MallCandidate {
+  placeId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  distanceMeters: number;
+  /** How wide a net to cast around this candidate's own location when
+   *  verifying coverage — a downloaded snapshot's own recorded radius is
+   *  more generous/exact than the default guess for a freshly-found one. */
+  verifyRadiusM: number;
 }
 
 function nearestByDistance(places: NearbyPlace[]): NearbyPlace | null {
   if (places.length === 0) { return null; }
   return [...places].sort((a, b) => a.distanceMeters - b.distanceMeters)[0];
+}
+
+/** Real coverage: what does the habitat cache actually know exists near `lat,lng`? */
+function verifyCoverage(lat: number, lng: number, radiusM: number, stops: TripStop[]): number {
+  const uniqueTypes = [...new Set(stops.map(s => s.task.poi).filter((p): p is string => !!p))];
+  const covered = queryHabitatCache(lat, lng, uniqueTypes, radiusM);
+  const coveredTypes = new Set(uniqueTypes.filter(t => (covered[t]?.length ?? 0) > 0));
+  return stops.filter(s => !!s.task.poi && coveredTypes.has(s.task.poi)).length;
 }
 
 export function findMallOption(
@@ -71,50 +84,42 @@ export function findMallOption(
 ): MallOption | null {
   if (stops.length < 2) { return null; }
 
-  // Tier 1 — the user's own mall snapshot: exact, cross-referenced against
-  // its actually-downloaded places (queried by the mall's own center/radius,
-  // not the current position).
+  let candidate: MallCandidate | null = null;
+
   if (mallSnapshot) {
     const distanceToMall = getDistanceMeters(coords.lat, coords.lng, mallSnapshot.centerLat, mallSnapshot.centerLng);
     if (distanceToMall <= ROUTE_MAX_RADIUS_M) {
-      const uniqueTypes = [...new Set(stops.map(s => s.task.poi).filter((p): p is string => !!p))];
-      const covered = queryHabitatCache(mallSnapshot.centerLat, mallSnapshot.centerLng, uniqueTypes, mallSnapshot.radius);
-      const coveredTypes = new Set(uniqueTypes.filter(t => (covered[t]?.length ?? 0) > 0));
-      const coveredCount = countCoveredStops(stops, coveredTypes);
-      if (coveredCount >= 2) {
-        return {
-          placeId: mallSnapshot.placeId, name: mallSnapshot.name,
-          lat: mallSnapshot.centerLat, lng: mallSnapshot.centerLng,
-          distanceMeters: distanceToMall, coveredCount,
-        };
-      }
+      candidate = {
+        placeId: mallSnapshot.placeId, name: mallSnapshot.name,
+        lat: mallSnapshot.centerLat, lng: mallSnapshot.centerLng,
+        distanceMeters: distanceToMall, verifyRadiusM: mallSnapshot.radius,
+      };
     }
   }
 
-  const heuristicCoveredTypes = new Set(MALL_COVERED_TYPES);
-  const heuristicCoveredCount = countCoveredStops(stops, heuristicCoveredTypes);
-  if (heuristicCoveredCount >= 2) {
-    // Tier 2 — offline habitat cache.
+  if (!candidate) {
     const cachedMalls = queryHabitatCache(coords.lat, coords.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M).shopping_mall ?? [];
     const nearestCached = nearestByDistance(cachedMalls);
     if (nearestCached) {
-      return {
-        placeId: nearestCached.placeId, name: nearestCached.name,
-        lat: nearestCached.lat, lng: nearestCached.lng,
-        distanceMeters: nearestCached.distanceMeters, coveredCount: heuristicCoveredCount,
-      };
-    }
-
-    // Tier 3 — piggybacked onto oneTripForAll's own live call, if any.
-    const nearestLive = nearestByDistance(liveMallCandidates);
-    if (nearestLive) {
-      return {
-        placeId: nearestLive.placeId, name: nearestLive.name,
-        lat: nearestLive.lat, lng: nearestLive.lng,
-        distanceMeters: nearestLive.distanceMeters, coveredCount: heuristicCoveredCount,
-      };
+      candidate = { ...nearestCached, verifyRadiusM: MALL_SNAPSHOT_DOWNLOAD_RADIUS_M };
     }
   }
 
-  return null;
+  if (!candidate) {
+    const nearestLive = nearestByDistance(liveMallCandidates);
+    if (nearestLive) {
+      candidate = { ...nearestLive, verifyRadiusM: MALL_SNAPSHOT_DOWNLOAD_RADIUS_M };
+    }
+  }
+
+  if (!candidate) { return null; }
+
+  const coveredCount = verifyCoverage(candidate.lat, candidate.lng, candidate.verifyRadiusM, stops);
+  if (coveredCount < 2) { return null; }
+
+  return {
+    placeId: candidate.placeId, name: candidate.name,
+    lat: candidate.lat, lng: candidate.lng,
+    distanceMeters: candidate.distanceMeters, coveredCount,
+  };
 }

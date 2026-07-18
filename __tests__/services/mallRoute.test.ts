@@ -3,25 +3,41 @@
  * all of these". Never triggers a search of its own — only reads whatever
  * mall snapshot / habitat cache / piggybacked live data it's handed.
  *
- * Covers all three detection tiers (stop at first hit), the "no mall"
- * default (screen shows only the stop-by-stop card), and the "nearest wins
- * when several qualify" rule.
+ * Two-step design (review fix — a generic "malls tend to have these types"
+ * heuristic offered up a plain supermarket as "the mall" because its
+ * category loosely overlapped the trip's needs, even though it couldn't
+ * actually resolve anything beyond itself):
+ *   1. Find a candidate (snapshot / cached shopping_mall / live piggyback).
+ *   2. VERIFY it — query the habitat cache around THAT CANDIDATE'S OWN
+ *      location for the trip's POI types. Only real, cache-verified
+ *      coverage counts.
+ *
+ * Covers all three candidate-discovery tiers, the "no mall" default, the
+ * "candidate found but nothing verifiably covers >= 2 tasks nearby it"
+ * rejection, and "nearest wins when several qualify".
  */
 
 jest.mock('../../src/services/habitatCache');
 
 // maps.ts also imports placesFunctions.ts, which pulls in
 // @react-native-firebase/functions (native, unavailable under Jest) — mock
-// at the service boundary, same as elsewhere in this suite. Flat-earth
-// approximation is plenty accurate at these small test distances.
+// at the service boundary, same as elsewhere. Flat-earth approximation is
+// plenty accurate at these small test distances.
 jest.mock('../../src/services/maps', () => ({
   getDistanceMeters: (lat1: number, lng1: number, lat2: number, lng2: number) =>
     Math.round(Math.hypot(lat2 - lat1, lng2 - lng1) * 111_000),
 }));
 
+// mallSnapshots.ts pulls in @react-native-firebase/firestore (native,
+// unavailable under Jest) — only its exported radius constant is used here.
+jest.mock('../../src/services/mallSnapshots', () => ({
+  MALL_SNAPSHOT_DOWNLOAD_RADIUS_M: 400,
+}));
+
 import { queryHabitatCache } from '../../src/services/habitatCache';
-import { findMallOption, MALL_COVERED_TYPES } from '../../src/services/mallRoute';
+import { findMallOption } from '../../src/services/mallRoute';
 import { ROUTE_MAX_RADIUS_M } from '../../src/services/destinationResolver';
+import { MALL_SNAPSHOT_DOWNLOAD_RADIUS_M } from '../../src/services/mallSnapshots';
 import type { TripStop } from '../../src/services/oneTripForAll';
 import type { MallSnapshot } from '../../src/types';
 import type { Task } from '../../src/types';
@@ -29,6 +45,7 @@ import type { Task } from '../../src/types';
 const mockQueryHabitatCache = queryHabitatCache as jest.Mock;
 
 const COORDS = { lat: 38.7, lng: -9.1 };
+const MALL_COORDS = { lat: 38.703, lng: -9.1 }; // ~333m from COORDS
 
 function makeTask(id: string, poi: string): Task {
   return {
@@ -48,7 +65,7 @@ function stop(id: string, poi: string): TripStop {
 function makeSnapshot(overrides: Partial<MallSnapshot> = {}): MallSnapshot {
   return {
     placeId: 'mall-1', name: 'Snapshot Mall',
-    centerLat: COORDS.lat, centerLng: COORDS.lng, radius: 500,
+    centerLat: MALL_COORDS.lat, centerLng: MALL_COORDS.lng, radius: 500,
     cacheAreaId: 'mall_snapshot',
     expiresAt: Date.now() + 1_000_000,
     createdAt: { seconds: 0, nanoseconds: 0 } as unknown as MallSnapshot['createdAt'],
@@ -75,24 +92,26 @@ describe('findMallOption — no mall (default outcome, not a failure)', () => {
     expect(mockQueryHabitatCache).toHaveBeenCalledWith(COORDS.lat, COORDS.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M);
   });
 
-  it('returns null when a mall exists but covers fewer than 2 tasks', () => {
-    mockQueryHabitatCache.mockReturnValue({
-      shopping_mall: [{ placeId: 'mall-1', name: 'Small Mall', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 100 }],
+  it('rejects a candidate whose own premises have no verifiable coverage (the "Paulino" bug — a plain store, not a mall)', () => {
+    mockQueryHabitatCache.mockImplementation((lat: number, lng: number, types: string[]) => {
+      if (types[0] === 'shopping_mall') {
+        return { shopping_mall: [{ placeId: 'paulino', name: 'Paulino', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 530 }] };
+      }
+      // Verification query around Paulino's own location: nothing else is there.
+      return {};
     });
-    // 'bank' and 'gym' are not in MALL_COVERED_TYPES — heuristic count is 0.
-    const stops = [stop('t1', 'bank'), stop('t2', 'gym')];
+    const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')];
+
     expect(findMallOption(COORDS, stops, null, [])).toBeNull();
   });
 });
 
-describe('findMallOption — tier 1: mall snapshot (exact)', () => {
-  it('qualifies when the snapshot mall\'s own cached places cover >= 2 tasks', () => {
+describe('findMallOption — candidate via mall snapshot', () => {
+  it('qualifies when the snapshot mall\'s own cached premises cover >= 2 tasks', () => {
     const snapshot = makeSnapshot();
-    // queryHabitatCache is called once for the snapshot's own inventory —
-    // both requested types have a hit there.
     mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'p1', name: 'Pharmacy', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 10 }],
-      cafe:     [{ placeId: 'c1', name: 'Cafe', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 15 }],
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 10 }],
+      cafe:     [{ placeId: 'c1', name: 'Cafe', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 15 }],
     });
     const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')];
 
@@ -100,22 +119,22 @@ describe('findMallOption — tier 1: mall snapshot (exact)', () => {
 
     expect(result).toEqual({
       placeId: 'mall-1', name: 'Snapshot Mall',
-      lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 0, coveredCount: 2,
+      lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 333, coveredCount: 2,
     });
     expect(mockQueryHabitatCache).toHaveBeenCalledWith(
       snapshot.centerLat, snapshot.centerLng, expect.arrayContaining(['pharmacy', 'cafe']), snapshot.radius,
     );
   });
 
-  it('falls through to tier 2/3 when the snapshot exists but its own inventory covers fewer than 2 tasks', () => {
+  it('rejects the snapshot mall when its own inventory covers fewer than 2 tasks — never falls through to a different mall', () => {
     const snapshot = makeSnapshot();
-    mockQueryHabitatCache
-      .mockReturnValueOnce({ pharmacy: [] }) // snapshot's own inventory — no hit
-      .mockReturnValueOnce({ shopping_mall: [] }); // tier 2 cache lookup — also nothing
-    const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')]; // heuristic count would be 2 (both covered types)
+    mockQueryHabitatCache.mockReturnValue({ pharmacy: [], cafe: [] }); // nothing verifiable there
+    const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')];
 
     const result = findMallOption(COORDS, stops, snapshot, []);
     expect(result).toBeNull();
+    // Only the snapshot's own inventory was ever queried — no cache/live fallback attempted once a snapshot candidate exists.
+    expect(mockQueryHabitatCache).toHaveBeenCalledTimes(1);
   });
 
   it('ignores a snapshot whose center is beyond ROUTE_MAX_RADIUS_M', () => {
@@ -124,60 +143,78 @@ describe('findMallOption — tier 1: mall snapshot (exact)', () => {
     const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')];
 
     expect(findMallOption(COORDS, stops, farSnapshot, [])).toBeNull();
-    // Never even queries the snapshot's own inventory for an out-of-range snapshot.
     expect(mockQueryHabitatCache).not.toHaveBeenCalledWith(
       farSnapshot.centerLat, farSnapshot.centerLng, expect.anything(), expect.anything(),
     );
   });
 });
 
-describe('findMallOption — tier 2: offline habitat cache (heuristic)', () => {
-  it('qualifies using the generic MALL_COVERED_TYPES overlap, nearest cached mall wins', () => {
-    mockQueryHabitatCache.mockReturnValue({
-      shopping_mall: [
-        { placeId: 'far-mall', name: 'Far Mall', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 900 },
-        { placeId: 'near-mall', name: 'Near Mall', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 300 },
-      ],
+describe('findMallOption — candidate via offline habitat cache', () => {
+  it('qualifies the nearest cached shopping_mall once its OWN premises verify >= 2 tasks', () => {
+    mockQueryHabitatCache.mockImplementation((lat: number, lng: number, types: string[]) => {
+      if (types[0] === 'shopping_mall') {
+        return {
+          shopping_mall: [
+            { placeId: 'far-mall', name: 'Far Mall', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 900 },
+            { placeId: 'near-mall', name: 'Near Mall', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 300 },
+          ],
+        };
+      }
+      // Verification around whichever candidate's own coords were passed in.
+      if (lat === MALL_COORDS.lat) {
+        return {
+          pharmacy: [{ placeId: 'p1', name: 'Pharmacy', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 20 }],
+          cafe:     [{ placeId: 'c1', name: 'Cafe', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 25 }],
+        };
+      }
+      return {};
     });
-    const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')]; // both in MALL_COVERED_TYPES
+    const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')];
 
     const result = findMallOption(COORDS, stops, null, []);
 
-    expect(result).toEqual({
-      placeId: 'near-mall', name: 'Near Mall',
-      lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 300, coveredCount: 2,
-    });
+    expect(result).toMatchObject({ placeId: 'near-mall', name: 'Near Mall', coveredCount: 2 });
   });
 
-  it('MALL_COVERED_TYPES includes the documented supermarket/pharmacy/atm/salon/restaurant/cafe set', () => {
-    for (const t of ['supermarket', 'pharmacy', 'atm', 'salon', 'restaurant', 'cafe']) {
-      expect(MALL_COVERED_TYPES).toContain(t);
-    }
+  it('verifies against the candidate\'s own location using MALL_SNAPSHOT_DOWNLOAD_RADIUS_M, not the user\'s position', () => {
+    mockQueryHabitatCache.mockImplementation((lat: number, lng: number) => {
+      if (lat === COORDS.lat && lng === COORDS.lng) { return { shopping_mall: [{ placeId: 'm1', name: 'Mall', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 300 }] }; }
+      return { pharmacy: [], cafe: [] };
+    });
+    const stops = [stop('t1', 'pharmacy'), stop('t2', 'cafe')];
+    findMallOption(COORDS, stops, null, []);
+
+    expect(mockQueryHabitatCache).toHaveBeenCalledWith(
+      MALL_COORDS.lat, MALL_COORDS.lng, expect.arrayContaining(['pharmacy', 'cafe']), MALL_SNAPSHOT_DOWNLOAD_RADIUS_M,
+    );
   });
 });
 
-describe('findMallOption — tier 3: piggybacked live candidate', () => {
-  it('qualifies using a live shopping_mall hit when nothing was found locally', () => {
-    mockQueryHabitatCache.mockReturnValue({ shopping_mall: [] }); // tier 2 empty
+describe('findMallOption — candidate via piggybacked live result', () => {
+  it('qualifies a live shopping_mall hit once its own premises verify >= 2 tasks', () => {
+    mockQueryHabitatCache.mockImplementation((lat: number, lng: number, types: string[]) => {
+      if (types[0] === 'shopping_mall') { return { shopping_mall: [] }; } // nothing cached
+      return {
+        atm:        [{ placeId: 'a1', name: 'ATM', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 5 }],
+        restaurant: [{ placeId: 'r1', name: 'Restaurant', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 8 }],
+      };
+    });
     const liveMallCandidates = [
-      { placeId: 'live-mall', name: 'Live Mall', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 400 },
+      { placeId: 'live-mall', name: 'Live Mall', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 400, primaryType: 'shopping_mall' },
     ];
     const stops = [stop('t1', 'atm'), stop('t2', 'restaurant')];
 
     const result = findMallOption(COORDS, stops, null, liveMallCandidates);
 
-    expect(result).toEqual({
-      placeId: 'live-mall', name: 'Live Mall',
-      lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 400, coveredCount: 2,
-    });
+    expect(result).toMatchObject({ placeId: 'live-mall', name: 'Live Mall', coveredCount: 2 });
   });
 
-  it('never used when the heuristic count is already < 2, even with a live candidate present', () => {
-    mockQueryHabitatCache.mockReturnValue({ shopping_mall: [] });
+  it('rejects a live mall candidate when nothing verifies near it — never guesses from its category alone', () => {
+    mockQueryHabitatCache.mockReturnValue({}); // no cache data anywhere, including around the mall
     const liveMallCandidates = [
-      { placeId: 'live-mall', name: 'Live Mall', lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 400 },
+      { placeId: 'live-mall', name: 'Live Mall', lat: MALL_COORDS.lat, lng: MALL_COORDS.lng, distanceMeters: 400 },
     ];
-    const stops = [stop('t1', 'bank')]; // not in MALL_COVERED_TYPES, and only 1 stop anyway
+    const stops = [stop('t1', 'atm'), stop('t2', 'restaurant')];
 
     expect(findMallOption(COORDS, stops, null, liveMallCandidates)).toBeNull();
   });
