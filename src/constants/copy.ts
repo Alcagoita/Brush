@@ -255,9 +255,9 @@ const en = {
     mapsOpenFailed: "Couldn't open Maps — try again.",
     // ── Mall card (KAN-282) ──
     mallCardTitle:     'All in one place',
-    mallCardSubtitle:  (name: string, n: number) => `${name} · ${n} of these`,
+    mallCardSubtitle:  (name: string) => name,
     mallCardDistance:  (distance: string) => `${distance} away`,
-    mallCardA11y:      (name: string, n: number) => `All in one place — ${name}, ${n} of these`,
+    mallCardA11y:      (name: string) => `All in one place — ${name}`,
     mallOpenInMapsA11y: 'Open directions to the mall in Maps',
   },
 
@@ -1289,9 +1289,9 @@ const ptPT: typeof en = {
     mapsOpenFailed: 'Não consegui abrir o Maps — tenta outra vez.',
     // ── Mall card (KAN-282) ──
     mallCardTitle:     'Tudo num só lugar',
-    mallCardSubtitle:  (name: string, n: number) => `${name} · ${n} destas`,
+    mallCardSubtitle:  (name: string) => name,
     mallCardDistance:  (distance: string) => `A ${distance}`,
-    mallCardA11y:      (name: string, n: number) => `Tudo num só lugar — ${name}, ${n} destas`,
+    mallCardA11y:      (name: string) => `Tudo num só lugar — ${name}`,
     mallOpenInMapsA11y: 'Abrir direções para o centro comercial no Maps',
   },
 

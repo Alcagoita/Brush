@@ -165,11 +165,12 @@ export async function downloadAreaSnapshot(
   const places = poiTypes.flatMap(poiType =>
     (osmResults[poiType] ?? []).map(place => ({
       poiType,
-      name:          place.name,
-      isGenericName: place.isGenericName,
-      lat:           place.lat,
-      lng:           place.lng,
-      source:        { osm: place.osmId },
+      name:            place.name,
+      isGenericName:   place.isGenericName,
+      lat:             place.lat,
+      lng:             place.lng,
+      source:          { osm: place.osmId },
+      footprintAreaM2: place.footprintAreaM2,
     })),
   );
   return writeTripAreaPlaces(cacheAreaId, expiresAt, places);

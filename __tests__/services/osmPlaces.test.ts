@@ -12,6 +12,16 @@
 const mockFetch = jest.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
+// osmPlaces imports maps.ts (getDistanceMeters, placeTypeLabel), which
+// transitively pulls in placesFunctions -> @react-native-firebase/functions,
+// a native module unavailable under Jest. Mock ONLY that native boundary, so
+// maps.ts still contributes its real distance/label helpers.
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
+
 import { searchOsmPlaces, searchOsmPlacesStrict } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
@@ -38,14 +48,19 @@ describe('searchOsmPlaces', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('builds one node clause per requested POI type using POI_OSM_TAGS', async () => {
+  // KAN-282 — `nwr` (node+way+relation), not `node`: large venues, shopping
+  // malls especially, are mapped as a building-footprint way/relation and
+  // were structurally invisible to a node-only query. `out center bb;`
+  // returns the bounding box those need for a location and a footprint area.
+  it('builds one nwr clause per requested POI type using POI_OSM_TAGS', async () => {
     mockOverpassResponse([]);
     await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['pharmacy', 'cafe'], 5000);
 
     const [, options] = mockFetch.mock.calls[0];
     const body = decodeURIComponent((options.body as string).replace(/^data=/, ''));
-    expect(body).toContain('node["amenity"="pharmacy"](around:5000,0,0);');
-    expect(body).toContain('node["amenity"="cafe"](around:5000,0,0);');
+    expect(body).toContain('nwr["amenity"="pharmacy"](around:5000,0,0);');
+    expect(body).toContain('nwr["amenity"="cafe"](around:5000,0,0);');
+    expect(body).toContain('out center bb;');
   });
 
   it('skips POI types with no OSM tag mapping instead of erroring', async () => {
@@ -157,22 +172,89 @@ describe('searchOsmPlacesStrict (KAN-234 trip downloads)', () => {
     await expect(searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000)).rejects.toThrow();
   });
 
+  // These use mockRejectedValue / mockImplementation (not ...Once): the
+  // request is retried against every Overpass endpoint, so it only throws
+  // once ALL of them have failed.
   it('throws on a network error instead of collapsing to an empty result', async () => {
-    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockFetch.mockRejectedValue(new Error('network down'));
     await expect(searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000)).rejects.toThrow('network down');
   });
 
   it('throws when the request exceeds the timeout instead of collapsing to an empty result', async () => {
-    jest.useFakeTimers();
-    mockFetch.mockImplementationOnce((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
       options.signal?.addEventListener('abort', () => reject(new Error('AbortError')));
     }));
 
-    const resultPromise = searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
-    const expectation = expect(resultPromise).rejects.toThrow('AbortError');
-    jest.advanceTimersByTime(8_001);
-    await expectation;
+    // Short real timeout beats fake timers here — each endpoint gets its own
+    // timeout window, so this stays correct however many are configured.
+    await expect(
+      searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, 10),
+    ).rejects.toThrow('AbortError');
+  });
+});
 
-    jest.useRealTimers();
+// ─── KAN-282: footprint area + endpoint fallback ──────────────────────────────
+
+describe('searchOsmPlaces — building footprint area (KAN-282)', () => {
+  /** A way/relation element as Overpass returns it under `out center bb;` — no
+   *  lat/lon of its own, just a bounding box. */
+  function mockWayResponse(bounds: { minlat: number; minlon: number; maxlat: number; maxlon: number }) {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        elements: [{ type: 'way', id: 42645796, bounds, tags: { shop: 'mall', name: 'Centro Comercial Colombo' } }],
+      }),
+    });
+  }
+
+  it('derives a location from the bounding box midpoint for a way', async () => {
+    mockWayResponse({ minlat: 0, minlon: 0, maxlat: 0.002, maxlon: 0.004 });
+
+    const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['shopping_mall'], 5000);
+
+    expect(result.shopping_mall[0]).toMatchObject({ lat: 0.001, lng: 0.002 });
+  });
+
+  it('computes a footprint area from the bounding box', async () => {
+    // ~0.002° lat x ~0.004° lon at the equator — a few hundred metres a side.
+    mockWayResponse({ minlat: 0, minlon: 0, maxlat: 0.002, maxlon: 0.004 });
+
+    const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['shopping_mall'], 5000);
+
+    const expected = (0.002 * 111_195) * (0.004 * 111_195); // ~98,800 m²
+    expect(result.shopping_mall[0].footprintAreaM2).toBeCloseTo(expected, 0);
+  });
+
+  it('reports exactly 0 for a bare node — fetched with geometry, genuinely no footprint', async () => {
+    // 0 is meaningful, not missing: it lets the habitat cache tell a node
+    // apart from a row that was never fetched with geometry at all (NULL).
+    mockOverpassResponse([{ id: 1, lat: 0.001, lon: 0.001, tags: { shop: 'mall', name: 'Galeria Uruguai' } }]);
+
+    const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['shopping_mall'], 5000);
+
+    expect(result.shopping_mall[0].footprintAreaM2).toBe(0);
+  });
+});
+
+describe('searchOsmPlaces — Overpass endpoint fallback (KAN-282)', () => {
+  it('falls back to the next endpoint when the first one fails', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('504 Gateway Timeout'));
+    mockOverpassResponse([{ id: 1, lat: 0.001, lon: 0, tags: { amenity: 'pharmacy', name: 'Farmácia' } }]);
+
+    const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['pharmacy'], 5000);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(mockFetch.mock.calls[0][0]).not.toBe(mockFetch.mock.calls[1][0]);
+    expect(result.pharmacy).toHaveLength(1);
+  });
+
+  it('falls back on a non-200 response too, not just a thrown error', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) });
+    mockOverpassResponse([{ id: 1, lat: 0.001, lon: 0, tags: { amenity: 'pharmacy', name: 'Farmácia' } }]);
+
+    const result = await searchOsmPlaces(ORIGIN.lat, ORIGIN.lng, ['pharmacy'], 5000);
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+    expect(result.pharmacy).toHaveLength(1);
   });
 });

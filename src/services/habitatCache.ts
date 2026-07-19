@@ -66,8 +66,13 @@ export const MAX_CACHED_PLACES = 2_000;
 /** Two candidates within this distance (same POI type, similar name) are treated as the same place. */
 const IDENTITY_MATCH_RADIUS_M = 150;
 
-/** Caps each query type bucket, matching maps.ts's searchNearbyPlaces behavior. */
-const MAX_RESULTS_PER_TYPE = 5;
+/** Caps each query type bucket — a global top-N across the whole query
+ *  radius. Kept generous (not 5) mainly for mall discovery (KAN-282):
+ *  mallRoute reads ALL `shopping_mall` rows in range to size-filter them, so
+ *  a low cap could return only the nearest few small galleries and never
+ *  surface the big destination mall further out. Ordinary POI resolution is
+ *  unaffected either way — it only ever reads the nearest ([0]) result. */
+const MAX_RESULTS_PER_TYPE = 50;
 
 const DB_NAME = 'habitat_cache.db';
 
@@ -134,6 +139,26 @@ function getDb(): SQLite.SQLiteDatabase {
     if (!existingColumns.has('expires_at')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER');
     }
+    // KAN-282 migration — building-footprint area for OSM-sourced malls, used
+    // to filter destination malls from small ones. Nullable, and the NULL is
+    // meaningful: it marks a row cached BEFORE this field existed, whose area
+    // is simply unknown. A row fetched with geometry always stores a number
+    // (0 for a bare node — see osmPlaces.OsmPlace.footprintAreaM2).
+    if (!existingColumns.has('footprint_area_m2')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN footprint_area_m2 REAL');
+    }
+    // Backfill: a mall row with an unknown (NULL) area can never satisfy
+    // mallRoute's size gate, so it would sit useless until it aged out
+    // (HABITAT_CACHE_STALE_MS — up to 14 days). Force those rows stale so the
+    // next refresh re-fetches them WITH geometry. Deliberately outside the
+    // ADD COLUMN branch above: a device that already ran the build which
+    // added the column still has NULL-area mall rows to repair. Self-
+    // terminating — once refreshed every row holds a number (0 or an area),
+    // so this matches nothing on later launches.
+    database.runSync(
+      `UPDATE habitat_places SET osm_fetched_at = 0
+        WHERE poi_type = 'shopping_mall' AND footprint_area_m2 IS NULL AND osm_fetched_at > 0`,
+    );
     database.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
     db = database;
   }
@@ -162,6 +187,8 @@ export interface HabitatRow {
   cache_area_id: string | null;
   /** Epoch ms this row is valid until (trip rows only) — null for ordinary habitat rows, which are governed by osm_fetched_at/HABITAT_CACHE_STALE_MS instead. */
   expires_at: number | null;
+  /** OSM building-footprint area in m² (KAN-282) — only set for OSM way/relation malls; null for everything else. */
+  footprint_area_m2: number | null;
 }
 
 function generateId(): string {
@@ -178,6 +205,8 @@ export interface PlaceCandidate {
   lat: number;
   lng: number;
   source: { google?: string; osm?: string };
+  /** OSM building-footprint area in m² (KAN-282) — only OSM way/relation malls carry this; omitted otherwise. */
+  footprintAreaM2?: number;
 }
 
 /**
@@ -282,22 +311,24 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
     const tripExpiresAt = trip?.expiresAt ?? null;
     database.runSync(
       `UPDATE habitat_places
-       SET google_place_id = COALESCE(google_place_id, ?),
-           osm_id          = COALESCE(osm_id, ?),
-           lat             = CASE WHEN ? = 1 THEN ? ELSE lat END,
-           lng             = CASE WHEN ? = 1 THEN ? ELSE lng END,
-           osm_fetched_at  = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
-           cache_area_id   = COALESCE(cache_area_id, ?),
-           expires_at      = CASE
+       SET google_place_id   = COALESCE(google_place_id, ?),
+           osm_id            = COALESCE(osm_id, ?),
+           lat               = CASE WHEN ? = 1 THEN ? ELSE lat END,
+           lng               = CASE WHEN ? = 1 THEN ? ELSE lng END,
+           osm_fetched_at    = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
+           footprint_area_m2 = COALESCE(?, footprint_area_m2),
+           cache_area_id     = COALESCE(cache_area_id, ?),
+           expires_at        = CASE
                                 WHEN ? IS NULL THEN expires_at
                                 WHEN expires_at IS NULL THEN ?
                                 ELSE MAX(expires_at, ?)
                               END,
-           last_matched_at = ?
+           last_matched_at   = ?
        WHERE id = ?`,
       [
         candidate.source.google ?? null, candidate.source.osm ?? null,
         osmFlag, candidate.lat, osmFlag, candidate.lng, osmFlag, now,
+        candidate.footprintAreaM2 ?? null,
         tripCacheAreaId,
         tripExpiresAt, tripExpiresAt, tripExpiresAt,
         now, match.id,
@@ -313,11 +344,11 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const id = generateId();
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, now, now,
-      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null],
+      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null],
   );
   return id;
 }
@@ -444,6 +475,7 @@ export function queryHabitatCache(
         lat:     row.lat,
         lng:     row.lng,
         distanceMeters,
+        footprintAreaM2: row.footprint_area_m2 ?? undefined,
       });
     }
 
@@ -601,11 +633,12 @@ export async function refreshHabitatCacheIfStale(
       for (const place of places) {
         upsertPlace({
           poiType,
-          name:          place.name,
-          isGenericName: place.isGenericName,
-          lat:           place.lat,
-          lng:           place.lng,
-          source:        { osm: place.osmId },
+          name:            place.name,
+          isGenericName:   place.isGenericName,
+          lat:             place.lat,
+          lng:             place.lng,
+          source:          { osm: place.osmId },
+          footprintAreaM2: place.footprintAreaM2,
         });
         didUpsert = true;
       }
@@ -664,18 +697,29 @@ export function getMostRecentHabitatUpdateAt(): number | null {
  * so a burst of opportunistic caching elsewhere could otherwise silently
  * evict an unexpired trip's coverage mid-trip with no user-facing signal —
  * breaking the "I'll know it until <date>" promise.
+ *
+ * `shopping_mall` rows are exempt too (KAN-282). LRU is the wrong signal for
+ * them: `last_matched_at` is bumped by proximity's ordinary live searches,
+ * which cover the user's TASK POI types (pharmacy, cafe, ...) and never
+ * shopping_mall — so mall rows are never re-matched, always sort oldest, and
+ * were getting evicted first every time the pool crossed the budget (the
+ * mall card worked once, then silently lost all its data). They're also few
+ * (tens per city) and comparatively expensive to rediscover, since Overpass
+ * is the only source and is not always reachable.
  */
 export function enforceSizeBudget(): void {
   try {
     const database = getDb();
     const [{ count } = { count: 0 }] = database.getAllSync<{ count: number }>(
-      'SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL',
+      "SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'",
     );
     if (count <= MAX_CACHED_PLACES) { return; }
 
     database.runSync(
       `DELETE FROM habitat_places WHERE id IN (
-         SELECT id FROM habitat_places WHERE cache_area_id IS NULL ORDER BY last_matched_at ASC LIMIT ?
+         SELECT id FROM habitat_places
+          WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'
+          ORDER BY last_matched_at ASC LIMIT ?
        )`,
       [count - MAX_CACHED_PLACES],
     );

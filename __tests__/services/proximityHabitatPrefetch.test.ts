@@ -81,11 +81,28 @@ jest.mock('../../src/constants/copy', () => ({
       proximityBody:  (count: number) => `${count} task(s) nearby`,
     },
     offline: { genericBanner: '', noCacheYetBanner: '', uncoveredAreaToast: '' },
+    // poiCatalogLabel() reads this; a Proxy keeps the stub from having to
+    // enumerate all 16 built-in types (plus shopping_mall) by hand.
+    poiCatalog: new Proxy({}, { get: (_t, key) => String(key) }),
   },
 }));
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
+
+// proximity imports maps.ts, which transitively pulls in placesFunctions ->
+// @react-native-firebase/functions, a native module unavailable under Jest.
+// Mock ONLY that native boundary so maps.ts's real helpers still load.
+// The live Places search goes through the Cloud Function proxy, not raw
+// fetch — mock it here (it also pulls in @react-native-firebase/functions, a
+// native module unavailable under Jest). Resolves a well-formed empty
+// response by default: maps.ts reads `.places` off it.
+const mockSearchNearbyPlacesProxy = jest.fn();
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: (...args: unknown[]) => mockSearchNearbyPlacesProxy(...args),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
@@ -116,17 +133,16 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 function mockAtmSearchResponse() {
-  mockFetch.mockResolvedValueOnce({
-    ok:   true,
-    json: async () => ({
-      places: [{ id: 'atm-1', displayName: { text: 'Corner ATM' }, location: { latitude: 0.0002, longitude: 0 }, types: ['atm'] }],
-    }),
+  mockSearchNearbyPlacesProxy.mockResolvedValueOnce({
+    places: [{ id: 'atm-1', displayName: { text: 'Corner ATM' }, location: { latitude: 0.0002, longitude: 0 }, types: ['atm'] }],
   });
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockFetch.mockReset();
+  mockSearchNearbyPlacesProxy.mockReset();
+  mockSearchNearbyPlacesProxy.mockResolvedValue({ places: [] });
   mockGetPosition.mockResolvedValue(ORIGIN);
   jest.spyOn(Date.prototype, 'getHours').mockReturnValue(10);
   resetProximityState();
@@ -140,7 +156,10 @@ describe('habitat cache prefetch covers all POI types', () => {
 
     expect(mockRefreshHabitatCacheIfStale).toHaveBeenCalledTimes(1);
     const [, , prefetchedTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
-    expect(new Set(prefetchedTypes)).toEqual(new Set(ALL_POI_TYPES));
+    // KAN-282 — shopping_mall is prefetched alongside the built-ins so the
+    // "All in one place" mall card has OSM data (footprints included) to work
+    // from offline. It isn't in ALL_POI_TYPES: it's never a task category.
+    expect(new Set(prefetchedTypes)).toEqual(new Set([...ALL_POI_TYPES, 'shopping_mall']));
     expect(ALL_POI_TYPES).toHaveLength(16);
     // Explicitly proves the fix: pharmacy has no open task this tick, yet
     // it's still prefetched — this is exactly the "buy aspirin later" gap.
@@ -165,14 +184,16 @@ describe('habitat cache prefetch covers all POI types', () => {
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
 
-    const [, options] = mockFetch.mock.calls[0];
-    const body = JSON.parse(options.body as string);
-    expect(body.includedTypes).toEqual(['atm']);
+    // Guards the KAN-282 prefetch change specifically: broadening the habitat
+    // prefetch (which now includes shopping_mall) must NOT leak into the
+    // billed live Places call, which stays scoped to this tick's open tasks.
+    const [, , searchedTypes] = mockSearchNearbyPlacesProxy.mock.calls[0];
+    expect(searchedTypes).toEqual(['atm']);
   });
 
   it('leaves queryHabitatCache (the offline read path) filtered to the tick\'s open-task types', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
-    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockSearchNearbyPlacesProxy.mockRejectedValueOnce(new Error('network down'));
     mockQueryHabitatCache.mockReturnValue({ atm: [] });
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());

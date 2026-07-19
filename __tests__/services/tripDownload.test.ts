@@ -173,7 +173,10 @@ describe('downloadTripArea', () => {
     expect(lat).toBe(1);
     expect(lng).toBe(2);
     expect(radius).toBe(15_000);
-    expect(new Set(poiTypes)).toEqual(new Set([...ALL_POI_TYPES, 'climbing_gym']));
+    // KAN-282 — shopping_mall rides along too, so a downloaded trip area can
+    // serve the "All in one place" mall card entirely offline. It isn't in
+    // ALL_POI_TYPES because it's never a user-facing task category.
+    expect(new Set(poiTypes)).toEqual(new Set([...ALL_POI_TYPES, 'climbing_gym', 'shopping_mall']));
   });
 
   it('dedupes a custom type that overlaps a built-in one', async () => {

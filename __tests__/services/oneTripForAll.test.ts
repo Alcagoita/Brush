@@ -91,49 +91,33 @@ describe('resolveTripDestinations', () => {
     expect(resolved).toHaveLength(2); // cafe never resolved (not in live results)
   });
 
-  it('piggybacks shopping_mall onto the same batched call and surfaces it as liveMallCandidates (KAN-282 — never a second call)', async () => {
+  // KAN-282: mall discovery used to be piggybacked onto (and later run
+  // beside) this call. It isn't any more — it moved entirely onto OSM /
+  // the habitat cache, because Google's Nearby Search both returned stores
+  // mistagged as malls and capped at 20 results, crowding real malls out.
+  // These two guard the call budget that regression cost us.
+  it('never asks Google for shopping_mall — mall discovery is not this call\'s job', async () => {
     mockQueryHabitatCache.mockReturnValue({});
     mockSearchNearbyPlaces.mockResolvedValue({
-      pharmacy:      [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 1000, primaryType: 'pharmacy' }],
-      shopping_mall: [{ placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800, primaryType: 'shopping_mall' }],
+      pharmacy: [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 1000 }],
     });
 
     const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
-    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+    await resolveTripDestinations(tasks, COORDS, 'uid-1');
 
     expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
-      COORDS.lat, COORDS.lng, expect.arrayContaining(['pharmacy', 'shopping_mall']), expect.any(Number),
-    );
-    expect(result.liveMallCandidates).toEqual([
-      { placeId: 'mall-1', name: 'Big Mall', lat: 38.72, lng: -9.12, distanceMeters: 800, primaryType: 'shopping_mall' },
-    ]);
+    const [, , requestedTypes] = mockSearchNearbyPlaces.mock.calls[0];
+    expect(requestedTypes).not.toContain('shopping_mall');
   });
 
-  it('drops a shopping_mall bucket hit whose PRIMARY Google type is something else (KAN-282 review fix — a supermarket tagged shopping_mall as a secondary category must never be offered up as "the mall" under its own name)', async () => {
-    mockQueryHabitatCache.mockReturnValue({});
-    mockSearchNearbyPlaces.mockResolvedValue({
-      pharmacy:      [],
-      // Landed in the shopping_mall bucket because ONE of its types matched
-      // our request, but its true primary type is supermarket.
-      shopping_mall: [{ placeId: 'paulino', name: 'Paulino', lat: 38.72, lng: -9.12, distanceMeters: 530, primaryType: 'supermarket' }],
-    });
-
-    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
-    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
-
-    expect(result.liveMallCandidates).toEqual([]);
-  });
-
-  it('returns an empty liveMallCandidates when no live search happens (offline or everything resolved locally)', async () => {
+  it('makes ZERO Places calls when every task resolves locally', async () => {
     mockQueryHabitatCache.mockReturnValue({
       pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
     });
     const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
-    const result = await resolveTripDestinations(tasks, COORDS, 'uid-1');
+    await resolveTripDestinations(tasks, COORDS, 'uid-1');
 
     expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
-    expect(result.liveMallCandidates).toEqual([]);
   });
 
   it('does NOT attempt a live search when offline', async () => {

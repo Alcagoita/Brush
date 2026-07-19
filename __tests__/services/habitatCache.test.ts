@@ -58,6 +58,8 @@ interface MockHabitatRow {
   last_matched_at: number;
   cache_area_id: string | null;
   expires_at: number | null;
+  /** KAN-282 — OSM building-footprint area; null when unknown (see habitatCache). */
+  footprint_area_m2?: number | null;
 }
 
 // ─── In-memory expo-sqlite mock ────────────────────────────────────────────────
@@ -78,6 +80,7 @@ const mockDb = {
         { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
         { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
+        { name: 'footprint_area_m2' },
       ] as unknown as T[];
     }
     if (s.startsWith('SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL')) {
@@ -86,7 +89,11 @@ const mockDb = {
       return [{ maxTs }] as unknown as T[];
     }
     if (s.startsWith('SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL')) {
-      return [{ count: rows.filter(r => r.cache_area_id == null).length }] as unknown as T[];
+      // KAN-282 — the real query also excludes shopping_mall from the budget.
+      const excludesMalls = s.includes("poi_type != 'shopping_mall'");
+      return [{
+        count: rows.filter(r => r.cache_area_id == null && !(excludesMalls && r.poi_type === 'shopping_mall')).length,
+      }] as unknown as T[];
     }
     if (s.startsWith('SELECT COUNT(*)')) {
       return [{ count: rows.length }] as unknown as T[];
@@ -127,10 +134,12 @@ const mockDb = {
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
+        footprintAreaM2,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, number, number, number, number, number, number,
+        number | null,
         string | null, number | null, number | null, number | null,
         number, string,
       ];
@@ -141,6 +150,9 @@ const mockDb = {
         if (osmFlag1 === 1) { row.lat = lat; }
         if (osmFlag2 === 1) { row.lng = lng; }
         if (osmFlag3 === 1) { row.osm_fetched_at = osmFetchedAt; }
+        // COALESCE(?, footprint_area_m2) — a known area fills an unknown one,
+        // and a row that already has one is never downgraded to NULL.
+        row.footprint_area_m2 = footprintAreaM2 ?? row.footprint_area_m2 ?? null;
         row.cache_area_id = row.cache_area_id ?? tripCacheAreaId;
         if (tripExpiresAtA != null) {
           row.expires_at = row.expires_at == null ? tripExpiresAtB : Math.max(row.expires_at, tripExpiresAtC!);
@@ -151,7 +163,9 @@ const mockDb = {
     }
     if (s.startsWith('DELETE FROM habitat_places WHERE id IN')) {
       const [limit] = params as [number];
-      const pool = rows.filter(r => r.cache_area_id == null);
+      // KAN-282 — the real subquery also excludes shopping_mall from eviction.
+      const excludesMalls = s.includes("poi_type != 'shopping_mall'");
+      const pool = rows.filter(r => r.cache_area_id == null && !(excludesMalls && r.poi_type === 'shopping_mall'));
       const oldestFirst = [...pool].sort((a, b) => a.last_matched_at - b.last_matched_at);
       const toDelete = new Set(oldestFirst.slice(0, limit).map(r => r.id));
       rows = rows.filter(r => !toDelete.has(r.id));
@@ -198,6 +212,17 @@ jest.mock('@react-native-community/netinfo', () => ({
   default: { fetch: (...args: unknown[]) => mockNetInfoFetch(...args) },
 }));
 
+// habitatCache imports maps.ts (for getDistanceMeters), which transitively
+// pulls in placesFunctions -> @react-native-firebase/functions, a native
+// module unavailable under Jest. Mock ONLY that native boundary, so maps.ts
+// still contributes its real haversine — the identity-match radius and
+// bounding-box assertions below depend on exact distance behaviour.
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
+
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import {
@@ -236,6 +261,21 @@ describe('migration (KAN-234 review fix — schema check instead of blanket catc
 
     const alterCalls = mockDb.execSync.mock.calls.filter(([sql]) => String(sql).includes('ALTER TABLE'));
     expect(alterCalls).toHaveLength(0);
+  });
+
+  // KAN-282 — the footprint backfill runs on EVERY open, not only when the
+  // column is first added: a device that already ran the build which added
+  // the column still has NULL-area mall rows to repair. Forcing them stale
+  // is what makes the next refresh re-fetch them WITH geometry.
+  it('marks mall rows with an unknown footprint as stale, so they get re-fetched', () => {
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const backfill = mockDb.runSync.mock.calls.find(([sql]) =>
+      String(sql).includes('SET osm_fetched_at = 0') && String(sql).includes("poi_type = 'shopping_mall'"),
+    );
+
+    expect(backfill).toBeDefined();
+    expect(String(backfill![0])).toContain('footprint_area_m2 IS NULL');
   });
 
   it('runs ALTER TABLE only for columns missing from the real schema', () => {
@@ -446,7 +486,11 @@ describe('findExistingPlaceId (KAN-229)', () => {
   it('is read-only — never inserts or updates a row', () => {
     findExistingPlaceId('atm', 'Some New Place', 0, 0);
     expect(rows).toHaveLength(0);
-    expect(mockDb.runSync).not.toHaveBeenCalled();
+    // Ignore the one-time footprint backfill that fires when the DB is first
+    // opened (covered by its own migration test) — what matters here is that
+    // findExistingPlaceId contributes no write of its own.
+    const writes = mockDb.runSync.mock.calls.filter(([sql]) => !String(sql).includes('SET osm_fetched_at = 0'));
+    expect(writes).toHaveLength(0);
   });
 
   it('returns null and logs a warning instead of throwing when the DB read fails', () => {
@@ -477,14 +521,19 @@ describe('queryHabitatCache', () => {
     expect(result.atm[0].placeId).toMatch(/^hp_/);
   });
 
-  it('caps results at 5 per type, matching searchNearbyPlaces behavior', () => {
-    for (let i = 0; i < 8; i++) {
+  // KAN-282 raised the per-type cap from 5 to 50. mallRoute reads ALL
+  // shopping_mall rows in range to size-filter them, so a cap of 5 could
+  // return only the nearest few small galleries and never surface the big
+  // destination mall further out. Ordinary POI resolution reads [0] and is
+  // unaffected either way.
+  it('caps results at MAX_RESULTS_PER_TYPE (50) per type', () => {
+    for (let i = 0; i < 60; i++) {
       upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: i * 0.0001, lng: 0, source: { osm: `node/${i}` } });
     }
 
     const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
 
-    expect(result.atm).toHaveLength(5);
+    expect(result.atm).toHaveLength(50);
   });
 
   it('returns an empty array for a type with no cached rows', () => {
@@ -692,6 +741,32 @@ describe('enforceSizeBudget', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] enforceSizeBudget failed', expect.any(Error));
     warnSpy.mockRestore();
+  });
+
+  // KAN-282 regression: proximity's live searches bump last_matched_at for
+  // ordinary task POI types but NEVER for shopping_mall, so mall rows always
+  // sort oldest and were the first evicted every time the pool crossed the
+  // cap — the mall card worked once, then silently lost all its data.
+  it('never evicts a shopping_mall row, however stale its last_matched_at (KAN-282)', () => {
+    const mallId = upsertPlace({
+      poiType: 'shopping_mall', name: 'Centro Comercial Colombo',
+      lat: 0, lng: 0, source: { osm: 'way/42645796' }, footprintAreaM2: 116_791,
+    });
+    const mallRow = rows.find(r => r.id === mallId);
+    if (mallRow) { mallRow.last_matched_at = -1; } // older than every other row
+
+    for (let i = 0; i < MAX_CACHED_PLACES + 5; i++) {
+      const id = upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: (i + 1) * 0.01, lng: 0, source: { osm: `node/${i}` } });
+      const row = rows.find(r => r.id === id);
+      if (row) { row.last_matched_at = i; }
+    }
+
+    enforceSizeBudget();
+
+    expect(rows.some(r => r.id === mallId)).toBe(true);
+    // ...and the mall didn't consume budget either: the ordinary pool is
+    // trimmed to exactly the cap, rather than the cap minus the mall.
+    expect(rows.filter(r => r.poi_type === 'atm')).toHaveLength(MAX_CACHED_PLACES);
   });
 
   it('never evicts a trip-tagged row (KAN-234) — only counts/evicts within the cache_area_id IS NULL pool', () => {

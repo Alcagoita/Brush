@@ -13,19 +13,20 @@
  *     client-side greedy nearest-neighbor pass over straight-line distance,
  *     purely to pick a sensible stop sequence before handing off.
  *
- * KAN-282 update (2026-07-18): that one call now always happens when online,
- * even if every task resolved locally (previously it was skipped entirely
- * in that case) — it also always requests `shopping_mall`, piggybacked in.
- * The offline habitat cache (background-refreshed, or an explicitly
- * downloaded trip area) is the primary, free way the mall card finds a
- * venue; this online call is what still makes "if I'm in range of a mall,
- * show it" true the FIRST time in a brand-new area with no cache yet —
- * "at most one call" stays true, it just no longer requires an unresolved
- * task to justify making it.
+ * KAN-282 note (2026-07-19): mall discovery for the "All in one place" card
+ * is NOT done here and adds no call of its own. After a long detour that
+ * tried piggybacking `shopping_mall` onto (or beside) this Google call, mall
+ * detection moved entirely onto OSM data — the offline habitat cache, which
+ * proximity's background refresh and trip-area downloads already populate
+ * with `shop=mall` way/relation footprints (including their area, for the
+ * big-vs-small filter). Google's Nearby Search was both a noise source
+ * (individual stores mistagged `shopping_mall`, with no geometry to tell a
+ * real mall's footprint from a point) and a 20-result-cap liability, so it
+ * no longer participates in mall discovery at all. See mallRoute.ts.
  */
 
 import NetInfo from '@react-native-community/netinfo';
-import { searchNearbyPlaces, getDistanceMeters, type NearbyPlace } from './maps';
+import { searchNearbyPlaces, getDistanceMeters } from './maps';
 import { getLearnedPlaceCounts } from './firestore';
 import { computeLearnedPlaces } from './learnedPlaces';
 import { resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
@@ -68,7 +69,7 @@ export async function resolveTripDestinations(
   tasks: Task[],
   coords: { lat: number; lng: number },
   uid: string,
-): Promise<{ resolved: TripStop[]; excludedCount: number; liveMallCandidates: NearbyPlace[] }> {
+): Promise<{ resolved: TripStop[]; excludedCount: number }> {
   const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
 
   const counts = await getLearnedPlaceCounts(uid).catch(() => []);
@@ -83,28 +84,12 @@ export async function resolveTripDestinations(
     localPass.filter(r => r.place === null).map(r => r.task.poi as string),
   )];
 
+  // The one live search: only for POI types that failed to resolve locally
+  // (KAN-281's "at most one call"). Mall discovery is NOT here — it's
+  // OSM/habitat-cache-based, see the header note and mallRoute.ts.
   let liveResults: PlacesMap = {};
-  let liveMallCandidates: NearbyPlace[] = [];
-  // KAN-282 — always attempt this when online, even if unresolvedTypes is
-  // empty (every task already resolved locally): that's still "at most one
-  // call," it's just no longer conditional on a task needing it. Without
-  // this, a brand-new area with a warm local cache for the trip's own POI
-  // types but no shopping_mall data yet would never get a chance to check
-  // for a mall at all — "in range" has to be checked on its own, not just
-  // piggybacked when something else happens to need a live search too.
-  if (await isOnline()) {
-    const typesToRequest = unresolvedTypes.length > 0 ? [...unresolvedTypes, 'shopping_mall'] : ['shopping_mall'];
-    try {
-      liveResults = await searchNearbyPlaces(coords.lat, coords.lng, typesToRequest, ROUTE_MAX_RADIUS_M);
-      // A place lands in the shopping_mall bucket if ANY of its Google types
-      // matched our request — a supermarket occasionally also carries
-      // shopping_mall as a secondary tag and would otherwise get offered up
-      // as "the mall" under its own (wrong) name. Only trust it as a mall
-      // when shopping_mall is genuinely its PRIMARY type.
-      liveMallCandidates = (liveResults.shopping_mall ?? []).filter(p => p.primaryType === 'shopping_mall');
-    } catch {
-      // Timeout/network error — proceed with whatever resolved locally.
-    }
+  if (unresolvedTypes.length > 0 && await isOnline()) {
+    liveResults = await searchNearbyPlaces(coords.lat, coords.lng, unresolvedTypes, ROUTE_MAX_RADIUS_M).catch(() => ({} as PlacesMap));
   }
 
   const finalPass = await Promise.all(localPass.map(async (r) => {
@@ -113,7 +98,7 @@ export async function resolveTripDestinations(
   }));
 
   const resolved = finalPass.filter((r): r is TripStop => r.place !== null);
-  return { resolved, excludedCount: eligible.length - resolved.length, liveMallCandidates };
+  return { resolved, excludedCount: eligible.length - resolved.length };
 }
 
 /**

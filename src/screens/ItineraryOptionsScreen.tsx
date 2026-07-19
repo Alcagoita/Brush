@@ -28,9 +28,10 @@ import { getTasksForDate } from '../services/firestore';
 import { getMallSnapshot } from '../services/mallSnapshots';
 import { getPositionLowAccuracy } from '../services/geolocation';
 import { getLastSearchCoords } from '../services/proximity';
+import { refreshHabitatCacheIfStale } from '../services/habitatCache';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
-import { findMallOption, debugAllMallCandidates, type MallOption, type MallCandidateDebugInfo } from '../services/mallRoute';
+import { findMallOption, type MallOption } from '../services/mallRoute';
 import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 
@@ -51,10 +52,6 @@ export default function ItineraryOptionsScreen() {
   const [loadError, setLoadError] = useState(false);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [mallOption, setMallOption] = useState<MallOption | null>(null);
-  // TEMPORARY (KAN-282 debug) — every mall candidate considered, so a
-  // missing/wrong pick is visible instead of guessed at. Remove once the
-  // detection bug is confirmed fixed.
-  const [mallDebugList, setMallDebugList] = useState<MallCandidateDebugInfo[]>([]);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
@@ -80,15 +77,25 @@ export default function ItineraryOptionsScreen() {
         }
 
         const tasks = await getTasksForDate(uid, todayISO());
-        const { resolved, excludedCount, liveMallCandidates } = await resolveTripDestinations(tasks, coords, uid);
+        const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
         const tripPlan = planTrip(coords, resolved, excludedCount);
-        // KAN-282 — opportunistic only: reuses whatever mall snapshot/cache/
-        // live data is already on hand, never a search of its own. Failure
-        // to fetch the snapshot just means the snapshot tier is skipped.
+        // KAN-282 — opportunistic only: reads the user's mall snapshot and the
+        // offline habitat cache, never a search of its own. Failure to fetch
+        // the snapshot just means the snapshot tier is skipped.
         const snapshot = await getMallSnapshot(uid).catch(() => null);
-        const mall = findMallOption(coords, tripPlan.stops, snapshot, liveMallCandidates);
-        const mallDebug = debugAllMallCandidates(coords, tripPlan.stops, snapshot, liveMallCandidates);
-        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setMallDebugList(mallDebug); setOrigin(coords); }
+        const mall = findMallOption(coords, tripPlan.stops, snapshot);
+        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setOrigin(coords); }
+
+        // KAN-282 — no qualifying mall can mean "none nearby" (fine, normal)
+        // or "we have no OSM mall data cached here yet". Kick off a
+        // fire-and-forget habitat refresh for that one type so the next visit
+        // has it, rather than waiting on proximity's 200m-movement gate.
+        // Same background-cache pattern proximity.ts already uses (Overpass,
+        // free — not a Places call), and self-limiting: refreshHabitatCache-
+        // IfStale no-ops once the rows are fresh.
+        if (!mall) {
+          refreshHabitatCacheIfStale(coords.lat, coords.lng, ['shopping_mall']).catch(() => {});
+        }
       } catch {
         if (!cancelled) { setLoadError(true); }
       } finally {
@@ -186,16 +193,16 @@ export default function ItineraryOptionsScreen() {
             )}
           </Pressable>
 
-          {/* KAN-282 — mall card, only when a venue covers >= 2 tasks. Always
-              below the stop-by-stop card: tinted AND first would read as
-              "recommended", which the doctrine bans. */}
+          {/* KAN-282 — mall card, only when a qualifying destination mall is
+              in range. Always below the stop-by-stop card: tinted AND first
+              would read as "recommended", which the doctrine bans. */}
           {mallOption && (
             <Pressable
               testID="mall-card"
               onPress={openMallCard}
               style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}
               accessibilityRole="button"
-              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name, mallOption.coveredCount)}
+              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name)}
               accessibilityHint={COPY.itineraryOptionsScreen.mallOpenInMapsA11y}>
               <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
                 <ShoppingBagIcon color={palette.accent} size={22} />
@@ -208,29 +215,13 @@ export default function ItineraryOptionsScreen() {
                   {COPY.itineraryOptionsScreen.mallCardTitle}
                 </Text>
                 <Text style={[styles.mallSubtitle, { color: palette.muted }]} numberOfLines={1}>
-                  {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name, mallOption.coveredCount)}
+                  {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name)}
                 </Text>
                 <Text style={[styles.mallDistance, { color: palette.muted }]}>
                   {COPY.itineraryOptionsScreen.mallCardDistance(formatDistance(mallOption.distanceMeters))}
                 </Text>
               </View>
             </Pressable>
-          )}
-
-          {/* TEMPORARY (KAN-282 debug) — every shopping_mall candidate this
-              tick considered, verified but not filtered to qualifying ones.
-              Remove once the detection bug is confirmed fixed. */}
-          {mallDebugList.length > 0 && (
-            <View style={[styles.debugBox, { borderColor: palette.line }]}>
-              <Text style={[styles.debugTitle, { color: palette.faint }]}>
-                DEBUG — mall candidates considered ({mallDebugList.length})
-              </Text>
-              {mallDebugList.map((c, i) => (
-                <Text key={`${c.name}-${i}`} style={[styles.debugRow, { color: palette.faint }]}>
-                  {c.name} · {formatDistance(c.distanceMeters)} · {c.coveredCount} solved
-                </Text>
-              ))}
-            </View>
           )}
         </ScrollView>
       )}
@@ -300,11 +291,8 @@ const styles = StyleSheet.create({
   },
   mallTextWrap: { flex: 1, gap: 2 },
   mallTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
-  mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
+  mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular' },
   mallDistance: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
 
   // ── TEMPORARY debug list (KAN-282) — remove once detection bug is fixed ──
-  debugBox: { marginTop: 8, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, gap: 4 },
-  debugTitle: { fontSize: 11, fontFamily: 'Geist-SemiBold', fontWeight: '600' },
-  debugRow: { fontSize: 12, fontFamily: 'Geist-Regular' },
 });
