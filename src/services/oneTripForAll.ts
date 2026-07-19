@@ -4,14 +4,25 @@
  * Orchestrates destinationResolver.ts across a whole trip, then orders the
  * resolved stops. Two hard rules (decided 2026-07-16):
  *
- *   - The entire trip computation makes AT MOST ONE Places API call, and
- *     usually zero: every task is first resolved locally (pinned/learned/
- *     cache — no network). Only the POI types still unresolved after that
- *     get bundled into a single `searchNearbyPlaces` call (never one call
- *     per task, never iterative widening).
+ *   - The entire trip computation makes AT MOST ONE Places API call: every
+ *     task is first resolved locally (pinned/learned/cache — no network),
+ *     and whatever POI types are still unresolved after that get bundled
+ *     into a single `searchNearbyPlaces` call (never one call per task,
+ *     never iterative widening).
  *   - We never compute routes — Google does. Ordering here is a trivial
  *     client-side greedy nearest-neighbor pass over straight-line distance,
  *     purely to pick a sensible stop sequence before handing off.
+ *
+ * KAN-282 note (2026-07-19): mall discovery for the "All in one place" card
+ * is NOT done here and adds no call of its own. After a long detour that
+ * tried piggybacking `shopping_mall` onto (or beside) this Google call, mall
+ * detection moved entirely onto OSM data — the offline habitat cache, which
+ * proximity's background refresh and trip-area downloads already populate
+ * with `shop=mall` way/relation footprints (including their area, for the
+ * big-vs-small filter). Google's Nearby Search was both a noise source
+ * (individual stores mistagged `shopping_mall`, with no geometry to tell a
+ * real mall's footprint from a point) and a 20-result-cap liability, so it
+ * no longer participates in mall discovery at all. See mallRoute.ts.
  */
 
 import NetInfo from '@react-native-community/netinfo';
@@ -73,13 +84,12 @@ export async function resolveTripDestinations(
     localPass.filter(r => r.place === null).map(r => r.task.poi as string),
   )];
 
+  // The one live search: only for POI types that failed to resolve locally
+  // (KAN-281's "at most one call"). Mall discovery is NOT here — it's
+  // OSM/habitat-cache-based, see the header note and mallRoute.ts.
   let liveResults: PlacesMap = {};
   if (unresolvedTypes.length > 0 && await isOnline()) {
-    try {
-      liveResults = await searchNearbyPlaces(coords.lat, coords.lng, unresolvedTypes, ROUTE_MAX_RADIUS_M);
-    } catch {
-      // Timeout/network error — proceed with whatever resolved locally.
-    }
+    liveResults = await searchNearbyPlaces(coords.lat, coords.lng, unresolvedTypes, ROUTE_MAX_RADIUS_M).catch(() => ({} as PlacesMap));
   }
 
   const finalPass = await Promise.all(localPass.map(async (r) => {

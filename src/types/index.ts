@@ -314,6 +314,18 @@ export const POI_OSM_TAGS: Record<PoiType, { key: string; value: string }> = {
   school:      { key: 'amenity', value: 'school' },
 };
 
+/**
+ * OSM tags for internal/supplementary search types that aren't user-facing
+ * task categories (so they can't live in POI_OSM_TAGS, which is keyed to
+ * the PoiType catalog) but still need offline OSM-backed caching — e.g.
+ * shopping_mall for KAN-282's "One trip for all of these" mall detection,
+ * which must work fully offline against the habitat cache the same way
+ * every catalog type does, not just from a live Google search.
+ */
+export const SUPPLEMENTARY_OSM_TAGS: Record<string, { key: string; value: string }> = {
+  shopping_mall: { key: 'shop', value: 'mall' },
+};
+
 /** Default geofence radius in metres per POI type. */
 export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
   atm:         50,

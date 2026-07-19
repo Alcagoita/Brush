@@ -38,6 +38,28 @@ export interface NearbyPlace {
   lng: number;
   /** Straight-line distance from the search origin in metres. */
   distanceMeters: number;
+  /** Google Places' own `primaryType` field — a place can carry several
+   *  secondary type tags (e.g. a supermarket occasionally also tagged
+   *  shopping_mall), so anything that needs to trust a SPECIFIC type (not
+   *  just "this place matched one of our requested types") should check
+   *  this, not assume the bucket it landed in reflects its true kind. Comes
+   *  straight from the API — reliable, unlike guessing from `types[0]`
+   *  (that array's order isn't guaranteed to put the primary type first). */
+  primaryType?: string;
+  /** Google's full `types` array (KAN-282) — even a place whose primaryType
+   *  IS shopping_mall can still be an individual store inside a real mall
+   *  that Google (or OSM) mistagged, distinguishable by ALSO carrying a
+   *  specific category type (e.g. "clothing_store", "supermarket") — a real
+   *  mall entity's types are just shopping_mall + generic boilerplate. See
+   *  isGenuineMallType (below), used by mallSnapshots.ts. */
+  types?: string[];
+  /** Approximate building-footprint area in m² (KAN-282), carried through
+   *  from OSM (osmPlaces.OsmPlace / the habitat cache) — a real destination
+   *  shopping mall is a large building; a small strip mall or a mistagged
+   *  store is a tiny footprint or a bare point. Only ever set for OSM-sourced
+   *  shopping_mall places; undefined for Google results (Nearby Search
+   *  returns no geometry) and for point-only OSM nodes. */
+  footprintAreaM2?: number;
 }
 
 // ─── Internal Places API types ─────────────────────────────────────────────────
@@ -47,6 +69,10 @@ interface PlacesApiPlace {
   displayName?: { text: string; languageCode?: string };
   location?: { latitude: number; longitude: number };
   types?: string[];
+  /** Google's own single "this IS its type" field — unlike `types` (whose
+   *  order isn't guaranteed to put the primary type first), this is the
+   *  reliable one for anything that needs to trust a SPECIFIC type. */
+  primaryType?: string;
 }
 
 interface PlacesApiResponse {
@@ -124,9 +150,13 @@ export async function searchNearbyPlaces(
       lat:            placeLat,
       lng:            placeLng,
       distanceMeters: getDistanceMeters(lat, lng, placeLat, placeLng),
+      primaryType:    p.primaryType,
+      types:          p.types,
     };
 
-    // Assign this place to the first requested type it matches.
+    // Assign this place to the first requested type it matches — this is
+    // "did it match ANY of what we asked for", not "this IS its type"; see
+    // NearbyPlace.primaryType for anything that needs the latter.
     for (const placeType of (p.types ?? [])) {
       const internalType = googleToInternal[placeType];
       if (internalType && result[internalType]) {
@@ -136,13 +166,43 @@ export async function searchNearbyPlaces(
     }
   }
 
-  // Sort and cap each bucket.
+  // Sort each bucket — no extra cap here. Google's own searchNearby request
+  // already caps at maxResultCount: 20 (functions/src/places.ts) and returns
+  // them ranked by distance; re-truncating to 5 on top of that (KAN-282
+  // review) meant a POI type's nearest 5 instances across the WHOLE radius
+  // could all be elsewhere, shutting out the one actually inside a specific
+  // venue (e.g. a shopping mall) that a caller like resolveTaskDestination
+  // would otherwise have found further down Google's own top-20.
   for (const poiType of poiTypes) {
     result[poiType].sort((a, b) => a.distanceMeters - b.distanceMeters);
-    if (result[poiType].length > 5) { result[poiType] = result[poiType].slice(0, 5); }
   }
 
   return result;
+}
+
+/** Google types carried by every place regardless of what it actually is —
+ *  seeing ONLY these (plus shopping_mall itself) alongside shopping_mall is
+ *  what a real mall entity looks like. Anything else present means the
+ *  place has its own specific category too (e.g. "clothing_store",
+ *  "supermarket") — almost always an individual store inside a mall that
+ *  got mistagged/miscategorized as shopping_mall as a secondary type, not
+ *  the mall itself. */
+const MALL_GENERIC_TYPES = new Set(['shopping_mall', 'point_of_interest', 'establishment']);
+
+/**
+ * True only when `place.primaryType` is genuinely `shopping_mall` AND its
+ * full `types` array carries nothing else beyond generic boilerplate
+ * (KAN-282 — primaryType alone wasn't enough: a store inside a real mall,
+ * like an anchor clothing retailer, can have `primaryType: 'shopping_mall'`
+ * as a genuine-looking but wrong Google data quirk, while ALSO carrying its
+ * own real category like `clothing_store` in `types` — a real mall entity
+ * never does). `types` is optional on NearbyPlace (not populated by every
+ * caller); treated as failing this check if absent, since we can't verify.
+ */
+export function isGenuineMallType(place: NearbyPlace): boolean {
+  if (place.primaryType !== 'shopping_mall') { return false; }
+  if (!place.types) { return false; }
+  return place.types.every(t => MALL_GENERIC_TYPES.has(t));
 }
 
 // ─── Deep-link to native Maps ─────────────────────────────────────────────────

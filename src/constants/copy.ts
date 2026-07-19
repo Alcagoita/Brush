@@ -253,6 +253,12 @@ const en = {
     errorBody:      "Something went wrong finding the way.",
     retryLabel:     'Try again',
     mapsOpenFailed: "Couldn't open Maps — try again.",
+    // ── Mall card (KAN-282) ──
+    mallCardTitle:     'All in one place',
+    mallCardSubtitle:  (name: string) => name,
+    mallCardDistance:  (distance: string) => `${distance} away`,
+    mallCardA11y:      (name: string) => `All in one place — ${name}`,
+    mallOpenInMapsA11y: 'Open directions to the mall in Maps',
   },
 
   // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
@@ -1281,6 +1287,12 @@ const ptPT: typeof en = {
     errorBody:      'Algo correu mal ao encontrar o caminho.',
     retryLabel:     'Tentar novamente',
     mapsOpenFailed: 'Não consegui abrir o Maps — tenta outra vez.',
+    // ── Mall card (KAN-282) ──
+    mallCardTitle:     'Tudo num só lugar',
+    mallCardSubtitle:  (name: string) => name,
+    mallCardDistance:  (distance: string) => `A ${distance}`,
+    mallCardA11y:      (name: string) => `Tudo num só lugar — ${name}`,
+    mallOpenInMapsA11y: 'Abrir direções para o centro comercial no Maps',
   },
 
   contextChip: {

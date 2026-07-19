@@ -159,7 +159,10 @@ export default function ContextChip({ placeContext = null }: ContextChipProps) {
       const uid = getAuth().currentUser?.uid;
       const categories = uid ? await getCategories(uid) : [];
       const customCategoryPoiTypes = categories.map(c => c.poi).filter((p): p is string => !!p);
-      const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+      // KAN-282 — shopping_mall too, matching proximity.ts's own background
+      // prefetch list; without it this manual refresh could never populate
+      // mall rows even after an explicit "Refresh now" tap.
+      const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes, 'shopping_mall'])];
       await refreshHabitatCacheIfStale(coords.lat, coords.lng, poiTypes, true);
       setLastUpdatedAt(getMostRecentHabitatUpdateAt());
     } catch (err) {

@@ -91,6 +91,35 @@ describe('resolveTripDestinations', () => {
     expect(resolved).toHaveLength(2); // cafe never resolved (not in live results)
   });
 
+  // KAN-282: mall discovery used to be piggybacked onto (and later run
+  // beside) this call. It isn't any more — it moved entirely onto OSM /
+  // the habitat cache, because Google's Nearby Search both returned stores
+  // mistagged as malls and capped at 20 results, crowding real malls out.
+  // These two guard the call budget that regression cost us.
+  it('never asks Google for shopping_mall — mall discovery is not this call\'s job', async () => {
+    mockQueryHabitatCache.mockReturnValue({});
+    mockSearchNearbyPlaces.mockResolvedValue({
+      pharmacy: [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 1000 }],
+    });
+
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
+    await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    const [, , requestedTypes] = mockSearchNearbyPlaces.mock.calls[0];
+    expect(requestedTypes).not.toContain('shopping_mall');
+  });
+
+  it('makes ZERO Places calls when every task resolves locally', async () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
+    });
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' })];
+    await resolveTripDestinations(tasks, COORDS, 'uid-1');
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
   it('does NOT attempt a live search when offline', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
     mockQueryHabitatCache.mockReturnValue({});

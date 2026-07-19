@@ -728,7 +728,10 @@ async function runProximitySearch(
           // category types, not just this tick's open-task types
           // (uniquePoiTypes), so a task created after caching (no prior
           // task of that type) still finds cached candidates offline.
-          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ..._customCategoryPoiTypes])];
+          // KAN-282 — also shopping_mall, so "One trip for all of these"
+          // can find a nearby mall purely from the offline cache once the
+          // area's been visited even once, no live call needed at check time.
+          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ..._customCategoryPoiTypes, 'shopping_mall'])];
           refreshHabitatCacheIfStale(coords.lat, coords.lng, prefetchTypes).catch(err =>
             reportProximityError('habitat cache refresh failed', err),
           );

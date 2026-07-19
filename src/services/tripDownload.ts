@@ -165,11 +165,12 @@ export async function downloadAreaSnapshot(
   const places = poiTypes.flatMap(poiType =>
     (osmResults[poiType] ?? []).map(place => ({
       poiType,
-      name:          place.name,
-      isGenericName: place.isGenericName,
-      lat:           place.lat,
-      lng:           place.lng,
-      source:        { osm: place.osmId },
+      name:            place.name,
+      isGenericName:   place.isGenericName,
+      lat:             place.lat,
+      lng:             place.lng,
+      source:          { osm: place.osmId },
+      footprintAreaM2: place.footprintAreaM2,
     })),
   );
   return writeTripAreaPlaces(cacheAreaId, expiresAt, places);
@@ -189,7 +190,10 @@ export async function downloadTripArea(
   expiresAt: number,
   customCategoryPoiTypes: string[],
 ): Promise<number> {
-  const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+  // KAN-282 — shopping_mall too, so "One trip for all of these" can find a
+  // mall inside a downloaded trip area entirely offline, same as any other
+  // POI type.
+  const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes, 'shopping_mall'])];
   return downloadAreaSnapshot(center, radiusMeters, cacheAreaId, expiresAt, poiTypes);
 }
 
