@@ -116,15 +116,24 @@ const DEG_TO_RAD = Math.PI / 180;
 
 /**
  * POSTs `query` to each OVERPASS_ENDPOINTS entry in turn, returning the first
- * successful response. `timeoutMs` applies PER endpoint. Throws the last
- * error only if every endpoint fails — preserving the contract
- * searchOsmPlacesStrict depends on (a real failure must stay distinguishable
- * from a legitimately empty result, so a trip download can surface an error
- * instead of silently persisting an empty area).
+ * successful response. Throws the last error only if every endpoint fails —
+ * preserving the contract searchOsmPlacesStrict depends on (a real failure
+ * must stay distinguishable from a legitimately empty result, so a trip
+ * download can surface an error instead of silently persisting an empty area).
+ *
+ * `timeoutMs` is a SHARED deadline across all endpoints, not a per-endpoint
+ * budget (KAN-282 review): trip/mall downloads pass 20s, so a per-endpoint
+ * timeout would let a foreground spinner run for endpoints × 20s before
+ * failing. Each attempt gets whatever is left, and once the deadline passes
+ * the remaining endpoints are skipped.
  */
 async function fetchOverpass(query: string, timeoutMs: number): Promise<OverpassResponse> {
+  const deadline = Date.now() + timeoutMs;
   let lastError: unknown = new Error('Overpass: no endpoint attempted');
+
   for (const endpoint of OVERPASS_ENDPOINTS) {
+    const remainingMs = deadline - Date.now();
+    if (remainingMs <= 0) { break; }
     try {
       const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
@@ -133,7 +142,7 @@ async function fetchOverpass(query: string, timeoutMs: number): Promise<Overpass
           'User-Agent':   USER_AGENT,
         },
         body: `data=${encodeURIComponent(query)}`,
-      }, timeoutMs);
+      }, remainingMs);
       if (!response.ok) { throw new Error(`Overpass request failed: ${response.status}`); }
       return (await response.json()) as OverpassResponse;
     } catch (err) {

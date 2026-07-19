@@ -85,12 +85,12 @@ jest.mock('../../src/services/mallRoute', () => ({
   findMallOption: (...args: unknown[]) => mockFindMallOption(...args),
 }));
 
-// KAN-282 — the screen kicks off a fire-and-forget habitat refresh when no
-// mall qualifies. habitatCache pulls in expo-sqlite (native, unavailable
-// under Jest), so mock at the service boundary.
-const mockRefreshHabitatCacheIfStale = jest.fn().mockResolvedValue(undefined);
+// KAN-282 — the screen kicks off a fire-and-forget mall sweep when no mall
+// qualifies. habitatCache pulls in expo-sqlite (native, unavailable under
+// Jest), so mock at the service boundary.
+const mockRefreshMallsIfDue = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../src/services/habitatCache', () => ({
-  refreshHabitatCacheIfStale: (...args: unknown[]) => mockRefreshHabitatCacheIfStale(...args),
+  refreshMallsIfDue: (...args: unknown[]) => mockRefreshMallsIfDue(...args),
 }));
 
 function makeStop(id: string, name: string, source: 'learned' | 'cache' = 'cache', distanceMeters = 400) {
@@ -188,11 +188,11 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
   it('kicks off a background mall cache refresh when no mall qualifies', async () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
-    await waitFor(() => expect(mockRefreshHabitatCacheIfStale).toHaveBeenCalledWith(38.7, -9.1, ['shopping_mall']));
+    await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1));
   });
 
   it('still renders normally when that background refresh rejects', async () => {
-    mockRefreshHabitatCacheIfStale.mockRejectedValueOnce(new Error('Overpass unreachable'));
+    mockRefreshMallsIfDue.mockRejectedValueOnce(new Error('Overpass unreachable'));
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
     expect(screen.queryByTestId('mall-card')).toBeNull();
@@ -221,7 +221,7 @@ describe('ItineraryOptionsScreen — mall card (KAN-282)', () => {
   it('does NOT kick off a mall cache refresh when a mall already qualifies', async () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
-    expect(mockRefreshHabitatCacheIfStale).not.toHaveBeenCalled();
+    expect(mockRefreshMallsIfDue).not.toHaveBeenCalled();
   });
 
   it('tapping the mall card opens Maps with the mall as the single destination', async () => {

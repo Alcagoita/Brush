@@ -28,7 +28,7 @@ import { getTasksForDate } from '../services/firestore';
 import { getMallSnapshot } from '../services/mallSnapshots';
 import { getPositionLowAccuracy } from '../services/geolocation';
 import { getLastSearchCoords } from '../services/proximity';
-import { refreshHabitatCacheIfStale } from '../services/habitatCache';
+import { refreshMallsIfDue } from '../services/habitatCache';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
 import { findMallOption, type MallOption } from '../services/mallRoute';
@@ -87,14 +87,16 @@ export default function ItineraryOptionsScreen() {
         if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setOrigin(coords); }
 
         // KAN-282 — no qualifying mall can mean "none nearby" (fine, normal)
-        // or "we have no OSM mall data cached here yet". Kick off a
-        // fire-and-forget habitat refresh for that one type so the next visit
-        // has it, rather than waiting on proximity's 200m-movement gate.
-        // Same background-cache pattern proximity.ts already uses (Overpass,
-        // free — not a Places call), and self-limiting: refreshHabitatCache-
-        // IfStale no-ops once the rows are fresh.
+        // or "we have never swept this area for malls". Kick off a
+        // fire-and-forget sweep so the next visit has the data, rather than
+        // waiting on proximity's 200m-movement gate. Same background-cache
+        // pattern proximity.ts already uses (Overpass, free — not a Places
+        // call). refreshMallsIfDue carries its own cooldown, so this can't
+        // fire on every screen open; it deliberately does NOT go through the
+        // plain staleness check, which one cached small gallery would satisfy
+        // for the whole area (see refreshMallsIfDue).
         if (!mall) {
-          refreshHabitatCacheIfStale(coords.lat, coords.lng, ['shopping_mall']).catch(() => {});
+          refreshMallsIfDue(coords.lat, coords.lng).catch(() => {});
         }
       } catch {
         if (!cancelled) { setLoadError(true); }

@@ -248,6 +248,23 @@ describe('searchOsmPlaces — Overpass endpoint fallback (KAN-282)', () => {
     expect(result.pharmacy).toHaveLength(1);
   });
 
+  // KAN-282 review — timeoutMs is a shared deadline across endpoints, not a
+  // per-endpoint budget: trip/mall downloads pass 20s, so a per-endpoint
+  // timeout would leave a foreground spinner running for endpoints x 20s.
+  it('applies timeoutMs as one shared deadline across endpoints, not per endpoint', async () => {
+    mockFetch.mockImplementation((_url: string, options: RequestInit) => new Promise((_resolve, reject) => {
+      options.signal?.addEventListener('abort', () => reject(new Error('AbortError')));
+    }));
+
+    const startedAt = Date.now();
+    await expect(
+      searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, 120),
+    ).rejects.toThrow('AbortError');
+
+    // Comfortably under 2x the budget, which a per-endpoint timeout would hit.
+    expect(Date.now() - startedAt).toBeLessThan(220);
+  });
+
   it('falls back on a non-200 response too, not just a thrown error', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 429, json: async () => ({}) });
     mockOverpassResponse([{ id: 1, lat: 0.001, lon: 0, tags: { amenity: 'pharmacy', name: 'Farmácia' } }]);

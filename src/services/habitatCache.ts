@@ -63,6 +63,16 @@ export const HABITAT_RADIUS_M = 5_000;
 /** Hard cap on total cached rows — keeps the on-device footprint small. */
 export const MAX_CACHED_PLACES = 2_000;
 
+/**
+ * Separate cap for `shopping_mall` rows (KAN-282). They're excluded from the
+ * MAX_CACHED_PLACES pool because ordinary LRU eviction is the wrong signal
+ * for them (see enforceSizeBudget) — but "exempt from LRU" must not mean
+ * "unbounded", or a well-travelled user's mall rows would grow forever.
+ * Generous relative to reality (a dense metro yields ~45 within 5 km), so it
+ * only ever bites after many cities.
+ */
+export const MAX_CACHED_MALLS = 200;
+
 /** Two candidates within this distance (same POI type, similar name) are treated as the same place. */
 const IDENTITY_MATCH_RADIUS_M = 150;
 
@@ -557,6 +567,37 @@ function emptyResultAttemptKey(poiType: string, lat: number, lng: number): strin
 /** Test-only: clears the empty-result retry throttle between test cases. */
 export function __resetEmptyResultAttemptsForTests(): void {
   _emptyResultAttempts.clear();
+  _mallSweepAttempts.clear();
+}
+
+/** How long before another full mall sweep of the same area is allowed (see refreshMallsIfDue). */
+const MALL_SWEEP_COOLDOWN_MS = 6 * 60 * 60 * 1_000; // 6 hours
+
+/** Same in-memory, coarse-grid throttle as _emptyResultAttempts above. */
+const _mallSweepAttempts = new Map<string, number>();
+
+/**
+ * Forces a `shopping_mall` re-fetch for this area, at most once per
+ * MALL_SWEEP_COOLDOWN_MS (KAN-282 review).
+ *
+ * Why forced rather than a plain refreshHabitatCacheIfStale call: that
+ * function treats a POI type as fresh if ANY row of it exists in the 5 km
+ * box. One cached small gallery therefore marks `shopping_mall` fresh for
+ * the whole area, so a plain call would no-op and a genuinely big mall that
+ * was never cached could stay invisible for the full HABITAT_CACHE_STALE_MS
+ * (14 days) — the exact "mall card never appears" failure this ticket
+ * chased. Presence of *a* mall says nothing about whether we ever swept the
+ * area for *all* of them, so the sweep needs its own cadence.
+ *
+ * Never throws; safe to call fire-and-forget.
+ */
+export async function refreshMallsIfDue(lat: number, lng: number): Promise<void> {
+  const key = emptyResultAttemptKey('shopping_mall_sweep', lat, lng);
+  const lastAttempt = _mallSweepAttempts.get(key);
+  if (lastAttempt != null && Date.now() - lastAttempt < MALL_SWEEP_COOLDOWN_MS) { return; }
+  _mallSweepAttempts.set(key, Date.now());
+
+  await refreshHabitatCacheIfStale(lat, lng, ['shopping_mall'], true);
 }
 
 /**
@@ -698,31 +739,52 @@ export function getMostRecentHabitatUpdateAt(): number | null {
  * evict an unexpired trip's coverage mid-trip with no user-facing signal —
  * breaking the "I'll know it until <date>" promise.
  *
- * `shopping_mall` rows are exempt too (KAN-282). LRU is the wrong signal for
- * them: `last_matched_at` is bumped by proximity's ordinary live searches,
- * which cover the user's TASK POI types (pharmacy, cafe, ...) and never
- * shopping_mall — so mall rows are never re-matched, always sort oldest, and
- * were getting evicted first every time the pool crossed the budget (the
- * mall card worked once, then silently lost all its data). They're also few
- * (tens per city) and comparatively expensive to rediscover, since Overpass
- * is the only source and is not always reachable.
+ * `shopping_mall` rows are held out of that pool (KAN-282) and trimmed under
+ * their own MAX_CACHED_MALLS budget instead, because both halves of ordinary
+ * LRU are wrong for them:
+ *
+ *   - As a BUDGET: `last_matched_at` is bumped by proximity's ordinary live
+ *     searches, which cover the user's TASK POI types (pharmacy, cafe, ...)
+ *     and never shopping_mall. Mall rows are therefore never re-matched,
+ *     always sort oldest, and were evicted first every time the pool crossed
+ *     the cap — the mall card worked once, then silently lost all its data.
+ *   - As an ORDER: for the same reason, `last_matched_at` says nothing about
+ *     a mall's usefulness. Malls are trimmed by `osm_fetched_at` instead —
+ *     oldest DATA first, which is the only age that means anything here.
+ *
+ * Trip rows stay exempt from both budgets (see above).
  */
 export function enforceSizeBudget(): void {
   try {
     const database = getDb();
+
     const [{ count } = { count: 0 }] = database.getAllSync<{ count: number }>(
       "SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'",
     );
-    if (count <= MAX_CACHED_PLACES) { return; }
+    if (count > MAX_CACHED_PLACES) {
+      database.runSync(
+        `DELETE FROM habitat_places WHERE id IN (
+           SELECT id FROM habitat_places
+            WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'
+            ORDER BY last_matched_at ASC LIMIT ?
+         )`,
+        [count - MAX_CACHED_PLACES],
+      );
+    }
 
-    database.runSync(
-      `DELETE FROM habitat_places WHERE id IN (
-         SELECT id FROM habitat_places
-          WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'
-          ORDER BY last_matched_at ASC LIMIT ?
-       )`,
-      [count - MAX_CACHED_PLACES],
+    const [{ count: mallCount } = { count: 0 }] = database.getAllSync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL AND poi_type = 'shopping_mall'",
     );
+    if (mallCount > MAX_CACHED_MALLS) {
+      database.runSync(
+        `DELETE FROM habitat_places WHERE id IN (
+           SELECT id FROM habitat_places
+            WHERE cache_area_id IS NULL AND poi_type = 'shopping_mall'
+            ORDER BY osm_fetched_at ASC LIMIT ?
+         )`,
+        [mallCount - MAX_CACHED_MALLS],
+      );
+    }
   } catch (err) {
     console.warn('[habitatCache] enforceSizeBudget failed', err);
   }
