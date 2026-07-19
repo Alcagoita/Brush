@@ -10,7 +10,7 @@
  *
  * Copy reveals opportunity, never schedules — no ordering, no urgency.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -26,7 +26,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { CloseIcon, PinIcon, ChevronRightIcon } from './AppIcon';
-import { openInMaps, formatDistance } from '../services/maps';
+import { openInMaps, openMultiStopDirections, formatDistance } from '../services/maps';
+import { getLastSearchCoords } from '../services/proximity';
+import { orderStopsNearestFirst } from '../services/routeHandoff';
 import { logTap } from '../services/analytics';
 import type { ErrandBundle } from '../services/errandBundles';
 import { COPY } from '../constants/copy';
@@ -74,6 +76,34 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
     logTap('errand_bundle_open_maps');
     openInMaps(bundle.anchor.lat, bundle.anchor.lng, anchorName).catch(err => {
       console.warn('[ErrandBundleCard] openInMaps failed', err);
+    });
+  };
+
+  // KAN-283 — hand the whole cluster to Maps as one ordered walk. Uses the
+  // places the proximity engine already resolved (bundle.entries[].place):
+  // no new resolution, no API call from this path.
+  //
+  // Origin is the position that proximity tick searched from — the exact
+  // point these places' distances were measured against, so ordering from
+  // anything else would contradict what the sheet is showing. If it's
+  // unavailable there's no honest origin to route from, so the action is
+  // hidden rather than guessed (see routeStops).
+  // Memoised: this card sits on the animation-heavy Today screen and
+  // re-renders with it, while the ordering only changes when the bundle or
+  // the search position does.
+  const routeOrigin = getLastSearchCoords();
+  const routeStops = useMemo(
+    () => (routeOrigin && taskCount >= 2
+      ? orderStopsNearestFirst(routeOrigin, bundle.entries, entry => entry.place)
+      : null),
+    [routeOrigin?.lat, routeOrigin?.lng, bundle.entries, taskCount],
+  );
+
+  const handleOpenAllStops = () => {
+    if (!routeOrigin || !routeStops) { return; }
+    logTap('errand_bundle_open_all_stops');
+    openMultiStopDirections(routeOrigin, routeStops.map(entry => entry.place)).catch(err => {
+      console.warn('[ErrandBundleCard] openMultiStopDirections failed', err);
     });
   };
 
@@ -164,6 +194,23 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
                 {COPY.errandBundle.openAnchorInMaps(anchorName)}
               </Text>
             </Pressable>
+
+            {/* KAN-283 — the whole cluster as one ordered walk. Only for >= 2
+                stops; a single-stop cluster is already fully served by the
+                anchor action above. Sits below it: this is the broader
+                option, not the recommended one. */}
+            {routeStops && (
+              <Pressable
+                testID="errand-bundle-open-all"
+                style={[styles.mapsBtn, styles.allStopsBtn, { backgroundColor: palette.surface2 }]}
+                onPress={handleOpenAllStops}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.errandBundle.openAllInMapsA11y(routeStops.length)}>
+                <Text style={[styles.mapsLabel, { color: palette.text }]}>
+                  {COPY.errandBundle.openAllInMaps(routeStops.length)}
+                </Text>
+              </Pressable>
+            )}
           </Animated.View>
         </Modal>
       )}
@@ -266,5 +313,8 @@ const styles = StyleSheet.create({
     marginHorizontal:  spacing.page,
     marginTop:         14,
   },
+  // Sits directly under the anchor button — tighter than the 14 gap that
+  // separates the pair from the list above it (KAN-283).
+  allStopsBtn: { marginTop: 8 },
   mapsLabel: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 });

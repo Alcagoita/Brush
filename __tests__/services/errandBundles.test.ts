@@ -43,6 +43,17 @@ jest.mock('expo-sqlite', () => ({
 }));
 
 const mockTodayISO = jest.fn().mockReturnValue('2026-07-06');
+// errandBundles imports maps.ts (for getDistanceMeters), which transitively
+// pulls in placesFunctions -> @react-native-firebase/functions, a native
+// module unavailable under Jest. Mock ONLY that native boundary, so maps.ts
+// still contributes its real haversine — the bundle-radius assertions below
+// depend on exact distance behaviour.
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
+
 jest.mock('../../src/utils/date', () => ({
   todayISO: () => mockTodayISO(),
 }));

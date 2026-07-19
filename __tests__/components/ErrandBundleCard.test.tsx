@@ -41,9 +41,24 @@ jest.mock('../../src/components/AppIcon', () => {
 });
 
 const mockOpenInMaps = jest.fn().mockResolvedValue(undefined);
+const mockOpenMultiStopDirections = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../src/services/maps', () => ({
   openInMaps: (...args: unknown[]) => mockOpenInMaps(...args),
+  openMultiStopDirections: (...args: unknown[]) => mockOpenMultiStopDirections(...args),
   formatDistance: (m: number) => `${Math.round(m)} m`,
+  // Real geometry — routeHandoff's ordering is what the KAN-283 assertions
+  // below are actually checking, so it must not be stubbed. Flat-earth
+  // approximation is plenty at these few-hundred-metre distances.
+  getDistanceMeters: (lat1: number, lng1: number, lat2: number, lng2: number) =>
+    Math.round(Math.hypot(lat2 - lat1, lng2 - lng1) * 111_000),
+}));
+
+// KAN-283 — the card reads the last proximity search position to route from.
+// proximity.ts pulls in notifee (native, unavailable under Jest), so mock at
+// the service boundary.
+const mockGetLastSearchCoords = jest.fn<{ lat: number; lng: number } | null, []>();
+jest.mock('../../src/services/proximity', () => ({
+  getLastSearchCoords: () => mockGetLastSearchCoords(),
 }));
 
 const mockLogTap = jest.fn();
@@ -66,7 +81,10 @@ function makeBundle(): ErrandBundle {
   };
 }
 
-beforeEach(() => { jest.clearAllMocks(); });
+beforeEach(() => {
+  jest.clearAllMocks();
+  mockGetLastSearchCoords.mockReturnValue({ lat: 0, lng: 0 });
+});
 
 describe('ErrandBundleCard', () => {
   it('shows the card line with task count and anchor name', () => {
@@ -137,5 +155,94 @@ describe('ErrandBundleCard', () => {
     act(() => { jest.advanceTimersByTime(200); });
     expect(screen.queryByText(COPY.errandBundle.sheetTitle('Mercado da Vila'))).toBeNull();
     jest.useRealTimers();
+  });
+});
+
+// ─── KAN-283: cluster route handoff ───────────────────────────────────────────
+
+/**
+ * Distinct coordinates, deliberately built out of visiting order, so the
+ * greedy ordering has something real to prove. Origin is (0, 0):
+ *   Far   (0.003, 0) ~333 m
+ *   Mid   (0.002, 0) ~222 m
+ *   Near  (0.001, 0) ~111 m
+ * Nearest-first from the origin therefore yields Near -> Mid -> Far.
+ */
+function makeSpreadBundle(): ErrandBundle {
+  const entry = (id: string, title: string, name: string, lat: number, distanceMeters: number) => ({
+    task: makeTask({ id, title }),
+    place: { placeId: `p-${id}`, name, lat, lng: 0, distanceMeters },
+    distanceToAnchorMeters: distanceMeters,
+  });
+  return {
+    anchor: { placeId: 'anchor-1', name: 'Mercado da Vila', lat: 0.002, lng: 0, distanceMeters: 222 },
+    entries: [
+      entry('t3', 'Far task', 'Far Place', 0.003, 333),
+      entry('t1', 'Near task', 'Near Place', 0.001, 111),
+      entry('t2', 'Mid task', 'Mid Place', 0.002, 222),
+    ],
+    totalWalkDistanceMeters: 222,
+  };
+}
+
+async function openSheet(bundle: ErrandBundle) {
+  render(<ErrandBundleCard bundle={bundle} onDismiss={jest.fn()} />);
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(bundle.entries.length, bundle.anchor.name)));
+  });
+}
+
+describe('ErrandBundleCard — cluster route handoff (KAN-283)', () => {
+  it('offers the all-stops action for a multi-stop cluster', async () => {
+    await openSheet(makeSpreadBundle());
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
+  });
+
+  it('hands every stop to Maps in greedy nearest-first order from the user', async () => {
+    await openSheet(makeSpreadBundle());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-open-all'));
+    });
+
+    expect(mockOpenMultiStopDirections).toHaveBeenCalledTimes(1);
+    const [origin, stops] = mockOpenMultiStopDirections.mock.calls[0];
+    expect(origin).toEqual({ lat: 0, lng: 0 });
+    // Reordered from the bundle's own Far/Near/Mid declaration order.
+    expect(stops.map((s: { name: string }) => s.name)).toEqual(['Near Place', 'Mid Place', 'Far Place']);
+  });
+
+  it('routes to the cluster\'s own already-resolved places — never a fresh lookup', async () => {
+    // The coordinates handed to Maps must be exactly the ones the bundle
+    // already carried (AC: no new resolution from this path).
+    const bundle = makeSpreadBundle();
+    await openSheet(bundle);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-open-all'));
+    });
+
+    const [, stops] = mockOpenMultiStopDirections.mock.calls[0];
+    const bundleCoords = bundle.entries.map(e => ({ lat: e.place.lat, lng: e.place.lng }));
+    for (const stop of stops as { lat: number; lng: number }[]) {
+      expect(bundleCoords).toContainEqual({ lat: stop.lat, lng: stop.lng });
+    }
+  });
+
+  it('does NOT offer the all-stops action for a single-stop cluster', async () => {
+    const bundle = makeSpreadBundle();
+    const single: ErrandBundle = { ...bundle, entries: [bundle.entries[0]] };
+
+    await openSheet(single);
+
+    expect(screen.queryByTestId('errand-bundle-open-all')).toBeNull();
+    // The single-place action is untouched — today's behaviour still stands.
+    expect(screen.getByLabelText(COPY.errandBundle.openAnchorInMaps('Mercado da Vila'))).toBeTruthy();
+  });
+
+  it('hides the all-stops action when there is no known position to route from', async () => {
+    mockGetLastSearchCoords.mockReturnValue(null);
+    await openSheet(makeSpreadBundle());
+
+    expect(screen.queryByTestId('errand-bundle-open-all')).toBeNull();
+    expect(mockOpenMultiStopDirections).not.toHaveBeenCalled();
   });
 });

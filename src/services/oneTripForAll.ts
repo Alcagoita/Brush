@@ -27,6 +27,7 @@
 
 import NetInfo from '@react-native-community/netinfo';
 import { searchNearbyPlaces, getDistanceMeters } from './maps';
+import { orderStopsNearestFirst } from './routeHandoff';
 import { getLearnedPlaceCounts } from './firestore';
 import { computeLearnedPlaces } from './learnedPlaces';
 import { resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
@@ -105,27 +106,18 @@ export async function resolveTripDestinations(
  * Greedy nearest-neighbor ordering from `origin`, capped at MAX_WAYPOINTS.
  * Trivial client-side pass — no TSP heroics, no Directions/Distance Matrix
  * API calls (Google recalculates real routing once Maps opens anyway).
+ *
+ * The ordering itself lives in routeHandoff.ts (KAN-283), shared with the
+ * Nearby cluster box — it's pure geometry with no notion of scale. The
+ * waypoint cap, total distance and exclusion counting below are trip
+ * concerns and stay here.
  */
 export function planTrip(
   origin: { lat: number; lng: number },
   resolved: TripStop[],
   priorExcludedCount = 0,
 ): TripPlan {
-  const remaining = [...resolved];
-  const ordered: TripStop[] = [];
-  let current = origin;
-
-  while (remaining.length > 0) {
-    let nearestIndex = 0;
-    let nearestDistance = Infinity;
-    remaining.forEach((stop, i) => {
-      const d = getDistanceMeters(current.lat, current.lng, stop.place.lat, stop.place.lng);
-      if (d < nearestDistance) { nearestDistance = d; nearestIndex = i; }
-    });
-    const [next] = remaining.splice(nearestIndex, 1);
-    ordered.push(next);
-    current = next.place;
-  }
+  const ordered = orderStopsNearestFirst(origin, resolved, stop => stop.place);
 
   const stops = ordered.slice(0, MAX_WAYPOINTS);
   const cappedCount = ordered.length - stops.length;

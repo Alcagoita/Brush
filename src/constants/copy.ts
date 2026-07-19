@@ -315,6 +315,11 @@ const en = {
     closeA11y: 'Close',
     closeSheetA11y: 'Close sheet',
     openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
+    // KAN-283 — route handoff for the whole cluster. States the number of
+    // stops and nothing else: no "best", no "optimal", no suggestion that
+    // this order is the one to follow.
+    openAllInMaps: (stopCount: number) => `Open in Maps — all ${stopCount} stops`,
+    openAllInMapsA11y: (stopCount: number) => `Open all ${stopCount} stops in Maps`,
   },
 
   // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
@@ -1337,6 +1342,9 @@ const ptPT: typeof en = {
     closeA11y: 'Fechar',
     closeSheetA11y: 'Fechar painel',
     openAnchorInMaps: (anchorName: string) => `Abrir ${anchorName} no Maps`,
+    // KAN-283 — ver nota na versão EN: indica apenas o número de paragens.
+    openAllInMaps: (stopCount: number) => `Abrir no Maps — as ${stopCount} paragens`,
+    openAllInMapsA11y: (stopCount: number) => `Abrir as ${stopCount} paragens no Maps`,
   },
 
   tripSuggestion: {
