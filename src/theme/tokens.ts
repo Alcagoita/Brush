@@ -225,6 +225,9 @@ export const radius = {
   heroIcon: 14,
   listIcon: 10,
   ctaBtn:   12,
+  /** Small selection controls (KAN-283) — the existing radii all round an
+   *  18px box into a pill; a checkbox needs to still read as square. */
+  checkbox: 6,
 } as const;
 
 // ─── Shadows ──────────────────────────────────────────────────────────────────

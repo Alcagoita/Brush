@@ -30,7 +30,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
-import { CloseIcon, PinIcon } from './AppIcon';
+import { CheckIcon, CloseIcon, PinIcon } from './AppIcon';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { getLastSearchCoords } from '../services/proximity';
 import { orderStopsNearestFirst } from '../services/routeHandoff';
@@ -93,15 +93,24 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
     [bundle.entries, excludedTaskIds],
   );
 
-  // A route needs two places. At the floor the remove controls go inert
-  // rather than disappearing — a vanishing control reads as a glitch, a
-  // disabled one can explain itself (see removeStopDisabledA11y).
-  const canRemoveStops = activeEntries.length > MIN_BUNDLE_TASKS;
+  // A route needs two places, so the last two selected can't be unselected.
+  // This locks the SELECTED boxes only — an unselected stop must stay
+  // tappable, otherwise dropping to two would strand the user there with no
+  // way back up.
+  const canDeselect = activeEntries.length > MIN_BUNDLE_TASKS;
 
-  const handleRemoveStop = (taskId: string) => {
-    if (!canRemoveStops) { return; }
-    logTap('errand_bundle_remove_stop');
-    setExcludedTaskIds(prev => new Set(prev).add(taskId));
+  const handleToggleStop = (taskId: string) => {
+    logTap('errand_bundle_toggle_stop');
+    setExcludedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);       // re-including is always allowed
+      } else {
+        if (!canDeselect) { return prev; }
+        next.add(taskId);
+      }
+      return next;
+    });
   };
 
   // Hand the cluster to Maps as one ordered walk, using the places the
@@ -197,31 +206,55 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
             <Text style={[styles.intro, { color: palette.muted }]}>{COPY.errandBundle.sheetIntro}</Text>
 
             <ScrollView style={styles.list}>
-              {activeEntries.map(({ task, place }) => (
-                <View key={task.id} style={[styles.row, { borderTopColor: palette.line }]}>
-                  <View style={styles.rowText}>
-                    <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>{task.title}</Text>
-                    <Text style={[styles.rowSub, { color: palette.muted }]} numberOfLines={1}>
-                      {`${place.name} · ${formatDistance(place.distanceMeters)}`}
-                    </Text>
-                  </View>
-                  {/* KAN-283 — leave this stop out of the route. Never
-                      completes or deletes the task; it only narrows what's
-                      handed to Maps, for this sheet, right now. */}
+              {/* KAN-283 — every stop stays listed; unselected ones just fade
+                  back. Toggling only narrows what's handed to Maps: it never
+                  completes, deletes or dismisses the task. */}
+              {bundle.entries.map(({ task, place }) => {
+                const selected = !excludedTaskIds.has(task.id);
+                // Only a selected box can be locked, and only at the floor.
+                const locked = selected && !canDeselect;
+                return (
                   <Pressable
-                    testID={`errand-bundle-remove-${task.id}`}
-                    onPress={() => handleRemoveStop(task.id)}
-                    disabled={!canRemoveStops}
-                    hitSlop={10}
-                    accessibilityRole="button"
-                    accessibilityState={{ disabled: !canRemoveStops }}
-                    accessibilityLabel={canRemoveStops
-                      ? COPY.errandBundle.removeStopA11y(task.title)
-                      : COPY.errandBundle.removeStopDisabledA11y}>
-                    <CloseIcon color={canRemoveStops ? palette.muted : palette.faint} size={14} />
+                    key={task.id}
+                    testID={`errand-bundle-stop-${task.id}`}
+                    style={[
+                      styles.row,
+                      { borderTopColor: palette.line },
+                      !selected && { backgroundColor: palette.surface2 },
+                    ]}
+                    onPress={() => handleToggleStop(task.id)}
+                    disabled={locked}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected, disabled: locked }}
+                    accessibilityLabel={locked
+                      ? COPY.errandBundle.deselectStopDisabledA11y
+                      : selected
+                        ? COPY.errandBundle.deselectStopA11y(task.title)
+                        : COPY.errandBundle.selectStopA11y(task.title)}>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        selected
+                          ? { backgroundColor: locked ? palette.faint : palette.accent, borderColor: locked ? palette.faint : palette.accent }
+                          : { borderColor: palette.faint },
+                      ]}>
+                      {selected && <CheckIcon color={palette.bg} size={12} />}
+                    </View>
+                    <View style={styles.rowText}>
+                      <Text
+                        style={[styles.rowTitle, { color: selected ? palette.text : palette.muted }]}
+                        numberOfLines={1}>
+                        {task.title}
+                      </Text>
+                      <Text
+                        style={[styles.rowSub, { color: selected ? palette.muted : palette.faint }]}
+                        numberOfLines={1}>
+                        {`${place.name} · ${formatDistance(place.distanceMeters)}`}
+                      </Text>
+                    </View>
                   </Pressable>
-                </View>
-              ))}
+                );
+              })}
             </ScrollView>
 
             {/* KAN-283 — the cluster as one ordered walk, and the sheet's
@@ -328,6 +361,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     gap:            10,
+    // Bleeds the unselected row's grey slightly past the text on both sides
+    // without shifting where the text sits (KAN-283).
+    paddingHorizontal: 10,
+    marginHorizontal:  -10,
+  },
+  checkbox: {
+    width:          18,
+    height:         18,
+    borderRadius:   radius.checkbox,
+    borderWidth:    1.5,
+    alignItems:     'center',
+    justifyContent: 'center',
   },
   rowText: { flex: 1, minWidth: 0 },
   rowTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },

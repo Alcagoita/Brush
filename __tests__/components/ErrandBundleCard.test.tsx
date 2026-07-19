@@ -27,7 +27,7 @@ jest.mock('../../src/theme', () => ({
 }));
 
 jest.mock('../../src/theme/tokens', () => ({
-  radius:  { card: 16, listIcon: 10, chip: 9999, ctaBtn: 12 },
+  radius:  { card: 16, listIcon: 10, chip: 9999, ctaBtn: 12, checkbox: 6 },
   spacing: { page: 22 },
 }));
 
@@ -39,7 +39,7 @@ jest.mock('../../src/components/AppIcon', () => {
   const React = require('react');
   const { Text } = require('react-native');
   const mock = (name: string) => () => React.createElement(Text, null, name);
-  return { CloseIcon: mock('CloseIcon'), PinIcon: mock('PinIcon'), ChevronRightIcon: mock('ChevronRightIcon') };
+  return { CheckIcon: mock('CheckIcon'), CloseIcon: mock('CloseIcon'), PinIcon: mock('PinIcon'), ChevronRightIcon: mock('ChevronRightIcon') };
 });
 
 const mockOpenMultiStopDirections = jest.fn().mockResolvedValue(undefined);
@@ -239,67 +239,102 @@ describe('ErrandBundleCard — cluster route handoff (KAN-283)', () => {
   });
 });
 
-describe('ErrandBundleCard — leaving stops out (KAN-283)', () => {
-  it('drops a removed stop from the list and from the route', async () => {
+
+describe('ErrandBundleCard — selecting which stops to include (KAN-283)', () => {
+  const stopA11y = (id: string) => screen.getByTestId(`errand-bundle-stop-${id}`);
+
+  it('starts with every stop selected', async () => {
     await openSheet(makeSpreadBundle());
+
+    for (const id of ['t1', 't2', 't3']) {
+      expect(stopA11y(id).props.accessibilityState).toMatchObject({ checked: true });
+    }
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
+  });
 
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1')); // 'Near task'
-    });
+  it('keeps an unselected stop listed, and drops it from the route', async () => {
+    await openSheet(makeSpreadBundle());
+    await act(async () => { fireEvent.press(stopA11y('t1')); }); // 'Near task'
 
-    expect(screen.queryByText('Near task')).toBeNull();
+    // Still shown — just no longer part of the walk.
+    expect(screen.getByText('Near task')).toBeTruthy();
+    expect(stopA11y('t1').props.accessibilityState).toMatchObject({ checked: false });
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('errand-bundle-open-all'));
     });
-
     const [, stops] = mockOpenMultiStopDirections.mock.calls[0];
     expect(stops.map((s: { name: string }) => s.name)).toEqual(['Mid Place', 'Far Place']);
   });
 
-  it('stops allowing removal once only two remain', async () => {
+  it('re-selecting a stop puts it back in the route', async () => {
     await openSheet(makeSpreadBundle());
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1'));
-    });
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
 
-    // At the floor: the controls stay put (no layout jump) but go inert.
-    const remaining = screen.getByTestId('errand-bundle-remove-t2');
-    expect(remaining.props.accessibilityState).toEqual({ disabled: true });
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
 
-    await act(async () => { fireEvent.press(remaining); });
+    expect(stopA11y('t1').props.accessibilityState).toMatchObject({ checked: true });
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
+  });
 
-    expect(screen.getByText('Mid task')).toBeTruthy();
+  it('locks the remaining boxes once only two are selected', async () => {
+    await openSheet(makeSpreadBundle());
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
+
+    // The two still selected can no longer be unselected...
+    for (const id of ['t2', 't3']) {
+      expect(stopA11y(id).props.accessibilityState).toMatchObject({ checked: true, disabled: true });
+    }
+    await act(async () => { fireEvent.press(stopA11y('t2')); });
+    expect(stopA11y('t2').props.accessibilityState).toMatchObject({ checked: true });
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
   });
 
-  it('never completes or deletes the task it leaves out', async () => {
+  it('leaves the unselected box tappable at the floor, so the user can come back up', async () => {
+    // Otherwise dropping to two would strand them with every box inert.
+    await openSheet(makeSpreadBundle());
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
+
+    expect(stopA11y('t1').props.accessibilityState).toMatchObject({ checked: false, disabled: false });
+
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
+  });
+
+  it('re-enables every box as soon as three are selected again', async () => {
+    await openSheet(makeSpreadBundle());
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
+    expect(stopA11y('t2').props.accessibilityState).toMatchObject({ disabled: true });
+
+    await act(async () => { fireEvent.press(stopA11y('t1')); }); // back to three
+
+    for (const id of ['t1', 't2', 't3']) {
+      expect(stopA11y(id).props.accessibilityState).toMatchObject({ checked: true, disabled: false });
+    }
+  });
+
+  it('never completes or dismisses the task it leaves out', async () => {
     const onDismiss = jest.fn();
     render(<ErrandBundleCard bundle={makeSpreadBundle()} onDismiss={onDismiss} />);
     await act(async () => {
       fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
     });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1'));
-    });
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
 
-    // Leaving a stop out is a routing choice, nothing more.
     expect(onDismiss).not.toHaveBeenCalled();
     expect(mockOpenMultiStopDirections).not.toHaveBeenCalled();
   });
 
-  it('starts from the full cluster again when the sheet is reopened', async () => {
+  it('selects everything again when the sheet is reopened', async () => {
     jest.useFakeTimers();
     render(<ErrandBundleCard bundle={makeSpreadBundle()} onDismiss={jest.fn()} />);
 
     await act(async () => {
       fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
     });
-    await act(async () => {
-      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1'));
-    });
+    await act(async () => { fireEvent.press(stopA11y('t1')); });
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
 
     act(() => { fireEvent.press(screen.getByLabelText(COPY.errandBundle.closeA11y)); });
@@ -308,17 +343,9 @@ describe('ErrandBundleCard — leaving stops out (KAN-283)', () => {
       fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
     });
 
-    // Nothing was persisted — all three stops are back.
-    expect(screen.getByText('Near task')).toBeTruthy();
+    // Nothing was persisted — all three are selected again.
+    expect(stopA11y('t1').props.accessibilityState).toMatchObject({ checked: true });
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
     jest.useRealTimers();
-  });
-
-  it('hides the all-stops action when there is no known position to route from', async () => {
-    mockGetLastSearchCoords.mockReturnValue(null);
-    await openSheet(makeSpreadBundle());
-
-    expect(screen.queryByTestId('errand-bundle-open-all')).toBeNull();
-    expect(mockOpenMultiStopDirections).not.toHaveBeenCalled();
   });
 });

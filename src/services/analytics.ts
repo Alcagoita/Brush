@@ -19,7 +19,7 @@ export type AnalyticsEvent =
   | 'settings_language_change'
   | 'errand_bundle_open_sheet'
   | 'errand_bundle_open_all_stops'
-  | 'errand_bundle_remove_stop'
+  | 'errand_bundle_toggle_stop'
   | 'errand_bundle_dismiss'
   | 'trip_suggestion_open'
   | 'trip_suggestion_dismiss';
