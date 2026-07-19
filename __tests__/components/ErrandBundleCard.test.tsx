@@ -2,9 +2,11 @@
  * ErrandBundleCard — KAN-235.
  *
  * Covers: card renders the task-count/anchor line, tap opens a sheet listing
- * every bundled task with its place + distance and an "Open in Maps" action
- * for the anchor, and the dismiss control calls onDismiss without opening
- * the sheet.
+ * every bundled task with its place + distance, and the dismiss control
+ * calls onDismiss without opening the sheet.
+ *
+ * KAN-283 adds the cluster route handoff and per-stop removal — see the
+ * describe blocks at the bottom.
  */
 
 import React from 'react';
@@ -40,10 +42,8 @@ jest.mock('../../src/components/AppIcon', () => {
   return { CloseIcon: mock('CloseIcon'), PinIcon: mock('PinIcon'), ChevronRightIcon: mock('ChevronRightIcon') };
 });
 
-const mockOpenInMaps = jest.fn().mockResolvedValue(undefined);
 const mockOpenMultiStopDirections = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../src/services/maps', () => ({
-  openInMaps: (...args: unknown[]) => mockOpenInMaps(...args),
   openMultiStopDirections: (...args: unknown[]) => mockOpenMultiStopDirections(...args),
   formatDistance: (m: number) => `${Math.round(m)} m`,
   // Real geometry — routeHandoff's ordering is what the KAN-283 assertions
@@ -51,6 +51,17 @@ jest.mock('../../src/services/maps', () => ({
   // approximation is plenty at these few-hundred-metre distances.
   getDistanceMeters: (lat1: number, lng1: number, lat2: number, lng2: number) =>
     Math.round(Math.hypot(lat2 - lat1, lng2 - lng1) * 111_000),
+}));
+
+// KAN-283 — the card imports MIN_BUNDLE_TASKS from errandBundles (one source
+// of truth for the two-stop floor), which pulls in expo-sqlite for its
+// dismissal table. Only the module needs stubbing, not the constant.
+jest.mock('expo-sqlite', () => ({
+  openDatabaseSync: jest.fn(() => ({
+    execSync:   jest.fn(),
+    getAllSync: jest.fn(() => []),
+    runSync:    jest.fn(),
+  })),
 }));
 
 // KAN-283 — the card reads the last proximity search position to route from.
@@ -92,7 +103,7 @@ describe('ErrandBundleCard', () => {
     expect(screen.getByText(COPY.errandBundle.cardLine(2, 'Mercado da Vila'))).toBeTruthy();
   });
 
-  it('opens the sheet on tap, listing every bundled task with its place and distance, plus an anchor maps action', async () => {
+  it('opens the sheet on tap, listing every bundled task with its place and distance', async () => {
     render(<ErrandBundleCard bundle={makeBundle()} onDismiss={jest.fn()} />);
     await act(async () => {
       fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
@@ -103,18 +114,6 @@ describe('ErrandBundleCard', () => {
     expect(screen.getByText('ATM Central · 250 m')).toBeTruthy();
     expect(screen.getByText('Buy stamps')).toBeTruthy();
     expect(screen.getByText('Post Office · 320 m')).toBeTruthy();
-    expect(screen.getByLabelText(COPY.errandBundle.openAnchorInMaps('Mercado da Vila'))).toBeTruthy();
-  });
-
-  it('opens the anchor in Maps when the maps button is pressed', async () => {
-    render(<ErrandBundleCard bundle={makeBundle()} onDismiss={jest.fn()} />);
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
-    });
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText(COPY.errandBundle.openAnchorInMaps('Mercado da Vila')));
-    });
-    expect(mockOpenInMaps).toHaveBeenCalledWith(1, 2, 'Mercado da Vila');
   });
 
   it('calls onDismiss without opening the sheet when the dismiss control is pressed', () => {
@@ -227,15 +226,92 @@ describe('ErrandBundleCard — cluster route handoff (KAN-283)', () => {
     }
   });
 
-  it('does NOT offer the all-stops action for a single-stop cluster', async () => {
+  it('offers no route action at all below two stops — a single place is the Nearby list\'s job', async () => {
+    // Unreachable in practice (computeErrandBundles enforces MIN_BUNDLE_TASKS)
+    // but guarded: one stop is not a route, and there is deliberately no
+    // anchor-only fallback here any more.
     const bundle = makeSpreadBundle();
     const single: ErrandBundle = { ...bundle, entries: [bundle.entries[0]] };
 
     await openSheet(single);
 
     expect(screen.queryByTestId('errand-bundle-open-all')).toBeNull();
-    // The single-place action is untouched — today's behaviour still stands.
-    expect(screen.getByLabelText(COPY.errandBundle.openAnchorInMaps('Mercado da Vila'))).toBeTruthy();
+  });
+});
+
+describe('ErrandBundleCard — leaving stops out (KAN-283)', () => {
+  it('drops a removed stop from the list and from the route', async () => {
+    await openSheet(makeSpreadBundle());
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1')); // 'Near task'
+    });
+
+    expect(screen.queryByText('Near task')).toBeNull();
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-open-all'));
+    });
+
+    const [, stops] = mockOpenMultiStopDirections.mock.calls[0];
+    expect(stops.map((s: { name: string }) => s.name)).toEqual(['Mid Place', 'Far Place']);
+  });
+
+  it('stops allowing removal once only two remain', async () => {
+    await openSheet(makeSpreadBundle());
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1'));
+    });
+
+    // At the floor: the controls stay put (no layout jump) but go inert.
+    const remaining = screen.getByTestId('errand-bundle-remove-t2');
+    expect(remaining.props.accessibilityState).toEqual({ disabled: true });
+
+    await act(async () => { fireEvent.press(remaining); });
+
+    expect(screen.getByText('Mid task')).toBeTruthy();
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
+  });
+
+  it('never completes or deletes the task it leaves out', async () => {
+    const onDismiss = jest.fn();
+    render(<ErrandBundleCard bundle={makeSpreadBundle()} onDismiss={onDismiss} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1'));
+    });
+
+    // Leaving a stop out is a routing choice, nothing more.
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(mockOpenMultiStopDirections).not.toHaveBeenCalled();
+  });
+
+  it('starts from the full cluster again when the sheet is reopened', async () => {
+    jest.useFakeTimers();
+    render(<ErrandBundleCard bundle={makeSpreadBundle()} onDismiss={jest.fn()} />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
+    });
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-remove-t1'));
+    });
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
+
+    act(() => { fireEvent.press(screen.getByLabelText(COPY.errandBundle.closeA11y)); });
+    act(() => { jest.advanceTimersByTime(200); });
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
+    });
+
+    // Nothing was persisted — all three stops are back.
+    expect(screen.getByText('Near task')).toBeTruthy();
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
+    jest.useRealTimers();
   });
 
   it('hides the all-stops action when there is no known position to route from', async () => {

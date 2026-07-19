@@ -4,9 +4,14 @@
  * Quiet row below NearbyCard, shown only when a bundle exists (absence is
  * the default, same as ContextChip). Tap opens a sheet (Modal + Animated
  * opacity/translateY only — Fabric-safe, same pattern as ContextChip.tsx)
- * listing the bundled tasks with their candidate place + distance, and
- * "Open in Maps" for the anchor. A small dismiss control hides this
- * specific bundle for the rest of the day.
+ * listing the bundled tasks with their candidate place + distance. A small
+ * dismiss control hides this specific bundle for the rest of the day.
+ *
+ * KAN-283: the sheet's one action hands the whole cluster to Maps as an
+ * ordered walk. Each listed stop can be left out first, down to a floor of
+ * MIN_BUNDLE_TASKS — below two there's no route to hand off, and opening a
+ * single place is already one tap away in the Nearby list, which is why
+ * there's no anchor-only action here any more.
  *
  * Copy reveals opportunity, never schedules — no ordering, no urgency.
  */
@@ -25,11 +30,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
-import { CloseIcon, PinIcon, ChevronRightIcon } from './AppIcon';
-import { openInMaps, openMultiStopDirections, formatDistance } from '../services/maps';
+import { CloseIcon, PinIcon } from './AppIcon';
+import { openMultiStopDirections, formatDistance } from '../services/maps';
 import { getLastSearchCoords } from '../services/proximity';
 import { orderStopsNearestFirst } from '../services/routeHandoff';
 import { logTap } from '../services/analytics';
+import { MIN_BUNDLE_TASKS } from '../services/errandBundles';
 import type { ErrandBundle } from '../services/errandBundles';
 import { COPY } from '../constants/copy';
 
@@ -46,11 +52,21 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
   const [sheetOpen, setSheetOpen]     = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // KAN-283 — stops the user has chosen to leave out of THIS route. Purely
+  // in-the-moment: nothing is persisted, and reopening the sheet starts
+  // clean (see the sheetOpen effect below). Excluding a stop never touches
+  // the bundle itself, so the card line and the box's own behaviour are
+  // unaffected — it only narrows what gets handed to Maps.
+  const [excludedTaskIds, setExcludedTaskIds] = useState<ReadonlySet<string>>(() => new Set());
+
   const scrimOpacity    = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(screenHeight)).current;
 
   useEffect(() => {
     if (sheetOpen) {
+      // KAN-283 — each opening starts from the full cluster. Leaving a stop
+      // out is a decision about this moment, not a preference to remember.
+      setExcludedTaskIds(new Set());
       setModalVisible(true);
       scrimOpacity.setValue(0);
       sheetTranslateY.setValue(screenHeight);
@@ -72,16 +88,25 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
   const anchorName = bundle.anchor.name;
   const taskCount   = bundle.entries.length;
 
-  const handleOpenAnchor = () => {
-    logTap('errand_bundle_open_maps');
-    openInMaps(bundle.anchor.lat, bundle.anchor.lng, anchorName).catch(err => {
-      console.warn('[ErrandBundleCard] openInMaps failed', err);
-    });
+  const activeEntries = useMemo(
+    () => bundle.entries.filter(entry => !excludedTaskIds.has(entry.task.id)),
+    [bundle.entries, excludedTaskIds],
+  );
+
+  // A route needs two places. At the floor the remove controls go inert
+  // rather than disappearing — a vanishing control reads as a glitch, a
+  // disabled one can explain itself (see removeStopDisabledA11y).
+  const canRemoveStops = activeEntries.length > MIN_BUNDLE_TASKS;
+
+  const handleRemoveStop = (taskId: string) => {
+    if (!canRemoveStops) { return; }
+    logTap('errand_bundle_remove_stop');
+    setExcludedTaskIds(prev => new Set(prev).add(taskId));
   };
 
-  // KAN-283 — hand the whole cluster to Maps as one ordered walk. Uses the
-  // places the proximity engine already resolved (bundle.entries[].place):
-  // no new resolution, no API call from this path.
+  // Hand the cluster to Maps as one ordered walk, using the places the
+  // proximity engine already resolved (bundle.entries[].place): no new
+  // resolution, no API call from this path.
   //
   // Origin is the position that proximity tick searched from — the exact
   // point these places' distances were measured against, so ordering from
@@ -89,14 +114,14 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
   // unavailable there's no honest origin to route from, so the action is
   // hidden rather than guessed (see routeStops).
   // Memoised: this card sits on the animation-heavy Today screen and
-  // re-renders with it, while the ordering only changes when the bundle or
-  // the search position does.
+  // re-renders with it, while the ordering only changes when the kept stops
+  // or the search position do.
   const routeOrigin = getLastSearchCoords();
   const routeStops = useMemo(
-    () => (routeOrigin && taskCount >= 2
-      ? orderStopsNearestFirst(routeOrigin, bundle.entries, entry => entry.place)
+    () => (routeOrigin && activeEntries.length >= MIN_BUNDLE_TASKS
+      ? orderStopsNearestFirst(routeOrigin, activeEntries, entry => entry.place)
       : null),
-    [routeOrigin?.lat, routeOrigin?.lng, bundle.entries, taskCount],
+    [routeOrigin?.lat, routeOrigin?.lng, activeEntries],
   );
 
   const handleOpenAllStops = () => {
@@ -172,7 +197,7 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
             <Text style={[styles.intro, { color: palette.muted }]}>{COPY.errandBundle.sheetIntro}</Text>
 
             <ScrollView style={styles.list}>
-              {bundle.entries.map(({ task, place }) => (
+              {activeEntries.map(({ task, place }) => (
                 <View key={task.id} style={[styles.row, { borderTopColor: palette.line }]}>
                   <View style={styles.rowText}>
                     <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>{task.title}</Text>
@@ -180,29 +205,32 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
                       {`${place.name} · ${formatDistance(place.distanceMeters)}`}
                     </Text>
                   </View>
-                  <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+                  {/* KAN-283 — leave this stop out of the route. Never
+                      completes or deletes the task; it only narrows what's
+                      handed to Maps, for this sheet, right now. */}
+                  <Pressable
+                    testID={`errand-bundle-remove-${task.id}`}
+                    onPress={() => handleRemoveStop(task.id)}
+                    disabled={!canRemoveStops}
+                    hitSlop={10}
+                    accessibilityRole="button"
+                    accessibilityState={{ disabled: !canRemoveStops }}
+                    accessibilityLabel={canRemoveStops
+                      ? COPY.errandBundle.removeStopA11y(task.title)
+                      : COPY.errandBundle.removeStopDisabledA11y}>
+                    <CloseIcon color={canRemoveStops ? palette.muted : palette.faint} size={14} />
+                  </Pressable>
                 </View>
               ))}
             </ScrollView>
 
-            <Pressable
-              style={[styles.mapsBtn, { backgroundColor: palette.surface2 }]}
-              onPress={handleOpenAnchor}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.errandBundle.openAnchorInMaps(anchorName)}>
-              <Text style={[styles.mapsLabel, { color: palette.text }]}>
-                {COPY.errandBundle.openAnchorInMaps(anchorName)}
-              </Text>
-            </Pressable>
-
-            {/* KAN-283 — the whole cluster as one ordered walk. Only for >= 2
-                stops; a single-stop cluster is already fully served by the
-                anchor action above. Sits below it: this is the broader
-                option, not the recommended one. */}
+            {/* KAN-283 — the cluster as one ordered walk, and the sheet's
+                only action. Opening a single place is already one tap away
+                in the Nearby list, so there's no anchor-only button here. */}
             {routeStops && (
               <Pressable
                 testID="errand-bundle-open-all"
-                style={[styles.mapsBtn, styles.allStopsBtn, { backgroundColor: palette.surface2 }]}
+                style={[styles.mapsBtn, { backgroundColor: palette.surface2 }]}
                 onPress={handleOpenAllStops}
                 accessibilityRole="button"
                 accessibilityLabel={COPY.errandBundle.openAllInMapsA11y(routeStops.length)}>
@@ -313,8 +341,5 @@ const styles = StyleSheet.create({
     marginHorizontal:  spacing.page,
     marginTop:         14,
   },
-  // Sits directly under the anchor button — tighter than the 14 gap that
-  // separates the pair from the list above it (KAN-283).
-  allStopsBtn: { marginTop: 8 },
   mapsLabel: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 });

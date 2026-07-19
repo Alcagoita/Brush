@@ -314,12 +314,15 @@ const en = {
     sheetIntro: 'These can happen close together — see what fits, in whatever order suits you.',
     closeA11y: 'Close',
     closeSheetA11y: 'Close sheet',
-    openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
     // KAN-283 — route handoff for the whole cluster. States the number of
     // stops and nothing else: no "best", no "optimal", no suggestion that
     // this order is the one to follow.
     openAllInMaps: (stopCount: number) => `Open in Maps — all ${stopCount} stops`,
     openAllInMapsA11y: (stopCount: number) => `Open all ${stopCount} stops in Maps`,
+    removeStopA11y: (taskTitle: string) => `Leave out ${taskTitle}`,
+    // Two stops is the floor — fewer isn't a route, and a single place is
+    // already one tap away in the Nearby list.
+    removeStopDisabledA11y: 'Keeping this one — a route needs at least two stops',
   },
 
   // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
@@ -1341,10 +1344,11 @@ const ptPT: typeof en = {
     sheetIntro: 'Estas podem acontecer perto umas das outras — vê o que encaixa, pela ordem que preferires.',
     closeA11y: 'Fechar',
     closeSheetA11y: 'Fechar painel',
-    openAnchorInMaps: (anchorName: string) => `Abrir ${anchorName} no Maps`,
     // KAN-283 — ver nota na versão EN: indica apenas o número de paragens.
     openAllInMaps: (stopCount: number) => `Abrir no Maps — as ${stopCount} paragens`,
     openAllInMapsA11y: (stopCount: number) => `Abrir as ${stopCount} paragens no Maps`,
+    removeStopA11y: (taskTitle: string) => `Deixar ${taskTitle} de fora`,
+    removeStopDisabledA11y: 'Esta fica — uma rota precisa de pelo menos duas paragens',
   },
 
   tripSuggestion: {
