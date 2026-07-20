@@ -83,7 +83,13 @@ function CustomH({ color }: CustomHProps) {
   const sw = LOGO_SIZE * 0.153; // strokeWidth ≈ 9.5px at 62px
   return (
     <Svg
-      width={LOGO_SIZE * 0.72}   // natural glyph advance-width
+      // KAN-286 — must match SplashScreen's CustomH exactly. The viewBox is
+      // 72x100, so a 0.72 factor renders the glyph at its natural advance
+      // width, while 0.64 lets preserveAspectRatio scale the whole "h" down
+      // to ~89%. That smaller glyph is the approved lockup (Splash is the
+      // reference), and the two screens render back-to-back at launch, so
+      // any difference reads as the logo resizing mid-transition.
+      width={LOGO_SIZE * 0.64}
       height={LOGO_SIZE}
       viewBox="0 0 72 100"
       style={{ overflow: 'visible', marginLeft: -(LOGO_SIZE * 0.085) }}>
