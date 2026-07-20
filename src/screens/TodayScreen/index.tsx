@@ -131,6 +131,11 @@ export default function TodayScreen() {
   } = useTodayScreen(uid);
 
   const [nearbyHasContent, setNearbyHasContent] = useState(false);
+  // KAN-288 — the ring section's top in screen coords. The pull loading
+  // indicator and the throttle notice are root-level overlays, so without
+  // this they'd position from screen-top and land ON the ring (the header's
+  // height is not a fixed constant). Measured, not guessed.
+  const [scrollAreaY, setScrollAreaY] = useState(0);
 
   // Refresh tasks on focus — but only when a real mutation happened
   // somewhere since the last load (a task edited/added/deleted, a shared
@@ -440,7 +445,7 @@ export default function TodayScreen() {
 
       {/* ── Scroll area — ring section overlaid on content ── */}
       {(DEBUG_SHOW_LIST || DEBUG_SHOW_RING) && (
-      <View style={styles.scrollArea}>
+      <View style={styles.scrollArea} onLayout={e => setScrollAreaY(e.nativeEvent.layout.y)}>
 
         {DEBUG_SHOW_LIST && (isEmpty ? (
           /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
@@ -647,7 +652,7 @@ export default function TodayScreen() {
            top of the list zone — where the user just pulled — and never
            blocks input: it is information, not a state. */}
       {showThrottleNotice && (
-        <View style={styles.throttleNotice} pointerEvents="none">
+        <View style={[styles.throttleNotice, { top: scrollAreaY + SECTION_H_REST - 30 }]} pointerEvents="none">
           <Text style={[styles.throttleNoticeLabel, { color: palette.muted, backgroundColor: palette.surface2 }]}>
             {COPY.today.refreshedRecently}
           </Text>
@@ -677,8 +682,10 @@ export default function TodayScreen() {
           ) : (
             /* Pull-refresh: the native pull arrow does its own thing above;
                this is the "working on it" payoff, the same LoadingDots used
-               on Trip Planner / Itinerary Options. */
-            <View style={styles.pullLoadingWrap}>
+               on Trip Planner / Itinerary Options. Sits in the band under the
+               ring, above the Nearby list — anchored to the measured ring top,
+               not screen-centre. */
+            <View style={[styles.pullLoadingWrap, { top: scrollAreaY + SECTION_H_REST - 40 }]}>
               <LoadingDots color={palette.accent} />
               <Text style={[styles.pullLoadingLabel, { color: palette.muted }]}>
                 {COPY.today.refreshingForYou}

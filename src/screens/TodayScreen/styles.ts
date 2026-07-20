@@ -22,8 +22,12 @@ export const styles = StyleSheet.create({
   stickyHeader: { zIndex: 3 },
   // KAN-288 — pull-refresh overlay content: dots + label, centred.
   pullLoadingWrap: {
+    position:   'absolute',
+    left:       0,
+    right:      0,
     alignItems: 'center',
     gap:        12,
+    // `top` set inline from the measured ring position.
   },
   pullLoadingLabel: {
     fontSize:   14,
@@ -36,18 +40,20 @@ export const styles = StyleSheet.create({
   // mid-notice should cover it, not sit under it.
   throttleNotice: {
     position:   'absolute',
-    top:        SECTION_H_REST + 8,
     left:       0,
     right:      0,
     alignItems: 'center',
     zIndex:     50,
+    // `top` set inline from the measured ring position.
   },
+  // Matches the app's quiet refresh feedback (NearbyCard's "Updated"): small,
+  // regular weight, muted — a subtle surface pill only so it stays legible
+  // over list content.
   throttleNoticeLabel: {
-    fontSize:          12.5,
-    fontFamily:        'Geist-Medium',
-    fontWeight:        '500',
-    paddingHorizontal: 12,
-    paddingVertical:   6,
+    fontSize:          11,
+    fontFamily:        'Geist-Regular',
+    paddingHorizontal: 10,
+    paddingVertical:   5,
     borderRadius:      radius.chip,
     overflow:          'hidden',
   },
