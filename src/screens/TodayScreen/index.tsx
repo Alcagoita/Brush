@@ -658,10 +658,18 @@ export default function TodayScreen() {
            passes none through. */}
       {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
         <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
-          {/* No second indicator during a pull: RefreshControl is already
-              showing its own spinner just below the ring, and stacking a
-              third one on top of it would only read as a stutter. */}
-          {isLoading && <ActivityIndicator size="large" color={palette.accent} />}
+          {/* The indicator is unconditional: a blocked screen must always
+              show WHY it is blocked, and the two must appear and disappear
+              together. That means owning the indicator here rather than
+              relying on RefreshControl's.
+
+              RefreshControl's spinner cannot be trusted for this. It is
+              native and decides whether to stay based on the `refreshing`
+              prop at the instant the finger lifts — which is usually before
+              our state has flushed — so it often retracts immediately while
+              the work runs on. Leaning on it left the screen dimmed and
+              frozen for seconds with nothing spinning. */}
+          <ActivityIndicator size="large" color={palette.accent} />
         </View>
       )}
     </View>
