@@ -19,11 +19,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 100,
   },
-  pullRefreshLoadingOverlay: {
-    // Leave the native RefreshControl indicator visible while the pull refresh
-    // services are in flight. The overlay still blocks/tints the task content.
-    top: SECTION_H_REST + 56,
-  },
   stickyHeader: { zIndex: 3 },
   // KAN-288 — sits just below the ring, where the pull gesture happens, and
   // above the list so it isn't clipped by rows. Below loadingOverlay's
