@@ -160,7 +160,18 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const totalTasks  = scorableTasks.length;
   const doneTasks   = scorableTasks.filter(t => t.done).length;
   const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
-  const nearbyCount = data.tasks.filter(t => t.poi).length;
+  // KAN-287 — "N Nearby" in the ring caption counts tasks the user could
+  // actually act on right now: still open, AND their POI type resolved at
+  // least one place this tick. It previously counted every task carrying a
+  // POI type, done or not, resolved or not — so for a user whose tasks are
+  // all location-tagged it simply mirrored the total.
+  //
+  // The `poiPlaces[...]` test is deliberately the same one TaskRow uses for
+  // its `isFar` flag, so the caption can never disagree with the rows
+  // underneath it: a task counted here is exactly a task not shown as far.
+  const nearbyCount = data.tasks.filter(
+    t => !t.done && !!t.poi && (proximity.poiPlaces[t.poi]?.length ?? 0) > 0,
+  ).length;
 
   return {
     tasks: data.tasks,
