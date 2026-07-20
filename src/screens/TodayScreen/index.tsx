@@ -79,6 +79,7 @@ import {
 } from './constants';
 import { useCollapseAnimation } from './useCollapseAnimation';
 import { SkeletonRow } from './SkeletonRow';
+import PullSpinner from './PullSpinner';
 import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
@@ -196,16 +197,20 @@ export default function TodayScreen() {
   // time hands the list a fresh RefreshControl on every one of those renders
   // — enough for the native SwipeRefreshLayout to be torn down and recreated
   // mid-spin, which ends the animation while `refreshing` is still true.
+  // RefreshControl is kept for the GESTURE only — overscroll detection and
+  // the drag feel. Its own spinner is suppressed (transparent) because we
+  // draw our own: see PullSpinner for why the native one could not be relied
+  // on to stay up for the length of the fetch.
   const refreshControl = useMemo(() => (
     <RefreshControl
       refreshing={isPullRefreshing}
       onRefresh={onPullRefresh}
-      tintColor={palette.accent}
-      colors={[palette.accent]}
-      progressBackgroundColor={palette.surface}
+      tintColor="transparent"
+      colors={['transparent']}
+      progressBackgroundColor="transparent"
       progressViewOffset={SECTION_H_REST}
     />
-  ), [isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
+  ), [isPullRefreshing, onPullRefresh]);
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
@@ -637,6 +642,18 @@ export default function TodayScreen() {
         visible={showStoreTuningPrompt}
         onTurnOn={onStoreTuningTurnOn}
         onNotNow={onStoreTuningNotNow}
+      />
+
+      {/* ── KAN-288 pull spinner ──
+           Ours, not RefreshControl's — it stays up for exactly as long as
+           the fetch runs. Sits where the list content starts, i.e. where the
+           native one used to appear. */}
+      <PullSpinner
+        visible={isPullRefreshing}
+        top={SECTION_H_REST + 8}
+        color={palette.accent}
+        backgroundColor={palette.surface}
+        borderColor={palette.line}
       />
 
       {/* ── KAN-288 throttle notice ──
