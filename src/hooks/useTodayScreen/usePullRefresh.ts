@@ -29,7 +29,20 @@ export const REFRESH_THROTTLE_MS = 30_000;
 export const THROTTLED_SPINNER_MS = 400;
 
 export interface PullRefreshState {
+  /**
+   * Drives the pull spinner. True for EVERY accepted gesture, throttled or
+   * not — the user performed the action, so the action has to look like it
+   * happened. A throttled pull just settles much sooner, because there is
+   * nothing to wait for.
+   */
   isPullRefreshing: boolean;
+  /**
+   * True only while real work is in flight. This is what gates the blocking
+   * overlay: input is worth blocking when a tap would act on data about to
+   * be replaced, and not otherwise. A throttled pull blocks nothing — we
+   * throttle the service calls, never the user.
+   */
+  isRefreshingForReal: boolean;
   onPullRefresh: () => Promise<void>;
 }
 
@@ -46,6 +59,7 @@ export function usePullRefresh(
   extras: Array<() => void | Promise<unknown>> = [],
 ): PullRefreshState {
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [isRefreshingForReal, setIsRefreshingForReal] = useState(false);
 
   // A ref, not state: the timestamp must never trigger a re-render of this
   // animation-heavy screen, and the throttle has to read the CURRENT value
@@ -72,6 +86,7 @@ export function usePullRefresh(
     lastRefreshAtRef.current = now;
     inFlightRef.current = true;
     setIsPullRefreshing(true);
+    setIsRefreshingForReal(true);
     try {
       await Promise.allSettled([
         Promise.resolve(refreshTasks()),
@@ -80,6 +95,7 @@ export function usePullRefresh(
       ]);
     } finally {
       setIsPullRefreshing(false);
+      setIsRefreshingForReal(false);
       inFlightRef.current = false;
     }
   // `extras` is rebuilt by the caller each render; depending on it would
@@ -88,5 +104,5 @@ export function usePullRefresh(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTasks, refreshProximity]);
 
-  return { isPullRefreshing, onPullRefresh };
+  return { isPullRefreshing, isRefreshingForReal, onPullRefresh };
 }

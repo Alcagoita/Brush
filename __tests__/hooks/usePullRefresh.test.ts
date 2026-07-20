@@ -134,6 +134,57 @@ describe('usePullRefresh — the 30s throttle', () => {
   });
 });
 
+describe('usePullRefresh — spinner vs. input blocking', () => {
+  // The gesture is never blocked, only the service calls are. A throttled
+  // pull must still look like it worked, and must NOT dim/block the screen —
+  // there is no in-flight data for a stray tap to corrupt.
+  it('spins on a throttled pull but never reports real work', async () => {
+    const { result, refreshTasks } = setup();
+
+    await pull(result);                    // real
+    advanceClock(1_000);
+
+    // Start the throttled pull and let the state flush, but do NOT let the
+    // acknowledgement timer fire yet — this is the window the user sees.
+    let throttled!: Promise<void>;
+    await act(async () => { throttled = result.current.onPullRefresh(); });
+
+    expect(result.current.isPullRefreshing).toBe(true);     // action acknowledged
+    expect(result.current.isRefreshingForReal).toBe(false); // ...nothing blocked
+
+    await act(async () => { jest.advanceTimersByTime(THROTTLED_SPINNER_MS); await throttled; });
+
+    expect(result.current.isPullRefreshing).toBe(false);
+    expect(refreshTasks).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports real work while an actual refresh is in flight', async () => {
+    const refreshTasks = jest.fn();
+    let release!: () => void;
+    const refreshProximity = jest.fn(() => new Promise<void>(r => { release = r; }));
+    const { result } = renderHook(() => usePullRefresh(refreshTasks, refreshProximity));
+
+    let first!: Promise<void>;
+    await act(async () => { first = result.current.onPullRefresh(); });
+
+    expect(result.current.isPullRefreshing).toBe(true);
+    expect(result.current.isRefreshingForReal).toBe(true);
+
+    await act(async () => { release(); await first; });
+
+    expect(result.current.isRefreshingForReal).toBe(false);
+  });
+
+  it('clears the real-work flag even when a source rejects', async () => {
+    const refreshProximity = jest.fn().mockRejectedValue(new Error('boom'));
+    const { result } = renderHook(() => usePullRefresh(jest.fn(), refreshProximity));
+
+    await pull(result);
+
+    expect(result.current.isRefreshingForReal).toBe(false);
+  });
+});
+
 describe('usePullRefresh — overlapping gestures', () => {
   it('ignores a second pull while the first is still in flight', async () => {
     const refreshTasks = jest.fn();
