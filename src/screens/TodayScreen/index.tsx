@@ -85,7 +85,7 @@ import { styles } from './styles';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
 
 export default function TodayScreen() {
-  const { palette, language } = useTheme();
+  const { palette, language, dark } = useTheme();
   const insets      = useSafeAreaInsets();
   const navigation  = useNavigation<Nav>();
 
@@ -202,16 +202,23 @@ export default function TodayScreen() {
   // time hands the list a fresh RefreshControl on every one of those renders
   // — enough for the native SwipeRefreshLayout to be torn down and recreated
   // mid-spin, which ends the animation while `refreshing` is still true.
+  // The native indicator persists through the fetch in dark mode but retracts
+  // early in light — a difference I could not pin to any prop or reproduce
+  // statically, and cannot instrument without the device. Since the real
+  // loading signal is our own LoadingDots + label overlay (identical on both
+  // themes), the fix for the INCONSISTENCY is to suppress the native circle
+  // on dark so neither theme shows a lingering native spinner. RefreshControl
+  // stays mounted for the gesture; only its visuals go transparent on dark.
   const refreshControl = useMemo(() => (
     <RefreshControl
       refreshing={isPullRefreshing}
       onRefresh={onPullRefresh}
-      tintColor={palette.accent}
-      colors={[palette.accent]}
-      progressBackgroundColor={palette.surface}
+      tintColor={dark ? 'transparent' : palette.accent}
+      colors={dark ? ['transparent'] : [palette.accent]}
+      progressBackgroundColor={dark ? 'transparent' : palette.surface}
       progressViewOffset={SECTION_H_REST}
     />
-  ), [isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
+  ), [isPullRefreshing, onPullRefresh, dark, palette.accent, palette.surface]);
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
