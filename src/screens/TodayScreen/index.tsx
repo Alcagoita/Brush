@@ -120,7 +120,6 @@ export default function TodayScreen() {
     nearbyReady,
     refreshProximity,
     isPullRefreshing,
-    isRefreshingForReal,
     onPullRefresh,
     errandBundle,
     errandBundleLeisure,
@@ -635,13 +634,14 @@ export default function TodayScreen() {
       />
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ──
-           KAN-288: also covers a pull-to-refresh, but only one that is doing
-           REAL work — isRefreshingForReal, not isPullRefreshing. A throttled
-           pull still spins, and blocking input for it would punish the user
-           for a gesture we chose not to service. We throttle the service
-           calls, never the person. `pointerEvents="box-only"` does the
-           blocking: the overlay takes every touch and passes none through. */}
-      {(isLoading || isRefreshingForReal) && !DEBUG_MINIMAL && (
+           KAN-288: also covers a pull-refresh, for exactly as long as the
+           services take — no minimum, no padding. A throttled pull never
+           reaches here at all: it has nothing to load, so there is nothing
+           for a stray tap to corrupt and no reason to freeze the screen. We
+           throttle the service calls, never the person. `pointerEvents=
+           "box-only"` does the blocking: the overlay takes every touch and
+           passes none through. */}
+      {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
         <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
           {/* No second indicator during a pull: RefreshControl is already
               showing its own spinner just below the ring, and stacking a

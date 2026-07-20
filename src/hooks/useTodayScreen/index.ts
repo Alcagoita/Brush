@@ -43,10 +43,8 @@ export interface TodayScreenState {
   isLoading:        boolean;
   /** True while a pull-to-refresh fetch is in-flight. */
   isRefreshing:     boolean;
-  /** KAN-288 — true while a pull-to-refresh gesture is being serviced, throttled or not. */
+  /** KAN-288 — true only while a pull-refresh is actually doing work; drives both the spinner and the blocking overlay. */
   isPullRefreshing: boolean;
-  /** KAN-288 — true only while a pull is doing REAL work; gates the blocking overlay. */
-  isRefreshingForReal: boolean;
   /** KAN-288 — run the screen-wide refresh; throttled to one per 30s. */
   onPullRefresh:    () => Promise<void>;
   /** Non-null when the fetch failed. Cleared on next successful fetch. */
@@ -124,7 +122,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   // same Firestore fan-out SplashScreen does on boot (tasks, user, prefs,
   // POI prefs, categories, points, both inboxes, trips, mall snapshot), so
   // the gesture reuses it rather than inventing a second boot path.
-  const { isPullRefreshing, isRefreshingForReal, onPullRefresh } = usePullRefresh(
+  const { isPullRefreshing, onPullRefresh } = usePullRefresh(
     data.refresh,
     proximity.refreshProximity,
     [refreshLearnedPlaces],
@@ -195,7 +193,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     isLoading: data.isLoading,
     isRefreshing: data.isRefreshing,
     isPullRefreshing,
-    isRefreshingForReal,
     onPullRefresh,
     error: data.error,
     refresh: data.refresh,

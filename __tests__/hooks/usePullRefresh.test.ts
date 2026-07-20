@@ -3,17 +3,17 @@
  * pull gesture, and its 30-second throttle.
  *
  * The throttle is the whole point of these tests: a user can pull
- * repeatedly, and only the first pull in each window may do real work.
- * Equally important is that a throttled pull still resolves and still
- * clears the spinner — the bug that opened this ticket was a control that
- * appeared to do nothing.
+ * repeatedly, and only the first pull in each window may reach the services.
+ *
+ * The spinner is never held open artificially. It lasts exactly as long as
+ * the work does — so a throttled pull, having nothing to load, settles
+ * instantly and never claims to be loading.
  */
 
 import { act, renderHook } from '@testing-library/react-native';
 import {
   usePullRefresh,
   REFRESH_THROTTLE_MS,
-  THROTTLED_SPINNER_MS,
 } from '../../src/hooks/useTodayScreen/usePullRefresh';
 
 let nowMs = 1_000_000;
@@ -46,13 +46,9 @@ function setup() {
   return { result, refreshTasks, refreshProximity, extra };
 }
 
-/** Runs a pull and lets the throttled-spinner timer settle. */
+/** Runs a pull to completion. */
 async function pull(result: { current: { onPullRefresh: () => Promise<void> } }) {
-  await act(async () => {
-    const p = result.current.onPullRefresh();
-    jest.advanceTimersByTime(THROTTLED_SPINNER_MS);
-    await p;
-  });
+  await act(async () => { await result.current.onPullRefresh(); });
 }
 
 describe('usePullRefresh — doing the work', () => {
@@ -134,31 +130,28 @@ describe('usePullRefresh — the 30s throttle', () => {
   });
 });
 
-describe('usePullRefresh — spinner vs. input blocking', () => {
-  // The gesture is never blocked, only the service calls are. A throttled
-  // pull must still look like it worked, and must NOT dim/block the screen —
-  // there is no in-flight data for a stray tap to corrupt.
-  it('spins on a throttled pull but never reports real work', async () => {
+describe('usePullRefresh — the spinner tells the truth', () => {
+  // The spinner is the loading signal AND the input-blocking signal, so it
+  // must never outlast or undershoot the actual work.
+  it('never claims to be loading on a throttled pull', async () => {
     const { result, refreshTasks } = setup();
 
     await pull(result);                    // real
     advanceClock(1_000);
 
-    // Start the throttled pull and let the state flush, but do NOT let the
-    // acknowledgement timer fire yet — this is the window the user sees.
-    let throttled!: Promise<void>;
-    await act(async () => { throttled = result.current.onPullRefresh(); });
+    let sawSpinner = false;
+    await act(async () => {
+      const p = result.current.onPullRefresh();
+      sawSpinner = sawSpinner || result.current.isPullRefreshing;
+      await p;
+    });
 
-    expect(result.current.isPullRefreshing).toBe(true);     // action acknowledged
-    expect(result.current.isRefreshingForReal).toBe(false); // ...nothing blocked
-
-    await act(async () => { jest.advanceTimersByTime(THROTTLED_SPINNER_MS); await throttled; });
-
+    expect(sawSpinner).toBe(false);
     expect(result.current.isPullRefreshing).toBe(false);
     expect(refreshTasks).toHaveBeenCalledTimes(1);
   });
 
-  it('reports real work while an actual refresh is in flight', async () => {
+  it('stays up for exactly as long as the services take, no minimum', async () => {
     const refreshTasks = jest.fn();
     let release!: () => void;
     const refreshProximity = jest.fn(() => new Promise<void>(r => { release = r; }));
@@ -167,21 +160,12 @@ describe('usePullRefresh — spinner vs. input blocking', () => {
     let first!: Promise<void>;
     await act(async () => { first = result.current.onPullRefresh(); });
 
+    // Still working — the spinner is up because the services have not answered.
     expect(result.current.isPullRefreshing).toBe(true);
-    expect(result.current.isRefreshingForReal).toBe(true);
 
+    // The moment they answer it comes down; nothing pads it out.
     await act(async () => { release(); await first; });
-
-    expect(result.current.isRefreshingForReal).toBe(false);
-  });
-
-  it('clears the real-work flag even when a source rejects', async () => {
-    const refreshProximity = jest.fn().mockRejectedValue(new Error('boom'));
-    const { result } = renderHook(() => usePullRefresh(jest.fn(), refreshProximity));
-
-    await pull(result);
-
-    expect(result.current.isRefreshingForReal).toBe(false);
+    expect(result.current.isPullRefreshing).toBe(false);
   });
 });
 
