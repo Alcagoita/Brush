@@ -4,13 +4,18 @@
  * Quiet row below NearbyCard, shown only when a bundle exists (absence is
  * the default, same as ContextChip). Tap opens a sheet (Modal + Animated
  * opacity/translateY only — Fabric-safe, same pattern as ContextChip.tsx)
- * listing the bundled tasks with their candidate place + distance, and
- * "Open in Maps" for the anchor. A small dismiss control hides this
- * specific bundle for the rest of the day.
+ * listing the bundled tasks with their candidate place + distance. A small
+ * dismiss control hides this specific bundle for the rest of the day.
+ *
+ * KAN-283: the sheet's one action hands the whole cluster to Maps as an
+ * ordered walk. Each listed stop can be left out first, down to a floor of
+ * MIN_BUNDLE_TASKS — below two there's no route to hand off, and opening a
+ * single place is already one tap away in the Nearby list, which is why
+ * there's no anchor-only action here any more.
  *
  * Copy reveals opportunity, never schedules — no ordering, no urgency.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -25,9 +30,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
-import { CloseIcon, PinIcon, ChevronRightIcon } from './AppIcon';
-import { openInMaps, formatDistance } from '../services/maps';
+import { CheckIcon, CloseIcon, PinIcon } from './AppIcon';
+import { openMultiStopDirections, formatDistance } from '../services/maps';
+import { getLastSearchCoords } from '../services/proximity';
+import { orderStopsNearestFirst } from '../services/routeHandoff';
 import { logTap } from '../services/analytics';
+import { MIN_BUNDLE_TASKS } from '../services/errandBundles';
 import type { ErrandBundle } from '../services/errandBundles';
 import { COPY } from '../constants/copy';
 
@@ -44,11 +52,21 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
   const [sheetOpen, setSheetOpen]     = useState(false);
   const [modalVisible, setModalVisible] = useState(false);
 
+  // KAN-283 — stops the user has chosen to leave out of THIS route. Purely
+  // in-the-moment: nothing is persisted, and reopening the sheet starts
+  // clean (see the sheetOpen effect below). Excluding a stop never touches
+  // the bundle itself, so the card line and the box's own behaviour are
+  // unaffected — it only narrows what gets handed to Maps.
+  const [excludedTaskIds, setExcludedTaskIds] = useState<ReadonlySet<string>>(() => new Set());
+
   const scrimOpacity    = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(screenHeight)).current;
 
   useEffect(() => {
     if (sheetOpen) {
+      // KAN-283 — each opening starts from the full cluster. Leaving a stop
+      // out is a decision about this moment, not a preference to remember.
+      setExcludedTaskIds(new Set());
       setModalVisible(true);
       scrimOpacity.setValue(0);
       sheetTranslateY.setValue(screenHeight);
@@ -70,10 +88,57 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
   const anchorName = bundle.anchor.name;
   const taskCount   = bundle.entries.length;
 
-  const handleOpenAnchor = () => {
-    logTap('errand_bundle_open_maps');
-    openInMaps(bundle.anchor.lat, bundle.anchor.lng, anchorName).catch(err => {
-      console.warn('[ErrandBundleCard] openInMaps failed', err);
+  const activeEntries = useMemo(
+    () => bundle.entries.filter(entry => !excludedTaskIds.has(entry.task.id)),
+    [bundle.entries, excludedTaskIds],
+  );
+
+  // A route needs two places, so the last two selected can't be unselected.
+  // This locks the SELECTED boxes only — an unselected stop must stay
+  // tappable, otherwise dropping to two would strand the user there with no
+  // way back up.
+  const canDeselect = activeEntries.length > MIN_BUNDLE_TASKS;
+
+  const handleToggleStop = (taskId: string) => {
+    logTap('errand_bundle_toggle_stop');
+    setExcludedTaskIds(prev => {
+      const next = new Set(prev);
+      if (next.has(taskId)) {
+        next.delete(taskId);       // re-including is always allowed
+      } else {
+        const activeCount = bundle.entries.length - prev.size;
+        if (activeCount <= MIN_BUNDLE_TASKS) { return prev; }
+        next.add(taskId);
+      }
+      return next;
+    });
+  };
+
+  // Hand the cluster to Maps as one ordered walk, using the places the
+  // proximity engine already resolved (bundle.entries[].place): no new
+  // resolution, no API call from this path.
+  //
+  // Origin is the position that proximity tick searched from — the exact
+  // point these places' distances were measured against, so ordering from
+  // anything else would contradict what the sheet is showing. If it's
+  // unavailable there's no honest origin to route from, so the action is
+  // hidden rather than guessed (see routeStops).
+  // Memoised: this card sits on the animation-heavy Today screen and
+  // re-renders with it, while the ordering only changes when the kept stops
+  // or the search position do.
+  const routeOrigin = getLastSearchCoords();
+  const routeStops = useMemo(
+    () => (routeOrigin && activeEntries.length >= MIN_BUNDLE_TASKS
+      ? orderStopsNearestFirst(routeOrigin, activeEntries, entry => entry.place)
+      : null),
+    [routeOrigin?.lat, routeOrigin?.lng, activeEntries],
+  );
+
+  const handleOpenAllStops = () => {
+    if (!routeOrigin || !routeStops) { return; }
+    logTap('errand_bundle_open_all_stops');
+    openMultiStopDirections(routeOrigin, routeStops.map(entry => entry.place)).catch(err => {
+      console.warn('[ErrandBundleCard] openMultiStopDirections failed', err);
     });
   };
 
@@ -142,28 +207,72 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
             <Text style={[styles.intro, { color: palette.muted }]}>{COPY.errandBundle.sheetIntro}</Text>
 
             <ScrollView style={styles.list}>
-              {bundle.entries.map(({ task, place }) => (
-                <View key={task.id} style={[styles.row, { borderTopColor: palette.line }]}>
-                  <View style={styles.rowText}>
-                    <Text style={[styles.rowTitle, { color: palette.text }]} numberOfLines={1}>{task.title}</Text>
-                    <Text style={[styles.rowSub, { color: palette.muted }]} numberOfLines={1}>
-                      {`${place.name} · ${formatDistance(place.distanceMeters)}`}
-                    </Text>
-                  </View>
-                  <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
-                </View>
-              ))}
+              {/* KAN-283 — every stop stays listed; unselected ones just fade
+                  back. Toggling only narrows what's handed to Maps: it never
+                  completes, deletes or dismisses the task. */}
+              {bundle.entries.map(({ task, place }) => {
+                const selected = !excludedTaskIds.has(task.id);
+                // Only a selected box can be locked, and only at the floor.
+                const locked = selected && !canDeselect;
+                return (
+                  <Pressable
+                    key={task.id}
+                    testID={`errand-bundle-stop-${task.id}`}
+                    style={[
+                      styles.row,
+                      { borderTopColor: palette.line },
+                      !selected && { backgroundColor: palette.surface2 },
+                    ]}
+                    onPress={() => handleToggleStop(task.id)}
+                    disabled={locked}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: selected, disabled: locked }}
+                    accessibilityLabel={locked
+                      ? COPY.errandBundle.deselectStopDisabledA11y
+                      : selected
+                        ? COPY.errandBundle.deselectStopA11y(task.title)
+                        : COPY.errandBundle.selectStopA11y(task.title)}>
+                    <View
+                      style={[
+                        styles.checkbox,
+                        selected
+                          ? { backgroundColor: locked ? palette.faint : palette.accent, borderColor: locked ? palette.faint : palette.accent }
+                          : { borderColor: palette.faint },
+                      ]}>
+                      {selected && <CheckIcon color={palette.bg} size={12} />}
+                    </View>
+                    <View style={styles.rowText}>
+                      <Text
+                        style={[styles.rowTitle, { color: selected ? palette.text : palette.muted }]}
+                        numberOfLines={1}>
+                        {task.title}
+                      </Text>
+                      <Text
+                        style={[styles.rowSub, { color: selected ? palette.muted : palette.faint }]}
+                        numberOfLines={1}>
+                        {`${place.name} · ${formatDistance(place.distanceMeters)}`}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </ScrollView>
 
-            <Pressable
-              style={[styles.mapsBtn, { backgroundColor: palette.surface2 }]}
-              onPress={handleOpenAnchor}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.errandBundle.openAnchorInMaps(anchorName)}>
-              <Text style={[styles.mapsLabel, { color: palette.text }]}>
-                {COPY.errandBundle.openAnchorInMaps(anchorName)}
-              </Text>
-            </Pressable>
+            {/* KAN-283 — the cluster as one ordered walk, and the sheet's
+                only action. Opening a single place is already one tap away
+                in the Nearby list, so there's no anchor-only button here. */}
+            {routeStops && (
+              <Pressable
+                testID="errand-bundle-open-all"
+                style={[styles.mapsBtn, { backgroundColor: palette.surface2 }]}
+                onPress={handleOpenAllStops}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.errandBundle.openAllInMapsA11y(routeStops.length)}>
+                <Text style={[styles.mapsLabel, { color: palette.text, fontVariant: ['tabular-nums'] }]}>
+                  {COPY.errandBundle.openAllInMaps(routeStops.length)}
+                </Text>
+              </Pressable>
+            )}
           </Animated.View>
         </Modal>
       )}
@@ -253,6 +362,18 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderTopWidth: StyleSheet.hairlineWidth,
     gap:            10,
+    // Bleeds the unselected row's grey slightly past the text on both sides
+    // without shifting where the text sits (KAN-283).
+    paddingHorizontal: 10,
+    marginHorizontal:  -10,
+  },
+  checkbox: {
+    width:          18,
+    height:         18,
+    borderRadius:   radius.checkbox,
+    borderWidth:    1.5,
+    alignItems:     'center',
+    justifyContent: 'center',
   },
   rowText: { flex: 1, minWidth: 0 },
   rowTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
