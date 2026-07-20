@@ -85,7 +85,7 @@ import WearNotificationModule from '../native/WearNotificationModule';
 import { Coordinates, getPositionLowAccuracy } from './geolocation';
 import { getDistanceMeters, searchNearbyPlaces, NearbyPlace, placeTypeLabel } from './maps';
 import { markAllPoiAlertsSeen } from './firestore';
-import { Task, ALL_POI_TYPES, Trip, MallSnapshot } from '../types';
+import { Task, ALL_POI_TYPES, CLUSTER_LEISURE_TYPES, Trip, MallSnapshot } from '../types';
 import { fireExitPrompt } from './notifications';
 import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
@@ -731,7 +731,13 @@ async function runProximitySearch(
           // KAN-282 — also shopping_mall, so "One trip for all of these"
           // can find a nearby mall purely from the offline cache once the
           // area's been visited even once, no live call needed at check time.
-          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ..._customCategoryPoiTypes, 'shopping_mall'])];
+          // KAN-293 — and the leisure/cultural types the cluster box may
+          // mention. Same single Overpass request: searchOsmPlaces emits one
+          // clause per type into one query, so these ride along at the cost
+          // of a few extra clauses, never an extra round-trip.
+          const prefetchTypes = [...new Set([
+            ...ALL_POI_TYPES, ..._customCategoryPoiTypes, 'shopping_mall', ...CLUSTER_LEISURE_TYPES,
+          ])];
           refreshHabitatCacheIfStale(coords.lat, coords.lng, prefetchTypes).catch(err =>
             reportProximityError('habitat cache refresh failed', err),
           );

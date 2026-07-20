@@ -324,6 +324,20 @@ const en = {
     // Two stops is the floor — fewer isn't a route, and a single place is
     // already one tap away in the Nearby list.
     deselectStopDisabledA11y: 'Keeping this one — a route needs at least two stops',
+    // KAN-293 — the leisure companion line. An invitation, never a plan: it
+    // states a fact (the place is there) and offers. No urgency, no deals,
+    // no prices, and never an instruction to go.
+    leisureParkLine: (placeName: string) =>
+      `${placeName} is right there — fancy a walk while you're at it?`,
+    leisureOtherLine: (placeName: string) => `${placeName} is right there too.`,
+    leisureKeepInMind: 'Keep it in mind',
+    leisureKeepInMindA11y: (placeName: string) => `Add ${placeName} to today's tasks`,
+    leisureKeptConfirmation: (placeName: string) => `${placeName} is on your list for today.`,
+    // Naming the action, not selling it — "Get tickets", never a price or an offer.
+    leisureGetTickets: 'Get tickets',
+    leisureGetTicketsA11y: (placeName: string) => `Open the ${placeName} website`,
+    /** Title of the task "Keep it in mind" creates — a plain, brushable task like any other. */
+    leisureTaskTitle: (placeName: string) => `Stop by ${placeName}`,
   },
 
   // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
@@ -1351,6 +1365,17 @@ const ptPT: typeof en = {
     deselectStopA11y: (taskTitle: string) => `Deixar ${taskTitle} de fora`,
     selectStopA11y:   (taskTitle: string) => `Incluir ${taskTitle}`,
     deselectStopDisabledA11y: 'Esta fica — uma rota precisa de pelo menos duas paragens',
+    // KAN-293 — ver nota na versão EN: convite, nunca plano. Sem urgência,
+    // sem promoções, sem preços.
+    leisureParkLine: (placeName: string) =>
+      `${placeName} fica mesmo ali — que tal um passeio, já que estás por perto?`,
+    leisureOtherLine: (placeName: string) => `${placeName} também fica mesmo ali.`,
+    leisureKeepInMind: 'Fica a ideia',
+    leisureKeepInMindA11y: (placeName: string) => `Juntar ${placeName} às tarefas de hoje`,
+    leisureKeptConfirmation: (placeName: string) => `${placeName} ficou na tua lista de hoje.`,
+    leisureGetTickets: 'Comprar bilhetes',
+    leisureGetTicketsA11y: (placeName: string) => `Abrir o site de ${placeName}`,
+    leisureTaskTitle: (placeName: string) => `Passar por ${placeName}`,
   },
 
   tripSuggestion: {

@@ -19,6 +19,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -37,14 +38,25 @@ import { orderStopsNearestFirst } from '../services/routeHandoff';
 import { logTap } from '../services/analytics';
 import { MIN_BUNDLE_TASKS } from '../services/errandBundles';
 import type { ErrandBundle } from '../services/errandBundles';
+import type { ClusterLeisureSuggestion } from '../services/clusterLeisure';
 import { COPY } from '../constants/copy';
 
 export interface ErrandBundleCardProps {
   bundle: ErrandBundle;
   onDismiss: () => void;
+  /** KAN-293 — a leisure place among the stops, or null/undefined for none. */
+  leisure?: ClusterLeisureSuggestion | null;
+  /** Called when the user accepts the leisure invitation. Creating the task is
+   *  the screen's job (it owns the uid); the card only asks. */
+  onKeepLeisureInMind?: (suggestion: ClusterLeisureSuggestion) => void;
 }
 
-export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCardProps) {
+export default function ErrandBundleCard({
+  bundle,
+  onDismiss,
+  leisure,
+  onKeepLeisureInMind,
+}: ErrandBundleCardProps) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
@@ -59,6 +71,9 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
   // unaffected — it only narrows what gets handed to Maps.
   const [excludedTaskIds, setExcludedTaskIds] = useState<ReadonlySet<string>>(() => new Set());
 
+  // KAN-293 — whether the leisure invitation has been accepted in this sheet.
+  const [leisureKept, setLeisureKept] = useState(false);
+
   const scrimOpacity    = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(screenHeight)).current;
 
@@ -67,6 +82,7 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
       // KAN-283 — each opening starts from the full cluster. Leaving a stop
       // out is a decision about this moment, not a preference to remember.
       setExcludedTaskIds(new Set());
+      setLeisureKept(false);
       setModalVisible(true);
       scrimOpacity.setValue(0);
       sheetTranslateY.setValue(screenHeight);
@@ -133,6 +149,25 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
       : null),
     [routeOrigin?.lat, routeOrigin?.lng, activeEntries],
   );
+
+  // KAN-293 — quiet confirmation that the invitation was accepted, so the
+  // button can't be tapped twice into two identical tasks. In-the-moment
+  // only, like excludedTaskIds: reopening the sheet starts clean.
+  const handleKeepLeisure = () => {
+    if (!leisure || leisureKept) { return; }
+    logTap('errand_bundle_leisure_keep');
+    setLeisureKept(true);
+    onKeepLeisureInMind?.(leisure);
+  };
+
+  const handleLeisureTickets = () => {
+    const url = leisure?.place.website;
+    if (!url) { return; }
+    logTap('errand_bundle_leisure_tickets');
+    Linking.openURL(url).catch(err => {
+      console.warn('[ErrandBundleCard] leisure website open failed', err);
+    });
+  };
 
   const handleOpenAllStops = () => {
     if (!routeOrigin || !routeStops) { return; }
@@ -257,6 +292,56 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
                 );
               })}
             </ScrollView>
+
+            {/* KAN-293 — the leisure companion line. Sits BELOW the stop list
+                and outside it on purpose: it is not a stop, has no checkbox,
+                and never joins the route or the "N of these" count. It states
+                a fact and offers; accepting creates an ordinary task. */}
+            {leisure && (
+              <View
+                testID="errand-bundle-leisure"
+                style={[styles.leisure, { borderTopColor: palette.line }]}>
+                <Text style={[styles.leisureLine, { color: palette.text }]}>
+                  {leisure.type === 'park'
+                    ? COPY.errandBundle.leisureParkLine(leisure.place.name)
+                    : COPY.errandBundle.leisureOtherLine(leisure.place.name)}
+                </Text>
+                <View style={styles.leisureActions}>
+                  <Pressable
+                    testID="errand-bundle-leisure-keep"
+                    style={[styles.leisureBtn, { borderColor: palette.line }]}
+                    onPress={handleKeepLeisure}
+                    disabled={leisureKept}
+                    hitSlop={4}
+                    accessibilityRole="button"
+                    accessibilityLabel={COPY.errandBundle.leisureKeepInMindA11y(leisure.place.name)}>
+                    <Text style={[styles.leisureBtnLabel, { color: leisureKept ? palette.faint : palette.text }]}>
+                      {COPY.errandBundle.leisureKeepInMind}
+                    </Text>
+                  </Pressable>
+                  {/* Rendered only when OSM already had a site for this place.
+                      No lookup ever happens to find one — absent means absent. */}
+                  {leisure.place.website && (
+                    <Pressable
+                      testID="errand-bundle-leisure-tickets"
+                      style={[styles.leisureBtn, { borderColor: palette.line }]}
+                      onPress={handleLeisureTickets}
+                      hitSlop={4}
+                      accessibilityRole="button"
+                      accessibilityLabel={COPY.errandBundle.leisureGetTicketsA11y(leisure.place.name)}>
+                      <Text style={[styles.leisureBtnLabel, { color: palette.text }]}>
+                        {COPY.errandBundle.leisureGetTickets}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+                {leisureKept && (
+                  <Text style={[styles.leisureConfirm, { color: palette.muted }]}>
+                    {COPY.errandBundle.leisureKeptConfirmation(leisure.place.name)}
+                  </Text>
+                )}
+              </View>
+            )}
 
             {/* KAN-283 — the cluster as one ordered walk, and the sheet's
                 only action. Opening a single place is already one tap away
@@ -388,4 +473,41 @@ const styles = StyleSheet.create({
     marginTop:         14,
   },
   mapsLabel: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
+
+  // KAN-293 — separated from the stop list by a divider, so it reads as an
+  // aside rather than another stop. No tint, no accent: an invitation should
+  // not compete with the errands the user actually came here for.
+  leisure: {
+    marginHorizontal: spacing.page,
+    marginTop:        14,
+    paddingTop:       14,
+    borderTopWidth:   1,
+    gap:              10,
+  },
+  leisureLine: {
+    fontSize:   14,
+    fontFamily: 'Geist-Regular',
+    lineHeight: 19,
+  },
+  leisureActions: {
+    flexDirection: 'row',
+    gap:           8,
+  },
+  leisureBtn: {
+    paddingHorizontal: 14,
+    height:            36,
+    borderRadius:      radius.chip,
+    borderWidth:       1,
+    alignItems:        'center',
+    justifyContent:    'center',
+  },
+  leisureBtnLabel: {
+    fontSize:   13,
+    fontWeight: '500',
+    fontFamily: 'Geist-Medium',
+  },
+  leisureConfirm: {
+    fontSize:   13,
+    fontFamily: 'Geist-Regular',
+  },
 });

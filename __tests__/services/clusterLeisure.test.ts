@@ -1,0 +1,221 @@
+/**
+ * KAN-293 — findClusterLeisure: the leisure companion line's detection.
+ *
+ * The rules under test are the ones that keep the line honest: it only ever
+ * mentions a real, named place that is genuinely right there beside a stop
+ * the user was already visiting, exactly once, and it stays silent otherwise.
+ *
+ * Also pinned here: detection issues NO network call of any kind. It reads
+ * the habitat cache and nothing else — the leisure types ride along in the
+ * proximity engine's existing Overpass request (see proximity.ts's
+ * prefetchTypes), so this feature never costs a request of its own and
+ * never touches Google.
+ */
+
+// maps.ts pulls in placesFunctions -> @react-native-firebase/functions, a
+// native module unavailable under Jest. Flat-earth approximation is accurate
+// enough for the radius assertions below.
+jest.mock('../../src/services/maps', () => ({
+  getDistanceMeters: (lat1: number, lng1: number, lat2: number, lng2: number) =>
+    Math.round(Math.hypot(lat2 - lat1, lng2 - lng1) * 111_000),
+  placeTypeLabel: (type: string) =>
+    type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase()),
+}));
+
+const mockQueryHabitatCache = jest.fn();
+jest.mock('../../src/services/habitatCache', () => ({
+  queryHabitatCache: (...args: unknown[]) => mockQueryHabitatCache(...args),
+}));
+
+import {
+  findClusterLeisure,
+  leisureTaskPoiType,
+  LEISURE_NEAR_STOP_RADIUS_M,
+} from '../../src/services/clusterLeisure';
+import type { NearbyPlace } from '../../src/services/maps';
+import type { ErrandBundle } from '../../src/services/errandBundles';
+import type { Task } from '../../src/types';
+
+/** Degrees of latitude for a given metre offset, per the mocked haversine. */
+function latOffset(meters: number): number {
+  return meters / 111_000;
+}
+
+function makePlace(overrides: Partial<NearbyPlace> = {}): NearbyPlace {
+  return { placeId: 'p1', name: 'Place', lat: 0, lng: 0, distanceMeters: 0, ...overrides };
+}
+
+function makeTask(id: string): Task {
+  return {
+    id, title: `Task ${id}`, category: 'errands', done: false, poi: 'atm',
+    date: '2026-07-20', createdAt: {} as Task['createdAt'],
+  };
+}
+
+/** A two-stop cluster: anchor + one stop 200 m north of it. */
+function makeBundle(stops?: NearbyPlace[]): ErrandBundle {
+  const anchor = makePlace({ placeId: 'anchor', name: 'The ATM', lat: 0, lng: 0 });
+  const resolved = stops ?? [
+    anchor,
+    makePlace({ placeId: 'stop-2', name: 'The Pharmacy', lat: latOffset(200), lng: 0 }),
+  ];
+  return {
+    anchor,
+    entries: resolved.map((place, i) => ({
+      task: makeTask(`t${i + 1}`),
+      place,
+      distanceToAnchorMeters: 0,
+    })),
+    totalWalkDistanceMeters: 0,
+  };
+}
+
+/** Shapes the cache mock's return: every requested type, only `hits` filled. */
+function cacheReturns(hits: Record<string, NearbyPlace[]>) {
+  mockQueryHabitatCache.mockImplementation((_lat, _lng, types: string[]) => {
+    const out: Record<string, NearbyPlace[]> = {};
+    for (const t of types) { out[t] = hits[t] ?? []; }
+    return out;
+  });
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  cacheReturns({});
+});
+
+describe('findClusterLeisure — when it speaks', () => {
+  it('mentions a named park sitting right beside a stop', () => {
+    cacheReturns({
+      park: [makePlace({ placeId: 'park-1', name: 'Central Park', lat: latOffset(250), lng: 0 })],
+    });
+
+    const found = findClusterLeisure(makeBundle());
+    expect(found).not.toBeNull();
+    expect(found!.place.name).toBe('Central Park');
+    expect(found!.type).toBe('park');
+    expect(found!.distanceToStopMeters).toBeLessThanOrEqual(LEISURE_NEAR_STOP_RADIUS_M);
+  });
+
+  it('qualifies against ANY stop, not just the anchor', () => {
+    // 250 m from the anchor is far outside the radius, but only 50 m from the
+    // second stop — the walk passes that stop too, so it counts.
+    cacheReturns({
+      museum: [makePlace({ placeId: 'm-1', name: 'The History Museum', lat: latOffset(250), lng: 0 })],
+    });
+
+    const found = findClusterLeisure(makeBundle());
+    expect(found?.place.name).toBe('The History Museum');
+    expect(found?.distanceToStopMeters).toBe(50);
+  });
+
+  it('carries the cached website through, so the ticket link can render', () => {
+    cacheReturns({
+      aquarium: [makePlace({
+        placeId: 'aq-1', name: 'City Aquarium', lat: latOffset(200), lng: 0,
+        website: 'https://aquarium.example',
+      })],
+    });
+
+    expect(findClusterLeisure(makeBundle())?.place.website).toBe('https://aquarium.example');
+  });
+});
+
+describe('findClusterLeisure — when it stays quiet', () => {
+  it('says nothing when the cache has no leisure place at all', () => {
+    expect(findClusterLeisure(makeBundle())).toBeNull();
+  });
+
+  it('says nothing about a place beyond the near-stop radius', () => {
+    // 150 m past the furthest stop — outside LEISURE_NEAR_STOP_RADIUS_M of both.
+    cacheReturns({
+      park: [makePlace({ placeId: 'far', name: 'Distant Park', lat: latOffset(350), lng: 0 })],
+    });
+    expect(findClusterLeisure(makeBundle())).toBeNull();
+  });
+
+  it('says nothing about an unnamed place — a bare "Park" is not worth interrupting for', () => {
+    cacheReturns({
+      park: [makePlace({ placeId: 'unnamed', name: 'Park', lat: latOffset(200), lng: 0 })],
+    });
+    expect(findClusterLeisure(makeBundle())).toBeNull();
+  });
+
+  it('says nothing about a place that IS one of the cluster stops — an errand is not a discovery', () => {
+    const parkStop = makePlace({ placeId: 'park-stop', name: 'Central Park', lat: latOffset(200), lng: 0 });
+    const bundle = makeBundle([
+      makePlace({ placeId: 'anchor', name: 'The ATM', lat: 0, lng: 0 }),
+      parkStop,
+    ]);
+    cacheReturns({ park: [parkStop] });
+
+    expect(findClusterLeisure(bundle)).toBeNull();
+  });
+
+  it('returns null rather than throwing when the cache read fails', () => {
+    mockQueryHabitatCache.mockImplementation(() => { throw new Error('db boom'); });
+    expect(() => findClusterLeisure(makeBundle())).not.toThrow();
+    expect(findClusterLeisure(makeBundle())).toBeNull();
+  });
+});
+
+describe('findClusterLeisure — exactly one, the nearest', () => {
+  it('picks the candidate nearest a stop when several qualify', () => {
+    cacheReturns({
+      park:   [makePlace({ placeId: 'park-1', name: 'Far Park', lat: latOffset(140), lng: 0 })],
+      museum: [makePlace({ placeId: 'm-1', name: 'Near Museum', lat: latOffset(210), lng: 0 })],
+    });
+
+    const found = findClusterLeisure(makeBundle());
+    expect(found?.place.name).toBe('Near Museum');
+    expect(found?.distanceToStopMeters).toBe(10);
+  });
+
+  it('returns a single suggestion, never a list', () => {
+    cacheReturns({
+      park: [
+        makePlace({ placeId: 'p-a', name: 'Park A', lat: latOffset(190), lng: 0 }),
+        makePlace({ placeId: 'p-b', name: 'Park B', lat: latOffset(210), lng: 0 }),
+      ],
+    });
+
+    const found = findClusterLeisure(makeBundle());
+    expect(found).not.toBeNull();
+    expect(Array.isArray(found)).toBe(false);
+  });
+});
+
+describe('findClusterLeisure — cost', () => {
+  it('reads the cache once and makes no network call', () => {
+    const fetchSpy = jest.spyOn(global, 'fetch' as never).mockImplementation(() => {
+      throw new Error('detection must never fetch');
+    });
+    cacheReturns({
+      park: [makePlace({ placeId: 'park-1', name: 'Central Park', lat: latOffset(200), lng: 0 })],
+    });
+
+    findClusterLeisure(makeBundle());
+
+    expect(mockQueryHabitatCache).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it('asks the cache only for the fixed leisure type set', () => {
+    findClusterLeisure(makeBundle());
+    const requestedTypes = mockQueryHabitatCache.mock.calls[0][2];
+    expect([...requestedTypes].sort()).toEqual(['aquarium', 'attraction', 'museum', 'park']);
+  });
+});
+
+describe('leisureTaskPoiType', () => {
+  // The created task must land on a real catalog PoiType — the app already
+  // aliases these for icon selection (AppIcon/poi.tsx), and reusing that
+  // mapping is what keeps "Keep it in mind" an ordinary task.
+  it('maps each leisure type to a catalog POI type', () => {
+    expect(leisureTaskPoiType('park')).toBe('park');
+    expect(leisureTaskPoiType('attraction')).toBe('park');
+    expect(leisureTaskPoiType('aquarium')).toBe('park');
+    expect(leisureTaskPoiType('museum')).toBe('library');
+  });
+});

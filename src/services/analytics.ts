@@ -21,6 +21,8 @@ export type AnalyticsEvent =
   | 'errand_bundle_open_all_stops'
   | 'errand_bundle_toggle_stop'
   | 'errand_bundle_dismiss'
+  | 'errand_bundle_leisure_keep'
+  | 'errand_bundle_leisure_tickets'
   | 'trip_suggestion_open'
   | 'trip_suggestion_dismiss';
 

@@ -324,7 +324,28 @@ export const POI_OSM_TAGS: Record<PoiType, { key: string; value: string }> = {
  */
 export const SUPPLEMENTARY_OSM_TAGS: Record<string, { key: string; value: string }> = {
   shopping_mall: { key: 'shop', value: 'mall' },
+  // KAN-293 — leisure/cultural draws for the cluster box's companion line.
+  // `park` is absent here on purpose: it's already a PoiType in
+  // POI_OSM_TAGS, so it rides the normal prefetch without duplication.
+  museum:     { key: 'tourism', value: 'museum' },
+  attraction: { key: 'tourism', value: 'attraction' },
+  aquarium:   { key: 'tourism', value: 'aquarium' },
 };
+
+/**
+ * Place types the errand-cluster box may mention as a leisure companion
+ * ("Central Park is right there — fancy a walk?", KAN-293).
+ *
+ * COMMERCIAL NEUTRALITY: this list is a fixed, hand-authored set of OSM tag
+ * types. It takes no partner, sponsor or revenue input of any kind, and
+ * nothing may ever be added to it in exchange for payment. A place surfaces
+ * here for exactly one reason — it is physically near the user's errands.
+ * Monetization, if it ever arrives, attaches to the fulfilment action (the
+ * ticket link) and never to detection, ranking or copy. See KAN-239.
+ */
+export const CLUSTER_LEISURE_TYPES = ['park', 'museum', 'attraction', 'aquarium'] as const;
+
+export type ClusterLeisureType = typeof CLUSTER_LEISURE_TYPES[number];
 
 /** Default geofence radius in metres per POI type. */
 export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {

@@ -60,6 +60,8 @@ interface MockHabitatRow {
   expires_at: number | null;
   /** KAN-282 — OSM building-footprint area; null when unknown (see habitatCache). */
   footprint_area_m2?: number | null;
+  /** KAN-293 — the place's own site from OSM's `website` tag; null when it has none. */
+  website?: string | null;
 }
 
 // ─── In-memory expo-sqlite mock ────────────────────────────────────────────────
@@ -80,7 +82,7 @@ const mockDb = {
         { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
         { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
-        { name: 'footprint_area_m2' },
+        { name: 'footprint_area_m2' }, { name: 'website' },
       ] as unknown as T[];
     }
     if (s.startsWith('SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL')) {
@@ -132,20 +134,20 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2] =
-        params as [string, string, string, number, number, number, string | null, string | null, number, number, string | null, number | null, number | null];
-      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2 });
+      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website] =
+        params as [string, string, string, number, number, number, string | null, string | null, number, number, string | null, number | null, number | null, string | null];
+      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
-        footprintAreaM2,
+        footprintAreaM2, website,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, number, number, number, number, number, number,
-        number | null,
+        number | null, string | null,
         string | null, number | null, number | null, number | null,
         number, string,
       ];
@@ -159,6 +161,9 @@ const mockDb = {
         // COALESCE(?, footprint_area_m2) — a known area fills an unknown one,
         // and a row that already has one is never downgraded to NULL.
         row.footprint_area_m2 = footprintAreaM2 ?? row.footprint_area_m2 ?? null;
+        // COALESCE(?, website) — same shape: a discovered site fills an
+        // unknown one, and a row that already has one is never cleared.
+        row.website = website ?? row.website ?? null;
         row.cache_area_id = row.cache_area_id ?? tripCacheAreaId;
         if (tripExpiresAtA != null) {
           row.expires_at = row.expires_at == null ? tripExpiresAtB : Math.max(row.expires_at, tripExpiresAtC!);

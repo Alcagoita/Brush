@@ -60,6 +60,12 @@ export interface NearbyPlace {
    *  shopping_mall places; undefined for Google results (Nearby Search
    *  returns no geometry) and for point-only OSM nodes. */
   footprintAreaM2?: number;
+  /** The place's own site, carried through from OSM's `website` tag via the
+   *  habitat cache (KAN-293). Only ever populated for OSM-sourced rows —
+   *  Google results never set it, since we don't request that field. Used
+   *  solely to decide whether the cluster box's leisure line can offer a
+   *  ticket link; undefined simply means "no known site", never "look one up". */
+  website?: string;
 }
 
 // ─── Internal Places API types ─────────────────────────────────────────────────

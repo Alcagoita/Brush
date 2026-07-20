@@ -24,12 +24,16 @@ import {
   getDismissedBundleKeysToday,
 } from '../services/errandBundles';
 import type { ErrandBundle } from '../services/errandBundles';
+import { findClusterLeisure } from '../services/clusterLeisure';
+import type { ClusterLeisureSuggestion } from '../services/clusterLeisure';
 import type { PlacesMap } from '../services/proximity';
 import type { Task } from '../types';
 import { todayISO } from '../utils/date';
 
 export interface ErrandBundleState {
   bundle: ErrandBundle | null;
+  /** KAN-293 — a leisure place sitting among this bundle's stops, or null. */
+  leisure: ClusterLeisureSuggestion | null;
   dismiss: () => void;
 }
 
@@ -54,6 +58,14 @@ export function useErrandBundle(tasks: Task[], poiPlaces: PlacesMap): ErrandBund
     return null;
   }, [bundles, dismissedKeys]);
 
+  // KAN-293 — a cache-only lookup keyed to the chosen bundle, so it runs once
+  // per bundle change rather than per proximity tick. Dismissal needs no
+  // separate handling: no bundle, no line.
+  const leisure = useMemo(
+    () => (bundle ? findClusterLeisure(bundle) : null),
+    [bundle],
+  );
+
   const dismiss = useCallback(() => {
     if (!bundle) { return; }
     const key = errandBundleKey(bundle);
@@ -61,5 +73,5 @@ export function useErrandBundle(tasks: Task[], poiPlaces: PlacesMap): ErrandBund
     setDismissedKeys(prev => new Set(prev).add(key));
   }, [bundle]);
 
-  return { bundle, dismiss };
+  return { bundle, leisure, dismiss };
 }
