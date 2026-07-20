@@ -633,10 +633,18 @@ export default function TodayScreen() {
         onNotNow={onStoreTuningNotNow}
       />
 
-      {/* ── Loading overlay — blocks touches until initial fetch completes ── */}
-      {isLoading && !DEBUG_MINIMAL && (
+      {/* ── Loading overlay — blocks touches until initial fetch completes ──
+           KAN-288: also covers a pull-to-refresh. The refresh fans out across
+           several services, and letting a tap land mid-flight means acting on
+           data that is about to be replaced. `pointerEvents="box-only"` is
+           what does the blocking — the overlay itself takes every touch and
+           passes none through. */}
+      {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
         <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
-          <ActivityIndicator size="large" color={palette.accent} />
+          {/* No second indicator during a pull: RefreshControl is already
+              showing its own spinner just below the ring, and stacking a
+              third one on top of it would only read as a stutter. */}
+          {isLoading && <ActivityIndicator size="large" color={palette.accent} />}
         </View>
       )}
     </View>
