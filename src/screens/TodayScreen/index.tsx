@@ -31,6 +31,7 @@ import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
+  RefreshControl,
   StyleSheet,
   Text,
   View,
@@ -118,6 +119,8 @@ export default function TodayScreen() {
     permissionGranted,
     nearbyReady,
     refreshProximity,
+    isPullRefreshing,
+    onPullRefresh,
     errandBundle,
     errandBundleLeisure,
     dismissErrandBundle,
@@ -444,6 +447,20 @@ export default function TodayScreen() {
             section collapses by SCROLL_RANGE (170px), content scrolls up the
             same distance — they stay in perfect alignment throughout.
           */
+          /*
+            KAN-288 — screen-wide pull-to-refresh, always reachable. The
+            NearbyCard arrow only exists when a Nearby section is rendered,
+            so with no nearby places there was previously no way to refresh.
+
+            progressViewOffset is not cosmetic: this list is absoluteFill
+            with the ring section absolutely positioned ON TOP of it, so the
+            spinner's default position sits behind the ring. Offsetting it
+            clear of the header is what makes it visible at all.
+
+            RefreshControl drives its own spinner and never touches onScroll,
+            so useCollapseAnimation's handler — and the 3-state snap it feeds
+            (KAN-157) — are unaffected.
+          */
           <Animated.FlatList
             style={StyleSheet.absoluteFill}
             contentContainerStyle={[
@@ -459,6 +476,16 @@ export default function TodayScreen() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={scrollHandler}
+            refreshControl={
+              <RefreshControl
+                refreshing={isPullRefreshing}
+                onRefresh={onPullRefresh}
+                tintColor={palette.muted}
+                colors={[palette.accent]}
+                progressBackgroundColor={palette.surface}
+                progressViewOffset={insets.top + 12}
+              />
+            }
             removeClippedSubviews
             initialNumToRender={10}
             maxToRenderPerBatch={10}
