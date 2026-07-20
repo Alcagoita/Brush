@@ -79,7 +79,6 @@ import {
 } from './constants';
 import { useCollapseAnimation } from './useCollapseAnimation';
 import { SkeletonRow } from './SkeletonRow';
-import LoadingDots from '../../components/LoadingDots';
 import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
@@ -671,26 +670,17 @@ export default function TodayScreen() {
         <View
           style={[
             styles.loadingOverlay,
-            // Pull-refresh dims lighter than the initial load — the native
-            // arrow already signals loading, so this only needs to say
-            // "hands off for a moment", not black the screen out.
+            // Pull-refresh dims lighter than the initial load: the native
+            // pull indicator is the loading signal, so this overlay is only a
+            // touch guard — it blocks input while services run, and shows no
+            // indicator of its own (one loading on screen, never two).
             { backgroundColor: isLoading ? palette.scrim : palette.scrimLight },
           ]}
           pointerEvents="box-only">
-          {isLoading ? (
+          {isLoading && (
+            /* Initial app load only — there is no native pull indicator
+               behind it, so this case still needs one. */
             <ActivityIndicator size="large" color={palette.accent} />
-          ) : (
-            /* Pull-refresh: the native pull arrow does its own thing above;
-               this is the "working on it" payoff, the same LoadingDots used
-               on Trip Planner / Itinerary Options. Sits in the band under the
-               ring, above the Nearby list — anchored to the measured ring top,
-               not screen-centre. */
-            <View style={[styles.pullLoadingWrap, { top: scrollAreaY + SECTION_H_REST - 40 }]}>
-              <LoadingDots color={palette.accent} />
-              <Text style={[styles.pullLoadingLabel, { color: palette.muted }]}>
-                {COPY.today.refreshingForYou}
-              </Text>
-            </View>
           )}
         </View>
       )}

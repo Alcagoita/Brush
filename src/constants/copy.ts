@@ -659,7 +659,6 @@ const en = {
     // to fetch. Never scolds the user for pulling, and never implies a
     // failure — nothing failed.
     refreshedRecently: 'Already up to date',
-    refreshingForYou: 'Refreshing for you\u2026',
     addTaskA11y: 'Add task',
     progressLabel: 'PROGRESS',
     progressSummary: (pct: number, remaining: number) => `${pct}% complete · ${remaining} left`,
@@ -1674,7 +1673,6 @@ const ptPT: typeof en = {
     nearbyCount: (n: number) => (n === 1 ? '1 Local' : `${n} Locais`),
     // KAN-288 — ver nota na versão EN.
     refreshedRecently: 'Já está atualizado',
-    refreshingForYou: 'A atualizar para ti\u2026',
     addTaskA11y: 'Adicionar tarefa',
     progressLabel: 'PROGRESSO',
     progressSummary: (pct: number, remaining: number) => `${pct}% concluído · faltam ${remaining}`,
