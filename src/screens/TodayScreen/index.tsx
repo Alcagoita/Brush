@@ -196,16 +196,19 @@ export default function TodayScreen() {
   // time hands the list a fresh RefreshControl on every one of those renders
   // — enough for the native SwipeRefreshLayout to be torn down and recreated
   // mid-spin, which ends the animation while `refreshing` is still true.
+  const showPullRefreshLoading = isPullRefreshing;
+  const showLoadingOverlay = isLoading || showPullRefreshLoading;
+
   const refreshControl = useMemo(() => (
     <RefreshControl
-      refreshing={isPullRefreshing}
+      refreshing={showPullRefreshLoading}
       onRefresh={onPullRefresh}
       tintColor={palette.accent}
       colors={[palette.accent]}
       progressBackgroundColor={palette.surface}
       progressViewOffset={SECTION_H_REST}
     />
-  ), [isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
+  ), [showPullRefreshLoading, onPullRefresh, palette.accent, palette.surface]);
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
@@ -653,20 +656,16 @@ export default function TodayScreen() {
         </View>
       )}
 
-      {/* ── Loading overlay — blocks touches until initial fetch completes ──
-           KAN-288: also covers a pull-refresh, for exactly as long as the
-           services take. During a pull, the overlay starts below the native
-           RefreshControl indicator so the rotating arrow remains visible
-           while the calls are in flight. A throttled pull never reaches here:
-           it has nothing to load, so there is nothing for a stray tap to
-           corrupt and no reason to freeze the screen. `pointerEvents=
-           "box-only"` does the blocking: the overlay takes every touch and
-           passes none through. */}
-      {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
+      {/* ── Loading overlay ──
+           For pull refresh, showPullRefreshLoading is the single flag for both
+           RefreshControl.refreshing and this overlay, so the rotating arrow
+           and overlay mount/unmount together. Initial load still uses the same
+           overlay shell with its own centered indicator. */}
+      {showLoadingOverlay && !DEBUG_MINIMAL && (
         <View
           style={[
             styles.loadingOverlay,
-            isPullRefreshing && !isLoading && styles.pullRefreshLoadingOverlay,
+            showPullRefreshLoading && !isLoading && styles.pullRefreshLoadingOverlay,
             { backgroundColor: palette.scrim },
           ]}
           pointerEvents="box-only">
