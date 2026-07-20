@@ -191,16 +191,21 @@ export default function TodayScreen() {
   // its job, completely invisible, which reads as a dead gesture. Offsetting
   // by SECTION_H_REST drops it to where the list's content actually starts,
   // i.e. the first pixel the user can see move.
-  const refreshControl = (
+  // Memoised on its own inputs. This screen re-renders constantly during a
+  // refresh (task state, proximity ticks), and rebuilding the element each
+  // time hands the list a fresh RefreshControl on every one of those renders
+  // — enough for the native SwipeRefreshLayout to be torn down and recreated
+  // mid-spin, which ends the animation while `refreshing` is still true.
+  const refreshControl = useMemo(() => (
     <RefreshControl
       refreshing={isPullRefreshing}
       onRefresh={onPullRefresh}
-      tintColor={palette.muted}
+      tintColor={palette.accent}
       colors={[palette.accent]}
       progressBackgroundColor={palette.surface}
       progressViewOffset={SECTION_H_REST}
     />
-  );
+  ), [isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
@@ -658,18 +663,12 @@ export default function TodayScreen() {
            passes none through. */}
       {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
         <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
-          {/* The indicator is unconditional: a blocked screen must always
-              show WHY it is blocked, and the two must appear and disappear
-              together. That means owning the indicator here rather than
-              relying on RefreshControl's.
-
-              RefreshControl's spinner cannot be trusted for this. It is
-              native and decides whether to stay based on the `refreshing`
-              prop at the instant the finger lifts — which is usually before
-              our state has flushed — so it often retracts immediately while
-              the work runs on. Leaning on it left the screen dimmed and
-              frozen for seconds with nothing spinning. */}
-          <ActivityIndicator size="large" color={palette.accent} />
+          {/* During a pull the loading signal is RefreshControl's own arrow,
+              which stays for the whole fetch — the overlay here is purely a
+              touch block and must not add a second indicator on top of it.
+              The initial load has no pull gesture behind it, so that case
+              still needs one. */}
+          {isLoading && <ActivityIndicator size="large" color={palette.accent} />}
         </View>
       )}
     </View>
