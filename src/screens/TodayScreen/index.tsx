@@ -32,6 +32,7 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -176,6 +177,21 @@ export default function TodayScreen() {
   const weekday = getWeekdays()[now.getDay()];
   const month   = getMonths()[now.getMonth()];
   const day     = now.getDate();
+
+  // KAN-288 — one RefreshControl shared by both branches below. The empty
+  // state and the task list are separate scroll containers, and the gesture
+  // has to work in BOTH: an empty Today is exactly when a user reaches for
+  // refresh, and it was the branch that had no control at all.
+  const refreshControl = (
+    <RefreshControl
+      refreshing={isPullRefreshing}
+      onRefresh={onPullRefresh}
+      tintColor={palette.muted}
+      colors={[palette.accent]}
+      progressBackgroundColor={palette.surface}
+      progressViewOffset={insets.top + 12}
+    />
+  );
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
@@ -412,8 +428,18 @@ export default function TodayScreen() {
       <View style={styles.scrollArea}>
 
         {DEBUG_SHOW_LIST && (isEmpty ? (
-          /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
-          <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
+          /* ── Empty state body (KAN-139) — nudge + CTA ──
+             Still non-scrolling in the sense KAN-139 meant: flexGrow keeps the
+             content filling one screen with nothing to scroll to. It's a
+             ScrollView purely so the pull gesture exists here at all —
+             alwaysBounceVertical is what lets a full-height, non-overflowing
+             container be pulled (KAN-288). */
+          <ScrollView
+            style={StyleSheet.absoluteFill}
+            contentContainerStyle={{ flexGrow: 1, paddingTop: SECTION_H_REST }}
+            showsVerticalScrollIndicator={false}
+            alwaysBounceVertical
+            refreshControl={refreshControl}>
             <ScrRotatingNudge
               messages={buildEmptyMessages(() => navigation.push('TripPlanner'))}
               pace={5}
@@ -438,7 +464,7 @@ export default function TodayScreen() {
                 {COPY.today.addSomethingHelper}
               </Text>
             </View>
-          </View>
+          </ScrollView>
         ) : (
           /*
             The ScrollView fills the entire scrollArea (absoluteFill).
@@ -476,16 +502,10 @@ export default function TodayScreen() {
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={scrollHandler}
-            refreshControl={
-              <RefreshControl
-                refreshing={isPullRefreshing}
-                onRefresh={onPullRefresh}
-                tintColor={palette.muted}
-                colors={[palette.accent]}
-                progressBackgroundColor={palette.surface}
-                progressViewOffset={insets.top + 12}
-              />
-            }
+            refreshControl={refreshControl}
+            // Without this, a Today holding fewer tasks than fill the screen
+            // has no overscroll on iOS, so the pull gesture never starts.
+            alwaysBounceVertical
             removeClippedSubviews
             initialNumToRender={10}
             maxToRenderPerBatch={10}
