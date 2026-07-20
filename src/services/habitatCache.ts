@@ -169,6 +169,13 @@ function getDb(): SQLite.SQLiteDatabase {
       `UPDATE habitat_places SET osm_fetched_at = 0
         WHERE poi_type = 'shopping_mall' AND footprint_area_m2 IS NULL AND osm_fetched_at > 0`,
     );
+    // KAN-293 migration — the place's own site, from OSM's `website` tag. Only
+    // ever read back to decide whether the cluster box's leisure line can
+    // offer a ticket link; NULL simply means "OSM has no site for this place"
+    // and the link is omitted. We never fetch to fill it.
+    if (!existingColumns.has('website')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN website TEXT');
+    }
     database.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
     db = database;
   }
@@ -199,6 +206,8 @@ export interface HabitatRow {
   expires_at: number | null;
   /** OSM building-footprint area in m² (KAN-282) — only set for OSM way/relation malls; null for everything else. */
   footprint_area_m2: number | null;
+  /** The place's own site from OSM's `website` tag (KAN-293); null when OSM has none. */
+  website: string | null;
 }
 
 function generateId(): string {
@@ -217,6 +226,8 @@ export interface PlaceCandidate {
   source: { google?: string; osm?: string };
   /** OSM building-footprint area in m² (KAN-282) — only OSM way/relation malls carry this; omitted otherwise. */
   footprintAreaM2?: number;
+  /** The place's own site from OSM's `website` tag (KAN-293); omitted when OSM has none. */
+  website?: string;
 }
 
 /**
@@ -327,6 +338,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
            lng               = CASE WHEN ? = 1 THEN ? ELSE lng END,
            osm_fetched_at    = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
            footprint_area_m2 = COALESCE(?, footprint_area_m2),
+           website           = COALESCE(?, website),
            cache_area_id     = COALESCE(cache_area_id, ?),
            expires_at        = CASE
                                 WHEN ? IS NULL THEN expires_at
@@ -339,6 +351,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
         candidate.source.google ?? null, candidate.source.osm ?? null,
         osmFlag, candidate.lat, osmFlag, candidate.lng, osmFlag, now,
         candidate.footprintAreaM2 ?? null,
+        candidate.website ?? null,
         tripCacheAreaId,
         tripExpiresAt, tripExpiresAt, tripExpiresAt,
         now, match.id,
@@ -354,11 +367,12 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const id = generateId();
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, now, now,
-      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null],
+      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null,
+      candidate.website ?? null],
   );
   return id;
 }
@@ -486,6 +500,7 @@ export function queryHabitatCache(
         lng:     row.lng,
         distanceMeters,
         footprintAreaM2: row.footprint_area_m2 ?? undefined,
+        website:         row.website ?? undefined,
       });
     }
 
@@ -680,6 +695,7 @@ export async function refreshHabitatCacheIfStale(
           lng:             place.lng,
           source:          { osm: place.osmId },
           footprintAreaM2: place.footprintAreaM2,
+          website:         place.website,
         });
         didUpsert = true;
       }

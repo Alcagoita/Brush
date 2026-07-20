@@ -56,7 +56,7 @@ import { getIncomingSharedTasksCount } from '../services/sharing';
 import { checkAndRunTripPreRefresh } from '../services/tripDownload';
 import { deleteExpiredTripPlaces, refreshHabitatCacheIfStale } from '../services/habitatCache';
 import { getMallSnapshot } from '../services/mallSnapshots';
-import { ALL_POI_TYPES } from '../types';
+import { ALL_POI_TYPES, CLUSTER_LEISURE_TYPES } from '../types';
 import { todayISO } from '../utils/date';
 import { lightPalette } from '../theme/tokens';
 
@@ -445,7 +445,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         // opportunistic habitat pool — same "non-fatal, best effort, once per
         // boot" shape as the trip pre-refresh above. No-ops when unset.
         if (userData?.home) {
-          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+          const prefetchTypes = [...new Set([
+            ...ALL_POI_TYPES, ...customCategoryPoiTypes, ...CLUSTER_LEISURE_TYPES,
+          ])];
           refreshHabitatCacheIfStale(userData.home.lat, userData.home.lng, prefetchTypes)
             .catch(err => console.warn('[SplashScreen] home habitat prefetch failed (non-critical)', err));
         }

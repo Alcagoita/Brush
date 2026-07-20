@@ -56,6 +56,11 @@ export interface OsmPlace {
    *  shopping mall (a big building) from a small strip mall or a store
    *  mistagged as one — see mallRoute.ts's size threshold. */
   footprintAreaM2: number;
+  /** The place's own site, from the OSM `website` tag (KAN-293). Already in
+   *  the Overpass response — `out center bb;` returns every tag — so reading
+   *  it costs no extra request. Undefined when OSM has no such tag; we never
+   *  go looking for one. */
+  website?: string;
 }
 
 interface OverpassElement {
@@ -274,6 +279,8 @@ async function fetchOsmPlaces(
         lat:            elLat,
         lng:            elLon,
         footprintAreaM2,
+        // `contact:website` is the other common OSM spelling for the same thing.
+        website:        el.tags.website ?? el.tags['contact:website'],
         distanceMeters: getDistanceMeters(lat, lng, elLat, elLon),
       });
       break;

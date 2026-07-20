@@ -29,6 +29,7 @@ import { useTaskCompletion } from './useTaskCompletion';
 import { useLearnedPlaces } from './useLearnedPlaces';
 import { useErrandBundle } from '../useErrandBundle';
 import type { ErrandBundle } from '../../services/errandBundles';
+import type { ClusterLeisureSuggestion } from '../../services/clusterLeisure';
 import { useFirstSessionGate } from './useFirstSessionGate';
 import { useTripSuggestion } from './useTripSuggestion';
 import type { CalendarSuggestion } from '../../services/tripSuggestions';
@@ -82,6 +83,8 @@ export interface TodayScreenState {
   locationUnavailable: boolean;
   /** Top-ranked errand bundle (KAN-235), or null when none exists / all are dismissed for today. */
   errandBundle: ErrandBundle | null;
+  /** KAN-293 — a leisure place among the current bundle's stops, or null. */
+  errandBundleLeisure: ClusterLeisureSuggestion | null;
   /** Hides the current errandBundle for the rest of the day. */
   dismissErrandBundle: () => void;
   /** Contextual trip suggestion (KAN-245 calendar signal), or null when none qualifies / already dismissed / first session. */
@@ -120,7 +123,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // Pure computation over data useProximityEngine already holds each tick
   // (KAN-235) — no new timer, no new location subscription.
-  const { bundle: errandBundle, dismiss: dismissErrandBundle } = useErrandBundle(data.tasks, proximity.poiPlaces);
+  const {
+    bundle: errandBundle,
+    leisure: errandBundleLeisure,
+    dismiss: dismissErrandBundle,
+  } = useErrandBundle(data.tasks, proximity.poiPlaces);
 
   useEffect(() => {
     setLearnedPlaces(learnedPlaces);
@@ -183,6 +190,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     refreshProximity: proximity.refreshProximity,
     locationUnavailable: proximity.locationUnavailable,
     errandBundle,
+    errandBundleLeisure,
     dismissErrandBundle,
     tripSuggestion,
     dismissTripSuggestion,

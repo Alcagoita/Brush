@@ -111,7 +111,7 @@ import {
   resetProximityState,
   setCustomCategoryPoiTypes,
 } from '../../src/services/proximity';
-import { ALL_POI_TYPES } from '../../src/types';
+import { ALL_POI_TYPES, CLUSTER_LEISURE_TYPES } from '../../src/types';
 import type { Task } from '../../src/types';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -159,7 +159,13 @@ describe('habitat cache prefetch covers all POI types', () => {
     // KAN-282 — shopping_mall is prefetched alongside the built-ins so the
     // "All in one place" mall card has OSM data (footprints included) to work
     // from offline. It isn't in ALL_POI_TYPES: it's never a task category.
-    expect(new Set(prefetchedTypes)).toEqual(new Set([...ALL_POI_TYPES, 'shopping_mall']));
+    // KAN-293 — the leisure types ride along in the SAME request for the same
+    // reason: the cluster box's companion line reads them purely from the
+    // cache, so they must already be there. `park` is absent from this extra
+    // set because it's a real PoiType, already inside ALL_POI_TYPES.
+    expect(new Set(prefetchedTypes)).toEqual(
+      new Set([...ALL_POI_TYPES, 'shopping_mall', ...CLUSTER_LEISURE_TYPES]),
+    );
     expect(ALL_POI_TYPES).toHaveLength(16);
     // Explicitly proves the fix: pharmacy has no open task this tick, yet
     // it's still prefetched — this is exactly the "buy aspirin later" gap.

@@ -11,9 +11,11 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import ErrandBundleCard from '../../src/components/ErrandBundleCard';
 import { COPY } from '../../src/constants/copy';
 import type { ErrandBundle } from '../../src/services/errandBundles';
+import type { ClusterLeisureSuggestion } from '../../src/services/clusterLeisure';
 import type { Task } from '../../src/types';
 
 jest.mock('../../src/theme', () => ({
@@ -347,5 +349,148 @@ describe('ErrandBundleCard — selecting which stops to include (KAN-283)', () =
     expect(stopA11y('t1').props.accessibilityState).toMatchObject({ checked: true });
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(3))).toBeTruthy();
     jest.useRealTimers();
+  });
+});
+
+// ─── KAN-293 — leisure companion line ─────────────────────────────────────────
+
+/** A leisure suggestion as findClusterLeisure would return one. */
+function makeLeisure(overrides: Partial<ClusterLeisureSuggestion> = {}): ClusterLeisureSuggestion {
+  return {
+    place: { placeId: 'park-1', name: 'Central Park', lat: 1, lng: 2, distanceMeters: 90 },
+    type: 'park',
+    distanceToStopMeters: 60,
+    ...overrides,
+  };
+}
+
+async function openSheetWithLeisure(props: Partial<React.ComponentProps<typeof ErrandBundleCard>> = {}) {
+  render(
+    <ErrandBundleCard
+      bundle={makeBundle()}
+      onDismiss={jest.fn()}
+      leisure={makeLeisure()}
+      {...props}
+    />,
+  );
+  await act(async () => {
+    fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
+  });
+}
+
+describe('ErrandBundleCard — leisure companion line (KAN-293)', () => {
+  it('says nothing at all when there is no leisure place', async () => {
+    render(<ErrandBundleCard bundle={makeBundle()} onDismiss={jest.fn()} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
+    });
+    expect(screen.queryByTestId('errand-bundle-leisure')).toBeNull();
+  });
+
+  it('invites a walk for a park', async () => {
+    await openSheetWithLeisure();
+    expect(screen.getByText(COPY.errandBundle.leisureParkLine('Central Park'))).toBeTruthy();
+  });
+
+  it('uses the plainer line for a museum — no walk framing', async () => {
+    await openSheetWithLeisure({
+      leisure: makeLeisure({
+        type: 'museum',
+        place: { placeId: 'm-1', name: 'The History Museum', lat: 1, lng: 2, distanceMeters: 80 },
+      }),
+    });
+    expect(screen.getByText(COPY.errandBundle.leisureOtherLine('The History Museum'))).toBeTruthy();
+  });
+
+  it('never counts the leisure place as a stop in the route', async () => {
+    await openSheetWithLeisure();
+    // Still two stops — the park is an aside, not a cluster member.
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
+  });
+
+  it('hands the suggestion up on "Keep it in mind" — the screen creates the task', async () => {
+    const onKeepLeisureInMind = jest.fn();
+    await openSheetWithLeisure({ onKeepLeisureInMind });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
+    });
+
+    expect(onKeepLeisureInMind).toHaveBeenCalledTimes(1);
+    expect(onKeepLeisureInMind.mock.calls[0][0].place.name).toBe('Central Park');
+  });
+
+  it('confirms quietly once kept, and cannot be kept twice', async () => {
+    const onKeepLeisureInMind = jest.fn();
+    await openSheetWithLeisure({ onKeepLeisureInMind });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
+    });
+    expect(screen.getByText(COPY.errandBundle.leisureKeptConfirmation('Central Park'))).toBeTruthy();
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
+    });
+    expect(onKeepLeisureInMind).toHaveBeenCalledTimes(1);
+  });
+
+  it('never completes or dismisses anything when the invitation is accepted', async () => {
+    const onDismiss = jest.fn();
+    await openSheetWithLeisure({ onDismiss, onKeepLeisureInMind: jest.fn() });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
+    });
+
+    expect(onDismiss).not.toHaveBeenCalled();
+    expect(screen.getByText('Get cash')).toBeTruthy();
+    expect(screen.getByText('Buy stamps')).toBeTruthy();
+  });
+
+  it('offers no ticket link when the cached place has no website', async () => {
+    await openSheetWithLeisure();
+    expect(screen.queryByTestId('errand-bundle-leisure-tickets')).toBeNull();
+  });
+
+  it('offers the ticket link only when the cache already holds a URL, and opens it externally', async () => {
+    await openSheetWithLeisure({
+      leisure: makeLeisure({
+        place: {
+          placeId: 'aq-1', name: 'City Aquarium', lat: 1, lng: 2, distanceMeters: 70,
+          website: 'https://aquarium.example',
+        },
+        type: 'aquarium',
+      }),
+    });
+
+    const openURL = jest.spyOn(Linking, 'openURL').mockResolvedValue(true);
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-leisure-tickets'));
+    });
+
+    expect(openURL).toHaveBeenCalledWith('https://aquarium.example');
+    openURL.mockRestore();
+  });
+
+  it('starts fresh on reopen — a kept invitation does not linger as kept', async () => {
+    await openSheetWithLeisure({ onKeepLeisureInMind: jest.fn() });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
+    });
+    expect(screen.getByText(COPY.errandBundle.leisureKeptConfirmation('Central Park'))).toBeTruthy();
+
+    jest.useFakeTimers();
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.closeA11y));
+      jest.runAllTimers();
+    });
+    jest.useRealTimers();
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
+    });
+    expect(screen.queryByText(COPY.errandBundle.leisureKeptConfirmation('Central Park'))).toBeNull();
   });
 });
