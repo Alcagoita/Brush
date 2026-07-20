@@ -152,6 +152,26 @@ describe('usePullRefresh — the spinner tells the truth', () => {
     expect(refreshTasks).toHaveBeenCalledTimes(1);
   });
 
+  // Regression: refreshTasks used to be fire-and-forget (`() => void`), so
+  // the Firestore fan-out — the slowest part of a refresh — was never
+  // awaited and the pull settled while it was still running. Call-count
+  // assertions cannot catch that; this holds the promise open instead.
+  it('waits for the task fetch, not just the fast sources', async () => {
+    let releaseTasks!: () => void;
+    const refreshTasks     = jest.fn(() => new Promise<void>(r => { releaseTasks = r; }));
+    const refreshProximity = jest.fn().mockResolvedValue(true);   // fast
+    const { result } = renderHook(() => usePullRefresh(refreshTasks, refreshProximity));
+
+    let pending!: Promise<void>;
+    await act(async () => { pending = result.current.onPullRefresh(); });
+
+    // Proximity has already answered; the task fetch has not.
+    expect(result.current.isPullRefreshing).toBe(true);
+
+    await act(async () => { releaseTasks(); await pending; });
+    expect(result.current.isPullRefreshing).toBe(false);
+  });
+
   it('stays up for exactly as long as the services take, no minimum', async () => {
     const refreshTasks = jest.fn();
     let release!: () => void;

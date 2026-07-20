@@ -51,8 +51,8 @@ export interface TodayScreenState {
   onPullRefresh:    () => Promise<void>;
   /** Non-null when the fetch failed. Cleared on next successful fetch. */
   error:            string | null;
-  /** Call to re-run the full data fetch (pull-to-refresh, error retry, or after task creation). */
-  refresh:          () => void;
+  /** Call to re-run the full data fetch (pull-to-refresh, error retry, or after task creation). Awaitable. */
+  refresh:          () => Promise<void>;
   /** Active nearby POI type from the proximity engine. Null when none nearby. */
   nearbyPoiType:    string | null;
   nearbyPlace:      NearbyPlace | null;

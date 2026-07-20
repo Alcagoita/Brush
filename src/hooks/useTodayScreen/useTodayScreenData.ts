@@ -58,7 +58,10 @@ export interface TodayScreenData {
   isLoading:         boolean;
   isRefreshing:      boolean;
   error:             string | null;
-  refresh:           () => void;
+  /** Re-runs the full fetch. Returns the in-flight promise so callers that
+   *  need to know when the data has actually landed (pull-to-refresh) can
+   *  await it — firing and forgetting made a refresh look instantaneous. */
+  refresh:           () => Promise<void>;
   customCategories:  Category[];
   totalPoints:       number;
   setTotalPoints:    React.Dispatch<React.SetStateAction<number>>;
@@ -321,7 +324,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     loadData();
   }, [loadData]);
 
-  const refresh = useCallback(() => { loadData(true); }, [loadData]);
+  const refresh = useCallback(() => loadData(true), [loadData]);
 
   // ── Wear OS sync (KAN-35) ──────────────────────────────────────────────────
 
