@@ -99,6 +99,25 @@ jest.mock('../../src/store/appStore', () => ({
   },
 }));
 
+// useTaskCompletion imports rewardFunctions, which reaches
+// @react-native-firebase/functions — a native module unavailable under Jest,
+// and the reason this whole suite failed to load. Stub at the service
+// boundary; these tests are about the hook's derived state, not the reward
+// round-trip (that lives server-side since KAN-271).
+// useErrandBundle -> clusterLeisure -> habitatCache -> expo-sqlite (ESM,
+// untransformed under this config). Stub the leisure lookup itself; the
+// bundle service above is already mocked, and neither is what these tests
+// assert on. See __tests__/services/clusterLeisure.test.ts for its own suite.
+jest.mock('../../src/services/clusterLeisure', () => ({
+  findClusterLeisure:  jest.fn(() => null),
+  leisureTaskPoiType:  jest.fn(() => 'park'),
+}));
+
+jest.mock('../../src/services/rewardFunctions', () => ({
+  processTaskCompletionRewards: jest.fn().mockResolvedValue({ totalPoints: 0, nudgeCandidate: null }),
+  awardOnboardingBonus:         jest.fn().mockResolvedValue(undefined),
+}));
+
 jest.mock('../../src/services/achievements', () => ({
   evaluateAchievements:         jest.fn().mockResolvedValue({ nudgeCandidate: null }),
   checkAndFireAchievementNudge: jest.fn().mockResolvedValue(undefined),
@@ -122,6 +141,10 @@ jest.mock('../../src/services/geolocation', () => ({
 
 jest.mock('../../src/services/proximity', () => ({
   runProximitySearch:            (...args: unknown[]) => mockRunProximitySearch(...args),
+  // The automatic paths (mount, foreground) go through the snapshot-reusing
+  // wrapper since the KAN-285 follow-up; the mock predated it and omitting it
+  // threw "is not a function" out of the hook's mount effect.
+  runProximitySearchOrReuseSnapshot: (...args: unknown[]) => mockRunProximitySearch(...args),
   getLastSearchCoords:           jest.fn().mockReturnValue(null),
   updateProximityPoiPreferences: jest.fn(),
   setLocationTap:                jest.fn(),
@@ -445,7 +468,73 @@ describe('useTodayScreen — progress derived values', () => {
     expect(result.current.totalTasks).toBe(3);
     expect(result.current.doneTasks).toBe(1);
     expect(result.current.progress).toBeCloseTo(1 / 3);
+    // KAN-287 — nothing resolved yet, so nothing is "nearby" regardless of
+    // how many tasks carry a POI type.
+    expect(result.current.nearbyCount).toBe(0);
+
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    const place = { placeId: 'p-1', name: 'Corner Pharmacy', lat: 1, lng: 2, distanceMeters: 30 };
+    await act(async () => { onUpdate('pharmacy', place, { pharmacy: [place] }); });
+
     expect(result.current.nearbyCount).toBe(1);
+  });
+
+  describe('nearbyCount (KAN-287)', () => {
+    const placeFor = (name: string) => ({ placeId: `p-${name}`, name, lat: 1, lng: 2, distanceMeters: 30 });
+
+    /** Renders, then drives the proximity engine's onUpdate with `poiPlaces`. */
+    async function renderWithPlaces(tasks: unknown[], poiPlaces: Record<string, unknown[]>) {
+      mockGetTasksForDate.mockResolvedValue(tasks);
+      const { result } = renderHook(() => useTodayScreen(UID));
+      await act(async () => {});
+      const onUpdate = mockRunProximitySearch.mock.calls[0]?.[2];
+      if (onUpdate) { await act(async () => { onUpdate(null, null, poiPlaces); }); }
+      return result;
+    }
+
+    it('does not count a task whose POI type resolved no place', async () => {
+      const result = await renderWithPlaces([{ ...POI_TASK, poi: 'pharmacy' }], { pharmacy: [] });
+      expect(result.current.nearbyCount).toBe(0);
+    });
+
+    it('does not count a done task even when its place is right there', async () => {
+      const result = await renderWithPlaces(
+        [{ ...POI_TASK, poi: 'pharmacy', done: true }],
+        { pharmacy: [placeFor('Corner Pharmacy')] },
+      );
+      expect(result.current.nearbyCount).toBe(0);
+    });
+
+    it('does not count a task with no POI type at all', async () => {
+      const result = await renderWithPlaces([TASK], { pharmacy: [placeFor('Corner Pharmacy')] });
+      expect(result.current.nearbyCount).toBe(0);
+    });
+
+    it('counts each open task whose own POI type resolved a place', async () => {
+      const result = await renderWithPlaces(
+        [
+          { ...POI_TASK, id: 'a', poi: 'pharmacy' },
+          { ...POI_TASK, id: 'b', poi: 'cafe' },
+          { ...POI_TASK, id: 'c', poi: 'atm' },      // no places for atm
+          { ...POI_TASK, id: 'd', poi: 'cafe', done: true },
+          TASK,                                       // no poi
+        ],
+        { pharmacy: [placeFor('Pharmacy')], cafe: [placeFor('Cafe')], atm: [] },
+      );
+      // a + b only.
+      expect(result.current.nearbyCount).toBe(2);
+    });
+
+    it('counts two open tasks sharing one resolved POI type as two, not one', async () => {
+      const result = await renderWithPlaces(
+        [
+          { ...POI_TASK, id: 'a', poi: 'pharmacy' },
+          { ...POI_TASK, id: 'b', poi: 'pharmacy' },
+        ],
+        { pharmacy: [placeFor('Corner Pharmacy')] },
+      );
+      expect(result.current.nearbyCount).toBe(2);
+    });
   });
 
   it('excludes birthday tasks (KAN-248) from totalTasks/doneTasks/progress but not the task list', async () => {
