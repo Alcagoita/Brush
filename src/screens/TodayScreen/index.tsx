@@ -32,7 +32,6 @@ import {
   ActivityIndicator,
   Pressable,
   RefreshControl,
-  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -178,10 +177,19 @@ export default function TodayScreen() {
   const month   = getMonths()[now.getMonth()];
   const day     = now.getDate();
 
-  // KAN-288 — one RefreshControl shared by both branches below. The empty
-  // state and the task list are separate scroll containers, and the gesture
-  // has to work in BOTH: an empty Today is exactly when a user reaches for
-  // refresh, and it was the branch that had no control at all.
+  // KAN-288 — refresh belongs to the task list only: the zone below the ring,
+  // which already has its own overscroll. The ring/calendar zone is left
+  // alone deliberately — nobody pulls a calendar, and turning the whole
+  // screen into one pull surface risks the scroll behaviour KAN-157 was
+  // about.
+  //
+  // progressViewOffset is the whole trick. This list is absoluteFill, so its
+  // scroll origin is the TOP OF THE SCREEN, while the ring section sits
+  // absolutely positioned over the first SECTION_H_REST px of it. At the
+  // default offset the spinner renders underneath the ring — present, doing
+  // its job, completely invisible, which reads as a dead gesture. Offsetting
+  // by SECTION_H_REST drops it to where the list's content actually starts,
+  // i.e. the first pixel the user can see move.
   const refreshControl = (
     <RefreshControl
       refreshing={isPullRefreshing}
@@ -189,7 +197,7 @@ export default function TodayScreen() {
       tintColor={palette.muted}
       colors={[palette.accent]}
       progressBackgroundColor={palette.surface}
-      progressViewOffset={insets.top + 12}
+      progressViewOffset={SECTION_H_REST}
     />
   );
 
@@ -428,18 +436,8 @@ export default function TodayScreen() {
       <View style={styles.scrollArea}>
 
         {DEBUG_SHOW_LIST && (isEmpty ? (
-          /* ── Empty state body (KAN-139) — nudge + CTA ──
-             Still non-scrolling in the sense KAN-139 meant: flexGrow keeps the
-             content filling one screen with nothing to scroll to. It's a
-             ScrollView purely so the pull gesture exists here at all —
-             alwaysBounceVertical is what lets a full-height, non-overflowing
-             container be pulled (KAN-288). */
-          <ScrollView
-            style={StyleSheet.absoluteFill}
-            contentContainerStyle={{ flexGrow: 1, paddingTop: SECTION_H_REST }}
-            showsVerticalScrollIndicator={false}
-            alwaysBounceVertical
-            refreshControl={refreshControl}>
+          /* ── Empty state body (KAN-139) — no scroll, nudge + CTA ── */
+          <View style={[StyleSheet.absoluteFill, { paddingTop: SECTION_H_REST }]}>
             <ScrRotatingNudge
               messages={buildEmptyMessages(() => navigation.push('TripPlanner'))}
               pace={5}
@@ -464,7 +462,7 @@ export default function TodayScreen() {
                 {COPY.today.addSomethingHelper}
               </Text>
             </View>
-          </ScrollView>
+          </View>
         ) : (
           /*
             The ScrollView fills the entire scrollArea (absoluteFill).
@@ -474,18 +472,10 @@ export default function TodayScreen() {
             same distance — they stay in perfect alignment throughout.
           */
           /*
-            KAN-288 — screen-wide pull-to-refresh, always reachable. The
-            NearbyCard arrow only exists when a Nearby section is rendered,
-            so with no nearby places there was previously no way to refresh.
-
-            progressViewOffset is not cosmetic: this list is absoluteFill
-            with the ring section absolutely positioned ON TOP of it, so the
-            spinner's default position sits behind the ring. Offsetting it
-            clear of the header is what makes it visible at all.
-
-            RefreshControl drives its own spinner and never touches onScroll,
-            so useCollapseAnimation's handler — and the 3-state snap it feeds
-            (KAN-157) — are unaffected.
+            KAN-288 — pull-to-refresh lives on this list (see refreshControl
+            above). RefreshControl drives its own spinner and never touches
+            onScroll, so useCollapseAnimation's handler — and the 3-state
+            snap it feeds (KAN-157) — are unaffected.
           */
           <Animated.FlatList
             style={StyleSheet.absoluteFill}
@@ -503,9 +493,6 @@ export default function TodayScreen() {
             scrollEventThrottle={16}
             onScroll={scrollHandler}
             refreshControl={refreshControl}
-            // Without this, a Today holding fewer tasks than fill the screen
-            // has no overscroll on iOS, so the pull gesture never starts.
-            alwaysBounceVertical
             removeClippedSubviews
             initialNumToRender={10}
             maxToRenderPerBatch={10}
