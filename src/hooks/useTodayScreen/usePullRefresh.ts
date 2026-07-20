@@ -19,10 +19,18 @@
  * sees is always the truth about what is happening.
  */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Minimum gap between real refreshes. */
 export const REFRESH_THROTTLE_MS = 30_000;
+
+/**
+ * How long the "already up to date" notice stays on screen after a throttled
+ * pull. This is a reading duration for a message, NOT a fake loading delay —
+ * nothing is blocked or pending while it shows, and the spinner never
+ * appears alongside it.
+ */
+export const THROTTLE_NOTICE_MS = 2_000;
 
 export interface PullRefreshState {
   /**
@@ -32,6 +40,13 @@ export interface PullRefreshState {
    * protect: a tap during it cannot land on data that is about to change.
    */
   isPullRefreshing: boolean;
+  /**
+   * True for a moment after a pull that was throttled, so the screen can say
+   * why nothing loaded. Without it a throttled pull is indistinguishable
+   * from a real one that returned fast — both just snap back — and the user
+   * has no way to tell the difference.
+   */
+  showThrottleNotice: boolean;
   onPullRefresh: () => Promise<void>;
 }
 
@@ -48,6 +63,14 @@ export function usePullRefresh(
   extras: Array<() => void | Promise<unknown>> = [],
 ): PullRefreshState {
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+  const [showThrottleNotice, setShowThrottleNotice] = useState(false);
+  const noticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // The notice is the only thing here that owns a timer, so it's the only
+  // thing that can outlive the screen. Clear it on unmount.
+  useEffect(() => () => {
+    if (noticeTimerRef.current) { clearTimeout(noticeTimerRef.current); }
+  }, []);
 
   // A ref, not state: the timestamp must never trigger a re-render of this
   // animation-heavy screen, and the throttle has to read the CURRENT value
@@ -63,16 +86,27 @@ export function usePullRefresh(
 
     const now = Date.now();
     if (now - lastRefreshAtRef.current < REFRESH_THROTTLE_MS) {
-      // Nothing to load, so nothing to wait for. The gesture is still
-      // accepted — the pull's own elastic animation played during the drag,
-      // which is the feedback that the action registered — it just settles
-      // immediately. Holding a spinner open here would claim work that is
-      // not happening.
+      // Nothing to load, so nothing to wait for: settle immediately rather
+      // than holding a spinner open over work that is not happening. Say why
+      // instead — a silent snap-back is indistinguishable from a real
+      // refresh that returned fast.
+      if (noticeTimerRef.current) { clearTimeout(noticeTimerRef.current); }
+      setShowThrottleNotice(true);
+      noticeTimerRef.current = setTimeout(() => {
+        setShowThrottleNotice(false);
+        noticeTimerRef.current = null;
+      }, THROTTLE_NOTICE_MS);
       return;
     }
 
     lastRefreshAtRef.current = now;
     inFlightRef.current = true;
+    // A real refresh supersedes a lingering notice from a previous pull.
+    if (noticeTimerRef.current) {
+      clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+    setShowThrottleNotice(false);
     setIsPullRefreshing(true);
     try {
       await Promise.allSettled([
@@ -90,5 +124,5 @@ export function usePullRefresh(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshTasks, refreshProximity]);
 
-  return { isPullRefreshing, onPullRefresh };
+  return { isPullRefreshing, showThrottleNotice, onPullRefresh };
 }

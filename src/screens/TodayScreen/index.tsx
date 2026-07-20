@@ -120,6 +120,7 @@ export default function TodayScreen() {
     nearbyReady,
     refreshProximity,
     isPullRefreshing,
+    showThrottleNotice,
     onPullRefresh,
     errandBundle,
     errandBundleLeisure,
@@ -632,6 +633,20 @@ export default function TodayScreen() {
         onTurnOn={onStoreTuningTurnOn}
         onNotNow={onStoreTuningNotNow}
       />
+
+      {/* ── KAN-288 throttle notice ──
+           A pull inside the throttle window loads nothing and settles
+           instantly, which on its own is indistinguishable from a real
+           refresh that returned fast. This says which it was. Sits at the
+           top of the list zone — where the user just pulled — and never
+           blocks input: it is information, not a state. */}
+      {showThrottleNotice && (
+        <View style={styles.throttleNotice} pointerEvents="none">
+          <Text style={[styles.throttleNoticeLabel, { color: palette.muted, backgroundColor: palette.surface2 }]}>
+            {COPY.today.refreshedRecently}
+          </Text>
+        </View>
+      )}
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ──
            KAN-288: also covers a pull-refresh, for exactly as long as the

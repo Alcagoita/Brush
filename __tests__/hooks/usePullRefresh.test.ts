@@ -14,6 +14,7 @@ import { act, renderHook } from '@testing-library/react-native';
 import {
   usePullRefresh,
   REFRESH_THROTTLE_MS,
+  THROTTLE_NOTICE_MS,
 } from '../../src/hooks/useTodayScreen/usePullRefresh';
 
 let nowMs = 1_000_000;
@@ -166,6 +167,75 @@ describe('usePullRefresh — the spinner tells the truth', () => {
     // The moment they answer it comes down; nothing pads it out.
     await act(async () => { release(); await first; });
     expect(result.current.isPullRefreshing).toBe(false);
+  });
+});
+
+describe('usePullRefresh — the throttle notice', () => {
+  // Without a notice, a throttled pull and a fast real one look identical
+  // (both snap straight back), so the user cannot tell which happened.
+  it('does not appear after a real refresh — nothing to explain', async () => {
+    const { result } = setup();
+
+    await pull(result);
+
+    expect(result.current.showThrottleNotice).toBe(false);
+  });
+
+  it('appears after a throttled pull, without ever showing the spinner', async () => {
+    const { result } = setup();
+
+    await pull(result);
+    advanceClock(1_000);
+    await pull(result);
+
+    expect(result.current.showThrottleNotice).toBe(true);
+    expect(result.current.isPullRefreshing).toBe(false);
+  });
+
+  it('clears itself after the reading window', async () => {
+    const { result } = setup();
+
+    await pull(result);
+    advanceClock(1_000);
+    await pull(result);
+    expect(result.current.showThrottleNotice).toBe(true);
+
+    await act(async () => { jest.advanceTimersByTime(THROTTLE_NOTICE_MS); });
+
+    expect(result.current.showThrottleNotice).toBe(false);
+  });
+
+  it('a real refresh supersedes a notice still on screen', async () => {
+    const { result } = setup();
+
+    await pull(result);
+    advanceClock(1_000);
+    await pull(result);                       // throttled -> notice up
+    expect(result.current.showThrottleNotice).toBe(true);
+
+    advanceClock(REFRESH_THROTTLE_MS);        // window reopens
+    await pull(result);                       // real refresh
+
+    expect(result.current.showThrottleNotice).toBe(false);
+  });
+
+  it('a repeated throttled pull restarts the window rather than stacking timers', async () => {
+    const { result } = setup();
+
+    await pull(result);
+    advanceClock(1_000);
+    await pull(result);                       // notice up
+
+    // Second throttled pull most of a window later; the notice must survive
+    // a further full window from THIS pull, not expire on the first timer.
+    await act(async () => { jest.advanceTimersByTime(THROTTLE_NOTICE_MS - 100); });
+    await pull(result);
+    await act(async () => { jest.advanceTimersByTime(THROTTLE_NOTICE_MS - 100); });
+
+    expect(result.current.showThrottleNotice).toBe(true);
+
+    await act(async () => { jest.advanceTimersByTime(200); });
+    expect(result.current.showThrottleNotice).toBe(false);
   });
 });
 

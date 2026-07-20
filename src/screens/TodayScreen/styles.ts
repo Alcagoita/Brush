@@ -20,6 +20,27 @@ export const styles = StyleSheet.create({
     zIndex: 100,
   },
   stickyHeader: { zIndex: 3 },
+  // KAN-288 — sits just below the ring, where the pull gesture happens, and
+  // above the list so it isn't clipped by rows. Below loadingOverlay's
+  // zIndex 100: the two never show together, but a real refresh starting
+  // mid-notice should cover it, not sit under it.
+  throttleNotice: {
+    position:   'absolute',
+    top:        SECTION_H_REST + 8,
+    left:       0,
+    right:      0,
+    alignItems: 'center',
+    zIndex:     50,
+  },
+  throttleNoticeLabel: {
+    fontSize:          12.5,
+    fontFamily:        'Geist-Medium',
+    fontWeight:        '500',
+    paddingHorizontal: 12,
+    paddingVertical:   6,
+    borderRadius:      radius.chip,
+    overflow:          'hidden',
+  },
   // scrollArea fills all space below the sticky header. The ring section
   // is absolutely positioned at top:0 of scrollArea (zIndex 2), and the
   // ScrollView is absoluteFill behind it with paddingTop = SECTION_H_REST.
