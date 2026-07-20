@@ -106,7 +106,8 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
       if (next.has(taskId)) {
         next.delete(taskId);       // re-including is always allowed
       } else {
-        if (!canDeselect) { return prev; }
+        const activeCount = bundle.entries.length - prev.size;
+        if (activeCount <= MIN_BUNDLE_TASKS) { return prev; }
         next.add(taskId);
       }
       return next;
@@ -267,7 +268,7 @@ export default function ErrandBundleCard({ bundle, onDismiss }: ErrandBundleCard
                 onPress={handleOpenAllStops}
                 accessibilityRole="button"
                 accessibilityLabel={COPY.errandBundle.openAllInMapsA11y(routeStops.length)}>
-                <Text style={[styles.mapsLabel, { color: palette.text }]}>
+                <Text style={[styles.mapsLabel, { color: palette.text, fontVariant: ['tabular-nums'] }]}>
                   {COPY.errandBundle.openAllInMaps(routeStops.length)}
                 </Text>
               </Pressable>
