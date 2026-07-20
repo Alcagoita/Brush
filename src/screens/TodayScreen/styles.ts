@@ -20,6 +20,16 @@ export const styles = StyleSheet.create({
     zIndex: 100,
   },
   stickyHeader: { zIndex: 3 },
+  // KAN-288 — pull-refresh overlay content: dots + label, centred.
+  pullLoadingWrap: {
+    alignItems: 'center',
+    gap:        12,
+  },
+  pullLoadingLabel: {
+    fontSize:   14,
+    fontFamily: 'Geist-Medium',
+    fontWeight: '500',
+  },
   // KAN-288 — sits just below the ring, where the pull gesture happens, and
   // above the list so it isn't clipped by rows. Below loadingOverlay's
   // zIndex 100: the two never show together, but a real refresh starting

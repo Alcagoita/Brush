@@ -29,6 +29,7 @@ export const lightPalette = {
   danger:     '#e05252',   // declined / error status
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
   scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
+  scrimLight: 'rgba(0,0,0,0.12)', // lighter dim for the pull-refresh overlay (KAN-288) — present but not heavy
   selectedRingTrack: 'rgba(255,255,255,0.20)', // CalendarRing inside a selected cell (bg = palette.text) — opposite tone of the theme
   selectedRingArc:   'rgba(255,255,255,0.88)',
   separatorStrong:   'rgba(20,20,18,0.14)',    // NearbyCard row divider — stronger than the default `line` token
@@ -53,6 +54,7 @@ export const darkPalette = {
   danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
   scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
+  scrimLight: 'rgba(0,0,0,0.12)', // lighter dim for the pull-refresh overlay (KAN-288)
   selectedRingTrack: 'rgba(0,0,0,0.16)',       // CalendarRing inside a selected cell (bg = palette.text) — opposite tone of the theme
   selectedRingArc:   'rgba(20,18,14,0.82)',
   separatorStrong:   'rgba(255,255,255,0.14)', // NearbyCard row divider — stronger than the default `line` token
@@ -77,6 +79,7 @@ export type Palette = {
   danger: string;
   onAccent: string;
   scrim: string;
+  scrimLight: string;
   selectedRingTrack: string;
   selectedRingArc: string;
   separatorStrong: string;

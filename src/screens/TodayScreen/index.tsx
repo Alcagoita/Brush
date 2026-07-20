@@ -79,6 +79,7 @@ import {
 } from './constants';
 import { useCollapseAnimation } from './useCollapseAnimation';
 import { SkeletonRow } from './SkeletonRow';
+import LoadingDots from '../../components/LoadingDots';
 import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
@@ -662,13 +663,28 @@ export default function TodayScreen() {
            "box-only"` does the blocking: the overlay takes every touch and
            passes none through. */}
       {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
-        <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
-          {/* During a pull the loading signal is RefreshControl's own arrow,
-              which stays for the whole fetch — the overlay here is purely a
-              touch block and must not add a second indicator on top of it.
-              The initial load has no pull gesture behind it, so that case
-              still needs one. */}
-          {isLoading && <ActivityIndicator size="large" color={palette.accent} />}
+        <View
+          style={[
+            styles.loadingOverlay,
+            // Pull-refresh dims lighter than the initial load — the native
+            // arrow already signals loading, so this only needs to say
+            // "hands off for a moment", not black the screen out.
+            { backgroundColor: isLoading ? palette.scrim : palette.scrimLight },
+          ]}
+          pointerEvents="box-only">
+          {isLoading ? (
+            <ActivityIndicator size="large" color={palette.accent} />
+          ) : (
+            /* Pull-refresh: the native pull arrow does its own thing above;
+               this is the "working on it" payoff, the same LoadingDots used
+               on Trip Planner / Itinerary Options. */
+            <View style={styles.pullLoadingWrap}>
+              <LoadingDots color={palette.accent} />
+              <Text style={[styles.pullLoadingLabel, { color: palette.muted }]}>
+                {COPY.today.refreshingForYou}
+              </Text>
+            </View>
+          )}
         </View>
       )}
     </View>
