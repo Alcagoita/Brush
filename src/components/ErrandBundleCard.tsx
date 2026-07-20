@@ -312,6 +312,7 @@ export default function ErrandBundleCard({
                     style={[styles.leisureBtn, { borderColor: palette.line }]}
                     onPress={handleKeepLeisure}
                     disabled={leisureKept}
+                    hitSlop={4}
                     accessibilityRole="button"
                     accessibilityLabel={COPY.errandBundle.leisureKeepInMindA11y(leisure.place.name)}>
                     <Text style={[styles.leisureBtnLabel, { color: leisureKept ? palette.faint : palette.text }]}>
@@ -325,6 +326,7 @@ export default function ErrandBundleCard({
                       testID="errand-bundle-leisure-tickets"
                       style={[styles.leisureBtn, { borderColor: palette.line }]}
                       onPress={handleLeisureTickets}
+                      hitSlop={4}
                       accessibilityRole="button"
                       accessibilityLabel={COPY.errandBundle.leisureGetTicketsA11y(leisure.place.name)}>
                       <Text style={[styles.leisureBtnLabel, { color: palette.text }]}>

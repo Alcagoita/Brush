@@ -59,7 +59,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
 import { consumeTasksDirty } from '../../services/taskMutationSignal';
 import { COPY } from '../../constants/copy';
-import { localDateISO } from '../../utils/date';
+import { localDateISO, todayISO } from '../../utils/date';
 import { addTask } from '../../services/firestore/tasks';
 import { leisureTaskPoiType } from '../../services/clusterLeisure';
 import type { ClusterLeisureSuggestion } from '../../services/clusterLeisure';
@@ -155,7 +155,7 @@ export default function TodayScreen() {
       category:   'personal',
       poi:        leisureTaskPoiType(suggestion.type),
       poiPlaceId: suggestion.place.placeId,
-      date:       localDateISO(new Date()),
+      date:       todayISO(),
       done:       false,
     })
       .then(() => refresh())
