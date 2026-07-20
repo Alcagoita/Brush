@@ -655,14 +655,21 @@ export default function TodayScreen() {
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ──
            KAN-288: also covers a pull-refresh, for exactly as long as the
-           services take — no minimum, no padding. A throttled pull never
-           reaches here at all: it has nothing to load, so there is nothing
-           for a stray tap to corrupt and no reason to freeze the screen. We
-           throttle the service calls, never the person. `pointerEvents=
+           services take. During a pull, the overlay starts below the native
+           RefreshControl indicator so the rotating arrow remains visible
+           while the calls are in flight. A throttled pull never reaches here:
+           it has nothing to load, so there is nothing for a stray tap to
+           corrupt and no reason to freeze the screen. `pointerEvents=
            "box-only"` does the blocking: the overlay takes every touch and
            passes none through. */}
       {(isLoading || isPullRefreshing) && !DEBUG_MINIMAL && (
-        <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
+        <View
+          style={[
+            styles.loadingOverlay,
+            isPullRefreshing && !isLoading && styles.pullRefreshLoadingOverlay,
+            { backgroundColor: palette.scrim },
+          ]}
+          pointerEvents="box-only">
           {/* During a pull the loading signal is RefreshControl's own arrow,
               which stays for the whole fetch — the overlay here is purely a
               touch block and must not add a second indicator on top of it.
