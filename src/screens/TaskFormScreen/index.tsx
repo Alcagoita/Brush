@@ -157,10 +157,10 @@ export default function TaskFormScreen() {
   });
   const [focused,       setFocused]       = useState(false);
   const [suggestedPoi, setSuggestedPoi] = useState<string | null>(
-    hasExplicitInitialPoi ? null : initialPoi ?? null,
+    existingTask?.poi ?? (hasExplicitInitialPoi ? null : initialPoi ?? null),
   );
   const [suggestedTitle, setSuggestedTitle] = useState<string | null>(
-    hasExplicitInitialPoi ? null : (initialTitle?.trim() || existingTask?.title?.trim() || null),
+    hasExplicitInitialPoi ? (existingTask?.title?.trim() || null) : (initialTitle?.trim() || existingTask?.title?.trim() || null),
   );
   const [poiTouched, setPoiTouched] = useState(hasExplicitInitialPoi);
   const userTouchedPoiRef = useRef(hasExplicitInitialPoi);

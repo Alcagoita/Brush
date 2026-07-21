@@ -255,11 +255,16 @@ describe('TaskFormScreen — edit mode', () => {
     expect(screen.getByText('Ready to save')).toBeTruthy();
   });
 
-  it('does not render the saved POI as a recommended tile', () => {
+  it('renders a non-catalog recommended POI in edit mode', () => {
+    setRouteParams({
+      uid:  'user-123',
+      task: makeTask({ title: 'Visit police', poi: 'police' }),
+    });
+
     render(<TaskFormScreen />);
 
-    expect(screen.getByText('my guess?')).toBeTruthy();
-    expect(screen.getAllByText('Market')).toHaveLength(1);
+    expect(screen.getByLabelText('Police suggestion')).toBeTruthy();
+    expect(screen.getByText('Police')).toBeTruthy();
   });
 
   it('pre-populates the notes field from existing description', () => {
