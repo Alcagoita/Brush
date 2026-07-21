@@ -157,10 +157,10 @@ export default function TaskFormScreen() {
   });
   const [focused,       setFocused]       = useState(false);
   const [suggestedPoi, setSuggestedPoi] = useState<string | null>(
-    existingTask?.poi ?? (hasExplicitInitialPoi ? null : initialPoi ?? null),
+    hasExplicitInitialPoi ? null : initialPoi ?? null,
   );
   const [suggestedTitle, setSuggestedTitle] = useState<string | null>(
-    hasExplicitInitialPoi ? (existingTask?.title?.trim() || null) : (initialTitle?.trim() || existingTask?.title?.trim() || null),
+    hasExplicitInitialPoi ? null : (initialTitle?.trim() || existingTask?.title?.trim() || null),
   );
   const [poiTouched, setPoiTouched] = useState(hasExplicitInitialPoi);
   const userTouchedPoiRef = useRef(hasExplicitInitialPoi);
@@ -653,7 +653,8 @@ export default function TaskFormScreen() {
                       styles.poiTileLabel,
                       { color: suggestionSelected ? palette.nearText : palette.muted },
                     ]}
-                    numberOfLines={1}>
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
                     {suggestionLabel}
                   </Text>
                 </>

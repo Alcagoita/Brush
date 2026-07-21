@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-import { radius, spacing } from '../../theme/tokens';
+import { fonts, radius, spacing } from '../../theme/tokens';
 
 export const POI_TILE_WIDTH = 72;
 
@@ -185,12 +185,12 @@ export const styles = StyleSheet.create({
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
+    height:         84,
     borderRadius:   14,
     borderWidth:     1,
     alignItems:     'center',
     justifyContent: 'center',
     gap:             6,
-    minHeight:      88,
     paddingTop:     12,
     paddingBottom:  10,
     paddingHorizontal: 4,
@@ -207,8 +207,8 @@ export const styles = StyleSheet.create({
     textAlign:  'center',
   },
   poiTileHint: {
-    fontSize:   11,
-    fontFamily: 'Geist-Medium',
+    fontSize:   9,
+    fontFamily: fonts.families.regular,
     textAlign:  'center',
   },
 

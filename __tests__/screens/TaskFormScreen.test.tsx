@@ -255,6 +255,13 @@ describe('TaskFormScreen — edit mode', () => {
     expect(screen.getByText('Ready to save')).toBeTruthy();
   });
 
+  it('does not render the saved POI as a recommended tile', () => {
+    render(<TaskFormScreen />);
+
+    expect(screen.getByText('my guess?')).toBeTruthy();
+    expect(screen.getAllByText('Market')).toHaveLength(1);
+  });
+
   it('pre-populates the notes field from existing description', () => {
     setRouteParams({
       uid:  'user-123',
