@@ -80,12 +80,13 @@ import {
 } from './constants';
 import { useCollapseAnimation } from './useCollapseAnimation';
 import { SkeletonRow } from './SkeletonRow';
+import PullSpinner from './PullSpinner';
 import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
 
 export default function TodayScreen() {
-  const { palette, language } = useTheme();
+  const { palette, dark, language } = useTheme();
   const insets      = useSafeAreaInsets();
   const navigation  = useNavigation<Nav>();
 
@@ -213,16 +214,31 @@ export default function TodayScreen() {
   // time hands the list a fresh RefreshControl on every one of those renders
   // — enough for the native SwipeRefreshLayout to be torn down and recreated
   // mid-spin, which ends the animation while `refreshing` is still true.
+  const pullRefreshIndicatorColor = dark ? palette.accent : '#e8a86a';
+  const pullRefreshOverlayColor = dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)';
   const refreshControl = useMemo(() => (
-    <RefreshControl
-      refreshing={isPullRefreshing}
-      onRefresh={onPullRefresh}
-      tintColor={palette.accent}
-      colors={[palette.accent]}
-      progressBackgroundColor={palette.surface}
-      progressViewOffset={SECTION_H_REST}
-    />
-  ), [isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
+    dark ? (
+      <RefreshControl
+        key="refresh-dark"
+        refreshing={isPullRefreshing}
+        onRefresh={onPullRefresh}
+        tintColor={palette.accent}
+        colors={[palette.accent]}
+        progressBackgroundColor={palette.surface}
+        progressViewOffset={SECTION_H_REST}
+      />
+    ) : (
+      <RefreshControl
+        key="refresh-light"
+        refreshing={isPullRefreshing}
+        onRefresh={onPullRefresh}
+        tintColor="#e8a86a"
+        colors={['#e8a86a']}
+        progressBackgroundColor={palette.surface}
+        progressViewOffset={SECTION_H_REST}
+      />
+    )
+  ), [dark, isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
@@ -656,6 +672,18 @@ export default function TodayScreen() {
         onNotNow={onStoreTuningNotNow}
       />
 
+      {/* ── KAN-298 pull-refresh spinner ──
+           The native RefreshControl still owns the pull gesture, but its
+           Android spinner can retract mid-fetch. This one follows
+           isPullRefreshing directly, so it stays visible while loading. */}
+      <PullSpinner
+        visible={isPullRefreshing && !DEBUG_MINIMAL}
+        top={scrollAreaY + SECTION_H_REST + 8}
+        color={pullRefreshIndicatorColor}
+        backgroundColor={palette.surface}
+        borderColor={palette.line}
+      />
+
       {/* ── KAN-288 throttle notice ──
            A pull inside the throttle window loads nothing and settles
            instantly, which on its own is indistinguishable from a real
@@ -686,7 +714,7 @@ export default function TodayScreen() {
             // pull indicator is the loading signal, so this overlay is only a
             // touch guard — it blocks input while services run, and shows no
             // indicator of its own (one loading on screen, never two).
-            { backgroundColor: isLoading ? palette.scrim : palette.scrimLight },
+            { backgroundColor: isLoading ? palette.scrim : pullRefreshOverlayColor },
           ]}
           pointerEvents="box-only">
           {isLoading && (
