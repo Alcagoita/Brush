@@ -26,6 +26,7 @@ import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
 import { useTaskCompletion } from './useTaskCompletion';
+import { usePullRefresh } from './usePullRefresh';
 import { useLearnedPlaces } from './useLearnedPlaces';
 import { useErrandBundle } from '../useErrandBundle';
 import type { ErrandBundle } from '../../services/errandBundles';
@@ -42,10 +43,16 @@ export interface TodayScreenState {
   isLoading:        boolean;
   /** True while a pull-to-refresh fetch is in-flight. */
   isRefreshing:     boolean;
+  /** KAN-288 — true only while a pull-refresh is actually doing work; drives both the spinner and the blocking overlay. */
+  isPullRefreshing: boolean;
+  /** KAN-288 — briefly true after a pull landed inside the throttle window. */
+  showThrottleNotice: boolean;
+  /** KAN-288 — run the screen-wide refresh; throttled to one per 30s. */
+  onPullRefresh:    () => Promise<void>;
   /** Non-null when the fetch failed. Cleared on next successful fetch. */
   error:            string | null;
-  /** Call to re-run the full data fetch (pull-to-refresh, error retry, or after task creation). */
-  refresh:          () => void;
+  /** Call to re-run the full data fetch (pull-to-refresh, error retry, or after task creation). Awaitable. */
+  refresh:          () => Promise<void>;
   /** Active nearby POI type from the proximity engine. Null when none nearby. */
   nearbyPoiType:    string | null;
   nearbyPlace:      NearbyPlace | null;
@@ -113,6 +120,16 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   const { learnedPlaces, refresh: refreshLearnedPlaces } = useLearnedPlaces(uid);
 
+  // KAN-288 — screen-wide pull-to-refresh. data.refresh already re-runs the
+  // same Firestore fan-out SplashScreen does on boot (tasks, user, prefs,
+  // POI prefs, categories, points, both inboxes, trips, mall snapshot), so
+  // the gesture reuses it rather than inventing a second boot path.
+  const { isPullRefreshing, showThrottleNotice, onPullRefresh } = usePullRefresh(
+    data.refresh,
+    proximity.refreshProximity,
+    [refreshLearnedPlaces],
+  );
+
   const isFirstSession = useFirstSessionGate(uid);
   const { suggestion: tripSuggestion, dismiss: dismissTripSuggestion } =
     useTripSuggestion(isFirstSession, data.trips, data.mallSnapshot);
@@ -177,6 +194,9 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     tasks: data.tasks,
     isLoading: data.isLoading,
     isRefreshing: data.isRefreshing,
+    isPullRefreshing,
+    showThrottleNotice,
+    onPullRefresh,
     error: data.error,
     refresh: data.refresh,
     nearbyPoiType: proximity.nearbyPoiType,
