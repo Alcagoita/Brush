@@ -27,8 +27,9 @@
  * Animation: react-native-reanimated — all interpolations run on the UI thread.
  */
 
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Pressable,
   RefreshControl,
@@ -149,6 +150,17 @@ export default function TodayScreen() {
     if (!hasFocusedOnce.current) { hasFocusedOnce.current = true; return; }
     if (consumeTasksDirty()) { refresh(); }
   }, [refresh]));
+
+  // KAN-288 — the throttle notice mounts and unmounts transiently with no
+  // live region, so VoiceOver never announces it on its own; TalkBack is
+  // unreliable for the same reason. Say it explicitly, matching Toast.tsx.
+  // Keyed on the flag, so it fires once on the false→true edge and never on
+  // the many unrelated re-renders this screen does.
+  useEffect(() => {
+    if (showThrottleNotice) {
+      AccessibilityInfo.announceForAccessibility?.(COPY.today.refreshedRecently);
+    }
+  }, [showThrottleNotice]);
 
   // ── KAN-293 leisure invitation ────────────────────────────────────────────────
   // Creates an ORDINARY task: today's date, a catalog POI type aliased from
