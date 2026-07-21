@@ -32,7 +32,7 @@ export default function PullSpinner({
   if (!visible) { return null; }
 
   return (
-    <View style={[styles.wrap, { top }]} pointerEvents="none">
+    <View testID="pull-refresh-loader" style={[styles.wrap, { top }]} pointerEvents="none">
       <View style={[styles.puck, { backgroundColor, borderColor }]}>
         <LoadingDots color={color} size={7} />
       </View>
@@ -55,10 +55,5 @@ const styles = StyleSheet.create({
     borderWidth:    1,
     alignItems:     'center',
     justifyContent: 'center',
-    shadowColor:    '#000000',
-    shadowOffset:   { width: 0, height: 2 },
-    shadowOpacity:  0.18,
-    shadowRadius:   4,
-    elevation:      4,
   },
 });

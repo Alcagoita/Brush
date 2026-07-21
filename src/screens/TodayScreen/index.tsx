@@ -118,7 +118,6 @@ export default function TodayScreen() {
     inboxCount,
     socialUnreadCount,
     handleToggle,
-    permissionGranted,
     nearbyReady,
     refreshProximity,
     isPullRefreshing,
@@ -214,16 +213,16 @@ export default function TodayScreen() {
   // time hands the list a fresh RefreshControl on every one of those renders
   // — enough for the native SwipeRefreshLayout to be torn down and recreated
   // mid-spin, which ends the animation while `refreshing` is still true.
-  const pullRefreshIndicatorColor = dark ? palette.accent : '#e8a86a';
-  const pullRefreshOverlayColor = dark ? 'rgba(255,255,255,0.14)' : 'rgba(0,0,0,0.12)';
+  const pullRefreshIndicatorColor = palette.pullRefreshIndicator;
+  const pullRefreshOverlayColor = palette.pullRefreshOverlay;
   const refreshControl = useMemo(() => (
     dark ? (
       <RefreshControl
         key="refresh-dark"
         refreshing={isPullRefreshing}
         onRefresh={onPullRefresh}
-        tintColor={palette.accent}
-        colors={[palette.accent]}
+        tintColor={palette.pullRefreshIndicator}
+        colors={[palette.pullRefreshIndicator]}
         progressBackgroundColor={palette.surface}
         progressViewOffset={SECTION_H_REST}
       />
@@ -232,13 +231,13 @@ export default function TodayScreen() {
         key="refresh-light"
         refreshing={isPullRefreshing}
         onRefresh={onPullRefresh}
-        tintColor="#e8a86a"
-        colors={['#e8a86a']}
+        tintColor={palette.pullRefreshIndicator}
+        colors={[palette.pullRefreshIndicator]}
         progressBackgroundColor={palette.surface}
         progressViewOffset={SECTION_H_REST}
       />
     )
-  ), [dark, isPullRefreshing, onPullRefresh, palette.accent, palette.surface]);
+  ), [dark, isPullRefreshing, onPullRefresh, palette.pullRefreshIndicator, palette.surface]);
 
   // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
   const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
@@ -393,10 +392,11 @@ export default function TodayScreen() {
     </>
   ), [
     sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
-    permissionGranted, nearbyCount, isLoading,
     palette, doneTasks, totalTasks, remaining,
     nearbyHasContent, setNearbyHasContent,
+    refreshProximity,
     errandBundle, dismissErrandBundle,
+    errandBundleLeisure, handleKeepLeisureInMind,
     tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,
   ]);
 
