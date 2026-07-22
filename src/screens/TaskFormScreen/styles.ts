@@ -1,7 +1,7 @@
 import { StyleSheet } from 'react-native';
 import { fonts, radius, spacing } from '../../theme/tokens';
 
-export const POI_TILE_WIDTH = 72;
+export const POI_TILE_WIDTH = 36;
 
 export const styles = StyleSheet.create({
   root: {
@@ -185,15 +185,12 @@ export const styles = StyleSheet.create({
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
-    height:         84,
-    borderRadius:   14,
+    height:         36,
+    borderRadius:   radius.listIcon,
     borderWidth:     1,
     alignItems:     'center',
     justifyContent: 'center',
-    gap:             6,
-    paddingTop:     12,
-    paddingBottom:  10,
-    paddingHorizontal: 4,
+    padding:        0,
   },
   poiTileSuggested: {
     borderStyle: 'dashed',

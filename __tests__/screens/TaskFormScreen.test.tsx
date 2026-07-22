@@ -17,6 +17,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import { StyleSheet } from 'react-native';
 import type { Alert as AlertType } from 'react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
+import { COPY } from '../../src/constants/copy';
 import { todayISO } from '../../src/utils/date';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -264,7 +265,7 @@ describe('TaskFormScreen — edit mode', () => {
 
     render(<TaskFormScreen />);
 
-    expect(screen.getByLabelText('Police suggestion')).toBeTruthy();
+    expect(screen.getByLabelText(`Police ${COPY.newTaskSheet.poiSuggestionConfirmedSuffix}`)).toBeTruthy();
     expect(screen.getByText('Police')).toBeTruthy();
   });
 

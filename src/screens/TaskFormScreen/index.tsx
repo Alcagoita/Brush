@@ -637,7 +637,7 @@ export default function TaskFormScreen() {
                     : confirmedSuggestion
                       ? palette.nearTint2
                       : suggestionType
-                        ? palette.surface
+                        ? palette.surface2
                         : palette.nearTint,
                   borderColor: liveSuggestion || confirmedSuggestion || suggestionType === null
                     ? palette.nearBorder
@@ -649,7 +649,7 @@ export default function TaskFormScreen() {
                   <PoiIcon
                     type={suggestionType}
                     color={suggestionSelected ? palette.nearText : palette.muted}
-                    size={22}
+                    size={20}
                   />
                   <Text
                     style={[
