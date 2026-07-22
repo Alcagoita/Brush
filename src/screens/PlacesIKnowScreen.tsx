@@ -146,7 +146,7 @@ export default function PlacesIKnowScreen() {
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={COPY.tripPlanner.changeTripDatesA11y(trip.destination)}>
-                        <Text style={[styles.inlineActionLabel, { color: palette.muted }]}>
+                        <Text style={[styles.inlineActionLabel, { color: palette.accent }]}>
                           {trip.startDate || trip.endDate ? COPY.tripPlanner.changeTripDates : COPY.tripPlanner.addTripDates}
                         </Text>
                       </Pressable>
@@ -156,7 +156,7 @@ export default function PlacesIKnowScreen() {
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={COPY.tripPlanner.learnBiggerAreaA11y(trip.destination)}>
-                        <Text style={[styles.inlineActionLabel, { color: palette.muted }]}>{COPY.tripPlanner.learnBiggerArea}</Text>
+                        <Text style={[styles.inlineActionLabel, { color: palette.accent }]}>{COPY.tripPlanner.learnBiggerArea}</Text>
                       </Pressable>
                     </View>
                   )}
@@ -171,7 +171,7 @@ export default function PlacesIKnowScreen() {
                       style={[styles.iconActionBtn, { backgroundColor: palette.surface2 }]}
                       accessibilityRole="button"
                       accessibilityLabel={COPY.tripPlanner.refreshTripA11y(trip.destination)}>
-                      <RefreshIcon color={palette.muted} size={15} />
+                      <RefreshIcon color={palette.accent} size={15} />
                     </Pressable>
                     <Pressable
                       onPress={() => confirmDelete(trip)}
