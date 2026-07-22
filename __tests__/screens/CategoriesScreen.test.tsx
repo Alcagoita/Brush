@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -83,6 +83,7 @@ jest.mock('../../src/theme', () => ({
       nearTint2:  '#f9ede0',
       nearBorder: '#e8c9a0',
       nearText:   '#7a4a20',
+      scrim:      'rgba(0,0,0,0.25)',
     },
   }),
 }));
@@ -216,6 +217,23 @@ describe('CategoriesScreen — add category', () => {
     expect(screen.getByText('New Category')).toBeTruthy();
   });
 
+  it('keeps the category form keyboard-safe and scrollable', async () => {
+    await renderWith();
+    await openAddSheet();
+
+    const overlay = screen.getByTestId('category-sheet-overlay');
+    const sheetOuter = screen.getByTestId('category-sheet-outer');
+    const sheetScroll = screen.getByTestId('category-sheet-scroll');
+    const overlayStyle = StyleSheet.flatten(overlay.props.style);
+    const sheetOuterStyle = StyleSheet.flatten(sheetOuter.props.style);
+
+    expect(overlayStyle.flex).toBe(1);
+    expect(sheetOuterStyle.width).toBe('100%');
+    expect(sheetOuterStyle.position).toBeUndefined();
+    expect(sheetScroll.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(sheetScroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
+  });
+
   it('shows a name error when saving with empty name', async () => {
     await renderWith();
     await openAddSheet();
@@ -246,6 +264,17 @@ describe('CategoriesScreen — add category', () => {
     await renderWith();
     await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByText('New Category')).toBeNull(),
+    );
+  });
+
+  it('closes the sheet when the overlay is pressed', async () => {
+    await renderWith();
+    await openAddSheet();
+
+    fireEvent.press(screen.getByTestId('category-sheet-overlay'));
+
     await waitFor(() =>
       expect(screen.queryByText('New Category')).toBeNull(),
     );

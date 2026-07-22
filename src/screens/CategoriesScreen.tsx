@@ -22,13 +22,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,7 +44,6 @@ import {
   categoryPickerColors,
   swatchSelectedRing,
 } from '../theme/tokens';
-import { getScreenKeyboardAvoidingBehavior } from '../utils/keyboardAvoiding';
 import {
   placeTypeLabel,
   PlaceTypeSuggestion,
@@ -151,8 +151,9 @@ interface SheetProps {
 }
 
 function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
-  const { palette } = useTheme();
+  const { palette, dark } = useTheme();
   const insets = useSafeAreaInsets();
+  const { height: screenHeight } = useWindowDimensions();
   const quickPoiOptions = buildQuickPoiOptions();
 
   const [name,         setName]         = useState('');
@@ -163,6 +164,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   const [poiResults,   setPoiResults]   = useState<PlaceTypeSuggestion[]>([]);
   const [poiSearching, setPoiSearching] = useState(false);
   const [nameErr,      setNameErr]      = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -185,6 +187,25 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   useEffect(() => () => {
     if (searchTimer.current) { clearTimeout(searchTimer.current); }
   }, []);
+
+  useEffect(() => {
+    if (!visible) {
+      setKeyboardHeight(0);
+      return undefined;
+    }
+
+    const showSub = Keyboard.addListener('keyboardDidShow', event => {
+      setKeyboardHeight(event.endCoordinates.height);
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [visible]);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
 
@@ -238,6 +259,12 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
   };
 
   const isAdd = initial === null;
+  const keyboardVisible = keyboardHeight > 0;
+  const availableSheetHeight = Math.max(320, screenHeight - keyboardHeight - insets.top - 12);
+  const sheetContentStyle = [
+    styles.sheetContent,
+    { paddingBottom: keyboardVisible ? 16 : insets.bottom + 16 },
+  ];
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -247,18 +274,34 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
-      <Pressable style={[styles.scrim, { backgroundColor: palette.scrim }]} onPress={onCancel} />
-      <KeyboardAvoidingView
-        behavior={getScreenKeyboardAvoidingBehavior()}
-        style={styles.sheetOuter}>
+      <View style={[styles.sheetModal, { backgroundColor: dark ? palette.pullRefreshOverlay : palette.scrim }]}>
+        <Pressable
+          testID="category-sheet-overlay"
+          accessibilityRole="button"
+          accessibilityLabel={COPY.categoriesScreen.dismissSheetA11y}
+          style={styles.scrim}
+          onPress={onCancel}
+        />
+        <View
+          testID="category-sheet-outer"
+          style={[
+            styles.sheetOuter,
+            { maxHeight: availableSheetHeight },
+          ]}>
         <View
           style={[
             styles.sheet,
             {
               backgroundColor: palette.surface,
-              paddingBottom:   insets.bottom + 16,
+              maxHeight:       availableSheetHeight,
             },
           ]}>
+          <ScrollView
+            testID="category-sheet-scroll"
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={sheetContentStyle}>
 
           {/* Handle */}
           <View style={[styles.handle, { backgroundColor: palette.faint }]} />
@@ -471,8 +514,10 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
             </Pressable>
           </View>
 
+          </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -491,7 +536,6 @@ export default function CategoriesScreen() {
   // ── ViewModel hook (KAN-59) ──────────────────────────────────────────────────
   const {
     categoriesState,
-    retryKey: _retryKey,
     setRetryKey,
     customCategories,
     sheetVisible,
@@ -737,20 +781,23 @@ const styles = StyleSheet.create({
   },
 
   // ── Sheet ──
+  sheetModal: {
+    flex: 1,
+  },
   scrim: {
     flex: 1,
   },
   sheetOuter: {
-    position: 'absolute',
-    bottom:    0,
-    left:      0,
-    right:     0,
+    width: '100%',
   },
   sheet: {
     borderTopLeftRadius:  24,
     borderTopRightRadius: 24,
     paddingHorizontal:    spacing.page,
     paddingTop:           12,
+  },
+  sheetContent: {
+    flexGrow: 1,
   },
   handle: {
     width:        40,
