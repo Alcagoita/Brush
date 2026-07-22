@@ -2089,7 +2089,7 @@ const ptPT: typeof en = {
     tryAnotherPlace: 'Tentar outro local',
     tryAnotherPlaceA11y: 'Tentar outro local',
     refreshLocationA11y: 'Atualizar localização',
-    storeTuningOn: 'Afinação de lojas ativa',
+    storeTuningOn: 'Ajuste de lojas ativo',
     refreshUpdated: 'Atualizado',
     refreshFailed: 'Falhou',
     alsoClose: 'Também perto',
