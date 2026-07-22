@@ -143,7 +143,7 @@ export default function PlacesIKnowScreen() {
                     <View style={styles.inlineActions}>
                       <Pressable
                         onPress={() => editTripDates(trip)}
-                        hitSlop={6}
+                        hitSlop={{ top: 16, bottom: 16, left: 12, right: 12 }}
                         accessibilityRole="button"
                         accessibilityLabel={COPY.tripPlanner.changeTripDatesA11y(trip.destination)}>
                         <Text style={[styles.inlineActionLabel, { color: palette.accent }]}>
@@ -153,7 +153,7 @@ export default function PlacesIKnowScreen() {
                       <Text style={[styles.actionDot, { color: palette.faint }]}>·</Text>
                       <Pressable
                         onPress={() => editTripRadius(trip)}
-                        hitSlop={6}
+                        hitSlop={{ top: 16, bottom: 16, left: 12, right: 12 }}
                         accessibilityRole="button"
                         accessibilityLabel={COPY.tripPlanner.learnBiggerAreaA11y(trip.destination)}>
                         <Text style={[styles.inlineActionLabel, { color: palette.accent }]}>{COPY.tripPlanner.learnBiggerArea}</Text>

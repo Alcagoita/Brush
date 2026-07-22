@@ -279,6 +279,33 @@ describe('edit mode (KAN-266)', () => {
     expect(result.current.endDate).toBe('2026-07-28');
   });
 
+  it('exits edit mode with a toast when the trip cannot be found', async () => {
+    mockGetTrip.mockResolvedValue(null);
+    const onDone = jest.fn();
+
+    renderHook(() =>
+      useTripPlanner(onDone, undefined, undefined, { editTripId: 'missing-trip', initialStep: 'dates' }),
+    );
+
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.any(String)));
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it('exits edit mode with a toast when loading the trip fails', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockGetTrip.mockRejectedValue(new Error('network'));
+    const onDone = jest.fn();
+
+    renderHook(() =>
+      useTripPlanner(onDone, undefined, undefined, { editTripId: 'trip-1', initialStep: 'radius' }),
+    );
+
+    await waitFor(() => expect(mockShowToast).toHaveBeenCalledWith(expect.any(String)));
+    expect(onDone).toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith('[useTripPlanner] getTrip failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+
   it('saves changed dates to the existing trip without creating a duplicate', async () => {
     mockGetTrip.mockResolvedValue(EDIT_TRIP);
     const onDone = jest.fn();
@@ -336,6 +363,46 @@ describe('edit mode (KAN-266)', () => {
 
     expect(mockUpdateTrip).toHaveBeenCalledWith('test-uid', 'trip-1', expect.objectContaining({ areaRadius: 5_000 }));
     expect(mockDownloadTripArea).not.toHaveBeenCalled();
+  });
+
+  it('keeps the previous radius for offline growth so a later online edit still downloads the larger area', async () => {
+    mockGetTrip.mockResolvedValue(EDIT_TRIP);
+    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
+    const firstDone = jest.fn();
+    const first = renderHook(() =>
+      useTripPlanner(firstDone, undefined, undefined, { editTripId: 'trip-1', initialStep: 'radius' }),
+    );
+    await waitFor(() => expect(first.result.current.destination?.name).toBe('Faro'));
+
+    act(() => { first.result.current.setRadiusKey('region'); });
+    await act(async () => { await first.result.current.confirmDownload(); });
+
+    expect(mockDownloadTripArea).not.toHaveBeenCalled();
+    expect(mockUpdateTrip).toHaveBeenCalledWith('test-uid', 'trip-1', expect.not.objectContaining({ areaRadius: 40_000 }));
+    expect(firstDone).toHaveBeenCalled();
+
+    mockGetTrip.mockResolvedValue(EDIT_TRIP);
+    mockUpdateTrip.mockClear();
+    mockDownloadTripArea.mockClear();
+    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true });
+    mockDownloadTripArea.mockResolvedValue(5);
+
+    const second = renderHook(() =>
+      useTripPlanner(jest.fn(), undefined, undefined, { editTripId: 'trip-1', initialStep: 'radius' }),
+    );
+    await waitFor(() => expect(second.result.current.destination?.name).toBe('Faro'));
+
+    act(() => { second.result.current.setRadiusKey('region'); });
+    await act(async () => { await second.result.current.confirmDownload(); });
+
+    expect(mockDownloadTripArea).toHaveBeenCalledWith(
+      { lat: 37.0179, lng: -7.9304 },
+      40_000,
+      'ta_existing',
+      expect.any(Number),
+      [],
+    );
+    expect(mockUpdateTrip).toHaveBeenCalledWith('test-uid', 'trip-1', expect.objectContaining({ areaRadius: 40_000 }));
   });
 });
 

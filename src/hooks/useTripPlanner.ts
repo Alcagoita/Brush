@@ -124,6 +124,11 @@ export function useTripPlanner(
   // itself, so the debounced effect below can tell those controlled changes
   // apart from "user is typing".
   const justSelectedRef = useRef(false);
+  const onDoneRef = useRef(onDone);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   useEffect(() => {
     if (!uid) { return; }
@@ -156,6 +161,8 @@ export function useTripPlanner(
         if (cancelled) { return; }
         if (!trip) {
           setError(COPY.tripPlanner.downloadErrorToast);
+          useToastStore.getState().showToast(COPY.tripPlanner.downloadErrorToast);
+          onDoneRef.current();
           return;
         }
         justSelectedRef.current = true;
@@ -174,7 +181,10 @@ export function useTripPlanner(
       })
       .catch(err => {
         console.warn('[useTripPlanner] getTrip failed', err);
-        if (!cancelled) { setError(COPY.tripPlanner.downloadErrorToast); }
+        if (cancelled) { return; }
+        setError(COPY.tripPlanner.downloadErrorToast);
+        useToastStore.getState().showToast(COPY.tripPlanner.downloadErrorToast);
+        onDoneRef.current();
       });
 
     return () => { cancelled = true; };
@@ -221,25 +231,18 @@ export function useTripPlanner(
       setError(null);
 
       const expiresAt = computeTripExpiresAt(endDate);
-      const nextTrip = {
-        ...editingTrip,
-        startDate,
-        endDate,
-        areaRadius: preset.radiusMeters,
-        expiresAt,
-      };
-
       try {
         if (editInitialStep === 'dates') {
           await updateTrip(uid, editingTrip.id, { startDate, endDate, expiresAt });
+          setEditingTrip({ ...editingTrip, startDate, endDate, expiresAt });
           useToastStore.getState().showToast(COPY.tripPlanner.editDatesSuccessToast(editingTrip.destination));
           onDone();
           return;
         }
 
-        await updateTrip(uid, editingTrip.id, { areaRadius: preset.radiusMeters, expiresAt });
         const grewArea = preset.radiusMeters > editingTrip.areaRadius;
         const isOnline = (await NetInfo.fetch()).isConnected !== false;
+
         if (grewArea && isOnline) {
           await downloadTripArea(
             { lat: editingTrip.centerLat, lng: editingTrip.centerLng },
@@ -248,9 +251,20 @@ export function useTripPlanner(
             expiresAt,
             customCategoryPoiTypes,
           );
-          await updateTrip(uid, editingTrip.id, { expiresAt, preRefreshedAt: Date.now() });
+          const preRefreshedAt = Date.now();
+          await updateTrip(uid, editingTrip.id, {
+            areaRadius: preset.radiusMeters,
+            expiresAt,
+            preRefreshedAt,
+          });
+          setEditingTrip({ ...editingTrip, areaRadius: preset.radiusMeters, expiresAt, preRefreshedAt });
+        } else if (grewArea) {
+          await updateTrip(uid, editingTrip.id, { expiresAt });
+          setEditingTrip({ ...editingTrip, expiresAt });
+        } else {
+          await updateTrip(uid, editingTrip.id, { areaRadius: preset.radiusMeters, expiresAt });
+          setEditingTrip({ ...editingTrip, areaRadius: preset.radiusMeters, expiresAt });
         }
-        setEditingTrip(nextTrip);
         useToastStore.getState().showToast(COPY.tripPlanner.editRadiusSuccessToast(editingTrip.destination));
         onDone();
       } catch (err) {
