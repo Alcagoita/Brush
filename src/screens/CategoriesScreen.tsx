@@ -274,12 +274,12 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
-      <View style={styles.sheetModal}>
+      <View style={[styles.sheetModal, { backgroundColor: palette.scrim }]}>
         <Pressable
           testID="category-sheet-overlay"
           accessibilityRole="button"
           accessibilityLabel={COPY.categoriesScreen.dismissSheetA11y}
-          style={[styles.scrim, { backgroundColor: palette.scrim }]}
+          style={styles.scrim}
           onPress={onCancel}
         />
         <View
