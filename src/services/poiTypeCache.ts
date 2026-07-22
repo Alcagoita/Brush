@@ -85,6 +85,7 @@ const QUERY_NOISE_WORDS: Record<SupportedLanguage, string[]> = {
 
 type PoiConcept = {
   intents: SearchIntent[];
+  explicitRequiredTerms?: Record<SupportedLanguage, string[]>;
   intentRequiredTerms?: Record<SupportedLanguage, string[]>;
   terms: Record<SupportedLanguage, string[]>;
   types: string[];
@@ -121,10 +122,22 @@ const POI_CONCEPTS: PoiConcept[] = [
   },
   {
     intents: ['retail', 'food'],
-    types: ['coffee_shop', 'cafe'],
+    types: ['cafe', 'coffee_shop'],
     terms: {
       en: ['coffee', 'coffee shop', 'espresso', 'latte'],
       'pt-PT': ['cafe', 'café', 'cafetaria', 'expresso', 'galão'],
+    },
+  },
+  {
+    intents: ['retail', 'food'],
+    explicitRequiredTerms: {
+      en: ['coffee roastery', 'roastery'],
+      'pt-PT': ['coffee roastery', 'café roastery', 'cafe roastery', 'roastery'],
+    },
+    types: ['coffee_roastery'],
+    terms: {
+      en: ['coffee roastery', 'roastery'],
+      'pt-PT': ['coffee roastery', 'café roastery', 'cafe roastery', 'roastery'],
     },
   },
   {
@@ -200,6 +213,18 @@ const INTENT_REQUIRED_ALIAS_KEYS: Partial<Record<string, Record<SupportedLanguag
       const existing = acc[type] ?? { en: [], 'pt-PT': [] };
       existing.en.push(...concept.intentRequiredTerms.en);
       existing['pt-PT'].push(...concept.intentRequiredTerms['pt-PT']);
+      acc[type] = existing;
+    }
+    return acc;
+  }, {} as Partial<Record<string, Record<SupportedLanguage, string[]>>>);
+
+const EXPLICIT_REQUIRED_ALIAS_KEYS: Partial<Record<string, Record<SupportedLanguage, string[]>>> = POI_CONCEPTS
+  .reduce((acc, concept) => {
+    if (!concept.explicitRequiredTerms) { return acc; }
+    for (const type of concept.types) {
+      const existing = acc[type] ?? { en: [], 'pt-PT': [] };
+      existing.en.push(...concept.explicitRequiredTerms.en);
+      existing['pt-PT'].push(...concept.explicitRequiredTerms['pt-PT']);
       acc[type] = existing;
     }
     return acc;
@@ -357,10 +382,30 @@ function inferConceptMatches(
   return matches;
 }
 
+function isGenericCoffeeIntent(queryVariants: QueryVariant[], lang: SupportedLanguage): boolean {
+  const genericTerms = lang === 'pt-PT'
+    ? ['cafe', 'café', 'expresso', 'galão']
+    : ['coffee', 'espresso', 'latte'];
+  const explicitSubtypeTerms = lang === 'pt-PT'
+    ? ['cafetaria', 'coffee roastery', 'café roastery', 'cafe roastery', 'roastery', 'coffee stand']
+    : ['coffee shop', 'coffee roastery', 'roastery', 'coffee stand'];
+
+  const hasGenericCoffee = genericTerms.some(term =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term)),
+  );
+  if (!hasGenericCoffee) { return false; }
+
+  return !explicitSubtypeTerms.some(term =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term)),
+  );
+}
+
 function intentScoreAdjustment(
+  queryVariants: QueryVariant[],
   entry: PoiDictionaryEntry,
   intents: Set<SearchIntent>,
   conceptMatches: Map<string, ConceptMatch>,
+  lang: SupportedLanguage,
 ): number {
   let adjustment = 0;
   const conceptMatch = conceptMatches.get(entry.type);
@@ -377,6 +422,10 @@ function intentScoreAdjustment(
 
   if (intents.has('food') && ['bakery', 'cafe', 'coffee_shop', 'restaurant'].includes(entry.type)) {
     adjustment -= 2;
+  }
+  if (isGenericCoffeeIntent(queryVariants, lang)) {
+    if (entry.type === 'cafe') { adjustment -= 12; }
+    if (['coffee_shop', 'coffee_stand', 'coffee_roastery'].includes(entry.type)) { adjustment += 8; }
   }
   if (intents.has('fitness') && entry.type === 'gym') { adjustment -= 3; }
   if (intents.has('medical') && ['pharmacy', 'drugstore', 'clinic'].includes(entry.type)) {
@@ -415,6 +464,13 @@ function entryScore(
   lang: SupportedLanguage,
 ): number | null {
   const hasAlignedIntent = conceptMatches.get(entry.type)?.intentAligned ?? false;
+  const explicitAliases = normalizeKeys(EXPLICIT_REQUIRED_ALIAS_KEYS[entry.type]?.[lang] ?? []);
+  const matchedExplicitAlias = explicitAliases.some(alias =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, alias)),
+  );
+  if (explicitAliases.length > 0 && !matchedExplicitAlias) {
+    return null;
+  }
   const restrictedAliases = normalizeKeys(INTENT_REQUIRED_ALIAS_KEYS[entry.type]?.[lang] ?? []);
   const restrictedAliasSet = new Set(restrictedAliases);
   const matchedRestrictedAlias = restrictedAliases.some(alias =>
@@ -442,7 +498,7 @@ function entryScore(
   }
 
   if (best == null) { return null; }
-  return best + intentScoreAdjustment(entry, intents, conceptMatches);
+  return best + intentScoreAdjustment(queryVariants, entry, intents, conceptMatches, lang);
 }
 
 function sortSuggestions(

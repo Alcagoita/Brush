@@ -140,10 +140,22 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'florist', label: 'Florist' });
   });
 
-  it('prefers coffee shops for coffee-buying intent', async () => {
+  it('prefers cafe for generic coffee intent', async () => {
     const results = await searchPlaceTypesCached('get coffee');
 
-    expect(results[0]).toEqual({ type: 'coffee_shop', label: 'Coffee Shop' });
+    expect(results[0]).toEqual({ type: 'cafe', label: 'Café' });
+  });
+
+  it('keeps coffee roastery for explicit roastery phrasing', async () => {
+    const results = await searchPlaceTypesCached('go to a coffee roastery');
+
+    expect(results[0]).toEqual({ type: 'coffee_roastery', label: 'Coffee Roastery' });
+  });
+
+  it('prefers cafe over coffee roastery for generic coffee outings', async () => {
+    const results = await searchPlaceTypesCached('go out for coffee');
+
+    expect(results[0]).toEqual({ type: 'cafe', label: 'Café' });
   });
 
   it('prefers pharmacy for medicine pickup intent', async () => {
