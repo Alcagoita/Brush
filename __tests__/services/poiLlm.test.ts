@@ -194,6 +194,16 @@ describe('inferPoiForQuickAdd', () => {
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
+  it('uses the built-in cafe for generic coffee phrasing without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('go out for coffee')).toBe('cafe');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('keeps coffee roastery when the title is explicit', async () => {
+    expect(await inferPoiForQuickAdd('go to a coffee roastery')).toBe('coffee_roastery');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
   it('falls back to the LLM classifier when no rule matches', async () => {
     mockRunSync.mockReturnValue([probs(idxOf('gym'), 0.9)]);
     expect(await inferPoiForQuickAdd('leg day')).toBe('gym');
