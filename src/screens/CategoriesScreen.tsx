@@ -151,7 +151,7 @@ interface SheetProps {
 }
 
 function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
-  const { palette } = useTheme();
+  const { palette, dark } = useTheme();
   const insets = useSafeAreaInsets();
   const { height: screenHeight } = useWindowDimensions();
   const quickPoiOptions = buildQuickPoiOptions();
@@ -274,7 +274,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
-      <View style={[styles.sheetModal, { backgroundColor: palette.scrim }]}>
+      <View style={[styles.sheetModal, { backgroundColor: dark ? palette.pullRefreshOverlay : palette.scrim }]}>
         <Pressable
           testID="category-sheet-overlay"
           accessibilityRole="button"
