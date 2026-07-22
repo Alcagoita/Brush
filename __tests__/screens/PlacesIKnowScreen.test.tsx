@@ -147,7 +147,7 @@ describe('PlacesIKnowScreen — trip edit actions (KAN-266)', () => {
     });
 
     render(<PlacesIKnowScreen />);
-    fireEvent.press(screen.getByText('Dates'));
+    fireEvent.press(screen.getByText('Edit dates'));
 
     expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { editTripId: 'trip-1', initialStep: 'dates' });
   });
@@ -169,8 +169,8 @@ describe('PlacesIKnowScreen — trip edit actions (KAN-266)', () => {
     });
 
     render(<PlacesIKnowScreen />);
-    expect(screen.getByText('Add dates')).toBeTruthy();
-    fireEvent.press(screen.getByText('Bigger area'));
+    expect(screen.getByText('Edit dates')).toBeTruthy();
+    fireEvent.press(screen.getByText('Edit area size'));
 
     expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { editTripId: 'trip-1', initialStep: 'radius' });
   });
