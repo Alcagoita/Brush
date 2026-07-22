@@ -293,9 +293,13 @@ export default function TaskFormScreen() {
     ? (isCatalogPoiType(suggestionType) ? poiCatalogLabel(suggestionType) : localPoiLabel(suggestionType))
     : null;
   const suggestionSelected = suggestionType !== null && effectivePoi === suggestionType;
-  const liveSuggestion = suggestionType !== null && suggestionSelected && !poiTouched;
+  const liveSuggestion = suggestionType !== null && (
+    (suggestionSelected && !poiTouched)
+    || (isEdit && !suggestionSelected && suggestionType !== existingTask?.poi)
+  );
   const confirmedSuggestion = suggestionType !== null && suggestionSelected && poiTouched;
   const showSuggestionHint = liveSuggestion || suggestionType === null;
+  const suggestionHighlighted = liveSuggestion || suggestionSelected;
 
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
@@ -637,7 +641,7 @@ export default function TaskFormScreen() {
                     : confirmedSuggestion
                       ? palette.nearTint2
                       : suggestionType
-                        ? palette.surface2
+                        ? palette.surface
                         : palette.nearTint,
                   borderColor: liveSuggestion || confirmedSuggestion || suggestionType === null
                     ? palette.nearBorder
@@ -648,13 +652,13 @@ export default function TaskFormScreen() {
                 <>
                   <PoiIcon
                     type={suggestionType}
-                    color={suggestionSelected ? palette.nearText : palette.muted}
-                    size={20}
+                    color={suggestionHighlighted ? palette.nearText : palette.muted}
+                    size={22}
                   />
                   <Text
                     style={[
                       styles.poiTileLabel,
-                      { color: suggestionSelected ? palette.nearText : palette.muted },
+                      { color: suggestionHighlighted ? palette.nearText : palette.muted },
                     ]}
                     numberOfLines={1}
                     ellipsizeMode="tail">

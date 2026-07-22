@@ -281,9 +281,17 @@ describe('TaskFormScreen — edit mode', () => {
       await Promise.resolve();
     });
 
+    let suggestion: ReturnType<typeof screen.getByLabelText>;
     await waitFor(() => {
-      expect(screen.getByLabelText('Police suggestion')).toBeTruthy();
+      suggestion = screen.getByLabelText(`Police, ${COPY.newTaskSheet.poiSuggestionHint}`);
+      expect(suggestion).toBeTruthy();
     });
+    const suggestionStyle = StyleSheet.flatten(suggestion!.props.style);
+
+    expect(suggestionStyle.backgroundColor).toBe('#fdf7f0');
+    expect(suggestionStyle.borderColor).toBe('#e8c9a0');
+    expect(suggestionStyle.borderStyle).toBe('dashed');
+    expect(screen.getByText(COPY.newTaskSheet.poiSuggestionHint)).toBeTruthy();
     expect(screen.getByText('Market').parent?.parent?.props.accessibilityState?.selected).toBe(true);
 
     jest.useRealTimers();

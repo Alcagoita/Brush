@@ -27,11 +27,11 @@ export function PoiTile({ type, label, selected, onPress, palette, width }: PoiT
         styles.poiTile,
         {
           width,
-          backgroundColor: selected ? palette.nearTint2  : palette.surface2,
+          backgroundColor: selected ? palette.nearTint2  : palette.surface,
           borderColor:     selected ? palette.nearBorder : palette.line,
         },
       ]}>
-      <PoiIcon type={type} color={iconColor} size={20} />
+      <PoiIcon type={type} color={iconColor} size={22} />
       <Text style={[styles.poiTileLabel, { color: iconColor }]}>{label}</Text>
     </Pressable>
   );
