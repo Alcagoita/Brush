@@ -579,6 +579,28 @@ describe('queryHabitatCache', () => {
     expect(result.attraction[0].distanceMeters).toBeLessThan(result.attraction[59].distanceMeters);
   });
 
+  it('preserves explicitly provided integer caps', () => {
+    for (let i = 0; i < 10; i++) {
+      upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: i * 0.0001, lng: 0, source: { osm: `node/${i}` } });
+    }
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, { maxResultsPerType: 3 });
+
+    expect(result.atm).toHaveLength(3);
+  });
+
+  it('rejects negative maxResultsPerType values before querying results', () => {
+    expect(() => queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, { maxResultsPerType: -1 }))
+      .toThrow('maxResultsPerType must be a non-negative integer, null, or undefined');
+    expect(mockDb.getAllSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects fractional maxResultsPerType values before querying results', () => {
+    expect(() => queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, { maxResultsPerType: 1.5 }))
+      .toThrow('maxResultsPerType must be a non-negative integer, null, or undefined');
+    expect(mockDb.getAllSync).not.toHaveBeenCalled();
+  });
+
   it('returns an empty array for a type with no cached rows', () => {
     const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['school'], 5000);
     expect(result.school).toEqual([]);

@@ -475,6 +475,13 @@ export function queryHabitatCache(
   radiusMeters: number = HABITAT_RADIUS_M,
   options: { maxResultsPerType?: number | null } = {},
 ): Record<string, NearbyPlace[]> {
+  if (
+    options.maxResultsPerType != null
+    && (!Number.isInteger(options.maxResultsPerType) || options.maxResultsPerType < 0)
+  ) {
+    throw new RangeError('maxResultsPerType must be a non-negative integer, null, or undefined');
+  }
+
   const result: Record<string, NearbyPlace[]> = {};
   for (const poiType of poiTypes) { result[poiType] = []; }
   if (poiTypes.length === 0) { return result; }
