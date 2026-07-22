@@ -382,22 +382,27 @@ function inferConceptMatches(
   return matches;
 }
 
+function explicitAliasMatches(queryVariants: QueryVariant[], aliases: string[]): boolean {
+  return aliases.some(alias =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, alias)),
+  );
+}
+
 function isGenericCoffeeIntent(queryVariants: QueryVariant[], lang: SupportedLanguage): boolean {
   const genericTerms = lang === 'pt-PT'
     ? ['cafe', 'café', 'expresso', 'galão']
     : ['coffee', 'espresso', 'latte'];
-  const explicitSubtypeTerms = lang === 'pt-PT'
-    ? ['cafetaria', 'coffee roastery', 'café roastery', 'cafe roastery', 'roastery', 'coffee stand']
-    : ['coffee shop', 'coffee roastery', 'roastery', 'coffee stand'];
+  const explicitSubtypeTerms = [
+    ...(lang === 'pt-PT' ? ['cafetaria'] : ['coffee shop', 'coffee stand']),
+    ...normalizeKeys(EXPLICIT_REQUIRED_ALIAS_KEYS.coffee_roastery?.[lang] ?? []),
+  ];
 
   const hasGenericCoffee = genericTerms.some(term =>
     queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term)),
   );
   if (!hasGenericCoffee) { return false; }
 
-  return !explicitSubtypeTerms.some(term =>
-    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term)),
-  );
+  return !explicitAliasMatches(queryVariants, explicitSubtypeTerms);
 }
 
 function intentScoreAdjustment(
@@ -465,9 +470,7 @@ function entryScore(
 ): number | null {
   const hasAlignedIntent = conceptMatches.get(entry.type)?.intentAligned ?? false;
   const explicitAliases = normalizeKeys(EXPLICIT_REQUIRED_ALIAS_KEYS[entry.type]?.[lang] ?? []);
-  const matchedExplicitAlias = explicitAliases.some(alias =>
-    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, alias)),
-  );
+  const matchedExplicitAlias = explicitAliasMatches(queryVariants, explicitAliases);
   if (explicitAliases.length > 0 && !matchedExplicitAlias) {
     return null;
   }

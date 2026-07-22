@@ -158,6 +158,22 @@ describe('searchPlaceTypesCached', () => {
     expect(results[0]).toEqual({ type: 'cafe', label: 'Café' });
   });
 
+  it('prefers cafe for generic Portuguese coffee intent', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('beber café');
+
+    expect(results[0]).toEqual({ type: 'cafe', label: 'Café' });
+  });
+
+  it('keeps coffee roastery for explicit Portuguese roastery phrasing', async () => {
+    setCopyLanguage('pt-PT');
+
+    const results = await searchPlaceTypesCached('ir a um café roastery');
+
+    expect(results[0]).toEqual({ type: 'coffee_roastery', label: 'Café roastery' });
+  });
+
   it('prefers pharmacy for medicine pickup intent', async () => {
     const results = await searchPlaceTypesCached('pick up medicine');
 
