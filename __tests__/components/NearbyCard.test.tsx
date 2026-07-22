@@ -168,7 +168,7 @@ describe('NearbyCard — hero state', () => {
     expect(screen.getByText('Pick up prescription')).toBeTruthy();
   });
 
-  it('renders the "Open in Maps" CTA button when place is known', () => {
+  it('renders the localized Maps CTA button when place is known', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -176,10 +176,11 @@ describe('NearbyCard — hero state', () => {
         poiPlaces={PLACES_MAP}
       />,
     );
-    expect(screen.getByLabelText('Open Whole Foods in Maps')).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.openInMaps)).toBeTruthy();
+    expect(screen.getByLabelText(COPY.nearbyCard.openInMapsA11y('Whole Foods'))).toBeTruthy();
   });
 
-  it('omits the "Open in Maps" CTA when no place is available', () => {
+  it('omits the Maps CTA when no place is available', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -187,7 +188,7 @@ describe('NearbyCard — hero state', () => {
         poiPlaces={EMPTY_PLACES}
       />,
     );
-    expect(screen.queryByText('Open in Maps')).toBeNull();
+    expect(screen.queryByText(COPY.nearbyCard.openInMaps)).toBeNull();
   });
 });
 
@@ -195,7 +196,7 @@ describe('NearbyCard — also close section', () => {
   beforeEach(() => { setCopyLanguage('en'); });
   afterEach(() => { setCopyLanguage('en'); });
 
-  it('renders "ALSO CLOSE" label and the secondary task title', () => {
+  it('renders the localized also-close label and the secondary task title', () => {
     const heroTask  = makeTask({ id: 'hero', poi: 'pharmacy' });
     const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Buy groceries' });
 
@@ -208,11 +209,11 @@ describe('NearbyCard — also close section', () => {
       />,
     );
 
-    expect(screen.getByText('ALSO CLOSE')).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.alsoClose.toUpperCase())).toBeTruthy();
     expect(screen.getByText('Buy groceries')).toBeTruthy();
   });
 
-  it('does not render "ALSO CLOSE" when only one POI task exists', () => {
+  it('does not render the also-close label when only one POI task exists', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -220,7 +221,7 @@ describe('NearbyCard — also close section', () => {
         poiPlaces={PLACES_MAP}
       />,
     );
-    expect(screen.queryByText('ALSO CLOSE')).toBeNull();
+    expect(screen.queryByText(COPY.nearbyCard.alsoClose.toUpperCase())).toBeNull();
   });
 });
 
@@ -291,5 +292,27 @@ describe('NearbyCard — pt-PT localization', () => {
     );
 
     expect(screen.getByText(COPY.nearbyCard.placesCount(2))).toBeTruthy();
+  });
+
+  it('localizes the hero actions and also-close label', () => {
+    const heroTask = makeTask({ id: 'hero', poi: 'pharmacy' });
+    const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Comprar pão' });
+    const secondPharmacy = { ...NEARBY_PLACE, placeId: 'place-2', name: 'Farmácia Central', distanceMeters: 70 };
+
+    render(
+      <NearbyCard
+        tasks={[heroTask, alsoClose]}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy: [NEARBY_PLACE, secondPharmacy],
+          supermarket: [GREY_PLACE],
+        }}
+      />,
+    );
+
+    expect(screen.getByText(COPY.nearbyCard.openInMaps)).toBeTruthy();
+    expect(screen.getByLabelText(COPY.nearbyCard.openInMapsA11y('Whole Foods'))).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.tryAnotherPlace)).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.alsoClose.toUpperCase())).toBeTruthy();
   });
 });

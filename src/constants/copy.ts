@@ -1053,8 +1053,15 @@ const en = {
     headerLabel: 'Nearby',
     headerNowLabel: 'Nearby · now',
     placesCount: (n: number) => (n === 1 ? '1 Place' : `${n} Places`),
+    openInMaps: 'Open in Maps',
+    openInMapsA11y: (placeName: string) => `Open ${placeName} in Maps`,
+    tryAnotherPlace: 'Try another place',
     tryAnotherPlaceA11y: 'Try another place',
     refreshLocationA11y: 'Refresh location',
+    storeTuningOn: 'Store tuning on',
+    refreshUpdated: 'Updated',
+    refreshFailed: 'Failed',
+    alsoClose: 'Also close',
   },
 
   newTaskSheet2: {
@@ -2077,8 +2084,15 @@ const ptPT: typeof en = {
     headerLabel: 'Na proximidade',
     headerNowLabel: 'Na proximidade · agora',
     placesCount: (n: number) => (n === 1 ? '1 Local' : `${n} Locais`),
+    openInMaps: 'Abrir no Mapas',
+    openInMapsA11y: (placeName: string) => `Abrir ${placeName} no Mapas`,
+    tryAnotherPlace: 'Tentar outro local',
     tryAnotherPlaceA11y: 'Tentar outro local',
     refreshLocationA11y: 'Atualizar localização',
+    storeTuningOn: 'Afinação de lojas ativa',
+    refreshUpdated: 'Atualizado',
+    refreshFailed: 'Falhou',
+    alsoClose: 'Também perto',
   },
 
   newTaskSheet2: {

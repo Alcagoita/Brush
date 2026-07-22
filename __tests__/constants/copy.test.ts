@@ -40,6 +40,13 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.nearbyCard.headerLabel).toBe('Na proximidade');
     expect(COPY.nearbyCard.placesCount(1)).toBe('1 Local');
     expect(COPY.nearbyCard.placesCount(2)).toBe('2 Locais');
+    expect(COPY.nearbyCard.openInMaps).toBe('Abrir no Mapas');
+    expect(COPY.nearbyCard.openInMapsA11y('Continente')).toBe('Abrir Continente no Mapas');
+    expect(COPY.nearbyCard.tryAnotherPlace).toBe('Tentar outro local');
+    expect(COPY.nearbyCard.storeTuningOn).toBe('Afinação de lojas ativa');
+    expect(COPY.nearbyCard.refreshUpdated).toBe('Atualizado');
+    expect(COPY.nearbyCard.refreshFailed).toBe('Falhou');
+    expect(COPY.nearbyCard.alsoClose).toBe('Também perto');
   });
 
   it('keeps Brush in English and localizes achievements tiers', () => {
