@@ -71,6 +71,14 @@ export default function PlacesIKnowScreen() {
     );
   };
 
+  const editTripDates = (trip: Trip) => {
+    navigation.navigate('TripPlanner', { editTripId: trip.id, initialStep: 'dates' });
+  };
+
+  const editTripRadius = (trip: Trip) => {
+    navigation.navigate('TripPlanner', { editTripId: trip.id, initialStep: 'radius' });
+  };
+
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
       <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
@@ -131,6 +139,27 @@ export default function PlacesIKnowScreen() {
                         : COPY.tripPlanner.tripRowNoDates)}
                     {trip.kind !== 'offgrid' && (<>{' · '}{formatExpiry(trip.expiresAt)}</>)}
                   </Text>
+                  {trip.kind !== 'offgrid' && (
+                    <View style={styles.inlineActions}>
+                      <Pressable
+                        onPress={() => editTripDates(trip)}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={COPY.tripPlanner.changeTripDatesA11y(trip.destination)}>
+                        <Text style={[styles.actionLabel, { color: palette.accent }]}>
+                          {trip.startDate || trip.endDate ? COPY.tripPlanner.changeTripDates : COPY.tripPlanner.addTripDates}
+                        </Text>
+                      </Pressable>
+                      <Text style={[styles.actionDot, { color: palette.faint }]}>·</Text>
+                      <Pressable
+                        onPress={() => editTripRadius(trip)}
+                        hitSlop={6}
+                        accessibilityRole="button"
+                        accessibilityLabel={COPY.tripPlanner.learnBiggerAreaA11y(trip.destination)}>
+                        <Text style={[styles.actionLabel, { color: palette.accent }]}>{COPY.tripPlanner.learnBiggerArea}</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
                 {refreshingTripId === trip.id ? (
                   <ActivityIndicator color={palette.muted} size="small" />
@@ -186,6 +215,8 @@ const styles = StyleSheet.create({
   rowText: { flex: 1, gap: 2 },
   rowTitle: { fontSize: 15, fontFamily: 'Geist-Medium', fontWeight: '500' },
   rowSub: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
+  inlineActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 },
+  actionDot: { fontSize: 13, fontFamily: 'Geist-Regular' },
 
   actionBtn: { paddingHorizontal: 4, paddingVertical: 4 },
   actionLabel: { fontSize: 13, fontFamily: 'Geist-Medium', fontWeight: '500' },

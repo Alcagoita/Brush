@@ -7,7 +7,7 @@
  * same cloud/on-device separation the rest of the codebase already keeps.
  */
 
-import { getDocs, addDoc, updateDoc, deleteDoc, Timestamp } from '@react-native-firebase/firestore';
+import { getDocs, getDoc, addDoc, updateDoc, deleteDoc, deleteField, Timestamp } from '@react-native-firebase/firestore';
 import type { Trip } from '../../types';
 import { tripsRef, tripRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
@@ -27,13 +27,29 @@ export async function getTrips(uid: string): Promise<Trip[]> {
   return mapSnapshotDocs<Trip>(snap);
 }
 
-/** Updates expiresAt/preRefreshedAt after a (re)download — the only fields a trip mutates post-creation. */
+/** Fetches a single trip by id. */
+export async function getTrip(uid: string, tripId: string): Promise<Trip | null> {
+  const snap = await getDoc(tripRef(uid, tripId));
+  if (!snap.exists()) { return null; }
+  return { id: snap.id, ...snap.data() } as Trip;
+}
+
+type TripUpdate = Partial<Pick<
+  Trip,
+  'startDate' | 'endDate' | 'areaRadius' | 'expiresAt' | 'preRefreshedAt'
+>>;
+
+/** Updates mutable trip metadata after user edits or a (re)download. */
 export async function updateTrip(
   uid: string,
   tripId: string,
-  data: Partial<Pick<Trip, 'preRefreshedAt' | 'expiresAt'>>,
+  data: TripUpdate,
 ): Promise<void> {
-  await updateDoc(tripRef(uid, tripId), data);
+  const patch: Record<string, unknown> = { ...data };
+  if ('startDate' in data && data.startDate === undefined) { patch.startDate = deleteField(); }
+  if ('endDate' in data && data.endDate === undefined) { patch.endDate = deleteField(); }
+  if ('preRefreshedAt' in data && data.preRefreshedAt === undefined) { patch.preRefreshedAt = deleteField(); }
+  await updateDoc(tripRef(uid, tripId), patch);
 }
 
 /** Deletes the trip document. Caller must also delete its habitat_places rows via deleteTripAreaPlaces(trip.cacheAreaId). */

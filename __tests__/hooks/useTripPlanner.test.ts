@@ -36,9 +36,13 @@ jest.mock('../../src/services/maps', () => ({
 
 const mockAddTrip = jest.fn();
 const mockGetCategories = jest.fn().mockResolvedValue([]);
+const mockGetTrip = jest.fn();
+const mockUpdateTrip = jest.fn();
 jest.mock('../../src/services/firestore', () => ({
   addTrip: (...args: unknown[]) => mockAddTrip(...args),
   getCategories: (...args: unknown[]) => mockGetCategories(...args),
+  getTrip: (...args: unknown[]) => mockGetTrip(...args),
+  updateTrip: (...args: unknown[]) => mockUpdateTrip(...args),
 }));
 
 // tripDownload.ts (requireActual'd below) imports updateTrip directly from
@@ -63,13 +67,31 @@ jest.mock('../../src/store/toastStore', () => ({
 }));
 
 import { act, renderHook, waitFor } from '@testing-library/react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { useTripPlanner } from '../../src/hooks/useTripPlanner';
 import { deleteTripAreaPlaces as mockDeleteTripAreaPlaces } from '../../src/services/habitatCache';
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockGetCategories.mockResolvedValue([]);
+  mockGetTrip.mockResolvedValue(null);
+  mockUpdateTrip.mockResolvedValue(undefined);
+  (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: true });
 });
+
+const EDIT_TRIP = {
+  id: 'trip-1',
+  destination: 'Faro',
+  placeRef: 'place-1',
+  centerLat: 37.0179,
+  centerLng: -7.9304,
+  startDate: '2026-07-24',
+  endDate: '2026-07-28',
+  areaRadius: 15_000,
+  cacheAreaId: 'ta_existing',
+  expiresAt: 1_800_000_000_000,
+  createdAt: {} as unknown,
+};
 
 describe('destination step', () => {
   it('debounces autocomplete search as the user types', async () => {
@@ -238,6 +260,82 @@ describe('radius step', () => {
 
     expect(result.current.estimatedBytes).toBeGreaterThan(initialEstimate);
     expect(mockBuildStaticMapPreviewUrl).toHaveBeenLastCalledWith(1, 2, 40_000, expect.any(Number), expect.any(Number));
+  });
+});
+
+describe('edit mode (KAN-266)', () => {
+  it('loads an existing trip and opens on the requested dates step', async () => {
+    mockGetTrip.mockResolvedValue(EDIT_TRIP);
+
+    const { result } = renderHook(() =>
+      useTripPlanner(jest.fn(), undefined, undefined, { editTripId: 'trip-1', initialStep: 'dates' }),
+    );
+
+    await waitFor(() => expect(result.current.destination?.name).toBe('Faro'));
+
+    expect(result.current.isEditing).toBe(true);
+    expect(result.current.step).toBe('dates');
+    expect(result.current.startDate).toBe('2026-07-24');
+    expect(result.current.endDate).toBe('2026-07-28');
+  });
+
+  it('saves changed dates to the existing trip without creating a duplicate', async () => {
+    mockGetTrip.mockResolvedValue(EDIT_TRIP);
+    const onDone = jest.fn();
+    const { result } = renderHook(() =>
+      useTripPlanner(onDone, undefined, undefined, { editTripId: 'trip-1', initialStep: 'dates' }),
+    );
+    await waitFor(() => expect(result.current.destination?.name).toBe('Faro'));
+
+    act(() => {
+      result.current.setStartDate('2026-07-25');
+      result.current.setEndDate('2026-07-30');
+    });
+    await act(async () => { await result.current.confirmDownload(); });
+
+    expect(mockUpdateTrip).toHaveBeenCalledWith('test-uid', 'trip-1', expect.objectContaining({
+      startDate: '2026-07-25',
+      endDate:   '2026-07-30',
+    }));
+    expect(mockAddTrip).not.toHaveBeenCalled();
+    expect(onDone).toHaveBeenCalled();
+  });
+
+  it('downloads into the existing cache area when the radius grows online', async () => {
+    mockGetTrip.mockResolvedValue(EDIT_TRIP);
+    mockDownloadTripArea.mockResolvedValue(5);
+    const { result } = renderHook(() =>
+      useTripPlanner(jest.fn(), undefined, undefined, { editTripId: 'trip-1', initialStep: 'radius' }),
+    );
+    await waitFor(() => expect(result.current.destination?.name).toBe('Faro'));
+
+    act(() => { result.current.setRadiusKey('region'); });
+    await act(async () => { await result.current.confirmDownload(); });
+
+    expect(mockUpdateTrip).toHaveBeenCalledWith('test-uid', 'trip-1', expect.objectContaining({ areaRadius: 40_000 }));
+    expect(mockDownloadTripArea).toHaveBeenCalledWith(
+      { lat: 37.0179, lng: -7.9304 },
+      40_000,
+      'ta_existing',
+      expect.any(Number),
+      [],
+    );
+    expect(mockAddTrip).not.toHaveBeenCalled();
+  });
+
+  it('does not redownload when the radius shrinks or the phone is offline', async () => {
+    mockGetTrip.mockResolvedValue({ ...EDIT_TRIP, areaRadius: 40_000 });
+    (NetInfo.fetch as jest.Mock).mockResolvedValue({ isConnected: false });
+    const { result } = renderHook(() =>
+      useTripPlanner(jest.fn(), undefined, undefined, { editTripId: 'trip-1', initialStep: 'radius' }),
+    );
+    await waitFor(() => expect(result.current.destination?.name).toBe('Faro'));
+
+    act(() => { result.current.setRadiusKey('town'); });
+    await act(async () => { await result.current.confirmDownload(); });
+
+    expect(mockUpdateTrip).toHaveBeenCalledWith('test-uid', 'trip-1', expect.objectContaining({ areaRadius: 5_000 }));
+    expect(mockDownloadTripArea).not.toHaveBeenCalled();
   });
 });
 

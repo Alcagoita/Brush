@@ -22,6 +22,9 @@ jest.mock('@react-native-community/netinfo', () =>
   require('@react-native-community/netinfo/jest/netinfo-mock'),
 );
 jest.mock('../../src/services/habitatCache');
+jest.mock('../../src/services/osmPlaces', () => ({
+  searchOsmPlacesStrict: jest.fn(),
+}));
 jest.mock('../../src/services/firestore/trips', () => ({
   updateTrip: jest.fn().mockResolvedValue(undefined),
 }));
@@ -124,6 +127,54 @@ describe('PlacesIKnowScreen — off-grid rows (KAN-246)', () => {
   });
 });
 
+describe('PlacesIKnowScreen — trip edit actions (KAN-266)', () => {
+  it('opens the date editor for dated trips', () => {
+    mockUsePlacesIKnow.mockReturnValue({
+      loading: false,
+      habitatSizeBytes: 0,
+      trips: [{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1',
+        centerLat: 0, centerLng: 0, areaRadius: 15_000,
+        startDate: '2026-07-24', endDate: '2026-07-28',
+        cacheAreaId: 'ta_1', expiresAt: Date.now() + 1_000_000,
+        createdAt: {} as unknown,
+      }],
+      refresh: jest.fn().mockResolvedValue(undefined),
+      refreshingTripId: null,
+      refreshTrip: jest.fn(),
+      deleteTrip: jest.fn(),
+    });
+
+    render(<PlacesIKnowScreen />);
+    fireEvent.press(screen.getByText('Change the dates'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { editTripId: 'trip-1', initialStep: 'dates' });
+  });
+
+  it('opens the radius editor for regular trips', () => {
+    mockUsePlacesIKnow.mockReturnValue({
+      loading: false,
+      habitatSizeBytes: 0,
+      trips: [{
+        id: 'trip-1', destination: 'Faro', placeRef: 'p1',
+        centerLat: 0, centerLng: 0, areaRadius: 15_000,
+        cacheAreaId: 'ta_1', expiresAt: Date.now() + 1_000_000,
+        createdAt: {} as unknown,
+      }],
+      refresh: jest.fn().mockResolvedValue(undefined),
+      refreshingTripId: null,
+      refreshTrip: jest.fn(),
+      deleteTrip: jest.fn(),
+    });
+
+    render(<PlacesIKnowScreen />);
+    expect(screen.getByText('Add the dates')).toBeTruthy();
+    fireEvent.press(screen.getByText('Learn a bigger area'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { editTripId: 'trip-1', initialStep: 'radius' });
+  });
+});
+
 describe('PlacesIKnowScreen — cancel/forget delete-confirm copy (KAN-251)', () => {
   const mockDeleteTrip = jest.fn();
 
@@ -203,12 +254,13 @@ describe('PlacesIKnowScreen — cancel/forget delete-confirm copy (KAN-251)', ()
     };
     setupTrips([trip]);
 
-    const alertSpy = jest
-      .spyOn(require('react-native').Alert, 'alert')
-      .mockImplementation((_title: any, _msg: any, buttons: any[]) => {
-        const destructive = buttons?.find((b: any) => b.style === 'destructive');
-        destructive?.onPress?.();
-      });
+	    const alertSpy = jest
+	      .spyOn(require('react-native').Alert, 'alert')
+	      .mockImplementation((...args: unknown[]) => {
+	        const buttons = args[2] as Array<{ style?: string; onPress?: () => void }> | undefined;
+	        const destructive = buttons?.find(b => b.style === 'destructive');
+	        destructive?.onPress?.();
+	      });
 
     render(<PlacesIKnowScreen />);
     fireEvent.press(screen.getByLabelText('Delete Faro'));

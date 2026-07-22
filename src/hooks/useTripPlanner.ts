@@ -7,6 +7,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import {
@@ -15,7 +16,7 @@ import {
   buildStaticMapPreviewUrl,
 } from '../services/maps';
 import type { PlaceAutocompleteSuggestion } from '../services/maps';
-import { addTrip, getCategories } from '../services/firestore';
+import { addTrip, getCategories, getTrip, updateTrip } from '../services/firestore';
 import {
   downloadTripArea,
   computeTripExpiresAt,
@@ -27,6 +28,7 @@ import { ALL_POI_TYPES } from '../types';
 import type { TripRadiusPreset } from '../types';
 import { useToastStore } from '../store/toastStore';
 import { COPY } from '../constants/copy';
+import type { Trip } from '../types';
 
 export type TripPlannerStep = 'destination' | 'dates' | 'radius' | 'downloading';
 
@@ -53,6 +55,11 @@ export interface ResolvedDestination {
   lng: number;
 }
 
+export interface TripPlannerEditOptions {
+  editTripId: string;
+  initialStep: 'dates' | 'radius';
+}
+
 export interface TripPlannerState {
   step: TripPlannerStep;
 
@@ -77,16 +84,22 @@ export interface TripPlannerState {
   confirmDownload: () => Promise<void>;
   error: string | null;
   goBack: () => void;
+  isEditing: boolean;
+  editInitialStep: 'dates' | 'radius' | null;
 }
 
 export function useTripPlanner(
   onDone: () => void,
   initialStartDate?: string,
   initialDestinationQuery?: string,
+  editOptions?: TripPlannerEditOptions,
 ): TripPlannerState {
   const uid = getAuth().currentUser?.uid ?? '';
+  const editTripId = editOptions?.editTripId;
+  const editInitialStep = editOptions?.initialStep;
+  const isEditing = !!editTripId && !!editInitialStep;
 
-  const [step, setStep] = useState<TripPlannerStep>('destination');
+  const [step, setStep] = useState<TripPlannerStep>(editInitialStep ?? 'destination');
   // KAN-245 — pre-filled from the calendar signal's free-text event location.
   // Only ever a search-box seed, never a resolved place: the calendar signal
   // deliberately never geocodes (on-device text match only), so there are no
@@ -105,6 +118,12 @@ export function useTripPlanner(
   const [radiusKey, setRadiusKey] = useState<TripRadiusPreset>('town_and_around');
   const [error, setError] = useState<string | null>(null);
   const [customCategoryPoiTypes, setCustomCategoryPoiTypes] = useState<string[]>([]);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+
+  // Set right before selectDestination or edit-mode hydration changes `query`
+  // itself, so the debounced effect below can tell those controlled changes
+  // apart from "user is typing".
+  const justSelectedRef = useRef(false);
 
   useEffect(() => {
     if (!uid) { return; }
@@ -112,14 +131,6 @@ export function useTripPlanner(
       .then(categories => setCustomCategoryPoiTypes(categories.map(c => c.poi).filter((p): p is string => !!p)))
       .catch(err => console.warn('[useTripPlanner] getCategories failed', err));
   }, [uid]);
-
-  // Set right before selectDestination changes `query` itself, so the
-  // debounced effect below can tell "query changed because of a selection"
-  // apart from "query changed because the user is typing" — comparing query
-  // to destination.name isn't reliable since query is set from the
-  // suggestion's name while destination.name comes from resolved place
-  // details, and the two can differ.
-  const justSelectedRef = useRef(false);
 
   // Debounced destination autocomplete.
   useEffect(() => {
@@ -133,6 +144,41 @@ export function useTripPlanner(
     }, AUTOCOMPLETE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    if (!editTripId || !editInitialStep || !uid) { return; }
+
+    let cancelled = false;
+    setError(null);
+    setStep(editInitialStep);
+    getTrip(uid, editTripId)
+      .then(trip => {
+        if (cancelled) { return; }
+        if (!trip) {
+          setError(COPY.tripPlanner.downloadErrorToast);
+          return;
+        }
+        justSelectedRef.current = true;
+        setEditingTrip(trip);
+        setQuery(trip.destination);
+        setDestination({
+          placeId: trip.placeRef,
+          name:    trip.destination,
+          lat:     trip.centerLat,
+          lng:     trip.centerLng,
+        });
+        setStartDate(trip.startDate);
+        setEndDate(trip.endDate);
+        setRadiusKey(radiusPresetForMeters(trip.areaRadius));
+        setStep(editInitialStep);
+      })
+      .catch(err => {
+        console.warn('[useTripPlanner] getTrip failed', err);
+        if (!cancelled) { setError(COPY.tripPlanner.downloadErrorToast); }
+      });
+
+    return () => { cancelled = true; };
+  }, [editTripId, editInitialStep, uid]);
 
   const selectDestination = useCallback(async (suggestion: PlaceAutocompleteSuggestion) => {
     justSelectedRef.current = true;
@@ -170,6 +216,51 @@ export function useTripPlanner(
     : '';
 
   const confirmDownload = useCallback(async () => {
+    if (isEditing) {
+      if (!editingTrip || !uid) { return; }
+      setError(null);
+
+      const expiresAt = computeTripExpiresAt(endDate);
+      const nextTrip = {
+        ...editingTrip,
+        startDate,
+        endDate,
+        areaRadius: preset.radiusMeters,
+        expiresAt,
+      };
+
+      try {
+        if (editInitialStep === 'dates') {
+          await updateTrip(uid, editingTrip.id, { startDate, endDate, expiresAt });
+          useToastStore.getState().showToast(COPY.tripPlanner.editDatesSuccessToast(editingTrip.destination));
+          onDone();
+          return;
+        }
+
+        await updateTrip(uid, editingTrip.id, { areaRadius: preset.radiusMeters, expiresAt });
+        const grewArea = preset.radiusMeters > editingTrip.areaRadius;
+        const isOnline = (await NetInfo.fetch()).isConnected !== false;
+        if (grewArea && isOnline) {
+          await downloadTripArea(
+            { lat: editingTrip.centerLat, lng: editingTrip.centerLng },
+            preset.radiusMeters,
+            editingTrip.cacheAreaId,
+            expiresAt,
+            customCategoryPoiTypes,
+          );
+          await updateTrip(uid, editingTrip.id, { expiresAt, preRefreshedAt: Date.now() });
+        }
+        setEditingTrip(nextTrip);
+        useToastStore.getState().showToast(COPY.tripPlanner.editRadiusSuccessToast(editingTrip.destination));
+        onDone();
+      } catch (err) {
+        console.warn('[useTripPlanner] edit failed', err);
+        setError(COPY.tripPlanner.downloadErrorToast);
+        setStep(editInitialStep ?? 'radius');
+      }
+      return;
+    }
+
     if (!destination || !uid) { return; }
     setStep('downloading');
     setError(null);
@@ -212,16 +303,20 @@ export function useTripPlanner(
       setError(COPY.tripPlanner.downloadErrorToast);
       setStep('radius');
     }
-  }, [destination, uid, endDate, startDate, preset.radiusMeters, customCategoryPoiTypes, onDone]);
+  }, [
+    isEditing, editingTrip, uid, endDate, startDate, preset.radiusMeters,
+    editInitialStep, customCategoryPoiTypes, onDone, destination,
+  ]);
 
   const goBack = useCallback(() => {
     setError(null);
     setStep(prev => {
       if (prev === 'radius') { return 'dates'; }
+      if (isEditing && prev === 'dates') { return prev; }
       if (prev === 'dates') { return 'destination'; }
       return prev;
     });
-  }, []);
+  }, [isEditing]);
 
   return {
     step,
@@ -229,5 +324,10 @@ export function useTripPlanner(
     startDate, endDate, setStartDate, setEndDate, goToRadius, skipDates,
     radiusKey, setRadiusKey, estimatedBytes, previewUrl,
     confirmDownload, error, goBack,
+    isEditing, editInitialStep: editInitialStep ?? null,
   };
+}
+
+function radiusPresetForMeters(radiusMeters: number): TripRadiusPreset {
+  return TRIP_RADIUS_PRESETS.find(p => p.radiusMeters === radiusMeters)?.key ?? 'town_and_around';
 }
