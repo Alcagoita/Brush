@@ -83,6 +83,7 @@ jest.mock('../../src/theme', () => ({
       nearTint2:  '#f9ede0',
       nearBorder: '#e8c9a0',
       nearText:   '#7a4a20',
+      scrim:      'rgba(0,0,0,0.25)',
     },
   }),
 }));
@@ -261,6 +262,17 @@ describe('CategoriesScreen — add category', () => {
     await renderWith();
     await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByText('New Category')).toBeNull(),
+    );
+  });
+
+  it('closes the sheet when the overlay is pressed', async () => {
+    await renderWith();
+    await openAddSheet();
+
+    fireEvent.press(screen.getByTestId('category-sheet-overlay'));
+
     await waitFor(() =>
       expect(screen.queryByText('New Category')).toBeNull(),
     );

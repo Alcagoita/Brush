@@ -274,6 +274,13 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
+      <Pressable
+        testID="category-sheet-overlay"
+        accessibilityRole="button"
+        accessibilityLabel={COPY.categoriesScreen.dismissSheetA11y}
+        style={[styles.scrim, { backgroundColor: palette.scrim }]}
+        onPress={onCancel}
+      />
       <View
         testID="category-sheet-outer"
         style={[
@@ -772,6 +779,9 @@ const styles = StyleSheet.create({
   },
 
   // ── Sheet ──
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+  },
   sheetOuter: {
     position: 'absolute',
     bottom:    0,
