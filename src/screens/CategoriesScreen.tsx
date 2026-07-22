@@ -274,19 +274,20 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
-      <Pressable
-        testID="category-sheet-overlay"
-        accessibilityRole="button"
-        accessibilityLabel={COPY.categoriesScreen.dismissSheetA11y}
-        style={[styles.scrim, { backgroundColor: palette.scrim }]}
-        onPress={onCancel}
-      />
-      <View
-        testID="category-sheet-outer"
-        style={[
-          styles.sheetOuter,
-          { maxHeight: availableSheetHeight },
-        ]}>
+      <View style={styles.sheetModal}>
+        <Pressable
+          testID="category-sheet-overlay"
+          accessibilityRole="button"
+          accessibilityLabel={COPY.categoriesScreen.dismissSheetA11y}
+          style={[styles.scrim, { backgroundColor: palette.scrim }]}
+          onPress={onCancel}
+        />
+        <View
+          testID="category-sheet-outer"
+          style={[
+            styles.sheetOuter,
+            { maxHeight: availableSheetHeight },
+          ]}>
         <View
           style={[
             styles.sheet,
@@ -514,6 +515,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
           </View>
 
           </ScrollView>
+        </View>
         </View>
       </View>
     </Modal>
@@ -779,14 +781,14 @@ const styles = StyleSheet.create({
   },
 
   // ── Sheet ──
+  sheetModal: {
+    flex: 1,
+  },
   scrim: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
   },
   sheetOuter: {
-    position: 'absolute',
-    bottom:    0,
-    left:      0,
-    right:     0,
+    width: '100%',
   },
   sheet: {
     borderTopLeftRadius:  24,

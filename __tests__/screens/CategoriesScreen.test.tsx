@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -221,13 +221,15 @@ describe('CategoriesScreen — add category', () => {
     await renderWith();
     await openAddSheet();
 
+    const overlay = screen.getByTestId('category-sheet-overlay');
     const sheetOuter = screen.getByTestId('category-sheet-outer');
     const sheetScroll = screen.getByTestId('category-sheet-scroll');
-    expect(sheetOuter.props.style).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ bottom: 0 }),
-      ]),
-    );
+    const overlayStyle = StyleSheet.flatten(overlay.props.style);
+    const sheetOuterStyle = StyleSheet.flatten(sheetOuter.props.style);
+
+    expect(overlayStyle.flex).toBe(1);
+    expect(sheetOuterStyle.width).toBe('100%');
+    expect(sheetOuterStyle.position).toBeUndefined();
     expect(sheetScroll.props.keyboardShouldPersistTaps).toBe('handled');
     expect(sheetScroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
   });
