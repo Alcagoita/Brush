@@ -180,7 +180,6 @@ function HeroCard({
   const placesSignature = places.map(p => p.placeId).join(',');
   React.useEffect(() => {
     setCurrentIndex(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placesSignature]);
 
   const place = places[Math.min(currentIndex, places.length - 1)];
@@ -234,8 +233,8 @@ function HeroCard({
         ]}
         onPress={() => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); }}
         accessibilityRole="button"
-        accessibilityLabel={`Open ${place.name} in Maps`}>
-        <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
+        accessibilityLabel={COPY.nearbyCard.openInMapsA11y(place.name)}>
+        <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.nearbyCard.openInMaps}</Text>
       </Pressable>
 
       {/* "Try another place" — only when 2+ POIs found */}
@@ -249,7 +248,7 @@ function HeroCard({
           accessibilityRole="button"
           accessibilityLabel={COPY.nearbyCard.tryAnotherPlaceA11y}>
           <Text style={[styles.tryAnotherLabel, { color: palette.nearText }]}>
-            Try another place
+            {COPY.nearbyCard.tryAnotherPlace}
           </Text>
         </Pressable>
       )}
@@ -280,7 +279,7 @@ function AlsoCloseRow({
       ]}
       onPress={place ? () => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); } : undefined}
       accessibilityRole={place ? 'button' : 'text'}
-      accessibilityLabel={place ? `Open ${place.name} in Maps` : task.title}>
+      accessibilityLabel={place ? COPY.nearbyCard.openInMapsA11y(place.name) : task.title}>
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
         <PoiIcon type={task.poi ?? 'atm'} color={palette.muted} size={20} />
       </View>
@@ -417,11 +416,11 @@ function NearbyCard({
         <View style={styles.headerRight}>
           {storeTuningActive && (
             <Text style={[styles.tuningLabel, { color: palette.accent }]}>
-              Store tuning on
+              {COPY.nearbyCard.storeTuningOn}
             </Text>
           )}
           <Animated.Text style={[styles.feedbackLabel, { color: refreshResult === 'ok' ? palette.accent : palette.muted }, feedbackStyle]}>
-            {refreshResult === 'ok' ? 'Updated' : 'Failed'}
+            {refreshResult === 'ok' ? COPY.nearbyCard.refreshUpdated : COPY.nearbyCard.refreshFailed}
           </Animated.Text>
           <Text style={[styles.placesCount, { color: palette.muted }]}>
             {COPY.nearbyCard.placesCount(totalPlaces)}
@@ -485,7 +484,7 @@ function NearbyCard({
       {greyTasks.length > 0 && (
         <View style={[styles.listSection, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           {isHero && (
-            <Text style={[styles.listSectionLabel, { color: palette.muted }]}>ALSO CLOSE</Text>
+            <Text style={[styles.listSectionLabel, { color: palette.muted }]}>{COPY.nearbyCard.alsoClose.toUpperCase()}</Text>
           )}
           {greyTasks.map((task, index) => (
             <AlsoCloseRow
