@@ -62,22 +62,28 @@ export default function TripPlannerScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
+  const editOptions = route.params?.editTripId && route.params.initialStep
+    ? { editTripId: route.params.editTripId, initialStep: route.params.initialStep }
+    : undefined;
 
   const {
     step, query, setQuery, suggestions, selectDestination, destination,
     startDate, endDate, setStartDate, setEndDate, goToRadius, skipDates,
     radiusKey, setRadiusKey, estimatedBytes, previewUrl,
-    confirmDownload, error, goBack,
+    confirmDownload, error, goBack, isEditing, editInitialStep,
   } = useTripPlanner(
     () => navigation.navigate('PlacesIKnow'),
     route.params?.prefillStartDate,
     route.params?.prefillDestinationQuery,
+    editOptions,
   );
 
   const [openPicker, setOpenPicker] = React.useState<'start' | 'end' | null>(null);
 
   const stepIndex = STEPS.indexOf(step as (typeof STEPS)[number]);
   const stepTitle =
+    isEditing && editInitialStep === 'dates'  ? COPY.tripPlanner.changeDatesTitle :
+    isEditing && editInitialStep === 'radius' ? COPY.tripPlanner.learnBiggerArea :
     step === 'destination' ? COPY.tripPlanner.destinationQuestion :
     step === 'dates'       ? COPY.tripPlanner.datesQuestion :
     step === 'radius'      ? COPY.tripPlanner.entryRowLabel :
@@ -95,7 +101,7 @@ export default function TripPlannerScreen() {
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
           <Pressable
             style={styles.navBtn}
-            onPress={() => (stepIndex <= 0 ? navigation.goBack() : goBack())}
+            onPress={() => (isEditing && step === editInitialStep) || stepIndex <= 0 ? navigation.goBack() : goBack()}
             accessibilityRole="button"
             accessibilityLabel={COPY.tripPlannerScreen.backA11y}>
             <ChevronLeftIcon color={palette.text} size={22} />
@@ -205,9 +211,11 @@ export default function TripPlannerScreen() {
               />
             )}
 
-            <Pressable onPress={skipDates} accessibilityRole="button">
-              <Text style={[styles.skipLink, { color: palette.muted }]}>{COPY.tripPlanner.datesSkip}</Text>
-            </Pressable>
+            {!isEditing && (
+              <Pressable onPress={skipDates} accessibilityRole="button">
+                <Text style={[styles.skipLink, { color: palette.muted }]}>{COPY.tripPlanner.datesSkip}</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
@@ -271,29 +279,33 @@ export default function TripPlannerScreen() {
         )}
       </ScrollView>
 
-      {step === 'radius' && (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: palette.line, backgroundColor: palette.bg }]}>
-          <Pressable
-            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
-            onPress={confirmDownload}
-            accessibilityRole="button"
-            accessibilityLabel={COPY.tripPlanner.downloadButton}>
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.tripPlanner.downloadButton}</Text>
-          </Pressable>
-        </View>
-      )}
+	      {step === 'radius' && (
+	        <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: palette.line, backgroundColor: palette.bg }]}>
+	          <Pressable
+	            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
+	            onPress={confirmDownload}
+	            accessibilityRole="button"
+	            accessibilityLabel={isEditing ? COPY.tripPlanner.saveAreaButton : COPY.tripPlanner.downloadButton}>
+	            <Text style={[styles.ctaLabel, { color: palette.bg }]}>
+	              {isEditing ? COPY.tripPlanner.saveAreaButton : COPY.tripPlanner.downloadButton}
+	            </Text>
+	          </Pressable>
+	        </View>
+	      )}
 
       {step === 'dates' && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: palette.line, backgroundColor: palette.bg }]}>
-          <Pressable
-            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
-            onPress={goToRadius}
-            accessibilityRole="button"
-            accessibilityLabel={COPY.tripPlannerScreen.continueA11y}>
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>Continue</Text>
-          </Pressable>
-        </View>
-      )}
+	          <Pressable
+	            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
+	            onPress={isEditing ? confirmDownload : goToRadius}
+	            accessibilityRole="button"
+	            accessibilityLabel={isEditing ? COPY.tripPlanner.saveDatesButton : COPY.tripPlannerScreen.continueA11y}>
+	            <Text style={[styles.ctaLabel, { color: palette.bg }]}>
+	              {isEditing ? COPY.tripPlanner.saveDatesButton : COPY.tripPlannerScreen.continue}
+	            </Text>
+	          </Pressable>
+	        </View>
+	      )}
     </KeyboardAvoidingView>
   );
 }

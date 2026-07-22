@@ -148,6 +148,11 @@ const en = {
     refreshTripA11y: (destination: string) => `Refresh ${destination}`,
     refresh: 'Refresh',
     deleteTripA11y: (destination: string) => `Delete ${destination}`,
+    changeTripDates: 'Edit dates',
+    addTripDates: 'Edit dates',
+    changeTripDatesA11y: (destination: string) => `Change the dates for ${destination}`,
+    learnBiggerArea: 'Edit area size',
+    learnBiggerAreaA11y: (destination: string) => `Learn a bigger area around ${destination}`,
     entryRowLabel: 'Going somewhere?',
     entryRowA11y:  'Plan a trip',
     /** KAN-243 — the future-day CTA in Calendar's detail card; dateLabel is the full formatted date (e.g. "Friday, July 24"). */
@@ -166,9 +171,14 @@ const en = {
         ? `About ${mb} — I'll know it until ${untilDate}.`
         : `About ${mb} — I'll keep it fresh for about a month.`,
     downloadButton:   'Learn this area',
+    saveDatesButton:  'Save dates',
+    saveAreaButton:   'Save area',
     downloadingLabel: 'Learning the area…',
     downloadErrorToast: "Couldn't learn this area — check your connection and try again.",
     downloadSuccessToast: (destination: string) => `Got it — I know ${destination} now.`,
+    editDatesSuccessToast: (destination: string) => `Dates updated for ${destination}.`,
+    editRadiusSuccessToast: (destination: string) => `Area updated for ${destination}.`,
+    changeDatesTitle: 'Change the dates',
     placesIKnowTitle: 'Places I know',
     placesIKnowEmpty: "I don't know any trip areas yet — add one above.",
     /**
@@ -1036,6 +1046,7 @@ const en = {
     startDateA11y: 'Start date',
     endDateA11y: 'End date',
     continueA11y: 'Continue',
+    continue: 'Continue',
   },
 
   nearbyCard: {
@@ -1240,6 +1251,11 @@ const ptPT: typeof en = {
     refreshTripA11y: (destination: string) => `Atualizar ${destination}`,
     refresh: 'Atualizar',
     deleteTripA11y: (destination: string) => `Eliminar ${destination}`,
+    changeTripDates: 'Editar datas',
+    addTripDates: 'Editar datas',
+    changeTripDatesA11y: (destination: string) => `Alterar as datas de ${destination}`,
+    learnBiggerArea: 'Editar tamanho da zona',
+    learnBiggerAreaA11y: (destination: string) => `Aprender uma zona maior à volta de ${destination}`,
     entryRowLabel: 'Vais a algum lado?',
     entryRowA11y:  'Planear uma viagem',
     entryRowA11yWithDate: (dateLabel: string) => `Planear uma viagem a partir de ${dateLabel}`,
@@ -1256,9 +1272,14 @@ const ptPT: typeof en = {
         ? `Cerca de ${mb} — vou saber até ${untilDate}.`
         : `Cerca de ${mb} — vou manter isto atualizado durante cerca de um mês.`,
     downloadButton:   'Aprender esta zona',
+    saveDatesButton:  'Guardar datas',
+    saveAreaButton:   'Guardar zona',
     downloadingLabel: 'A aprender a zona…',
     downloadErrorToast: 'Não consegui aprender esta zona — verifica a tua ligação e tenta outra vez.',
     downloadSuccessToast: (destination: string) => `Entendido — já conheço ${destination}.`,
+    editDatesSuccessToast: (destination: string) => `Datas atualizadas para ${destination}.`,
+    editRadiusSuccessToast: (destination: string) => `Zona atualizada para ${destination}.`,
+    changeDatesTitle: 'Alterar as datas',
     placesIKnowTitle: 'Sítios que conheço',
     placesIKnowEmpty: 'Ainda não conheço nenhuma zona de viagem — adiciona uma acima.',
     tripUpcomingRowLabel: (destination: string) => `Vou a ${destination} em breve`,
@@ -2049,6 +2070,7 @@ const ptPT: typeof en = {
     startDateA11y: 'Data de início',
     endDateA11y: 'Data de fim',
     continueA11y: 'Continuar',
+    continue: 'Continuar',
   },
 
   nearbyCard: {
