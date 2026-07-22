@@ -558,6 +558,16 @@ describe('queryHabitatCache', () => {
     expect(result.atm).toHaveLength(50);
   });
 
+  it('uses the default cap when maxResultsPerType is explicitly undefined', () => {
+    for (let i = 0; i < 60; i++) {
+      upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: i * 0.002, lng: 0, source: { osm: `node/${i}` } });
+    }
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 20_000, { maxResultsPerType: undefined });
+
+    expect(result.atm).toHaveLength(50);
+  });
+
   it('can opt out of the per-type cap for callers that rank beyond distance', () => {
     for (let i = 0; i < 60; i++) {
       upsertPlace({ poiType: 'attraction', name: `Attraction ${i}`, lat: i * 0.002, lng: 0, source: { osm: `way/${i}` } });

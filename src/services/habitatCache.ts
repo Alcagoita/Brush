@@ -507,7 +507,9 @@ export function queryHabitatCache(
 
     for (const poiType of poiTypes) {
       result[poiType].sort((a, b) => a.distanceMeters - b.distanceMeters);
-      const maxResults = 'maxResultsPerType' in options ? options.maxResultsPerType : MAX_RESULTS_PER_TYPE;
+      const maxResults = options.maxResultsPerType === undefined
+        ? MAX_RESULTS_PER_TYPE
+        : options.maxResultsPerType;
       if (maxResults != null && result[poiType].length > maxResults) {
         result[poiType] = result[poiType].slice(0, maxResults);
       }
