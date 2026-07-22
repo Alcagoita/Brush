@@ -22,7 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, SuitcaseIcon, CloudOffIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, SuitcaseIcon, CloudOffIcon, RefreshIcon } from '../components/AppIcon';
 import { usePlacesIKnow } from '../hooks/usePlacesIKnow';
 import { formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
@@ -146,7 +146,7 @@ export default function PlacesIKnowScreen() {
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={COPY.tripPlanner.changeTripDatesA11y(trip.destination)}>
-                        <Text style={[styles.actionLabel, { color: palette.accent }]}>
+                        <Text style={[styles.inlineActionLabel, { color: palette.muted }]}>
                           {trip.startDate || trip.endDate ? COPY.tripPlanner.changeTripDates : COPY.tripPlanner.addTripDates}
                         </Text>
                       </Pressable>
@@ -156,7 +156,7 @@ export default function PlacesIKnowScreen() {
                         hitSlop={6}
                         accessibilityRole="button"
                         accessibilityLabel={COPY.tripPlanner.learnBiggerAreaA11y(trip.destination)}>
-                        <Text style={[styles.actionLabel, { color: palette.accent }]}>{COPY.tripPlanner.learnBiggerArea}</Text>
+                        <Text style={[styles.inlineActionLabel, { color: palette.muted }]}>{COPY.tripPlanner.learnBiggerArea}</Text>
                       </Pressable>
                     </View>
                   )}
@@ -168,10 +168,10 @@ export default function PlacesIKnowScreen() {
                     <Pressable
                       onPress={() => refreshTrip(trip)}
                       hitSlop={8}
-                      style={styles.actionBtn}
+                      style={[styles.iconActionBtn, { backgroundColor: palette.surface2 }]}
                       accessibilityRole="button"
                       accessibilityLabel={COPY.tripPlanner.refreshTripA11y(trip.destination)}>
-                      <Text style={[styles.actionLabel, { color: palette.accent }]}>{COPY.tripPlanner.refresh}</Text>
+                      <RefreshIcon color={palette.muted} size={15} />
                     </Pressable>
                     <Pressable
                       onPress={() => confirmDelete(trip)}
@@ -216,9 +216,11 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontFamily: 'Geist-Medium', fontWeight: '500' },
   rowSub: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
   inlineActions: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 },
+  inlineActionLabel: { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500' },
   actionDot: { fontSize: 13, fontFamily: 'Geist-Regular' },
 
   actionBtn: { paddingHorizontal: 4, paddingVertical: 4 },
+  iconActionBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   actionLabel: { fontSize: 13, fontFamily: 'Geist-Medium', fontWeight: '500' },
   deleteX: { fontSize: 22, lineHeight: 22 },
 

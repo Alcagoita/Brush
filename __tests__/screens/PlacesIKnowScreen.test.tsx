@@ -52,6 +52,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   ChevronLeftIcon: () => null,
   SuitcaseIcon:     () => null,
   CloudOffIcon:     () => null,
+  RefreshIcon:      () => null,
 }));
 
 import PlacesIKnowScreen from '../../src/screens/PlacesIKnowScreen';
@@ -146,7 +147,7 @@ describe('PlacesIKnowScreen — trip edit actions (KAN-266)', () => {
     });
 
     render(<PlacesIKnowScreen />);
-    fireEvent.press(screen.getByText('Change the dates'));
+    fireEvent.press(screen.getByText('Dates'));
 
     expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { editTripId: 'trip-1', initialStep: 'dates' });
   });
@@ -168,8 +169,8 @@ describe('PlacesIKnowScreen — trip edit actions (KAN-266)', () => {
     });
 
     render(<PlacesIKnowScreen />);
-    expect(screen.getByText('Add the dates')).toBeTruthy();
-    fireEvent.press(screen.getByText('Learn a bigger area'));
+    expect(screen.getByText('Add dates')).toBeTruthy();
+    fireEvent.press(screen.getByText('Bigger area'));
 
     expect(mockNavigate).toHaveBeenCalledWith('TripPlanner', { editTripId: 'trip-1', initialStep: 'radius' });
   });
