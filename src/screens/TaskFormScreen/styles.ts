@@ -195,16 +195,14 @@ export const styles = StyleSheet.create({
     paddingBottom:  10,
     paddingHorizontal: 4,
   },
-  poiSuggestionTile: {
+  poiTileSuggested: {
     borderStyle: 'dashed',
   },
-  poiTileSuggested: {
-    borderStyle: 'solid',
-  },
   poiTileLabel: {
-    fontSize:   11,
-    fontFamily: 'Geist-Regular',
-    textAlign:  'center',
+    fontSize:      11,
+    fontFamily:    'Geist-Regular',
+    textAlign:     'center',
+    letterSpacing: 0.01,
   },
   poiTileHint: {
     fontSize:   9,

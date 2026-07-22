@@ -12,6 +12,7 @@
  */
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import NewTaskSheet from '../../src/components/NewTaskSheet';
 import type { Category } from '../../src/types';
@@ -314,7 +315,12 @@ describe('KAN-249 suggested POI states', () => {
     // the plain catalog "Pharmacy" tile — is what carries the confirm action.
     fireEvent.press(screen.getByLabelText('Pharmacy, my guess?'));
 
+    const suggestion = screen.getByLabelText('Pharmacy suggestion');
+    const suggestionStyle = StyleSheet.flatten(suggestion.props.style);
+
     expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+    expect(suggestion.props.accessibilityState?.selected).toBe(true);
+    expect(suggestionStyle.borderStyle).toBe('dashed');
     expect(screen.queryByText('my guess?')).toBeNull();
   });
 
@@ -548,9 +554,10 @@ describe('"More details" navigation', () => {
 
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
-        uid:          'test-uid',
-        initialTitle: 'Visit police',
-        initialPoi:   'police',
+        uid:                          'test-uid',
+        initialTitle:                 'Visit police',
+        initialPoi:                   'police',
+        initialPoiExplicitlySelected: false,
       });
     }, { timeout: 500 });
   });
@@ -568,9 +575,10 @@ describe('"More details" navigation', () => {
     // navigateTo fires after an 80 ms setTimeout inside handleMoreDetails
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
-        uid:          'test-uid',
-        initialTitle: 'Buy groceries',
-        initialPoi:   'supermarket',
+        uid:                          'test-uid',
+        initialTitle:                 'Buy groceries',
+        initialPoi:                   'supermarket',
+        initialPoiExplicitlySelected: true,
       });
     }, { timeout: 500 });
   });
@@ -581,9 +589,10 @@ describe('"More details" navigation', () => {
 
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
-        uid:          'test-uid',
-        initialTitle: undefined,
-        initialPoi:   undefined,
+        uid:                          'test-uid',
+        initialTitle:                 undefined,
+        initialPoi:                   undefined,
+        initialPoiExplicitlySelected: false,
       });
     }, { timeout: 500 });
   });

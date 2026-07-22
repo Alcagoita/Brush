@@ -219,39 +219,43 @@ export default function TaskFormScreen() {
   const titleRef = useRef<TextInput>(null);
 
   useEffect(() => {
-    if (isEdit || userTouchedPoiRef.current) { return; }
-
     const myRequestId = ++inferenceRequestIdRef.current;
     const trimmed = title.trim();
 
-    // Title edits invalidate any still-unconfirmed inferred POI immediately,
-    // so a stale guess never remains active while the next debounce runs.
-    setPoiKey(null);
-    setCustomPoiType(null);
-    setQuery('');
-    setSuggestedPoi(null);
-    setSuggestedTitle(trimmed || null);
+    if (!userTouchedPoiRef.current) {
+      // Title edits invalidate any still-unconfirmed inferred POI immediately,
+      // so a stale guess never remains active while the next debounce runs.
+      setPoiKey(null);
+      setCustomPoiType(null);
+      setQuery('');
+      setSuggestedPoi(null);
+      setSuggestedTitle(trimmed || null);
+    }
 
     if (!trimmed) { return; }
 
     const timer = setTimeout(() => {
-      if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+      if (inferenceRequestIdRef.current !== myRequestId) { return; }
 
       inferPoiForQuickAdd(trimmed)
         .then(suggestion => {
-          if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+          if (inferenceRequestIdRef.current !== myRequestId) { return; }
 
           if (!suggestion) {
-            setPoiKey(null);
-            setCustomPoiType(null);
-            setQuery('');
             setSuggestedPoi(null);
             setSuggestedTitle(trimmed);
+            if (!userTouchedPoiRef.current) {
+              setPoiKey(null);
+              setCustomPoiType(null);
+              setQuery('');
+            }
             return;
           }
 
           setSuggestedPoi(suggestion);
           setSuggestedTitle(trimmed);
+
+          if (userTouchedPoiRef.current) { return; }
 
           if (isCatalogPoiType(suggestion)) {
             setPoiKey(suggestion);
@@ -275,7 +279,7 @@ export default function TaskFormScreen() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [title, isEdit]);
+  }, [title]);
 
   // poi is required: quick-pick key → customPoiType (from suggestion) → raw query text
   const effectivePoi: string | null = poiKey ?? customPoiType ?? (query.trim() || null);
@@ -625,8 +629,7 @@ export default function TaskFormScreen() {
               accessibilityState={{ selected: suggestionSelected, disabled: suggestionType === null }}
               style={[
                 styles.poiTile,
-                showSuggestionHint && styles.poiSuggestionTile,
-                confirmedSuggestion && styles.poiTileSuggested,
+                (showSuggestionHint || confirmedSuggestion) && styles.poiTileSuggested,
                 {
                   width: POI_TILE_WIDTH,
                   backgroundColor: liveSuggestion
