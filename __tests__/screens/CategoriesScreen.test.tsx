@@ -216,6 +216,15 @@ describe('CategoriesScreen — add category', () => {
     expect(screen.getByText('New Category')).toBeTruthy();
   });
 
+  it('keeps the category form keyboard-safe and scrollable', async () => {
+    await renderWith();
+    await openAddSheet();
+
+    const sheetScroll = screen.getByTestId('category-sheet-scroll');
+    expect(sheetScroll.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(sheetScroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
+  });
+
   it('shows a name error when saving with empty name', async () => {
     await renderWith();
     await openAddSheet();
