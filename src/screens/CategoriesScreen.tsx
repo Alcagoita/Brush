@@ -260,9 +260,7 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
 
   const isAdd = initial === null;
   const keyboardVisible = keyboardHeight > 0;
-  const availableSheetHeight = Math.max(0, screenHeight - keyboardHeight - insets.top - 12);
-  const sheetBottom = keyboardVisible ? keyboardHeight : 0;
-  const sheetMaxHeight = keyboardVisible ? availableSheetHeight : Math.max(320, availableSheetHeight);
+  const availableSheetHeight = Math.max(320, screenHeight - keyboardHeight - insets.top - 12);
   const sheetContentStyle = [
     styles.sheetContent,
     { paddingBottom: keyboardVisible ? 16 : insets.bottom + 16 },
@@ -276,21 +274,18 @@ function CategorySheet({ visible, initial, onSave, onCancel }: SheetProps) {
       animationType="slide"
       transparent
       onRequestClose={onCancel}>
-      <Pressable style={[styles.scrim, { backgroundColor: palette.scrim }]} onPress={onCancel} />
       <View
+        testID="category-sheet-outer"
         style={[
           styles.sheetOuter,
-          {
-            bottom:    sheetBottom,
-            maxHeight: sheetMaxHeight,
-          },
+          { maxHeight: availableSheetHeight },
         ]}>
         <View
           style={[
             styles.sheet,
             {
               backgroundColor: palette.surface,
-              maxHeight:       sheetMaxHeight,
+              maxHeight:       availableSheetHeight,
             },
           ]}>
           <ScrollView
@@ -777,9 +772,6 @@ const styles = StyleSheet.create({
   },
 
   // ── Sheet ──
-  scrim: {
-    flex: 1,
-  },
   sheetOuter: {
     position: 'absolute',
     bottom:    0,

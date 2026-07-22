@@ -220,7 +220,13 @@ describe('CategoriesScreen — add category', () => {
     await renderWith();
     await openAddSheet();
 
+    const sheetOuter = screen.getByTestId('category-sheet-outer');
     const sheetScroll = screen.getByTestId('category-sheet-scroll');
+    expect(sheetOuter.props.style).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ bottom: 0 }),
+      ]),
+    );
     expect(sheetScroll.props.keyboardShouldPersistTaps).toBe('handled');
     expect(sheetScroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
   });
