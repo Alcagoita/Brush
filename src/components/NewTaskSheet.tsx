@@ -178,7 +178,7 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
       accessibilityState={{ selected, disabled: !known }}
       style={[
         styles.poiTile,
-        showHint && styles.poiTileSuggested,
+        (showHint || confirmed) && styles.poiTileSuggested,
         {
           backgroundColor: live ? palette.nearTint : confirmed ? palette.nearTint2 : known ? palette.surface : palette.nearTint,
           borderColor:     live || confirmed || !known ? palette.nearBorder : palette.line,
@@ -449,7 +449,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
       }
-    }, [title, category, poi, suggestedPoi, suggestedTitle, uid, submitting, resetForm]);
+    }, [title, category, poi, suggestedPoi, suggestedTitle, uid, submitting]);
 
     const handleMoreDetails = useCallback(() => {
       handleClose();
@@ -459,7 +459,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         initialPoi:   poi ?? undefined,
         initialPoiExplicitlySelected: poiTouched,
       }), 80);
-    }, [handleClose, uid, title, poi]);
+    }, [handleClose, uid, title, poi, poiTouched]);
 
     // Always mounted — built once, shown/hidden via transform. `pointerEvents`
     // goes inert when closed so the off-screen sheet never blocks the screen.

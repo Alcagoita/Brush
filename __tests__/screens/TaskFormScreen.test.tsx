@@ -14,8 +14,10 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import type { Alert as AlertType } from 'react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
+import { COPY } from '../../src/constants/copy';
 import { todayISO } from '../../src/utils/date';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -255,6 +257,46 @@ describe('TaskFormScreen — edit mode', () => {
     expect(screen.getByText('Ready to save')).toBeTruthy();
   });
 
+  it('renders a non-catalog recommended POI in edit mode', () => {
+    setRouteParams({
+      uid:  'user-123',
+      task: makeTask({ title: 'Visit police', poi: 'police' }),
+    });
+
+    render(<TaskFormScreen />);
+
+    expect(screen.getByLabelText(`Police ${COPY.newTaskSheet.poiSuggestionConfirmedSuffix}`)).toBeTruthy();
+    expect(screen.getByText('Police')).toBeTruthy();
+  });
+
+  it('updates the recommended POI from the dictionary while preserving the saved POI', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('police');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('Task title'), 'Visit police');
+
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    let suggestion: ReturnType<typeof screen.getByLabelText>;
+    await waitFor(() => {
+      suggestion = screen.getByLabelText(`Police, ${COPY.newTaskSheet.poiSuggestionHint}`);
+      expect(suggestion).toBeTruthy();
+    });
+    const suggestionStyle = StyleSheet.flatten(suggestion!.props.style);
+
+    expect(suggestionStyle.backgroundColor).toBe('#fdf7f0');
+    expect(suggestionStyle.borderColor).toBe('#e8c9a0');
+    expect(suggestionStyle.borderStyle).toBe('dashed');
+    expect(screen.getByText(COPY.newTaskSheet.poiSuggestionHint)).toBeTruthy();
+    expect(screen.getByText('Market').parent?.parent?.props.accessibilityState?.selected).toBe(true);
+
+    jest.useRealTimers();
+  });
+
   it('pre-populates the notes field from existing description', () => {
     setRouteParams({
       uid:  'user-123',
@@ -438,6 +480,26 @@ describe('TaskFormScreen — POI free-text type', () => {
     await waitFor(() => {
       expect(screen.getByText('my guess?')).toBeTruthy();
     });
+  });
+
+  it('keeps the selected recommendation dashed after confirmation', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Pharmacy, my guess?')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Pharmacy, my guess?'));
+
+    const suggestion = screen.getByLabelText('Pharmacy suggestion');
+    const suggestionStyle = StyleSheet.flatten(suggestion.props.style);
+
+    expect(suggestion.props.accessibilityState?.selected).toBe(true);
+    expect(suggestionStyle.borderStyle).toBe('dashed');
+    expect(screen.queryByText('my guess?')).toBeNull();
   });
 
   it('auto-suggests a custom poi from the title', async () => {
