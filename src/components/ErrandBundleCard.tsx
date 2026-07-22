@@ -33,6 +33,7 @@ import { useTheme } from '../theme';
 import { radius, spacing } from '../theme/tokens';
 import { CheckIcon, CloseIcon, PinIcon } from './AppIcon';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
+import type { NearbyPlace } from '../services/maps';
 import { getLastSearchCoords } from '../services/proximity';
 import { orderStopsNearestFirst } from '../services/routeHandoff';
 import { logTap } from '../services/analytics';
@@ -46,16 +47,16 @@ export interface ErrandBundleCardProps {
   onDismiss: () => void;
   /** KAN-293 — a leisure place among the stops, or null/undefined for none. */
   leisure?: ClusterLeisureSuggestion | null;
-  /** Called when the user accepts the leisure invitation. Creating the task is
-   *  the screen's job (it owns the uid); the card only asks. */
-  onKeepLeisureInMind?: (suggestion: ClusterLeisureSuggestion) => void;
+}
+
+interface RouteStop {
+  place: NearbyPlace;
 }
 
 export default function ErrandBundleCard({
   bundle,
   onDismiss,
   leisure,
-  onKeepLeisureInMind,
 }: ErrandBundleCardProps) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
@@ -109,6 +110,11 @@ export default function ErrandBundleCard({
     [bundle.entries, excludedTaskIds],
   );
 
+  const routeEntries = useMemo<readonly RouteStop[]>(() => {
+    if (!leisureKept || !leisure) { return activeEntries; }
+    return [...activeEntries, { place: leisure.place }];
+  }, [activeEntries, leisure, leisureKept]);
+
   // A route needs two places, so the last two selected can't be unselected.
   // This locks the SELECTED boxes only — an unselected stop must stay
   // tappable, otherwise dropping to two would strand the user there with no
@@ -143,21 +149,22 @@ export default function ErrandBundleCard({
   // re-renders with it, while the ordering only changes when the kept stops
   // or the search position do.
   const routeOrigin = getLastSearchCoords();
+  const routeOriginLat = routeOrigin?.lat;
+  const routeOriginLng = routeOrigin?.lng;
   const routeStops = useMemo(
-    () => (routeOrigin && activeEntries.length >= MIN_BUNDLE_TASKS
-      ? orderStopsNearestFirst(routeOrigin, activeEntries, entry => entry.place)
+    () => (routeOriginLat != null && routeOriginLng != null && routeEntries.length >= MIN_BUNDLE_TASKS
+      ? orderStopsNearestFirst({ lat: routeOriginLat, lng: routeOriginLng }, routeEntries, entry => entry.place)
       : null),
-    [routeOrigin?.lat, routeOrigin?.lng, activeEntries],
+    [routeOriginLat, routeOriginLng, routeEntries],
   );
 
   // KAN-293 — quiet confirmation that the invitation was accepted, so the
-  // button can't be tapped twice into two identical tasks. In-the-moment
+  // button can't be tapped twice into two identical route stops. In-the-moment
   // only, like excludedTaskIds: reopening the sheet starts clean.
   const handleKeepLeisure = () => {
     if (!leisure || leisureKept) { return; }
     logTap('errand_bundle_leisure_keep');
     setLeisureKept(true);
-    onKeepLeisureInMind?.(leisure);
   };
 
   const handleLeisureTickets = () => {
@@ -170,9 +177,9 @@ export default function ErrandBundleCard({
   };
 
   const handleOpenAllStops = () => {
-    if (!routeOrigin || !routeStops) { return; }
+    if (routeOriginLat == null || routeOriginLng == null || !routeStops) { return; }
     logTap('errand_bundle_open_all_stops');
-    openMultiStopDirections(routeOrigin, routeStops.map(entry => entry.place)).catch(err => {
+    openMultiStopDirections({ lat: routeOriginLat, lng: routeOriginLng }, routeStops.map(entry => entry.place)).catch(err => {
       console.warn('[ErrandBundleCard] openMultiStopDirections failed', err);
     });
   };
@@ -293,10 +300,9 @@ export default function ErrandBundleCard({
               })}
             </ScrollView>
 
-            {/* KAN-293 — the leisure companion line. Sits BELOW the stop list
-                and outside it on purpose: it is not a stop, has no checkbox,
-                and never joins the route or the "N of these" count. It states
-                a fact and offers; accepting creates an ordinary task. */}
+            {/* KAN-293/KAN-295 — the leisure companion line. Sits BELOW the
+                task stop list and outside the "N of these" count. Accepting
+                adds it only to this Maps handoff, never to Firestore. */}
             {leisure && (
               <View
                 testID="errand-bundle-leisure"

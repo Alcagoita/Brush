@@ -3,8 +3,8 @@
  *
  * When a notable leisure or cultural place happens to sit among the stops of
  * an errand cluster, the cluster box mentions it once. The errand run becomes
- * an excuse for a walk. The place is never inserted into the route, never
- * counted in "N of these", and never joins anything unless the user asks.
+ * an excuse for a walk. The place is never persisted as a task; if the user
+ * accepts it, the card adds it to that one Maps handoff only.
  *
  * Detection is pure and cache-only. It reads rows the habitat cache already
  * holds — the leisure types ride along in the SAME Overpass request the
@@ -15,10 +15,11 @@
  * COMMERCIAL NEUTRALITY (KAN-293 doctrine — monetize fulfilment, never
  * placement): nothing in this module takes a partner, sponsor, bid or
  * revenue input. The only signals are physical: is the place one of a fixed
- * hand-authored set of types, does it have a real name, and how far is it
- * from a stop the user was already going to. Nobody can pay to appear here,
- * and no ordering below may ever be influenced by a commercial relationship.
- * The ticket link this surfaces (`website`) is the place's own OSM-tagged
+ * hand-authored set of types, does it have a real name, does its cached OSM
+ * footprint suggest a real destination, and how far is it from a stop the user
+ * was already going to. Nobody can pay to appear here, and no ordering below
+ * may ever be influenced by a commercial relationship. The ticket link this
+ * surfaces (`website`) is the place's own OSM-tagged
  * site — if that link ever becomes monetized, the change belongs to the
  * fulfilment action in KAN-239, never to the detection in this file.
  */
@@ -27,7 +28,7 @@ import { getDistanceMeters, placeTypeLabel } from './maps';
 import type { NearbyPlace } from './maps';
 import { queryHabitatCache } from './habitatCache';
 import { CLUSTER_LEISURE_TYPES } from '../types';
-import type { ClusterLeisureType, PoiType } from '../types';
+import type { ClusterLeisureType } from '../types';
 import type { ErrandBundle } from './errandBundles';
 
 /**
@@ -46,27 +47,8 @@ export interface ClusterLeisureSuggestion {
   distanceToStopMeters: number;
 }
 
-/**
- * Catalog PoiType to stamp on the task "Keep it in mind" creates.
- *
- * The leisure types aren't PoiTypes of their own, and don't need to be: the
- * app already treats them as aliases of catalog types everywhere it matters
- * (see AppIcon/poi.tsx, which maps museum→library and aquarium/attraction→
- * park for icon selection). Reusing that same aliasing keeps the created
- * task an ordinary task — right icon, real geofence radius, no new entries
- * in CATEGORY_POI_MAP or the POI picker — while `poiPlaceId` pins the
- * specific place so proximity resolves the actual museum, not "a library".
- */
-const LEISURE_TASK_POI_TYPE: Record<ClusterLeisureType, PoiType> = {
-  park:       'park',
-  attraction: 'park',
-  aquarium:   'park',
-  museum:     'library',
-};
-
-export function leisureTaskPoiType(type: ClusterLeisureType): PoiType {
-  return LEISURE_TASK_POI_TYPE[type];
-}
+const LARGE_FOOTPRINT_M2 = 2_000;
+const MEDIUM_FOOTPRINT_M2 = 300;
 
 /**
  * The one leisure place worth mentioning for `bundle`, or null.
@@ -79,7 +61,10 @@ export function leisureTaskPoiType(type: ClusterLeisureType): PoiType {
  *    interrupting for, and the copy is built around naming the place
  *  - it must not already BE one of the cluster's stops (a park the user has
  *    an errand at is not a discovery)
- *  - nearest to a stop wins; exactly one suggestion per bundle, ever
+ *  - larger cached OSM footprints outrank tiny fixtures; distance to the
+ *    nearest stop breaks ties inside each footprint tier
+ *  - if every candidate lacks footprint info, nearest-first is preserved
+ *  - exactly one suggestion per bundle, ever
  *
  * Never throws — any failure yields null, and the line is simply absent.
  * Absence is the default state, never a placeholder.
@@ -102,6 +87,7 @@ export function findClusterLeisure(bundle: ErrandBundle): ClusterLeisureSuggesti
       bundle.anchor.lng,
       [...CLUSTER_LEISURE_TYPES],
       searchRadiusM,
+      { maxResultsPerType: null },
     );
 
     // A place already in the cluster is an errand, not a discovery.
@@ -121,8 +107,9 @@ export function findClusterLeisure(bundle: ErrandBundle): ClusterLeisureSuggesti
         }
         if (nearestStopM > LEISURE_NEAR_STOP_RADIUS_M) { continue; }
 
-        if (!best || nearestStopM < best.distanceToStopMeters) {
-          best = { place, type, distanceToStopMeters: nearestStopM };
+        const candidate = { place, type, distanceToStopMeters: nearestStopM };
+        if (!best || compareSuggestions(candidate, best) < 0) {
+          best = candidate;
         }
       }
     }
@@ -145,4 +132,19 @@ function hasRealName(place: NearbyPlace, type: ClusterLeisureType): boolean {
   const name = place.name?.trim();
   if (!name) { return false; }
   return name.toLowerCase() !== placeTypeLabel(type).trim().toLowerCase();
+}
+
+function footprintTier(place: NearbyPlace): number {
+  const area = place.footprintAreaM2;
+  if (area == null) { return 0; }
+  if (area >= LARGE_FOOTPRINT_M2) { return 3; }
+  if (area >= MEDIUM_FOOTPRINT_M2) { return 2; }
+  if (area > 0) { return 1; }
+  return 0;
+}
+
+function compareSuggestions(a: ClusterLeisureSuggestion, b: ClusterLeisureSuggestion): number {
+  const tierDiff = footprintTier(b.place) - footprintTier(a.place);
+  if (tierDiff !== 0) { return tierDiff; }
+  return a.distanceToStopMeters - b.distanceToStopMeters;
 }

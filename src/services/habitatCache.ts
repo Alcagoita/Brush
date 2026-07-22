@@ -473,6 +473,7 @@ export function queryHabitatCache(
   lng: number,
   poiTypes: string[],
   radiusMeters: number = HABITAT_RADIUS_M,
+  options: { maxResultsPerType?: number | null } = {},
 ): Record<string, NearbyPlace[]> {
   const result: Record<string, NearbyPlace[]> = {};
   for (const poiType of poiTypes) { result[poiType] = []; }
@@ -506,8 +507,9 @@ export function queryHabitatCache(
 
     for (const poiType of poiTypes) {
       result[poiType].sort((a, b) => a.distanceMeters - b.distanceMeters);
-      if (result[poiType].length > MAX_RESULTS_PER_TYPE) {
-        result[poiType] = result[poiType].slice(0, MAX_RESULTS_PER_TYPE);
+      const maxResults = 'maxResultsPerType' in options ? options.maxResultsPerType : MAX_RESULTS_PER_TYPE;
+      if (maxResults != null && result[poiType].length > maxResults) {
+        result[poiType] = result[poiType].slice(0, maxResults);
       }
     }
   } catch (err) {

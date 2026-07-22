@@ -61,10 +61,7 @@ import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
 import { consumeTasksDirty } from '../../services/taskMutationSignal';
 import { COPY } from '../../constants/copy';
-import { localDateISO, todayISO } from '../../utils/date';
-import { addTask } from '../../services/firestore/tasks';
-import { leisureTaskPoiType } from '../../services/clusterLeisure';
-import type { ClusterLeisureSuggestion } from '../../services/clusterLeisure';
+import { localDateISO } from '../../utils/date';
 import {
   SECTION_H_REST,
   buildEmptyMessages,
@@ -161,27 +158,6 @@ export default function TodayScreen() {
       AccessibilityInfo.announceForAccessibility?.(COPY.today.refreshedRecently);
     }
   }, [showThrottleNotice]);
-
-  // ── KAN-293 leisure invitation ────────────────────────────────────────────────
-  // Creates an ORDINARY task: today's date, a catalog POI type aliased from
-  // the leisure type, and poiPlaceId pinned to the specific place so
-  // proximity resolves that museum rather than any library. It is a task like
-  // any other from here on — brushable, and it joins a route only through the
-  // normal handoff. It never auto-joins the cluster, never counts in the
-  // bundle's "N of these", and schedules no notification of its own.
-  const handleKeepLeisureInMind = useCallback((suggestion: ClusterLeisureSuggestion) => {
-    if (!uid) { return; }
-    addTask(uid, {
-      title:      COPY.errandBundle.leisureTaskTitle(suggestion.place.name),
-      category:   'personal',
-      poi:        leisureTaskPoiType(suggestion.type),
-      poiPlaceId: suggestion.place.placeId,
-      date:       todayISO(),
-      done:       false,
-    })
-      .then(() => refresh())
-      .catch(err => console.warn('[TodayScreen] keep leisure in mind failed', err));
-  }, [uid, refresh]);
 
   // ── New Task sheet open trigger ───────────────────────────────────────────────
   // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is
@@ -358,7 +334,6 @@ export default function TodayScreen() {
           bundle={errandBundle}
           onDismiss={dismissErrandBundle}
           leisure={errandBundleLeisure}
-          onKeepLeisureInMind={handleKeepLeisureInMind}
         />
       )}
 
@@ -396,7 +371,7 @@ export default function TodayScreen() {
     nearbyHasContent, setNearbyHasContent,
     refreshProximity,
     errandBundle, dismissErrandBundle,
-    errandBundleLeisure, handleKeepLeisureInMind,
+    errandBundleLeisure,
     tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,
   ]);
 

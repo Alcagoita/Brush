@@ -109,8 +109,7 @@ jest.mock('../../src/store/appStore', () => ({
 // bundle service above is already mocked, and neither is what these tests
 // assert on. See __tests__/services/clusterLeisure.test.ts for its own suite.
 jest.mock('../../src/services/clusterLeisure', () => ({
-  findClusterLeisure:  jest.fn(() => null),
-  leisureTaskPoiType:  jest.fn(() => 'park'),
+  findClusterLeisure: jest.fn(() => null),
 }));
 
 jest.mock('../../src/services/rewardFunctions', () => ({

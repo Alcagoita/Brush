@@ -402,27 +402,49 @@ describe('ErrandBundleCard — leisure companion line (KAN-293)', () => {
     expect(screen.getByText(COPY.errandBundle.leisureOtherLine('The History Museum'))).toBeTruthy();
   });
 
-  it('never counts the leisure place as a stop in the route', async () => {
+  it('does not count the leisure place as a route stop until accepted', async () => {
     await openSheetWithLeisure();
-    // Still two stops — the park is an aside, not a cluster member.
     expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
   });
 
-  it('hands the suggestion up on "Keep it in mind" — the screen creates the task', async () => {
-    const onKeepLeisureInMind = jest.fn();
-    await openSheetWithLeisure({ onKeepLeisureInMind });
+  it('adds the leisure place to this Maps handoff only after accepting it', async () => {
+    const bundle = makeSpreadBundle();
+    const leisure = makeLeisure({
+      place: { placeId: 'park-1', name: 'Central Park', lat: 0.0025, lng: 0, distanceMeters: 260 },
+    });
+
+    render(<ErrandBundleCard bundle={bundle} onDismiss={jest.fn()} leisure={leisure} />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(3, 'Mercado da Vila')));
+    });
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-open-all'));
+    });
+    expect(mockOpenMultiStopDirections.mock.calls[0][1].map((s: { name: string }) => s.name))
+      .toEqual(['Near Place', 'Mid Place', 'Far Place']);
+    mockOpenMultiStopDirections.mockClear();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
     });
 
-    expect(onKeepLeisureInMind).toHaveBeenCalledTimes(1);
-    expect(onKeepLeisureInMind.mock.calls[0][0].place.name).toBe('Central Park');
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(4))).toBeTruthy();
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('errand-bundle-open-all'));
+    });
+
+    const [, stops] = mockOpenMultiStopDirections.mock.calls[0];
+    expect(stops.map((s: { name: string }) => s.name)).toEqual([
+      'Near Place',
+      'Mid Place',
+      'Central Park',
+      'Far Place',
+    ]);
   });
 
   it('confirms quietly once kept, and cannot be kept twice', async () => {
-    const onKeepLeisureInMind = jest.fn();
-    await openSheetWithLeisure({ onKeepLeisureInMind });
+    await openSheetWithLeisure();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
@@ -432,12 +454,12 @@ describe('ErrandBundleCard — leisure companion line (KAN-293)', () => {
     await act(async () => {
       fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
     });
-    expect(onKeepLeisureInMind).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByText(COPY.errandBundle.openAllInMaps(3))).toHaveLength(1);
   });
 
   it('never completes or dismisses anything when the invitation is accepted', async () => {
     const onDismiss = jest.fn();
-    await openSheetWithLeisure({ onDismiss, onKeepLeisureInMind: jest.fn() });
+    await openSheetWithLeisure({ onDismiss });
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
@@ -474,7 +496,7 @@ describe('ErrandBundleCard — leisure companion line (KAN-293)', () => {
   });
 
   it('starts fresh on reopen — a kept invitation does not linger as kept', async () => {
-    await openSheetWithLeisure({ onKeepLeisureInMind: jest.fn() });
+    await openSheetWithLeisure();
 
     await act(async () => {
       fireEvent.press(screen.getByTestId('errand-bundle-leisure-keep'));
@@ -492,5 +514,6 @@ describe('ErrandBundleCard — leisure companion line (KAN-293)', () => {
       fireEvent.press(screen.getByLabelText(COPY.errandBundle.cardA11y(2, 'Mercado da Vila')));
     });
     expect(screen.queryByText(COPY.errandBundle.leisureKeptConfirmation('Central Park'))).toBeNull();
+    expect(screen.getByText(COPY.errandBundle.openAllInMaps(2))).toBeTruthy();
   });
 });
