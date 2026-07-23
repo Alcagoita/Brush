@@ -150,13 +150,6 @@ jest.mock('../../src/components/TaskRow', () => {
 jest.mock('../../src/services/taskMutationSignal', () => ({
   consumeTasksDirty: jest.fn(() => false),
 }));
-jest.mock('../../src/services/firestore/tasks', () => ({
-  addTask: jest.fn().mockResolvedValue(undefined),
-}));
-jest.mock('../../src/services/clusterLeisure', () => ({
-  leisureTaskPoiType: jest.fn(() => 'cafe'),
-}));
-
 import TodayScreen from '../../src/screens/TodayScreen';
 
 beforeEach(() => {

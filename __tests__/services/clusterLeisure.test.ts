@@ -29,7 +29,6 @@ jest.mock('../../src/services/habitatCache', () => ({
 
 import {
   findClusterLeisure,
-  leisureTaskPoiType,
   LEISURE_NEAR_STOP_RADIUS_M,
 } from '../../src/services/clusterLeisure';
 import type { NearbyPlace } from '../../src/services/maps';
@@ -159,8 +158,8 @@ describe('findClusterLeisure — when it stays quiet', () => {
   });
 });
 
-describe('findClusterLeisure — exactly one, the nearest', () => {
-  it('picks the candidate nearest a stop when several qualify', () => {
+describe('findClusterLeisure — exactly one, ranked offline-first', () => {
+  it('picks the candidate nearest a stop when several qualify in the same footprint tier', () => {
     cacheReturns({
       park:   [makePlace({ placeId: 'park-1', name: 'Far Park', lat: latOffset(140), lng: 0 })],
       museum: [makePlace({ placeId: 'm-1', name: 'Near Museum', lat: latOffset(210), lng: 0 })],
@@ -169,6 +168,43 @@ describe('findClusterLeisure — exactly one, the nearest', () => {
     const found = findClusterLeisure(makeBundle());
     expect(found?.place.name).toBe('Near Museum');
     expect(found?.distanceToStopMeters).toBe(10);
+  });
+
+  it('lets a mapped landmark outrank a closer small fixture by footprint magnitude', () => {
+    cacheReturns({
+      attraction: [
+        makePlace({
+          placeId: 'fountain',
+          name: 'Chafariz da Princesa',
+          lat: latOffset(205),
+          lng: 0,
+          footprintAreaM2: 120,
+        }),
+        makePlace({
+          placeId: 'tower',
+          name: 'Torre de Belém',
+          lat: latOffset(260),
+          lng: 0,
+          footprintAreaM2: 3_500,
+        }),
+      ],
+    });
+
+    const found = findClusterLeisure(makeBundle());
+    expect(found?.place.name).toBe('Torre de Belém');
+    expect(found?.distanceToStopMeters).toBe(60);
+  });
+
+  it('falls back to nearest-first when footprint data is absent for every candidate', () => {
+    cacheReturns({
+      attraction: [
+        makePlace({ placeId: 'tower', name: 'Torre de Belém', lat: latOffset(260), lng: 0 }),
+        makePlace({ placeId: 'fountain', name: 'Chafariz da Princesa', lat: latOffset(205), lng: 0 }),
+      ],
+    });
+
+    const found = findClusterLeisure(makeBundle());
+    expect(found?.place.name).toBe('Chafariz da Princesa');
   });
 
   it('returns a single suggestion, never a list', () => {
@@ -206,16 +242,9 @@ describe('findClusterLeisure — cost', () => {
     const requestedTypes = mockQueryHabitatCache.mock.calls[0][2];
     expect([...requestedTypes].sort()).toEqual(['aquarium', 'attraction', 'museum', 'park']);
   });
-});
 
-describe('leisureTaskPoiType', () => {
-  // The created task must land on a real catalog PoiType — the app already
-  // aliases these for icon selection (AppIcon/poi.tsx), and reusing that
-  // mapping is what keeps "Keep it in mind" an ordinary task.
-  it('maps each leisure type to a catalog POI type', () => {
-    expect(leisureTaskPoiType('park')).toBe('park');
-    expect(leisureTaskPoiType('attraction')).toBe('park');
-    expect(leisureTaskPoiType('aquarium')).toBe('park');
-    expect(leisureTaskPoiType('museum')).toBe('library');
+  it('asks the cache not to cap leisure candidates before ranking sees them', () => {
+    findClusterLeisure(makeBundle());
+    expect(mockQueryHabitatCache.mock.calls[0][4]).toEqual({ maxResultsPerType: null });
   });
 });

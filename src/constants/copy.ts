@@ -340,14 +340,12 @@ const en = {
     leisureParkLine: (placeName: string) =>
       `${placeName} is right there — fancy a walk while you're at it?`,
     leisureOtherLine: (placeName: string) => `${placeName} is right there too.`,
-    leisureKeepInMind: 'Keep it in mind',
-    leisureKeepInMindA11y: (placeName: string) => `Add ${placeName} to today's tasks`,
-    leisureKeptConfirmation: (placeName: string) => `${placeName} is on your list for today.`,
+    leisureKeepInMind: 'Add to this walk',
+    leisureKeepInMindA11y: (placeName: string) => `Add ${placeName} to this walk`,
+    leisureKeptConfirmation: (placeName: string) => `${placeName} will be added to this Maps route.`,
     // Naming the action, not selling it — "Get tickets", never a price or an offer.
     leisureGetTickets: 'Get tickets',
     leisureGetTicketsA11y: (placeName: string) => `Open the ${placeName} website`,
-    /** Title of the task "Keep it in mind" creates — a plain, brushable task like any other. */
-    leisureTaskTitle: (placeName: string) => `Stop by ${placeName}`,
   },
 
   // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
@@ -1404,12 +1402,11 @@ const ptPT: typeof en = {
     leisureParkLine: (placeName: string) =>
       `${placeName} fica mesmo ali — que tal um passeio, já que estás por perto?`,
     leisureOtherLine: (placeName: string) => `${placeName} também fica mesmo ali.`,
-    leisureKeepInMind: 'Fica a ideia',
-    leisureKeepInMindA11y: (placeName: string) => `Juntar ${placeName} às tarefas de hoje`,
-    leisureKeptConfirmation: (placeName: string) => `${placeName} ficou na tua lista de hoje.`,
+    leisureKeepInMind: 'Juntar à rota',
+    leisureKeepInMindA11y: (placeName: string) => `Juntar ${placeName} a esta rota`,
+    leisureKeptConfirmation: (placeName: string) => `${placeName} vai entrar nesta rota do Maps.`,
     leisureGetTickets: 'Comprar bilhetes',
     leisureGetTicketsA11y: (placeName: string) => `Abrir o site de ${placeName}`,
-    leisureTaskTitle: (placeName: string) => `Passar por ${placeName}`,
   },
 
   tripSuggestion: {
