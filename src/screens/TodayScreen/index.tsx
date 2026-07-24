@@ -35,7 +35,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { ChevronRightIcon, NavigateIcon, PlusIcon, RefreshIcon } from '../../components/AppIcon';
+import { ChevronRightIcon, NavigateIcon, PlusIcon } from '../../components/AppIcon';
 import ScrRotatingNudge from '../../components/ScrRotatingNudge';
 import Animated from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -248,10 +248,6 @@ export default function TodayScreen() {
 
   const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
 
-  const handleRefreshLocation = useCallback(() => {
-    refreshProximity().catch(() => undefined);
-  }, [refreshProximity]);
-
   const listHeader = useMemo(() => (
     <>
       {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
@@ -291,21 +287,11 @@ export default function TodayScreen() {
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
             {COPY.today.sectionTitlePrefix}
           </Text>
-          <View style={styles.sectionHeaderRight}>
-            {remaining > 0 && (
-              <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
-                {COPY.today.leftCount(remaining)}
-              </Text>
-            )}
-            <Pressable
-              style={({ pressed }) => [styles.sectionRefreshBtn, pressed && styles.sectionRefreshBtnPressed]}
-              onPress={handleRefreshLocation}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.today.refreshLocationA11y}>
-              <RefreshIcon color={palette.muted} size={15} />
-            </Pressable>
-          </View>
+          {remaining > 0 && (
+            <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
+              {COPY.today.leftCount(remaining)}
+            </Text>
+          )}
         </View>
       </View>
     </>
@@ -313,7 +299,7 @@ export default function TodayScreen() {
     sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
     palette, remaining,
     nearbyHasContent, setNearbyHasContent,
-    refreshProximity, handleRefreshLocation,
+    refreshProximity,
     errandBundle, dismissErrandBundle,
     errandBundleLeisure,
     tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,

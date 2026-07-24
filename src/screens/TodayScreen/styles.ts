@@ -175,11 +175,6 @@ export const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 12,
   },
-  sectionHeaderRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
   sectionTitle: {
     fontSize: 11,
     fontWeight: '600',
@@ -190,16 +185,6 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     fontFamily: 'Geist-Regular',
     fontVariant: ['tabular-nums'],
-  },
-  sectionRefreshBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: radius.chip,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sectionRefreshBtnPressed: {
-    opacity: 0.55,
   },
   empty: {
     fontSize: 14,

@@ -159,7 +159,6 @@ jest.mock('../../src/components/AppIcon', () => ({
   ChevronRightIcon: () => null,
   NavigateIcon:     () => null,
   PlusIcon:         () => null,
-  RefreshIcon:      () => null,
 }));
 
 // ─── Import (after mocks) ─────────────────────────────────────────────────────
@@ -266,13 +265,6 @@ describe('TodayScreen UI — KAN-300 list header', () => {
     expect(screen.queryByText('0/1')).toBeNull();
   });
 
-  it('uses the header refresh button to refresh location and nearby places', async () => {
-    render(<TodayScreen />);
-    await act(async () => {
-      fireEvent.press(screen.getByLabelText('Refresh location and nearby places'));
-    });
-    expect(mockRefreshProximity).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('TodayScreen UI — KAN-60 interaction', () => {
