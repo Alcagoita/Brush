@@ -621,6 +621,26 @@ async function enforceUserRateLimit(caller: Caller, limiter: RateLimit | undefin
   return json({ error: 'rate limit exceeded' }, 429);
 }
 
+/**
+ * KAN-444. The namespaces `/internal/r2/list` will enumerate.
+ *
+ * `wrangler r2 object` gets, puts and deletes a key but cannot list one, and
+ * the Foursquare backup the residual-store audit needs is an artifact whose
+ * key nothing recorded. Listing the namespace beats guessing uuids.
+ *
+ * A namespace is added here deliberately, in a reviewed change. Discovery of
+ * an unknown one goes through a delimited root listing, which names the
+ * namespaces without exposing the keys inside them.
+ */
+const R2_LIST_PREFIXES = [
+  'country-sources/',
+  'country-sources-unfiltered/',
+  'overture-country-sources/',
+  'archives/',
+  'raw-extracts/',
+] as const;
+const R2_LIST_MAX_LIMIT = 1000;
+
 /** All /internal/* routes use this instead of authenticate() — a stronger, separate secret, never the public X-Api-Key. */
 function authenticateInternal(request: Request, env: Env): Response | null {
   if (request.headers.get('X-Build-Secret') !== env.BUILD_TRIGGER_SECRET) {
@@ -2657,6 +2677,40 @@ export default {
       if ('error' in queued) return json({ error: queued.error }, 409);
       if (queued.started && queued.runId) triggerBuild(env, ctx, 'multibanco-country', countryCode, undefined, queued.runId);
       return json({ ok: true, status: 'mapping', started: queued.started, seeded: queued.seeded, counts: queued.counts });
+    }
+
+    if (url.pathname === '/internal/r2/list' && request.method === 'GET') {
+      const internalAuthError = authenticateInternal(request, env);
+      if (internalAuthError) return internalAuthError;
+      const prefix = url.searchParams.get('prefix') ?? '';
+      const delimiter = url.searchParams.get('delimiter') ?? undefined;
+      // Root is listable only with a delimiter, which returns namespace names
+      // instead of the keys inside them. That is enough to find where a backup
+      // lives and not enough to walk the bucket.
+      if (prefix === '') {
+        if (!delimiter) return json({ error: 'root listing requires a delimiter' }, 400);
+      } else if (!R2_LIST_PREFIXES.some((allowed) => prefix.startsWith(allowed))) {
+        return json({ error: 'prefix not on the discovery allowlist' }, 403);
+      }
+      const limitParam = Number(url.searchParams.get('limit') ?? R2_LIST_MAX_LIMIT);
+      if (!Number.isSafeInteger(limitParam) || limitParam < 1 || limitParam > R2_LIST_MAX_LIMIT) {
+        return json({ error: `limit must be an integer between 1 and ${R2_LIST_MAX_LIMIT}` }, 400);
+      }
+      const cursor = url.searchParams.get('cursor') ?? undefined;
+      const listed = await env.POI_EXPORTS.list({ prefix, cursor, delimiter, limit: limitParam });
+      return json({
+        // Metadata only. A discovery caller needs to choose one object, not
+        // read what is in them.
+        objects: listed.objects.map((object) => ({
+          key: object.key,
+          size: object.size,
+          uploaded: object.uploaded.toISOString(),
+          etag: object.etag,
+        })),
+        delimitedPrefixes: listed.delimitedPrefixes,
+        truncated: listed.truncated,
+        cursor: listed.truncated ? listed.cursor : null,
+      });
     }
 
     if (url.pathname === '/internal/multibanco/claim' && request.method === 'POST') {
