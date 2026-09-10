@@ -3566,6 +3566,1590 @@
         "poi_type": "supermarket",
         "reason": "reviewed named food retailer"
       }
+    },
+    "kan444_store_home": {
+      "3177ee2f-1473-4cfc-ab9e-fcad5a27d3cc": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "69740e4f-e0c4-4a06-8b1e-c30d4d83d9b3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
+        "store_kind": "home"
+      },
+      "a3b0836a-5095-489d-a41e-5376ff8147e6": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "ff40f6a6-e561-45c3-9fc6-d68d522c5a0a": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "0652cf10-c180-418c-bf0a-14283f64037c": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "8a51c823-8781-4f73-a758-8114ab0cfcdd": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "ec2b8dbe-1e56-4c57-8754-83197bc6d3ed": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "ff90eb30-84e2-4297-ab9e-13d605eaad83": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "86b18265-8a68-4e44-b3b5-178f2632cce9": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
+        "store_kind": "home"
+      },
+      "4c38a5aa-f183-439d-8cc4-39cc2f57d5b3": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "93176a85-a08e-455d-bba8-1a7464f907f7": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "b4097c2a-8b5b-41df-8716-12a10abee5a6": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "f9d12bd3-2112-4098-b39e-8107f6e2f72b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
+        "store_kind": "home"
+      },
+      "6a650cd3-5407-4908-bddb-c9cfb6d0e696": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "24a9de37-8671-496a-afd6-d9fa3fe478f5": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
+        "store_kind": "home"
+      },
+      "7ca3d44e-c182-4081-a0f0-7c3e954c26c7": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "beeee053-094b-44d9-b7ba-aa6adb7b7503": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
+        "store_kind": "home"
+      },
+      "8d6f87c0-5f06-4521-8606-341496c1c9fb": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "d49ebe3d-e690-4634-92b0-3957dbbe2f98": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "25b3fd6c-c453-4201-a3da-5c457872ec15": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
+        "store_kind": "home"
+      },
+      "8e434c27-8c84-4300-ba48-5f033b0c8d57": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bathroom_furnishing)",
+        "store_kind": "home"
+      },
+      "40f64fd4-22ac-488a-9880-7f0f0a79143a": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=houseware)",
+        "store_kind": "home"
+      },
+      "7270c848-87c3-433b-be50-b2a0a9656bde": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
+        "store_kind": "home"
+      }
+    },
+    "kan444_store_hardware": {
+      "8944e77b-0003-4e24-b319-4fca2c4602da": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "b57ea87b-8b39-44f0-8b48-afe9fb3db938": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=hardware)",
+        "store_kind": "hardware"
+      },
+      "bf7d274c-25f1-4544-895f-ed8af629020a": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "ff9eb5b3-ecc2-434c-b6e6-2d4d968c42dd": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=doityourself)",
+        "store_kind": "hardware"
+      },
+      "87f9bec2-b00c-43c5-98cd-19cb6e072751": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=doityourself)",
+        "store_kind": "hardware"
+      },
+      "a18f0cc9-054d-4590-a153-b3652ed57b9d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Hardware Store)",
+        "store_kind": "hardware"
+      },
+      "85ce02f2-1fd6-4feb-bda2-b10dcc6e802d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Hardware Store)",
+        "store_kind": "hardware"
+      },
+      "6f772a26-b72a-4d65-8775-d6901831735a": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "590bbe6d-8a8e-4ee2-b2f3-40a7ee2bd9ca": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Hardware Store)",
+        "store_kind": "hardware"
+      },
+      "2703269f-4d16-4a44-8f86-311c43b2fd0a": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "e38d5187-5753-46e6-a46c-649a6e3529d8": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "0ffc362f-a218-49d6-9cc7-ba6b245ccaed": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=trade)",
+        "store_kind": "hardware"
+      },
+      "286a740b-b037-4c5c-864c-7b8595cebb85": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Hardware Store)",
+        "store_kind": "hardware"
+      },
+      "496e3d3d-94e9-450e-9a41-69415b6a7561": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Hardware Store)",
+        "store_kind": "hardware"
+      },
+      "5131d783-8fc7-4e90-98ee-f58dbcfbdefd": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=doityourself)",
+        "store_kind": "hardware"
+      },
+      "9c3c48c1-bfd1-489c-9f03-cc412f75892a": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Miscellaneous Store)",
+        "store_kind": "hardware"
+      },
+      "b95e4879-312a-473c-9828-829dafa7a19e": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=trade)",
+        "store_kind": "hardware"
+      },
+      "1920a091-39e0-4c69-840f-57c5fb2f1eaf": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=paint)",
+        "store_kind": "hardware"
+      },
+      "e6c754aa-da71-49b1-a5b1-43bb74220f23": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "6f5b740e-41b4-4940-b379-c652f684e3c6": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=hardware)",
+        "store_kind": "hardware"
+      },
+      "7d258f2b-df4e-4b79-9649-a76349ea053b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=trade)",
+        "store_kind": "hardware"
+      },
+      "ee755a4f-64f0-4528-b3fa-31a3f5630245": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=hardware)",
+        "store_kind": "hardware"
+      },
+      "efb808d7-6cfc-4164-bc12-65d730b2c4c5": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "9beebfaf-f87a-41b9-bdf9-5912baeab14d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "c81be76f-d096-4a31-933f-5e45e7c03122": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      },
+      "cfd37a56-ebe7-4d3d-a009-2580a567327d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Hardware Store)",
+        "store_kind": "hardware"
+      },
+      "922cc0d7-0813-4516-92fb-8e91c949683b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=hardware)",
+        "store_kind": "hardware"
+      },
+      "cc112b39-202e-4973-8af2-64ce0790dcd7": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Construction Supplies Store)",
+        "store_kind": "hardware"
+      }
+    },
+    "kan444_grocery_store": {
+      "835e1e64-5ae3-4478-a0de-3c920fcb7a3b": {
+        "poi_type": "grocery_store",
+        "reason": "reviewed OSM name and location match (shop=greengrocer)"
+      }
+    },
+    "kan444_store_clothing": {
+      "fc970b94-3d2b-4f3d-bbb4-ea10ee9cfd69": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "4ea2c87c-daf0-4580-b98a-e139fc85a429": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "40fd43e6-58d3-43cb-ab78-9b0d3f304c93": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "5f67aaf7-a337-449c-bfbe-5598ce7a8a68": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "a32e413c-25b0-45a7-8e7c-65ae97652703": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "f2b634e2-ad72-4400-ae23-c39e5dc6a77c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "c021a075-07dc-4583-b615-b94e47cc5f9f": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "d5f33f8a-b55a-4620-8a43-a50c22ea1d60": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "40910914-0e0f-4caa-84f0-6bf1cb12ddb9": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "20613e1e-b307-40a8-9be5-b79490c7e4e4": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "9ca8df75-4c34-4094-adfa-cabaa2403e7f": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "e0bf6a6b-be3c-4a7b-bd86-bb6675113718": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "6616ae19-8233-4c25-9662-0ca1ba6c0bb7": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "da9c1bab-575e-431a-ab86-8104de290557": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "0ceb6da7-7950-4a75-9869-287a151c696b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "c71593a3-caf7-4d53-a850-fe548d28f072": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "d1b8af6d-91b4-4557-9960-6c40cb483353": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "ae90030b-5a63-479a-8959-2315afa92097": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "9aea432c-4323-41b4-ba71-c4afb54b44b3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "636c8008-db16-4aef-9457-26839a8c7ab3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "a647e224-ed8e-4374-989a-252253822cdf": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "dcc107e0-1f02-4325-885a-3264ede223ae": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "a0369370-92ff-4d12-bf8c-108a6d977014": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "a39e355e-2cff-4308-9ebc-37eb4608f067": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "c887b979-7725-4c28-b5c7-751a89f251ea": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "d619de57-e559-4c24-9a1e-b8851dcc3cf4": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "71966be5-d471-4f09-8cf0-bd564afc2aa2": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "2353d7d7-4698-4055-9905-8a8669594ed1": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "09b8947f-ebe3-49d0-b88b-d9164fe42ade": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Men's Store)",
+        "store_kind": "clothing"
+      },
+      "90a9e258-9aab-4c88-92d5-89a6177f7784": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "993902b6-14b3-4d5b-9efd-b3636501a5b6": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "9642f3fd-2719-45e2-9542-0e95ed7f95bf": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "284f655e-4739-439b-b6a3-9f2b3b20e90a": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      },
+      "e51af208-d21b-4b35-81f1-ea94c9193541": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Business and Professional Services > Tailor)",
+        "store_kind": "clothing"
+      },
+      "257418c6-799c-4215-85a3-1841aee79d79": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Clothing Store)",
+        "store_kind": "clothing"
+      },
+      "cd7c1304-ccdd-49f9-b9c7-548567ac7691": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=clothes)",
+        "store_kind": "clothing"
+      }
+    },
+    "kan444_store_antique": {
+      "bcc71db5-04e2-4b0d-a936-3833de4948bb": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Antique Store)",
+        "store_kind": "antique"
+      },
+      "858e3ea9-38d3-46b7-9cc2-57d8e551e259": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Miscellaneous Store)",
+        "store_kind": "antique"
+      },
+      "37e474b0-05b2-4ef9-98ef-12fe50d8d964": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=antiques)",
+        "store_kind": "antique"
+      },
+      "f48fdad2-9d6b-492f-8eb1-a616255b245d": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=antiques)",
+        "store_kind": "antique"
+      },
+      "dcc1b75e-ce56-4707-9c86-5d25e34e4c15": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Antique Store)",
+        "store_kind": "antique"
+      }
+    },
+    "kan444_store_eyewear_and_optician": {
+      "2a494858-c2ae-4dd4-b269-f73ad997c26e": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=optician)",
+        "store_kind": "eyewear_and_optician"
+      },
+      "d8ffe391-d7ea-463b-ad10-3af1ac5d4c36": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Eyecare Store)",
+        "store_kind": "eyewear_and_optician"
+      },
+      "317feb56-640e-41c8-8cd4-cef60c2d2e8d": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=optician)",
+        "store_kind": "eyewear_and_optician"
+      },
+      "1c853ea1-ee37-4b85-9cb4-35be55a981c1": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Health and Medicine > Optometrist)",
+        "store_kind": "eyewear_and_optician"
+      },
+      "2587223b-8df5-4f87-80dc-bed7d222fab9": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=optician)",
+        "store_kind": "eyewear_and_optician"
+      },
+      "2a57a66b-5328-41cc-a813-f46e33be63fe": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Medical Supply Store)",
+        "store_kind": "eyewear_and_optician"
+      }
+    },
+    "kan444_exclusions": {
+      "8dfb9507-c1c1-4577-a7e0-4222b185aa17": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "200bf792-fb05-49dc-91ef-6ad6776eefd6": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "91049adf-02e0-47ea-8e48-9f0f353faaf1": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "12090110-0aea-43d9-ae46-2dd217673e3b": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "ccab9bd1-323c-4260-88f0-862aed83eb1a": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "68461086-cd14-493e-aad1-c6ccb13afbca": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "389cbefe-9b21-4b43-b63c-996c10e03073": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "e0d89ca0-abd3-4e44-97a1-19e14b7b488a": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "bb2b2f40-090e-4ccb-9e9d-ccdaa5c23e66": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "9cf62129-9653-4c17-8e79-27de5751aae4": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "a33b3711-9709-4b4d-b163-083499613886": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "a0514656-5cc2-470f-b475-d10d0766cb52": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "cdfaec21-ffe1-4660-a82f-d8afce1d8a9f": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "34d91f45-a6e0-4a65-8811-5c75d4b7d88c": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "0941e6a4-1b1d-427c-b9fa-ae2ca9e4506a": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "26b0cb79-a2dc-4065-94df-6cdcef7ad1b2": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "0e9c25c5-bf15-46dc-b7b0-51a6cc942c5e": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "1f38ed62-2185-4215-8973-d58449789716": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "777cb9bd-fc9a-457c-aa5b-29198d453440": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "00148482-f6cb-4e81-b9a1-23b51ab43b88": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "02acd735-1cd9-4113-be6c-6f64cdc609c3": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "20839a0f-374f-47bb-9ae1-4d2f7e6b7112": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "10736579-e8f2-4f11-aabe-e8bd71ef7ad8": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "6ceddd87-e5e7-4be9-af19-46cd75a7f7f1": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "be9be189-25c4-4d0f-80f0-9c903d71779b": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "3a6f6308-314c-4907-8b9e-b8ff2a16746d": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "f7a8da36-5304-43f8-a87d-ec4333ad0f32": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "772f89e2-4d6a-4a3d-8237-2ac127bcc3bb": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "6ac1f955-8723-489a-843c-9a5921d7d98e": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "0d1cd163-946e-4eda-926f-f239b7eadbf5": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "07a5d0e4-96a9-479b-bf95-f2a0a65ba234": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "6b025190-6211-40fa-90b5-5562dc247ff0": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: OSM match shows this is not a consumer store"
+      },
+      "92ff6d63-7558-4be8-b13c-0b8364d5a540": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "697ec9da-ff9e-4ff3-9536-e598a25af7e8": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "143627f0-713b-4e60-a77b-062e61b5a33c": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "feb72860-da4b-4c38-a343-210de8dfa39e": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      },
+      "bffbe41a-60ce-4025-a964-8a33c928fe3d": {
+        "decision": "rejected",
+        "reason": "reviewed exclusion: Foursquare match shows this is not a consumer store"
+      }
+    },
+    "kan444_store_electronics": {
+      "24a07707-e45a-4a78-b231-f443fbafb468": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "14f84f23-7023-4d82-9ce0-65c5ae618932": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "7a7606de-2225-498e-a66a-cc9e17643da6": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Miscellaneous Store)",
+        "store_kind": "electronics"
+      },
+      "68009772-4a47-4af5-a8b5-4aef49ded679": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=electronics)",
+        "store_kind": "electronics"
+      },
+      "c21438ed-7520-4f18-8a81-2988cc6fa6f5": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "b03e9dcd-7a4b-4752-aec1-b3ee77f58f1e": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "c2774fe4-c75c-4b5f-865d-5c42609eb07b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=electronics)",
+        "store_kind": "electronics"
+      },
+      "8d2b6f4e-7eab-46f2-8ef8-36abfa31be9f": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "a7a1b077-74ef-433c-abe5-19a2646eb039": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "0d2f6992-54f6-4f96-ad9d-1d6513d23f84": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "20909cf0-0274-4862-9ac3-26d3052af2ad": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      },
+      "3dfcba94-4a60-4ee9-a6a0-aa5b9ea516d2": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=computer)",
+        "store_kind": "electronics"
+      },
+      "a4e58dc7-1fb7-4ba3-a187-8968c16c4c89": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=electronics)",
+        "store_kind": "electronics"
+      },
+      "3a5da931-3917-4ae4-b47f-29a14d17ddeb": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=electronics)",
+        "store_kind": "electronics"
+      },
+      "a56d8925-a992-476e-8f24-2164633fbddc": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Computers and Electronics Retail > Electronics Store)",
+        "store_kind": "electronics"
+      }
+    },
+    "kan444_store_nursery_and_gardening": {
+      "eade096f-fc3c-4a19-84a4-52b1c6c54ce4": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=garden_centre)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "56746894-a305-446a-a612-e407f2480811": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=agrarian)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "500f07b5-65a7-4332-ab61-7c06130ade13": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=agrarian)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "6a703eb8-b322-470c-b6e1-07b7829b3a24": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=garden_centre)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "c8daf50a-4333-42ba-ac06-aeaa69fe0376": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=garden_centre)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "8ba5706f-3000-4d3e-b73b-2a607e704fba": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=garden_centre)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "b24375d6-b6cd-4ca6-8f30-02b1e06cf4ba": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=agrarian)",
+        "store_kind": "nursery_and_gardening"
+      },
+      "7c991691-5cea-4d80-a29b-4aafd84a38c3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=agrarian)",
+        "store_kind": "nursery_and_gardening"
+      }
+    },
+    "kan444_store_bicycle": {
+      "af597017-9b2b-4896-b5c5-f54a24b2b70f": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bicycle)",
+        "store_kind": "bicycle"
+      },
+      "410932fc-1b47-4913-ad50-580944295908": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bicycle)",
+        "store_kind": "bicycle"
+      },
+      "fcb3e014-b59a-4f09-9846-67ee5f3771ee": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail > Bicycle Store)",
+        "store_kind": "bicycle"
+      },
+      "02a66b3a-3b0e-48e3-8bae-a5dc6800c832": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bicycle)",
+        "store_kind": "bicycle"
+      },
+      "167aa8a9-aaa3-485f-a634-84aec1a6b118": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail > Bicycle Store)",
+        "store_kind": "bicycle"
+      },
+      "c3bd7512-a4e8-49c9-a3f6-9abcce6e2de9": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail > Bicycle Store)",
+        "store_kind": "bicycle"
+      },
+      "08675177-a5ea-4266-9a46-bb9139945f0b": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail > Bicycle Store)",
+        "store_kind": "bicycle"
+      }
+    },
+    "kan444_supermarket": {
+      "6e685266-e667-486e-aa78-d80366f88f32": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "a64ea62e-edb7-498e-979d-2bad32514e3f": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "f3a192ca-d6d8-46b4-874c-021c965356a1": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "53e2a6ea-f903-40b8-8a9a-bc8d16a65a7c": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "efcda465-5d02-4664-986b-b942fcca430b": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "dfe8091d-d99a-4560-ab84-aab41e420b22": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "32911644-be83-4e14-b589-dda142299a5c": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "7e70fa37-363e-4bf0-8599-7a4e1e56755a": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "1b5a6df2-e5a1-46c6-b976-f0f9a04b65da": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "91ec494b-efe9-4e51-94eb-6855b033c8ee": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=supermarket)"
+      },
+      "23b8a43a-50f2-4365-8d72-53f8f57cd336": {
+        "poi_type": "supermarket",
+        "reason": "reviewed OSM name and location match (shop=mall)"
+      }
+    },
+    "kan444_store_gift": {
+      "9c708f20-2156-4c45-a985-ada2d126903d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "3d3e67e7-befb-4ce7-bbc4-b755f2a3d1d3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "86028b2b-b65c-4449-9ded-2f7d5a807062": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "5914afb6-cf66-4c5b-8a10-b12a72df5023": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "0f3c3093-8bfc-4c61-a7f0-a063290b6938": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "7124b51c-1772-49b5-974c-ebf6cef90c32": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "7808d438-7faf-4a81-86f1-dae7c9c1530b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "5c9fc1b7-bf6a-4764-9665-2037f267aab6": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "ca12c145-e0d9-4e57-b917-a4b40525b99c": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "efdd7404-35cb-48e9-a6b9-74cfbd8eb0ad": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "e9e71bfd-8c4d-4984-b673-aaf27e767b02": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "52c0fc66-9707-41a6-a58f-b8f9d7efe73b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "ae6195e6-3da1-4a31-bf10-7e09ab5d6f47": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "f57e69f2-32d5-44c4-988c-d7aab2d7746f": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "cc6634a3-71a9-4b17-904d-39ee331fcc2c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "dc2c19e1-22f3-4b20-a7ea-9b25b1c388d0": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "efa9daf8-f5a3-43d7-ac7c-20c2cc20d5eb": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "bfc77338-24f2-44aa-ac29-66076039f115": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "e4459ac5-23cf-452c-8fe3-1793387b5132": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "7f8a8625-1475-4df3-9d97-e29c8a91570d": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "8482a2d1-566c-4cfe-b88d-1e5df55a095c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "e03c6801-05b5-4f5c-b6a6-f8cad4629d8b": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "bce1c15e-38bb-4941-8f60-de02c11461f2": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      },
+      "b48c5229-0e58-47fb-b19d-b08080008305": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Gift Store)",
+        "store_kind": "gift"
+      },
+      "717cab84-a02f-4805-aefb-85e906e1afe2": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=gift)",
+        "store_kind": "gift"
+      }
+    },
+    "kan444_store_arts_and_crafts": {
+      "abcdb768-c0e1-4804-aad7-98a66d7625aa": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Arts and Crafts Store)",
+        "store_kind": "arts_and_crafts"
+      },
+      "75c66477-b577-46c6-a0d6-e00d20982d60": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Arts and Crafts Store)",
+        "store_kind": "arts_and_crafts"
+      },
+      "191cfe00-d58a-4af4-8e5b-0a09ba35dd11": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Arts and Crafts Store)",
+        "store_kind": "arts_and_crafts"
+      },
+      "43c05905-eb4d-44b1-94f8-a2ea035e5afa": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Arts and Crafts Store)",
+        "store_kind": "arts_and_crafts"
+      },
+      "1fa8caa1-9caa-48a9-bb2a-4eb9a2891653": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Arts and Crafts Store)",
+        "store_kind": "arts_and_crafts"
+      },
+      "797e4d31-7bdd-425f-82a7-ffebb24d4cb1": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Food and Beverage Retail > Farmers Market)",
+        "store_kind": "arts_and_crafts"
+      },
+      "cb33ede5-0474-46de-b02d-fb2fa62757c4": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=frame)",
+        "store_kind": "arts_and_crafts"
+      },
+      "a0c1937d-769c-4a54-89fe-2c1d4a7dd8f4": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Arts and Crafts Store)",
+        "store_kind": "arts_and_crafts"
+      }
+    },
+    "kan444_store_baby_gear_and_furniture": {
+      "fd0d3f40-0360-4581-a347-f379d8c23fe8": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=baby_goods)",
+        "store_kind": "baby_gear_and_furniture"
+      }
+    },
+    "kan444_store_kitchen_supply": {
+      "53e784f2-09f2-4d1a-b785-d5cc342d66bb": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=kitchen)",
+        "store_kind": "kitchen_supply"
+      }
+    },
+    "kan444_store_cards_and_stationery": {
+      "120f84c1-17d8-4612-ae67-161a29ed6aac": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=stationery)",
+        "store_kind": "cards_and_stationery"
+      },
+      "122a27ce-de8f-4ccd-bcf8-63929b8667b9": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=stationery)",
+        "store_kind": "cards_and_stationery"
+      },
+      "e5738022-28aa-4b36-a8b9-fa734a549dee": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=stationery)",
+        "store_kind": "cards_and_stationery"
+      },
+      "0c9f49ec-456a-4d2a-b58c-9c995fdd5d54": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=stationery)",
+        "store_kind": "cards_and_stationery"
+      },
+      "c5e57c04-7f7c-43ac-93d5-0a2e5ec62b6c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=stationery)",
+        "store_kind": "cards_and_stationery"
+      },
+      "1376ee5d-1c2d-409b-90c3-0aaa2d9cbd3b": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=stationery)",
+        "store_kind": "cards_and_stationery"
+      }
+    },
+    "kan444_store_jewelry": {
+      "6712f428-b84e-40fd-9a6e-60900acc602d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Jewelry Store)",
+        "store_kind": "jewelry"
+      },
+      "01d1b9c9-43af-4ce1-96fd-ab17fd599108": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=jewelry)",
+        "store_kind": "jewelry"
+      },
+      "e6c0918f-e5af-4714-977b-ac50697c9ea8": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Jewelry Store)",
+        "store_kind": "jewelry"
+      },
+      "e4de60fc-80de-4bf3-a7e7-7c3f67caa220": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=jewelry)",
+        "store_kind": "jewelry"
+      }
+    },
+    "kan444_store_boutique": {
+      "8a7c4d01-1d59-4b42-b897-e1edeb3f8e1d": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Boutique)",
+        "store_kind": "boutique"
+      },
+      "ff3cbee8-edb9-4319-8101-b01fa3715d2c": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Boutique)",
+        "store_kind": "boutique"
+      },
+      "3182437a-8298-4d1c-a35b-12ed59d359aa": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=boutique)",
+        "store_kind": "boutique"
+      },
+      "4580d7f6-8dc2-4fbe-af17-2ddfa6b6f4da": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Boutique)",
+        "store_kind": "boutique"
+      }
+    },
+    "kan444_store_copy_shop": {
+      "d898d1e1-6901-4767-bbc3-3b82a1403837": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=copyshop)",
+        "store_kind": "copy_shop"
+      }
+    },
+    "kan444_store_beauty": {
+      "a3800873-66c1-4474-88c8-f673a24ec441": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Cosmetics Store)",
+        "store_kind": "beauty"
+      },
+      "fdf8bb93-5d7f-48f4-8a4b-17b9757f6343": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Cosmetics Store)",
+        "store_kind": "beauty"
+      },
+      "41107772-1e6e-4353-a60d-faa97682459f": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=perfumery)",
+        "store_kind": "beauty"
+      },
+      "43b9e8ee-b302-4114-a902-3ba678d8552a": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Cosmetics Store)",
+        "store_kind": "beauty"
+      },
+      "2d91d4ff-3c92-47e7-835f-6e59b37007ce": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=beauty)",
+        "store_kind": "beauty"
+      }
+    },
+    "kan444_store_discount_store": {
+      "27830973-06b7-4267-8180-321ee934fb35": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "a473cb8b-4c3f-4eac-884e-5f95dd981f5e": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "bc9e9c7e-6c62-422e-8de3-32ea9109b8a9": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "86d7820f-1e81-4ad5-b8c1-f520f6e91842": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "55ae244b-5a7a-426f-af49-46a69976879a": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "21e11654-555c-479f-b8c0-06940573597e": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "bc0f070b-65dc-43bd-a839-6ceb85b33d6c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "f0b9c363-2348-4fe7-9f4d-4dc6eaea6dff": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "06ffae3a-01b8-49c8-86b7-a05cfc272989": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "6c26bb06-7656-450b-a5d4-7ad85aa1c196": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "8595f21c-0a05-49fb-840a-d39b6d948ba3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "43bf26fb-41f4-430c-9b95-9f4e796476c2": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "e628d1d0-bc94-44f2-a1f3-c766f83ecb89": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "d1bebe8e-f37f-40ea-9c74-d63aff9fd1c3": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "5bb1c3bd-f574-453e-9c65-e39a21d0af27": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Discount Store)",
+        "store_kind": "discount_store"
+      },
+      "4414f754-7f21-4f3a-94e4-4abd925ec329": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "47005a04-ca72-4855-a7d3-f0e5a687ffc8": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "be5951e4-64e2-4a6b-a6fe-03ee3591b12a": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "b4366e28-a81f-49ea-b312-a1aa8e583290": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "25e2997e-e1fc-4b8e-b8a0-803396f00ea2": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Discount Store)",
+        "store_kind": "discount_store"
+      },
+      "85f93e53-5feb-4518-8fbe-70f0413ae171": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "0a8dcc75-ac06-448f-8682-a1d8ee85012c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "4b8417df-074d-410e-a5a2-a6cfb472c97f": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      },
+      "04596ed0-eb73-499c-92e2-809af2ef6566": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=variety_store)",
+        "store_kind": "discount_store"
+      }
+    },
+    "kan444_lottery": {
+      "08c5b2e6-2235-41c5-a43c-4ba7196b5ac7": {
+        "poi_type": "lottery",
+        "reason": "reviewed OSM name and location match (shop=lottery)"
+      },
+      "476a93a1-1f2d-4395-9f8c-bae4d123c14a": {
+        "poi_type": "lottery",
+        "reason": "reviewed OSM name and location match (shop=lottery)"
+      },
+      "ef9be8c2-27b7-4943-a986-1b082428e967": {
+        "poi_type": "lottery",
+        "reason": "reviewed OSM name and location match (shop=lottery)"
+      }
+    },
+    "kan444_store_books": {
+      "4383a30e-4aff-4b6e-9916-57f8fe87c761": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Bookstore)",
+        "store_kind": "books"
+      },
+      "61215fc9-49b5-4b39-990d-930100d4cfdd": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Bookstore)",
+        "store_kind": "books"
+      },
+      "eba128b4-f109-41d8-8371-7ebf029e1e78": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Newsstand)",
+        "store_kind": "books"
+      },
+      "41cec6e6-e334-4521-a7d8-60207056e4ee": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Smoke Shop)",
+        "store_kind": "books"
+      },
+      "3e8e106a-58a5-4eba-8f3a-7766af10b791": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Bookstore)",
+        "store_kind": "books"
+      }
+    },
+    "kan444_store_medical_supply": {
+      "a97b636a-39fe-4fea-9265-dcaaa39690d8": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=medical_supply)",
+        "store_kind": "medical_supply"
+      },
+      "1f555e24-18f4-4c9e-9943-39d7bc191de1": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=medical_supply)",
+        "store_kind": "medical_supply"
+      }
+    },
+    "kan444_store_shoes": {
+      "a7242f7f-eb57-43e1-8f9b-56a8c312dd49": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=shoes)",
+        "store_kind": "shoes"
+      },
+      "7048aca0-c3a0-4866-9b52-173f4c60fe94": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=shoes)",
+        "store_kind": "shoes"
+      },
+      "f9142241-86f5-40f1-b590-5f70c4f2d086": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Shoe Store)",
+        "store_kind": "shoes"
+      },
+      "2e8f9e3d-134e-44a8-b1c6-8e75d1136946": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=shoes)",
+        "store_kind": "shoes"
+      },
+      "aed6f785-8909-4ed5-9d80-e9d157960f74": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=shoes)",
+        "store_kind": "shoes"
+      },
+      "39bccaaf-e691-4959-a082-62a66a5180a9": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=shoes)",
+        "store_kind": "shoes"
+      }
+    },
+    "kan444_store_fashion_accessories": {
+      "102a4ba2-8a35-4297-89c0-b0477ef956aa": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=fashion_accessories)",
+        "store_kind": "fashion_accessories"
+      }
+    },
+    "kan444_store_motorsports": {
+      "b7b6d62c-2531-492c-a1fc-5b80024c76a5": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=motorcycle)",
+        "store_kind": "motorsports"
+      }
+    },
+    "kan444_store_sports": {
+      "e5804ae3-e420-4024-8fa7-d778e8196b38": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=sports)",
+        "store_kind": "sports"
+      },
+      "c133cfbd-04ac-4dda-8616-0f8fd533bdfe": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=sports)",
+        "store_kind": "sports"
+      },
+      "fe7a3411-a6e4-4685-ae6d-33e1c54c9d20": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail)",
+        "store_kind": "sports"
+      },
+      "9432cdd5-79f8-4942-a0f0-ba227b805afe": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail)",
+        "store_kind": "sports"
+      },
+      "483d8d0b-b345-44fa-b902-8de2bce37ac2": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail)",
+        "store_kind": "sports"
+      },
+      "34b7c57e-3ae8-4815-89e9-e74ba1ee8046": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Sporting Goods Retail)",
+        "store_kind": "sports"
+      }
+    },
+    "kan444_store_childrens_clothing": {
+      "f4b2647a-21fc-4fb7-9cb8-eb7eed9d3163": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Children's Clothing Store)",
+        "store_kind": "childrens_clothing"
+      },
+      "59f04c74-5c2d-498e-916f-1d5957dfe835": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Fashion Retail > Children's Clothing Store)",
+        "store_kind": "childrens_clothing"
+      }
+    },
+    "kan444_store_pet": {
+      "cdeaae6f-d318-4c21-8de2-f2dde6712d26": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=pet)",
+        "store_kind": "pet"
+      },
+      "612ee58e-1c98-496d-b3f6-22fed05430e5": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Pet Supplies Store)",
+        "store_kind": "pet"
+      }
+    },
+    "kan444_store_newspaper_and_magazines": {
+      "7436f636-e4d2-4431-b126-afbec2510d76": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=newsagent)",
+        "store_kind": "newspaper_and_magazines"
+      }
+    },
+    "kan444_store_handbag": {
+      "c02d535f-2868-443e-adb4-d8c03e877ea6": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bag)",
+        "store_kind": "handbag"
+      },
+      "17235f4a-33d5-4630-83a1-fe366d6660aa": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bag)",
+        "store_kind": "handbag"
+      },
+      "53d734d2-8def-4d35-96f0-cc2484e19f82": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bag)",
+        "store_kind": "handbag"
+      },
+      "2726bab7-6019-4c1e-bc58-58037579e480": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bag)",
+        "store_kind": "handbag"
+      }
+    },
+    "kan444_store_craft": {
+      "d9fc82f7-3359-4587-ae6d-76df9f463fc1": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=craft)",
+        "store_kind": "craft"
+      },
+      "9ae45b3d-8f3f-43c3-8e9f-bcad328b5032": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=craft)",
+        "store_kind": "craft"
+      }
+    },
+    "kan444_store_hunting_and_fishing_supplies": {
+      "45dc8ac8-bce7-43ba-91e0-6a3a8c69e6e0": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=outdoor)",
+        "store_kind": "hunting_and_fishing_supplies"
+      }
+    },
+    "kan444_store_office_equipment": {
+      "15c56a4b-3ad9-464d-b3dd-83c9247831da": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Office Supply Store)",
+        "store_kind": "office_equipment"
+      },
+      "4fcc220d-18d2-4bcc-8143-e6c7ff0bd3e5": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Office Supply Store)",
+        "store_kind": "office_equipment"
+      },
+      "7b911858-60a2-461b-bed7-123c4c68d9c4": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Office Supply Store)",
+        "store_kind": "office_equipment"
+      }
+    },
+    "kan444_store_hobby": {
+      "5eb12df1-5e30-47c9-852e-62d6aa5ef2ce": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=model)",
+        "store_kind": "hobby"
+      }
+    },
+    "kan444_store_toys": {
+      "ca6ebd93-9c8e-49d9-a0d9-ae8729e89b99": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Toy Store)",
+        "store_kind": "toys"
+      },
+      "bc8f5f24-63e2-438e-9e6c-f44cf0c869d8": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Toy Store)",
+        "store_kind": "toys"
+      }
+    },
+    "kan444_store_music_and_dvd": {
+      "1a0ced7e-f375-4178-8b9f-0cb4510f4bf4": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=music)",
+        "store_kind": "music_and_dvd"
+      }
+    },
+    "kan444_store_furniture": {
+      "182a1721-5ab4-4af7-b49d-d24a7b0f2a15": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=furniture)",
+        "store_kind": "furniture"
+      },
+      "60bae739-8ec4-4606-aaec-7702f7c6732a": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=furniture)",
+        "store_kind": "furniture"
+      }
+    },
+    "kan444_store_flea_market": {
+      "86b37e51-1ee5-421a-940a-ff42504ecf8f": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Flea Market)",
+        "store_kind": "flea_market"
+      },
+      "57fc29d5-6008-4ee6-89dd-6ee16f6add04": {
+        "poi_type": "store",
+        "reason": "reviewed Foursquare name and location match (Retail > Flea Market)",
+        "store_kind": "flea_market"
+      }
+    },
+    "kan444_pharmacy": {
+      "f9e39008-820f-44c6-9b66-05cf5a0c5bc8": {
+        "poi_type": "pharmacy",
+        "reason": "reviewed OSM name and location match (amenity=pharmacy)"
+      }
+    },
+    "kan444_store_phone": {
+      "abcf8eae-c100-45c1-9632-f0a25973d64c": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=mobile_phone)",
+        "store_kind": "phone"
+      }
+    },
+    "kan444_store_lighting": {
+      "02597613-6efc-423d-bbdb-2168c52dd03d": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=lighting)",
+        "store_kind": "lighting"
+      }
+    },
+    "kan444_store_mattress": {
+      "3f485910-1671-4b85-814c-8741e5644a39": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=bed)",
+        "store_kind": "mattress"
+      }
+    },
+    "kan444_store_fabric": {
+      "161e4aa1-2442-4518-b2cb-d069a6432768": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=fabric)",
+        "store_kind": "fabric"
+      }
+    },
+    "kan444_store_drugstore": {
+      "1604523c-df6f-4c41-a809-6d392faecab0": {
+        "poi_type": "store",
+        "reason": "reviewed OSM name and location match (shop=chemist)",
+        "store_kind": "drugstore"
+      }
     }
   }
 }
