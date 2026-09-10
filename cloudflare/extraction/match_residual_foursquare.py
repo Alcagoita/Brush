@@ -31,12 +31,40 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 SUBTYPES = os.path.join(ROOT, 'cloudflare', 'src', 'storeSubtypeCategories.json')
 
 # Overture and Foursquare disagree on rooftop-versus-entrance geocoding, so a
-# tight radius drops true matches on a dense high street. 150 m is deliberately
-# loose; 400 m is the outer bound where a name match still means something and
-# is only ever reported for review, never auto-assigned.
-NEAR_M = 150.0
+# tight radius drops true matches on a dense high street. 400 m is the outer
+# bound where a name match still means something and is only ever reported for
+# review, never auto-assigned.
 FAR_M = 400.0
 STRONG_SIMILARITY = 0.85
+
+# Distance and name agreement trade off against each other, so a flat threshold
+# wastes both. Two shops sharing a doorway are the same shop at a name score a
+# street away would not justify: `Artipel cork` and `artipel` at 12 m score
+# 0.74, and `A. Ribeiro Andrade` and `ar andrade` at 5 m score the same. At
+# 300 m those are two businesses that happen to share a word.
+MATCH_LADDER = ((25.0, 0.55), (75.0, 0.70), (150.0, STRONG_SIMILARITY))
+NEAR_M = MATCH_LADDER[-1][0]
+
+
+def accepts(distance, score, exact=False):
+    """Whether this distance and name agreement together justify a match."""
+    if exact and distance <= NEAR_M:
+        return True
+    return any(distance <= limit and score >= threshold for limit, threshold in MATCH_LADDER)
+
+
+def toponym_only(left, right, locality):
+    """True when the only thing two names share is the place they are in.
+
+    `Capri Lovers Bombarral` and `optica bombarral` share exactly one word and
+    it is the town. So do `Opticalia Santo Tirso` and `multiopticas santo
+    tirso`, which are two different chains — and at 0.80 the looser rungs of
+    the ladder would otherwise take it.
+    """
+    shared = set(left.split()) & set(right.split())
+    if not shared:
+        return False
+    return shared <= set(normalize(locality or '').split())
 
 # A grid cell of 0.005 degrees is about 555 m at this latitude, so the 3x3
 # neighbourhood around a cell always contains everything within FAR_M.
@@ -193,25 +221,29 @@ def candidates(grid, lat, lng):
             yield from grid[(cell_lat + dlat, cell_lng + dlng)]
 
 
-def decide(name, lat, lng, grid, index):
+def decide(name, lat, lng, grid, index, locality=''):
     """(decision, subtype, reason, matches) for one residual row."""
     normalized = normalize(name)
-    scored = []
+    scored, near = [], []
     for fsq_id, fsq_name, fsq_lat, fsq_lng, labels in candidates(grid, lat, lng):
         distance = haversine_m(lat, lng, fsq_lat, fsq_lng)
         if distance > FAR_M:
             continue
         score = similarity(normalized, fsq_name)
         exact = bool(normalized) and normalized == fsq_name
-        if exact or score >= STRONG_SIMILARITY:
-            scored.append((fsq_id, fsq_name, distance, score, exact, labels))
+        if not (exact or score >= MATCH_LADDER[0][1]):
+            continue
+        match = (fsq_id, fsq_name, distance, score, exact, labels)
+        scored.append(match)
+        if accepts(distance, score, exact) and not toponym_only(normalized, fsq_name, locality):
+            near.append(match)
     if not scored:
         return 'insufficient_evidence', '', 'no Foursquare place within 400 m shares this name', []
 
-    near = [m for m in scored if m[2] <= NEAR_M]
     if not near:
         best = sorted(scored, key=lambda m: (m[2], -m[3]))[:5]
-        return 'insufficient_evidence', '', f'name match only at {best[0][2]:.0f} m, beyond the 150 m bound', best
+        return ('insufficient_evidence', '',
+                f'name agreement {best[0][3]:.2f} too weak for {best[0][2]:.0f} m', best)
 
     near.sort(key=lambda m: (not m[4], m[2], -m[3]))
     subtypes = set()
@@ -262,7 +294,8 @@ def run(inventory_path, archive_path, foursquare_path, out_path):
                                  '', '', '', '', ''))
                 continue
             lat, lng = position
-            decision, subtype, reason, matches = decide(row['name'], lat, lng, grid, index)
+            decision, subtype, reason, matches = decide(
+                row['name'], lat, lng, grid, index, row.get('locality', ''))
             counts[decision] += 1
             best = matches[0] if matches else None
             writer.writerow((

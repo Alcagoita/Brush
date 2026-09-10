@@ -10,13 +10,32 @@ Against the 4,511 residual rows KAN-432 had not already reviewed:
 
 | Decision | Rows | Share |
 | --- | ---: | ---: |
-| `verified_subtype` | 272 | 6.0% |
-| `excluded` | 37 | 0.8% |
-| `insufficient_evidence` | 4,202 | 93.2% |
+| `verified_subtype` | 355 | 7.9% |
+| `excluded` | 50 | 1.1% |
+| `insufficient_evidence` | 4,106 | 91.0% |
 
-Resolved by source: OSM 170, Foursquare 139. The 309 resolved rows became 46
-exact-ID batches in `overtureCandidateOverrides.json`, all 309 verified as
+Resolved by source: OSM 218, Foursquare 187. The 405 resolved rows became 52
+exact-ID batches in `overtureCandidateOverrides.json`, all 405 verified as
 acceptable by `promote_overture_candidates.decide()` before commit.
+
+## The match rule, and why it is not a flat threshold
+
+A single similarity threshold at a single radius wastes both signals, because
+distance and name agreement trade off against each other. `Artipel cork` and
+`artipel` twelve metres apart are the same shop at a score that would be
+meaningless a street away; `A. Ribeiro Andrade` and `ar andrade` at five metres
+likewise. A flat 0.85 threshold discarded both.
+
+The ladder accepts a match at 0.55 within 25 m, 0.70 within 75 m, and 0.85
+within 150 m. Beyond 150 m nothing is auto-assigned however well the names
+agree, and an exact name still has to be inside 150 m. This recovered 96 rows
+the flat rule threw away — a 31% improvement on identical source data.
+
+Its one failure mode is names that share only a toponym, which the looser rungs
+would otherwise take: `Capri Lovers Bombarral` against `optica bombarral`, or
+`Opticalia Santo Tirso` against `multiopticas santo tirso` — two different
+chains agreeing at 0.80 on the town alone. Every row carries its locality, so a
+match whose shared words are all inside the locality name is refused.
 
 ## Sources
 
@@ -51,16 +70,16 @@ snapshot. `fetch_osm_retail_tiles.py` is kept for the targeted case — a handfu
 of rows, where a country download would be absurd — and still checkpoints per
 tile so an interrupted run resumes.
 
-## Why 93% is the honest answer
+## Why 91% is the honest answer
 
 The residual is not unresolved for want of effort on the join. It is unresolved
 because the places are not in either source, and because their names carry no
 recoverable signal:
 
-* 4,101 rows have no OSM retail feature within 400 m sharing their name, having
-  already had no Foursquare match on the same test. Spot checks confirm absence:
-  the nearest features at 4–90 m are unrelated businesses.
-* 4,299 distinct names across 4,372 rows. Only 42 names repeat at all, so brand
+* Most remaining rows have no OSM retail feature within 400 m sharing their
+  name, having already had no Foursquare match on the same test. Spot checks
+  confirm absence: the nearest features at 4–90 m are unrelated businesses.
+* 4,299 distinct names across the tail. Only 42 names repeat at all, so brand
   clustering — the technique that drained KAN-432 — has nothing left to grip.
 * 24.2% are single opaque tokens (`abgt`, `4umans`, `7rabbits`).
 * `loja/casa/comércio de X` head-noun extraction covers 4.5% of rows, and the

@@ -23,7 +23,8 @@ from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from match_residual_foursquare import (
-    CELL, FAR_M, NEAR_M, STRONG_SIMILARITY, haversine_m, normalize, similarity,
+    CELL, FAR_M, MATCH_LADDER, accepts, haversine_m, normalize, similarity,
+    toponym_only,
 )
 
 # OSM value -> (poi_type, store_kind). store_kind is set only for poi_type
@@ -154,24 +155,27 @@ def candidates(grid, lat, lng):
             yield from grid[(cell_lat + dlat, cell_lng + dlng)]
 
 
-def decide(name, lat, lng, grid):
+def decide(name, lat, lng, grid, locality=''):
     normalized = normalize(name)
-    scored = []
+    scored, near = [], []
     for osm_id, osm_name, osm_lat, osm_lng, family, raw in candidates(grid, lat, lng):
         distance = haversine_m(lat, lng, osm_lat, osm_lng)
         if distance > FAR_M:
             continue
         score = similarity(normalized, osm_name)
         exact = bool(normalized) and normalized == osm_name
-        if exact or score >= STRONG_SIMILARITY:
-            scored.append((osm_id, osm_name, distance, score, exact, family, raw))
+        if not (exact or score >= MATCH_LADDER[0][1]):
+            continue
+        match = (osm_id, osm_name, distance, score, exact, family, raw)
+        scored.append(match)
+        if accepts(distance, score, exact) and not toponym_only(normalized, osm_name, locality):
+            near.append(match)
     if not scored:
         return 'insufficient_evidence', '', '', 'no OSM retail feature within 400 m shares this name', []
-    near = [m for m in scored if m[2] <= NEAR_M]
     if not near:
         best = sorted(scored, key=lambda m: (m[2], -m[3]))[:5]
         return ('insufficient_evidence', '', '',
-                f'OSM name match only at {best[0][2]:.0f} m, beyond the 150 m bound', best)
+                f'OSM name agreement {best[0][3]:.2f} too weak for {best[0][2]:.0f} m', best)
 
     near.sort(key=lambda m: (not m[4], m[2], -m[3]))
     resolved, excluding, unmapped = set(), False, []
@@ -220,7 +224,8 @@ def run(decisions_path, osm_path, out_path):
                 row['subtype'] = 'store'
             if row['decision'] == 'insufficient_evidence' and row['lat']:
                 decision, poi_type, store_kind, reason, matches = decide(
-                    row['name'], float(row['lat']), float(row['lng']), grid)
+                    row['name'], float(row['lat']), float(row['lng']), grid,
+                    row.get('locality', ''))
                 if decision != 'insufficient_evidence':
                     changed += 1
                     best = matches[0]

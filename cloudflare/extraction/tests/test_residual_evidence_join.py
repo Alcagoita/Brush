@@ -76,8 +76,40 @@ class FoursquareTierTest(unittest.TestCase):
         decision, subtype, reason, matches = fsq.decide(
             'Ótica Malhoa', BASE_LAT, BASE_LNG, grid, fsq.subtype_index())
         self.assertEqual(decision, 'insufficient_evidence')
-        self.assertIn('150 m', reason)
+        self.assertIn('too weak', reason)
         self.assertTrue(matches, 'the far match is still reported as evidence')
+
+
+class MatchLadderTest(unittest.TestCase):
+    def test_a_close_match_is_accepted_on_a_weaker_name(self):
+        # `Artipel cork` and `artipel` at 12 m: the same shop, at a score a
+        # street away would not justify.
+        self.assertTrue(fsq.accepts(12, 0.60))
+
+    def test_the_same_weak_name_is_refused_further_out(self):
+        self.assertFalse(fsq.accepts(120, 0.60))
+
+    def test_the_ladder_never_reaches_past_its_last_rung(self):
+        self.assertFalse(fsq.accepts(fsq.NEAR_M + 1, 1.0))
+
+    def test_an_exact_name_still_needs_to_be_within_the_near_bound(self):
+        self.assertTrue(fsq.accepts(140, 0.0, exact=True))
+        self.assertFalse(fsq.accepts(300, 0.0, exact=True))
+
+    def test_names_sharing_only_the_town_are_not_a_match(self):
+        # Two different optician chains in Santo Tirso score 0.80 on the
+        # town alone, which the looser rungs would otherwise take.
+        self.assertTrue(fsq.toponym_only(
+            fsq.normalize('Opticalia Santo Tirso'),
+            fsq.normalize('Multiopticas Santo Tirso'), 'Santo Tirso'))
+
+    def test_sharing_a_real_word_as_well_as_the_town_is_still_a_match(self):
+        self.assertFalse(fsq.toponym_only(
+            fsq.normalize('Opticalia Santo Tirso'),
+            fsq.normalize('Opticalia Santo Tirso Centro'), 'Santo Tirso'))
+
+    def test_the_guard_does_nothing_without_a_locality(self):
+        self.assertFalse(fsq.toponym_only('artipel cork', 'artipel', ''))
 
     def test_no_candidate_at_all_is_evidence_of_absence(self):
         decision, _, reason, matches = fsq.decide(
