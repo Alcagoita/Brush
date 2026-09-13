@@ -2684,11 +2684,12 @@ export default {
       if (internalAuthError) return internalAuthError;
       const prefix = url.searchParams.get('prefix') ?? '';
       const delimiter = url.searchParams.get('delimiter') ?? undefined;
-      // Root is listable only with a delimiter, which returns namespace names
-      // instead of the keys inside them. That is enough to find where a backup
-      // lives and not enough to walk the bucket.
+      // Root is listable only with the path delimiter, which returns namespace
+      // names instead of the keys inside them. That is enough to find where a
+      // backup lives and not enough to walk the bucket — any other delimiter
+      // would list every key at the root as an "object".
       if (prefix === '') {
-        if (!delimiter) return json({ error: 'root listing requires a delimiter' }, 400);
+        if (delimiter !== '/') return json({ error: 'root listing requires delimiter=/' }, 400);
       } else if (!R2_LIST_PREFIXES.some((allowed) => prefix.startsWith(allowed))) {
         return json({ error: 'prefix not on the discovery allowlist' }, 403);
       }

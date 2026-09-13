@@ -73,9 +73,14 @@ CELL = 0.005
 # Portuguese company forms carry no identifying information and appear on one
 # side of a pair far more often than both. Stripped from the tail only: a shop
 # genuinely called "Lda" does not exist, but "Casa da Sogra" must keep "Casa".
+#
+# Only unambiguous forms. After accent folding `Sá` and `Cá` — both real
+# surnames — read as `sa` and `ca`, so those are not here: stripping them turns
+# "Padaria Sá" into "padaria", which then matches every bakery in town. The
+# join also never strips a name down to nothing.
 LEGAL_SUFFIXES = (
-    'lda', 'ldª', 'limitada', 'sa', 'sas', 'unipessoal', 'sociedade unipessoal',
-    'sociedade', 'e filhos', 'filhos', 'irmaos', 'ii', 'cia', 'ca',
+    'lda', 'ldª', 'limitada', 'sas', 'unipessoal', 'sociedade unipessoal',
+    'sociedade', 'e filhos', 'filhos', 'irmaos', 'cia',
 )
 
 
@@ -87,7 +92,7 @@ def normalize(value):
     text = strip_accents((value or '')).casefold()
     text = ''.join(c if c.isalnum() or c.isspace() else ' ' for c in text)
     words = text.split()
-    while words and words[-1] in LEGAL_SUFFIXES:
+    while len(words) > 1 and words[-1] in LEGAL_SUFFIXES:
         words.pop()
     return ' '.join(words)
 
@@ -279,7 +284,8 @@ def run(inventory_path, archive_path, foursquare_path, out_path):
 
     index = subtype_index()
     counts = defaultdict(int)
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    if os.path.dirname(out_path):
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', newline='') as handle:
         writer = csv.writer(handle, delimiter='\t')
         writer.writerow((

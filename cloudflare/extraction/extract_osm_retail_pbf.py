@@ -51,9 +51,20 @@ def contract_family(tags):
     return None, False
 
 
+# pyosmium reports element kinds as a single letter; the Overpass path and
+# every id already in the manifest use the full word. One id scheme, or the
+# same feature reads as two.
+TYPE_NAMES = {'n': 'node', 'w': 'way', 'r': 'relation'}
+
+
 def centre(obj):
     if obj.is_node():
-        return obj.lat, obj.lon
+        try:
+            return obj.lat, obj.lon
+        except ValueError:
+            # An invalid location raises rather than returning NaN; the row
+            # is counted as unlocated instead of ending the extraction.
+            return None
     try:
         points = [(node.location.lat, node.location.lon) for node in obj.nodes if node.location.valid()]
     except (AttributeError, RuntimeError):
@@ -68,7 +79,8 @@ def run(pbf_path, out_path, report_path):
 
     families = Counter()
     kept = unnamed = unlocated = 0
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    if os.path.dirname(out_path):
+        os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with open(out_path, 'w', newline='') as handle:
         writer = csv.writer(handle, delimiter='\t')
         writer.writerow(('osm_id', 'name', 'lat', 'lng', 'family', 'excluding', 'tags'))
@@ -92,7 +104,7 @@ def run(pbf_path, out_path, report_path):
                 continue
             families[family] += 1
             kept += 1
-            writer.writerow((f'{obj.type_str()}/{obj.id}', name, f'{position[0]:.7f}',
+            writer.writerow((f'{TYPE_NAMES.get(obj.type_str(), obj.type_str())}/{obj.id}', name, f'{position[0]:.7f}',
                              f'{position[1]:.7f}', family, '1' if excluding else '',
                              json.dumps(tags, ensure_ascii=False, sort_keys=True)))
 

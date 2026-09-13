@@ -3583,11 +3583,6 @@
         "reason": "reviewed OSM name and location match (shop=interior_decoration)",
         "store_kind": "home"
       },
-      "03d1171d-0997-4906-aadc-c7e2ab47e046": {
-        "poi_type": "store",
-        "reason": "reviewed OSM name and location match (shop=interior_decoration)",
-        "store_kind": "home"
-      },
       "a3b0836a-5095-489d-a41e-5376ff8147e6": {
         "poi_type": "store",
         "reason": "reviewed Foursquare name and location match (Retail > Furniture and Home Store)",
@@ -5458,13 +5453,6 @@
         "poi_type": "store",
         "reason": "reviewed OSM name and location match (shop=craft)",
         "store_kind": "craft"
-      }
-    },
-    "kan444_store_hunting_and_fishing_supplies": {
-      "45dc8ac8-bce7-43ba-91e0-6a3a8c69e6e0": {
-        "poi_type": "store",
-        "reason": "reviewed OSM name and location match (shop=outdoor)",
-        "store_kind": "hunting_and_fishing_supplies"
       }
     },
     "kan444_store_office_equipment": {

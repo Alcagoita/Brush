@@ -54,6 +54,15 @@ class NormalizationTest(unittest.TestCase):
         # "Casa da Sogra" must keep "Casa"; only trailing forms are noise.
         self.assertEqual(fsq.normalize('Casa da Sogra'), 'casa da sogra')
 
+    def test_folded_surnames_are_not_mistaken_for_company_forms(self):
+        # `Sá` and `Cá` fold to `sa` and `ca`; stripping them turns
+        # "Padaria Sá" into every bakery in town.
+        self.assertEqual(fsq.normalize('Padaria Sá'), 'padaria sa')
+        self.assertEqual(fsq.normalize('A. de Sousa & Ca.'), 'a de sousa ca')
+
+    def test_a_name_is_never_stripped_to_nothing(self):
+        self.assertEqual(fsq.normalize('Lda'), 'lda')
+
     def test_similarity_of_unrelated_names_stays_below_the_threshold(self):
         self.assertLess(fsq.similarity(fsq.normalize('Atelier do Algodão'),
                                        fsq.normalize('Padaria da Sargaça')),
@@ -195,6 +204,50 @@ class ExclusionEvidenceTest(unittest.TestCase):
         for table in tables:
             for value, (poi_type, _) in table.items():
                 self.assertIn(poi_type, reachable, f'{value} maps to unreachable poi_type {poi_type}')
+
+
+class OsmTagPrecedenceTest(unittest.TestCase):
+    def test_a_shop_that_also_has_an_office_is_a_shop(self):
+        # Same precedence as the PBF extractor's contract_family.
+        self.assertEqual(osm.mapped_type({'shop': 'hardware', 'office': 'company'}),
+                         ('store', 'hardware', False))
+
+    def test_an_office_with_only_a_generic_shop_tag_is_still_an_office(self):
+        self.assertEqual(osm.mapped_type({'shop': 'yes', 'office': 'company'}), (None, None, True))
+
+    def test_ambiguous_shop_values_stay_unmapped(self):
+        # `outdoor` is hiking gear and `collector` is collectibles; neither is
+        # a subtype we have, so neither may become an override.
+        for value in ('outdoor', 'collector'):
+            self.assertNotIn(value, osm.SHOP_TO_TYPE)
+
+
+class BatchEmitterTest(unittest.TestCase):
+    def test_one_id_in_two_batches_is_refused_before_anything_is_written(self):
+        import tempfile
+        from unittest import mock
+        import apply_kan444_decisions as apply
+        header = 'overture_id\tname\tlocality\tlat\tlng\tdecision\tsubtype\treason\tfsq_place_id\tfsq_name\tdistance_m\tsimilarity\tfsq_categories\tosm_id\tosm_distance_m\tosm_family\tstore_kind\tsource\n'
+        row = 'id-1\tX\tL\t1\t1\tverified_subtype\tstore\tr\t\t\t\t\t\tnode/1\t5\tshop=hardware\t{kind}\tosm\n'
+        with tempfile.NamedTemporaryFile('w', suffix='.tsv', delete=False) as manifest:
+            manifest.write(header + row.format(kind='hardware') + row.format(kind='clothing'))
+        with mock.patch.object(apply, 'OVERRIDES', os.devnull), \
+                mock.patch('json.load', return_value={}), \
+                self.assertRaises(ValueError):
+            apply.run(manifest.name, dry_run=True)
+        os.unlink(manifest.name)
+
+
+class CheckpointTest(unittest.TestCase):
+    def test_a_truncated_final_record_does_not_lose_the_ones_before_it(self):
+        import tempfile
+        import fetch_osm_retail_tiles as tiles
+        with tempfile.NamedTemporaryFile('w', suffix='.jsonl', delete=False) as checkpoint:
+            checkpoint.write('{"tile": [1, 2], "elements": []}\n{"tile": [3, 4], "elem')
+        try:
+            self.assertEqual(tiles.done_tiles(checkpoint.name), {(1, 2)})
+        finally:
+            os.unlink(checkpoint.name)
 
 
 class DecidedRowsAreNotReopenedTest(unittest.TestCase):

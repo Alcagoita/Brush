@@ -35,7 +35,12 @@ RETAIL_AMENITIES = ('marketplace', 'pharmacy', 'fuel', 'post_office', 'bank',
 # query deliberately also asks for the things a consumer store is not.
 EXCLUDING_AMENITIES = ('clinic', 'dentist', 'doctors', 'school', 'driving_school')
 
-TILE = 0.05  # ~5.5 km; the tile the point sits in, plus its own margin
+TILE = 0.05  # ~5.5 km; the tile the point sits in
+# The matcher reports candidates out to 400 m, and a point on a tile edge has
+# neighbours in the next tile over. Pad each query by that much so the edge
+# case is covered by the tile itself rather than by hoping the neighbour is
+# also in the run.
+TILE_PAD = 0.004  # ~400 m
 REQUEST_SPACING_S = 1.5
 
 
@@ -63,8 +68,18 @@ def tiles_for(points):
 def done_tiles(checkpoint_path):
     if not os.path.exists(checkpoint_path):
         return set()
+    done = set()
     with open(checkpoint_path) as handle:
-        return {tuple(json.loads(line)['tile']) for line in handle if line.strip()}
+        for line in handle:
+            if not line.strip():
+                continue
+            try:
+                done.add(tuple(json.loads(line)['tile']))
+            except (ValueError, KeyError):
+                # A run killed mid-write leaves a partial last record. That
+                # tile is simply not done; the ones before it still are.
+                continue
+    return done
 
 
 def element_rows(payload):
@@ -106,12 +121,13 @@ def run(points_path, checkpoint_path, report_path):
           f'({len(already):,} already fetched, {len(pending):,} pending)', file=sys.stderr)
 
     families = Counter()
-    elements = 0
+    elements = fetched = 0
     started = time.monotonic()
     with open(checkpoint_path, 'a') as handle:
         for index, (cell_lat, cell_lng) in enumerate(pending, 1):
             min_lat, min_lng = cell_lat * TILE, cell_lng * TILE
-            query = tile_query(min_lat, min_lng, min_lat + TILE, min_lng + TILE)
+            query = tile_query(min_lat - TILE_PAD, min_lng - TILE_PAD,
+                               min_lat + TILE + TILE_PAD, min_lng + TILE + TILE_PAD)
             try:
                 payload = fetch_overpass(query)
             except OverpassRateLimited:
@@ -129,6 +145,7 @@ def run(points_path, checkpoint_path, report_path):
                 families.update(tag_families(row['tags']))
             handle.write(json.dumps({'tile': [cell_lat, cell_lng], 'elements': rows}) + '\n')
             handle.flush()
+            fetched += 1
             if index % 25 == 0 or index == len(pending):
                 rate = index / max(time.monotonic() - started, 1e-9)
                 remaining = (len(pending) - index) / rate if rate else 0
@@ -141,7 +158,7 @@ def run(points_path, checkpoint_path, report_path):
         'retail_amenities': list(RETAIL_AMENITIES),
         'excluding_amenities': list(EXCLUDING_AMENITIES),
         'tiles_total': len(tiles),
-        'tiles_fetched_this_run': len(pending),
+        'tiles_fetched_this_run': fetched,
         'named_elements_this_run': elements,
         'tag_families': dict(families.most_common()),
     }

@@ -10,12 +10,12 @@ Against the 4,511 residual rows KAN-432 had not already reviewed:
 
 | Decision | Rows | Share |
 | --- | ---: | ---: |
-| `verified_subtype` | 355 | 7.9% |
+| `verified_subtype` | 353 | 7.8% |
 | `excluded` | 50 | 1.1% |
-| `insufficient_evidence` | 4,106 | 91.0% |
+| `insufficient_evidence` | 4,108 | 91.1% |
 
-Resolved by source: OSM 218, Foursquare 187. The 405 resolved rows became 52
-exact-ID batches in `overtureCandidateOverrides.json`, all 405 verified as
+Resolved by source: OSM 216, Foursquare 187. The 403 resolved rows became 51
+exact-ID batches in `overtureCandidateOverrides.json`, all 403 verified as
 acceptable by `promote_overture_candidates.decide()` before commit.
 
 ## The match rule, and why it is not a flat threshold

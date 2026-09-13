@@ -47,21 +47,30 @@ def run(manifest_path, dry_run):
     source = overrides.setdefault(SOURCE_KEY, {})
     already = {poi_id for batch in source.values() for poi_id in batch}
 
-    additions, skipped = defaultdict(dict), 0
+    additions, skipped, placed = defaultdict(dict), 0, {}
     with open(manifest_path, newline='') as handle:
         for row in csv.DictReader(handle, delimiter='\t'):
             if row['decision'] == 'insufficient_evidence':
                 continue
-            if row['overture_id'] in already:
+            overture_id = row['overture_id']
+            if overture_id in already:
                 skipped += 1
                 continue
+            name = batch_name(row)
+            # A manifest row per id is the contract. Two rows for one id that
+            # agree are a harmless duplicate; two that disagree would write the
+            # same id into two batches, and the runner would apply whichever it
+            # met last. Refuse before anything is written.
+            if placed.get(overture_id, name) != name:
+                raise ValueError(f'{overture_id} appears in both {placed[overture_id]} and {name}')
+            placed[overture_id] = name
             entry = {'poi_type': row['subtype'] or 'store', 'reason': reason_for(row)}
             if row['store_kind']:
                 entry['store_kind'] = row['store_kind']
             if row['decision'] == 'excluded':
                 # A reviewed exclusion carries its reason and no type at all.
                 entry = {'decision': 'rejected', 'reason': reason_for(row)}
-            additions[batch_name(row)][row['overture_id']] = entry
+            additions[name][overture_id] = entry
 
     total = sum(len(batch) for batch in additions.values())
     for name in sorted(additions):
@@ -75,11 +84,22 @@ def run(manifest_path, dry_run):
         return 0
     for name, batch in additions.items():
         source.setdefault(name, {}).update(batch)
-    with open(OVERRIDES, 'w') as handle:
-        # Insertion order, not sorted: sorting rewrites every existing batch and
-        # buries this ticket's additions in a whole-file diff nobody can review.
-        json.dump(overrides, handle, indent=2, ensure_ascii=False)
-        handle.write('\n')
+    # Write beside the target and swap in, so a failure mid-serialisation leaves
+    # the reviewed overrides exactly as they were rather than half-written.
+    temp_path = f'{OVERRIDES}.tmp'
+    try:
+        with open(temp_path, 'w') as handle:
+            # Insertion order, not sorted: sorting rewrites every existing batch
+            # and buries this ticket's additions in a whole-file diff nobody can
+            # review.
+            json.dump(overrides, handle, indent=2, ensure_ascii=False)
+            handle.write('\n')
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_path, OVERRIDES)
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
     print(f'-> {OVERRIDES}', file=sys.stderr)
     return 0
 

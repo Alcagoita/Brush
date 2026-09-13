@@ -70,11 +70,11 @@ SHOP_TO_TYPE = {
     'herbalist': ('store', 'vitamins_and_supplements'), 'nutrition_supplements': ('store', 'vitamins_and_supplements'),
     'erotic': ('store', 'adult'), 'tobacco': ('store', 'tobacco'), 'e-cigarette': ('store', 'e_cigarette'),
     # leisure and specialist
-    'sports': ('store', 'sports'), 'bicycle': ('store', 'bicycle'), 'outdoor': ('store', 'hunting_and_fishing_supplies'),
+    'sports': ('store', 'sports'), 'bicycle': ('store', 'bicycle'),
     'fishing': ('store', 'hunting_and_fishing_supplies'), 'hunting': ('store', 'hunting_and_fishing_supplies'),
     'toys': ('store', 'toys'), 'games': ('store', 'hobby'), 'model': ('store', 'hobby'),
     'art': ('store', 'art_supply'), 'craft': ('store', 'craft'), 'frame': ('store', 'arts_and_crafts'),
-    'antiques': ('store', 'antique'), 'collector': ('store', 'comic_books'),
+    'antiques': ('store', 'antique'),
     'gift': ('store', 'gift'), 'party': ('store', 'party_supply'), 'pet': ('store', 'pet'),
     'pawnbroker': ('store', 'pawn'), 'variety_store': ('store', 'discount_store'),
     'travel_agency': ('store', 'travel_agency'), 'luggage': ('store', 'luggage'),
@@ -114,12 +114,12 @@ GENERIC_SHOP_VALUES = {'yes', 'general', 'department_store', 'variety_store;gene
 
 
 def mapped_type(tags):
-    """(poi_type, store_kind, excluding) for one OSM element."""
-    if 'office' in tags:
-        return None, None, True
-    amenity = tags.get('amenity')
-    if amenity in ('clinic', 'dentist', 'doctors', 'school', 'driving_school'):
-        return None, None, True
+    """(poi_type, store_kind, excluding) for one OSM element.
+
+    Retail keys are read before the exclusions, in the same order the PBF
+    extractor's contract_family uses: a shop that also carries `office=*`
+    is a shop with an office, not an office.
+    """
     shop = tags.get('shop')
     if shop and shop not in GENERIC_SHOP_VALUES:
         found = SHOP_TO_TYPE.get(shop)
@@ -130,9 +130,12 @@ def mapped_type(tags):
         if value and value in table:
             found = table[value]
             return found[0], found[1], False
+    amenity = tags.get('amenity')
     if amenity in AMENITY_TO_TYPE:
         found = AMENITY_TO_TYPE[amenity]
         return found[0], found[1], False
+    if 'office' in tags or amenity in ('clinic', 'dentist', 'doctors', 'school', 'driving_school'):
+        return None, None, True
     return None, None, False
 
 
@@ -202,12 +205,14 @@ def decide(name, lat, lng, grid, locality=''):
 
 def run(decisions_path, osm_path, out_path):
     with open(decisions_path, newline='') as handle:
-        rows = list(csv.DictReader(handle, delimiter='\t'))
+        reader = csv.DictReader(handle, delimiter='\t')
+        input_fields = list(reader.fieldnames or ())
+        rows = list(reader)
     grid, indexed = load_osm(osm_path)
     print(f'{indexed:,} OSM retail features indexed', file=sys.stderr)
 
     counts, changed = Counter(), 0
-    fields = list(rows[0].keys()) + ['osm_id', 'osm_distance_m', 'osm_family', 'store_kind', 'source']
+    fields = input_fields + ['osm_id', 'osm_distance_m', 'osm_family', 'store_kind', 'source']
     with open(out_path, 'w', newline='') as handle:
         writer = csv.DictWriter(handle, fieldnames=fields, delimiter='\t')
         writer.writeheader()
