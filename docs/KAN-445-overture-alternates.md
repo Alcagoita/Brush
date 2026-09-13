@@ -37,17 +37,30 @@ store-kind level:
 | --- | ---: | ---: |
 | `furniture_store` | 128 | **14%** |
 | `clothing_store` | 38 | 50% |
-| `flowers_and_gifts_shop` | 13 | 46% |
+| `flowers_and_gifts_shop` | 13 | 0% |
 | `arts_and_crafts` | 12 | 50% |
+| `fashion_accessories_store` | 11 | 0% |
 | `grocery_store` | 9 | 56% |
-| `womens_clothing_store` | 9 | 56% |
+| `fashion` | 9 | 0% |
+| `womens_clothing_store` | 9 | 0% |
+| `bar` | 8 | 0% |
 | `hardware_store` | 7 | 57% |
 | `electronics` | 7 | 100% |
+| `department_store` | 6 | 0% |
 | `sporting_goods` | 6 | 33% |
-| `home_and_garden` | 5 | 0% |
+| `childrens_clothing_store` | 6 | 33% |
+| `eyewear_and_optician` | 5 | 100% |
 | `bicycle_shop` | 5 | 100% |
 | `shoe_store` | 5 | 100% |
-| `home_improvement_store` | 5 | 60% |
+| `home_improvement_store` | 5 | 20% |
+
+Precision is "the app's own mapping for this alternate names the same
+`poi_type` and `store_kind` the evidence did", with `home` and `furniture`
+treated as one department. That is the strict test, because it is the mapping
+that would actually be applied. `womens_clothing_store` scores 0% not because
+those shops are not clothing shops but because the mapping resolves it to
+`womens_clothing` while the evidence said `clothing` — which is itself a reason
+not to trust an alternate to pick the finer kind.
 
 `furniture_store` is 1,066 of the 4,681 unresolved rows — 23% of the tail —
 and every one of the 524 rows where it is the *only* alternate is
@@ -67,9 +80,11 @@ that means something.
 
 ## What is usable
 
-Taking only alternates with n ≥ 5 and precision ≥ 50% in the control, and
-refusing any row that also carries `furniture_store`: **424 of 4,681
-unresolved rows**. Auto-assigning them would be wrong about half the time,
+Taking only alternates with n ≥ 5 and precision ≥ 50% in the control —
+`clothing_store`, `arts_and_crafts`, `grocery_store`, `hardware_store`,
+`electronics`, `eyewear_and_optician`, `bicycle_shop`, `shoe_store` — and
+refusing any row that also carries `furniture_store`: on the order of **400
+of 4,681 unresolved rows**. Auto-assigning them would be wrong about half the time,
 which is far below the bar KAN-444's ladder holds (95%+ on spot checks) and
 below what `verified_subtype` is allowed to mean.
 

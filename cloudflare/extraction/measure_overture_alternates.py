@@ -19,7 +19,7 @@ import csv
 import json
 import os
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from extract_overture import OVERTURE_PLACES, OVERTURE_RELEASE
@@ -114,22 +114,37 @@ def run(manifest_path, out_path, release):
     for label in ('unresolved', 'resolved'):
         report[label] = summarise(label, groups[label], mapping, reachable, brands)
 
-    # Control: where Foursquare/OSM established a type, does the alternate agree?
-    agree = disagree = 0
+    # Control: where Foursquare/OSM established what a place is, does each
+    # alternate value agree? Measured per alternate, at store-kind level. A
+    # first pass compared poi_types instead, and nearly every retail alternate
+    # maps to poi_type `store`, so it agreed with itself at 88% — the number
+    # that looked like validation and was not.
+    control = defaultdict(lambda: {'n': 0, 'hits': 0})
     for row in groups['resolved']:
         decided = manifest[row['overture_id']]
-        if decided['decision'] != 'verified_subtype' or not row['alternates']:
+        if decided['decision'] != 'verified_subtype':
             continue
-        mapped = {mapping[a]['poi_type'] for a in row['alternates'] if a in mapping and 'poi_type' in mapping[a]}
-        if not mapped:
-            continue
-        if decided['subtype'] in mapped:
-            agree += 1
-        else:
-            disagree += 1
-    print(f'\ncontrol: of resolved rows whose alternates map to a type, '
-          f'{agree:,} agree with Foursquare/OSM and {disagree:,} disagree')
-    report['control'] = {'agree': agree, 'disagree': disagree}
+        established = (decided['subtype'], decided['store_kind'] or None)
+        for alternate in set(row['alternates']):
+            entry = mapping.get(alternate)
+            if not entry or 'poi_type' not in entry:
+                continue
+            expected = (entry['poi_type'], entry.get('store_kind'))
+            control[alternate]['n'] += 1
+            # `home` and `furniture` are one department in practice; the
+            # ladder's own matches disagree on them for the same shop.
+            same = expected == established or (
+                {expected, established} <= {('store', 'home'), ('store', 'furniture')})
+            control[alternate]['hits'] += int(same)
+    print(f"\ncontrol — alternate precision against what Foursquare/OSM established (n >= 5):")
+    print(f"  {'alternate':<30}{'n':>5}{'precision':>11}")
+    table = {}
+    for alternate, counts in sorted(control.items(), key=lambda item: -item[1]['n']):
+        precision = counts['hits'] / counts['n']
+        table[alternate] = {'n': counts['n'], 'precision': round(precision, 3)}
+        if counts['n'] >= 5:
+            print(f"  {alternate:<30}{counts['n']:>5}{precision:>10.0%}")
+    report['control'] = table
 
     if os.path.dirname(out_path):
         os.makedirs(os.path.dirname(out_path), exist_ok=True)
