@@ -1,9 +1,9 @@
 {
   "country": "PT",
   "run_id": "20260914T0200Z",
-  "generated_at": "2026-09-14T01:32:15.934573+00:00",
-  "tool_commit": "b73674f2bb027f1f26fd3fa7ca043a0a7c4e12f7",
-  "config_sha256": "71df7f222804519ae13d8eb305042dc1d93e0bffac30b6b57d7a720322e822d2",
+  "generated_at": "2026-09-14T01:44:58.466884+00:00",
+  "tool_commit": "d53b190e736d88c8afab981d492f610511f3246e",
+  "config_sha256": "7e3e27b59c271d27426a9c0802f8d75228960ef481634860e81ef2b3212fed10",
   "inputs": {
     "overture": {
       "key": "overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv",
@@ -19,8 +19,8 @@
     }
   },
   "outputs": {
-    "suggestions.jsonl": "e40fe4ac2957985172186ec226121ed5acf39804c38ce0aca1e0c3b7d468bbfc",
+    "suggestions.jsonl": "e2a59c6d61b4e36c83639b7d94143e58044da884e4fbf60aac6f77eabc1edd38",
     "overrides-draft.json": "b60c0d2e1450988682365d5f1ead3a56539409114dae8d9759903cf726a87644",
-    "residual-report.json": "81bdc1cdf908a70d33a63243cd06d057aa2e75410b03585b27a6b63dff755213"
+    "residual-report.json": "633c24b8fbffed6d905526ce899ffe5d1d5f1b4bc0b3bf9a89953527bb957cb4"
   }
 }

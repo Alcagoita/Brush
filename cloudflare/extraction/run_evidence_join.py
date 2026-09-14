@@ -52,7 +52,11 @@ import promote_overture_candidates as promote
 from analyse_poi_candidates import reachable_types
 
 OVERRIDES_PATH = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
-CONFIG_FILES = ('src/overtureCategories.json', 'src/storeSubtypeCategories.json')
+# Anything promotion reads to decide a row. The brand dictionary lives on the
+# app side (KAN-340 reused it rather than keeping a second list) and a brand
+# added there changes which rows are residual at all.
+CONFIG_FILES = ('src/overtureCategories.json', 'src/storeSubtypeCategories.json',
+                '../src/constants/storeSubtypeDictionary.json')
 EVIDENCE_DIR = os.path.join(ROOT, 'docs', 'evidence')
 R2_BUCKET = 'brush-poi-exports'
 

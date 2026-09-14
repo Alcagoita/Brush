@@ -106,6 +106,15 @@ The validator allows an id to leave a batch only with a matching line. It
 never allows an id to be edited in place, or an old batch to gain ids: a
 changed decision is a withdrawal plus a new batch, so both are visible.
 
+## When the name already says what it is
+
+The join is for places whose names say nothing. A chain — `Optivisão`,
+`Opticalia` — is typed by the brand dictionary at promotion time, for every
+branch in the country, and should never need an override. If a reviewed row
+turns out to be a chain, the fix is a line in
+`src/constants/storeSubtypeDictionary.json`, not an override entry; the
+dictionary is in the config hash, so the next run records it.
+
 ## Reproducing a run
 
 `--reaudit-prefix evidence_<run_id>_` puts a previous run's rows back into
