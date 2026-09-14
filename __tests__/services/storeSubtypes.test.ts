@@ -48,7 +48,8 @@ describe('storeSubtypes', () => {
 
   it('suggests store types by visible label correspondence', () => {
     expect(storeSubtypeSuggestions('')).toContain('any');
-    expect(storeSubtypeSuggestions('Cl')).toEqual(['clothing']);
+    // KAN-447: `Club store` shares the prefix, and both are right to offer.
+    expect(storeSubtypeSuggestions('Cl')).toEqual(['clothing', 'club_store']);
     expect(storeSubtypeSuggestions('El')).toEqual(['electronics']);
     expect(storeSubtypeSuggestions('Fu')).toEqual(['furniture']);
     expect(storeSubtypeSuggestions('Ha')).toEqual(['hardware']);

@@ -391,6 +391,22 @@
       "Aquaplante"
     ]
   },
+  "club_store": {
+    "label": "Club store",
+    "labelPt": "Loja oficial do clube",
+    "aliases": [
+      "club store", "official store", "team store", "fan shop", "club shop",
+      "kit", "football kit", "football shirt", "jersey", "scarf", "merchandise", "merchandising",
+      "loja do clube", "loja oficial do clube", "camisola oficial", "camisola do clube", "equipamento oficial",
+      "cachecol", "cachecol do clube", "artigos do clube", "adeptos"
+    ],
+    "stores": [
+      "Benfica Official Store", "Loja do Benfica", "SL Benfica Store",
+      "Loja Verde", "Sporting Store", "Sporting CP Store",
+      "FC Porto Store", "Porto Store",
+      "Força Portugal"
+    ]
+  },
   "sports": {
     "label": "Sports",
     "labelPt": "Desporto",

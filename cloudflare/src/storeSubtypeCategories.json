@@ -247,6 +247,9 @@
   "souvenir": {
     "category_name": "Souvenir"
   },
+  "club_store": {
+    "category_name": "Club Store"
+  },
   "sports": {
     "category_id": "4bf58dd8d48988d1f2941735",
     "category_name": "Sporting Goods Retail"
