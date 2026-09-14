@@ -24,7 +24,7 @@ import math
 import os
 import sys
 import unicodedata
-from collections import defaultdict
+from collections import Counter, defaultdict
 from difflib import SequenceMatcher
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -46,25 +46,74 @@ MATCH_LADDER = ((25.0, 0.55), (75.0, 0.70), (150.0, STRONG_SIMILARITY))
 NEAR_M = MATCH_LADDER[-1][0]
 
 
-def accepts(distance, score, exact=False):
-    """Whether this distance and name agreement together justify a match."""
-    if exact and distance <= NEAR_M:
-        return True
-    return any(distance <= limit and score >= threshold for limit, threshold in MATCH_LADDER)
+# A word shared with this many of the nearby candidates names the place, not
+# the shop: every tenant of NorteShopping carries `norteshopping`, and on that
+# word alone `carlos santos hairshop norteshopping` is Timberland.
+VENUE_WORD_CANDIDATES = 3
+
+
+def venue_words(candidate_names):
+    """Words that recur across the candidates near one point.
+
+    Mall and street names, mostly. They are not in any list because they
+    do not need to be: the data says which words are shared by everyone.
+    """
+    counts = Counter(word for name in candidate_names for word in set(name.split()))
+    return {word for word, count in counts.items() if count >= VENUE_WORD_CANDIDATES}
+
+
+def distinctive_shared_word(left, right, locality='', venue=frozenset()):
+    """A word the two names share that says which shop, not where it is.
+
+    `Livraria Isamira` and `perfumaria riviera` score 0.59 on character
+    runs alone — `-aria`, `ri…a` — which Portuguese shop names share
+    constantly. The looser rungs were validated on `artipel cork` against
+    `artipel`, where the score came from a shared *word*; without one, a
+    sub-0.85 score is morphology, not identity.
+
+    The word also has to be the shop's own. `Capri Lovers Bombarral` and
+    `optica bombarral` share only the town; `Timberland NorteShopping` and
+    `carlos santos hairshop norteshopping` share only the mall. Neither is
+    a match. A name written as one word on one side and two on the other
+    still counts: `openwaters` is a word of `open waters`.
+    """
+    a, b = set(left.split()), set(right.split())
+    shared = a & b
+    # The compacted word itself, not a marker: `Norte Shopping` against
+    # `norteshopping timberland` joins to `norteshopping`, and if that is the
+    # venue it must be vetoed like any other place word.
+    for joined, other in ((left.replace(' ', ''), b), (right.replace(' ', ''), a)):
+        if joined in other:
+            shared = shared | {joined}
+    place = set(normalize(locality or '').split()) | set(venue)
+    return bool(shared - place)
+
+
+def shares_a_word(left, right):
+    """Kept for callers that have no locality or venue context."""
+    return distinctive_shared_word(left, right)
 
 
 def toponym_only(left, right, locality):
-    """True when the only thing two names share is the place they are in.
+    """True when the two names share words, but only place words."""
+    a, b = set(left.split()), set(right.split())
+    return bool(a & b) and not distinctive_shared_word(left, right, locality)
 
-    `Capri Lovers Bombarral` and `optica bombarral` share exactly one word and
-    it is the town. So do `Opticalia Santo Tirso` and `multiopticas santo
-    tirso`, which are two different chains — and at 0.80 the looser rungs of
-    the ladder would otherwise take it.
+
+def accepts(distance, score, exact=False, shared_word=True):
+    """Whether this distance and name agreement together justify a match.
+
+    Below STRONG_SIMILARITY the names must share a distinctive word; see
+    distinctive_shared_word.
     """
-    shared = set(left.split()) & set(right.split())
-    if not shared:
-        return False
-    return shared <= set(normalize(locality or '').split())
+    if exact and distance <= NEAR_M:
+        return True
+    # Any rung may accept. A close pair with a strong score is accepted by the
+    # 0.85 rung whether or not the looser one, tried first, was refused for
+    # want of a shared word — `samsonite` against `samsonit3` at 4 m is 0.89.
+    return any(distance <= limit and score >= threshold and (shared_word or threshold >= STRONG_SIMILARITY)
+               for limit, threshold in MATCH_LADDER)
+
 
 # A grid cell of 0.005 degrees is about 555 m at this latitude, so the 3x3
 # neighbourhood around a cell always contains everything within FAR_M.
@@ -134,6 +183,7 @@ LEAF_ALIASES = {
     "children's clothing store": 'childrens_clothing',
     'antique store': 'antique',
     'office supply store': 'office_equipment',
+    'newsstand': 'newspaper_and_magazines',
 }
 
 # A match on one of these is evidence the place is not a consumer store at all.
@@ -229,18 +279,25 @@ def candidates(grid, lat, lng):
 def decide(name, lat, lng, grid, index, locality=''):
     """(decision, subtype, reason, matches) for one residual row."""
     normalized = normalize(name)
+    in_radius = [(fsq_id, fsq_name, haversine_m(lat, lng, fsq_lat, fsq_lng), labels)
+                 for fsq_id, fsq_name, fsq_lat, fsq_lng, labels in candidates(grid, lat, lng)]
+    in_radius = [c for c in in_radius if c[2] <= FAR_M]
+    venue = venue_words(c[1] for c in in_radius)
     scored, near = [], []
-    for fsq_id, fsq_name, fsq_lat, fsq_lng, labels in candidates(grid, lat, lng):
-        distance = haversine_m(lat, lng, fsq_lat, fsq_lng)
-        if distance > FAR_M:
-            continue
+    for fsq_id, fsq_name, distance, labels in in_radius:
         score = similarity(normalized, fsq_name)
         exact = bool(normalized) and normalized == fsq_name
         if not (exact or score >= MATCH_LADDER[0][1]):
             continue
         match = (fsq_id, fsq_name, distance, score, exact, labels)
         scored.append(match)
-        if accepts(distance, score, exact) and not toponym_only(normalized, fsq_name, locality):
+        distinctive = distinctive_shared_word(normalized, fsq_name, locality, venue)
+        # The place-word guard is for partial overlaps at the looser rungs.
+        # When the whole name agrees — exact, or 0.85+ — the words it is made
+        # of are the identity, however common they are on that street.
+        place_only = bool(set(normalized.split()) & set(fsq_name.split())) and not distinctive
+        if accepts(distance, score, exact, distinctive) and \
+                not (place_only and not exact and score < STRONG_SIMILARITY):
             near.append(match)
     if not scored:
         return 'insufficient_evidence', '', 'no Foursquare place within 400 m shares this name', []
