@@ -165,6 +165,21 @@ class SafeguardsTest(unittest.TestCase):
         self.assertEqual(job.config_hash(), before)
 
 
+class OfflineTypeRelationTest(unittest.TestCase):
+    def test_the_committed_sql_yields_the_relation_without_d1(self):
+        from analyse_poi_candidates import type_relation_pairs_from_sql
+        pairs = set(type_relation_pairs_from_sql())
+        self.assertIn(('supermarket', 'grocery_store'), pairs)
+        self.assertIn(('atm', 'bank'), pairs)
+        self.assertGreater(len(pairs), 40)
+
+    def test_the_validator_never_reaches_for_d1(self):
+        with mock.patch.object(validator, 'subprocess') as sub:
+            sub.run.side_effect = AssertionError('validator must not shell out for the type relation')
+            from analyse_poi_candidates import reachable_types
+            self.assertIn('store', reachable_types())
+
+
 class ValidatorTest(unittest.TestCase):
     def setUp(self):
         self.run_dir = tempfile.mkdtemp()

@@ -41,6 +41,10 @@ import tempfile
 import urllib.request
 from collections import Counter, defaultdict
 
+# Reachability from the committed type relation, never from live D1: a PR is
+# validated against what the repo declares, and CI has no Cloudflare token.
+os.environ.setdefault('BRUSH_TYPE_RELATION', 'sql')
+
 EXTRACTION_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, EXTRACTION_DIR)
 CLOUDFLARE_DIR = os.path.dirname(EXTRACTION_DIR)

@@ -247,8 +247,38 @@ def reachable_types():
 
 
 def _type_relation_pairs():
+    if os.environ.get('BRUSH_TYPE_RELATION') == 'sql':
+        return type_relation_pairs_from_sql()
     return [(row['search_type'], row['include_type'])
             for row in query('SELECT search_type, include_type FROM type_relation')]
+
+
+def type_relation_pairs_from_sql():
+    """The relation as the repo declares it, with no D1 in the loop.
+
+    type_relation is seeded by type_relation_schema.sql and grown by
+    migrations, all committed and all plain INSERT OR IGNORE statements.
+    Replaying them into an in-memory SQLite gives exactly the rows D1 holds
+    once migrated — which is what a PR validator should be checking against,
+    and what CI can check without a Cloudflare token. Set
+    BRUSH_TYPE_RELATION=sql to use it.
+    """
+    import glob
+    import sqlite3
+    cloudflare_dir = os.path.dirname(SRC_DIR)
+    files = [os.path.join(cloudflare_dir, 'type_relation_schema.sql')]
+    files += sorted(glob.glob(os.path.join(cloudflare_dir, 'migrations', '*.sql')))
+    connection = sqlite3.connect(':memory:')
+    for path in files:
+        with open(path) as handle:
+            body = '\n'.join(line for line in handle if not line.lstrip().startswith('--'))
+        for statement in body.split(';'):
+            text = statement.strip()
+            if text and 'type_relation' in text.lower():
+                connection.execute(text)
+    rows = connection.execute('SELECT search_type, include_type FROM type_relation').fetchall()
+    connection.close()
+    return [(search_type, include_type) for search_type, include_type in rows]
 
 
 def _union_types():
