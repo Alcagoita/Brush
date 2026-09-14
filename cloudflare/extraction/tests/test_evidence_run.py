@@ -108,6 +108,15 @@ class JoinTest(unittest.TestCase):
                          ('foursquare', 'eyewear_and_optician'))
         self.assertFalse(any(c['source'] == 'osm' for c in suggestions[0]['candidates']))
 
+    def test_a_row_without_coordinates_is_unresolved_not_a_crash(self):
+        write_foursquare(self.fsq, [])
+        write_osm(self.osm, [])
+        rows = [{'overture_id': 'x', 'name': 'Loja da Ana', 'lat': '', 'lng': '', 'locality': ''}]
+        suggestions, counts = job.join(rows, self.fsq, self.osm)
+        self.assertEqual(suggestions[0]['decision'], 'insufficient_evidence')
+        self.assertIn('no coordinates', suggestions[0]['reason'])
+        self.assertEqual(counts[('insufficient_evidence', '')], 1)
+
     def test_the_draft_holds_only_decided_rows_in_promotion_shape(self):
         suggestions = [
             {'overture_id': 'a', 'decision': 'verified_subtype', 'poi_type': 'store', 'store_kind': 'gift', 'source': 'osm'},
@@ -158,6 +167,57 @@ class SafeguardsTest(unittest.TestCase):
         upload.assert_not_called()
         self.assertEqual(os.listdir(evidence), [])
 
+    def emit_args(self, work, **overrides):
+        base = dict(country='xx', emit=True, overture_key='o', source_key='f', osm_key='s', pbf=None,
+                    run_id='r', work_dir=work, worker_url=None, secret=None, reaudit_prefix=None)
+        base.update(overrides)
+        return types.SimpleNamespace(**base)
+
+    def prepared_emit(self):
+        work = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, work)
+        evidence = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, evidence)
+        write_overture(os.path.join(work, 'src-overture.csv'), [{'overture_id': 'x', 'name': 'Mfobmx'}])
+        write_foursquare(os.path.join(work, 'src-fsq.csv'), [])
+        write_osm(os.path.join(work, 'src-osm.tsv'), [])
+
+        def fake_get(key, local):
+            shutil.copy(os.path.join(work, {'o': 'src-overture.csv', 'f': 'src-fsq.csv', 's': 'src-osm.tsv'}[key]), local)
+            return local
+
+        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as handle:
+            json.dump({'o': {}}, handle)
+        self.addCleanup(os.unlink, handle.name)
+        return work, evidence, fake_get, handle.name
+
+    def test_emit_refuses_to_overwrite_an_existing_run(self):
+        work, evidence, fake_get, overrides = self.prepared_emit()
+        os.makedirs(os.path.join(evidence, 'XX', 'r'))
+        with mock.patch.object(job, 'r2_get', side_effect=fake_get), mock.patch.object(job, 'r2_put'), \
+                mock.patch.object(job, 'EVIDENCE_DIR', evidence), mock.patch.object(job, 'OVERRIDES_PATH', overrides), \
+                self.assertRaisesRegex(SystemExit, 'refusing to overwrite'):
+            job.run(self.emit_args(work))
+
+    def test_a_failed_archive_upload_leaves_no_run_directory(self):
+        work, evidence, fake_get, overrides = self.prepared_emit()
+        with mock.patch.object(job, 'r2_get', side_effect=fake_get), \
+                mock.patch.object(job, 'r2_put', side_effect=RuntimeError('r2 down')), \
+                mock.patch.object(job, 'EVIDENCE_DIR', evidence), mock.patch.object(job, 'OVERRIDES_PATH', overrides), \
+                mock.patch.object(job, 'geofabrik_pbf', return_value=(os.path.join(work, 'src-osm.tsv'), {'url': 'u', 'last_modified': 'l', 'sha256': 'x'})), \
+                mock.patch.dict(sys.modules, {'extract_osm_retail_pbf': types.SimpleNamespace(
+                    run=lambda pbf, out, report: shutil.copy(os.path.join(work, 'src-osm.tsv'), out))}), \
+                self.assertRaises(RuntimeError):
+            job.run(self.emit_args(work, osm_key=None))
+        self.assertFalse(os.path.exists(os.path.join(evidence, 'XX', 'r')))
+
+    def test_emit_needs_the_archive_keys_but_not_an_osm_key(self):
+        for missing in ('overture_key', 'source_key'):
+            args = self.emit_args('/nonexistent', **{missing: None})
+            with mock.patch.object(job, 'r2_get') as download, self.assertRaises(job.EmitRefused):
+                job.run(args)
+            download.assert_not_called()
+
     def test_config_hash_changes_when_a_decision_constant_changes(self):
         before = job.config_hash()
         with mock.patch.object(job.fsq, 'MATCH_LADDER', ((25.0, 0.10),)):
@@ -204,10 +264,30 @@ class ValidatorTest(unittest.TestCase):
             with open(os.path.join(self.run_dir, name), 'wb') as handle:
                 handle.write(data)
         with open(os.path.join(self.run_dir, 'manifest.json'), 'w') as handle:
-            json.dump({'outputs': {n: hashlib.sha256(d).hexdigest() for n, d in outputs.items()}}, handle)
+            json.dump({'run_id': 'r', 'outputs': {n: hashlib.sha256(d).hexdigest() for n, d in outputs.items()}}, handle)
+        # The overrides file carries exactly the draft unless a test says otherwise.
+        self.write_overrides(draft)
+
+    def write_overrides(self, content):
+        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as handle:
+            json.dump(content, handle)
+        self.addCleanup(os.unlink, handle.name)
+        patcher_root = mock.patch.object(validator, 'ROOT', os.path.dirname(handle.name))
+        patcher_rel = mock.patch.object(validator, 'OVERRIDES_RELATIVE', os.path.basename(handle.name))
+        patcher_root.start(); patcher_rel.start()
+        self.addCleanup(patcher_root.stop); self.addCleanup(patcher_rel.stop)
 
     def test_a_coherent_run_validates(self):
         self.assertEqual(validator.validate(self.run_dir, None), 1)
+
+    def test_a_manifest_missing_an_output_fails(self):
+        with open(os.path.join(self.run_dir, 'manifest.json')) as handle:
+            manifest = json.load(handle)
+        del manifest['outputs']['residual-report.json']
+        with open(os.path.join(self.run_dir, 'manifest.json'), 'w') as handle:
+            json.dump(manifest, handle)
+        with self.assertRaisesRegex(validator.Invalid, 'exactly'):
+            validator.validate(self.run_dir, None)
 
     def test_a_tampered_output_fails_the_hash_check(self):
         with open(os.path.join(self.run_dir, 'overrides-draft.json'), 'a') as handle:
@@ -237,6 +317,20 @@ class ValidatorTest(unittest.TestCase):
         self.draft[OVERTURE_KEY]['evidence_r_store_gift']['a'] = {'poi_type': 'car_repair', 'reason': 'r'}
         self.write_run()
         with self.assertRaisesRegex(validator.Invalid, 'promotion'):
+            validator.validate(self.run_dir, None)
+
+    def test_overrides_that_differ_from_the_draft_fail(self):
+        edited = json.loads(json.dumps(self.draft))
+        edited[OVERTURE_KEY]['evidence_r_store_gift']['a']['store_kind'] = 'home'
+        self.write_overrides(edited)
+        with self.assertRaisesRegex(validator.Invalid, 'entries differ'):
+            validator.validate(self.run_dir, None)
+
+    def test_an_undrafted_batch_for_the_run_fails(self):
+        extra = json.loads(json.dumps(self.draft))
+        extra[OVERTURE_KEY]['evidence_r_store_home'] = {'z': {'poi_type': 'store', 'store_kind': 'home', 'reason': 'r'}}
+        self.write_overrides(extra)
+        with self.assertRaisesRegex(validator.Invalid, 'not in draft'):
             validator.validate(self.run_dir, None)
 
     def test_a_modified_existing_batch_fails(self):

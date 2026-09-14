@@ -14,9 +14,11 @@ one write it makes is archiving the extracted OSM retail TSV under
 the same file.
 
 Dry-run by default. Without `--emit` it resolves inputs, runs the join, prints
-the counts, and writes nothing. `--emit` requires every input key explicitly:
-dry-run may discover and *print* the newest key, but an emitted run must say
-which object it used, or it cannot be reproduced.
+the counts, and writes nothing. `--emit` requires the Overture and Foursquare
+keys explicitly: dry-run may discover and *print* the newest, but an emitted
+run must say which object it used, or it cannot be reproduced. OSM needs no
+key on a country's first run — the Geofabrik extract is pinned and archived,
+and the manifest records the key every later run passes as `--osm-key`.
 
 The residual is derived here, from the archived Overture CSV plus the current
 overrides plus the real promotion decision. KAN-444 started from an inventory
@@ -178,8 +180,16 @@ def join(rows, foursquare_csv, osm_tsv):
     osm_grid, _ = osm.load_osm(osm_tsv)
     suggestions, counts = [], Counter()
     for row in rows:
-        lat, lng = float(row['lat']), float(row['lng'])
         locality = row.get('locality') or ''
+        if not (row.get('lat') and row.get('lng')):
+            # Nothing to match on location with. Unresolved, and said so.
+            counts[('insufficient_evidence', '')] += 1
+            suggestions.append({
+                'overture_id': row['overture_id'], 'name': row['name'], 'locality': locality,
+                'lat': None, 'lng': None, 'candidates': [], 'decision': 'insufficient_evidence',
+                'poi_type': '', 'store_kind': '', 'reason': 'no coordinates in the Overture archive', 'source': ''})
+            continue
+        lat, lng = float(row['lat']), float(row['lng'])
         record = {
             'overture_id': row['overture_id'], 'name': row['name'], 'locality': locality,
             'lat': round(lat, 6), 'lng': round(lng, 6), 'candidates': [],
@@ -279,8 +289,12 @@ def serialise(suggestions, draft, report):
 def run(args):
     country = args.country.upper()
     run_id = args.run_id or datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-    if args.emit and not (args.overture_key and args.source_key and (args.osm_key or args.pbf)):
-        raise EmitRefused('--emit requires --overture-key, --source-key and --osm-key (or --pbf)')
+    # The two archive keys are choices among existing objects and must be
+    # named. OSM is not a choice: without --osm-key the Geofabrik extract is
+    # pinned by URL, Last-Modified and hash, and archived under a key the
+    # manifest records, so the next run can name it.
+    if args.emit and not (args.overture_key and args.source_key):
+        raise EmitRefused('--emit requires --overture-key and --source-key')
 
     work_dir = args.work_dir or tempfile.mkdtemp(prefix=f'evidence-{country}-')
     os.makedirs(work_dir, exist_ok=True)
@@ -338,16 +352,22 @@ def run(args):
         'outputs': {name: sha256_bytes(data) for name, data in outputs.items()},
     }
     out_dir = os.path.join(EVIDENCE_DIR, country, run_id)
-    os.makedirs(out_dir, exist_ok=True)
+    if os.path.exists(out_dir):
+        # Runs are append-only. A reviewed run is never replaced in place;
+        # a rerun is a new run id.
+        raise SystemExit(f'refusing to overwrite an existing run: {out_dir}')
+    # Archive first. The manifest names this key; a run directory must never
+    # exist whose archive does not.
+    if not args.osm_key:
+        r2_put(osm_tsv, pins['osm']['archive_key'])
+        print(f"archived OSM retail -> {pins['osm']['archive_key']}", file=sys.stderr)
+    os.makedirs(out_dir)
     for name, data in outputs.items():
         with open(os.path.join(out_dir, name), 'wb') as handle:
             handle.write(data)
     with open(os.path.join(out_dir, 'manifest.json'), 'w') as handle:
         json.dump(manifest, handle, indent=2)
         handle.write('\n')
-    if not args.osm_key:
-        r2_put(osm_tsv, pins['osm']['archive_key'])
-        print(f"archived OSM retail -> {pins['osm']['archive_key']}", file=sys.stderr)
     print(f'-> {out_dir}', file=sys.stderr)
     return 0
 

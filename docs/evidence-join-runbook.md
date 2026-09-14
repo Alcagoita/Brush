@@ -25,6 +25,8 @@ python3 cloudflare/extraction/run_evidence_join.py --country ES
 It prints the newest Overture and Foursquare keys it found. Copy them — an
 emitted run must name its inputs explicitly; it never chooses one silently.
 
+First run for a country — no OSM archive exists yet:
+
 ```bash
 python3 cloudflare/extraction/run_evidence_join.py --country ES --emit \
     --overture-key overture-country-sources/ES/<run>.csv \
@@ -33,9 +35,22 @@ python3 cloudflare/extraction/run_evidence_join.py --country ES --emit \
 
 Without `--osm-key` the command downloads the Geofabrik PBF, extracts the
 retail contract (needs `pip install osmium`; ~20 min for a large country),
-and archives the extracted TSV to `archives/osm-retail/ES/<run_id>.tsv`. That
-upload is the one write it makes. Every later run passes `--osm-key` with
-that key and skips the PBF entirely.
+pins it by URL, `Last-Modified` and SHA-256, and archives the extracted TSV
+to `archives/osm-retail/ES/<run_id>.tsv` **before** writing the run
+directory. That upload is the one write it makes. The manifest records the
+key.
+
+Every later run passes it and skips the PBF entirely:
+
+```bash
+python3 cloudflare/extraction/run_evidence_join.py --country ES --emit \
+    --overture-key overture-country-sources/ES/<run>.csv \
+    --source-key   country-sources-unfiltered/ES/<uuid>.csv \
+    --osm-key      archives/osm-retail/ES/<run_id>.tsv
+```
+
+A run id is never reused: the command refuses to write over an existing
+`docs/evidence/ES/<run_id>/`.
 
 ## What comes out
 
@@ -63,7 +78,10 @@ CI runs `validate_evidence_run.py` and refuses the PR if:
 * any id appears in two batches
 * any override fails the real `promote_overture_candidates.decide()` —
   unreachable type, wrong store/kind shape
-* any batch that existed on the base branch changed
+* the `evidence_<run_id>_*` batches in the overrides are not exactly the
+  draft — an edited entry, an extra id, a batch that was never drafted
+* any batch that existed on the base branch changed, except by a logged
+  reversal
 
 Read `suggestions.jsonl` for the rows you are approving. The reason column
 says which source matched, at what distance, on what name agreement. A row

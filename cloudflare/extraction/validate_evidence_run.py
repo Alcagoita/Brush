@@ -11,8 +11,11 @@ what the reviewer thought it meant:
   3. every id appears once across all batches, with one decision
   4. every override passes the real promotion decision: reachable type,
      store/kind shape — the same gate production applies
-  5. no pre-existing batch in overtureCandidateOverrides.json changed against
-     the base ref — earlier reviewed decisions are untouched
+  5. the `evidence_<run_id>_*` batches in overtureCandidateOverrides.json are
+     the draft, exactly — nothing hand-edited, nothing extra, nothing missing
+  6. no pre-existing batch in overtureCandidateOverrides.json changed against
+     the base ref — earlier reviewed decisions are untouched, except by a
+     logged reversal
 
 Exit 1 on the first failure, with the id or file that failed.
 """
@@ -43,8 +46,20 @@ def sha256_of(path):
         return hashlib.sha256(handle.read()).hexdigest()
 
 
+OUTPUTS = ('suggestions.jsonl', 'overrides-draft.json', 'residual-report.json')
+
+
 def check_hashes(run_dir, manifest):
-    for name, expected in manifest['outputs'].items():
+    """The manifest must name exactly the three outputs, and each must match.
+
+    A manifest that omits one leaves that file unprotected; a manifest that
+    names an extra one is from a different tool.
+    """
+    listed = set(manifest.get('outputs', {}))
+    if listed != set(OUTPUTS):
+        raise Invalid(f'manifest must list exactly {sorted(OUTPUTS)}, lists {sorted(listed)}')
+    for name in OUTPUTS:
+        expected = manifest['outputs'][name]
         actual = sha256_of(os.path.join(run_dir, name))
         if actual != expected:
             raise Invalid(f'{name} hashes to {actual[:12]}, manifest says {expected[:12]}')
@@ -158,6 +173,43 @@ def check_existing_batches_unchanged(base_ref):
                 raise Invalid(f'batch {batch} under {source_key} gained ids; new decisions go in a new batch')
 
 
+def check_overrides_carry_the_draft(run_id, draft, base_ref):
+    """What was added to the overrides file for this run is the draft, exactly.
+
+    Validating the draft proves nothing about the file promotion reads unless
+    the file's additions *are* the draft. Every `evidence_<run_id>_*` batch in
+    the overrides must be present in the draft with identical entries, and
+    every batch in the draft must be in the overrides. A hand-edited entry, an
+    extra id, or a batch that was never drafted all fail here.
+    """
+    with open(os.path.join(ROOT, OVERRIDES_RELATIVE)) as handle:
+        current = json.load(handle)
+    prefix = f'evidence_{run_id}_'
+    for source_key, batches in draft.items():
+        present = {name: entries for name, entries in current.get(source_key, {}).items()
+                   if name.startswith(prefix)}
+        if present != batches:
+            missing = set(batches) - set(present)
+            extra = set(present) - set(batches)
+            differing = {name for name in set(batches) & set(present) if batches[name] != present[name]}
+            detail = '; '.join(filter(None, (
+                f'not in overrides: {sorted(missing)}' if missing else '',
+                f'not in draft: {sorted(extra)}' if extra else '',
+                f'entries differ: {sorted(differing)}' if differing else '')))
+            raise Invalid(f'overrides additions for run {run_id} are not the draft — {detail}')
+    if base_ref:
+        # And nothing else for this run appeared under any other source key.
+        try:
+            before = json.loads(subprocess.run(['git', 'show', f'{base_ref}:{OVERRIDES_RELATIVE}'], cwd=ROOT,
+                                               check=True, capture_output=True, text=True).stdout)
+        except subprocess.CalledProcessError:
+            raise Invalid(f'cannot read {OVERRIDES_RELATIVE} at {base_ref}') from None
+        for source_key, batches in current.items():
+            for name in batches:
+                if name.startswith(prefix) and source_key not in draft and name not in before.get(source_key, {}):
+                    raise Invalid(f'{name} under {source_key} was added but is not in the draft')
+
+
 def validate(run_dir, base_ref):
     with open(os.path.join(run_dir, 'manifest.json')) as handle:
         manifest = json.load(handle)
@@ -166,6 +218,7 @@ def validate(run_dir, base_ref):
     check_hashes(run_dir, manifest)
     ids = check_ids(run_dir, draft)
     check_promotable(draft)
+    check_overrides_carry_the_draft(manifest['run_id'], draft, base_ref)
     if base_ref:
         check_existing_batches_unchanged(base_ref)
     return len(ids)

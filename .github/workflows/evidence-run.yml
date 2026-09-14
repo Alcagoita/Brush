@@ -9,33 +9,50 @@ on:
     paths:
       - 'docs/evidence/**'
       - 'cloudflare/src/overtureCandidateOverrides.json'
+      - 'cloudflare/src/overtureCategories.json'
+      - 'cloudflare/src/storeSubtypeCategories.json'
+      - 'src/constants/storeSubtypeDictionary.json'
       - 'cloudflare/extraction/validate_evidence_run.py'
       - 'cloudflare/extraction/run_evidence_join.py'
+      - 'cloudflare/extraction/match_residual_foursquare.py'
+      - 'cloudflare/extraction/match_residual_osm.py'
+      - 'cloudflare/extraction/extract_osm_retail_pbf.py'
+      - 'cloudflare/extraction/analyse_poi_candidates.py'
+      - 'cloudflare/extraction/promote_overture_candidates.py'
+      - 'cloudflare/extraction/tests/test_evidence_run.py'
+      - 'cloudflare/extraction/tests/test_residual_evidence_join.py'
+      - 'cloudflare/type_relation_schema.sql'
+      - 'cloudflare/migrations/*.sql'
+      - '.github/workflows/evidence-run.yml'
+permissions:
+  contents: read
 jobs:
   validate:
     runs-on: ubuntu-latest
     env:
       BRUSH_TYPE_RELATION: sql
+      BASE_REF: origin/${{ github.base_ref }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: Existing batches unchanged
         run: |
-          python3 cloudflare/extraction/validate_evidence_run.py --base "origin/${{ github.base_ref }}" --only-batches
+          python3 cloudflare/extraction/validate_evidence_run.py --base "$BASE_REF" --only-batches
       - name: Every evidence run in the PR is coherent
         run: |
           set -e
           # A run is docs/evidence/<cc>/<run_id>/. The reversal log and any
           # other file directly under docs/evidence/ is not one.
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- docs/evidence \
+          changed=$(git diff --name-only "$BASE_REF"...HEAD -- docs/evidence \
                     | grep -E '^docs/evidence/[A-Z]{2}/[^/]+/' | cut -d/ -f1-4 | sort -u)
           if [ -z "$changed" ]; then echo "no evidence runs in this PR"; exit 0; fi
           for run_dir in $changed; do
-            python3 cloudflare/extraction/validate_evidence_run.py "$run_dir" --base "origin/${{ github.base_ref }}"
+            python3 cloudflare/extraction/validate_evidence_run.py "$run_dir" --base "$BASE_REF"
           done
       - name: Unit tests for the join and validator
         run: |

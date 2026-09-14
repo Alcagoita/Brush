@@ -151,6 +151,18 @@ class MatchLadderTest(unittest.TestCase):
         self.assertTrue(fsq.distinctive_shared_word(
             fsq.normalize('Timberland NorteShopping'), 'timberland norteshopping', 'Matosinhos', venue))
 
+    def test_a_venue_name_split_on_one_side_and_joined_on_the_other_is_still_the_venue(self):
+        venue = {'norteshopping'}
+        self.assertFalse(fsq.distinctive_shared_word('norte shopping', 'norteshopping timberland', 'Matosinhos', venue))
+        self.assertFalse(fsq.distinctive_shared_word('timberland norte shopping', 'norteshopping', 'Matosinhos', venue))
+        # …and a joined word that is not the venue still counts.
+        self.assertTrue(fsq.distinctive_shared_word('open waters', 'openwaters dive', 'Lisboa', venue))
+
+    def test_a_one_word_name_does_not_join_with_itself(self):
+        # `zsmart` compacts to `zsmart`, which is in its own token set. That is
+        # not a shared word with `zsmartbuy`.
+        self.assertFalse(fsq.distinctive_shared_word('zsmart', 'zsmartbuy'))
+
     def test_a_mall_tenant_is_refused_end_to_end(self):
         grid = fsq_grid([
             ('Carlos Santos Hairshop NorteShopping', offset(7), BASE_LNG, 'Retail > Clothing Store'),

@@ -79,8 +79,12 @@ def distinctive_shared_word(left, right, locality='', venue=frozenset()):
     """
     a, b = set(left.split()), set(right.split())
     shared = a & b
-    if left.replace(' ', '') in b or right.replace(' ', '') in a:
-        shared = shared | {'*joined*'}
+    # The compacted word itself, not a marker: `Norte Shopping` against
+    # `norteshopping timberland` joins to `norteshopping`, and if that is the
+    # venue it must be vetoed like any other place word.
+    for joined, other in ((left.replace(' ', ''), b), (right.replace(' ', ''), a)):
+        if joined in other:
+            shared = shared | {joined}
     place = set(normalize(locality or '').split()) | set(venue)
     return bool(shared - place)
 
