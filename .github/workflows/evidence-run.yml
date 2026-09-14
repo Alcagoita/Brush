@@ -27,7 +27,10 @@ jobs:
       - name: Every evidence run in the PR is coherent
         run: |
           set -e
-          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- docs/evidence | xargs -rn1 dirname | sort -u)
+          # A run is docs/evidence/<cc>/<run_id>/. The reversal log and any
+          # other file directly under docs/evidence/ is not one.
+          changed=$(git diff --name-only "origin/${{ github.base_ref }}"...HEAD -- docs/evidence \
+                    | grep -E '^docs/evidence/[A-Z]{2}/[^/]+/' | cut -d/ -f1-4 | sort -u)
           if [ -z "$changed" ]; then echo "no evidence runs in this PR"; exit 0; fi
           for run_dir in $changed; do
             python3 cloudflare/extraction/validate_evidence_run.py "$run_dir" --base "origin/${{ github.base_ref }}"
