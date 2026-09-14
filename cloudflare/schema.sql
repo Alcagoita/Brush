@@ -305,3 +305,26 @@ CREATE TABLE IF NOT EXISTS poi_source_correction (
   created_at            TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (source, source_id)
 );
+
+-- KAN-446. One row per reviewed evidence run, per country. Append-only: the
+-- primary key includes the manifest hash, so a rerun that changed anything is
+-- a new row, and a repost of the same run is refused rather than overwritten.
+-- Counts and provenance only — decisions live in the reviewed overrides file,
+-- never here.
+CREATE TABLE IF NOT EXISTS overture_evidence_run (
+  country_code    TEXT NOT NULL,
+  run_id          TEXT NOT NULL,
+  manifest_sha256 TEXT NOT NULL,
+  tool_commit     TEXT,
+  config_sha256   TEXT NOT NULL,
+  residual_rows   INTEGER NOT NULL,
+  verified_rows   INTEGER NOT NULL,
+  excluded_rows   INTEGER NOT NULL,
+  insufficient_rows INTEGER NOT NULL,
+  foursquare_rows INTEGER NOT NULL,
+  osm_rows        INTEGER NOT NULL,
+  recorded_at     TEXT NOT NULL,
+  PRIMARY KEY (country_code, run_id, manifest_sha256),
+  CHECK (residual_rows = verified_rows + excluded_rows + insufficient_rows),
+  CHECK (verified_rows + excluded_rows = foursquare_rows + osm_rows)
+);

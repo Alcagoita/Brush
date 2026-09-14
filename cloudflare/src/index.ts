@@ -2433,6 +2433,45 @@ export default {
       return json({ ok: true });
     }
 
+    if (url.pathname === '/internal/overture-country/evidence-run' && request.method === 'POST') {
+      // KAN-446. Append-only. Posted after a reviewed evidence run has merged,
+      // never by the local command, so the metric only ever reflects a run a
+      // reviewer has read. Counts and provenance only; the decisions themselves
+      // are the reviewed overrides file and nothing here can alter them.
+      const internalAuthError = authenticateInternal(request, env);
+      if (internalAuthError) return internalAuthError;
+      const body = await request.json<Record<string, unknown>>().catch(() => null);
+      const counts = ['residualRows', 'verifiedRows', 'excludedRows', 'insufficientRows', 'foursquareRows', 'osmRows'] as const;
+      const sha = /^[0-9a-f]{64}$/;
+      if (!body || typeof body.countryCode !== 'string' || !/^[A-Z]{2}$/.test(body.countryCode) ||
+          typeof body.runId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.runId) ||
+          typeof body.manifestSha256 !== 'string' || !sha.test(body.manifestSha256) ||
+          typeof body.configSha256 !== 'string' || !sha.test(body.configSha256) ||
+          (body.toolCommit !== undefined && (typeof body.toolCommit !== 'string' || !/^[0-9a-f]{7,40}$/.test(body.toolCommit))) ||
+          counts.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0) ||
+          Object.keys(body).some(key => !['countryCode', 'runId', 'manifestSha256', 'configSha256', 'toolCommit', ...counts].includes(key))) {
+        return json({ error: 'invalid evidence run payload: counts and provenance only' }, 400);
+      }
+      const residual = body.residualRows as number;
+      const verified = body.verifiedRows as number;
+      const excluded = body.excludedRows as number;
+      const insufficient = body.insufficientRows as number;
+      const foursquare = body.foursquareRows as number;
+      const osmRows = body.osmRows as number;
+      if (residual !== verified + excluded + insufficient || verified + excluded !== foursquare + osmRows) {
+        return json({ error: 'evidence run counts do not add up' }, 400);
+      }
+      const inserted = await env.REGISTRY_DB.prepare(
+        `INSERT OR IGNORE INTO overture_evidence_run
+           (country_code, run_id, manifest_sha256, tool_commit, config_sha256, residual_rows,
+            verified_rows, excluded_rows, insufficient_rows, foursquare_rows, osm_rows, recorded_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      ).bind(body.countryCode, body.runId, body.manifestSha256, body.toolCommit ?? null, body.configSha256,
+             residual, verified, excluded, insufficient, foursquare, osmRows, new Date().toISOString()).run();
+      if (!inserted.meta.changes) return json({ error: 'evidence run already recorded' }, 409);
+      return json({ ok: true }, 201);
+    }
+
     if (url.pathname === '/internal/overture-country/failed' && request.method === 'POST') {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;

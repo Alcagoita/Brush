@@ -117,6 +117,61 @@ class MatchLadderTest(unittest.TestCase):
             fsq.normalize('Opticalia Santo Tirso'),
             fsq.normalize('Opticalia Santo Tirso Centro'), 'Santo Tirso'))
 
+    def test_a_loose_rung_needs_a_shared_word_not_just_shared_letters(self):
+        # `Livraria Isamira` and `perfumaria riviera` score 0.59 on `-aria`
+        # alone, 18 m apart. Morphology, not identity.
+        left, right = fsq.normalize('Livraria Isamira'), fsq.normalize('perfumaria riviera')
+        self.assertGreaterEqual(fsq.similarity(left, right), 0.55)
+        self.assertFalse(fsq.shares_a_word(left, right))
+        self.assertFalse(fsq.accepts(18, fsq.similarity(left, right), shared_word=False))
+
+    def test_a_shared_word_lets_the_loose_rung_accept(self):
+        self.assertTrue(fsq.shares_a_word('artipel cork', 'artipel'))
+        self.assertTrue(fsq.accepts(12, 0.74, shared_word=True))
+
+    def test_a_name_joined_into_one_word_still_shares_it(self):
+        self.assertTrue(fsq.shares_a_word('open waters', 'openwaters dive'))
+
+    def test_a_strong_score_needs_no_shared_word(self):
+        # 0.85+ is near-identical strings; a typo can break every token.
+        self.assertTrue(fsq.accepts(100, 0.90, shared_word=False))
+
+    def test_a_close_strong_pair_is_not_refused_by_the_looser_rung_tried_first(self):
+        # `samsonite` against `samsonit3` at 4 m scores 0.89: the 25 m rung
+        # wants a shared word and has none, but the 0.85 rung does not care.
+        self.assertTrue(fsq.accepts(4, 0.89, shared_word=False))
+
+    def test_a_word_every_nearby_candidate_shares_names_the_venue_not_the_shop(self):
+        tenants = ['carlos santos hairshop norteshopping', 'midas norteshopping',
+                   'geostar norteshopping', 'norteshopping']
+        venue = fsq.venue_words(tenants)
+        self.assertIn('norteshopping', venue)
+        self.assertFalse(fsq.distinctive_shared_word(
+            fsq.normalize('Timberland NorteShopping'), tenants[0], 'Matosinhos', venue))
+        self.assertTrue(fsq.distinctive_shared_word(
+            fsq.normalize('Timberland NorteShopping'), 'timberland norteshopping', 'Matosinhos', venue))
+
+    def test_a_mall_tenant_is_refused_end_to_end(self):
+        grid = fsq_grid([
+            ('Carlos Santos Hairshop NorteShopping', offset(7), BASE_LNG, 'Retail > Clothing Store'),
+            ('Midas NorteShopping', offset(20), BASE_LNG, 'Retail > Clothing Store'),
+            ('Geostar NorteShopping', offset(30), BASE_LNG, 'Retail > Clothing Store'),
+        ])
+        decision, _, _, _ = fsq.decide('Timberland NorteShopping', BASE_LAT, BASE_LNG, grid,
+                                       fsq.subtype_index(), 'Matosinhos')
+        self.assertEqual(decision, 'insufficient_evidence')
+
+    def test_a_full_name_match_is_the_identity_however_common_its_words(self):
+        # `The Shop` against `the shop`, on a street where `the` and `shop`
+        # recur: the whole name agreeing is not a partial overlap.
+        grid = fsq_grid([
+            ('The Shop', offset(10), BASE_LNG, 'Retail > Clothing Store'),
+            ('The Coffee Shop', offset(40), BASE_LNG, 'Dining > Cafe'),
+            ('The Book Shop', offset(60), BASE_LNG, 'Retail > Bookstore'),
+        ])
+        decision, subtype, _, _ = fsq.decide('The Shop', BASE_LAT, BASE_LNG, grid, fsq.subtype_index(), 'Lisboa')
+        self.assertEqual((decision, subtype), ('verified_subtype', 'clothing'))
+
     def test_the_guard_does_nothing_without_a_locality(self):
         self.assertFalse(fsq.toponym_only('artipel cork', 'artipel', ''))
 

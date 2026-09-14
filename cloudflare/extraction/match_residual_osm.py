@@ -23,8 +23,8 @@ from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from match_residual_foursquare import (
-    CELL, FAR_M, MATCH_LADDER, accepts, haversine_m, normalize, similarity,
-    toponym_only,
+    CELL, FAR_M, MATCH_LADDER, STRONG_SIMILARITY, accepts, distinctive_shared_word,
+    haversine_m, normalize, similarity, venue_words,
 )
 
 # OSM value -> (poi_type, store_kind). store_kind is set only for poi_type
@@ -63,6 +63,7 @@ SHOP_TO_TYPE = {
     'musical_instrument': ('store', 'musical_instrument'), 'photo': ('store', 'photography_store_and_services'),
     'books': ('store', 'books'), 'newsagent': ('store', 'newspaper_and_magazines'),
     'stationery': ('store', 'cards_and_stationery'), 'copyshop': ('store', 'copy_shop'),
+    'kiosk': ('store', 'newspaper_and_magazines'),
     # health and personal care
     'chemist': ('store', 'drugstore'), 'optician': ('store', 'eyewear_and_optician'),
     'hearing_aids': ('store', 'hearing_aid_provider'), 'medical_supply': ('store', 'medical_supply'),
@@ -160,18 +161,25 @@ def candidates(grid, lat, lng):
 
 def decide(name, lat, lng, grid, locality=''):
     normalized = normalize(name)
+    in_radius = [(osm_id, osm_name, haversine_m(lat, lng, osm_lat, osm_lng), family, raw)
+                 for osm_id, osm_name, osm_lat, osm_lng, family, raw in candidates(grid, lat, lng)]
+    in_radius = [c for c in in_radius if c[2] <= FAR_M]
+    venue = venue_words(c[1] for c in in_radius)
     scored, near = [], []
-    for osm_id, osm_name, osm_lat, osm_lng, family, raw in candidates(grid, lat, lng):
-        distance = haversine_m(lat, lng, osm_lat, osm_lng)
-        if distance > FAR_M:
-            continue
+    for osm_id, osm_name, distance, family, raw in in_radius:
         score = similarity(normalized, osm_name)
         exact = bool(normalized) and normalized == osm_name
         if not (exact or score >= MATCH_LADDER[0][1]):
             continue
         match = (osm_id, osm_name, distance, score, exact, family, raw)
         scored.append(match)
-        if accepts(distance, score, exact) and not toponym_only(normalized, osm_name, locality):
+        distinctive = distinctive_shared_word(normalized, osm_name, locality, venue)
+        # The place-word guard is for partial overlaps at the looser rungs.
+        # When the whole name agrees — exact, or 0.85+ — the words it is made
+        # of are the identity, however common they are on that street.
+        place_only = bool(set(normalized.split()) & set(osm_name.split())) and not distinctive
+        if accepts(distance, score, exact, distinctive) and \
+                not (place_only and not exact and score < STRONG_SIMILARITY):
             near.append(match)
     if not scored:
         return 'insufficient_evidence', '', '', 'no OSM retail feature within 400 m shares this name', []

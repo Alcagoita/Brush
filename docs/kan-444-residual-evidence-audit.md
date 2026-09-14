@@ -4,6 +4,13 @@ Every remaining Portugal Overture `shopping` row now carries a terminal audit
 decision. This records what settled them, what did not, and why the outcome is
 what it is rather than what the ticket originally assumed.
 
+> **Superseded in part by KAN-446.** Reproducing this audit under the
+> one-command tool, with the shared-word and venue guards the reproduction
+> exposed, withdrew 33 of the 403 decisions below (`docs/evidence/reversals.jsonl`)
+> and added 14 (`docs/evidence/PT/20260914T0200Z/`). Portugal now stands at
+> 384 resolved. The numbers in this document are the KAN-444 run as it was;
+> `decision-manifest.tsv` is kept as that run's record.
+
 ## Result
 
 Against the 4,511 residual rows KAN-432 had not already reviewed:

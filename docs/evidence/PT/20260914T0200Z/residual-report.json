@@ -1,0 +1,17 @@
+{
+  "residual_rows": 4142,
+  "by_state": {
+    "insufficient_evidence": {
+      "rows": 4128,
+      "share": 0.9966
+    },
+    "verified_subtype": {
+      "rows": 14,
+      "share": 0.0034
+    }
+  },
+  "resolved_by_source": {
+    "osm": 11,
+    "foursquare": 3
+  }
+}
