@@ -1,8 +1,8 @@
 {
-  "residual_rows": 4140,
+  "residual_rows": 4141,
   "by_state": {
     "insufficient_evidence": {
-      "rows": 4126,
+      "rows": 4127,
       "share": 0.9966
     },
     "verified_subtype": {
