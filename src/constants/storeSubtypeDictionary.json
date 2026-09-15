@@ -70,7 +70,42 @@
       "Cortefiel",
       "Tezenis",
       "Intimissimi",
-      "Women'secret"
+      "Women'secret",
+      "Calzedonia",
+      "United Colors of Benetton",
+      "Lanidor",
+      "Tiffosi",
+      "Levi's",
+      "Chicco",
+      "Salsa",
+      "Mr. Blue",
+      "Norte Moda",
+      "PTN Store",
+      "Mayoral",
+      "Pepco",
+      "Pepe Jeans",
+      "Humana",
+      "Triumph",
+      "Decenio",
+      "Ana Sousa",
+      "Lacoste",
+      "Zippy",
+      "Scalpers",
+      "Quebramar",
+      "Mike Davis",
+      "Dona Erago",
+      "Purificación García",
+      "João Vilas",
+      "Prénatal",
+      "Adolfo Dominguez",
+      "Cash Converters",
+      "American Vintage",
+      "The North Face",
+      "Ativo Kids",
+      "Falconeri",
+      "Suits Inc.",
+      "Elena Mirò",
+      "Calvin Klein"
     ]
   },
   "shoes": {
@@ -102,7 +137,18 @@
       "Skechers",
       "Nike",
       "Adidas",
-      "New Balance"
+      "New Balance",
+      "Hush Puppies",
+      "Snipes",
+      "Deichmann",
+      "Havaianas",
+      "Geox",
+      "Sportino",
+      "BStrong",
+      "Sr. Andarilho",
+      "Clarks",
+      "Courir",
+      "Lpoint"
     ]
   },
   "electronics": {
@@ -160,7 +206,10 @@
       "GMS Store",
       "PCDIGA",
       "Chip7",
-      "CeX"
+      "CeX",
+      "Bang & Olufsen",
+      "Darty",
+      "NOWO"
     ]
   },
   "eyewear_and_optician": {
@@ -189,7 +238,15 @@
       "Alain Afflelou",
       "GrandOptical",
       "Wells Ótica",
-      "Optivisão"
+      "Optivisão",
+      "Mais Optica",
+      "Sunglass Hut",
+      "Optic 1",
+      "Ergovisão",
+      "Opticenter",
+      "Nacional Óptica",
+      "Optiframa",
+      "Ótica Lúcia"
     ]
   },
   "books": {
@@ -258,7 +315,13 @@
       "Kinda Home",
       "Banak",
       "Antarte",
-      "Moviflor"
+      "Moviflor",
+      "Chateau d'Ax",
+      "Laskasas",
+      "Superdecor",
+      "Moveis d'Alice",
+      "Divani & Divani",
+      "Interforma"
     ]
   },
   "hardware": {
@@ -286,7 +349,9 @@
       "Bricomarché",
       "Aki",
       "Brico Depôt",
-      "Brico Depot"
+      "Brico Depot",
+      "Würth",
+      "Tintas CIN"
     ]
   },
   "bicycle": {
@@ -339,7 +404,15 @@
       "Swarovski",
       "Ourivesaria Portugal",
       "Boutique dos Relógios",
-      "Parfois"
+      "Parfois",
+      "Claire's",
+      "Misako",
+      "David Rosas",
+      "Bijou Brigitte",
+      "Torres Joalheiros",
+      "Welder",
+      "Bluebird",
+      "Pereirinha Ourivesarias"
     ]
   },
   "toys": {
@@ -362,7 +435,9 @@
       "Science4you",
       "Imaginarium",
       "LEGO Store",
-      "Disney Store"
+      "Disney Store",
+      "Toys\"R\"Us",
+      "Eurekakids"
     ]
   },
   "pet": {
@@ -388,7 +463,9 @@
       "Ornimundo",
       "Pet Outlet",
       "Goldpet",
-      "Aquaplante"
+      "Aquaplante",
+      "DoggyRade",
+      "Tibi"
     ]
   },
   "club_store": {
@@ -431,7 +508,8 @@
       "Nike",
       "Adidas",
       "New Balance",
-      "Prozis Store"
+      "Prozis Store",
+      "Sports Direct"
     ]
   },
   "home": {
@@ -487,7 +565,10 @@
       "O Boticário",
       "Kiko Milano",
       "Primor",
-      "Rituals"
+      "Rituals",
+      "Balvera Perfumarias",
+      "MAC Cosmetics",
+      "L'Occitane en"
     ]
   },
   "wine_and_spirits": {
@@ -538,7 +619,8 @@
       "NOS",
       "Phone House",
       "Worten",
-      "Fnac"
+      "Fnac",
+      "TTRW Store"
     ]
   }
 }

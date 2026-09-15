@@ -163,11 +163,93 @@ def store_brand_index():
             if kind != 'any' for brand in entry.get('stores', [])]
 
 
-def store_kind_from_brand(name, index):
+# KAN-448. Brands that are also ordinary words. `Casa` heads 6,206 Portuguese
+# rows — `Casa da Avó`, `Casa de Praia`, holiday rentals — and `Area` heads
+# national parks. For these the whole name has to be the brand, or the brand
+# plus one word (`Casa Colombo`), or it is the word and not the chain.
+GENERIC_WORD_BRANDS = frozenset({'casa', 'area', 'nos', 'note', 'normal', 'viva'})
+
+# KAN-448. Categories a chain brand may overrule. Explicit on purpose: an
+# unmapped category is not a wrong one — hotel, dentist, lawyer, car dealer
+# are all unmapped and all real. These are the buckets where Overture's
+# source classifier produces `Decathlon Albufeira → school` at 0.97
+# confidence, and generic shopping, where a chain row sits untyped.
+BRAND_OVERRIDABLE_CATEGORIES = frozenset({
+    '', 'shopping', 'shopping_center', 'school', 'beach', 'bus_station', 'train_station',
+    'parking', 'community_services_non_profits',
+})
+# When the name agrees with the category, the category is not wrong and the
+# brand does not overrule it: `IKEA Parking` is the car park, `Escola
+# Decathlon` would be a school. Words are matched whole, after normalisation.
+CATEGORY_NAME_WORDS = {
+    'parking': ('parking', 'estacionamento', 'garagem', 'parque'),
+    'school': ('escola', 'school', 'colegio', 'academia'),
+    'beach': ('praia', 'beach'),
+    'bus_station': ('terminal', 'rodoviaria', 'paragem'),
+    'train_station': ('estacao', 'station', 'comboios'),
+    'shopping_center': ('centro comercial', 'shopping center', 'mall'),
+}
+
+# Not overridable, and deliberately: parks, venues and landmarks get named
+# after sponsors — `MEO Suil Park`, `NOS Alive` — and the only brand-headed
+# rows found under government or retirement categories were `Casa …` and
+# `C.A. …` false forms.
+
+
+GENERIC_CATEGORIES = frozenset({'', 'shopping'})
+
+# Non-store chains a brand may settle a generic row to. Order is preference
+# when a name carries more than one; it will not.
+BRAND_TYPES_FOR_OVERRIDE = ('supermarket', 'bank', 'pharmacy', 'gas_station', 'convenience_store', 'post_office')
+
+
+def name_agrees_with_category(normalized_name, category):
+    padded = f' {normalized_name} '
+    return any(f' {word} ' in padded for word in CATEGORY_NAME_WORDS.get(category, ()))
+
+
+def brand_heads_name(normalized_brand, normalized_name):
+    """Does the brand lead the name — `decathlon albufeira`, not `cafe decathlon`?"""
+    return normalized_name == normalized_brand or normalized_name.startswith(normalized_brand + ' ')
+
+
+def store_kinds_from_brand(name, index, require_head=False):
+    """Every kind the dictionary lists for the chain this name belongs to.
+
+    A chain listed under two kinds is both — Decathlon is `sports` and
+    `bicycle` on every branch — and never `None`: an ambiguous brand that
+    resolved to nothing is how a chain came to take its kind from whatever
+    category Meta happened to give each branch (KAN-448).
+
+    `require_head` is for a type override: the brand must lead the name, on
+    top of every form check brand_form_matches already makes — the
+    ampersand rule is what keeps `C.A. Residência Sénior` from being C&A.
+
+    A generic-word brand matches only when it is the whole name. `Casa` is
+    a homeware chain and also the first word of 586 Portuguese shops that
+    are not — `Casa do Rum`, `Casa dos Óculos`, `Casa das Fardas` — and a
+    padded match would make every one of them a home store.
+    """
     normalized = normalize_text(name or '')
-    matched = {kind for kind, brand, normalized_brand in index
-               if brand_form_matches(normalized_brand, normalized, name, brand)}
-    return next(iter(matched)) if len(matched) == 1 else None
+    kinds = set()
+    for kind, brand, normalized_brand in index:
+        if normalized_brand in GENERIC_WORD_BRANDS:
+            if normalized == normalized_brand:
+                kinds.add(kind)
+            continue
+        if not brand_form_matches(normalized_brand, normalized, name, brand):
+            continue
+        if require_head and not brand_heads_name(normalized_brand, normalized):
+            continue
+        kinds.add(kind)
+    return tuple(sorted(kinds))
+
+
+def store_kind_from_brand(name, index):
+    """The single kind for a brand listed under exactly one. Kept for callers
+    that want one answer; promotion itself uses store_kinds_from_brand."""
+    kinds = store_kinds_from_brand(name, index)
+    return kinds[0] if len(kinds) == 1 else None
 
 
 def is_non_multibanco_atm(name):
@@ -286,12 +368,37 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
         if financial_service_kind:
             attributes.append(('financial_service_kind', financial_service_kind))
 
-    if not types and row['category'] in ('shopping', None):
-        kind = store_kind_from_brand(row['name'], store_brands)
-        if kind and 'store' in reachable:
-            types.append(reachable['store'])
-            attributes.append(('store_kind', kind))
-            reason = f'brand: store/{kind}'
+    # KAN-448. A chain's kinds are the chain's, on every branch. The brand
+    # may overrule a generic or non-commercial category — `shopping`, or
+    # `school` on a Decathlon — but never a commercial one: a `Nespresso`
+    # boutique is a café, `C&A Guest House` is a hostel.
+    category = row['category'] or ''
+    generic = category in GENERIC_CATEGORIES
+    # Generic shopping keeps the ordinary padded match it always had. A
+    # non-generic category — school, parking, a mall — is overruled only when
+    # the brand leads the name: `Decathlon Albufeira`, not `Parque Decathlon`.
+    chain = store_kinds_from_brand(row['name'], store_brands, require_head=not generic)
+    if chain and not generic and name_agrees_with_category(normalized, category):
+        chain = ()
+    if chain and 'store' in reachable and (generic or category in BRAND_OVERRIDABLE_CATEGORIES):
+        types = [reachable['store']]
+        attributes = [(d, v) for d, v in attributes if d != 'store_kind']
+        attributes.extend(('store_kind', kind) for kind in chain)
+        reason = f"brand: store/{'+'.join(chain)}"
+    elif 'store' in types:
+        chain = store_kinds_from_brand(row['name'], store_brands)
+        if chain:
+            attributes = [(d, v) for d, v in attributes if d != 'store_kind']
+            attributes.extend(('store_kind', kind) for kind in chain)
+            reason = f"brand: store/{'+'.join(chain)}"
+    elif not types and (generic or category in BRAND_OVERRIDABLE_CATEGORIES):
+        # Not a store chain — a supermarket, bank or pharmacy chain sitting
+        # in generic shopping. Minipreço is a supermarket wherever it is.
+        for poi_type in BRAND_TYPES_FOR_OVERRIDE:
+            if poi_type in reachable and find_brand(row['name'], [poi_type], brand_dictionary):
+                types = [reachable[poi_type]]
+                reason = f'brand: {poi_type}'
+                break
 
     # The name may add, never replace. A category that mapped is the source's
     # considered answer; the name is an inference from a string.
