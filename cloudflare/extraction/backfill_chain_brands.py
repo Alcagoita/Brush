@@ -1,6 +1,6 @@
 """KAN-448. Emit the exact-id correction that brings prod's chain rows in line.
 
-    python3 backfill_chain_brands.py --overture <archive.csv> --out <migration.sql>
+    python3 backfill_chain_brands.py --overture <archive.csv> --overture-key <r2 key> --out <migration.sql>
 
 Promotion now lets a chain decide its own type and kinds. Rows already in
 `overture_poi` were promoted under the old rule — kind per row, from whatever
@@ -31,24 +31,36 @@ EXTRACTION_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, EXTRACTION_DIR)
 os.environ.setdefault('BRUSH_TYPE_RELATION', 'sql')
 CLOUDFLARE_DIR = os.path.dirname(EXTRACTION_DIR)
+OVERRIDES_PATH = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
 
 import promote_overture_candidates as promote
 from analyse_poi_candidates import reachable_types
 from classify_and_load import find_brand, sql_escape
 
-BATCH = 400
+BATCH = 150
 
 
-def chain_decisions(overture_csv):
+def reviewed_overrides(overture_key):
+    """Every reviewed decision for this source, flattened. A reviewed row is
+    decided; the chain rule does not get a second opinion on it."""
+    with open(OVERRIDES_PATH) as handle:
+        source = json.load(handle).get(overture_key, {})
+    return {poi_id: entry for batch in source.values() for poi_id, entry in batch.items()}
+
+
+def chain_decisions(overture_csv, overture_key):
     """Every archive row the chain rule decides, with its new type and kinds."""
     mapping, reachable, brands = promote.category_map(), reachable_types(), promote.load_brand_dictionary()
     kinds, cuisines = promote.store_kind_alias_index(), promote.food_cuisine_alias_index()
     financial, store_brands = promote.load_financial_service_name_rules(), promote.store_brand_index()
+    overrides = reviewed_overrides(overture_key)
     decided = {}
     with open(overture_csv, newline='') as handle:
         for row in csv.DictReader(handle):
+            if row['overture_id'] in overrides:
+                continue
             status, types, attributes, reason = promote.decide(
-                row, mapping, reachable, brands, kinds, cuisines, financial, store_brands, {})
+                row, mapping, reachable, brands, kinds, cuisines, financial, store_brands, overrides)
             if status != 'promoted' or not reason or not reason.startswith('brand:'):
                 continue
             decided[row['overture_id']] = {
@@ -61,11 +73,16 @@ def chain_decisions(overture_csv):
     return decided
 
 
-def query(sql):
-    result = subprocess.run(
-        ['npx', 'wrangler', 'd1', 'execute', 'brush-poi-registry', '--remote', '--json', '--command', sql],
-        cwd=CLOUDFLARE_DIR, check=True, capture_output=True, text=True)
-    return json.loads(result.stdout)[0]['results']
+def query(sql, attempts=3):
+    last = None
+    for _ in range(attempts):
+        result = subprocess.run(
+            ['npx', 'wrangler', 'd1', 'execute', 'brush-poi-registry', '--remote', '--json', '--command', sql],
+            cwd=CLOUDFLARE_DIR, capture_output=True, text=True)
+        if result.returncode == 0:
+            return json.loads(result.stdout)[0]['results']
+        last = (result.stdout + result.stderr)[-400:]
+    raise RuntimeError(f'D1 read failed after {attempts} attempts: {last}')
 
 
 def current_state(ids):
@@ -77,13 +94,13 @@ def current_state(ids):
         rows = query(
             "SELECT p.overture_id, p.primary_poi_type, p.brand, "
             "(SELECT group_concat(a.value) FROM overture_poi_attribute a WHERE a.overture_id = p.overture_id AND a.dimension = 'store_kind') AS kinds, "
-            "(SELECT group_concat(t.poi_type) FROM overture_poi_type t WHERE t.overture_id = p.overture_id) AS types "
+            "(SELECT group_concat(t.poi_type) FROM (SELECT poi_type FROM overture_poi_type WHERE overture_id = p.overture_id ORDER BY rank) t) AS types "
             f"FROM overture_poi p WHERE p.overture_id IN ({chunk})")
         for row in rows:
             state[row['overture_id']] = {
                 'primary': row['primary_poi_type'], 'brand': row['brand'],
                 'kinds': sorted((row['kinds'] or '').split(',')) if row['kinds'] else [],
-                'types': set((row['types'] or '').split(',')) - {''},
+                'types': [t for t in (row['types'] or '').split(',') if t],  # in rank order
             }
     return state
 
@@ -94,7 +111,9 @@ def statements(decided, state):
         if old is None:
             continue  # not promoted in prod; promotion will apply the rule itself
         identifier = sql_escape(overture_id)
-        if old['primary'] != new['primary']:
+        # Rank is meaningful — rank 0 is what the app shows — so the whole
+        # ordered list is compared, not just the primary.
+        if old['primary'] != new['primary'] or old['types'] != new['types']:
             yield (f"UPDATE overture_poi SET primary_poi_type = {sql_escape(new['primary'])}, "
                    f"brand = {sql_escape(new['brand'])} WHERE overture_id = {identifier};\n")
             yield f"DELETE FROM overture_poi_type WHERE overture_id = {identifier};\n"
@@ -110,8 +129,8 @@ def statements(decided, state):
                        f"({identifier},'store_kind',{sql_escape(kind)});\n")
 
 
-def run(overture_csv, out_path):
-    decided = chain_decisions(overture_csv)
+def run(overture_csv, overture_key, out_path):
+    decided = chain_decisions(overture_csv, overture_key)
     print(f'{len(decided):,} archive rows decided by the chain rule', file=sys.stderr)
     state = current_state(decided)
     print(f'{len(state):,} of them are promoted in prod', file=sys.stderr)
@@ -131,10 +150,11 @@ def run(overture_csv, out_path):
 
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--overture', required=True)
+    parser.add_argument('--overture', required=True, help='archived Overture CSV')
+    parser.add_argument('--overture-key', required=True, help='its R2 key — the overrides are scoped to it')
     parser.add_argument('--out', required=True)
     args = parser.parse_args(argv)
-    return run(args.overture, args.out)
+    return run(args.overture, args.overture_key, args.out)
 
 
 if __name__ == '__main__':

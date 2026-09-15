@@ -13,10 +13,11 @@ Portugal before it was written down:
     — a chain's categories cluster (Calzedonia: clothing 60, childrens 33),
     a generic prefix's do not. The majority category is the kind.
 
-On Portugal that is 555 chains over 4,212 rows, and the top of the list is
-Minipreço, MultiOpticas, Benetton, Lanidor, Lidl, Audika, Tiffosi, Claire's,
-Levi's, Sunglass Hut, Chicco — none of which had a kind entry, all of which
-were taking their kind from whatever Meta gave each branch.
+On the Portugal archive it proposes 637 chains over 5,918 rows (the committed
+`docs/kan-448/chains-PT.tsv`); before KAN-448's additions 555 of them had no
+kind entry, and the top of that list — Minipreço, MultiOpticas, Benetton,
+Lanidor, Lidl, Audika, Tiffosi, Claire's, Levi's, Sunglass Hut, Chicco — was
+taking its kind from whatever Meta gave each branch.
 
 This proposes. It writes nothing to the dictionary: a person reads the TSV,
 and the reviewed entries go into storeSubtypeDictionary.json, which is the
@@ -99,7 +100,9 @@ def discover(overture_csv):
             'concentration': round(concentration, 3),
             'poi_type': entry.get('poi_type') or '',
             'store_kind': entry.get('store_kind') or '',
-            'already_in_dictionary': any(head == k or head.startswith(k + ' ') for k in known),
+            # A two-word head is in the dictionary if it is a brand, or the start
+            # of a longer one: `united colors` is `united colors of benetton`.
+            'already_in_dictionary': any(head == k or head.startswith(k + ' ') or k.startswith(head + ' ') for k in known),
         })
     proposals.sort(key=lambda item: -item['rows'])
     return proposals

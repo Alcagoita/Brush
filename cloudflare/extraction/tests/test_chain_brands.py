@@ -111,12 +111,36 @@ class GenericWordBrandTest(unittest.TestCase):
 class BackfillTest(unittest.TestCase):
     def test_a_row_already_correct_produces_no_statement(self):
         decided = {'id1': {'primary': 'store', 'types': ['store'], 'kinds': ['bicycle', 'sports'], 'brand': 'Decathlon'}}
-        state = {'id1': {'primary': 'store', 'brand': 'Decathlon', 'kinds': ['bicycle', 'sports'], 'types': {'store'}}}
+        state = {'id1': {'primary': 'store', 'brand': 'Decathlon', 'kinds': ['bicycle', 'sports'], 'types': ['store']}}
         self.assertEqual(list(backfill.statements(decided, state)), [])
+
+    def test_a_secondary_type_out_of_order_rebuilds_the_ranked_list(self):
+        decided = {'id1': {'primary': 'store', 'types': ['store', 'phone_repair'], 'kinds': ['phone'], 'brand': 'MEO'}}
+        state = {'id1': {'primary': 'store', 'brand': 'MEO', 'kinds': ['phone'], 'types': ['store']}}
+        sql = ''.join(backfill.statements(decided, state))
+        self.assertIn("DELETE FROM overture_poi_type WHERE overture_id = 'id1'", sql)
+        self.assertIn("('id1','phone_repair',1)", sql)
+
+    def test_a_reviewed_row_is_never_touched_by_the_backfill(self):
+        import tempfile, csv as _csv
+        from unittest import mock
+        with tempfile.NamedTemporaryFile('w', suffix='.csv', delete=False, newline='') as archive:
+            writer = _csv.DictWriter(archive, fieldnames=('overture_id', 'name', 'lat', 'lng', 'address', 'locality', 'category', 'basic_category', 'category_path', 'confidence', 'source_datasets'))
+            writer.writeheader()
+            writer.writerow({'overture_id': 'reviewed', 'name': 'Decathlon Reviewed', 'lat': 1, 'lng': 1, 'category': 'shopping'})
+            writer.writerow({'overture_id': 'fresh', 'name': 'Decathlon Fresh', 'lat': 1, 'lng': 1, 'category': 'shopping'})
+        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as overrides:
+            import json
+            json.dump({'key': {'batch': {'reviewed': {'poi_type': 'store', 'store_kind': 'eyewear_and_optician', 'reason': 'r'}}}}, overrides)
+        with mock.patch.object(backfill, 'OVERRIDES_PATH', overrides.name):
+            decided = backfill.chain_decisions(archive.name, 'key')
+        self.assertNotIn('reviewed', decided)
+        self.assertIn('fresh', decided)
+        os.unlink(archive.name); os.unlink(overrides.name)
 
     def test_kinds_are_replaced_by_exact_id(self):
         decided = {'id1': {'primary': 'store', 'types': ['store'], 'kinds': ['hardware', 'home'], 'brand': 'Leroy Merlin'}}
-        state = {'id1': {'primary': 'store', 'brand': 'Leroy Merlin', 'kinds': ['pet'], 'types': {'store'}}}
+        state = {'id1': {'primary': 'store', 'brand': 'Leroy Merlin', 'kinds': ['pet'], 'types': ['store']}}
         sql = ''.join(backfill.statements(decided, state))
         self.assertIn("DELETE FROM overture_poi_attribute WHERE overture_id = 'id1' AND dimension = 'store_kind'", sql)
         self.assertIn("('id1','store_kind','hardware')", sql)
@@ -125,7 +149,7 @@ class BackfillTest(unittest.TestCase):
 
     def test_a_school_that_is_a_decathlon_is_retyped_and_branded(self):
         decided = {'id1': {'primary': 'store', 'types': ['store'], 'kinds': ['bicycle', 'sports'], 'brand': 'Decathlon'}}
-        state = {'id1': {'primary': 'school', 'brand': None, 'kinds': [], 'types': {'school'}}}
+        state = {'id1': {'primary': 'school', 'brand': None, 'kinds': [], 'types': ['school']}}
         sql = ''.join(backfill.statements(decided, state))
         self.assertIn("SET primary_poi_type = 'store', brand = 'Decathlon' WHERE overture_id = 'id1'", sql)
         self.assertIn("DELETE FROM overture_poi_type WHERE overture_id = 'id1'", sql)
