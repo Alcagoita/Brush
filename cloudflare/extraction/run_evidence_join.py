@@ -222,7 +222,7 @@ def overrides_draft(suggestions, overture_key, run_id):
     for record in suggestions:
         if record['decision'] == 'insufficient_evidence':
             continue
-        where = 'Foursquare' if record['source'] == 'foursquare' else 'OSM'
+        where = {'foursquare': 'Foursquare', 'osm': 'OSM', 'google': 'Google Places'}.get(record['source'], record['source'])
         if record['decision'] == 'excluded':
             batches[f'evidence_{run_id}_exclusions'][record['overture_id']] = {
                 'decision': 'rejected', 'reason': f'{where} match shows this is not a consumer store'}
