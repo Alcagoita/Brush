@@ -46,9 +46,20 @@ describe('storeSubtypes', () => {
     ])).toEqual([{ name: 'Worten' }]);
   });
 
+  it('does not read generic shopping words as a club store', () => {
+    // KAN-447 review: the club aliases must not catch first-aid kits,
+    // scarves, or "official store" on its own.
+    expect(inferStoreSubtype('Buy a first-aid kit')).not.toBe('club_store');
+    expect(inferStoreSubtype('Comprar um cachecol')).not.toBe('club_store');
+    expect(inferStoreSubtype('Buy merchandise for the party')).not.toBe('club_store');
+    expect(inferStoreSubtype('Comprar a camisola oficial do Benfica')).toBe('club_store');
+    expect(inferStoreSubtype('Buy the new football kit')).toBe('club_store');
+  });
+
   it('suggests store types by visible label correspondence', () => {
     expect(storeSubtypeSuggestions('')).toContain('any');
-    expect(storeSubtypeSuggestions('Cl')).toEqual(['clothing']);
+    // KAN-447: `Club store` shares the prefix, and both are right to offer.
+    expect(storeSubtypeSuggestions('Cl')).toEqual(['clothing', 'club_store']);
     expect(storeSubtypeSuggestions('El')).toEqual(['electronics']);
     expect(storeSubtypeSuggestions('Fu')).toEqual(['furniture']);
     expect(storeSubtypeSuggestions('Ha')).toEqual(['hardware']);
