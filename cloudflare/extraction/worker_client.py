@@ -48,6 +48,12 @@ def build_complete(place_id, build_id, rows_loaded, rows_skipped, r2_key, extent
 def build_failed(place_id, build_id):
     return _post('/internal/build-complete', {'cityId': place_id, 'buildId': build_id, 'status': 'failed'})
 
+def build_failed(place_id, build_id):
+    """Close out a build_log row that was opened: the Worker resets a
+    never-mapped Place to 'none' and marks the build failed."""
+    return _post('/internal/build-complete', {'cityId': place_id, 'buildId': build_id, 'status': 'failed'})
+
+
 def place_failed(place_id, stage=None, error=None):
     """Usable at any point in a run, even before a build_id exists — see
     /internal/place-failed's own doc comment in cloudflare/src/index.ts."""

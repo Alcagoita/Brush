@@ -39,6 +39,7 @@ import extract_overture
 import load_overture_candidates
 import promote_overture_candidates
 import report_overture_backlog
+import overture_place
 
 # KAN-387. Municipalities per container invocation, processed serially —
 # Overpass politeness, and small enough that a dead instance loses little.
@@ -100,6 +101,11 @@ def run_overture_country(country_code, run_id, source_r2_key=None):
         }
         worker_client.overture_country_complete(country_code, run_id, report_key, stats)
         print(f'[run_job] Overture {country_code}: {stats}')
+        # KAN-450 — after the country is reported: every mapped settlement
+        # gets an Overture export so the trip download stops serving the
+        # Foursquare snapshot. Per-settlement failures are logged, not
+        # fatal; the rows are already served.
+        overture_place.export_country_places(country_code, run_id)
     except Exception as error:
         traceback.print_exc()
         try:
@@ -215,8 +221,10 @@ def map_place(place_id):
         raise
 
 def run_place(place_id):
+    """KAN-450: the on-demand Place is an Overture build. `map_place` above
+    is the Foursquare loader the legacy country modes still share."""
     try:
-        map_place(place_id)
+        overture_place.map_place(place_id)
     except Exception:
         sys.exit(1)
 

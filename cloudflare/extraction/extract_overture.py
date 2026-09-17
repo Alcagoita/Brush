@@ -97,8 +97,12 @@ def _connect():
 
 
 def extract_bbox(min_lat, max_lat, min_lng, max_lng, out_path,
-                 release=OVERTURE_RELEASE):
+                 release=OVERTURE_RELEASE, country=None):
     """Every named Overture place in the box, minus the excluded categories.
+
+    `country` (ISO2), when given, adds the exact `addresses[].country`
+    filter extract_country uses: a Place's bbox over a border pulls in the
+    neighbour's rows otherwise (KAN-450 — Elvas would import Badajoz).
 
     The bbox filter reads `bbox.ymin`/`bbox.xmin` rather than the geometry:
     those are plain columns with Parquet row-group statistics, so the scan
@@ -109,7 +113,10 @@ def extract_bbox(min_lat, max_lat, min_lng, max_lng, out_path,
     later — it is not evidence of anything. In PT this drops nothing at all:
     all 440,594 rows carry a name.
     """
+    if country is not None and not re.fullmatch(r'[A-Za-z]{2}', country):
+        raise ValueError(f'country must be two ASCII letters, got {country!r}')
     excluded = ','.join("'%s'" % value for value in EXCLUDED_CATEGORIES)
+    country_filter = '            AND addresses[1].country = ?\n' if country else ''
     connection = _connect()
     connection.execute(
         f"""
@@ -129,12 +136,12 @@ def extract_bbox(min_lat, max_lat, min_lng, max_lng, out_path,
           FROM read_parquet('{OVERTURE_PLACES % release}')
           WHERE bbox.ymin BETWEEN ? AND ?
             AND bbox.xmin BETWEEN ? AND ?
-            AND names.primary IS NOT NULL
+{country_filter}            AND names.primary IS NOT NULL
             AND (basic_category IS NULL OR basic_category NOT IN ({excluded}))
             AND (categories.primary IS NULL OR categories.primary NOT IN ({excluded}))
         ) TO {_sql_literal(out_path)} (FORMAT CSV, HEADER)
         """,
-        [min_lat, max_lat, min_lng, max_lng],
+        [min_lat, max_lat, min_lng, max_lng] + ([country.upper()] if country else []),
     )
     connection.close()
     return out_path
