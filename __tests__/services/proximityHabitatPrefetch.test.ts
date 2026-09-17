@@ -102,9 +102,11 @@ jest.mock('../../src/services/placesFunctions', () => ({
   placesAutocompleteProxy: jest.fn(),
   getPlaceDetailsProxy:    jest.fn(),
 }));
+const mockCloudflarePoiAllProxy = jest.fn();
 jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflareCoverageProxy: jest.fn(),
-  cloudflarePoiAllProxy:   jest.fn(),
+  cloudflarePoiAllProxy:   (...args: unknown[]) => mockCloudflarePoiAllProxy(...args),
+  cloudflareRequestCoverageProxy: jest.fn(),
 }));
 // KAN-342: live search is Cloudflare-first, OSM-failsafe — Google is no
 // longer part of searchNearbyPlaces's path. cloudflareCoverageProxy above
@@ -231,6 +233,26 @@ describe('KAN-342: source-aware identity + source/coverageStatus threading', () 
     const call = mockRecordLiveResult.mock.calls[0][0];
     expect(call.source.google).toBeUndefined();
     expect(call).not.toHaveProperty('googlePlaceId');
+  });
+
+  it('KAN-451: a Cloudflare live hit is recorded under the namespace the Worker names', async () => {
+    mockCloudflarePoiAllProxy.mockResolvedValueOnce({
+      placeName: 'Lisboa',
+      results: {
+        atm: [
+          { poi_id: 'gers-1', source: 'overture', name: 'Overture ATM', lat: 0.0002, lng: 0, primary_poi_type: 'atm', brand: null, category_label: null, address: null, open_min: null, close_min: null, distanceMeters: 22, attributes: {} },
+          { poi_id: 'multibanco:9', source: 'multibanco', name: 'MB ATM', lat: 0.0003, lng: 0, primary_poi_type: 'atm', brand: null, category_label: null, address: null, open_min: null, close_min: null, distanceMeters: 33, attributes: {} },
+        ],
+      },
+    });
+
+    await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
+
+    expect(mockRecordLiveResult).toHaveBeenCalledWith(expect.objectContaining({ name: 'Overture ATM', source: { overture: 'gers-1' } }));
+    expect(mockRecordLiveResult).toHaveBeenCalledWith(expect.objectContaining({ name: 'MB ATM', source: { brush: 'multibanco:9' } }));
+    for (const [call] of mockRecordLiveResult.mock.calls) {
+      expect(call.source.fsq).toBeUndefined();
+    }
   });
 
   it('AC: source and coverageStatus are exposed via getLastPoiSearchState, degraded computed not stored', async () => {

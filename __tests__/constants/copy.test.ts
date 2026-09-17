@@ -123,3 +123,19 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.mallSnapshot.rowSublabel).toBe('Descarregue os locais deste Shopping para que eu te ajude mais rapidamente e sem internet.');
   });
 });
+
+describe('COPY — attribution names every source that ships (KAN-451)', () => {
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it.each(['en', 'pt-PT'] as const)('%s credits Overture and OpenStreetMap and nothing that no longer ships', (language) => {
+    setCopyLanguage(language);
+    const attribution = COPY.settings.footerAttribution;
+    expect(attribution).toContain('Overture Maps Foundation');
+    expect(attribution).toContain('OpenStreetMap');
+    expect(attribution).toContain('MULTIBANCO');
+    // Retired sources must not be credited: the footer is a licence statement, not a history.
+    expect(attribution).not.toMatch(/Foursquare|Google/);
+  });
+});

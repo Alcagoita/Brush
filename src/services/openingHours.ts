@@ -2,8 +2,9 @@
  * openingHours.ts — KAN-318: is a place open right now?
  *
  * The backend bakes a default open/close window per POI into `open_min` /
- * `close_min` (minutes from local midnight) — keyed on the Foursquare category,
- * with OSM `opening_hours` as a later refinement. The app does only this
+ * `close_min` (minutes from local midnight) — keyed on the source's category
+ * (Overture since KAN-438; cloudflare/extraction/opening_hours.py), with OSM
+ * `opening_hours` as a later refinement. The app does only this
  * trivial check and hides closed places from the Nearby suggestion.
  *
  * A missing window means "always open" — which also stands in for 24h and for

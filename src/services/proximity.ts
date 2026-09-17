@@ -114,6 +114,7 @@ import {
 } from './storeSubtypes';
 import { buildNearbySearchRequests } from './nearbySearchRequests';
 import { isOpenNow } from './openingHours';
+import { placeSourceRef } from './placeIdentity';
 import { brandTaskMatchesPlace, filterBrandPlacesForTasks } from './brandDictionary';
 import { filterFinancialServicePlacesForTasks, financialServiceTaskMatchesPlace } from './financialServiceKinds';
 
@@ -787,12 +788,12 @@ async function runProximitySearch(
     // new live data to feed back into it.
     //
     // KAN-342 review — source-aware identity, not a hardcoded googlePlaceId:
-    // Cloudflare returns Foursquare ids, OSM returns OSM ids; tagging both as
-    // "google" corrupted cross-source dedupe AND licence provenance (OSM is
-    // ODbL, Foursquare is Apache 2.0, Google is restricted — an identity
-    // column that lies about origin can't be audited against those terms).
-    // `answeredFromCache` guards this block, so tickSource is always
-    // 'cloudflare' or 'osm' here, never 'cache'.
+    // an identity column that lies about origin corrupts cross-source dedupe
+    // AND licence provenance (OSM is ODbL, Overture CDLA-Permissive, Google
+    // restricted — it can't be audited against those terms). KAN-451 moved
+    // the decision into placeIdentity.placeSourceRef, which also reads which
+    // table our API served the row from. `answeredFromCache` guards this
+    // block, so tickSource is always 'cloudflare' or 'osm' here, never 'cache'.
     if (!answeredFromCache) {
       InteractionManager.runAfterInteractions(() => {
         try {
@@ -803,7 +804,7 @@ async function runProximitySearch(
                 name:   place.name,
                 lat:    place.lat,
                 lng:    place.lng,
-                source: tickSource === 'osm' ? { osm: place.placeId } : { fsq: place.placeId },
+                source: placeSourceRef(place.placeId, tickSource, place.sourceKind),
                 brand: place.brand,
                 // KAN-377 — the settlement name rides along with the places it
                 // came with, so this area stays nameable offline everywhere we

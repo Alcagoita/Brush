@@ -25,24 +25,30 @@ import { PoiType, poiCatalogLabel } from '../types';
 import type { RestaurantFoodType } from './restaurantFoodTypes';
 import type { StoreSubtype } from './storeSubtypes';
 import type { FinancialServiceKind } from './financialServiceKinds';
+import type { PoiRecordSource } from './placeIdentity';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface NearbyPlace {
   /**
-   * Stable source-specific id: a Foursquare `fsq_place_id`, a `community:`
-   * identifier for an approved community correction, or an OSM element id when it came
-   * from OSM — NOT a Google Places id, and not safe to pass to
-   * historical Google place-details lookup. Which source produced it is on the
-   * PoiSearchResult this place came from (see `source` above), not on the
-   * place itself — a caller that needs to tell them apart across a mixed
-   * batch (e.g. writing cross-source identity, like proximity.ts's
-   * recordLiveResult) must track that alongside, not assume from the id's
-   * shape. Safe as a same-batch dedup/lookup key (a single searchNearbyPlaces
-   * call is always single-source), not safe as a stable cross-tick or
+   * Stable source-specific id: an Overture GERS id or one of our own
+   * prefixed registry ids when it came from Brush's API, an OSM element id
+   * when it came from OSM — NOT a Google Places id. Which chain produced it
+   * is on the PoiSearchResult (`source`); which table our API read it from
+   * is `sourceKind` below. `placeIdentity.placeSourceRef` turns the pair
+   * into the identity ref the habitat cache stores — callers writing
+   * cross-source identity go through that, never guess from the id's shape.
+   * Safe as a same-batch dedup/lookup key (a single searchNearbyPlaces call
+   * is always single-source), not safe as a stable cross-tick or
    * cross-source identity.
    */
   placeId: string;
+  /**
+   * The table our API read this row from (KAN-451) — only set on a
+   * Cloudflare answer, and what makes `placeId` interpretable there.
+   * Undefined for OSM and cache answers.
+   */
+  sourceKind?: PoiRecordSource;
   /** Human-readable place name. */
   name: string;
   /** Latitude of the place. */
@@ -478,6 +484,7 @@ async function searchNearbyPlacesCloudflare(
         const financialServiceKinds = [...new Set([...(p.attributes?.financial_service_kind ?? []), ...requestFinancialServiceValues])] as FinancialServiceKind[];
         const place: NearbyPlace = {
           placeId: p.poi_id,
+          sourceKind: p.source,
           name: p.name,
           lat: p.lat,
           lng: p.lng,

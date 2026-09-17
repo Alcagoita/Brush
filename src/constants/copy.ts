@@ -538,7 +538,7 @@ const en = {
     signOutErrorTitle: 'Error',
     signOutErrorBody: 'Failed to sign out. Please try again.',
     footerVersion: (version: string) => `Brush Away · v${version}`,
-    footerAttribution: 'Place & location data © OpenStreetMap contributors (ODbL), Foursquare Open Source Places (Apache 2.0), and Google',
+    footerAttribution: 'Place & location data © Overture Maps Foundation (CDLA-Permissive 2.0) and OpenStreetMap contributors (ODbL), with Brush community corrections and official MULTIBANCO ATM data',
   },
 
   // ─── Login (KAN-252) ────────────────────────────────────────────────────────
@@ -1735,7 +1735,7 @@ const ptPT: typeof en = {
     signOutErrorTitle: 'Erro',
     signOutErrorBody: 'Falha ao terminar sessão. Tenta outra vez.',
     footerVersion: (version: string) => `Brush Away · v${version}`,
-    footerAttribution: 'Dados de locais e localização © colaboradores do OpenStreetMap (ODbL), Foursquare Open Source Places (Apache 2.0) e Google',
+    footerAttribution: 'Dados de locais e localização © Overture Maps Foundation (CDLA-Permissive 2.0) e colaboradores do OpenStreetMap (ODbL), com correções da comunidade Brush e dados oficiais de caixas MULTIBANCO',
   },
 
   login: {

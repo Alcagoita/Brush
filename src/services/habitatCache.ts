@@ -9,9 +9,11 @@
  * ones simply go stale and get evicted under the size budget. "Habitat"
  * emerges as a property of the cache's contents rather than a tracked signal.
  *
- * Cross-source place identity: the same physical place may be seen via
- * Google (live search, has a placeId) or OSM (cache refresh, has an osmId).
- * `upsertPlace` is the single entry point both paths go through — it matches
+ * Cross-source place identity: the same physical place may be seen via our
+ * API (Overture, or one of our own records), OSM, or — on rows cached before
+ * KAN-342 — Google. Each source's id lives in its own column (see
+ * placeIdentity.ts for why they must not share one).
+ * `upsertPlace` is the single entry point every path goes through — it matches
  * an incoming candidate against existing rows (same POI type, within
  * IDENTITY_MATCH_RADIUS_M, similar normalized name) and merges the source ref
  * in rather than creating a duplicate, so a place seen via one source today
@@ -51,6 +53,7 @@ import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
+import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
 import {
   inferRestaurantFoodTypeFromPlaceName,
   listRestaurantFoodTypes,
@@ -245,11 +248,25 @@ function getDb(): SQLite.SQLiteDatabase {
     if (!existingColumns.has('store_subtype')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN store_subtype TEXT');
     }
-    // KAN-342 migration — Foursquare (via Cloudflare) is now a third live
-    // source, freely storable like OSM (Apache 2.0) — needs its own identity
-    // column, not shoehorned into google_place_id or osm_id.
+    // KAN-342 migration — Foursquare (via Cloudflare) became a third live
+    // source, freely storable like OSM (Apache 2.0), with its own identity
+    // column rather than being shoehorned into google_place_id or osm_id.
     if (!existingColumns.has('fsq_place_id')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN fsq_place_id TEXT');
+    }
+    // KAN-451 migration — our API serves Overture since KAN-438, and its own
+    // registry records (community, manual, Multibanco) alongside. Each gets
+    // its own column for the same reason Foursquare did: an id column that
+    // lies about origin can't be audited against the source's terms, and
+    // cross-source dedupe breaks the moment two namespaces share one. Rows
+    // written between KAN-438 and this migration hold Overture ids under
+    // fsq_place_id; they stay readable and count as coverage, and the next
+    // live sighting fills overture_id beside them.
+    if (!existingColumns.has('overture_id')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN overture_id TEXT');
+    }
+    if (!existingColumns.has('brush_id')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN brush_id TEXT');
     }
     // KAN-377 migration — the settlement this place sits in, as the POI source
     // named it. Stored per row so name coverage equals POI coverage: previously
@@ -289,8 +306,12 @@ export interface HabitatRow {
   lng: number;
   google_place_id: string | null;
   osm_id: string | null;
-  /** Foursquare id via Cloudflare (KAN-342) — null for rows never matched to a live Cloudflare result. */
+  /** Foursquare id (KAN-342): a row cached before KAN-438, or a `legacy` fallback row our API still serves. Also holds an Overture id on rows written before KAN-451's migration. */
   fsq_place_id: string | null;
+  /** Overture GERS id via our API (KAN-451) — null for rows never matched to an Overture result. */
+  overture_id: string | null;
+  /** Id of a record our own registry owns — community correction, manual POI, Multibanco ATM (KAN-451). */
+  brush_id: string | null;
   osm_fetched_at: number;
   last_matched_at: number;
   /** Non-null when this row belongs to a KAN-234 trip download — joins to Trip.cacheAreaId. Null for ordinary opportunistic habitat rows. */
@@ -311,6 +332,9 @@ export interface HabitatRow {
   brand: string | null;
 }
 
+/** SQL predicate: the row is anchored by a source whose coordinates we may keep (see placeIdentity.isFreelyStorable). */
+const ANCHORED_BY_A_STORABLE_SOURCE = '(osm_id IS NOT NULL OR fsq_place_id IS NOT NULL OR overture_id IS NOT NULL OR brush_id IS NOT NULL)';
+
 function generateId(): string {
   return `hp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
@@ -325,17 +349,13 @@ export interface PlaceCandidate {
   lat: number;
   lng: number;
   /**
-   * `google` is never written by any live code path anymore (KAN-342 —
-   * Google Places has no role in live search) — kept in the type only
-   * because existing on-device rows from before that change may still carry
-   * a real value there, and this type still needs to describe them. `osm`
-   * and `fsq` (Foursquare, via Cloudflare) are the two sources that can
-   * actually create/move a row today — both are freely storable (ODbL,
-   * Apache 2.0 respectively), unlike Google's restricted coordinate-caching
-   * terms, which is why Google could only ever merge into an existing row,
-   * never create one (see upsertPlaceCore).
+   * Which source's id anchors this candidate — see placeIdentity.ts for the
+   * namespaces. `google` is never written by any live code path anymore
+   * (KAN-342) and survives only because pre-KAN-342 rows may carry one.
+   * Every other namespace is freely storable and may create or move a row;
+   * Google could only ever merge into an existing one (see upsertPlaceCore).
    */
-  source: { google?: string; osm?: string; fsq?: string };
+  source: PlaceSourceRef;
   /** OSM building-footprint area in m² (KAN-282) — only OSM way/relation malls carry this; omitted otherwise. */
   footprintAreaM2?: number;
   /** The settlement this place sits in, as the source named it (KAN-377). Omitted by sources that don't name areas. */
@@ -459,15 +479,14 @@ interface TripStamp { cacheAreaId: string; expiresAt: number; }
 function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const database = getDb();
   const now = Date.now();
-  // Both OSM (ODbL) and Foursquare-via-Cloudflare (Apache 2.0) are freely
-  // storable — either can create a new row or move an existing one's
-  // coordinates. Google cannot (restricted coordinate-caching terms), which
-  // is the entire reason this flag exists: it's the gate on "may this
-  // candidate actually persist its own lat/lng", not just "is this a live
-  // hit". A Google-sourced candidate (source.google set, only possible on
-  // pre-KAN-342 rows re-merging) can still update OTHER fields below, just
-  // never lat/lng/fetched_at.
-  const isFreelyStorable = candidate.source.osm != null || candidate.source.fsq != null;
+  // Every source but Google is freely storable — it can create a new row or
+  // move an existing one's coordinates. Google cannot (restricted
+  // coordinate-caching terms), which is the entire reason this flag exists:
+  // it's the gate on "may this candidate actually persist its own lat/lng",
+  // not just "is this a live hit". A Google-sourced candidate (source.google
+  // set, only possible on pre-KAN-342 rows re-merging) can still update
+  // OTHER fields below, just never lat/lng/fetched_at.
+  const isFreelyStorable = refIsFreelyStorable(candidate.source);
   const match = findMatchingRow(
     database, candidate.poiType, candidate.name, candidate.isGenericName,
     candidate.lat, candidate.lng,
@@ -484,6 +503,8 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
        SET google_place_id   = COALESCE(google_place_id, ?),
            osm_id            = COALESCE(osm_id, ?),
            fsq_place_id      = COALESCE(fsq_place_id, ?),
+           overture_id       = COALESCE(overture_id, ?),
+           brush_id          = COALESCE(brush_id, ?),
            lat               = CASE WHEN ? = 1 THEN ? ELSE lat END,
            lng               = CASE WHEN ? = 1 THEN ? ELSE lng END,
            osm_fetched_at    = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
@@ -507,6 +528,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
        WHERE id = ?`,
       [
         candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
+        candidate.source.overture ?? null, candidate.source.brush ?? null,
         storableFlag, candidate.lat, storableFlag, candidate.lng, storableFlag, now,
         candidate.footprintAreaM2 ?? null,
         candidate.website ?? null,
@@ -523,8 +545,8 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   }
 
   // No existing row. Google coordinates are never persisted long-term
-  // (Places ToS) — only an OSM- or Foursquare-anchored candidate may create
-  // a new row.
+  // (Places ToS) — only a candidate anchored by a freely storable source
+  // may create a new row.
   if (!isFreelyStorable) { return generateId(); }
 
   const id = generateId();
@@ -532,10 +554,11 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const storeSubtype = candidateStoreSubtype(candidate);
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
-      candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null, now, now,
+      candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
+      candidate.source.overture ?? null, candidate.source.brush ?? null, now, now,
       trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null,
       candidate.website ?? null, restaurantFoodType, storeSubtype, candidate.brand ?? null, candidate.areaName ?? null],
   );
@@ -605,23 +628,22 @@ export function writeTripAreaPlaces(
 
 /**
  * Feeds a live search hit into the cache's identity table — source-aware
- * (KAN-342): the caller (proximity.ts) passes exactly one of `osm`/`fsq`
- * depending on which chain actually answered that tick. There is no
- * `google` option here anymore — Google Places has no role in live search
- * — but upsertPlace/PlaceCandidate still accept it as a type, since
- * pre-KAN-342 rows may carry a real google_place_id and this same merge
- * path is still what reconciles them going forward.
+ * (KAN-342, KAN-451): the caller (proximity.ts) passes the ref
+ * `placeIdentity.placeSourceRef` derived from which chain answered the tick
+ * and which table our API read the row from. There is no `google` option
+ * here — Google Places has no role in live search — but upsertPlace still
+ * accepts it, since pre-KAN-342 rows may carry a real google_place_id and
+ * this same merge path is what reconciles them going forward.
  *
- * Both osm and fsq candidates may create a new row or move an existing
- * one's coordinates (see upsertPlaceCore) — both sources are freely
- * storable, unlike Google's restricted terms.
+ * Every live source is freely storable and may create a new row or move an
+ * existing one's coordinates (see upsertPlaceCore).
  */
 export function recordLiveResult(candidate: {
   poiType: string;
   name: string;
   lat: number;
   lng: number;
-  source: { osm?: string; fsq?: string };
+  source: Omit<PlaceSourceRef, 'google'>;
   /** Settlement name from the same live answer (KAN-377). */
   areaName?: string | null;
   /** Canonical brand returned by the same live source. */
@@ -773,8 +795,8 @@ function hasOwn(table: object, key: string): boolean {
  *
  * The comment above describes why this used to be `isOsmMappable` alone, and
  * that reason expired with KAN-366: the fetch is `searchNearbyPlaces` (our
- * API first, Overpass second), and the freshness query counts an
- * `fsq_place_id` row as coverage just like an `osm_id` one. A type our API
+ * API first, Overpass second), and the freshness query counts a row anchored
+ * by any source as coverage, not only an `osm_id` one. A type our API
  * can answer for no longer needs an OSM tag to escape being permanently
  * stale — it just needed to be asked for.
  *
@@ -902,16 +924,17 @@ export async function refreshHabitatCacheIfStale(
       const placeholders = mappableTypes.map(() => '?').join(',');
       const staleCutoff = now - HABITAT_CACHE_STALE_MS;
 
-      // A row counts as real coverage if EITHER source anchored it. Before
-      // KAN-366 only osm_id qualified, because OSM was the only thing that
-      // filled this cache; now that our API seeds it too, requiring osm_id
-      // would call a fully-stocked area stale and re-fetch it forever.
+      // A row counts as real coverage if ANY freely storable source anchored
+      // it. Before KAN-366 only osm_id qualified, because OSM was the only
+      // thing that filled this cache; now that our API seeds it too (Overture,
+      // our own records, the legacy fallback), requiring osm_id would call a
+      // fully-stocked area stale and re-fetch it forever.
       const freshRows = database.getAllSync<{ poi_type: string }>(
         `SELECT poi_type FROM habitat_places
          WHERE poi_type IN (${placeholders})
            AND lat BETWEEN ? AND ?
            AND ${longitudeRangePredicate(box.lngRanges)}
-           AND (osm_id IS NOT NULL OR fsq_place_id IS NOT NULL)
+           AND ${ANCHORED_BY_A_STORABLE_SOURCE}
            AND osm_fetched_at >= ?`,
         [...mappableTypes, box.latMin, box.latMax, ...longitudeRangeParams(box.lngRanges), staleCutoff],
       );
@@ -928,7 +951,7 @@ export async function refreshHabitatCacheIfStale(
 
     // KAN-366 — our API first, OSM second, mirroring the live chain. This used
     // to call OSM directly, which inverted the migration: online the user got
-    // our Foursquare-backed data, offline they got whatever Overpass had, in
+    // our API's data, offline they got whatever Overpass had, in
     // exactly the areas OSM is thinnest. searchNearbyPlaces owns that ordering
     // already and reports which source answered, which is what the cooldown
     // below needs. It also returns the settlement name (KAN-377), so a
@@ -958,7 +981,7 @@ export async function refreshHabitatCacheIfStale(
           name:            place.name,
           lat:             place.lat,
           lng:             place.lng,
-          source:          search.source === 'osm' ? { osm: place.placeId } : { fsq: place.placeId },
+          source:          placeSourceRef(place.placeId, search.source, place.sourceKind),
           footprintAreaM2: place.footprintAreaM2,
           website:         place.website,
           brand:           place.brand,

@@ -8,8 +8,10 @@ Nominatim bbox → Foursquare Iceberg pull on a hand-renewed JWT →
 `classify_and_load` → `INSERT INTO poi` → OSM supplement → a
 Foursquare-shaped SQLite export → `build_complete`.
 
-Since KAN-438 `/poi` reads `overture_poi`, `legacy_poi`, `osm_poi`,
-community and Multibanco. It does not read `poi`. An on-demand Place
+Since KAN-438 `/poi/nearby` reads `overture_poi`, `legacy_poi`, community
+and Multibanco. It does not read `poi` — nor `osm_poi`, which KAN-438
+retired from serving (the per-Place OSM supplement still writes there; see
+the KAN-451 audit note). An on-demand Place
 therefore spent a Foursquare pull on rows nobody served, reported `mapped`
 with an extent that blocked re-mapping, and gave the user the OSM supplement
 only. The Trip Planner's download (`/export/<placeId>`) was the old
