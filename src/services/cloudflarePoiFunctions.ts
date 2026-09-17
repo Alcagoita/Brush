@@ -11,6 +11,7 @@
  */
 
 import { poiApiGet, poiApiGetBinary, poiApiPost } from './poiApi';
+import type { PoiRecordSource } from './placeIdentity';
 
 export interface CoverageResponse {
   status: 'none' | 'building' | 'ready';
@@ -49,10 +50,14 @@ interface PoiAllResponse {
   /** KAN-377 — the settlement the requested point falls in, as the place table names it. Null when the point is in no known settlement. */
   placeName?: string | null;
   results: Record<string, Array<{
-    /** Stable API identity: Foursquare id or an explicitly community-scoped id. */
+    /**
+     * Stable API identity in the namespace of `source`: an Overture GERS id,
+     * a Foursquare id for a `legacy` row, or one of our own prefixed ids
+     * (`community:`, `manual:`, …). Never a generated stand-in.
+     */
     poi_id: string;
-    /** Null for moderated community records; never a generated stand-in. */
-    fsq_place_id: string | null;
+    /** Which table the row came from — what makes `poi_id` interpretable (KAN-451). Absent from an older Worker; read as Overture. */
+    source?: PoiRecordSource;
     name: string;
     lat: number;
     lng: number;
@@ -74,7 +79,7 @@ export function cloudflareCoverageProxy(lat: number, lng: number): Promise<Cover
   );
 }
 
-/** KAN-343 — authenticated SQLite export, streamed by the Worker from R2. */
+/** KAN-343 — authenticated SQLite export, streamed by the Worker from R2. Shape: docs/kan-450-overture-place-build.md. */
 export function cloudflareExportProxy(placeId: string): Promise<Uint8Array> {
   return poiApiGetBinary(`/export/${encodeURIComponent(placeId)}`);
 }

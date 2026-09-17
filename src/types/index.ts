@@ -714,7 +714,7 @@ export type ClusterLeisureType = typeof CLUSTER_LEISURE_TYPES[number];
  * with no OSM tag could never satisfy a freshness check judged purely on
  * `osm_fetched_at` and would re-fetch forever. KAN-366 ended that: the
  * prefetch goes through `searchNearbyPlaces` (our API first, Overpass second)
- * and counts an `fsq_place_id` row as real coverage. So an OSM tag stopped
+ * and counts a row anchored by any source as real coverage. So an OSM tag stopped
  * being the price of admission — but the filter stayed, and kept the two
  * heritage types out.
  *

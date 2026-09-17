@@ -59,6 +59,10 @@ interface MockHabitatRow {
   osm_id: string | null;
   /** KAN-342 — Foursquare id, via the Cloudflare POI backend. */
   fsq_place_id?: string | null;
+  /** KAN-451 — Overture GERS id, via the Cloudflare POI backend. */
+  overture_id?: string | null;
+  /** KAN-451 — id of a record our own registry owns (community, manual, Multibanco). */
+  brush_id?: string | null;
   osm_fetched_at: number;
   last_matched_at: number;
   cache_area_id: string | null;
@@ -112,6 +116,7 @@ const mockDb = {
       return [
         { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
         { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' }, { name: 'fsq_place_id' },
+        { name: 'overture_id' }, { name: 'brush_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
         { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' },
         { name: 'area_name' }, { name: 'brand' },
@@ -148,10 +153,11 @@ const mockDb = {
       const [latMin, latMax] = params.slice(inCount, inCount + 2) as number[];
       const lngRanges = longitudeRangesFromParams(params, inCount + 2, rangeCount);
       const cutoff = params[inCount + 2 + rangeCount * 2] as number;
-      // KAN-366 — either source anchors a row now, so both count as coverage.
+      // KAN-366 / KAN-451 — any storable source anchors a row, so all count as coverage.
       return rows.filter(r =>
         poiTypes.includes(r.poi_type) && matchesBox(r, latMin, latMax, lngRanges)
-        && (r.osm_id != null || r.fsq_place_id != null) && r.osm_fetched_at >= cutoff,
+        && (r.osm_id != null || r.fsq_place_id != null || r.overture_id != null || r.brush_id != null)
+        && r.osm_fetched_at >= cutoff,
       ) as unknown as T[];
     }
     if (s.startsWith('SELECT lat, lng, area_name FROM habitat_places WHERE area_name IS NOT NULL')) {
@@ -197,21 +203,21 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name] =
-        params as [string, string, string, number, number, number, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null];
-      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name });
+      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name] =
+        params as [string, string, string, number, number, number, string | null, string | null, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null];
+      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
-        google, osm, fsq, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
+        google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
         footprintAreaM2, website,
         restaurantFoodType, storeSubtype, brand,
         areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
-        string | null, string | null, string | null, number, number, number, number, number, number,
+        string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
         number | null, string | null,
         string | null, string | null, string | null,
         string | null,
@@ -223,6 +229,8 @@ const mockDb = {
         row.google_place_id = row.google_place_id ?? google;
         row.osm_id = row.osm_id ?? osm;
         row.fsq_place_id = row.fsq_place_id ?? fsq;
+        row.overture_id = row.overture_id ?? overture;
+        row.brush_id = row.brush_id ?? brush;
         if (osmFlag1 === 1) { row.lat = lat; }
         if (osmFlag2 === 1) { row.lng = lng; }
         if (osmFlag3 === 1) { row.osm_fetched_at = osmFetchedAt; }
@@ -323,7 +331,7 @@ jest.mock('../../src/services/maps', () => ({
 
 /** Shapes a searchNearbyPlaces answer the way the prefetch consumes it. */
 function nearbyAnswer(
-  results: Record<string, Array<{ placeId: string; name: string; lat: number; lng: number }>>,
+  results: Record<string, Array<{ placeId: string; name: string; lat: number; lng: number; sourceKind?: 'overture' | 'community' | 'manual' | 'multibanco' | 'legacy' }>>,
   source: 'cloudflare' | 'osm' = 'cloudflare',
   areaName: string | null = null,
 ) {
@@ -830,7 +838,7 @@ describe('refreshHabitatCacheIfStale', () => {
 
   it('downloads through our API first, at the prefetch radius (AC1, AC2)', async () => {
     mockSearchNearbyPlaces.mockResolvedValue(
-      nearbyAnswer({ atm: [{ placeId: 'fsq-1', name: 'New ATM', lat: 0, lng: 0 }] }, 'cloudflare', 'Lisboa'),
+      nearbyAnswer({ atm: [{ placeId: 'gers-1', name: 'New ATM', lat: 0, lng: 0 }] }, 'cloudflare', 'Lisboa'),
     );
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
@@ -839,7 +847,9 @@ describe('refreshHabitatCacheIfStale', () => {
       ORIGIN.lat, ORIGIN.lng, ['atm'], PREFETCH_RADIUS, requestsFor(['atm']),
     );
     expect(rows).toHaveLength(1);
-    expect(rows[0].fsq_place_id).toBe('fsq-1');
+    // KAN-451 — an API row without a source is Overture, never Foursquare.
+    expect(rows[0].overture_id).toBe('gers-1');
+    expect(rows[0].fsq_place_id).toBeNull();
     // KAN-377 — a proactively downloaded area is nameable offline, not just
     // searchable. This is the pairing that makes that ticket's AC5 real.
     expect(rows[0].area_name).toBe('Lisboa');
@@ -854,6 +864,24 @@ describe('refreshHabitatCacheIfStale', () => {
 
     expect(rows[0].osm_id).toBe('node/9');
     expect(rows[0].fsq_place_id).toBeNull();
+    expect(rows[0].overture_id).toBeNull();
+  });
+
+  it('stores each API row under the namespace the Worker names (KAN-451)', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue(
+      nearbyAnswer({ atm: [
+        { placeId: 'gers-2', sourceKind: 'overture', name: 'Overture ATM', lat: 0, lng: 0 },
+        { placeId: 'multibanco:77', sourceKind: 'multibanco', name: 'MB ATM', lat: 0.01, lng: 0 },
+        { placeId: '4sq-old', sourceKind: 'legacy', name: 'Legacy ATM', lat: 0.02, lng: 0 },
+      ] }, 'cloudflare', 'Lisboa'),
+    );
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    const byName = Object.fromEntries(rows.map(r => [r.name, r]));
+    expect(byName['Overture ATM']).toMatchObject({ overture_id: 'gers-2', fsq_place_id: null, brush_id: null });
+    expect(byName['MB ATM']).toMatchObject({ brush_id: 'multibanco:77', overture_id: null });
+    expect(byName['Legacy ATM']).toMatchObject({ fsq_place_id: '4sq-old', overture_id: null });
   });
 
   it('does not re-fetch a type whose data is still fresh', async () => {
@@ -872,6 +900,25 @@ describe('refreshHabitatCacheIfStale', () => {
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
     expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it('counts Overture- and Brush-anchored rows as coverage too (KAN-451)', async () => {
+    upsertPlace({ poiType: 'atm', name: 'Overture ATM', lat: 0, lng: 0, source: { overture: 'gers-3' } });
+    upsertPlace({ poiType: 'pharmacy', name: 'Manual Pharmacy', lat: 0, lng: 0, source: { brush: 'manual:5' } });
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm', 'pharmacy']);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it('a live Overture sighting fills overture_id on a row that predates the migration (KAN-451)', () => {
+    // Rows written between KAN-438 and KAN-451 hold an Overture id under
+    // fsq_place_id. They are not rewritten; the next sighting adds the
+    // honest column beside the old one and the row keeps counting as coverage.
+    const id = upsertPlace({ poiType: 'atm', name: 'Old Row', lat: 0, lng: 0, source: { fsq: 'gers-9' } });
+    upsertPlace({ poiType: 'atm', name: 'Old Row', lat: 0, lng: 0, source: { overture: 'gers-9' } });
+    const row = rows.find(r => r.id === id)!;
+    expect(row).toMatchObject({ fsq_place_id: 'gers-9', overture_id: 'gers-9' });
   });
 
   it('judges freshness over the radius it fetches, not a wider one (AC3)', async () => {
