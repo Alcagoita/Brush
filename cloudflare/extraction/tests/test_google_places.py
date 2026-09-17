@@ -81,6 +81,30 @@ class DecideTest(unittest.TestCase):
         self.assertEqual(set(cands[0]), {'source', 'id', 'distance_m', 'similarity', 'exact'})
 
 
+class PlanTest(unittest.TestCase):
+    def row(self, oid, north_m=0, east_m=0):
+        return {'overture_id': oid, 'name': oid, 'lat': LAT + north_m / 111_000.0,
+                'lng': LNG + east_m / (111_000.0 * 0.78), 'locality': 'Lisboa'}
+
+    def test_rows_close_together_share_a_circle_sized_to_shop_density(self):
+        rows = [self.row('a'), self.row('b', 30), self.row('c', 60), self.row('d', 5000)]
+        circles = google.plan_circles(rows, [(r['lat'], r['lng']) for r in rows])
+        self.assertEqual([len(m) for _, _, m in circles], [3, 1])
+        self.assertEqual(circles[0][1], google.CIRCLE_RADII_M[0], 'four shops fit any radius')
+
+    def test_a_dense_area_gets_a_tight_circle(self):
+        rows = [self.row('a'), self.row('b', 30)]
+        crowd = [(LAT + i / 111_000.0, LNG) for i in range(60, 200, 4)]  # 35 shops 60-200 m north
+        circles = google.plan_circles(rows, [(r['lat'], r['lng']) for r in rows] + crowd)
+        self.assertEqual(len(circles), 1)
+        self.assertLessEqual(circles[0][1], 100, 'the 500 m default would hold 37 shops')
+
+    def test_the_plan_is_deterministic(self):
+        rows = [self.row('a'), self.row('b', 30), self.row('c', 400)]
+        pts = [(r['lat'], r['lng']) for r in rows]
+        self.assertEqual(google.plan_circles(rows, pts), google.plan_circles(list(reversed(rows)), pts))
+
+
 class RunTest(unittest.TestCase):
     def setUp(self):
         self.work = tempfile.mkdtemp()
@@ -92,10 +116,17 @@ class RunTest(unittest.TestCase):
             handle.write(f'r2,Mfobmx,{LAT},{LNG},,Lisboa,shopping,,shopping,0.9,Overture|meta\n')
         self.calls = []
 
+        self.nearby_places = [place('g1', 'Sapataria Central', 'shoe_store', north_m=10)]
+
         def fetch(request, timeout=None):
-            self.calls.append(json.loads(request.data))
-            body = {'places': [place('g1', 'Sapataria Central', 'shoe_store', north_m=10)]} \
-                if 'Sapataria' in request.data.decode() else {'places': []}
+            payload = json.loads(request.data)
+            payload['_endpoint'] = 'nearby' if request.full_url == google.NEARBY_ENDPOINT else 'text'
+            self.calls.append(payload)
+            if payload['_endpoint'] == 'nearby':
+                body = {'places': self.nearby_places}
+            else:
+                body = {'places': [place('g1', 'Sapataria Central', 'shoe_store', north_m=10)]} \
+                    if 'Sapataria' in payload['textQuery'] else {'places': []}
             return io.BytesIO(json.dumps(body).encode())
 
         class Ctx:
@@ -108,7 +139,8 @@ class RunTest(unittest.TestCase):
     def args(self, **overrides):
         base = dict(country='xx', overture_key='o', overture=self.overture, limit=None, all=False, emit=False,
                     control=False, control_manifest=None, report_out=None, cap=google.FREE_TIER_CAP,
-                    run_id='r', work_dir=self.work, api_key='k')
+                    run_id='r', work_dir=self.work, api_key='k', plan=False, circles=None, singles=None,
+                    method='auto', fallback=True)
         base.update(overrides)
         return types.SimpleNamespace(**base)
 
@@ -119,22 +151,44 @@ class RunTest(unittest.TestCase):
         with mock.patch.object(join, 'OVERRIDES_PATH', handle.name):
             return google.run(args, fetch=self.fetch)
 
-    def test_dry_run_calls_google_and_writes_no_run(self):
+    def test_two_rows_in_one_circle_are_one_nearby_call(self):
         evidence = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, evidence)
         with mock.patch.object(join, 'EVIDENCE_DIR', evidence):
-            self.assertEqual(self.run_with_empty_overrides(self.args(limit=2)), 0)
-        self.assertEqual(len(self.calls), 2)
+            self.assertEqual(self.run_with_empty_overrides(self.args(limit=2, fallback=False)), 0)
+        self.assertEqual([c['_endpoint'] for c in self.calls], ['nearby'])
+        self.assertEqual(self.calls[0]['maxResultCount'], google.NEARBY_MAX_RESULTS)
+        self.assertIn('shoe_store', self.calls[0]['includedPrimaryTypes'])
+        self.assertNotIn('store', self.calls[0]['includedPrimaryTypes'], 'generic buckets are not asked for')
         self.assertEqual(os.listdir(evidence), [])
+
+    def test_a_row_its_circle_did_not_name_falls_back_to_text(self):
+        self.run_with_empty_overrides(self.args(limit=2))
+        self.assertEqual([c['_endpoint'] for c in self.calls], ['nearby', 'text'])
+        self.assertEqual(self.calls[1]['textQuery'], 'Mfobmx')
+
+    def test_forcing_text_asks_by_name_for_every_row(self):
+        self.run_with_empty_overrides(self.args(limit=2, method='text'))
+        self.assertEqual([c['_endpoint'] for c in self.calls], ['text', 'text'])
+
+    def test_plan_makes_no_call(self):
+        self.run_with_empty_overrides(self.args(plan=True))
+        self.assertEqual(self.calls, [])
+
+    def test_a_run_must_say_how_much_to_look_up(self):
+        with self.assertRaises(join.EmitRefused):
+            self.run_with_empty_overrides(self.args())
 
     def test_a_resumed_run_does_not_respend_calls(self):
         self.run_with_empty_overrides(self.args(limit=2))
         self.run_with_empty_overrides(self.args(limit=2))
         self.assertEqual(len(self.calls), 2, 'second run served from the checkpoint')
 
-    def test_the_cap_stops_a_run_before_it_leaves_the_free_tier(self):
-        with self.assertRaises(google.CapReached):
-            self.run_with_empty_overrides(self.args(limit=2, cap=1))
+    def test_the_cap_stops_a_run_and_keeps_what_it_got(self):
+        self.assertEqual(self.run_with_empty_overrides(self.args(limit=2, cap=1)), 0)
         self.assertEqual(len(self.calls), 1)
+        # The circle was paid for; a rerun spends only the fallback.
+        self.run_with_empty_overrides(self.args(limit=2, cap=5))
+        self.assertEqual([c['_endpoint'] for c in self.calls], ['nearby', 'text'])
 
     def test_emit_needs_a_limit_or_an_explicit_all(self):
         with self.assertRaises(join.EmitRefused):
@@ -142,6 +196,7 @@ class RunTest(unittest.TestCase):
 
     def test_the_request_asks_only_for_the_fields_the_match_needs(self):
         self.run_with_empty_overrides(self.args(limit=1))
+        self.assertEqual(self.calls[0]['_endpoint'], 'text', 'a row alone is a text search')
         self.assertEqual(self.calls[0]['locationBias']['circle']['radius'], google.BIAS_RADIUS_M)
         self.assertNotIn('rating', google.FIELD_MASK)
         self.assertNotIn('formattedAddress', google.FIELD_MASK)
