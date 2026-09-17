@@ -152,8 +152,14 @@ def export_place(place_id, build_id, bbox):
     """Write and upload the export for one Place; returns (rows, extent)."""
     pois, types, attributes = served_rows(*bbox)
     local = os.path.join(extract.BUILD_DIR, f'export_{place_id}_{build_id}.sqlite')
-    write_export(place_id, build_id, pois, types, attributes, local)
-    r2_client.upload_file(local, f'exports/{place_id}/{build_id}.sqlite')
+    try:
+        write_export(place_id, build_id, pois, types, attributes, local)
+        r2_client.upload_file(local, f'exports/{place_id}/{build_id}.sqlite')
+    finally:
+        # A country run writes one of these per settlement; R2 holds the
+        # copy that matters.
+        if os.path.exists(local):
+            os.remove(local)
     return len(pois), extent_of(pois)
 
 

@@ -271,6 +271,15 @@ class CountryExportTest(unittest.TestCase):
         self.assertEqual([k for _, k in r2.uploads], ['exports/osm-relation-1/run7-osm-relation-1.sqlite'])
         self.assertEqual(worker.complete[0]['build_id'], 'run7-osm-relation-1')
 
+    def test_the_local_export_file_is_removed_after_upload_and_after_a_failed_upload(self):
+        for fail in (False, True):
+            d1, r2, worker = FakeD1(), FakeR2(), FakeWorker()
+            if fail:
+                r2.upload_file = lambda path, key: (_ for _ in ()).throw(RuntimeError('r2'))
+            with _Patched(d1=d1, r2=r2, worker=worker) as patched:
+                overture_place.export_country_places('PT', 'run7')
+                self.assertEqual([f for f in os.listdir(patched.tmp.name) if f.endswith('.sqlite')], [])
+
     def test_a_settlement_export_failure_does_not_stop_the_others(self):
         d1, r2, worker = FakeD1(), FakeR2(), FakeWorker()
         r2.upload_file = lambda path, key: (_ for _ in ()).throw(RuntimeError('r2'))
