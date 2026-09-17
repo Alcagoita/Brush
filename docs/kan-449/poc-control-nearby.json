@@ -1,0 +1,22 @@
+{
+  "looked_up": 20,
+  "matched": 2,
+  "agreed": 2,
+  "per_method": {
+    "nearby": {
+      "n": 20,
+      "matched": 2,
+      "agreed": 2
+    }
+  },
+  "per_type": {
+    "clothing_store": {
+      "n": 1,
+      "precision": 1.0
+    },
+    "building_materials_store": {
+      "n": 1,
+      "precision": 1.0
+    }
+  }
+}

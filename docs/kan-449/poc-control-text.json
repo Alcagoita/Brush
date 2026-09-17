@@ -1,0 +1,22 @@
+{
+  "looked_up": 20,
+  "matched": 2,
+  "agreed": 1,
+  "per_method": {
+    "text": {
+      "n": 20,
+      "matched": 2,
+      "agreed": 1
+    }
+  },
+  "per_type": {
+    "clothing_store": {
+      "n": 1,
+      "precision": 1.0
+    },
+    "grocery_store": {
+      "n": 1,
+      "precision": 0.0
+    }
+  }
+}
