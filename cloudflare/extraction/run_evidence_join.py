@@ -222,10 +222,20 @@ def overrides_draft(suggestions, overture_key, run_id):
     for record in suggestions:
         if record['decision'] == 'insufficient_evidence':
             continue
-        where = 'Foursquare' if record['source'] == 'foursquare' else 'OSM'
+        where = {'foursquare': 'Foursquare', 'osm': 'OSM', 'google': 'Google Places'}.get(record['source'], record['source'])
         if record['decision'] == 'excluded':
             batches[f'evidence_{run_id}_exclusions'][record['overture_id']] = {
                 'decision': 'rejected', 'reason': f'{where} match shows this is not a consumer store'}
+            continue
+        if record['decision'] == 'closed':
+            batches[f'evidence_{run_id}_closed'][record['overture_id']] = {
+                'decision': 'rejected', 'reason': f'{where} lists the matched place as permanently closed'}
+            continue
+        if record['decision'] == 'unlisted':
+            # On hold, not typed: a rejected override is reversible through
+            # reversals.jsonl and takes the row out of the residual metric.
+            batches[f'evidence_{run_id}_on_hold'][record['overture_id']] = {
+                'decision': 'rejected', 'reason': f'on hold: not listed on {where} (run {run_id})'}
             continue
         kind = record['store_kind']
         entry = {'poi_type': record['poi_type'], 'reason': f'{where} name and location match'}

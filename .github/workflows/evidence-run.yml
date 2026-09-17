@@ -21,6 +21,9 @@ on:
       - 'cloudflare/extraction/promote_overture_candidates.py'
       - 'cloudflare/extraction/tests/test_evidence_run.py'
       - 'cloudflare/extraction/tests/test_residual_evidence_join.py'
+      - 'cloudflare/extraction/enrich_google_places.py'
+      - 'cloudflare/extraction/tests/test_google_places.py'
+      - 'cloudflare/src/googlePlaceTypes.json'
       - 'cloudflare/type_relation_schema.sql'
       - 'cloudflare/migrations/*.sql'
       - '.github/workflows/evidence-run.yml'
@@ -56,4 +59,4 @@ jobs:
           done
       - name: Unit tests for the join and validator
         run: |
-          cd cloudflare/extraction && python3 -m unittest tests.test_residual_evidence_join tests.test_evidence_run
+          cd cloudflare/extraction && python3 -m unittest tests.test_residual_evidence_join tests.test_evidence_run tests.test_google_places

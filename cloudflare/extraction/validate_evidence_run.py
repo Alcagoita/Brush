@@ -83,9 +83,12 @@ def check_ids(run_dir, draft):
                     raise Invalid(f'{poi_id} in {batch} is not in suggestions.jsonl')
                 if record['decision'] == 'insufficient_evidence':
                     raise Invalid(f'{poi_id} in {batch} was insufficient_evidence in suggestions')
-                if not record['candidates']:
+                if record['decision'] == 'unlisted':
+                    if record['candidates'] or not record.get('absence'):
+                        raise Invalid(f'{poi_id} in {batch} is unlisted but carries candidates or no absence record')
+                elif not record['candidates']:
                     raise Invalid(f'{poi_id} in {batch} has no candidate evidence')
-                expected_rejected = record['decision'] == 'excluded'
+                expected_rejected = record['decision'] in ('excluded', 'closed', 'unlisted')
                 if expected_rejected != (entry.get('decision') == 'rejected'):
                     raise Invalid(f'{poi_id} decision in {batch} conflicts with suggestions')
     return seen
