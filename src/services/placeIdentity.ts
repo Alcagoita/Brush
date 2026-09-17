@@ -21,9 +21,14 @@ import type { PoiSearchSource } from './maps';
 
 /**
  * The origin of one row as the POI API reports it. Mirrors the Worker's
- * `NearbyPoi.source` (cloudflare/src/index.ts). `openstreetmap` is listed for
- * completeness — the Worker's nearby query does not read `osm_poi` since
- * KAN-438, so it never arrives today, but the wire type allows it.
+ * `NearbyPoi.source` (cloudflare/src/index.ts).
+ *
+ * The registry's rule (KAN-433): Overture is the base, and every place that
+ * is not Overture — mall tenants, moderator entries, whatever KAN-433
+ * recovers from the Foursquare archive — is a curated record of ours
+ * (`community` / `manual`). No new rows are keyed on an OSM or Foursquare id.
+ * `openstreetmap` and `legacy` remain on the wire type so an unexpected row
+ * is still filed honestly, not because either is expected to arrive.
  */
 export type PoiRecordSource = 'overture' | 'community' | 'manual' | 'openstreetmap' | 'multibanco' | 'legacy';
 
@@ -32,14 +37,14 @@ export type PoiRecordSource = 'overture' | 'community' | 'manual' | 'openstreetm
  * anything written today; `google` survives only because rows cached before
  * KAN-342 may carry one and the type still has to describe them.
  *
- * - `osm`      — an OSM element id, from Overpass or from our own OSM import.
- * - `overture` — an Overture GERS id (our API's primary source since KAN-438).
- * - `fsq`      — a Foursquare id: rows cached before KAN-438, and the
- *                `legacy_poi` fallback our API still serves for a few
- *                non-commercial types.
- * - `brush`    — a record our own registry owns: community corrections,
- *                manual POIs, the official Multibanco import. The Worker
- *                prefixes these ids (`community:`, `manual:`, …).
+ * - `overture` — an Overture GERS id: the registry's base since KAN-438.
+ * - `brush`    — a curated record our own registry owns: mall tenants,
+ *                moderator entries, the Multibanco import, and anything
+ *                KAN-433 recovers. Everything served that is not Overture.
+ * - `osm`      — an OSM element id from the app's own Overpass fallback,
+ *                the only path that still hands the app raw OSM rows.
+ * - `fsq`      — a Foursquare id on a row cached before KAN-438; not written
+ *                by any live path unless the API ever serves a `legacy` row.
  */
 export interface PlaceSourceRef {
   osm?: string;
