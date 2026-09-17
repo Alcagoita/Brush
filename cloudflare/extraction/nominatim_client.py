@@ -39,6 +39,21 @@ def parse_place_id(place_id):
         raise PlaceNotResolvable(f"place_id '{place_id}' is not in the expected 'osm-<type>-<id>' shape")
     return parts[1], parts[2]
 
+def lookup_place(place_id):
+    """((min_lat, max_lat, min_lng, max_lng), country_code) for a Place —
+    the same single /lookup call as lookup_bbox, keeping the country the
+    response already carries. KAN-450 filters the Overture bbox pull on it
+    so a border town does not import the neighbour; None when Nominatim
+    gives none, in which case the pull is unfiltered."""
+    result = _lookup(place_id)
+    bbox = result.get('boundingbox')
+    if not bbox or len(bbox) != 4:
+        raise PlaceNotResolvable(f"Nominatim /lookup returned no boundingbox for place_id '{place_id}'")
+    south, north, west, east = (float(x) for x in bbox)
+    country = ((result.get('address') or {}).get('country_code') or '').upper() or None
+    return (south, north, west, east), country
+
+
 def lookup_bbox(place_id):
     """Returns (min_lat, max_lat, min_lng, max_lng) for a Place's OSM
     boundary, or raises PlaceNotResolvable. This bbox scopes the extraction
@@ -47,6 +62,11 @@ def lookup_bbox(place_id):
     this bbox and matched a category), per place_schema.sql's "not a
     boundary chosen in advance" contract. The two can legitimately differ
     slightly (a query bbox with zero matching rows near its edge)."""
+    return lookup_place(place_id)[0]
+
+
+def _lookup(place_id):
+    """One rate-limited, retried Nominatim /lookup; the first result."""
     global _last_call_at
     osm_type, osm_id = parse_place_id(place_id)
     prefix = _OSM_TYPE_PREFIX[osm_type]
@@ -79,11 +99,7 @@ def lookup_bbox(place_id):
     results = res.json()
     if not results:
         raise PlaceNotResolvable(f"Nominatim /lookup returned nothing for place_id '{place_id}'")
-    bbox = results[0].get('boundingbox')
-    if not bbox or len(bbox) != 4:
-        raise PlaceNotResolvable(f"Nominatim /lookup returned no boundingbox for place_id '{place_id}'")
-    south, north, west, east = (float(x) for x in bbox)
-    return south, north, west, east
+    return results[0]
 
 # ─── Place identity resolution — country mode's locality discovery ────────
 #

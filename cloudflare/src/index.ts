@@ -1677,7 +1677,9 @@ function triggerBuild(
       MODE: mode,
       TARGET: target,
       BUILD_TRIGGER_SECRET: env.BUILD_TRIGGER_SECRET ?? '',
-      FOURSQUARE_JWT: env.FOURSQUARE_JWT ?? '',
+      // KAN-450: an on-demand Place is an Overture build and reads D1 through
+      // the binding; the Foursquare JWT stays with the legacy country modes.
+      ...(mode === 'place' ? { D1_INTERNAL: '1' } : { FOURSQUARE_JWT: env.FOURSQUARE_JWT ?? '' }),
       ...(countrySourceR2Key ? { COUNTRY_SOURCE_R2_KEY: countrySourceR2Key } : {}),
       ...(countryRunId ? { COUNTRY_RUN_ID: countryRunId } : {}),
       ...(mode === 'osm-country' ? { D1_INTERNAL: '1', OSM_SUPPLEMENT_RUN_ID: countryRunId ?? '' } : {}),

@@ -722,8 +722,10 @@ describe('POST /coverage/request', () => {
     expect(fakeDb.countryRows.get('PT')).toMatchObject({ country_code: 'PT', status: 'none' });
 
     expect(mockGetContainer).toHaveBeenCalledWith(env.EXTRACTION_CONTAINER, expect.stringContaining('place:osm-relation-1294136:'));
+    // KAN-450: an Overture build — D1 through the binding, and no Foursquare
+    // JWT anywhere in the Place container's environment.
     expect(mockContainerStart).toHaveBeenCalledWith({
-      envVars: { MODE: 'place', TARGET: 'osm-relation-1294136', BUILD_TRIGGER_SECRET: BUILD_SECRET, FOURSQUARE_JWT: 'test-jwt' },
+      envVars: { MODE: 'place', TARGET: 'osm-relation-1294136', BUILD_TRIGGER_SECRET: BUILD_SECRET, D1_INTERNAL: '1' },
     });
   });
 
