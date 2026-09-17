@@ -64,7 +64,7 @@ ENDPOINT = 'https://places.googleapis.com/v1/places:searchText'
 NEARBY_ENDPOINT = 'https://places.googleapis.com/v1/places:searchNearby'
 # Only what the match and the mapping need. `types`/`primaryType` put the
 # call in the Pro SKU — 5,000 free a month.
-FIELD_MASK = 'places.id,places.displayName,places.location,places.types,places.primaryType'
+FIELD_MASK = 'places.id,places.displayName,places.location,places.types,places.primaryType,places.businessStatus'
 BIAS_RADIUS_M = 150.0
 # Nearby circles: largest radius whose store-like Overture population fits
 # in one response. Google caps a Nearby response at 20, no pagination.
@@ -154,14 +154,15 @@ def decide(name, lat, lng, locality, places, mapping, deny):
     """(decision, poi_type, store_kind, reason, candidates) — the shared rule."""
     normalized = fsq.normalize(name)
     seen = [(p['id'], fsq.normalize((p.get('displayName') or {}).get('text', '')),
-             p['location']['latitude'], p['location']['longitude'], p.get('primaryType'), p.get('types', []))
+             p['location']['latitude'], p['location']['longitude'], p.get('primaryType'), p.get('types', []),
+             p.get('businessStatus'))
             for p in places if p.get('location')]
-    in_radius = [(pid, pname, fsq.haversine_m(lat, lng, plat, plng), ptype, ptypes)
-                 for pid, pname, plat, plng, ptype, ptypes in seen]
+    in_radius = [(pid, pname, fsq.haversine_m(lat, lng, plat, plng), ptype, ptypes, status)
+                 for pid, pname, plat, plng, ptype, ptypes, status in seen]
     in_radius = [c for c in in_radius if c[2] <= fsq.FAR_M]
     venue = fsq.venue_words(c[1] for c in in_radius)
     scored, near = [], []
-    for pid, pname, distance, ptype, ptypes in in_radius:
+    for pid, pname, distance, ptype, ptypes, status in in_radius:
         score = fsq.similarity(normalized, pname)
         exact = bool(normalized) and normalized == pname
         if not (exact or score >= fsq.MATCH_LADDER[0][1]):
@@ -170,17 +171,24 @@ def decide(name, lat, lng, locality, places, mapping, deny):
         place_only = bool(set(normalized.split()) & set(pname.split())) and not distinctive
         candidate = {'source': 'google', 'id': pid, 'distance_m': round(distance), 'similarity': round(score, 2),
                      'exact': exact}
+        if status and status != 'OPERATIONAL':
+            candidate['status'] = status
         scored.append((candidate, ptype, ptypes))
         if fsq.accepts(distance, score, exact, distinctive) and \
                 not (place_only and not exact and score < fsq.STRONG_SIMILARITY):
             near.append((candidate, ptype, ptypes))
     candidates = [c for c, _, _ in scored]
     if not scored:
-        return 'insufficient_evidence', '', '', 'no Google place within 400 m shares this name', candidates
+        # Google lists nothing by this name here. For a Meta-sourced page
+        # that is the strongest signal we get that the shop is gone; the
+        # row goes on hold, reversibly, rather than staying residual.
+        return 'unlisted', '', '', f'no Google place within 400 m shares this name ({len(seen)} returned)', candidates
     if not near:
         best = min(scored, key=lambda s: s[0]['distance_m'])[0]
         return ('insufficient_evidence', '', '',
                 f"Google name agreement {best['similarity']} too weak for {best['distance_m']} m", candidates)
+    if all(c.get('status') == 'CLOSED_PERMANENTLY' for c, _, _ in near):
+        return 'closed', '', '', 'Google lists the matched place as permanently closed', candidates
     resolved = {kinds_for(ptype, ptypes, mapping, deny) for _, ptype, ptypes in near}
     resolved.discard(None)
     if len(resolved) == 1:
@@ -369,6 +377,9 @@ def run(args, fetch=None):
     def decided(row, places, how):
         decision, poi_type, kind, reason, candidates = decide(
             row['name'], float(row['lat']), float(row['lng']), row.get('locality') or '', places, mapping, deny)
+        if decision == 'unlisted' and how == 'nearby':
+            # A circle is a truncated view of the area, never proof of absence.
+            decision, reason = 'insufficient_evidence', 'circle did not name it'
         # The checkpoint keeps Google's types so the pilot can measure
         # precision; it lives in the work dir and is never committed.
         return {'kind': 'row', 'overture_id': row['overture_id'], 'method': how, 'decision': decision,
@@ -432,6 +443,8 @@ def run(args, fetch=None):
             'poi_type': record['poi_type'], 'store_kind': record['store_kind'],
             'reason': record['reason'], 'source': 'google' if record['decision'] != 'insufficient_evidence' else '',
         }
+        if record['decision'] == 'unlisted':
+            suggestion['absence'] = {'places_returned': len(record['google_types']), 'radius_m': fsq.FAR_M}
         if args.control:
             suggestion['established'] = (row['subtype'], row['store_kind'])
             suggestion['google_types'] = record['google_types']

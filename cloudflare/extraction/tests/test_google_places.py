@@ -76,9 +76,26 @@ class DecideTest(unittest.TestCase):
         self.assertEqual(decision, 'insufficient_evidence')
         self.assertIn('no usable type', reason)
 
+    def test_no_place_by_this_name_puts_the_row_on_hold(self):
+        decision, _, _, reason, cands = self.decide('Sapataria Central', [place('g1', 'Café Lisboa', 'cafe', north_m=20)])
+        self.assertEqual(decision, 'unlisted')
+        self.assertEqual(cands, [])
+        self.assertIn('1 returned', reason)
+
+    def test_a_permanently_closed_match_is_closed_not_typed(self):
+        closed = dict(place('g1', 'Sapataria Central', 'shoe_store', north_m=10), businessStatus='CLOSED_PERMANENTLY')
+        decision, _, _, _, cands = self.decide('Sapataria Central', [closed])
+        self.assertEqual(decision, 'closed')
+        self.assertEqual(cands[0]['status'], 'CLOSED_PERMANENTLY')
+
+    def test_a_temporarily_closed_match_still_types(self):
+        tmp = dict(place('g1', 'Sapataria Central', 'shoe_store', north_m=10), businessStatus='CLOSED_TEMPORARILY')
+        self.assertEqual(self.decide('Sapataria Central', [tmp])[0], 'verified_subtype')
+
     def test_candidates_carry_no_google_text(self):
         _, _, _, _, cands = self.decide('Sapataria Central', [place('g1', 'Sapataria Central', 'shoe_store', north_m=10)])
         self.assertEqual(set(cands[0]), {'source', 'id', 'distance_m', 'similarity', 'exact'})
+        self.assertIn('businessStatus', google.FIELD_MASK)
 
 
 class PlanTest(unittest.TestCase):
@@ -200,6 +217,34 @@ class RunTest(unittest.TestCase):
         self.assertEqual(self.calls[0]['locationBias']['circle']['radius'], google.BIAS_RADIUS_M)
         self.assertNotIn('rating', google.FIELD_MASK)
         self.assertNotIn('formattedAddress', google.FIELD_MASK)
+
+    def test_a_circle_never_declares_a_row_unlisted(self):
+        self.run_with_empty_overrides(self.args(limit=2, fallback=False))
+        records = [json.loads(l) for l in open(os.path.join(self.work, 'google-checkpoint.jsonl')) if '"row"' in l]
+        self.assertEqual({r['decision'] for r in records}, {'verified_subtype', 'insufficient_evidence'})
+
+    def test_a_row_google_does_not_list_goes_on_hold_reversibly(self):
+        evidence = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, evidence)
+        with mock.patch.object(join, 'EVIDENCE_DIR', evidence):
+            self.run_with_empty_overrides(self.args(limit=2, method='text', emit=True))
+        out = os.path.join(evidence, 'XX', 'r')
+        draft = json.load(open(os.path.join(out, 'overrides-draft.json')))
+        self.assertEqual(draft['o']['evidence_r_on_hold']['r2'],
+                         {'decision': 'rejected', 'reason': 'on hold: not listed on Google Places (run r)'})
+        lines = [json.loads(l) for l in open(os.path.join(out, 'suggestions.jsonl'))]
+        unlisted = next(l for l in lines if l['overture_id'] == 'r2')
+        self.assertEqual(unlisted['absence'], {'places_returned': 0, 'radius_m': 400})
+        import validate_evidence_run as validate
+        validate.check_ids(out, draft)  # the validator accepts absence as evidence for a hold
+
+    def test_the_validator_refuses_a_hold_without_an_absence_record(self):
+        import validate_evidence_run as validate
+        run_dir = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, run_dir)
+        with open(os.path.join(run_dir, 'suggestions.jsonl'), 'w') as handle:
+            handle.write(json.dumps({'overture_id': 'x', 'decision': 'unlisted', 'candidates': []}) + '\n')
+        draft = {'o': {'evidence_r_on_hold': {'x': {'decision': 'rejected', 'reason': 'on hold'}}}}
+        with self.assertRaises(validate.Invalid):
+            validate.check_ids(run_dir, draft)
 
     def test_emit_writes_the_four_files_with_google_as_the_source(self):
         evidence = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, evidence)
