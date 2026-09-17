@@ -42,6 +42,7 @@ import csv
 import datetime
 import hashlib
 import json
+import math
 import os
 import sys
 import time
@@ -177,6 +178,10 @@ def decide(name, lat, lng, locality, places, mapping, deny):
         if fsq.accepts(distance, score, exact, distinctive) and \
                 not (place_only and not exact and score < fsq.STRONG_SIMILARITY):
             near.append((candidate, ptype, ptypes))
+            # Google's own label for the place we accepted, so the control
+            # can score that type and not whatever else the search returned.
+            # Stripped before anything is written outside the work dir.
+            candidate['_primary_type'] = ptype
     candidates = [c for c, _, _ in scored]
     if not scored:
         # Google lists nothing by this name here. For a Meta-sourced page
@@ -216,9 +221,13 @@ class _Grid:
             self.cells[(int(lat / self.CELL_DEG), int(lng / self.CELL_DEG))].append(index)
 
     def within(self, lat, lng, radius_m):
-        span = int(radius_m / 25) + 1
+        # A cell is 25 m north-south but only 25·cos(lat) m east-west, so the
+        # longitude span has to widen with latitude or the exact filter
+        # below never sees points near the edge of the circle.
+        span_lat = int(radius_m / 25) + 1
+        span_lng = int(radius_m / (25 * max(math.cos(math.radians(lat)), 0.01))) + 1
         cx, cy = int(lat / self.CELL_DEG), int(lng / self.CELL_DEG)
-        return [i for dx in range(-span, span + 1) for dy in range(-span, span + 1)
+        return [i for dx in range(-span_lat, span_lat + 1) for dy in range(-span_lng, span_lng + 1)
                 for i in self.cells.get((cx + dx, cy + dy), ())
                 if _metres(lat, lng, *self.points[i]) <= radius_m]
 
@@ -273,23 +282,59 @@ def plan_circles(rows, store_points):
     return circles
 
 
+def _partition_located(rows):
+    """Rows with usable coordinates, and the rest. A row without a point
+    cannot be matched by distance, so it is never sent to Google."""
+    located, unlocated = [], []
+    for row in rows:
+        try:
+            float(row['lat']), float(row['lng'])
+        except (KeyError, TypeError, ValueError):
+            unlocated.append(row)
+            continue
+        located.append(row)
+    return located, unlocated
+
+
 def circle_id(centre_row, radius_m):
     return f"{centre_row['overture_id']}@{radius_m}"
 
 
 # --------------------------------------------------------------------------- checkpoint
 
-def checkpoint_load(path):
+class CheckpointMismatch(RuntimeError):
+    """A checkpoint written under different inputs or rules. Its decisions
+    cannot be replayed into this run."""
+
+
+def checkpoint_load(path, meta):
+    """Records keyed by overture_id (rows) or circle_id (circles).
+
+    The first line pins the archive, the decision config, the method and
+    the fallback setting. A checkpoint from another archive or another
+    rule set is refused rather than silently replayed; a fresh work dir
+    starts one with this run's metadata.
+    """
     done = {}
-    if os.path.exists(path):
-        with open(path) as handle:
-            for line in handle:
-                if line.strip():
-                    try:
-                        record = json.loads(line)
-                        done[record['circle_id'] if record.get('kind') == 'circle' else record['overture_id']] = record
-                    except (ValueError, KeyError):
-                        continue
+    if not os.path.exists(path) or os.path.getsize(path) == 0:
+        with open(path, 'a') as handle:
+            handle.write(json.dumps({'kind': 'meta', **meta}) + '\n')
+        return done
+    with open(path) as handle:
+        first = json.loads(handle.readline())
+        if first.get('kind') != 'meta':
+            raise CheckpointMismatch(f'{path} has no metadata line; use a fresh --work-dir')
+        differing = {k for k in meta if first.get(k) != meta[k]}
+        if differing:
+            raise CheckpointMismatch(f'{path} was written for different {", ".join(sorted(differing))}; '
+                                     'use a fresh --work-dir')
+        for line in handle:
+            if line.strip():
+                try:
+                    record = json.loads(line)
+                    done[record['circle_id'] if record.get('kind') == 'circle' else record['overture_id']] = record
+                except (ValueError, KeyError):
+                    continue
     return done
 
 
@@ -323,6 +368,7 @@ def run(args, fetch=None):
         rows = list(join.residual_rows(overture_csv, args.overture_key or ''))
     if args.limit:
         rows = rows[:args.limit]
+    rows, unlocated = _partition_located(rows)
     method = args.method or 'auto'
     if method == 'text':
         circles = [(row, 0, [row]) for row in rows]
@@ -350,7 +396,10 @@ def run(args, fetch=None):
 
     included_types = set(mapping) - deny
     checkpoint = os.path.join(work_dir, 'google-checkpoint.jsonl')
-    done = checkpoint_load(checkpoint)
+    done = checkpoint_load(checkpoint, {
+        'overture_sha256': join.sha256_of(overture_csv), 'config_sha256': config_hash(),
+        'method': method, 'fallback': bool(args.fallback), 'control': bool(args.control),
+    })
     calls = 0
     stopped = False
     suggestions, counts, methods = [], Counter(), Counter()
@@ -380,10 +429,12 @@ def run(args, fetch=None):
         if decision == 'unlisted' and how == 'nearby':
             # A circle is a truncated view of the area, never proof of absence.
             decision, reason = 'insufficient_evidence', 'circle did not name it'
+        matched_types = [c.pop('_primary_type') for c in candidates if '_primary_type' in c]
         # The checkpoint keeps Google's types so the pilot can measure
         # precision; it lives in the work dir and is never committed.
         return {'kind': 'row', 'overture_id': row['overture_id'], 'method': how, 'decision': decision,
                 'poi_type': poi_type, 'store_kind': kind, 'reason': reason, 'candidates': candidates,
+                'matched_types': matched_types,
                 'google_types': [(p.get('primaryType'), p.get('types', [])) for p in places]}
 
     def keep(record, handle):
@@ -431,6 +482,13 @@ def run(args, fetch=None):
                 break
             keep(decided(row, places, 'text'), handle)
 
+    for row in unlocated:
+        suggestions.append({
+            'overture_id': row['overture_id'], 'name': row['name'], 'locality': row.get('locality') or '',
+            'lat': None, 'lng': None, 'candidates': [], 'decision': 'insufficient_evidence',
+            'poi_type': '', 'store_kind': '', 'reason': 'no coordinates to match on', 'source': '',
+        })
+        counts[('insufficient_evidence', '')] += 1
     looked_up = [row for _, _, members in grouped for row in members] + [row for row, _, _ in single]
     for row in looked_up:
         record = done.get(row['overture_id'])
@@ -448,6 +506,7 @@ def run(args, fetch=None):
         if args.control:
             suggestion['established'] = (row['subtype'], row['store_kind'])
             suggestion['google_types'] = record['google_types']
+            suggestion['matched_types'] = record.get('matched_types', [])
             suggestion['method'] = record.get('method', 'text')
         suggestions.append(suggestion)
         counts[(record['decision'], suggestion['source'])] += 1
@@ -520,11 +579,10 @@ def control_report(suggestions, mapping, deny, report_out):
         established = tuple(s['established'])
         got = (s['poi_type'], s['store_kind'] or None)
         established = (established[0], established[1] or None)
-        for primary, _ in s['google_types']:
+        for primary in dict.fromkeys(s.get('matched_types', [])):
             if primary and primary not in deny:
                 per_type[primary]['n'] += 1
                 per_type[primary]['hits'] += int(got == established)
-                break
         agreed += int(got == established)
     print(f'\ncontrol: {len(suggestions):,} resolved rows looked up, {matched:,} matched by Google, '
           f'{agreed:,} agree with Foursquare/OSM ({agreed / matched:.0%} of matches)' if matched else
@@ -571,7 +629,7 @@ def main(argv):
     args = parser.parse_args(argv)
     try:
         return run(args)
-    except (join.EmitRefused, CapReached) as refused:
+    except (join.EmitRefused, CapReached, CheckpointMismatch) as refused:
         print(f'refused: {refused}', file=sys.stderr)
         return 2
 

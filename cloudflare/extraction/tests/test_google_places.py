@@ -2,6 +2,7 @@
 and nothing of Google's written down but the place id."""
 import io
 import json
+import math
 import os
 import shutil
 import sys
@@ -92,9 +93,14 @@ class DecideTest(unittest.TestCase):
         tmp = dict(place('g1', 'Sapataria Central', 'shoe_store', north_m=10), businessStatus='CLOSED_TEMPORARILY')
         self.assertEqual(self.decide('Sapataria Central', [tmp])[0], 'verified_subtype')
 
+    def test_the_accepted_match_keeps_its_own_type_for_the_control(self):
+        _, _, _, _, cands = self.decide('Sapataria Central', [
+            place('g1', 'Sapataria Central', 'shoe_store', north_m=10), place('g2', 'Bar Zé', 'bar', north_m=30)])
+        self.assertEqual([c.get('_primary_type') for c in cands], ['shoe_store'])
+
     def test_candidates_carry_no_google_text(self):
         _, _, _, _, cands = self.decide('Sapataria Central', [place('g1', 'Sapataria Central', 'shoe_store', north_m=10)])
-        self.assertEqual(set(cands[0]), {'source', 'id', 'distance_m', 'similarity', 'exact'})
+        self.assertEqual(set(cands[0]) - {'_primary_type'}, {'source', 'id', 'distance_m', 'similarity', 'exact'})
         self.assertIn('businessStatus', google.FIELD_MASK)
 
 
@@ -120,6 +126,14 @@ class PlanTest(unittest.TestCase):
         rows = [self.row('a'), self.row('b', 30), self.row('c', 400)]
         pts = [(r['lat'], r['lng']) for r in rows]
         self.assertEqual(google.plan_circles(rows, pts), google.plan_circles(list(reversed(rows)), pts))
+
+
+class GridTest(unittest.TestCase):
+    def test_a_point_due_east_at_the_edge_of_the_circle_is_found_at_high_latitude(self):
+        lat = 60.0
+        east = (lat, LNG + 480 / (111_000.0 * math.cos(math.radians(lat))))
+        grid = google._Grid([(lat, LNG), east])
+        self.assertEqual(sorted(grid.within(lat, LNG, 500)), [0, 1])
 
 
 class RunTest(unittest.TestCase):
@@ -187,6 +201,27 @@ class RunTest(unittest.TestCase):
         self.run_with_empty_overrides(self.args(limit=2, method='text'))
         self.assertEqual([c['_endpoint'] for c in self.calls], ['text', 'text'])
 
+    def test_a_row_without_coordinates_is_never_sent_to_google(self):
+        with open(self.overture, 'a') as handle:
+            handle.write('r3,Sem Sitio,,,,Lisboa,shopping,,shopping,0.9,Overture|meta\n')
+        evidence = tempfile.mkdtemp(); self.addCleanup(shutil.rmtree, evidence)
+        with mock.patch.object(join, 'EVIDENCE_DIR', evidence):
+            self.run_with_empty_overrides(self.args(limit=3, method='text', emit=True))
+        self.assertEqual([c['textQuery'] for c in self.calls], ['Sapataria Central', 'Mfobmx'])
+        lines = [json.loads(l) for l in open(os.path.join(evidence, 'XX', 'r', 'suggestions.jsonl'))]
+        r3 = next(l for l in lines if l['overture_id'] == 'r3')
+        self.assertEqual((r3['decision'], r3['lat']), ('insufficient_evidence', None))
+
+    def test_a_checkpoint_from_other_inputs_is_refused(self):
+        self.run_with_empty_overrides(self.args(limit=2, method='text'))
+        with self.assertRaises(google.CheckpointMismatch):
+            self.run_with_empty_overrides(self.args(limit=2, method='auto'))
+        with open(self.overture, 'a') as handle:
+            handle.write('r3,Outra,38.72,-9.14,,Lisboa,shopping,,shopping,0.9,Overture|meta\n')
+        with self.assertRaises(google.CheckpointMismatch):
+            self.run_with_empty_overrides(self.args(limit=2, method='text'))
+        self.assertEqual(len(self.calls), 2, 'a refused resume spends nothing')
+
     def test_plan_makes_no_call(self):
         self.run_with_empty_overrides(self.args(plan=True))
         self.assertEqual(self.calls, [])
@@ -220,7 +255,7 @@ class RunTest(unittest.TestCase):
 
     def test_a_circle_never_declares_a_row_unlisted(self):
         self.run_with_empty_overrides(self.args(limit=2, fallback=False))
-        records = [json.loads(l) for l in open(os.path.join(self.work, 'google-checkpoint.jsonl')) if '"row"' in l]
+        records = [json.loads(l) for l in open(os.path.join(self.work, 'google-checkpoint.jsonl')) if '"kind": "row"' in l]
         self.assertEqual({r['decision'] for r in records}, {'verified_subtype', 'insufficient_evidence'})
 
     def test_a_row_google_does_not_list_goes_on_hold_reversibly(self):
@@ -258,6 +293,7 @@ class RunTest(unittest.TestCase):
         self.assertNotIn('Sapataria Central"', text.split('"name": "Sapataria Central"')[1] if '"name": "Sapataria Central"' in text else text,
                          'the only Google-derived text is the place id')
         self.assertNotIn('shoe_store', text)
+        self.assertNotIn('_primary_type', text)
 
 
 if __name__ == '__main__':
