@@ -259,6 +259,14 @@ class ByLeafTest(unittest.TestCase):
         self.assertEqual(classify(archive('Café do Torel', 5), [served('Café do Torel', 0, 'cafe')])[0], 'suspect')
         self.assertEqual(preflight.classify_record(archive('Café do Torel', 5), None, cafe, {}, {})[0], 'matched')
 
+    def test_business_typed_sub_count(self):
+        # Type-blind matches still get sub-counted by what the served twin is.
+        self.assertTrue(preflight.business_typed('store'))
+        self.assertTrue(preflight.business_typed('cafe'))
+        self.assertFalse(preflight.business_typed('church'))
+        self.assertFalse(preflight.business_typed('park'))
+        self.assertFalse(preflight.business_typed('night_club'))
+
     def test_bank_rules_do_not_apply_by_leaf(self):
         self.assertEqual(preflight.classify_record(archive('Banif Maia'), None, preflight.grid_index([]), {}, {})[0], 'unique')
 

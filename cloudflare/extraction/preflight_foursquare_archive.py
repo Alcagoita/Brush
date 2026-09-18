@@ -127,6 +127,20 @@ LANDMARK_FAMILY = frozenset({
     'stadium', 'dam',
 })
 FINANCIAL_FAMILY = frozenset({'bank', 'atm', 'financial_service', 'currency_exchange', 'money_transfer', 'post'})
+# Served types an Arts and Entertainment leaf can legitimately land on. Used
+# only to SUB-COUNT type-blind matches: a "Garden" the matcher pairs with
+# "Supermercado Abadias" is reported as matched (the rule is type-blind) and
+# also counted under "matched to a business", so the owner can see how much
+# of a leaf's matched bucket rests on a shop or café sharing the name.
+ENTERTAINMENT_FAMILY = frozenset({
+    'theatre', 'theater', 'night_club', 'movie_theater', 'library', 'community_center', 'cultural_center',
+    'music_venue', 'water_park', 'aquarium', 'casino', 'bowling_alley', 'arcade', 'escape_room', 'comedy_club',
+    'concert_hall', 'performing_arts', 'circus', 'fairground', 'go_kart', 'mini_golf', 'roller_rink', 'stable',
+})
+
+
+def business_typed(served_type):
+    return served_type not in LANDMARK_FAMILY and served_type not in ENTERTAINMENT_FAMILY
 
 
 def same_family(archive_type, served_type):
@@ -286,10 +300,33 @@ def served_overture(overture_csv, overture_key):
     return served, stats
 
 
+D1_READ_ATTEMPTS = 3
+
+
+def d1_read(sql):
+    """One bounded read, retried the way CLAUDE.md's D1 rule says: transient
+    failures (7403 "not authorized", 7500, a wrangler hiccup on a valid
+    login) get three attempts; a 429 is stop, never retry-harder. The
+    first by-leaf run died on exactly such a hiccup after three minutes of
+    classification."""
+    import subprocess
+    last = None
+    for attempt in range(1, D1_READ_ATTEMPTS + 1):
+        try:
+            return run_d1_query(sql)
+        except subprocess.CalledProcessError as error:
+            output = f'{error.stdout or ""}{error.stderr or ""}'
+            if '429' in output:
+                raise SystemExit(f'D1 answered 429; stopping. {output[-500:]}')
+            last = error
+            print(f'[preflight] D1 read failed (attempt {attempt}/{D1_READ_ATTEMPTS}): {output[-300:].strip()}', file=sys.stderr)
+    raise SystemExit(f'D1 read failed {D1_READ_ATTEMPTS} times: {(last.stdout or "") + (last.stderr or "")}'[-1000:])
+
+
 def served_curated(candidate_types):
     """Active curated rows of the candidate types — one bounded query."""
     quoted = ', '.join(f"'{t}'" for t in candidate_types)
-    rows = run_d1_query(
+    rows = d1_read(
         'SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi '
         f"WHERE status = 'active' AND primary_poi_type IN ({quoted})")
     return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
@@ -298,7 +335,7 @@ def served_curated(candidate_types):
 
 def foursquare_corrections():
     """Every human decision recorded against a Foursquare id."""
-    return run_d1_query(
+    return d1_read(
         "SELECT source_id, visible, name_override, dedupe_name_override, review_note, created_at "
         "FROM poi_source_correction WHERE source = 'foursquare' ORDER BY created_at")
 
@@ -845,12 +882,17 @@ def render_by_leaf(c):
     out.append('## Leaves, by unique count\n')
     out.append('`verdict` is one line per leaf for the curation step — import / import with care / noise — and says why. '
                'It is a starting point for the owner, not a gate: no tourism leaf is refused here on type grounds.\n')
-    out.append('| leaf | rows | matched | unique | suspect | verdict | why |')
-    out.append('|---|---:|---:|---:|---:|---|---|')
+    out.append('`matched → business` is the part of `matched` whose served twin is a shop, café, school or other '
+               'business rather than a landmark or venue: the rule is type-blind, so those count as matched, but a '
+               '"Jardim da Mouta" paired with "Taberna do Jardim" is the matcher\'s containment rule at work, not a '
+               'duplicate. Curation should treat that sub-count as "look".\n')
+    out.append('| leaf | rows | matched | matched → business | unique | suspect | verdict | why |')
+    out.append('|---|---:|---:|---:|---:|---:|---|---|')
     for leaf in c['leaf_order']:
         b = c['inventory'][leaf]
         verdict, why = c['verdicts'][leaf]
-        out.append(f"| {md_cell(leaf)} | {sum(len(v) for v in b.values()):,} | {len(b['matched']):,} | {len(b['unique']):,} | "
+        out.append(f"| {md_cell(leaf)} | {sum(len(v) for v in b.values()):,} | {len(b['matched']):,} | "
+                   f"{c['business_matches'][leaf]:,} | {len(b['unique']):,} | "
                    f"{len(b['suspect']):,} | {verdict} | {md_cell(why)} |")
     out.append('')
     noise = [leaf for leaf in c['leaf_order'] if c['verdicts'][leaf][0] == 'noise']
@@ -868,12 +910,16 @@ def render_by_leaf(c):
                f'would take. *Coordinate twins*: two unique rows within {COORDINATE_TWIN_M:.0f} m under different names. '
                f'*Name near-misses*: two unique rows with the same normalised name {MATCH_RADIUS_METERS}–{FAR_M:.0f} m apart. '
                'Both are places a 75 m name-and-distance dedupe imports twice.\n')
-    out.append('| leaf | unique | coordinate twins | name near-misses |')
-    out.append('|---|---:|---:|---:|')
+    out.append('The last column is the suspect-bucket count of rows whose same-named **served** place sits '
+               f'{MATCH_RADIUS_METERS}–{FAR_M:.0f} m away — the hazard that dwarfs the other two, and the bucket KAN-433 '
+               'should skip rather than reach with a looser matcher.\n')
+    out.append('| leaf | unique | coordinate twins | name near-misses | same-name served 75–400 m |')
+    out.append('|---|---:|---:|---:|---:|')
     for leaf in c['leaf_order']:
         if leaf in c['dedupe']:
+            far = sum(1 for _, reason, _ in c['inventory'][leaf]['suspect'] if reason.startswith('same name beyond'))
             out.append(f"| {md_cell(leaf)} | {len(c['inventory'][leaf]['unique']):,} | {len(c['dedupe'][leaf]['twins']):,} | "
-                       f"{len(c['dedupe'][leaf]['near_misses']):,} |")
+                       f"{len(c['dedupe'][leaf]['near_misses']):,} | {far:,} |")
     out.append('')
     for leaf in c['leaf_order']:
         b = c['inventory'][leaf]
@@ -913,7 +959,7 @@ def render_by_leaf(c):
 
 def served_curated_all():
     """Every active curated row — 294 in production, one bounded read."""
-    rows = run_d1_query("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
+    rows = d1_read("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
     return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
              'lat': float(r['lat']), 'lng': float(r['lng']), 'type': r['primary_poi_type']} for r in rows]
 
@@ -934,6 +980,8 @@ def run_by_leaf(args):
     result = inventory_by_leaf(rows_by_leaf, grid, coordinate_owners)
     leaf_order = sorted(result, key=lambda leaf: (-len(result[leaf]['unique']), leaf))
     verdicts = {leaf: leaf_verdict(leaf, result[leaf]) for leaf in result}
+    business_matches = {leaf: sum(1 for _, _, cp in result[leaf]['matched'] if business_typed(cp[0]['type']))
+                        for leaf in result}
     samples = {leaf: {bucket: sample(result[leaf][bucket], args.sample_size, args.seed) for bucket in BUCKETS}
                for leaf in result}
     dedupe = {}
@@ -953,7 +1001,7 @@ def run_by_leaf(args):
         'in_scope_rows': in_scope_rows, 'overture_key': args.overture_key, 'overture_stats': overture_stats,
         'curated_count': len(curated), 'd1': not args.skip_d1, 'inventory': result, 'leaf_order': leaf_order,
         'verdicts': verdicts, 'paths_by_leaf': paths_by_leaf, 'samples': samples, 'sample_size': args.sample_size,
-        'dedupe': dedupe, 'notes': notes,
+        'dedupe': dedupe, 'notes': notes, 'business_matches': business_matches,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.report_out)), exist_ok=True)
     with open(args.report_out, 'w') as handle:
@@ -964,7 +1012,8 @@ def run_by_leaf(args):
         'overture_key': args.overture_key, 'overture_promoted': overture_stats.get('promoted', 0),
         'curated_rows': len(curated), 'd1_read': not args.skip_d1,
         'leaves': {leaf: {bucket: len(result[leaf][bucket]) for bucket in BUCKETS}
-                   | {'verdict': verdicts[leaf][0]}
+                   | {'verdict': verdicts[leaf][0], 'matched_to_business': business_matches[leaf],
+                      'far_same_name_served': sum(1 for _, r, _ in result[leaf]['suspect'] if r.startswith('same name beyond'))}
                    | ({'coordinate_twins': len(dedupe[leaf]['twins']), 'name_near_misses': len(dedupe[leaf]['near_misses'])}
                       if leaf in dedupe else {})
                    for leaf in leaf_order},
