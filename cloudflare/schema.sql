@@ -160,7 +160,10 @@ CREATE TABLE IF NOT EXISTS overture_country_import (
   pending_rows INTEGER NOT NULL DEFAULT 0,
   started_at TEXT,
   completed_at TEXT,
-  last_error TEXT
+  last_error TEXT,
+  -- KAN-455 (0045). Lease of the one overture-repromote run allowed at a time.
+  repromote_run_id TEXT,
+  repromote_started_at TEXT
 );
 
 -- KAN-438. Frozen, deliberately narrow fallback copied from the 2026-08-29

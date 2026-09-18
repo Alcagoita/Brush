@@ -64,22 +64,55 @@ export async function completeOvertureCountryImport(env: Env, options: {
   return result.meta.changes === 1;
 }
 
+/** A repromote lease older than this is abandoned: the container is gone. */
+export const REPROMOTE_LEASE_STALE_MS = 2 * 60 * 60 * 1000;
+
 /**
- * KAN-455. After a repromote run over the mapped source, the row's decision
- * counts are brought up to date. Only the mapped row for exactly that source
- * qualifies, and only when the counts still account for every staged row —
- * the same invariant completeOvertureCountryImport enforces.
+ * KAN-455. Exactly-once ownership of a repromote run, the way
+ * startPlaceMapping and queueSettlementRegistry take theirs: one
+ * conditional UPDATE, and `changes === 1` means this request owns the run.
+ * Only the mapped row for exactly this source qualifies, and only when no
+ * live lease is on it.
  */
-export async function recordOvertureRepromote(env: Env, options: {
-  countryCode: string; rawExtractR2Key: string; promotedRows: number; rejectedRows: number; pendingRows: number;
+export async function leaseOvertureRepromote(env: Env, options: {
+  countryCode: string; rawExtractR2Key: string; runId: string; now: number;
 }): Promise<boolean> {
   const result = await env.REGISTRY_DB.prepare(
-    `UPDATE overture_country_import SET promoted_rows = ?, rejected_rows = ?, pending_rows = ?
+    `UPDATE overture_country_import SET repromote_run_id = ?, repromote_started_at = ?
      WHERE country_code = ? AND status = 'mapped' AND raw_extract_r2_key = ?
+       AND (repromote_run_id IS NULL OR repromote_started_at IS NULL OR repromote_started_at < ?)`,
+  ).bind(options.runId, iso(options.now), options.countryCode, options.rawExtractR2Key,
+    iso(options.now - REPROMOTE_LEASE_STALE_MS)).run();
+  return result.meta.changes === 1;
+}
+
+/**
+ * KAN-455. After a repromote run over the mapped source, the row's decision
+ * counts are brought up to date and the lease is released. Only the run
+ * holding the lease may do this, and only when the counts still account for
+ * every staged row — the same invariant completeOvertureCountryImport
+ * enforces.
+ */
+export async function recordOvertureRepromote(env: Env, options: {
+  countryCode: string; rawExtractR2Key: string; runId: string; promotedRows: number; rejectedRows: number; pendingRows: number;
+}): Promise<boolean> {
+  const result = await env.REGISTRY_DB.prepare(
+    `UPDATE overture_country_import SET promoted_rows = ?, rejected_rows = ?, pending_rows = ?,
+       repromote_run_id = NULL, repromote_started_at = NULL
+     WHERE country_code = ? AND status = 'mapped' AND raw_extract_r2_key = ? AND repromote_run_id = ?
        AND staged_rows = ? + ? + ?`,
   ).bind(options.promotedRows, options.rejectedRows, options.pendingRows,
-    options.countryCode, options.rawExtractR2Key,
+    options.countryCode, options.rawExtractR2Key, options.runId,
     options.promotedRows, options.rejectedRows, options.pendingRows).run();
+  return result.meta.changes === 1;
+}
+
+/** KAN-455. A failed or never-started run releases its lease; counts untouched. */
+export async function releaseOvertureRepromote(env: Env, countryCode: string, runId: string): Promise<boolean> {
+  const result = await env.REGISTRY_DB.prepare(
+    `UPDATE overture_country_import SET repromote_run_id = NULL, repromote_started_at = NULL
+     WHERE country_code = ? AND repromote_run_id = ?`,
+  ).bind(countryCode, runId).run();
   return result.meta.changes === 1;
 }
 

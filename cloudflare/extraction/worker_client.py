@@ -234,3 +234,9 @@ def overture_repromote_complete(country_code, run_id, raw_extract_r2_key, run, t
         'repromotedRows': run['promoted'], 'rerejectedRows': run['rejected'], 'leftPendingRows': run['pending'],
         'promotedRows': totals['promoted'], 'rejectedRows': totals['rejected'], 'pendingRows': totals['pending'],
     })
+
+
+def overture_repromote_failed(country_code, run_id, error):
+    return _post('/internal/overture-repromote/failed', {
+        'countryCode': country_code, 'runId': run_id, 'error': str(error)[:1_000],
+    })

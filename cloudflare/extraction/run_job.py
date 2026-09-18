@@ -118,11 +118,21 @@ def run_overture_repromote(country_code, run_id, source_r2_key):
     """KAN-455. Decide the source's still-pending rows again under the rules
     committed now; report this run's decisions and the source's totals."""
     os.environ['D1_INTERNAL'] = '1'
-    run = promote_overture_candidates.run_country_repromote(
-        OVERTURE_PROMOTION_PAGE_SIZE, source_r2_key)
-    totals = _source_decision_counts(source_r2_key)
-    worker_client.overture_repromote_complete(country_code, run_id, source_r2_key, run, totals)
-    print(f'[run_job] Overture repromote {country_code} {run_id}: this run {run}; source now {totals}')
+    try:
+        run = promote_overture_candidates.run_country_repromote(
+            OVERTURE_PROMOTION_PAGE_SIZE, source_r2_key)
+        totals = _source_decision_counts(source_r2_key)
+        worker_client.overture_repromote_complete(country_code, run_id, source_r2_key, run, totals)
+        print(f'[run_job] Overture repromote {country_code} {run_id}: this run {run}; source now {totals}')
+    except Exception as error:
+        # Release the lease so the next trigger is not refused; the rows this
+        # run already wrote are idempotent and a rerun picks up from them.
+        traceback.print_exc()
+        try:
+            worker_client.overture_repromote_failed(country_code, run_id, f'{type(error).__name__}: {error}')
+        except Exception:
+            traceback.print_exc()
+        raise
 
 
 def supplement_place_with_osm(place_id, min_lat, max_lat, min_lng, max_lng, country_code=None):

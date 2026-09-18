@@ -245,7 +245,7 @@ def repromote(args):
     if not secret:
         raise SystemExit('BUILD_TRIGGER_SECRET is required to run (it is a Worker secret, never in the repo)')
     expected = expected_to_settle(report)
-    answer = post_internal('/internal/overture-repromote', {'countryCode': 'PT'}, secret)
+    answer = post_internal('/internal/overture-repromote', {'countryCode': 'PT', 'rawExtractR2Key': SOURCE_KEY}, secret)
     print(f'[repromote] started: {answer}', file=sys.stderr)
     if answer.get('rawExtractR2Key') != SOURCE_KEY:
         raise SystemExit(f"[repromote] the Worker's mapped source is {answer.get('rawExtractR2Key')!r}, not {SOURCE_KEY!r}; the dry run above was for the wrong archive")
