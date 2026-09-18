@@ -167,7 +167,15 @@ def store_brand_index():
 # rows — `Casa da Avó`, `Casa de Praia`, holiday rentals — and `Area` heads
 # national parks. For these the whole name has to be the brand, or the brand
 # plus one word (`Casa Colombo`), or it is the word and not the chain.
-GENERIC_WORD_BRANDS = frozenset({'casa', 'area', 'nos', 'note', 'normal', 'viva'})
+#
+# KAN-455. `atlantico` joined: the bank's canonical name is the bare word,
+# and `Atlântico` is also the ocean — `Atlântico pizzaria S. FÉLIX` leads
+# with it and is a pizzeria. Its `Banco Atlântico …` aliases are not
+# generic words and still match as a leading brand.
+#
+# `big` likewise: Banco BiG's `BiG`/`BIG` aliases are the English word, and
+# `Big China`, `Big Foot` lead with it. `Banco BiG` still matches.
+GENERIC_WORD_BRANDS = frozenset({'casa', 'area', 'nos', 'note', 'normal', 'viva', 'atlantico', 'big'})
 
 # KAN-448. Categories a chain brand may overrule. Explicit on purpose: an
 # unmapped category is not a wrong one — hotel, dentist, lawyer, car dealer
@@ -227,6 +235,37 @@ def name_agrees_with_category(normalized_name, category):
 def brand_heads_name(normalized_brand, normalized_name):
     """Does the brand lead the name — `decathlon albufeira`, not `cafe decathlon`?"""
     return normalized_name == normalized_brand or normalized_name.startswith(normalized_brand + ' ')
+
+
+def leading_brand(name, poi_type, brand_dictionary):
+    """The `poi_type` chain this name belongs to, if the brand LEADS the name.
+
+    KAN-455. The non-store fallback used find_brand's padded match, and a
+    padded match reads the supermarket out of `Cafetaria LIDL Sesimbra`,
+    `Papelaria Intermarché Alfena`, `Snack Bar O Celeiro`: the café and the
+    papelaria inside a supermarket are their own places, and the Celeiros
+    are restaurants. A type override needs the same discipline the chain
+    retype already has (rule 3 of KAN-448): `Minipreço Carvoeiro`, not
+    `Cafetaria Minipreço`. A generic-word brand is the whole name or
+    nothing, as in store_kinds_from_brand.
+    """
+    normalized = normalize_text(name or '')
+    if not normalized:
+        return None
+    for brand in brand_dictionary.get(poi_type, []):
+        canonical = brand['name']
+        for candidate in (canonical, *brand.get('aliases', [])):
+            normalized_brand = normalize_text(candidate)
+            if not normalized_brand:
+                continue
+            if normalized_brand in GENERIC_WORD_BRANDS:
+                if normalized == normalized_brand:
+                    return canonical
+                continue
+            if (brand_form_matches(normalized_brand, normalized, name, canonical)
+                    and brand_heads_name(normalized_brand, normalized)):
+                return canonical
+    return None
 
 
 def store_kinds_from_brand(name, index, require_head=False):
@@ -414,8 +453,10 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
     elif not types and (generic or category in BRAND_OVERRIDABLE_CATEGORIES):
         # Not a store chain — a supermarket, bank or pharmacy chain sitting
         # in generic shopping. Minipreço is a supermarket wherever it is.
+        # KAN-455: only when the brand leads the name. `Cafetaria LIDL
+        # Sesimbra` is the café, not the Lidl.
         for poi_type in BRAND_TYPES_FOR_OVERRIDE:
-            if poi_type in reachable and find_brand(row['name'], [poi_type], brand_dictionary):
+            if poi_type in reachable and leading_brand(row['name'], poi_type, brand_dictionary):
                 types = [reachable[poi_type]]
                 reason = f'brand: {poi_type}'
                 break
@@ -654,6 +695,124 @@ def _promote_country_page(page, mapping, reachable, brand_dictionary,
         for statement in status_updates(decisions, status, only_pending):
             d1_client.execute(statement)
     stats.update(page_stats)
+
+
+def source_overrides_flat(country_source_r2_key):
+    """Every committed reviewed decision for this source, whatever its batch."""
+    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
+    with open(path) as handle:
+        source = json.load(handle).get(country_source_r2_key, {})
+    if all('poi_type' in value for value in source.values()):
+        return dict(source)  # the legacy flat shape
+    return {poi_id: entry for batch in source.values() for poi_id, entry in batch.items()}
+
+
+def run_country_repromote(batch, country_source_r2_key):
+    """KAN-455. Decide the rows still `pending` for one source again, under
+    the rules and reviewed overrides committed now.
+
+    A row left pending is never looked at again until a full country
+    re-import, so a rule or dictionary change (KAN-448's chains, KAN-457's)
+    reaches new imports and not the country already served. This is the
+    same page loop as run_country over the same `WHERE promotion_status =
+    'pending' AND country_source_r2_key = ?`, with the committed overrides
+    joined the way an override batch joins them.
+
+    Idempotent by construction: serving rows are `INSERT OR IGNORE`, the
+    status update is guarded on `promotion_status = 'pending'`, so a row
+    already promoted is untouched and a row the rules still cannot type
+    stays pending — and a second run over the same source decides nothing.
+
+    Returns this run's own counts: rows promoted, rejected, and left pending.
+    """
+    import d1_client
+
+    mapping = category_map()
+    reachable = reachable_types()
+    brand_dictionary = load_brand_dictionary()
+    store_kind_aliases = store_kind_alias_index()
+    food_cuisine_aliases = food_cuisine_alias_index()
+    financial_service_rules = load_financial_service_name_rules()
+    store_brands = store_brand_index()
+    overrides = source_overrides_flat(country_source_r2_key)
+    refreshed = date.today().isoformat()
+    stats = Counter()
+    where = (
+        "promotion_status = 'pending' AND country_source_r2_key = "
+        f"{sql_escape(country_source_r2_key)}")
+    rows = paged(
+        'overture_candidate',
+        ('overture_id', 'name', 'lat', 'lng', 'address', 'category',
+         'category_path', 'confidence', 'source_datasets'),
+        'overture_id', batch, where=where)
+
+    page = []
+    for row in rows:
+        page.append(row)
+        if len(page) == batch:
+            _promote_country_page(
+                page, mapping, reachable, brand_dictionary, store_kind_aliases,
+                food_cuisine_aliases, financial_service_rules, store_brands,
+                refreshed, stats, d1_client, overrides)
+            page = []
+    if page:
+        _promote_country_page(
+            page, mapping, reachable, brand_dictionary, store_kind_aliases,
+            food_cuisine_aliases, financial_service_rules, store_brands,
+            refreshed, stats, d1_client, overrides)
+    return {status: stats.get(status, 0) for status in ('promoted', 'rejected', 'pending')}
+
+
+def repromote_dry_run(archive_csv, backlog_tsv, country_source_r2_key):
+    """What run_country_repromote would decide, from the archive alone.
+
+    The candidate rows are the archived source; the pending set is the
+    country run's own backlog report (`overture-country-reports/…`), which
+    lists every row it left pending. Neither is read from D1 and nothing is
+    written. Rows a reviewed batch has promoted since the report are still
+    counted here, under `override`, so the override figure is an upper
+    bound; the `rule` figures are what the rules alone would newly decide.
+    """
+    import csv
+
+    pending = set()
+    with open(backlog_tsv, newline='') as handle:
+        for row in csv.DictReader(handle, delimiter='\t'):
+            if row['status'] == 'pending':
+                pending.add(row['overture_id'])
+    mapping = category_map()
+    reachable = reachable_types()
+    brand_dictionary = load_brand_dictionary()
+    store_kind_aliases = store_kind_alias_index()
+    food_cuisine_aliases = food_cuisine_alias_index()
+    financial_service_rules = load_financial_service_name_rules()
+    store_brands = store_brand_index()
+    overrides = source_overrides_flat(country_source_r2_key)
+    counts = Counter()
+    decided = {'rule': {'promoted': [], 'rejected': []}, 'override': {'promoted': [], 'rejected': []}}
+    by_type = Counter()
+    with open(archive_csv, newline='') as handle:
+        for row in csv.DictReader(handle):
+            overture_id = row['overture_id']
+            if overture_id not in pending:
+                continue
+            status, types, _attributes, reason = decide(
+                row, mapping, reachable, brand_dictionary, store_kind_aliases,
+                food_cuisine_aliases, financial_service_rules, store_brands, overrides)
+            basis = 'override' if overture_id in overrides else 'rule'
+            counts[(basis, status)] += 1
+            if status != 'pending':
+                decided[basis][status].append((overture_id, row['name'], row['category'] or '', reason))
+            if status == 'promoted' and basis == 'rule':
+                by_type[types[0]] += 1
+    return {
+        'pending_in_report': len(pending),
+        'rule': {status: len(decided['rule'][status]) for status in ('promoted', 'rejected')},
+        'override': {status: len(decided['override'][status]) for status in ('promoted', 'rejected')},
+        'still_pending': counts[('rule', 'pending')] + counts[('override', 'pending')],
+        'rule_promoted_by_type': dict(by_type.most_common()),
+        'decided': decided,
+    }
 
 
 def run_country_overrides(country_source_r2_key, batch=None):

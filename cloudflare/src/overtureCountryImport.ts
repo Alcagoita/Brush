@@ -64,6 +64,25 @@ export async function completeOvertureCountryImport(env: Env, options: {
   return result.meta.changes === 1;
 }
 
+/**
+ * KAN-455. After a repromote run over the mapped source, the row's decision
+ * counts are brought up to date. Only the mapped row for exactly that source
+ * qualifies, and only when the counts still account for every staged row —
+ * the same invariant completeOvertureCountryImport enforces.
+ */
+export async function recordOvertureRepromote(env: Env, options: {
+  countryCode: string; rawExtractR2Key: string; promotedRows: number; rejectedRows: number; pendingRows: number;
+}): Promise<boolean> {
+  const result = await env.REGISTRY_DB.prepare(
+    `UPDATE overture_country_import SET promoted_rows = ?, rejected_rows = ?, pending_rows = ?
+     WHERE country_code = ? AND status = 'mapped' AND raw_extract_r2_key = ?
+       AND staged_rows = ? + ? + ?`,
+  ).bind(options.promotedRows, options.rejectedRows, options.pendingRows,
+    options.countryCode, options.rawExtractR2Key,
+    options.promotedRows, options.rejectedRows, options.pendingRows).run();
+  return result.meta.changes === 1;
+}
+
 export async function failOvertureCountryImport(env: Env, countryCode: string, runId: string, error: string, now: number): Promise<boolean> {
   const result = await env.REGISTRY_DB.prepare(
     `UPDATE overture_country_import SET status = 'failed', completed_at = ?, last_error = ?

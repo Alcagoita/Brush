@@ -18,7 +18,7 @@ import {
 } from './multibancoImport';
 import {
   checkpointOvertureCountrySource, completeOvertureCountryImport, failOvertureCountryImport,
-  overtureCountryImportStatus, queueOvertureCountryImport,
+  overtureCountryImportStatus, queueOvertureCountryImport, recordOvertureRepromote,
 } from './overtureCountryImport';
 import brandDictionary from '../../src/constants/brandDictionary.json';
 import financialServiceKindDictionary from '../../src/constants/financialServiceKindDictionary.json';
@@ -1657,7 +1657,7 @@ const OSM_SCOPE_ERROR_CLASSES = new Set<OsmScopeErrorClass>([
 function triggerBuild(
   env: Env,
   ctx: ExecutionContext | undefined,
-  mode: 'place' | 'country' | 'country-reconcile' | 'settlements' | 'osm-country' | 'multibanco-country' | 'overture-country' | 'overture-overrides',
+  mode: 'place' | 'country' | 'country-reconcile' | 'settlements' | 'osm-country' | 'multibanco-country' | 'overture-country' | 'overture-overrides' | 'overture-repromote',
   target: string,
   countrySourceR2Key?: string,
   countryRunId?: string,
@@ -1678,6 +1678,7 @@ function triggerBuild(
       ...(mode === 'multibanco-country' ? { D1_INTERNAL: '1', MULTIBANCO_RUN_ID: countryRunId ?? '' } : {}),
       ...(mode === 'overture-country' ? { D1_INTERNAL: '1', OVERTURE_COUNTRY_RUN_ID: countryRunId ?? '' } : {}),
       ...(mode === 'overture-overrides' ? { D1_INTERNAL: '1', OVERTURE_OVERRIDE_BATCH: countryRunId ?? '' } : {}),
+      ...(mode === 'overture-repromote' ? { D1_INTERNAL: '1', OVERTURE_REPROMOTE_RUN_ID: countryRunId ?? '' } : {}),
     },
   }).catch(async (error) => {
     // A detached promise is cancelled when the Worker finishes the request.
@@ -2515,6 +2516,56 @@ export default {
       }
       triggerBuild(env, ctx, 'overture-overrides', 'PT', status.raw_extract_r2_key, body.batch);
       return json({ ok: true, started: true, batch: body.batch });
+    }
+
+    // KAN-455. A row promotion left `pending` is never decided again until a
+    // full country re-import, so a rule or dictionary change reaches new
+    // imports and not the country already served. This starts one container
+    // that re-decides the still-pending rows of the mapped source under the
+    // rules and reviewed overrides committed now. Idempotent on the
+    // container side (INSERT OR IGNORE, status guarded on `pending`); the
+    // source is immutable, so nothing is re-extracted or re-staged.
+    if (url.pathname === '/internal/overture-repromote' && request.method === 'POST') {
+      const internalAuthError = authenticateInternal(request, env);
+      if (internalAuthError) return internalAuthError;
+      const body = await request.json<{ countryCode?: unknown }>().catch(() => null);
+      if (typeof body?.countryCode !== 'string' || body.countryCode.toUpperCase() !== 'PT') {
+        return json({ error: 'countryCode must be PT' }, 400);
+      }
+      const status = await overtureCountryImportStatus(env, 'PT');
+      if (!status || status.status !== 'mapped' || typeof status.raw_extract_r2_key !== 'string' ||
+          !status.raw_extract_r2_key.startsWith('overture-country-sources/PT/')) {
+        return json({ error: 'the PT Overture import must be mapped with an immutable source first' }, 409);
+      }
+      const runId = crypto.randomUUID();
+      triggerBuild(env, ctx, 'overture-repromote', 'PT', status.raw_extract_r2_key, runId);
+      return json({ ok: true, started: true, runId, rawExtractR2Key: status.raw_extract_r2_key });
+    }
+
+    // The repromote container reports what it decided and the source's
+    // totals afterwards. The import row's promoted/rejected/pending counts
+    // describe that source's decisions, and the source has not changed, so
+    // they are brought up to date; the run's own delta is logged. Nothing
+    // else is recorded — the candidate table is the ledger.
+    if (url.pathname === '/internal/overture-repromote/complete' && request.method === 'POST') {
+      const internalAuthError = authenticateInternal(request, env);
+      if (internalAuthError) return internalAuthError;
+      const body = await request.json<Record<string, unknown>>().catch(() => null);
+      const counts = ['repromotedRows', 'rerejectedRows', 'leftPendingRows', 'promotedRows', 'rejectedRows', 'pendingRows'] as const;
+      if (!body || body.countryCode !== 'PT' || typeof body.runId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.runId) ||
+          typeof body.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith('overture-country-sources/PT/') ||
+          counts.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0)) {
+        return json({ error: 'invalid Overture repromote payload' }, 400);
+      }
+      const ok = await recordOvertureRepromote(env, {
+        countryCode: 'PT', rawExtractR2Key: body.rawExtractR2Key,
+        promotedRows: body.promotedRows as number, rejectedRows: body.rejectedRows as number, pendingRows: body.pendingRows as number,
+      });
+      if (!ok) return json({ error: 'source is not the mapped PT import or its accounting does not add up' }, 409);
+      console.log('[overture-repromote] complete', {
+        runId: body.runId, repromoted: body.repromotedRows, rerejected: body.rerejectedRows, leftPending: body.leftPendingRows,
+      });
+      return json({ ok: true });
     }
 
     // KAN-383 — operational queue for the supplementary OSM source. This is

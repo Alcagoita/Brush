@@ -114,6 +114,17 @@ def run_overture_country(country_code, run_id, source_r2_key=None):
             traceback.print_exc()
         raise
 
+def run_overture_repromote(country_code, run_id, source_r2_key):
+    """KAN-455. Decide the source's still-pending rows again under the rules
+    committed now; report this run's decisions and the source's totals."""
+    os.environ['D1_INTERNAL'] = '1'
+    run = promote_overture_candidates.run_country_repromote(
+        OVERTURE_PROMOTION_PAGE_SIZE, source_r2_key)
+    totals = _source_decision_counts(source_r2_key)
+    worker_client.overture_repromote_complete(country_code, run_id, source_r2_key, run, totals)
+    print(f'[run_job] Overture repromote {country_code} {run_id}: this run {run}; source now {totals}')
+
+
 def supplement_place_with_osm(place_id, min_lat, max_lat, min_lng, max_lng, country_code=None):
     """The per-Place OSM pass (KAN-394). Additive, and never fails the Place.
 
@@ -575,6 +586,13 @@ if __name__ == '__main__':
             sys.exit(2)
         stats = promote_overture_candidates.run_country_overrides(source_key, batch)
         print(f"[run_job] OVERTURE overrides {batch}: {stats}")
+    elif mode == 'overture-repromote':
+        source_key = os.environ.get('COUNTRY_SOURCE_R2_KEY')
+        run_id = os.environ.get('OVERTURE_REPROMOTE_RUN_ID')
+        if not source_key or not run_id:
+            print('COUNTRY_SOURCE_R2_KEY and OVERTURE_REPROMOTE_RUN_ID are required for overture-repromote mode', file=sys.stderr)
+            sys.exit(2)
+        run_overture_repromote(target.upper(), run_id, source_key)
     else:
-        print(f"unknown MODE '{mode}' — expected 'place', 'country', 'country-reconcile', 'settlements', 'osm-country', 'multibanco-country', 'overture-country', or 'overture-overrides'")
+        print(f"unknown MODE '{mode}' — expected 'place', 'country', 'country-reconcile', 'settlements', 'osm-country', 'multibanco-country', 'overture-country', 'overture-overrides', or 'overture-repromote'")
         sys.exit(2)

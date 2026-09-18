@@ -83,6 +83,8 @@ def query(sql, attempts=3):
         if result.returncode == 0:
             return json.loads(result.stdout)[0]['results']
         last = (result.stdout + result.stderr)[-400:]
+        if '429' in last:
+            raise SystemExit(f'D1 answered 429 — stop: {last}')
     raise RuntimeError(f'D1 read failed after {attempts} attempts: {last}')
 
 
@@ -143,13 +145,20 @@ def rows_named_by(migration_paths):
     return named
 
 
-def run(overture_csv, overture_key, out_path, ticket='KAN-448', after=()):
+def run(overture_csv, overture_key, out_path, ticket='KAN-448', after=(), leave_to=()):
     decided = chain_decisions(overture_csv, overture_key)
     print(f'{len(decided):,} archive rows decided by the chain rule', file=sys.stderr)
     already = rows_named_by(after)
     if already:
         decided = {i: d for i, d in decided.items() if i not in already}
         print(f'{len(already):,} rows are named by an earlier migration and left to it', file=sys.stderr)
+    # KAN-455. The reverse case: 0041 regenerated after 0043 was cut from
+    # it. The dictionary now carries 0043's chains, so a fresh 0041 would
+    # absorb 0043's rows; they stay 0043's, and the files stay disjoint.
+    later = rows_named_by(leave_to)
+    if later:
+        decided = {i: d for i, d in decided.items() if i not in later}
+        print(f'{len(later):,} rows are named by a later migration and left to it', file=sys.stderr)
     state = current_state(decided)
     print(f'{len(state):,} of them are promoted in prod', file=sys.stderr)
     lines = list(statements(decided, state))
@@ -161,6 +170,8 @@ def run(overture_csv, overture_key, out_path, ticket='KAN-448', after=()):
         f"-- {len(touched):,} rows corrected.\n")
     if after:
         header += ''.join(f"-- Applies after {os.path.basename(path)}, whose rows it does not repeat.\n" for path in after)
+    if leave_to:
+        header += ''.join(f"-- Rows named by {os.path.basename(path)} are left to it.\n" for path in leave_to)
     with open(out_path, 'w') as handle:
         handle.write(header)
         handle.writelines(lines)
@@ -176,8 +187,10 @@ def main(argv):
     parser.add_argument('--ticket', default='KAN-448', help='named in the migration header')
     parser.add_argument('--after', action='append', default=[],
                         help='an earlier generated migration whose rows this one leaves alone')
+    parser.add_argument('--leave-to', action='append', default=[],
+                        help='a later generated migration whose rows this one leaves alone (regenerating an earlier file)')
     args = parser.parse_args(argv)
-    return run(args.overture, args.overture_key, args.out, args.ticket, tuple(args.after))
+    return run(args.overture, args.overture_key, args.out, args.ticket, tuple(args.after), tuple(args.leave_to))
 
 
 if __name__ == '__main__':
