@@ -39,21 +39,10 @@ function dbWithCandidate(): DatabaseSync {
   ]) {
     db.exec(readFileSync(join(ROOT, file), 'utf8'));
   }
-  // curated_poi lives in a migration rather than a schema file; nearby
-  // queries all three sources, so all three must exist for the handler to
-  // run at all.
-  for (const migration of [
-    '0008_moderated_manual_pois.sql',
-    '0010_brand_aware_nearby.sql',
-    '0026_poi_candidate.sql',
-  ]) {
-    db.exec(readFileSync(join(ROOT, 'migrations', migration), 'utf8'));
-  }
-  // curated_poi.floor comes from migration 0030, which nearby now selects.
-  // Only this one column is taken rather than the whole migration: 0030 also
-  // adds overture_poi.floor, and schema.sql already declares that, so
-  // replaying the file here fails on a duplicate column.
-  db.exec('ALTER TABLE curated_poi ADD COLUMN floor TEXT;');
+  // curated_poi is declared in schema.sql since KAN-452 (with brand, floor
+  // and the origin_* columns), so only the candidate table still has to be
+  // replayed from its migration.
+  db.exec(readFileSync(join(ROOT, 'migrations', '0026_poi_candidate.sql'), 'utf8'));
 
   // A candidate sitting exactly where the search is pointed, carrying a
   // category we do map, with a name that reads like a real errand. If

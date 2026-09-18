@@ -82,8 +82,10 @@ A request carrying a bearer token that fails verification is rejected with
 401 outright — it never falls back to the API key.
 
 - `GET /poi/nearby?lat=&lng=&radius=&types=` and `POST /poi/nearby` — the
-  supported nearby-POI search APIs. They include Foursquare, OpenStreetMap,
-  curated community rows, and official MULTIBANCO ATM rows. Within the
+  supported nearby-POI search APIs. They read Overture (the base), active
+  curated community rows, official MULTIBANCO ATM rows, and the frozen
+  `legacy_poi` fallback (selected Foursquare backup rows, migration 0032);
+  `poi` and `osm_poi` are not read. Within the
   Odivelas demo zone, an official MULTIBANCO ATM takes precedence over a
   same-location lower-priority ATM source; both sources remain stored.
 - `GET /coverage?lat=&lng=` — `{status, cityId, buildId}` for this location.
@@ -135,21 +137,34 @@ A request carrying a bearer token that fails verification is rejected with
 - `GET /manual-poi/search?name=&lat=&lng=` and `POST /manual-poi/removals` —
   KAN-428's removal half of the same public surface, CORS-limited the same
   way. A contributor does not know our coordinates or ids, so a removal names
-  a record picked from `search` rather than describing a place. Search matches
-  the **start** of the normalized name (that prefix is what
-  `idx_poi_canonical_identity` can serve), requires at least three characters,
+  a record picked from `search` rather than describing a place. Since KAN-452
+  both `search` and `duplicates` read one shared lookup (`src/heldPois.ts`)
+  over what the registry actually serves — `overture_poi` (the base, minus
+  rows a `poi_source_correction` has hidden), active `curated_poi` rows and,
+  for `duplicates` only, `multibanco_poi`; `poi` and `osm_poi` are empty and
+  no longer read. Search matches the **start** of the normalized name (that
+  prefix is what the `dedupe_name` indexes can serve), requires at least three characters,
   bounds results to 30 km from the given centre, and caps them at 20 —
   returning `{matches: []}` when we hold nothing, which is an answer rather
   than an error. Unlike the submission routes, `search` requires no Turnstile
   token: a token is single-use and the form searches repeatedly while the
   contributor narrows the name. `POST /manual-poi/removals` does require one,
   is rate-limited by the same hashed source IP, resolves the target against
-  live data before storing it, and creates only a `pending` row.
+  live data before storing it, and creates only a `pending` row. **Overture
+  targets are refused up front (409) for now:** `poi_removal_submission.
+  target_source`'s CHECK (migration 0027) does not admit `'overture'`, and
+  widening it means rebuilding the table. `OVERTURE_REMOVAL_REPORTS_ENABLED`
+  in `index.ts` flips with that migration; the reviewer-side path (approve →
+  `poi_source_correction`) is already in place.
 - `GET /manual-poi/admin/removals` and `PATCH /manual-poi/admin/removals/:id`
   — reviewer-only, Access-gated exactly like the submission routes. The list
   reports each Foursquare target's `date_refreshed` and whether it is still
   present, so a stale build can be told apart from a genuinely bad record.
-  Approval writes a `poi_suppression` row and immediately sweeps the record
+  Approval of an `overture` target writes
+  `poi_source_correction (source = 'overture', visible = 0)` — the base table
+  is never edited, and nearby already honours that row; the undo is deleting
+  it. For every other source approval writes a `poi_suppression` row and
+  immediately sweeps the record
   (and its `poi_type`/`poi_attribute` children) out of the served tables.
   Suppression is keyed on `(source, source_id)` and is the reversible part.
   For a Foursquare or OpenStreetMap record, deleting that row is the whole

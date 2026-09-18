@@ -16,7 +16,7 @@ interface StoredSubmission {
 function submissionDb() {
   const submissions = new Map<string, StoredSubmission>();
   const prepare = (sql: string) => {
-    const trimmed = sql.trim();
+    const trimmed = sql.trim().replace(/\s+/g, ' ');
     let args: unknown[] = [];
     const statement = {
       bind(...nextArgs: unknown[]) {
@@ -30,9 +30,10 @@ function submissionDb() {
         throw new Error(`unhandled first(): ${trimmed}`);
       },
       async all() {
-        if (trimmed.startsWith('SELECT fsq_place_id AS poi_id')) return { results: [] };
-        if (trimmed.startsWith('SELECT poi_id, name, lat, lng FROM curated_poi')) return { results: [] };
-        if (trimmed.startsWith('SELECT osm_element_id AS poi_id, name, lat, lng FROM osm_poi')) return { results: [] };
+        // The shared held-POI lookup (KAN-452): nothing is held here.
+        if (trimmed.startsWith('SELECT * FROM ( SELECT overture_poi.overture_id AS poi_id')) return { results: [] };
+        if (trimmed.startsWith('SELECT poi_id, name, lat, lng, primary_poi_type, address FROM curated_poi')) return { results: [] };
+        if (trimmed.startsWith('SELECT source_id AS poi_id, name, lat, lng, primary_poi_type, address FROM multibanco_poi')) return { results: [] };
         throw new Error(`unhandled all(): ${trimmed}`);
       },
       async run() {

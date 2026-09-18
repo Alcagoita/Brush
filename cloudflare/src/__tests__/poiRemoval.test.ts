@@ -22,6 +22,12 @@ describe('parsePoiRemovalInput', () => {
     });
   });
 
+  it('accepts an Overture id, since the base layer is what a contributor most often means (KAN-452)', () => {
+    const parsed = parsePoiRemovalInput({ ...valid, targetSource: 'overture', targetId: '08f39a6b4c1d2e3f0000000000000000' });
+    expect(isPoiRemovalInput(parsed)).toBe(true);
+    expect(parsed).toMatchObject({ targetSource: 'overture', targetId: '08f39a6b4c1d2e3f0000000000000000' });
+  });
+
   it('defaults an absent note to null rather than an empty string', () => {
     const parsed = parsePoiRemovalInput(valid);
     expect(isPoiRemovalInput(parsed) && parsed.contributorNote).toBeNull();
@@ -35,7 +41,7 @@ describe('parsePoiRemovalInput', () => {
   });
 
   it.each([
-    ['google', 'targetSource must be foursquare, openstreetmap, or community'],
+    ['google', 'targetSource must be overture, foursquare, openstreetmap, or community'],
   ])('rejects %s as a source', (targetSource, error) => {
     expect(parsePoiRemovalInput({ ...valid, targetSource })).toEqual({ error });
   });

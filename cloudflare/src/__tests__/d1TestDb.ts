@@ -41,5 +41,20 @@ export function d1Binding(db: DatabaseSync): Env['REGISTRY_DB'] {
     });
     return statement([]);
   };
-  return { prepare } as unknown as Env['REGISTRY_DB'];
+  // D1's batch is one transaction: a statement that fails (a CHECK, a
+  // UNIQUE) rolls back everything before it. Running the statements inside
+  // a real SQLite transaction is what lets a test see that.
+  const batch = async (statements: Array<{ run: () => Promise<unknown> }>) => {
+    db.exec('BEGIN');
+    try {
+      const out = [];
+      for (const statement of statements) out.push(await statement.run());
+      db.exec('COMMIT');
+      return out;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  };
+  return { prepare, batch } as unknown as Env['REGISTRY_DB'];
 }

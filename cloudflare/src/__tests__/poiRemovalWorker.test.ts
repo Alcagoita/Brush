@@ -15,6 +15,13 @@ const LISBON = { lat: 38.7223, lng: -9.1393 };
  * writes but this list omits is a production write that fails.
  */
 const AUDIT_TARGET_KINDS = ['submission', 'curated_poi', 'removal'];
+/**
+ * Mirrors the CHECK on poi_removal_submission.target_source (migration 0027,
+ * verified against production 2026-09-18). 'overture' is deliberately absent:
+ * the Worker refuses such a report before it reaches this insert
+ * (OVERTURE_REMOVAL_REPORTS_ENABLED in index.ts) until the CHECK is widened.
+ */
+const REMOVAL_TARGET_SOURCES = ['foursquare', 'openstreetmap', 'community'];
 
 interface PoiRow {
   id: string;
@@ -35,6 +42,9 @@ interface Tables {
   poi: PoiRow[];
   osm_poi: PoiRow[];
   curated_poi: PoiRow[];
+  overture_poi: PoiRow[];
+  /** poi_source_correction rows for source = 'overture' (KAN-452). */
+  overture_correction: Array<{ source_id: string; visible: number; name_override?: string | null; review_note?: string }>;
   poi_type: Array<{ fsq_place_id: string; poi_type: string }>;
   poi_attribute: Array<{ fsq_place_id: string; dimension: string; value: string }>;
   poi_suppression: Array<{
@@ -50,7 +60,7 @@ interface Tables {
 }
 
 function emptyTables(): Tables {
-  return { poi: [], osm_poi: [], curated_poi: [], poi_type: [], poi_attribute: [], poi_suppression: [], removals: [], audit: [] };
+  return { poi: [], osm_poi: [], curated_poi: [], overture_poi: [], overture_correction: [], poi_type: [], poi_attribute: [], poi_suppression: [], removals: [], audit: [] };
 }
 
 /** Matches a `dedupe_name LIKE 'term%'` bind against the fake rows. */
@@ -64,6 +74,12 @@ function project(rows: PoiRow[]) {
     poi_id: row.id, name: row.name, lat: row.lat, lng: row.lng,
     primary_poi_type: row.primary_poi_type, address: row.address,
   }));
+}
+
+/** The lat/lng box the shared lookup binds after the name (heldPois.ts). */
+function inBox(rows: PoiRow[], args: unknown[]): PoiRow[] {
+  const [minLat, maxLat, minLng, maxLng] = args.slice(1, 5) as number[];
+  return rows.filter(row => row.lat >= minLat && row.lat <= maxLat && row.lng >= minLng && row.lng <= maxLng);
 }
 
 function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
@@ -82,6 +98,12 @@ function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
         }
         if (trimmed.startsWith('SELECT * FROM poi_removal_submission WHERE submission_id')) {
           return tables.removals.find(row => row.submission_id === args[0]) ?? null;
+        }
+        if (trimmed.startsWith('SELECT COALESCE(correction.name_override, overture_poi.name) AS name')) {
+          const row = tables.overture_poi.find(entry => entry.id === args[0]);
+          const correction = tables.overture_correction.find(entry => entry.source_id === args[0]);
+          if (!row || correction?.visible === 0) return null;
+          return { name: correction?.name_override ?? row.name, primary_poi_type: row.primary_poi_type, address: row.address };
         }
         if (trimmed.startsWith('SELECT name, primary_poi_type, address FROM poi WHERE')) {
           return tables.poi.find(row => row.id === args[0]) ?? null;
@@ -108,8 +130,13 @@ function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
         if (trimmed.startsWith('SELECT osm_element_id AS poi_id')) {
           return { results: project(likePrefix(tables.osm_poi, args[0] as string).filter(row => !suppressed('openstreetmap', row.id))) };
         }
+        if (trimmed.startsWith('SELECT * FROM ( SELECT overture_poi.overture_id AS poi_id, COALESCE(correction.name_override, overture_poi.name) AS name')) {
+          const hidden = (id: string) => tables.overture_correction.some(row => row.source_id === id && row.visible === 0);
+          const rows = inBox(likePrefix(tables.overture_poi, args[0] as string), args).filter(row => !hidden(row.id));
+          return { results: project(rows).map(row => ({ ...row, name: tables.overture_correction.find(c => c.source_id === row.poi_id)?.name_override ?? row.name })) };
+        }
         if (trimmed.startsWith('SELECT poi_id, name, lat, lng, primary_poi_type, address FROM curated_poi')) {
-          return { results: project(likePrefix(tables.curated_poi, args[0] as string).filter(row => row.status === 'active' && !suppressed('community', row.id))) };
+          return { results: project(inBox(likePrefix(tables.curated_poi, args[0] as string), args).filter(row => row.status === 'active' && !row.id.startsWith('multibanco:'))) };
         }
         if (trimmed.startsWith('SELECT submission_id, target_source, target_id')) {
           return { results: tables.removals.filter(row => row.status === args[0]) };
@@ -129,6 +156,9 @@ function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
         if (trimmed.startsWith('INSERT INTO manual_poi_rate_limit')) return { meta: { changes: 1 } };
         if (trimmed.startsWith('INSERT INTO poi_removal_submission')) {
           const [submission_id, idempotency_key, target_source, target_id, target_name, target_poi_type, target_address, reason, contributor_note] = args;
+          if (!REMOVAL_TARGET_SOURCES.includes(target_source as string)) {
+            throw new Error(`CHECK constraint failed: poi_removal_submission.target_source = '${String(target_source)}'`);
+          }
           if (tables.removals.some(row => row.target_source === target_source && row.target_id === target_id && row.status === 'pending')) {
             throw new Error('UNIQUE constraint failed: idx_poi_removal_submission_pending_target');
           }
@@ -148,6 +178,15 @@ function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
             throw new Error(`CHECK constraint failed: manual_poi_audit.target_kind = '${String(args[1])}'`);
           }
           tables.audit.push({ target_kind: args[1], target_id: args[2], action: args[3], actor: args[4] });
+        }
+        if (trimmed.startsWith('INSERT INTO poi_source_correction')) {
+          const existing = tables.overture_correction.find(row => row.source_id === args[0]);
+          if (existing) {
+            existing.visible = 0;
+            existing.review_note = args[1] as string;
+          } else {
+            tables.overture_correction.push({ source_id: args[0] as string, visible: 0, review_note: args[1] as string });
+          }
         }
         if (trimmed.startsWith('INSERT INTO poi_suppression')) {
           tables.poi_suppression.push({
@@ -238,11 +277,15 @@ const searchUrl = (name: string) =>
   `https://poi-api.brushaway.app/manual-poi/search?name=${encodeURIComponent(name)}&lat=${LISBON.lat}&lng=${LISBON.lng}`;
 
 describe('GET /manual-poi/search', () => {
-  it('returns what we hold across all three sources, nearest first', async () => {
+  // KAN-452: the search reads the shared lookup — Overture (the base) and
+  // curated rows. `poi` and `osm_poi` have been empty since 0032 and are no
+  // longer asked.
+  it('returns what we hold across Overture and curated rows, nearest first', async () => {
     const tables = emptyTables();
-    tables.poi.push(poi({ id: 'fsq-1', name: 'Padaria Central', dedupe_name: 'padaria central', address: 'Rua A' }));
-    tables.osm_poi.push(poi({ id: 'osm-1', name: 'Padaria Central Norte', dedupe_name: 'padaria central norte', lat: 38.7300, lng: -9.1393 }));
+    tables.overture_poi.push(poi({ id: 'ovt-1', name: 'Padaria Central', dedupe_name: 'padaria central', address: 'Rua A' }));
+    tables.overture_poi.push(poi({ id: 'ovt-2', name: 'Padaria Central Norte', dedupe_name: 'padaria central norte', lat: 38.7300, lng: -9.1393 }));
     tables.curated_poi.push(poi({ id: 'community:1', name: 'Padaria Central Sul', dedupe_name: 'padaria central sul', lat: 38.7250, lng: -9.1393, status: 'active' }));
+    tables.poi.push(poi({ id: 'fsq-1', name: 'Padaria Central Velha', dedupe_name: 'padaria central velha' }));
 
     const response = await worker.fetch(new Request(searchUrl('Padaria Central'), {
       headers: { Origin: 'https://brushaway.app' },
@@ -251,8 +294,8 @@ describe('GET /manual-poi/search', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://brushaway.app');
     const body = await response.json() as { matches: Array<{ source: string; id: string; distanceMeters: number }> };
-    expect(body.matches.map(match => match.source)).toEqual(['foursquare', 'community', 'openstreetmap']);
-    expect(body.matches[0]).toMatchObject({ id: 'fsq-1', distanceMeters: 0 });
+    expect(body.matches.map(match => match.source)).toEqual(['overture', 'community', 'overture']);
+    expect(body.matches[0]).toMatchObject({ id: 'ovt-1', distanceMeters: 0, poiType: 'store', address: 'Rua A' });
     expect(body.matches[1].distanceMeters).toBeLessThan(body.matches[2].distanceMeters);
   });
 
@@ -262,10 +305,28 @@ describe('GET /manual-poi/search', () => {
     await expect(response.json()).resolves.toEqual({ matches: [] });
   });
 
-  it('leaves out records that are already suppressed', async () => {
+  it('leaves out an Overture row a correction has already hidden', async () => {
     const tables = emptyTables();
-    tables.poi.push(poi({ id: 'fsq-1', name: 'Padaria Central', dedupe_name: 'padaria central' }));
-    tables.poi_suppression.push({ source: 'foursquare', source_id: 'fsq-1', reason: 'closed', name: 'Padaria Central' });
+    tables.overture_poi.push(poi({ id: 'ovt-1', name: 'Padaria Central', dedupe_name: 'padaria central' }));
+    tables.overture_correction.push({ source_id: 'ovt-1', visible: 0 });
+
+    const response = await worker.fetch(new Request(searchUrl('Padaria')), publicEnv(tables), CTX);
+    await expect(response.json()).resolves.toEqual({ matches: [] });
+  });
+
+  it('shows an Overture row under its corrected name', async () => {
+    const tables = emptyTables();
+    tables.overture_poi.push(poi({ id: 'ovt-1', name: 'PADARIA CENTRAL LDA', dedupe_name: 'padaria central lda' }));
+    tables.overture_correction.push({ source_id: 'ovt-1', visible: 1, name_override: 'Padaria Central' });
+
+    const response = await worker.fetch(new Request(searchUrl('Padaria')), publicEnv(tables), CTX);
+    const body = await response.json() as { matches: Array<{ name: string }> };
+    expect(body.matches).toEqual([expect.objectContaining({ id: 'ovt-1', name: 'Padaria Central' })]);
+  });
+
+  it('leaves out a curated record that is already removed', async () => {
+    const tables = emptyTables();
+    tables.curated_poi.push(poi({ id: 'community:1', name: 'Padaria Central', dedupe_name: 'padaria central', status: 'removed' }));
 
     const response = await worker.fetch(new Request(searchUrl('Padaria')), publicEnv(tables), CTX);
     await expect(response.json()).resolves.toEqual({ matches: [] });
@@ -273,7 +334,7 @@ describe('GET /manual-poi/search', () => {
 
   it('drops a same-named record in another city', async () => {
     const tables = emptyTables();
-    tables.poi.push(poi({ id: 'fsq-far', name: 'Padaria Central', dedupe_name: 'padaria central', lat: 41.1579, lng: -8.6291 }));
+    tables.overture_poi.push(poi({ id: 'ovt-far', name: 'Padaria Central', dedupe_name: 'padaria central', lat: 41.1579, lng: -8.6291 }));
 
     const response = await worker.fetch(new Request(searchUrl('Padaria')), publicEnv(tables), CTX);
     await expect(response.json()).resolves.toEqual({ matches: [] });
@@ -328,6 +389,22 @@ describe('POST /manual-poi/removals', () => {
     expect(tables.poi_suppression).toHaveLength(0);
     expect(tables.poi).toHaveLength(1);
     expect(tables.audit).toContainEqual(expect.objectContaining({ target_kind: 'removal', action: 'submitted', actor: 'public' }));
+  });
+
+  it('refuses a report against an Overture row up front, spending no token and storing nothing', async () => {
+    // KAN-452: the target_source CHECK in production does not admit
+    // 'overture' yet. The refusal comes before Turnstile and the rate limit,
+    // and its wording does not invite a retry.
+    const tables = emptyTables();
+    tables.overture_poi.push(poi({ id: 'ovt-1', name: 'Padaria Central', dedupe_name: 'padaria central' }));
+    const siteverify = verifiedTurnstile();
+
+    const response = await worker.fetch(request({ ...removal, targetSource: 'overture', targetId: 'ovt-1' }), publicEnv(tables), CTX);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "I can't take reports about this place yet" });
+    expect(siteverify).not.toHaveBeenCalled();
+    expect(tables.removals).toHaveLength(0);
   });
 
   it('makes a lost-response retry idempotent without spending a second token', async () => {
@@ -567,6 +644,31 @@ describe('reviewer removal routes, authenticated', () => {
     expect(tables.audit).toContainEqual(expect.objectContaining({
       target_kind: 'removal', target_id: 'removal-1', action: 'approved', actor: 'reviewer@brushaway.app',
     }));
+  });
+
+  it('approving an Overture removal writes a poi_source_correction and leaves the base table alone', async () => {
+    const tables = emptyTables();
+    tables.overture_poi.push(poi({ id: 'ovt-1', name: 'Padaria Central', dedupe_name: 'padaria central' }));
+    await pendingRemoval(tables, { target_source: 'overture', target_id: 'ovt-1', reason: 'never_existed' });
+    await stubAccessJwks();
+
+    const response = await worker.fetch(new Request('https://brushaway.app/manual-poi/review/api/removals/removal-1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Cf-Access-Jwt-Assertion': await accessAssertion() },
+      body: JSON.stringify({ action: 'approve' }),
+    }), reviewerEnv(tables), CTX);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      submissionId: 'removal-1', status: 'approved', suppressed: { source: 'overture', id: 'ovt-1' },
+    });
+    // The correction is the tombstone nearby honours; poi_suppression's
+    // CHECK does not admit 'overture' and is not written.
+    expect(tables.overture_correction).toEqual([expect.objectContaining({ source_id: 'ovt-1', visible: 0, review_note: 'KAN-428 removal removal-1: never_existed' })]);
+    expect(tables.poi_suppression).toHaveLength(0);
+    expect(tables.overture_poi).toHaveLength(1);
+    expect(tables.removals[0].status).toBe('approved');
+    expect(tables.audit).toContainEqual(expect.objectContaining({ target_kind: 'removal', action: 'approved', actor: 'reviewer@brushaway.app' }));
   });
 
   it('approving a community record marks it removed and records who and why', async () => {

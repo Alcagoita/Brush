@@ -288,8 +288,12 @@ CREATE INDEX IF NOT EXISTS idx_multibanco_import_scope_claim
 -- KAN-386: reviewed source decisions are applied at read time so a later
 -- Foursquare reload cannot reintroduce a venue that was replaced by a more
 -- accurate OSM record. Raw source rows remain available for audit.
+--
+-- 'overture' arrived by migration 0030 (a rebuild, since SQLite cannot widen
+-- a CHECK in place). A row with visible = 0 is how an Overture place is
+-- taken out of nearby — the base table is never edited (KAN-452).
 CREATE TABLE IF NOT EXISTS poi_source_correction (
-  source                TEXT NOT NULL CHECK (source IN ('foursquare', 'openstreetmap')),
+  source                TEXT NOT NULL CHECK (source IN ('foursquare', 'openstreetmap', 'overture')),
   source_id             TEXT NOT NULL,
   visible               INTEGER NOT NULL CHECK (visible IN (0, 1)),
   name_override         TEXT,
@@ -327,4 +331,134 @@ CREATE TABLE IF NOT EXISTS overture_evidence_run (
   PRIMARY KEY (country_code, run_id, manifest_sha256),
   CHECK (residual_rows = verified_rows + excluded_rows + insufficient_rows),
   CHECK (verified_rows + excluded_rows = foursquare_rows + osm_rows)
+);
+
+-- ---------------------------------------------------------------------------
+-- Moderation tables (KAN-362 / KAN-428 / KAN-452). Arrived by migrations 0008,
+-- 0010, 0027, 0028, 0030 and 0042 and were missing here, so the in-memory
+-- test database could not see the curated layer that nearby serves. Column
+-- order follows the live schema: the ALTER-added columns (`brand`, `floor`,
+-- the `origin_*` set) come last.
+
+CREATE TABLE IF NOT EXISTS manual_poi_submission (
+  submission_id       TEXT PRIMARY KEY,
+  idempotency_key     TEXT NOT NULL UNIQUE,
+  name                TEXT NOT NULL,
+  dedupe_name         TEXT NOT NULL,
+  lat                 REAL NOT NULL,
+  lng                 REAL NOT NULL,
+  poi_type            TEXT NOT NULL,
+  attributes_json     TEXT NOT NULL,
+  address             TEXT,
+  contributor_note    TEXT,
+  ip_hash             TEXT NOT NULL,
+  status              TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+  submitted_at        TEXT NOT NULL,
+  reviewed_at         TEXT,
+  reviewed_by         TEXT,
+  rejection_reason    TEXT,
+  approved_poi_id     TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_manual_poi_submission_review
+  ON manual_poi_submission (status, submitted_at);
+
+-- Every served place that is not Overture. `source` says who put the row
+-- here (a moderator, or an approved community suggestion); the `origin_*`
+-- columns (KAN-452) say which dataset the data came from, if any, and are
+-- what makes an importer idempotent.
+CREATE TABLE IF NOT EXISTS curated_poi (
+  poi_id                     TEXT PRIMARY KEY,
+  source                     TEXT NOT NULL CHECK (source IN ('community', 'manual')),
+  source_submission_id       TEXT UNIQUE REFERENCES manual_poi_submission(submission_id),
+  name                       TEXT NOT NULL,
+  dedupe_name                TEXT NOT NULL,
+  lat                        REAL NOT NULL,
+  lng                        REAL NOT NULL,
+  geohash                    TEXT NOT NULL,
+  primary_poi_type           TEXT NOT NULL,
+  address                    TEXT,
+  status                     TEXT NOT NULL CHECK (status IN ('active', 'removed')),
+  created_at                 TEXT NOT NULL,
+  created_by                 TEXT NOT NULL,
+  updated_at                 TEXT NOT NULL,
+  updated_by                 TEXT NOT NULL,
+  removed_at                 TEXT,
+  removed_by                 TEXT,
+  removal_reason             TEXT,
+  brand                      TEXT,
+  floor                      TEXT,
+  origin_source              TEXT,
+  origin_id                  TEXT,
+  origin_licence             TEXT,
+  imported_at                TEXT,
+  import_run_id              TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_curated_poi_geo ON curated_poi (geohash);
+CREATE INDEX IF NOT EXISTS idx_curated_poi_name ON curated_poi (dedupe_name);
+CREATE INDEX IF NOT EXISTS idx_curated_poi_brand_geo ON curated_poi (brand, geohash);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_curated_poi_origin
+  ON curated_poi (origin_source, origin_id)
+  WHERE origin_source IS NOT NULL AND origin_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS curated_poi_attribute (
+  poi_id       TEXT NOT NULL REFERENCES curated_poi(poi_id),
+  dimension    TEXT NOT NULL,
+  value        TEXT NOT NULL,
+  PRIMARY KEY (poi_id, dimension, value)
+);
+
+CREATE TABLE IF NOT EXISTS manual_poi_audit (
+  audit_id       TEXT PRIMARY KEY,
+  target_kind    TEXT NOT NULL CHECK (target_kind IN ('submission', 'curated_poi', 'removal')),
+  target_id      TEXT NOT NULL,
+  action         TEXT NOT NULL,
+  actor          TEXT NOT NULL,
+  detail_json    TEXT NOT NULL,
+  created_at     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_manual_poi_audit_target
+  ON manual_poi_audit (target_kind, target_id, created_at);
+
+CREATE TABLE IF NOT EXISTS manual_poi_rate_limit (
+  ip_hash            TEXT PRIMARY KEY,
+  window_started_at  TEXT NOT NULL,
+  request_count      INTEGER NOT NULL
+);
+
+-- KAN-428. `target_source` is as production has it: 'overture' is NOT
+-- accepted, which is what stops a removal report against an Overture row
+-- from being stored until that CHECK is widened (see migration 0027 and the
+-- KAN-452 PR).
+CREATE TABLE IF NOT EXISTS poi_removal_submission (
+  submission_id      TEXT PRIMARY KEY,
+  idempotency_key    TEXT NOT NULL UNIQUE,
+  target_source      TEXT NOT NULL CHECK (target_source IN ('foursquare', 'openstreetmap', 'community')),
+  target_id          TEXT NOT NULL,
+  target_name        TEXT NOT NULL,
+  target_poi_type    TEXT NOT NULL,
+  target_address     TEXT,
+  reason             TEXT NOT NULL CHECK (reason IN ('closed', 'never_existed', 'duplicate')),
+  contributor_note   TEXT,
+  ip_hash            TEXT NOT NULL,
+  status             TEXT NOT NULL CHECK (status IN ('pending', 'approved', 'rejected')),
+  submitted_at       TEXT NOT NULL,
+  reviewed_at        TEXT,
+  reviewed_by        TEXT,
+  rejection_reason   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_poi_removal_submission_review
+  ON poi_removal_submission (status, submitted_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_poi_removal_submission_pending_target
+  ON poi_removal_submission (target_source, target_id)
+  WHERE status = 'pending';
+
+CREATE TABLE IF NOT EXISTS poi_suppression (
+  source            TEXT NOT NULL CHECK (source IN ('foursquare', 'openstreetmap', 'community')),
+  source_id         TEXT NOT NULL,
+  reason            TEXT NOT NULL CHECK (reason IN ('closed', 'never_existed', 'duplicate')),
+  submission_id     TEXT REFERENCES poi_removal_submission(submission_id),
+  name              TEXT NOT NULL,
+  suppressed_at     TEXT NOT NULL,
+  suppressed_by     TEXT NOT NULL,
+  PRIMARY KEY (source, source_id)
 );
