@@ -568,7 +568,11 @@
       "Rituals",
       "Balvera Perfumarias",
       "MAC Cosmetics",
-      "L'Occitane en"
+      "L'Occitane en",
+      "Pluricosmética",
+      "Equivalenza",
+      "Flormar",
+      "Kiehl's"
     ]
   },
   "wine_and_spirits": {
@@ -621,6 +625,27 @@
       "Worten",
       "Fnac",
       "TTRW Store"
+    ]
+  },
+  "gift": {
+    "label": "Gifts",
+    "labelPt": "Presentes",
+    "aliases": [
+      "gift",
+      "gifts",
+      "gift shop",
+      "souvenir",
+      "souvenirs",
+      "prenda",
+      "prendas",
+      "presente",
+      "presentes",
+      "lembrança",
+      "lembranças",
+      "loja de presentes"
+    ],
+    "stores": [
+      "Ale-Hop"
     ]
   }
 }
