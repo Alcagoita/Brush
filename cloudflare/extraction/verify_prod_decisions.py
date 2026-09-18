@@ -25,6 +25,17 @@ CLOUDFLARE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAX_REQUESTS = 32  # the Worker's MAX_NEARBY_REQUESTS
 ODIVELAS_PARQUE = (38.78247076856684, -9.192561695448394)
 
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """The key goes to ENDPOINT and nowhere else: a 3xx is an error, never a
+    second request carrying `X-Api-Key` to another host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
+
 # Every type the catalogue can serve, for the Odivelas Parque snapshot.
 def catalogue_types():
     with open(os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCategories.json')) as handle:
@@ -78,7 +89,7 @@ def nearby(key, lat, lng, radius, types, limit=50):
             ENDPOINT, data=json.dumps(body).encode(), method='POST',
             headers={'X-Api-Key': key, 'User-Agent': 'curl/8.0', 'Content-Type': 'application/json'})
         try:
-            with urllib.request.urlopen(request, timeout=60) as response:
+            with OPENER.open(request, timeout=60) as response:
                 payload = json.load(response)
         except urllib.error.HTTPError as error:
             raise SystemExit(f'{ENDPOINT} -> {error.code}: {error.read()[:300]!r}')

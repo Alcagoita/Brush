@@ -5,16 +5,18 @@
     BUILD_TRIGGER_SECRET=… python3 promote_override_batches.py run --all-pending
 
 `status` is read-only: for every batch in `overtureCandidateOverrides.json`
-it samples up to SAMPLE ids, fetches their `promotion_status` from prod in
-lists of at most 150, and says whether the batch is promoted, pending, or
-mixed. That is the only way to know — the batch runs leave no ledger and
-the wrangler migration tracker is not in use (CLAUDE.md).
+it fetches the `promotion_status` of every one of its ids from prod, in
+lists of at most 150 ids per read (CLAUDE.md, "D1 from scripts"), and says
+whether the batch is promoted, pending, or mixed. All ids, never a sample:
+a batch of 179 whose first five are promoted can still hold a pending id.
+That is the only way to know — the batch runs leave no ledger and the
+wrangler migration tracker is not in use (CLAUDE.md).
 
 `run` writes to production and is the owner's call. It POSTs one batch to
 `/internal/overture-country/overrides` — the Worker starts an
 `overture-overrides` container for exactly that batch's ids, the same path
-KAN-432 used — waits until the sampled ids have left `pending`, then moves
-to the next. Sequential on purpose: one container at a time, and a batch
+KAN-432 used — waits until every id of the batch has left `pending`, then
+moves to the next. Sequential on purpose: one container at a time, and a batch
 that does not settle stops the run instead of piling more on.
 
 Reversals (`docs/evidence/reversals.jsonl`) need nothing here: a withdrawn id
@@ -38,9 +40,19 @@ REVERSALS_PATH = os.path.join(ROOT, 'docs', 'evidence', 'reversals.jsonl')
 SOURCE_KEY = 'overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv'
 WORKER = 'https://poi-api.brushaway.app'
 BATCH = 150
-SAMPLE = 5
 POLL_SECONDS = 20
 SETTLE_TIMEOUT = 600
+
+
+class NoRedirect(urllib.request.HTTPRedirectHandler):
+    """A credentialed request goes to the fixed endpoint and nowhere else: a
+    3xx is an error, never a second request carrying the secret to another host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+OPENER = urllib.request.build_opener(NoRedirect)
 
 
 def load_batches(path=OVERRIDES_PATH, source_key=SOURCE_KEY):
@@ -80,10 +92,10 @@ def candidate_status(ids):
 
 
 def classify(batches, status):
-    """One word per batch from the statuses of its sampled ids."""
+    """One word per batch from the statuses of all of its ids."""
     verdict = {}
     for name, entries in batches.items():
-        seen = {status.get(i, 'missing') for i in sample_ids(entries)}
+        seen = {status.get(i, 'missing') for i in entries}
         if seen <= {'promoted', 'rejected'}:
             verdict[name] = 'promoted'
         elif seen == {'pending'} or seen == {'pending', 'missing'}:
@@ -93,13 +105,9 @@ def classify(batches, status):
     return verdict
 
 
-def sample_ids(entries):
-    return list(entries)[:SAMPLE]
-
-
 def status(args):
     batches = load_batches()
-    ids = [i for entries in batches.values() for i in sample_ids(entries)]
+    ids = [i for entries in batches.values() for i in entries]
     found = candidate_status(ids)
     verdict = classify(batches, found)
     for name, entries in batches.items():
@@ -128,14 +136,15 @@ def trigger(batch, secret):
         f'{WORKER}/internal/overture-country/overrides', data=body, method='POST',
         headers={'X-Build-Secret': secret, 'User-Agent': 'curl/8.0', 'Content-Type': 'application/json'})
     try:
-        with urllib.request.urlopen(request, timeout=60) as response:
+        with OPENER.open(request, timeout=60) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
         raise SystemExit(f'overrides {batch} -> {error.code}: {error.read()[:300]!r}')
 
 
 def settled(entries, found):
-    return all(found.get(i, 'missing') != 'pending' for i in sample_ids(entries))
+    """True once no id of the batch is still pending — every id, not a sample."""
+    return all(found.get(i, 'missing') != 'pending' for i in entries)
 
 
 def run(args):
@@ -144,7 +153,7 @@ def run(args):
         raise SystemExit('BUILD_TRIGGER_SECRET is required to run a batch (it is a Worker secret, never in the repo)')
     batches = load_batches()
     if args.all_pending:
-        verdict = classify(batches, candidate_status(i for e in batches.values() for i in sample_ids(e)))
+        verdict = classify(batches, candidate_status(i for e in batches.values() for i in e))
         names = [n for n, v in verdict.items() if v == 'pending']
     else:
         names = args.batches
@@ -159,12 +168,13 @@ def run(args):
         deadline = time.time() + SETTLE_TIMEOUT
         while True:
             time.sleep(POLL_SECONDS)
-            found = candidate_status(sample_ids(entries))
+            found = candidate_status(entries)
             if settled(entries, found):
-                print(f'[{name}] settled: {sorted(set(found.values()))} ({len(entries)} ids in the batch)', file=sys.stderr)
+                print(f'[{name}] settled: {sorted(set(found.values()))} (all {len(entries)} ids verified)', file=sys.stderr)
                 break
             if time.time() > deadline:
-                raise SystemExit(f'[{name}] did not settle in {SETTLE_TIMEOUT}s; stopping before the next batch. Sampled: {found}')
+                still = sorted(i for i, v in found.items() if v == 'pending')
+                raise SystemExit(f'[{name}] did not settle in {SETTLE_TIMEOUT}s; stopping before the next batch. Still pending ({len(still)}): {still}')
     return 0
 
 
