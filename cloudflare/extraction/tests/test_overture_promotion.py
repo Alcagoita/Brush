@@ -79,15 +79,19 @@ class DecideTest(unittest.TestCase):
 
     def test_the_name_supplies_a_store_kind_the_category_could_not(self):
         # KAN-340's fallback, the one classify_and_load already runs for
-        # Foursquare. `papelaria` is an alias of `books` in the app's own
-        # dictionary, so this subtype is looked up, never invented.
+        # Foursquare. `papelaria` is an alias in the app's own dictionary —
+        # of `books` when this was written, of `cards_and_stationery` since
+        # KAN-432 — so this subtype is looked up, never invented. The test
+        # asks the dictionary which kind, so it moves with it (KAN-459).
         # A category Overture does not have. Its real shopping leaves are all
         # mapped now, each keeping its own kind, so the fallback only has to
         # cover what the source could not name at all.
+        expected = self.promote.match_keyword_subtypes('Papelaria Trevo', self.promote.store_kind_alias_index())
+        self.assertEqual(expected, {'cards_and_stationery'})
         status, types, attributes, _ = self.decide('Papelaria Trevo', 'unmapped_shop_xyz')
         self.assertEqual(status, 'promoted')
         self.assertEqual(types, ('store',))
-        self.assertIn(('store_kind', 'books'), attributes)
+        self.assertIn(('store_kind', 'cards_and_stationery'), attributes)
 
     def test_a_store_no_name_can_qualify_stays_pending(self):
         # Reachability is the bar: a `store` with no subtype answers no

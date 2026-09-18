@@ -1,22 +1,14 @@
 """KAN-440 — MULTIBANCO container orchestration stays inside D1 leases."""
 import os
 import sys
-import types
 import unittest
 
 EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 
-
-if 'requests' not in sys.modules:
-    requests = types.ModuleType('requests')
-    requests.RequestException = Exception
-    requests.get = None
-    requests.post = None
-    requests.put = None
-    sys.modules['requests'] = requests
-if 'duckdb' not in sys.modules:
-    sys.modules['duckdb'] = types.ModuleType('duckdb')
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
 
 import run_job  # noqa: E402
 

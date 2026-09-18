@@ -13,6 +13,10 @@ from unittest import mock
 
 EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
+
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
 
 FIELDS = ('overture_id', 'name', 'lat', 'lng', 'address', 'locality',
           'category', 'basic_category', 'category_path', 'confidence',

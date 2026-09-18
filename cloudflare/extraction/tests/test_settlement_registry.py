@@ -1,22 +1,17 @@
 import os
 import sys
-import types
 import unittest
 
 EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 
 # The production Container installs requests. Keep these parser/SQL unit tests
 # runnable on a bare local Python too; they never perform an HTTP request.
-try:
-    import requests  # noqa: F401
-except ModuleNotFoundError:
-    requests_stub = types.ModuleType('requests')
-    requests_stub.RequestException = Exception
-    requests_stub.post = lambda *args, **kwargs: None
-    sys.modules['requests'] = requests_stub
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
 
-import settlement_registry
+import settlement_registry  # noqa: E402
 
 
 class SettlementRegistryTest(unittest.TestCase):

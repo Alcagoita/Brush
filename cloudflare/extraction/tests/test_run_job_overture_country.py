@@ -7,22 +7,10 @@ import unittest
 
 EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 
-try:
-    import requests  # noqa: F401
-except ImportError:
-    import types
-    requests = types.ModuleType('requests')
-    requests.RequestException = Exception
-    requests.post = None
-    requests.get = None
-    requests.put = None
-    sys.modules['requests'] = requests
-try:
-    import duckdb  # noqa: F401
-except ImportError:
-    import types
-    sys.modules['duckdb'] = types.ModuleType('duckdb')
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
 
 import run_job  # noqa: E402
 

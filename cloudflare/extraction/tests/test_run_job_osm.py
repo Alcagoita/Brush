@@ -7,7 +7,6 @@ honest: the loop is exercised through the same worker_client / d1_client /
 r2_client calls production uses, so a change to that contract fails here.
 """
 import contextlib
-import importlib.util
 import io
 import os
 import sys
@@ -16,26 +15,10 @@ import unittest
 
 EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 
-
-def _stub_if_missing(name, **attributes):
-    """Stand in for a dependency only when it is genuinely not installed.
-
-    The extraction image ships requests and duckdb for real. Installing a
-    fake unconditionally would shadow them for every test that runs after
-    this module in the same process, so absence is checked first.
-    """
-    if importlib.util.find_spec(name) is not None:
-        return sys.modules.get(name)
-    module = types.ModuleType(name)
-    for key, value in attributes.items():
-        setattr(module, key, value)
-    sys.modules.setdefault(name, module)
-    return sys.modules[name]
-
-
-_stub_if_missing('requests', RequestException=Exception, post=None, put=None, get=None)
-_stub_if_missing('duckdb')
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
 
 import run_job  # noqa: E402
 import supplement_osm_pois  # noqa: E402

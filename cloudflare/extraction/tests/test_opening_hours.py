@@ -1,5 +1,7 @@
-"""KAN-318 — opening_hours category mapping. Run: python3 tests/test_opening_hours.py"""
-import os, sys
+"""KAN-318 — opening_hours category mapping."""
+import os
+import sys
+import unittest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from opening_hours import hours_for_category_label as h  # noqa: E402
 from opening_hours import hours_for_poi_type as t  # noqa: E402
@@ -29,40 +31,40 @@ CASES = [
 ]
 
 
-def main():
-    fails = 0
-    # KAN-431. The label door and the poi_type door must agree: they are two
-    # ways into one decision, and a drift between them would give an Overture
-    # or OSM row different hours from the Foursquare row for the same place.
-    AGREE = [
-        ('restaurant', 'Dining and Drinking > Restaurant'),
-        ('cafe', 'Dining and Drinking > Cafe, Coffee, and Tea House'),
-        ('bakery', 'Dining and Drinking > Bakery'),
-        ('supermarket', 'Retail > Food and Beverage Retail > Supermarket'),
-        ('store', 'Retail > Fashion Retail'),
-        ('bank', 'Business and Professional Services > Financial Service'),
-        ('gym', 'Sports and Recreation > Gym and Studio'),
-        ('clinic', 'Health and Medicine > Dentist'),
-        ('museum', 'Arts and Entertainment > Museum'),
-        ('post', 'Community and Government > Government Building'),
-        # Always-open on both sides, for different stated reasons.
-        ('pharmacy', 'Retail > Pharmacy'),
-        ('bar', 'Dining and Drinking > Bar'),
-    ]
-    for poi_type, label in AGREE:
-        if t(poi_type) != h(label):
-            print(f"FAIL: {poi_type!r} -> {t(poi_type)}, but {label!r} -> {h(label)}")
-            fails += 1
-    for label, expected in CASES:
-        got = h(label)
-        if got != expected:
-            print(f"FAIL: {label!r} -> {got}, expected {expected}")
-            fails += 1
-    if fails:
-        print(f"{fails} failure(s)")
-        sys.exit(1)
-    print(f"OK: {len(CASES)} label cases + {len(AGREE)} agreement cases pass")
+# KAN-431. The label door and the poi_type door must agree: they are two
+# ways into one decision, and a drift between them would give an Overture
+# or OSM row different hours from the Foursquare row for the same place.
+AGREE = [
+    ('restaurant', 'Dining and Drinking > Restaurant'),
+    ('cafe', 'Dining and Drinking > Cafe, Coffee, and Tea House'),
+    ('bakery', 'Dining and Drinking > Bakery'),
+    ('supermarket', 'Retail > Food and Beverage Retail > Supermarket'),
+    ('store', 'Retail > Fashion Retail'),
+    ('bank', 'Business and Professional Services > Financial Service'),
+    ('gym', 'Sports and Recreation > Gym and Studio'),
+    ('clinic', 'Health and Medicine > Dentist'),
+    ('museum', 'Arts and Entertainment > Museum'),
+    ('post', 'Community and Government > Government Building'),
+    # Always-open on both sides, for different stated reasons.
+    ('pharmacy', 'Retail > Pharmacy'),
+    ('bar', 'Dining and Drinking > Bar'),
+]
+
+
+class OpeningHoursTest(unittest.TestCase):
+    """KAN-459: was a script `unittest discover` collected nothing from; the
+    same cases, now counted."""
+
+    def test_label_cases(self):
+        for label, expected in CASES:
+            with self.subTest(label=label):
+                self.assertEqual(h(label), expected)
+
+    def test_the_label_door_and_the_poi_type_door_agree(self):
+        for poi_type, label in AGREE:
+            with self.subTest(poi_type=poi_type):
+                self.assertEqual(t(poi_type), h(label))
 
 
 if __name__ == '__main__':
-    main()
+    unittest.main()
