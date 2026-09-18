@@ -22,6 +22,18 @@ that does not settle stops the run instead of piling more on.
 Reversals (`docs/evidence/reversals.jsonl`) need nothing here: a withdrawn id
 is no longer in its batch, so a run never touches it. Whether prod already
 served it is `status`'s business — run `status --reversals` to see.
+
+    python3 promote_override_batches.py repromote --archive <overture.csv> --backlog <report.tsv> [--out <tsv>]
+    BUILD_TRIGGER_SECRET=… python3 promote_override_batches.py repromote --archive … --backlog … --run
+
+`repromote` is the KAN-455 path for the rows a rule change newly decides:
+without `--run` it is a local dry run — the archived source and the country
+run's own backlog report (`overture-country-reports/PT/<run>.tsv`, every row
+the run left pending) decide what `overture-repromote` would promote and
+reject, and nothing is read from or written to D1. With `--run` it POSTs
+`/internal/overture-repromote`, the Worker starts one `overture-repromote`
+container over the mapped source, and this waits until every id the dry run
+expected to leave `pending` has done so (all ids, ≤150 per read).
 """
 import argparse
 import json
@@ -130,16 +142,36 @@ def status(args):
     return 0
 
 
-def trigger(batch, secret):
-    body = json.dumps({'countryCode': 'PT', 'batch': batch}).encode()
+def post_internal(path, body, secret):
     request = urllib.request.Request(
-        f'{WORKER}/internal/overture-country/overrides', data=body, method='POST',
+        f'{WORKER}{path}', data=json.dumps(body).encode(), method='POST',
         headers={'X-Build-Secret': secret, 'User-Agent': 'curl/8.0', 'Content-Type': 'application/json'})
     try:
         with OPENER.open(request, timeout=60) as response:
             return json.load(response)
     except urllib.error.HTTPError as error:
-        raise SystemExit(f'overrides {batch} -> {error.code}: {error.read()[:300]!r}')
+        raise SystemExit(f'{path} -> {error.code}: {error.read()[:300]!r}')
+
+
+def trigger(batch, secret):
+    return post_internal('/internal/overture-country/overrides', {'countryCode': 'PT', 'batch': batch}, secret)
+
+
+def wait_until_settled(label, ids, deadline_seconds=SETTLE_TIMEOUT, poll_seconds=POLL_SECONDS,
+                       read=candidate_status, sleep=time.sleep, clock=time.time):
+    """Poll prod until no id is still pending — every id, ≤150 per read — or
+    stop with the ids still pending once the ceiling is reached."""
+    ids = list(ids)
+    deadline = clock() + deadline_seconds
+    while True:
+        sleep(poll_seconds)
+        found = read(ids)
+        if settled(ids, found):
+            print(f'[{label}] settled: {sorted(set(found.values()))} (all {len(ids)} ids verified)', file=sys.stderr)
+            return found
+        if clock() > deadline:
+            still = sorted(i for i, v in found.items() if v == 'pending')
+            raise SystemExit(f'[{label}] did not settle in {deadline_seconds}s; stopping. Still pending ({len(still)}): {still}')
 
 
 def settled(entries, found):
@@ -165,16 +197,59 @@ def run(args):
         entries = batches[name]
         answer = trigger(name, secret)
         print(f'[{name}] started: {answer}', file=sys.stderr)
-        deadline = time.time() + SETTLE_TIMEOUT
-        while True:
-            time.sleep(POLL_SECONDS)
-            found = candidate_status(entries)
-            if settled(entries, found):
-                print(f'[{name}] settled: {sorted(set(found.values()))} (all {len(entries)} ids verified)', file=sys.stderr)
-                break
-            if time.time() > deadline:
-                still = sorted(i for i, v in found.items() if v == 'pending')
-                raise SystemExit(f'[{name}] did not settle in {SETTLE_TIMEOUT}s; stopping before the next batch. Still pending ({len(still)}): {still}')
+        wait_until_settled(name, entries)
+    return 0
+
+
+def repromote_expected(archive, backlog, source_key=SOURCE_KEY):
+    """The dry run: what the current rules and overrides decide of the rows
+    the country run left pending. Local; no D1."""
+    sys.path.insert(0, EXTRACTION_DIR)
+    os.environ.setdefault('BRUSH_TYPE_RELATION', 'sql')
+    import promote_overture_candidates as promote
+    return promote.repromote_dry_run(archive, backlog, source_key)
+
+
+def expected_to_settle(report):
+    """Every id the dry run decided — by rule or by override — in one list."""
+    return [overture_id for basis in ('rule', 'override') for status in ('promoted', 'rejected')
+            for overture_id, *_ in report['decided'][basis][status]]
+
+
+def print_repromote_report(report, out_path=None):
+    print(f"pending in the country run's report: {report['pending_in_report']:,}")
+    print(f"by rule:      promoted {report['rule']['promoted']:,}  rejected {report['rule']['rejected']:,}")
+    print(f"by override:  promoted {report['override']['promoted']:,}  rejected {report['override']['rejected']:,}"
+          '  (upper bound: a batch already run has promoted its share)')
+    print(f"still pending: {report['still_pending']:,}")
+    print('rule promotions by type:')
+    for poi_type, count in report['rule_promoted_by_type'].items():
+        print(f'  {count:6,}  {poi_type}')
+    if out_path:
+        with open(out_path, 'w') as handle:
+            handle.write('basis\tstatus\toverture_id\tcategory\treason\tname\n')
+            for basis in ('rule', 'override'):
+                for status in ('promoted', 'rejected'):
+                    for overture_id, name, category, reason in report['decided'][basis][status]:
+                        handle.write(f'{basis}\t{status}\t{overture_id}\t{category}\t{reason or ""}\t{name}\n')
+        print(f'decisions -> {out_path}', file=sys.stderr)
+
+
+def repromote(args):
+    report = repromote_expected(args.archive, args.backlog)
+    print_repromote_report(report, args.out)
+    if not args.run:
+        print('\ndry run: nothing read from or written to D1', file=sys.stderr)
+        return 0
+    secret = os.environ.get('BUILD_TRIGGER_SECRET')
+    if not secret:
+        raise SystemExit('BUILD_TRIGGER_SECRET is required to run (it is a Worker secret, never in the repo)')
+    expected = expected_to_settle(report)
+    answer = post_internal('/internal/overture-repromote', {'countryCode': 'PT', 'rawExtractR2Key': SOURCE_KEY}, secret)
+    print(f'[repromote] started: {answer}', file=sys.stderr)
+    if answer.get('rawExtractR2Key') != SOURCE_KEY:
+        raise SystemExit(f"[repromote] the Worker's mapped source is {answer.get('rawExtractR2Key')!r}, not {SOURCE_KEY!r}; the dry run above was for the wrong archive")
+    wait_until_settled('repromote', expected)
     return 0
 
 
@@ -188,6 +263,12 @@ def main(argv):
     r.add_argument('batches', nargs='*')
     r.add_argument('--all-pending', action='store_true')
     r.set_defaults(func=run)
+    p = sub.add_parser('repromote', help='dry run locally; with --run, WRITES TO PRODUCTION through overture-repromote')
+    p.add_argument('--archive', required=True, help='the archived Overture CSV for SOURCE_KEY')
+    p.add_argument('--backlog', required=True, help="the country run's backlog report TSV (overture-country-reports/PT/<run>.tsv)")
+    p.add_argument('--out', help='write every expected decision to this TSV')
+    p.add_argument('--run', action='store_true', help='trigger the container and wait for every expected id to settle')
+    p.set_defaults(func=repromote)
     args = parser.parse_args(argv)
     if args.command == 'run' and not args.batches and not args.all_pending:
         parser.error('name batches or pass --all-pending')

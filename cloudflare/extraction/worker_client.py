@@ -223,3 +223,20 @@ def overture_country_failed(country_code, run_id, error):
     return _post('/internal/overture-country/failed', {
         'countryCode': country_code, 'runId': run_id, 'error': str(error)[:1_000],
     })
+
+
+def overture_repromote_complete(country_code, run_id, raw_extract_r2_key, run, totals):
+    """KAN-455. `run` is what this repromote decided; `totals` is the source's
+    promotion_status count afterwards, which the Worker records on the
+    mapped import row."""
+    return _post('/internal/overture-repromote/complete', {
+        'countryCode': country_code, 'runId': run_id, 'rawExtractR2Key': raw_extract_r2_key,
+        'repromotedRows': run['promoted'], 'rerejectedRows': run['rejected'], 'leftPendingRows': run['pending'],
+        'promotedRows': totals['promoted'], 'rejectedRows': totals['rejected'], 'pendingRows': totals['pending'],
+    })
+
+
+def overture_repromote_failed(country_code, run_id, error):
+    return _post('/internal/overture-repromote/failed', {
+        'countryCode': country_code, 'runId': run_id, 'error': str(error)[:1_000],
+    })
