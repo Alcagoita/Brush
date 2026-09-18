@@ -3,6 +3,7 @@ import { ContainerProxy, getContainer } from '@cloudflare/containers';
 import { ExtractionContainer } from './extractionContainer';
 import { MANUAL_POI_TYPES, MANUAL_SUBTYPE_FILTERS, normalizePoiName, parseManualPoiInput, isManualPoiInput, type ManualPoiAttribute } from './manualPoi';
 import { POI_REMOVAL_REASONS, parsePoiRemovalInput, isPoiRemovalInput, type PoiRemovalReason, type PoiRemovalSource } from './poiRemoval';
+import { findHeldPois, type HeldPoiSource } from './heldPois';
 import { bearerToken, verifyFirebaseIdToken } from './firebaseAuth';
 import {
   OSM_SCOPE_BATCH_SIZE, claimBatch, completeScope, countriesAwaitingBatch, failScope,
@@ -126,6 +127,9 @@ function json(data: unknown, status = 200): Response {
 // API itself remains Firebase-authenticated and must not become browser-open.
 const MANUAL_POI_PUBLIC_ORIGIN = 'https://brushaway.app';
 const MANUAL_POI_DUPLICATE_DISTANCE_METERS = 20;
+// Exact-name matches inside a 20 m box: a chain with several branches in one
+// mall is the most a name can plausibly yield here.
+const MANUAL_POI_DUPLICATE_PER_SOURCE_LIMIT = 50;
 const MANUAL_POI_RATE_LIMIT_MAX = 5;
 const MANUAL_POI_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1_000;
 
@@ -185,7 +189,7 @@ interface ManualPoiSubmissionRow {
 
 interface ManualPoiDuplicate {
   poiId: string;
-  source: 'foursquare' | 'community' | 'openstreetmap';
+  source: HeldPoiSource;
   name: string;
   lat: number;
   lng: number;
@@ -206,29 +210,31 @@ function storedManualPoiAttributes(value: string): ManualPoiAttribute[] {
   }
 }
 
+/**
+ * The nearest served place with exactly this normalised name within
+ * MANUAL_POI_DUPLICATE_DISTANCE_METERS, or null. Reads the shared lookup
+ * (KAN-452), so Overture — the base — is checked, as are curated rows and
+ * MULTIBANCO ATMs. An approval that lands on one of these is recorded as a
+ * merge rather than a second row.
+ */
 async function findManualPoiDuplicate(
   db: D1Database,
   dedupeName: string,
   lat: number,
   lng: number,
 ): Promise<ManualPoiDuplicate | null> {
-  const [{ results: foursquareRows }, { results: curatedRows }, { results: osmRows }] = await Promise.all([
-    db.prepare('SELECT fsq_place_id AS poi_id, name, lat, lng FROM poi WHERE dedupe_name = ?').bind(dedupeName).all<{ poi_id: string; name: string; lat: number; lng: number }>(),
-    db.prepare("SELECT poi_id, name, lat, lng FROM curated_poi WHERE dedupe_name = ? AND status = 'active'").bind(dedupeName).all<{ poi_id: string; name: string; lat: number; lng: number }>(),
-    db.prepare('SELECT osm_element_id AS poi_id, name, lat, lng FROM osm_poi WHERE dedupe_name = ?').bind(dedupeName).all<{ poi_id: string; name: string; lat: number; lng: number }>(),
-  ]);
-  const candidates: ManualPoiDuplicate[] = [
-    ...foursquareRows.map(row => ({ poiId: row.poi_id, source: 'foursquare' as const, name: row.name, lat: row.lat, lng: row.lng })),
-    ...curatedRows.map(row => ({ poiId: row.poi_id, source: 'community' as const, name: row.name, lat: row.lat, lng: row.lng })),
-    ...osmRows.map(row => ({ poiId: row.poi_id, source: 'openstreetmap' as const, name: row.name, lat: row.lat, lng: row.lng })),
-  ];
-  return candidates.find(candidate => haversineMeters(lat, lng, candidate.lat, candidate.lng) <= MANUAL_POI_DUPLICATE_DISTANCE_METERS) ?? null;
+  const [nearest] = await findHeldPois(db, {
+    dedupeName, lat, lng,
+    radiusMeters: MANUAL_POI_DUPLICATE_DISTANCE_METERS,
+    perSourceLimit: MANUAL_POI_DUPLICATE_PER_SOURCE_LIMIT,
+  });
+  return nearest ? { poiId: nearest.id, source: nearest.source, name: nearest.name, lat: nearest.lat, lng: nearest.lng } : null;
 }
 
 // KAN-428: a contributor reporting a wrong POI knows a name and a city, not
-// our coordinates. Search is therefore name-first — `dedupe_name` leads
-// idx_poi_canonical_identity, so a prefix match is index-backed — and the
-// city centre only bounds what that match returns. The geohash helpers are
+// our coordinates. Search is therefore name-first — `dedupe_name` is indexed
+// on every served table, so a prefix match is index-backed — and the city
+// centre only bounds what that match returns. The geohash helpers are
 // deliberately not reused here: they cap at MAX_RADIUS_METERS (4.5km)
 // because they serve the nearby hot path, and a city is far larger than
 // that.
@@ -241,17 +247,8 @@ const POI_SEARCH_RADIUS_METERS = 30_000;
 const POI_SEARCH_PER_SOURCE_LIMIT = 200;
 const POI_SEARCH_RESULT_LIMIT = 20;
 
-interface RemovablePoiRow {
-  poi_id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  primary_poi_type: string;
-  address: string | null;
-}
-
 interface RemovablePoi {
-  source: ManualPoiDuplicate['source'];
+  source: HeldPoiSource;
   id: string;
   name: string;
   poiType: string;
@@ -261,11 +258,14 @@ interface RemovablePoi {
 
 /**
  * Every record we hold whose name starts with `dedupeTerm`, within
- * POI_SEARCH_RADIUS_METERS of the given centre, across all three sources.
+ * POI_SEARCH_RADIUS_METERS of the given centre — Overture and curated rows
+ * through the shared lookup (KAN-452).
  *
- * Records already suppressed are excluded — there is nothing left to report
+ * Records already taken out are excluded by the lookup itself (a hidden
+ * Overture row, a removed curated row) — there is nothing left to report
  * about them, and offering one would invite a second removal of the same
- * thing.
+ * thing. MULTIBANCO ATMs are not offered: that data is final and has no
+ * correction path, so a report against one could not be acted on.
  */
 async function searchRemovablePois(
   db: D1Database,
@@ -273,73 +273,15 @@ async function searchRemovablePois(
   lat: number,
   lng: number,
 ): Promise<RemovablePoi[]> {
-  // `dedupeTerm` has been through normalizePoiName, which strips everything
-  // outside [a-z0-9 ] — so it cannot carry a LIKE wildcard.
-  const prefix = `${dedupeTerm}%`;
-
-  // The LIMIT has to be applied to rows that are already near the centre.
-  // Without this box, a common prefix ("padaria") matches nationwide, the
-  // LIMIT truncates that set in whatever order the index yields, and the
-  // distance filter below can then discard every row that survived — so a
-  // POI that really is in the visitor's town reports as "not held".
-  //
-  // A latitude/longitude box rather than a geohash grid: the geohash helpers
-  // are built for the nearby hot path and cannot express this radius
-  // (precisionForRadius bottoms out at precision 5, ~4.9km cells, and
-  // neighborPrefixes caps the grid at MAX_GRID_CELLS_PER_AXIS), and SQLite
-  // would use only one index per table anyway — which needs to stay the
-  // dedupe_name one that makes the prefix match cheap. The box is a residual
-  // filter that shrinks the candidate set before LIMIT; it is not trying to
-  // be the access path.
-  const latDelta = POI_SEARCH_RADIUS_METERS / 111_195;
-  // Meridians converge toward the poles, so a degree of longitude covers
-  // fewer metres the further from the equator this runs. Clamped because
-  // cos() approaches zero at the poles.
-  const lngDelta = latDelta / Math.max(Math.cos(lat * Math.PI / 180), 0.01);
-  const box = [lat - latDelta, lat + latDelta, lng - lngDelta, lng + lngDelta];
-
-  const [{ results: foursquareRows }, { results: osmRows }, { results: curatedRows }] = await Promise.all([
-    db.prepare(
-      `SELECT fsq_place_id AS poi_id, name, lat, lng, primary_poi_type, address FROM poi
-       WHERE dedupe_name LIKE ?
-         AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
-         AND NOT EXISTS (SELECT 1 FROM poi_suppression s WHERE s.source = 'foursquare' AND s.source_id = poi.fsq_place_id)
-       LIMIT ?`,
-    ).bind(prefix, ...box, POI_SEARCH_PER_SOURCE_LIMIT).all<RemovablePoiRow>(),
-    db.prepare(
-      `SELECT osm_element_id AS poi_id, name, lat, lng, primary_poi_type, address FROM osm_poi
-       WHERE dedupe_name LIKE ?
-         AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
-         AND NOT EXISTS (SELECT 1 FROM poi_suppression s WHERE s.source = 'openstreetmap' AND s.source_id = osm_poi.osm_element_id)
-       LIMIT ?`,
-    ).bind(prefix, ...box, POI_SEARCH_PER_SOURCE_LIMIT).all<RemovablePoiRow>(),
-    db.prepare(
-      `SELECT poi_id, name, lat, lng, primary_poi_type, address FROM curated_poi
-       WHERE dedupe_name LIKE ? AND status = 'active'
-         AND lat BETWEEN ? AND ? AND lng BETWEEN ? AND ?
-         AND NOT EXISTS (SELECT 1 FROM poi_suppression s WHERE s.source = 'community' AND s.source_id = curated_poi.poi_id)
-       LIMIT ?`,
-    ).bind(prefix, ...box, POI_SEARCH_PER_SOURCE_LIMIT).all<RemovablePoiRow>(),
-  ]);
-
-  const tagged: Array<{ source: ManualPoiDuplicate['source']; row: RemovablePoiRow }> = [
-    ...foursquareRows.map(row => ({ source: 'foursquare' as const, row })),
-    ...osmRows.map(row => ({ source: 'openstreetmap' as const, row })),
-    ...curatedRows.map(row => ({ source: 'community' as const, row })),
-  ];
-
-  return tagged
-    .map(({ source, row }) => ({
-      source,
-      id: row.poi_id,
-      name: row.name,
-      poiType: row.primary_poi_type,
-      address: row.address,
-      distanceMeters: Math.round(haversineMeters(lat, lng, row.lat, row.lng)),
-    }))
-    .filter(candidate => candidate.distanceMeters <= POI_SEARCH_RADIUS_METERS)
-    .sort((a, b) => a.distanceMeters - b.distanceMeters)
-    .slice(0, POI_SEARCH_RESULT_LIMIT);
+  const held = await findHeldPois(db, {
+    dedupeName: dedupeTerm, prefix: true, lat, lng,
+    radiusMeters: POI_SEARCH_RADIUS_METERS,
+    perSourceLimit: POI_SEARCH_PER_SOURCE_LIMIT,
+    sources: ['overture', 'community'],
+  });
+  return held
+    .slice(0, POI_SEARCH_RESULT_LIMIT)
+    .map(({ source, id, name, poiType, address, distanceMeters }) => ({ source, id, name, poiType, address, distanceMeters }));
 }
 
 /**
@@ -348,19 +290,61 @@ async function searchRemovablePois(
  *
  * The submission stores this snapshot rather than trusting the name the
  * browser posted, so what the reviewer reads is our own data.
+ *
+ * An Overture row already hidden by `poi_source_correction` is not held:
+ * nearby does not serve it, so there is nothing to remove.
+ *
+ * 'foursquare' and 'openstreetmap' stay accepted for the reports already
+ * stored under those words; their tables have been empty since 0032, so a
+ * new report against either resolves to nothing.
  */
 async function resolveRemovalTarget(
   db: D1Database,
   source: PoiRemovalSource,
   id: string,
 ): Promise<{ name: string; poiType: string; address: string | null } | null> {
-  const query = source === 'foursquare'
-    ? 'SELECT name, primary_poi_type, address FROM poi WHERE fsq_place_id = ?'
-    : source === 'openstreetmap'
-      ? 'SELECT name, primary_poi_type, address FROM osm_poi WHERE osm_element_id = ?'
-      : "SELECT name, primary_poi_type, address FROM curated_poi WHERE poi_id = ? AND status = 'active'";
+  const query = source === 'overture'
+    ? `SELECT COALESCE(correction.name_override, overture_poi.name) AS name, overture_poi.primary_poi_type, overture_poi.address
+         FROM overture_poi
+         LEFT JOIN poi_source_correction AS correction
+           ON correction.source = 'overture' AND correction.source_id = overture_poi.overture_id
+        WHERE overture_poi.overture_id = ? AND (correction.visible IS NULL OR correction.visible = 1)`
+    : source === 'foursquare'
+      ? 'SELECT name, primary_poi_type, address FROM poi WHERE fsq_place_id = ?'
+      : source === 'openstreetmap'
+        ? 'SELECT name, primary_poi_type, address FROM osm_poi WHERE osm_element_id = ?'
+        : "SELECT name, primary_poi_type, address FROM curated_poi WHERE poi_id = ? AND status = 'active'";
   const row = await db.prepare(query).bind(id).first<{ name: string; primary_poi_type: string; address: string | null }>();
   return row ? { name: row.name, poiType: row.primary_poi_type, address: row.address } : null;
+}
+
+/**
+ * An approved removal of an Overture row (KAN-452).
+ *
+ * The base table is never edited. The decision goes to
+ * `poi_source_correction (source = 'overture', visible = 0)`, which nearby
+ * already joins and honours (`overture_correction` in queryNearbyPoiDb), and
+ * which a refreshed Overture release does not overwrite. `poi_suppression`
+ * is not written: its CHECK does not admit 'overture', and the correction
+ * row is the durable record for this source.
+ *
+ * ON CONFLICT keeps whatever name override a reviewer had already recorded
+ * for the row and only flips visibility.
+ */
+function hideOvertureRowStatement(
+  db: D1Database,
+  overtureId: string,
+  submissionId: string,
+  reason: PoiRemovalReason,
+  reviewedAt: string,
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO poi_source_correction (source, source_id, visible, review_note, created_at)
+     VALUES ('overture', ?, 0, ?, ?)
+     ON CONFLICT(source, source_id) DO UPDATE SET
+       visible = 0,
+       review_note = excluded.review_note`,
+  ).bind(overtureId, `KAN-428 removal ${submissionId}: ${reason}`, reviewedAt);
 }
 
 /**
@@ -2186,12 +2170,19 @@ export default {
       // The tombstone goes in first, then the sweep reads it. Doing it in
       // this order is what makes the removal survive the next import rather
       // than only clearing the tables once.
-      await env.REGISTRY_DB.batch([
-        env.REGISTRY_DB.prepare(
+      //
+      // An Overture row's tombstone is a `poi_source_correction` (KAN-452),
+      // which nearby applies at read time — so there is nothing for the
+      // sweep to do for it.
+      const tombstone = submission.target_source === 'overture'
+        ? hideOvertureRowStatement(env.REGISTRY_DB, submission.target_id, submissionId, submission.reason, reviewedAt)
+        : env.REGISTRY_DB.prepare(
           `INSERT INTO poi_suppression (source, source_id, reason, submission_id, name, suppressed_at, suppressed_by)
            VALUES (?, ?, ?, ?, ?, ?, ?)
            ON CONFLICT(source, source_id) DO NOTHING`,
-        ).bind(submission.target_source, submission.target_id, submission.reason, submissionId, submission.target_name, reviewedAt, reviewer),
+        ).bind(submission.target_source, submission.target_id, submission.reason, submissionId, submission.target_name, reviewedAt, reviewer);
+      await env.REGISTRY_DB.batch([
+        tombstone,
         env.REGISTRY_DB.prepare(
           "UPDATE poi_removal_submission SET status = 'approved', reviewed_at = ?, reviewed_by = ? WHERE submission_id = ? AND status = 'pending'",
         ).bind(reviewedAt, reviewer, submissionId),

@@ -8,7 +8,13 @@
  * identity this module accepts is a source-tagged id, never a coordinate.
  */
 
-export const POI_REMOVAL_SOURCES = Object.freeze(['foursquare', 'openstreetmap', 'community'] as const);
+/**
+ * 'overture' since KAN-452: the base layer is what a contributor most often
+ * means. 'foursquare' and 'openstreetmap' remain for the reports already
+ * stored under those words; new ones resolve to nothing, since both tables
+ * have been empty since 0032.
+ */
+export const POI_REMOVAL_SOURCES = Object.freeze(['overture', 'foursquare', 'openstreetmap', 'community'] as const);
 export type PoiRemovalSource = typeof POI_REMOVAL_SOURCES[number];
 
 /**
@@ -38,7 +44,7 @@ export function parsePoiRemovalInput(value: unknown): PoiRemovalInput | { error:
   const body = value as Record<string, unknown>;
 
   if (typeof body.targetSource !== 'string' || !POI_REMOVAL_SOURCES.includes(body.targetSource as PoiRemovalSource)) {
-    return { error: 'targetSource must be foursquare, openstreetmap, or community' };
+    return { error: 'targetSource must be overture, foursquare, openstreetmap, or community' };
   }
   if (typeof body.targetId !== 'string') return { error: 'targetId is required' };
   const targetId = body.targetId.trim();
