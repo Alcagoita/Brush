@@ -1,0 +1,1339 @@
+{
+ "checks": {
+  "ale_hop_faro": {
+   "by": "0043 (KAN-457)",
+   "detail": "Ale-Hop Faro: primary florist, expected store; Ale-Hop Faro: still served as florist; Ale-Hop Faro: kinds [] lack gift; Ale-Hop Faro: brand None, expected 'Ale-Hop'",
+   "passed": false,
+   "rows": {
+    "08bb5791-4594-46be-b7ec-f63c7be62ac3": {
+     "brand": null,
+     "distance": 0,
+     "kinds": [],
+     "name": "Ale-Hop Faro",
+     "primary": "florist",
+     "served_as": [
+      "florist"
+     ]
+    }
+   }
+  },
+  "ale_hop_rua_do_ouro": {
+   "by": "0043 (KAN-457)",
+   "detail": "ALE-HOP Rua do Ouro: brand None, expected 'Ale-Hop'",
+   "passed": false,
+   "rows": {
+    "62409a54-04b3-4f32-b19b-9b853d6ee504": {
+     "brand": null,
+     "distance": 0,
+     "kinds": [
+      "gift"
+     ],
+     "name": "ALE-HOP Rua do Ouro",
+     "primary": "store",
+     "served_as": [
+      "store"
+     ]
+    }
+   }
+  },
+  "benfica_official_store_jardim_regedor": {
+   "by": "0041 (KAN-447/448)",
+   "detail": "Benfica Official Store Jardim Regedor: kinds ['sports'] lack club_store",
+   "passed": false,
+   "rows": {
+    "90279f63-b6f0-4689-abe4-0db4fdb44089": {
+     "brand": null,
+     "distance": 0,
+     "kinds": [
+      "sports"
+     ],
+     "name": "Benfica Official Store Jardim Regedor",
+     "primary": "store",
+     "served_as": [
+      "store"
+     ]
+    }
+   }
+  },
+  "casa_das_dores_generic_shopping": {
+   "by": "NO STEP YET — one of 329 generic-shopping \"Casa …\" rows served as home; needs the owner's decision (see runbook)",
+   "detail": "served as home: ['Casa das Dores']",
+   "passed": false,
+   "rows": {
+    "1267a50a-055c-4ae5-afa9-86b58e9e25e5": {
+     "brand": null,
+     "distance": 0,
+     "kinds": [
+      "home"
+     ],
+     "name": "Casa das Dores",
+     "primary": "store",
+     "served_as": [
+      "store"
+     ]
+    }
+   }
+  },
+  "casa_do_rum_porto_da_cruz": {
+   "by": "already right in prod (liquor_store kept its kind); KAN-448 rule 5 keeps it so",
+   "detail": "ok",
+   "passed": true,
+   "rows": {
+    "6a0ba2ac-e2dd-4b0b-9d60-9937188f9740": {
+     "brand": null,
+     "distance": 0,
+     "kinds": [
+      "wine_and_spirits"
+     ],
+     "name": "Casa do Rum",
+     "primary": "store",
+     "served_as": [
+      "store"
+     ]
+    }
+   }
+  },
+  "decathlon_albufeira": {
+   "by": "0041 (KAN-448)",
+   "detail": "Decathlon Albufeira: primary school, expected store; Decathlon Albufeira: still served as school; Decathlon Albufeira: kinds [] lack bicycle; Decathlon Albufeira: kinds [] lack sports",
+   "passed": false,
+   "rows": {
+    "7148c59b-b7dd-461f-962e-a80cabc67b72": {
+     "brand": null,
+     "distance": 0,
+     "kinds": [],
+     "name": "Decathlon Albufeira",
+     "primary": "school",
+     "served_as": [
+      "school"
+     ]
+    }
+   }
+  },
+  "minipreco_carvoeiro_generic_shopping": {
+   "by": "NO STEP YET — pending row the current rule promotes as a supermarket; needs a promotion pass over pending (see runbook)",
+   "detail": "not served at this point",
+   "passed": false,
+   "rows": {}
+  }
+ },
+ "odivelas_parque": {
+  "018dbe0d-39f9-433f-9539-3e7a40633247": {
+   "brand": "Lion of Porches",
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Lion of Porches",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "06984de0-b5b0-4dce-a296-55764244fb53": {
+   "brand": null,
+   "kinds": [],
+   "name": "Tomatino",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "0f6af00f-6ea9-48d4-b8d1-daaa386de478": {
+   "brand": null,
+   "kinds": [],
+   "name": "Pao de Queijo & Cia",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "13371d50-c20e-4b14-bf0e-817ed3bc27e7": {
+   "brand": "Lefties",
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Lefties",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "151f472d-704b-41f7-8c69-c5ee08585838": {
+   "brand": null,
+   "kinds": [
+    "sports"
+   ],
+   "name": "PUMA",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "154d60f3-fff2-40ec-9aba-616c4b986810": {
+   "brand": null,
+   "kinds": [],
+   "name": "A Padaria Portuguesa",
+   "primary": "bakery",
+   "served_as": [
+    "bakery"
+   ],
+   "source": "overture"
+  },
+  "19fa8139-1fce-495a-b076-cafc209d28be": {
+   "brand": null,
+   "kinds": [
+    "beauty"
+   ],
+   "name": "Perfumes e Companhia",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "27ef61f6-4aa8-4cb1-9802-873c4c9503d8": {
+   "brand": null,
+   "kinds": [
+    "home"
+   ],
+   "name": "LAMEIRINHO - Strada",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "2b26439c-5229-4b76-b4c9-a631e4a5f704": {
+   "brand": "Pans & Company",
+   "kinds": [],
+   "name": "Pans & Company",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "30b8da53-2e6f-43f7-a1c5-3c246167b5c4": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Blue Kids",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "3106674a-937d-40f0-81b8-2281e4c03d3a": {
+   "brand": null,
+   "kinds": [
+    "hearing_aid_provider"
+   ],
+   "name": "Widex Centro Auditivo Odivelas",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "36a43176-dcf8-4ce8-8404-8be78c2f8565": {
+   "brand": null,
+   "kinds": [],
+   "name": "Farmacia Tanara",
+   "primary": "pharmacy",
+   "served_as": [
+    "pharmacy"
+   ],
+   "source": "overture"
+  },
+  "39c03064-a012-47a7-99ae-5ce8bb403b76": {
+   "brand": "Chimarrão",
+   "kinds": [],
+   "name": "Chimarrão",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "438c7086-44da-4510-94e6-e6214f47d4f2": {
+   "brand": null,
+   "kinds": [],
+   "name": "O Celeiro da Memória",
+   "primary": "pharmacy",
+   "served_as": [
+    "pharmacy"
+   ],
+   "source": "overture"
+  },
+  "487fd9b8-17e8-4bb1-9c60-6c4cc8ff18a5": {
+   "brand": "iServices",
+   "kinds": [
+    "phone"
+   ],
+   "name": "iServices Strada",
+   "primary": "store",
+   "served_as": [
+    "phone_repair",
+    "store"
+   ],
+   "source": "overture"
+  },
+  "527ee5da-1944-4b1b-9357-40f73d72b968": {
+   "brand": null,
+   "kinds": [],
+   "name": "Companhia",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "546cfa11-d300-48fb-b5ae-9c70aac2ad6e": {
+   "brand": "Wok to Walk",
+   "kinds": [],
+   "name": "Wok to Walk Strada Outlet Odivelas",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "5771c70a-1d6c-4780-b62c-85599d48fee4": {
+   "brand": null,
+   "kinds": [],
+   "name": "Joshua's Shoarma Grill",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "595bbafc-edd5-4464-acb6-54bcb0a9bef5": {
+   "brand": null,
+   "kinds": [],
+   "name": "MacDonalds Odivelas Park",
+   "primary": "park",
+   "served_as": [
+    "park"
+   ],
+   "source": "overture"
+  },
+  "625798cc-b4dc-481a-b662-af00481b6512": {
+   "brand": null,
+   "kinds": [
+    "childrens_clothing"
+   ],
+   "name": "Tefal",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "649c2f3a-99e2-43ed-a771-da0468bfcc3d": {
+   "brand": null,
+   "kinds": [],
+   "name": "Shampoo & Cia",
+   "primary": "spa",
+   "served_as": [
+    "spa"
+   ],
+   "source": "overture"
+  },
+  "6b59b116-d7f9-4e28-88f7-9466a0ae59d5": {
+   "brand": "H3",
+   "kinds": [],
+   "name": "H3 Hambúrguer Gourmet",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "6b5b02e1-fdd5-4ee3-b749-3a49d0b8b602": {
+   "brand": null,
+   "kinds": [],
+   "name": "Os Pedros, First Stop",
+   "primary": "gas",
+   "served_as": [
+    "gas",
+    "gas_station"
+   ],
+   "source": "overture"
+  },
+  "6cce2849-0221-4dca-ba6c-35d0a52ca793": {
+   "brand": null,
+   "kinds": [
+    "shoes"
+   ],
+   "name": "SPOT",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "6dc1c6b8-6560-42ab-941d-6817b768956a": {
+   "brand": "C&A",
+   "kinds": [
+    "clothing"
+   ],
+   "name": "C&A",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "6e07f5c7-bc9b-46ac-8348-be5726a9bc67": {
+   "brand": "United Colors of Benetton",
+   "kinds": [
+    "clothing"
+   ],
+   "name": "United Colors of Benetton",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "6f095e7a-3c6d-4d76-b14c-4d9c4a004479": {
+   "brand": null,
+   "kinds": [
+    "tobacco"
+   ],
+   "name": "Daily Planet",
+   "primary": "store",
+   "served_as": [
+    "lottery",
+    "store"
+   ],
+   "source": "overture"
+  },
+  "6fb296ad-ef84-4cb5-96ad-0daa8b3ec7f0": {
+   "brand": "Portugália",
+   "kinds": [],
+   "name": "Portugália Balcão",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "71a81c79-e5f3-402c-b443-965ae7938f50": {
+   "brand": "Galp",
+   "kinds": [],
+   "name": "Galp",
+   "primary": "gas",
+   "served_as": [
+    "gas",
+    "gas_station"
+   ],
+   "source": "overture"
+  },
+  "75876948-44df-4aeb-81a0-42bf6f3a83ef": {
+   "brand": null,
+   "kinds": [
+    "shoes"
+   ],
+   "name": "Fly London Outlet",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "7adb0977-75d0-4d8e-abf0-0a7f502f9343": {
+   "brand": null,
+   "kinds": [],
+   "name": "Parquinho",
+   "primary": "park",
+   "served_as": [
+    "park"
+   ],
+   "source": "overture"
+  },
+  "7d050f98-a822-4d64-9ab5-f7a068d1a863": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Puma Outlet",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "83d163ee-345f-4a19-b4f3-8af0a208433a": {
+   "brand": null,
+   "kinds": [],
+   "name": "Hi - Healthy Insurance Ecosystem - Odivelas",
+   "primary": "gym",
+   "served_as": [
+    "fitness_center",
+    "gym"
+   ],
+   "source": "overture"
+  },
+  "85c58389-1ce2-48f0-98cb-1e7987b07e53": {
+   "brand": "Burger King",
+   "kinds": [],
+   "name": "Burger King",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "874a1d77-40e0-4a14-b765-f8b3b15bc1a5": {
+   "brand": null,
+   "kinds": [],
+   "name": "5àSec",
+   "primary": "laundry",
+   "served_as": [
+    "laundry"
+   ],
+   "source": "overture"
+  },
+  "89caaf4f-27d2-428d-b902-30a647cf1f4b": {
+   "brand": null,
+   "kinds": [],
+   "name": "Ice It",
+   "primary": "ice_cream",
+   "served_as": [
+    "ice_cream",
+    "ice_cream_shop"
+   ],
+   "source": "overture"
+  },
+  "8f633214-512a-452d-b4cc-3d067ba6c1c5": {
+   "brand": "Guess",
+   "kinds": [
+    "designer_clothing"
+   ],
+   "name": "GUESS",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "960997f5-c248-4fb0-84bb-d4cc82a96164": {
+   "brand": null,
+   "kinds": [],
+   "name": "Poke House - Strada",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "991d9e9f-5453-4b0d-855d-921cc45f596f": {
+   "brand": null,
+   "kinds": [],
+   "name": "Amazon Locker - Diogo",
+   "primary": "post",
+   "served_as": [
+    "post",
+    "post_office"
+   ],
+   "source": "overture"
+  },
+  "999be556-186a-436a-9d4b-632a8d6a2d07": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Outlaw Outlet",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "99ffda47-5eeb-4aa6-b54b-5baeca3cf372": {
+   "brand": "Timberland",
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Timberland",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "9c196d85-d0a3-4ac0-b651-83fc710c60a7": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "FIFTY",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "9f0955e0-2f53-4f62-bcf5-5653c9184231": {
+   "brand": null,
+   "kinds": [],
+   "name": "Mr Pizza Lisboa",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "9fe8cff5-0430-44e6-a37e-f4919b90385c": {
+   "brand": null,
+   "kinds": [
+    "eyewear_and_optician"
+   ],
+   "name": "MultiOpticas",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "ac361a20-b4be-439e-80df-5d93dc03c8a7": {
+   "brand": "Fitness Hut",
+   "kinds": [],
+   "name": "Fitness Hut Odivelas",
+   "primary": "gym",
+   "served_as": [
+    "fitness_center",
+    "gym"
+   ],
+   "source": "overture"
+  },
+  "b245a641-c70b-48ec-ac22-b4adb62cbbf3": {
+   "brand": null,
+   "kinds": [
+    "furniture"
+   ],
+   "name": "Acabehome",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "b5963402-95e2-42e0-be41-80f44f0b852c": {
+   "brand": null,
+   "kinds": [],
+   "name": "Beautybstrada",
+   "primary": "nail_salon",
+   "served_as": [
+    "nail_salon"
+   ],
+   "source": "overture"
+  },
+  "c56cb6d8-10bb-460c-ad13-b05c3416e868": {
+   "brand": null,
+   "kinds": [],
+   "name": "Carwash & SPA",
+   "primary": "car_wash",
+   "served_as": [
+    "car_wash"
+   ],
+   "source": "overture"
+  },
+  "c6034eee-e10f-4c73-99d9-0989e514b64b": {
+   "brand": "McDonald's",
+   "kinds": [],
+   "name": "McDonald's",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "c8601aeb-35fc-4e67-99de-1dfdfec24d65": {
+   "brand": "O Boticário",
+   "kinds": [
+    "beauty"
+   ],
+   "name": "O Boticário",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "ccd22065-acf4-4c32-904d-3f900ec57b7e": {
+   "brand": "Pingo Doce",
+   "kinds": [],
+   "name": "Pingo Doce",
+   "primary": "supermarket",
+   "served_as": [
+    "grocery_store",
+    "supermarket"
+   ],
+   "source": "overture"
+  },
+  "cf4d0665-c3ad-4bf3-b16a-3753f2316929": {
+   "brand": null,
+   "kinds": [],
+   "name": "Loja CTT",
+   "primary": "post",
+   "served_as": [
+    "post",
+    "post_office"
+   ],
+   "source": "overture"
+  },
+  "d0e1b94d-f53f-4f1c-8d13-cb67c901a799": {
+   "brand": null,
+   "kinds": [
+    "pet"
+   ],
+   "name": "Ani",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "d34b9464-3e1a-46f3-9737-5d83771e5ec0": {
+   "brand": "Taco Bell",
+   "kinds": [],
+   "name": "Taco Bell",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "d90b4974-d21a-4685-abc9-760183d0a280": {
+   "brand": "Pizza Hut",
+   "kinds": [],
+   "name": "Pizza Hut",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "overture"
+  },
+  "dbb1e7de-3fca-4860-afc5-4486eef047ac": {
+   "brand": null,
+   "kinds": [],
+   "name": "Ginásio VivaGym Odivelas",
+   "primary": "gym",
+   "served_as": [
+    "fitness_center",
+    "gym"
+   ],
+   "source": "overture"
+  },
+  "e8d4f845-d7a2-493c-aad8-b9783db38fc5": {
+   "brand": null,
+   "kinds": [],
+   "name": "Cinemas NOS Odivelas Parque",
+   "primary": "movie_theater",
+   "served_as": [
+    "movie_theater"
+   ],
+   "source": "overture"
+  },
+  "eda467c4-6a63-4b6e-ad0c-6aa83ccd1984": {
+   "brand": "The Body Shop",
+   "kinds": [
+    "beauty"
+   ],
+   "name": "The Body Shop",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "f0de7bb6-1667-4563-b781-aacb5d7c7edd": {
+   "brand": "Parfois",
+   "kinds": [
+    "fashion_accessories"
+   ],
+   "name": "Parfois",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "f1f096e8-fab1-4e39-8fc4-0db186b9a1dd": {
+   "brand": null,
+   "kinds": [
+    "lingerie"
+   ],
+   "name": "Triumph Lingerie - Outlet Odivelas",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "f42e23f8-3e09-4446-a717-e90f510baf35": {
+   "brand": "Nike",
+   "kinds": [
+    "sports"
+   ],
+   "name": "Nike Factory Store Lisbon Strada",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "f696a458-fb21-405d-b96d-80bfe071da64": {
+   "brand": null,
+   "kinds": [
+    "shoes"
+   ],
+   "name": "BigFoot Sport",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "fa8bcc99-c1b0-4ecb-86b7-a342326f3b18": {
+   "brand": "Tiffosi",
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Tiffosi",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "overture"
+  },
+  "mall:node-13938064398": {
+   "brand": null,
+   "kinds": [],
+   "name": "Açai Natura",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272875": {
+   "brand": null,
+   "kinds": [
+    "watch"
+   ],
+   "name": "Beontime",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272892": {
+   "brand": null,
+   "kinds": [],
+   "name": "Loja das Sopas",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272894": {
+   "brand": null,
+   "kinds": [],
+   "name": "Vitaminas",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272900": {
+   "brand": null,
+   "kinds": [],
+   "name": "100 gramas",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272901": {
+   "brand": null,
+   "kinds": [],
+   "name": "Sanjugo Asian Bowls",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272909": {
+   "brand": null,
+   "kinds": [],
+   "name": "Nicola",
+   "primary": "cafe",
+   "served_as": [
+    "cafe",
+    "coffee_shop"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272917": {
+   "brand": null,
+   "kinds": [
+    "shoes"
+   ],
+   "name": "Seaside",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272919": {
+   "brand": null,
+   "kinds": [],
+   "name": "Café do Ponto",
+   "primary": "cafe",
+   "served_as": [
+    "cafe",
+    "coffee_shop"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272923": {
+   "brand": null,
+   "kinds": [],
+   "name": "Delta Espresso",
+   "primary": "cafe",
+   "served_as": [
+    "cafe",
+    "coffee_shop"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272937": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Under Blue",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272943": {
+   "brand": null,
+   "kinds": [
+    "shoes"
+   ],
+   "name": "Paez Outlet",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272954": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Salsa",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272955": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Decenio",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272957": {
+   "brand": null,
+   "kinds": [
+    "jewelry"
+   ],
+   "name": "Tous",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272964": {
+   "brand": null,
+   "kinds": [],
+   "name": "Jean Louis David",
+   "primary": "hairdresser",
+   "served_as": [
+    "hair_care",
+    "hairdresser"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272965": {
+   "brand": null,
+   "kinds": [
+    "photography_store_and_services"
+   ],
+   "name": "Instanta Fotografia",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272968": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Mango",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272973": {
+   "brand": null,
+   "kinds": [
+    "photography_store_and_services"
+   ],
+   "name": "Fotosport",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272974": {
+   "brand": null,
+   "kinds": [
+    "phone"
+   ],
+   "name": "La Casa de las Carcasas",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272975": {
+   "brand": null,
+   "kinds": [
+    "party_supply"
+   ],
+   "name": "Páteo das Festas",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272976": {
+   "brand": null,
+   "kinds": [
+    "copy_shop"
+   ],
+   "name": "Centro de Cópias",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272977": {
+   "brand": null,
+   "kinds": [],
+   "name": "Mister Minit",
+   "primary": "shoe_repair",
+   "served_as": [
+    "shoe_repair"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272981": {
+   "brand": null,
+   "kinds": [],
+   "name": "Jardim Verde",
+   "primary": "supermarket",
+   "served_as": [
+    "grocery_store",
+    "supermarket"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272983": {
+   "brand": null,
+   "kinds": [],
+   "name": "Ponto do Café",
+   "primary": "cafe",
+   "served_as": [
+    "cafe",
+    "coffee_shop"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272986": {
+   "brand": null,
+   "kinds": [
+    "luggage"
+   ],
+   "name": "Rolling Luggage",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528272987": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Mineral Store",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273000": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Calzedonia - Intimissimi",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273002": {
+   "brand": null,
+   "kinds": [
+    "travel_agency"
+   ],
+   "name": "Viagens El Corte Inglés",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273011": {
+   "brand": null,
+   "kinds": [
+    "clothing"
+   ],
+   "name": "Mr. Blue",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273016": {
+   "brand": null,
+   "kinds": [
+    "beauty"
+   ],
+   "name": "Pluricosmética",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273029": {
+   "brand": null,
+   "kinds": [],
+   "name": "Wells",
+   "primary": "pharmacy",
+   "served_as": [
+    "pharmacy"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273044": {
+   "brand": null,
+   "kinds": [
+    "home"
+   ],
+   "name": "Vista Alegre",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273048": {
+   "brand": null,
+   "kinds": [
+    "childrens_clothing"
+   ],
+   "name": "Mayoral",
+   "primary": "store",
+   "served_as": [
+    "store"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273050": {
+   "brand": null,
+   "kinds": [],
+   "name": "Unicambio Western Union",
+   "primary": "currency_exchange",
+   "served_as": [
+    "currency_exchange"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273051": {
+   "brand": null,
+   "kinds": [],
+   "name": "Noori Sushi",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "mall:way-1528273053": {
+   "brand": null,
+   "kinds": [],
+   "name": "Sabor Gaúcho",
+   "primary": "restaurant",
+   "served_as": [
+    "restaurant"
+   ],
+   "source": "community"
+  },
+  "multibanco:multibanco:galp lot casal troca:38.78366:-9.19211": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:loja cidadao estr paia:38.78181:-9.19275": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:loja cidadao estr paia:38.78193:-9.19260": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:odivelas park:38.78237:-9.19126": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:odivelas strada p2 rest:38.78227:-9.19252": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:odivelas strada piso 1:38.78154:-9.19262": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:odivelas strada piso 1:38.78307:-9.19264": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:odivelas strada zona rest:38.78307:-9.19264": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:pingo doce odivelas parq:38.78240:-9.19279": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  },
+  "multibanco:multibanco:strada shopping piso 1:38.78316:-9.19419": {
+   "brand": null,
+   "kinds": [],
+   "name": "MULTIBANCO",
+   "primary": "atm",
+   "served_as": [
+    "atm"
+   ],
+   "source": "multibanco"
+  }
+ }
+}
