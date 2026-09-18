@@ -241,7 +241,7 @@ def main(argv):
     if os.path.dirname(args.out):
         os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, 'w', newline='') as handle:
-        writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter='\t')
+        writer = csv.DictWriter(handle, fieldnames=FIELDS, delimiter='\t', lineterminator='\n')
         writer.writeheader()
         writer.writerows(proposals)
     new = [p for p in proposals if not p['already_in_dictionary']]

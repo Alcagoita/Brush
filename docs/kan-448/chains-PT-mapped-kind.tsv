@@ -55,7 +55,7 @@ vodafone	Vodafone	24	1	store	phone	0.826	mobile_phone_store	mobile_phone_store:1
 calcado guimaraes	Calçado Guimarães	24	2	store	shoes	0.864	shoe_store	shoe_store:19|clothing_store:3|shopping:2	True
 pepco	Pepco	24	0	store	clothing	1.0	clothing_store	clothing_store:24	True
 livraria bertrand	Livraria Bertrand	23	0	store	books	1.0	bookstore	bookstore:23	False
-ale hop	Ale-Hop	23	1	store	gift	0.773	gift_shop	flowers_and_gifts_shop:10|gift_shop:7|office_equipment:1|souvenir_shop:1|fashion_accessories_store:1|department_store:1|shopping:1|hobby_shop:1	False
+ale hop	Ale-Hop	23	1	store	gift	0.773	gift_shop	flowers_and_gifts_shop:10|gift_shop:7|office_equipment:1|souvenir_shop:1|fashion_accessories_store:1|department_store:1|shopping:1|hobby_shop:1	True
 la casa	La Casa	23	0	store	phone	0.957	mobile_phone_store	mobile_phone_store:22|tobacco_shop:1	False
 homa	hôma	22	1	store	home	0.952	home_decor	home_decor:16|home_goods_store:4|furniture_store:1|shopping:1	True
 seaside	Seaside	22	0	store	shoes	0.955	shoe_store	shoe_store:21|department_store:1	True
@@ -69,7 +69,7 @@ humana	HUMANA	22	0	store	thrift	0.864	thrift_store	thrift_store:19|clothing_stor
 sports direct	Sports Direct	22	1	store	sports	1.0	sporting_goods	sporting_goods:19|sports_wear:2|shopping:1	True
 fnac	FNAC	21	0	store	electronics	0.857	electronics	electronics:18|department_store:1|shoe_store:1|books_mags_music_and_video:1	True
 bimba y	BIMBA Y	21	0	store	clothing	0.667	clothing_store	clothing_store:14|womens_clothing_store:5|childrens_clothing_store:2	False
-pluricosmetica	Pluricosmética	21	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:11|perfume_store:9|hair_supply_stores:1	False
+pluricosmetica	Pluricosmética	21	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:11|perfume_store:9|hair_supply_stores:1	True
 tous	Tous	21	2	store	jewelry	0.895	jewelry_store	jewelry_store:17|shopping:2|gift_shop:1|newspaper_and_magazines_store:1	True
 sacoor brothers	Sacoor Brothers	20	0	store	clothing	0.95	clothing_store	clothing_store:19|mens_clothing_store:1	True
 wurth portugal	Wurth Portugal	20	0	store	hardware	1.0	building_supply_store	building_supply_store:19|hardware_store:1	True
@@ -180,7 +180,7 @@ people s	People's Phone	7	0	store	phone	0.714	mobile_phone_store	mobile_phone_st
 david rosas	David Rosas	7	0	store	jewelry	1.0	jewelry_store	jewelry_store:7	True
 bang olufsen	Bang &	7	0	store	electronics	1.0	electronics	electronics:7	True
 maria bonita	Maria Bonita	7	0	store	clothing	0.714	clothing_store	clothing_store:5|cosmetic_and_beauty_supplies:1|arts_and_crafts:1	False
-equivalenza	Equivalenza	7	0	store	beauty	1.0	perfume_store	perfume_store:4|cosmetic_and_beauty_supplies:2|hair_supply_stores:1	False
+equivalenza	Equivalenza	7	0	store	beauty	1.0	perfume_store	perfume_store:4|cosmetic_and_beauty_supplies:2|hair_supply_stores:1	True
 ponto das	Ponto das	7	1	store	arts_and_crafts	0.667	arts_and_crafts	arts_and_crafts:4|shopping:1|clothing_store:1|fabric_store:1	False
 lidl lisboa	Lidl Lisboa	7	0	store	any	1.0	discount_store	discount_store:7	False
 mediamarkt portugal	MediaMarkt Portugal	7	0	store	electronics	1.0	electronics	electronics:7	True
@@ -411,7 +411,7 @@ sports world	Sports World	4	0	store	sports	1.0	sports_wear	sports_wear:3|sportin
 traquinas	Traquinas	4	1	store	clothing	0.667	clothing_store	clothing_store:2|shopping:1|childrens_clothing_store:1	False
 tendencias moda	Tendências Moda	4	0	store	womens_clothing	0.75	womens_clothing_store	womens_clothing_store:3|clothing_store:1	False
 moveis sao	Móveis São	4	0	store	furniture	1.0	furniture_store	furniture_store:4	False
-flormar	Flormar	4	1	store	beauty	1.0	cosmetic_and_beauty_supplies	shopping:1|cosmetic_and_beauty_supplies:1|hair_supply_stores:1|perfume_store:1	False
+flormar	Flormar	4	1	store	beauty	1.0	cosmetic_and_beauty_supplies	shopping:1|cosmetic_and_beauty_supplies:1|hair_supply_stores:1|perfume_store:1	True
 moveis goncalves	Móveis Gonçalves	4	0	store	furniture	0.75	furniture_store	furniture_store:3|home_goods_store:1	False
 optica d	Óptica d'Avenida	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
 moveis costa	Móveis Costa	4	0	store	furniture	0.75	furniture_store	furniture_store:3|home_goods_store:1	False
@@ -475,7 +475,7 @@ auchan supermercado	Auchan Supermercado	3	0	store	any	1.0	discount_store	discoun
 4 estacoes	4 Estações	3	0	store	clothing	0.667	clothing_store	clothing_store:2|home_goods_store:1	False
 sika portugal	Sika Portugal	3	0	store	hardware	1.0	paint_store	paint_store:3	False
 joias e	Joias e	3	1	store	jewelry	1.0	jewelry_store	jewelry_store:2|shopping:1	False
-kiehl s	Kiehl's	3	0	store	beauty	1.0	hair_supply_stores	hair_supply_stores:1|perfume_store:1|cosmetic_and_beauty_supplies:1	False
+kiehl s	Kiehl's	3	0	store	beauty	1.0	hair_supply_stores	hair_supply_stores:1|perfume_store:1|cosmetic_and_beauty_supplies:1	True
 le creuset	Le Creuset	3	0	store	home	1.0	home_goods_store	home_goods_store:3	False
 auto pneus	Auto Pneus	3	0	store	home	1.0	home_goods_store	home_goods_store:2|home_and_garden:1	False
 ecco shoes	ECCO Shoes	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
