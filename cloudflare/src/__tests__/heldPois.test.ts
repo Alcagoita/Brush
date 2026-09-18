@@ -83,6 +83,29 @@ describe('findHeldPois', () => {
     expect(held).toEqual([expect.objectContaining({ id: 'ovt-renamed', name: 'Continente Modelo' })]);
   });
 
+  it('finds an Overture row by the name a reviewer gave it', async () => {
+    // The corrected name is the one users see, so it is the one a duplicate
+    // check has to find — even though the stored dedupe_name differs.
+    insertOverture(db, 'ovt-1', 'CONTINENTE MODELO LDA', 'continente modelo lda');
+    db.prepare(
+      "INSERT INTO poi_source_correction (source, source_id, visible, name_override, dedupe_name_override, review_note) VALUES ('overture', 'ovt-1', 1, 'Continente', 'continente', 'test')",
+    ).run();
+    const held = await exact('continente');
+    expect(held).toEqual([expect.objectContaining({ id: 'ovt-1', name: 'Continente' })]);
+    // Once, not twice: the row matches on the override only.
+    expect(await exact('continente modelo lda')).toHaveLength(1);
+  });
+
+  it('keeps the nearest rows when more share the name than the per-source limit', async () => {
+    // Twenty same-named rows in the box, the nearest inserted last, so a
+    // LIMIT taken in insertion order would never reach it.
+    for (let i = 20; i >= 1; i--) insertOverture(db, `ovt-${i}`, 'Continente', 'continente', LAT + i * 0.0002, LNG);
+    const held = await findHeldPois(d1Binding(db), {
+      dedupeName: 'continente', lat: LAT, lng: LNG, radiusMeters: 5_000, perSourceLimit: 3,
+    });
+    expect(held.map(row => row.id)).toEqual(['ovt-1', 'ovt-2', 'ovt-3']);
+  });
+
   it('leaves out removed curated rows and the legacy multibanco: mirror', async () => {
     insertCurated(db, 'community:removed', 'Continente', 'continente', 'removed');
     insertCurated(db, 'multibanco:legacy', 'Continente', 'continente');

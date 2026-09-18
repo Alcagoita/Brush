@@ -14,7 +14,9 @@ const ROOT = join(__dirname, '..', '..');
 const MIGRATION = readFileSync(join(ROOT, 'migrations', '0042_curated_poi_provenance.sql'), 'utf8');
 // Everything from the backfill marker on is UPDATEs guarded on
 // `origin_source IS NULL`; the ALTERs above it can only run once.
-const BACKFILL = MIGRATION.slice(MIGRATION.indexOf('-- Backfill'));
+const backfillOffset = MIGRATION.indexOf('-- Backfill');
+if (backfillOffset < 0) throw new Error('0042 has lost its "-- Backfill" marker; the idempotency test would run nothing');
+const BACKFILL = MIGRATION.slice(backfillOffset);
 
 function productionShapedDb(): DatabaseSync {
   const db = new DatabaseSync(':memory:');

@@ -15,6 +15,13 @@ const LISBON = { lat: 38.7223, lng: -9.1393 };
  * writes but this list omits is a production write that fails.
  */
 const AUDIT_TARGET_KINDS = ['submission', 'curated_poi', 'removal'];
+/**
+ * Mirrors the CHECK on poi_removal_submission.target_source (migration 0027,
+ * verified against production 2026-09-18). 'overture' is deliberately absent:
+ * the Worker refuses such a report before it reaches this insert
+ * (OVERTURE_REMOVAL_REPORTS_ENABLED in index.ts) until the CHECK is widened.
+ */
+const REMOVAL_TARGET_SOURCES = ['foursquare', 'openstreetmap', 'community'];
 
 interface PoiRow {
   id: string;
@@ -123,7 +130,7 @@ function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
         if (trimmed.startsWith('SELECT osm_element_id AS poi_id')) {
           return { results: project(likePrefix(tables.osm_poi, args[0] as string).filter(row => !suppressed('openstreetmap', row.id))) };
         }
-        if (trimmed.startsWith('SELECT overture_poi.overture_id AS poi_id, COALESCE(correction.name_override, overture_poi.name) AS name')) {
+        if (trimmed.startsWith('SELECT * FROM ( SELECT overture_poi.overture_id AS poi_id, COALESCE(correction.name_override, overture_poi.name) AS name')) {
           const hidden = (id: string) => tables.overture_correction.some(row => row.source_id === id && row.visible === 0);
           const rows = inBox(likePrefix(tables.overture_poi, args[0] as string), args).filter(row => !hidden(row.id));
           return { results: project(rows).map(row => ({ ...row, name: tables.overture_correction.find(c => c.source_id === row.poi_id)?.name_override ?? row.name })) };
@@ -149,6 +156,9 @@ function fakeDb(tables: Tables): Env['REGISTRY_DB'] {
         if (trimmed.startsWith('INSERT INTO manual_poi_rate_limit')) return { meta: { changes: 1 } };
         if (trimmed.startsWith('INSERT INTO poi_removal_submission')) {
           const [submission_id, idempotency_key, target_source, target_id, target_name, target_poi_type, target_address, reason, contributor_note] = args;
+          if (!REMOVAL_TARGET_SOURCES.includes(target_source as string)) {
+            throw new Error(`CHECK constraint failed: poi_removal_submission.target_source = '${String(target_source)}'`);
+          }
           if (tables.removals.some(row => row.target_source === target_source && row.target_id === target_id && row.status === 'pending')) {
             throw new Error('UNIQUE constraint failed: idx_poi_removal_submission_pending_target');
           }
@@ -381,27 +391,19 @@ describe('POST /manual-poi/removals', () => {
     expect(tables.audit).toContainEqual(expect.objectContaining({ target_kind: 'removal', action: 'submitted', actor: 'public' }));
   });
 
-  it('stages a report against an Overture row from the base table, under its corrected name', async () => {
-    const tables = emptyTables();
-    tables.overture_poi.push(poi({ id: 'ovt-1', name: 'PADARIA CENTRAL LDA', dedupe_name: 'padaria central lda', primary_poi_type: 'bakery', address: 'Rua B' }));
-    tables.overture_correction.push({ source_id: 'ovt-1', visible: 1, name_override: 'Padaria Central' });
-    verifiedTurnstile();
-
-    const response = await worker.fetch(request({ ...removal, targetSource: 'overture', targetId: 'ovt-1' }), publicEnv(tables), CTX);
-
-    expect(response.status).toBe(202);
-    expect(tables.removals[0]).toMatchObject({ target_source: 'overture', target_id: 'ovt-1', target_name: 'Padaria Central', target_poi_type: 'bakery', target_address: 'Rua B' });
-    expect(tables.overture_correction[0].visible).toBe(1);
-  });
-
-  it('refuses an Overture row a correction has already hidden', async () => {
+  it('refuses a report against an Overture row up front, spending no token and storing nothing', async () => {
+    // KAN-452: the target_source CHECK in production does not admit
+    // 'overture' yet. The refusal comes before Turnstile and the rate limit,
+    // and its wording does not invite a retry.
     const tables = emptyTables();
     tables.overture_poi.push(poi({ id: 'ovt-1', name: 'Padaria Central', dedupe_name: 'padaria central' }));
-    tables.overture_correction.push({ source_id: 'ovt-1', visible: 0 });
-    verifiedTurnstile();
+    const siteverify = verifiedTurnstile();
 
     const response = await worker.fetch(request({ ...removal, targetSource: 'overture', targetId: 'ovt-1' }), publicEnv(tables), CTX);
-    expect(response.status).toBe(404);
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: "I can't take reports about this place yet" });
+    expect(siteverify).not.toHaveBeenCalled();
     expect(tables.removals).toHaveLength(0);
   });
 

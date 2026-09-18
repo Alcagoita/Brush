@@ -130,6 +130,14 @@ const MANUAL_POI_DUPLICATE_DISTANCE_METERS = 20;
 // Exact-name matches inside a 20 m box: a chain with several branches in one
 // mall is the most a name can plausibly yield here.
 const MANUAL_POI_DUPLICATE_PER_SOURCE_LIMIT = 50;
+// KAN-452: the public removal form may name an Overture row, but
+// poi_removal_submission.target_source's CHECK (migration 0027) does not
+// admit 'overture' in production, so such a report cannot be stored yet.
+// Widening the CHECK means rebuilding the table, which is the owner's call.
+// Until that migration is applied the request is refused up front — before
+// a single-use Turnstile token or a rate-limit slot is spent on it — with an
+// answer that does not invite a retry. Flip to true with the migration.
+const OVERTURE_REMOVAL_REPORTS_ENABLED = false;
 const MANUAL_POI_RATE_LIMIT_MAX = 5;
 const MANUAL_POI_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1_000;
 
@@ -2006,6 +2014,9 @@ export default {
       if (rawBody instanceof Response) return rawBody;
       const parsed = parsePoiRemovalInput(rawBody);
       if (!isPoiRemovalInput(parsed)) return manualPoiJson(request, { error: parsed.error }, 400);
+      if (parsed.targetSource === 'overture' && !OVERTURE_REMOVAL_REPORTS_ENABLED) {
+        return manualPoiJson(request, { error: "I can't take reports about this place yet" }, 409);
+      }
 
       // Same ordering as the add path: idempotency before a single-use
       // Turnstile token or a rate-limit slot is spent, so a lost response is

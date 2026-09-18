@@ -118,16 +118,15 @@ describe('POST /manual-poi/removals against an Overture row, on the production s
   // CHECK (target_source IN ('foursquare', 'openstreetmap', 'community')),
   // as production does (verified against sqlite_master 2026-09-18), so a
   // report against an Overture row cannot be stored until that CHECK is
-  // widened. Widening it means rebuilding the table, which is a
-  // stop-and-ask under the sprint's no-DROP rule. This test pins the
-  // current behaviour — the Worker answers a real, CORS'd 500 rather than
-  // an escaping throw — and is the one to flip when the CHECK is widened.
-  it('is refused by the target_source CHECK, as a CORS-bearing 500', async () => {
+  // widened — a table rebuild, which is the owner's call. Until then the
+  // Worker refuses the report before spending a Turnstile token on it
+  // (OVERTURE_REMOVAL_REPORTS_ENABLED). This is the test to flip to 202 when
+  // the CHECK is widened; schema.sql keeps production's CHECK on purpose.
+  it('is refused up front with a CORS-bearing 409, and nothing is stored', async () => {
     const database = db();
     insertOverture(database, 'ovt-1', 'Continente Odivelas', 'continente odivelas');
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(() => Promise.resolve(new Response(JSON.stringify({
-      success: true, action: 'manual_poi_submit', hostname: 'brushaway.app',
-    })))));
+    const siteverify = vi.fn();
+    vi.stubGlobal('fetch', siteverify);
 
     const response = await worker.fetch(new Request('https://poi-api.brushaway.app/manual-poi/removals', {
       method: 'POST',
@@ -138,8 +137,17 @@ describe('POST /manual-poi/removals against an Overture row, on the production s
       }),
     }), env(database), CTX);
 
-    expect(response.status).toBe(500);
+    expect(response.status).toBe(409);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('https://brushaway.app');
+    expect(siteverify).not.toHaveBeenCalled();
     expect(database.prepare('SELECT count(*) AS n FROM poi_removal_submission').get()).toEqual({ n: 0 });
+  });
+
+  it('the production CHECK is what still stands in the way of storing one', () => {
+    const database = db();
+    expect(() => database.prepare(
+      `INSERT INTO poi_removal_submission (submission_id, idempotency_key, target_source, target_id, target_name, target_poi_type, reason, ip_hash, status, submitted_at)
+       VALUES ('s', 'k', 'overture', 'ovt-1', 'x', 'store', 'closed', 'h', 'pending', 't')`,
+    ).run()).toThrow(/CHECK constraint failed/);
   });
 });

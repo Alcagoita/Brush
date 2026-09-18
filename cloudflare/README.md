@@ -82,8 +82,10 @@ A request carrying a bearer token that fails verification is rejected with
 401 outright — it never falls back to the API key.
 
 - `GET /poi/nearby?lat=&lng=&radius=&types=` and `POST /poi/nearby` — the
-  supported nearby-POI search APIs. They include Foursquare, OpenStreetMap,
-  curated community rows, and official MULTIBANCO ATM rows. Within the
+  supported nearby-POI search APIs. They read Overture (the base), active
+  curated community rows, official MULTIBANCO ATM rows, and the frozen
+  `legacy_poi` fallback (selected Foursquare backup rows, migration 0032);
+  `poi` and `osm_poi` are not read. Within the
   Odivelas demo zone, an official MULTIBANCO ATM takes precedence over a
   same-location lower-priority ATM source; both sources remain stored.
 - `GET /coverage?lat=&lng=` — `{status, cityId, buildId}` for this location.
@@ -148,7 +150,12 @@ A request carrying a bearer token that fails verification is rejected with
   token: a token is single-use and the form searches repeatedly while the
   contributor narrows the name. `POST /manual-poi/removals` does require one,
   is rate-limited by the same hashed source IP, resolves the target against
-  live data before storing it, and creates only a `pending` row.
+  live data before storing it, and creates only a `pending` row. **Overture
+  targets are refused up front (409) for now:** `poi_removal_submission.
+  target_source`'s CHECK (migration 0027) does not admit `'overture'`, and
+  widening it means rebuilding the table. `OVERTURE_REMOVAL_REPORTS_ENABLED`
+  in `index.ts` flips with that migration; the reviewer-side path (approve →
+  `poi_source_correction`) is already in place.
 - `GET /manual-poi/admin/removals` and `PATCH /manual-poi/admin/removals/:id`
   — reviewer-only, Access-gated exactly like the submission routes. The list
   reports each Foursquare target's `date_refreshed` and whether it is still
