@@ -56,13 +56,13 @@ class ClassifyRecordTest(unittest.TestCase):
     def test_same_name_business_is_suspect_not_matched(self):
         bucket, reason, _ = classify(archive('The Top', 14), [served('The TOP', 0, 'restaurant')])
         self.assertEqual(bucket, 'suspect')
-        self.assertTrue(reason.startswith('same name as a served business'))
+        self.assertTrue(reason.startswith('same name as a served place of another kind'))
 
     def test_bank_family_matches_a_bank_but_not_a_store(self):
         self.assertEqual(classify(archive('Banco BPI', 3), [served('BPI', 0, 'bank')], 'bank')[0], 'matched')
         bucket, reason, _ = classify(archive('Banco BPI', 3), [served('BPI', 0, 'store')], 'bank')
         self.assertEqual(bucket, 'suspect')
-        self.assertIn('served business', reason)
+        self.assertIn('another kind', reason)
 
     def test_same_name_beyond_the_matcher_radius_is_suspect_not_matched(self):
         # 200 m apart: the matcher (75 m) refuses, but a person should look.
@@ -103,6 +103,27 @@ class ClassifyRecordTest(unittest.TestCase):
         self.assertIn('locality', reason)
         # A real name that merely contains the town is fine.
         self.assertEqual(classify(archive('Miradouro Fenais da Ajuda', locality='Ribeira Grande'), [])[0], 'unique')
+        # So is the type word plus the town: there is one marina in Vilamoura, and that is its name.
+        self.assertEqual(classify(archive('Marina de Vilamoura', locality='Vilamoura'), [], 'marina')[0], 'unique')
+        self.assertEqual(classify(archive('Farol de Lagos', locality='Lagos'), [], 'lighthouse')[0], 'unique')
+
+    def test_a_bank_brand_is_a_name_even_when_every_word_is_generic(self):
+        # "Novo Banco" is two type words and a full name; "Novo Banco, Almeirim" is not the locality.
+        self.assertEqual(classify(archive('Novo Banco'), [], 'bank')[0], 'unique')
+        self.assertEqual(classify(archive('Novo Banco, Almeirim', locality='Almeirim'), [], 'bank')[0], 'unique')
+        # Without a brand the rules apply as for any other type.
+        self.assertEqual(classify(archive('Banco'), [], 'bank')[1], 'no name signal (only type words)')
+
+    def test_a_defunct_bank_name_is_suspect(self):
+        bucket, reason, _ = classify(archive('Banif Paços de Ferreira'), [], 'bank')
+        self.assertEqual(bucket, 'suspect')
+        self.assertIn('banif → Santander', reason)
+
+    def test_a_shared_toponym_is_not_a_same_name_signal(self):
+        # "Barclays - Tomar" and the "Tomar" fuel station agree on the town alone.
+        bucket, reason, counterpart = classify(archive('Millennium BCP Tomar', 0, locality='Tomar'),
+                                               [served('Tomar', 300, 'gas')], 'bank')
+        self.assertEqual((bucket, counterpart), ('unique', None))
 
     def test_shared_coordinates_are_suspect(self):
         record = archive('Miradouro da Contenda')

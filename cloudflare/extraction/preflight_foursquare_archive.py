@@ -49,10 +49,11 @@ REPO_ROOT = os.path.dirname(CLOUDFLARE_DIR)
 sys.path.insert(0, EXTRACTION_DIR)
 
 from classify_and_load import (  # noqa: E402
-    build_reverse_map, financial_service_classification, is_explicit_atm_name,
-    load_financial_service_name_rules, load_mapping, normalize_text,
+    build_reverse_map, financial_service_classification, find_brand, is_explicit_atm_name,
+    load_brand_dictionary, load_financial_service_name_rules, load_mapping, normalize_text,
 )
 from enrich_osm_cuisine import MATCH_RADIUS_METERS, NAME_SIMILARITY_THRESHOLD, haversine_m  # noqa: E402
+from match_residual_foursquare import distinctive_shared_word  # noqa: E402
 from supplement_osm_pois import identity_tokens, name_similarity, names_match, run_d1_query  # noqa: E402
 
 DEFAULT_ARCHIVE_KEY = 'country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv'
@@ -127,6 +128,37 @@ FINANCIAL_FAMILY = frozenset({'bank', 'atm', 'financial_service', 'currency_exch
 def same_family(archive_type, served_type):
     family = FINANCIAL_FAMILY if archive_type in FINANCIAL_FAMILY else LANDMARK_FAMILY
     return served_type in family
+
+
+# Bank names that no longer trade in Portugal. brandDictionary.json already
+# folds each into its successor (Banif → Santander, BES → Novo Banco …), so a
+# row still carrying the old name is a listing nobody has touched since the
+# takeover: the branch may be open under the new sign, moved, or closed. A
+# person has to look; the importer must not take the name at face value.
+DEFUNCT_BANK_NAMES = {
+    'banif': 'Santander (2015)', 'bes': 'Novo Banco (2014)', 'banco espirito santo': 'Novo Banco (2014)',
+    'bpn': 'ABANCA (2012)', 'finibanco': 'Montepio (2011)', 'barclays': 'Bankinter (2016)',
+    'banco popular': 'Santander (2018)', 'deutsche bank': 'ABANCA (2018)',
+}
+
+_BRAND_DICTIONARY = None
+
+
+def brand_of(name, poi_type):
+    """The canonical brand classify_and_load would put on the row, if any.
+    Loaded lazily so the tests that never touch a brand pay nothing."""
+    global _BRAND_DICTIONARY
+    if _BRAND_DICTIONARY is None:
+        _BRAND_DICTIONARY = load_brand_dictionary()
+    return find_brand(name, [poi_type], _BRAND_DICTIONARY)
+
+
+def defunct_bank(dedupe_name):
+    padded = f' {dedupe_name} '
+    for old, successor in DEFUNCT_BANK_NAMES.items():
+        if f' {old} ' in padded:
+            return f'{old} → {successor}'
+    return None
 
 
 # ---------------------------------------------------------------------------- inputs
@@ -291,10 +323,20 @@ def has_name_signal(dedupe_name):
 
 
 def toponym_only(dedupe_name, locality):
-    """The name is the town: "Odivelas" filed as a plaza names nothing."""
-    words = set(dedupe_name.split())
+    """The name is the town and nothing else: "Odivelas" filed as a plaza
+    names nothing. "Marina de Vilamoura" or "Farol de Lagos" is a real
+    name — there is one marina in Vilamoura, and the type word plus the
+    town is exactly how Portuguese names it — so a type word rescues it."""
+    words = set(dedupe_name.split()) - {'da', 'de', 'do', 'das', 'dos', 'e', 'a', 'o'}
     place = set(normalize_text(locality or '').split())
-    return bool(words) and words <= (place | TYPE_GENERIC_WORDS) and bool(words & place)
+    return bool(words) and words <= place
+
+
+def names_its_town(dedupe_name, locality):
+    """A type word plus the locality ("Cais do Pinhão") carries signal: it
+    is the one such place in that town, which is what dedupe needs."""
+    place = set(normalize_text(locality or '').split())
+    return bool(set(dedupe_name.split()) & place)
 
 
 def best_counterpart(record, poi_type, grid):
@@ -306,7 +348,7 @@ def best_counterpart(record, poi_type, grid):
     landmark) or 'far' (same name between the matcher radius and FAR_M).
     A 'matched' always outranks the other two.
     """
-    rank = {'matched': 2, 'business': 1, 'far': 0}
+    rank = {'matched': 2, 'other_kind': 1, 'far': 0}
     best = None
     for place in near(grid, record['lat'], record['lng']):
         distance = haversine_m(record['lat'], record['lng'], place['lat'], place['lng'])
@@ -315,10 +357,17 @@ def best_counterpart(record, poi_type, grid):
         similarity = name_similarity(record['dedupe_name'], place['dedupe_name'])
         if distance <= MATCH_RADIUS_METERS and names_match(record['dedupe_name'], place['dedupe_name'], distance):
             similarity = max(similarity, NAME_SIMILARITY_THRESHOLD)
-            verdict = 'matched' if same_family(poi_type, place['type']) else 'business'
+            verdict = 'matched' if same_family(poi_type, place['type']) else 'other_kind'
         elif similarity >= NAME_SIMILARITY_THRESHOLD:
             verdict = 'far'
         else:
+            continue
+        # The matcher's verdict inside its radius is taken as it is. The two
+        # weaker signals get KAN-444's toponym guard: "Barclays - Tomar" and
+        # the "Tomar" fuel station 300 m away agree on the town alone, and
+        # name_similarity's containment rule scores that 0.9.
+        if verdict != 'matched' and not distinctive_shared_word(
+                record['dedupe_name'], place['dedupe_name'], record['locality']):
             continue
         candidate = (place, distance, similarity, verdict)
         if best is None or (rank[verdict], similarity, -distance) > (rank[best[3]], best[2], -best[1]):
@@ -341,18 +390,26 @@ def classify_record(record, poi_type, grid, coordinate_owners, twins):
         return 'matched', f'KAN-388 match: {place["source"]} {place["type"]}', counterpart
     if not record['dedupe_name']:
         return 'suspect', 'empty name', counterpart
-    if not has_name_signal(record['dedupe_name']):
-        return 'suspect', 'no name signal (only type words)', counterpart
-    if toponym_only(record['dedupe_name'], record['locality']):
+    # For a bank the brand IS the identity — "Novo Banco" is a full name, and
+    # "Novo Banco, Almeirim" is not "the locality" — so the two name rules
+    # below defer to the brand dictionary, exactly as classify_and_load does.
+    brand = brand_of(record['name'], poi_type) if poi_type in FINANCIAL_FAMILY else None
+    if not brand and toponym_only(record['dedupe_name'], record['locality']):
         return 'suspect', 'name is the locality', counterpart
+    if not brand and not has_name_signal(record['dedupe_name']) \
+            and not names_its_town(record['dedupe_name'], record['locality']):
+        return 'suspect', 'no name signal (only type words)', counterpart
+    defunct = defunct_bank(record['dedupe_name']) if poi_type in FINANCIAL_FAMILY else None
+    if defunct:
+        return 'suspect', f'defunct brand name: {defunct}', counterpart
     owners = coordinate_owners.get((record['lat'], record['lng']), ())
     if len(owners) > 1:
         return 'suspect', f'coordinates shared with {len(owners) - 1} other archive row(s)', counterpart
     if record['fsq_place_id'] in twins:
         return 'suspect', f'archive twin within {ARCHIVE_TWIN_M:.0f} m: {twins[record["fsq_place_id"]]}', counterpart
-    if counterpart and counterpart[3] == 'business':
+    if counterpart and counterpart[3] == 'other_kind':
         place, distance, similarity, _ = counterpart
-        return 'suspect', f'same name as a served business: {place["source"]} {place["type"]} at {distance:.0f} m', counterpart
+        return 'suspect', f'same name as a served place of another kind: {place["source"]} {place["type"]} at {distance:.0f} m', counterpart
     if counterpart:
         place, distance, similarity, _ = counterpart
         return 'suspect', f'same name beyond the matcher radius: {place["source"]} {place["type"]} at {distance:.0f} m', counterpart
@@ -458,14 +515,16 @@ def render(context):
         out.append('Bank rows the classifier itself moves elsewhere (not counted as `bank` above): '
                    + ', '.join(f'`{k}` {v:,}' for k, v in sorted(c['retyped'].items())) + '.\n')
     out.append('## Per type\n')
-    out.append('| type | archive rows | matched | unique | suspect | matched % |')
-    out.append('|---|---:|---:|---:|---:|---:|')
+    out.append('"served today" is what the base holds under this type name (Overture promoted + active curated); '
+               'a match may land on another type in the same family, so it is context, not a denominator.\n')
+    out.append('| type | served today | archive rows | matched | unique | suspect | matched % |')
+    out.append('|---|---:|---:|---:|---:|---:|---:|')
     for poi_type in c['candidate_types']:
         buckets = c['inventory'][poi_type]
         total = sum(len(v) for v in buckets.values())
         pct = f"{100 * len(buckets['matched']) / total:.0f}%" if total else '—'
-        out.append(f"| `{poi_type}` | {total:,} | {len(buckets['matched']):,} | {len(buckets['unique']):,} | "
-                   f"{len(buckets['suspect']):,} | {pct} |")
+        out.append(f"| `{poi_type}` | {c['served_counts'].get(poi_type, 0):,} | {total:,} | {len(buckets['matched']):,} | "
+                   f"{len(buckets['unique']):,} | {len(buckets['suspect']):,} | {pct} |")
     out.append('')
     for poi_type in c['candidate_types']:
         buckets = c['inventory'][poi_type]
@@ -478,7 +537,7 @@ def render(context):
         if suspect_by:
             out.append('Suspect because: ' + ', '.join(f'{k} {v:,}' for k, v in suspect_by.most_common()) + '.\n')
         for prefix, label in (('same name beyond', 'Same name beyond the matcher radius, by served type'),
-                              ('same name as a served business', 'Same name as a served business, by served type')):
+                              ('same name as a served place of another kind', 'Same name as a served place of another kind, by served type')):
             by_type = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, reason, cp in buckets['suspect']
                               if reason.startswith(prefix))
             if by_type:
@@ -548,6 +607,7 @@ def run(args):
     curated = [] if args.skip_d1 else served_curated(candidate_types)
     corrections = [] if args.skip_d1 else foursquare_corrections()
     grid = grid_index(served + curated)
+    served_counts = Counter(place['type'] for place in served + curated)
 
     print('[preflight] classifying', file=sys.stderr)
     result = inventory(rows_by_type, grid, coordinate_owners, candidate_types)
@@ -570,7 +630,7 @@ def run(args):
         'overture_key': args.overture_key, 'overture_stats': overture_stats,
         'curated_count': len(curated), 'd1': not args.skip_d1, 'candidate_types': candidate_types,
         'leaf_names': leaf_names, 'counters': counters, 'also_only': also_only, 'retyped': retyped,
-        'inventory': result, 'samples': samples, 'sample_size': args.sample_size,
+        'inventory': result, 'samples': samples, 'sample_size': args.sample_size, 'served_counts': served_counts,
         'corrections': corrections, 'notes': notes,
     }
     os.makedirs(os.path.dirname(os.path.abspath(args.report_out)), exist_ok=True)
@@ -581,7 +641,8 @@ def run(args):
         'overture_key': args.overture_key, 'overture_promoted': overture_stats.get('promoted', 0),
         'curated_rows': len(curated), 'd1_read': not args.skip_d1,
         'types': {poi_type: {bucket: len(result[poi_type][bucket]) for bucket in BUCKETS}
-                  | {'also_only': also_only.get(poi_type, 0)} for poi_type in candidate_types},
+                  | {'also_only': also_only.get(poi_type, 0), 'served_today': served_counts.get(poi_type, 0)}
+                  for poi_type in candidate_types},
         'bank_retyped': dict(retyped), 'foursquare_corrections': len(corrections),
     }
     with open(os.path.splitext(args.report_out)[0] + '.json', 'w') as handle:
