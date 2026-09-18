@@ -4,8 +4,12 @@ import unittest
 
 EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 
-import apply_kan411_types as K
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
+
+import apply_kan411_types as K  # noqa: E402
 
 
 def row(name, labels='', brand=None, primary='store'):

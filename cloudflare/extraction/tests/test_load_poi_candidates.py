@@ -9,8 +9,12 @@ EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CLOUDFLARE_DIR = os.path.dirname(EXTRACTION_DIR)
 MIGRATION_PATH = os.path.join(CLOUDFLARE_DIR, 'migrations', '0026_poi_candidate.sql')
 sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 
-import load_poi_candidates
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
+
+import load_poi_candidates  # noqa: E402
 
 
 class FakeD1:
