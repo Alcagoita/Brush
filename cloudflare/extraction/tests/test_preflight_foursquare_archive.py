@@ -205,5 +205,82 @@ class SampleTest(unittest.TestCase):
         self.assertEqual(len(preflight.sample(items[:5], 10, 453)), 5)
 
 
+class ByLeafTest(unittest.TestCase):
+    """Second pass: bucket by Foursquare's own leaf, match type-blind."""
+
+    def test_a_row_with_two_paths_counts_under_each_leaf(self):
+        row = {'category_labels': 'Landmarks and Outdoors > Historic and Protected Site|'
+                                  'Community and Government > Spiritual Center > Monastery|'
+                                  'Business and Professional Services > Financial Service > Banking and Finance > Bank'}
+        self.assertEqual(preflight.leaf_paths(row), [
+            ('Historic and Protected Site', 'Landmarks and Outdoors > Historic and Protected Site'),
+            ('Monastery', 'Community and Government > Spiritual Center > Monastery'),
+        ])
+
+    def test_out_of_scope_and_excluded_leaves_are_dropped(self):
+        self.assertEqual(preflight.leaf_paths({'category_labels': 'Dining and Drinking > Cafe'}), [])
+        self.assertEqual(preflight.leaf_paths({'category_labels': ''}), [])
+        # Bank/ATM never sit under the scope prefixes, and are refused even if one did.
+        self.assertEqual(preflight.leaf_paths({'category_labels': 'Landmarks and Outdoors > Bank'}), [])
+
+    def test_a_leaf_with_no_mapping_in_our_classifier_is_still_inventoried(self):
+        # Monastery maps to nothing in poiTypeCategories.json; Garden is an `also` id the classifier ignores.
+        import csv
+        import tempfile
+        fields = ['fsq_place_id', 'name', 'latitude', 'longitude', 'address', 'locality', 'category_ids', 'category_labels']
+        with tempfile.NamedTemporaryFile('w', suffix='.csv', delete=False, newline='') as handle:
+            writer = csv.DictWriter(handle, fieldnames=fields)
+            writer.writeheader()
+            writer.writerow({'fsq_place_id': 'a', 'name': 'Mosteiro de Alcobaça', 'latitude': LAT, 'longitude': LNG,
+                             'locality': 'Alcobaça', 'category_ids': 'x',
+                             'category_labels': 'Community and Government > Spiritual Center > Monastery'})
+            writer.writerow({'fsq_place_id': 'b', 'name': 'Jardim Municipal', 'latitude': LAT, 'longitude': LNG + 0.01,
+                             'locality': '', 'category_ids': '4bf58dd8d48988d15a941735',
+                             'category_labels': 'Landmarks and Outdoors > Garden'})
+            writer.writerow({'fsq_place_id': 'c', 'name': 'Talho Silva', 'latitude': LAT, 'longitude': LNG,
+                             'locality': '', 'category_ids': 'y', 'category_labels': 'Retail > Butcher'})
+        try:
+            rows_by_leaf, paths_by_leaf, owners, total = preflight.load_archive_by_leaf(handle.name)
+        finally:
+            os.unlink(handle.name)
+        self.assertEqual(total, 3)
+        self.assertEqual(sorted(rows_by_leaf), ['Garden', 'Monastery'])
+        self.assertEqual(rows_by_leaf['Monastery'][0]['types'], ['Monastery'])
+        self.assertEqual(paths_by_leaf['Garden'], {'Landmarks and Outdoors > Garden': 1})
+
+    def test_matching_is_type_blind(self):
+        # A Foursquare Monastery whose Overture twin is typed church is a match, not a unique;
+        # a Garden whose twin is a park likewise. The same café pair is 'other kind' in the typed mode.
+        base = preflight.grid_index([served('Mosteiro de Alcobaça', 0, 'church'), served('Jardim do Torel', 0, 'park')])
+        self.assertEqual(preflight.classify_record(archive('Mosteiro de Alcobaça', 10), None, base, {}, {})[0], 'matched')
+        bucket, reason, _ = preflight.classify_record(archive('Jardim do Torel', 20), None, base, {}, {})
+        self.assertEqual((bucket, reason), ('matched', 'KAN-388 match: overture park'))
+        cafe = preflight.grid_index([served('Café do Torel', 0, 'cafe')])
+        self.assertEqual(classify(archive('Café do Torel', 5), [served('Café do Torel', 0, 'cafe')])[0], 'suspect')
+        self.assertEqual(preflight.classify_record(archive('Café do Torel', 5), None, cafe, {}, {})[0], 'matched')
+
+    def test_bank_rules_do_not_apply_by_leaf(self):
+        self.assertEqual(preflight.classify_record(archive('Banif Maia'), None, preflight.grid_index([]), {}, {})[0], 'unique')
+
+    def test_verdicts(self):
+        empty = {bucket: [] for bucket in preflight.BUCKETS}
+        self.assertEqual(preflight.leaf_verdict('Structure', empty)[0], 'noise')
+        self.assertEqual(preflight.leaf_verdict('Night Club', empty)[0], 'import with care')
+        self.assertEqual(preflight.leaf_verdict('Arts and Entertainment', empty)[0], 'import with care')
+        self.assertEqual(preflight.leaf_verdict('Monastery', empty)[0], 'import')
+        heavy = {'matched': [], 'unique': [1] * 6, 'suspect': [1] * 4}
+        self.assertEqual(preflight.leaf_verdict('Monastery', heavy), ('import with care', '40% suspect — see the sample'))
+
+    def test_unique_bucket_dedupe_checks(self):
+        a = archive('Igreja Matriz', 0, 'fsq-1')
+        b = archive('Igreja de São Pedro', 10, 'fsq-2')   # 10 m from a, different name: coordinate twin
+        c = archive('Igreja Matriz', 200, 'fsq-3')        # same name as a, 200 m: near-miss
+        d = archive('Igreja Matriz', 900, 'fsq-4')        # too far for either
+        twins = preflight.unique_coordinate_twins([a, b, c, d])
+        self.assertEqual([(x['fsq_place_id'], y['fsq_place_id']) for x, y, _ in twins], [('fsq-1', 'fsq-2')])
+        near = preflight.unique_name_near_misses([a, b, c, d])
+        self.assertEqual([(x['fsq_place_id'], y['fsq_place_id']) for x, y, _ in near], [('fsq-1', 'fsq-3')])
+
+
 if __name__ == '__main__':
     unittest.main()

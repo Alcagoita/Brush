@@ -30,6 +30,10 @@ work dir and never rewritten.
 
 Deterministic: samples come from random.Random(--seed) over rows sorted by
 id, so two runs on the same inputs produce the same report.
+
+--by-leaf (second pass) buckets by Foursquare's own leaf instead, over every
+path under Landmarks and Outdoors, Arts and Entertainment and Spiritual
+Center, and matches type-blind. See the section of that name below.
 """
 from __future__ import annotations
 
@@ -343,10 +347,15 @@ def best_counterpart(record, poi_type, grid):
     """(place, distance, similarity, verdict) for the most telling served
     place near the row, or None.
 
-    verdict is 'matched' (KAN-388 says same place, same family), 'business'
-    (KAN-388 says same name, but the served row is a business, not a
-    landmark) or 'far' (same name between the matcher radius and FAR_M).
-    A 'matched' always outranks the other two.
+    verdict is 'matched' (KAN-388 says same place, same family),
+    'other_kind' (KAN-388 says same name, but the served row is a business,
+    not a landmark) or 'far' (same name between the matcher radius and
+    FAR_M). A 'matched' always outranks the other two.
+
+    With poi_type None the match is type-blind (the --by-leaf mode): a
+    Foursquare "Monastery" whose Overture twin is typed church is a match,
+    a "Garden" whose twin is a park is a match. Typing happens later, in
+    curation; the question here is only whether the place is served.
     """
     rank = {'matched': 2, 'other_kind': 1, 'far': 0}
     best = None
@@ -357,7 +366,7 @@ def best_counterpart(record, poi_type, grid):
         similarity = name_similarity(record['dedupe_name'], place['dedupe_name'])
         if distance <= MATCH_RADIUS_METERS and names_match(record['dedupe_name'], place['dedupe_name'], distance):
             similarity = max(similarity, NAME_SIMILARITY_THRESHOLD)
-            verdict = 'matched' if same_family(poi_type, place['type']) else 'other_kind'
+            verdict = 'matched' if poi_type is None or same_family(poi_type, place['type']) else 'other_kind'
         elif similarity >= NAME_SIMILARITY_THRESHOLD:
             verdict = 'far'
         else:
@@ -381,6 +390,9 @@ def classify_record(record, poi_type, grid, coordinate_owners, twins):
     A match is a match, whatever else is odd about the row: the row is
     already served and importing it would be a duplicate. Suspicion is
     only worth raising about rows that would otherwise be imported.
+
+    poi_type None means the row is bucketed by Foursquare leaf, not by one
+    of our types: matching is type-blind and the bank rules do not apply.
     """
     if record['lat'] is None:
         return 'suspect', 'no coordinates', None
@@ -393,13 +405,14 @@ def classify_record(record, poi_type, grid, coordinate_owners, twins):
     # For a bank the brand IS the identity — "Novo Banco" is a full name, and
     # "Novo Banco, Almeirim" is not "the locality" — so the two name rules
     # below defer to the brand dictionary, exactly as classify_and_load does.
-    brand = brand_of(record['name'], poi_type) if poi_type in FINANCIAL_FAMILY else None
+    financial = poi_type in FINANCIAL_FAMILY
+    brand = brand_of(record['name'], poi_type) if financial else None
     if not brand and toponym_only(record['dedupe_name'], record['locality']):
         return 'suspect', 'name is the locality', counterpart
     if not brand and not has_name_signal(record['dedupe_name']) \
             and not names_its_town(record['dedupe_name'], record['locality']):
         return 'suspect', 'no name signal (only type words)', counterpart
-    defunct = defunct_bank(record['dedupe_name']) if poi_type in FINANCIAL_FAMILY else None
+    defunct = defunct_bank(record['dedupe_name']) if financial else None
     if defunct:
         return 'suspect', f'defunct brand name: {defunct}', counterpart
     owners = coordinate_owners.get((record['lat'], record['lng']), ())
@@ -652,6 +665,317 @@ def run(args):
     return summary
 
 
+# ---------------------------------------------------------------------------- by leaf (KAN-453, second pass)
+#
+# The first pass keyed the inventory on OUR thirteen types, so everything the
+# classifier maps elsewhere — Historic and Protected Site, Monument, Castle,
+# Palace, Monastery — or nowhere (the `also`-id gap: Garden, Pedestrian
+# Plaza) was invisible. Overture has no monastery category; that is exactly
+# what the archive was kept for. The rule now: inventory by Foursquare's own
+# leaf, type-blind. Typing to our catalogue is curation's job (KAN-433).
+
+LEAF_SCOPE_PREFIXES = ('Landmarks and Outdoors', 'Arts and Entertainment', 'Community and Government > Spiritual Center')
+LEAF_EXCLUDED = frozenset({'ATM', 'Bank'})
+
+# Leaves that name an area, a land use or an administrative unit — not a
+# place a person walks into. Inventoried and counted so the owner excludes
+# them explicitly, never dropped silently.
+NOISE_LEAVES = frozenset({
+    'Structure', 'Other Great Outdoors', 'Farm', 'Field', 'Neighborhood', 'City', 'Town', 'Village',
+    'States and Municipalities', 'State', 'County', 'Country', 'Tree', 'Well', 'Road', 'Intersection',
+    'Pond', 'Hill', 'Pass', 'Bay', 'Reservoir', 'Waterfront', 'Forest', 'Canal', 'Canal Lock',
+})
+# A parent used as a leaf: the row carries the category and nothing finer.
+PARENT_LEAVES = frozenset({'Landmarks and Outdoors', 'Arts and Entertainment', 'Spiritual Center'})
+# Businesses filed under Arts and Entertainment: real venues, but a decade
+# old and closable, and the archive was kept for landmarks. Import with care.
+VENUE_LEAVES = frozenset({
+    'Night Club', 'Strip Club', 'Pool Hall', 'Casino', 'Internet Cafe', 'Gaming Cafe', 'VR Cafe', 'Arcade',
+    'Escape Room', 'Comedy Club', 'Rock Club', 'Salsa Club', 'Country Dance Club', 'Jazz and Blues Venue',
+    'Psychic and Astrologer', 'Party Center', 'Ticket Seller', 'Bingo Center', 'Laser Tag Center', 'Roller Rink',
+    'Go Kart Track', 'Mini Golf Course', 'Bowling Alley', 'Movie Theater', 'Indie Movie Theater', 'Drive-in Theater',
+    'Dance Hall', 'Circus', 'Carnival', 'Fair', 'General Entertainment', 'Stable', 'Country Club', 'Water Park',
+    'Amusement Park', 'Attraction', 'Roof Deck', 'Campground', 'Surf Spot', 'Dive Spot', 'Harbor or Marina',
+    'Hot Spring', 'Bathing Area',
+})
+# The extra dedupe checks run on leaves at least this big.
+BIG_LEAF_ROWS = 300
+COORDINATE_TWIN_M = 25.0
+
+
+def leaf_paths(row):
+    """Every category path on the row that is in scope, as (leaf, path)."""
+    out = []
+    for path in (row.get('category_labels') or '').split('|'):
+        path = path.strip()
+        if not path or not path.startswith(LEAF_SCOPE_PREFIXES):
+            continue
+        leaf = path.split(' > ')[-1].strip()
+        if leaf in LEAF_EXCLUDED:
+            continue
+        out.append((leaf, path))
+    return out
+
+
+def load_archive_by_leaf(path):
+    """Archive rows per in-scope leaf. A row with several paths counts under
+    each; its record is shared, so a fsq id is one place everywhere."""
+    rows_by_leaf = defaultdict(list)
+    paths_by_leaf = defaultdict(Counter)
+    coordinate_owners = defaultdict(list)
+    total = 0
+    with open(path, newline='') as handle:
+        for row in csv.DictReader(handle):
+            total += 1
+            leaves = leaf_paths(row)
+            if not leaves:
+                continue
+            lat, lng = (row.get('latitude') or '').strip(), (row.get('longitude') or '').strip()
+            record = {
+                'fsq_place_id': row['fsq_place_id'], 'name': row['name'].strip(),
+                'dedupe_name': normalize_text(row['name']),
+                'lat': float(lat) if lat else None, 'lng': float(lng) if lng else None,
+                'locality': (row.get('locality') or '').strip(),
+                'label': (row.get('category_labels') or '').split('|')[0],
+                'types': sorted({leaf for leaf, _ in leaves}),
+            }
+            if record['lat'] is not None:
+                coordinate_owners[(record['lat'], record['lng'])].append(record['fsq_place_id'])
+            for leaf, full_path in {(leaf, full_path) for leaf, full_path in leaves}:
+                paths_by_leaf[leaf][full_path] += 1
+            for leaf in {leaf for leaf, _ in leaves}:
+                rows_by_leaf[leaf].append(record)
+    return rows_by_leaf, paths_by_leaf, coordinate_owners, total
+
+
+def leaf_verdict(leaf, buckets):
+    """import / import with care / noise, and why — one line the owner can overrule."""
+    if leaf in NOISE_LEAVES:
+        return 'noise', 'an area or land use, not a place to walk into'
+    if leaf in PARENT_LEAVES:
+        return 'import with care', 'parent category only — the row says nothing finer'
+    if leaf in VENUE_LEAVES:
+        return 'import with care', 'a business or activity spot, not a landmark; may have closed'
+    total = sum(len(v) for v in buckets.values())
+    if total and len(buckets['suspect']) / total > 0.3:
+        return 'import with care', f"{100 * len(buckets['suspect']) / total:.0f}% suspect — see the sample"
+    return 'import', ''
+
+
+def unique_coordinate_twins(records):
+    """Pairs of unique rows within COORDINATE_TWIN_M carrying different
+    names: one place listed twice under two names, or two places sharing a
+    pin. Either way the importer's dedupe cannot rely on the name."""
+    grid = defaultdict(list)
+    for record in records:
+        grid[(int(record['lat'] // CELL), int(record['lng'] // CELL))].append(record)
+    pairs = []
+    for record in records:
+        for other in near(grid, record['lat'], record['lng']):
+            if other['fsq_place_id'] <= record['fsq_place_id'] or other['dedupe_name'] == record['dedupe_name']:
+                continue
+            distance = haversine_m(record['lat'], record['lng'], other['lat'], other['lng'])
+            if distance <= COORDINATE_TWIN_M:
+                pairs.append((record, other, distance))
+    return sorted(pairs, key=lambda p: (p[0]['fsq_place_id'], p[1]['fsq_place_id']))
+
+
+def unique_name_near_misses(records):
+    """Pairs of unique rows with the same normalised name between the
+    matcher radius and FAR_M: the same monument pinned twice, a street
+    apart, which a 75 m dedupe will import twice."""
+    by_name = defaultdict(list)
+    for record in records:
+        if record['dedupe_name']:
+            by_name[record['dedupe_name']].append(record)
+    pairs = []
+    for same in by_name.values():
+        same.sort(key=lambda r: r['fsq_place_id'])
+        for i, record in enumerate(same):
+            for other in same[i + 1:]:
+                distance = haversine_m(record['lat'], record['lng'], other['lat'], other['lng'])
+                if MATCH_RADIUS_METERS < distance <= FAR_M:
+                    pairs.append((record, other, distance))
+    return sorted(pairs, key=lambda p: (p[0]['fsq_place_id'], p[1]['fsq_place_id']))
+
+
+def inventory_by_leaf(rows_by_leaf, grid, coordinate_owners):
+    result = {}
+    for leaf, rows in rows_by_leaf.items():
+        records = sorted(rows, key=lambda r: r['fsq_place_id'])
+        twins = archive_twins(records)
+        buckets = {bucket: [] for bucket in BUCKETS}
+        for record in records:
+            bucket, reason, counterpart = classify_record(record, None, grid, coordinate_owners, twins)
+            buckets[bucket].append((record, reason, counterpart))
+        result[leaf] = buckets
+    return result
+
+
+def pair_table(pairs, limit):
+    if not pairs:
+        return '_none_\n'
+    lines = ['| fsq_place_id | name | fsq_place_id | name | m |', '|---|---|---|---|---:|']
+    for a, b, distance in pairs[:limit]:
+        lines.append('| ' + ' | '.join(md_cell(v) for v in (a['fsq_place_id'], a['name'], b['fsq_place_id'], b['name'], f'{distance:.0f}')) + ' |')
+    return '\n'.join(lines) + '\n'
+
+
+def render_by_leaf(c):
+    out = []
+    out.append(f"# KAN-453 — Foursquare archive preflight by leaf, {c['country']}\n")
+    out.append(f"Generated {c['generated_at']} by `cloudflare/extraction/preflight_foursquare_archive.py --by-leaf`. "
+               "Measurement only: nothing was written to D1 or R2.\n")
+    out.append('Rows are bucketed by **Foursquare\'s own leaf** (the last segment of each `category_labels` path; a row '
+               'with several paths counts under each), not by our type. Typing to our catalogue happens in curation. '
+               'Matching is **type-blind**: a "Monastery" whose Overture twin is a `church` is matched, a "Garden" '
+               'whose twin is a `park` is matched.\n')
+    out.append('## Inputs\n')
+    out.append(f"- Foursquare archive: `{c['archive_key']}` — {c['archive_total']:,} rows (sha256 `{c['archive_sha256']}`); "
+               f"{c['in_scope_rows']:,} distinct rows carry at least one in-scope leaf.")
+    out.append(f"- Scope: every path under `{'`, `'.join(LEAF_SCOPE_PREFIXES)}`; leaves `{'`, `'.join(sorted(LEAF_EXCLUDED))}` excluded.")
+    out.append(f"- Overture base: `{c['overture_key']}` — {c['overture_stats'].get('promoted', 0):,} promoted of "
+               f"{sum(c['overture_stats'].values()):,} rows under the committed overrides.")
+    out.append(f"- Curated rows (active, all types): {c['curated_count']:,}" + ('' if c['d1'] else ' — **D1 not read (`--skip-d1`)**') + '.')
+    out.append('- MULTIBANCO: not read. Reading it whole is a countrywide scan of a table no tourism leaf can match '
+               '(every row is an ATM named for its operator); it is left out and said so.')
+    out.append(f"- Matcher: `supplement_osm_pois.names_match` (name_similarity ≥ {NAME_SIMILARITY_THRESHOLD} within "
+               f"{MATCH_RADIUS_METERS} m, or a single shared identity token within 20 m), against every served row. "
+               f"Same-name served places between {MATCH_RADIUS_METERS} m and {FAR_M:.0f} m are suspect, never matched.\n")
+    out.append('## Leaves, by unique count\n')
+    out.append('`verdict` is one line per leaf for the curation step — import / import with care / noise — and says why. '
+               'It is a starting point for the owner, not a gate: no tourism leaf is refused here on type grounds.\n')
+    out.append('| leaf | rows | matched | unique | suspect | verdict | why |')
+    out.append('|---|---:|---:|---:|---:|---|---|')
+    for leaf in c['leaf_order']:
+        b = c['inventory'][leaf]
+        verdict, why = c['verdicts'][leaf]
+        out.append(f"| {md_cell(leaf)} | {sum(len(v) for v in b.values()):,} | {len(b['matched']):,} | {len(b['unique']):,} | "
+                   f"{len(b['suspect']):,} | {verdict} | {md_cell(why)} |")
+    out.append('')
+    noise = [leaf for leaf in c['leaf_order'] if c['verdicts'][leaf][0] == 'noise']
+    out.append('## Noise leaves — to exclude explicitly\n')
+    out.append('Counted, not dropped. Each names an area, a land use or an administrative unit; none is a place a task '
+               'is solved at. The owner excludes them in curation, in writing.\n')
+    out.append('| leaf | rows | paths |')
+    out.append('|---|---:|---|')
+    for leaf in noise:
+        paths = '; '.join(f'{p} ({n:,})' for p, n in c['paths_by_leaf'][leaf].most_common(3))
+        out.append(f"| {md_cell(leaf)} | {sum(len(v) for v in c['inventory'][leaf].values()):,} | {md_cell(paths)} |")
+    out.append('')
+    out.append('## Where dedupe has to be strict\n')
+    out.append(f'For every leaf with at least {BIG_LEAF_ROWS} rows, two checks inside its **unique** bucket — rows the importer '
+               f'would take. *Coordinate twins*: two unique rows within {COORDINATE_TWIN_M:.0f} m under different names. '
+               f'*Name near-misses*: two unique rows with the same normalised name {MATCH_RADIUS_METERS}–{FAR_M:.0f} m apart. '
+               'Both are places a 75 m name-and-distance dedupe imports twice.\n')
+    out.append('| leaf | unique | coordinate twins | name near-misses |')
+    out.append('|---|---:|---:|---:|')
+    for leaf in c['leaf_order']:
+        if leaf in c['dedupe']:
+            out.append(f"| {md_cell(leaf)} | {len(c['inventory'][leaf]['unique']):,} | {len(c['dedupe'][leaf]['twins']):,} | "
+                       f"{len(c['dedupe'][leaf]['near_misses']):,} |")
+    out.append('')
+    for leaf in c['leaf_order']:
+        b = c['inventory'][leaf]
+        total = sum(len(v) for v in b.values())
+        verdict, why = c['verdicts'][leaf]
+        out.append(f"### {leaf} — {total:,} rows — {verdict}\n")
+        paths = '; '.join(f'`{p}` ({n:,})' for p, n in c['paths_by_leaf'][leaf].most_common())
+        out.append(f'Paths: {paths}\n')
+        if verdict == 'noise':
+            out.append('_Noise leaf: counts only._\n')
+            continue
+        matched_by = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, _, cp in b['matched'])
+        if matched_by:
+            out.append('Matched against: ' + ', '.join(f'{k} {v:,}' for k, v in matched_by.most_common()) + '.\n')
+        suspect_by = Counter(reason.split(':')[0].split(' (')[0] for _, reason, _ in b['suspect'])
+        if suspect_by:
+            out.append('Suspect because: ' + ', '.join(f'{k} {v:,}' for k, v in suspect_by.most_common()) + '.\n')
+        far_by = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, reason, cp in b['suspect'] if reason.startswith('same name beyond'))
+        if far_by:
+            out.append('Same name beyond the matcher radius, by served type: ' + ', '.join(f'{k} {v:,}' for k, v in far_by.most_common()) + '.\n')
+        out.append(f"#### Already served (matched) — sample of {min(c['sample_size'], len(b['matched']))} of {len(b['matched']):,}\n")
+        out.append(sample_table(c['samples'][leaf]['matched'], True))
+        out.append(f"#### Unique — sample of {min(c['sample_size'], len(b['unique']))} of {len(b['unique']):,}\n")
+        out.append(sample_table(c['samples'][leaf]['unique'], False))
+        out.append(f"#### Suspect — sample of {min(c['sample_size'], len(b['suspect']))} of {len(b['suspect']):,}\n")
+        out.append(sample_table(c['samples'][leaf]['suspect'], True))
+        if leaf in c['dedupe']:
+            d = c['dedupe'][leaf]
+            out.append(f"#### Unique-bucket coordinate twins — {min(c['sample_size'], len(d['twins']))} of {len(d['twins']):,}\n")
+            out.append(pair_table(d['twins'], c['sample_size']))
+            out.append(f"#### Unique-bucket name near-misses — {min(c['sample_size'], len(d['near_misses']))} of {len(d['near_misses']):,}\n")
+            out.append(pair_table(d['near_misses'], c['sample_size']))
+    if c['notes']:
+        out.append(c['notes'].rstrip() + '\n')
+    return '\n'.join(out)
+
+
+def served_curated_all():
+    """Every active curated row — 294 in production, one bounded read."""
+    rows = run_d1_query("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
+    return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
+             'lat': float(r['lat']), 'lng': float(r['lng']), 'type': r['primary_poi_type']} for r in rows]
+
+
+def run_by_leaf(args):
+    work_dir = args.work_dir
+    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, os.path.join(work_dir, 'foursquare.csv'))
+    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, os.path.join(work_dir, 'overture.csv'))
+
+    print(f'[preflight] reading archive by leaf {archive_csv}', file=sys.stderr)
+    rows_by_leaf, paths_by_leaf, coordinate_owners, archive_total = load_archive_by_leaf(archive_csv)
+    print(f'[preflight] deciding Overture base {overture_csv}', file=sys.stderr)
+    served, overture_stats = served_overture(overture_csv, args.overture_key)
+    curated = [] if args.skip_d1 else served_curated_all()
+    grid = grid_index(served + curated)
+
+    print(f'[preflight] classifying {len(rows_by_leaf)} leaves', file=sys.stderr)
+    result = inventory_by_leaf(rows_by_leaf, grid, coordinate_owners)
+    leaf_order = sorted(result, key=lambda leaf: (-len(result[leaf]['unique']), leaf))
+    verdicts = {leaf: leaf_verdict(leaf, result[leaf]) for leaf in result}
+    samples = {leaf: {bucket: sample(result[leaf][bucket], args.sample_size, args.seed) for bucket in BUCKETS}
+               for leaf in result}
+    dedupe = {}
+    for leaf in result:
+        if sum(len(v) for v in result[leaf].values()) >= BIG_LEAF_ROWS and verdicts[leaf][0] != 'noise':
+            unique = [record for record, _, _ in result[leaf]['unique']]
+            dedupe[leaf] = {'twins': unique_coordinate_twins(unique), 'near_misses': unique_name_near_misses(unique)}
+
+    notes = ''
+    if args.notes:
+        with open(args.notes) as handle:
+            notes = handle.read()
+    in_scope_rows = len({record['fsq_place_id'] for rows in rows_by_leaf.values() for record in rows})
+    context = {
+        'country': args.country, 'generated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
+        'archive_key': args.archive_key, 'archive_total': archive_total, 'archive_sha256': sha256_of(archive_csv),
+        'in_scope_rows': in_scope_rows, 'overture_key': args.overture_key, 'overture_stats': overture_stats,
+        'curated_count': len(curated), 'd1': not args.skip_d1, 'inventory': result, 'leaf_order': leaf_order,
+        'verdicts': verdicts, 'paths_by_leaf': paths_by_leaf, 'samples': samples, 'sample_size': args.sample_size,
+        'dedupe': dedupe, 'notes': notes,
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(args.report_out)), exist_ok=True)
+    with open(args.report_out, 'w') as handle:
+        handle.write(render_by_leaf(context))
+    summary = {
+        'mode': 'by-leaf', 'archive_key': args.archive_key, 'archive_rows': archive_total,
+        'archive_sha256': context['archive_sha256'], 'in_scope_rows': in_scope_rows,
+        'overture_key': args.overture_key, 'overture_promoted': overture_stats.get('promoted', 0),
+        'curated_rows': len(curated), 'd1_read': not args.skip_d1,
+        'leaves': {leaf: {bucket: len(result[leaf][bucket]) for bucket in BUCKETS}
+                   | {'verdict': verdicts[leaf][0]}
+                   | ({'coordinate_twins': len(dedupe[leaf]['twins']), 'name_near_misses': len(dedupe[leaf]['near_misses'])}
+                      if leaf in dedupe else {})
+                   for leaf in leaf_order},
+    }
+    with open(os.path.splitext(args.report_out)[0] + '.json', 'w') as handle:
+        json.dump(summary, handle, indent=2, sort_keys=True)
+        handle.write('\n')
+    print(json.dumps({leaf: summary['leaves'][leaf] for leaf in leaf_order[:12]}, indent=2), file=sys.stderr)
+    return summary
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--archive-key', default=DEFAULT_ARCHIVE_KEY)
@@ -666,7 +990,10 @@ def main(argv=None):
     parser.add_argument('--seed', type=int, default=453)
     parser.add_argument('--skip-d1', action='store_true', help='do not read curated_poi / poi_source_correction')
     parser.add_argument('--notes', help='markdown appended to the report (the recommendations)')
-    run(parser.parse_args(argv))
+    parser.add_argument('--by-leaf', action='store_true',
+                        help="bucket by Foursquare's own leaf, type-blind, instead of by our types (--types)")
+    args = parser.parse_args(argv)
+    run_by_leaf(args) if args.by_leaf else run(args)
 
 
 if __name__ == '__main__':
