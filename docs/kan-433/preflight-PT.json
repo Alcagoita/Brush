@@ -1,0 +1,109 @@
+{
+  "archive_key": "country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv",
+  "archive_rows": 396749,
+  "archive_sha256": "82b04934657742e497ba7832a8fab81aa09fb4703958b63cd3e92fa25ab33b98",
+  "bank_retyped": {
+    "atm": 41,
+    "currency_exchange": 12,
+    "financial_service": 39,
+    "money_transfer": 26
+  },
+  "curated_rows": 3,
+  "d1_read": true,
+  "foursquare_corrections": 5,
+  "overture_key": "overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv",
+  "overture_promoted": 215695,
+  "types": {
+    "bank": {
+      "also_only": 0,
+      "matched": 1081,
+      "served_today": 1970,
+      "suspect": 814,
+      "unique": 1876
+    },
+    "botanical_garden": {
+      "also_only": 1102,
+      "matched": 11,
+      "served_today": 44,
+      "suspect": 7,
+      "unique": 16
+    },
+    "bridge": {
+      "also_only": 0,
+      "matched": 92,
+      "served_today": 189,
+      "suspect": 60,
+      "unique": 203
+    },
+    "hiking_area": {
+      "also_only": 0,
+      "matched": 101,
+      "served_today": 198,
+      "suspect": 67,
+      "unique": 415
+    },
+    "hot_spring": {
+      "also_only": 0,
+      "matched": 9,
+      "served_today": 20,
+      "suspect": 13,
+      "unique": 68
+    },
+    "island": {
+      "also_only": 0,
+      "matched": 6,
+      "served_today": 2,
+      "suspect": 12,
+      "unique": 49
+    },
+    "lighthouse": {
+      "also_only": 0,
+      "matched": 51,
+      "served_today": 68,
+      "suspect": 20,
+      "unique": 67
+    },
+    "marina": {
+      "also_only": 0,
+      "matched": 28,
+      "served_today": 95,
+      "suspect": 85,
+      "unique": 223
+    },
+    "plaza": {
+      "also_only": 117,
+      "matched": 378,
+      "served_today": 491,
+      "suspect": 199,
+      "unique": 555
+    },
+    "surf_spot": {
+      "also_only": 0,
+      "matched": 93,
+      "served_today": 128,
+      "suspect": 89,
+      "unique": 161
+    },
+    "tourist_attraction": {
+      "also_only": 0,
+      "matched": 10,
+      "served_today": 0,
+      "suspect": 11,
+      "unique": 76
+    },
+    "viewpoint": {
+      "also_only": 0,
+      "matched": 369,
+      "served_today": 0,
+      "suspect": 227,
+      "unique": 989
+    },
+    "waterfall": {
+      "also_only": 0,
+      "matched": 15,
+      "served_today": 41,
+      "suspect": 15,
+      "unique": 72
+    }
+  }
+}

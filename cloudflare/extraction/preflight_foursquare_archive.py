@@ -1,0 +1,1097 @@
+"""
+KAN-453 — preflight for KAN-433: inventory the Foursquare archive against the
+served base. Measures, imports nothing.
+
+For each candidate type it sorts the archive's rows into three buckets and
+writes a report:
+
+  matched   a served place (Overture promoted row, or an active curated_poi
+            row) is the same place under the KAN-388 matcher —
+            `name_similarity` + `single_identity_token_match` from
+            supplement_osm_pois.py, inside its MATCH_RADIUS_METERS. Any
+            served type counts: a Foursquare "viewpoint" whose Overture twin
+            is filed as a park is still a duplicate.
+  suspect   something about the row says "look before importing": no name
+            signal, coordinates shared with another archive row, a
+            same-name served place just outside the matcher's radius, a
+            toponym for a name, a bank row that is really an ATM.
+  unique    none of the above — no served counterpart, name carries signal.
+
+What "typed" means here is exactly what classify_and_load.py means: the
+row's Foursquare category ids against the PRIMARY `category_id` of each
+entry in poiTypeCategories.json (`build_reverse_map`), then the bank/ATM and
+financial-service name rules. The `also` ids that category_ids.py extracts
+on are counted separately, because the classifier never reads them.
+
+No D1 writes, no R2 writes. D1 reads are two bounded queries (every active
+curated row; Foursquare-keyed poi_source_correction rows),
+both skippable with --skip-d1. The archive is fetched from R2 once into the
+work dir and never rewritten.
+
+Deterministic: samples come from random.Random(--seed) over rows sorted by
+id, so two runs on the same inputs produce the same report.
+
+--by-leaf (second pass) buckets by Foursquare's own leaf instead, over every
+path under Landmarks and Outdoors, Arts and Entertainment and Spiritual
+Center, and matches type-blind. See the section of that name below.
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import datetime
+import json
+import math
+import os
+import random
+import sys
+from collections import Counter, defaultdict
+
+EXTRACTION_DIR = os.path.dirname(os.path.abspath(__file__))
+CLOUDFLARE_DIR = os.path.dirname(EXTRACTION_DIR)
+REPO_ROOT = os.path.dirname(CLOUDFLARE_DIR)
+sys.path.insert(0, EXTRACTION_DIR)
+
+from classify_and_load import (  # noqa: E402
+    build_reverse_map, financial_service_classification, find_brand, is_explicit_atm_name,
+    load_brand_dictionary, load_financial_service_name_rules, load_mapping, normalize_text,
+)
+from enrich_osm_cuisine import MATCH_RADIUS_METERS, NAME_SIMILARITY_THRESHOLD, haversine_m  # noqa: E402
+from match_residual_foursquare import distinctive_shared_word  # noqa: E402
+from supplement_osm_pois import identity_tokens, name_similarity, names_match, run_d1_query  # noqa: E402
+
+DEFAULT_ARCHIVE_KEY = 'country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv'
+DEFAULT_OVERTURE_KEY = 'overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv'
+DEFAULT_WORK_DIR = os.path.join(REPO_ROOT, 'outputs', 'kan-453')
+
+# KAN-433's list. `atm` is excluded outright — MULTIBANCO is the ATM source.
+CANDIDATE_TYPES = (
+    'viewpoint', 'tourist_attraction', 'hiking_area', 'plaza', 'botanical_garden',
+    'bridge', 'marina', 'surf_spot', 'lighthouse', 'waterfall', 'hot_spring',
+    'island', 'bank',
+)
+EXCLUDED_TYPES = frozenset({'atm'})
+
+# Beyond the matcher's radius a same-name served place is not a match — the
+# matcher was measured at 75 m and this report does not loosen it — but it
+# is not nothing either: outdoor features are geocoded loosely, and a
+# viewpoint 200 m from an Overture viewpoint of the same name is a question
+# for a person. Same outer bound as match_residual_foursquare.FAR_M.
+FAR_M = 400.0
+# One grid cell of 0.005° is ~555 m, so the 3x3 neighbourhood always holds
+# everything within FAR_M.
+CELL = 0.005
+# Two archive rows of one type this close with the same name are one place
+# listed twice (the existing `same_location` boundary).
+ARCHIVE_TWIN_M = 20.0
+
+# Words that name the kind of place, not the place. A row whose name is
+# only these — "Miradouro", "Ponte", "Farol" — carries no identity the
+# matcher could use, so nothing could ever dedupe it: it is the row that
+# imports as a duplicate of an unnamed neighbour. NON_IDENTITY_NAME_TOKENS
+# is food-and-retail shaped; these are the landmark equivalents.
+TYPE_GENERIC_WORDS = frozenset({
+    'miradouro', 'miradouros', 'vista', 'scenic', 'lookout', 'viewpoint', 'mirador', 'aussichtspunkt',
+    'aussicht', 'panorama', 'panoramica', 'panoramico', 'belvedere', 'view', 'point', 'ponto', 'zona',
+    'ponte', 'pontes', 'bridge', 'viaduto', 'passadico', 'passadicos',
+    'farol', 'farois', 'lighthouse', 'farolim',
+    'praca', 'pracas', 'largo', 'plaza', 'square', 'rossio', 'terreiro', 'jardim', 'jardins',
+    'garden', 'gardens', 'parque', 'park', 'botanico', 'botanical', 'jardim',
+    'marina', 'marinas', 'porto', 'doca', 'docas', 'cais', 'harbor', 'harbour', 'pesca',
+    'surf', 'spot', 'praia', 'praias', 'beach', 'onda', 'ondas',
+    'cascata', 'cascatas', 'queda', 'waterfall', 'poco', 'ribeira',
+    'termas', 'termal', 'termais', 'hot', 'spring', 'springs', 'piscina', 'piscinas', 'natural', 'naturais',
+    'ilha', 'ilhas', 'island', 'ilheu', 'ilheus',
+    'trilho', 'trilhos', 'trail', 'trails', 'levada', 'levadas', 'caminho', 'caminhos', 'percurso',
+    'percursos', 'rota', 'hiking', 'pr', 'pedestre',
+    'banco', 'bank', 'agencia', 'balcao', 'dependencia', 'sucursal', 'atm', 'multibanco', 'caixa',
+    'atracao', 'attraction', 'turistica', 'tourist', 'monumento', 'castelo', 'mirante',
+    'sao', 'santa', 'santo', 'nossa', 'senhora', 'senhor', 'da', 'de', 'do', 'das', 'dos', 'e', 'a', 'o',
+    'municipal', 'novo', 'nova', 'velho', 'velha', 'grande', 'pequeno', 'pequena',
+})
+
+BUCKETS = ('matched', 'unique', 'suspect')
+
+# A match only counts when the served row is the same *kind* of thing. The
+# archive's "Miradouro da Bela Vista" and Overture's "Parque da Bela Vista"
+# at 64 m are one place under two labels; "The Top" the viewpoint and "The
+# TOP" the restaurant 14 m below it are two. Overture files most Portuguese
+# viewpoints as historical_landmark or mountain, so the family is wide on
+# purpose — but it stops at businesses. A same-name business is reported as
+# suspect ("a venue named after the place?") rather than as a duplicate.
+LANDMARK_FAMILY = frozenset({
+    'viewpoint', 'tourist_attraction', 'hiking_area', 'plaza', 'botanical_garden', 'bridge', 'marina',
+    'surf_spot', 'lighthouse', 'waterfall', 'hot_spring', 'island', 'historical_landmark', 'church',
+    'mountain', 'park', 'beach', 'lake', 'river', 'nature_preserve', 'museum', 'cultural_center',
+    'cemetery', 'amusement_park', 'zoo', 'campground', 'golf_course', 'spa', 'art_gallery', 'playground',
+    'stadium', 'dam',
+})
+FINANCIAL_FAMILY = frozenset({'bank', 'atm', 'financial_service', 'currency_exchange', 'money_transfer', 'post'})
+# Served types an Arts and Entertainment leaf can legitimately land on. Used
+# only to SUB-COUNT type-blind matches: a "Garden" the matcher pairs with
+# "Supermercado Abadias" is reported as matched (the rule is type-blind) and
+# also counted under "matched to a business", so the owner can see how much
+# of a leaf's matched bucket rests on a shop or café sharing the name.
+ENTERTAINMENT_FAMILY = frozenset({
+    'theatre', 'theater', 'night_club', 'movie_theater', 'library', 'community_center', 'cultural_center',
+    'music_venue', 'water_park', 'aquarium', 'casino', 'bowling_alley', 'arcade', 'escape_room', 'comedy_club',
+    'concert_hall', 'performing_arts', 'circus', 'fairground', 'go_kart', 'mini_golf', 'roller_rink', 'stable',
+})
+
+
+def business_typed(served_type):
+    return served_type not in LANDMARK_FAMILY and served_type not in ENTERTAINMENT_FAMILY
+
+
+def same_family(archive_type, served_type):
+    family = FINANCIAL_FAMILY if archive_type in FINANCIAL_FAMILY else LANDMARK_FAMILY
+    return served_type in family
+
+
+# Bank names that no longer trade in Portugal. brandDictionary.json already
+# folds each into its successor (Banif → Santander, BES → Novo Banco …), so a
+# row still carrying the old name is a listing nobody has touched since the
+# takeover: the branch may be open under the new sign, moved, or closed. A
+# person has to look; the importer must not take the name at face value.
+DEFUNCT_BANK_NAMES = {
+    'banif': 'Santander (2015)', 'bes': 'Novo Banco (2014)', 'banco espirito santo': 'Novo Banco (2014)',
+    'bpn': 'ABANCA (2012)', 'finibanco': 'Montepio (2011)', 'barclays': 'Bankinter (2016)',
+    'banco popular': 'Santander (2018)', 'deutsche bank': 'ABANCA (2018)',
+}
+
+_BRAND_DICTIONARY = None
+
+
+def brand_of(name, poi_type):
+    """The canonical brand classify_and_load would put on the row, if any.
+    Loaded lazily so the tests that never touch a brand pay nothing."""
+    global _BRAND_DICTIONARY
+    if _BRAND_DICTIONARY is None:
+        _BRAND_DICTIONARY = load_brand_dictionary()
+    return find_brand(name, [poi_type], _BRAND_DICTIONARY)
+
+
+def defunct_bank(dedupe_name):
+    padded = f' {dedupe_name} '
+    for old, successor in DEFUNCT_BANK_NAMES.items():
+        if f' {old} ' in padded:
+            return f'{old} → {successor}'
+    return None
+
+
+# ---------------------------------------------------------------------------- inputs
+
+def cached_path(work_dir, stem, key):
+    """Where the R2 object at `key` lives in the work dir. The name carries
+    the key's digest, so a run with a different --archive-key or
+    --overture-key can never pick up the CSV fetched for another one (and
+    apply that key's overrides to it). The key itself sits beside the file
+    for a person to read."""
+    import hashlib
+    digest = hashlib.sha256(key.encode()).hexdigest()[:12]
+    return os.path.join(work_dir, f'{stem}-{digest}.csv')
+
+
+def fetch_if_missing(key, work_dir, stem):
+    """The R2 object at `key`, downloaded once into the work dir under a
+    key-specific name and never rewritten."""
+    local_path = cached_path(work_dir, stem, key)
+    key_path = local_path + '.key'
+    if os.path.exists(local_path):
+        recorded = None
+        if os.path.exists(key_path):
+            with open(key_path) as handle:
+                recorded = handle.read().strip()
+        if recorded != key:
+            raise SystemExit(f'{local_path} was fetched for {recorded!r}, not {key!r}; remove it to refetch')
+        return local_path
+    from run_evidence_join import r2_get
+    os.makedirs(work_dir, exist_ok=True)
+    r2_get(key, local_path)
+    with open(key_path, 'w') as handle:
+        handle.write(key + '\n')
+    return local_path
+
+
+def type_mapping(candidate_types):
+    """(primary id -> type, also id -> type) for the candidate types, plus
+    the types classify_and_load would retype a bank row into."""
+    mapping = load_mapping(os.path.join(CLOUDFLARE_DIR, 'src', 'poiTypeCategories.json'))
+    primary = {cid: poi_type for cid, poi_type in build_reverse_map(mapping).items()}
+    also = {}
+    for poi_type, entry in mapping.items():
+        for extra in entry.get('also', ()):
+            if 'category_id' in extra:
+                also.setdefault(extra['category_id'], poi_type)
+    wanted = set(candidate_types)
+    return ({cid: t for cid, t in primary.items() if t in wanted},
+            {cid: t for cid, t in also.items() if t in wanted})
+
+
+def classify_archive_row(row, primary, also, financial_rules):
+    """(types classify_and_load would give, types only an `also` id gives, retyped_to).
+
+    Mirrors classify_and_load.classify(): primary ids only, then the
+    explicit-ATM and financial-service name rules that take a row out of
+    `bank`. `retyped_to` names where a bank row went, so the report can say
+    how many of the archive's "banks" the classifier itself calls ATMs.
+    """
+    cat_ids = [c for c in (row.get('category_ids') or '').split('|') if c]
+    types = {primary[cid] for cid in cat_ids if cid in primary}
+    also_only = {also[cid] for cid in cat_ids if cid in also} - types
+    retyped_to = None
+    if 'bank' in types:
+        if is_explicit_atm_name(row['name'], financial_rules):
+            types.discard('bank')
+            retyped_to = 'atm'
+        else:
+            service_type, _ = financial_service_classification(row['name'], cat_ids, financial_rules)
+            if service_type:
+                types.discard('bank')
+                retyped_to = service_type
+    return types, also_only, retyped_to
+
+
+def archive_coordinates(row):
+    """(lat, lng) as a pair: both parsed, or both None. A row with one half
+    of a coordinate has no position — 0.0 is a value, an empty cell is not —
+    and must never reach the grid, the twin check or the matcher as a
+    half-point."""
+    lat, lng = (row.get('latitude') or '').strip(), (row.get('longitude') or '').strip()
+    if not lat or not lng:
+        return None, None
+    return float(lat), float(lng)
+
+
+def load_archive(path, primary, also, financial_rules, candidate_types):
+    """Archive rows of the candidate types, plus the counters the report needs."""
+    wanted = set(candidate_types)
+    rows_by_type = defaultdict(list)
+    counters = Counter()
+    also_only_counts = Counter()
+    retyped = Counter()
+    coordinate_owners = defaultdict(list)
+    total = 0
+    with open(path, newline='') as handle:
+        for row in csv.DictReader(handle):
+            total += 1
+            types, also_only, retyped_to = classify_archive_row(row, primary, also, financial_rules)
+            for poi_type in also_only:
+                also_only_counts[poi_type] += 1
+            if retyped_to:
+                retyped[retyped_to] += 1
+            hit = types & wanted
+            if not hit:
+                continue
+            lat, lng = archive_coordinates(row)
+            record = {
+                'fsq_place_id': row['fsq_place_id'],
+                'name': row['name'].strip(),
+                'dedupe_name': normalize_text(row['name']),
+                'lat': lat,
+                'lng': lng,
+                'locality': (row.get('locality') or '').strip(),
+                'label': (row.get('category_labels') or '').split('|')[0],
+                'types': sorted(hit),
+            }
+            if record['lat'] is not None:
+                coordinate_owners[(record['lat'], record['lng'])].append(record['fsq_place_id'])
+            for poi_type in hit:
+                rows_by_type[poi_type].append(record)
+                counters[poi_type] += 1
+    return rows_by_type, counters, also_only_counts, retyped, coordinate_owners, total
+
+
+# ---------------------------------------------------------------------------- served base
+
+def served_overture(overture_csv, overture_key):
+    """Promoted Overture rows — the real promotion decision with the
+    committed overrides, exactly as run_overture_country makes it — so
+    'served' means what nearby can return, not every archive row."""
+    import promote_overture_candidates as promote
+    from analyse_poi_candidates import reachable_types
+    mapping, reachable, brands = promote.category_map(), reachable_types(), promote.load_brand_dictionary()
+    kinds, cuisines = promote.store_kind_alias_index(), promote.food_cuisine_alias_index()
+    financial, store_brands = promote.load_financial_service_name_rules(), promote.store_brand_index()
+    overrides_path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
+    with open(overrides_path) as handle:
+        source = json.load(handle).get(overture_key, {})
+    overrides = {poi_id: entry for batch in source.values() for poi_id, entry in batch.items()}
+    served = []
+    stats = Counter()
+    with open(overture_csv, newline='') as handle:
+        for row in csv.DictReader(handle):
+            status, types, _, _ = promote.decide(row, mapping, reachable, brands, kinds, cuisines,
+                                                 financial, store_brands, overrides)
+            stats[status] += 1
+            if status != 'promoted' or not row.get('lat'):
+                continue
+            served.append({
+                'source': 'overture', 'id': row['overture_id'], 'name': row['name'],
+                'dedupe_name': normalize_text(row['name'] or ''),
+                'lat': float(row['lat']), 'lng': float(row['lng']), 'type': types[0],
+            })
+    return served, stats
+
+
+D1_READ_ATTEMPTS = 3
+
+
+class _D1ClientUnavailable(Exception):
+    """Stands in for d1_client.D1Error where d1_client cannot import (no
+    `requests` on an operator's machine). There run_d1_query goes through
+    wrangler and can only raise CalledProcessError, so nothing is lost."""
+
+
+def d1_error_type():
+    try:
+        import d1_client
+    except ImportError:
+        return _D1ClientUnavailable
+    return d1_client.D1Error
+
+
+def d1_read(sql):
+    """One bounded read, retried the way CLAUDE.md's D1 rule says: transient
+    failures (7403 "not authorized", 7500, a wrangler hiccup on a valid
+    login) get three attempts; a 429 is stop, never retry-harder. The
+    first by-leaf run died on exactly such a hiccup after three minutes of
+    classification."""
+    import subprocess
+    last = ''
+    for attempt in range(1, D1_READ_ATTEMPTS + 1):
+        try:
+            return run_d1_query(sql)
+        except (subprocess.CalledProcessError, d1_error_type()) as error:
+            # wrangler (local runs) raises CalledProcessError; inside the
+            # container run_d1_query goes through d1_client and raises
+            # D1Error. Both are the same transient hiccup to this loop.
+            if isinstance(error, subprocess.CalledProcessError):
+                output = f'{error.stdout or ""}{error.stderr or ""}'
+            else:
+                output = str(error)
+            if '429' in output:
+                raise SystemExit(f'D1 answered 429; stopping. {output[-500:]}')
+            last = output
+            print(f'[preflight] D1 read failed (attempt {attempt}/{D1_READ_ATTEMPTS}): {output[-300:].strip()}', file=sys.stderr)
+    raise SystemExit(f'D1 read failed {D1_READ_ATTEMPTS} times: {last}'[-1000:])
+
+
+def served_curated_all():
+    """Every active curated row — 294 in production, one bounded read.
+    All types, not only the candidate ones: `same_family` accepts a match
+    on any type of the family (an archived viewpoint against a curated
+    park), and the Overture side of the base is already every promoted
+    type, so a curated business can be the 'other kind' counterpart too."""
+    rows = d1_read("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
+    return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
+             'lat': float(r['lat']), 'lng': float(r['lng']), 'type': r['primary_poi_type']} for r in rows]
+
+
+def foursquare_corrections():
+    """Every human decision recorded against a Foursquare id."""
+    return d1_read(
+        "SELECT source_id, visible, name_override, dedupe_name_override, review_note, created_at "
+        "FROM poi_source_correction WHERE source = 'foursquare' ORDER BY created_at")
+
+
+def grid_index(served):
+    grid = defaultdict(list)
+    for place in served:
+        grid[(int(place['lat'] // CELL), int(place['lng'] // CELL))].append(place)
+    return grid
+
+
+def near(grid, lat, lng):
+    cell_lat, cell_lng = int(lat // CELL), int(lng // CELL)
+    for dlat in (-1, 0, 1):
+        for dlng in (-1, 0, 1):
+            yield from grid.get((cell_lat + dlat, cell_lng + dlng), ())
+
+
+# ---------------------------------------------------------------------------- classification
+
+def has_name_signal(dedupe_name):
+    """Whether anything is left of the name once the words that only say
+    what kind of place it is are removed."""
+    tokens = identity_tokens(dedupe_name)
+    return any(token not in TYPE_GENERIC_WORDS for token in tokens)
+
+
+def toponym_only(dedupe_name, locality):
+    """The name is the town and nothing else: "Odivelas" filed as a plaza
+    names nothing. "Marina de Vilamoura" or "Farol de Lagos" is a real
+    name — there is one marina in Vilamoura, and the type word plus the
+    town is exactly how Portuguese names it — so a type word rescues it."""
+    words = set(dedupe_name.split()) - {'da', 'de', 'do', 'das', 'dos', 'e', 'a', 'o'}
+    place = set(normalize_text(locality or '').split())
+    return bool(words) and words <= place
+
+
+def names_its_town(dedupe_name, locality):
+    """A type word plus the locality ("Cais do Pinhão") carries signal: it
+    is the one such place in that town, which is what dedupe needs."""
+    place = set(normalize_text(locality or '').split())
+    return bool(set(dedupe_name.split()) & place)
+
+
+def best_counterpart(record, poi_type, grid):
+    """(place, distance, similarity, verdict) for the most telling served
+    place near the row, or None.
+
+    verdict is 'matched' (KAN-388 says same place, same family),
+    'other_kind' (KAN-388 says same name, but the served row is a business,
+    not a landmark) or 'far' (same name between the matcher radius and
+    FAR_M). A 'matched' always outranks the other two.
+
+    With poi_type None the match is type-blind (the --by-leaf mode): a
+    Foursquare "Monastery" whose Overture twin is typed church is a match,
+    a "Garden" whose twin is a park is a match. Typing happens later, in
+    curation; the question here is only whether the place is served.
+    """
+    rank = {'matched': 2, 'other_kind': 1, 'far': 0}
+    best = None
+    for place in near(grid, record['lat'], record['lng']):
+        distance = haversine_m(record['lat'], record['lng'], place['lat'], place['lng'])
+        if distance > FAR_M:
+            continue
+        similarity = name_similarity(record['dedupe_name'], place['dedupe_name'])
+        if distance <= MATCH_RADIUS_METERS and names_match(record['dedupe_name'], place['dedupe_name'], distance):
+            similarity = max(similarity, NAME_SIMILARITY_THRESHOLD)
+            verdict = 'matched' if poi_type is None or same_family(poi_type, place['type']) else 'other_kind'
+        elif similarity >= NAME_SIMILARITY_THRESHOLD:
+            verdict = 'far'
+        else:
+            continue
+        # The matcher's verdict inside its radius is taken as it is. The two
+        # weaker signals get KAN-444's toponym guard: "Barclays - Tomar" and
+        # the "Tomar" fuel station 300 m away agree on the town alone, and
+        # name_similarity's containment rule scores that 0.9.
+        if verdict != 'matched' and not distinctive_shared_word(
+                record['dedupe_name'], place['dedupe_name'], record['locality']):
+            continue
+        candidate = (place, distance, similarity, verdict)
+        if best is None or (rank[verdict], similarity, -distance) > (rank[best[3]], best[2], -best[1]):
+            best = candidate
+    return best
+
+
+def classify_record(record, poi_type, grid, coordinate_owners, twins):
+    """(bucket, reason, counterpart) for one archive row of one type.
+
+    A match is a match, whatever else is odd about the row: the row is
+    already served and importing it would be a duplicate. Suspicion is
+    only worth raising about rows that would otherwise be imported.
+
+    poi_type None means the row is bucketed by Foursquare leaf, not by one
+    of our types: matching is type-blind and the bank rules do not apply.
+    """
+    if record['lat'] is None:
+        return 'suspect', 'no coordinates', None
+    counterpart = best_counterpart(record, poi_type, grid)
+    if counterpart and counterpart[3] == 'matched':
+        place, distance, similarity, _ = counterpart
+        return 'matched', f'KAN-388 match: {place["source"]} {place["type"]}', counterpart
+    if not record['dedupe_name']:
+        return 'suspect', 'empty name', counterpart
+    # For a bank the brand IS the identity — "Novo Banco" is a full name, and
+    # "Novo Banco, Almeirim" is not "the locality" — so the two name rules
+    # below defer to the brand dictionary, exactly as classify_and_load does.
+    financial = poi_type in FINANCIAL_FAMILY
+    brand = brand_of(record['name'], poi_type) if financial else None
+    if not brand and toponym_only(record['dedupe_name'], record['locality']):
+        return 'suspect', 'name is the locality', counterpart
+    if not brand and not has_name_signal(record['dedupe_name']) \
+            and not names_its_town(record['dedupe_name'], record['locality']):
+        return 'suspect', 'no name signal (only type words)', counterpart
+    defunct = defunct_bank(record['dedupe_name']) if financial else None
+    if defunct:
+        return 'suspect', f'defunct brand name: {defunct}', counterpart
+    owners = coordinate_owners.get((record['lat'], record['lng']), ())
+    if len(owners) > 1:
+        return 'suspect', f'coordinates shared with {len(owners) - 1} other archive row(s)', counterpart
+    if record['fsq_place_id'] in twins:
+        return 'suspect', f'archive twin within {ARCHIVE_TWIN_M:.0f} m: {twins[record["fsq_place_id"]]}', counterpart
+    if counterpart and counterpart[3] == 'other_kind':
+        place, distance, similarity, _ = counterpart
+        return 'suspect', f'same name as a served place of another kind: {place["source"]} {place["type"]} at {distance:.0f} m', counterpart
+    if counterpart:
+        place, distance, similarity, _ = counterpart
+        return 'suspect', f'same name beyond the matcher radius: {place["source"]} {place["type"]} at {distance:.0f} m', counterpart
+    return 'unique', 'no served counterpart within 400 m', None
+
+
+def archive_twins(records):
+    """fsq id -> the other archive row of this type it duplicates."""
+    grid = defaultdict(list)
+    for record in records:
+        if record['lat'] is not None:
+            grid[(int(record['lat'] // CELL), int(record['lng'] // CELL))].append(record)
+    twins = {}
+    for record in records:
+        if record['lat'] is None or record['fsq_place_id'] in twins:
+            continue
+        for other in near(grid, record['lat'], record['lng']):
+            if other['fsq_place_id'] <= record['fsq_place_id']:
+                continue
+            distance = haversine_m(record['lat'], record['lng'], other['lat'], other['lng'])
+            if distance <= ARCHIVE_TWIN_M and names_match(record['dedupe_name'], other['dedupe_name'], distance):
+                twins[other['fsq_place_id']] = record['fsq_place_id']
+    return twins
+
+
+def inventory(rows_by_type, grid, coordinate_owners, candidate_types):
+    """{type: {bucket: [(record, reason, counterpart), ...]}}, rows in id order."""
+    result = {}
+    for poi_type in candidate_types:
+        records = sorted(rows_by_type.get(poi_type, ()), key=lambda r: r['fsq_place_id'])
+        twins = archive_twins(records)
+        buckets = {bucket: [] for bucket in BUCKETS}
+        for record in records:
+            bucket, reason, counterpart = classify_record(record, poi_type, grid, coordinate_owners, twins)
+            buckets[bucket].append((record, reason, counterpart))
+        result[poi_type] = buckets
+    return result
+
+
+def sample(items, size, seed):
+    picker = random.Random(seed)
+    if len(items) <= size:
+        return list(items)
+    return sorted(picker.sample(items, size), key=lambda item: item[0]['fsq_place_id'])
+
+
+# ---------------------------------------------------------------------------- report
+
+def md_cell(value):
+    return str(value if value is not None else '').replace('|', '\\|').replace('\n', ' ')
+
+
+def sample_table(rows, with_counterpart):
+    if not rows:
+        return '_none_\n'
+    if with_counterpart:
+        lines = ['| fsq_place_id | archive name | served name | source / type | m | sim | note |',
+                 '|---|---|---|---|---:|---:|---|']
+        for record, reason, counterpart in rows:
+            place, distance, similarity = (counterpart[0], counterpart[1], counterpart[2]) if counterpart else ({}, None, None)
+            lines.append('| ' + ' | '.join(md_cell(v) for v in (
+                record['fsq_place_id'], record['name'], place.get('name', ''),
+                f"{place.get('source', '')} {place.get('type', '')}".strip(),
+                f'{distance:.0f}' if distance is not None else '', f'{similarity:.2f}' if similarity is not None else '',
+                reason)) + ' |')
+    else:
+        lines = ['| fsq_place_id | name | locality | Foursquare label | note |', '|---|---|---|---|---|']
+        for record, reason, _ in rows:
+            lines.append('| ' + ' | '.join(md_cell(v) for v in (
+                record['fsq_place_id'], record['name'], record['locality'], record['label'], reason)) + ' |')
+    return '\n'.join(lines) + '\n'
+
+
+def render(context):
+    c = context
+    out = []
+    out.append(f"# KAN-453 — Foursquare archive preflight, {c['country']}\n")
+    out.append(f"Generated {c['generated_at']} by `cloudflare/extraction/preflight_foursquare_archive.py`. "
+               "Measurement only: nothing was written to D1 or R2.\n")
+    out.append('## Inputs\n')
+    out.append(f"- Foursquare archive: `{c['archive_key']}` — {c['archive_total']:,} rows (sha256 `{c['archive_sha256']}`).")
+    out.append(f"- Overture base: `{c['overture_key']}` — {c['overture_stats'].get('promoted', 0):,} promoted of "
+               f"{sum(c['overture_stats'].values()):,} rows under the committed overrides "
+               f"({', '.join(f'{k} {v:,}' for k, v in sorted(c['overture_stats'].items()))}).")
+    out.append(f"- Curated rows (active, all types — a match may land on any type of the family): {c['curated_count']:,}"
+               + ('' if c['d1'] else ' — **D1 not read (`--skip-d1`)**') + '.')
+    out.append('- MULTIBANCO: not read. `atm` is excluded from recovery, so no archive row is compared against it.')
+    out.append(f"- Matcher: `supplement_osm_pois.names_match` (name_similarity ≥ {NAME_SIMILARITY_THRESHOLD} within "
+               f"{MATCH_RADIUS_METERS} m, or a single shared identity token within 20 m). Same-name served places "
+               f"between {MATCH_RADIUS_METERS} m and {FAR_M:.0f} m are reported as suspect, never as matched.\n")
+    out.append('## Mapping used\n')
+    out.append('An archive row is typed the way `classify_and_load.py` types it: its Foursquare category ids against the '
+               '**primary** `category_id` of each `poiTypeCategories.json` entry (`build_reverse_map`), then the explicit-ATM '
+               'and financial-service name rules that move a row out of `bank`. Category `also` ids are what '
+               '`category_ids.py` extracts on but the classifier never reads; they are counted here and not typed.\n')
+    out.append('| type | primary Foursquare leaf | rows typed by primary id | rows carrying only an `also` id |')
+    out.append('|---|---|---:|---:|')
+    for poi_type in c['candidate_types']:
+        out.append(f"| `{poi_type}` | {c['leaf_names'].get(poi_type, '')} | {c['counters'].get(poi_type, 0):,} | "
+                   f"{c['also_only'].get(poi_type, 0):,} |")
+    out.append('')
+    if c['retyped']:
+        out.append('Bank rows the classifier itself moves elsewhere (not counted as `bank` above): '
+                   + ', '.join(f'`{k}` {v:,}' for k, v in sorted(c['retyped'].items())) + '.\n')
+    out.append('## Per type\n')
+    out.append('"served today" is what the base holds under this type name (Overture promoted + active curated); '
+               'a match may land on another type in the same family, so it is context, not a denominator.\n')
+    out.append('| type | served today | archive rows | matched | unique | suspect | matched % |')
+    out.append('|---|---:|---:|---:|---:|---:|---:|')
+    for poi_type in c['candidate_types']:
+        buckets = c['inventory'][poi_type]
+        total = sum(len(v) for v in buckets.values())
+        pct = f"{100 * len(buckets['matched']) / total:.0f}%" if total else '—'
+        out.append(f"| `{poi_type}` | {c['served_counts'].get(poi_type, 0):,} | {total:,} | {len(buckets['matched']):,} | "
+                   f"{len(buckets['unique']):,} | {len(buckets['suspect']):,} | {pct} |")
+    out.append('')
+    for poi_type in c['candidate_types']:
+        buckets = c['inventory'][poi_type]
+        total = sum(len(v) for v in buckets.values())
+        out.append(f"### `{poi_type}` — {total:,} rows\n")
+        matched_by = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, _, cp in buckets['matched'])
+        if matched_by:
+            out.append('Matched against: ' + ', '.join(f'{k} {v:,}' for k, v in matched_by.most_common()) + '.\n')
+        suspect_by = Counter(reason.split(':')[0].split(' (')[0] for _, reason, _ in buckets['suspect'])
+        if suspect_by:
+            out.append('Suspect because: ' + ', '.join(f'{k} {v:,}' for k, v in suspect_by.most_common()) + '.\n')
+        for prefix, label in (('same name beyond', 'Same name beyond the matcher radius, by served type'),
+                              ('same name as a served place of another kind', 'Same name as a served place of another kind, by served type')):
+            by_type = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, reason, cp in buckets['suspect']
+                              if reason.startswith(prefix))
+            if by_type:
+                out.append(f'{label}: ' + ', '.join(f'{k} {v:,}' for k, v in by_type.most_common()) + '.\n')
+        out.append(f"#### Already served (matched) — sample of {min(c['sample_size'], len(buckets['matched']))} of {len(buckets['matched']):,}\n")
+        out.append(sample_table(c['samples'][poi_type]['matched'], True))
+        out.append(f"#### Unique — sample of {min(c['sample_size'], len(buckets['unique']))} of {len(buckets['unique']):,}\n")
+        out.append(sample_table(c['samples'][poi_type]['unique'], False))
+        out.append(f"#### Suspect — sample of {min(c['sample_size'], len(buckets['suspect']))} of {len(buckets['suspect']):,}\n")
+        out.append(sample_table(c['samples'][poi_type]['suspect'], True))
+    out.append('## `poi_source_correction` rows keyed on Foursquare ids\n')
+    if not c['d1']:
+        out.append('_D1 not read (`--skip-d1`)._\n')
+    elif not c['corrections']:
+        out.append('_None._\n')
+    else:
+        out.append('| fsq_place_id | visible | name_override | review_note | in archive as | bucket | what KAN-433 would need |')
+        out.append('|---|---:|---|---|---|---|---|')
+        for row in c['corrections']:
+            out.append('| ' + ' | '.join(md_cell(v) for v in (
+                row['source_id'], row['visible'], row.get('name_override'), row.get('review_note'),
+                row['archive_types'], row['bucket'], row['needs'])) + ' |')
+        out.append('')
+    if c['notes']:
+        out.append(c['notes'].rstrip() + '\n')
+    return '\n'.join(out)
+
+
+def correction_needs(row, records_by_id, inventory_by_id):
+    """What KAN-433 has to do with one Foursquare-keyed correction."""
+    record = records_by_id.get(row['source_id'])
+    if not record:
+        return 'not a candidate-type row', '—', 'nothing — the row is outside the recovery scope; the correction stays as the record of a past decision'
+    types = ', '.join(record['types'])
+    bucket = inventory_by_id.get(row['source_id'], '—')
+    if int(row['visible']) == 0:
+        return types, bucket, 'retire: keep this id on the importer skip-list so a hidden place is never recovered'
+    if row.get('name_override'):
+        return types, bucket, 're-point: the curated row must be created with name_override as its name (origin_id = this fsq id)'
+    return types, bucket, 'review: visible with no override — carry the note onto the curated row or retire'
+
+
+def sha256_of(path):
+    from run_evidence_join import sha256_of as digest
+    return digest(path)
+
+
+def run(args):
+    candidate_types = [t.strip() for t in args.types.split(',') if t.strip()]
+    excluded = [t for t in candidate_types if t in EXCLUDED_TYPES]
+    if excluded:
+        raise SystemExit(f"{', '.join(excluded)} is excluded from recovery (MULTIBANCO is the ATM source)")
+    work_dir = args.work_dir
+    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, work_dir, 'foursquare')
+    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, work_dir, 'overture')
+
+    primary, also = type_mapping(candidate_types)
+    financial_rules = load_financial_service_name_rules()
+    mapping = load_mapping(os.path.join(CLOUDFLARE_DIR, 'src', 'poiTypeCategories.json'))
+    leaf_names = {t: mapping[t].get('category_name', '') for t in candidate_types if t in mapping}
+
+    print(f'[preflight] reading archive {archive_csv}', file=sys.stderr)
+    rows_by_type, counters, also_only, retyped, coordinate_owners, archive_total = load_archive(
+        archive_csv, primary, also, financial_rules, candidate_types)
+    print(f'[preflight] deciding Overture base {overture_csv}', file=sys.stderr)
+    served, overture_stats = served_overture(overture_csv, args.overture_key)
+    curated = [] if args.skip_d1 else served_curated_all()
+    corrections = [] if args.skip_d1 else foursquare_corrections()
+    grid = grid_index(served + curated)
+    served_counts = Counter(place['type'] for place in served + curated)
+
+    print('[preflight] classifying', file=sys.stderr)
+    result = inventory(rows_by_type, grid, coordinate_owners, candidate_types)
+    samples = {poi_type: {bucket: sample(result[poi_type][bucket], args.sample_size, args.seed)
+                          for bucket in BUCKETS} for poi_type in candidate_types}
+
+    records_by_id = {r['fsq_place_id']: r for rows in rows_by_type.values() for r in rows}
+    inventory_by_id = {record['fsq_place_id']: bucket for poi_type in candidate_types
+                       for bucket in BUCKETS for record, _, _ in result[poi_type][bucket]}
+    for row in corrections:
+        row['archive_types'], row['bucket'], row['needs'] = correction_needs(row, records_by_id, inventory_by_id)
+
+    notes = ''
+    if args.notes:
+        with open(args.notes) as handle:
+            notes = handle.read()
+    context = {
+        'country': args.country, 'generated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
+        'archive_key': args.archive_key, 'archive_total': archive_total, 'archive_sha256': sha256_of(archive_csv),
+        'overture_key': args.overture_key, 'overture_stats': overture_stats,
+        'curated_count': len(curated), 'd1': not args.skip_d1, 'candidate_types': candidate_types,
+        'leaf_names': leaf_names, 'counters': counters, 'also_only': also_only, 'retyped': retyped,
+        'inventory': result, 'samples': samples, 'sample_size': args.sample_size, 'served_counts': served_counts,
+        'corrections': corrections, 'notes': notes,
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(args.report_out)), exist_ok=True)
+    with open(args.report_out, 'w') as handle:
+        handle.write(render(context))
+    summary = {
+        'archive_key': args.archive_key, 'archive_rows': archive_total, 'archive_sha256': context['archive_sha256'],
+        'overture_key': args.overture_key, 'overture_promoted': overture_stats.get('promoted', 0),
+        'curated_rows': len(curated), 'd1_read': not args.skip_d1,
+        'types': {poi_type: {bucket: len(result[poi_type][bucket]) for bucket in BUCKETS}
+                  | {'also_only': also_only.get(poi_type, 0), 'served_today': served_counts.get(poi_type, 0)}
+                  for poi_type in candidate_types},
+        'bank_retyped': dict(retyped), 'foursquare_corrections': len(corrections),
+    }
+    with open(os.path.splitext(args.report_out)[0] + '.json', 'w') as handle:
+        json.dump(summary, handle, indent=2, sort_keys=True)
+        handle.write('\n')
+    print(json.dumps(summary['types'], indent=2), file=sys.stderr)
+    return summary
+
+
+# ---------------------------------------------------------------------------- by leaf (KAN-453, second pass)
+#
+# The first pass keyed the inventory on OUR thirteen types, so everything the
+# classifier maps elsewhere — Historic and Protected Site, Monument, Castle,
+# Palace, Monastery — or nowhere (the `also`-id gap: Garden, Pedestrian
+# Plaza) was invisible. Overture has no monastery category; that is exactly
+# what the archive was kept for. The rule now: inventory by Foursquare's own
+# leaf, type-blind. Typing to our catalogue is curation's job (KAN-433).
+
+LEAF_SCOPE_PREFIXES = ('Landmarks and Outdoors', 'Arts and Entertainment', 'Community and Government > Spiritual Center')
+LEAF_EXCLUDED = frozenset({'ATM', 'Bank'})
+
+# Leaves that name an area, a land use or an administrative unit — not a
+# place a person walks into. Inventoried and counted so the owner excludes
+# them explicitly, never dropped silently.
+NOISE_LEAVES = frozenset({
+    'Structure', 'Other Great Outdoors', 'Farm', 'Field', 'Neighborhood', 'City', 'Town', 'Village',
+    'States and Municipalities', 'State', 'County', 'Country', 'Tree', 'Well', 'Road', 'Intersection',
+    'Pond', 'Hill', 'Pass', 'Bay', 'Reservoir', 'Waterfront', 'Forest', 'Canal', 'Canal Lock',
+})
+# A parent used as a leaf: the row carries the category and nothing finer.
+PARENT_LEAVES = frozenset({'Landmarks and Outdoors', 'Arts and Entertainment', 'Spiritual Center'})
+# Businesses filed under Arts and Entertainment: real venues, but a decade
+# old and closable, and the archive was kept for landmarks. Import with care.
+VENUE_LEAVES = frozenset({
+    'Night Club', 'Strip Club', 'Pool Hall', 'Casino', 'Internet Cafe', 'Gaming Cafe', 'VR Cafe', 'Arcade',
+    'Escape Room', 'Comedy Club', 'Rock Club', 'Salsa Club', 'Country Dance Club', 'Jazz and Blues Venue',
+    'Psychic and Astrologer', 'Party Center', 'Ticket Seller', 'Bingo Center', 'Laser Tag Center', 'Roller Rink',
+    'Go Kart Track', 'Mini Golf Course', 'Bowling Alley', 'Movie Theater', 'Indie Movie Theater', 'Drive-in Theater',
+    'Dance Hall', 'Circus', 'Carnival', 'Fair', 'General Entertainment', 'Stable', 'Country Club', 'Water Park',
+    'Amusement Park', 'Attraction', 'Roof Deck', 'Campground', 'Surf Spot', 'Dive Spot', 'Harbor or Marina',
+    'Hot Spring', 'Bathing Area',
+})
+# The extra dedupe checks run on leaves at least this big.
+BIG_LEAF_ROWS = 300
+COORDINATE_TWIN_M = 25.0
+
+
+def leaf_paths(row):
+    """Every category path on the row that is in scope, as (leaf, path)."""
+    out = []
+    for path in (row.get('category_labels') or '').split('|'):
+        path = path.strip()
+        if not path or not path.startswith(LEAF_SCOPE_PREFIXES):
+            continue
+        leaf = path.split(' > ')[-1].strip()
+        if leaf in LEAF_EXCLUDED:
+            continue
+        out.append((leaf, path))
+    return out
+
+
+def load_archive_by_leaf(path):
+    """Archive rows per in-scope leaf. A row with several paths counts under
+    each; its record is shared, so a fsq id is one place everywhere."""
+    rows_by_leaf = defaultdict(list)
+    paths_by_leaf = defaultdict(Counter)
+    coordinate_owners = defaultdict(list)
+    total = 0
+    with open(path, newline='') as handle:
+        for row in csv.DictReader(handle):
+            total += 1
+            leaves = leaf_paths(row)
+            if not leaves:
+                continue
+            lat, lng = archive_coordinates(row)
+            record = {
+                'fsq_place_id': row['fsq_place_id'], 'name': row['name'].strip(),
+                'dedupe_name': normalize_text(row['name']),
+                'lat': lat, 'lng': lng,
+                'locality': (row.get('locality') or '').strip(),
+                'label': (row.get('category_labels') or '').split('|')[0],
+                'types': sorted({leaf for leaf, _ in leaves}),
+            }
+            if record['lat'] is not None:
+                coordinate_owners[(record['lat'], record['lng'])].append(record['fsq_place_id'])
+            for leaf, full_path in {(leaf, full_path) for leaf, full_path in leaves}:
+                paths_by_leaf[leaf][full_path] += 1
+            for leaf in {leaf for leaf, _ in leaves}:
+                rows_by_leaf[leaf].append(record)
+    return rows_by_leaf, paths_by_leaf, coordinate_owners, total
+
+
+def leaf_verdict(leaf, buckets):
+    """import / import with care / noise, and why — one line the owner can overrule."""
+    if leaf in NOISE_LEAVES:
+        return 'noise', 'an area or land use, not a place to walk into'
+    if leaf in PARENT_LEAVES:
+        return 'import with care', 'parent category only — the row says nothing finer'
+    if leaf in VENUE_LEAVES:
+        return 'import with care', 'a business or activity spot, not a landmark; may have closed'
+    total = sum(len(v) for v in buckets.values())
+    if total and len(buckets['suspect']) / total > 0.3:
+        return 'import with care', f"{100 * len(buckets['suspect']) / total:.0f}% suspect — see the sample"
+    return 'import', ''
+
+
+def unique_coordinate_twins(records):
+    """Pairs of unique rows within COORDINATE_TWIN_M carrying different
+    names: one place listed twice under two names, or two places sharing a
+    pin. Either way the importer's dedupe cannot rely on the name."""
+    grid = defaultdict(list)
+    for record in records:
+        grid[(int(record['lat'] // CELL), int(record['lng'] // CELL))].append(record)
+    pairs = []
+    for record in records:
+        for other in near(grid, record['lat'], record['lng']):
+            if other['fsq_place_id'] <= record['fsq_place_id'] or other['dedupe_name'] == record['dedupe_name']:
+                continue
+            distance = haversine_m(record['lat'], record['lng'], other['lat'], other['lng'])
+            if distance <= COORDINATE_TWIN_M:
+                pairs.append((record, other, distance))
+    return sorted(pairs, key=lambda p: (p[0]['fsq_place_id'], p[1]['fsq_place_id']))
+
+
+def unique_name_near_misses(records):
+    """Pairs of unique rows with the same normalised name between the
+    matcher radius and FAR_M: the same monument pinned twice, a street
+    apart, which a 75 m dedupe will import twice."""
+    by_name = defaultdict(list)
+    for record in records:
+        if record['dedupe_name']:
+            by_name[record['dedupe_name']].append(record)
+    pairs = []
+    for same in by_name.values():
+        same.sort(key=lambda r: r['fsq_place_id'])
+        for i, record in enumerate(same):
+            for other in same[i + 1:]:
+                distance = haversine_m(record['lat'], record['lng'], other['lat'], other['lng'])
+                if MATCH_RADIUS_METERS < distance <= FAR_M:
+                    pairs.append((record, other, distance))
+    return sorted(pairs, key=lambda p: (p[0]['fsq_place_id'], p[1]['fsq_place_id']))
+
+
+def inventory_by_leaf(rows_by_leaf, grid, coordinate_owners):
+    result = {}
+    for leaf, rows in rows_by_leaf.items():
+        records = sorted(rows, key=lambda r: r['fsq_place_id'])
+        twins = archive_twins(records)
+        buckets = {bucket: [] for bucket in BUCKETS}
+        for record in records:
+            bucket, reason, counterpart = classify_record(record, None, grid, coordinate_owners, twins)
+            buckets[bucket].append((record, reason, counterpart))
+        result[leaf] = buckets
+    return result
+
+
+def pair_table(pairs, limit):
+    if not pairs:
+        return '_none_\n'
+    lines = ['| fsq_place_id | name | fsq_place_id | name | m |', '|---|---|---|---|---:|']
+    for a, b, distance in pairs[:limit]:
+        lines.append('| ' + ' | '.join(md_cell(v) for v in (a['fsq_place_id'], a['name'], b['fsq_place_id'], b['name'], f'{distance:.0f}')) + ' |')
+    return '\n'.join(lines) + '\n'
+
+
+def render_by_leaf(c):
+    out = []
+    out.append(f"# KAN-453 — Foursquare archive preflight by leaf, {c['country']}\n")
+    out.append(f"Generated {c['generated_at']} by `cloudflare/extraction/preflight_foursquare_archive.py --by-leaf`. "
+               "Measurement only: nothing was written to D1 or R2.\n")
+    out.append('Rows are bucketed by **Foursquare\'s own leaf** (the last segment of each `category_labels` path; a row '
+               'with several paths counts under each), not by our type. Typing to our catalogue happens in curation. '
+               'Matching is **type-blind**: a "Monastery" whose Overture twin is a `church` is matched, a "Garden" '
+               'whose twin is a `park` is matched.\n')
+    out.append('## Inputs\n')
+    out.append(f"- Foursquare archive: `{c['archive_key']}` — {c['archive_total']:,} rows (sha256 `{c['archive_sha256']}`); "
+               f"{c['in_scope_rows']:,} distinct rows carry at least one in-scope leaf.")
+    out.append(f"- Scope: every path under `{'`, `'.join(LEAF_SCOPE_PREFIXES)}`; leaves `{'`, `'.join(sorted(LEAF_EXCLUDED))}` excluded.")
+    out.append(f"- Overture base: `{c['overture_key']}` — {c['overture_stats'].get('promoted', 0):,} promoted of "
+               f"{sum(c['overture_stats'].values()):,} rows under the committed overrides.")
+    out.append(f"- Curated rows (active, all types): {c['curated_count']:,}" + ('' if c['d1'] else ' — **D1 not read (`--skip-d1`)**') + '.')
+    out.append('- MULTIBANCO: not read. Reading it whole is a countrywide scan of a table no tourism leaf can match '
+               '(every row is an ATM named for its operator); it is left out and said so.')
+    out.append(f"- Matcher: `supplement_osm_pois.names_match` (name_similarity ≥ {NAME_SIMILARITY_THRESHOLD} within "
+               f"{MATCH_RADIUS_METERS} m, or a single shared identity token within 20 m), against every served row. "
+               f"Same-name served places between {MATCH_RADIUS_METERS} m and {FAR_M:.0f} m are suspect, never matched.\n")
+    out.append('## Leaves, by unique count\n')
+    out.append('`verdict` is one line per leaf for the curation step — import / import with care / noise — and says why. '
+               'It is a starting point for the owner, not a gate: no tourism leaf is refused here on type grounds.\n')
+    out.append('`matched → business` is the part of `matched` whose served twin is a shop, café, school or other '
+               'business rather than a landmark or venue: the rule is type-blind, so those count as matched, but a '
+               '"Jardim da Mouta" paired with "Taberna do Jardim" is the matcher\'s containment rule at work, not a '
+               'duplicate. Curation should treat that sub-count as "look".\n')
+    out.append('| leaf | rows | matched | matched → business | unique | suspect | verdict | why |')
+    out.append('|---|---:|---:|---:|---:|---:|---|---|')
+    for leaf in c['leaf_order']:
+        b = c['inventory'][leaf]
+        verdict, why = c['verdicts'][leaf]
+        out.append(f"| {md_cell(leaf)} | {sum(len(v) for v in b.values()):,} | {len(b['matched']):,} | "
+                   f"{c['business_matches'][leaf]:,} | {len(b['unique']):,} | "
+                   f"{len(b['suspect']):,} | {verdict} | {md_cell(why)} |")
+    out.append('')
+    noise = [leaf for leaf in c['leaf_order'] if c['verdicts'][leaf][0] == 'noise']
+    out.append('## Noise leaves — to exclude explicitly\n')
+    out.append('Counted, not dropped. Each names an area, a land use or an administrative unit; none is a place a task '
+               'is solved at. The owner excludes them in curation, in writing.\n')
+    out.append('| leaf | rows | paths |')
+    out.append('|---|---:|---|')
+    for leaf in noise:
+        paths = '; '.join(f'{p} ({n:,})' for p, n in c['paths_by_leaf'][leaf].most_common(3))
+        out.append(f"| {md_cell(leaf)} | {sum(len(v) for v in c['inventory'][leaf].values()):,} | {md_cell(paths)} |")
+    out.append('')
+    out.append('## Where dedupe has to be strict\n')
+    out.append(f'For every leaf with at least {BIG_LEAF_ROWS} rows, two checks inside its **unique** bucket — rows the importer '
+               f'would take. *Coordinate twins*: two unique rows within {COORDINATE_TWIN_M:.0f} m under different names. '
+               f'*Name near-misses*: two unique rows with the same normalised name {MATCH_RADIUS_METERS}–{FAR_M:.0f} m apart. '
+               'Both are places a 75 m name-and-distance dedupe imports twice.\n')
+    out.append('The last column is the suspect-bucket count of rows whose same-named **served** place sits '
+               f'{MATCH_RADIUS_METERS}–{FAR_M:.0f} m away — the hazard that dwarfs the other two, and the bucket KAN-433 '
+               'should skip rather than reach with a looser matcher.\n')
+    out.append('| leaf | unique | coordinate twins | name near-misses | same-name served 75–400 m |')
+    out.append('|---|---:|---:|---:|---:|')
+    for leaf in c['leaf_order']:
+        if leaf in c['dedupe']:
+            far = sum(1 for _, reason, _ in c['inventory'][leaf]['suspect'] if reason.startswith('same name beyond'))
+            out.append(f"| {md_cell(leaf)} | {len(c['inventory'][leaf]['unique']):,} | {len(c['dedupe'][leaf]['twins']):,} | "
+                       f"{len(c['dedupe'][leaf]['near_misses']):,} | {far:,} |")
+    out.append('')
+    for leaf in c['leaf_order']:
+        b = c['inventory'][leaf]
+        total = sum(len(v) for v in b.values())
+        verdict, why = c['verdicts'][leaf]
+        out.append(f"### {leaf} — {total:,} rows — {verdict}\n")
+        paths = '; '.join(f'`{p}` ({n:,})' for p, n in c['paths_by_leaf'][leaf].most_common())
+        out.append(f'Paths: {paths}\n')
+        if verdict == 'noise':
+            out.append('_Noise leaf: counts only._\n')
+            continue
+        matched_by = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, _, cp in b['matched'])
+        if matched_by:
+            out.append('Matched against: ' + ', '.join(f'{k} {v:,}' for k, v in matched_by.most_common()) + '.\n')
+        suspect_by = Counter(reason.split(':')[0].split(' (')[0] for _, reason, _ in b['suspect'])
+        if suspect_by:
+            out.append('Suspect because: ' + ', '.join(f'{k} {v:,}' for k, v in suspect_by.most_common()) + '.\n')
+        far_by = Counter(f"{cp[0]['source']} {cp[0]['type']}" for _, reason, cp in b['suspect'] if reason.startswith('same name beyond'))
+        if far_by:
+            out.append('Same name beyond the matcher radius, by served type: ' + ', '.join(f'{k} {v:,}' for k, v in far_by.most_common()) + '.\n')
+        out.append(f"#### Already served (matched) — sample of {min(c['sample_size'], len(b['matched']))} of {len(b['matched']):,}\n")
+        out.append(sample_table(c['samples'][leaf]['matched'], True))
+        out.append(f"#### Unique — sample of {min(c['sample_size'], len(b['unique']))} of {len(b['unique']):,}\n")
+        out.append(sample_table(c['samples'][leaf]['unique'], False))
+        out.append(f"#### Suspect — sample of {min(c['sample_size'], len(b['suspect']))} of {len(b['suspect']):,}\n")
+        out.append(sample_table(c['samples'][leaf]['suspect'], True))
+        if leaf in c['dedupe']:
+            d = c['dedupe'][leaf]
+            out.append(f"#### Unique-bucket coordinate twins — {min(c['sample_size'], len(d['twins']))} of {len(d['twins']):,}\n")
+            out.append(pair_table(d['twins'], c['sample_size']))
+            out.append(f"#### Unique-bucket name near-misses — {min(c['sample_size'], len(d['near_misses']))} of {len(d['near_misses']):,}\n")
+            out.append(pair_table(d['near_misses'], c['sample_size']))
+    if c['notes']:
+        out.append(c['notes'].rstrip() + '\n')
+    return '\n'.join(out)
+
+
+def run_by_leaf(args):
+    work_dir = args.work_dir
+    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, work_dir, 'foursquare')
+    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, work_dir, 'overture')
+
+    print(f'[preflight] reading archive by leaf {archive_csv}', file=sys.stderr)
+    rows_by_leaf, paths_by_leaf, coordinate_owners, archive_total = load_archive_by_leaf(archive_csv)
+    print(f'[preflight] deciding Overture base {overture_csv}', file=sys.stderr)
+    served, overture_stats = served_overture(overture_csv, args.overture_key)
+    curated = [] if args.skip_d1 else served_curated_all()
+    grid = grid_index(served + curated)
+
+    print(f'[preflight] classifying {len(rows_by_leaf)} leaves', file=sys.stderr)
+    result = inventory_by_leaf(rows_by_leaf, grid, coordinate_owners)
+    leaf_order = sorted(result, key=lambda leaf: (-len(result[leaf]['unique']), leaf))
+    verdicts = {leaf: leaf_verdict(leaf, result[leaf]) for leaf in result}
+    business_matches = {leaf: sum(1 for _, _, cp in result[leaf]['matched'] if business_typed(cp[0]['type']))
+                        for leaf in result}
+    samples = {leaf: {bucket: sample(result[leaf][bucket], args.sample_size, args.seed) for bucket in BUCKETS}
+               for leaf in result}
+    dedupe = {}
+    for leaf in result:
+        if sum(len(v) for v in result[leaf].values()) >= BIG_LEAF_ROWS and verdicts[leaf][0] != 'noise':
+            unique = [record for record, _, _ in result[leaf]['unique']]
+            dedupe[leaf] = {'twins': unique_coordinate_twins(unique), 'near_misses': unique_name_near_misses(unique)}
+
+    notes = ''
+    if args.notes:
+        with open(args.notes) as handle:
+            notes = handle.read()
+    in_scope_rows = len({record['fsq_place_id'] for rows in rows_by_leaf.values() for record in rows})
+    context = {
+        'country': args.country, 'generated_at': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%MZ'),
+        'archive_key': args.archive_key, 'archive_total': archive_total, 'archive_sha256': sha256_of(archive_csv),
+        'in_scope_rows': in_scope_rows, 'overture_key': args.overture_key, 'overture_stats': overture_stats,
+        'curated_count': len(curated), 'd1': not args.skip_d1, 'inventory': result, 'leaf_order': leaf_order,
+        'verdicts': verdicts, 'paths_by_leaf': paths_by_leaf, 'samples': samples, 'sample_size': args.sample_size,
+        'dedupe': dedupe, 'notes': notes, 'business_matches': business_matches,
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(args.report_out)), exist_ok=True)
+    with open(args.report_out, 'w') as handle:
+        handle.write(render_by_leaf(context))
+    summary = {
+        'mode': 'by-leaf', 'archive_key': args.archive_key, 'archive_rows': archive_total,
+        'archive_sha256': context['archive_sha256'], 'in_scope_rows': in_scope_rows,
+        'overture_key': args.overture_key, 'overture_promoted': overture_stats.get('promoted', 0),
+        'curated_rows': len(curated), 'd1_read': not args.skip_d1,
+        'leaves': {leaf: {bucket: len(result[leaf][bucket]) for bucket in BUCKETS}
+                   | {'verdict': verdicts[leaf][0], 'matched_to_business': business_matches[leaf],
+                      'far_same_name_served': sum(1 for _, r, _ in result[leaf]['suspect'] if r.startswith('same name beyond'))}
+                   | ({'coordinate_twins': len(dedupe[leaf]['twins']), 'name_near_misses': len(dedupe[leaf]['near_misses'])}
+                      if leaf in dedupe else {})
+                   for leaf in leaf_order},
+    }
+    with open(os.path.splitext(args.report_out)[0] + '.json', 'w') as handle:
+        json.dump(summary, handle, indent=2, sort_keys=True)
+        handle.write('\n')
+    print(json.dumps({leaf: summary['leaves'][leaf] for leaf in leaf_order[:12]}, indent=2), file=sys.stderr)
+    return summary
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('--archive-key', default=DEFAULT_ARCHIVE_KEY)
+    parser.add_argument('--overture-key', default=DEFAULT_OVERTURE_KEY)
+    parser.add_argument('--archive-csv', help='local copy of the archive (skips the R2 fetch)')
+    parser.add_argument('--overture-csv', help='local copy of the Overture country CSV (skips the R2 fetch)')
+    parser.add_argument('--work-dir', default=DEFAULT_WORK_DIR, help='where R2 objects are downloaded; never committed')
+    parser.add_argument('--report-out', required=True)
+    parser.add_argument('--types', default=','.join(CANDIDATE_TYPES))
+    parser.add_argument('--country', default='PT')
+    parser.add_argument('--sample-size', type=int, default=30)
+    parser.add_argument('--seed', type=int, default=453)
+    parser.add_argument('--skip-d1', action='store_true', help='do not read curated_poi / poi_source_correction')
+    parser.add_argument('--notes', help='markdown appended to the report (the recommendations)')
+    parser.add_argument('--by-leaf', action='store_true',
+                        help="bucket by Foursquare's own leaf, type-blind, instead of by our types (--types)")
+    args = parser.parse_args(argv)
+    run_by_leaf(args) if args.by_leaf else run(args)
+
+
+if __name__ == '__main__':
+    main()
