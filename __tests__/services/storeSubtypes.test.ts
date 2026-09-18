@@ -145,3 +145,23 @@ describe('storeSubtypes', () => {
     ]);
   });
 });
+
+describe('gift stores (KAN-457)', () => {
+  it('infers the gift kind from English and pt-PT task text', () => {
+    expect(inferStoreSubtype('Buy a gift for Ana')).toBe('gift');
+    expect(inferStoreSubtype('Comprar uma prenda')).toBe('gift');
+    expect(inferStoreSubtype('Comprar lembranças')).toBe('gift');
+  });
+
+  it('offers the kind by its visible label', () => {
+    expect(storeSubtypeSuggestions('Gi')).toEqual(['gift']);
+    expect(storeSubtypeSuggestions('Pre', 'pt-PT')).toEqual(['gift']);
+  });
+
+  it('knows Ale-Hop on every branch, however it is spelt', () => {
+    expect(storePlaceMatchesSubtype('ALE-HOP Rua do Ouro', 'gift')).toBe(true);
+    expect(storePlaceMatchesSubtype('Ale Hop', 'gift')).toBe(true);
+    expect(storePlaceMatchesSubtype('Ale-Hop Faro', 'gift')).toBe(true);
+    expect(storePlaceMatchesSubtype('Ale-Hop Faro', 'clothing')).toBe(false);
+  });
+});

@@ -108,6 +108,42 @@ class GenericWordBrandTest(unittest.TestCase):
         self.assertNotEqual(types[:1], ('store',))
 
 
+class UmbrellaRefinementTest(unittest.TestCase):
+    """KAN-457. A chain refines an umbrella bucket it has a child in."""
+
+    def test_ale_hop_is_a_gift_store_on_every_kind_of_branch(self):
+        for name, category in (('ALE-HOP Rua do Ouro', 'gift_shop'), ('Ale-Hop Faro', 'flowers_and_gifts_shop'),
+                               ('Ale Hop', 'office_equipment'), ('Ale-Hop', 'souvenir_shop'),
+                               ('Ale-Hop', 'department_store'), ('Ale-Hop', 'shopping')):
+            status, types, kinds, reason = Fixture.decide(name, category)
+            self.assertEqual((status, types[0], kinds), ('promoted', 'store', ('gift',)), (name, category))
+            self.assertEqual(reason, 'brand: store/gift')
+
+    def test_the_umbrella_is_refined_not_overruled(self):
+        # A florist chain would not refine it either way; a gift chain is a
+        # child of "flowers and gifts", so the row was never wrong.
+        _, types, kinds, _ = Fixture.decide('Ale-Hop Faro', 'flowers_and_gifts_shop')
+        self.assertEqual((types, kinds), (('store',), ('gift',)))
+
+    def test_a_florist_at_the_umbrella_stays_a_florist(self):
+        status, types, _, _ = Fixture.decide('Florista Jardim', 'flowers_and_gifts_shop')
+        self.assertEqual(types[:1], ('florist',))
+
+    def test_a_chain_of_another_kind_does_not_refine_the_umbrella(self):
+        # Decathlon is not a child of "flowers and gifts"; the commercial
+        # category holds, exactly as KAN-448 rule 2 says.
+        _, types, _, _ = Fixture.decide('Decathlon Faro', 'flowers_and_gifts_shop')
+        self.assertEqual(types[:1], ('florist',))
+
+    def test_a_name_that_says_florist_is_not_refined(self):
+        _, types, _, _ = Fixture.decide('Ale-Hop Florista', 'flowers_and_gifts_shop')
+        self.assertEqual(types[:1], ('florist',))
+
+    def test_a_commercial_category_still_holds_against_the_chain(self):
+        status, types, kinds, _ = Fixture.decide('Ale-Hop', 'convenience_store')
+        self.assertEqual(types[:1], ('mini_market',))
+
+
 class BackfillTest(unittest.TestCase):
     def test_a_row_already_correct_produces_no_statement(self):
         decided = {'id1': {'primary': 'store', 'types': ['store'], 'kinds': ['bicycle', 'sports'], 'brand': 'Decathlon'}}
@@ -157,6 +193,17 @@ class BackfillTest(unittest.TestCase):
     def test_a_row_not_in_prod_is_left_to_promotion(self):
         decided = {'id1': {'primary': 'store', 'types': ['store'], 'kinds': ['sports'], 'brand': 'X'}}
         self.assertEqual(list(backfill.statements(decided, {})), [])
+
+    def test_an_earlier_migration_keeps_its_rows(self):
+        # KAN-457. 0041 was generated, reviewed and not yet applied when 0043
+        # was generated; the later file names only what the earlier does not.
+        import tempfile
+        with tempfile.NamedTemporaryFile('w', suffix='.sql', delete=False) as earlier:
+            earlier.write("UPDATE overture_poi SET brand = 'Decathlon' WHERE overture_id = 'old1';\n"
+                          "DELETE FROM overture_poi_attribute WHERE overture_id = 'old2' AND dimension = 'store_kind';\n"
+                          "INSERT OR IGNORE INTO overture_poi_attribute (overture_id, dimension, value) VALUES ('old2','store_kind','sports');\n")
+        self.assertEqual(backfill.rows_named_by([earlier.name]), {'old1', 'old2'})
+        os.unlink(earlier.name)
 
 
 if __name__ == '__main__':

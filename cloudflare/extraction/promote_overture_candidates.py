@@ -188,12 +188,28 @@ CATEGORY_NAME_WORDS = {
     'bus_station': ('terminal', 'rodoviaria', 'paragem'),
     'train_station': ('estacao', 'station', 'comboios'),
     'shopping_center': ('centro comercial', 'shopping center', 'mall'),
+    'flowers_and_gifts_shop': ('florista', 'flores', 'florist', 'flowers'),
+    'flowers_and_gifts_store': ('florista', 'flores', 'florist', 'flowers'),
 }
 
 # Not overridable, and deliberately: parks, venues and landmarks get named
 # after sponsors — `MEO Suil Park`, `NOS Alive` — and the only brand-headed
 # rows found under government or retirement categories were `Casa …` and
 # `C.A. …` false forms.
+
+# KAN-457. Umbrella categories: an Overture parent bucket that our map
+# narrows to one of its children. `flowers_and_gifts_shop` sits over
+# `florist` and `gift_shop` in Meta's tree and 2,328 Portuguese rows are
+# filed there; most are florists, so the map says `florist`. A chain whose
+# kind is another child of the same bucket is not overruling a commercial
+# category — Meta said "flowers or gifts" and the chain says which. Ten of
+# Ale-Hop's 24 branches are here, Faro among them. Explicit, like
+# BRAND_OVERRIDABLE_CATEGORIES: the tree is not in the map, and a bucket
+# earns its place by being read.
+UMBRELLA_CATEGORY_KINDS = {
+    'flowers_and_gifts_shop': frozenset({'gift'}),
+    'flowers_and_gifts_store': frozenset({'gift'}),
+}
 
 
 GENERIC_CATEGORIES = frozenset({'', 'shopping'})
@@ -380,7 +396,11 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
     chain = store_kinds_from_brand(row['name'], store_brands, require_head=not generic)
     if chain and not generic and name_agrees_with_category(normalized, category):
         chain = ()
-    if chain and 'store' in reachable and (generic or category in BRAND_OVERRIDABLE_CATEGORIES):
+    # KAN-457. A chain refines an umbrella bucket when its kind is one of the
+    # bucket's children: `Ale-Hop Faro` under `flowers_and_gifts_shop` is
+    # the gift shop, not the florist the map defaults the bucket to.
+    refines_umbrella = bool(set(chain) & UMBRELLA_CATEGORY_KINDS.get(category, frozenset()))
+    if chain and 'store' in reachable and (generic or category in BRAND_OVERRIDABLE_CATEGORIES or refines_umbrella):
         types = [reachable['store']]
         attributes = [(d, v) for d, v in attributes if d != 'store_kind']
         attributes.extend(('store_kind', kind) for kind in chain)

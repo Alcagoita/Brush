@@ -76,6 +76,55 @@ typed by repetition at promotion time.
 Also fixed while there: Hush Puppies had no kind entry and was `lingerie` in
 production through a category; it is shoes.
 
+### Concentration is measured on the kind, not the category (KAN-457)
+
+`Ale-Hop` has 24 branches in the Portugal archive under eight categories:
+`flowers_and_gifts_shop` 10, `gift_shop` 7, then one each of souvenir,
+fashion accessories, hobby, department store, office equipment, convenience
+store and generic `shopping`. Measured on the raw category the top one held
+7 of 12 typed store rows — 58%, under the bar — and the rule did not propose
+it, so every branch took its kind from its own row. Rua do Ouro was a gift
+shop; Faro was a florist.
+
+The rule now measures concentration on the mapped kind, the `(poi_type,
+store_kind)` the category map gives each row. Meta files one chain's
+branches under sibling categories that all mean the same thing to us — seven
+categories map to `home`, six to `hardware`, five to `electronics` — and a
+chain counted on the raw category looked scattered when its kind was not.
+Two refinements come with it:
+
+* **An umbrella row does not disagree with a leaf under it.** In Meta's tree
+  `flowers_and_gifts_shop` sits over `florist` and `gift_shop`; 2,328
+  Portuguese rows are filed at the umbrella, most of them florists, so the
+  map says `florist`. A row filed there is counted with the leading store
+  leaf when that leaf descends from it, and as its own bucket — diluting —
+  otherwise. The tree is read from the archive's own `category_path`;
+  nothing is configured. Ale-Hop's ten umbrella rows join its seven gift
+  rows: 17 of 22, 77%.
+* **A chain of florists is not a store chain.** The umbrella rows put
+  `Florista Jardim` and eighty of its kind into the row set; a head whose
+  majority is not a store is dropped, exactly as cafés are.
+
+The raw breakdown stays in the TSV (`categories`), so a reviewer sees what
+was folded. On Portugal the change proposes 659 chains against 637: 34 new,
+12 gone. The twelve are descriptions the umbrella rows now dilute (`Jardim
+da`, `Horto do`, `Ponto de`) or honestly mixed (`Natura Selection` is 6
+clothing, 3 accessories, 2 gifts); none was in the dictionary. The new
+proposal is `kan-448/chains-PT-mapped-kind.tsv`; the additions reviewed in
+were Ale-Hop (`gift`, a kind the app did not have — `gift_shop` rows were
+already served with it and the app could not label them) and four beauty
+chains the category had already typed right on every branch: Pluricosmética,
+Equivalenza, Flormar, Kiehl's.
+
+Promotion learned one thing to make Faro a gift shop: a chain **refines** an
+umbrella bucket when its kind is one of the bucket's children
+(`UMBRELLA_CATEGORY_KINDS`). That is not rule 2 being bent — `flowers_and_gifts`
+is not a commercial category that was wrong, it is Meta saying "flowers or
+gifts" and the chain saying which. The one Ale-Hop filed as a
+`convenience_store` stays a mini-market; rule 2 holds. Prod is corrected by
+`migrations/0043_chain_discovery_mapped_kind.sql`, 22 rows, generated with
+`--after 0041` so it names only what 0041 does not.
+
 ## What it does to Portugal
 
 * 1,887 production rows corrected by `migrations/0041_chain_brands_decide_kinds.sql`,

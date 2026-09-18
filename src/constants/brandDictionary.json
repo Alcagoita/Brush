@@ -56,6 +56,7 @@
     { "name": "Adidas", "aliases": [] },
     { "name": "Adolfo Dominguez", "aliases": [] },
     { "name": "Aldo", "aliases": [] },
+    { "name": "Ale-Hop", "aliases": ["Ale Hop", "Alehop"] },
     { "name": "Antarte", "aliases": [] },
     { "name": "Aromas", "aliases": [], "ambiguousInTitle": true },
     { "name": "Auchan Tecnologia", "aliases": [] },
