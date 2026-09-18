@@ -1,0 +1,660 @@
+head	display_name	rows	in_shopping	poi_type	store_kind	concentration	majority_category	categories	already_in_dictionary
+minipreco	Minipreço	292	16	store	any	0.996	discount_store	discount_store:273|shopping:16|wholesale_store:1|superstore:1|sunglasses_store:1	False
+parfois	Parfois	158	0	store	fashion_accessories	0.911	fashion_accessories_store	fashion_accessories_store:144|clothing_store:11|womens_clothing_store:2|jewelry_store:1	True
+opticas multiopticas	Ópticas MultiOpticas	112	12	store	eyewear_and_optician	0.93	eyewear_and_optician	eyewear_and_optician:93|shopping:12|sunglasses_store:5|hobby_shop:1|hearing_aid_provider:1	False
+sport zone	Sport Zone	100	14	store	sports	0.895	sports_wear	sports_wear:55|sporting_goods:21|shopping:14|bicycle_shop:5|outdoor_gear:1|shoe_store:1|home_goods_store:1|gift_shop:1|childrens_clothing_store:1	True
+united colors	United Colors	96	0	store	clothing	0.979	clothing_store	clothing_store:94|childrens_clothing_store:1|womens_clothing_store:1	True
+multiopticas	MultiOpticas	87	3	store	eyewear_and_optician	0.988	eyewear_and_optician	eyewear_and_optician:83|shopping:3|jewelry_store:1	True
+intimissimi	Intimissimi	75	0	store	clothing	0.693	clothing_store	clothing_store:52|lingerie_store:16|designer_clothing:3|womens_clothing_store:2|mens_clothing_store:2	True
+worten	Worten	72	0	store	electronics	0.972	electronics	electronics:39|appliance_store:31|furniture_store:2	True
+radio popular	Radio Popular	69	0	store	electronics	1.0	electronics	electronics:45|appliance_store:23|computer_store:1	True
+leroy merlin	Leroy Merlin	65	6	store	hardware	0.966	do_it_yourself_store	do_it_yourself_store:28|hardware_store:14|building_supply_store:12|shopping:6|home_improvement_store:3|arts_and_crafts:1|home_goods_store:1	True
+lanidor woman	Lanidor Woman	61	0	store	womens_clothing	0.836	womens_clothing_store	womens_clothing_store:51|childrens_clothing_store:5|clothing_store:4|designer_clothing:1	True
+bershka	Bershka	60	0	store	clothing	0.933	clothing_store	clothing_store:56|womens_clothing_store:2|shoe_store:1|mens_clothing_store:1	True
+perfumes companhia	Perfumes &	60	17	store	beauty	0.884	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:24|shopping:17|perfume_store:10|hair_supply_stores:4|fashion:3|gift_shop:1|clothing_store:1	True
+lidl	Lidl	60	0	store	any	1.0	discount_store	discount_store:60	False
+opticalia	Opticalia	56	36	store	eyewear_and_optician	0.95	eyewear_and_optician	shopping:36|eyewear_and_optician:19|sunglasses_store:1	True
+audika	Audika	55	0	store	hearing_aid_provider	1.0	hearing_aid_provider	hearing_aid_provider:55	False
+pull bear	Pull &	53	0	store	clothing	0.981	clothing_store	clothing_store:52|mens_clothing_store:1	True
+springfield	Springfield	48	0	store	clothing	0.958	clothing_store	clothing_store:46|mens_clothing_store:2	True
+mais optica	Mais Optica	46	6	store	eyewear_and_optician	0.925	eyewear_and_optician	eyewear_and_optician:37|shopping:6|fashion_accessories_store:1|sunglasses_store:1|photography_store_and_services:1	True
+kiko milano	Kiko Milano	45	22	store	beauty	0.87	cosmetic_and_beauty_supplies	shopping:22|cosmetic_and_beauty_supplies:20|clothing_store:1|jewelry_store:1|designer_clothing:1	True
+massimo dutti	Massimo Dutti	45	0	store	mens_clothing	0.844	mens_clothing_store	mens_clothing_store:38|clothing_store:7	True
+tezenis	Tezenis	45	0	store	clothing	0.622	clothing_store	clothing_store:28|lingerie_store:12|childrens_clothing_store:3|womens_clothing_store:2	True
+jd sports	JD Sports	42	0	store	sports	0.714	sports_wear	sports_wear:17|sporting_goods:13|shoe_store:7|clothing_store:5	True
+tiffosi	Tiffosi	42	0	store	clothing	0.81	clothing_store	clothing_store:34|mens_clothing_store:4|boutique:2|womens_clothing_store:2	True
+zara	Zara	41	0	store	clothing	0.829	clothing_store	clothing_store:34|womens_clothing_store:4|childrens_clothing_store:3	True
+kiwoko mundo	Kiwoko. Mundo	36	0	store	pet	1.0	pet_store	pet_store:36	True
+claire s	Claire's	36	6	store	fashion_accessories	0.9	fashion_accessories_store	fashion_accessories_store:27|shopping:6|clothing_store:2|costume_store:1	True
+stradivarius	Stradivarius	36	0	store	womens_clothing	0.694	womens_clothing_store	womens_clothing_store:25|clothing_store:11	True
+levi s	Levi's	36	1	store	clothing	0.943	clothing_store	clothing_store:33|mens_clothing_store:2|shopping:1	True
+sunglass hut	Sunglass Hut	35	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:35	True
+pandora	Pandora	35	0	store	jewelry	0.971	jewelry_store	jewelry_store:34|gift_shop:1	True
+acustica medica	ACÚSTICA MÉDICA	35	0	store	hearing_aid_provider	0.971	hearing_aid_provider	hearing_aid_provider:34|gift_shop:1	False
+chicco	Chicco	34	0	store	childrens_clothing	0.971	childrens_clothing_store	childrens_clothing_store:33|clothing_store:1	True
+bertrand	Bertrand	34	0	store	books	1.0	bookstore	bookstore:34	True
+rituals	Rituals	33	8	store	beauty	0.96	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:23|shopping:8|perfume_store:1|childrens_clothing_store:1	True
+the body	The Body	32	1	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:23|perfume_store:7|shopping:1|hair_supply_stores:1	False
+alain afflelou	Alain Afflelou	32	7	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:25|shopping:7	True
+lefties	Lefties	32	0	store	clothing	1.0	clothing_store	clothing_store:32	True
+viva	Viva	31	0	store	home	1.0	home_goods_store	home_goods_store:31	False
+balvera perfumarias	Balvera Perfumarias	31	2	store	beauty	1.0	perfume_store	perfume_store:29|shopping:2	True
+tedi comercio	TEDi Comércio	29	0	store	any	1.0	discount_store	discount_store:29	False
+salsa	Salsa	29	0	store	clothing	0.966	clothing_store	clothing_store:28|womens_clothing_store:1	True
+mr blue	Mr. Blue	28	0	store	mens_clothing	0.929	mens_clothing_store	mens_clothing_store:26|clothing_store:2	True
+tiendanimal	Tiendanimal	28	0	store	pet	1.0	pet_store	pet_store:28	True
+oysho	Oysho	26	0	store	lingerie	0.654	lingerie_store	lingerie_store:17|womens_clothing_store:9	False
+doggyrade	DoggyRade	26	0	store	pet	1.0	pet_store	pet_store:26	True
+norte moda	Norte Moda	26	0	store	clothing	0.885	clothing_store	clothing_store:23|womens_clothing_store:2|childrens_clothing_store:1	True
+ptn store	Ptn Store	26	1	store	clothing	0.84	clothing_store	clothing_store:21|fashion:2|shopping:1|shoe_store:1|womens_clothing_store:1	True
+staples	Staples	26	0	store	office_equipment	1.0	office_equipment	office_equipment:26	True
+celeiro	Celeiro	26	0	store	health_food	1.0	health_food_store	health_food_store:26	False
+douglas	Douglas	25	0	store	beauty	1.0	perfume_store	perfume_store:25	True
+mayoral loja	Mayoral -	25	0	store	childrens_clothing	1.0	childrens_clothing_store	childrens_clothing_store:25	True
+vodafone	Vodafone	24	1	store	phone	0.826	mobile_phone_store	mobile_phone_store:19|computer_store:2|electronics:2|shopping:1	True
+calcado guimaraes	Calçado Guimarães	24	2	store	shoes	0.864	shoe_store	shoe_store:19|clothing_store:3|shopping:2	True
+pepco	Pepco	24	0	store	clothing	1.0	clothing_store	clothing_store:24	True
+livraria bertrand	Livraria Bertrand	23	0	store	books	1.0	bookstore	bookstore:23	False
+ale hop	Ale-Hop	23	1	store	gift	0.773	gift_shop	flowers_and_gifts_shop:10|gift_shop:7|office_equipment:1|souvenir_shop:1|fashion_accessories_store:1|department_store:1|shopping:1|hobby_shop:1	False
+la casa	La Casa	23	0	store	phone	0.957	mobile_phone_store	mobile_phone_store:22|tobacco_shop:1	False
+homa	hôma	22	1	store	home	0.952	home_decor	home_decor:16|home_goods_store:4|furniture_store:1|shopping:1	True
+seaside	Seaside	22	0	store	shoes	0.955	shoe_store	shoe_store:21|department_store:1	True
+pepe jeans	Pepe Jeans	22	0	store	clothing	0.909	clothing_store	clothing_store:20|designer_clothing:2	True
+widex centro	Widex Centro	22	0	store	hearing_aid_provider	1.0	hearing_aid_provider	hearing_aid_provider:22	False
+auto pecas	Auto Peças	22	2	store	auto_parts_and_supply	1.0	auto_parts_and_supply_store	auto_parts_and_supply_store:20|shopping:2	False
+boss store	BOSS Store	22	0	store	clothing	0.636	clothing_store	clothing_store:14|childrens_clothing_store:7|mens_clothing_store:1	False
+samsonite	Samsonite	22	2	store	luggage	0.8	luggage_store	luggage_store:16|handbag_stores:3|shopping:2|clothing_store:1	False
+sephora	Sephora	22	2	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:19|shopping:2|hair_supply_stores:1	True
+humana	HUMANA	22	0	store	thrift	0.864	thrift_store	thrift_store:19|clothing_store:3	True
+sports direct	Sports Direct	22	1	store	sports	1.0	sporting_goods	sporting_goods:19|sports_wear:2|shopping:1	True
+fnac	FNAC	21	0	store	electronics	0.857	electronics	electronics:18|department_store:1|shoe_store:1|books_mags_music_and_video:1	True
+bimba y	BIMBA Y	21	0	store	clothing	0.667	clothing_store	clothing_store:14|womens_clothing_store:5|childrens_clothing_store:2	False
+pluricosmetica	Pluricosmética	21	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:11|perfume_store:9|hair_supply_stores:1	False
+tous	Tous	21	2	store	jewelry	0.895	jewelry_store	jewelry_store:17|shopping:2|gift_shop:1|newspaper_and_magazines_store:1	True
+sacoor brothers	Sacoor Brothers	20	0	store	clothing	0.95	clothing_store	clothing_store:19|mens_clothing_store:1	True
+wurth portugal	Wurth Portugal	20	0	store	hardware	1.0	building_supply_store	building_supply_store:19|hardware_store:1	True
+garrafeira soares	Garrafeira Soares	20	1	store	wine_and_spirits	1.0	liquor_store	liquor_store:19|shopping:1	False
+triumph	Triumph	20	0	store	lingerie	0.8	lingerie_store	lingerie_store:16|womens_clothing_store:3|clothing_store:1	True
+tous jewelry	Tous Jewelry	19	0	store	jewelry	1.0	jewelry_store	jewelry_store:19	True
+decenio	Decenio	19	0	store	clothing	0.895	clothing_store	clothing_store:17|mens_clothing_store:2	True
+livraria e	Livraria e	19	0	store	books	0.895	bookstore	bookstore:17|office_equipment:1|comic_books_store:1	False
+kid to	Kid to	18	2	store	childrens_clothing	0.75	childrens_clothing_store	childrens_clothing_store:12|clothing_store:2|thrift_store:2|shopping:2	False
+toys r	Toys R	18	0	store	toys	0.833	toy_store	toy_store:15|hobby_shop:3	True
+stone by	Stone by	18	0	store	jewelry	1.0	jewelry_store	jewelry_store:18	False
+primark	Primark	18	0	store	clothing	0.778	clothing_store	clothing_store:14|childrens_clothing_store:2|gift_shop:2	True
+action	Action	18	0	store	any	0.944	discount_store	discount_store:15|wholesale_store:2|electronics:1	False
+omb grupo	OMB Grupo	18	7	store	eyewear_and_optician	0.727	eyewear_and_optician	eyewear_and_optician:8|shopping:7|photography_store_and_services:3	False
+iuman intimissimi	IUMAN Intimissimi	17	0	store	clothing	0.941	clothing_store	clothing_store:16|lingerie_store:1	False
+mac cosmetics	MAC Cosmetics	17	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:17	True
+manuel alves	Manuel Alves	17	0	store	shoes	0.882	shoe_store	shoe_store:15|appliance_store:1|clothing_store:1	False
+foot locker	Foot Locker	16	0	store	shoes	1.0	shoe_store	shoe_store:16	True
+ana sousa	Ana Sousa	16	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:16	True
+lacoste	Lacoste	16	0	store	clothing	0.875	clothing_store	clothing_store:14|womens_clothing_store:1|childrens_clothing_store:1	True
+optic 1	OPTIC 1	16	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:16	True
+optica medica	Óptica Médica	16	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:15|shopping:1	False
+valores	Valores	15	0	store	jewelry	1.0	jewelry_store	jewelry_store:15	False
+lanidor kids	Lanidor Kids	15	1	store	childrens_clothing	0.786	childrens_clothing_store	childrens_clothing_store:11|clothing_store:2|shopping:1|womens_clothing_store:1	True
+chip7	Chip7	14	0	store	electronics	1.0	electronics	electronics:7|computer_store:7	True
+worten mobile	Worten Mobile	14	1	store	phone	0.692	mobile_phone_store	mobile_phone_store:9|appliance_store:4|shopping:1	True
+urban obras	Urban Obras	14	0	store	hardware	1.0	home_improvement_store	home_improvement_store:14	False
+misako	MISAKO	14	0	store	handbag	0.857	handbag_stores	handbag_stores:12|fashion_accessories_store:1|designer_clothing:1	True
+perfumes e	Perfumes e	14	1	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:9|perfume_store:2|hair_supply_stores:2|shopping:1	False
+normal	Normal	14	8	store	any	0.667	discount_store	shopping:8|discount_store:3|perfume_store:2|outlet_store:1	True
+ikea	IKEA	13	8	store	furniture	0.8	furniture_store	shopping:8|furniture_store:4|jewelry_store:1	True
+create business	Create Business	13	0	store	auto_parts_and_supply	1.0	auto_parts_and_supply_store	auto_parts_and_supply_store:13	False
+garrafeira do	Garrafeira do	13	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:13	False
+salsa jeans	Salsa Jeans	13	0	store	clothing	1.0	clothing_store	clothing_store:13	True
+desigual	Desigual	13	0	store	clothing	0.615	clothing_store	clothing_store:8|womens_clothing_store:4|shoe_store:1	False
+snipes	SNIPES	13	1	store	shoes	1.0	shoe_store	shoe_store:12|shopping:1	True
+planeta d	Planeta D	13	0	store	sports	0.846	sporting_goods	sporting_goods:7|sports_wear:4|outlet_store:1|clothing_store:1	False
+quinta do	Quinta do	12	3	store	wine_and_spirits	0.667	liquor_store	liquor_store:6|shopping:3|pet_store:1|bookstore:1|fashion:1	False
+deborla	DeBorla	12	6	store	any	0.667	department_store	shopping:6|department_store:2|discount_store:2|hardware_store:1|flowers_and_gifts_shop:1	False
+livraria papelaria	Livraria Papelaria	12	0	store	books	0.667	bookstore	bookstore:8|office_equipment:3|comic_books_store:1	False
+my auchan	My Auchan	12	3	store	any	0.778	discount_store	discount_store:7|shopping:3|electronics:1|furniture_store:1	False
+ourivesaria e	Ourivesaria e	12	1	store	jewelry	0.909	jewelry_store	jewelry_store:10|photography_store_and_services:1|shopping:1	False
+deichmann	Deichmann	12	0	store	shoes	1.0	shoe_store	shoe_store:12	True
+optivisao	Optivisão	12	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:12	True
+alberto oculista	Alberto Oculista	11	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:11	False
+morgan	Morgan	11	0	store	clothing	0.636	clothing_store	clothing_store:7|womens_clothing_store:4	False
+optica da	Óptica da	11	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:11	False
+l occitane	L'Occitane en	11	8	store	beauty	1.0	perfume_store	shopping:8|perfume_store:3	True
+zippy kidstore	Zippy Kidstore	11	2	store	childrens_clothing	0.889	childrens_clothing_store	childrens_clothing_store:8|shopping:2|baby_gear_and_furniture:1	True
+bike zone	Bike Zone	11	1	store	bicycle	1.0	bicycle_shop	bicycle_shop:10|shopping:1	True
+nicolau rosa	Nicolau &	11	0	store	hardware	1.0	building_supply_store	building_supply_store:11	False
+modalfa	Modalfa	11	0	store	clothing	0.727	clothing_store	clothing_store:8|boutique:1|womens_clothing_store:1|superstore:1	False
+triumph lingerie	Triumph Lingerie	11	0	store	lingerie	0.909	lingerie_store	lingerie_store:10|childrens_clothing_store:1	True
+zara home	Zara Home	11	0	store	furniture	1.0	furniture_store	furniture_store:11	True
+adega cooperativa	Adega Cooperativa	11	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:11	False
+confort electrodomesticos	Confort Electrodomésticos	11	2	store	electronics	1.0	appliance_store	appliance_store:8|shopping:2|electronics:1	False
+ericeira surf	Ericeira Surf	10	0	store	sports	0.8	surf_shop	surf_shop:5|sporting_goods:2|clothing_store:1|skate_shop:1|hobby_shop:1	False
+havaianas	Havaianas	10	1	store	shoes	1.0	shoe_store	shoe_store:9|shopping:1	True
+ergovisao	Ergovisão	10	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:9|shopping:1	True
+scalpers	Scalpers	10	0	store	clothing	0.8	clothing_store	clothing_store:8|electronics:1|shoe_store:1	True
+geox	Geox	10	0	store	shoes	1.0	shoe_store	shoe_store:10	True
+gms store	GMS Store	10	0	store	electronics	0.7	electronics	electronics:7|mobile_phone_store:3	True
+quebramar	Quebramar	10	0	store	clothing	0.9	clothing_store	clothing_store:9|boutique:1	True
+new yorker	New Yorker	10	0	store	clothing	0.6	clothing_store	clothing_store:6|childrens_clothing_store:4	False
+jysk portugal	JYSK Portugal	10	0	store	furniture	1.0	furniture_store	furniture_store:10	True
+kiko store	Kiko Store	10	0	store	beauty	1.0	perfume_store	perfume_store:10	False
+perfumaria equivalenza	Perfumaria Equivalenza,	10	0	store	beauty	1.0	perfume_store	perfume_store:8|cosmetic_and_beauty_supplies:1|hair_supply_stores:1	False
+mike davis	Mike Davis	10	2	store	clothing	0.875	clothing_store	clothing_store:7|shopping:2|jewelry_store:1	True
+ourivesaria silva	Ourivesaria Silva	10	0	store	jewelry	1.0	jewelry_store	jewelry_store:10	False
+chateau d	Chateau d'Ax	9	7	store	furniture	1.0	furniture_store	shopping:7|furniture_store:2	True
+tabacaria da	Tabacaria da	9	0	store	tobacco	1.0	tobacco_shop	tobacco_shop:9	False
+cortefiel	Cortefiel	9	0	store	clothing	0.778	clothing_store	clothing_store:7|boutique:2	True
+optica do	Óptica do	9	2	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:7|shopping:2	False
+garrafeira da	Garrafeira da	9	2	store	wine_and_spirits	1.0	liquor_store	liquor_store:7|shopping:2	False
+switch technology	Switch Technology	9	1	store	electronics	0.875	computer_store	computer_store:5|electronics:2|shopping:1|hearing_aid_provider:1	False
+dona erago	Dona Erago	9	0	store	lingerie	0.889	lingerie_store	lingerie_store:8|childrens_clothing_store:1	True
+timberland	Timberland	9	0	store	shoes	0.778	shoe_store	shoe_store:7|clothing_store:2	False
+decathlon	Decathlon	9	0	store	sports	1.0	sporting_goods	sporting_goods:9	True
+antarte	Antarte	9	0	store	furniture	1.0	furniture_store	furniture_store:9	True
+furla	Furla	9	0	store	fashion_accessories	0.778	fashion_accessories_store	fashion_accessories_store:7|childrens_clothing_store:1|jewelry_store:1	False
+blukids	Blukids	9	0	store	clothing	0.778	clothing_store	clothing_store:7|childrens_clothing_store:2	False
+spot	SPOT	9	0	store	shoes	1.0	shoe_store	shoe_store:9	False
+bijou brigitte	Bijou Brigitte	9	0	store	jewelry	0.667	jewelry_store	jewelry_store:6|flowers_and_gifts_shop:2|gift_shop:1	True
+purificacion garcia	Purificacion Garcia	9	0	store	clothing	0.889	clothing_store	clothing_store:8|boutique:1	True
+materiais de	Materiais de	9	0	store	hardware	1.0	building_supply_store	building_supply_store:9	False
+joao vilas	João Vilas	9	0	store	mens_clothing	0.889	mens_clothing_store	mens_clothing_store:8|clothing_store:1	True
+tabacaria do	Tabacaria do	8	0	store	tobacco	0.875	tobacco_shop	tobacco_shop:7|shoe_store:1	False
+consultorio veterinario	Consultório Veterinário	8	0	store	pet	0.875	pet_store	pet_store:7|handbag_stores:1	False
+quinta de	Quinta de	8	2	store	wine_and_spirits	0.833	liquor_store	liquor_store:5|shopping:2|sporting_goods:1	False
+samsic facility	SAMSIC FACILITY	8	0	store	home	0.875	home_goods_store	home_goods_store:7|auto_parts_and_supply_store:1	False
+prof	Prof	8	0	store	shoes	1.0	shoe_store	shoe_store:8	False
+swatch	Swatch	8	0	store	jewelry	0.625	jewelry_store	jewelry_store:5|watch_store:3	False
+prenatal	Prénatal	8	1	store	childrens_clothing	0.857	childrens_clothing_store	childrens_clothing_store:6|shopping:1|clothing_store:1	True
+artes e	Artes e	8	2	store	arts_and_crafts	0.667	arts_and_crafts	arts_and_crafts:4|shopping:2|linen:1|office_equipment:1	False
+papelaria da	Papelaria da	8	1	store	office_equipment	0.714	office_equipment	office_equipment:5|flowers_and_gifts_shop:1|arts_and_crafts:1|shopping:1	False
+swarovski boutique	Swarovski Boutique	8	0	store	jewelry	1.0	jewelry_store	jewelry_store:8	True
+opticas grandoptical	Ópticas GrandOptical	8	3	store	photography_store_and_services	0.6	photography_store_and_services	photography_store_and_services:3|shopping:3|eyewear_and_optician:2	False
+adolfo dominguez	Adolfo Dominguez	8	0	store	clothing	0.875	clothing_store	clothing_store:7|childrens_clothing_store:1	True
+optica de	Óptica de	8	1	store	eyewear_and_optician	0.857	eyewear_and_optician	eyewear_and_optician:6|photography_store_and_services:1|shopping:1	False
+perfumaria barreiros	Perfumaria Barreiros	8	5	store	beauty	0.667	cosmetic_and_beauty_supplies	shopping:5|cosmetic_and_beauty_supplies:2|clothing_store:1	False
+drogaria do	Drogaria do	8	3	store	hardware	0.6	hardware_store	shopping:3|hardware_store:3|home_goods_store:1|wholesale_store:1	False
+moveis e	Móveis e	8	0	store	furniture	1.0	furniture_store	furniture_store:8	False
+michael kors	Michael Kors	8	0	store	fashion_accessories	0.625	fashion_accessories_store	fashion_accessories_store:5|clothing_store:3	False
+optic one	OPTIC One	8	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:7|shopping:1	False
+opticenter	Opticenter	8	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:8	True
+wells	Wells	7	1	store	drugstore	0.667	drugstore	drugstore:4|medical_supply:1|eyewear_and_optician:1|shopping:1	True
+people s	People's Phone	7	0	store	phone	0.714	mobile_phone_store	mobile_phone_store:5|clothing_store:1|electronics:1	False
+david rosas	David Rosas	7	0	store	jewelry	1.0	jewelry_store	jewelry_store:7	True
+bang olufsen	Bang &	7	0	store	electronics	1.0	electronics	electronics:7	True
+maria bonita	Maria Bonita	7	0	store	clothing	0.714	clothing_store	clothing_store:5|cosmetic_and_beauty_supplies:1|arts_and_crafts:1	False
+equivalenza	Equivalenza	7	0	store	beauty	1.0	perfume_store	perfume_store:4|cosmetic_and_beauty_supplies:2|hair_supply_stores:1	False
+ponto das	Ponto das	7	1	store	arts_and_crafts	0.667	arts_and_crafts	arts_and_crafts:4|shopping:1|clothing_store:1|fabric_store:1	False
+lidl lisboa	Lidl Lisboa	7	0	store	any	1.0	discount_store	discount_store:7	False
+mediamarkt portugal	MediaMarkt Portugal	7	0	store	electronics	1.0	electronics	electronics:7	True
+darty	Darty	7	0	store	electronics	1.0	electronics	electronics:6|appliance_store:1	True
+optica central	Óptica Central	7	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:6|shopping:1	False
+papelaria a	Papelaria A	7	0	store	office_equipment	0.714	office_equipment	office_equipment:5|toy_store:1|bookstore:1	False
+imaginarium	Imaginarium	7	0	store	toys	1.0	toy_store	toy_store:7	True
+laskasas	Laskasas	7	0	store	furniture	1.0	furniture_store	furniture_store:7	True
+sportino	Sportino	7	0	store	shoes	0.857	shoe_store	shoe_store:6|sporting_goods:1	True
+oculista de	Oculista de	7	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:6|shopping:1	False
+new look	New Look	7	2	store	clothing	0.6	clothing_store	clothing_store:3|womens_clothing_store:2|shopping:2	False
+superdecor	Superdecor	7	0	store	furniture	1.0	furniture_store	furniture_store:7	True
+lion of	Lion of	7	0	store	clothing	0.714	clothing_store	clothing_store:5|mens_clothing_store:1|boutique:1	False
+colchoes companhia	Colchões &	7	0	store	mattress	0.714	mattress_store	mattress_store:5|furniture_store:2	False
+ttrw store	TTRW Store	7	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:7	True
+vodafone people	Vodafone -	7	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:7	True
+bstrong	BStrong	7	0	store	shoes	1.0	shoe_store	shoe_store:7	True
+grupotico	Grupótico	7	2	store	photography_store_and_services	0.6	photography_store_and_services	photography_store_and_services:3|shopping:2|eyewear_and_optician:2	False
+mercearia da	Mercearia da	6	2	store	health_food	0.75	health_food_store	health_food_store:3|shopping:2|flowers_and_gifts_shop:1	False
+cacifo locky	Cacifo Locky	6	4	store	any	1.0	discount_store	shopping:4|discount_store:2	False
+tabacaria e	Tabacaria e	6	0	store	tobacco	0.833	tobacco_shop	tobacco_shop:5|office_equipment:1	False
+5asec	5àSec	6	0	store	electronics	1.0	appliance_store	appliance_store:6	False
+sofrapa loja	Sofrapa |	6	0	store	auto_parts_and_supply	1.0	auto_parts_and_supply_store	auto_parts_and_supply_store:6	False
+dunas store	Dunas Store	6	0	store	clothing	0.667	clothing_store	clothing_store:4|boutique:1|shoe_store:1	False
+imperio da	Império da	6	1	store	clothing	0.6	clothing_store	clothing_store:3|womens_clothing_store:1|shopping:1|childrens_clothing_store:1	False
+tintas cin	Tintas CIN	6	1	store	hardware	0.8	hardware_store	hardware_store:4|wholesale_store:1|shopping:1	True
+miminhos da	Miminhos da	6	3	store	arts_and_crafts	1.0	arts_and_crafts	shopping:3|arts_and_crafts:3	False
+elegance	Elegance	6	1	store	clothing	0.6	clothing_store	clothing_store:3|cosmetic_and_beauty_supplies:1|womens_clothing_store:1|shopping:1	False
+quatro estacoes	Quatro Estações	6	0	store	clothing	0.833	clothing_store	clothing_store:5|boutique:1	False
+eurekakids	Eurekakids	6	0	store	toys	1.0	toy_store	toy_store:6	True
+pet shop	Pet Shop	6	0	store	pet	1.0	pet_store	pet_store:6	False
+moveis d	Moveis d'Alice	6	0	store	furniture	1.0	furniture_store	furniture_store:6	True
+sr andarilho	Sr. Andarilho	6	3	store	orthopedic_shoe	1.0	orthopedic_shoe_store	shopping:3|orthopedic_shoe_store:3	True
+torres joalheiros	Torres Joalheiros	6	0	store	jewelry	0.833	jewelry_store	jewelry_store:5|clothing_store:1	True
+auto acessorios	Auto Acessórios	6	0	store	auto_parts_and_supply	1.0	auto_parts_and_supply_store	auto_parts_and_supply_store:6	False
+vans	Vans	6	0	store	shoes	0.667	shoe_store	shoe_store:4|skate_shop:2	False
+aldo	Aldo	6	0	store	shoes	1.0	shoe_store	shoe_store:6	True
+antiguidades e	Antiguidades e	6	1	store	antique	0.8	antique_store	antique_store:4|shopping:1|arts_and_crafts:1	False
+cash converters	Cash Converters	6	1	store	thrift	1.0	thrift_store	thrift_store:5|shopping:1	True
+clarks	Clarks	6	0	store	shoes	1.0	shoe_store	shoe_store:6	True
+nacional optica	Nacional Optica	6	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:6	True
+tabacaria papelaria	Tabacaria Papelaria	6	0	store	tobacco	1.0	tobacco_shop	tobacco_shop:6	False
+code	CODE	6	0	store	clothing	0.667	clothing_store	clothing_store:4|shoe_store:1|fashion_accessories_store:1	False
+centroxogo	Centroxogo	6	0	store	toys	1.0	toy_store	toy_store:6	True
+ouro caixa	Ouro Caixa	6	0	store	jewelry	1.0	jewelry_store	jewelry_store:6	False
+oculista central	Oculista Central	6	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:6	False
+welder	Welder	6	0	store	jewelry	1.0	jewelry_store	jewelry_store:6	True
+arca de	Arca de	6	1	store	pet	0.6	pet_store	pet_store:2|aquatic_pet_store:1|antique_store:1|shopping:1|childrens_clothing_store:1	False
+centrauto	Centrauto	6	0	store	auto_parts_and_supply	1.0	auto_parts_and_supply_store	auto_parts_and_supply_store:6	False
+asics	ASICS	6	0	store	sports	1.0	sporting_goods	sporting_goods:4|sports_wear:2	False
+nowo	Nowo	6	0	store	electronics	1.0	electronics	electronics:6	True
+courir	Courir	6	0	store	shoes	1.0	shoe_store	shoe_store:6	True
+note pt	note.pt	6	1	store	furniture	0.8	furniture_store	furniture_store:4|shopping:1|bookstore:1	True
+american vintage	American Vintage	6	0	store	clothing	1.0	clothing_store	clothing_store:6	True
+livraria almedina	Livraria Almedina	6	0	store	books	1.0	bookstore	bookstore:6	False
+montblanc	Montblanc	6	0	store	fashion_accessories	0.667	fashion_accessories_store	fashion_accessories_store:4|jewelry_store:2	False
+moveis luis	Móveis Luis	6	0	store	furniture	1.0	furniture_store	furniture_store:6	False
+nike	Nike	6	0	store	clothing	0.667	clothing_store	clothing_store:4|sports_wear:1|sporting_goods:1	True
+lpoint	Lpoint	6	0	store	shoes	1.0	shoe_store	shoe_store:6	True
+optica sao	Óptica São	6	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:6	False
+lanidor outlet	Lanidor Outlet	6	0	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:4|designer_clothing:2	True
+lidl sintra	Lidl Sintra	6	0	store	any	1.0	discount_store	discount_store:6	False
+the north	The North	6	0	store	clothing	1.0	clothing_store	clothing_store:6	True
+bluebird	Bluebird	6	0	store	jewelry	1.0	jewelry_store	jewelry_store:6	True
+ativo kids	Ativo Kids	6	0	store	childrens_clothing	1.0	childrens_clothing_store	childrens_clothing_store:6	True
+livraria alfarrabista	Livraria Alfarrabista	6	0	store	books	0.667	bookstore	bookstore:4|comic_books_store:2	False
+optiframa	Optiframa	6	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:6	True
+terceirafarma husqvarna	TerceiraFarma Husqvarna	5	0	store	lawn_mower	1.0	lawn_mower_store	lawn_mower_store:5	False
+alfilux iluminacao	Alfilux Iluminação	5	0	store	lighting	0.8	lighting_store	lighting_store:4|appliance_store:1	False
+xiaomi store	Xiaomi Store	5	0	store	any	0.6	wholesale_store	wholesale_store:3|electronics:2	False
+made in	Made in	5	2	store	shoes	0.667	shoe_store	shopping:2|shoe_store:2|liquor_store:1	False
+aldi	ALDI	5	2	store	any	0.667	discount_store	shopping:2|discount_store:2|childrens_clothing_store:1	False
+tibi pets	Tibi -	5	0	store	pet	1.0	pet_store	pet_store:5	True
+otica lucia	Ótica Lúcia	5	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:5	True
+maria s	Maria's	5	0	store	clothing	0.8	clothing_store	clothing_store:4|fashion_accessories_store:1	False
+women secret	Women'secret	5	0	store	lingerie	0.6	lingerie_store	lingerie_store:3|fashion_accessories_store:2	True
+drogaria central	Drogaria Central	5	1	store	hardware	0.75	hardware_store	hardware_store:2|music_and_dvd_store:1|shopping:1|building_supply_store:1	False
+papelaria nova	Papelaria Nova	5	0	store	office_equipment	0.8	office_equipment	office_equipment:4|arts_and_crafts:1	False
+ourivesaria ramos	Ourivesaria Ramos	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	False
+quiksilver	Quiksilver	5	0	store	clothing	0.6	clothing_store	clothing_store:3|sports_wear:1|surf_shop:1	False
+paraiso joias	Paraíso Jóias	5	0	store	fashion_accessories	0.6	fashion_accessories_store	fashion_accessories_store:3|jewelry_store:2	False
+celeiro dieta	Celeiro Dieta	5	0	store	health_food	1.0	health_food_store	health_food_store:5	False
+adidas store	adidas Store	5	0	store	sports	1.0	sporting_goods	sporting_goods:3|sports_wear:2	True
+moviflor	Moviflor	5	0	store	furniture	1.0	furniture_store	furniture_store:5	True
+ecco porto	ECCO Porto	5	0	store	shoes	1.0	shoe_store	shoe_store:5	False
+divani divani	Divani &	5	0	store	furniture	1.0	furniture_store	furniture_store:5	True
+interforma	Interforma	5	0	store	furniture	1.0	furniture_store	furniture_store:5	True
+falconeri	Falconeri	5	0	store	clothing	1.0	clothing_store	clothing_store:5	True
+note lisboa	note! Lisboa	5	0	store	cards_and_stationery	0.8	cards_and_stationery_store	cards_and_stationery_store:4|craft_shop:1	True
+lidl porto	Lidl Porto	5	0	store	any	1.0	discount_store	discount_store:5	False
+bricomarche	Bricomarché	5	0	store	hardware	0.6	building_supply_store	building_supply_store:2|home_goods_store:2|home_improvement_store:1	True
+primor	Primor	5	0	store	beauty	1.0	perfume_store	perfume_store:5	True
+ourivesaria a	Ourivesaria A	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	False
+jose joao	José João	5	2	store	clothing	0.667	clothing_store	clothing_store:2|shopping:2|cosmetic_and_beauty_supplies:1	False
+valores compra	Valores Compra	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	False
+suits inc	Suits Inc.	5	0	store	mens_clothing	1.0	mens_clothing_store	mens_clothing_store:5	True
+papelaria escolar	Papelaria Escolar	5	0	store	office_equipment	0.8	office_equipment	office_equipment:4|bookstore:1	False
+ourivesaria santos	Ourivesaria Santos	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	False
+ourivesaria carvalho	Ourivesaria Carvalho	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	False
+zadig voltaire	Zadig&Voltaire	5	0	store	womens_clothing	0.6	womens_clothing_store	womens_clothing_store:3|outlet_store:1|clothing_store:1	False
+elena miro	Elena Mirò	5	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:5	True
+otica do	Ótica do	5	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:5	False
+calvin klein	Calvin Klein	5	0	store	clothing	0.8	clothing_store	clothing_store:4|mens_clothing_store:1	True
+intimissimi uomo	Intimissimi Uomo	5	1	store	clothing	0.75	clothing_store	clothing_store:3|lingerie_store:1|shopping:1	True
+sociedade agricola	Sociedade Agrícola	5	1	store	wine_and_spirits	1.0	liquor_store	liquor_store:4|shopping:1	False
+institutoptico de	Institutoptico de	5	2	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3|shopping:2	False
+tommy hilfiger	Tommy Hilfiger	5	0	store	mens_clothing	0.6	mens_clothing_store	mens_clothing_store:3|clothing_store:2	False
+rituals cosmetics	Rituals Cosmetics	5	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:5	True
+xtreme	Xtreme	5	0	store	shoes	0.6	shoe_store	shoe_store:3|sporting_goods:2	False
+mundo magico	Mundo Mágico	5	0	store	childrens_clothing	0.6	childrens_clothing_store	childrens_clothing_store:3|shoe_store:1|fashion:1	False
+tien 21	Tien 21	5	0	store	electronics	1.0	electronics	electronics:3|appliance_store:2	False
+perfume arte	Perfume Arte	5	1	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:4|shopping:1	False
+my closet	My Closet	5	0	store	clothing	0.6	clothing_store	clothing_store:3|boutique:1|womens_clothing_store:1	False
+forte store	Forte Store	5	0	store	clothing	1.0	clothing_store	clothing_store:5	False
+ervanario portuense	Ervanário Portuense	5	0	store	health_food	1.0	health_food_store	health_food_store:5	False
+intima lingerie	Intima Lingerie	5	0	store	clothing	0.6	clothing_store	clothing_store:3|lingerie_store:2	False
+closet da	Closet da	5	0	store	womens_clothing	0.6	womens_clothing_store	womens_clothing_store:3|clothing_store:2	False
+pink store	Pink Store	5	0	store	clothing	0.8	clothing_store	clothing_store:4|womens_clothing_store:1	False
+stilcoup	Stilcoup	5	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:4|hair_supply_stores:1	False
+ourivesaria confianca	Ourivesaria Confiança	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	False
+pereirinha ourivesarias	Pereirinha Ourivesarias	5	0	store	jewelry	1.0	jewelry_store	jewelry_store:5	True
+smk denim	Smk Denim&Co.	5	0	store	mens_clothing	1.0	mens_clothing_store	mens_clothing_store:5	False
+moveis a	Móveis A.	5	0	store	furniture	1.0	furniture_store	furniture_store:5	False
+sapataria avenida	Sapataria Avenida	5	1	store	shoes	1.0	shoe_store	shoe_store:4|shopping:1	False
+western union	Western Union	4	1	store	jewelry	0.667	jewelry_store	jewelry_store:2|fashion_accessories_store:1|shopping:1	False
+ourivesaria relojoaria	Ourivesaria Relojoaria	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+portfolio	Portfolio	4	1	store	gift	1.0	gift_shop	gift_shop:3|shopping:1	False
+farmacia da	Farmácia da	4	1	store	drugstore	1.0	drugstore	drugstore:3|shopping:1	False
+conforama	Conforama	4	0	store	furniture	1.0	furniture_store	furniture_store:4	True
+jose manuel	José Manuel	4	2	store	hardware	1.0	home_improvement_store	shopping:2|home_improvement_store:1|building_supply_store:1	False
+decathlon connect	Decathlon Connect	4	2	store	sports	1.0	sports_wear	sports_wear:2|shopping:2	True
+queijaria da	Queijaria da	4	0	store	cheese	1.0	cheese_shop	cheese_shop:4	False
+padel nuestro	Padel Nuestro	4	0	store	sports	1.0	sporting_goods	sporting_goods:3|sports_wear:1	False
+cannabis store	Cannabis Store	4	2	store	health_food	1.0	health_food_store	shopping:2|health_food_store:2	False
+victoria s	Victoria's Secret	4	0	store	lingerie	0.75	lingerie_store	lingerie_store:3|womens_clothing_store:1	False
+be a	Be a	4	1	store	clothing	1.0	clothing_store	clothing_store:3|shopping:1	False
+ana maria	Ana Maria	4	1	store	clothing	0.667	clothing_store	clothing_store:2|shopping:1|flowers_and_gifts_shop:1	False
+kiko	KIKO	4	1	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:2|perfume_store:1|shopping:1	True
+vinhos do	Vinhos do	4	1	store	wine_and_spirits	1.0	liquor_store	liquor_store:3|shopping:1	False
+hiper china	Hiper China	4	2	store	any	1.0	discount_store	shopping:2|discount_store:1|department_store:1	False
+tio papel	Tio Papel	4	0	store	books	0.75	bookstore	bookstore:3|office_equipment:1	False
+ourivesaria martins	Ourivesaria Martins	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+gato preto	Gato Preto	4	0	store	home	0.75	home_goods_store	home_goods_store:3|furniture_store:1	True
+otica da	Ótica da	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+garrafeira nacional	Garrafeira Nacional	4	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:4	True
+max mara	Max Mara	4	0	store	womens_clothing	0.75	womens_clothing_store	womens_clothing_store:3|childrens_clothing_store:1	False
+hastens	Hästens	4	0	store	mattress	0.75	mattress_store	mattress_store:3|bedding_and_bath_stores:1	False
+ourivesaria gomes	Ourivesaria Gomes	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+ourivesaria miranda	Ourivesaria Miranda	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+box jumbo	Box Jumbo,	4	0	store	furniture	1.0	furniture_store	furniture_store:4	False
+paco martinez	Paco Martinez	4	1	store	fashion_accessories	0.667	fashion_accessories_store	fashion_accessories_store:2|clothing_store:1|shopping:1	False
+rip curl	Rip Curl	4	0	store	sports	0.75	sporting_goods	sporting_goods:2|clothing_store:1|surf_shop:1	False
+oculista do	Oculista do	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+manuel dos	Manuel dos	4	0	store	hardware	1.0	building_supply_store	building_supply_store:4	False
+58 surf	58 Surf	4	0	store	sports	1.0	surf_shop	surf_shop:4	False
+natur house	Natur House	4	0	store	drugstore	0.75	drugstore	drugstore:3|health_food_store:1	False
+sapataria moderna	Sapataria Moderna	4	0	store	shoes	1.0	shoe_store	shoe_store:4	False
+area	Area	4	0	store	furniture	1.0	furniture_store	furniture_store:4	True
+optica portuguesa	Óptica Portuguesa	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+lisboa sc	LISBOA SC	4	0	store	clothing	1.0	clothing_store	clothing_store:4	False
+maje	Maje	4	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:4	False
+recheio cash	Recheio Cash	4	0	store	any	1.0	wholesale_store	wholesale_store:4	False
+papelaria fernandes	Papelaria Fernandes	4	0	store	office_equipment	1.0	office_equipment	office_equipment:4	True
+oticas ocr	Óticas OCR	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+humana vintage	HUMANA Vintage	4	0	store	thrift	1.0	thrift_store	thrift_store:4	True
+instanta	Instanta	4	0	store	photography_store_and_services	1.0	photography_store_and_services	photography_store_and_services:4	False
+queijaria do	Queijaria do	4	1	store	cheese	0.667	cheese_shop	cheese_shop:2|furniture_store:1|shopping:1	False
+sapataria pe	Sapataria Pé	4	0	store	shoes	1.0	shoe_store	shoe_store:4	False
+chaves e	Chaves e	4	1	store	shoes	0.667	shoe_store	shoe_store:2|shopping:1|hardware_store:1	False
+opticalia optica	Opticalia Óptica	4	0	store	sunglasses	1.0	sunglasses_store	sunglasses_store:4	True
+silverland	Silverland	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+sergent major	Sergent Major	4	0	store	childrens_clothing	1.0	childrens_clothing_store	childrens_clothing_store:4	False
+nova imagem	Nova Imagem	4	0	store	clothing	0.75	clothing_store	clothing_store:3|home_improvement_store:1	False
+perfumaria e	Perfumaria e	4	0	store	beauty	0.75	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:3|clothing_store:1	False
+ourivesaria fernandes	Ourivesaria Fernandes	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+oro vivo	Oro Vivo	4	0	store	jewelry	0.75	jewelry_store	jewelry_store:3|clothing_store:1	False
+b perfumes	B& Perfumes	4	0	store	clothing	0.75	clothing_store	clothing_store:3|cosmetic_and_beauty_supplies:1	False
+d coracao	D'Coração	4	1	store	clothing	0.667	clothing_store	clothing_store:2|arts_and_crafts:1|shopping:1	False
+garden center	Garden Center	4	0	store	nursery_and_gardening	1.0	nursery_and_gardening	nursery_and_gardening:4	False
+prolar	Prolar	4	2	store	home	1.0	home_goods_store	shopping:2|home_goods_store:2	False
+ornimundo	Ornimundo	4	0	store	pet	1.0	pet_store	pet_store:4	True
+diesel	Diesel	4	0	store	clothing	1.0	clothing_store	clothing_store:4	False
+new balance	New Balance	4	0	store	shoes	0.75	shoe_store	shoe_store:3|clothing_store:1	True
+swarovski	Swarovski	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	True
+t shirts	T-Shirts and	4	1	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:2|clothing_store:1|shopping:1	False
+fred perry	Fred Perry	4	0	store	clothing	0.75	clothing_store	clothing_store:3|mens_clothing_store:1	False
+benfica official	Benfica Official	4	1	store	sports	0.667	sporting_goods	sporting_goods:1|sports_wear:1|shopping:1|souvenir_shop:1	True
+adidas originals	Adidas Originals	4	0	store	sports	1.0	sports_wear	sports_wear:2|sporting_goods:2	True
+livraria da	Livraria da	4	0	store	books	1.0	bookstore	bookstore:4	False
+cosentino	Cosentino	4	0	store	hardware	1.0	building_supply_store	building_supply_store:4	False
+the phone	The Phone	4	1	store	electronics	0.667	electronics	electronics:2|mobile_phone_store:1|shopping:1	False
+tintas e	Tintas e	4	1	store	hardware	1.0	hardware_store	hardware_store:2|home_improvement_store:1|shopping:1	False
+moveis usados	Móveis Usados	4	0	store	furniture	1.0	furniture_store	furniture_store:4	False
+hackett	Hackett	4	0	store	mens_clothing	1.0	mens_clothing_store	mens_clothing_store:4	False
+doctor mobile	Doctor mobile	4	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:4	False
+a4 tabacaria	A4 Tabacaria	4	0	store	tobacco	0.75	tobacco_shop	tobacco_shop:3|flowers_and_gifts_shop:1	False
+nike factory	Nike Factory	4	0	store	sports	1.0	sports_wear	sports_wear:2|sporting_goods:2	True
+boss outlet	BOSS Outlet	4	0	store	clothing	0.75	clothing_store	clothing_store:3|childrens_clothing_store:1	False
+puma outlet	PUMA Outlet	4	0	store	sports	0.75	sporting_goods	sporting_goods:3|clothing_store:1	False
+kiwoko c	KIWOKO C.C.	4	0	store	pet	1.0	pet_store	pet_store:4	True
+oculista das	Oculista Das	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+prink	Prink	4	1	store	office_equipment	0.667	office_equipment	office_equipment:2|furniture_store:1|shopping:1	False
+centroxogo brinquedos	Centroxogo Brinquedos	4	0	store	toys	0.75	toy_store	toy_store:3|flowers_and_gifts_shop:1	True
+esse parfum	Esse Parfum	4	1	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:3|shopping:1	False
+opticalia premium	Opticalia Premium	4	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3|shopping:1	True
+moveis machado	Móveis Machado	4	0	store	furniture	1.0	furniture_store	furniture_store:4	False
+beauty stores	Beauty Stores,	4	0	store	beauty	1.0	perfume_store	perfume_store:3|hair_supply_stores:1	False
+zolf store	ZOLF STORE	4	0	store	clothing	1.0	clothing_store	clothing_store:4	False
+jose da	José da	4	2	store	hardware	1.0	paint_store	shopping:2|paint_store:1|building_supply_store:1	False
+garrafeira d	Garrafeira D.	4	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:4	False
+ourivesaria sao	Ourivesaria São	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+ferrache	Ferrache	4	0	store	clothing	0.75	clothing_store	clothing_store:3|womens_clothing_store:1	False
+opticalia brancoptica	Opticalia Brancoptica	4	2	store	photography_store_and_services	1.0	photography_store_and_services	shopping:2|photography_store_and_services:2	True
+tentacao do	Tentação do	4	2	store	home	1.0	home_goods_store	shopping:2|home_goods_store:2	False
+ourivesaria pinho	Ourivesaria Pinho	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+ourivesaria sousa	Ourivesaria Sousa	4	0	store	jewelry	1.0	jewelry_store	jewelry_store:4	False
+viveiros da	Viveiros da	4	0	store	nursery_and_gardening	1.0	nursery_and_gardening	nursery_and_gardening:4	False
+sneakers concept	Sneakers Concept	4	0	store	shoes	0.75	shoe_store	shoe_store:3|clothing_store:1	False
+pili carrera	Pili Carrera	4	0	store	childrens_clothing	1.0	childrens_clothing_store	childrens_clothing_store:4	False
+petlandia	Petlandia	4	0	store	pet	1.0	pet_store	pet_store:4	False
+eurolojas	Eurolojas	4	0	store	any	1.0	discount_store	discount_store:4	False
+medical optics	Medical Optics	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+sofaszone	SofásZone	4	0	store	furniture	1.0	furniture_store	furniture_store:4	False
+sapataria 995	Sapataria 995	4	0	store	shoes	1.0	shoe_store	shoe_store:4	False
+ourivesaria j	Ourivesaria J	4	0	store	jewelry	0.75	jewelry_store	jewelry_store:3|flowers_and_gifts_shop:1	False
+atola	Atôla	4	0	store	clothing	1.0	clothing_store	clothing_store:4	False
+sports world	Sports World	4	0	store	sports	1.0	sports_wear	sports_wear:3|sporting_goods:1	False
+traquinas	Traquinas	4	1	store	clothing	0.667	clothing_store	clothing_store:2|shopping:1|childrens_clothing_store:1	False
+tendencias moda	Tendências Moda	4	0	store	womens_clothing	0.75	womens_clothing_store	womens_clothing_store:3|clothing_store:1	False
+moveis sao	Móveis São	4	0	store	furniture	1.0	furniture_store	furniture_store:4	False
+flormar	Flormar	4	1	store	beauty	1.0	cosmetic_and_beauty_supplies	shopping:1|cosmetic_and_beauty_supplies:1|hair_supply_stores:1|perfume_store:1	False
+moveis goncalves	Móveis Gonçalves	4	0	store	furniture	0.75	furniture_store	furniture_store:3|home_goods_store:1	False
+optica d	Óptica d'Avenida	4	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:4	False
+moveis costa	Móveis Costa	4	0	store	furniture	0.75	furniture_store	furniture_store:3|home_goods_store:1	False
+vida de	Vida de	3	0	store	pet	0.667	pet_store	pet_store:2|liquor_store:1	False
+moveis vieira	Móveis Vieira	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+look fashion	Look Fashion	3	1	store	clothing	1.0	clothing_store	clothing_store:2|shopping:1	False
+jardim das	Jardim das	3	0	store	nursery_and_gardening	0.667	nursery_and_gardening	nursery_and_gardening:2|flowers_and_gifts_shop:1	False
+adega do	Adega do	3	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:3	False
+continente modelo	Continente Modelo	3	1	store	any	1.0	department_store	department_store:1|superstore:1|shopping:1	False
+fc in	FC IN	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+sapataria goncalves	Sapataria Gonçalves	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+jose dias	José Dias	3	0	store	hardware	0.667	building_supply_store	building_supply_store:2|home_and_garden:1	False
+modas jacintos	Modas Jacintos	3	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:3	False
+adega da	Adega da	3	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:3	False
+diva s	Diva's Cabeleireiro	3	0	store	clothing	0.667	clothing_store	clothing_store:2|shoe_store:1	False
+confortauto pneus	Confortauto Pneus	3	0	store	home	1.0	home_goods_store	home_goods_store:3	False
+fotosport	Fotosport	3	0	store	photography_store_and_services	1.0	photography_store_and_services	photography_store_and_services:3	False
+maos de	Mãos de	3	0	store	clothing	0.667	clothing_store	clothing_store:2|fashion:1	False
+party fiesta	Party Fiesta	3	1	store	party_supply	1.0	party_supply	party_supply:2|shopping:1	False
+luggage storage	Luggage Storage	3	0	store	luggage	1.0	luggage_store	luggage_store:3	False
+why not	Why Not	3	0	store	e_cigarette	0.667	e_cigarette_store	e_cigarette_store:2|clothing_store:1	False
+let s	Let's Go	3	0	store	hardware	0.667	home_improvement_store	office_equipment:1|home_improvement_store:1|building_supply_store:1	False
+meia duzia	meia.duzia	3	0	store	souvenir	0.667	souvenir_shop	souvenir_shop:2|flowers_and_gifts_shop:1	False
+foreva	Foreva	3	0	store	shoes	0.667	shoe_store	shoe_store:2|clothing_store:1	True
+galeria da	Galeria da	3	0	store	antique	0.667	antique_store	antique_store:2|gift_shop:1	False
+ricami veronica	Ricami Veronica	3	0	store	arts_and_crafts	0.667	arts_and_crafts	arts_and_crafts:2|flowers_and_gifts_shop:1	False
+electromendes	Electromendes	3	1	store	electronics	1.0	electronics	shopping:1|electronics:1|appliance_store:1	False
+estudio de	Estúdio de	3	0	store	clothing	0.667	clothing_store	clothing_store:2|cosmetic_and_beauty_supplies:1	False
+jose carlos	José Carlos	3	0	store	hardware	0.667	building_supply_store	building_supply_store:1|home_improvement_store:1|lawn_mower_store:1	False
+intermarche	Intermarché	3	1	store	any	1.0	superstore	superstore:2|shopping:1	False
+ana silva	Ana Silva	3	0	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:2|cosmetic_and_beauty_supplies:1	False
+ourivesaria suica	Ourivesaria Suiça	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+ourivesaria coimbra	Ourivesaria Coimbra	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+kozii shop	Kozii Shop	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+palloram	Palloram	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+reparacao mobile	Reparação Mobile	3	0	store	phone	0.667	mobile_phone_store	mobile_phone_store:2|computer_store:1	False
+joias da	Jóias da	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+new fashion	New Fashion	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+joalharia do	Joalharia do	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+moda da	Moda da	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+carlos manuel	Carlos Manuel	3	0	store	auto_parts_and_supply	0.667	auto_parts_and_supply_store	auto_parts_and_supply_store:2|jewelry_store:1	False
+expert	Expert	3	0	store	electronics	0.667	electronics	electronics:2|department_store:1	False
+adega de	Adega de	3	1	store	wine_and_spirits	1.0	liquor_store	liquor_store:2|shopping:1	False
+nova moda	Nova Moda,	3	0	store	clothing	0.667	clothing_store	clothing_store:2|thrift_store:1	False
+gira sol	Gira Sol	3	0	store	childrens_clothing	0.667	childrens_clothing_store	childrens_clothing_store:2|clothing_store:1	False
+cay ville	Cay Ville	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+neway shopping	Neway Shopping	3	0	store	any	1.0	department_store	department_store:3	False
+phone fix	Phone Fix	3	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:3	False
+pedemeia	Pedemeia	3	0	store	clothing	0.667	clothing_store	clothing_store:2|lingerie_store:1	False
+ourivesaria carlos	Ourivesaria Carlos	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+i racional	i Racional	3	0	store	pet	1.0	pet_store	pet_store:3	False
+cabeceiras pt	Cabeceiras.pt Loja	3	0	store	furniture	0.667	furniture_store	furniture_store:2|mattress_store:1	False
+dietsport	DietSport	3	0	store	vitamins_and_supplements	1.0	vitamins_and_supplements	vitamins_and_supplements:3	False
+my dream	My Dream	3	0	store	clothing	0.667	clothing_store	clothing_store:2|nursery_and_gardening:1	False
+vestidos de	Vestidos de	3	0	store	bridal	0.667	bridal_shop	bridal_shop:2|clothing_store:1	False
+jumbo	Jumbo	3	1	store	any	1.0	superstore	superstore:2|shopping:1	False
+imagem	Imagem	3	1	store	clothing	1.0	clothing_store	clothing_store:2|shopping:1	False
+gasolineira auchan	Gasolineira Auchan	3	0	store	electronics	0.667	electronics	electronics:2|pet_store:1	False
+robert mauser	Robert Mauser	3	0	store	electronics	1.0	electronics	electronics:3	False
+auchan supermercado	Auchan Supermercado	3	0	store	any	1.0	discount_store	discount_store:3	False
+4 estacoes	4 Estações	3	0	store	clothing	0.667	clothing_store	clothing_store:2|home_goods_store:1	False
+sika portugal	Sika Portugal	3	0	store	hardware	1.0	paint_store	paint_store:3	False
+joias e	Joias e	3	1	store	jewelry	1.0	jewelry_store	jewelry_store:2|shopping:1	False
+kiehl s	Kiehl's	3	0	store	beauty	1.0	hair_supply_stores	hair_supply_stores:1|perfume_store:1|cosmetic_and_beauty_supplies:1	False
+le creuset	Le Creuset	3	0	store	home	1.0	home_goods_store	home_goods_store:3	False
+auto pneus	Auto Pneus	3	0	store	home	1.0	home_goods_store	home_goods_store:2|home_and_garden:1	False
+ecco shoes	ECCO Shoes	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+iservices	iServices	3	0	store	electronics	1.0	electronics	electronics:3	False
+paladares do	Paladares do	3	1	store	health_food	1.0	health_food_store	health_food_store:2|shopping:1	False
+made by	Made by	3	1	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:2|shopping:1	False
+gant	GANT	3	0	store	mens_clothing	0.667	mens_clothing_store	mens_clothing_store:2|clothing_store:1	False
+bulhosa books	Bulhosa Books	3	0	store	books	1.0	bookstore	bookstore:3	False
+liu jo	Liu Jo	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+cacicambra	Cacicambra	3	0	store	sports	0.667	outdoor_gear	outdoor_gear:2|hunting_and_fishing_supplies:1	False
+ourivesaria rosa	Ourivesaria Rosa	3	1	store	jewelry	1.0	jewelry_store	jewelry_store:2|shopping:1	False
+quatro patas	Quatro Patas	3	1	store	pet	1.0	pet_store	pet_store:2|shopping:1	False
+garrafeira de	Garrafeira de	3	1	store	wine_and_spirits	1.0	liquor_store	liquor_store:2|shopping:1	False
+radio holland	Radio Holland	3	0	store	electronics	1.0	electronics	electronics:3	False
+andre opticas	André Ópticas	3	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3	False
+luz e	Luz e	3	0	store	electronics	1.0	audio_visual_equipment_store	audio_visual_equipment_store:3	False
+sons do	Sons do	3	1	store	musical_instrument	1.0	musical_instrument_store	musical_instrument_store:2|shopping:1	False
+sapataria primavera	Sapataria Primavera	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+papelaria joao	Papelaria João	3	1	store	office_equipment	1.0	office_equipment	office_equipment:2|shopping:1	False
+industria dos	Indústria dos	3	1	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:2|shopping:1	False
+homycasa	HomyCasa	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+outlaw	Outlaw	3	0	store	sports	1.0	sports_wear	sports_wear:3	False
+sociedad de	Sociedad de	3	0	store	hardware	0.667	building_supply_store	building_supply_store:2|clothing_store:1	False
+telemoveis e	Telemoveis e	3	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:3	False
+sofmovel	Sofmovel	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+dara jewels	Dara Jewels	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+ourivesaria brilhante	Ourivesaria Brilhante	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+doce lar	Doce Lar	3	0	store	furniture	0.667	furniture_store	furniture_store:2|home_goods_store:1	False
+simbologia	Simbologia	3	0	store	clothing	0.667	clothing_store	clothing_store:2|office_equipment:1	False
+punt roma	Punt Roma	3	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:3	False
+lacos e	Laços e	3	0	store	childrens_clothing	0.667	childrens_clothing_store	childrens_clothing_store:2|furniture_store:1	False
+moveis fernandes	Móveis Fernandes	3	1	store	furniture	1.0	furniture_store	furniture_store:2|shopping:1	False
+flamingo store	Flamingo Store	3	0	store	clothing	0.667	clothing_store	clothing_store:2|fashion:1	False
+redecor algarve	Redecor Algarve	3	0	store	hardware	0.667	building_supply_store	building_supply_store:2|home_goods_store:1	False
+patinhas mimadas	Patinhas Mimadas	3	0	store	pet	1.0	pet_store	pet_store:3	False
+pollux	Pollux	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+salto alto	Salto Alto	3	0	store	shoes	0.667	shoe_store	shoe_store:2|clothing_store:1	False
+livraria a	Livraria A	3	0	store	books	1.0	bookstore	bookstore:3	False
+nike store	Nike Store	3	0	store	sports	1.0	sporting_goods	sporting_goods:3	True
+ourivesaria alianca	Ourivesaria Aliança	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+el ganso	El Ganso	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+jose antonio	José António	3	0	store	hardware	0.667	building_supply_store	building_supply_store:2|wholesale_store:1	False
+forall phones	Forall Phones	3	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:3	False
+superdry	Superdry	3	0	store	clothing	0.667	clothing_store	clothing_store:2|mens_clothing_store:1	False
+portugal wine	Portugal Wine	3	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:2|beer_wine_and_spirits:1	False
+ourivesaria da	Ourivesaria da	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+tabacaria rossio	Tabacaria Rossio	3	0	store	tobacco	0.667	tobacco_shop	tobacco_shop:2|flowers_and_gifts_shop:1	False
+tudo4mobile	Tudo4Mobile	3	0	store	phone	1.0	mobile_phone_store	mobile_phone_store:3	False
+fashion star	Fashion Star	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+rosa clara	Rosa Clará	3	0	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:2|bridal_shop:1	False
+ba sh	Ba &	3	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:3	False
+machado joalheiro	Machado Joalheiro	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+mascarilha	Mascarilha	3	0	store	costume	1.0	costume_store	costume_store:3	False
+fashion clinic	Fashion Clinic	3	1	store	clothing	1.0	clothing_store	clothing_store:2|shopping:1	False
+ermenegildo zegna	Ermenegildo Zegna	3	0	store	mens_clothing	0.667	mens_clothing_store	mens_clothing_store:2|clothing_store:1	False
+fly london	Fly London	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+suffa store	Suffa Store	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+costa nova	Costa Nova	3	0	store	home	0.667	home_and_garden	home_and_garden:2|outlet_store:1	False
+tintas tincomil	Tintas Tincomil	3	0	store	hardware	1.0	building_supply_store	building_supply_store:3	False
+wine shop	Wine Shop	3	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:3	False
+tabacaria santa	Tabacaria Santa	3	0	store	tobacco	0.667	tobacco_shop	tobacco_shop:2|newspaper_and_magazines_store:1	False
+camper	Camper	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+element	Element	3	0	store	fashion_accessories	0.667	fashion_accessories_store	fashion_accessories_store:2|clothing_store:1	False
+smoke quality	Smoke Quality	3	1	store	e_cigarette	1.0	e_cigarette_store	e_cigarette_store:2|shopping:1	False
+sfera	Sfera	3	0	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:2|clothing_store:1	False
+2smok	2Smok	3	0	store	e_cigarette	1.0	e_cigarette_store	e_cigarette_store:3	False
+celeiro do	Celeiro do	3	1	store	furniture	1.0	furniture_store	furniture_store:2|shopping:1	False
+pe d	Pé d'Alface	3	0	store	shoes	0.667	shoe_store	shoe_store:2|clothing_store:1	False
+boconcept	BoConcept	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+moveis paulo	Móveis Paulo	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+giovanni galli	Giovanni Galli	3	0	store	mens_clothing	0.667	mens_clothing_store	mens_clothing_store:2|clothing_store:1	False
+garrafeira baco	Garrafeira Baco	3	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:3	False
+zwilling	ZWILLING	3	0	store	kitchen_supply	1.0	kitchen_supply_store	kitchen_supply_store:3	False
+home cook	Home &	3	0	store	kitchen_supply	1.0	kitchen_supply_store	kitchen_supply_store:3	False
+faconnable outlet	Façonnable Outlet	3	0	store	mens_clothing	1.0	mens_clothing_store	mens_clothing_store:3	False
+ecco outlet	ECCO Outlet	3	0	store	shoes	0.667	shoe_store	shoe_store:2|kitchen_supply_store:1	False
+moda jovem	Moda Jovem	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+eurofirms people	Eurofirms People	3	1	store	kitchen_supply	1.0	kitchen_supply_store	kitchen_supply_store:2|shopping:1	False
+throttleman	Throttleman	3	0	store	mens_clothing	0.667	mens_clothing_store	mens_clothing_store:2|clothing_store:1	False
+sacoor blue	Sacoor Blue	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+moveis santa	Móveis Santa	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+moveis jose	Móveis José	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+sapataria pedro	Sapataria Pedro	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+livraria do	Livraria Do	3	0	store	books	1.0	bookstore	bookstore:3	False
+sapataria a	Sapataria A	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+brico depot	Brico Depôt	3	0	store	hardware	1.0	home_improvement_store	home_improvement_store:2|hardware_store:1	True
+moveis teixeira	Móveis Teixeira	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+webmoveis	Webmóveis	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+mira serra	Mira Serra	3	0	store	tobacco	1.0	tobacco_shop	tobacco_shop:3	False
+cigavapor	Cigavapor	3	0	store	e_cigarette	1.0	e_cigarette_store	e_cigarette_store:3	False
+stefanel official	Stefanel Official	3	0	store	womens_clothing	1.0	womens_clothing_store	womens_clothing_store:3	False
+grandoptical portugal	GrandOptical Portugal	3	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3	True
+wells continente	Wells, Continente	3	0	store	drugstore	1.0	drugstore	drugstore:3	False
+pcdiga	PCDiga	3	0	store	electronics	1.0	electronics	electronics:3	True
+opticlasse	Opticlasse	3	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3	False
+opticalia centro	Opticalia Centro	3	1	store	fashion_accessories	1.0	fashion_accessories_store	fashion_accessories_store:2|shopping:1	True
+globaldata	Globaldata	3	0	store	electronics	1.0	electronics	electronics:2|computer_store:1	False
+susanagateira	Susanagateira	3	0	store	sports	0.667	sporting_goods	sporting_goods:2|boutique:1	False
+estores e	Estores e	3	0	store	home	1.0	linen	linen:3	False
+skechers	Skechers	3	0	store	shoes	1.0	shoe_store	shoe_store:3	True
+casual	Casual	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+ourivesaria marques	Ourivesaria Marques	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+decathlon express	Decathlon Express	3	1	store	sports	1.0	sporting_goods	sporting_goods:2|shopping:1	True
+new concept	New Concept	3	0	store	clothing	0.667	clothing_store	clothing_store:2|cosmetic_and_beauty_supplies:1	False
+cupa stone	Cupa Stone	3	0	store	hardware	1.0	building_supply_store	building_supply_store:3	False
+ribeiro s	Ribeiro's Bike	3	0	store	bicycle	0.667	bicycle_shop	bicycle_shop:2|furniture_store:1	False
+pequenos e	Pequenos e	3	0	store	toys	0.667	toy_store	toy_store:2|clothing_store:1	False
+inoxtubo	Inoxtubo	3	0	store	any	0.667	superstore	superstore:2|building_supply_store:1	False
+one watch	One Watch	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+ourivesaria ferreira	Ourivesaria Ferreira	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+carla alves	Carla Alves	3	0	store	clothing	0.667	clothing_store	clothing_store:2|linen:1	False
+minisom vila	Minisom Vila	3	0	store	hearing_aid_provider	1.0	hearing_aid_provider	hearing_aid_provider:3	False
+irmaos silva	Irmãos Silva	3	0	store	hardware	0.667	building_supply_store	building_supply_store:2|appliance_store:1	False
+queijaria flor	Queijaria Flor	3	0	store	cheese	1.0	cheese_shop	cheese_shop:3	False
+ourivesaria pedro	Ourivesaria Pedro	3	1	store	jewelry	1.0	jewelry_store	jewelry_store:2|shopping:1	False
+sapataria silva	Sapataria Silva	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+mg kids	MG Kids	3	0	store	childrens_clothing	0.667	childrens_clothing_store	childrens_clothing_store:2|clothing_store:1	False
+tudo a	Tudo a	3	0	store	clothing	0.667	clothing_store	clothing_store:2|furniture_store:1	False
+closet by	Closet by	3	0	store	clothing	0.667	clothing_store	clothing_store:2|fashion:1	False
+petit dreams	Petit Dreams	3	1	store	childrens_clothing	1.0	childrens_clothing_store	childrens_clothing_store:2|shopping:1	False
+paula costa	Paula Costa	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+tien21	Tien21	3	0	store	electronics	1.0	appliance_store	appliance_store:2|electronics:1	False
+moveis fernando	Móveis Fernando	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+knock knock	Knock Knock	3	0	store	arts_and_crafts	0.667	arts_and_crafts	arts_and_crafts:2|clothing_store:1	False
+nico kids	NICO Kids	3	0	store	childrens_clothing	1.0	childrens_clothing_store	childrens_clothing_store:3	False
+botton	Botton	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+homa vila	hôma Vila	3	0	store	home	1.0	home_goods_store	home_goods_store:2|home_decor:1	True
+prof shoes	PROF Shoes	3	0	store	shoes	1.0	shoe_store	shoe_store:3	False
+urban project	Urban Project	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+bella boutique	Bella Boutique	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+urban style	Urban Style	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+lojapro	Lojapro	3	0	store	medical_supply	1.0	medical_supply	medical_supply:3	False
+manuel jose	Manuel José	3	0	store	hardware	0.667	building_supply_store	building_supply_store:1|lawn_mower_store:1|hardware_store:1	False
+new store	New Store	3	0	store	shoes	0.667	shoe_store	shoe_store:2|clothing_store:1	False
+kaprichos	Kaprichos	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+ourivesaria central	Ourivesaria Central	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+seletivedeta texteis	Seletivedeta Texteis	3	0	store	lingerie	0.667	lingerie_store	lingerie_store:2|clothing_store:1	False
+pes de	Pés de	3	0	store	shoes	0.667	shoe_store	shoe_store:2|sports_wear:1	False
+mv oticas	MV Óticas	3	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3	False
+ferragens do	Ferragens do'	3	0	store	hardware	1.0	hardware_store	hardware_store:3	False
+cosmetica do	Cosmética do	3	0	store	beauty	1.0	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:3	False
+garrafeira marques	Garrafeira Marques	3	0	store	wine_and_spirits	1.0	liquor_store	liquor_store:3	False
+tabacaria mimos	Tabacaria Mimos	3	0	store	tobacco	1.0	tobacco_shop	tobacco_shop:3	False
+papelaria papiro	Papelaria Papiro	3	0	store	arts_and_crafts	0.667	arts_and_crafts	arts_and_crafts:2|office_equipment:1	False
+ourivesaria antonio	Ourivesaria António	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+tecidos de	Tecidos de	3	1	store	fabric	1.0	fabric_store	fabric_store:2|shopping:1	False
+lapis de	Lapis De	3	0	store	books	0.667	bookstore	bookstore:2|childrens_clothing_store:1	False
+aguarela	Aguarela	3	1	store	arts_and_crafts	1.0	arts_and_crafts	arts_and_crafts:2|shopping:1	False
+ourivesaria dias	Ourivesaria Dias	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+moveis andrade	Móveis Andrade	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+luxus	Luxus	3	0	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:2|furniture_store:1	False
+auto escapes	Auto Escapes	3	0	store	auto_parts_and_supply	1.0	auto_parts_and_supply_store	auto_parts_and_supply_store:3	False
+bigmat city	BIGMAT CITY	3	0	store	hardware	1.0	building_supply_store	building_supply_store:2|hardware_store:1	False
+teelegend	TeeLegend	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+moveis sousa	Móveis Sousa	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+nutribio	NutriBio	3	0	store	vitamins_and_supplements	0.667	vitamins_and_supplements	vitamins_and_supplements:2|health_food_store:1	False
+eugenio campos	Eugénio Campos	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+belmoda	Belmoda	3	0	store	clothing	0.667	clothing_store	clothing_store:2|womens_clothing_store:1	False
+perfumaria dubai	Perfumaria Dubai	3	0	store	beauty	0.667	cosmetic_and_beauty_supplies	cosmetic_and_beauty_supplies:2|superstore:1	False
+marella	Marella	3	0	store	womens_clothing	0.667	womens_clothing_store	womens_clothing_store:2|clothing_store:1	False
+otica adao	Ótica -	3	0	store	photography_store_and_services	0.667	photography_store_and_services	photography_store_and_services:2|eyewear_and_optician:1	False
+macovex	Macovex	3	0	store	hardware	1.0	building_supply_store	building_supply_store:3	False
+moveis ferreira	Móveis Ferreira	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+porto sc	PORTO SC	3	0	store	clothing	1.0	clothing_store	clothing_store:3	False
+presidente optica	Presidente Óptica	3	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3	False
+tek4life	Tek4life	3	0	store	electronics	1.0	computer_store	computer_store:3	False
+moveis monteiro	Móveis Monteiro	3	0	store	furniture	0.667	furniture_store	furniture_store:2|home_improvement_store:1	False
+optica pepura	Optica Pepura	3	0	store	eyewear_and_optician	1.0	eyewear_and_optician	eyewear_and_optician:3	False
+fullbike	FullBike	3	0	store	bicycle	1.0	bicycle_shop	bicycle_shop:3	False
+moveis j	Móveis J.C.	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+lacos com	Laços com	3	0	store	childrens_clothing	0.667	childrens_clothing_store	childrens_clothing_store:2|clothing_store:1	False
+moveis branco	Móveis Branco	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+ourivesaria julio	Ourivesaria Júlio	3	0	store	jewelry	1.0	jewelry_store	jewelry_store:3	False
+petit pomme	Petit Pomme	3	0	store	childrens_clothing	0.667	childrens_clothing_store	childrens_clothing_store:2|clothing_store:1	False
+bambini	Bambini	3	0	store	childrens_clothing	0.667	childrens_clothing_store	childrens_clothing_store:2|mens_clothing_store:1	False
+berco de	Berço de	3	0	store	clothing	0.667	clothing_store	clothing_store:2|childrens_clothing_store:1	False
+moveis coelho	Moveis Coelho	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+ind arte	Ind'Arte Loja	3	0	store	furniture	0.667	furniture_store	furniture_store:2|home_improvement_store:1	False
+moveis ribeiro	Móveis Ribeiro	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+moveis rodrigues	Móveis Rodrigues	3	0	store	furniture	1.0	furniture_store	furniture_store:3	False
+bragaware	Bragaware	3	1	store	electronics	1.0	computer_store	computer_store:1|electronics:1|shopping:1	False
+bigmat martins	BIGMAT MARTINS	3	0	store	hardware	1.0	building_supply_store	building_supply_store:3	False
