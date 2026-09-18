@@ -290,5 +290,158 @@ class ByLeafTest(unittest.TestCase):
         self.assertEqual([(x['fsq_place_id'], y['fsq_place_id']) for x, y, _ in near], [('fsq-1', 'fsq-3')])
 
 
+ARCHIVE_FIELDS = ['fsq_place_id', 'name', 'latitude', 'longitude', 'address', 'locality', 'category_ids', 'category_labels']
+VIEWPOINT_ID = '4bf58dd8d48988d165941735'
+
+
+def write_archive(path, rows):
+    import csv
+    with open(path, 'w', newline='') as handle:
+        writer = csv.DictWriter(handle, fieldnames=ARCHIVE_FIELDS)
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({'category_ids': VIEWPOINT_ID, 'category_labels': 'Landmarks and Outdoors > Scenic Lookout',
+                             'locality': '', **row})
+
+
+class ReviewFixesTest(unittest.TestCase):
+    """PR #424 review: the cache is bound to its key, coordinates are a pair,
+    D1Error is a transient too, and curated counterparts come from every
+    active type the family accepts."""
+
+    def setUp(self):
+        import tempfile
+        self.work_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.work_dir, ignore_errors=True)
+
+    def test_cached_file_for_key_a_is_not_reused_for_key_b(self):
+        from unittest import mock
+        import run_evidence_join
+        fetched = []
+
+        def fake_r2_get(key, local_path):
+            fetched.append(key)
+            with open(local_path, 'w') as handle:
+                handle.write(key)
+            return local_path
+
+        with mock.patch.object(run_evidence_join, 'r2_get', fake_r2_get):
+            first = preflight.fetch_if_missing('sources/PT/a.csv', self.work_dir, 'foursquare')
+            again = preflight.fetch_if_missing('sources/PT/a.csv', self.work_dir, 'foursquare')
+            second = preflight.fetch_if_missing('sources/PT/b.csv', self.work_dir, 'foursquare')
+        self.assertEqual(first, again)
+        self.assertNotEqual(first, second)
+        self.assertEqual(fetched, ['sources/PT/a.csv', 'sources/PT/b.csv'])
+        with open(first) as handle:
+            self.assertEqual(handle.read(), 'sources/PT/a.csv')
+        with open(second) as handle:
+            self.assertEqual(handle.read(), 'sources/PT/b.csv')
+        with open(first + '.key') as handle:
+            self.assertEqual(handle.read().strip(), 'sources/PT/a.csv')
+
+    def test_a_cached_file_whose_key_record_disagrees_is_refused(self):
+        path = preflight.cached_path(self.work_dir, 'foursquare', 'sources/PT/a.csv')
+        with open(path, 'w') as handle:
+            handle.write('stale')
+        with open(path + '.key', 'w') as handle:
+            handle.write('sources/PT/other.csv\n')
+        with self.assertRaises(SystemExit):
+            preflight.fetch_if_missing('sources/PT/a.csv', self.work_dir, 'foursquare')
+
+    def test_half_coordinates_become_none_and_zero_survives(self):
+        self.assertEqual(preflight.archive_coordinates({'latitude': '38.7', 'longitude': ''}), (None, None))
+        self.assertEqual(preflight.archive_coordinates({'latitude': '', 'longitude': '-9.1'}), (None, None))
+        self.assertEqual(preflight.archive_coordinates({'latitude': None, 'longitude': None}), (None, None))
+        self.assertEqual(preflight.archive_coordinates({'latitude': '0.0', 'longitude': '0.0'}), (0.0, 0.0))
+        self.assertEqual(preflight.archive_coordinates({'latitude': ' 38.7 ', 'longitude': '-9.1'}), (38.7, -9.1))
+
+    def test_half_coordinate_rows_are_suspect_in_both_loaders(self):
+        path = os.path.join(self.work_dir, 'archive.csv')
+        write_archive(path, [
+            {'fsq_place_id': 'half', 'name': 'Miradouro Meio', 'latitude': str(LAT), 'longitude': ''},
+            {'fsq_place_id': 'zero', 'name': 'Miradouro Zero', 'latitude': '0.0', 'longitude': '0.0'},
+        ])
+        primary, also = preflight.type_mapping(preflight.CANDIDATE_TYPES)
+        rows_by_type, _, _, _, owners, _ = preflight.load_archive(
+            path, primary, also, load_financial_service_name_rules(), preflight.CANDIDATE_TYPES)
+        by_id = {r['fsq_place_id']: r for r in rows_by_type['viewpoint']}
+        self.assertEqual((by_id['half']['lat'], by_id['half']['lng']), (None, None))
+        self.assertEqual((by_id['zero']['lat'], by_id['zero']['lng']), (0.0, 0.0))
+        self.assertEqual(dict(owners), {(0.0, 0.0): ['zero']})
+        rows_by_leaf, _, owners, _ = preflight.load_archive_by_leaf(path)
+        by_id = {r['fsq_place_id']: r for r in rows_by_leaf['Scenic Lookout']}
+        self.assertEqual((by_id['half']['lat'], by_id['half']['lng']), (None, None))
+        self.assertEqual(dict(owners), {(0.0, 0.0): ['zero']})
+        # And the half row never reaches the matcher: it is 'no coordinates', not a crash.
+        self.assertEqual(preflight.classify_record(by_id['half'], None, preflight.grid_index([]), owners, {}),
+                         ('suspect', 'no coordinates', None))
+
+    def test_d1_error_is_retried_and_429_stops(self):
+        # d1_client needs `requests`, which an operator's machine may lack;
+        # the module resolves the exception type the same way d1_read does.
+        from unittest import mock
+        D1Error = preflight.d1_error_type()
+        calls = []
+
+        def flaky(sql):
+            calls.append(sql)
+            if len(calls) < 3:
+                raise D1Error('D1 outbound read failed (500): 7500 internal')
+            return [{'poi_id': 'c1'}]
+
+        with mock.patch.object(preflight, 'run_d1_query', flaky):
+            self.assertEqual(preflight.d1_read('SELECT 1'), [{'poi_id': 'c1'}])
+        self.assertEqual(len(calls), 3)
+
+        def always(sql):
+            raise D1Error('D1 reported read failure: 7403 not authorized')
+        with mock.patch.object(preflight, 'run_d1_query', always), self.assertRaises(SystemExit) as stop:
+            preflight.d1_read('SELECT 1')
+        self.assertIn('3 times', str(stop.exception))
+
+        def limited(sql):
+            calls.append('429')
+            raise D1Error('D1 outbound read failed (429): slow down')
+        calls.clear()
+        with mock.patch.object(preflight, 'run_d1_query', limited), self.assertRaises(SystemExit) as stop:
+            preflight.d1_read('SELECT 1')
+        self.assertIn('429', str(stop.exception))
+        self.assertEqual(calls, ['429'])
+
+    def test_curated_read_is_not_restricted_to_candidate_types(self):
+        from unittest import mock
+        seen = []
+        with mock.patch.object(preflight, 'd1_read', lambda sql: seen.append(sql) or []):
+            preflight.served_curated_all()
+        self.assertEqual(len(seen), 1)
+        self.assertIn("status = 'active'", seen[0])
+        self.assertNotIn('primary_poi_type IN', seen[0])
+        self.assertFalse(hasattr(preflight, 'served_curated'))
+
+    def test_typed_run_finds_a_curated_park_as_the_viewpoint_counterpart(self):
+        # `park` is outside the candidate types but inside LANDMARK_FAMILY: the
+        # curated read must bring it, or an archived viewpoint 8 m away is "unique".
+        from unittest import mock
+        archive_path = os.path.join(self.work_dir, 'archive.csv')
+        write_archive(archive_path, [{'fsq_place_id': 'v', 'name': 'Miradouro da Bela Vista',
+                                      'latitude': str(LAT + 8 * M), 'longitude': str(LNG)}])
+        overture_path = os.path.join(self.work_dir, 'overture.csv')
+        with open(overture_path, 'w') as handle:
+            handle.write('overture_id,name,lat,lng,address,locality,category,basic_category,category_path,confidence,source_datasets\n')
+        curated = [served('Parque da Bela Vista', 0, 'park', 'curated')]
+        with mock.patch.object(preflight, 'served_curated_all', lambda: curated), \
+                mock.patch.object(preflight, 'foursquare_corrections', lambda: []):
+            summary = preflight.run(_Args(archive_csv=archive_path, overture_csv=overture_path, skip_d1=False,
+                                          report_out=os.path.join(self.work_dir, 'report.md'), types='viewpoint'))
+        self.assertEqual(summary['curated_rows'], 1)
+        self.assertEqual(summary['types']['viewpoint']['matched'], 1)
+        self.assertEqual(summary['types']['viewpoint']['unique'], 0)
+        with open(os.path.join(self.work_dir, 'report.md')) as handle:
+            self.assertIn('Curated rows (active, all types', handle.read())
+
+
 if __name__ == '__main__':
     unittest.main()

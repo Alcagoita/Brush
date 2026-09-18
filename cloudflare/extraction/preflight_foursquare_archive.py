@@ -23,8 +23,8 @@ entry in poiTypeCategories.json (`build_reverse_map`), then the bank/ATM and
 financial-service name rules. The `also` ids that category_ids.py extracts
 on are counted separately, because the classifier never reads them.
 
-No D1 writes, no R2 writes. D1 reads are two bounded queries (active curated
-rows of the candidate types; Foursquare-keyed poi_source_correction rows),
+No D1 writes, no R2 writes. D1 reads are two bounded queries (every active
+curated row; Foursquare-keyed poi_source_correction rows),
 both skippable with --skip-d1. The archive is fetched from R2 once into the
 work dir and never rewritten.
 
@@ -181,13 +181,36 @@ def defunct_bank(dedupe_name):
 
 # ---------------------------------------------------------------------------- inputs
 
-def fetch_if_missing(key, local_path):
-    """The R2 object at `key`, downloaded once into the work dir."""
+def cached_path(work_dir, stem, key):
+    """Where the R2 object at `key` lives in the work dir. The name carries
+    the key's digest, so a run with a different --archive-key or
+    --overture-key can never pick up the CSV fetched for another one (and
+    apply that key's overrides to it). The key itself sits beside the file
+    for a person to read."""
+    import hashlib
+    digest = hashlib.sha256(key.encode()).hexdigest()[:12]
+    return os.path.join(work_dir, f'{stem}-{digest}.csv')
+
+
+def fetch_if_missing(key, work_dir, stem):
+    """The R2 object at `key`, downloaded once into the work dir under a
+    key-specific name and never rewritten."""
+    local_path = cached_path(work_dir, stem, key)
+    key_path = local_path + '.key'
     if os.path.exists(local_path):
+        recorded = None
+        if os.path.exists(key_path):
+            with open(key_path) as handle:
+                recorded = handle.read().strip()
+        if recorded != key:
+            raise SystemExit(f'{local_path} was fetched for {recorded!r}, not {key!r}; remove it to refetch')
         return local_path
     from run_evidence_join import r2_get
-    os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    return r2_get(key, local_path)
+    os.makedirs(work_dir, exist_ok=True)
+    r2_get(key, local_path)
+    with open(key_path, 'w') as handle:
+        handle.write(key + '\n')
+    return local_path
 
 
 def type_mapping(candidate_types):
@@ -229,6 +252,17 @@ def classify_archive_row(row, primary, also, financial_rules):
     return types, also_only, retyped_to
 
 
+def archive_coordinates(row):
+    """(lat, lng) as a pair: both parsed, or both None. A row with one half
+    of a coordinate has no position — 0.0 is a value, an empty cell is not —
+    and must never reach the grid, the twin check or the matcher as a
+    half-point."""
+    lat, lng = (row.get('latitude') or '').strip(), (row.get('longitude') or '').strip()
+    if not lat or not lng:
+        return None, None
+    return float(lat), float(lng)
+
+
 def load_archive(path, primary, also, financial_rules, candidate_types):
     """Archive rows of the candidate types, plus the counters the report needs."""
     wanted = set(candidate_types)
@@ -249,13 +283,13 @@ def load_archive(path, primary, also, financial_rules, candidate_types):
             hit = types & wanted
             if not hit:
                 continue
-            lat, lng = (row.get('latitude') or '').strip(), (row.get('longitude') or '').strip()
+            lat, lng = archive_coordinates(row)
             record = {
                 'fsq_place_id': row['fsq_place_id'],
                 'name': row['name'].strip(),
                 'dedupe_name': normalize_text(row['name']),
-                'lat': float(lat) if lat else None,
-                'lng': float(lng) if lng else None,
+                'lat': lat,
+                'lng': lng,
                 'locality': (row.get('locality') or '').strip(),
                 'label': (row.get('category_labels') or '').split('|')[0],
                 'types': sorted(hit),
@@ -303,6 +337,20 @@ def served_overture(overture_csv, overture_key):
 D1_READ_ATTEMPTS = 3
 
 
+class _D1ClientUnavailable(Exception):
+    """Stands in for d1_client.D1Error where d1_client cannot import (no
+    `requests` on an operator's machine). There run_d1_query goes through
+    wrangler and can only raise CalledProcessError, so nothing is lost."""
+
+
+def d1_error_type():
+    try:
+        import d1_client
+    except ImportError:
+        return _D1ClientUnavailable
+    return d1_client.D1Error
+
+
 def d1_read(sql):
     """One bounded read, retried the way CLAUDE.md's D1 rule says: transient
     failures (7403 "not authorized", 7500, a wrangler hiccup on a valid
@@ -310,25 +358,32 @@ def d1_read(sql):
     first by-leaf run died on exactly such a hiccup after three minutes of
     classification."""
     import subprocess
-    last = None
+    last = ''
     for attempt in range(1, D1_READ_ATTEMPTS + 1):
         try:
             return run_d1_query(sql)
-        except subprocess.CalledProcessError as error:
-            output = f'{error.stdout or ""}{error.stderr or ""}'
+        except (subprocess.CalledProcessError, d1_error_type()) as error:
+            # wrangler (local runs) raises CalledProcessError; inside the
+            # container run_d1_query goes through d1_client and raises
+            # D1Error. Both are the same transient hiccup to this loop.
+            if isinstance(error, subprocess.CalledProcessError):
+                output = f'{error.stdout or ""}{error.stderr or ""}'
+            else:
+                output = str(error)
             if '429' in output:
                 raise SystemExit(f'D1 answered 429; stopping. {output[-500:]}')
-            last = error
+            last = output
             print(f'[preflight] D1 read failed (attempt {attempt}/{D1_READ_ATTEMPTS}): {output[-300:].strip()}', file=sys.stderr)
-    raise SystemExit(f'D1 read failed {D1_READ_ATTEMPTS} times: {(last.stdout or "") + (last.stderr or "")}'[-1000:])
+    raise SystemExit(f'D1 read failed {D1_READ_ATTEMPTS} times: {last}'[-1000:])
 
 
-def served_curated(candidate_types):
-    """Active curated rows of the candidate types — one bounded query."""
-    quoted = ', '.join(f"'{t}'" for t in candidate_types)
-    rows = d1_read(
-        'SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi '
-        f"WHERE status = 'active' AND primary_poi_type IN ({quoted})")
+def served_curated_all():
+    """Every active curated row — 294 in production, one bounded read.
+    All types, not only the candidate ones: `same_family` accepts a match
+    on any type of the family (an archived viewpoint against a curated
+    park), and the Overture side of the base is already every promoted
+    type, so a curated business can be the 'other kind' counterpart too."""
+    rows = d1_read("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
     return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
              'lat': float(r['lat']), 'lng': float(r['lng']), 'type': r['primary_poi_type']} for r in rows]
 
@@ -544,7 +599,7 @@ def render(context):
     out.append(f"- Overture base: `{c['overture_key']}` — {c['overture_stats'].get('promoted', 0):,} promoted of "
                f"{sum(c['overture_stats'].values()):,} rows under the committed overrides "
                f"({', '.join(f'{k} {v:,}' for k, v in sorted(c['overture_stats'].items()))}).")
-    out.append(f"- Curated rows of the candidate types (active): {c['curated_count']:,}"
+    out.append(f"- Curated rows (active, all types — a match may land on any type of the family): {c['curated_count']:,}"
                + ('' if c['d1'] else ' — **D1 not read (`--skip-d1`)**') + '.')
     out.append('- MULTIBANCO: not read. `atm` is excluded from recovery, so no archive row is compared against it.')
     out.append(f"- Matcher: `supplement_osm_pois.names_match` (name_similarity ≥ {NAME_SIMILARITY_THRESHOLD} within "
@@ -641,8 +696,8 @@ def run(args):
     if excluded:
         raise SystemExit(f"{', '.join(excluded)} is excluded from recovery (MULTIBANCO is the ATM source)")
     work_dir = args.work_dir
-    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, os.path.join(work_dir, 'foursquare.csv'))
-    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, os.path.join(work_dir, 'overture.csv'))
+    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, work_dir, 'foursquare')
+    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, work_dir, 'overture')
 
     primary, also = type_mapping(candidate_types)
     financial_rules = load_financial_service_name_rules()
@@ -654,7 +709,7 @@ def run(args):
         archive_csv, primary, also, financial_rules, candidate_types)
     print(f'[preflight] deciding Overture base {overture_csv}', file=sys.stderr)
     served, overture_stats = served_overture(overture_csv, args.overture_key)
-    curated = [] if args.skip_d1 else served_curated(candidate_types)
+    curated = [] if args.skip_d1 else served_curated_all()
     corrections = [] if args.skip_d1 else foursquare_corrections()
     grid = grid_index(served + curated)
     served_counts = Counter(place['type'] for place in served + curated)
@@ -767,11 +822,11 @@ def load_archive_by_leaf(path):
             leaves = leaf_paths(row)
             if not leaves:
                 continue
-            lat, lng = (row.get('latitude') or '').strip(), (row.get('longitude') or '').strip()
+            lat, lng = archive_coordinates(row)
             record = {
                 'fsq_place_id': row['fsq_place_id'], 'name': row['name'].strip(),
                 'dedupe_name': normalize_text(row['name']),
-                'lat': float(lat) if lat else None, 'lng': float(lng) if lng else None,
+                'lat': lat, 'lng': lng,
                 'locality': (row.get('locality') or '').strip(),
                 'label': (row.get('category_labels') or '').split('|')[0],
                 'types': sorted({leaf for leaf, _ in leaves}),
@@ -957,17 +1012,10 @@ def render_by_leaf(c):
     return '\n'.join(out)
 
 
-def served_curated_all():
-    """Every active curated row — 294 in production, one bounded read."""
-    rows = d1_read("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
-    return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
-             'lat': float(r['lat']), 'lng': float(r['lng']), 'type': r['primary_poi_type']} for r in rows]
-
-
 def run_by_leaf(args):
     work_dir = args.work_dir
-    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, os.path.join(work_dir, 'foursquare.csv'))
-    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, os.path.join(work_dir, 'overture.csv'))
+    archive_csv = args.archive_csv or fetch_if_missing(args.archive_key, work_dir, 'foursquare')
+    overture_csv = args.overture_csv or fetch_if_missing(args.overture_key, work_dir, 'overture')
 
     print(f'[preflight] reading archive by leaf {archive_csv}', file=sys.stderr)
     rows_by_leaf, paths_by_leaf, coordinate_owners, archive_total = load_archive_by_leaf(archive_csv)
