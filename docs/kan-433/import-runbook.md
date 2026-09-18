@@ -1,0 +1,182 @@
+# KAN-433 — Foursquare tourism import: runbook
+
+`cloudflare/extraction/import_foursquare_tourism.py` recovers the Tier 1
+tourism leaves of the Foursquare OS Places archive as `curated_poi` rows.
+Dry run by default; `--emit` writes. Nothing is ever updated or deleted.
+
+Owner decisions it implements: the leaf → type table and the dedupe
+contract in Jira KAN-433 (comments of 2026-09-18), as data in
+`docs/kan-433/leaf-type-map.json`. Edit the JSON, not the script.
+
+## What a row becomes
+
+One `curated_poi` row, shaped like a moderator-approved place (the Worker's
+own insert in `src/index.ts`) plus the KAN-452 provenance columns:
+
+| column | value |
+|---|---|
+| `poi_id` | `fsq:<fsq_place_id>` |
+| `source` | `community` |
+| `name`, `dedupe_name` | the archive name, `normalize_text` of it (a `poi_source_correction` `name_override` wins) |
+| `lat`, `lng`, `geohash` | archive coordinates, `encode_geohash(lat, lng, 7)` |
+| `primary_poi_type` | the first type of the first matching rule in the map |
+| `address` | `address, locality` from the archive, or NULL |
+| `status` | `active` |
+| `created_at`/`updated_at`, `created_by`/`updated_by` | `imported_at`, `kan-433` |
+| `origin_source`, `origin_id`, `origin_licence` | `foursquare_os_places`, the fsq id, `Apache-2.0` |
+| `imported_at`, `import_run_id` | the run's timestamp and `--run-id` |
+
+A row with a second type (Monastery, Shrine, Temple, or a row carrying two
+mapped leaves) gets one `curated_poi_attribute` row, `dimension = poi_type`,
+`value = <second type>`.
+
+**Why an attribute:** `curated_poi` has one `primary_poi_type` and there is
+no `curated_poi_type` table (Overture has `overture_poi_type`; curated never
+needed one). `/poi/nearby` filters curated rows on `primary_poi_type` only,
+so today a Monastery is found by a `historical_landmark` search and not by a
+`church` search. The second type is kept where nothing is lost and the
+Worker can start reading it with a one-line join (`curated_poi_attribute`
+is already LEFT JOINed in that query). Serving it is a follow-up, not this
+ticket.
+
+## Dedupe, exactly
+
+Against everything served — Overture promoted rows (decided with the
+committed overrides, as the preflight does), active `curated_poi` rows, and
+MULTIBANCO — type-blind:
+
+1. **Matched** = KAN-388 `names_match` within 75 m. Skipped.
+2. **Suspect** = same or near-same name 75–400 m away (`name_similarity ≥
+   0.9`: equal, containment, or the same identity terms reordered).
+   Skipped as a likely stale coordinate. The matcher's fuzzy
+   `SequenceMatcher ≥ 0.72` rung is *not* used at this distance: at 300 m
+   it calls "Castelo de Guimarães" and "Liceu de Guimarães" one place. Rows
+   that only that rung would have flagged are imported and listed in the
+   report under "Fuzzy far names" as a look-list.
+3. Different names at the same point: all imported. Distance alone never
+   skips.
+4. Inside the batch: two archive rows whose names match within 75 m are
+   one place; the lower fsq id is kept and the other's types are folded
+   into it.
+5. Also skipped, reported separately: no coordinates; empty name; a
+   `poi_source_correction` with `visible = 0` on the fsq id; "weak names"
+   (only type words — "Castelo" — or only the town), which the contract did
+   not mention and the owner can flip.
+
+## Prerequisites for `--emit`
+
+1. **Migration 0042 applied to production.** The migration tracker is not
+   in use, so check by querying:
+
+   ```
+   cd cloudflare
+   npx wrangler d1 execute brush-poi-registry --remote --json \
+     --command "PRAGMA table_info(curated_poi)" | grep -c origin_
+   ```
+
+   Expect `3` (`origin_source`, `origin_id`, `origin_licence`; plus
+   `imported_at`, `import_run_id` in the full list). `0` means apply it:
+
+   ```
+   npx wrangler d1 execute brush-poi-registry --remote --file migrations/0042_curated_poi_provenance.sql
+   ```
+
+   The importer refuses `--emit` on its own if the column is missing.
+2. **No Worker deploy is needed.** Nearby already reads every active
+   `curated_poi` row by `primary_poi_type`; the new rows are served the
+   moment they exist. (A deploy is needed only for the second-type
+   follow-up above.)
+3. The dry-run report for the run has been read and the owner said go.
+
+## The commands
+
+Dry run (what the committed report was made with; `--imported-at` pins the
+timestamp so two runs diff clean):
+
+```
+cd cloudflare/extraction
+BRUSH_TYPE_RELATION=sql python3 import_foursquare_tourism.py \
+  --archive-key country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv \
+  --overture-key overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv \
+  --tier 1 --run-id kan433-pt-tier1-<YYYYMMDD> \
+  --report-out ../../docs/kan-433/import-PT-kan433-pt-tier1-<YYYYMMDD>-dry-run.md \
+  --sql-out ../../outputs/kan-433/import-PT-tier1.sql
+```
+
+Without `--archive-csv` / `--overture-csv` the two R2 objects are fetched
+once into `outputs/kan-433/` (gitignored) under key-bound names. Local
+copies can be passed instead. D1 reads during a dry run: active curated
+rows (one read), Foursquare-keyed corrections (one read), MULTIBANCO
+distinct names (one read) and, only if a candidate name could match one,
+those rows in ≤150-name lists.
+
+Emit — same arguments plus the two assertions:
+
+```
+BRUSH_TYPE_RELATION=sql python3 import_foursquare_tourism.py \
+  --archive-key country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv \
+  --overture-key overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv \
+  --tier 1 --run-id kan433-pt-tier1-<YYYYMMDD> \
+  --report-out ../../docs/kan-433/import-PT-kan433-pt-tier1-<YYYYMMDD>.md \
+  --emit --i-have-applied-0042
+```
+
+It re-plans against the live base, then sends one bounded statement per
+D1 request (`MAX_STATEMENT_BYTES` = 80,000, ≤ 500 values each; 48
+statements for the PT dry run), never a batch. Transient failures are
+retried three times — safe, every statement is idempotent — and a 429
+stops the run. The report it writes says `EMITTED` and the D1 change count.
+Inside the extraction container (`D1_INTERNAL=1`) the same statements go
+through `d1_client.execute`.
+
+## Verifying afterwards
+
+Through the endpoint, never by SQL counts. `API_KEY` is in
+`cloudflare/.dev.vars`.
+
+```
+for point in "38.6979 -9.2067 historical_landmark" "41.4478 -8.2905 historical_landmark" "39.6594 -8.8256 historical_landmark"; do
+  set -- $point
+  curl -s -X POST https://poi-api.brushaway.app/poi/nearby \
+    -H "X-Api-Key: $API_KEY" -H 'User-Agent: curl/8.0' -H 'Content-Type: application/json' \
+    -d "{\"lat\": $1, \"lng\": $2, \"radiusMeters\": 400, \"types\": [\"$3\"]}" \
+    | python3 -c 'import json,sys; [print(p["source"], p["poi_id"], p["name"], p["primary_poi_type"], p.get("distanceMeters")) for p in json.load(sys.stdin)["pois"]]'
+  echo
+done
+```
+
+Expected, from the dry run:
+
+- **Mosteiro dos Jerónimos 38.6979, -9.2067** — `fsq:4b7a8c17f964a520a5302fe3`
+  "Mosteiro dos Jerónimos" (community, `historical_landmark`) appears; so do
+  Overture's Belém landmarks. No name appears twice with the same source.
+  Note `fsq:5e14cb44a5504400086f956f` "Mosteiro De Santa Maria De Belém" —
+  the same monastery under its formal name, ~100 m away — also imports:
+  different names are different places to the contract. It is on the
+  curation look-list.
+- **Castelo de Guimarães 41.4478, -8.2905** — `fsq:4ccda20c511b236a1480f8c9`
+  "Castelo de Guimarães" appears alongside Overture's rows.
+- **Mosteiro da Batalha 39.6594, -8.8256** — the monastery itself is
+  Overture's (`a972be13-…`), so no `fsq:` row of that name appears; the
+  Foursquare-only `fsq:51f40813498e7ae2d9576515` "Capelas Imperfeitas do
+  Mosteiro da Batalha" does.
+
+Then a `church` search at the first point must **not** return the
+Jerónimos `fsq:` row — its second type is an attribute, not served — which
+is the follow-up's acceptance test.
+
+## Idempotency proof
+
+Run the emit command a second time with a new `--run-id`. The report says
+`Emitted: 0 D1 change(s)` and the log prints `0 change(s)` for every
+statement: the `ON CONFLICT (origin_source, origin_id) … DO NOTHING` target
+is migration 0042's partial unique index. The committed unit test
+(`SqlShapeTest.test_statements_are_idempotent_against_the_0042_index`)
+proves the same against the committed `schema.sql` in sqlite.
+
+## After the import
+
+Re-run the KAN-453 preflight (`--by-leaf`): every imported row must now
+land in *matched*, and each Tier 1 leaf's *unique* count must drop to the
+skips this run reported. That is the measured duplicate-rate check the
+ticket's acceptance asks for.
