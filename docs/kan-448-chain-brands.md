@@ -51,7 +51,17 @@ For a row whose name carries a known store chain:
    there the brand must lead the name, because a supermarket's or bank's
    name is borrowed by everything around it — `Washy Continente`, `Centro
    Comercial Continente`, `Loja CTT`, `Clube Millenniumbcp` — and none of
-   those carries a venue word.
+   those carries a venue word — with the venue rule on top, belt and
+   braces, so `Auchan Gasolineira` is not the supermarket either.
+
+   The reviewed corpus of real names this rule was measured on is
+   `cloudflare/extraction/tests/fixtures/chain_name_corpus.tsv` (name,
+   category, expected decision, reason), run through `decide()` by
+   `tests/test_chain_name_corpus.py`. A new edge case is a new row there.
+   Where no word can decide — `Zara by Castro` is a pastelaria, `Opticalia
+   Farmacia Silveira` is both a pharmacy and an optician — the answer is a
+   reviewed override (`kan455_reviewed_multi_type`; an override may carry
+   a ranked list of types), and 0046 for the rows already served.
 4. **When the name agrees with the category, the category is right.** `IKEA
    Parking` is the car park. `Escola Decathlon` would be a school.
 5. **A generic-word brand matches only when it is the whole name.** `Casa` is

@@ -267,3 +267,84 @@ class SettleLoopTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class VenueWordsTest(unittest.TestCase):
+    """KAN-455 review: the file is validated at load time and phrases win
+    over their words whatever order the file lists them in."""
+
+    def load(self, entries):
+        handle = tempfile.NamedTemporaryFile('w', suffix='.json', delete=False)
+        json.dump(entries, handle)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return promote.load_venue_words(handle.name)
+
+    def test_an_unknown_type_kind_or_category_fails_the_load(self):
+        for bad in ({'x': {'poi_type': 'hotel'}}, {'x': {'store_kind': 'sunglasses'}},
+                    {'x': {'category': 'no_such_category'}}, {'x': {'colour': 'red'}}, {'x': {}}):
+            with self.assertRaises(ValueError, msg=bad):
+                self.load(bad)
+
+    def test_the_committed_file_loads_and_every_entry_is_known(self):
+        words = promote.load_venue_words()
+        self.assertIn('tasquinha', words)
+        self.assertEqual(words['posto']['poi_type'], 'gas')
+        self.assertEqual(promote.CATEGORY_NAME_WORDS['parking'][:1], ['parque de estacionamento'])
+
+    def test_longest_phrase_is_matched_first_whatever_the_file_order(self):
+        words = self.load({'bar': {'poi_type': 'bar'}, 'snack bar': {'poi_type': 'cafe'},
+                           'parque': {'category': 'beach'}, 'parque infantil': {'poi_type': 'playground'}})
+        self.assertEqual(list(words)[:2], ['parque infantil', 'snack bar'])
+        with mock.patch.object(promote, 'VENUE_WORDS', words):
+            # `snack bar` is read as one cafe word, so a cafe chain is not refused by `bar`.
+            self.assertIsNone(promote.venue_contradiction('snack bar nespresso', 'nespresso', 'cafe'))
+            self.assertEqual(promote.venue_contradiction('snack bar decathlon', 'decathlon', 'store', {'sports'}), 'snack bar')
+            # `parque infantil` refuses; bare `parque` is a place word and does not.
+            self.assertEqual(promote.venue_contradiction('parque infantil decathlon', 'decathlon', 'store', {'sports'}), 'parque infantil')
+            self.assertIsNone(promote.venue_contradiction('decathlon parque das nacoes', 'decathlon', 'store', {'sports'}))
+
+
+class MultiTypeOverrideTest(unittest.TestCase):
+    """KAN-455: a reviewed override may carry a ranked list of types, and
+    applies to either generic category."""
+
+    def decide(self, name, category, override):
+        row = {'overture_id': 'x', 'name': name, 'lat': 38.7, 'lng': -9.1, 'address': None,
+               'category': category, 'category_path': None, 'confidence': 0.9, 'source_datasets': None}
+        return promote.decide(row, Fixture.mapping, Fixture.reachable, Fixture.brands, Fixture.kinds,
+                              Fixture.cuisines, Fixture.financial, Fixture.store_brands, {'x': override})
+
+    def test_a_pharmacy_that_is_also_an_optician_carries_both_types(self):
+        status, types, attributes, reason = self.decide(
+            'Opticalia Farmacia Silveira', 'shopping',
+            {'poi_type': ['pharmacy', 'store'], 'store_kind': 'eyewear_and_optician', 'reason': 'reviewed'})
+        self.assertEqual((status, types, attributes), ('promoted', ('pharmacy', 'store'), (('store_kind', 'eyewear_and_optician'),)))
+
+    def test_a_single_type_override_still_works_and_the_empty_category_is_generic(self):
+        status, types, _, _ = self.decide('Zara by Castro', '', {'poi_type': 'bakery', 'reason': 'a pastelaria'})
+        self.assertEqual((status, types), ('promoted', ('bakery',)))
+        status, _, _, reason = self.decide('Auchan Gasolineira', '', {'decision': 'rejected', 'reason': 'gas station'})
+        self.assertEqual((status, reason), ('rejected', 'gas station'))
+
+    def test_invalid_lists_are_refused(self):
+        for override in ({'poi_type': [], 'reason': 'r'},
+                         {'poi_type': ['pharmacy', 'pharmacy'], 'reason': 'r'},
+                         {'poi_type': ['pharmacy', 'store'], 'reason': 'r'},            # store without a kind
+                         {'poi_type': ['pharmacy'], 'store_kind': 'books', 'reason': 'r'},  # kind without store
+                         {'poi_type': ['no_such_type'], 'reason': 'r'}):
+            with self.assertRaises(ValueError, msg=override):
+                self.decide('x', 'shopping', override)
+        with self.assertRaises(ValueError):
+            self.decide('x', 'clothing_store', {'poi_type': 'bakery', 'reason': 'r'})  # a typed row is never overridden
+
+    def test_the_committed_kan455_batch_is_promotable(self):
+        batch = promote.candidate_overrides(
+            'overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv', 'kan455_reviewed_multi_type')
+        self.assertEqual(len(batch), 4)
+        for poi_id, entry in batch.items():
+            row = {'overture_id': poi_id, 'name': 'validation', 'lat': 0.0, 'lng': 0.0, 'address': None,
+                   'category': 'shopping', 'category_path': None, 'confidence': 1.0, 'source_datasets': None}
+            status, *_ = promote.decide(row, Fixture.mapping, Fixture.reachable, Fixture.brands, Fixture.kinds,
+                                        Fixture.cuisines, Fixture.financial, Fixture.store_brands, {poi_id: entry})
+            self.assertIn(status, ('promoted', 'rejected'), poi_id)

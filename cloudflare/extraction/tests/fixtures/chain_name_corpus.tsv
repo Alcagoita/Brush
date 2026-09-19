@@ -1,0 +1,80 @@
+name	category	expected	reason
+Cafetaria LIDL Sesimbra		refused	KAN-455 decision 3: the café inside a supermarket; cafetaria refuses
+Papelaria/Tabacaria Intermarché De Palmela		refused	papelaria refuses the supermarket chain
+Papelaria Intermarché Alfena		refused	papelaria refuses the supermarket chain
+Snack Bar O Celeiro		refused	snack bar refuses Celeiro
+Restaurante "O Celeiro" / Loja da Ana		refused	restaurante refuses Celeiro
+Cafetaria "Tempo Caffé - Supermercado Auchan"		refused	cafetaria refuses Auchan
+Atlântico pizzaria S. FÉLIX		refused	pizzaria; atlantico is a generic word (whole name only)
+Salsa e Canela	shopping	pending	salsa is a generic word; a place to eat
+Tasquinha O Salsa		pending	tasquinha; salsa is a generic word
+Wok to Walk IKEA Matosinhos		pending	wok refuses IKEA
+Humana Mente		pending	humana is a generic word; a clinic
+Humana - O seu espaço de saúde		pending	humana is a generic word; a clinic
+AM Rebouças Tintas CIN		chain:hardware	residual: owner says not CIN, but tintas is hardware and nothing contradicts
+Zara by Castro		chain:clothing	residual by rule; the reviewed override (kan455_reviewed_multi_type) makes it a bakery
+Auchan Gasolineira		pending	gasolineira refuses the supermarket fallback (belt and braces); the reviewed exclusion rejects it
+Óptica Vodafone		pending	optica (eyewear) refuses the telecom chain
+Parque Infantil Decathlon	school	refused	parque infantil (playground) refuses Decathlon; the row keeps its category
+Loja MEO Braga	shopping	chain:phone	a branch with a shop word before the brand
+Loja Vodafone Braga	shopping	chain:phone	a branch with a shop word before the brand
+Loja Meo Continente de Viseu- Marisa Coelho		chain:phone	a MEO shop inside a Continente; MEO decides
+Loja MEO TMN Lamego - Rua Cândido dos Reis	mobile_phone_store	chain:phone	the chain's kind replaces the category's
+Loja do Gato Preto	furniture_store	chain:home	the chain's kind replaces furniture
+A Loja do Gato Preto	furniture_store	chain:home	leading article
+Lojas Mr. Blue	mens_clothing_store	chain:clothing	plural shop word
+Ópticas MultiOpticas Faro		chain:eyewear_and_optician	opticas agrees with an optician chain
+Ópticas MultiOpticas Ericeira	hobby_shop	chain:eyewear_and_optician	the chain's kind replaces a wrong category
+Ópticas GrandOptical Almada Forum Almada	photography_store_and_services	chain:eyewear_and_optician	the chain's kind replaces a wrong category
+Óptica35 Várzeas Leiria - Optivisão		chain:eyewear_and_optician	optica agrees with an optician chain
+Audiologista Rio De Mouro - Alain Afflelou Audiologista	shopping	chain:eyewear_and_optician	audiologista is the optician kind
+Armazém Conforama Palmela		chain:furniture+home	armazém fits every store
+Armazem Conforama Palmela CDC		chain:furniture+home	unaccented spelling
+The Phone House	shopping	chain:phone	the article is part of the brand
+LA Outlet by Lanidor		chain:clothing	outlet fits every store
+Elvas Lanidor		chain:clothing	place name before the brand
+A Desportiva Adidas		chain:shoes+sports	descriptive prefix
+Decathlon Albufeira	school	chain:bicycle+sports	KAN-448: the chain overrules a non-commercial category
+Decathlon Albufeira	shopping	chain:bicycle+sports	generic shopping
+Decathlon Parque das Nações	shopping	chain:bicycle+sports	parque is a place word, category-only
+Desportos Aquáticos Decathlon Algarve	shopping	chain:bicycle+sports	nothing contradicts the chain
+Worten - Praia da Vitória	electronics	chain:electronics+phone	praia is a place word, category-only
+Worten Parque Nascente		chain:electronics+phone	parque is a place word
+Mr. Blue Estação Viana Shopping	mens_clothing_store	chain:clothing	estacao is a place word, category-only
+PRIMOR Estação		chain:beauty	estacao is a place word
+Benfica Official Store Jardim Regedor	shopping	chain:club_store	jardim is not a venue word
+IKEA Parking	parking	refused	the name agrees with the category (rule 4)
+Escola Decathlon	school	refused	the name agrees with the category (rule 4)
+Em Forma - Café Decathlon	cafe	refused	a commercial category is never overruled (rule 2)
+Nespresso	coffee_shop	refused	a commercial category is never overruled (rule 2)
+C&A Colombo	shopping	chain:clothing	the ampersand rule accepts the tight form
+C.A. Residência Sénior	shopping	refused	the ampersand rule (initials) refuses
+Casa do Rum	liquor_store	refused	casa is a generic word (rule 5)
+Casa das Dores	shopping	pending	casa is a generic word; nothing else types it
+Casa	shopping	chain:home	a generic-word brand as the whole name
+Salsa	shopping	chain:clothing	a generic-word brand as the whole name
+Salsa Jeans Alameda Shop and Spot	shopping	chain:clothing	Salsa Jeans is its own entry
+HUMANA Vintage	shopping	chain:clothing	Humana Vintage is its own entry
+Papelaria Zara Fan	gift_shop	refused	papelaria refuses the clothing chain on the re-kind path
+Loja Zara Chiado	gift_shop	chain:clothing	the re-kind path with a shop word
+Bijuteria Primor	fashion	refused	bijuteria (jewelry) refuses Primor (beauty)
+Garrafeira Gato Preto	liquor_store	refused	garrafeira refuses the home chain
+Papelaria Pandora	office_equipment	refused	papelaria refuses the jewelry chain
+Estância de Ski Vodafone		pending	estancia refuses a sponsored ski resort
+Barbearia Primor		refused	barbearia refuses; the name types it a barber
+Minipreço Carvoeiro	shopping	fallback:supermarket	KAN-448 rule 6, brand leads the name
+Minipreço Cinfães	shopping	fallback:supermarket	KAN-448 rule 6
+Lidl Sesimbra		fallback:supermarket	brand leads the name
+Banco Atlântico Europa Lisboa		fallback:bank	the alias is not a generic word
+ATLANTICO		fallback:bank	a generic-word brand as the whole name
+Big China		pending	big is a generic word (Banco BiG)
+Big Foot		pending	big is a generic word (Banco BiG)
+Washy Continente Modelo Belas		pending	fallback head rule: a car wash named after the supermarket
+Centro Comercial Continente de Leiria	shopping_center	pending	fallback head rule: the mall, not the supermarket
+Loja CTT	shopping	pending	fallback head rule: the post office, not Banco CTT
+Ponto CTT	shopping	pending	fallback head rule
+Clube Millenniumbcp Canoagem		pending	fallback head rule: a club
+Balcão Santander Tavira		pending	fallback head rule: a real branch the head rule cannot see (known cost)
+My Auchan Chamusca		pending	fallback head rule: a real branch the head rule cannot see (known cost)
+novobanco Oliveira Hospital		fallback:bank	hospital is not a venue word: Oliveira do Hospital is a town
+Supermercado Lidl		refused	fallback head rule: the brand does not lead; the name types it a supermarket on its own

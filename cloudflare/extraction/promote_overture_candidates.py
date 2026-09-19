@@ -216,7 +216,10 @@ def load_venue_words(path=None, reachable=None, store_kinds=None, categories=Non
     if store_kinds is None:
         store_kinds = set(load_keyword_dictionary('storeSubtypeDictionary.json'))
     if categories is None:
-        categories = set(category_map())
+        # The categories a word can agree with: the mapped ones, plus the
+        # unmapped ones a chain may overrule (`parking`, `shopping_center`,
+        # `train_station` are Overture categories with no type of ours).
+        categories = set(category_map()) | BRAND_OVERRIDABLE_CATEGORIES | set(UMBRELLA_CATEGORY_KINDS)
     with open(path) as handle:
         raw = json.load(handle)
     words = {}
@@ -244,14 +247,6 @@ def category_map():
         return {k: v for k, v in json.load(handle).items() if not k.startswith('_')}
 
 
-VENUE_WORDS = load_venue_words()
-
-CATEGORY_NAME_WORDS = {}
-for _word, _entry in VENUE_WORDS.items():
-    if _entry.get('category'):
-        CATEGORY_NAME_WORDS.setdefault(_entry['category'], []).append(_word)
-# Meta files the umbrella under two spellings.
-CATEGORY_NAME_WORDS['flowers_and_gifts_store'] = CATEGORY_NAME_WORDS.get('flowers_and_gifts_shop', [])
 
 # Not overridable, and deliberately: parks, venues and landmarks get named
 # after sponsors — `MEO Suil Park`, `NOS Alive` — and the only brand-headed
@@ -274,6 +269,15 @@ UMBRELLA_CATEGORY_KINDS = {
 
 
 GENERIC_CATEGORIES = frozenset({'', 'shopping'})
+
+VENUE_WORDS = load_venue_words()
+
+CATEGORY_NAME_WORDS = {}
+for _word, _entry in VENUE_WORDS.items():
+    if _entry.get('category'):
+        CATEGORY_NAME_WORDS.setdefault(_entry['category'], []).append(_word)
+# Meta files the umbrella under two spellings.
+CATEGORY_NAME_WORDS['flowers_and_gifts_store'] = CATEGORY_NAME_WORDS.get('flowers_and_gifts_shop', [])
 
 # Non-store chains a brand may settle a generic row to. Order is preference
 # when a name carries more than one; it will not.
@@ -322,9 +326,10 @@ def fallback_brand(name, poi_type, brand_dictionary):
     borrowed by everything around it — `Washy Continente` is a car wash,
     `Centro Comercial Continente` the mall, `Loja CTT` the post office,
     `Clube Millenniumbcp Canoagem` a club — and none of those carries a
-    venue word. `Minipreço Carvoeiro`, not `Cafetaria Minipreço`. A
-    generic-word brand is the whole name or nothing, as in
-    store_kinds_from_brand.
+    venue word. The venue rule is checked on top, belt and braces: `Auchan
+    Gasolineira` leads with the brand and is a fuel station. `Minipreço
+    Carvoeiro`, not `Cafetaria Minipreço`. A generic-word brand is the
+    whole name or nothing, as in store_kinds_from_brand.
     """
     normalized = normalize_text(name or '')
     if not normalized:
@@ -340,7 +345,8 @@ def fallback_brand(name, poi_type, brand_dictionary):
                     return canonical
                 continue
             if (brand_form_matches(normalized_brand, normalized, name, canonical)
-                    and brand_heads_name(normalized_brand, normalized)):
+                    and brand_heads_name(normalized_brand, normalized)
+                    and not venue_contradiction(normalized, normalized_brand, poi_type)):
                 return canonical
     return None
 
