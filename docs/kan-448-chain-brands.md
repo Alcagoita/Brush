@@ -32,10 +32,26 @@ For a row whose name carries a known store chain:
    category is never overruled: `Nespresso` boutiques are cafés, `C&A Guest
    House` is a hostel, `Café Decathlon` is a café. Parks, venues and
    landmarks are not overridable either; they get named after sponsors.
-3. **For a non-generic override the brand has to lead the name**, on top of
-   every form check `brand_form_matches` already makes. `Decathlon Albufeira`,
-   not `Parque Infantil Decathlon`; and the ampersand rule still keeps `C.A.
-   Residência Sénior` from being C&A.
+3. **A chain matches anywhere in the name unless a venue word contradicts
+   it** (KAN-455). `Loja MEO Braga`, `Ópticas MultiOpticas Faro`, `Armazém
+   Conforama Palmela`, `The Phone House` are all real branches, so the brand
+   need not lead the name. But another word of the name may say the place is
+   something else — `Tasquinha O Salsa` is a tasca, `Cafetaria LIDL Sesimbra`
+   a café, `Wok to Walk IKEA Matosinhos` a restaurant, `Óptica Vodafone` an
+   optician, `Parque Infantil Decathlon` a playground — and then the chain
+   is refused. The words are one data file, `cloudflare/src/venueWords.json`:
+   a word carries a `poi_type` (contradicts a chain of another type) or a
+   `store_kind` (contradicts a chain that is not a store or lacks that
+   kind); a word not in the file is neutral, so `loja`, `armazém`, `outlet`,
+   `galerias`, `store`, `house` fit every store and `óptica` fits an optician
+   chain. The same file carries the category words of rule 4. Every form
+   check of `brand_form_matches` still applies — the ampersand rule keeps
+   `C.A. Residência Sénior` from being C&A. The non-store fallback of rule 6
+   (supermarket, bank, pharmacy chains in generic categories) is different:
+   there the brand must lead the name, because a supermarket's or bank's
+   name is borrowed by everything around it — `Washy Continente`, `Centro
+   Comercial Continente`, `Loja CTT`, `Clube Millenniumbcp` — and none of
+   those carries a venue word.
 4. **When the name agrees with the category, the category is right.** `IKEA
    Parking` is the car park. `Escola Decathlon` would be a school.
 5. **A generic-word brand matches only when it is the whole name.** `Casa` is
@@ -46,8 +62,9 @@ For a row whose name carries a known store chain:
 6. **Supermarket, bank, pharmacy and fuel chains** sitting in generic shopping
    become what they are: Minipreço is a supermarket wherever it is. 123
    supermarket and 175 bank rows in Portugal. **Only when the brand leads
-   the name** (KAN-455): `Cafetaria LIDL Sesimbra` is the café, not the
-   Lidl. `atlantico` and `big` are generic words here as `casa` is in rule 5.
+   the name** (KAN-455, see rule 3): `Cafetaria LIDL Sesimbra` is the café,
+   not the Lidl. `atlantico` and `big` are generic words here as `casa` is
+   in rule 5; `salsa` and `humana` joined rule 5 too.
 
 ## Filling the dictionary from the data
 
@@ -129,7 +146,7 @@ gifts" and the chain saying which. The one Ale-Hop filed as a
 
 ## What it does to Portugal
 
-* 1,880 production rows corrected by `migrations/0041_chain_brands_decide_kinds.sql`,
+* 1,875 production rows corrected by `migrations/0041_chain_brands_decide_kinds.sql`,
   every statement naming its row — 24 re-typed (three Decathlons among them),
   the rest re-kinded. (Regenerated under KAN-455: the original's 1,887 rows
   held seven retypes the rule 6 fallback read out of the middle of a name —

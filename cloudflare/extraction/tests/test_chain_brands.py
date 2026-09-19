@@ -65,13 +65,60 @@ class OverrideScopeTest(unittest.TestCase):
             status, types, _, _ = Fixture.decide(name, category)
             self.assertEqual(types[0] if types else None, expected, name)
 
-    def test_a_non_generic_override_needs_the_brand_to_lead_the_name(self):
+    def test_a_non_generic_override_is_refused_by_a_venue_word(self):
         status, types, _, _ = Fixture.decide('Parque Infantil Decathlon', 'school')
         self.assertNotEqual(types[:1], ('store',))
 
-    def test_generic_shopping_keeps_the_padded_match(self):
-        status, types, kinds, _ = Fixture.decide('Desportos Aquáticos Decathlon Algarve', 'shopping')
-        self.assertEqual((types[0], kinds), ('store', ('bicycle', 'sports')))
+    def test_a_venue_word_refuses_the_chain_wherever_the_brand_sits(self):
+        # KAN-455. The chain matches anywhere in the name unless another word
+        # names a different kind of place (src/venueWords.json).
+        for name, category in (('Salsa e Canela', 'shopping'), ('Tasquinha O Salsa', ''),
+                               ('Wok to Walk IKEA Matosinhos', ''), ('Humana Mente', ''),
+                               ('Humana - O seu espaço de saúde', ''),
+                               ('Óptica Vodafone', ''), ('Parque Infantil Decathlon', 'school')):
+            status, types, kinds, reason = Fixture.decide(name, category)
+            self.assertFalse((reason or '').startswith('brand:'), (name, reason))
+        # `Zara by Castro` (a pastelaria) and `AM Rebouças Tintas CIN` (a
+        # paint shop that is not CIN) carry no word that contradicts the
+        # chain; they are the rule's known residual, listed in the runbook.
+        self.assertEqual(Fixture.decide('Zara by Castro', '')[2], ('clothing',))
+        self.assertEqual(Fixture.decide('AM Rebouças Tintas CIN', '')[2], ('hardware',))
+
+    def test_a_branch_with_a_shop_word_or_a_prefix_is_still_the_chain(self):
+        for name, category, expected in (('Loja MEO Braga', 'shopping', ('phone',)),
+                                         ('Ópticas MultiOpticas Faro', '', ('eyewear_and_optician',)),
+                                         ('Armazém Conforama Palmela', '', ('furniture', 'home')),
+                                         ('The Phone House', 'shopping', ('phone',)),
+                                         ('LA Outlet by Lanidor', '', ('clothing',)),
+                                         ('A Desportiva Adidas', '', ('shoes', 'sports')),
+                                         ('Decathlon Albufeira', 'shopping', ('bicycle', 'sports')),
+                                         ('Decathlon Parque das Nações', 'shopping', ('bicycle', 'sports')),
+                                         ('Desportos Aquáticos Decathlon Algarve', 'shopping', ('bicycle', 'sports')),
+                                         ('Worten Colombo', '', ('electronics', 'phone')),
+                                         ('Minipreço Carvoeiro', 'shopping', ())):
+            status, types, kinds, _ = Fixture.decide(name, category)
+            self.assertEqual((status, kinds), ('promoted', expected), name)
+        self.assertEqual(Fixture.decide('Ale-Hop Faro', 'flowers_and_gifts_shop')[1:3], (('store',), ('gift',)))
+        # `salsa` and `humana` are words; the chains are `Salsa`/`Salsa Jeans …`, `HUMANA`/`HUMANA Vintage`.
+        self.assertEqual(promote.store_kinds_from_brand('Salsa', Fixture.store_brands), ('clothing',))
+        self.assertEqual(promote.store_kinds_from_brand('Salsa Jeans Alameda', Fixture.store_brands), ('clothing',))
+        self.assertEqual(promote.store_kinds_from_brand('Salsa Bistro', Fixture.store_brands), ())
+        self.assertEqual(promote.store_kinds_from_brand('HUMANA Vintage', Fixture.store_brands), ('clothing',))
+
+    def test_a_store_typed_row_takes_the_chains_kinds_unless_a_venue_word_contradicts(self):
+        _, types, kinds, reason = Fixture.decide('Papelaria Zara Fan', 'gift_shop')
+        self.assertEqual((types[0], kinds), ('store', ('gift',)))
+        self.assertFalse((reason or '').startswith('brand:'))
+        _, types, kinds, reason = Fixture.decide('Loja Zara Chiado', 'gift_shop')
+        self.assertEqual((types[0], kinds, reason), ('store', ('clothing',), 'brand: store/clothing'))
+
+    def test_venue_contradiction_names_the_word(self):
+        self.assertEqual(promote.venue_contradiction('tasquinha o salsa', 'salsa', 'store', {'clothing'}), 'tasquinha')
+        self.assertEqual(promote.venue_contradiction('optica vodafone', 'vodafone', 'store', {'phone'}), 'optica')
+        self.assertIsNone(promote.venue_contradiction('opticas multiopticas faro', 'multiopticas', 'store', {'eyewear_and_optician'}))
+        self.assertIsNone(promote.venue_contradiction('supermercado lidl', 'lidl', 'supermarket'))
+        self.assertEqual(promote.venue_contradiction('papelaria intermarche', 'intermarche', 'supermarket'), 'papelaria')
+        self.assertIsNone(promote.venue_contradiction('loja meo braga', 'meo', 'store', {'phone'}))
 
     def test_a_supermarket_chain_in_generic_shopping_becomes_a_supermarket(self):
         status, types, _, reason = Fixture.decide('Minipreço Cinfães', 'shopping')
@@ -90,9 +137,9 @@ class GenericWordBrandTest(unittest.TestCase):
         self.assertNotEqual(kinds, ('home',))
 
     def test_an_initials_form_does_not_become_a_chain(self):
-        # brand_form_matches' ampersand rule, still enforced under require_head.
-        self.assertEqual(promote.store_kinds_from_brand('C.A. Residência Sénior', Fixture.store_brands, require_head=True), ())
-        self.assertEqual(promote.store_kinds_from_brand('C&A Colombo', Fixture.store_brands, require_head=True), ('clothing',))
+        # brand_form_matches' ampersand rule, still enforced.
+        self.assertEqual(promote.store_kinds_from_brand('C.A. Residência Sénior', Fixture.store_brands), ())
+        self.assertEqual(promote.store_kinds_from_brand('C&A Colombo', Fixture.store_brands), ('clothing',))
 
     def test_a_name_that_agrees_with_its_category_is_not_overruled(self):
         # `IKEA Parking` is the car park; `Escola Decathlon` would be a school.
