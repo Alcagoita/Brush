@@ -32,12 +32,16 @@ mapped leaves) gets one `curated_poi_attribute` row, `dimension = poi_type`,
 
 **Why an attribute:** `curated_poi` has one `primary_poi_type` and there is
 no `curated_poi_type` table (Overture has `overture_poi_type`; curated never
-needed one). `/poi/nearby` filters curated rows on `primary_poi_type` only,
-so today a Monastery is found by a `historical_landmark` search and not by a
-`church` search. The second type is kept where nothing is lost and the
-Worker can start reading it with a one-line join (`curated_poi_attribute`
-is already LEFT JOINed in that query). Serving it is a follow-up, not this
-ticket.
+needed one). The Worker on this branch serves the second type: the curated
+branch of `queryNearbyPoiDb` (`src/index.ts`) matches a requested type
+against `primary_poi_type` **or** a `poi_type` attribute, the way
+`overture_poi_type` gives an Overture row several types. A Monastery is
+returned for a `church` request and for a `historical_landmark` request,
+once each, with `primary_poi_type` unchanged on the wire and the `poi_type`
+attribute kept out of `attributes` (`src/__tests__/curatedSecondType.test.ts`).
+**Second types are served once this Worker change is deployed** — so deploy
+before `--emit`, or accept that the 244 two-type rows answer only their
+primary type until the deploy.
 
 ## Dedupe, exactly
 
@@ -75,17 +79,26 @@ MULTIBANCO — type-blind:
    ```
 
    Expect `3` (`origin_source`, `origin_id`, `origin_licence`; plus
-   `imported_at`, `import_run_id` in the full list). `0` means apply it:
+   `imported_at`, `import_run_id` in the full list). Then the index, which a
+   `--file` run that stopped halfway can have left out:
+
+   ```
+   npx wrangler d1 execute brush-poi-registry --remote --json \
+     --command "SELECT name FROM sqlite_master WHERE type = 'index' AND name = 'idx_curated_poi_origin'"
+   ```
+
+   Expect one row. Either missing means apply it (the file is guarded, so
+   re-running it is safe):
 
    ```
    npx wrangler d1 execute brush-poi-registry --remote --file migrations/0042_curated_poi_provenance.sql
    ```
 
-   The importer refuses `--emit` on its own if the column is missing.
-2. **No Worker deploy is needed.** Nearby already reads every active
-   `curated_poi` row by `primary_poi_type`; the new rows are served the
-   moment they exist. (A deploy is needed only for the second-type
-   follow-up above.)
+   The importer refuses `--emit` on its own if any column or the index is
+   missing, before any write, naming what is absent.
+2. **Deploy the Worker from this branch** (`cd cloudflare && npx wrangler
+   deploy`) so the second type is served. Rows are served by their primary
+   type by the existing Worker regardless.
 3. The dry-run report for the run has been read and the owner said go.
 
 ## The commands
@@ -161,9 +174,10 @@ Expected, from the dry run:
   Foursquare-only `fsq:51f40813498e7ae2d9576515` "Capelas Imperfeitas do
   Mosteiro da Batalha" does.
 
-Then a `church` search at the first point must **not** return the
-Jerónimos `fsq:` row — its second type is an attribute, not served — which
-is the follow-up's acceptance test.
+Then a `church` search at the first point must **also** return the
+Jerónimos `fsq:` row, once, still with `primary_poi_type =
+historical_landmark` — its second type served through the `poi_type`
+attribute (after the Worker deploy).
 
 ## Idempotency proof
 
