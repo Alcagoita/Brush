@@ -2528,13 +2528,16 @@ export default {
 
     // Reviewed country corrections are deliberately separate from the
     // national import run: each named batch selects only its listed IDs and
-    // is safe to repeat after an interrupted container start.
+    // is safe to repeat after an interrupted container start. The batch name
+    // is the exact key into the reviewed overrides, so it passes through
+    // unchanged; the evidence batches carry a timestamp with uppercase
+    // letters (`evidence_20260914T0200Z_*`).
     if (url.pathname === '/internal/overture-country/overrides' && request.method === 'POST') {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
       const body = await request.json<{ countryCode?: unknown; batch?: unknown }>().catch(() => null);
       if (typeof body?.countryCode !== 'string' || body.countryCode.toUpperCase() !== 'PT' ||
-          typeof body.batch !== 'string' || !/^[a-z0-9_-]+$/.test(body.batch)) {
+          typeof body.batch !== 'string' || !/^[A-Za-z0-9_-]+$/.test(body.batch)) {
         return json({ error: 'countryCode must be PT and batch must be a simple identifier' }, 400);
       }
       const status = await overtureCountryImportStatus(env, 'PT');
