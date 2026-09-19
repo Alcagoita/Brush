@@ -1,9 +1,17 @@
+import os
 import sys
 import types
 import unittest
 from unittest.mock import patch
 
-import multibanco_import
+EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
+
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
+
+import multibanco_import  # noqa: E402
 
 
 class MultibancoImportTest(unittest.TestCase):
