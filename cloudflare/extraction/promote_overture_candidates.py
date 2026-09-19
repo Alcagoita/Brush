@@ -200,11 +200,48 @@ BRAND_OVERRIDABLE_CATEGORIES = frozenset({
 # category is not wrong and the brand does not overrule it — `IKEA Parking`
 # is the car park, `Escola Decathlon` would be a school. Words are matched
 # whole, after normalisation.
-def load_venue_words():
-    path = os.path.join(CLOUDFLARE_DIR, 'src', 'venueWords.json')
+def load_venue_words(path=None, reachable=None, store_kinds=None, categories=None):
+    """src/venueWords.json, validated and ordered longest phrase first.
+
+    Every `poi_type` must be a catalogue type, every `store_kind` a key of
+    storeSubtypeDictionary.json, every `category` a key of
+    overtureCategories.json — a typo here would refuse or accept chains
+    silently, so an unknown value fails the load. Phrases are matched in
+    order of token count so `snack bar` is found before `bar` and `parque
+    infantil` before `parque`, whatever order the file lists them in.
+    """
+    path = path or os.path.join(CLOUDFLARE_DIR, 'src', 'venueWords.json')
+    if reachable is None:
+        reachable = reachable_types()
+    if store_kinds is None:
+        store_kinds = set(load_keyword_dictionary('storeSubtypeDictionary.json'))
+    if categories is None:
+        categories = set(category_map())
     with open(path) as handle:
-        return {normalize_text(word): entry for word, entry in json.load(handle).items()
-                if not word.startswith('_')}
+        raw = json.load(handle)
+    words = {}
+    for word, entry in raw.items():
+        if word.startswith('_'):
+            continue
+        if not isinstance(entry, dict) or not entry or not set(entry) <= {'poi_type', 'store_kind', 'category'}:
+            raise ValueError(f'venueWords.json: {word!r} must carry poi_type, store_kind and/or category')
+        if 'poi_type' in entry and entry['poi_type'] not in reachable:
+            raise ValueError(f"venueWords.json: {word!r} names unknown poi_type {entry['poi_type']!r}")
+        if 'store_kind' in entry and entry['store_kind'] not in store_kinds:
+            raise ValueError(f"venueWords.json: {word!r} names unknown store_kind {entry['store_kind']!r}")
+        if 'category' in entry and entry['category'] not in categories:
+            raise ValueError(f"venueWords.json: {word!r} names unknown category {entry['category']!r}")
+        normalized = normalize_text(word)
+        if not normalized or normalized in words:
+            raise ValueError(f'venueWords.json: {word!r} is empty or a duplicate after normalisation')
+        words[normalized] = entry
+    return dict(sorted(words.items(), key=lambda item: (-len(item[0].split()), item[0])))
+
+
+def category_map():
+    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCategories.json')
+    with open(path) as handle:
+        return {k: v for k, v in json.load(handle).items() if not k.startswith('_')}
 
 
 VENUE_WORDS = load_venue_words()
@@ -260,9 +297,12 @@ def venue_contradiction(normalized_name, normalized_brand, poi_type, kinds=()):
     it is neutral, never a refusal. Returns the offending word, or None.
     """
     rest = f' {normalized_name} '.replace(f' {normalized_brand} ', ' ', 1)
+    # Longest phrase first (load order): `snack bar` is read as one word,
+    # and once read it is taken out so `bar` does not see it again.
     for word, entry in VENUE_WORDS.items():
         if f' {word} ' not in rest:
             continue
+        rest = rest.replace(f' {word} ', ' ')
         if entry.get('poi_type') and entry['poi_type'] != poi_type:
             return word
         if entry.get('store_kind') and (poi_type != 'store' or entry['store_kind'] not in kinds):
@@ -354,12 +394,6 @@ def is_non_multibanco_atm(name):
     return any(f' {operator} ' in padded for operator in NON_MULTIBANCO_ATM_OPERATORS)
 
 
-def category_map():
-    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCategories.json')
-    with open(path) as handle:
-        return {k: v for k, v in json.load(handle).items() if not k.startswith('_')}
-
-
 def candidate_overrides(country_source_r2_key, batch=None):
     """The small, reviewed batches that cannot safely become broad rules.
 
@@ -409,26 +443,33 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
 
     override = (overrides or {}).get(row.get('overture_id'))
     if override:
+        # KAN-455: a reviewed decision applies to either generic category —
+        # `shopping` or the empty one — never to a row Meta typed.
+        generic_row = (row['category'] or '') in GENERIC_CATEGORIES
         if override.get('decision') == 'rejected':
             # Reviewed exclusions use the same source-scoped, explicit-ID
             # path as promotions.  A generic-shopping candidate that is
             # plainly trade-only or appointment-only should leave the
             # backlog, not be forced into an unusable store subtype.
-            if row['category'] != 'shopping' or not override.get('reason'):
+            if not generic_row or not override.get('reason'):
                 raise ValueError(f"invalid reviewed exclusion for {row['overture_id']}")
             return 'rejected', (), (), override['reason']
-        poi_type = override['poi_type']
+        # KAN-455: `poi_type` is one type or a ranked list of them — a place
+        # that is both a pharmacy and an optician carries both; rank 0 is
+        # what the app shows.
+        poi_types = override['poi_type'] if isinstance(override['poi_type'], list) else [override['poi_type']]
         store_kind = override.get('store_kind')
         # A reviewed generic-shopping row can either be a typed store, which
         # necessarily needs a subtype, or a real non-store errand such as
         # luggage storage.  The latter must not be forced through the store
         # schema just because Overture filed it under generic shopping.
-        if (row['category'] != 'shopping' or poi_type not in reachable
-                or (poi_type == 'store' and not store_kind)
-                or (poi_type != 'store' and store_kind)):
+        if (not generic_row or not poi_types or any(t not in reachable for t in poi_types)
+                or len(set(poi_types)) != len(poi_types)
+                or ('store' in poi_types and not store_kind)
+                or ('store' not in poi_types and store_kind)):
             raise ValueError(f"invalid reviewed override for {row['overture_id']}")
         attributes = (('store_kind', store_kind),) if store_kind else ()
-        return 'promoted', (reachable[poi_type],), attributes, override['reason']
+        return 'promoted', tuple(reachable[t] for t in poi_types), attributes, override['reason']
 
     types, attributes, reason = [], [], None
     entry = mapping.get(row['category'])
@@ -495,8 +536,11 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
     elif not types and (generic or category in BRAND_OVERRIDABLE_CATEGORIES):
         # Not a store chain — a supermarket, bank or pharmacy chain sitting
         # in generic shopping. Minipreço is a supermarket wherever it is.
-        # KAN-455: unless a venue word contradicts it. `Cafetaria LIDL
-        # Sesimbra` is the café, not the Lidl.
+        # KAN-455: here the brand must LEAD the name (fallback_brand), not
+        # the venue rule the store paths use: a supermarket's or bank's name
+        # is borrowed by the car wash, the mall and the post office next to
+        # it — `Washy Continente`, `Centro Comercial Continente`, `Loja CTT`
+        # — and none of those carries a venue word to refuse on.
         for poi_type in BRAND_TYPES_FOR_OVERRIDE:
             if poi_type in reachable and fallback_brand(row['name'], poi_type, brand_dictionary):
                 types = [reachable[poi_type]]
