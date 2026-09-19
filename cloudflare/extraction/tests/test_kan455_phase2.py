@@ -52,15 +52,20 @@ class BrandLeadsNameFallbackTest(unittest.TestCase):
 
     def test_a_generic_word_brand_is_the_whole_name_or_nothing(self):
         # `Atlântico` is the ocean and `Big` is the adjective; the bank's
-        # `Banco …` aliases are not words and still lead.
+        # `Banco …` aliases are not words and still match.
         for name in ('Big China', 'Big Foot', 'Atlântico pizzaria S. FÉLIX'):
-            self.assertIsNone(promote.leading_brand(name, 'bank', Fixture.brands), name)
-        self.assertEqual(promote.leading_brand('ATLANTICO', 'bank', Fixture.brands), 'ATLANTICO')
-        self.assertEqual(promote.leading_brand('Big', 'bank', Fixture.brands), 'Banco BiG')
+            self.assertIsNone(promote.fallback_brand(name, 'bank', Fixture.brands), name)
+        self.assertEqual(promote.fallback_brand('ATLANTICO', 'bank', Fixture.brands), 'ATLANTICO')
+        self.assertEqual(promote.fallback_brand('Big', 'bank', Fixture.brands), 'Banco BiG')
 
-    def test_the_fallback_never_reads_a_brand_out_of_the_middle_of_a_name(self):
-        self.assertIsNone(promote.leading_brand('Cafetaria LIDL Sesimbra', 'supermarket', Fixture.brands))
-        self.assertEqual(promote.leading_brand('Lidl Sesimbra', 'supermarket', Fixture.brands), 'Lidl')
+    def test_the_fallback_needs_the_brand_to_lead_the_name(self):
+        # Not the venue rule: `Washy Continente`, `Centro Comercial
+        # Continente`, `Loja CTT` carry no venue word and are not the chain.
+        for name in ('Cafetaria LIDL Sesimbra', 'Papelaria Intermarché', 'Washy Continente Modelo Belas',
+                     'Centro Comercial Continente de Leiria', 'Supermercado Lidl'):
+            self.assertIsNone(promote.fallback_brand(name, 'supermarket', Fixture.brands), name)
+        self.assertIsNone(promote.fallback_brand('Loja CTT', 'bank', Fixture.brands))
+        self.assertEqual(promote.fallback_brand('Lidl Sesimbra', 'supermarket', Fixture.brands), 'Lidl')
 
 
 class CasaSelectionTest(unittest.TestCase):
