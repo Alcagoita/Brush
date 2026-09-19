@@ -658,6 +658,14 @@ interface NearbySearchBody extends ParsedCoordsAndRadius {
 
 const DEFAULT_NEARBY_LIMIT_PER_TYPE = 20;
 const MAX_NEARBY_TYPES = 10;
+/**
+ * KAN-433 — a curated row's second type. curated_poi has one
+ * primary_poi_type and no curated_poi_type table, so an importer that has
+ * to file a Monastery as both historical_landmark and church writes the
+ * second one as a curated_poi_attribute under this dimension
+ * (`extraction/import_foursquare_tourism.py`, EXTRA_TYPE_DIMENSION).
+ */
+const CURATED_EXTRA_TYPE_DIMENSION = 'poi_type';
 const MAX_NEARBY_REQUESTS = 32;
 const MAX_NEARBY_LIMIT_PER_TYPE = 50;
 
@@ -1319,8 +1327,19 @@ async function queryNearbyPoiDb(
     const placeholders = types.map(() => '?').join(',');
     poiRequestClauses.push(`(overture_poi_type.poi_type IN (${placeholders})${request.brand ? ' AND overture_poi.brand = ?' : ''})`);
     poiRequestBinds.push(...types, ...(request.brand ? [request.brand] : []));
-    curatedRequestClauses.push(`(curated_poi.primary_poi_type IN (${placeholders})${request.brand ? ' AND curated_poi.brand = ?' : ''})`);
-    curatedRequestBinds.push(...types, ...(request.brand ? [request.brand] : []));
+    // A curated row can carry more than one type, the way an Overture row
+    // does through overture_poi_type: KAN-433 writes a Monastery as
+    // primary historical_landmark plus a `poi_type` attribute of church.
+    // Either answers the request. An EXISTS rather than a predicate on the
+    // LEFT JOINed attribute row, so a row found through its second type
+    // still comes back with every attribute it has.
+    curatedRequestClauses.push(
+      `((curated_poi.primary_poi_type IN (${placeholders}) OR EXISTS (
+          SELECT 1 FROM curated_poi_attribute AS extra_type
+           WHERE extra_type.poi_id = curated_poi.poi_id AND extra_type.dimension = 'poi_type'
+             AND extra_type.value IN (${placeholders})))${request.brand ? ' AND curated_poi.brand = ?' : ''})`,
+    );
+    curatedRequestBinds.push(...types, ...types, ...(request.brand ? [request.brand] : []));
     multibancoRequestClauses.push(`(multibanco_poi.primary_poi_type IN (${placeholders}))`);
     multibancoRequestBinds.push(...types);
     legacyRequestClauses.push(`(legacy_poi_type.poi_type IN (${placeholders}))`);
@@ -1438,9 +1457,15 @@ async function queryNearbyPoiDb(
     const distanceMeters = haversineMeters(lat, lng, row.lat, row.lng);
     if (distanceMeters > radiusMeters) continue;
     const candidateKey = `curated:${row.poi_id}`;
+    // A `poi_type` attribute is the row's second type (KAN-433), not a
+    // subtype the app filters on: it widens matchedTypes, so the row lands
+    // in that request's bucket once, and stays out of `attributes`.
+    const extraType = row.attribute_dimension === CURATED_EXTRA_TYPE_DIMENSION ? row.attribute_value : null;
     const existing = candidates.get(candidateKey);
     if (existing) {
-      if (row.attribute_dimension && row.attribute_value) {
+      if (extraType) {
+        existing.matchedTypes.add(extraType);
+      } else if (row.attribute_dimension && row.attribute_value) {
         const values = existing.attributes[row.attribute_dimension] ??= [];
         if (!values.includes(row.attribute_value)) values.push(row.attribute_value);
       }
@@ -1452,10 +1477,11 @@ async function queryNearbyPoiDb(
         // safe always-open behaviour rather than hiding an approved POI.
         address: row.address, floor: row.floor,
         open_min: null, close_min: null, source: 'community', dedupeName: row.dedupe_name,
-        distanceMeters, attributes: row.attribute_dimension && row.attribute_value
+        distanceMeters, attributes: row.attribute_dimension && row.attribute_value && !extraType
           ? { [row.attribute_dimension]: [row.attribute_value] }
           : {},
-        matchedTypes: new Set([row.primary_poi_type]), rawCategoryLabels: null, demoZone: false,
+        matchedTypes: new Set(extraType ? [row.primary_poi_type, extraType] : [row.primary_poi_type]),
+        rawCategoryLabels: null, demoZone: false,
       });
     }
   }

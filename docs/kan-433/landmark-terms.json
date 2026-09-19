@@ -1,0 +1,41 @@
+{
+  "_comment": [
+    "KAN-433 — landmark word equivalences, per language, canonical target English.",
+    "Used by the importer's translation-aware equality step (import_foursquare_tourism.translated_names_match):",
+    "each token of a normalised name is mapped through the country's table before the KAN-388 comparison,",
+    "unknown tokens stay as they are, and the pair counts as one place only within 25 m and only for",
+    "landmark/tourism rows. Keys and values are compared accent-insensitively (normalize_text on load).",
+    "`countries` maps an ISO country code to its table; add `es`, `fr`, … as their own objects.",
+    "The `en` table folds English spelling variants onto the same canonical (theatre → theater).",
+    "The pt table is the owner's list of 2026-09-18 plus what the PT Tier 1 look-list measured:",
+    "museu/museum, church, chapel, campismo/camping, centro/center, clube/club, galeria/gallery, arte/art,",
+    "estátua/statue, Jesus Cristo dos Santos dos Últimos Dias / Jesus Christ of Latter-day Saints, and the",
+    "saint / Our Lady forms (São, Santo, Santa, Sta., N. Sra.)."
+  ],
+  "countries": { "PT": "pt" },
+  "en": {
+    "theatre": "theater", "harbour": "harbor", "centre": "center", "st": "saint", "mt": "mount"
+  },
+  "pt": {
+    "mosteiro": "monastery", "castelo": "castle", "igreja": "church", "sé": "cathedral", "catedral": "cathedral",
+    "palácio": "palace", "paço": "palace", "ponte": "bridge", "farol": "lighthouse", "miradouro": "viewpoint",
+    "forte": "fort", "fortaleza": "fortress", "torre": "tower", "capela": "chapel", "jardim": "garden",
+    "convento": "convent", "museu": "museum", "praça": "square", "largo": "square", "santuário": "sanctuary",
+    "ermida": "hermitage", "aqueduto": "aqueduct", "ruínas": "ruins", "ruína": "ruin", "moinho": "windmill",
+    "basílica": "basilica",
+    "parque": "park", "praia": "beach", "campismo": "camping", "centro": "center", "clube": "club",
+    "galeria": "gallery", "arte": "art", "artes": "arts", "monumento": "monument", "fonte": "fountain",
+    "chafariz": "fountain", "estátua": "statue", "teatro": "theater", "cinema": "cinema", "cine": "cinema",
+    "estádio": "stadium", "marina": "marina", "porto": "harbor", "rio": "river", "lago": "lake",
+    "lagoa": "lagoon", "monte": "mount", "serra": "mountains", "cascata": "waterfall", "gruta": "cave",
+    "jardins": "gardens", "pelourinho": "pillory", "anta": "dolmen", "castro": "hillfort", "cruzeiro": "cross", "cemitério": "cemetery",
+    "mesquita": "mosque", "sinagoga": "synagogue", "templo": "temple", "trilho": "trail", "termas": "spa",
+    "casino": "casino", "zoo": "zoo", "aquário": "aquarium", "biblioteca": "library", "câmara": "hall",
+    "municipal": "municipal", "nacional": "national", "marítimo": "maritime", "velho": "old", "velha": "old",
+    "novo": "new", "nova": "new",
+    "são": "saint", "santo": "saint", "santa": "saint", "sta": "saint", "sto": "saint", "santos": "saints",
+    "nossa": "our", "senhora": "lady", "sra": "lady", "senhor": "lord", "sr": "lord", "cristo": "christ",
+    "jesus": "jesus", "deus": "god", "últimos": "latter", "dias": "day", "matriz": "mother",
+    "paróquia": "parish", "paroquial": "parish", "evangélica": "evangelical", "assembleia": "assembly"
+  }
+}
