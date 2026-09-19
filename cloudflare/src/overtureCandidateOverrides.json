@@ -5542,6 +5542,32 @@
         "reason": "Foursquare name and location match",
         "store_kind": "boutique"
       }
+    },
+    "kan455_reviewed_multi_type": {
+      "c8761ae1-5d79-48b9-aeca-08172d8aec28": {
+        "poi_type": [
+          "pharmacy",
+          "store"
+        ],
+        "store_kind": "eyewear_and_optician",
+        "reason": "KAN-455 reviewed: Opticalia Farmacia Silveira is one place with a pharmacy and an optician"
+      },
+      "fd7cbee5-03eb-4de6-a326-18b663b1db67": {
+        "poi_type": [
+          "pharmacy",
+          "store"
+        ],
+        "store_kind": "eyewear_and_optician",
+        "reason": "KAN-455 reviewed: Opticalia Farmacia Silveira Mem Martins is one place with a pharmacy and an optician"
+      },
+      "3c15c3f0-346e-40b5-bda9-af51e2ed9c08": {
+        "poi_type": "bakery",
+        "reason": "KAN-455 reviewed: Zara by Castro is a pastelaria, not the clothing chain"
+      },
+      "a7c7bfe7-cb54-4ac5-af67-3d27fc247760": {
+        "decision": "rejected",
+        "reason": "gas station, not a supermarket"
+      }
     }
   }
 }

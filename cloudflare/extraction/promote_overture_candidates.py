@@ -175,7 +175,14 @@ def store_brand_index():
 #
 # `big` likewise: Banco BiG's `BiG`/`BIG` aliases are the English word, and
 # `Big China`, `Big Foot` lead with it. `Banco BiG` still matches.
-GENERIC_WORD_BRANDS = frozenset({'casa', 'area', 'nos', 'note', 'normal', 'viva', 'atlantico', 'big'})
+#
+# `salsa` (the dance, the sauce, parsley): `Salsa e Canela` and `Salsa
+# Bistro` lead with it and are places to eat. The chain's branches are
+# `Salsa` (29 in Portugal) or `Salsa Jeans …`, which is its own entry.
+# `humana` likewise: `Humana Mente`, `Humana - O seu espaço de saúde` are a
+# clinic; the second-hand chain is `HUMANA` (21) or `HUMANA Vintage` (its
+# own entry).
+GENERIC_WORD_BRANDS = frozenset({'casa', 'area', 'nos', 'note', 'normal', 'viva', 'atlantico', 'big', 'salsa', 'humana'})
 
 # KAN-448. Categories a chain brand may overrule. Explicit on purpose: an
 # unmapped category is not a wrong one — hotel, dentist, lawyer, car dealer
@@ -186,19 +193,60 @@ BRAND_OVERRIDABLE_CATEGORIES = frozenset({
     '', 'shopping', 'shopping_center', 'school', 'beach', 'bus_station', 'train_station',
     'parking', 'community_services_non_profits',
 })
-# When the name agrees with the category, the category is not wrong and the
-# brand does not overrule it: `IKEA Parking` is the car park, `Escola
-# Decathlon` would be a school. Words are matched whole, after normalisation.
-CATEGORY_NAME_WORDS = {
-    'parking': ('parking', 'estacionamento', 'garagem', 'parque'),
-    'school': ('escola', 'school', 'colegio', 'academia'),
-    'beach': ('praia', 'beach'),
-    'bus_station': ('terminal', 'rodoviaria', 'paragem'),
-    'train_station': ('estacao', 'station', 'comboios'),
-    'shopping_center': ('centro comercial', 'shopping center', 'mall'),
-    'flowers_and_gifts_shop': ('florista', 'flores', 'florist', 'flowers'),
-    'flowers_and_gifts_store': ('florista', 'flores', 'florist', 'flowers'),
-}
+# KAN-455. Words a place name uses to say what kind of place it is, from
+# src/venueWords.json — one table. `poi_type`/`store_kind` feed the venue
+# contradiction rule (venue_contradiction); `category` feeds
+# name_agrees_with_category: when the name agrees with the category, the
+# category is not wrong and the brand does not overrule it — `IKEA Parking`
+# is the car park, `Escola Decathlon` would be a school. Words are matched
+# whole, after normalisation.
+def load_venue_words(path=None, reachable=None, store_kinds=None, categories=None):
+    """src/venueWords.json, validated and ordered longest phrase first.
+
+    Every `poi_type` must be a catalogue type, every `store_kind` a key of
+    storeSubtypeDictionary.json, every `category` a key of
+    overtureCategories.json — a typo here would refuse or accept chains
+    silently, so an unknown value fails the load. Phrases are matched in
+    order of token count so `snack bar` is found before `bar` and `parque
+    infantil` before `parque`, whatever order the file lists them in.
+    """
+    path = path or os.path.join(CLOUDFLARE_DIR, 'src', 'venueWords.json')
+    if reachable is None:
+        reachable = reachable_types()
+    if store_kinds is None:
+        store_kinds = set(load_keyword_dictionary('storeSubtypeDictionary.json'))
+    if categories is None:
+        # The categories a word can agree with: the mapped ones, plus the
+        # unmapped ones a chain may overrule (`parking`, `shopping_center`,
+        # `train_station` are Overture categories with no type of ours).
+        categories = set(category_map()) | BRAND_OVERRIDABLE_CATEGORIES | set(UMBRELLA_CATEGORY_KINDS)
+    with open(path) as handle:
+        raw = json.load(handle)
+    words = {}
+    for word, entry in raw.items():
+        if word.startswith('_'):
+            continue
+        if not isinstance(entry, dict) or not entry or not set(entry) <= {'poi_type', 'store_kind', 'category'}:
+            raise ValueError(f'venueWords.json: {word!r} must carry poi_type, store_kind and/or category')
+        if 'poi_type' in entry and entry['poi_type'] not in reachable:
+            raise ValueError(f"venueWords.json: {word!r} names unknown poi_type {entry['poi_type']!r}")
+        if 'store_kind' in entry and entry['store_kind'] not in store_kinds:
+            raise ValueError(f"venueWords.json: {word!r} names unknown store_kind {entry['store_kind']!r}")
+        if 'category' in entry and entry['category'] not in categories:
+            raise ValueError(f"venueWords.json: {word!r} names unknown category {entry['category']!r}")
+        normalized = normalize_text(word)
+        if not normalized or normalized in words:
+            raise ValueError(f'venueWords.json: {word!r} is empty or a duplicate after normalisation')
+        words[normalized] = entry
+    return dict(sorted(words.items(), key=lambda item: (-len(item[0].split()), item[0])))
+
+
+def category_map():
+    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCategories.json')
+    with open(path) as handle:
+        return {k: v for k, v in json.load(handle).items() if not k.startswith('_')}
+
+
 
 # Not overridable, and deliberately: parks, venues and landmarks get named
 # after sponsors — `MEO Suil Park`, `NOS Alive` — and the only brand-headed
@@ -222,6 +270,15 @@ UMBRELLA_CATEGORY_KINDS = {
 
 GENERIC_CATEGORIES = frozenset({'', 'shopping'})
 
+VENUE_WORDS = load_venue_words()
+
+CATEGORY_NAME_WORDS = {}
+for _word, _entry in VENUE_WORDS.items():
+    if _entry.get('category'):
+        CATEGORY_NAME_WORDS.setdefault(_entry['category'], []).append(_word)
+# Meta files the umbrella under two spellings.
+CATEGORY_NAME_WORDS['flowers_and_gifts_store'] = CATEGORY_NAME_WORDS.get('flowers_and_gifts_shop', [])
+
 # Non-store chains a brand may settle a generic row to. Order is preference
 # when a name carries more than one; it will not.
 BRAND_TYPES_FOR_OVERRIDE = ('supermarket', 'bank', 'pharmacy', 'gas_station', 'convenience_store', 'post_office')
@@ -232,22 +289,47 @@ def name_agrees_with_category(normalized_name, category):
     return any(f' {word} ' in padded for word in CATEGORY_NAME_WORDS.get(category, ()))
 
 
+def venue_contradiction(normalized_name, normalized_brand, poi_type, kinds=()):
+    """The word of the name that says this is not the chain's kind of place.
+
+    KAN-455 (rule 3 of KAN-448, rewritten). A chain matches anywhere in the
+    name — `Loja MEO Braga`, `Ópticas MultiOpticas Faro`, `The Phone House`
+    are all real branches — unless another word of the name names a
+    different kind of place: `Tasquinha O Salsa` is a tasca, `Cafetaria
+    LIDL Sesimbra` a café, `Papelaria Intermarché` a papelaria, `Óptica
+    Vodafone` an optician. The words are src/venueWords.json; a word not in
+    it is neutral, never a refusal. Returns the offending word, or None.
+    """
+    rest = f' {normalized_name} '.replace(f' {normalized_brand} ', ' ', 1)
+    # Longest phrase first (load order): `snack bar` is read as one word,
+    # and once read it is taken out so `bar` does not see it again.
+    for word, entry in VENUE_WORDS.items():
+        if f' {word} ' not in rest:
+            continue
+        rest = rest.replace(f' {word} ', ' ')
+        if entry.get('poi_type') and entry['poi_type'] != poi_type:
+            return word
+        if entry.get('store_kind') and (poi_type != 'store' or entry['store_kind'] not in kinds):
+            return word
+    return None
+
+
 def brand_heads_name(normalized_brand, normalized_name):
-    """Does the brand lead the name — `decathlon albufeira`, not `cafe decathlon`?"""
+    """Does the brand lead the name — `minipreco carvoeiro`, not `washy continente`?"""
     return normalized_name == normalized_brand or normalized_name.startswith(normalized_brand + ' ')
 
 
-def leading_brand(name, poi_type, brand_dictionary):
-    """The `poi_type` chain this name belongs to, if the brand LEADS the name.
-
-    KAN-455. The non-store fallback used find_brand's padded match, and a
-    padded match reads the supermarket out of `Cafetaria LIDL Sesimbra`,
-    `Papelaria Intermarché Alfena`, `Snack Bar O Celeiro`: the café and the
-    papelaria inside a supermarket are their own places, and the Celeiros
-    are restaurants. A type override needs the same discipline the chain
-    retype already has (rule 3 of KAN-448): `Minipreço Carvoeiro`, not
-    `Cafetaria Minipreço`. A generic-word brand is the whole name or
-    nothing, as in store_kinds_from_brand.
+def fallback_brand(name, poi_type, brand_dictionary):
+    """The `poi_type` chain this name belongs to — a supermarket, bank,
+    pharmacy chain sitting in a generic category — if the brand LEADS the
+    name (KAN-455, #427). Not the venue rule: a supermarket or bank name is
+    borrowed by everything around it — `Washy Continente` is a car wash,
+    `Centro Comercial Continente` the mall, `Loja CTT` the post office,
+    `Clube Millenniumbcp Canoagem` a club — and none of those carries a
+    venue word. The venue rule is checked on top, belt and braces: `Auchan
+    Gasolineira` leads with the brand and is a fuel station. `Minipreço
+    Carvoeiro`, not `Cafetaria Minipreço`. A generic-word brand is the
+    whole name or nothing, as in store_kinds_from_brand.
     """
     normalized = normalize_text(name or '')
     if not normalized:
@@ -263,12 +345,13 @@ def leading_brand(name, poi_type, brand_dictionary):
                     return canonical
                 continue
             if (brand_form_matches(normalized_brand, normalized, name, canonical)
-                    and brand_heads_name(normalized_brand, normalized)):
+                    and brand_heads_name(normalized_brand, normalized)
+                    and not venue_contradiction(normalized, normalized_brand, poi_type)):
                 return canonical
     return None
 
 
-def store_kinds_from_brand(name, index, require_head=False):
+def store_kinds_from_brand(name, index):
     """Every kind the dictionary lists for the chain this name belongs to.
 
     A chain listed under two kinds is both — Decathlon is `sports` and
@@ -276,9 +359,10 @@ def store_kinds_from_brand(name, index, require_head=False):
     resolved to nothing is how a chain came to take its kind from whatever
     category Meta happened to give each branch (KAN-448).
 
-    `require_head` is for a type override: the brand must lead the name, on
-    top of every form check brand_form_matches already makes — the
-    ampersand rule is what keeps `C.A. Residência Sénior` from being C&A.
+    The brand may sit anywhere in the name, on top of every form check
+    brand_form_matches makes (the ampersand rule keeps `C.A. Residência
+    Sénior` from being C&A), unless a venue word contradicts the chain's
+    kinds — venue_contradiction, checked against the chain's whole kind set.
 
     A generic-word brand matches only when it is the whole name. `Casa` is
     a homeware chain and also the first word of 586 Portuguese shops that
@@ -286,17 +370,20 @@ def store_kinds_from_brand(name, index, require_head=False):
     padded match would make every one of them a home store.
     """
     normalized = normalize_text(name or '')
-    kinds = set()
+    by_brand = {}
     for kind, brand, normalized_brand in index:
+        by_brand.setdefault((brand, normalized_brand), set()).add(kind)
+    kinds = set()
+    for (brand, normalized_brand), brand_kinds in by_brand.items():
         if normalized_brand in GENERIC_WORD_BRANDS:
             if normalized == normalized_brand:
-                kinds.add(kind)
+                kinds.update(brand_kinds)
             continue
         if not brand_form_matches(normalized_brand, normalized, name, brand):
             continue
-        if require_head and not brand_heads_name(normalized_brand, normalized):
+        if venue_contradiction(normalized, normalized_brand, 'store', brand_kinds):
             continue
-        kinds.add(kind)
+        kinds.update(brand_kinds)
     return tuple(sorted(kinds))
 
 
@@ -311,12 +398,6 @@ def is_non_multibanco_atm(name):
     normalized = normalize_text(name or '')
     padded = f' {normalized} '
     return any(f' {operator} ' in padded for operator in NON_MULTIBANCO_ATM_OPERATORS)
-
-
-def category_map():
-    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCategories.json')
-    with open(path) as handle:
-        return {k: v for k, v in json.load(handle).items() if not k.startswith('_')}
 
 
 def candidate_overrides(country_source_r2_key, batch=None):
@@ -368,26 +449,33 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
 
     override = (overrides or {}).get(row.get('overture_id'))
     if override:
+        # KAN-455: a reviewed decision applies to either generic category —
+        # `shopping` or the empty one — never to a row Meta typed.
+        generic_row = (row['category'] or '') in GENERIC_CATEGORIES
         if override.get('decision') == 'rejected':
             # Reviewed exclusions use the same source-scoped, explicit-ID
             # path as promotions.  A generic-shopping candidate that is
             # plainly trade-only or appointment-only should leave the
             # backlog, not be forced into an unusable store subtype.
-            if row['category'] != 'shopping' or not override.get('reason'):
+            if not generic_row or not override.get('reason'):
                 raise ValueError(f"invalid reviewed exclusion for {row['overture_id']}")
             return 'rejected', (), (), override['reason']
-        poi_type = override['poi_type']
+        # KAN-455: `poi_type` is one type or a ranked list of them — a place
+        # that is both a pharmacy and an optician carries both; rank 0 is
+        # what the app shows.
+        poi_types = override['poi_type'] if isinstance(override['poi_type'], list) else [override['poi_type']]
         store_kind = override.get('store_kind')
         # A reviewed generic-shopping row can either be a typed store, which
         # necessarily needs a subtype, or a real non-store errand such as
         # luggage storage.  The latter must not be forced through the store
         # schema just because Overture filed it under generic shopping.
-        if (row['category'] != 'shopping' or poi_type not in reachable
-                or (poi_type == 'store' and not store_kind)
-                or (poi_type != 'store' and store_kind)):
+        if (not generic_row or not poi_types or any(t not in reachable for t in poi_types)
+                or len(set(poi_types)) != len(poi_types)
+                or ('store' in poi_types and not store_kind)
+                or ('store' not in poi_types and store_kind)):
             raise ValueError(f"invalid reviewed override for {row['overture_id']}")
         attributes = (('store_kind', store_kind),) if store_kind else ()
-        return 'promoted', (reachable[poi_type],), attributes, override['reason']
+        return 'promoted', tuple(reachable[t] for t in poi_types), attributes, override['reason']
 
     types, attributes, reason = [], [], None
     entry = mapping.get(row['category'])
@@ -429,10 +517,11 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
     # boutique is a café, `C&A Guest House` is a hostel.
     category = row['category'] or ''
     generic = category in GENERIC_CATEGORIES
-    # Generic shopping keeps the ordinary padded match it always had. A
-    # non-generic category — school, parking, a mall — is overruled only when
-    # the brand leads the name: `Decathlon Albufeira`, not `Parque Decathlon`.
-    chain = store_kinds_from_brand(row['name'], store_brands, require_head=not generic)
+    # KAN-455. The brand may sit anywhere in the name — `Loja MEO Braga` —
+    # unless a venue word says the place is something else: `Tasquinha O
+    # Salsa`, `Wok to Walk IKEA Matosinhos`, `Parque Infantil Decathlon`
+    # (venue_contradiction, src/venueWords.json).
+    chain = store_kinds_from_brand(row['name'], store_brands)
     if chain and not generic and name_agrees_with_category(normalized, category):
         chain = ()
     # KAN-457. A chain refines an umbrella bucket when its kind is one of the
@@ -453,10 +542,13 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
     elif not types and (generic or category in BRAND_OVERRIDABLE_CATEGORIES):
         # Not a store chain — a supermarket, bank or pharmacy chain sitting
         # in generic shopping. Minipreço is a supermarket wherever it is.
-        # KAN-455: only when the brand leads the name. `Cafetaria LIDL
-        # Sesimbra` is the café, not the Lidl.
+        # KAN-455: here the brand must LEAD the name (fallback_brand), not
+        # the venue rule the store paths use: a supermarket's or bank's name
+        # is borrowed by the car wash, the mall and the post office next to
+        # it — `Washy Continente`, `Centro Comercial Continente`, `Loja CTT`
+        # — and none of those carries a venue word to refuse on.
         for poi_type in BRAND_TYPES_FOR_OVERRIDE:
-            if poi_type in reachable and leading_brand(row['name'], poi_type, brand_dictionary):
+            if poi_type in reachable and fallback_brand(row['name'], poi_type, brand_dictionary):
                 types = [reachable[poi_type]]
                 reason = f'brand: {poi_type}'
                 break
