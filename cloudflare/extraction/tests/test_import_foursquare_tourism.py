@@ -199,6 +199,76 @@ class DedupeDecisionTest(unittest.TestCase):
         self.assertEqual([(s[0]['fsq_place_id'], s[1]) for s in skips], [('fsq-hidden', 'hidden by poi_source_correction')])
 
 
+class TranslatedMatchTest(unittest.TestCase):
+    """Owner, 2026-09-19: landmark words mapped to English before the
+    KAN-388 comparison, within 25 m, landmark rows only."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.terms = importer.LandmarkTerms.load()
+        cls.pt = cls.terms.table_for('PT')
+
+    def decide(self, record, base, country='PT'):
+        table = self.terms.table_for(country)
+        return importer.decide_against_served(record, preflight.grid_index(base), (table, self.terms) if table else None)
+
+    def landmark(self, name, dlat_m=0.0, leaves=('Monastery',), types=('historical_landmark', 'church')):
+        record = archive(name, dlat_m, leaves=leaves)
+        record['types'] = list(types)
+        return record
+
+    def test_tokens_translate_accent_insensitively_and_drop_function_words(self):
+        self.assertEqual(self.terms.translate('mosteiro dos jeronimos', self.pt), 'jeronimos monastery')
+        self.assertEqual(self.terms.translate('jeronimos monastery', self.pt), 'jeronimos monastery')
+        self.assertEqual(self.terms.translate(normalize_text('Sé de Lisboa'), self.pt), 'cathedral lisboa')
+        self.assertEqual(self.terms.translate('castle of the moors', self.pt), 'castle moors')
+        # Unknown tokens stay as they are; English spelling variants fold.
+        self.assertEqual(self.terms.translate('teatro nacional', self.pt), 'national theater')
+        self.assertEqual(self.terms.translate('lisbon theatre', self.pt), 'lisbon theater')
+
+    def test_reference_landmarks_match_within_25_m(self):
+        self.assertEqual(self.decide(self.landmark('Mosteiro dos Jerónimos', 12), [served('Jerónimos Monastery', 0, 'church')])[0], 'matched (translated)')
+        self.assertEqual(self.decide(self.landmark('Castelo de Guimarães', 20, ('Castle',), ('historical_landmark',)),
+                                     [served('Guimarães Castle')])[0], 'matched (translated)')
+        self.assertEqual(self.decide(self.landmark('Mosteiro da Batalha', 5), [served('Batalha Monastery')])[0], 'matched (translated)')
+        decision, detail = self.decide(self.landmark('Capelas Imperfeitas do Mosteiro da Batalha', 5), [served('Capelas Imperfeitas')])
+        # Already a KAN-388 match on the untranslated names: the translation step never runs first.
+        self.assertEqual(decision, 'matched')
+
+    def test_translation_does_not_widen_the_distance(self):
+        self.assertEqual(self.decide(self.landmark('Mosteiro dos Jerónimos', 80), [served('Jerónimos Monastery', 0, 'church')])[0], 'import')
+        self.assertEqual(self.decide(self.landmark('Mosteiro dos Jerónimos', 26), [served('Jerónimos Monastery', 0, 'church')])[0], 'import')
+        # And the untranslated 75 m rule is untouched.
+        self.assertEqual(self.decide(self.landmark('Mosteiro dos Jerónimos', 60), [served('Mosteiro dos Jerónimos', 0, 'church')])[0], 'matched')
+
+    def test_a_statue_next_to_an_english_church_still_imports(self):
+        record = self.landmark('Estátua de Camões', 3, ('Monument',), ('historical_landmark',))
+        self.assertEqual(self.decide(record, [served('Jerónimos Monastery', 0, 'church')])[0], 'import')
+        self.assertEqual(self.decide(self.landmark('Fonte da Telha', 0, ('Fountain',), ('historical_landmark',)),
+                                     [served('Praça da República', 0, 'plaza')])[0], 'import')
+
+    def test_non_landmark_rows_and_business_counterparts_are_never_translated(self):
+        # The same translatable pair, as a night club: the step does not run for the row.
+        club = self.landmark('Castelo de Sintra', 3, ('Night Club',), ('night_club',))
+        grid = preflight.grid_index([served('Sintra Castle', 0, 'historical_landmark')])
+        self.assertIsNone(importer.translated_counterpart(club, grid, self.pt, self.terms))
+        self.assertNotEqual(self.decide(club, [served('Sintra Castle', 0, 'historical_landmark')])[0], 'matched (translated)')
+        # A landmark row against a served business: not a translation candidate either.
+        castle = self.landmark('Castelo de Sintra', 3, ('Castle',), ('historical_landmark',))
+        self.assertEqual(self.decide(castle, [served('Sintra Castle', 0, 'restaurant')])[0], 'import')
+        self.assertEqual(self.decide(castle, [served('Sintra Castle', 0, 'historical_landmark')])[0], 'matched (translated)')
+
+    def test_a_second_country_table_works_and_an_unknown_country_is_a_no_op(self):
+        terms = importer.LandmarkTerms({'countries': {'ES': 'es'}, 'en': {'theatre': 'theater'}, 'es': {'castillo': 'castle', 'de': 'de'}})
+        table = terms.table_for('ES')
+        self.assertEqual(terms.translate('castillo de bellver', table), 'bellver castle')
+        record = self.landmark('Castillo de Bellver', 10, ('Castle',), ('historical_landmark',))
+        grid = preflight.grid_index([served('Bellver Castle')])
+        self.assertEqual(importer.decide_against_served(record, grid, (table, terms))[0], 'matched (translated)')
+        self.assertIsNone(terms.table_for('FR'))
+        self.assertEqual(importer.decide_against_served(record, grid, None)[0], 'import')
+
+
 class MultibancoReadTest(unittest.TestCase):
     def test_reads_names_then_only_the_rows_a_candidate_could_match(self):
         calls = []

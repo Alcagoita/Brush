@@ -100,11 +100,14 @@ ATTRIBUTE_INSERT_PREFIX = 'INSERT OR IGNORE INTO curated_poi_attribute (poi_id, 
 ATTRIBUTE_INSERT_SUFFIX = ';\n'
 MAX_VALUES_TERMS = 500
 D1_ID_BATCH = 150
+# The two hand-check samples the owner reads before merge: pairs the
+# translation step matched, and look-list rows it left to import.
+HAND_CHECK_ROWS = 50
 
 SKIP_ORDER = (
     'excluded leaf', 'noise leaf', 'parent-only leaf', 'tier 2 leaf', 'unmapped leaf',
     'no coordinates', 'empty name', 'hidden by poi_source_correction',
-    'matched', 'weak name', 'suspect', 'in-batch duplicate',
+    'matched', 'matched (translated)', 'weak name', 'suspect', 'in-batch duplicate',
 )
 
 
@@ -304,6 +307,97 @@ def name_quality(record):
     return None
 
 
+# ---------------------------------------------------------------------------- translation-aware equality (owner, 2026-09-19)
+#
+# Overture files Portugal's big landmarks under English names ("Jerónimos
+# Monastery", "Guimarães Castle"); the archive has them in Portuguese. The
+# KAN-388 matcher compares surface strings and cannot pair them, so both
+# would be served. This step maps each token through a per-language table
+# of landmark words (docs/kan-433/landmark-terms.json, canonical English),
+# drops the function words on both sides, and then asks the SAME matcher
+# whether the translated names match. It applies only to landmark/tourism
+# rows against a served landmark, and only within the coordinate-twin
+# radius: translation must never widen the 75 m rule for untranslated names.
+
+DEFAULT_LANDMARK_TERMS = os.path.join(REPO_ROOT, 'docs', 'kan-433', 'landmark-terms.json')
+TRANSLATED_MATCH_M = preflight.COORDINATE_TWIN_M  # 25 m
+# Function words the matcher does not already drop, plus their English forms.
+TRANSLATION_STOP_WORDS = frozenset({'de', 'da', 'do', 'dos', 'das', 'of', 'the', 'e', 'a', 'o', 'and', 'em', 'no', 'na', 'nos', 'nas'})
+# Rows the translation step applies to: landmarks, places of worship,
+# museums, nature — never a business. A restaurant named "Castelo" is not a
+# castle. `spa` is in the preflight's family for hot springs; dropped here.
+TRANSLATED_TYPES = (preflight.LANDMARK_FAMILY | {'mosque', 'synagogue'}) - {'spa'}
+
+
+class LandmarkTerms:
+    """The per-language tables, accent-insensitive on both sides."""
+
+    def __init__(self, data):
+        self.countries = {code.upper(): lang for code, lang in data.get('countries', {}).items()}
+        self.tables = {}
+        for lang, table in data.items():
+            if lang in ('_comment', 'countries'):
+                continue
+            self.tables[lang] = {normalize_text(k): normalize_text(v) for k, v in table.items()}
+
+    @classmethod
+    def load(cls, path=DEFAULT_LANDMARK_TERMS):
+        with open(path) as handle:
+            return cls(json.load(handle))
+
+    def table_for(self, country):
+        """The country's table merged over the English variants, or None
+        when the country has no table (then the step is a no-op)."""
+        lang = self.countries.get((country or '').upper())
+        if not lang or lang not in self.tables:
+            return None
+        return {**self.tables.get('en', {}), **self.tables[lang]}
+
+    def translate(self, dedupe_name, table):
+        """Tokens mapped to canonical English, stop-words dropped, sorted so
+        word order carries no weight ("mosteiro dos jeronimos" and
+        "jeronimos monastery" become the same string)."""
+        tokens = [table.get(token, token) for token in dedupe_name.split()]
+        return ' '.join(sorted(token for token in tokens if token not in TRANSLATION_STOP_WORDS))
+
+
+def translated_names_match(left, right, distance, table, terms):
+    """The KAN-388 name verdict on the translated names, inside
+    TRANSLATED_MATCH_M — its strong rungs only: equal, containment, or the
+    same identity terms (`name_similarity` ≥ SAME_NAME_SIMILARITY).
+
+    Not the SequenceMatcher rung and not the single-token rule. Translation
+    compresses a name to a few canonical words, and on those the fuzzy
+    ratio pairs "church covo harbor" with "beach covinho harbor" (a church
+    and a beach, 13 m apart) and "aveiro marina ria" with "aveiro canais";
+    the hand-check of the first PT run found four such pairs in fifty. The
+    single-token rule would pair anything on a shared canonical word
+    ("church") — the words this step exists to translate."""
+    if distance > TRANSLATED_MATCH_M or table is None:
+        return False
+    a, b = terms.translate(left, table), terms.translate(right, table)
+    if not a or not b:
+        return False
+    return name_similarity(a, b) >= SAME_NAME_SIMILARITY
+
+
+def translated_counterpart(record, grid, table, terms):
+    """The nearest served landmark within TRANSLATED_MATCH_M whose translated
+    name matches the row's, as (place, distance), or None. Landmark rows
+    only, landmark counterparts only."""
+    if table is None or not (set(record.get('types', ())) & TRANSLATED_TYPES):
+        return None
+    best = None
+    for place in preflight.near(grid, record['lat'], record['lng']):
+        if preflight.business_typed(place['type']) or place['type'] == 'spa':
+            continue
+        distance = haversine_m(record['lat'], record['lng'], place['lat'], place['lng'])
+        if distance <= TRANSLATED_MATCH_M and translated_names_match(record['dedupe_name'], place['dedupe_name'], distance, table, terms):
+            if best is None or distance < best[1]:
+                best = (place, distance)
+    return best
+
+
 # "Same name" for the 75–400 m skip. name_similarity has three rungs: 1.0
 # for equal names, 0.9 for containment ("Pico dos Barcelos" in "Miradouro
 # do Pico dos Barcelos") or the same identity terms reordered, and below
@@ -338,9 +432,11 @@ def far_same_name(record, grid):
     return same, fuzzy
 
 
-def decide_against_served(record, grid):
+def decide_against_served(record, grid, translation=None):
     """(decision, detail) for one row against the served base: 'import',
-    'matched', 'suspect', 'no coordinates', 'empty name', 'weak name'.
+    'matched', 'matched (translated)', 'suspect', 'no coordinates',
+    'empty name', 'weak name'. `translation` is (table, terms) for the
+    country, or None to leave the translation step out.
     An import that the preflight would have called suspect on a fuzzy far
     name carries that counterpart in record['fuzzy_far'] for the report."""
     if record['lat'] is None:
@@ -351,6 +447,11 @@ def decide_against_served(record, grid):
     if counterpart and counterpart[3] == 'matched':
         place, distance, similarity, _ = counterpart
         return 'matched', f'{place["source"]}:{place["id"]} "{place["name"]}" ({place["type"]}) at {distance:.0f} m, sim {similarity:.2f}'
+    if translation:
+        translated = translated_counterpart(record, grid, *translation)
+        if translated:
+            place, distance = translated
+            return 'matched (translated)', f'{place["source"]}:{place["id"]} "{place["name"]}" ({place["type"]}) at {distance:.0f} m'
     weak = name_quality(record)
     if weak:
         return 'weak name', weak
@@ -432,7 +533,7 @@ def served_alias_twins(inserts, grid):
     return sorted(twins, key=lambda twin: (twin[2], twin[0]['fsq_place_id']))
 
 
-def plan(records, paths_by_id, leaf_map, grid, corrections):
+def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None):
     """Every record → a decision. Returns (inserts, skips) where inserts
     are records with 'types' set and skips are (record, reason, detail)."""
     skips = []
@@ -451,7 +552,7 @@ def plan(records, paths_by_id, leaf_map, grid, corrections):
         if correction and correction.get('name_override'):
             record['name'] = correction['name_override']
             record['dedupe_name'] = normalize_text(record['name'])
-        decision, detail = decide_against_served(record, grid)
+        decision, detail = decide_against_served(record, grid, translation)
         if decision != 'import':
             skips.append((record, decision, detail))
             continue
@@ -673,17 +774,36 @@ def render(c):
                'only its type word ("Castelo", "Igreja") or only its town names nothing the matcher could dedupe later.\n')
     out.append(f"- type words only: {c['weak_counts'].get('type words only', 0):,}")
     out.append(f"- locality only: {c['weak_counts'].get('locality only', 0):,}\n")
+    translated = c['skip_samples_hand'].get('matched (translated)', [])
+    out.append('## Matched through translation — hand-check sample\n')
+    out.append(f"Rows skipped because their name, with landmark words mapped to English through `{c['terms_path']}` and "
+               f"function words dropped, matches a served landmark's translated name within {TRANSLATED_MATCH_M:.0f} m. "
+               f"{c['skip_counts'].get('matched (translated)', 0):,} row(s); a seeded sample of {len(translated)} for a person to check — "
+               'any pair here that is NOT the same place is a bug in the term table or the step.\n')
+    if translated:
+        out.append('| fsq_place_id | archive name | served name | served type | m | translated (archive ↔ served) |')
+        out.append('|---|---|---|---|---:|---|')
+        for record, _, detail in translated:
+            served_name = detail.split('"')[1] if '"' in detail else ''
+            out.append('| ' + ' | '.join(md_cell(v) for v in (
+                record['fsq_place_id'], record['name'], served_name, detail.rsplit('(', 1)[-1].split(')')[0],
+                detail.rsplit(' at ', 1)[-1].replace(' m', ''),
+                f"{c['translate'](record['dedupe_name'])} ↔ {c['translate'](normalize_text(served_name))}")) + ' |')
+        out.append('')
     out.append('## Served landmark within 25 m under another name — imported, for curation\n')
     out.append(f"Would-insert rows with a served landmark or venue (not a business) within {preflight.COORDINATE_TWIN_M:.0f} m whose name the "
                'matcher cannot pair. The contract imports them — different names are different places, distance alone never '
                'removes — and the Worker\'s read-time suppression is exact-name too. Some are real neighbours (a statue by a '
                'church); the ones that are the same place under another language or alias ("Mosteiro dos Jerónimos" / "Jerónimos '
-               f"Monastery\") are what this list is for. {len(c['alias_twins']):,} row(s); first {c['sample_size']}:\n")
-    if c['alias_twins']:
-        out.append('| fsq_place_id | name | our type(s) | served neighbour |')
-        out.append('|---|---|---|---|')
-        for record, _, _ in c['alias_twins'][:c['sample_size']]:
-            out.append('| ' + ' | '.join(md_cell(v) for v in (record['fsq_place_id'], record['name'], ', '.join(record['types']), record['alias_twin'])) + ' |')
+               f"Monastery\") are what this list is for — what the translation step above did not pair. "
+               f"{len(c['alias_twins']):,} row(s); a seeded hand-check sample of {len(c['alias_sample'])}:\n")
+    if c['alias_sample']:
+        out.append('| fsq_place_id | name | our type(s) | served neighbour | translated (archive ↔ served) |')
+        out.append('|---|---|---|---|---|')
+        for record, place, _ in c['alias_sample']:
+            out.append('| ' + ' | '.join(md_cell(v) for v in (
+                record['fsq_place_id'], record['name'], ', '.join(record['types']), record['alias_twin'],
+                f"{c['translate'](record['dedupe_name'])} ↔ {c['translate'](place['dedupe_name'])}")) + ' |')
         out.append('')
     out.append('## Fuzzy far names — imported, for curation\n')
     out.append(f"Would-insert rows whose nearest served row {MATCH_RADIUS_METERS}–{preflight.FAR_M:.0f} m away scores between "
@@ -779,7 +899,11 @@ def run(args):
     grid = preflight.grid_index(served + curated + multibanco)
 
     print(f'[import] planning {len(records):,} in-scope rows', file=sys.stderr)
-    inserts, skips = plan(records, paths_by_id, leaf_map, grid, corrections)
+    terms = LandmarkTerms.load(args.landmark_terms)
+    table = terms.table_for(args.country)
+    if table is None:
+        print(f'[import] no landmark-terms table for {args.country}: translation step off', file=sys.stderr)
+    inserts, skips = plan(records, paths_by_id, leaf_map, grid, corrections, (table, terms) if table else None)
     inserts.sort(key=lambda r: r['fsq_place_id'])
     skips.sort(key=lambda s: s[0]['fsq_place_id'])
     imported_at = args.imported_at or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -807,6 +931,9 @@ def run(args):
     for item in skips:
         skips_by_reason[item[1]].append(item)
     skip_samples = {reason: sample(rows, args.sample_size, args.seed, key=lambda s: s[0]['fsq_place_id']) for reason, rows in skips_by_reason.items()}
+    skip_samples_hand = {reason: sample(rows, HAND_CHECK_ROWS, args.seed, key=lambda s: s[0]['fsq_place_id']) for reason, rows in skips_by_reason.items()}
+    alias_twins = served_alias_twins(inserts, grid)
+    alias_sample = sample(alias_twins, HAND_CHECK_ROWS, args.seed, key=lambda twin: twin[0]['fsq_place_id'])
 
     changes = None
     if args.emit:
@@ -826,7 +953,9 @@ def run(args):
         'two_type_rows': sum(1 for r in inserts if len(r['types']) > 1),
         'by_type': by_type, 'by_second_type': by_second_type, 'per_leaf': per_leaf, 'kind_of': kind_of,
         'leaf_order': leaf_order, 'leaf_paths': leaf_paths, 'unmapped': unmapped,
-        'alias_twins': served_alias_twins(inserts, grid),
+        'alias_twins': alias_twins, 'alias_sample': alias_sample, 'skip_samples_hand': skip_samples_hand,
+        'terms_path': os.path.relpath(args.landmark_terms, REPO_ROOT),
+        'translate': (lambda name: terms.translate(name, table)) if table else (lambda name: name),
         'near_misses': batch_name_near_misses(inserts), 'fuzzy_far': [r for r in inserts if r.get('fuzzy_far')], 'samples': samples, 'skip_samples': skip_samples,
         'sample_size': args.sample_size,
     }
@@ -856,6 +985,8 @@ def main(argv=None):
     parser.add_argument('--archive-csv', help='local copy of the archive (skips the R2 fetch)')
     parser.add_argument('--overture-csv', help='local copy of the Overture country CSV (skips the R2 fetch)')
     parser.add_argument('--leaf-map', default=DEFAULT_LEAF_MAP)
+    parser.add_argument('--landmark-terms', default=DEFAULT_LANDMARK_TERMS,
+                        help='per-language landmark word table for the translation-aware match (keyed by --country)')
     parser.add_argument('--tier', type=int, default=1)
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--report-out', required=True, help='markdown path; the .jsonl goes beside it')

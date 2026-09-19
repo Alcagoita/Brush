@@ -1,6 +1,6 @@
 # KAN-433 — Foursquare tourism import, PT, Tier 1 — DRY RUN
 
-Run `kan433-pt-tier1-20260918`, generated 2026-09-18T22:04Z by `cloudflare/extraction/import_foursquare_tourism.py`. Nothing was written to D1 or R2; this is what `--emit` would do.
+Run `kan433-pt-tier1-20260918`, generated 2026-09-19T02:30Z by `cloudflare/extraction/import_foursquare_tourism.py`. Nothing was written to D1 or R2; this is what `--emit` would do.
 
 ## Inputs
 
@@ -16,47 +16,48 @@ Run `kan433-pt-tier1-20260918`, generated 2026-09-18T22:04Z by `cloudflare/extra
 
 | | rows |
 |---|---:|
-| **would insert** | **9,741** |
+| **would insert** | **9,691** |
 | skipped — noise leaf | 12,693 |
 | skipped — parent-only leaf | 2,726 |
 | skipped — tier 2 leaf | 6,983 |
 | skipped — unmapped leaf | 3,081 |
 | skipped — empty name | 33 |
 | skipped — matched | 4,728 |
+| skipped — matched (translated) | 60 |
 | skipped — weak name | 118 |
-| skipped — suspect | 983 |
-| skipped — in-batch duplicate | 100 |
+| skipped — suspect | 975 |
+| skipped — in-batch duplicate | 98 |
 | in-scope rows, total | 41,186 |
 
-SQL: 48 statement(s), 3,710,536 bytes (47 `curated_poi` + 1 `curated_poi_attribute`), largest 79,996 bytes (cap 80,000). Rows with a second type (written as `curated_poi_attribute` `poi_type`): 244.
+SQL: 48 statement(s), 3,690,889 bytes (47 `curated_poi` + 1 `curated_poi_attribute`), largest 79,971 bytes (cap 80,000). Rows with a second type (written as `curated_poi_attribute` `poi_type`): 241.
 
 ## Would insert, by our type
 
 | primary_poi_type | rows | + as second type |
 |---|---:|---:|
-| `church` | 1,962 | 32 |
-| `historical_landmark` | 1,603 | 112 |
+| `church` | 1,942 | 30 |
+| `historical_landmark` | 1,593 | 112 |
 | `night_club` | 948 | 4 |
 | `music_venue` | 743 | 4 |
-| `art_gallery` | 547 | 7 |
-| `museum` | 446 | 18 |
+| `art_gallery` | 545 | 7 |
+| `museum` | 436 | 18 |
 | `hiking_area` | 430 | 4 |
-| `campground` | 371 | 0 |
+| `campground` | 366 | 0 |
 | `stadium` | 364 | 1 |
 | `mountain` | 290 | 7 |
-| `river` | 278 | 6 |
+| `river` | 278 | 5 |
 | `marina` | 236 | 4 |
 | `amusement_park` | 211 | 3 |
-| `bridge` | 209 | 6 |
+| `bridge` | 208 | 6 |
 | `lake` | 197 | 4 |
-| `surf_spot` | 164 | 1 |
+| `surf_spot` | 163 | 1 |
 | `theatre` | 130 | 11 |
 | `movie_theater` | 128 | 5 |
 | `water_park` | 88 | 8 |
 | `nature_preserve` | 79 | 7 |
 | `waterfall` | 72 | 3 |
 | `hot_spring` | 71 | 0 |
-| `lighthouse` | 68 | 2 |
+| `lighthouse` | 67 | 2 |
 | `casino` | 51 | 0 |
 | `botanical_garden` | 17 | 0 |
 | `aquarium` | 13 | 0 |
@@ -68,166 +69,166 @@ SQL: 48 statement(s), 3,710,536 bytes (47 `curated_poi` + 1 `curated_poi_attribu
 
 A row with several in-scope leaves counts under each, so columns sum past the distinct totals above. Skip reasons that are the same for every row of a leaf (tier 2, noise, parent, excluded, unmapped) show the leaf's whole count.
 
-| leaf | kind | our type(s) | rows | would insert | noise leaf | parent-only leaf | tier 2 leaf | unmapped leaf | empty name | matched | weak name | suspect | in-batch duplicate |
-|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| Church | tier1 | `church` | 3,284 | 1,875 | 0 | 0 | 0 | 0 | 3 | 1,216 | 4 | 164 | 22 |
-| Night Club | tier1 | `night_club` | 1,395 | 952 | 0 | 0 | 0 | 0 | 1 | 367 | 17 | 47 | 11 |
-| Historic and Protected Site | tier1 | `historical_landmark` | 1,311 | 758 | 0 | 0 | 0 | 0 | 7 | 419 | 16 | 104 | 7 |
-| Art Gallery | tier1 | `art_gallery` | 891 | 554 | 0 | 0 | 0 | 0 | 0 | 296 | 0 | 38 | 3 |
-| Music Venue | tier1 | `music_venue` | 644 | 474 | 0 | 0 | 0 | 0 | 0 | 136 | 4 | 27 | 3 |
-| Hiking Trail | tier1 | `hiking_area` | 583 | 434 | 0 | 0 | 0 | 0 | 0 | 105 | 10 | 33 | 1 |
-| Monument | tier1 | `historical_landmark` | 610 | 390 | 0 | 0 | 0 | 0 | 1 | 174 | 2 | 38 | 5 |
-| Campground | tier1 | `campground` | 622 | 371 | 0 | 0 | 0 | 0 | 2 | 188 | 0 | 60 | 1 |
-| Mountain | tier1 | `mountain` | 371 | 297 | 0 | 0 | 0 | 0 | 3 | 48 | 2 | 21 | 0 |
-| River | tier1 | `river` | 390 | 283 | 0 | 0 | 0 | 0 | 1 | 79 | 0 | 25 | 2 |
-| Concert Hall | tier1 | `music_venue` | 427 | 275 | 0 | 0 | 0 | 0 | 0 | 132 | 1 | 16 | 3 |
-| Museum | tier1 | `museum` | 584 | 256 | 0 | 0 | 0 | 0 | 0 | 271 | 0 | 55 | 2 |
-| Harbor or Marina | tier1 | `marina` | 336 | 240 | 0 | 0 | 0 | 0 | 3 | 50 | 10 | 33 | 0 |
-| Bridge | tier1 | `bridge` | 355 | 215 | 0 | 0 | 0 | 0 | 0 | 95 | 13 | 31 | 1 |
-| Soccer Stadium | tier1 | `stadium` | 368 | 214 | 0 | 0 | 0 | 0 | 1 | 126 | 1 | 24 | 2 |
-| Public Art | tier1 | `historical_landmark` | 247 | 211 | 0 | 0 | 0 | 0 | 0 | 26 | 0 | 9 | 1 |
-| Lake | tier1 | `lake` | 301 | 200 | 0 | 0 | 0 | 0 | 0 | 68 | 1 | 30 | 2 |
-| Surf Spot | tier1 | `surf_spot` | 343 | 165 | 0 | 0 | 0 | 0 | 2 | 123 | 5 | 45 | 3 |
-| History Museum | tier1 | `museum` | 352 | 142 | 0 | 0 | 0 | 0 | 0 | 169 | 1 | 38 | 2 |
-| Theater | tier1 | `theatre` | 321 | 141 | 0 | 0 | 0 | 0 | 0 | 161 | 1 | 16 | 2 |
-| Amusement Park | tier1 | `amusement_park` | 181 | 134 | 0 | 0 | 0 | 0 | 0 | 34 | 1 | 12 | 0 |
-| Movie Theater | tier1 | `movie_theater` | 282 | 133 | 0 | 0 | 0 | 0 | 0 | 126 | 1 | 11 | 11 |
-| Water Park | tier1 | `water_park` | 142 | 96 | 0 | 0 | 0 | 0 | 1 | 29 | 6 | 10 | 0 |
-| Nature Preserve | tier1 | `nature_preserve` | 115 | 85 | 0 | 0 | 0 | 0 | 0 | 22 | 1 | 6 | 1 |
-| Castle | tier1 | `historical_landmark` | 185 | 83 | 0 | 0 | 0 | 0 | 1 | 76 | 2 | 21 | 2 |
-| Stadium | tier1 | `stadium` | 161 | 82 | 0 | 0 | 0 | 0 | 0 | 67 | 1 | 10 | 1 |
-| Attraction | tier1 | `amusement_park` | 97 | 80 | 0 | 0 | 0 | 0 | 0 | 11 | 0 | 6 | 0 |
-| Waterfall | tier1 | `waterfall` | 102 | 75 | 0 | 0 | 0 | 0 | 0 | 15 | 3 | 7 | 2 |
-| Hot Spring | tier1 | `hot_spring` | 90 | 71 | 0 | 0 | 0 | 0 | 1 | 11 | 0 | 7 | 0 |
-| Lighthouse | tier1 | `lighthouse` | 138 | 70 | 0 | 0 | 0 | 0 | 2 | 53 | 5 | 8 | 0 |
-| Fountain | tier1 | `historical_landmark` | 94 | 65 | 0 | 0 | 0 | 0 | 0 | 24 | 0 | 3 | 2 |
-| Shrine | tier1 | `church`, `historical_landmark` | 92 | 63 | 0 | 0 | 0 | 0 | 0 | 20 | 1 | 7 | 1 |
-| Sculpture Garden | tier1 | `historical_landmark` | 84 | 59 | 0 | 0 | 0 | 0 | 0 | 17 | 2 | 6 | 0 |
-| Art Museum | tier1 | `museum` | 160 | 55 | 0 | 0 | 0 | 0 | 0 | 92 | 0 | 11 | 2 |
-| Casino | tier1 | `casino` | 70 | 51 | 0 | 0 | 0 | 0 | 1 | 16 | 1 | 1 | 0 |
-| Temple | tier1 | `church`, `historical_landmark` | 70 | 47 | 0 | 0 | 0 | 0 | 1 | 16 | 0 | 6 | 0 |
-| Palace | tier1 | `historical_landmark` | 62 | 39 | 0 | 0 | 0 | 0 | 0 | 16 | 0 | 4 | 3 |
-| Science Museum | tier1 | `museum` | 64 | 27 | 0 | 0 | 0 | 0 | 0 | 34 | 0 | 3 | 0 |
-| Tennis Stadium | tier1 | `stadium` | 37 | 27 | 0 | 0 | 0 | 0 | 0 | 7 | 0 | 3 | 0 |
-| Windmill | tier1 | `historical_landmark` | 24 | 19 | 0 | 0 | 0 | 0 | 1 | 1 | 0 | 2 | 1 |
-| Botanical Garden | tier1 | `botanical_garden` | 34 | 17 | 0 | 0 | 0 | 0 | 0 | 13 | 1 | 1 | 2 |
-| Hockey Stadium | tier1 | `stadium` | 27 | 15 | 0 | 0 | 0 | 0 | 0 | 9 | 2 | 1 | 0 |
-| Aquarium | tier1 | `aquarium` | 26 | 13 | 0 | 0 | 0 | 0 | 0 | 10 | 1 | 1 | 1 |
-| Basketball Stadium | tier1 | `stadium` | 32 | 12 | 0 | 0 | 0 | 0 | 0 | 16 | 1 | 3 | 0 |
-| Monastery | tier1 | `historical_landmark`, `church` | 30 | 12 | 0 | 0 | 0 | 0 | 0 | 14 | 0 | 4 | 0 |
-| Zoo | tier1 | `zoo` | 25 | 12 | 0 | 0 | 0 | 0 | 0 | 11 | 0 | 2 | 0 |
-| Football Stadium | tier1 | `stadium` | 19 | 11 | 0 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 |
-| Mosque | tier1 | `mosque` | 17 | 10 | 0 | 0 | 0 | 0 | 1 | 4 | 1 | 1 | 0 |
-| Track Stadium | tier1 | `stadium` | 10 | 5 | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 1 | 0 |
-| Synagogue | tier1 | `synagogue` | 8 | 4 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 1 | 0 |
-| Baseball Stadium | tier1 | `stadium` | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Rugby Stadium | tier1 | `stadium` | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Ruin | tier1 | `historical_landmark` | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Erotic Museum | tier1 | `museum` | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Tower | tier1 | `historical_landmark` | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Fort | tier1 | `historical_landmark` | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
-| Scenic Lookout | tier2 |  | 1,585 | 55 | 0 | 0 | 1,466 | 0 | 0 | 54 | 2 | 8 | 0 |
-| Beach | tier2 |  | 1,464 | 41 | 0 | 0 | 1,328 | 0 | 0 | 66 | 4 | 25 | 0 |
-| Park | tier2 |  | 1,295 | 16 | 0 | 0 | 1,248 | 0 | 0 | 21 | 1 | 9 | 0 |
-| Garden | tier2 |  | 1,022 | 10 | 0 | 0 | 1,001 | 0 | 0 | 6 | 0 | 5 | 0 |
-| Playground | tier2 |  | 795 | 10 | 0 | 0 | 782 | 0 | 0 | 3 | 0 | 0 | 0 |
-| Plaza | tier2 |  | 1,132 | 2 | 0 | 0 | 1,120 | 0 | 0 | 10 | 0 | 0 | 0 |
-| Island | tier2 |  | 67 | 2 | 0 | 0 | 65 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Pedestrian Plaza | tier2 |  | 122 | 0 | 0 | 0 | 121 | 0 | 0 | 0 | 0 | 1 | 0 |
-| Performing Arts Venue | unmapped |  | 200 | 13 | 0 | 0 | 0 | 172 | 0 | 14 | 0 | 1 | 0 |
-| Outdoor Sculpture | unmapped |  | 164 | 9 | 0 | 0 | 2 | 142 | 0 | 11 | 0 | 0 | 0 |
-| Street Art | unmapped |  | 107 | 6 | 0 | 0 | 0 | 100 | 0 | 1 | 0 | 0 | 0 |
-| Rock Club | unmapped |  | 102 | 5 | 0 | 0 | 0 | 91 | 0 | 4 | 0 | 2 | 0 |
-| Bathing Area | unmapped |  | 116 | 4 | 0 | 0 | 3 | 107 | 0 | 1 | 0 | 0 | 1 |
-| Exhibit | unmapped |  | 86 | 4 | 0 | 0 | 0 | 80 | 0 | 2 | 0 | 0 | 0 |
-| Rock Climbing Spot | unmapped |  | 47 | 4 | 0 | 0 | 0 | 43 | 0 | 0 | 0 | 0 | 0 |
-| Prayer Room | unmapped |  | 166 | 3 | 0 | 0 | 1 | 161 | 0 | 1 | 0 | 0 | 0 |
-| Indie Movie Theater | unmapped |  | 69 | 3 | 0 | 0 | 0 | 55 | 0 | 10 | 0 | 1 | 0 |
-| National Park | unmapped |  | 47 | 3 | 0 | 0 | 5 | 37 | 0 | 2 | 0 | 0 | 0 |
-| Picnic Area | unmapped |  | 26 | 3 | 0 | 0 | 2 | 20 | 0 | 1 | 0 | 0 | 0 |
-| State or Provincial Park | unmapped |  | 23 | 3 | 0 | 0 | 1 | 18 | 0 | 1 | 0 | 0 | 0 |
-| Bike Trail | unmapped |  | 22 | 3 | 0 | 0 | 1 | 18 | 0 | 0 | 0 | 0 | 0 |
-| Dog Park | unmapped |  | 231 | 2 | 0 | 0 | 25 | 204 | 0 | 0 | 0 | 0 | 0 |
-| Fair | unmapped |  | 161 | 2 | 0 | 0 | 0 | 156 | 0 | 3 | 0 | 0 | 0 |
-| Stable | unmapped |  | 160 | 2 | 0 | 0 | 1 | 156 | 0 | 1 | 0 | 0 | 0 |
-| Amphitheater | unmapped |  | 37 | 2 | 0 | 0 | 0 | 34 | 0 | 1 | 0 | 0 | 0 |
-| Indie Theater | unmapped |  | 32 | 2 | 0 | 0 | 0 | 29 | 0 | 1 | 0 | 0 | 0 |
-| Tunnel | unmapped |  | 30 | 2 | 0 | 0 | 1 | 27 | 0 | 0 | 0 | 0 | 0 |
-| Opera House | unmapped |  | 5 | 2 | 0 | 0 | 0 | 2 | 0 | 1 | 0 | 0 | 0 |
-| Strip Club | unmapped |  | 234 | 1 | 0 | 0 | 0 | 231 | 0 | 2 | 0 | 0 | 0 |
-| Comedy Club | unmapped |  | 90 | 1 | 0 | 0 | 0 | 88 | 0 | 1 | 0 | 0 | 0 |
-| Roof Deck | unmapped |  | 88 | 1 | 0 | 0 | 4 | 83 | 0 | 0 | 0 | 0 | 0 |
-| Cave | unmapped |  | 44 | 1 | 0 | 0 | 0 | 43 | 0 | 0 | 0 | 0 | 0 |
-| Memorial Site | unmapped |  | 31 | 1 | 0 | 0 | 0 | 28 | 0 | 2 | 0 | 0 | 0 |
-| Volcano | unmapped |  | 27 | 1 | 0 | 0 | 0 | 25 | 0 | 1 | 0 | 0 | 0 |
-| Circus | unmapped |  | 26 | 1 | 0 | 0 | 0 | 25 | 0 | 0 | 0 | 0 | 0 |
-| Party Center | unmapped |  | 23 | 1 | 0 | 0 | 0 | 22 | 0 | 0 | 0 | 0 | 0 |
-| Zoo Exhibit | unmapped |  | 14 | 1 | 0 | 0 | 2 | 10 | 0 | 0 | 0 | 1 | 0 |
-| Dam | unmapped |  | 13 | 1 | 0 | 0 | 2 | 9 | 0 | 1 | 0 | 0 | 0 |
-| Planetarium | unmapped |  | 10 | 1 | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 | 0 |
-| Buddhist Temple | unmapped |  | 5 | 1 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
-| Ticket Seller | unmapped |  | 3 | 1 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 |
-| Pool Hall | unmapped |  | 181 | 0 | 0 | 0 | 0 | 181 | 0 | 0 | 0 | 0 | 0 |
-| Internet Cafe | unmapped |  | 95 | 0 | 0 | 0 | 0 | 95 | 0 | 0 | 0 | 0 | 0 |
-| Arcade | unmapped |  | 92 | 0 | 0 | 0 | 2 | 90 | 0 | 0 | 0 | 0 | 0 |
-| Bowling Alley | unmapped |  | 75 | 0 | 0 | 0 | 0 | 74 | 0 | 1 | 0 | 0 | 0 |
-| Dive Spot | unmapped |  | 57 | 0 | 0 | 0 | 0 | 56 | 0 | 0 | 0 | 0 | 1 |
-| Gaming Cafe | unmapped |  | 52 | 0 | 0 | 0 | 0 | 52 | 0 | 0 | 0 | 0 | 0 |
-| Jazz and Blues Venue | unmapped |  | 45 | 0 | 0 | 0 | 0 | 44 | 0 | 1 | 0 | 0 | 0 |
-| Go Kart Track | unmapped |  | 40 | 0 | 0 | 0 | 0 | 40 | 0 | 0 | 0 | 0 | 0 |
-| Escape Room | unmapped |  | 36 | 0 | 0 | 0 | 1 | 35 | 0 | 0 | 0 | 0 | 0 |
-| Mini Golf Course | unmapped |  | 28 | 0 | 0 | 0 | 0 | 28 | 0 | 0 | 0 | 0 | 0 |
-| Nudist Beach | unmapped |  | 25 | 0 | 0 | 0 | 6 | 19 | 0 | 0 | 0 | 0 | 0 |
-| Psychic and Astrologer | unmapped |  | 22 | 0 | 0 | 0 | 0 | 22 | 0 | 0 | 0 | 0 | 0 |
-| Natural Park | unmapped |  | 18 | 0 | 0 | 0 | 1 | 16 | 0 | 1 | 0 | 0 | 0 |
-| Salsa Club | unmapped |  | 17 | 0 | 0 | 0 | 0 | 17 | 0 | 0 | 0 | 0 | 0 |
-| Country Dance Club | unmapped |  | 16 | 0 | 0 | 0 | 0 | 16 | 0 | 0 | 0 | 0 | 0 |
-| Laser Tag Center | unmapped |  | 16 | 0 | 0 | 0 | 2 | 14 | 0 | 0 | 0 | 0 | 0 |
-| Urban Park | unmapped |  | 16 | 0 | 0 | 0 | 1 | 15 | 0 | 0 | 0 | 0 | 0 |
-| Roller Rink | unmapped |  | 11 | 0 | 0 | 0 | 0 | 11 | 0 | 0 | 0 | 0 | 0 |
-| Boat Launch | unmapped |  | 8 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 0 | 0 |
-| Picnic Shelter | unmapped |  | 6 | 0 | 0 | 0 | 0 | 6 | 0 | 0 | 0 | 0 | 0 |
-| Carnival | unmapped |  | 4 | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
-| VR Cafe | unmapped |  | 4 | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 |
-| Country Club | unmapped |  | 3 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 |
-| Mountain Hut | unmapped |  | 3 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 |
-| Dance Hall | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 |
-| Disc Golf | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 |
-| Disc Golf Course | unmapped |  | 2 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Kingdom Hall | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 |
-| Nature Trail | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 |
-| Bingo Center | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Community Garden | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Drive-in Theater | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| General Entertainment | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Hindu Temple | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Terreiro | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| Arts and Entertainment | parent |  | 2,183 | 4 | 0 | 2,157 | 15 | 3 | 0 | 3 | 0 | 1 | 0 |
-| Spiritual Center | parent |  | 384 | 4 | 0 | 365 | 2 | 1 | 0 | 10 | 0 | 2 | 0 |
-| Landmarks and Outdoors | parent |  | 207 | 1 | 0 | 205 | 0 | 0 | 0 | 1 | 0 | 0 | 0 |
-| Other Great Outdoors | noise |  | 1,999 | 40 | 1,826 | 4 | 69 | 19 | 0 | 24 | 1 | 16 | 0 |
-| Canal | noise |  | 36 | 13 | 19 | 0 | 0 | 0 | 0 | 2 | 2 | 0 | 0 |
-| Field | noise |  | 1,045 | 11 | 1,016 | 0 | 10 | 6 | 0 | 1 | 1 | 0 | 0 |
-| Neighborhood | noise |  | 1,877 | 4 | 1,841 | 1 | 21 | 0 | 0 | 5 | 2 | 3 | 0 |
-| Canal Lock | noise |  | 10 | 4 | 3 | 0 | 2 | 0 | 0 | 1 | 0 | 0 | 0 |
-| Structure | noise |  | 3,274 | 3 | 3,252 | 5 | 6 | 0 | 0 | 7 | 0 | 1 | 0 |
-| Farm | noise |  | 1,949 | 3 | 1,928 | 1 | 4 | 11 | 0 | 1 | 0 | 1 | 0 |
-| City | noise |  | 1,790 | 2 | 1,782 | 0 | 2 | 0 | 0 | 0 | 3 | 1 | 0 |
-| Forest | noise |  | 63 | 2 | 55 | 0 | 3 | 1 | 0 | 1 | 0 | 1 | 0 |
-| Village | noise |  | 599 | 1 | 593 | 0 | 3 | 0 | 0 | 0 | 1 | 1 | 0 |
-| Town | noise |  | 310 | 1 | 307 | 0 | 1 | 0 | 0 | 0 | 1 | 0 | 0 |
-| Well | noise |  | 74 | 1 | 71 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 |
-| Waterfront | noise |  | 40 | 1 | 32 | 0 | 5 | 0 | 0 | 1 | 1 | 0 | 0 |
-| Tree | noise |  | 37 | 1 | 34 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Bay | noise |  | 25 | 1 | 24 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| States and Municipalities | noise |  | 48 | 0 | 48 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Reservoir | noise |  | 14 | 0 | 13 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Hill | noise |  | 9 | 0 | 8 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 |
-| County | noise |  | 3 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Pass | noise |  | 3 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| State | noise |  | 3 | 0 | 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Country | noise |  | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
-| Pond | noise |  | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| leaf | kind | our type(s) | rows | would insert | noise leaf | parent-only leaf | tier 2 leaf | unmapped leaf | empty name | matched | matched (translated) | weak name | suspect | in-batch duplicate |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Church | tier1 | `church` | 3,284 | 1,854 | 0 | 0 | 0 | 0 | 3 | 1,216 | 24 | 4 | 162 | 21 |
+| Night Club | tier1 | `night_club` | 1,395 | 952 | 0 | 0 | 0 | 0 | 1 | 367 | 0 | 17 | 47 | 11 |
+| Historic and Protected Site | tier1 | `historical_landmark` | 1,311 | 751 | 0 | 0 | 0 | 0 | 7 | 419 | 7 | 16 | 104 | 7 |
+| Art Gallery | tier1 | `art_gallery` | 891 | 552 | 0 | 0 | 0 | 0 | 0 | 296 | 2 | 0 | 38 | 3 |
+| Music Venue | tier1 | `music_venue` | 644 | 474 | 0 | 0 | 0 | 0 | 0 | 136 | 0 | 4 | 27 | 3 |
+| Hiking Trail | tier1 | `hiking_area` | 583 | 434 | 0 | 0 | 0 | 0 | 0 | 105 | 0 | 10 | 33 | 1 |
+| Monument | tier1 | `historical_landmark` | 610 | 386 | 0 | 0 | 0 | 0 | 1 | 174 | 4 | 2 | 38 | 5 |
+| Campground | tier1 | `campground` | 622 | 366 | 0 | 0 | 0 | 0 | 2 | 188 | 5 | 0 | 60 | 1 |
+| Mountain | tier1 | `mountain` | 371 | 297 | 0 | 0 | 0 | 0 | 3 | 48 | 0 | 2 | 21 | 0 |
+| River | tier1 | `river` | 390 | 282 | 0 | 0 | 0 | 0 | 1 | 79 | 1 | 0 | 25 | 2 |
+| Concert Hall | tier1 | `music_venue` | 427 | 275 | 0 | 0 | 0 | 0 | 0 | 132 | 0 | 1 | 16 | 3 |
+| Museum | tier1 | `museum` | 584 | 247 | 0 | 0 | 0 | 0 | 0 | 271 | 11 | 0 | 53 | 2 |
+| Harbor or Marina | tier1 | `marina` | 336 | 240 | 0 | 0 | 0 | 0 | 3 | 50 | 0 | 10 | 33 | 0 |
+| Soccer Stadium | tier1 | `stadium` | 368 | 214 | 0 | 0 | 0 | 0 | 1 | 126 | 0 | 1 | 24 | 2 |
+| Bridge | tier1 | `bridge` | 355 | 214 | 0 | 0 | 0 | 0 | 0 | 95 | 2 | 13 | 30 | 1 |
+| Public Art | tier1 | `historical_landmark` | 247 | 211 | 0 | 0 | 0 | 0 | 0 | 26 | 0 | 0 | 9 | 1 |
+| Lake | tier1 | `lake` | 301 | 200 | 0 | 0 | 0 | 0 | 0 | 68 | 0 | 1 | 30 | 2 |
+| Surf Spot | tier1 | `surf_spot` | 343 | 164 | 0 | 0 | 0 | 0 | 2 | 123 | 2 | 5 | 44 | 3 |
+| Theater | tier1 | `theatre` | 321 | 141 | 0 | 0 | 0 | 0 | 0 | 161 | 0 | 1 | 16 | 2 |
+| History Museum | tier1 | `museum` | 352 | 140 | 0 | 0 | 0 | 0 | 0 | 169 | 2 | 1 | 38 | 2 |
+| Amusement Park | tier1 | `amusement_park` | 181 | 134 | 0 | 0 | 0 | 0 | 0 | 34 | 0 | 1 | 12 | 0 |
+| Movie Theater | tier1 | `movie_theater` | 282 | 133 | 0 | 0 | 0 | 0 | 0 | 126 | 0 | 1 | 11 | 11 |
+| Water Park | tier1 | `water_park` | 142 | 96 | 0 | 0 | 0 | 0 | 1 | 29 | 0 | 6 | 10 | 0 |
+| Nature Preserve | tier1 | `nature_preserve` | 115 | 85 | 0 | 0 | 0 | 0 | 0 | 22 | 0 | 1 | 6 | 1 |
+| Castle | tier1 | `historical_landmark` | 185 | 82 | 0 | 0 | 0 | 0 | 1 | 76 | 2 | 2 | 20 | 2 |
+| Stadium | tier1 | `stadium` | 161 | 82 | 0 | 0 | 0 | 0 | 0 | 67 | 0 | 1 | 10 | 1 |
+| Attraction | tier1 | `amusement_park` | 97 | 80 | 0 | 0 | 0 | 0 | 0 | 11 | 0 | 0 | 6 | 0 |
+| Waterfall | tier1 | `waterfall` | 102 | 75 | 0 | 0 | 0 | 0 | 0 | 15 | 0 | 3 | 7 | 2 |
+| Hot Spring | tier1 | `hot_spring` | 90 | 71 | 0 | 0 | 0 | 0 | 1 | 11 | 0 | 0 | 7 | 0 |
+| Lighthouse | tier1 | `lighthouse` | 138 | 69 | 0 | 0 | 0 | 0 | 2 | 53 | 1 | 5 | 8 | 0 |
+| Fountain | tier1 | `historical_landmark` | 94 | 65 | 0 | 0 | 0 | 0 | 0 | 24 | 0 | 0 | 3 | 2 |
+| Shrine | tier1 | `church`, `historical_landmark` | 92 | 63 | 0 | 0 | 0 | 0 | 0 | 20 | 0 | 1 | 7 | 1 |
+| Sculpture Garden | tier1 | `historical_landmark` | 84 | 59 | 0 | 0 | 0 | 0 | 0 | 17 | 0 | 2 | 6 | 0 |
+| Art Museum | tier1 | `museum` | 160 | 55 | 0 | 0 | 0 | 0 | 0 | 92 | 2 | 0 | 10 | 1 |
+| Casino | tier1 | `casino` | 70 | 51 | 0 | 0 | 0 | 0 | 1 | 16 | 0 | 1 | 1 | 0 |
+| Temple | tier1 | `church`, `historical_landmark` | 70 | 47 | 0 | 0 | 0 | 0 | 1 | 16 | 0 | 0 | 6 | 0 |
+| Palace | tier1 | `historical_landmark` | 62 | 39 | 0 | 0 | 0 | 0 | 0 | 16 | 0 | 0 | 4 | 3 |
+| Science Museum | tier1 | `museum` | 64 | 27 | 0 | 0 | 0 | 0 | 0 | 34 | 0 | 0 | 3 | 0 |
+| Tennis Stadium | tier1 | `stadium` | 37 | 27 | 0 | 0 | 0 | 0 | 0 | 7 | 0 | 0 | 3 | 0 |
+| Windmill | tier1 | `historical_landmark` | 24 | 19 | 0 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 2 | 1 |
+| Botanical Garden | tier1 | `botanical_garden` | 34 | 17 | 0 | 0 | 0 | 0 | 0 | 13 | 0 | 1 | 1 | 2 |
+| Hockey Stadium | tier1 | `stadium` | 27 | 15 | 0 | 0 | 0 | 0 | 0 | 9 | 0 | 2 | 1 | 0 |
+| Aquarium | tier1 | `aquarium` | 26 | 13 | 0 | 0 | 0 | 0 | 0 | 10 | 0 | 1 | 1 | 1 |
+| Basketball Stadium | tier1 | `stadium` | 32 | 12 | 0 | 0 | 0 | 0 | 0 | 16 | 0 | 1 | 3 | 0 |
+| Zoo | tier1 | `zoo` | 25 | 12 | 0 | 0 | 0 | 0 | 0 | 11 | 0 | 0 | 2 | 0 |
+| Monastery | tier1 | `historical_landmark`, `church` | 30 | 11 | 0 | 0 | 0 | 0 | 0 | 14 | 1 | 0 | 4 | 0 |
+| Football Stadium | tier1 | `stadium` | 19 | 11 | 0 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 0 |
+| Mosque | tier1 | `mosque` | 17 | 10 | 0 | 0 | 0 | 0 | 1 | 4 | 0 | 1 | 1 | 0 |
+| Track Stadium | tier1 | `stadium` | 10 | 5 | 0 | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 1 | 0 |
+| Synagogue | tier1 | `synagogue` | 8 | 4 | 0 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 1 | 0 |
+| Baseball Stadium | tier1 | `stadium` | 3 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Rugby Stadium | tier1 | `stadium` | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Ruin | tier1 | `historical_landmark` | 2 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Erotic Museum | tier1 | `museum` | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Tower | tier1 | `historical_landmark` | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Fort | tier1 | `historical_landmark` | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| Scenic Lookout | tier2 |  | 1,585 | 54 | 0 | 0 | 1,466 | 0 | 0 | 54 | 1 | 2 | 8 | 0 |
+| Beach | tier2 |  | 1,464 | 41 | 0 | 0 | 1,328 | 0 | 0 | 66 | 1 | 4 | 24 | 0 |
+| Park | tier2 |  | 1,295 | 16 | 0 | 0 | 1,248 | 0 | 0 | 21 | 0 | 1 | 9 | 0 |
+| Playground | tier2 |  | 795 | 10 | 0 | 0 | 782 | 0 | 0 | 3 | 0 | 0 | 0 | 0 |
+| Garden | tier2 |  | 1,022 | 9 | 0 | 0 | 1,001 | 0 | 0 | 6 | 1 | 0 | 5 | 0 |
+| Plaza | tier2 |  | 1,132 | 2 | 0 | 0 | 1,120 | 0 | 0 | 10 | 0 | 0 | 0 | 0 |
+| Island | tier2 |  | 67 | 2 | 0 | 0 | 65 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Pedestrian Plaza | tier2 |  | 122 | 0 | 0 | 0 | 121 | 0 | 0 | 0 | 0 | 0 | 1 | 0 |
+| Performing Arts Venue | unmapped |  | 200 | 13 | 0 | 0 | 0 | 172 | 0 | 14 | 0 | 0 | 1 | 0 |
+| Outdoor Sculpture | unmapped |  | 164 | 8 | 0 | 0 | 2 | 142 | 0 | 11 | 1 | 0 | 0 | 0 |
+| Street Art | unmapped |  | 107 | 6 | 0 | 0 | 0 | 100 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Rock Club | unmapped |  | 102 | 5 | 0 | 0 | 0 | 91 | 0 | 4 | 0 | 0 | 2 | 0 |
+| Bathing Area | unmapped |  | 116 | 4 | 0 | 0 | 3 | 107 | 0 | 1 | 0 | 0 | 0 | 1 |
+| Exhibit | unmapped |  | 86 | 4 | 0 | 0 | 0 | 80 | 0 | 2 | 0 | 0 | 0 | 0 |
+| Rock Climbing Spot | unmapped |  | 47 | 4 | 0 | 0 | 0 | 43 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Prayer Room | unmapped |  | 166 | 3 | 0 | 0 | 1 | 161 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Indie Movie Theater | unmapped |  | 69 | 3 | 0 | 0 | 0 | 55 | 0 | 10 | 0 | 0 | 1 | 0 |
+| National Park | unmapped |  | 47 | 3 | 0 | 0 | 5 | 37 | 0 | 2 | 0 | 0 | 0 | 0 |
+| Picnic Area | unmapped |  | 26 | 3 | 0 | 0 | 2 | 20 | 0 | 1 | 0 | 0 | 0 | 0 |
+| State or Provincial Park | unmapped |  | 23 | 3 | 0 | 0 | 1 | 18 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Bike Trail | unmapped |  | 22 | 3 | 0 | 0 | 1 | 18 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Dog Park | unmapped |  | 231 | 2 | 0 | 0 | 25 | 204 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Fair | unmapped |  | 161 | 2 | 0 | 0 | 0 | 156 | 0 | 3 | 0 | 0 | 0 | 0 |
+| Stable | unmapped |  | 160 | 2 | 0 | 0 | 1 | 156 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Amphitheater | unmapped |  | 37 | 2 | 0 | 0 | 0 | 34 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Indie Theater | unmapped |  | 32 | 2 | 0 | 0 | 0 | 29 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Tunnel | unmapped |  | 30 | 2 | 0 | 0 | 1 | 27 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Opera House | unmapped |  | 5 | 2 | 0 | 0 | 0 | 2 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Strip Club | unmapped |  | 234 | 1 | 0 | 0 | 0 | 231 | 0 | 2 | 0 | 0 | 0 | 0 |
+| Comedy Club | unmapped |  | 90 | 1 | 0 | 0 | 0 | 88 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Roof Deck | unmapped |  | 88 | 1 | 0 | 0 | 4 | 83 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Cave | unmapped |  | 44 | 1 | 0 | 0 | 0 | 43 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Memorial Site | unmapped |  | 31 | 1 | 0 | 0 | 0 | 28 | 0 | 2 | 0 | 0 | 0 | 0 |
+| Volcano | unmapped |  | 27 | 1 | 0 | 0 | 0 | 25 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Circus | unmapped |  | 26 | 1 | 0 | 0 | 0 | 25 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Party Center | unmapped |  | 23 | 1 | 0 | 0 | 0 | 22 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Zoo Exhibit | unmapped |  | 14 | 1 | 0 | 0 | 2 | 10 | 0 | 0 | 0 | 0 | 1 | 0 |
+| Dam | unmapped |  | 13 | 1 | 0 | 0 | 2 | 9 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Planetarium | unmapped |  | 10 | 1 | 0 | 0 | 0 | 9 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Buddhist Temple | unmapped |  | 5 | 1 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Ticket Seller | unmapped |  | 3 | 1 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Pool Hall | unmapped |  | 181 | 0 | 0 | 0 | 0 | 181 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Internet Cafe | unmapped |  | 95 | 0 | 0 | 0 | 0 | 95 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Arcade | unmapped |  | 92 | 0 | 0 | 0 | 2 | 90 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Bowling Alley | unmapped |  | 75 | 0 | 0 | 0 | 0 | 74 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Dive Spot | unmapped |  | 57 | 0 | 0 | 0 | 0 | 56 | 0 | 0 | 0 | 0 | 0 | 1 |
+| Gaming Cafe | unmapped |  | 52 | 0 | 0 | 0 | 0 | 52 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Jazz and Blues Venue | unmapped |  | 45 | 0 | 0 | 0 | 0 | 44 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Go Kart Track | unmapped |  | 40 | 0 | 0 | 0 | 0 | 40 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Escape Room | unmapped |  | 36 | 0 | 0 | 0 | 1 | 35 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Mini Golf Course | unmapped |  | 28 | 0 | 0 | 0 | 0 | 28 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Nudist Beach | unmapped |  | 25 | 0 | 0 | 0 | 6 | 19 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Psychic and Astrologer | unmapped |  | 22 | 0 | 0 | 0 | 0 | 22 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Natural Park | unmapped |  | 18 | 0 | 0 | 0 | 1 | 16 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Salsa Club | unmapped |  | 17 | 0 | 0 | 0 | 0 | 17 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Country Dance Club | unmapped |  | 16 | 0 | 0 | 0 | 0 | 16 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Laser Tag Center | unmapped |  | 16 | 0 | 0 | 0 | 2 | 14 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Urban Park | unmapped |  | 16 | 0 | 0 | 0 | 1 | 15 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Roller Rink | unmapped |  | 11 | 0 | 0 | 0 | 0 | 11 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Boat Launch | unmapped |  | 8 | 0 | 0 | 0 | 0 | 8 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Picnic Shelter | unmapped |  | 6 | 0 | 0 | 0 | 0 | 6 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Carnival | unmapped |  | 4 | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 | 0 |
+| VR Cafe | unmapped |  | 4 | 0 | 0 | 0 | 0 | 4 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Country Club | unmapped |  | 3 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Mountain Hut | unmapped |  | 3 | 0 | 0 | 0 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Dance Hall | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Disc Golf | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Disc Golf Course | unmapped |  | 2 | 0 | 0 | 0 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Kingdom Hall | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Nature Trail | unmapped |  | 2 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Bingo Center | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Community Garden | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Drive-in Theater | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| General Entertainment | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Hindu Temple | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Terreiro | unmapped |  | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Arts and Entertainment | parent |  | 2,183 | 4 | 0 | 2,157 | 15 | 3 | 0 | 3 | 0 | 0 | 1 | 0 |
+| Spiritual Center | parent |  | 384 | 4 | 0 | 365 | 2 | 1 | 0 | 10 | 0 | 0 | 2 | 0 |
+| Landmarks and Outdoors | parent |  | 207 | 1 | 0 | 205 | 0 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Other Great Outdoors | noise |  | 1,999 | 40 | 1,826 | 4 | 69 | 19 | 0 | 24 | 0 | 1 | 16 | 0 |
+| Canal | noise |  | 36 | 13 | 19 | 0 | 0 | 0 | 0 | 2 | 0 | 2 | 0 | 0 |
+| Field | noise |  | 1,045 | 11 | 1,016 | 0 | 10 | 6 | 0 | 1 | 0 | 1 | 0 | 0 |
+| Neighborhood | noise |  | 1,877 | 4 | 1,841 | 1 | 21 | 0 | 0 | 5 | 0 | 2 | 3 | 0 |
+| Canal Lock | noise |  | 10 | 4 | 3 | 0 | 2 | 0 | 0 | 1 | 0 | 0 | 0 | 0 |
+| Structure | noise |  | 3,274 | 3 | 3,252 | 5 | 6 | 0 | 0 | 7 | 0 | 0 | 1 | 0 |
+| Farm | noise |  | 1,949 | 3 | 1,928 | 1 | 4 | 11 | 0 | 1 | 0 | 0 | 1 | 0 |
+| City | noise |  | 1,790 | 2 | 1,782 | 0 | 2 | 0 | 0 | 0 | 0 | 3 | 1 | 0 |
+| Village | noise |  | 599 | 1 | 593 | 0 | 3 | 0 | 0 | 0 | 0 | 1 | 1 | 0 |
+| Town | noise |  | 310 | 1 | 307 | 0 | 1 | 0 | 0 | 0 | 0 | 1 | 0 | 0 |
+| Well | noise |  | 74 | 1 | 71 | 0 | 0 | 0 | 0 | 2 | 0 | 0 | 0 | 0 |
+| Forest | noise |  | 63 | 1 | 55 | 0 | 3 | 1 | 0 | 1 | 1 | 0 | 1 | 0 |
+| Waterfront | noise |  | 40 | 1 | 32 | 0 | 5 | 0 | 0 | 1 | 0 | 1 | 0 | 0 |
+| Tree | noise |  | 37 | 1 | 34 | 0 | 2 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Bay | noise |  | 25 | 1 | 24 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| States and Municipalities | noise |  | 48 | 0 | 48 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Reservoir | noise |  | 14 | 0 | 13 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Hill | noise |  | 9 | 0 | 8 | 0 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 |
+| County | noise |  | 3 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Pass | noise |  | 3 | 0 | 3 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| State | noise |  | 3 | 0 | 2 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Country | noise |  | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
+| Pond | noise |  | 1 | 0 | 1 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 
 ## Unmapped leaves — in scope, not in the map, imported nothing
 
@@ -309,42 +310,128 @@ The dedupe contract says name match + distance, nothing about rows with no usabl
 - type words only: 99
 - locality only: 19
 
+## Matched through translation — hand-check sample
+
+Rows skipped because their name, with landmark words mapped to English through `docs/kan-433/landmark-terms.json` and function words dropped, matches a served landmark's translated name within 25 m. 60 row(s); a seeded sample of 50 for a person to check — any pair here that is NOT the same place is a bug in the term table or the step.
+
+| fsq_place_id | archive name | served name | served type | m | translated (archive ↔ served) |
+|---|---|---|---|---:|---|
+| 07ef0d96941647670c086753 | Igreja Baptista | Igreja Evangélica Baptista de Elvas | church | 9 | baptista church ↔ baptista church elvas evangelical |
+| 0d813091090e4ae18a517402 | Parque de Campismo de Porto Covo | Camping Porto Covo | campground | 17 | camping covo harbor park ↔ camping covo harbor |
+| 2bc1f5e596114b971ca78d5b | Museu Municipal Leonel Trindade | Leonel Trindade Municipal Museum | museum | 14 | leonel municipal museum trindade ↔ leonel municipal museum trindade |
+| 4b0588a3f964a52093d122e3 | Casa-Museu Medeiros e Almeida | Medeiros & Almeida Museum | art_gallery | 4 | almeida casa medeiros museum ↔ almeida medeiros museum |
+| 4b7a8c17f964a520a5302fe3 | Mosteiro dos Jerónimos | Jerónimos Monastery | church | 12 | jeronimos monastery ↔ jeronimos monastery |
+| 4bc1ef0aabf495213da1c193 | Palácio de Monserrate | Park and Palace of Monserrate | historical_landmark | 11 | monserrate palace ↔ monserrate palace park |
+| 4c5288f294790f476ff4d5a2 | Ponte do Freixo | Freixo Bridge | bridge | 23 | bridge freixo ↔ bridge freixo |
+| 4c71059ed97fa14395bdf7ca | Praia da Amoreira | Amoreira Beach, Aljezur, Algarve | beach | 12 | amoreira beach ↔ algarve aljezur amoreira beach |
+| 4d0ca2b45c46a0933d8809b4 | Igreja de Santo Ildefonso | Church of Saint Ildefonso | church | 20 | church ildefonso saint ↔ church ildefonso saint |
+| 4e133aece4cdef074b830576 | Casa de Francisco e Jacinta | Casa Jacinta E Francisco Marto | church | 17 | casa francisco jacinta ↔ casa francisco jacinta marto |
+| 4e34231a1f6efba2411e5d84 | Igreja da Misericordia | Church of the Misericordia | church | 21 | church misericordia ↔ church misericordia |
+| 4e9abf589adf277db7cb5650 | Ponte da Régua | Ponte Rodoviaria da Regua | bridge | 13 | bridge regua ↔ bridge regua rodoviaria |
+| 4f48c51be4b072f5aacecb28 | Igreja Adventista Central | Igreja Adventista do Setimo Dia Lisboa Central | church | 24 | adventista central church ↔ adventista central church dia lisboa setimo |
+| 4f6f5483e4b08d8da78cd054 | Forte de Nossa Senhora de Porto Salvo (Giribita) | Forte da Giribita | historical_landmark | 5 | fort giribita harbor lady our salvo ↔ fort giribita |
+| 5028d7c5e4b031f7a2f64ea4 | Camping de Covas | Parque Campismo Covas | campground | 14 | camping covas ↔ camping covas park |
+| 502e331de4b0bde725cb2d01 | Praia de Porto Mós | Porto De Mós | beach | 18 | beach harbor mos ↔ harbor mos |
+| 50c6289590e732743b1105b3 | Igreja Evangélica Batista | Primeira Igreja Evangelica Batista de Setubal | church | 14 | batista church evangelical ↔ batista church evangelical primeira setubal |
+| 51475ae2e4b0853bfff86a94 | Igreja de São Miguel | Church São Miguel | church | 6 | church miguel saint ↔ church miguel saint |
+| 51bc8bf1498e9198b5cc3544 | Centro Cultural Naraze | Cultural Center of Nazaré | cultural_center | 12 | center cultural naraze ↔ center cultural nazare |
+| 52af8f4b11d278d814fad25f | Igreja Godim | Igreja de São José de Godim | church | 23 | church godim ↔ church godim jose saint |
+| 53556cf1498eaca19c5c13c2 | Mosteiro longos vales | Longos Vales Monastery | church | 12 | longos monastery vales ↔ longos monastery vales |
+| 55577723498e636be8cf5817 | Galeria Olga Santos | Olga Santos Arquitectura e Galeria de Arte | art_gallery | 7 | gallery olga saints ↔ arquitectura art gallery olga saints |
+| 557c5bf8498e430a491459b4 | Igreja de Santo Antão | Santo Antão Church | church | 12 | antao church saint ↔ antao church saint |
+| 569186a8498e1cf94b60c933 | igreja maceda | Igreja Paroquial de Sao Pedro de Maceda | church | 9 | church maceda ↔ church maceda parish pedro saint |
+| 5761e5ba498e137c568bb286 | Parque de campismo da Calheta Fajã Grande | Camping Calheta | campground | 11 | calheta camping faja grande park ↔ calheta camping |
+| 57652c43cd1069907000d963 | Ermida da Guia | Ermida da Senhora da Guia | church | 13 | guia hermitage ↔ guia hermitage lady |
+| 585f96aa03e29a1f507b290d | A Igreja de Jesus Cristo dos Santos dos Ultimos Dias | The Church of Jesus Christ of Latter-day Saints | church | 16 | christ church day jesus latter saints ↔ christ church day jesus latter saints |
+| 5896e8839c439d22b7879aed | Tejo Ward - The Church of Jesus Christ of Latter-day Saints | Igreja de Jesus Cristo dos Últimos Dias | church | 8 | christ church day jesus latter saints tejo ward ↔ christ church day jesus latter |
+| 58f643ed3731ee6491dbd42d | Museu da Saúde | Saúde Museum | museum | 12 | museum saude ↔ museum saude |
+| 59e24636829b0c7848f49292 | Igreja Da Lupa | Lapa Church | church | 10 | church lupa ↔ church lapa |
+| 5bd72d732632ec002cd73022 | Anta Da Foz Do Rio Frio | Foz do Rio Frio dolmen | historical_landmark | 11 | dolmen foz frio river ↔ dolmen foz frio river |
+| 5d46a55c95cf6f0008d0db14 | A Igreja De Jesus Cristo Dos Santos Dos Últimos Dias | The Church of Jesus Christ of Latter-day Saints | church | 8 | christ church day jesus latter saints ↔ christ church day jesus latter saints |
+| 5d5abfce912a95000778240a | Igreja Nossa Senhora Do Carmo | Igreja do Carmo | cemetery | 15 | carmo church lady our ↔ carmo church |
+| 61c6f819e565fe05c73366e8 | Igreja Canedo | Igreja Paroquial de São Pedro de Canedo | church | 18 | canedo church ↔ canedo church parish pedro saint |
+| 6353dfd6e724416aed5d9b80 | Museu Militar Da Madeira | Madeira Military Museum | museum | 25 | madeira militar museum ↔ madeira military museum |
+| 6520381f1f561b61591a5ab9 | Igreja De Santa Cruz | Church of Santa Cruz | church | 24 | church cruz saint ↔ church cruz saint |
+| 65302caef80806527b7bd8df | Palacio Belmarco | Belmarço Palace | historical_landmark | 7 | belmarco palace ↔ belmarco palace |
+| 65f734feaeaa5442ab89bebe | Church Of Carrapateira | Igreja Matriz da Carrapateira | historical_landmark | 11 | carrapateira church ↔ carrapateira church mother |
+| 66c60984fd002e4d2a0f606a | Farol da Azeda | Azeda Lighthouse | historical_landmark | 6 | azeda lighthouse ↔ azeda lighthouse |
+| 68729f935ce7d33d7a0ec5fa | Belem Tower | Torre de Belém | historical_landmark | 15 | belem tower ↔ belem tower |
+| 68bfe1c80005dc01f215739b | Banana Museum Of Madeira (Bam) | Museu da Banana da Madeira - BAM | museum | 18 | bam banana madeira museum ↔ bam banana madeira museum |
+| 6a74c665ffc47864189687ee | Oliva Art Center | Centro de Arte Oliva | museum | 17 | art center oliva ↔ art center oliva |
+| 6a74caeec5fb9f02d8c55147 | A Igreja de Jesus Cristo dos Santos dos Últimos Dias | The Church of Jesus Christ of Latter-day Saints | church | 0 | christ church day jesus latter saints ↔ christ church day jesus latter saints |
+| 6a750669c5fb9f02d8cdfae3 | A Igreja de Jesus Cristo dos Santos dos Últimos Dias | The Church of Jesus Christ of Latter-day Saints | church | 0 | christ church day jesus latter saints ↔ christ church day jesus latter saints |
+| 6a754d7fc5fb9f02d8d66c89 | Municipal Museum of Faro | Museu Municipal de Faro | museum | 3 | faro municipal museum ↔ faro municipal museum |
+| 6a758d98c5fb9f02d8e08065 | Melgaço Museum of Cinema | Museu do Cinema de Melgaço | museum | 4 | cinema melgaco museum ↔ cinema melgaco museum |
+| 6a758f24c5fb9f02d8e0b973 | Arquivo Histórico Municipal | Museu Municipal e Arquivo Histórico de Valongo | museum | 11 | arquivo historico municipal ↔ arquivo historico municipal museum valongo |
+| 6a758fecc5fb9f02d8e0d4a3 | National Palace of Sintra | Palácio Nacional de Sintra | historical_landmark | 8 | national palace sintra ↔ national palace sintra |
+| 6a759916c5fb9f02d8e257b1 | Museum of Sacred Art | Museu de Arte Sacra | museum | 5 | art museum sacred ↔ art museum sacra |
+| 6a7a4b773f0a8f28b8d32a41 | Sacred Art Museum of Funchal | Museu Arte Sacra Funchal | museum | 17 | art funchal museum sacred ↔ art funchal museum sacra |
+
 ## Served landmark within 25 m under another name — imported, for curation
 
-Would-insert rows with a served landmark or venue (not a business) within 25 m whose name the matcher cannot pair. The contract imports them — different names are different places, distance alone never removes — and the Worker's read-time suppression is exact-name too. Some are real neighbours (a statue by a church); the ones that are the same place under another language or alias ("Mosteiro dos Jerónimos" / "Jerónimos Monastery") are what this list is for. 1,435 row(s); first 20:
+Would-insert rows with a served landmark or venue (not a business) within 25 m whose name the matcher cannot pair. The contract imports them — different names are different places, distance alone never removes — and the Worker's read-time suppression is exact-name too. Some are real neighbours (a statue by a church); the ones that are the same place under another language or alias ("Mosteiro dos Jerónimos" / "Jerónimos Monastery") are what this list is for — what the translation step above did not pair. 1,385 row(s); a seeded hand-check sample of 50:
 
-| fsq_place_id | name | our type(s) | served neighbour |
-|---|---|---|---|
-| 12c2f65a2a1c4ee88beb6fc7 | Banda Musical de Tavira | music_venue | overture:a8f874cc-f531-4ac9-822c-8a50ef765b0c "Benamor Golf" (golf_course) at 0 m |
-| 2c55a3c45d574910365f6129 | Café Snack-bar o Lacrau | night_club | overture:ff530c66-984f-4ecd-9921-ed8ce9469f48 "Parque de Campismo de Ericeira" (campground) at 0 m |
-| 37d3958abfe74980d0b5874a | Letras Bar - Actividades Hoteleiras | night_club | overture:d843055a-1523-49e2-bdcd-f4c3c3c318bf "Big Bit Estúdios" (music_venue) at 0 m |
-| 51507343e4b0010b70637b3e | Igreja Dos Mártires | church | overture:b5baaa63-ed22-4e3f-83be-49cc2f95b451 "Igreja Nossa Senhora da Encarnação" (church) at 0 m |
-| 51bbad4d498ecd7695b3b4c4 | Filarmónica Cultural Ericeira | music_venue | overture:ff530c66-984f-4ecd-9921-ed8ce9469f48 "Parque de Campismo de Ericeira" (campground) at 0 m |
-| 553cf5a5498e75511374082f | Ermelo Ponte da Barca | historical_landmark | overture:2f584065-c438-4add-a3cd-8154bd86dd7d "Parque de Campismo de Entre Ambos-os-Rios" (campground) at 0 m |
-| 59aedb01d8fe7a0d13db884c | Grande Rota das Linhas de Torres - Forte de S. Vicente | hiking_area | overture:6bd6a005-a36c-4966-bad7-71f55b6f47f9 "Forte de São Vicente" (historical_landmark) at 0 m |
-| 5ac332667269fe27987f4ec5 | Cave Avenida | music_venue | overture:c78f5b3a-8204-40bf-8cbd-89c41998fce0 "Museu Municipal de Viana do Castelo" (museum) at 0 m |
-| 5b005684e7a2370039df2203 | Xland | amusement_park | overture:c12770fd-e89b-48c3-a2f6-76116a3f9295 "Indoor Soccer" (stadium) at 0 m |
-| 6a74caeec5fb9f02d8c55147 | A Igreja de Jesus Cristo dos Santos dos Últimos Dias | church | overture:0f7bf4c9-b8d1-4c7c-9af7-49bbf8b835bf "The Church of Jesus Christ of Latter-day Saints" (church) at 0 m |
-| 6a750669c5fb9f02d8cdfae3 | A Igreja de Jesus Cristo dos Santos dos Últimos Dias | church | overture:dbd8a93f-caa1-4657-851a-27dc714d7917 "The Church of Jesus Christ of Latter-day Saints" (church) at 0 m |
-| 6a7530ffc5fb9f02d8d2d10d | A Igreja de Jesus Cristo dos Santos dos Últimos Dias | church | overture:3c6c0ffc-b111-4a61-8d3b-4e05b6439c03 "The Church of Jesus Christ of Latter-day Saints" (church) at 0 m |
-| 7cfacb18c19a43d5bf741895 | Paróquia de Santo Amaro | church | overture:176f845e-61a8-4db3-86d6-0bd743434fcd "Club Sport Maritimo" (stadium) at 0 m |
-| 8444dafba4ee4521ef315724 | Parque de Campismo da Ilha do Pessegueiro | campground | overture:dcecdb34-ba93-4f5e-816a-274b8a333b53 "Parque de Campismo Costa do Vizir" (campground) at 0 m |
-| e5d1a04261574b03b858cea4 | Cine Cidade Nova | theatre | overture:d7c2b98c-7ffd-4835-a236-112961ea4833 "Parque de Campismo do Fundão" (campground) at 0 m |
-| 6a754521c5fb9f02d8d54b24 | Tavira Municipal Museum | museum | overture:9a36b52a-16bc-4e95-abb0-b17418d32b85 "Museu Municipal de Tavira" (museum) at 0 m |
-| 514dbb1be4b0bdec71b95ded | Galeria Quartel do 11 Setúbal | art_gallery | overture:362bfc88-f71a-4e09-924c-34eadfe7aa02 "Galeria ARDEPI" (art_gallery) at 0 m |
-| 56374bf4498e17f8f1e591d9 | Georgia - Teatro Tivoli BBVA (Roteiro Paulo Segadães) | music_venue | overture:05d12390-4c01-4c93-a66b-87106140721d "Teatro Tivoli" (theatre) at 0 m |
-| 563754e4498e966fcc4a158b | Nicolas Godin - Teatro Tivoli BBVA (Roteiro Rui M. A.) | music_venue | overture:05d12390-4c01-4c93-a66b-87106140721d "Teatro Tivoli" (theatre) at 0 m |
-| 536f2327498e478c8046dced | Paroquia de Fatima | church | overture:3cfe66bb-7c34-42e8-91a1-a849232c2afc "Jardim do Miradouro Vila Guida" (historical_landmark) at 0 m |
+| fsq_place_id | name | our type(s) | served neighbour | translated (archive ↔ served) |
+|---|---|---|---|---|
+| 0110ce1b6d4d4ae8879c5824 | Missionários Combonianos do Coração de Jesus | church | overture:0a2738d5-d7da-437c-b4cf-c23a356ca938 "Catequese de São Tiago de Antas" (church) at 6 m | combonianos coracao jesus missionarios ↔ antas catequese saint tiago |
+| 4b0588a1f964a520edd022e3 | Kremlin | night_club | overture:5621cf06-fce5-417b-b7dd-ecbe473ebf4e "Hype" (night_club) at 11 m | kremlin ↔ hype |
+| 4b2fd7cffbc541c7c5521358 | Instituto Secular Nossa Senhora de Schoenstatt | church | overture:fcb55ee1-4bca-4df1-8ef1-8d73cdce135f "Santuário de Schoenstatt" (church) at 5 m | instituto lady our schoenstatt secular ↔ sanctuary schoenstatt |
+| 4ba3f8def964a520187338e3 | Passeio Marítimo de Oeiras | hiking_area | overture:583a9d09-ca4e-43d9-8716-48824fd1601c "Oeiras Viva EM" (cultural_center) at 18 m | maritime oeiras passeio ↔ oeiras viva |
+| 4c1e3803eac020a1bd5049c2 | Auditório Municipal Ruy de Carvalho | theatre | overture:da6c9bab-4eea-42a9-90a1-64ce90b483a6 "Paróquia de São Romão Carnaxide" (church) at 9 m | auditorio carvalho municipal ruy ↔ carnaxide parish romao saint |
+| 4c54342730f92d7f9c9009ba | Museu Côa | museum | overture:81549ba8-bced-41d3-ba97-39fab5786631 "Parque Arqueológico do Vale do Côa" (park) at 23 m | coa museum ↔ arqueologico coa park vale |
+| 4db460a86e8179a9137c1ab4 | Igreja de Porto Côvo | church | overture:afa32cf7-d3cc-4724-9bff-973c207e7e46 "Praia do Porto Covinho" (beach) at 13 m | church covo harbor ↔ beach covinho harbor |
+| 4dfb67c61f6eeef806aaad92 | Galeria Múrias Centeno | art_gallery | overture:b40d5be1-fc14-4264-b196-32c6076528cb "Quadrado Azul" (art_gallery) at 9 m | centeno gallery murias ↔ azul quadrado |
+| 4edde3839adfe5cbe345252c | Centro de Convenções e Convento de S. Francisco | historical_landmark | overture:7ba9fe49-1550-47c8-b6d0-f40091faf8ee "Convento São Francisco" (historical_landmark) at 20 m | center convencoes convent francisco s ↔ convent francisco saint |
+| 4f0f2cf1e4b00ae6bce8a52f | Museu Episcopal de Beja | museum | overture:a826a4f1-ce1f-4d5e-b844-6deeb72c46f2 "Capela de Santo Estêvão" (church) at 19 m | beja episcopal museum ↔ chapel estevao saint |
+| 4f1a2ff6e4b05c50e153d0ba | Noche Latina | night_club | overture:36c564cf-f9a7-4edc-a49d-46b785c93674 "Danceteria Dominó" (music_venue) at 23 m | latina noche ↔ danceteria domino |
+| 4f63b979e4b03c27092236fd | Cineteatro Lagoense | movie_theater | overture:7bf4241d-82be-465e-b571-086323b3b923 "Igreja do Rosário da Lagoa" (historical_landmark) at 8 m | cineteatro lagoense ↔ church lagoon rosario |
+| 4fcb7310e4b0499e2bfa3521 | Igreja Paroquial São Pedro | historical_landmark, church | overture:4131a319-f9d7-4cb4-86ad-905f5b3fc2bd "Capela de São Martinho" (church) at 10 m | church parish pedro saint ↔ chapel martinho saint |
+| 5041725ee4b0152f579d7e98 | Porugal SwagFlat | night_club | overture:00b063bf-3da8-4153-bc1b-604ddad83bb2 "Calçada Portuguesa" (historical_landmark) at 7 m | porugal swagflat ↔ calcada portuguesa |
+| 505da677e4b038a3e49aebc6 | Igreja da Aguda | church | overture:33fcb249-13ee-4c7c-81ec-2d97c30367cf "Farol da Aguda" (lighthouse) at 24 m | aguda church ↔ aguda lighthouse |
+| 514dbb42e4b091940bc3606d | Torre de Menagem | historical_landmark | overture:4ba7bc12-4dbb-4188-af6b-da9b83c3a32b "Ministerium Club" (night_club) at 7 m | menagem tower ↔ club ministerium |
+| 5312136f498e912f9920e8e8 | Centro Cultural do Morgado | art_gallery | overture:8d1ec933-2d6b-455a-872e-7f9d2879621f "Agenda Arruda" (cultural_center) at 13 m | center cultural morgado ↔ agenda arruda |
+| 533d2df6498e18e528d28079 | santa casa da misericordia de beja | historical_landmark | overture:ab9bccf7-6a1f-4fbd-bc79-f399bbede547 "A Igreja de Jesus Cristo dos Santos dos Ultimos Dias" (church) at 23 m | beja casa misericordia saint ↔ christ church day jesus latter saints |
+| 540b116c498e8ec689254113 | parque de campismo de ortiga | campground | overture:455d91d7-0896-4318-ac30-c5d5f7c05ede "Praia Fluvial de Ortiga" (beach) at 21 m | camping ortiga park ↔ beach fluvial ortiga |
+| 54689b8d498e6ff6e9b1948a | Atlas Ocean | water_park | overture:8a2f421f-690a-4d57-a402-3790194b215d "Oficina Marques" (art_gallery) at 21 m | atlas ocean ↔ marques oficina |
+| 54fb0227498e0bf370f40fb6 | Praia De Raenha, Lusofona Surf School | surf_spot | overture:c9c55ab6-913d-433c-991f-bc6a67d107f1 "Caparica Surf Academy" (surf_spot) at 4 m | beach lusofona raenha school surf ↔ academy caparica surf |
+| 550d7436498e5f9032e595a3 | casa geral das SFRJS | church, historical_landmark | overture:44b2bcf9-99e4-4fe5-bcee-2dc6738debf9 "Servas Franciscanas Reparadoras" (church) at 21 m | casa geral sfrjs ↔ franciscanas reparadoras servas |
+| 55ec6b80498eda28ffe9c400 | Quelho das Castanhas | hiking_area | overture:937a2887-3050-4c32-bb08-58c587a4816d "Largo d' Ajuda" (church) at 0 m | castanhas quelho ↔ ajuda d square |
+| 57a59499498eaceffbc58f03 | Zdb | music_venue | overture:4845e614-e85c-4272-b818-9f862afe8736 "Arena Lounge, Casino Lisboa" (music_venue) at 5 m | zdb ↔ arena casino lisboa lounge |
+| 57e79918498e94710ad75f8e | Casa de Pedro Cem | historical_landmark | overture:9413cb50-3345-4f84-9291-c839fcf6d0d2 "Paço Episcopal do Porto" (historical_landmark) at 20 m | casa cem pedro ↔ episcopal harbor palace |
+| 5962a767e97dfb59dc4088c3 | Ponte pedestal da Marina | bridge | overture:51bc4491-d71f-4895-8e3d-06556aef0730 "Ponte elevatória de Lagos" (bridge) at 25 m | bridge marina pedestal ↔ bridge elevatoria lagos |
+| 5a0fe371b6b04b6e8f644aa7 | Le Baron Rouge | music_venue | overture:4845e614-e85c-4272-b818-9f862afe8736 "Arena Lounge, Casino Lisboa" (music_venue) at 5 m | baron le rouge ↔ arena casino lisboa lounge |
+| 5a0fe6fab6b04b6e8f664fa1 | Woodstock 69 | music_venue | overture:dcdbe41e-9b2a-4df2-b12c-8681a28e9299 "Rotunda da Boavista" (plaza) at 2 m | 69 woodstock ↔ boavista rotunda |
+| 5ad2280262845c26a7ff3423 | Ainori Contemporary Art Gallery | art_gallery | overture:d8a35915-54fa-412c-b120-27a1c43f2bbe "AINORI art gallery Galeria Ainori" (art_gallery) at 14 m | ainori art contemporary gallery ↔ ainori ainori art gallery gallery |
+| 5c40b56f33e118002c8e20d9 | Galiarte | art_gallery | overture:977350fd-17a6-42cb-bb57-8aaf9fcf4249 "Praia De Caiscais" (beach) at 8 m | galiarte ↔ beach caiscais |
+| 5e0b59452187900008b5bbf4 | Poços De Gelo | historical_landmark | overture:ac5a5393-42d5-41bf-b953-7a9a510cf68d "Capela de Santo António da Neve" (church) at 12 m | gelo pocos ↔ antonio chapel neve saint |
+| 60ae36bcd4e8e64653f15904 | Rio Fafião | river | overture:50bb30aa-818a-425f-aaac-66cfb73f1984 "Lagoas Naturais Fafiao" (nature_preserve) at 10 m | fafiao river ↔ fafiao lagoas naturais |
+| 60c48c2c142e0e52f13d36ad | Porto Fun Park | amusement_park | overture:dcdbe41e-9b2a-4df2-b12c-8681a28e9299 "Rotunda da Boavista" (plaza) at 22 m | fun harbor park ↔ boavista rotunda |
+| 615adc05b744fa50f91ae5b2 | Castelo do Sistelo | historical_landmark, museum | overture:9dba0f88-e862-4002-ad75-5384dca526c4 "Casa do Castelo" (museum) at 20 m | castle sistelo ↔ casa castle |
+| 6379513d979c2b7b314e1630 | Páteo Da Mariquinhas | music_venue | overture:0b561e4e-b490-430d-8f9b-66fd061988eb "Belle Époque" (historical_landmark) at 14 m | mariquinhas pateo ↔ belle epoque |
+| 646544966d925e1cae0a595e | Igreja Batista Renascer | church | overture:94f911d9-492b-4f39-8901-dfd45737f549 "Museu da Poesia" (museum) at 23 m | batista church renascer ↔ museum poesia |
+| 647242eac75c854d25eec8fd | Igreja De São Nicolau | church | overture:8149209d-34de-4c09-92a1-191765168f75 "Catequese Paróquia S. Nicolau - Santarém" (church) at 23 m | church nicolau saint ↔ catequese nicolau parish s santarem |
+| 65393da118ee132aabb5b155 | Atelier Paula Gago | art_gallery | overture:c3feec38-3399-4af4-b011-f9753917ff3c "Igreja Nossa Senhora da Graca" (church) at 17 m | atelier gago paula ↔ church graca lady our |
+| 65b3a1c0724fd17abe1fffb4 | Neonia Museu | museum | overture:e03ee3b8-8991-4725-bfae-1ad782f8e8b3 "Neonia Porto" (museum) at 5 m | museum neonia ↔ harbor neonia |
+| 674de3518c76b03a8b54e856 | This Must Be The Place | art_gallery | overture:9868935e-0a80-429c-8f41-df423fe33819 "Torre de Santo António de Cascais" (historical_landmark) at 5 m | be must place this ↔ antonio cascais saint tower |
+| 686d5b366d40ee4a864b5814 | Olaria S Pedro | art_gallery | overture:8a827232-b41f-46a2-b381-35c1e8734849 "Lisbon Gallery" (art_gallery) at 3 m | olaria pedro s ↔ gallery lisbon |
+| 6967c06b4b7ead6e3e75b54d | Termas Romanas | historical_landmark | overture:91bf4141-9709-41bb-8f5b-574407e24e24 "Praca de Sertorio" (plaza) at 15 m | romanas spa ↔ sertorio square |
+| 69a20f8a9184134182dafd3d | Fantasporto 2026 | movie_theater | overture:e3f8d9f4-28b1-4cbf-8e67-ea4444e3092d "Praça da Batalha" (historical_landmark) at 12 m | 2026 fantasporto ↔ batalha square |
+| 69cdda40bd1e45ea0871bb65 | Montecore Fest | music_venue | overture:dddc3ab0-48c1-4f0d-8c2a-074675e67dfe "Igreja Nossa Senhora Da Visitação" (church) at 19 m | fest montecore ↔ church lady our visitacao |
+| 6a476fe6ff81ba65964d0849 | Km 0 | historical_landmark | overture:9afbda7a-1484-4ebd-b413-e691d69eef40 "Praça 8 de Maio" (historical_landmark) at 6 m | 0 km ↔ 8 maio square |
+| 6a7510bbc5fb9f02d8cf69f4 | Bombarral's Municipal Museum | museum | overture:573fb41e-eade-4e6e-a6b2-4dfa13333735 "Museu do Bombarral" (museum) at 8 m | bombarral municipal museum s ↔ bombarral museum |
+| 7c568ad2e8444caa36fc1ec2 | Igreja Apostólica Católica Ortodoxa | church | overture:5dbe72ff-6d67-40cc-bd34-e440171a1301 "Rua das Canastras" (historical_landmark) at 2 m | apostolica catolica church ortodoxa ↔ canastras rua |
+| 8444dafba4ee4521ef315724 | Parque de Campismo da Ilha do Pessegueiro | campground | overture:dcecdb34-ba93-4f5e-816a-274b8a333b53 "Parque de Campismo Costa do Vizir" (campground) at 0 m | camping ilha park pessegueiro ↔ camping costa park vizir |
+| a0eeba99e02041505043fbd2 | Snack-Bar Esquina | night_club | overture:5cc56ef9-ea04-42d3-81e3-b05dc32e2d84 "Assembleia de Deus Bereana" (church) at 25 m | bar esquina snack ↔ assembly bereana god |
+| bda6fc5f73a2401362cdd602 | Igreja Lusitana Católica Apostólica Evangélica-Paróquia São Paulo | church | overture:e4c3285b-7d5d-4613-a4f4-1d7b0ff53b9e "Paróquia de S. Paulo - Catedral da Igreja Lusitana - Comunhão Anglicana" (church) at 18 m | apostolica catolica church evangelical lusitana parish paulo saint ↔ anglicana cathedral church comunhao lusitana parish paulo s |
 
 ## Fuzzy far names — imported, for curation
 
-Would-insert rows whose nearest served row 75–400 m away scores between 0.72 and 0.9 on name_similarity — the rung the preflight counted as suspect and this importer does not (see `SAME_NAME_SIMILARITY`). 497 row(s); first 20:
+Would-insert rows whose nearest served row 75–400 m away scores between 0.72 and 0.9 on name_similarity — the rung the preflight counted as suspect and this importer does not (see `SAME_NAME_SIMILARITY`). 491 row(s); first 20:
 
 | fsq_place_id | name | our type(s) | nearest fuzzy far name |
 |---|---|---|---|
 | 0298aa181fa24e52839cc3b5 | Maria I Carreira Ferreira | night_club | overture:2b5af14e-212a-435c-82c1-a98602d4c76d "Garrafeira Ferreira" (store) at 353 m, sim 0.73 |
 | 05348987db7646cf327edc2d | Fábrica da Igreja de Melres | church | overture:e4469385-53a3-4fe3-9a38-50c223b3e623 "Bar Da Praia De Melres" (bar) at 111 m, sim 0.73 |
-| 07ef0d96941647670c086753 | Igreja Baptista | church | overture:a278905f-e04d-4d51-91d6-c616bb454f3f "O Baptista" (bar) at 240 m, sim 0.72 |
 | 111777e2e02d4c4838f7900b | Pároco de São Lourenço do Bairro | church | overture:3ba6f060-773f-4255-b3af-bd2b6cc3c251 "Centro Paroquial De São Lourenço Do Bairro" (church) at 139 m, sim 0.81 |
 | 1708be39d44843b57dbb19d5 | Igreja Baptista de Loures | church | overture:a087976d-8e28-41fa-8012-e82493ee9df6 "Igreja Matriz de Loures" (church) at 250 m, sim 0.83 |
 | 18efc64542254c347cf4864d | Igreja Paroquial de Bombarral | church | overture:9bafc5ae-a68b-49d7-9335-4b529726e1ad "Igreja Matriz do Bombarral" (church) at 226 m, sim 0.80 |
@@ -358,10 +445,11 @@ Would-insert rows whose nearest served row 75–400 m away scores between 0.72 a
 | 4b0588a4f964a520b9d122e3 | Galeria Pedro Serrenho | art_gallery | overture:43ec04ee-34df-4b5f-a3b2-16505b507bc6 "Galeria Pedro Cera" (art_gallery) at 281 m, sim 0.80 |
 | 4b0588a7f964a52095d222e3 | Teatro Infantil de Lisboa | theatre | overture:d0d7d9a9-e96d-405f-b39a-4ff0c8d296f9 "Teatro Romano de Lisboa" (historical_landmark) at 316 m, sim 0.79 |
 | 4b0588a8f964a520bfd222e3 | Cine-Teatro de Corroios | theatre | overture:eaf21b50-4f48-4d77-b8da-f15aaf6b25f4 "Oculista de Corroios" (store) at 399 m, sim 0.74 |
-| 4b7a8c17f964a520a5302fe3 | Mosteiro dos Jerónimos | historical_landmark, church | overture:cab69a00-c302-4d6c-861b-c7ab83b1d739 "Largo dos Jerónimos" (plaza) at 258 m, sim 0.78 |
 | 4ba0a49cf964a520897537e3 | Doca do Bom Sucesso | marina | overture:031c8108-28c3-461b-a728-e3ff87c16751 "Colégio do Bom Sucesso" (school) at 168 m, sim 0.78 |
 | 4bbb94eee5b0d13a403c6e7c | Estádio Universidade de Coimbra | stadium | overture:fc945f2c-b779-4be4-8952-501a86d3eb31 "Estádio Universitário de Coimbra" (gym) at 148 m, sim 0.89 |
 | 4c1e013bb306c928846166b7 | Jardim Botânico de Coimbra | botanical_garden | overture:c05b2b83-b86a-4715-aeea-debba1e8d98d "Jardim Botânico da Universidade de Coimbra" (botanical_garden) at 240 m, sim 0.76 |
+| 4c3259353896e21ef065e890 | @ Adro Da Sé | music_venue | overture:66e4abc5-082f-4047-b7e9-054278aa8b3f "Penedro da Sé" (bar) at 264 m, sim 0.78 |
+| 4c4807f3417b20a1459adfa9 | Estádio do Bessa XXI | stadium | overture:d8426e5c-d567-4452-803c-19a6390befe4 "Estádio do Bessa Século XXI" (stadium) at 116 m, sim 0.85 |
 
 ## In-batch name near-misses — both imported, for curation
 
@@ -380,30 +468,30 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 
 ## Samples of would-insert rows, per leaf
 
-### Church — 1,875 would insert, sample of 20
+### Church — 1,854 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
-| 2c300ac5f0c94f31727fbfae | Congregação de Nossa Senhora da Caridade do Bom Pastor | Lisboa | 38.74384 | -9.15772 | church |
-| 4ccea3f1aa25a35d2e9c210f | capela de Várzea | Arouca | 40.92381 | -8.30467 | church |
-| 4df37989c65bf55ee52bc78e | Convento de Santa Clara | Funchal | 32.65253 | -16.90403 | church |
-| 4e3f1383e4cdab9b935984bb | Na Sra Alumieira | Águeda | 40.51940 | -8.45699 | church |
-| 4eba54a5e300cf4cac3536fe | Capela De Santa Barbara (Urgeiriça) | Canas De Senhorim | 40.51610 | -7.89695 | church |
-| 4ed7ab599adf06cbf6e4e206 | Igreja De S. Domingos Viana Do Castelo | Viana do Castelo | 41.68853 | -8.83214 | church |
-| 4f48c51be4b072f5aacecb28 | Igreja Adventista Central | Lisboa | 38.72733 | -9.14129 | church |
-| 500eed72e4b05c6252c6b25f | Capela Catolica Dos Olivais Sul |  | 38.76302 | -9.11464 | church |
-| 506c36f0e4b031a8875efba5 | Igreja Castanheira Do Ribatejo | Castanheira Do Ribatejo | 38.99290 | -8.97198 | church |
-| 51c5d49e498e6e1b1a978d80 | Hermida da Guadalupe |  | 37.08318 | -8.86619 | church |
-| 5318e96f498e76c1997a3c03 | Igreja Catedral da Esperança Charneca | Charneca da Caparica | 38.62902 | -9.19766 | church |
-| 533abc82498e8b88480b3ff7 | Igreja de Freiriz | Vila Verde | 41.64099 | -8.50849 | church |
-| 53aee3f7498eec2a46c5c1dc | Igreja Matriz da Rapa | Celorico da Beira | 40.58182 | -7.34402 | church |
-| 5746e85f498e4620a8e88a07 | Igreja de S. Gens |  | 41.44650 | -8.13505 | church |
-| 59b2e168c8772e6fcc12be20 | Oasis Christian Fellowship | Lagos | 37.10107 | -8.67269 | church |
-| 5e11c9a5c546ca0007896d38 | Igreja Da Ordem Terceira De São Francisco | Tavira | 37.12304 | -7.65088 | church |
-| 5f2ff095933f477de036e9d4 | Igreja Santo Cristo Da Misericordia | Praia da Vitória | 38.73208 | -27.05985 | church |
-| 5f3bc3702cdd3072fb2045e0 | Igreja dos Biscoitos | Calheta | 38.61493 | -28.03206 | church |
-| 689e34e1542fe41b5f06598c | Salão Do Reino Das Testemunhas De Jeová | Oeiras | 38.69299 | -9.30492 | church |
-| d57f7c0de4c74acf01f12bc2 | Pároco de Ladoeiro | Idanha-a-Nova | 40.03904 | -7.11459 | church |
+| 2c65ad026fda4dfd3a8d49eb | Assembleia de Deus Vida Plena | Amadora | 38.76037 | -9.24289 | church |
+| 4cd95c8a1891236aa2ee3a0b | Igreja Paroquial De Mafamude |  | 41.12534 | -8.60301 | church |
+| 4df3a363b61cbd3ec01be9b8 | Capela de São Jerónimo | Lisboa | 38.70135 | -9.21364 | church |
+| 4e42b8bf52b18f6e7106c70d | Igreja de Fornos | Castelo de Paiva | 41.05522 | -8.25405 | church |
+| 4ebc420a9adf8b96f8a92e86 | Igreja do Feijo - Paroquia S. Jose Operario | Almada | 38.66079 | -9.15956 | church |
+| 4edb9b79b6344371f84bf69f | Capela De Santo André, Couto-Santa Cristina | Couto Santa Cristina | 41.32868 | -8.49782 | church |
+| 4f4974c6e4b0927ad9c29800 | Igreja de Sao Vicente | Guarda | 40.54002 | -7.26827 | church |
+| 50140d5ee4b020985bce061e | Capela de Sta. Marta de Portela |  | 41.65755 | -8.37085 | church |
+| 5070365ae4b0d72c9e9d8e87 | Igreja Adventista do Sétimo Dia - Japiim I |  | 39.75541 | -8.91699 | church |
+| 51d57d5f498e25270c16e2a6 | Igreja Matriz | Seia | 40.42031 | -7.70324 | church |
+| 5321c871498e4f534f3391b2 | Igreja de Paranhos | Amares | 41.66831 | -8.37064 | church |
+| 53491abe498e3623c9ce3773 | Igreja Porto de Mós |  | 39.59271 | -8.82144 | church |
+| 53c10a26498e4eed22c7f339 | Igreja Paroquial de Cumeeira |  | 39.94390 | -8.38035 | church |
+| 57b04225cd10be935b3dc217 | Igreja de São Lourenço |  | 37.06979 | -8.01523 | church |
+| 59f5b8651108ba6a80e7cc32 | Igreja Paroquial De Chorente | Chorente | 41.45652 | -8.61261 | church |
+| 5f2d88027150dc431d82de74 | Ermida De Santo António Da Grota | Angra do Heroísmo | 38.64785 | -27.22181 | church |
+| 5fd8f1efad3f04387f6241ee | Capela de São Sebastião | Leça do Balio | 41.20692 | -8.62292 | church |
+| 5ff557581e5d42b24d506971 | Igreja de Jesus Cristo dos Santos dos Últimos Dias | Sao Paulo | 41.14811 | -8.61368 | church |
+| 69adc30ca1abdd3b10741bb1 | Templo Maior Iurd | Lisboa | 38.75579 | -9.11092 | church |
+| e117174ee58944be97a56d92 | Pároco de Alcobertas | Alcobertas | 39.41758 | -8.89901 | church |
 
 ### Night Club — 952 would insert, sample of 20
 
@@ -430,32 +518,32 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 64fbe424ff74713563b81471 | Sala 8 | Coimbra | 40.24218 | -8.44118 | night_club |
 | c4a787b9207c42ed3604a083 | Swing - Discoteca | Porto | 41.15579 | -8.62728 | night_club |
 
-### Historic and Protected Site — 758 would insert, sample of 20
+### Historic and Protected Site — 751 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
-| 4c8cb681cf3ea14301a3f751 | Elevador de Santa Luzia | Viana do Castelo | 41.69679 | -8.83029 | historical_landmark |
-| 4e354d571838f85189a4add5 | Barracão Do Sal |  | 40.13750 | -8.83301 | historical_landmark |
-| 4e753bec45ddd4323fa8ab56 | Quinta das Ferrarias | Roubã | 39.83515 | -8.58290 | historical_landmark |
-| 4f0addc7e4b039f5af5ca6f7 | Mosteiro De S. João De Tarouca |  | 41.02307 | -7.74785 | historical_landmark |
-| 4f601512e4b06b55131f640a | Bairro Arco Maria Teresa |  | 38.81522 | -9.23666 | historical_landmark |
-| 4fa54c61e4b0a34ac775c9f7 | Igreja Canhoso |  | 40.28876 | -7.48583 | historical_landmark |
-| 4fd21e26e4b01d563b90f78d | Igreja de serpa |  | 37.94229 | -7.59594 | historical_landmark |
-| 502a85d4e4b0924c21b1e15d | Avis |  | 39.11172 | -7.87223 | historical_landmark |
-| 51090c9ce4b0112c87f7144e | Centro Pedagogico Do Vinho Do Porto |  | 41.13553 | -8.62170 | historical_landmark |
-| 5134e13ee4b0a2e13d168793 | Maria Mendes |  | 40.16089 | -8.19981 | historical_landmark |
-| 51855a02498eaef7cdc5db02 | cristo rei |  | 41.31478 | -8.57331 | historical_landmark |
-| 5258fb8511d27b94d52e19ee | Convento de Seiça |  | 40.09413 | -8.82518 | historical_landmark |
-| 53f0e453498e19f83561d3e2 | Império do Lajedo |  | 39.39241 | -31.24873 | historical_landmark |
-| 544c005a498e810408963001 | Sede do Rancho Folclorico de Nespereira |  | 41.00462 | -8.16591 | historical_landmark |
-| 5546760e498e6e7dfc40a739 | pulo do lobo |  | 37.76249 | -7.53778 | historical_landmark |
-| 59a05e9186f4cc3bed9d1ef0 | Templo das Colunas | Sintra | 38.78824 | -9.39138 | historical_landmark, church |
-| 5dee5cf993de190008d3f7c2 | Alcáçova | Sintra | 38.79211 | -9.38875 | historical_landmark |
-| 65e9f80645cd3924ede0e29b | Reis Magos Fort | Caniço | 32.64468 | -16.82800 | historical_landmark |
-| 65f1c78236564436be00d4be | Bunker Militar |  | 36.98441 | -7.84524 | historical_landmark |
-| 68135c805474ba4cc4fc3fa8 | Festival Dos Descobrimentos | Lagos | 37.09983 | -8.66967 | historical_landmark |
+| 4ca373657f84224b4604c558 | Palace Hotel do Bussaco | Luso | 40.37602 | -8.36466 | historical_landmark |
+| 4e37fee9d22d4cf95ee62d36 | Vale de Janelas | Torres Vedras | 39.14261 | -9.37086 | historical_landmark |
+| 4e79ff211f6e07f917f0cfcb | Instituto dos Vinhos do Douro e Porto | Porto | 41.14186 | -8.61546 | historical_landmark |
+| 4f0f2ce7e4b03684a61b1946 | Torre de Menagem | Mértola | 37.63836 | -7.66373 | historical_landmark |
+| 4f633281e4b045fbd2832733 | Sepultura |  | 38.79226 | -9.38870 | historical_landmark |
+| 4fc168b7e4b08acecb744456 | Pinhal do Norte |  | 41.44913 | -7.25455 | historical_landmark |
+| 4fdf9290e4b0a30bdf266857 | Nova Igreja De Manhente |  | 41.54825 | -8.57428 | historical_landmark |
+| 502ccbb0e4b047ef993210f6 | Rua Maestro Francisco Lacerda |  | 38.68122 | -28.20578 | historical_landmark |
+| 511cefbee4b077257f5b0ac5 | Ruelas |  | 41.73752 | -7.46656 | historical_landmark |
+| 514dbb42e4b091940bc3606d | Torre de Menagem |  | 38.70747 | -9.13541 | historical_landmark |
+| 518d22f3498e86e87f7cc289 | Escadas do Recanto | Porto | 41.14117 | -8.61761 | historical_landmark, hiking_area |
+| 5271466d498ecdfe87957c97 | Centro Histórico do Porto | Porto | 41.14508 | -8.61092 | historical_landmark |
+| 5415bf1d498ec48c3dcc54fc | Virtudes |  | 39.08679 | -8.82854 | historical_landmark |
+| 5499acdf498eec3346007bfd | Largo da Misericórdia | Viseu | 40.65980 | -7.91189 | historical_landmark |
+| 558587c0498ee2645e68cbb9 | Muralha de D. Dinis | Lisboa | 38.70864 | -9.13868 | historical_landmark |
+| 59ca45480fe7a027ee69e447 | Igreja de Sao Pedro de Canaferrim | Sintra | 38.79231 | -9.38854 | historical_landmark |
+| 5f464627b9d18d217025bcfd | Palacio Dos Condes De Ficalho | Serpa | 37.94483 | -7.59835 | historical_landmark |
+| 65ec948b5e7f525900b314df | José Roque Junior Defensive Wall | Faro | 37.01196 | -7.93505 | historical_landmark |
+| 669189d3e57c92208e330b4c | Palacete Primo Madeira | פורטו | 41.15316 | -8.63888 | historical_landmark |
+| 6927198becd60f2f1b41d39a | Porta Talhada | Óbidos | 39.36288 | -9.15783 | historical_landmark |
 
-### Art Gallery — 554 would insert, sample of 20
+### Art Gallery — 552 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
@@ -471,14 +559,14 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 50533b67f13618780a4673fe | CNAP - Clube Nacional de Artes Plásticas | Lisboa | 38.76071 | -9.16394 | art_gallery |
 | 509ea6b0e4b0fe0aa55fc907 | Carla Anjos Atelier |  | 41.20103 | -8.28819 | art_gallery |
 | 516f07b0e4b0342587c6c712 | Arrear na Valadares |  | 41.17756 | -8.68280 | art_gallery |
-| 534c8d70498ebc8bfac0a762 | Paulo Santos - Arte Contemporânea | Amadora | 38.77642 | -9.21847 | art_gallery |
-| 5403023f498eccd895fa01a9 | Galeria de exposições | Espinho | 41.00734 | -8.64272 | art_gallery |
-| 55e74ac7498e7e79c4d51ea2 | Atelier Ilha Das Cores | Troviscal | 40.49471 | -8.54458 | art_gallery |
-| 57a46907498e963269840713 | The Online Artists | ferreiras-albufeira | 37.12609 | -8.23873 | art_gallery |
-| 5dc6a369c6fed100083d0bd2 | 3D Fun Art | Funchal | 32.64926 | -16.91169 | art_gallery |
-| 6872a42f3bd50c4ba7baaf48 | Centro Social Do Carvalhal | Comporta | 38.31136 | -8.75023 | art_gallery |
-| 68ceb33f768332179e150b52 | Mark Tomaras Studio + Gallery \| Fine Art Repro Lab | Porto | 41.14995 | -8.61825 | art_gallery |
-| 8a137d24f1314ab01fc74b6c | PortuGalito - Espaço de Comércio e Artes | Porto | 41.15473 | -8.61185 | art_gallery |
+| 53516188498e8806fcd1e0ee | déja vu galeria arte ferragudo |  | 37.12483 | -8.51889 | art_gallery |
+| 541317e8498e8402e080fa67 | Arte Ilimitada | Lisboa | 38.71326 | -9.15868 | art_gallery |
+| 5608132d498e1ae1fcac0256 | concerto Xana Toc Toc - campo pequeno |  | 38.74354 | -9.14650 | art_gallery |
+| 57e566d7cd10347e46318f62 | Galeria Wagner Ericeira |  | 38.96656 | -9.41870 | art_gallery |
+| 5e0e2e2b94009c000836cc69 | Antiga Capitania do Porto de Aveiro | Aveiro | 40.64148 | -8.65309 | historical_landmark, art_gallery |
+| 6884d68e4f312c55342b85c2 | Mundo Robusto | Funchal | 32.64856 | -16.90668 | art_gallery |
+| 68d7e8f513c9e33f15b83223 | Gate 1 | Lisboa | 38.72455 | -9.13294 | art_gallery |
+| 9936bd8f785c40ccb02306c8 | José M Mira Frazão | Estoril | 38.70870 | -9.39792 | art_gallery |
 
 ### Music Venue — 474 would insert, sample of 20
 
@@ -530,55 +618,55 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 645bffbcb441a536cb293b37 | Escadas do Monte | Vila Nova de Gaia | 41.13532 | -8.61158 | hiking_area |
 | 680cdbddcad9200c258c1ab7 | Passadiças Das Escarpas Do Corgo | Vila Real | 41.29510 | -7.74239 | hiking_area |
 
-### Monument — 390 would insert, sample of 20
+### Monument — 386 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
 | 165d9a270b3647d67e6c62fd | Casa dos Pimentéis | Vimioso | 41.47151 | -6.57422 | historical_landmark |
-| 4d1dcd2716cfb60cbb3d4261 | Finanças de Oeiras | Oeiras | 38.68606 | -9.31295 | historical_landmark |
-| 4e21c9261838712abe75ab0b | Torre De Almofala |  | 40.86989 | -6.88275 | historical_landmark |
-| 4f0f2d2be4b09cff018e07f7 | Anta I de S. Gens | Nisa | 39.44778 | -7.67654 | historical_landmark |
-| 503b31fce4b0c6f193ebbf0d | Arquivo Municipal de Figueira de Castelo Rodrigo |  | 40.89712 | -6.96421 | historical_landmark |
-| 53c65cae498ea05b20f3b14f | Torreão das Portas da Cidade |  | 37.18880 | -8.43935 | historical_landmark |
-| 57d695ed498eb2f54f0fcb1c | Pelourinho de Peroguarda | Peroguarda | 38.09156 | -8.04852 | historical_landmark |
-| 59cf292c491be76b02b3a90f | Alminhas da Ponte | Porto | 41.14083 | -8.61086 | historical_landmark |
-| 5dc60f6a1a71960007cbfb48 | Visigothic Wall | Lisboa | 38.71175 | -9.12990 | historical_landmark |
-| 5e0df569452fe1000893c434 | Capela São Miguel | Фару | 37.01310 | -7.93463 | historical_landmark |
-| 5f5cfe8bbee5030db7943ca8 | Ponte Românica Sobre O Rio Anços | Redinha | 40.00394 | -8.58325 | historical_landmark |
-| 6248600a1ee5dd267ccea156 | Torre do Relógio | Albufeira | 37.08706 | -8.25207 | historical_landmark |
-| 63e15b31d36e705a972b81a3 | Monumento Manuel Pinheiro Chagas | Lisboa | 38.71702 | -9.14250 | historical_landmark |
-| 64466b3729d8ea2fc03214f4 | Cruzeiro De Praia De Mar | Mar | 41.57396 | -8.79820 | historical_landmark |
-| 647096bdb231951de1fe33fb | Centenário Das Aparições Do Anjo Da Paz | Fátima | 39.61591 | -8.66464 | historical_landmark |
-| 65f447d4e497e4341c959a8d | Busto Patrão Joaquim Lopes | Olhão | 37.02375 | -7.83880 | historical_landmark |
-| 66cb84369543ea653edfbacf | Monumento aos Descobrimentos Portugueses | Cascais | 38.69656 | -9.42021 | historical_landmark |
-| 68bf499a5b782c28c60e95a8 | Porta da Esquina | Portalegre | 38.88035 | -7.16848 | historical_landmark |
+| 4d25fc5373913704ab2cfc35 | She Changes - Anémona | Matosinhos | 41.17329 | -8.68870 | historical_landmark |
+| 4e53fd3c8877863330a9f257 | Estação Arqueológica Do Prazo |  | 40.93547 | -7.21928 | historical_landmark |
+| 4f0f2d2de4b0ac27398e2ff9 | Dólmen da Pedra Branca | Grândola | 38.11295 | -8.72406 | historical_landmark |
+| 50681dcae4b0bb47b280fe98 | Estátua João Paulo II | Fátima | 39.62969 | -8.67494 | historical_landmark, church |
+| 56b27bac84984fe3e206154e | Auto Museu da Maia | Maia | 41.22812 | -8.60727 | historical_landmark, museum |
+| 57e7967b498e88140e7d7ebe | Torre da Rua de D. Pedro Pitões | Porto | 41.14276 | -8.61222 | historical_landmark |
+| 59cfae9264c8e1669978a704 | Antiga Bolsa dos Comerciantes | Porto | 41.14102 | -8.61411 | historical_landmark |
+| 5df92601eaf446000813c28c | Monumento Ao Emigrante | Laundos | 41.43515 | -8.71558 | historical_landmark |
+| 5e46b1f735aef20008c62baf | Olhinho Do Sol | Trancoso | 40.77869 | -7.34701 | historical_landmark |
+| 5f80d47ec13a1122d0f3538f | Santuário da Nossa Senhora da Paz | Funchal | 32.68455 | -16.89895 | historical_landmark, church |
+| 626460400525d40a1f0f7d8d | Chafariz da Cidade | Malveira | 38.93179 | -9.25723 | historical_landmark |
+| 63f0b4f95264c96e594627cd | Pontão Do Tamariz | Estoril | 38.70152 | -9.39895 | historical_landmark |
+| 645d3074c6425c358f52428b | Estátua Do Bispo D. António Ferreira Gomes | Porto | 41.14584 | -8.61522 | historical_landmark |
+| 64a6ebd11cae6717f2a5ead2 | Obelisco Monumento aos Combatentes da Grande Guerra | Montijo | 38.70630 | -8.97375 | historical_landmark |
+| 662bb6759498340cad0c1f4d | Azenha Tropical | São João das Lampas | 38.90142 | -9.38809 | historical_landmark |
+| 670c1a1373085925e367c230 | Arco Sao Sebastiao, Setubal | Setúbal | 38.52348 | -8.88678 | historical_landmark |
 | 69592288b5fa9256c496039c | Monumento ao Cante Alentejano | Odemira | 37.59975 | -8.64525 | historical_landmark |
-| 6a15734dbc61355640554ca6 | Igreja Do Senhor Bom Jesus De Fão | Fão | 41.51037 | -8.76755 | historical_landmark |
+| 69a01cc56786db4b4a27c9cf | Monumento 25 De Abril | Coimbra | 40.21066 | -8.41910 | historical_landmark |
+| 7ad17b16c7284e8c9d99a443 | Busto de Luís António Maldonado Rodrigues em Torres Vedras | Torres Vedras | 39.08719 | -9.25606 | historical_landmark |
 
-### Campground — 371 would insert, sample of 20
+### Campground — 366 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
-| 0e48046d65ca405b0e28ccb7 | Naturwaterpark - Parque de Diversões do Douro | Póvoa | 39.59976 | -8.33869 | campground |
-| 36594862fd7540654cfba3b6 | Glamping Hills | Santa Comba de Rossas | 41.66875 | -6.82440 | campground |
-| 4c655fa4f07e2d7f0cb09150 | Dominio Vale Do Mondego |  | 40.56150 | -7.30934 | campground |
-| 4dfe1dad8877e9c47498596c | Viegas | Santarém | 39.41532 | -8.85234 | campground |
-| 4e3bcaf8d22d102e852a6e61 | Vale Paraiso Camping | Nazaré | 39.62021 | -9.05708 | campground |
-| 4eabdf4161af01ea2af60d10 | Clube Campismo Do Barreiro | Setúbal | 38.49498 | -9.00396 | campground |
-| 4eeb089ea69dd7c5b46b7ad7 | Spot de espera pela MJ |  | 41.18479 | -8.62331 | campground |
-| 4f777eb0e4b055c760bb754f | Lutomario |  | 38.73796 | -9.16599 | campground |
-| 50cb0658498e9af65084b6fc | Retiro da Fraguinha | São Pedro do Sul | 40.83144 | -8.15430 | campground |
-| 510482ade4b0967f79a8a4c3 | Parque de Campismo de Boticas |  | 41.57703 | -7.63229 | campground |
-| 519bd5ec498e83c347493374 | Sede Escuteiros 1134 Sintra |  | 38.80325 | -9.38575 | campground |
-| 534865ad498ec23f067c280d | parque de merendas Casal dos Bernardos |  | 39.73853 | -8.50504 | campground |
-| 56718085498e379909d60f7c | por baixo da via rapida |  | 32.65031 | -16.92512 | campground |
+| 0fbf4466e2d14b019524765d | Turisarlivre - Aluguer Caravanas Autocaravanas, Unip. | Matosinhos | 41.19362 | -8.69102 | campground |
+| 3856b715edee4136b57e0c14 | Agirdin - Agro Turismo de Investimento | Alenquer | 39.05636 | -9.00642 | campground |
+| 4c66a167aebea5934d8c73d0 | Parque de Campismo Municipal de Vila Flor | Vila Flor | 41.29394 | -7.17110 | campground |
+| 4e03c504483b6f89f47bdb80 | Arriba | Vila Verde | 41.71498 | -8.45561 | campground |
+| 4e3c19c61495bf24a5c8256b | Parque de Campismo Orbitur Praia da Vagueira | Vagos | 40.55713 | -8.74344 | campground |
+| 4ee7cc0a30f8ea029ad11ef2 | Sede Do Grupo84 |  | 39.46593 | -8.46537 | campground |
+| 4eee071f722ea77618509fbd | Fetais Cimeiros | Penela | 40.03423 | -8.31668 | campground |
+| 4f9aef25e4b02aa9bf095d0c | Quinta do Gamil | Alcáçovas | 38.38697 | -8.14486 | campground |
+| 50f5495de4b0411cf4cf0a78 | Macedo |  | 41.44492 | -7.12132 | campground |
+| 511fb212e0e26e23eb1abef8 | 1233 Agr. Escuteiros Almalaguês | Coimbra | 40.13451 | -8.38836 | campground |
+| 51c4c780498e5c7bec6c50c3 | Quinta do Escuteiro | Batalha | 39.64945 | -8.83820 | campground |
+| 53a4cfdb498e192ea7056d19 | CEADA - Centro Ambiental da Arrábida |  | 38.48370 | -9.01930 | campground |
 | 571b3b9e498e4f08262728f6 | Centro Escutista de Guimarães |  | 41.42674 | -8.26846 | campground |
-| 596fa7234b78c57f67eebbb3 | Estacao De Autocarros, Peso Da Regua | Peso da Régua | 41.15553 | -7.78035 | campground |
-| 62f0df65f75ea10fa5150885 | Area De Serviço De Autocaravanas De Portel | Portel | 38.30587 | -7.70855 | campground |
-| 68931a67a1d74d17dbe382a1 | Camper Parking Porto Covo | Porto Covo | 37.85387 | -8.78992 | campground |
-| a64c525202db41af3b2ccff6 | Grupo Vanguarda Campismo | Sintra | 38.87269 | -9.43363 | campground |
-| b0c7f1e1e0d849e4fae19fa7 | Tribunechoice | São Bartolomeu de Messines | 37.25663 | -8.28624 | campground |
-| e92f7c71cd8344cf1aa8b48f | Ricarlina - Unipessoal | Coimbrã | 40.21028 | -8.43016 | campground |
+| 5780baac498e6da7b165434c | Parque Campismo PSP Tavira |  | 37.13677 | -7.63583 | campground |
+| 5a63ec61345b422e9a759e7b | Turiscampo-sociedade Empreendimentos Turísticos Parques do Algarve | Lagos | 37.10821 | -8.67118 | campground |
+| 64cea5395e5742fde4c8cc8f | Parque de Campismo Colina do Sol | São Martinho do Porto | 39.51216 | -9.13493 | campground |
+| 69f548b91d557879cfc5d9c6 | Camping Avis | Avis | 39.05586 | -7.91094 | campground |
+| b2db901d4ba841fff645c6a5 | Fundatur - Empreendimentos Turísticos da Quinta do Convento, S.A. | Fundão | 40.13803 | -7.50123 | campground |
+| c4c326df99724b9d02c7610d | Barra Camping, Ar Puro Campings | Gafanha da Nazaré | 40.63869 | -8.74529 | campground |
+| fee5077d634b419a8291bc50 | Parque Campismo Costa Nova | Ílhavo | 40.60124 | -8.67026 | campground |
 
 ### Mountain — 297 would insert, sample of 20
 
@@ -605,30 +693,30 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 5d939611939de0000842895c | Cow Top | Calheta | 32.75398 | -17.13317 | mountain |
 | 633d29aa603c5078203c8cb1 | Pico Bica da Cana | São Vicente | 32.75607 | -17.05527 | mountain |
 
-### River — 283 would insert, sample of 20
+### River — 282 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
 | 4cdfe68adb125481efb439ce | Praia Fluvial Alamal | Gavião | 39.48816 | -7.96753 | river |
-| 4f1de4b4e4b08fa66754246e | Rio Cávado |  | 41.51622 | -8.78501 | river |
 | 4f257487e4b050258c3ea78c | Muxagata | Fornos de Algodres | 40.63089 | -7.39015 | river |
-| 4fbcb695e4b0ac6570c20386 | Nascente do Côa | Foios | 40.35666 | -7.06755 | river |
-| 4ffd9a72e4b03a789300e61b | Barragem S. Lurdes |  | 40.68386 | -7.70724 | river |
-| 50043993e4b04575feede6e3 | Associação Náutica da Torreira | Murtosa | 40.76584 | -8.69747 | river, marina |
-| 501140ace4b0c3be96399aae | Cascatas do Pincho |  | 41.79721 | -8.75785 | river |
-| 50222d2de4b0dfad8a142144 | Rio Neiva "Boticas" |  | 41.64398 | -8.68490 | river |
-| 5027535ce4b0e6861f27d316 | Praia Fluvial Do Malhadal | Proença-a-Nova | 39.74900 | -7.92518 | river |
-| 50db9d00e4b03eb1a0330afd | Rio Ceira | Coimbra | 40.16129 | -8.11277 | river |
-| 511ca686e4b0206f9277d095 | Nascente Do Côa | Foios | 40.27711 | -6.86895 | river |
-| 516ad235e4b0184c2f18017d | Azenha do Minante |  | 41.62384 | -8.76970 | river |
-| 521386ec11d2322772d067db | Praia fluvial Rio Lavradas |  | 41.82152 | -8.42056 | river |
-| 522505d9498e6e13a920d869 | Ribeira St Estevao |  | 38.86251 | -8.77903 | river |
-| 52b347aa11d2f8cd52ffb4b8 | Reserva Natural do Estuário do Tejo |  | 38.87892 | -8.97774 | river, nature_preserve |
-| 5349dd36498e858c2f66c07e | Rio Sôr |  | 39.25182 | -8.01151 | river |
-| 5665b01d498e89524ee00e0e | Cascata Bico de Água |  | 40.58274 | -8.14944 | river |
-| 61961327d0d0fa3ff5185a64 | Rio Tejo | Lisboa | 38.68879 | -9.18673 | river |
-| 630499b50601316edd700311 | Cascata Do Lordelo | Couto de Esteves | 40.76640 | -8.29416 | river |
-| 65f5cc7f74656a3b1685fdd5 | Passadiços da Ribeira do Espírito Santo | Arcozelo | 41.06256 | -8.64378 | hiking_area, river |
+| 4f37b3a9e4b08f0099bd6f6e | Moinho Do Perigo |  | 41.83045 | -7.01075 | river |
+| 4fc1fcece4b05b8503515da2 | Praia Natural do Pego |  | 40.87897 | -7.92635 | river |
+| 4ffda0a2e4b03bbc7f8ed69f | Parque Lazer Rio Santa Clara |  | 40.66476 | -7.65125 | river |
+| 50043e84e4b0bc5170951beb | Praia Fluvial Fraga |  | 41.16572 | -8.02390 | river |
+| 5012be90e4b01be621b9490d | Sound Garden |  | 41.60143 | -8.41085 | river |
+| 50251a88e4b06e6f05015be6 | Barbosa - Soalheira (Rio Paiva) |  | 40.88809 | -7.92692 | river |
+| 5027c688e4b081bd6db2843e | Cais do  Rio Águeda |  | 41.02704 | -6.93059 | river |
+| 50fbcd63e4b0e6d785486cce | Canal Central | Aveiro | 40.64094 | -8.65697 | river |
+| 511fa070e4b0781dd665e5c9 | rio tamega |  | 41.20906 | -8.16579 | river |
+| 517d5e2ae4b0514e89d16ba9 | Pista Remo Montemor-o-Velho | Montemor-o-Velho | 40.18182 | -8.62865 | river |
+| 5214d8f811d21af72b9fd4a2 | Colaço |  | 40.28395 | -7.96863 | river |
+| 52250ea211d2bcafc9ec26f2 | Ribeira Da Freixeira |  | 38.19971 | -8.51273 | river |
+| 52c533a9498e945ca2fabb36 | Praia Fluvial de Segirei |  | 41.86576 | -7.19510 | river |
+| 5353cf1b11d2ec246c2415b5 | Azenha da Portela |  | 41.30675 | -8.59302 | river |
+| 5671b14238faeb2f6eb3f56b | ribeira de santa luzia | Funchal | 32.65040 | -16.90812 | river |
+| 621926d8de8556236ffc99b0 | Rio Douro | Lamego | 41.11754 | -7.77785 | river |
+| 640b374a446db40ec222619e | Rio Marão | Candemil | 41.24960 | -7.98662 | river |
+| 661d832c4224ff14496789c3 | Tagus River | Lisboa | 38.70621 | -9.13144 | river |
 
 ### Concert Hall — 275 would insert, sample of 20
 
@@ -655,30 +743,30 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 625999126a53da59bb964808 | Casa das Virtudes | Faro | 37.02182 | -7.94317 | music_venue |
 | 693864644e845551f82c0fcc | Presidencial Fado | Porto | 41.14578 | -8.61029 | music_venue |
 
-### Museum — 256 would insert, sample of 20
+### Museum — 247 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
-| 20be6acf115147b409a8cb5a | Museu da Agricultura e do Queijo | Celorico da Beira | 40.62743 | -7.33742 | museum |
-| 2defc48ce6ed40c1048ca6f9 | Museu Francisco de Lacerda | Calheta | 38.60209 | -28.02212 | museum |
+| 4be1690dd816c92841f3efd9 | Nucleo Velho do Museu de Lanificios | Covilha | 40.27744 | -7.50812 | museum |
 | 4d38345e7ebf721e7bc76dfb | Nucleo Sportinguista De Leiria | Leiria | 39.74690 | -8.81312 | museum |
-| 4d388c3615993704a289ba91 | Porta Da Barbacã | Coimbra | 40.20888 | -8.42895 | museum |
+| 4f0f2cc2e4b0e190ad38019f | Museu de Vila Verde de Ficalho | Serpa | 37.94770 | -7.30037 | museum |
 | 4f0f2cd4e4b0254b4e80d8db | Museu Aberto de Campo Maior | Campo Maior | 39.01345 | -7.07267 | museum |
-| 4f0f2cefe4b00ae6bce8a271 | Museu do Regimento de Cavalaria N.º 3 | Estremoz | 38.84432 | -7.58712 | museum |
-| 4f0f2cf8e4b09cff018dce23 | Museu Municipal de Aljustrel \| Núcleo da Central de Compressores de Algares | Aljustrel | 37.87266 | -8.16412 | museum |
-| 4f0f2d33e4b045a5c4e82111 | Museu do Marceneiro | Évora | 38.56904 | -7.90812 | museum |
-| 50afaa5d498e8cffe157c7f7 | Museu do Pão e Vinho de Favaios | Favaios | 41.26572 | -7.50093 | museum |
-| 517a932c498e11ab3363b70b | Casa Da Cultura | Trofa | 41.33779 | -8.57393 | museum |
-| 57ffa64c38faf57c5179d3f4 | Memorial Irmã Lúcia | Coimbra | 40.20216 | -8.40649 | museum |
-| 58c95e132ec3645758350591 | Moto Clube Sintra |  | 38.79213 | -9.38006 | museum |
-| 5c4779307d84970039c25639 | Uccla | Lisboa | 38.69708 | -9.19222 | museum |
-| 656cb0def3a4b3021e155c5c | Urban (R)Evolution | Lisboa | 38.69754 | -9.19017 | museum |
-| 663fa8981b851d63cada3a8a | Ah Amália | Armazém 15 e 16 | 38.74196 | -9.10238 | museum |
-| 67e02bc1a3f11f67de6530d8 | Centro Interpretativo Das Festas Do Povo - Casa Das Flores | Campo Maior | 39.01285 | -7.07294 | museum |
-| 6a74c495ffc4786418964509 | Batalha Municipal Community Museum | Batalha | 39.65748 | -8.82496 | museum |
-| 6a7539d6c5fb9f02d8d3d6f1 | Casa do Moscadim | Chamusca | 39.45631 | -8.39761 | museum |
+| 4f0f2cf1e4b040d4838aba51 | Museu do Trabalho Rural de Abela | Santiago do Cacém | 38.00030 | -8.55849 | museum |
+| 4f0f2cf8e4b0281b8e072c9e | Museu Municipal de Aljustrel \| Núcleo de Arqueologia | Aljustrel | 37.88041 | -8.16452 | museum |
+| 4f0f2d10e4b07eb237cd4c30 | Tesouro da Igreja de São Vicente de Cuba | Cuba | 38.16751 | -7.89053 | museum |
+| 521e1fd411d290a1e9b6eeb6 | Submarino Barracuda | Almada | 38.68694 | -9.14672 | museum |
+| 5516f109498edbf627f76a48 | Núcleo Museológico de Valença |  | 42.02433 | -8.63922 | museum |
+| 5b34acd1c47cf9002cf10465 | Centro De Interpretação Da Reserva Mundial De Surf | Ericeira | 38.96287 | -9.41702 | museum |
+| 5e19be792af59f000853212d | Galeria Da Biodiversidade | Porto | 41.15373 | -8.64257 | museum |
+| 5e27336ac8d7a30008a0bada | Cafetaria Exploratório Proteína | Coimbra | 40.19728 | -8.42940 | museum |
+| 602b9672c5bdba56b36d1d0e | Museu do Holocausto do Porto | Porto | 41.15312 | -8.63797 | museum |
+| 645ced3a5d489103a28f9110 | Museo do Tesouro da Sé do Porto | Porto | 41.14254 | -8.61150 | museum |
+| 65da1fda4612fa5b6dd8f946 | Faro Story Spot | Faro | 37.01296 | -7.93511 | museum |
+| 67dac60ee6dc6c50535c510b | Academic Museum Of The University Of Coimbra | コインブラ | 40.20993 | -8.42412 | museum |
+| 67dc4da2482cfa11e75f611e | Museu Regional Casa Junqueiro | Freixo de Espada À Cinta | 41.08973 | -6.80948 | museum |
+| 6a74ec11c5fb9f02d8ca1cd3 | Paper Museum | Santa Maria da Feira | 40.98138 | -8.58505 | museum |
+| 6a75a41bc5fb9f02d8e45617 | Clock Museum | Évora | 38.57120 | -7.91064 | museum |
 | afe3aaa70fff70499c9bfaa7 | Museu e Centro de Artes de Figueiró dos Vinhos | Figueiró dos Vinhos | 39.90266 | -8.27568 | museum |
-| d69c684a0e95412f627d4c9e | Marinha - Museu Marinha - Planetário Calouste Gulbenkian | Lisboa | 38.69621 | -9.20857 | museum |
 
 ### Harbor or Marina — 240 would insert, sample of 20
 
@@ -705,31 +793,6 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 57bf30fe498e81fc99b7d211 | Portiate.com |  | 37.11578 | -8.52881 | marina |
 | 680f585049dee064134eba62 | Marina Foz Do Távora | Adorigo | 41.15717 | -7.58271 | marina |
 
-### Bridge — 215 would insert, sample of 20
-
-| fsq_place_id | name | locality | lat | lng | our type(s) |
-|---|---|---|---:|---:|---|
-| 4cd1383d7b685481a7b2c5f8 | Ponte Do Trancão | Sacavém | 38.79820 | -9.10169 | bridge |
-| 4e4674d6d22d12b08bc0ec44 | Ponte Ferreira do Zêzere - Vila do Rei | Ferreira do Zêzere Municipalit | 39.70132 | -8.26606 | bridge |
-| 4ef1d5a38b81368cf795c43b | Ponte dos Regos | sete cidades | 37.85471 | -25.78817 | bridge |
-| 4f57a0dde4b0f5ca244f22df | Ponte Comboio | Lares | 40.12529 | -8.77145 | bridge |
-| 5022c129e4b0ee4c5ba5264e | Rio Torto | Gouveia | 40.51104 | -7.65363 | bridge |
-| 502752e4e4b043587a1b7cb4 | Ponte Filipina Malhadal | Malhadal | 39.79684 | -7.95112 | bridge |
-| 508613c8e4b0c5ad609adb3b | Ponte da gandra v. | vlc | 40.84915 | -8.39253 | bridge |
-| 52330d4a11d2d35258481c34 | Ponte da Inha | Inha | 41.01209 | -8.46487 | bridge |
-| 5246b496498e711630898865 | Ponte De Sandomil |  | 40.37317 | -7.79904 | bridge |
-| 531b56ed498e8f9d90030bab | ponte romana de cepães |  | 41.42423 | -8.20427 | bridge |
-| 5777822a498e9a303d16e007 | Ponte Luís I, Porto, Portekiz | Porto,Portekiz | 41.14818 | -8.64252 | bridge |
-| 5d330d3165d0990008487760 | Ponte Ferroviária de Oeiras | Oeiras | 38.68777 | -9.31567 | bridge |
-| 5d6671f557ba490008b42cc0 | Ponte Dos 7 Arcos | Nordeste | 37.83186 | -25.14495 | bridge |
-| 5f58ace70b69a228a159992c | Ponte Ferroviára de Alcácer do Sal | Alcacér do Sal | 38.36846 | -8.52031 | bridge |
-| 634167d69e16da5b5e256f22 | Ponte Miguel Torga | Canelas | 41.15226 | -7.77361 | bridge |
-| 646134e4d4b7522079caad27 | Ponte Dos Botirões | Aveiro | 40.64426 | -8.65642 | bridge |
-| 662bb85356ede324a36bfa6e | Ribeira De Terges E Cobres | Alcaria Ruiva | 37.83661 | -7.85922 | bridge, river |
-| 66400820b40d0442838f7e59 | Ponte Nova Do Arade | Portimão | 37.15180 | -8.51144 | bridge |
-| 668d73141043de23b7fe6964 | Passadiços do Távora | Vila da Ponte | 40.92017 | -7.51400 | hiking_area, bridge |
-| 693ec66a588de974d11f1505 | Ponte De Samuel | Pindelo | 40.86466 | -8.44074 | bridge |
-
 ### Soccer Stadium — 214 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
@@ -754,6 +817,31 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 5b7c5e473fcee8003944024d | Sector 41 | Lisboa | 38.75262 | -9.18463 | stadium |
 | 5d04ff53113cf1002372cc35 | Complexo Desportivo De Óbidos | Óbidos | 39.35160 | -9.15856 | stadium |
 | 671e3c58e01fe03108630654 | Estádio Ur Mirense | Mira de Aire | 39.54331 | -8.70357 | stadium |
+
+### Bridge — 214 would insert, sample of 20
+
+| fsq_place_id | name | locality | lat | lng | our type(s) |
+|---|---|---|---:|---:|---|
+| 4cd1383d7b685481a7b2c5f8 | Ponte Do Trancão | Sacavém | 38.79820 | -9.10169 | bridge |
+| 4e4674d6d22d12b08bc0ec44 | Ponte Ferreira do Zêzere - Vila do Rei | Ferreira do Zêzere Municipalit | 39.70132 | -8.26606 | bridge |
+| 4f05572c6da1a1d649ef0076 | Ponte da Caima | Praia do Ribatejo | 39.46859 | -8.34282 | bridge |
+| 4f84ad4be4b04159b2c359fb | Ponte A28 | Matosinhos | 41.19512 | -8.68280 | bridge |
+| 502752e4e4b043587a1b7cb4 | Ponte Filipina Malhadal | Malhadal | 39.79684 | -7.95112 | bridge |
+| 503618dbe4b05ec15f4c9df2 | Ponte da Amizade |  | 41.95093 | -8.74297 | bridge |
+| 50cd2d33e4b0262ee55e7436 | Ponte Da Rata |  | 40.60856 | -8.52554 | bridge |
+| 52365e1c498ed2133122f09c | Barragem de Belver |  | 39.47224 | -8.04466 | bridge |
+| 524c3f1f11d210660048f984 | Ponte D. Amelia |  | 39.10315 | -8.73013 | bridge |
+| 532b222b498e9908ae362542 | Ponte Olo |  | 41.37395 | -7.88389 | bridge |
+| 57d93421498e6311332e666c | Ponte de Odeceixe | Odeceixe | 37.43469 | -8.76535 | bridge |
+| 5d57e61d3023d10008cc2357 | Praia Fluvial De São João Do Monte | São João do Monte | 40.59606 | -8.23621 | bridge |
+| 5d74268741552700089297ea | Viaduto Arrábida | Setúbal | 38.53726 | -8.87823 | bridge |
+| 5f58afb945268158de788da3 | Ponte Ferroviára de Águas de Moura | Palmela | 38.57008 | -8.72458 | bridge |
+| 6345a7116dcfc62c773d6985 | Aqueduto de Machico | Machico | 32.72079 | -16.76862 | historical_landmark, bridge |
+| 64887f9734933662ceca94c1 | Passarela da Bela Vista | Lisboa | 38.74847 | -9.11725 | bridge |
+| 662e2d4f66e14678eaf25ff6 | Pontão De Porto Santo | Porto Santo | 33.05636 | -16.33384 | bridge |
+| 666c6e7775c9b71c498f68e1 | Ponte A17 - Abrunheira | Abrunheira | 40.14194 | -8.75135 | bridge |
+| 66c1b684ab146e09bf8f6220 | Ponte do Crasto | Ul | 40.81160 | -8.49579 | bridge |
+| 69c7c3950dde0e628a996fc2 | Ponte Ciclopedonal Sobre O Rio Trancão | Sacavém | 38.79597 | -9.09286 | bridge |
 
 ### Public Art — 211 would insert, sample of 20
 
@@ -805,7 +893,7 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 61058283d3070f6308bff85b | Lagoa De Gens | Foz do Sousa | 41.11623 | -8.47264 | lake |
 | 64c1513a281ecb215c882c9d | Waterval | Soajo | 41.88511 | -8.25405 | lake |
 
-### Surf Spot — 165 would insert, sample of 20
+### Surf Spot — 164 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
@@ -819,41 +907,16 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 4eaebdb402d5cf33faf4cf80 | Fun Ride Amado |  | 37.16748 | -8.90175 | surf_spot |
 | 50057e43e4b09f6dc7d29f7f | mais um bocado derreto |  | 40.75230 | -8.57285 | surf_spot |
 | 50095d98e4b00abeae43cd6b | Waikiki Private mertens beach |  | 37.65787 | -8.80015 | surf_spot |
-| 502e331de4b0bde725cb2d01 | Praia de Porto Mós |  | 37.01653 | -8.92954 | surf_spot |
-| 525abd4f11d236eef0d466e6 | Praja Vicentino |  | 37.34147 | -8.80855 | surf_spot |
-| 52a339c4498eff615957f582 | Porron | Caminha | 41.84177 | -8.87219 | surf_spot |
-| 55259453498e516ab176f85e | Surf Lessons Portugal | Lisbon | 38.70736 | -9.15800 | surf_spot |
-| 5787aa87498e2769d1175ec0 | Surfplace |  | 38.81619 | -9.45232 | surf_spot |
-| 5978f3fcaa6c9510b626be09 | Original Surf School | Vilamoura | 37.07457 | -8.12518 | surf_spot |
-| 59830ae314994634276cf820 | Feel Viana Beach | Viana do Castelo | 41.67911 | -8.83158 | surf_spot |
-| 5ae642f01ffed7002c40008d | The Other Guesthouse | Aljezur | 37.31462 | -8.85729 | surf_spot |
-| 6523d0683e792b2adfe21f68 | Atlantic Ocean |  | 32.63741 | -16.75287 | surf_spot |
-| b055941521eb4bb66deb6d1f | Haliotis Surf Adventures | Peniche | 39.35008 | -9.35872 | surf_spot |
-
-### History Museum — 142 would insert, sample of 20
-
-| fsq_place_id | name | locality | lat | lng | our type(s) |
-|---|---|---|---:|---:|---|
-| 3863d151930b4f7ad4676838 | Fernando V Serrão Peralta | Póvoa da Isenta | 39.21997 | -8.74063 | museum |
-| 3c284ae7763440d918b827dd | Cihafa- Centro de interpretação | Fornos de Algodres | 40.61670 | -7.53330 | museum |
-| 4c57048ed12a20a1a4be65bd | Museu A Cidade do Açúcar | Funchal | 32.64806 | -16.90697 | museum |
-| 4dbd8e616a23e294ba480a08 | Capela do Espirito Santo dos Mareantes | Sesimbra | 38.44386 | -9.10173 | museum |
-| 4e5626b21f6ecd24d00f09b6 | Museu Judaico de Belmonte | Belmonte | 40.35863 | -7.35019 | museum |
-| 4e566e07887784077061337d | Centro de Artes e Ciências do Mar | Lajes Do Pico | 38.40346 | -28.25535 | museum |
-| 4e98869fe5fab92b21dad86d | Casa Municipal da Juventude | Aveiro | 40.64187 | -8.64801 | museum |
-| 4ee1f577469093b9586e12be | Macinhata do Vouga - Estação Ferroviária e Museu | Macinhata do Vouga | 40.65816 | -8.47536 | museum |
-| 4f00e74a8b81b0190bdea517 | Museu Municipal de Santiago do Cacém | Santiago do Cacém | 38.01665 | -8.69299 | museum |
-| 505dd126e4b0c6778390b19e | Fundação Eça De Queiroz | Santa Cruz do Douro | 41.12483 | -8.00451 | museum |
-| 507ec50ee4b0225db132d955 | Museu Regimento de Sapadores Bombeiros de Lisboa | Lisboa | 38.75526 | -9.19150 | museum |
-| 519c81fe498ef7622548993b | Museu Etnográfico de Serpa |  | 37.94795 | -7.60137 | museum |
-| 57ac9045498e8198fcb0af03 | Museu de Sines |  | 37.94843 | -8.86227 | museum |
-| 5846dd69126ae832b6bd084d | Núcleo Etnográfico da Lousa |  | 39.93722 | -7.37922 | museum |
-| 59a3f6816a8d862d2f5a53ed | Ruínas de Conímbriga | Condeixa-a-Nova | 40.09834 | -8.49084 | museum |
-| 5bbe253e38f2160025da3916 | Museu Da Filigrana | Lisboa | 38.70988 | -9.14132 | museum |
-| 60d75b209bd21a66656fcebe | Centro Interpretativo Do Vinho De Talha | Vila de Frades | 38.21424 | -7.82602 | museum |
-| 6644db0a373511038ed0a38f | Historische Wassermühle | Santana | 32.80160 | -16.88528 | museum |
-| 66f2d6251d804b39c5c89c3a | Museu Visigótico Santo Amaro | Beja | 38.01758 | -7.86623 | museum |
-| 6945a54da0eb57433d60b85f | Horizonte de Quéops | Lisboa | 38.70705 | -9.13390 | museum |
+| 503cfa94e4b0258ed7a81673 | SS |  | 40.17913 | -8.90606 | surf_spot |
+| 5272a97a11d2c43ff0d6d130 | Praia do Guincho |  | 39.13570 | -9.38306 | surf_spot |
+| 52ab758611d2718d2156916a | Ericeira |  | 39.21225 | -8.61900 | surf_spot |
+| 5526bbd0498ef6ed7a94b014 | On the beach |  | 38.64077 | -9.23571 | surf_spot |
+| 5790a723498e4630f88ec89b | Surf beach amado |  | 39.57620 | -7.86078 | surf_spot |
+| 5980f4871bc70436f8626602 | Anchorpoint Surfschool | Águas Férreas | 41.80577 | -8.86501 | surf_spot |
+| 598c70b8b37e2b1805ea563d | Surf At School | Sintra | 38.82520 | -9.46906 | surf_spot |
+| 5b3f4bfdb23dfa002c88e2f2 | sup diplo | Lagoa | 37.08777 | -8.42677 | surf_spot |
+| 6533ca03d8d9ef498301e762 | Surfaventura | Matosinhos | 41.17502 | -8.69048 | surf_spot |
+| c066840cbf274a6b3598a13f | Nomad Surf Camp - Vale Figueiras | Aljezur | 37.24771 | -8.85531 | surf_spot |
 
 ### Theater — 141 would insert, sample of 20
 
@@ -879,6 +942,31 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 87751afddab541395d07e516 | Teatro Regional da Serra do Montemuro | Castro Daire | 40.99643 | -7.92804 | music_venue, theatre |
 | 948a47e61b1d4c5dcb3e51b5 | Teatro Municipal de Faro EM, T M F | Faro | 37.02660 | -7.94174 | theatre |
 | d487d384118b4f7a6cac490d | A Capoeira - Companhia de Teatro de Barcelos | Barcelos | 41.53004 | -8.62129 | theatre |
+
+### History Museum — 140 would insert, sample of 20
+
+| fsq_place_id | name | locality | lat | lng | our type(s) |
+|---|---|---|---:|---:|---|
+| 3c284ae7763440d918b827dd | Cihafa- Centro de interpretação | Fornos de Algodres | 40.61670 | -7.53330 | museum |
+| 4b0588a2f964a52015d122e3 | Museu Militar | Lisbon | 38.71278 | -9.12451 | historical_landmark, museum |
+| 4c5c15a794fd0f47f08ec745 | Casa Museu de Arqueologia | Mogadouro | 41.34088 | -6.71563 | museum |
+| 4e255780e4cda4c1ef3d13be | Casa dos Condes | Alcoutim | 37.47120 | -7.47114 | museum |
+| 4e566c991f6ecd24d0130386 | Fábrica da Baleia | Lajes Do Pico | 38.40342 | -28.25528 | museum |
+| 4e5ccab788775cde7b4814f8 | Casa da Cultura de Arouca | Arouca | 40.92818 | -8.24986 | museum |
+| 4ea3f385490102dac33cec68 | Museu Pio Xii | Braga | 41.54564 | -8.41991 | museum |
+| 4ee879ef02d5895bd74ab874 | Condeixa-a-Velha |  | 40.10757 | -8.49106 | museum |
+| 4f0f2ccbe4b0a8783f152dc1 | Centro Interpretativo do Mundo Rural | Vimieiro | 38.83204 | -7.83711 | museum |
+| 507ec50ee4b0225db132d955 | Museu Regimento de Sapadores Bombeiros de Lisboa | Lisboa | 38.75526 | -9.19150 | museum |
+| 508264d1e4b093287bddcfa0 | Lagar de Azeite (Quinta do Marquês de Pombal) | Oeiras | 38.69343 | -9.31635 | museum |
+| 51b48d99498e0d4af2d8870e | Museu Vila Flor | Vila Flor | 41.30721 | -7.15280 | museum |
+| 5818bd6e38fa7cf5e45b9aba | Nucleo Museologico da Barroca |  | 38.96068 | -8.13031 | museum |
+| 5862620953f5bb1926a6bac6 | Casegas |  | 40.17774 | -7.69929 | museum |
+| 59d5367cfebf312ecec13fe8 | Museu Municipal | Soure | 40.05660 | -8.62625 | museum |
+| 5c7fc048037be1002ce62011 | Museu Do Nordeste | Nordeste | 37.83256 | -25.14578 | museum |
+| 612b83ec844b27193b1849c8 | Casa Do Tempo | Corvo | 39.67252 | -31.11129 | museum |
+| 66f2d6251d804b39c5c89c3a | Museu Visigótico Santo Amaro | Beja | 38.01758 | -7.86623 | museum |
+| 67fcdef8804678471f617af8 | Vista Alegre Exhibit | Lisboa | 38.70778 | -9.19856 | museum |
+| 6a05ed1e2abb6a3222b80bc8 | The Drinking Experience | Vila Nova de Gaia | 41.13541 | -8.61337 | museum |
 
 ### Amusement Park — 134 would insert, sample of 20
 
@@ -980,7 +1068,7 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 663b9d5cb60dfb7be985142f | Capa de Vesa | Silves | 37.17664 | -8.48490 | nature_preserve |
 | 67f50cf2de3fe54493901e14 | Morcegário De Tróia | Carvalhal | 38.48926 | -8.89825 | nature_preserve |
 
-### Castle — 83 would insert, sample of 20
+### Castle — 82 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
@@ -998,11 +1086,11 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 55ab87f1498e5e476f56048a | Subida Para Castelo Dos Mouros |  | 38.79511 | -9.37860 | historical_landmark |
 | 55db2feb498ee9a17c8a6b7f | Castelo e Vila Amuralhada de Ansiães |  | 41.20364 | -7.30387 | historical_landmark |
 | 56017c33498e9c9587478390 | Torre de Menagem Estremoz |  | 38.84179 | -7.59222 | historical_landmark |
-| 571b868f498e4066dec3b5b0 | Dešťové Království |  | 38.46227 | -28.32279 | historical_landmark |
 | 59bab03a123a196ea4831d91 | Albufreira | Albufeira | 37.09755 | -8.24596 | historical_landmark |
 | 5efdfa79fca34c0008f50a64 | Castelo De Outeiro | Outeiro | 41.68307 | -6.59191 | historical_landmark |
 | 5f2aaed24ca3dc5ba0d3e4e1 | Forte De Santa Cruz | Horta | 38.53143 | -28.62593 | historical_landmark |
 | 61ec3e48dcebbf78e21cbf72 | Castelo Do Disney | Alcabideche | 38.76487 | -9.44392 | historical_landmark |
+| 643e6c5480050d7687d80fc0 | Forte De São Luís Gonzaga | Setúbal | 38.52850 | -8.90607 | historical_landmark |
 | 65e9f80645cd3924ede0e29b | Reis Magos Fort | Caniço | 32.64468 | -16.82800 | historical_landmark |
 
 ### Stadium — 82 would insert, sample of 20
@@ -1105,7 +1193,7 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 5f5e65854d7ec276b912878b | Piscinas Naturais Ponta Da Ferraria |  | 37.86063 | -25.85381 | hot_spring |
 | ea1535c2ec7a44ade807eaa3 | Centro Termal das Caldas Felgueira | Canas de Senhorim | 40.48592 | -7.86934 | hot_spring |
 
-### Lighthouse — 70 would insert, sample of 20
+### Lighthouse — 69 would insert, sample of 20
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
@@ -1114,20 +1202,20 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 4e41ec3ed22d38bfd45e2a88 | Lighthouse At The Maia |  | 36.92987 | -25.01777 | lighthouse |
 | 4efe5905775bec6b42acc500 | Flamingo do campainhas |  | 40.19010 | -7.48782 | lighthouse |
 | 4f40c372e4b0bf54c93d478f | Ponta do Altar | Portimão | 37.10876 | -8.52940 | lighthouse |
+| 500abeb6e4b042b406186793 | Ilha du Topo | Topo | 38.54868 | -27.75359 | lighthouse |
 | 502671d6e4b0fe42319d7d5a | Farol Do Porto Da Horta |  | 38.53399 | -28.62135 | lighthouse |
 | 513a1dc4e4b0bcfbb712ff95 | Moinho Macop |  | 40.30249 | -8.30603 | lighthouse |
 | 51efc7a6498e15896089a6ff | Farol da Garça |  | 37.71656 | -25.36947 | lighthouse |
 | 528660f5498e020a864d5549 | Kaatjes Coimbraanse Binnenspeeltuin |  | 40.21041 | -8.42980 | lighthouse |
 | 54036dfd498ef5279c9e687f | Farol da Barra | Aveiro | 40.62730 | -8.64857 | lighthouse |
-| 54280a70498e51a58d6759aa | Farol do cabo de Sines | Sines | 37.95962 | -8.88032 | lighthouse |
 | 55a400a1498e1813260ce716 | vila do bispo |  | 37.02609 | -8.95315 | lighthouse |
 | 560f0cdc498e27302df119d4 | auditorio dos bombeiros |  | 40.10815 | -8.50120 | lighthouse |
 | 5bf1f056ee7120002c9d2c24 | Peniche, Portugal | Peniche | 39.35947 | -9.40852 | lighthouse |
-| 65ede69f9ec58320c964bf2b | Farol da Albufeira | Albufeira | 37.08043 | -8.25859 | lighthouse |
+| 6416fd2a6ffffc1168480bc1 | Farol da Nazaré Pontão Norte | Nazaré | 39.59073 | -9.07646 | lighthouse |
+| 64c4fc4550b6967cc1d6b939 | Farol Verde | Ferragudo | 37.10848 | -8.52654 | lighthouse |
 | 660958fa4e392121e108aa84 | Farol De Barra Nova |  | 36.96331 | -7.86887 | lighthouse |
 | 6688f2424126b22209d7c4fd | Farol do Bugio |  | 38.66033 | -9.29900 | lighthouse |
-| 66c60984fd002e4d2a0f606a | Farol da Azeda | Setúbal | 38.53857 | -8.87849 | lighthouse |
-| 687a3aa578246123750e403d | Farol, Mohle Exterior Head | Viana do Castelo | 41.67412 | -8.84430 | lighthouse |
+| 66e71e35fa4d9220c8a7da06 | farol de quarteria | Quarteira | 37.06519 | -8.11044 | lighthouse |
 | 69d7ca16b802151da1c2d7b7 | Farolim Da Praia Da Rocha | Portimão | 37.10860 | -8.52950 | lighthouse |
 
 ### Fountain — 65 would insert, sample of 20
@@ -1209,14 +1297,14 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
 |---|---|---|---:|---:|---|
-| 4b0588a3f964a52093d122e3 | Casa-Museu Medeiros e Almeida | Lisbon | 38.72161 | -9.14916 | museum |
-| 4c544a3ea724e21e55e425f6 | Casa das Mudas | Calheta | 32.72306 | -17.18052 | art_gallery, museum |
-| 4df266a0b0fb807158be5ec3 | Fundação Cupertino Miranda | Vila Nova de Famalicão | 41.40642 | -8.51825 | museum |
-| 4e6b788218381ea1be5a5ac8 | Museu Municipal |  | 41.69336 | -8.82858 | museum |
-| 4e74bba888775d593da09549 | Museu Etnográfico Dr. Lousã Henriques | Lousã | 40.11217 | -8.24526 | museum |
-| 4f7717a2e4b0e0abc405d7bb | Museu dos Biscainhos | Braga | 41.55110 | -8.42951 | museum |
-| 4ffd8a09e4b0cb68a2196af2 | Casa Museu Fernando Namora |  | 40.10725 | -8.50540 | museum |
-| 523f217e8bbdbe83b4d2a8f0 | Futuro Perfeito / Future Perfect | Lisboa | 38.69583 | -9.19509 | historical_landmark, art_gallery, museum |
+| 4bfe6e16f7c82d7fec898f04 | Amadeo Souza Cardoso | Amarante | 41.26880 | -8.07814 | museum |
+| 4dcefd1552b1f8915ba57e9d | Tesouro - Museu da Catedral de Viseu | Viseu | 40.65975 | -7.91147 | museum |
+| 4e35362d8877beb5e9a91bc0 | Museum Monte Palace | Funchal | 32.67583 | -16.90100 | museum |
+| 4e735e5dfa76812398d05af1 | Museu de Arte Sacra de Moura | Moura | 38.14191 | -7.44938 | museum |
+| 4e9feb3c0aaf0953316be18c | Casa Major Pessoa - Museu Arte Nova de Aveiro | Aveiro | 40.64178 | -8.65541 | museum |
+| 4f9bdd1de4b0edc560f2b0e9 | Chocalhos Pardalinho | Alcacovas | 38.39285 | -8.15046 | museum |
+| 509e4d38e4b04c46e90b831a | Museu de Arte Sacra | Porto | 41.40240 | -8.51075 | museum |
+| 52511d4911d2cc0d59fec7f7 | Fundação Medeiros e Almeida | Lisboa | 38.72165 | -9.14918 | museum |
 | 53135b28498e0d6cc0e51bde | Galeria Municipal Setúbal | Setúbal | 38.52233 | -8.89186 | museum |
 | 54060f15498e884a9ad60821 | Museu Irmã Wilson |  | 32.65070 | -16.90322 | museum |
 | 57f90d08498e44d87ccdff8f | palacete santiago |  | 41.44315 | -8.29312 | museum |
@@ -1456,23 +1544,6 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 5bc73af5492814002c0e10e1 | Sporting Clube Vasco Da Gama | Porto | 41.14455 | -8.60604 | stadium |
 | 6370b6a0fe51283a7a47d548 | Pavilhão Do Centro Escolar Da Maia | Maia | 41.23406 | -8.63392 | stadium |
 
-### Monastery — 12 would insert, sample of 12
-
-| fsq_place_id | name | locality | lat | lng | our type(s) |
-|---|---|---|---:|---:|---|
-| 4b7a8c17f964a520a5302fe3 | Mosteiro dos Jerónimos | Lisboa | 38.69790 | -9.20670 | historical_landmark, church |
-| 4c669a69e1da1b8d664f9bc3 | Claustro De Se Velha |  | 40.20919 | -8.42400 | historical_landmark, church |
-| 4d21d38db69c6dcb27ad7c95 | Concento da Cartuxa | Évora | 38.58076 | -7.92070 | historical_landmark, church |
-| 4d35a0fdc75a6ea8cbd429ae | Igreja do Mosteiro de Santa Maria | Almoster | 39.23974 | -8.79373 | historical_landmark, church |
-| 4dfdd7efc65b31579b33110a | Mosteiro de Rendufe | Rendufe | 41.63583 | -8.40548 | historical_landmark, church |
-| 5381d0d8498eb7855e8878bf | Mosteiro de São Romão | Castelo da Neiva | 41.63915 | -8.77677 | historical_landmark, church |
-| 5862809c6cea3f1bba87d964 | Mosteiro do Sagrado Coração de Jesus |  | 38.71271 | -9.40790 | historical_landmark, church |
-| 587d28c48ae3636a095fcb9b | Casa Das Irmas Dominicanas | Fátima | 39.62890 | -8.66870 | historical_landmark, church |
-| 5e14cb44a5504400086f956f | Mosteiro De Santa Maria De Belém | Лиссабон | 38.69725 | -9.20585 | historical_landmark, church |
-| 60d7607b7cdd1757a585dfbf | Mosteiro Budista Sumedharama | Ericeira | 38.97775 | -9.39057 | historical_landmark, church |
-| 63d509a31a5e5d3772620942 | Mosteiro Vilarinho | Vilarinho | 41.35826 | -8.33294 | historical_landmark, church |
-| 64634b16a11d8d1b61b58663 | Convento do Sao Francisco | Vila Franca do Campo | 37.71606 | -25.44121 | historical_landmark, church |
-
 ### Zoo — 12 would insert, sample of 12
 
 | fsq_place_id | name | locality | lat | lng | our type(s) |
@@ -1489,6 +1560,22 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 67445aa7509a475b3f0b0aa9 | Ilha das Aves | Ribeira Brava | 32.66404 | -17.03416 | zoo |
 | 6958f5cbbd701c42c9450125 | Patudos De Vagos | Santo André de Vagos | 40.50135 | -8.68435 | zoo |
 | 7e5bd98b5ff14569b344c246 | Quintinha Divertida | Setúbal | 38.54002 | -9.01251 | zoo |
+
+### Monastery — 11 would insert, sample of 11
+
+| fsq_place_id | name | locality | lat | lng | our type(s) |
+|---|---|---|---:|---:|---|
+| 4c669a69e1da1b8d664f9bc3 | Claustro De Se Velha |  | 40.20919 | -8.42400 | historical_landmark, church |
+| 4d21d38db69c6dcb27ad7c95 | Concento da Cartuxa | Évora | 38.58076 | -7.92070 | historical_landmark, church |
+| 4d35a0fdc75a6ea8cbd429ae | Igreja do Mosteiro de Santa Maria | Almoster | 39.23974 | -8.79373 | historical_landmark, church |
+| 4dfdd7efc65b31579b33110a | Mosteiro de Rendufe | Rendufe | 41.63583 | -8.40548 | historical_landmark, church |
+| 5381d0d8498eb7855e8878bf | Mosteiro de São Romão | Castelo da Neiva | 41.63915 | -8.77677 | historical_landmark, church |
+| 5862809c6cea3f1bba87d964 | Mosteiro do Sagrado Coração de Jesus |  | 38.71271 | -9.40790 | historical_landmark, church |
+| 587d28c48ae3636a095fcb9b | Casa Das Irmas Dominicanas | Fátima | 39.62890 | -8.66870 | historical_landmark, church |
+| 5e14cb44a5504400086f956f | Mosteiro De Santa Maria De Belém | Лиссабон | 38.69725 | -9.20585 | historical_landmark, church |
+| 60d7607b7cdd1757a585dfbf | Mosteiro Budista Sumedharama | Ericeira | 38.97775 | -9.39057 | historical_landmark, church |
+| 63d509a31a5e5d3772620942 | Mosteiro Vilarinho | Vilarinho | 41.35826 | -8.33294 | historical_landmark, church |
+| 64634b16a11d8d1b61b58663 | Convento do Sao Francisco | Vila Franca do Campo | 37.71606 | -25.44121 | historical_landmark, church |
 
 ### Football Stadium — 11 would insert, sample of 11
 
@@ -1726,6 +1813,31 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 5f3beda25ff75d0c3ab4438d | Arte Na Leira | Arga de Baixo | Art Gallery | overture:4794026f-a91f-409c-904e-4d51dc236e4b "Arte Na Leira" (cultural_center) at 18 m, sim 1.00 |
 | 64a1e399780d075d4350bb4a | Super Bock Arena | Porto | Concert Hall | overture:ae62b69c-d0e3-4a7b-87cf-9ee7625b98dd "Super Bock Arena" (music_venue) at 30 m, sim 1.00 |
 
+### matched (translated) — 60, sample of 20
+
+| fsq_place_id | name | locality | leaves | detail |
+|---|---|---|---|---|
+| 07ef0d96941647670c086753 | Igreja Baptista | Elvas | Church | overture:4822f1cb-6841-4029-991e-47cd5b75a4b2 "Igreja Evangélica Baptista de Elvas" (church) at 9 m |
+| 2bc1f5e596114b971ca78d5b | Museu Municipal Leonel Trindade | Torres Vedras | History Museum | overture:efccdd5d-69ad-4213-8a66-4f9d5df32876 "Leonel Trindade Municipal Museum" (museum) at 14 m |
+| 4b7a8c17f964a520a5302fe3 | Mosteiro dos Jerónimos | Lisboa | Monastery, Monument | overture:ee495395-584e-4a19-8cc7-0274a668ea40 "Jerónimos Monastery" (church) at 12 m |
+| 4c71059ed97fa14395bdf7ca | Praia da Amoreira | Aljezur | Beach, Surf Spot | overture:e86a6488-1be9-478b-8f3d-0ac0899c853e "Amoreira Beach, Aljezur, Algarve" (beach) at 12 m |
+| 4e133aece4cdef074b830576 | Casa de Francisco e Jacinta | Ourém | Historic and Protected Site | overture:e1b8c4d2-4cd8-413b-a05f-f6fc07a619ec "Casa Jacinta E Francisco Marto" (church) at 17 m |
+| 4e9abf589adf277db7cb5650 | Ponte da Régua | Peso da Régua | Bridge | overture:e725f8e7-d14a-4c59-b028-d201dcdebae3 "Ponte Rodoviaria da Regua" (bridge) at 13 m |
+| 4f6f5483e4b08d8da78cd054 | Forte de Nossa Senhora de Porto Salvo (Giribita) | Oeiras | Historic and Protected Site | overture:6ed22c60-c77d-4266-ace5-ccbea37403ff "Forte da Giribita" (historical_landmark) at 5 m |
+| 51475ae2e4b0853bfff86a94 | Igreja de São Miguel | Lisboa | Church, Historic and Protected Site | overture:cb7fbac6-6b85-47a4-b9f8-741021ffdb73 "Church São Miguel" (church) at 6 m |
+| 51bc8bf1498e9198b5cc3544 | Centro Cultural Naraze | Nazaré | Art Gallery | overture:350818a5-a5ad-4a4c-ac17-6fce1cec087d "Cultural Center of Nazaré" (cultural_center) at 12 m |
+| 53556cf1498eaca19c5c13c2 | Mosteiro longos vales |  | Historic and Protected Site | overture:79408aef-7c06-4de1-a9a0-97d7e4ca87bf "Longos Vales Monastery" (church) at 12 m |
+| 569186a8498e1cf94b60c933 | igreja maceda |  | Church | overture:ead3edab-18af-46ac-a843-1f36afc8795a "Igreja Paroquial de Sao Pedro de Maceda" (church) at 9 m |
+| 585f96aa03e29a1f507b290d | A Igreja de Jesus Cristo dos Santos dos Ultimos Dias | Linda-A-Velha | Church | overture:dd87b220-2303-49da-8057-6cec89595f81 "The Church of Jesus Christ of Latter-day Saints" (church) at 16 m |
+| 58f643ed3731ee6491dbd42d | Museu da Saúde | Lisbon | History Museum | overture:61a83104-ccbc-4ad9-ba3f-e9d241caba59 "Saúde Museum" (museum) at 12 m |
+| 5d46a55c95cf6f0008d0db14 | A Igreja De Jesus Cristo Dos Santos Dos Últimos Dias | Cacém | Church | overture:fd30076e-1ecd-4949-aee4-161ce421c5fa "The Church of Jesus Christ of Latter-day Saints" (church) at 8 m |
+| 61c6f819e565fe05c73366e8 | Igreja Canedo | Canedo | Church | overture:50fc8929-1273-4fdd-a24b-b169a41f80b1 "Igreja Paroquial de São Pedro de Canedo" (church) at 18 m |
+| 65302caef80806527b7bd8df | Palacio Belmarco | Faro | Monument | overture:9e442209-1f16-437b-96b3-da586a32214b "Belmarço Palace" (historical_landmark) at 7 m |
+| 6a750669c5fb9f02d8cdfae3 | A Igreja de Jesus Cristo dos Santos dos Últimos Dias | Porto | Church | overture:dbd8a93f-caa1-4657-851a-27dc714d7917 "The Church of Jesus Christ of Latter-day Saints" (church) at 0 m |
+| 6a758fecc5fb9f02d8e0d4a3 | National Palace of Sintra | Sintra | Museum | overture:8676429f-9e04-4fba-af0e-dc6c5c83939e "Palácio Nacional de Sintra" (historical_landmark) at 8 m |
+| 6a759916c5fb9f02d8e257b1 | Museum of Sacred Art | Campo Maior | Museum | overture:581d64f3-6f5e-438d-880a-5051fcd969fa "Museu de Arte Sacra" (museum) at 5 m |
+| 6a7a4b773f0a8f28b8d32a41 | Sacred Art Museum of Funchal | São Martinho | Art Museum | overture:e41025da-f746-4491-b422-3dd75367b72a "Museu Arte Sacra Funchal" (museum) at 17 m |
+
 ### weak name — 118, sample of 20
 
 | fsq_place_id | name | locality | leaves | detail |
@@ -1751,52 +1863,52 @@ Kept rows sharing a normalised name 75–400 m apart. Under the contract both im
 | 60ce5929bd0eee4f6dcc7c38 | Levada Nova | Ponta do Sol | Waterfall | type words only |
 | 6a1575489fbcc8642ac246f7 | Doca | Fão | Harbor or Marina | type words only |
 
-### suspect — 983, sample of 20
+### suspect — 975, sample of 20
 
 | fsq_place_id | name | locality | leaves | detail |
 |---|---|---|---|---|
 | 4bbc950ee436ef3bd8af5664 | Farol do Penedo da Saudade | São Pedro de Moel | Lighthouse | same name 177 m from overture:8e28eb4d-0276-4ca7-9c8b-d28d860139c6 "Farol Penedo da Saudade" (lighthouse) |
-| 4c6828def984a593071a49f4 | Palácio da Quinta da Piedade | Póvoa de Santa Iria | Historic and Protected Site, Other Great Outdoors, Park | same name 349 m from overture:c3853299-b225-499e-b9b2-7b714430bb89 "Palácio da Quinta da Piedade" (park) |
-| 4d442569bf61a1cdad8305ac | História e Arte | Bragança | Art Gallery | same name 396 m from overture:6c2cd7e6-9a35-4381-b7d0-79943f44f486 "História e Arte" (art_gallery) |
-| 4e0f3667b0fb59de67ddeba3 | Igreja dos Capuchinhos | Oporto | Church | same name 277 m from overture:66052525-4555-40c8-ac02-0d2965b0e54c "Igreja dos Capuchinhos no Porto" (church) |
-| 4e18bed0d1648b834835e5d9 | ZD Disco Club | São Brás de Alportel | Night Club | same name 104 m from overture:f7c93a61-0781-4de1-9722-a26eab29b304 "ZD Disco Club" (night_club) |
-| 4e4955bdaeb7de71b38911d3 | Capela de São Pedro de Varais | Caminha | Church | same name 78 m from overture:c0280d42-cb4e-47cc-95a5-7f855fd4faca "Capela De São Pedro De Varais" (church) |
-| 4f087ccae4b0596c8eb357d8 | FACE - Museu de Espinho | Espinho | Museum | same name 216 m from overture:62ba55d0-d010-4976-b9a0-d1842d0b3558 "Espinho" (beach) |
-| 4f5796296d8683efc180f174 | Muralhas da Cidade de Guimarães | Guimarães | Historic and Protected Site | same name 391 m from overture:3e0f78a5-98b6-4318-8600-ab9c77ca537f "Guimarães" (store) |
-| 500d3504e4b0c2a4e1125c3f | Igreja de Jesus Cristo dos Santos dos Últimos Dias |  | Church | same name 214 m from overture:fe5600f1-a648-426f-af7f-56238d3835af "A Igreja de Jesus Cristo dos Santos dos Ultimos Dias" (church) |
-| 507eac73e4b08ec3d158b9af | Milheiros de Poiares |  | Historic and Protected Site, Other Great Outdoors | same name 227 m from overture:823ee7dc-a64a-4017-b003-2ea5d5e7c887 "Escola Basica dos 2.º e 3.º Ciclos de Milheiros de Poiares" (school) |
-| 509f1da5e4b01b9e4a07131d | Quilate Fashion Privé Lamego | Lamego | Night Club | same name 368 m from overture:e9a79460-40ac-4c3f-9688-e6169c7dea3c "Lamego" (store) |
-| 51027512e4b09e608bb0b24f | Moinho de Maré de Corroios | Corroios | Historic and Protected Site | same name 207 m from overture:eb7456b5-6621-4fa6-a702-eb30a2b7509c "Moinho de Maré" (historical_landmark) |
-| 51e07177498e834f49dd3ff7 | Gil Eannes |  | History Museum | same name 139 m from overture:cf21ff00-134f-4497-b510-cf340a3ada35 "Navio Hospital Gil Eannes" (museum) |
-| 5298bc4b11d2751d68132b2b | Barragem De Veiros | Estremoz | Lake | same name 91 m from overture:f54a104e-cddd-4cc0-922f-e076f8f1b00b "Barragem de Veiros" (lake) |
-| 5479faaa498ef3265fc9f0ba | Sociedade Filarmónica Boa União Montelavarense |  | Music Venue | same name 210 m from overture:4184782f-2313-4926-a939-f799dda3816d "Sociedade Filarmónica Boa União Montelavarense" (cultural_center) |
-| 55215867498e60974dcb6b01 | Feira Medieval Figueira Da Foz |  | Public Art | same name 180 m from overture:3cb7c0e1-998d-4d7c-a16f-aff8ac5b8915 "Figueira da Foz" (beach) |
-| 5d1fb35ae022ca00232cc41a | Quinta Do Castanheiro | Castanheira de Pêra | Campground | same name 138 m from overture:de4e8d1b-3507-4237-9789-10c0420b3cbe "Quinta do Castanheiro" (campground) |
-| 6722233239d60e3f60e41e2c | Capela De São Martinho | Óbidos | Church | same name 92 m from overture:4131a319-f9d7-4cb4-86ad-905f5b3fc2bd "Capela de São Martinho" (church) |
-| a85f49908911471cbd1b3ea9 | Parque Verde | Seixal | Campground | same name 126 m from overture:8f891960-a2f9-4dc7-a88a-ceedea336978 "Parque Verde" (campground) |
-| ae9d882e02a545191561993c | Museu do Papel Terras de Santa Maria | Paços de Brandão | Museum | same name 176 m from overture:627776cc-1db7-49cd-bb56-8e44a6db6795 "Museu do Papel" (museum) |
+| 4c6ac8360e98a59342e12759 | Estádio 1° de Maio | Braga | Soccer Stadium | same name 120 m from overture:93d1fd66-2335-4379-87e6-0d04aa69cd06 "Estádio 1º de Maio" (stadium) |
+| 4d4d1f969ee1370495ca7f8b | Casa de Oração Sta. Rafaela Maria | Palmela | Church | same name 263 m from overture:426cddf6-cddf-440f-94e8-83282696a59b "Casa de Oração Santa Rafaela Maria" (church) |
+| 4e183df745dd120c120c6705 | Fonte da Sabuga | Sintra | Historic and Protected Site | same name 104 m from overture:82b70245-525b-4d2d-a607-ffc2735ffa5e "Fonte da Sabuga" (historical_landmark) |
+| 4e1f634ae4cdf68591702c77 | Camping Alvor | Alvor | Campground | same name 76 m from overture:d4c8d87e-9035-4bf6-9b2f-ab589f5dff32 "Camping Alvor" (campground) |
+| 4e4bbf1aa8097d9c84bf201f | Salto do Cabrito |  | Waterfall | same name 227 m from overture:f5b2af4a-bb8b-4ac0-a61c-4ddd5af5c81f "Salto Do Cabrito, Sao Miguel" (waterfall) |
+| 4f0f2cc7e4b0d8e3c238aba9 | Castelo de Moura | Moura | Castle | same name 79 m from overture:fb31f4ca-fcfc-48fc-b3a2-ad919fe3baed "Castelo de Moura" (historical_landmark) |
+| 4f64b889e4b0c65cc486e72b | Forte da Luz | Peniche | Historic and Protected Site | same name 331 m from overture:7dfe6642-b43e-431c-a6dc-cea7a06c00c7 "Forte da Luz" (historical_landmark) |
+| 50113ce2e4b0adaeafa64802 | Ponte de Anta | Espinho | Bridge | same name 108 m from overture:3f547110-8435-4542-be62-45916a5fa5ab "Ponte de Anta" (bridge) |
+| 508dd29be4b07f1e6455d69a | Túnel da costa |  | Bridge | same name 110 m from overture:955fb559-3ef1-4a0d-b093-1108627e63ee "Tunel da Costa" (bridge) |
+| 50a55e13e4b0f5b96043932f | Igreja de Nossa Senhora da Conceição | Lisboa | Church | same name 84 m from overture:74a6168d-ac3c-4b56-a3ca-55b7577274fa "Igreja de Nossa Senhora da Conceição dos Olivais" (church) |
+| 510bcbffe4b0ca91e3b0e88a | igreja do calvario |  | Historic and Protected Site | same name 143 m from overture:9474e9b5-98aa-4eae-8a30-705ddd3a711f "Calvario" (plaza) |
+| 51f01674498ecf0cc0194fec | Igreja |  | Church | same name 248 m from overture:0b067b31-c8ed-4f2c-943c-551fd1e99807 "Igreja de Nossa Senhora da Ajuda" (church) |
+| 52ac8f53498edda7ebb7b7c5 | Castro Monte Mozinho | Penafiel | Historic and Protected Site | same name 254 m from overture:da576832-849d-412e-98ab-2bbfc03cc67b "Castro De Monte Mozinho" (historical_landmark) |
+| 54997d33498e3fb7306ed0c7 | @Cinema |  | Movie Theater | same name 114 m from overture:ae69977c-90db-4fa0-b0de-faac4010d4bd "@ Cinema" (movie_theater) |
+| 555673cb498ebc6385db2cd5 | CEADA - Centro Ambiental Da Arrábida Padre Alfredo Brito |  | Campground | same name 102 m from overture:3f9f8875-1053-4083-9f0c-67e3a653a250 "CEADA - Centro Ambiental da Arrábida Padre Alfredo Brito" (campground) |
+| 5d405260eb68260007fab099 | Capela Santo António Das Neves | Castanheira de Pêra | Church | same name 105 m from overture:ac5a5393-42d5-41bf-b953-7a9a510cf68d "Capela de Santo António da Neve" (church) |
+| 67e2a32b2589a31df8a895d7 | Church Of Saint Ildefonso | Porto | Church | same name 149 m from overture:c7c0d233-2a51-4606-8e90-63c3e1986d5b "Church of Saint Ildefonso" (church) |
+| c3cdcdc1a9994d44d4876668 | Cine Clube Avanca | Avanca | Theater | same name 352 m from overture:8501b762-af33-4c13-92f1-869963754d8b "Cine Clube de Avanca" (theatre) |
+| c78b08911fd648d998e78e81 | Museu Municipal Armindo Teixeira Lopes | Mirandela | Museum | same name 339 m from overture:105ede19-4924-44bd-a3ec-3f662e1d7721 "Museu Municipal Armindo Teixeira Lopes" (museum) |
 
-### in-batch duplicate — 100, sample of 20
+### in-batch duplicate — 98, sample of 20
 
 | fsq_place_id | name | locality | leaves | detail |
 |---|---|---|---|---|
 | 4e91d0786da174e28ec63adf | Quinta da Graciosa | Anadia | Palace | same place as fsq:4e42b8d7aeb73df7d8d74e84 |
 | 51c63d1c498efa7851ee5d29 | +1 club |  | Night Club | same place as fsq:4ef23b22e5e8d8d3dcdfa6aa |
-| 52511d4911d2cc0d59fec7f7 | Fundação Medeiros e Almeida | Lisboa | Art Museum | same place as fsq:4b0588a3f964a52093d122e3 |
-| 53de9c69498e2c1488d87636 | Anta de São Gens | Alpalhão | Monument | same place as fsq:4f0f2d2be4b09cff018e07f7 |
-| 549fdbb8498ed7b6f8665e91 | Igreja Matriz De Buarcos |  | Historic and Protected Site | same place as fsq:4fdc80c3e4b049c33b5203e9 |
-| 56373b66498e7a7653f986d2 | Bombino \| Estação Vodafone FM / Estação Ferroviária do Rossio (Joaquim Quadros) | Lisboa | Concert Hall | same place as fsq:56373a52498e53f520e02f83 |
+| 527eb25011d25675f5dbfb19 | Teatro Nova Morada |  | Theater | same place as fsq:519fd542498ededbed8d0cc2 |
+| 53f4a7d6498e9ed79427b9fd | Praia Fluvial Rio Ovil |  | River | same place as fsq:50043e84e4b0bc5170951beb |
+| 55259d82498ecf79e270ab10 | Igreja Evangélica O Caminho | Ermesinde | Church | same place as fsq:266b6dac3c1c412886d0e56a |
 | 56373bb4498e5885a99c2a90 | The Parrots - Ateneu Comercial de Lisboa (Joaquim Quadros) | Lisboa | Concert Hall | same place as fsq:56373ad9498ece7bc87ed8e4 |
-| 57783729498ebddf8d988f46 | Vakantiebedje |  | Night Club | same place as fsq:5776dacc498e61cc05d2666f |
-| 5a1a0329ad178924239c8e63 | Mombassa | Elvas | Night Club | same place as fsq:5a1a02e9a4ba7c160b934979 |
+| 56374cb1498ea2e481e7caf0 | Selma Uamusse - Casa do Alentejo (Roteiro Paulo Segadães) | Lisboa | Concert Hall | same place as fsq:56374b33498e15293df83275 |
+| 5778374d498ed6f101d0abcd | Vakantiebedje |  | Night Club | same place as fsq:5776dacc498e61cc05d2666f |
 | 5a8b6961b5461859995e18d8 | Sala 14 | Vila Nova de Gaia | Movie Theater | same place as fsq:55061c24498e847a3e6f4a25 |
-| 5bbbbcb7ea1e4400392456e4 | Sala 20 | Vila Nova de Gaia | Movie Theater | same place as fsq:55061c24498e847a3e6f4a25 |
-| 5e336593d6a1a800077d9c40 | Sala 8 | Vila Nova de Gaia | Movie Theater | same place as fsq:572e4a6d498ed257154853bb |
-| 645000062e96003256eeae1e | cascata do penedo furado | Vila de Rei | Waterfall | same place as fsq:644fff900305367f9585d6da |
-| 645d101e1369973bfb7823e7 | Igreja De Santa Maria Da Graça, Sé De Setúbal | Setúbal | Church | same place as fsq:645d0d251369973bfb7802da |
-| 645d35551369973bfb78a420 | Igreja De Santa Maria Da Graça, Sé De Setúbal |  | Church | same place as fsq:645d0d251369973bfb7802da |
-| 66104658397c07411c3df317 | RCP - Reformed Church In Portugal | Matosinhos | Church | same place as fsq:5bf6e786cb3fd2002b62842c |
-| 673f670273d9994cd417c37e | Fonte do Parque da Paz | Almada | Fountain, Lake | same place as fsq:673f670223b2cd5fb8adfea8 |
-| 6908dd618eaf970c8bbc622f | Convento E Capela Santa Clara | Amarante | Historic and Protected Site | same place as fsq:5991e320112c6c6640c671c4 |
-| 69b6ce5d64046d6ca0e7b3ef | Ruínas do Teatro Romano | Lisboa | Historic and Protected Site | same place as fsq:4be6ff912468c928a8f00143 |
-| 6a48b90615d07a2f272c91dd | Vasco Da Gama | Angra do Heroísmo | Historic and Protected Site | same place as fsq:6a48b8e4ff81ba6596227552 |
+| 5b1c257ddb3aef00246171a9 | Campo Do Sacavenense | Sacavém | Soccer Stadium | same place as fsq:57de70d8498e876d2547d741 |
+| 5c2b6fa48194fc002c36ca73 | Moinho de Silves | Silves | Windmill | same place as fsq:5c2b6e777c891c002d1ad940 |
+| 5e4b25d7b0617000073ee46e | Sala 2 | Vila Nova de Gaia | Movie Theater | same place as fsq:55061c24498e847a3e6f4a25 |
+| 645d157a1369973bfb784649 | Igreja De Santa Maria Da Graça, Sé De Setúbal |  | Church | same place as fsq:645d0d251369973bfb7802da |
+| 645d19881369973bfb786774 | Igreja De Santa Maria Da Graça, Sé De Setúbal |  | Church | same place as fsq:645d0d251369973bfb7802da |
+| 646d49fdd9919c25865f33c1 | Castelo De Tavira | Tavira | Castle | same place as fsq:4f81de55e4b0a6d0b77a04a7 |
+| 66357b95d64d146a6f06be75 | LISA | Lisboa | Music Venue | same place as fsq:64de896e19af2b17734ca12a |
+| 6756136be48de6275f7f11f8 | Castelo Portugraal | Vilela | Castle | same place as fsq:67560e8626ee8325dc7a95fd |
+| 69c3dfb768137b7b068052bc | Estufa Fria | Коимбра | Botanical Garden | same place as fsq:66ba2cfed47fc334ceb43ed0 |
+| 69cbfc6ce0661254b202a5ec | Immersivus Gallery Porto - Dino Experience Porto + Porto Legends + Monet & Klimt | Porto | History Museum | same place as fsq:62f7d42924eefd367e82bdb4 |
+| 6bc2526c15f147f7eb396202 | Igreja do Nazareno de Almada | Almada | Church | same place as fsq:4e59284bd164da2b275ec406 |
