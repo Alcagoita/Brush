@@ -47,8 +47,8 @@ class LeafMapTest(unittest.TestCase):
         cls.leaf_map = importer.LeafMap.load()
 
     def test_every_emitted_type_is_reachable(self):
-        os.environ['BRUSH_TYPE_RELATION'] = 'sql'
-        importer.check_types_reachable(self.leaf_map)  # raises otherwise
+        with mock.patch.dict(os.environ, {'BRUSH_TYPE_RELATION': 'sql'}):
+            importer.check_types_reachable(self.leaf_map)  # raises otherwise
 
     def test_single_type_leaves(self):
         for leaf, expected in (('Castle', 'historical_landmark'), ('Church', 'church'), ('Mosque', 'mosque'),
@@ -399,6 +399,36 @@ class CliGuardTest(unittest.TestCase):
                                '--overture-csv', '/nowhere.csv', '--emit', '--i-have-applied-0042'])
         self.assertIn('unique index idx_curated_poi_origin', str(ctx.exception))
         self.assertEqual(sent, [])
+
+    def test_emit_through_run_uses_the_patched_writer(self):
+        """The writer is resolved at call time: a patched importer.d1_write
+        is what run() sends the statements to (fake guard, fake base)."""
+        import tempfile
+        from collections import Counter
+
+        def fake_read(sql):
+            if sql.startswith('PRAGMA table_info'):
+                return [{'name': c} for c in importer.CURATED_COLUMNS]
+            if 'sqlite_master' in sql:
+                return [{'name': importer.ORIGIN_INDEX}]
+            return []  # curated rows, corrections, multibanco names
+
+        sent = []
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_csv = os.path.join(tmp, 'archive.csv')
+            with open(archive_csv, 'w') as handle:
+                handle.write('fsq_place_id,name,latitude,longitude,address,locality,category_ids,category_labels\n')
+                handle.write(f'fsq-1,Igreja de Santa Maria,{LAT},{LNG},,Lisboa,x,Community and Government > Spiritual Center > Church\n')
+            with mock.patch.dict(os.environ, {'BRUSH_TYPE_RELATION': 'sql'}), \
+                    mock.patch.object(preflight, 'd1_read', fake_read), \
+                    mock.patch.object(preflight, 'served_overture', return_value=([], Counter())), \
+                    mock.patch.object(preflight, 'sha256_of', return_value='sha'), \
+                    mock.patch.object(importer, 'd1_write', side_effect=lambda statement, work_dir: sent.append(statement) or 1):
+                summary = importer.main(['--run-id', 'r', '--report-out', os.path.join(tmp, 'r.md'), '--archive-csv', archive_csv,
+                                         '--overture-csv', '/nowhere.csv', '--work-dir', tmp, '--emit', '--i-have-applied-0042'])
+        self.assertEqual(len(sent), 1)
+        self.assertIn("'fsq:fsq-1'", sent[0])
+        self.assertEqual((summary['would_insert'], summary['changes']), (1, 1))
 
     def test_tier_2_is_refused(self):
         with self.assertRaises(SystemExit) as ctx:

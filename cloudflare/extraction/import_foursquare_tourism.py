@@ -677,9 +677,11 @@ def curated_has_provenance(d1_read=None):
     return not curated_provenance_missing(d1_read)
 
 
-def emit(stmts, work_dir, write=d1_write):
+def emit(stmts, work_dir, write=None):
     """Runs every statement, one request each, and returns the D1 change
-    count — 0 on a re-run, which is the idempotency proof."""
+    count — 0 on a re-run, which is the idempotency proof. `write` is
+    resolved at call time so a patched `d1_write` reaches `run()`."""
+    write = write or d1_write
     changes = 0
     for index, statement in enumerate(stmts, 1):
         delta = write(statement, work_dir)
