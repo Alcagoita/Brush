@@ -284,22 +284,51 @@ class SqlShapeTest(unittest.TestCase):
 
 class CliGuardTest(unittest.TestCase):
     def test_emit_refused_without_the_0042_flag(self):
-        with mock.patch.object(importer, 'curated_has_provenance', side_effect=AssertionError('must not read D1')):
+        with mock.patch.object(importer, 'curated_provenance_missing', side_effect=AssertionError('must not read D1')):
             with self.assertRaises(SystemExit) as ctx:
                 importer.main(['--run-id', 'r', '--report-out', '/nowhere/r.md', '--archive-csv', '/nowhere.csv',
                                '--overture-csv', '/nowhere.csv', '--emit'])
         self.assertIn('--i-have-applied-0042', str(ctx.exception))
 
     def test_emit_refused_when_the_live_table_lacks_provenance(self):
-        with mock.patch.object(importer, 'curated_has_provenance', return_value=False):
+        with mock.patch.object(importer, 'curated_provenance_missing', return_value=['column origin_source']), \
+                mock.patch.object(importer, 'd1_write', side_effect=AssertionError('must not write')):
             with self.assertRaises(SystemExit) as ctx:
                 importer.main(['--run-id', 'r', '--report-out', '/nowhere/r.md', '--archive-csv', '/nowhere.csv',
                                '--overture-csv', '/nowhere.csv', '--emit', '--i-have-applied-0042'])
+        self.assertIn('missing column origin_source', str(ctx.exception))
         self.assertIn('apply migration 0042', str(ctx.exception))
 
-    def test_provenance_check_reads_pragma(self):
-        self.assertTrue(importer.curated_has_provenance(lambda sql: [{'name': c} for c in importer.CURATED_COLUMNS]))
-        self.assertFalse(importer.curated_has_provenance(lambda sql: [{'name': 'poi_id'}, {'name': 'name'}]))
+    @staticmethod
+    def fake_d1(columns, indexes):
+        def read(sql):
+            if sql.startswith('PRAGMA table_info'):
+                return [{'name': c} for c in columns]
+            if 'sqlite_master' in sql:
+                return [{'name': i} for i in indexes if i in sql]
+            raise AssertionError(sql)
+        return read
+
+    def test_provenance_check_needs_the_columns_and_the_unique_index(self):
+        full = self.fake_d1(importer.CURATED_COLUMNS, [importer.ORIGIN_INDEX, 'idx_curated_poi_geo'])
+        self.assertEqual(importer.curated_provenance_missing(full), [])
+        self.assertTrue(importer.curated_has_provenance(full))
+        no_columns = self.fake_d1(['poi_id', 'name'], [importer.ORIGIN_INDEX])
+        self.assertEqual(importer.curated_provenance_missing(no_columns)[:2], ['column origin_source', 'column origin_id'])
+        # A half-applied 0042: columns there, index not. The ON CONFLICT target would have nothing to conflict on.
+        half = self.fake_d1(importer.CURATED_COLUMNS, ['idx_curated_poi_geo'])
+        self.assertEqual(importer.curated_provenance_missing(half), ['unique index idx_curated_poi_origin'])
+        self.assertFalse(importer.curated_has_provenance(half))
+
+    def test_emit_refused_on_a_half_applied_0042_before_any_write(self):
+        sent = []
+        with mock.patch.object(preflight, 'd1_read', self.fake_d1(importer.CURATED_COLUMNS, [])), \
+                mock.patch.object(importer, 'd1_write', side_effect=lambda statement, work_dir: sent.append(statement)):
+            with self.assertRaises(SystemExit) as ctx:
+                importer.main(['--run-id', 'r', '--report-out', '/nowhere/r.md', '--archive-csv', '/nowhere.csv',
+                               '--overture-csv', '/nowhere.csv', '--emit', '--i-have-applied-0042'])
+        self.assertIn('unique index idx_curated_poi_origin', str(ctx.exception))
+        self.assertEqual(sent, [])
 
     def test_tier_2_is_refused(self):
         with self.assertRaises(SystemExit) as ctx:

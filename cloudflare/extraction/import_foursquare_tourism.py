@@ -36,8 +36,9 @@ What it does, in order:
      reason — plus the SQL statement count and byte size. Nothing touches
      D1 beyond the bounded reads.
   4. `--emit`: refused unless `--i-have-applied-0042` is also given AND the
-     live `curated_poi` carries the `origin_source` column (one bounded
-     `PRAGMA table_info` read). Then one D1 request per bounded statement
+     live `curated_poi` carries all five provenance columns AND the
+     `idx_curated_poi_origin` unique index (two bounded reads: `PRAGMA
+     table_info`, `sqlite_master`). Then one D1 request per bounded statement
      (`load_overture_candidates.batched` shape, MAX_STATEMENT_BYTES), never
      a batch; transient failures retried three times; 429 is stop. The
      statements are `INSERT … ON CONFLICT (origin_source, origin_id) DO
@@ -245,7 +246,7 @@ def in_batches(items, size=D1_ID_BATCH):
         yield items[start:start + size]
 
 
-def served_multibanco_for(records, d1_read=preflight.d1_read):
+def served_multibanco_for(records, d1_read=None):
     """MULTIBANCO rows that could match a candidate by name, bounded.
 
     The table is ~10k rows nationwide and reading it whole is a
@@ -255,6 +256,7 @@ def served_multibanco_for(records, d1_read=preflight.d1_read):
     ever pair with one of them, then the rows for exactly those names in
     ≤150-name IN lists. Usually nothing qualifies and no row is fetched.
     """
+    d1_read = d1_read or preflight.d1_read
     names = [r['dedupe_name'] for r in d1_read('SELECT dedupe_name FROM multibanco_poi GROUP BY dedupe_name')]
     wanted = set()
     for record in records:
@@ -281,8 +283,9 @@ def could_match_by_name(a, b):
     return bool(set(identity_tokens(a)) & set(identity_tokens(b)))
 
 
-def foursquare_corrections(d1_read=preflight.d1_read):
+def foursquare_corrections(d1_read=None):
     """{fsq id: row} for every poi_source_correction keyed on a Foursquare id."""
+    d1_read = d1_read or preflight.d1_read
     rows = d1_read("SELECT source_id, visible, name_override, review_note FROM poi_source_correction WHERE source = 'foursquare'")
     return {row['source_id']: row for row in rows}
 
@@ -548,9 +551,29 @@ def d1_write(statement, work_dir):
     raise SystemExit(f'D1 write failed {D1_WRITE_ATTEMPTS} times: {last}'[-1000:])
 
 
-def curated_has_provenance(d1_read=preflight.d1_read):
+ORIGIN_INDEX = 'idx_curated_poi_origin'
+
+
+def curated_provenance_missing(d1_read=None):
+    """What of migration 0042 the live curated_poi lacks: the column names
+    and/or the unique index, as a list of short descriptions; empty when
+    the migration is fully applied. Two bounded reads. The index is checked
+    on its own because 0042 is applied with `d1 execute --file`, which can
+    stop halfway: with the columns present and the index absent, the guard
+    would pass and the first ON CONFLICT (origin_source, origin_id)
+    statement would fail against a target that has no unique index."""
+    d1_read = d1_read or preflight.d1_read
     columns = {row['name'] for row in d1_read('PRAGMA table_info(curated_poi)')}
-    return {'origin_source', 'origin_id', 'origin_licence', 'imported_at', 'import_run_id'} <= columns
+    missing = [f'column {c}' for c in ('origin_source', 'origin_id', 'origin_licence', 'imported_at', 'import_run_id') if c not in columns]
+    indexes = {row['name'] for row in d1_read(
+        f"SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'curated_poi' AND name = '{ORIGIN_INDEX}'")}
+    if ORIGIN_INDEX not in indexes:
+        missing.append(f'unique index {ORIGIN_INDEX}')
+    return missing
+
+
+def curated_has_provenance(d1_read=None):
+    return not curated_provenance_missing(d1_read)
 
 
 def emit(stmts, work_dir, write=d1_write):
@@ -740,8 +763,10 @@ def run(args):
     if args.emit:
         if not args.i_have_applied_0042:
             raise SystemExit('--emit refused: pass --i-have-applied-0042 once migration 0042 is on production and the owner said go')
-        if not curated_has_provenance():
-            raise SystemExit('--emit refused: curated_poi has no origin_source column on the live database; apply migration 0042 first')
+        missing = curated_provenance_missing()
+        if missing:
+            raise SystemExit('--emit refused: the live curated_poi is missing ' + ', '.join(missing)
+                             + '; apply migration 0042 in full first (d1 execute --file), then check again')
 
     print(f'[import] reading archive {archive_csv}', file=sys.stderr)
     records, paths_by_id, archive_total = load_archive(archive_csv)
