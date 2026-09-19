@@ -57,12 +57,25 @@ MULTIBANCO — type-blind:
    it calls "Castelo de Guimarães" and "Liceu de Guimarães" one place. Rows
    that only that rung would have flagged are imported and listed in the
    report under "Fuzzy far names" as a look-list.
-3. Different names at the same point: all imported. Distance alone never
+3. **Matched (translated)** = landmark rows only (`TRANSLATED_TYPES`),
+   against a served landmark (never a business) within **25 m**: each
+   token of both normalised names is mapped through the country's table in
+   `docs/kan-433/landmark-terms.json` (canonical English, accent-
+   insensitive; `mosteiro → monastery`, `castelo → castle`, …), function
+   words (`de/da/do/dos/das/of/the/…`) are dropped, tokens sorted, and the
+   matcher's strong rungs decide (`name_similarity ≥ 0.9`: equal,
+   containment, same identity terms). Its fuzzy rung is deliberately not
+   used here — on translated names it paired a church with a beach. So
+   "Mosteiro dos Jerónimos" is "Jerónimos Monastery" at 12 m, and is not at
+   80 m: translation never widens the 75 m rule. **The term file is the
+   thing to extend per country** — add an `es`/`fr` object and a
+   `countries` entry; a country without a table gets no translation step.
+4. Different names at the same point: all imported. Distance alone never
    skips.
-4. Inside the batch: two archive rows whose names match within 75 m are
+5. Inside the batch: two archive rows whose names match within 75 m are
    one place; the lower fsq id is kept and the other's types are folded
    into it.
-5. Also skipped, reported separately: no coordinates; empty name; a
+6. Also skipped, reported separately: no coordinates; empty name; a
    `poi_source_correction` with `visible = 0` on the fsq id; "weak names"
    (only type words — "Castelo" — or only the town), which the contract did
    not mention and the owner can flip.
@@ -160,24 +173,27 @@ done
 
 Expected, from the dry run:
 
-- **Mosteiro dos Jerónimos 38.6979, -9.2067** — `fsq:4b7a8c17f964a520a5302fe3`
-  "Mosteiro dos Jerónimos" (community, `historical_landmark`) appears; so do
-  Overture's Belém landmarks. No name appears twice with the same source.
-  Note `fsq:5e14cb44a5504400086f956f` "Mosteiro De Santa Maria De Belém" —
-  the same monastery under its formal name, ~100 m away — also imports:
-  different names are different places to the contract. It is on the
+- **Mosteiro dos Jerónimos 38.6979, -9.2067** — no `fsq:` "Mosteiro dos
+  Jerónimos": `fsq:4b7a8c17f964a520a5302fe3` is skipped as *matched
+  (translated)* to Overture's "Jerónimos Monastery" (`ee495395-…`, 12 m),
+  which is what appears. `fsq:5e14cb44a5504400086f956f` "Mosteiro De Santa
+  Maria De Belém" — the same monastery under its formal name, ~100 m away —
+  does import: beyond 25 m and not a translation of the name. It is on the
   curation look-list.
 - **Castelo de Guimarães 41.4478, -8.2905** — `fsq:4ccda20c511b236a1480f8c9`
-  "Castelo de Guimarães" appears alongside Overture's rows.
+  "Castelo de Guimarães" appears alongside Overture's "Guimarães Castle":
+  the two pins are more than 25 m apart, so the translation step does not
+  pair them (it never widens the distance). Look-list.
 - **Mosteiro da Batalha 39.6594, -8.8256** — the monastery itself is
   Overture's (`a972be13-…`), so no `fsq:` row of that name appears; the
   Foursquare-only `fsq:51f40813498e7ae2d9576515` "Capelas Imperfeitas do
   Mosteiro da Batalha" does.
 
-Then a `church` search at the first point must **also** return the
-Jerónimos `fsq:` row, once, still with `primary_poi_type =
-historical_landmark` — its second type served through the `poi_type`
-attribute (after the Worker deploy).
+A two-type check (after the Worker deploy): pick any imported Monastery
+from the report's sample — e.g. `fsq:4dfdd7efc65b31579b33110a` "Mosteiro de
+Rendufe" 41.63583, -8.40548 — a `church` request and a
+`historical_landmark` request there must each return it once, with
+`primary_poi_type = historical_landmark`.
 
 ## Idempotency proof
 
