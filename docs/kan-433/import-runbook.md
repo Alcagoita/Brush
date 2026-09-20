@@ -195,6 +195,20 @@ Rendufe" 41.63583, -8.40548 — a `church` request and a
 `historical_landmark` request there must each return it once, with
 `primary_poi_type = historical_landmark`.
 
+## Emitted (2026-09-20, PT Tier 1)
+
+Run `kan433-pt-tier1-20260920`: **9,498 curated rows** (9,790 D1 changes
+with the second-type attributes), 48 statements over two attempts — the
+first died at 1/48 on wrangler's progress preamble in `--json` output
+(`wrangler_json()` now strips it); the statement had applied, and the
+second attempt re-planned it as matched. Re-run `…-rerun`: 0 would insert,
+0 changes. Endpoint: Jerónimos, Guimarães and Batalha as predicted below
+(Batalha's "Capelas Imperfeitas do Mosteiro da Batalha" is matched to
+Overture's "Capelas Imperfeitas" by containment, so it does not appear);
+Mosteiro de Rendufe answers both `church` and `historical_landmark` once
+each with `primary_poi_type = historical_landmark`. Report:
+`import-PT-kan433-pt-tier1-20260920.md` (+ 500-row `.sample.jsonl`).
+
 ## Idempotency proof
 
 Run the emit command a second time with a new `--run-id`. The report says
