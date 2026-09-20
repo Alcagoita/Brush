@@ -1295,6 +1295,30 @@ function attributeValueMatches(
  * The join is restricted to requested/related types before candidates reach
  * the Worker, then a POI is assigned to each requested type it matches.
  */
+/**
+ * The curated_poi predicate for one nearby request: the row's primary type
+ * or one of its `poi_type` attributes is among `types`.
+ *
+ * Each type is bound once and referenced twice through SQLite's ordered
+ * `?NNN` placeholders (D1 supports them). The first version bound the list
+ * twice, and a 32-request batch over related-type expansion then exceeded
+ * SQLite's variable cap: `D1_ERROR: too many SQL variables`, a 500 on
+ * /poi/nearby for the app's full-catalogue batches (2026-09-20). `offset`
+ * is how many variables the statement already binds before this clause,
+ * so the numbers line up with the positional `bind(...)` order.
+ */
+export function curatedTypeClause(types: string[], offset: number, brand?: string | null): { sql: string; binds: unknown[] } {
+  const numbered = types.map((_, index) => `?${offset + index + 1}`).join(',');
+  const brandClause = brand ? ` AND curated_poi.brand = ?${offset + types.length + 1}` : '';
+  return {
+    sql: `((curated_poi.primary_poi_type IN (${numbered}) OR EXISTS (
+          SELECT 1 FROM curated_poi_attribute AS extra_type
+           WHERE extra_type.poi_id = curated_poi.poi_id AND extra_type.dimension = 'poi_type'
+             AND extra_type.value IN (${numbered})))${brandClause})`,
+    binds: [...types, ...(brand ? [brand] : [])],
+  };
+}
+
 async function queryNearbyPoiDb(
   db: D1Database,
   lat: number,
@@ -1308,6 +1332,7 @@ async function queryNearbyPoiDb(
   const prefixes = neighborPrefixes(lat, lng, precision, radiusMeters);
   const geohashClauses = prefixes.map(() => '(overture_poi.geohash >= ? AND overture_poi.geohash < ?)');
   const curatedGeohashClauses = prefixes.map(() => '(curated_poi.geohash >= ? AND curated_poi.geohash < ?)');
+  const curatedGeohashBindCount = prefixes.length * 2;
   const multibancoGeohashClauses = prefixes.map(() => '(multibanco_poi.geohash >= ? AND multibanco_poi.geohash < ?)');
   const legacyGeohashClauses = prefixes.map(() => '(legacy_poi.geohash >= ? AND legacy_poi.geohash < ?)');
   // Keep a brand-only Gym/Bank request in D1's predicate. A generic request
@@ -1333,13 +1358,9 @@ async function queryNearbyPoiDb(
     // Either answers the request. An EXISTS rather than a predicate on the
     // LEFT JOINed attribute row, so a row found through its second type
     // still comes back with every attribute it has.
-    curatedRequestClauses.push(
-      `((curated_poi.primary_poi_type IN (${placeholders}) OR EXISTS (
-          SELECT 1 FROM curated_poi_attribute AS extra_type
-           WHERE extra_type.poi_id = curated_poi.poi_id AND extra_type.dimension = 'poi_type'
-             AND extra_type.value IN (${placeholders})))${request.brand ? ' AND curated_poi.brand = ?' : ''})`,
-    );
-    curatedRequestBinds.push(...types, ...types, ...(request.brand ? [request.brand] : []));
+    const curated = curatedTypeClause(types, curatedGeohashBindCount + curatedRequestBinds.length, request.brand);
+    curatedRequestClauses.push(curated.sql);
+    curatedRequestBinds.push(...curated.binds);
     multibancoRequestClauses.push(`(multibanco_poi.primary_poi_type IN (${placeholders}))`);
     multibancoRequestBinds.push(...types);
     legacyRequestClauses.push(`(legacy_poi_type.poi_type IN (${placeholders}))`);
