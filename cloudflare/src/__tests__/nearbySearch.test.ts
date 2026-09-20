@@ -40,24 +40,11 @@ interface FakeCuratedPoi {
   food_cuisine?: string[];
 }
 
-interface FakeOsmPoi {
-  osm_element_id: string;
-  name: string;
-  primary_poi_type: string;
-  food_cuisine?: string[];
-}
-
 interface FakeMultibancoPoi {
   source_id: string;
   name: string;
   primary_poi_type: string;
   is_demo_zone?: number;
-}
-
-interface FakeLegacyPoi {
-  source_id: string;
-  name: string;
-  primary_poi_type: string;
 }
 
 interface FakeSourceCorrection {
@@ -72,11 +59,12 @@ const LAT = 38.72;
 const LNG = -9.14;
 
 function fakeDb(
-  pois: FakePoi[], curatedPois: FakeCuratedPoi[] = [], osmPois: FakeOsmPoi[] = [],
-  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [], legacyPois: FakeLegacyPoi[] = [],
+  pois: FakePoi[], curatedPois: FakeCuratedPoi[] = [],
+  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [],
 ): Env['REGISTRY_DB'] {
   const prepare = (sql: string) => {
     const trimmed = sql.trim();
+    queriedSql.push(trimmed);
     const stmt = {
       bind: (..._args: unknown[]) => stmt,
       async all() {
@@ -134,37 +122,13 @@ function fakeDb(
           }
           return { results };
         }
-        if (trimmed.startsWith('SELECT osm_poi.osm_element_id')) {
-          const results: unknown[] = [];
-          for (const p of osmPois) {
-            const correction = sourceCorrections.find(candidate => candidate.source === 'openstreetmap' && candidate.source_id === p.osm_element_id);
-            const base = {
-              osm_element_id: p.osm_element_id, dedupe_name: p.name.toLowerCase(), name: p.name, lat: LAT, lng: LNG,
-              primary_poi_type: p.primary_poi_type, brand: null, address: null,
-              open_min: null, close_min: null, matched_type: p.primary_poi_type,
-              correction_visible: correction?.visible ?? null,
-              correction_name_override: correction?.name_override ?? null,
-              correction_dedupe_name_override: correction?.dedupe_name_override ?? null,
-            };
-            const cuisines = p.food_cuisine ?? [];
-            if (cuisines.length === 0) {
-              results.push({ ...base, attribute_dimension: null, attribute_value: null });
-            } else {
-              for (const value of cuisines) {
-                results.push({ ...base, attribute_dimension: 'food_cuisine', attribute_value: value });
-              }
-            }
-          }
-          return { results };
-        }
         if (trimmed.startsWith('SELECT source_id, dedupe_name, name, lat, lng, primary_poi_type, address, is_demo_zone')) {
           return { results: multibancoPois.map(p => ({
             ...p, dedupe_name: p.name.toLowerCase(), lat: LAT, lng: LNG, address: 'Odivelas', is_demo_zone: p.is_demo_zone ?? 0,
           })) };
         }
-        if (trimmed.startsWith('SELECT legacy_poi.source_id')) {
-          return { results: legacyPois.map(p => ({ ...p, dedupe_name: p.name.toLowerCase(), lat: LAT, lng: LNG, address: null, matched_type: p.primary_poi_type })) };
-        }
+        // KAN-454: nearby reads Overture, curated and MULTIBANCO only. A
+        // query against legacy_poi or osm_poi is a regression, not a fixture.
         throw new Error(`fake D1 unhandled all(): ${trimmed}`);
       },
     };
@@ -191,11 +155,14 @@ function nearbyRequest(requests: unknown[]) {
 }
 
 function env(
-  pois: FakePoi[] = POIS, curatedPois: FakeCuratedPoi[] = [], osmPois: FakeOsmPoi[] = [],
-  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [], legacyPois: FakeLegacyPoi[] = [],
+  pois: FakePoi[] = POIS, curatedPois: FakeCuratedPoi[] = [],
+  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [],
 ): Env {
-  return { API_KEY: 'test-key', REGISTRY_DB: fakeDb(pois, curatedPois, osmPois, sourceCorrections, multibancoPois, legacyPois) } as unknown as Env;
+  return { API_KEY: 'test-key', REGISTRY_DB: fakeDb(pois, curatedPois, sourceCorrections, multibancoPois) } as unknown as Env;
 }
+
+/** Every statement the fake D1 was asked to prepare, for the KAN-454 check below. */
+const queriedSql: string[] = [];
 
 const CTX = { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext;
 
@@ -205,7 +172,7 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
   it('uses the official MULTIBANCO ATM and suppresses the matching Odivelas source row', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'atm', type: 'atm' }]), env([
       { overture_id: 'stale-atm', name: 'ATM', primary_poi_type: 'atm' },
-    ], [], [], [], [
+    ], [], [], [
       { source_id: 'multibanco:odivelas', name: 'MULTIBANCO', primary_poi_type: 'atm', is_demo_zone: 1 },
     ]), CTX);
     expect(res.status).toBe(200);
@@ -218,35 +185,25 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
   it('does not suppress a non-demo-zone ATM source', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'atm', type: 'atm' }]), env([
       { overture_id: 'existing-atm', name: 'ATM', primary_poi_type: 'atm' },
-    ], [], [], [], [
+    ], [], [], [
       { source_id: 'multibanco:outside', name: 'MULTIBANCO', primary_poi_type: 'atm' },
     ]), CTX);
     const body = await res.json() as { results: Record<string, Array<{ source: string }>> };
     expect(body.results.atm.map(p => p.source).sort()).toEqual(['multibanco', 'overture']);
   });
 
-  it('does not return retained OSM rows through the nearby response', async () => {
+  it('never queries osm_poi or legacy_poi (KAN-442, KAN-454): the served set is Overture, curated, MULTIBANCO', async () => {
+    queriedSql.length = 0;
     const res = await worker.fetch(nearbyRequest([
       { key: 'restaurant', type: 'restaurant' },
-    ]), env([], [], [{ osm_element_id: 'node/5335674113', name: 'Santo Amaro', primary_poi_type: 'restaurant' }]), CTX);
+    ]), env([{ overture_id: 'ovt-santo-amaro', name: 'Santo Amaro' }]), CTX);
     expect(res.status).toBe(200);
-    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; fsq_place_id: string | null; source: string }>> };
-    expect(body.results.restaurant).toEqual([]);
-  });
-
-  it('keeps the Overture record when a retained OSM row duplicates it', async () => {
-    const res = await worker.fetch(nearbyRequest([
-      { key: 'restaurant', type: 'restaurant' },
-    ]), env([
-      { overture_id: 'ovt-santo-amaro', name: 'Santo Amaro' },
-    ], [], [
-      { osm_element_id: 'node/5335674113', name: 'Santo Amaro', primary_poi_type: 'restaurant' },
-    ]), CTX);
-    expect(res.status).toBe(200);
+    // The fake D1 throws on any unhandled statement, so a reintroduced read
+    // of either table fails this request outright; the assertion below is
+    // the explicit form of the same guarantee.
+    expect(queriedSql.filter(sql => /\b(osm_poi|legacy_poi)\b/.test(sql))).toEqual([]);
     const body = await res.json() as { results: Record<string, Array<{ poi_id: string; source: string }>> };
-    expect(body.results.restaurant).toEqual([
-      expect.objectContaining({ poi_id: 'ovt-santo-amaro', source: 'overture' }),
-    ]);
+    expect(body.results.restaurant).toEqual([expect.objectContaining({ poi_id: 'ovt-santo-amaro', source: 'overture' })]);
   });
 
   it('a curated row outranks both, because a mall operator is the authority', async () => {
@@ -265,40 +222,19 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
     ]);
   });
 
-  it('does not expose an OSM replacement after Overture has been suppressed', async () => {
+  it('a hidden Overture row is not served, and nothing steps in for it', async () => {
+    // KAN-392 hid the stale row; KAN-442/454 mean no OSM replacement can
+    // surface in its place — the only sources are the three read above.
     const res = await worker.fetch(nearbyRequest([
       { key: 'restaurant', type: 'restaurant' },
     ]), env([
       { overture_id: 'stale-lagar', name: 'Lagar Restaurante' },
     ], [], [
-      { osm_element_id: 'way/lagar', name: 'O Lagar', primary_poi_type: 'restaurant' },
-    ], [
       { source: 'overture', source_id: 'stale-lagar', visible: 0 },
-      { source: 'openstreetmap', source_id: 'way/lagar', visible: 1, name_override: 'Lagar', dedupe_name_override: 'lagar' },
     ]), CTX);
     expect(res.status).toBe(200);
     const body = await res.json() as { results: Record<string, Array<{ name: string; source: string }>> };
     expect(body.results.restaurant).toEqual([]);
-  });
-
-  it('hides a reviewed duplicate OSM element and keeps its Overture original', async () => {
-    // KAN-392's whole mechanism, in the opposite direction to the test above:
-    // there the Overture row was the stale one, here the OSM element is the
-    // duplicate. 182 PT elements are retired exactly this way.
-    const res = await worker.fetch(nearbyRequest([
-      { key: 'restaurant', type: 'restaurant' },
-    ]), env([
-      { overture_id: 'ovt-martins', name: 'O Martins' },
-    ], [], [
-      { osm_element_id: 'node/6441622817', name: 'Restaurante Martins', primary_poi_type: 'restaurant' },
-    ], [
-      { source: 'openstreetmap', source_id: 'node/6441622817', visible: 0 },
-    ]), CTX);
-    expect(res.status).toBe(200);
-    const body = await res.json() as { results: Record<string, Array<{ name: string; source: string }>> };
-    expect(body.results.restaurant).toEqual([
-      expect.objectContaining({ name: 'O Martins', source: 'overture' }),
-    ]);
   });
 
   it('returns only pizza matches for a pizza subtype request, all for the broad bucket', async () => {
@@ -376,8 +312,10 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
     const res = await worker.fetch(nearbyRequest([
       { key: 'restaurant:food_cuisine:sushi', type: 'restaurant', attribute: { dimension: 'food_cuisine', values: ['sushi'] } },
     ]), env([], [{ poi_id: 'community:123', name: 'The Sushi Soul', primary_poi_type: 'restaurant', food_cuisine: ['sushi'] }]), CTX);
-    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; fsq_place_id: string | null; source: string }>> };
-    expect(body.results['restaurant:food_cuisine:sushi']).toEqual([expect.objectContaining({ poi_id: 'community:123', fsq_place_id: null, source: 'community' })]);
+    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; source: string }>> };
+    expect(body.results['restaurant:food_cuisine:sushi']).toEqual([expect.objectContaining({ poi_id: 'community:123', source: 'community' })]);
+    // KAN-454: no fsq_place_id on the wire — not null, absent.
+    expect(body.results['restaurant:food_cuisine:sushi'][0]).not.toHaveProperty('fsq_place_id');
   });
 
   it('returns only the requested Financial service kind', async () => {

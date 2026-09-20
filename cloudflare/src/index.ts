@@ -1222,15 +1222,13 @@ export function buildAttributeFilterClause(filter: AttributeFilter): { clause: s
 }
 
 type NearbyPoi = {
-  /** Stable API identity. Every row uses its own source identity — a GERS id for Overture, an element id for OSM, a curated id for curated. */
-  poi_id: string;
   /**
-   * Always null since KAN-438 retired Foursquare. Kept in the payload so
-   * installed clients that read the field keep parsing; it must never carry
-   * an id from another source, because the sources' ids are not
-   * interchangeable and mislabelling one corrupts licence provenance.
+   * Stable API identity. Every row uses its own source identity — a GERS id
+   * for Overture, a curated id for curated, a MULTIBANCO id for an ATM.
+   * There is no `fsq_place_id` on the wire since KAN-454: it had been null
+   * on every row since KAN-438, and the app's type dropped it at KAN-451.
    */
-  fsq_place_id: string | null;
+  poi_id: string;
   name: string; lat: number; lng: number;
   primary_poi_type: string; brand: string | null;
   category_label: string | null; address: string | null;
@@ -1244,7 +1242,7 @@ type NearbyPoi = {
    * separate them.
    */
   floor: string | null;
-  source?: 'overture' | 'community' | 'manual' | 'openstreetmap' | 'multibanco' | 'legacy';
+  source?: 'overture' | 'community' | 'manual' | 'openstreetmap' | 'multibanco';
   distanceMeters: number;
   attributes: Record<string, string[]>;
 };
@@ -1255,9 +1253,9 @@ interface NearbyQueryResult {
     d1Ms: number;
     filterMs: number;
     /** D1 rows before Worker-side de-duplication; never includes identity data. */
-    sourceRows: { overture: number; community: number; openstreetmap: number; multibanco: number; legacy: number };
+    sourceRows: { overture: number; community: number; openstreetmap: number; multibanco: number };
     /** Unique visible candidates after source corrections and duplicate suppression. */
-    candidateCounts: { overture: number; community: number; openstreetmap: number; multibanco: number; legacy: number };
+    candidateCounts: { overture: number; community: number; openstreetmap: number; multibanco: number };
     /** Bucket entries returned to the client; one POI can correctly appear in multiple buckets. */
     resultCount: number;
   };
@@ -1334,7 +1332,6 @@ async function queryNearbyPoiDb(
   const curatedGeohashClauses = prefixes.map(() => '(curated_poi.geohash >= ? AND curated_poi.geohash < ?)');
   const curatedGeohashBindCount = prefixes.length * 2;
   const multibancoGeohashClauses = prefixes.map(() => '(multibanco_poi.geohash >= ? AND multibanco_poi.geohash < ?)');
-  const legacyGeohashClauses = prefixes.map(() => '(legacy_poi.geohash >= ? AND legacy_poi.geohash < ?)');
   // Keep a brand-only Gym/Bank request in D1's predicate. A generic request
   // for the same type legitimately broadens its own bucket, but a sole
   // branded request never materialises unrelated candidates in Worker memory.
@@ -1344,8 +1341,6 @@ async function queryNearbyPoiDb(
   const curatedRequestBinds: unknown[] = [];
   const multibancoRequestClauses: string[] = [];
   const multibancoRequestBinds: unknown[] = [];
-  const legacyRequestClauses: string[] = [];
-  const legacyRequestBinds: unknown[] = [];
   for (let index = 0; index < requestedSearches.length; index++) {
     const request = requestedSearches[index];
     const types = relatedTypes[index];
@@ -1363,11 +1358,9 @@ async function queryNearbyPoiDb(
     curatedRequestBinds.push(...curated.binds);
     multibancoRequestClauses.push(`(multibanco_poi.primary_poi_type IN (${placeholders}))`);
     multibancoRequestBinds.push(...types);
-    legacyRequestClauses.push(`(legacy_poi_type.poi_type IN (${placeholders}))`);
-    legacyRequestBinds.push(...types);
   }
   const d1StartedAt = performance.now();
-  const [{ results: rows }, { results: curatedRows }, { results: multibancoRows }, { results: legacyRows }] = await Promise.all([
+  const [{ results: rows }, { results: curatedRows }, { results: multibancoRows }] = await Promise.all([
     db.prepare(
       // The base layer. `poi_source_correction` must be joined here for the
       // same reason it is joined for OSM: KAN-435 retired 10 Overture rows
@@ -1424,16 +1417,6 @@ async function queryNearbyPoiDb(
       source_id: string; dedupe_name: string; name: string; lat: number; lng: number;
       primary_poi_type: string; address: string; is_demo_zone: number;
     }>(),
-    db.prepare(
-      `SELECT legacy_poi.source_id, legacy_poi.dedupe_name, legacy_poi.name, legacy_poi.lat, legacy_poi.lng,
-              legacy_poi.primary_poi_type, legacy_poi.address, legacy_poi_type.poi_type AS matched_type
-       FROM legacy_poi
-       INNER JOIN legacy_poi_type ON legacy_poi_type.source_id = legacy_poi.source_id
-       WHERE (${legacyGeohashClauses.join(' OR ')}) AND (${legacyRequestClauses.join(' OR ')})`,
-    ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...legacyRequestBinds).all<{
-      source_id: string; dedupe_name: string; name: string; lat: number; lng: number;
-      primary_poi_type: string; address: string | null; matched_type: string;
-    }>(),
   ]);
   const d1Ms = performance.now() - d1StartedAt;
 
@@ -1455,7 +1438,7 @@ async function queryNearbyPoiDb(
       }
     } else {
       candidates.set(candidateKey, {
-        poi_id: row.overture_id, fsq_place_id: null,
+        poi_id: row.overture_id,
         name: row.correction_name_override ?? row.name, lat: row.lat, lng: row.lng,
         primary_poi_type: row.primary_poi_type, brand: row.brand,
         // Overture carries no equivalent of Foursquare's display category
@@ -1492,7 +1475,7 @@ async function queryNearbyPoiDb(
       }
     } else {
       candidates.set(candidateKey, {
-        poi_id: row.poi_id, fsq_place_id: null, name: row.name, lat: row.lat, lng: row.lng,
+        poi_id: row.poi_id, name: row.name, lat: row.lat, lng: row.lng,
         primary_poi_type: row.primary_poi_type, brand: row.brand, category_label: null,
         // Community rows do not carry curated hours yet: NULL keeps KAN-318's
         // safe always-open behaviour rather than hiding an approved POI.
@@ -1512,40 +1495,24 @@ async function queryNearbyPoiDb(
   //
   // Least authoritative first, so each source is suppressed by everything
   // above it. Overture is the national base and curated mall tenants remain
-  // authoritative for a building and its floor. General OSM rows are kept
-  // out of this path while their offline review is in progress (KAN-442).
+  // authoritative for a building and its floor. `legacy_poi` left this list
+  // at KAN-454 (empty since KAN-438, no longer read); `osm_poi` never joined
+  // it (KAN-442). Both tables still exist; nearby reads neither.
   //
   // The rule itself is unchanged and must stay: it matches on `dedupeName`
   // plus proximity, never on source ids. An id identifies a row for a
   // correction; it never decides which of two places a user sees.
-  const SUPPRESSION_ORDER = ['legacy', 'overture', 'community'] as const;
+  const SUPPRESSION_ORDER = ['overture', 'community'] as const;
   for (const row of multibancoRows) {
     const distanceMeters = haversineMeters(lat, lng, row.lat, row.lng);
     if (distanceMeters > radiusMeters) continue;
     candidates.set(`multibanco:${row.source_id}`, {
-      poi_id: row.source_id, fsq_place_id: null, name: row.name, lat: row.lat, lng: row.lng,
+      poi_id: row.source_id, name: row.name, lat: row.lat, lng: row.lng,
       primary_poi_type: row.primary_poi_type, brand: null, category_label: null, address: row.address,
       open_min: null, close_min: null, floor: null, source: 'multibanco', dedupeName: row.dedupe_name,
       distanceMeters, attributes: {}, matchedTypes: new Set([row.primary_poi_type]), rawCategoryLabels: null,
       demoZone: row.is_demo_zone === 1,
     });
-  }
-
-  for (const row of legacyRows) {
-    const distanceMeters = haversineMeters(lat, lng, row.lat, row.lng);
-    if (distanceMeters > radiusMeters) continue;
-    const candidateKey = `legacy:${row.source_id}`;
-    const existing = candidates.get(candidateKey);
-    if (existing) {
-      existing.matchedTypes.add(row.matched_type);
-    } else {
-      candidates.set(candidateKey, {
-        poi_id: row.source_id, fsq_place_id: null, name: row.name, lat: row.lat, lng: row.lng,
-        primary_poi_type: row.primary_poi_type, brand: null, category_label: null, address: row.address,
-        open_min: null, close_min: null, floor: null, source: 'legacy', dedupeName: row.dedupe_name,
-        distanceMeters, attributes: {}, matchedTypes: new Set([row.matched_type]), rawCategoryLabels: null, demoZone: false,
-      });
-    }
   }
 
   // Odivelas rollout: official MULTIBANCO ATMs take precedence at the same
@@ -1577,19 +1544,18 @@ async function queryNearbyPoiDb(
     }
   }
 
-  const candidateCounts = { overture: 0, community: 0, openstreetmap: 0, multibanco: 0, legacy: 0 };
+  const candidateCounts = { overture: 0, community: 0, openstreetmap: 0, multibanco: 0 };
   for (const candidate of candidates.values()) {
     if (candidate.source === 'overture') candidateCounts.overture++;
     else if (candidate.source === 'community') candidateCounts.community++;
     else if (candidate.source === 'multibanco') candidateCounts.multibanco++;
-    else if (candidate.source === 'legacy') candidateCounts.legacy++;
   }
 
   const result = Object.fromEntries(requestedSearches.map(request => [request.key, [] as NearbyPoi[]])) as Record<string, NearbyPoi[]>;
   const nearestCandidates = [...candidates.values()].sort((a, b) => a.distanceMeters - b.distanceMeters);
   for (const candidate of nearestCandidates) {
     const poi: NearbyPoi = {
-      poi_id: candidate.poi_id, fsq_place_id: candidate.fsq_place_id,
+      poi_id: candidate.poi_id,
       name: candidate.name, lat: candidate.lat, lng: candidate.lng,
       primary_poi_type: candidate.primary_poi_type, brand: candidate.brand,
       category_label: candidate.category_label, address: candidate.address,
@@ -1616,7 +1582,7 @@ async function queryNearbyPoiDb(
     timings: {
       d1Ms,
       filterMs: performance.now() - filteringStartedAt,
-      sourceRows: { overture: rows.length, community: curatedRows.length, openstreetmap: 0, multibanco: multibancoRows.length, legacy: legacyRows.length },
+      sourceRows: { overture: rows.length, community: curatedRows.length, openstreetmap: 0, multibanco: multibancoRows.length },
       candidateCounts,
       resultCount,
     },
