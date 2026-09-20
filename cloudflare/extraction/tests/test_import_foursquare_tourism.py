@@ -7,6 +7,7 @@ Fixtures are in-memory. The "fake D1" is sqlite3 loaded with the committed
 schema.sql, which carries 0042's partial unique index — so the ON CONFLICT
 shape and the re-run no-op are proved against the real DDL.
 """
+import json
 import os
 import sqlite3
 import sys
@@ -439,3 +440,19 @@ class CliGuardTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class WranglerJsonTest(unittest.TestCase):
+    """2026-09-20: wrangler --json prints progress lines before the document
+    for a file near the upload threshold; the first emit died at 1/48."""
+
+    def test_skips_progress_preamble(self):
+        stdout = '├ Checking if file needs uploading\n│\n[{"meta": {"changes": 3}}]\n'
+        self.assertEqual(json.loads(importer.wrangler_json(stdout))[0]['meta']['changes'], 3)
+
+    def test_plain_document_unchanged(self):
+        self.assertEqual(importer.wrangler_json('[{"meta": {}}]'), '[{"meta": {}}]')
+
+    def test_no_json_is_an_error(self):
+        with self.assertRaises(ValueError):
+            importer.wrangler_json('├ Checking\n')

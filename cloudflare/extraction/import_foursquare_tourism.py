@@ -627,8 +627,19 @@ def d1_write_wrangler(statement, work_dir):
     result = subprocess.run(
         ['npx', 'wrangler', 'd1', 'execute', 'brush-poi-registry', '--remote', '--file', path, '--json'],
         cwd=CLOUDFLARE_DIR, capture_output=True, text=True, check=True)
-    meta = json.loads(result.stdout)[0].get('meta') or {}
+    meta = json.loads(wrangler_json(result.stdout))[0].get('meta') or {}
     return meta.get('changes', 0)
+
+
+def wrangler_json(stdout):
+    """The JSON document in wrangler's stdout. Even with `--json`, a file
+    near the upload threshold gets progress lines first (`├ Checking if
+    file needs uploading`), which broke the first KAN-433 emit at
+    statement 1 of 48 (2026-09-20)."""
+    start = min((i for i in (stdout.find('['), stdout.find('{')) if i >= 0), default=-1)
+    if start < 0:
+        raise ValueError(f'no JSON in wrangler output: {stdout[-300:]!r}')
+    return stdout[start:]
 
 
 def d1_write(statement, work_dir):
