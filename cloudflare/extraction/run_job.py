@@ -24,6 +24,7 @@ import time
 import traceback
 import uuid
 import csv
+from datetime import date
 
 import d1_client
 import r2_client
@@ -40,6 +41,7 @@ import load_overture_candidates
 import promote_overture_candidates
 import report_overture_backlog
 import overture_place
+import refresh_overture_country
 
 # KAN-387. Municipalities per container invocation, processed serially —
 # Overpass politeness, and small enough that a dead instance loses little.
@@ -64,19 +66,30 @@ def _source_decision_counts(source_r2_key):
     return {status: counts.get(status, 0) for status in ('promoted', 'rejected', 'pending')}
 
 
-def run_overture_country(country_code, run_id, source_r2_key=None):
-    """Archive Overture in R2 before D1 work; retries reuse that archive."""
+def run_overture_country(country_code, run_id, source_r2_key=None, previous_source_r2_key=None, release=None):
+    """Archive Overture in R2 before D1 work; retries reuse that archive.
+
+    KAN-456: with `previous_source_r2_key` (the archive the country was
+    mapped from until now) this is a refresh — the new release is upserted
+    over the same GERS ids, changed rows are brought up to date, rows the
+    release dropped are retired, and the reviewed overrides of the previous
+    archive still decide their ids (refresh_overture_country). `release`
+    pins which Overture release to extract; None is the module default.
+    """
     os.environ['D1_INTERNAL'] = '1'
     work_dir = os.path.join(extract.BUILD_DIR, f'overture-country-{run_id}')
     csv_path = os.path.join(work_dir, f'{country_code}.csv')
+    previous_csv_path = os.path.join(work_dir, f'{country_code}-previous.csv')
     report_path = os.path.join(work_dir, 'unresolved.tsv')
     os.makedirs(work_dir, exist_ok=True)
+    release = release or extract_overture.OVERTURE_RELEASE
+    refresh = bool(previous_source_r2_key)
     try:
         if source_r2_key:
             r2_client.download_file(source_r2_key, csv_path)
             raw_key = source_r2_key
         else:
-            extract_overture.extract_country(country_code, csv_path)
+            extract_overture.extract_country(country_code, csv_path, release=release)
             raw_key = f'overture-country-sources/{country_code}/{run_id}.csv'
             r2_client.upload_file(csv_path, raw_key)
         source_rows = _csv_row_count(csv_path)
@@ -88,7 +101,13 @@ def run_overture_country(country_code, run_id, source_r2_key=None):
         report_key = f'overture-country-reports/{country_code}/{run_id}.tsv'
         r2_client.upload_file(report_path, report_key)
 
-        staged_rows = load_overture_candidates.load(csv_path, raw_key)
+        staged_rows = load_overture_candidates.load(csv_path, raw_key, refresh=refresh)
+        refresh_stats = {'new_rows': staged_rows, 'changed_rows': 0, 'retired_rows': 0}
+        if refresh:
+            r2_client.download_file(previous_source_r2_key, previous_csv_path)
+            refresh_stats = refresh_overture_country.apply(
+                previous_csv_path, csv_path, release, date.today().isoformat(), d1_client.execute)
+            print(f'[run_job] Overture refresh {country_code} {release}: {refresh_stats}')
         promote_overture_candidates.run_country(
             OVERTURE_PROMOTION_PAGE_SIZE, raw_key)
         decisions = _source_decision_counts(raw_key)
@@ -98,6 +117,9 @@ def run_overture_country(country_code, run_id, source_r2_key=None):
             'promoted_rows': decisions['promoted'],
             'rejected_rows': decisions['rejected'],
             'pending_rows': decisions['pending'],
+            'release': release,
+            'new_rows': refresh_stats['new_rows'], 'changed_rows': refresh_stats['changed_rows'],
+            'retired_rows': refresh_stats['retired_rows'],
         }
         worker_client.overture_country_complete(country_code, run_id, report_key, stats)
         print(f'[run_job] Overture {country_code}: {stats}')
@@ -587,7 +609,10 @@ if __name__ == '__main__':
         if not run_id:
             print('OVERTURE_COUNTRY_RUN_ID is required for overture-country mode', file=sys.stderr)
             sys.exit(2)
-        run_overture_country(target.upper(), run_id, os.environ.get('COUNTRY_SOURCE_R2_KEY'))
+        run_overture_country(
+            target.upper(), run_id, os.environ.get('COUNTRY_SOURCE_R2_KEY'),
+            previous_source_r2_key=os.environ.get('OVERTURE_PREVIOUS_SOURCE_KEY') or None,
+            release=os.environ.get('OVERTURE_RELEASE') or None)
     elif mode == 'overture-overrides':
         source_key = os.environ.get('COUNTRY_SOURCE_R2_KEY')
         batch = os.environ.get('OVERTURE_OVERRIDE_BATCH')

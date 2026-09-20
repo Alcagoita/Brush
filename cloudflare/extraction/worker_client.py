@@ -216,6 +216,9 @@ def overture_country_complete(country_code, run_id, backlog_report_r2_key, stats
         'sourceRows': stats['source_rows'], 'stagedRows': stats['staged_rows'],
         'droppedRows': stats['dropped_rows'], 'promotedRows': stats['promoted_rows'],
         'rejectedRows': stats['rejected_rows'], 'pendingRows': stats['pending_rows'],
+        # KAN-456: the refresh report; a first import reports its rows as new.
+        'release': stats.get('release'), 'newRows': stats.get('new_rows', stats['staged_rows']),
+        'changedRows': stats.get('changed_rows', 0), 'retiredRows': stats.get('retired_rows', 0),
     })
 
 

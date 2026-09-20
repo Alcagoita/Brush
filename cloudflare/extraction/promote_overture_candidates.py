@@ -400,22 +400,68 @@ def is_non_multibanco_atm(name):
     return any(f' {operator} ' in padded for operator in NON_MULTIBANCO_ATM_OPERATORS)
 
 
+OVERRIDES_PATH = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
+
+
+def _country_prefix(country_source_r2_key):
+    """`overture-country-sources/PT/` for any archive key of that country;
+    None for a Place archive (overture-place-sources/…), which has no
+    lineage — a Place's overrides are keyed on its own archive only."""
+    parts = country_source_r2_key.split('/')
+    if len(parts) == 3 and parts[0] == 'overture-country-sources':
+        return f'{parts[0]}/{parts[1]}/'
+    return None
+
+
+def source_lineage(country_source_r2_key, overrides_by_source=None):
+    """KAN-456. The archive keys whose reviewed decisions apply to this
+    source: every key of the same country in the overrides file, in file
+    order (older first), and the key itself last. GERS ids are stable across
+    releases, so a decision taken on `…/PT/<old>.csv` is a decision about the
+    same place in `…/PT/<new>.csv`; a later key's entry for the same id wins.
+    `docs/evidence/reversals.jsonl` needs no handling here: a withdrawn id is
+    removed from its batch, and the validator refuses a file that still
+    lists it."""
+    if overrides_by_source is None:
+        with open(OVERRIDES_PATH) as handle:
+            overrides_by_source = json.load(handle)
+    prefix = _country_prefix(country_source_r2_key)
+    keys = [] if prefix is None else [key for key in overrides_by_source if key.startswith(prefix) and key != country_source_r2_key]
+    return keys + [country_source_r2_key]
+
+
+def _batches_of(source_overrides):
+    """{batch: {id: entry}} whatever the shape on disk (KAN-432's batches, or
+    the legacy flat {id: entry} which becomes one unnamed batch)."""
+    if source_overrides and all('poi_type' in value for value in source_overrides.values()):
+        return {'': dict(source_overrides)}
+    return {name: dict(entries) for name, entries in source_overrides.items()}
+
+
 def candidate_overrides(country_source_r2_key, batch=None):
     """The small, reviewed batches that cannot safely become broad rules.
 
     Generic ``shopping`` carries no usable subtype.  A reviewed ID can still
     be promoted, but keeping the decision source-scoped and explicit prevents
     a name fragment from silently classifying the national backlog.
+
+    KAN-456: a batch is found through the source's lineage, so
+    `overture-overrides` runs keep working after a refresh moved the country
+    to a new archive key. With `batch=None` only the legacy flat shape of
+    the key itself is returned, as before.
     """
-    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
-    with open(path) as handle:
-        source_overrides = json.load(handle).get(country_source_r2_key, {})
+    with open(OVERRIDES_PATH) as handle:
+        overrides_by_source = json.load(handle)
     # KAN-432: each review batch is separately runnable.  The legacy flat
     # shape is still accepted so a checked-out older configuration remains
     # readable, but new country batches must name the reviewed group.
     if batch is None:
+        source_overrides = overrides_by_source.get(country_source_r2_key, {})
         return source_overrides if all('poi_type' in value for value in source_overrides.values()) else {}
-    return source_overrides.get(batch, {})
+    found = {}
+    for key in source_lineage(country_source_r2_key, overrides_by_source):
+        found.update(_batches_of(overrides_by_source.get(key, {})).get(batch, {}))
+    return found
 
 
 def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
@@ -737,6 +783,10 @@ def run_country(batch, country_source_r2_key):
     food_cuisine_aliases = food_cuisine_alias_index()
     financial_service_rules = load_financial_service_name_rules()
     store_brands = store_brand_index()
+    # KAN-456: the reviewed decisions of every earlier archive of this country
+    # apply to the same ids here. On a first import the lineage is the key
+    # itself, which has no entries yet, so nothing changes for that path.
+    overrides = source_overrides_flat(country_source_r2_key)
     refreshed = date.today().isoformat()
     stats = Counter()
     where = (
@@ -755,13 +805,13 @@ def run_country(batch, country_source_r2_key):
             _promote_country_page(
                 page, mapping, reachable, brand_dictionary, store_kind_aliases,
                 food_cuisine_aliases, financial_service_rules, store_brands,
-                refreshed, stats, d1_client)
+                refreshed, stats, d1_client, overrides)
             page = []
     if page:
         _promote_country_page(
             page, mapping, reachable, brand_dictionary, store_kind_aliases,
             food_cuisine_aliases, financial_service_rules, store_brands,
-            refreshed, stats, d1_client)
+            refreshed, stats, d1_client, overrides)
     return dict(stats)
 
 
@@ -790,13 +840,16 @@ def _promote_country_page(page, mapping, reachable, brand_dictionary,
 
 
 def source_overrides_flat(country_source_r2_key):
-    """Every committed reviewed decision for this source, whatever its batch."""
-    path = os.path.join(CLOUDFLARE_DIR, 'src', 'overtureCandidateOverrides.json')
-    with open(path) as handle:
-        source = json.load(handle).get(country_source_r2_key, {})
-    if all('poi_type' in value for value in source.values()):
-        return dict(source)  # the legacy flat shape
-    return {poi_id: entry for batch in source.values() for poi_id, entry in batch.items()}
+    """Every committed reviewed decision that applies to this source,
+    whatever its batch — across the country's lineage (KAN-456), so a
+    decision taken on an earlier release still decides the same id."""
+    with open(OVERRIDES_PATH) as handle:
+        overrides_by_source = json.load(handle)
+    flat = {}
+    for key in source_lineage(country_source_r2_key, overrides_by_source):
+        for entries in _batches_of(overrides_by_source.get(key, {})).values():
+            flat.update(entries)
+    return flat
 
 
 def run_country_repromote(batch, country_source_r2_key):

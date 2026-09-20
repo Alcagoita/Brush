@@ -146,3 +146,78 @@ and their names carry no signal. Those rows stay `pending` in
 `overture_candidate`: never served, never promoted, visible to whoever adds a
 source later. What to do with them is a policy decision, made against the
 residual metric, and is not this command's business.
+
+## Refreshing a country on a new Overture release (KAN-456)
+
+Overture publishes monthly; the base is pinned per run, not per deploy.
+A refresh is **manual, on demand** (owner, 2026-09-20): no cron, no
+automatic cadence until there is a reason for one. It is the same
+`overture-country` run, re-queued for a `mapped` country, and it is an
+upsert on the GERS id — never a second copy, never a delete.
+
+### What a refresh does
+
+| set | how it is found | what happens in production |
+| --- | --- | --- |
+| new | in the new archive, not the previous | staged `pending`, decided by the rules **and the reviewed overrides of every earlier archive of the country** |
+| changed | in both, and name / coordinates / address / category differ | `overture_candidate` and the served `overture_poi` row take the new values; a **category** change puts the row back to `pending` (re-decided); a name/coordinate change alone keeps the decision |
+| retired | in the previous archive, not the new | `overture_poi.retired_in_release = <release>`; nearby, the export and the moderation lookups skip it; types, attributes, overrides and the candidate row stay |
+| re-listed | retired earlier, back in this release | the mark is cleared; served again with its reviewed decision |
+
+The diff is computed locally from the two archived CSVs
+(`refresh_overture_country.py`), the way the KAN-455 repromote dry run is;
+production is touched only by bounded statements (≤ 150 ids per `IN`,
+≤ 80 KB per `VALUES`, one request each, idempotent). Reviewed overrides
+need no edit: `promote_overture_candidates.source_lineage` applies every
+key under `overture-country-sources/<CC>/` in the overrides file to the
+country's current source, later keys winning for the same id.
+
+### Steps
+
+1. **Migration 0048** must be applied once (`ALTER TABLE … ADD COLUMN`,
+   not idempotent): check `PRAGMA table_info(overture_poi)` has
+   `retired_in_release` first. Deploy the Worker and container from the
+   branch that carries it.
+2. **Dry run the diff locally**, nothing written:
+   ```
+   cd cloudflare/extraction
+   python3 extract_overture.py --country PT --release <release> --out /tmp/PT-new.csv   # or the container's own extract
+   npx wrangler r2 object get brush-poi-exports/<mapped raw_extract_r2_key> --file /tmp/PT-old.csv --remote
+   python3 refresh_overture_country.py /tmp/PT-old.csv /tmp/PT-new.csv
+   ```
+   Read the four counts. A retired count in the thousands, or a changed
+   count near the whole country, is a release to look at before queuing.
+3. **Queue the refresh** (the Worker records the mapped archive as
+   `previous_source_r2_key` and hands both it and the release to the
+   container):
+   ```
+   curl -s -X POST https://poi-api.brushaway.app/internal/overture-country/queue \
+     -H "X-Build-Secret: $SECRET" -H 'User-Agent: curl/8.0' -H 'Content-Type: application/json' \
+     -d '{"countryCode": "PT", "release": "<release>"}'
+   ```
+   `countryCode` must be in `SUPPORTED_OVERTURE_COUNTRIES` (`src/index.ts`);
+   adding a country is that list plus its overrides. Status:
+   `GET /internal/overture-country/status?countryCode=PT` → `release`,
+   `new_rows`, `changed_rows`, `retired_rows` once `mapped`. A failed run
+   is re-queued the same way; it reuses the new archive and keeps the
+   previous key.
+4. **Verify — zero lost overrides**, read-only, bounded:
+   ```
+   python3 verify_refresh_overrides.py --country PT
+   ```
+   Exit 0 = every reviewed decision is `kept` (or `retired` with the
+   release, or `absent` from every archive). Any `lost:` line is the stop.
+5. **Endpoint check** (`POST /poi/nearby`): a row the release retired no
+   longer appears; a row with a reviewed override keeps its type/kind
+   (`verify_prod_decisions.py --before docs/kan-455/verification-after-2026-09-20.json`
+   is the table to diff against). The per-settlement exports are rewritten
+   by the run, so the trip download follows the release.
+
+### What it does not do
+
+- It never deletes: a retired row keeps everything and un-retires itself
+  when a release lists the id again.
+- It does not re-decide unchanged rows. Rule and dictionary changes reach
+  the country's still-pending rows through `overture-repromote` (KAN-455),
+  as before.
+- It does not read `names.common`; bilingual names are KAN-460.

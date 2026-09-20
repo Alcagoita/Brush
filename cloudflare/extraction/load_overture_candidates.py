@@ -41,7 +41,7 @@ from classify_and_load import MAX_STATEMENT_BYTES, byte_len, sql_escape
 INSERT_PREFIX = (
     'INSERT OR IGNORE INTO overture_candidate '
     '(overture_id, name, lat, lng, address, locality, category, basic_category, '
-    'category_path, confidence, source_datasets, imported_at, country_source_r2_key) VALUES '
+    'category_path, confidence, source_datasets, imported_at, country_source_r2_key, last_seen_source_key) VALUES '
 )
 MAX_VALUES_TERMS = 500
 
@@ -84,7 +84,8 @@ def value_tuple(row):
         f'{sql_escape(address)},{sql_escape(locality)},{sql_escape(category)},'
         f'{sql_escape(basic_category)},{sql_escape(category_path)},'
         f'{"NULL" if confidence is None else confidence},'
-        f'{sql_escape(sources)},{sql_escape(imported_at)},{sql_escape(country_source_r2_key)})'
+        f'{sql_escape(sources)},{sql_escape(imported_at)},{sql_escape(country_source_r2_key)},'
+        f'{sql_escape(country_source_r2_key)})'
     )
 
 
@@ -113,16 +114,39 @@ def _with_country_source(statement):
     )
 
 
-def load(csv_path, country_source_r2_key):
+def _with_refresh(statement):
+    """KAN-456: the same GERS id on a newer release is the same row, brought
+    up to date. The source fields take the new release's values, the row
+    moves to the new archive key (so promotion and decision counts scope by
+    the key the country is on now) and `last_seen_source_key` records it.
+    The decision is kept — `promotion_status`/`promotion_note` are not in
+    this SET; a category change is put back to pending by
+    refresh_overture_country.repending_statements, by id, from the local
+    diff. Idempotent: a second run writes the same values."""
+    return statement[:-2] + (
+        ' ON CONFLICT(overture_id) DO UPDATE SET '
+        'name = excluded.name, lat = excluded.lat, lng = excluded.lng, address = excluded.address, '
+        'locality = excluded.locality, category = excluded.category, basic_category = excluded.basic_category, '
+        'category_path = excluded.category_path, confidence = excluded.confidence, '
+        'source_datasets = excluded.source_datasets, '
+        'country_source_r2_key = excluded.country_source_r2_key, '
+        'last_seen_source_key = excluded.country_source_r2_key;\n'
+    )
+
+
+def load(csv_path, country_source_r2_key, refresh=False):
     """Stream a country archive through one bounded D1 write at a time.
 
     This is the same transport model that completed the Foursquare country
     load.  The SQL statement is bounded by ``MAX_STATEMENT_BYTES``; making
     many of those statements one atomic D1 batch exhausts D1 memory.
+
+    `refresh=True` (KAN-456) upserts instead of ignoring: see _with_refresh.
     """
     import d1_client
 
     offered = inserted = 0
+    attach = _with_refresh if refresh else _with_country_source
 
     def values():
         nonlocal offered
@@ -131,7 +155,7 @@ def load(csv_path, country_source_r2_key):
             yield value_tuple(row)
 
     for statement in batched(values()):
-        meta = d1_client.execute(_with_country_source(statement))
+        meta = d1_client.execute(attach(statement))
         inserted += (meta or {}).get('changes', 0)
     print(f'{offered:,} candidate rows offered; {inserted:,} D1 changes', file=sys.stderr)
     return offered
