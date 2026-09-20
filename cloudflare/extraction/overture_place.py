@@ -71,11 +71,13 @@ def bbox_where(min_lat, max_lat, min_lng, max_lng):
 
 def served_rows(min_lat, max_lat, min_lng, max_lng):
     """The rows `/poi` would serve inside the box, with their types and
-    attributes, read in keyset pages (D1 charges for skipped rows)."""
+    attributes, read in keyset pages (D1 charges for skipped rows). A row a
+    release retired (KAN-456) is not served and not exported."""
     pois = list(paged(
         'overture_poi',
         ('overture_id', 'name', 'lat', 'lng', 'primary_poi_type', 'brand', 'address', 'open_min', 'close_min'),
-        'overture_id', EXPORT_PAGE_SIZE, where=bbox_where(min_lat, max_lat, min_lng, max_lng)))
+        'overture_id', EXPORT_PAGE_SIZE,
+        where=bbox_where(min_lat, max_lat, min_lng, max_lng) + ' AND retired_in_release IS NULL'))
     ids = [row['overture_id'] for row in pois]
     types, attributes = [], []
     # ≤150 ids per IN(...): the request-size limit that broke KAN-448.

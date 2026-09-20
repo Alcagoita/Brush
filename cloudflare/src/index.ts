@@ -316,7 +316,8 @@ async function resolveRemovalTarget(
          FROM overture_poi
          LEFT JOIN poi_source_correction AS correction
            ON correction.source = 'overture' AND correction.source_id = overture_poi.overture_id
-        WHERE overture_poi.overture_id = ? AND (correction.visible IS NULL OR correction.visible = 1)`
+        WHERE overture_poi.overture_id = ? AND (correction.visible IS NULL OR correction.visible = 1)
+          AND overture_poi.retired_in_release IS NULL`
     : source === 'foursquare'
       ? 'SELECT name, primary_poi_type, address FROM poi WHERE fsq_place_id = ?'
       : source === 'openstreetmap'
@@ -1384,7 +1385,8 @@ async function queryNearbyPoiDb(
        AND overture_poi_attribute.dimension IN ('food_cuisine', 'store_kind', 'financial_service_kind')
      LEFT JOIN poi_source_correction AS overture_correction
        ON overture_correction.source = 'overture' AND overture_correction.source_id = overture_poi.overture_id
-     WHERE (${geohashClauses.join(' OR ')}) AND (${poiRequestClauses.join(' OR ')})`,
+     WHERE overture_poi.retired_in_release IS NULL
+       AND (${geohashClauses.join(' OR ')}) AND (${poiRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...poiRequestBinds).all<{
       overture_id: string; dedupe_name: string; name: string; lat: number; lng: number;
       primary_poi_type: string; brand: string | null;
@@ -1667,6 +1669,25 @@ const OSM_SCOPE_ERROR_CLASSES = new Set<OsmScopeErrorClass>([
   'overpass_failed', 'rate_limited', 'container_never_started', 'data', 'd1',
 ]) as Set<string>;
 
+/**
+ * KAN-456. The countries the Overture import may run for. The R2 prefixes,
+ * the import row and the overrides file are already keyed per country; this
+ * is the one list a new country is added to. A code outside it is a 400,
+ * never a silent PT.
+ */
+export const SUPPORTED_OVERTURE_COUNTRIES = ['PT'] as const;
+export type OvertureCountry = typeof SUPPORTED_OVERTURE_COUNTRIES[number];
+
+/** The supported country a request names, or null. Case-insensitive on the way in, uppercase on the way out. */
+export function overtureCountry(value: unknown): OvertureCountry | null {
+  if (typeof value !== 'string') return null;
+  const code = value.toUpperCase();
+  return (SUPPORTED_OVERTURE_COUNTRIES as readonly string[]).includes(code) ? code as OvertureCountry : null;
+}
+
+/** Overture release ids look like `2026-08-19.0`; the container refuses anything else. */
+const OVERTURE_RELEASE_PATTERN = /^\d{4}-\d{2}-\d{2}\.\d+$/;
+
 function triggerBuild(
   env: Env,
   ctx: ExecutionContext | undefined,
@@ -1674,6 +1695,7 @@ function triggerBuild(
   target: string,
   countrySourceR2Key?: string,
   countryRunId?: string,
+  extraEnv: Record<string, string> = {},
 ): void {
   const key = `${mode}:${target}:${Date.now()}`;
   const container = getContainer(env.EXTRACTION_CONTAINER, key);
@@ -1692,6 +1714,9 @@ function triggerBuild(
       ...(mode === 'overture-country' ? { D1_INTERNAL: '1', OVERTURE_COUNTRY_RUN_ID: countryRunId ?? '' } : {}),
       ...(mode === 'overture-overrides' ? { D1_INTERNAL: '1', OVERTURE_OVERRIDE_BATCH: countryRunId ?? '' } : {}),
       ...(mode === 'overture-repromote' ? { D1_INTERNAL: '1', OVERTURE_REPROMOTE_RUN_ID: countryRunId ?? '' } : {}),
+      // KAN-456: an Overture refresh names the archive it replaces and the
+      // release to extract (OVERTURE_PREVIOUS_SOURCE_KEY, OVERTURE_RELEASE).
+      ...extraEnv,
     },
   }).catch(async (error) => {
     // A detached promise is cancelled when the Worker finishes the request.
@@ -2405,29 +2430,48 @@ export default {
     // from the retired Foursquare country state.  Its source is first made
     // immutable in R2, and retries reuse that checkpoint instead of reading a
     // changing upstream release again.
+    //
+    // KAN-456: any supported country, and an optional `release`. Re-queuing
+    // a mapped country is a refresh: the mapped archive becomes
+    // `previous_source_r2_key`, the container diffs the new release against
+    // it (upsert, retire, un-retire; reviewed overrides carried over), and
+    // the exports are rewritten. Manual trigger only — no cron.
     if (url.pathname === '/internal/overture-country/queue' && request.method === 'POST') {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
-      const body = await request.json<{ countryCode?: unknown }>().catch(() => null);
-      if (typeof body?.countryCode !== 'string' || body.countryCode.toUpperCase() !== 'PT') {
-        return json({ error: 'countryCode must be PT' }, 400);
+      const body = await request.json<{ countryCode?: unknown; release?: unknown }>().catch(() => null);
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!countryCode) return json({ error: `countryCode must be one of ${SUPPORTED_OVERTURE_COUNTRIES.join(', ')}` }, 400);
+      if (body?.release !== undefined && (typeof body.release !== 'string' || !OVERTURE_RELEASE_PATTERN.test(body.release))) {
+        return json({ error: 'release must look like 2026-08-19.0' }, 400);
       }
-      const queued = await queueOvertureCountryImport(env, 'PT', Date.now());
-      if (queued.started && queued.runId) triggerBuild(env, ctx, 'overture-country', 'PT', queued.rawExtractR2Key ?? undefined, queued.runId);
-      return json({ ok: true, status: queued.status, started: queued.started, runId: queued.runId });
+      const requested = typeof body?.release === 'string' ? body.release : null;
+      const queued = await queueOvertureCountryImport(env, countryCode, Date.now(), requested);
+      // The row's release, not the body's: a retry of a failed refresh
+      // re-passes the release the failed run was extracting.
+      const release = queued.release;
+      if (queued.started && queued.runId) {
+        triggerBuild(env, ctx, 'overture-country', countryCode, queued.rawExtractR2Key ?? undefined, queued.runId, {
+          ...(queued.previousSourceR2Key ? { OVERTURE_PREVIOUS_SOURCE_KEY: queued.previousSourceR2Key } : {}),
+          ...(release ? { OVERTURE_RELEASE: release } : {}),
+        });
+      }
+      return json({ ok: true, status: queued.status, started: queued.started, runId: queued.runId,
+                    refresh: Boolean(queued.previousSourceR2Key), previousSourceR2Key: queued.previousSourceR2Key, release });
     }
 
     if (url.pathname === '/internal/overture-country/source' && request.method === 'POST') {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
       const body = await request.json<Record<string, unknown>>().catch(() => null);
-      if (!body || body.countryCode !== 'PT' || typeof body.runId !== 'string' ||
-          typeof body.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith('overture-country-sources/PT/') ||
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!body || !countryCode || typeof body.runId !== 'string' ||
+          typeof body.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith(`overture-country-sources/${countryCode}/`) ||
           !Number.isSafeInteger(body.sourceRows) || (body.sourceRows as number) < 0) {
         return json({ error: 'invalid Overture source checkpoint payload' }, 400);
       }
       const ok = await checkpointOvertureCountrySource(env, {
-        countryCode: 'PT', runId: body.runId, rawExtractR2Key: body.rawExtractR2Key, sourceRows: body.sourceRows as number,
+        countryCode, runId: body.runId, rawExtractR2Key: body.rawExtractR2Key, sourceRows: body.sourceRows as number,
       });
       if (!ok) return json({ error: 'run is not active' }, 409);
       return json({ ok: true });
@@ -2438,16 +2482,25 @@ export default {
       if (internalAuthError) return internalAuthError;
       const body = await request.json<Record<string, unknown>>().catch(() => null);
       const counts = ['sourceRows', 'stagedRows', 'droppedRows', 'promotedRows', 'rejectedRows', 'pendingRows'] as const;
-      if (!body || body.countryCode !== 'PT' || typeof body.runId !== 'string' ||
-          typeof body.backlogReportR2Key !== 'string' || !body.backlogReportR2Key.startsWith('overture-country-reports/PT/') ||
-          counts.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0)) {
+      // KAN-456: the refresh report. Optional so an older container still completes.
+      const refreshCounts = ['newRows', 'changedRows', 'retiredRows'] as const;
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!body || !countryCode || typeof body.runId !== 'string' ||
+          typeof body.backlogReportR2Key !== 'string' || !body.backlogReportR2Key.startsWith(`overture-country-reports/${countryCode}/`) ||
+          counts.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0) ||
+          refreshCounts.some(field => body[field] !== undefined && (!Number.isSafeInteger(body[field]) || (body[field] as number) < 0)) ||
+          (body.release !== undefined && body.release !== null && (typeof body.release !== 'string' || !OVERTURE_RELEASE_PATTERN.test(body.release)))) {
         return json({ error: 'invalid Overture completion payload' }, 400);
       }
       const ok = await completeOvertureCountryImport(env, {
-        countryCode: 'PT', runId: body.runId, backlogReportR2Key: body.backlogReportR2Key,
+        countryCode, runId: body.runId, backlogReportR2Key: body.backlogReportR2Key,
         sourceRows: body.sourceRows as number, stagedRows: body.stagedRows as number,
         droppedRows: body.droppedRows as number, promotedRows: body.promotedRows as number,
         rejectedRows: body.rejectedRows as number, pendingRows: body.pendingRows as number, now: Date.now(),
+        release: typeof body.release === 'string' ? body.release : null,
+        newRows: (body.newRows as number | undefined) ?? (body.stagedRows as number),
+        changedRows: (body.changedRows as number | undefined) ?? 0,
+        retiredRows: (body.retiredRows as number | undefined) ?? 0,
       });
       if (!ok) return json({ error: 'run is not active or source accounting is invalid' }, 409);
       return json({ ok: true });
@@ -2496,10 +2549,11 @@ export default {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
       const body = await request.json<Record<string, unknown>>().catch(() => null);
-      if (!body || body.countryCode !== 'PT' || typeof body.runId !== 'string') {
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!body || !countryCode || typeof body.runId !== 'string') {
         return json({ error: 'invalid Overture failure payload' }, 400);
       }
-      const ok = await failOvertureCountryImport(env, 'PT', body.runId, typeof body.error === 'string' ? body.error : 'unknown', Date.now());
+      const ok = await failOvertureCountryImport(env, countryCode, body.runId, typeof body.error === 'string' ? body.error : 'unknown', Date.now());
       if (!ok) return json({ error: 'run is not active' }, 409);
       return json({ ok: true });
     }
@@ -2507,9 +2561,10 @@ export default {
     if (url.pathname === '/internal/overture-country/status' && request.method === 'GET') {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
-      if (url.searchParams.get('countryCode') !== 'PT') return json({ error: 'countryCode must be PT' }, 400);
-      const status = await overtureCountryImportStatus(env, 'PT');
-      if (!status) return json({ error: "no Overture country import for 'PT'" }, 404);
+      const countryCode = overtureCountry(url.searchParams.get('countryCode'));
+      if (!countryCode) return json({ error: `countryCode must be one of ${SUPPORTED_OVERTURE_COUNTRIES.join(', ')}` }, 400);
+      const status = await overtureCountryImportStatus(env, countryCode);
+      if (!status) return json({ error: `no Overture country import for '${countryCode}'` }, 404);
       return json(status);
     }
 
@@ -2523,16 +2578,16 @@ export default {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
       const body = await request.json<{ countryCode?: unknown; batch?: unknown }>().catch(() => null);
-      if (typeof body?.countryCode !== 'string' || body.countryCode.toUpperCase() !== 'PT' ||
-          typeof body.batch !== 'string' || !/^[A-Za-z0-9_-]+$/.test(body.batch)) {
-        return json({ error: 'countryCode must be PT and batch must be a simple identifier' }, 400);
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!countryCode || typeof body?.batch !== 'string' || !/^[A-Za-z0-9_-]+$/.test(body.batch)) {
+        return json({ error: 'countryCode must be a supported country and batch must be a simple identifier' }, 400);
       }
-      const status = await overtureCountryImportStatus(env, 'PT');
+      const status = await overtureCountryImportStatus(env, countryCode);
       if (!status || status.status !== 'mapped' || typeof status.raw_extract_r2_key !== 'string' ||
-          !status.raw_extract_r2_key.startsWith('overture-country-sources/PT/')) {
-        return json({ error: 'the PT Overture import must be mapped with an immutable source first' }, 409);
+          !status.raw_extract_r2_key.startsWith(`overture-country-sources/${countryCode}/`)) {
+        return json({ error: `the ${countryCode} Overture import must be mapped with an immutable source first` }, 409);
       }
-      triggerBuild(env, ctx, 'overture-overrides', 'PT', status.raw_extract_r2_key, body.batch);
+      triggerBuild(env, ctx, 'overture-overrides', countryCode, status.raw_extract_r2_key, body.batch);
       return json({ ok: true, started: true, batch: body.batch });
     }
 
@@ -2547,26 +2602,26 @@ export default {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
       const body = await request.json<{ countryCode?: unknown; rawExtractR2Key?: unknown }>().catch(() => null);
-      if (typeof body?.countryCode !== 'string' || body.countryCode.toUpperCase() !== 'PT' ||
-          typeof body.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith('overture-country-sources/PT/')) {
-        return json({ error: 'countryCode must be PT and rawExtractR2Key must name the PT source' }, 400);
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!countryCode || typeof body?.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith(`overture-country-sources/${countryCode}/`)) {
+        return json({ error: 'countryCode must be a supported country and rawExtractR2Key must name its source' }, 400);
       }
-      const status = await overtureCountryImportStatus(env, 'PT');
+      const status = await overtureCountryImportStatus(env, countryCode);
       if (!status || status.status !== 'mapped' || typeof status.raw_extract_r2_key !== 'string' ||
-          !status.raw_extract_r2_key.startsWith('overture-country-sources/PT/')) {
-        return json({ error: 'the PT Overture import must be mapped with an immutable source first' }, 409);
+          !status.raw_extract_r2_key.startsWith(`overture-country-sources/${countryCode}/`)) {
+        return json({ error: `the ${countryCode} Overture import must be mapped with an immutable source first` }, 409);
       }
       // The caller names the archive it dry-ran against; a different mapped
       // source means the dry run said nothing about what this would do.
       if (body.rawExtractR2Key !== status.raw_extract_r2_key) {
-        return json({ error: 'rawExtractR2Key is not the mapped PT source', rawExtractR2Key: status.raw_extract_r2_key }, 409);
+        return json({ error: `rawExtractR2Key is not the mapped ${countryCode} source`, rawExtractR2Key: status.raw_extract_r2_key }, 409);
       }
       // Exactly one run at a time: the lease is taken before the container
       // starts, and only the run holding it may complete.
       const runId = crypto.randomUUID();
-      const leased = await leaseOvertureRepromote(env, { countryCode: 'PT', rawExtractR2Key: status.raw_extract_r2_key, runId, now: Date.now() });
+      const leased = await leaseOvertureRepromote(env, { countryCode, rawExtractR2Key: status.raw_extract_r2_key, runId, now: Date.now() });
       if (!leased) return json({ error: 'a repromote run is in progress', repromoteRunId: status.repromote_run_id ?? null }, 409);
-      triggerBuild(env, ctx, 'overture-repromote', 'PT', status.raw_extract_r2_key, runId);
+      triggerBuild(env, ctx, 'overture-repromote', countryCode, status.raw_extract_r2_key, runId);
       return json({ ok: true, started: true, runId, rawExtractR2Key: status.raw_extract_r2_key });
     }
 
@@ -2580,16 +2635,17 @@ export default {
       if (internalAuthError) return internalAuthError;
       const body = await request.json<Record<string, unknown>>().catch(() => null);
       const counts = ['repromotedRows', 'rerejectedRows', 'leftPendingRows', 'promotedRows', 'rejectedRows', 'pendingRows'] as const;
-      if (!body || body.countryCode !== 'PT' || typeof body.runId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.runId) ||
-          typeof body.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith('overture-country-sources/PT/') ||
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!body || !countryCode || typeof body.runId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.runId) ||
+          typeof body.rawExtractR2Key !== 'string' || !body.rawExtractR2Key.startsWith(`overture-country-sources/${countryCode}/`) ||
           counts.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0)) {
         return json({ error: 'invalid Overture repromote payload' }, 400);
       }
       const ok = await recordOvertureRepromote(env, {
-        countryCode: 'PT', rawExtractR2Key: body.rawExtractR2Key, runId: body.runId,
+        countryCode, rawExtractR2Key: body.rawExtractR2Key, runId: body.runId,
         promotedRows: body.promotedRows as number, rejectedRows: body.rejectedRows as number, pendingRows: body.pendingRows as number,
       });
-      if (!ok) return json({ error: 'runId does not hold the repromote lease, source is not the mapped PT import, or its accounting does not add up' }, 409);
+      if (!ok) return json({ error: `runId does not hold the repromote lease, source is not the mapped ${countryCode} import, or its accounting does not add up` }, 409);
       console.log('[overture-repromote] complete', {
         runId: body.runId, repromoted: body.repromotedRows, rerejected: body.rerejectedRows, leftPending: body.leftPendingRows,
       });
@@ -2603,11 +2659,12 @@ export default {
       const internalAuthError = authenticateInternal(request, env);
       if (internalAuthError) return internalAuthError;
       const body = await request.json<Record<string, unknown>>().catch(() => null);
-      if (!body || body.countryCode !== 'PT' || typeof body.runId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.runId)) {
+      const countryCode = overtureCountry(body?.countryCode);
+      if (!body || !countryCode || typeof body.runId !== 'string' || !/^[A-Za-z0-9._-]{1,64}$/.test(body.runId)) {
         return json({ error: 'invalid Overture repromote failure payload' }, 400);
       }
       console.error('[overture-repromote] failed', { runId: body.runId, error: typeof body.error === 'string' ? body.error.slice(0, 1_000) : 'unknown' });
-      const released = await releaseOvertureRepromote(env, 'PT', body.runId);
+      const released = await releaseOvertureRepromote(env, countryCode, body.runId);
       if (!released) return json({ error: 'runId does not hold the repromote lease' }, 409);
       return json({ ok: true });
     }

@@ -88,8 +88,8 @@ class OvertureCountryRunTest(unittest.TestCase):
         self.stage_calls, self.promote_calls = [], []
         def report(_csv, out):
             write_text(out, 'report\n')
-        def stage(csv_path, source_key):
-            self.stage_calls.append((csv_path, source_key))
+        def stage(csv_path, source_key, refresh=False):
+            self.stage_calls.append((csv_path, source_key, refresh))
             return 1
         def promote(batch, source_key):
             self.promote_calls.append((batch, source_key))
@@ -109,7 +109,7 @@ class OvertureCountryRunTest(unittest.TestCase):
         self.temp.cleanup()
 
     def test_extracts_archives_then_stages_and_completes(self):
-        run_job.extract_overture.extract_country = lambda _country, path: write_csv(path)
+        run_job.extract_overture.extract_country = lambda _country, path, release=None: write_csv(path)
         run_job.run_overture_country('PT', 'run-1')
         self.assertEqual(self.r2.uploads[0][1], 'overture-country-sources/PT/run-1.csv')
         self.assertEqual(self.worker.source[0][2], 'overture-country-sources/PT/run-1.csv')
@@ -128,7 +128,7 @@ class OvertureCountryRunTest(unittest.TestCase):
         self.assertEqual(self.worker.source[0][2], 'overture-country-sources/PT/old-run.csv')
 
     def test_retry_after_promotion_uses_scoped_decision_counts_for_completion(self):
-        run_job.extract_overture.extract_country = lambda _country, path: write_csv(path)
+        run_job.extract_overture.extract_country = lambda _country, path, release=None: write_csv(path)
         self.worker.fail_completion_once = True
         with self.assertRaisesRegex(RuntimeError, 'completion callback failed'):
             run_job.run_overture_country('PT', 'run-1')
@@ -139,7 +139,37 @@ class OvertureCountryRunTest(unittest.TestCase):
         self.assertEqual(self.worker.complete[-1][3], {
             'source_rows': 1, 'staged_rows': 1, 'dropped_rows': 0,
             'promoted_rows': 1, 'rejected_rows': 0, 'pending_rows': 0,
+            'release': run_job.extract_overture.OVERTURE_RELEASE,
+            'new_rows': 1, 'changed_rows': 0, 'retired_rows': 0,
         })
+
+    def test_a_first_import_stages_with_insert_or_ignore(self):
+        run_job.extract_overture.extract_country = lambda _country, path, release=None: write_csv(path)
+        run_job.run_overture_country('PT', 'run-1')
+        self.assertEqual(self.stage_calls[0][2], False)
+        self.assertEqual([k for k, _ in self.r2.downloads], [])
+
+    def test_a_refresh_upserts_applies_the_diff_and_pins_the_release(self):
+        # KAN-456: the previous archive is downloaded beside the new extract,
+        # the loader upserts, the diff is applied, and the report carries the
+        # release and the new/changed/retired counts.
+        seen = {}
+        run_job.extract_overture.extract_country = lambda _country, path, release=None: (seen.__setitem__('release', release), write_csv(path))
+        applied = []
+        saved = run_job.refresh_overture_country.apply
+        run_job.refresh_overture_country.apply = lambda prev, cur, release, refreshed, execute: (
+            applied.append((os.path.basename(prev), os.path.basename(cur), release)) or
+            {'new_rows': 3, 'changed_rows': 2, 'retired_rows': 1})
+        try:
+            run_job.run_overture_country('PT', 'run-9', previous_source_r2_key='overture-country-sources/PT/old.csv', release='2026-10-15.0')
+        finally:
+            run_job.refresh_overture_country.apply = saved
+        self.assertEqual(seen['release'], '2026-10-15.0')
+        self.assertEqual(self.stage_calls[0][1:], ('overture-country-sources/PT/run-9.csv', True))
+        self.assertEqual(self.r2.downloads[0][0], 'overture-country-sources/PT/old.csv')
+        self.assertEqual(applied, [('PT-previous.csv', 'PT.csv', '2026-10-15.0')])
+        stats = self.worker.complete[-1][3]
+        self.assertEqual((stats['release'], stats['new_rows'], stats['changed_rows'], stats['retired_rows']), ('2026-10-15.0', 3, 2, 1))
 
 
 if __name__ == '__main__':

@@ -114,9 +114,14 @@ CREATE TABLE IF NOT EXISTS overture_poi (
   updated_at          TEXT NOT NULL,
   -- TEXT, not INTEGER: floors go negative, and a unit spanning two levels
   -- must be able to say so without another migration.
-  floor               TEXT
+  floor               TEXT,
+  -- KAN-456 (0048). The release that stopped carrying the row. Nearby serves
+  -- only NULL; the row, its types, attributes and overrides stay, and a
+  -- later release that lists the id again clears it.
+  retired_in_release  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_overture_poi_geo ON overture_poi (geohash);
+CREATE INDEX IF NOT EXISTS idx_overture_poi_retired ON overture_poi (retired_in_release);
 CREATE INDEX IF NOT EXISTS idx_overture_poi_brand_geo ON overture_poi (brand, geohash);
 CREATE INDEX IF NOT EXISTS idx_overture_poi_name ON overture_poi (dedupe_name);
 
@@ -139,9 +144,14 @@ CREATE TABLE IF NOT EXISTS overture_candidate (
     CHECK (promotion_status IN ('pending', 'promoted', 'rejected')),
   promotion_note TEXT,
   imported_at TEXT NOT NULL,
-  country_source_r2_key TEXT
+  country_source_r2_key TEXT,
+  -- KAN-456 (0048). The archive key of the most recent release that carried
+  -- the row; after a refresh, rows for the country still on an older key are
+  -- the retired set.
+  last_seen_source_key TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_overture_candidate_status ON overture_candidate (promotion_status);
+CREATE INDEX IF NOT EXISTS idx_overture_candidate_last_seen ON overture_candidate (last_seen_source_key);
 CREATE INDEX IF NOT EXISTS idx_overture_candidate_category ON overture_candidate (category);
 CREATE INDEX IF NOT EXISTS idx_overture_candidate_source_status
   ON overture_candidate (country_source_r2_key, promotion_status);
@@ -163,7 +173,14 @@ CREATE TABLE IF NOT EXISTS overture_country_import (
   last_error TEXT,
   -- KAN-455 (0045). Lease of the one overture-repromote run allowed at a time.
   repromote_run_id TEXT,
-  repromote_started_at TEXT
+  repromote_started_at TEXT,
+  -- KAN-456 (0048). The refresh report: which Overture release the mapped
+  -- source came from, and what the upsert found against the previous one.
+  previous_source_r2_key TEXT,
+  release TEXT,
+  new_rows INTEGER NOT NULL DEFAULT 0,
+  changed_rows INTEGER NOT NULL DEFAULT 0,
+  retired_rows INTEGER NOT NULL DEFAULT 0
 );
 
 -- KAN-438. Frozen, deliberately narrow fallback copied from the 2026-08-29

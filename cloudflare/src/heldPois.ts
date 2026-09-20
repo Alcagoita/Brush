@@ -124,6 +124,7 @@ export async function findHeldPois(db: D1Database, lookup: HeldPoiLookup): Promi
                WHERE overture_poi.dedupe_name ${nameOperator} ?
                  AND overture_poi.lat BETWEEN ? AND ? AND overture_poi.lng BETWEEN ? AND ?
                  AND (correction.visible IS NULL OR correction.visible = 1)
+                 AND overture_poi.retired_in_release IS NULL
               UNION
               SELECT ${columns}
                 FROM poi_source_correction AS correction
@@ -131,6 +132,7 @@ export async function findHeldPois(db: D1Database, lookup: HeldPoiLookup): Promi
                WHERE correction.source = 'overture' AND correction.visible = 1
                  AND correction.dedupe_name_override ${nameOperator} ?
                  AND overture_poi.lat BETWEEN ? AND ? AND overture_poi.lng BETWEEN ? AND ?
+                 AND overture_poi.retired_in_release IS NULL
             ) AS overture_poi
             ORDER BY ${proximity('overture_poi')}
             LIMIT ?`,
