@@ -12,9 +12,11 @@
  */
 
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 import NewTaskSheet from '../../src/components/NewTaskSheet';
 import type { Category } from '../../src/types';
+import { COPY } from '../../src/constants/copy';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -38,6 +40,19 @@ jest.mock('../../src/services/placesFunctions', () => ({
   placesAutocompleteProxy: jest.fn(),
   searchNearbyPlacesProxy: jest.fn(),
   searchPlaceTypesProxy: jest.fn(),
+}));
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   jest.fn(),
+}));
+
+jest.mock('expo-sqlite', () => ({
+  openDatabaseSync: jest.fn(() => ({
+    execSync: jest.fn(),
+    getFirstSync: jest.fn(),
+    getAllSync: jest.fn(() => []),
+    runSync: jest.fn(),
+  })),
 }));
 
 jest.mock('../../src/services/poiLlm', () => ({
@@ -82,7 +97,7 @@ jest.mock('../../src/components/AppIcon', () => ({
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const CUSTOM_CATEGORIES: Category[] = [
-  { id: 'custom-gym', name: 'Gym', color: '#ff6b6b', poi: null, isBuiltIn: false },
+  { id: 'custom-gym', name: 'Gym', color: '#ff6b6b', isBuiltIn: false },
 ];
 
 const DEFAULT_PROPS = {
@@ -146,6 +161,37 @@ describe('canSubmit: requires title AND POI', () => {
     const addBtn = screen.getByLabelText('Add it');
     expect(addBtn.props.accessibilityState?.disabled).toBe(false);
   });
+
+  it('requires a curated brand before a Gym task can be added', async () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Training tonight');
+    fireEvent.press(screen.getByLabelText('Gym'));
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.press(screen.getByLabelText('Solinca'));
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    expect(mockAddTask).toHaveBeenCalledWith('test-uid', expect.objectContaining({
+      poi: 'gym', poiBrand: 'Solinca',
+    }));
+  });
+
+  it('selects a canonical Bank from type-ahead before adding', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('bank');
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Visit my bank');
+    await waitFor(() => expect(screen.getByLabelText('Search a bank')).toBeTruthy());
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.changeText(screen.getByLabelText('Search a bank'), 'novo');
+    fireEvent.press(screen.getByLabelText('Novo Banco'));
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    expect(mockAddTask).toHaveBeenCalledWith('test-uid', expect.objectContaining({
+      poi: 'bank', poiBrand: 'Novo Banco',
+    }));
+  });
 });
 
 describe('POI carousel toggle', () => {
@@ -208,6 +254,35 @@ describe('KAN-232 POI inference auto-suggestion', () => {
 
     expect(mockInferPoiForQuickAdd).toHaveBeenCalledWith('buy aspirin');
     expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+  });
+
+  it('selects Clothing when a Store suggestion comes from a shirt task', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('store');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a new shirt');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(screen.getByLabelText('Store').props.accessibilityState?.selected).toBe(true);
+    expect(screen.getByLabelText('Clothing').props.accessibilityState?.selected).toBe(true);
+
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailType));
+
+    expect(screen.getByLabelText('Clothing').props.accessibilityState?.selected).toBe(true);
+  });
+
+  it('uses a recognised Store brand as the specific Store detail', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('store');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Find a FNAC');
+    await act(async () => { await jest.advanceTimersByTimeAsync(400); });
+
+    expect(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y).props.accessibilityState?.checked).toBe(true);
+    expect(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder).props.value).toBe('Fnac');
   });
 
   it('supports non-catalog suggestions like Police', async () => {
@@ -314,7 +389,12 @@ describe('KAN-249 suggested POI states', () => {
     // the plain catalog "Pharmacy" tile — is what carries the confirm action.
     fireEvent.press(screen.getByLabelText('Pharmacy, my guess?'));
 
+    const suggestion = screen.getByLabelText('Pharmacy suggestion');
+    const suggestionStyle = StyleSheet.flatten(suggestion.props.style);
+
     expect(screen.getByLabelText('Pharmacy').props.accessibilityState?.selected).toBe(true);
+    expect(suggestion.props.accessibilityState?.selected).toBe(true);
+    expect(suggestionStyle.borderStyle).toBe('dashed');
     expect(screen.queryByText('my guess?')).toBeNull();
   });
 
@@ -477,6 +557,7 @@ describe('addTask submission', () => {
       'Morning run',
     );
     fireEvent.press(screen.getByLabelText('Gym'));
+    fireEvent.press(screen.getByLabelText('Solinca'));
     fireEvent.press(screen.getByLabelText('Health'));
 
     await act(async () => {
@@ -485,8 +566,46 @@ describe('addTask submission', () => {
 
     expect(mockAddTask).toHaveBeenCalledWith(
       'test-uid',
-      expect.objectContaining({ category: 'health' }),
+      expect.objectContaining({ category: 'health', poiBrand: 'Solinca' }),
     );
+  });
+
+  it('saves a selected Store brand without a Store subtype', async () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a charging cable');
+    fireEvent.press(screen.getByLabelText('Store'));
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.changeText(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder), 'Wor');
+    fireEvent.press(screen.getByLabelText('Worten'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+    expect(mockAddTask).toHaveBeenCalledWith('test-uid', expect.objectContaining({
+      poi: 'store', poiBrand: 'Worten',
+    }));
+    expect(mockAddTask.mock.calls.at(-1)?.[1]).not.toHaveProperty('storeSubtype');
+  });
+
+  it('requires a recognised Store brand instead of falling back to a generic Store task', () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Find a shop');
+    fireEvent.press(screen.getByLabelText('Store'));
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.changeText(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder), 'Adidas Kids');
+
+    expect(screen.getByText(COPY.newTaskSheet.storeBrandUnknown)).toBeTruthy();
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+  });
+
+  it('requires a specific Store subtype before quick create can submit', () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Find a shop');
+    fireEvent.press(screen.getByLabelText('Store'));
+
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
   });
 
   it('does not call addTask when POI is missing', async () => {
@@ -516,6 +635,36 @@ describe('addTask submission', () => {
 
     expect(mockAddTask).toHaveBeenCalled();
     expect(onTaskAdded).toHaveBeenCalledTimes(1);
+  });
+
+  it('persists the selected store subtype when creating a store task', async () => {
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a t-shirt');
+    fireEvent.press(screen.getByLabelText('Store'));
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    expect(mockAddTask).toHaveBeenCalledWith(
+      'test-uid',
+      expect.objectContaining({
+        poi:          'store',
+        storeSubtype: 'clothing',
+      }),
+    );
+  });
+
+  it('persists the selected restaurant food type when creating a restaurant task', async () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Have dinner');
+    fireEvent.press(screen.getByLabelText('Restaurant'));
+    fireEvent.press(screen.getByLabelText('Vegetarian'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    expect(mockAddTask).toHaveBeenCalledWith('test-uid', expect.objectContaining({
+      poi: 'restaurant', restaurantFoodType: 'vegetarian',
+    }));
   });
 
   it('does not call onTaskAdded when addTask fails', async () => {
@@ -548,9 +697,12 @@ describe('"More details" navigation', () => {
 
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
-        uid:          'test-uid',
-        initialTitle: 'Visit police',
-        initialPoi:   'police',
+        uid:                          'test-uid',
+        initialTitle:                 'Visit police',
+        initialCategory:              undefined,
+        initialPoi:                   'police',
+        initialStoreSubtype:          undefined,
+        initialPoiExplicitlySelected: false,
       });
     }, { timeout: 500 });
   });
@@ -568,10 +720,100 @@ describe('"More details" navigation', () => {
     // navigateTo fires after an 80 ms setTimeout inside handleMoreDetails
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
-        uid:          'test-uid',
-        initialTitle: 'Buy groceries',
-        initialPoi:   'supermarket',
+        uid:                          'test-uid',
+        initialTitle:                 'Buy groceries',
+        initialCategory:              undefined,
+        initialPoi:                   'supermarket',
+        initialStoreSubtype:          undefined,
+        initialPoiExplicitlySelected: true,
       });
+    }, { timeout: 500 });
+  });
+
+  it('passes the selected store subtype through More details', async () => {
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a t-shirt');
+    fireEvent.press(screen.getByLabelText('Store'));
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
+        uid:                          'test-uid',
+        initialTitle:                 'Buy a t-shirt',
+        initialCategory:              undefined,
+        initialPoi:                   'store',
+        initialStoreSubtype:          'clothing',
+        initialStoreSubtypeExplicitlySelected: true,
+        initialPoiExplicitlySelected: true,
+      });
+    }, { timeout: 500 });
+  });
+
+  it('passes a selected Store brand through More details', async () => {
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a charging cable');
+    fireEvent.press(screen.getByLabelText('Store'));
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.changeText(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder), 'Wor');
+    fireEvent.press(screen.getByLabelText('Worten'));
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', expect.objectContaining({
+        uid: 'test-uid',
+        initialPoi: 'store',
+        initialPoiBrand: 'Worten',
+        initialStoreSubtype: undefined,
+      }));
+    }, { timeout: 500 });
+  });
+
+  it('passes an inferred Bank brand through More details', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('bank');
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Visit my bank');
+    await waitFor(() => expect(screen.getByLabelText('Search a bank')).toBeTruthy());
+    fireEvent.changeText(screen.getByLabelText('Search a bank'), 'novo');
+    fireEvent.press(screen.getByLabelText('Novo Banco'));
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', expect.objectContaining({
+        initialPoi: 'bank',
+        initialPoiBrand: 'Novo Banco',
+      }));
+    }, { timeout: 500 });
+  });
+
+  it('passes the selected restaurant food type through More details', async () => {
+    renderSheet();
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Have dinner');
+    fireEvent.press(screen.getByLabelText('Restaurant'));
+    fireEvent.press(screen.getByLabelText('Vegetarian'));
+    fireEvent.press(screen.getByLabelText('More details'));
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', expect.objectContaining({
+        initialPoi: 'restaurant', initialRestaurantFoodType: 'vegetarian',
+      }));
+    }, { timeout: 500 });
+  });
+
+  it('carries the chosen category through More details (KAN-372)', async () => {
+    renderSheet();
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Call the clinic');
+    fireEvent.press(screen.getByLabelText('Health'));
+    fireEvent.press(screen.getByLabelText('More details'));
+
+    await waitFor(() => {
+      expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', expect.objectContaining({
+        initialTitle:    'Call the clinic',
+        initialCategory: 'health',
+      }));
     }, { timeout: 500 });
   });
 
@@ -581,9 +823,12 @@ describe('"More details" navigation', () => {
 
     await waitFor(() => {
       expect(mockNavigateTo).toHaveBeenCalledWith('TaskForm', {
-        uid:          'test-uid',
-        initialTitle: undefined,
-        initialPoi:   undefined,
+        uid:                          'test-uid',
+        initialTitle:                 undefined,
+        initialCategory:              undefined,
+        initialPoi:                   undefined,
+        initialStoreSubtype:          undefined,
+        initialPoiExplicitlySelected: false,
       });
     }, { timeout: 500 });
   });

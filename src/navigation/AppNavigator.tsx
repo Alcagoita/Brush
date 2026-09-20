@@ -34,6 +34,9 @@ import OffGridScreen from '../screens/OffGridScreen';
 import PlacesIKnowScreen from '../screens/PlacesIKnowScreen';
 import HomeAddressScreen from '../screens/HomeAddressScreen';
 import WhereWeveBeenScreen from '../screens/WhereWeveBeenScreen';
+import ItineraryOptionsScreen from '../screens/ItineraryOptionsScreen';
+import PlacesScreen from '../screens/PlacesScreen';
+import EndOfDayHandoffScreen from '../screens/EndOfDayHandoffScreen';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -69,16 +72,31 @@ export type RootStackParamList = {
   NotificationPreferences: undefined;
   /** Full achievements list with progress and point values (KAN-114 / KAN-129 / KAN-122). */
   Achievements: { achievementId?: string } | undefined;
-  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). Optional prefillStartDate (YYYY-MM-DD) when opened from a future Calendar day (KAN-243). Optional prefillDestinationQuery — free-text search-box seed from the calendar trip-suggestion signal (KAN-245), never a resolved place (that signal never geocodes). */
-  TripPlanner: { prefillStartDate?: string; prefillDestinationQuery?: string } | undefined;
+  /** Trip Planner — "Going somewhere?" offline area download flow (KAN-234). Optional prefillStartDate (YYYY-MM-DD) when opened from a future Calendar day (KAN-243). Optional prefillDestinationQuery — free-text search-box seed from the calendar trip-suggestion signal (KAN-245), never a resolved place (that signal never geocodes). KAN-266 edit mode reuses the same dates/radius steps for an existing trip. */
+  TripPlanner: {
+    prefillStartDate?: string;
+    prefillDestinationQuery?: string;
+    editTripId?: string;
+    initialStep?: 'dates' | 'radius';
+    /** Where to land after a successful download — defaults to PlacesIKnow. The
+     *  Places screen (KAN-304) passes 'Places' so back returns there, refreshed. */
+    doneReturnTo?: 'Places' | 'PlacesIKnow';
+  } | undefined;
   /** "Places I know" — the always-on habitat area + downloaded trips, with refresh/delete (KAN-234). */
   PlacesIKnow: undefined;
+  /** Places — brands + trips + past trips, behind the Lantern pill (KAN-304). */
+  Places: undefined;
   /** Explicit home address — set/edit/clear (KAN-247). */
   HomeAddress: undefined;
   /** Off-grid window — "I'll be offline for a while, keep my tasks going" (KAN-246). Now + duration, never dated like TripPlanner. */
   OffGrid: undefined;
   /** "Where we've been" — past-trip timeline, destination + dates only (KAN-257). Optional highlightTripId when opened from a past day's Calendar row, to draw the eye to that trip. */
   WhereWeveBeen: { highlightTripId?: string } | undefined;
+  /** "One trip for all of these" — resolves + orders open POI tasks into a
+   *  multi-stop route into a single suggestion card (KAN-281). */
+  ItineraryOptions: undefined;
+  /** Per-task resolver opened from a multi-task dated-task notification. */
+  EndOfDayHandoff: { uid: string; date: string; taskIds: string[] };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -115,8 +133,15 @@ export default function AppNavigator() {
       <Stack.Screen name="TripPlanner"                component={TripPlannerScreen} />
       <Stack.Screen name="OffGrid"                    component={OffGridScreen} />
       <Stack.Screen name="PlacesIKnow"                component={PlacesIKnowScreen} />
+      <Stack.Screen name="Places"                     component={PlacesScreen} />
       <Stack.Screen name="HomeAddress"                component={HomeAddressScreen} />
       <Stack.Screen name="WhereWeveBeen"              component={WhereWeveBeenScreen} />
+      <Stack.Screen name="ItineraryOptions"           component={ItineraryOptionsScreen} />
+      <Stack.Screen
+        name="EndOfDayHandoff"
+        component={EndOfDayHandoffScreen}
+        options={{ presentation: 'modal' }}
+      />
     </Stack.Navigator>
   );
 }

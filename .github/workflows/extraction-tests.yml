@@ -1,0 +1,40 @@
+# KAN-459. The whole extraction suite, in discovery order and in a shuffled
+# one, on a bare interpreter: no Cloudflare token, no network, no `requests`
+# or `duckdb` installed. `BRUSH_TYPE_RELATION=sql` replays `type_relation`
+# from the committed schema and migrations so nothing reads live D1. A test
+# that needs the network or wrangler is a bug in the test, not a reason to
+# add a secret here.
+name: extraction-tests
+on:
+  pull_request:
+    paths:
+      - 'cloudflare/extraction/**'
+      - 'cloudflare/src/*.json'
+      - 'src/constants/storeSubtypeDictionary.json'
+      - 'src/constants/brandDictionary.json'
+      - 'cloudflare/type_relation_schema.sql'
+      - 'cloudflare/migrations/*.sql'
+      - '.github/workflows/extraction-tests.yml'
+permissions:
+  contents: read
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    env:
+      BRUSH_TYPE_RELATION: sql
+    defaults:
+      run:
+        working-directory: cloudflare/extraction
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Whole suite, discovery order
+        run: python3 -m unittest discover -s tests
+      - name: Whole suite, reversed
+        run: python3 tests/run_in_order.py reverse
+      - name: Whole suite, shuffled (seed from the run number, printed in the log)
+        run: python3 tests/run_in_order.py shuffle --seed "${{ github.run_number }}"

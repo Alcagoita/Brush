@@ -39,6 +39,14 @@ jest.mock('../../src/components/BrushStroke', () => ({
   default: () => null,
 }));
 
+// KAN-279 — takeMeThere.ts pulls in poiTypeCache.ts -> maps.ts ->
+// placesFunctions.ts -> @react-native-firebase/functions (native, unavailable
+// under Jest). Mocked at the service boundary, same as elsewhere.
+jest.mock('../../src/services/takeMeThere', () => ({
+  openTakeMeThereMaps:     jest.fn().mockResolvedValue(undefined),
+  getTakeMeThereA11yLabel: jest.fn(() => 'Take me there'),
+}));
+
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
 const TASK: Task = {

@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+*.log
+
+# a symlinked node_modules is a file, which `node_modules/` does not match
+node_modules

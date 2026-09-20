@@ -6,6 +6,7 @@
  *  - Always consume via useTheme() so light/dark switching works automatically.
  */
 
+import type { TextStyle } from 'react-native';
 import { COPY } from '../constants/copy';
 
 // ─── Color palettes ───────────────────────────────────────────────────────────
@@ -21,14 +22,25 @@ export const lightPalette = {
   ringTrack:  'rgba(20,20,18,0.08)',
   ringFill:   '#db9657',   // oklch(0.73 0.115 62) soft peach
   accent:     '#e8a86a',   // oklch(0.66 0.13 65)
+  pullRefreshIndicator: '#e8a86a',
+  pullRefreshOverlay:   'rgba(0,0,0,0.12)',
   nearTint:   '#fdf7f0',   // oklch(0.97 0.028 65)
   nearTint2:  '#f9ede0',   // oklch(0.94 0.05 65)
   nearBorder: '#e8c9a0',   // oklch(0.85 0.09 65)
   nearText:   '#7a4a20',   // oklch(0.42 0.13 65)
+  // Lantern halo tints (KAN-301) — the soft circular glow behind the header
+  // icon, rendered as a low-opacity View fill (never an SVG). Home reuses the
+  // peach ringFill hue; the "away" states (outside/mall/trip) use accent; the
+  // unset state is neutral. Dark mode gets its own brighter values (see
+  // darkPalette) so the halo doesn't vanish on OLED black at .10–.16 opacity.
+  haloHome:   '#db9657',   // = ringFill (warm, steady)
+  haloPlace:  '#e8a86a',   // = accent (outside / mall / trip)
+  haloUnset:  '#8b857a',   // = muted (no home set)
   success:    '#4caf7d',   // accepted / positive status
   danger:     '#e05252',   // declined / error status
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
   scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
+  scrimLight: 'rgba(0,0,0,0.12)', // lighter dim for the pull-refresh overlay (KAN-288) — present but not heavy
   selectedRingTrack: 'rgba(255,255,255,0.20)', // CalendarRing inside a selected cell (bg = palette.text) — opposite tone of the theme
   selectedRingArc:   'rgba(255,255,255,0.88)',
   separatorStrong:   'rgba(20,20,18,0.14)',    // NearbyCard row divider — stronger than the default `line` token
@@ -45,14 +57,24 @@ export const darkPalette = {
   ringTrack:  'rgba(255,255,255,0.12)',
   ringFill:   '#f6f5f2',
   accent:     '#d4955a',   // oklch(0.72 0.14 65)
+  pullRefreshIndicator: '#d4955a',
+  pullRefreshOverlay:   'rgba(255,255,255,0.14)',
   nearTint:   '#2a1e12',   // oklch(0.22 0.045 65)
   nearTint2:  '#362514',   // oklch(0.27 0.06 65)
   nearBorder: '#a06f40',   // oklch(0.52 0.10 65) — ≥3:1 vs both nearTint and nearTint2
   nearText:   '#dba87a',   // oklch(0.86 0.10 65)
+  // Lantern halo tints (KAN-301) — dedicated dark values, NOT a dimmed
+  // light-mode ramp: luminance can't be pushed lower on #0e0e0c without the
+  // halo disappearing, so these are pitched brighter to stay visible at
+  // .10–.16 opacity over the near-black background.
+  haloHome:   '#f0b878',   // warm amber, brighter than dark accent
+  haloPlace:  '#e8a86a',   // brighter accent for outside / mall / trip
+  haloUnset:  '#9c9c94',   // brighter than dark muted so the unset halo reads
   success:    '#5fc090',   // accepted / positive status (brighter for dark bg)
   danger:     '#f06a6a',   // declined / error status (brighter for dark bg)
   onAccent:   '#ffffff',   // text/icons shown on an accent-coloured surface
   scrim:      'rgba(0,0,0,0.25)', // modal/loading-overlay backdrop dim
+  scrimLight: 'rgba(0,0,0,0.12)', // lighter dim for the pull-refresh overlay (KAN-288)
   selectedRingTrack: 'rgba(0,0,0,0.16)',       // CalendarRing inside a selected cell (bg = palette.text) — opposite tone of the theme
   selectedRingArc:   'rgba(20,18,14,0.82)',
   separatorStrong:   'rgba(255,255,255,0.14)', // NearbyCard row divider — stronger than the default `line` token
@@ -69,14 +91,20 @@ export type Palette = {
   ringTrack: string;
   ringFill: string;
   accent: string;
+  pullRefreshIndicator: string;
+  pullRefreshOverlay: string;
   nearTint: string;
   nearTint2: string;
   nearBorder: string;
   nearText: string;
+  haloHome: string;
+  haloPlace: string;
+  haloUnset: string;
   success: string;
   danger: string;
   onAccent: string;
   scrim: string;
+  scrimLight: string;
   selectedRingTrack: string;
   selectedRingArc: string;
   separatorStrong: string;
@@ -118,7 +146,7 @@ export const tierColors = {
 export const categoryHues = [
   '#d4855a', // oklch(0.66 0.13 30)
   '#e8a86a', // oklch(0.66 0.13 70) — accent
-  '#5ba87a', // oklch(0.62 0.12 130)
+  '#8ab84a', // oklch(0.62 0.12 130)
   '#5ba87a', // oklch(0.62 0.12 165)
   '#5b8fa4', // oklch(0.62 0.12 215)
   '#5b7fd4', // oklch(0.62 0.12 250)
@@ -225,7 +253,28 @@ export const radius = {
   heroIcon: 14,
   listIcon: 10,
   ctaBtn:   12,
+  /** Small selection controls (KAN-283) — the existing radii all round an
+   *  18px box into a pill; a checkbox needs to still read as square. */
+  checkbox: 6,
 } as const;
+
+// ─── Reusable text styles ─────────────────────────────────────────────────────
+
+/**
+ * Uppercase-ish section heading used above list groups (the "SHARED TASKS" /
+ * "FOLLOWING" / "Favourites" / "Where you're going" headers). Matches the
+ * Social hub so every screen's sections read the same. Apply a colour
+ * (usually `palette.muted`) at the call site.
+ */
+export const sectionTitleStyle: TextStyle = {
+  fontSize: 13,
+  fontWeight: '600',
+  fontFamily: 'Geist-SemiBold',
+  letterSpacing: 1,
+  textTransform: 'uppercase',
+  marginTop: 20,
+  marginBottom: 10,
+};
 
 // ─── Shadows ──────────────────────────────────────────────────────────────────
 

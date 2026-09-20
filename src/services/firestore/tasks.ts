@@ -12,6 +12,7 @@ import {
   query,
   where,
   orderBy,
+  onSnapshot,
   Timestamp,
 } from '@react-native-firebase/firestore';
 import type { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
@@ -20,6 +21,7 @@ import type { Task, User } from '../../types';
 import { tasksRef, taskRef, userRef, learnedPlaceCountsRef, learnedPlaceCountRef } from './refs';
 import { mapSnapshotDocs } from './snapshot';
 import type { LearnedPlace } from '../learnedPlaces';
+import { markTasksDirty } from '../taskMutationSignal';
 
 /** Firestore caps a single batch at 500 writes — chunk any bulk write to stay under it. */
 const BATCH_LIMIT = 500;
@@ -54,6 +56,7 @@ function toSafeVisitCount(value: unknown): number {
 function buildTaskDonePatch(
   done: boolean,
   completedPlace?: { placeId: string; name: string; poiType: string },
+  completedTripId?: string,
 ) {
   const hasPlace = done && !!completedPlace;
   return {
@@ -62,6 +65,8 @@ function buildTaskDonePatch(
     completedPlaceId: hasPlace ? completedPlace!.placeId : deleteField(),
     completedPlaceName: hasPlace ? completedPlace!.name : deleteField(),
     completedPoiType: hasPlace ? completedPlace!.poiType : deleteField(),
+    // KAN-304 — stamp the active trip id (groundwork; never surfaced yet).
+    completedTripId: done && completedTripId ? completedTripId : deleteField(),
   };
 }
 
@@ -142,14 +147,15 @@ export async function addTask(
     done: false,
     createdAt: Timestamp.now(),
   });
+  markTasksDirty();
   return ref.id;
 }
 
-/** Fetch all tasks for a specific date (YYYY-MM-DD), ordered by creation time. */
-export async function getTasksForDate(uid: string, date: string): Promise<Task[]> {
+/** Fetch tasks explicitly scheduled for a specific date (YYYY-MM-DD). */
+export async function getScheduledTasksForDate(uid: string, date: string): Promise<Task[]> {
   const q = query(
     tasksRef(uid),
-    where('date', '==', date),
+    where('scheduledDate', '==', date),
     orderBy('createdAt', 'asc'),
   );
   const snap = await getDocs(q);
@@ -157,56 +163,116 @@ export async function getTasksForDate(uid: string, date: string): Promise<Task[]
 }
 
 /**
- * Roll forward any undone task still dated before `today` so it becomes
- * today's task (KAN-146 — tasks persist until brushed away; an unfinished
- * task is never cleared, it simply becomes "new" the next day).
- *
- * Bumps both `date` and `createdAt` to now — the task is treated as freshly
- * created today, matching how it will appear and score on the Today screen.
- *
- * KAN-264 — also stamps `originDate` the FIRST time a task rolls (never
- * overwritten on subsequent rolls): `existing.originDate ?? existing.date`,
- * i.e. the day it was due before this roll. This lets the Calendar attribute
- * an undone rolled task to the day it was actually meant for, instead of it
- * vanishing from that day once `date` moves forward — see dayStats in
- * CalendarScreen.tsx. `date` itself keeps moving every rollover so Today
- * still shows it; only `originDate` is set-once.
- *
- * Exception (KAN-248): an unbrushed `kind: 'birthday'` task is deleted
- * instead of rolled forward — the only auto-expiry exception in the app,
- * gated strictly on `kind === 'birthday'`. A birthday wish three days late
- * is meaningless, so persistence has no value for this one kind.
- *
- * This is the client-side correctness fallback: the per-user `today` here is
- * computed in the device's local timezone, unlike the best-effort UTC-anchored
- * server-side `rolloverIncompleteTasks` Cloud Function. Calling this is safe
- * even if the server-side job already ran — there's nothing left to roll over.
- *
- * Idempotent and cheap when there's nothing to roll over (single query, no
- * writes). Intended to run once during SplashScreen boot, before the task
- * list is fetched for the day.
+ * @deprecated Use getScheduledTasksForDate for date-specific work, or
+ * ensureCurrentDay for the active task list. Kept for source compatibility.
  */
-export async function rolloverIncompleteTasks(uid: string, today: string = todayISO()): Promise<void> {
-  const q = query(
+export const getTasksForDate = getScheduledTasksForDate;
+
+/** Read one task, including locally cached data when the device is offline. */
+export async function getTask(uid: string, taskId: string): Promise<Task | null> {
+  const snap = await getDoc(taskRef(uid, taskId));
+  return snap.exists() ? ({ id: snap.id, ...(snap.data() as Omit<Task, 'id'>) }) : null;
+}
+
+/**
+ * Persist a deliberate response to a dated-task handoff. updateDoc is used
+ * intentionally: normal Firestore writes are queued by the SDK while offline,
+ * unlike a transaction that may reject before it can be queued.
+ */
+export function resolveDatedTaskHandoff(
+  uid: string,
+  taskId: string,
+  scheduledDate: string,
+  outcome: 'forgotten' | 'tomorrow',
+  nextScheduledDate?: string,
+  originalScheduledDate?: string,
+): Promise<void> {
+  const patch: Record<string, unknown> = {
+    dateHandoff: {
+      date: scheduledDate,
+      outcome,
+      resolvedAt: Timestamp.now(),
+    },
+  };
+  if (nextScheduledDate) {
+    patch.scheduledDate = nextScheduledDate;
+  }
+  if (originalScheduledDate) {
+    patch.originalScheduledDate = originalScheduledDate;
+  }
+  // A normal write is persisted locally immediately and queues while offline.
+  // Do not hold a notification action open waiting for a remote acknowledgement;
+  // Firestore will roll the local mutation back if the server later rejects it.
+  updateDoc(taskRef(uid, taskId), patch).catch(error =>
+    console.warn('[tasks] dated handoff sync failed', error),
+  );
+  markTasksDirty();
+  return Promise.resolve();
+}
+
+export interface CurrentDayTasks {
+  /** Incomplete tasks that are still active on the device's local day. */
+  tasks: Task[];
+  /** Kept for callers during the KAN-363 transition; no rollover write occurs. */
+  persistence: Promise<void>;
+}
+
+function sortTasksByCreatedAt(tasks: Task[]): Task[] {
+  return tasks.sort((a, b) => {
+    const aMillis = a.createdAt?.toMillis?.() ?? 0;
+    const bMillis = b.createdAt?.toMillis?.() ?? 0;
+    return aMillis - bMillis;
+  });
+}
+
+/** Filter an already-fetched task list using the active-list date rule. */
+export function filterActiveTasksForDate(tasks: Task[], today: string): Task[] {
+  return tasks.filter(task => !task.done && (!task.scheduledDate || task.scheduledDate >= today));
+}
+
+/**
+ * Resolves the active task list for the device's current local calendar day.
+ *
+ * KAN-363 deliberately does no date mutation here. Legacy `date` fields are
+ * ignored, so pre-existing tasks remain active. Only an explicit
+ * `scheduledDate` hides an incomplete task after its selected day has passed.
+ */
+export async function ensureCurrentDay(
+  uid: string,
+  today: string = todayISO(),
+): Promise<CurrentDayTasks> {
+  const activeQuery = query(
     tasksRef(uid),
     where('done', '==', false),
-    where('date', '<', today),
+    orderBy('createdAt', 'asc'),
   );
-  const snap = await getDocs(q);
-  if (snap.empty) { return; }
+  const snap = await getDocs(activeQuery);
+  const tasks = sortTasksByCreatedAt(filterActiveTasksForDate(mapSnapshotDocs<Task>(snap), today));
 
-  await commitInChunks(snap.docs, (batch, d) => {
-    const existing = d.data() as Task;
-    if (existing.kind === 'birthday') {
-      batch.delete(d.ref);
-    } else {
-      batch.update(d.ref, {
-        date:       today,
-        createdAt:  Timestamp.now(),
-        originDate: existing.originDate ?? existing.date,
-      });
-    }
-  });
+  return { tasks, persistence: Promise.resolve() };
+}
+
+/** One live active-task query; date eligibility stays client-side for legacy undated tasks. */
+export function subscribeToActiveTasks(
+  uid: string,
+  today: string,
+  onNext: (tasks: Task[]) => void,
+  onError: (error: Error) => void,
+): () => void {
+  return onSnapshot(
+    query(tasksRef(uid), where('done', '==', false), orderBy('createdAt', 'asc')),
+    { includeMetadataChanges: false },
+    snapshot => onNext(sortTasksByCreatedAt(filterActiveTasksForDate(mapSnapshotDocs<Task>(snapshot), today))),
+    onError,
+  );
+}
+
+/**
+ * @deprecated KAN-363 removed rollover. Kept as a no-op compatibility export
+ * while callers move to ensureCurrentDay's active-list query.
+ */
+export async function rolloverIncompleteTasks(_uid: string, _today: string = todayISO()): Promise<void> {
+  return Promise.resolve();
 }
 
 /**
@@ -221,18 +287,17 @@ export async function getTasksForMonth(uid: string, yearMonth: string): Promise<
   // First day of next month as exclusive upper bound (ISO string comparison works)
   const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, '0')}-01`;
 
-  // KAN-264 review fix — a task that rolled across a month boundary (e.g. due
-  // June 30, still undone into July) has `date` pointing at the new month but
-  // `originDate` still pointing at this one. CalendarScreen attributes it to
-  // `originDate ?? date`, so it needs to be fetched here too, or it silently
-  // vanishes from its origin month. Two separate range queries (rather than
-  // a single `or()` composite) to avoid requiring a new composite index.
-  const [byDate, byOriginDate] = await Promise.all([
+  // New tasks use scheduledDate. The two legacy fields remain queried solely
+  // so existing documents continue to appear without a destructive migration.
+  // Separate range queries avoid a broad `or()` composite index.
+  const [byScheduledDate, byDate, byOriginDate] = await Promise.all([
+    getDocs(query(tasksRef(uid), where('scheduledDate', '>=', start), where('scheduledDate', '<', nextMonth))),
     getDocs(query(tasksRef(uid), where('date', '>=', start), where('date', '<', nextMonth))),
     getDocs(query(tasksRef(uid), where('originDate', '>=', start), where('originDate', '<', nextMonth))),
   ]);
 
   const byId = new Map<string, Task>();
+  for (const t of mapSnapshotDocs<Task>(byScheduledDate)) { byId.set(t.id, t); }
   for (const t of mapSnapshotDocs<Task>(byDate))       { byId.set(t.id, t); }
   for (const t of mapSnapshotDocs<Task>(byOriginDate)) { byId.set(t.id, t); }
   return [...byId.values()];
@@ -264,12 +329,13 @@ export async function setTaskDone(
   taskId: string,
   done: boolean,
   completedPlace?: { placeId: string; name: string; poiType: string },
+  completedTripId?: string,
 ): Promise<void> {
   const hasPlace    = done && !!completedPlace;
   const nextPlaceId = hasPlace ? completedPlace!.placeId : undefined;
   const db   = getFirestore();
   const tRef = taskRef(uid, taskId);
-  const taskPatch = buildTaskDonePatch(done, completedPlace);
+  const taskPatch = buildTaskDonePatch(done, completedPlace, completedTripId);
 
   try {
     await runTransaction(db, async (tx) => {
@@ -314,6 +380,7 @@ export async function setTaskDone(
     console.warn('[tasks] setTaskDone transaction failed, falling back to offline batch update', error);
     await applyTaskDoneOfflineFallback(uid, taskId, taskPatch, done, completedPlace);
   }
+  markTasksDirty();
 }
 
 /** Update any mutable fields on a task (title, category, time, poi, date…). */
@@ -323,11 +390,13 @@ export async function updateTask(
   data: Partial<Omit<Task, 'id' | 'createdAt'>>,
 ): Promise<void> {
   await updateDoc(taskRef(uid, taskId), data);
+  markTasksDirty();
 }
 
 /** Permanently delete a task. */
 export async function deleteTask(uid: string, taskId: string): Promise<void> {
   await deleteDoc(taskRef(uid, taskId));
+  markTasksDirty();
 }
 
 /**
@@ -415,6 +484,17 @@ export async function getWeeklyCompletedCount(uid: string): Promise<number> {
 export async function getLearnedPlaceCounts(uid: string): Promise<LearnedPlace[]> {
   const snap = await getDocs(learnedPlaceCountsRef(uid));
   return mapSnapshotDocs<LearnedPlace>(snap, 'placeId');
+}
+
+/**
+ * KAN-304 — forget a learned brand: delete every per-place-id visit tally that
+ * shares this (POI type, name), across branches. The brand may re-learn later
+ * if the user keeps brushing there; that's fine.
+ */
+export async function removeLearnedBrand(uid: string, poiType: string, name: string): Promise<void> {
+  const counts = await getLearnedPlaceCounts(uid);
+  const matches = counts.filter(c => c.poiType === poiType && c.name === name);
+  await Promise.all(matches.map(c => deleteDoc(learnedPlaceCountRef(uid, c.placeId))));
 }
 
 /**

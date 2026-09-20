@@ -19,6 +19,7 @@ jest.mock('@react-native-community/netinfo', () => ({
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
 jest.mock('../../src/services/habitatCache');
+jest.mock('../../src/services/proximitySnapshot');
 
 const mockGetCurrentPositionAsync = jest.fn();
 const mockOnUpdate = jest.fn();
@@ -44,16 +45,24 @@ jest.mock('../../src/services/maps', () => ({
   getDistanceMeters: jest.fn(() => 0),
   searchNearbyPlaces: (...args: unknown[]) => mockSearchNearbyPlaces(...args),
   placeTypeLabel: jest.fn((t: string) => t),
+  isPoiSearchDegraded: jest.fn(() => true),
 }));
 
+// KAN-342: searchNearbyPlaces now resolves { results, source, coverageStatus? }
+// instead of a bare Record<string, NearbyPlace[]>.
+function mockSearchResults(results: Record<string, unknown>) {
+  mockSearchNearbyPlaces.mockResolvedValue({ results, source: 'osm' });
+}
+
 jest.mock('@notifee/react-native', () => ({
+  __esModule: true,
   default: { createChannel: jest.fn(), displayNotification: jest.fn() },
   AndroidImportance: { HIGH: 4 },
 }));
 
 jest.mock('../../src/services/firestore', () => ({
-  markAllPoiAlertsSeen: jest.fn(),
-  markExitPromptSeen: jest.fn(),
+  markAllPoiAlertsSeen: jest.fn().mockResolvedValue(undefined),
+  markExitPromptSeen: jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/notifications', () => ({
@@ -74,22 +83,24 @@ const makePosition = (lat: number, lng: number) => ({
   timestamp: 1_700_000_000,
 });
 
-const makeTask = (id: string, poi: string): Task => ({
+const makeTask = (id: string, poi: string, title: string = `Task ${id}`, poiBrand?: string): Task => ({
   id,
-  title: `Task ${id}`,
+  title,
   category: 'errands',
   done: false,
   date: '2026-06-27',
   poi: poi as Task['poi'],
+  ...(poiBrand ? { poiBrand } : {}),
   createdAt: { seconds: 0, nanoseconds: 0 } as unknown as Task['createdAt'],
 });
 
-const makePlace = (placeId: string, name: string, distanceMeters: number) => ({
+const makePlace = (placeId: string, name: string, distanceMeters: number, brand?: string) => ({
   placeId,
   name,
   lat: 38.7,
   lng: -9.1,
   distanceMeters,
+  ...(brand ? { brand } : {}),
 });
 
 describe('runProximitySearch — multiple results per type', () => {
@@ -105,7 +116,7 @@ describe('runProximitySearch — multiple results per type', () => {
       makePlace('ph2', 'CVS', 150),
       makePlace('ph3', 'Rite Aid', 300),
     ];
-    mockSearchNearbyPlaces.mockResolvedValue({ pharmacy: pharmacies });
+    mockSearchResults({ pharmacy: pharmacies })
 
     const tasks = [makeTask('t1', 'pharmacy')];
     await runProximitySearch('uid-1', tasks, mockOnUpdate);
@@ -122,7 +133,7 @@ describe('runProximitySearch — multiple results per type', () => {
       makePlace('atm1', 'Chase ATM', 40),
       makePlace('atm2', 'Wells ATM', 80),
     ];
-    mockSearchNearbyPlaces.mockResolvedValue({ atm: atms });
+    mockSearchResults({ atm: atms })
 
     const tasks = [makeTask('t1', 'atm')];
     await runProximitySearch('uid-1', tasks, mockOnUpdate);
@@ -134,12 +145,81 @@ describe('runProximitySearch — multiple results per type', () => {
 
   it('does not store types where nearest place is outside NEARBY_RADIUS (400m)', async () => {
     const farCafe = [makePlace('c1', 'Remote Cafe', 450)];
-    mockSearchNearbyPlaces.mockResolvedValue({ cafe: farCafe });
+    mockSearchResults({ cafe: farCafe })
 
     const tasks = [makeTask('t1', 'cafe')];
     await runProximitySearch('uid-1', tasks, mockOnUpdate);
 
     const [, , allPlaces] = mockOnUpdate.mock.calls[0];
     expect(allPlaces.cafe).toBeUndefined();
+  });
+
+  it('keeps restaurant food-intent tasks matched to the bundled restaurant list', async () => {
+    const restaurants = [
+      makePlace('r1', 'Portugália', 30),
+      makePlace('r2', 'Yakuza by Olivier', 80),
+    ];
+    mockSearchResults({ restaurant: restaurants })
+
+    await runProximitySearch('uid-1', [
+      makeTask('t1', 'restaurant', 'Go out to sushi'),
+    ], mockOnUpdate);
+
+    const [heroType, heroPlace, allPlaces] = mockOnUpdate.mock.calls[0];
+    expect(heroType).toBe('restaurant');
+    expect(heroPlace?.name).toBe('Yakuza by Olivier');
+    expect(allPlaces.restaurant).toEqual([restaurants[1]]);
+  });
+
+  it('preserves candidates for simultaneous restaurant food-intent tasks', async () => {
+    const restaurants = [
+      makePlace('r1', 'Portugália', 30),
+      makePlace('r2', 'Yakuza by Olivier', 80),
+    ];
+    mockSearchResults({ restaurant: restaurants })
+
+    await runProximitySearch('uid-1', [
+      makeTask('t1', 'restaurant', 'Go out to sushi'),
+      makeTask('t2', 'restaurant', 'Comer comida portuguesa'),
+    ], mockOnUpdate);
+
+    const [heroType, heroPlace, allPlaces] = mockOnUpdate.mock.calls[0];
+    expect(heroType).toBe('restaurant');
+    expect(heroPlace?.name).toBe('Portugália');
+    expect(allPlaces.restaurant).toEqual(restaurants);
+  });
+
+  it('does not show an unrelated restaurant for a food-intent restaurant task', async () => {
+    mockSearchResults({
+      restaurant: [makePlace('r1', 'Portugália', 30)],
+    })
+
+    await runProximitySearch('uid-1', [
+      makeTask('t1', 'restaurant', 'Go out to sushi'),
+    ], mockOnUpdate);
+
+    const [heroType, heroPlace, allPlaces] = mockOnUpdate.mock.calls[0];
+    expect(heroType).toBeNull();
+    expect(heroPlace).toBeNull();
+    expect(allPlaces.restaurant).toBeUndefined();
+  });
+
+  it('keeps only the task’s canonical Gym brand and sends it to the API', async () => {
+    const solinca = makePlace('gym-1', 'Solinca Alcobaça', 50, 'Solinca');
+    const fitnessHut = makePlace('gym-2', 'Fitness Hut', 25, 'Fitness Hut');
+    mockSearchResults({ gym: [fitnessHut, solinca] });
+
+    await runProximitySearch('uid-1', [
+      makeTask('t1', 'gym', 'Go to Solinca', 'Solinca'),
+    ], mockOnUpdate);
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      expect.any(Number), expect.any(Number), ['gym'], expect.any(Number),
+      [{ key: 'gym:brand:Solinca', type: 'gym', brand: 'Solinca' }],
+    );
+    const [heroType, heroPlace, allPlaces] = mockOnUpdate.mock.calls[0];
+    expect(heroType).toBe('gym');
+    expect(heroPlace?.placeId).toBe('gym-1');
+    expect(allPlaces.gym).toEqual([solinca]);
   });
 });

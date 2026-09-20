@@ -9,8 +9,10 @@
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react-native';
+import { fireEvent, render, screen } from '@testing-library/react-native';
+import { Dimensions, ScrollView, Text, View as RNView } from 'react-native';
 import NearbyCard from '../../src/components/NearbyCard';
+import { spacing } from '../../src/theme/tokens';
 import type { Task } from '../../src/types';
 import { Timestamp } from '@react-native-firebase/firestore';
 import { COPY, setCopyLanguage } from '../../src/constants/copy';
@@ -30,11 +32,11 @@ jest.mock('../../src/theme', () => ({
 }));
 
 jest.mock('react-native-reanimated', () => {
-  const { View, Text } = require('react-native');
+  const { View, Text: RNText } = require('react-native');
   const noop = () => {};
   return {
     __esModule: true,
-    default:          { View, Text, createAnimatedComponent: (c: unknown) => c },
+    default:          { View, Text: RNText, createAnimatedComponent: (c: unknown) => c },
     useSharedValue:   (v: unknown) => ({ value: v }),
     useAnimatedStyle: () => ({}),
     cancelAnimation:  noop,
@@ -168,7 +170,7 @@ describe('NearbyCard — hero state', () => {
     expect(screen.getByText('Pick up prescription')).toBeTruthy();
   });
 
-  it('renders the "Open in Maps" CTA button when place is known', () => {
+  it('renders the localized Maps CTA button when place is known', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -176,10 +178,11 @@ describe('NearbyCard — hero state', () => {
         poiPlaces={PLACES_MAP}
       />,
     );
-    expect(screen.getByLabelText('Open Whole Foods in Maps')).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.openInMaps)).toBeTruthy();
+    expect(screen.getByLabelText(COPY.nearbyCard.openInMapsA11y('Whole Foods'))).toBeTruthy();
   });
 
-  it('omits the "Open in Maps" CTA when no place is available', () => {
+  it('omits the Maps CTA when no place is available', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -187,7 +190,7 @@ describe('NearbyCard — hero state', () => {
         poiPlaces={EMPTY_PLACES}
       />,
     );
-    expect(screen.queryByText('Open in Maps')).toBeNull();
+    expect(screen.queryByText(COPY.nearbyCard.openInMaps)).toBeNull();
   });
 });
 
@@ -195,7 +198,7 @@ describe('NearbyCard — also close section', () => {
   beforeEach(() => { setCopyLanguage('en'); });
   afterEach(() => { setCopyLanguage('en'); });
 
-  it('renders "ALSO CLOSE" label and the secondary task title', () => {
+  it('renders the localized also-close label and the secondary task title', () => {
     const heroTask  = makeTask({ id: 'hero', poi: 'pharmacy' });
     const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Buy groceries' });
 
@@ -208,11 +211,30 @@ describe('NearbyCard — also close section', () => {
       />,
     );
 
-    expect(screen.getByText('ALSO CLOSE')).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.alsoClose.toUpperCase())).toBeTruthy();
     expect(screen.getByText('Buy groceries')).toBeTruthy();
   });
 
-  it('does not render "ALSO CLOSE" when only one POI task exists', () => {
+  it('orders also-close rows by proximity instead of task order', () => {
+    const farther = makeTask({ id: 'farther', poi: 'supermarket', title: 'Buy groceries' });
+    const nearer = makeTask({ id: 'nearer', poi: 'atm', title: 'Get cash' });
+
+    render(
+      <NearbyCard
+        tasks={[farther, nearer]}
+        nearbyPoiType={null}
+        poiPlaces={{
+          supermarket: [{ ...GREY_PLACE, name: 'Far market', distanceMeters: 240 }],
+          atm: [{ ...GREY_PLACE, placeId: 'atm-place', name: 'Near ATM', distanceMeters: 140 }],
+        }}
+      />,
+    );
+
+    const renderedText = screen.UNSAFE_getAllByType(Text).map(node => node.props.children).flat().join(' ');
+    expect(renderedText.indexOf('Get cash')).toBeLessThan(renderedText.indexOf('Buy groceries'));
+  });
+
+  it('does not render the also-close label when only one POI task exists', () => {
     render(
       <NearbyCard
         tasks={[makeTask()]}
@@ -220,7 +242,7 @@ describe('NearbyCard — also close section', () => {
         poiPlaces={PLACES_MAP}
       />,
     );
-    expect(screen.queryByText('ALSO CLOSE')).toBeNull();
+    expect(screen.queryByText(COPY.nearbyCard.alsoClose.toUpperCase())).toBeNull();
   });
 });
 
@@ -249,6 +271,50 @@ describe('NearbyCard — hero carousel page indicator', () => {
     expect(screen.getAllByTestId('nearby-page-dot')).toHaveLength(1);
   });
 
+  it('orders hero slides by proximity instead of task order', () => {
+    const fartherHero = makeTask({ id: 'farther', poi: 'pharmacy', title: 'Pick up prescription' });
+    const nearerHero = makeTask({ id: 'nearer', poi: 'supermarket', title: 'Buy groceries' });
+
+    render(
+      <NearbyCard
+        tasks={[fartherHero, nearerHero]}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy: [{ ...NEARBY_PLACE, name: 'Far pharmacy', distanceMeters: 90 }],
+          supermarket: [{ ...NEARBY_PLACE, placeId: 'market-place', name: 'Near market', distanceMeters: 40 }],
+        }}
+      />,
+    );
+
+    const renderedText = screen.UNSAFE_getAllByType(Text).map(node => node.props.children).flat().join(' ');
+    expect(renderedText.indexOf('Buy groceries')).toBeLessThan(renderedText.indexOf('Pick up prescription'));
+  });
+
+  it('keeps simultaneous restaurant food-intent hero slides on their matching places', () => {
+    const sushiTask = makeTask({ id: 'sushi', poi: 'restaurant', title: 'Go out to sushi' });
+    const portugueseTask = makeTask({ id: 'portuguese', poi: 'restaurant', title: 'Comer comida portuguesa' });
+
+    render(
+      <NearbyCard
+        tasks={[sushiTask, portugueseTask]}
+        nearbyPoiType="restaurant"
+        poiPlaces={{
+          restaurant: [
+            { ...NEARBY_PLACE, placeId: 'portugal-place', name: 'Portugália', distanceMeters: 30 },
+            { ...NEARBY_PLACE, placeId: 'sushi-place', name: 'Yakuza by Olivier', distanceMeters: 80 },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText('Go out to sushi')).toBeTruthy();
+    expect(screen.getByText('Comer comida portuguesa')).toBeTruthy();
+    expect(screen.getByTestId('nearby-page-dots')).toBeTruthy();
+    expect(screen.getAllByTestId('nearby-page-dot-active')).toHaveLength(1);
+    expect(screen.getAllByTestId('nearby-page-dot')).toHaveLength(1);
+    expect(screen.queryByText(COPY.nearbyCard.tryAnotherPlace)).toBeNull();
+  });
+
   it('renders no page dots when there is only a single hero slide', () => {
     render(
       <NearbyCard
@@ -258,6 +324,145 @@ describe('NearbyCard — hero carousel page indicator', () => {
       />,
     );
     expect(screen.queryByTestId('nearby-page-dots')).toBeNull();
+  });
+});
+
+describe('NearbyCard — carousel rewind when the hero set shrinks (KAN-327)', () => {
+  beforeEach(() => { setCopyLanguage('en'); });
+  afterEach(() => { setCopyLanguage('en'); jest.restoreAllMocks(); });
+
+  const slideWidth = Dimensions.get('window').width - spacing.page * 2;
+
+  const THREE_HERO_TASKS = [
+    makeTask({ id: 'a', poi: 'pharmacy',    title: 'Pick up prescription' }),
+    makeTask({ id: 'b', poi: 'supermarket', title: 'Buy groceries' }),
+    makeTask({ id: 'c', poi: 'atm',         title: 'Withdraw cash' }),
+  ];
+
+  const THREE_HERO_PLACES = {
+    pharmacy:    [{ ...NEARBY_PLACE, placeId: 'p-1', name: 'Pharmacy',    distanceMeters: 30 }],
+    supermarket: [{ ...NEARBY_PLACE, placeId: 'p-2', name: 'Supermarket', distanceMeters: 60 }],
+    atm:         [{ ...NEARBY_PLACE, placeId: 'p-3', name: 'ATM',         distanceMeters: 90 }],
+  };
+
+  // Swipes the carousel to the slide at `index` by settling its scroll offset.
+  const settleOnSlide = (index: number) => {
+    fireEvent(
+      screen.UNSAFE_getAllByType(ScrollView)[0],
+      'momentumScrollEnd',
+      { nativeEvent: { contentOffset: { x: slideWidth * index } } },
+    );
+  };
+
+  it('rewinds the carousel to the first slide when hero slides disappear', () => {
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+
+    const { rerender } = render(
+      <NearbyCard tasks={THREE_HERO_TASKS} nearbyPoiType="pharmacy" poiPlaces={THREE_HERO_PLACES} />,
+    );
+    expect(screen.getAllByTestId('nearby-page-dot')).toHaveLength(2); // 3 slides, 1 active
+
+    settleOnSlide(2);
+    scrollTo.mockClear();
+
+    // Two of the three places drop out of the hero zone.
+    rerender(
+      <NearbyCard
+        tasks={THREE_HERO_TASKS}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{ pharmacy: THREE_HERO_PLACES.pharmacy }}
+      />,
+    );
+
+    expect(scrollTo).toHaveBeenCalledWith({ x: 0, animated: false });
+  });
+
+  it('keeps the first dot active after the hero set shrinks', () => {
+    jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+
+    const { rerender } = render(
+      <NearbyCard tasks={THREE_HERO_TASKS} nearbyPoiType="pharmacy" poiPlaces={THREE_HERO_PLACES} />,
+    );
+
+    settleOnSlide(2);
+
+    rerender(
+      <NearbyCard
+        tasks={THREE_HERO_TASKS}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy:    THREE_HERO_PLACES.pharmacy,
+          supermarket: THREE_HERO_PLACES.supermarket,
+        }}
+      />,
+    );
+
+    // Two slides remain; the active dot must be the first one, not a stale index 2.
+    const dots = screen.UNSAFE_getAllByType(RNView).filter(
+      n => typeof n.props.testID === 'string' && n.props.testID.startsWith('nearby-page-dot') && n.props.testID !== 'nearby-page-dots',
+    );
+    expect(dots).toHaveLength(2);
+    expect(dots[0].props.testID).toBe('nearby-page-dot-active');
+    expect(dots[1].props.testID).toBe('nearby-page-dot');
+  });
+
+  it('rewinds when the slide set changes without changing length', () => {
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+
+    // The bank task is present in both renders; only its place comes and goes,
+    // so the supermarket slide is swapped for a bank one at the same count.
+    const tasks = [...THREE_HERO_TASKS, makeTask({ id: 'd', poi: 'bank', title: 'Pay the fee' })];
+
+    const { rerender } = render(
+      <NearbyCard tasks={tasks} nearbyPoiType="pharmacy" poiPlaces={THREE_HERO_PLACES} />,
+    );
+    expect(screen.getAllByTestId('nearby-page-dot')).toHaveLength(2); // 3 slides
+
+    settleOnSlide(1);
+    scrollTo.mockClear();
+
+    // Same slide count, different POI types — the old offset would land on an
+    // unrelated task's card.
+    rerender(
+      <NearbyCard
+        tasks={tasks}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy: THREE_HERO_PLACES.pharmacy,
+          atm:      THREE_HERO_PLACES.atm,
+          bank:     [{ ...NEARBY_PLACE, placeId: 'p-4', name: 'Bank', distanceMeters: 50 }],
+        }}
+      />,
+    );
+
+    expect(screen.getAllByTestId('nearby-page-dot')).toHaveLength(2); // still 3 slides
+    expect(scrollTo).toHaveBeenCalledWith({ x: 0, animated: false });
+  });
+
+  it('does not rewind when the hero slides are unchanged', () => {
+    const scrollTo = jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+
+    const { rerender } = render(
+      <NearbyCard tasks={THREE_HERO_TASKS} nearbyPoiType="pharmacy" poiPlaces={THREE_HERO_PLACES} />,
+    );
+
+    settleOnSlide(2);
+    scrollTo.mockClear();
+
+    // Distances move, but the same tasks stay in the hero zone in the same order.
+    rerender(
+      <NearbyCard
+        tasks={THREE_HERO_TASKS}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy:    [{ ...THREE_HERO_PLACES.pharmacy[0],    distanceMeters: 35 }],
+          supermarket: [{ ...THREE_HERO_PLACES.supermarket[0], distanceMeters: 65 }],
+          atm:         [{ ...THREE_HERO_PLACES.atm[0],         distanceMeters: 95 }],
+        }}
+      />,
+    );
+
+    expect(scrollTo).not.toHaveBeenCalled();
   });
 });
 
@@ -291,5 +496,27 @@ describe('NearbyCard — pt-PT localization', () => {
     );
 
     expect(screen.getByText(COPY.nearbyCard.placesCount(2))).toBeTruthy();
+  });
+
+  it('localizes the hero actions and also-close label', () => {
+    const heroTask = makeTask({ id: 'hero', poi: 'pharmacy' });
+    const alsoClose = makeTask({ id: 'also', poi: 'supermarket', title: 'Comprar pão' });
+    const secondPharmacy = { ...NEARBY_PLACE, placeId: 'place-2', name: 'Farmácia Central', distanceMeters: 70 };
+
+    render(
+      <NearbyCard
+        tasks={[heroTask, alsoClose]}
+        nearbyPoiType="pharmacy"
+        poiPlaces={{
+          pharmacy: [NEARBY_PLACE, secondPharmacy],
+          supermarket: [GREY_PLACE],
+        }}
+      />,
+    );
+
+    expect(screen.getByText(COPY.nearbyCard.openInMaps)).toBeTruthy();
+    expect(screen.getByLabelText(COPY.nearbyCard.openInMapsA11y('Whole Foods'))).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.tryAnotherPlace)).toBeTruthy();
+    expect(screen.getByText(COPY.nearbyCard.alsoClose.toUpperCase())).toBeTruthy();
   });
 });

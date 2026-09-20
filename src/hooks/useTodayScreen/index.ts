@@ -20,7 +20,7 @@
 
 import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
-import { setLearnedPlaces, setCustomCategoryPoiTypes } from '../../services/proximity';
+import { setLearnedPlaces } from '../../services/proximity';
 import type { PlacesMap, PlaceContext } from '../../services/proximity';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
@@ -29,6 +29,7 @@ import { useTaskCompletion } from './useTaskCompletion';
 import { useLearnedPlaces } from './useLearnedPlaces';
 import { useErrandBundle } from '../useErrandBundle';
 import type { ErrandBundle } from '../../services/errandBundles';
+import type { ClusterLeisureSuggestion } from '../../services/clusterLeisure';
 import { useFirstSessionGate } from './useFirstSessionGate';
 import { useTripSuggestion } from './useTripSuggestion';
 import type { CalendarSuggestion } from '../../services/tripSuggestions';
@@ -39,19 +40,23 @@ export interface TodayScreenState {
   tasks:            Task[];
   /** True while the initial data fetch is in-flight. */
   isLoading:        boolean;
-  /** True while a pull-to-refresh fetch is in-flight. */
+  /** True while an explicit data refresh is in-flight. */
   isRefreshing:     boolean;
   /** Non-null when the fetch failed. Cleared on next successful fetch. */
   error:            string | null;
-  /** Call to re-run the full data fetch (pull-to-refresh, error retry, or after task creation). */
-  refresh:          () => void;
+  /** Call to re-run the full data fetch (error retry, focus refresh, or after task creation). Awaitable. */
+  refresh:          () => Promise<void>;
+  /** Ensures the displayed task day advances after a local midnight. */
+  ensureCurrentDay: () => Promise<void>;
   /** Active nearby POI type from the proximity engine. Null when none nearby. */
   nearbyPoiType:    string | null;
   nearbyPlace:      NearbyPlace | null;
   /** Nearest known place per POI type — drives NearbyCard "Also close" rows. */
   poiPlaces:        PlacesMap;
-  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip. */
+  /** Mall/trip context for the last position fix (KAN-242) — feeds the Lantern. */
   placeContext:     PlaceContext;
+  /** Last settled-search position (KAN-301) — feeds the Lantern's home/outside resolution. Null before any fix. */
+  coords:           { lat: number; lng: number } | null;
   storeTuningActive:        boolean;
   showStoreTuningPrompt:    boolean;
   onStoreTuningTurnOn:      () => void;
@@ -72,12 +77,18 @@ export interface TodayScreenState {
   handleToggle: (taskId: string, done: boolean) => Promise<void>;
   /** True when location permission has been granted. */
   permissionGranted: boolean;
+  /** True once the Nearby list reflects a real, settled outcome — see
+   *  ProximityEngine.nearbyReady. Anything derived from poiPlaces (far-away
+   *  arrows, "one trip for all of these") must gate on this. */
+  nearbyReady: boolean;
   /** Re-runs the proximity search immediately — useful for a manual "refresh location" tap. */
   refreshProximity: () => Promise<boolean>;
   /** True when the last proximity search failed because the device GPS toggle is off. */
   locationUnavailable: boolean;
   /** Top-ranked errand bundle (KAN-235), or null when none exists / all are dismissed for today. */
   errandBundle: ErrandBundle | null;
+  /** KAN-293 — a leisure place among the current bundle's stops, or null. */
+  errandBundleLeisure: ClusterLeisureSuggestion | null;
   /** Hides the current errandBundle for the rest of the day. */
   dismissErrandBundle: () => void;
   /** Contextual trip suggestion (KAN-245 calendar signal), or null when none qualifies / already dismissed / first session. */
@@ -116,17 +127,15 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
 
   // Pure computation over data useProximityEngine already holds each tick
   // (KAN-235) — no new timer, no new location subscription.
-  const { bundle: errandBundle, dismiss: dismissErrandBundle } = useErrandBundle(data.tasks, proximity.poiPlaces);
+  const {
+    bundle: errandBundle,
+    leisure: errandBundleLeisure,
+    dismiss: dismissErrandBundle,
+  } = useErrandBundle(data.tasks, proximity.poiPlaces);
 
   useEffect(() => {
     setLearnedPlaces(learnedPlaces);
   }, [learnedPlaces]);
-
-  useEffect(() => {
-    setCustomCategoryPoiTypes(
-      data.customCategories.map(c => c.poi).filter((poi): poi is string => !!poi),
-    );
-  }, [data.customCategories]);
 
   // setActiveTrips/setMallSnapshot (KAN-237) are fed synchronously from
   // useTodayScreenData's loadData, not from an effect here — see that file
@@ -139,7 +148,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   // what's actually in Firestore.
   const handleToggle = useCallback(async (taskId: string, done: boolean) => {
     await handleToggleInner(taskId, done);
-    void refreshLearnedPlaces();
+    refreshLearnedPlaces().catch(() => undefined);
   }, [handleToggleInner, refreshLearnedPlaces]);
 
   // Birthday tasks (KAN-248) are unscored — excluded from the ring/progress
@@ -149,7 +158,18 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
   const totalTasks  = scorableTasks.length;
   const doneTasks   = scorableTasks.filter(t => t.done).length;
   const progress    = totalTasks > 0 ? doneTasks / totalTasks : 0;
-  const nearbyCount = data.tasks.filter(t => t.poi).length;
+  // KAN-287 — "N Nearby" in the ring caption counts tasks the user could
+  // actually act on right now: still open, AND their POI type resolved at
+  // least one place this tick. It previously counted every task carrying a
+  // POI type, done or not, resolved or not — so for a user whose tasks are
+  // all location-tagged it simply mirrored the total.
+  //
+  // The `poiPlaces[...]` test is deliberately the same one TaskRow uses for
+  // its `isFar` flag, so the caption can never disagree with the rows
+  // underneath it: a task counted here is exactly a task not shown as far.
+  const nearbyCount = data.tasks.filter(
+    t => !t.done && !!t.poi && (proximity.poiPlaces[t.poi]?.length ?? 0) > 0,
+  ).length;
 
   return {
     tasks: data.tasks,
@@ -157,10 +177,12 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     isRefreshing: data.isRefreshing,
     error: data.error,
     refresh: data.refresh,
+    ensureCurrentDay: data.ensureCurrentDay,
     nearbyPoiType: proximity.nearbyPoiType,
     nearbyPlace: proximity.nearbyPlace,
     poiPlaces: proximity.poiPlaces,
     placeContext: proximity.placeContext,
+    coords: proximity.coords,
     storeTuningActive:     proximity.storeTuningActive,
     showStoreTuningPrompt: proximity.showStoreTuningPrompt,
     onStoreTuningTurnOn: proximity.onStoreTuningTurnOn,
@@ -175,9 +197,11 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     socialUnreadCount: data.socialUnreadCount,
     handleToggle,
     permissionGranted: proximity.permissionGranted,
+    nearbyReady: proximity.nearbyReady,
     refreshProximity: proximity.refreshProximity,
     locationUnavailable: proximity.locationUnavailable,
     errandBundle,
+    errandBundleLeisure,
     dismissErrandBundle,
     tripSuggestion,
     dismissTripSuggestion,

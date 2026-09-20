@@ -1,17 +1,17 @@
 /**
- * KAN-238 — habitat cache prefetch: all POI types, not just open-task types.
+ * KAN-238/KAN-317 — habitat cache prefetch: curated POI allowlist, not just open-task types.
  *
  * Covers:
- *   - refreshHabitatCacheIfStale is fed ALL_POI_TYPES (all 16 built-ins),
- *     not just this tick's uniquePoiTypes derived from open tasks — so a
- *     task created later for a never-before-seen type still finds cached
- *     candidates offline
- *   - the user's custom category place types (setCustomCategoryPoiTypes)
- *     are folded into the same prefetch list, deduped against the built-ins
+ *   - refreshHabitatCacheIfStale is fed the 16 built-ins plus the curated
+ *     supported place types, not just this tick's uniquePoiTypes derived from
+ *     open tasks — so a task created later for a never-before-seen type still
+ *     finds cached candidates offline
  *   - the live Places search and queryHabitatCache (the read/query side)
  *     stay filtered to this tick's actual open-task types, unchanged
- *   - setCustomCategoryPoiTypes(null) / resetProximityState() clear the
- *     custom types back to just the 16 built-ins
+ *
+ * KAN-371 removed the custom-category cases from this file: categories no
+ * longer carry a place type, so setCustomCategoryPoiTypes and the widening it
+ * did are gone. The prefetch list is now the curated baseline, always.
  */
 
 jest.mock('@react-native-community/netinfo', () =>
@@ -31,6 +31,8 @@ jest.mock('../../src/services/habitatCache', () => ({
   findExistingPlaceId:        (...args: unknown[]) => mockFindExistingPlaceId(...args),
   hasCachedPlaces:            (...args: unknown[]) => mockHasCachedPlaces(...args),
 }));
+
+jest.mock('../../src/services/proximitySnapshot');
 
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
@@ -78,21 +80,58 @@ jest.mock('../../src/constants/copy', () => ({
       proximityTitle: (label: string) => `You're near ${label}`,
       proximityBody:  (count: number) => `${count} task(s) nearby`,
     },
-    offline: { genericBanner: '', noCacheYetBanner: '', uncoveredAreaToast: '' },
+    offline: { genericBanner: '', uncoveredAreaToast: '' },
+    // poiCatalogLabel() reads this; a Proxy keeps the stub from having to
+    // enumerate all 16 built-in types (plus shopping_mall) by hand.
+    poiCatalog: new Proxy({}, { get: (_t, key) => String(key) }),
   },
 }));
 
 const mockFetch = jest.fn();
 global.fetch = mockFetch as unknown as typeof fetch;
 
+// proximity imports maps.ts, which transitively pulls in placesFunctions ->
+// @react-native-firebase/functions, a native module unavailable under Jest.
+// Mock ONLY that native boundary so maps.ts's real helpers still load.
+// The live Places search goes through the Cloud Function proxy, not raw
+// fetch — mock it here (it also pulls in @react-native-firebase/functions, a
+// native module unavailable under Jest). Resolves a well-formed empty
+// response by default: maps.ts reads `.places` off it.
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
+const mockCloudflarePoiAllProxy = jest.fn();
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   (...args: unknown[]) => mockCloudflarePoiAllProxy(...args),
+  cloudflareRequestCoverageProxy: jest.fn(),
+}));
+// KAN-342: live search is Cloudflare-first, OSM-failsafe — Google is no
+// longer part of searchNearbyPlaces's path. cloudflareCoverageProxy above
+// is left unconfigured (rejects to undefined -> caught -> falls through),
+// so live-search fixtures are injected via the OSM mock instead.
+const mockSearchOsmPlaces = jest.fn();
+jest.mock('../../src/services/osmPlaces', () => ({
+  searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlaces(...args),
+}));
+
+jest.mock('../../src/services/reverseGeocodeCache', () => ({
+  getCachedReverseGeocode: jest.fn(),
+  setCachedReverseGeocode: jest.fn(),
+  __resetReverseGeocodeCacheForTests: jest.fn(),
+}));
+
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import {
   runProximitySearch,
   resetProximityState,
-  setCustomCategoryPoiTypes,
+  getLastPoiSearchState,
 } from '../../src/services/proximity';
-import { ALL_POI_TYPES } from '../../src/types';
+import { ALL_POI_TYPES, CLUSTER_LEISURE_TYPES } from '../../src/types';
+import { SUPPORTED_GOOGLE_PLACE_TYPES } from '../../src/constants/googlePlaceTypes';
 import type { Task } from '../../src/types';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -114,17 +153,16 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 function mockAtmSearchResponse() {
-  mockFetch.mockResolvedValueOnce({
-    ok:   true,
-    json: async () => ({
-      places: [{ id: 'atm-1', displayName: { text: 'Corner ATM' }, location: { latitude: 0.0002, longitude: 0 }, types: ['atm'] }],
-    }),
+  mockSearchOsmPlaces.mockResolvedValueOnce({
+    atm: [{ osmId: 'atm-1', name: 'Corner ATM', isGenericName: false, lat: 0.0002, lng: 0, distanceMeters: 22, footprintAreaM2: 0 }],
   });
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockFetch.mockReset();
+  mockSearchOsmPlaces.mockReset();
+  mockSearchOsmPlaces.mockResolvedValue({});
   mockGetPosition.mockResolvedValue(ORIGIN);
   jest.spyOn(Date.prototype, 'getHours').mockReturnValue(10);
   resetProximityState();
@@ -138,24 +176,25 @@ describe('habitat cache prefetch covers all POI types', () => {
 
     expect(mockRefreshHabitatCacheIfStale).toHaveBeenCalledTimes(1);
     const [, , prefetchedTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
-    expect(new Set(prefetchedTypes)).toEqual(new Set(ALL_POI_TYPES));
-    expect(ALL_POI_TYPES).toHaveLength(16);
+    // KAN-282 — shopping_mall is prefetched alongside the built-ins so the
+    // "All in one place" mall card has OSM data (footprints included) to work
+    // from offline. It isn't in ALL_POI_TYPES: it's never a task category.
+    // KAN-293 — the leisure types ride along in the SAME request for the same
+    // reason: the cluster box's companion line reads them purely from the
+    // cache, so they must already be there. `park` is absent from this extra
+    // set because it's a real PoiType, already inside ALL_POI_TYPES.
+    expect(new Set(prefetchedTypes)).toEqual(
+      new Set([...ALL_POI_TYPES, ...SUPPORTED_GOOGLE_PLACE_TYPES, 'shopping_mall', ...CLUSTER_LEISURE_TYPES]),
+    );
+    // Not an exact target count — SUPPORTED_GOOGLE_PLACE_TYPES is a curated
+    // list ("~100 entries" per its own doc comment), free to grow/shrink as
+    // the taxonomy is tuned. Pinned to today's actual length so a future
+    // accidental edit is still caught, without asserting a number nothing
+    // in the source ever committed to.
+    expect(SUPPORTED_GOOGLE_PLACE_TYPES).toHaveLength(90);
     // Explicitly proves the fix: pharmacy has no open task this tick, yet
     // it's still prefetched — this is exactly the "buy aspirin later" gap.
     expect(prefetchedTypes).toContain('pharmacy');
-  });
-
-  it('folds in custom category place types, deduped against the built-ins', async () => {
-    setCustomCategoryPoiTypes(['gym', 'my_custom_type']);
-    mockAtmSearchResponse();
-
-    await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
-
-    const [, , prefetchedTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
-    expect(prefetchedTypes).toContain('my_custom_type');
-    // 'gym' is already a built-in — must not be duplicated.
-    expect(prefetchedTypes.filter((t: string) => t === 'gym')).toHaveLength(1);
-    expect(new Set(prefetchedTypes).size).toBe(prefetchedTypes.length);
   });
 
   it('leaves the live Places search filtered to the tick\'s actual open-task types', async () => {
@@ -163,14 +202,16 @@ describe('habitat cache prefetch covers all POI types', () => {
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
 
-    const [, options] = mockFetch.mock.calls[0];
-    const body = JSON.parse(options.body as string);
-    expect(body.includedTypes).toEqual(['atm']);
+    // Guards the KAN-282 prefetch change specifically: broadening the habitat
+    // prefetch (which now includes shopping_mall) must NOT leak into the
+    // live search call itself, which stays scoped to this tick's open tasks.
+    const [, , searchedTypes] = mockSearchOsmPlaces.mock.calls[0];
+    expect(searchedTypes).toEqual(['atm']);
   });
 
   it('leaves queryHabitatCache (the offline read path) filtered to the tick\'s open-task types', async () => {
     (NetInfo.fetch as jest.Mock).mockResolvedValueOnce({ isConnected: false });
-    mockFetch.mockRejectedValueOnce(new Error('network down'));
+    mockSearchOsmPlaces.mockRejectedValueOnce(new Error('network down'));
     mockQueryHabitatCache.mockReturnValue({ atm: [] });
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
@@ -178,25 +219,52 @@ describe('habitat cache prefetch covers all POI types', () => {
     expect(mockQueryHabitatCache).toHaveBeenCalledWith(0, 0, ['atm'], 400);
   });
 
-  it('setCustomCategoryPoiTypes(null) clears back to just the built-ins', async () => {
-    setCustomCategoryPoiTypes(['my_custom_type']);
-    setCustomCategoryPoiTypes(null);
+});
+
+describe('KAN-342: source-aware identity + source/coverageStatus threading', () => {
+  it('AC: an OSM live hit is recorded with source.osm, never googlePlaceId', async () => {
     mockAtmSearchResponse();
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
 
-    const [, , prefetchedTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
-    expect(prefetchedTypes).not.toContain('my_custom_type');
+    expect(mockRecordLiveResult).toHaveBeenCalledWith(
+      expect.objectContaining({ poiType: 'atm', source: { osm: 'atm-1' } }),
+    );
+    const call = mockRecordLiveResult.mock.calls[0][0];
+    expect(call.source.google).toBeUndefined();
+    expect(call).not.toHaveProperty('googlePlaceId');
   });
 
-  it('resetProximityState() clears custom category types', async () => {
-    setCustomCategoryPoiTypes(['my_custom_type']);
-    resetProximityState();
+  it('KAN-451: a Cloudflare live hit is recorded under the namespace the Worker names', async () => {
+    mockCloudflarePoiAllProxy.mockResolvedValueOnce({
+      placeName: 'Lisboa',
+      results: {
+        atm: [
+          { poi_id: 'gers-1', source: 'overture', name: 'Overture ATM', lat: 0.0002, lng: 0, primary_poi_type: 'atm', brand: null, category_label: null, address: null, open_min: null, close_min: null, distanceMeters: 22, attributes: {} },
+          { poi_id: 'multibanco:9', source: 'multibanco', name: 'MB ATM', lat: 0.0003, lng: 0, primary_poi_type: 'atm', brand: null, category_label: null, address: null, open_min: null, close_min: null, distanceMeters: 33, attributes: {} },
+        ],
+      },
+    });
+
+    await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
+
+    expect(mockRecordLiveResult).toHaveBeenCalledWith(expect.objectContaining({ name: 'Overture ATM', source: { overture: 'gers-1' } }));
+    expect(mockRecordLiveResult).toHaveBeenCalledWith(expect.objectContaining({ name: 'MB ATM', source: { brush: 'multibanco:9' } }));
+    for (const [call] of mockRecordLiveResult.mock.calls) {
+      expect(call.source.fsq).toBeUndefined();
+    }
+  });
+
+  it('AC: source and coverageStatus are exposed via getLastPoiSearchState, degraded computed not stored', async () => {
     mockAtmSearchResponse();
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
 
-    const [, , prefetchedTypes] = mockRefreshHabitatCacheIfStale.mock.calls[0];
-    expect(prefetchedTypes).not.toContain('my_custom_type');
+    const state = getLastPoiSearchState();
+    expect(state.source).toBe('osm');
+    // cloudflarePoiAllProxy is unconfigured here (undefined -> caught -> falls
+    // through), so coverageStatus is genuinely unknown for this tick.
+    expect(state.degraded).toBe(true);
+    expect(state).not.toHaveProperty('_degraded');
   });
 });

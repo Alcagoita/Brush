@@ -27,6 +27,7 @@ import { ImportResult } from '../types';
 import { inferPoiFromRules } from './poiInference';
 import { classifyPoi } from './poiLlm';
 import { isBirthdayEvent } from './birthday';
+import { markTasksDirty } from './taskMutationSignal';
 
 // ─── POI inference for imported tasks (KAN-197) ──────────────────────────────
 
@@ -48,11 +49,11 @@ export type ImportPoiCache = Map<string, Promise<string | null>>;
  * (e.g. recurring calendar events) — skips redundant rule-map lookups and,
  * more importantly, redundant on-device classifier calls. The cache is scoped
  * to a single import run rather than kept module-level: the rule-map
- * dictionary is mutated at runtime whenever custom categories change
- * (registerCategoryKeywords/replaceCategoryKeywords), so a longer-lived cache
- * could keep returning a stale classification after the user renames/deletes
- * a category. A failed lookup is never cached, so a transient classifier
- * failure doesn't permanently poison a title for the rest of the batch.
+ * dictionary's learned layer is mutated at runtime by the on-device
+ * classifier and by user POI edits, so a longer-lived cache could keep
+ * returning a classification the user has since corrected. A failed lookup is
+ * never cached, so a transient classifier failure doesn't permanently poison a
+ * title for the rest of the batch.
  */
 export async function inferImportedPoi(
   title: string,
@@ -406,7 +407,10 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
         title,
         category:  'work',
         done:      false,
-        date:      dueDate ? formatDateString(dueDate) : formatDateString(new Date()),
+        ...(dueDate ? {
+          scheduledDate: formatDateString(dueDate),
+          originalScheduledDate: formatDateString(dueDate),
+        } : {}),
         source:    'google_tasks',
         ...(description ? { description } : {}),
         ...(poi ? { poi } : {}),
@@ -423,6 +427,7 @@ async function _importFromGoogleTasks(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 
@@ -481,7 +486,8 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
         title,
         category:  isBirthday ? 'personal' : 'work',
         done:      false,
-        date:      formatDateString(startDate),
+        scheduledDate: formatDateString(startDate),
+        originalScheduledDate: formatDateString(startDate),
         source:    'google_calendar',
         ...(description ? { description } : {}),
         ...(poi ? { poi } : {}),
@@ -496,6 +502,7 @@ async function _importFromGoogleCalendar(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 
@@ -564,9 +571,12 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
         title,
         category:  'personal',
         done:      false,
-        date:      dueDate && !isNaN(dueDate.getTime())
-                     ? formatDateString(dueDate)
-                     : formatDateString(new Date()),
+        ...(dueDate && !isNaN(dueDate.getTime())
+          ? {
+            scheduledDate: formatDateString(dueDate),
+            originalScheduledDate: formatDateString(dueDate),
+          }
+          : {}),
         source:    'eventkit_reminders',
         ...(description ? { description } : {}),
         ...(poi ? { poi } : {}),
@@ -580,6 +590,7 @@ export async function importFromReminders(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 
@@ -632,7 +643,8 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
         title,
         category:  isBirthday ? 'personal' : 'work',
         done:      false,
-        date:      formatDateString(startDate),
+        scheduledDate: formatDateString(startDate),
+        originalScheduledDate: formatDateString(startDate),
         source:    'eventkit_calendar',
         ...(description ? { description } : {}),
         ...(poi ? { poi } : {}),
@@ -647,6 +659,7 @@ export async function importFromCalendar(uid: string): Promise<ImportResult> {
   }
 
   await batch.commit();
+  markTasksDirty();
   return result;
 }
 

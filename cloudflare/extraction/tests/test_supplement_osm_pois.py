@@ -1,0 +1,787 @@
+import json
+import os
+import sys
+import tempfile
+import unittest
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import supplement_osm_pois as supplement
+
+
+def element(element_id, name, lat=39.8034492, lng=-8.1012644, **tags):
+    return {
+        'type': 'node', 'id': element_id, 'lat': lat, 'lon': lng,
+        'tags': {'name': name, **tags},
+    }
+
+
+class SupplementOsmPoisTest(unittest.TestCase):
+    def test_excluded_shop_values_are_not_admitted(self):
+        for value in ('mall', 'vacant', 'yes'):
+            with self.subTest(shop=value):
+                self.assertIsNone(
+                    supplement.osm_poi_from_element(element(1, 'Some Unit', shop=value), {}),
+                )
+
+    def test_generic_shop_becomes_a_store_and_mapped_shop_keeps_its_type(self):
+        generic = supplement.osm_poi_from_element(element(2, 'Papelaria', shop='stationery'), {})
+        self.assertIsNotNone(generic)
+        self.assertEqual(generic.poi_types, ('store',))
+        bakery = supplement.osm_poi_from_element(element(3, 'Padaria', shop='bakery'), {})
+        self.assertIsNotNone(bakery)
+        self.assertEqual(bakery.poi_types, ('bakery',))
+
+    def test_sql_quote_removes_statement_control_characters(self):
+        self.assertEqual(supplement.sql_quote("A;\nB\x00's"), "'A B ''s'")
+
+    def test_paged_query_continues_through_a_driver_row_without_a_type(self):
+        responses = [
+            [{'source_id': 'one', 'poi_type': None}],
+            [{'source_id': 'two', 'poi_type': 'restaurant'}],
+            [],
+        ]
+        calls = []
+        original = supplement.run_d1_query
+        try:
+            supplement.run_d1_query = lambda after: (calls.append(after), responses.pop(0))[1]
+            rows = list(supplement.paged_query(lambda after: after))
+        finally:
+            supplement.run_d1_query = original
+        self.assertEqual([row['source_id'] for row in rows], ['one', 'two'])
+        self.assertEqual(calls, ['', 'one', 'two'])
+
+    def test_classifies_named_restaurant_with_stable_osm_identity(self):
+        poi = supplement.osm_poi_from_element(
+            element(5335674113, 'Santo Amaro', amenity='restaurant', cuisine='portuguese'),
+            {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertEqual(poi.osm_element_id, 'node/5335674113')
+        self.assertEqual(poi.poi_types, ('restaurant',))
+        self.assertEqual(poi.attributes, (('food_cuisine', 'portuguese'),))
+
+    def test_a_matched_element_supersedes_the_foursquare_row_it_matched(self):
+        """KAN-427 reversed this. It used to assert the OSM row was dropped.
+
+        Both elements are now imported: one as a new place, one as the
+        current description of a place Foursquare already had. Only the
+        second carries a superseded id.
+        """
+        existing = [
+            supplement.Candidate('foursquare', 'fsq-santo', 'Santo Amaro', 'santo amaro', 39.80345, -8.10126, 'restaurant'),
+        ]
+        imports, stats, _ = supplement.classify_scope([
+            element(1, 'Santo Amaro', amenity='restaurant'),
+            element(2, 'Lagar Restaurante', lat=39.80346, lng=-8.10127, amenity='restaurant'),
+        ], existing, 39.80345)
+        self.assertEqual([poi.name for poi in imports], ['Santo Amaro', 'Lagar Restaurante'])
+        self.assertEqual([poi.superseded_fsq_place_id for poi in imports], ['fsq-santo', None])
+        self.assertEqual(stats['foursquare_superseded'], 1)
+        self.assertEqual(stats['inserted'], 1)
+        # Nothing was skipped: `matched_skipped` now means an element dropped
+        # for a community or already-imported OSM row, not a Foursquare one.
+        self.assertEqual(stats.get('matched_skipped', 0), 0)
+
+    def test_the_foursquare_row_fills_only_the_fields_osm_lacks(self):
+        """OSM wins per field; Foursquare fills gaps. Never a wholesale swap.
+
+        The name is what OSM is here to correct, so it is never inherited.
+        Hours are what Foursquare reliably has and OSM tags rarely do, so
+        retiring the Foursquare row must not cost the app its hours.
+        """
+        existing = [
+            supplement.Candidate(
+                'foursquare', 'fsq-1', 'Lagar Restaurante Velho', 'lagar restaurante velho',
+                39.80345, -8.10126, 'restaurant',
+                brand='Grupo Lagar', address='Rua Velha 1', open_min=540, close_min=1320,
+                attributes=(('food_cuisine', 'italian'), ('store_kind', 'deli')),
+            ),
+        ]
+        imports, _, _ = supplement.classify_scope([
+            element(2, 'O Lagar', lat=39.80346, lng=-8.10127, amenity='restaurant', cuisine='portuguese'),
+        ], existing, 39.80345)
+
+        self.assertEqual(len(imports), 1)
+        merged = imports[0]
+        # OSM's own values are untouched.
+        self.assertEqual(merged.name, 'O Lagar')
+        self.assertIn(('food_cuisine', 'portuguese'), merged.attributes)
+        self.assertNotIn(('food_cuisine', 'italian'), merged.attributes)
+        # Foursquare fills what OSM did not have.
+        self.assertEqual(merged.brand, 'Grupo Lagar')
+        self.assertEqual(merged.open_min, 540)
+        self.assertEqual(merged.close_min, 1320)
+        self.assertEqual(merged.address, 'Rua Velha 1')
+        self.assertIn(('store_kind', 'deli'), merged.attributes)
+
+    def test_a_superseding_import_writes_the_retirement_and_the_hours(self):
+        poi = supplement.osm_poi_from_element(
+            element(2, 'O Lagar', amenity='restaurant'), {},
+        )
+        assert poi is not None
+        from dataclasses import replace as _replace
+        poi = _replace(poi, open_min=540, close_min=1320, superseded_fsq_place_id='fsq-1')
+
+        sql = ' '.join(supplement.statements_for_pois([poi]))
+
+        self.assertIn('INSERT INTO poi_source_correction', sql)
+        self.assertIn("'foursquare','fsq-1',0", sql)
+        # Never overwrite a human decision already in the registry.
+        self.assertIn('ON CONFLICT(source, source_id) DO NOTHING', sql)
+        # Whitespace-independent: any DO UPDATE on this conflict target would
+        # let the importer overwrite a human decision, however it is formatted.
+        self.assertNotIn('ON CONFLICT(source, source_id) DO UPDATE', sql)
+        # Hours are written as values, and a later refresh carrying none must
+        # not blank the ones inherited from the row this replaced.
+        self.assertIn(',540,1320)', sql.replace(' ', ''))
+
+    def test_every_inheritable_field_survives_a_later_empty_refresh(self):
+        """The inheritance would otherwise undo itself one refresh later.
+
+        Once an element supersedes a Foursquare row, that row is `visible = 0`
+        and the candidate loader skips it — so the next refresh of the same
+        element matches nothing and arrives with brand, address and hours all
+        empty. Every inheritable column has to be COALESCEd, or that refresh
+        blanks exactly what was inherited.
+        """
+        poi = supplement.osm_poi_from_element(element(2, 'O Lagar', amenity='restaurant'), {})
+        assert poi is not None
+        sql = ' '.join(supplement.statements_for_pois([poi]))
+
+        for column in ('brand', 'address', 'open_min', 'close_min'):
+            with self.subTest(column=column):
+                self.assertIn(f'{column} = COALESCE(excluded.{column}, {column})', sql)
+                self.assertNotIn(f'{column} = excluded.{column}', sql)
+
+    def test_a_refresh_without_attributes_keeps_the_inherited_ones(self):
+        """The blanket attribute delete was the sharpest form of the same bug.
+
+        An element arriving with no attributes must clear nothing; one
+        arriving with a cuisine clears only the cuisine it replaces.
+        """
+        bare = supplement.osm_poi_from_element(element(2, 'O Lagar', amenity='restaurant'), {})
+        assert bare is not None
+        self.assertNotIn('osm_poi_attribute', ' '.join(supplement.statements_for_pois([bare])))
+
+        typed = supplement.osm_poi_from_element(
+            element(3, 'O Lagar', amenity='restaurant', cuisine='portuguese'), {})
+        assert typed is not None
+        sql = ' '.join(supplement.statements_for_pois([typed]))
+        self.assertIn("dimension IN ('food_cuisine')", sql)
+        self.assertNotIn('DELETE FROM osm_poi_attribute WHERE osm_element_id IN', sql)
+
+    def test_an_import_that_supersedes_nothing_writes_no_retirement(self):
+        poi = supplement.osm_poi_from_element(element(2, 'O Lagar', amenity='restaurant'), {})
+        assert poi is not None
+        sql = ' '.join(supplement.statements_for_pois([poi]))
+        self.assertNotIn('poi_source_correction', sql)
+
+    def test_an_ambiguous_element_is_still_dropped_not_imported(self):
+        """Guard for the fall-through KAN-427 restructuring made possible.
+
+        Two indistinguishable candidates mean the element is dropped. Sharing
+        one import path between the matched and unmatched branches must not
+        let the ambiguous branch reach it.
+        """
+        existing = [
+            supplement.Candidate('foursquare', 'fsq-a', 'Casa Verde', 'casa verde', 39.80345, -8.10126, 'restaurant'),
+            supplement.Candidate('foursquare', 'fsq-b', 'Casa Verde', 'casa verde', 39.80345, -8.10127, 'restaurant'),
+        ]
+        imports, stats, conflicts = supplement.classify_scope([
+            element(1, 'Casa Verde', amenity='restaurant'),
+        ], existing, 39.80345)
+
+        self.assertEqual(imports, [])
+        self.assertEqual(stats['ambiguous_skipped'], 1)
+        self.assertEqual(stats.get('foursquare_superseded', 0), 0)
+        self.assertEqual(len(conflicts), 2)
+
+    def test_a_community_row_still_wins_and_the_element_is_dropped(self):
+        """A curated row is human-reviewed. OSM does not overrule a person."""
+        existing = [
+            supplement.Candidate('community', 'curated-1', 'Santo Amaro', 'santo amaro', 39.80345, -8.10126, 'restaurant'),
+        ]
+        imports, stats, _ = supplement.classify_scope([
+            element(1, 'Santo Amaro', amenity='restaurant'),
+        ], existing, 39.80345)
+        self.assertEqual(imports, [])
+        self.assertEqual(stats['matched_skipped'], 1)
+        self.assertEqual(stats.get('foursquare_superseded', 0), 0)
+
+    def test_reordered_identity_terms_match_but_a_shared_surname_does_not(self):
+        self.assertGreaterEqual(
+            supplement.name_similarity('cafe ala sul', 'ala sul cafe'),
+            supplement.NAME_SIMILARITY_THRESHOLD,
+        )
+        self.assertLess(
+            supplement.name_similarity('cafe rosa', 'alberto rosa filhos'),
+            supplement.NAME_SIMILARITY_THRESHOLD,
+        )
+        self.assertLess(
+            supplement.name_similarity('cafe rosa', 'rosa cafe'),
+            supplement.NAME_SIMILARITY_THRESHOLD,
+        )
+        self.assertLess(
+            supplement.name_similarity('cafe ala sul', 'cafe ala norte'),
+            supplement.NAME_SIMILARITY_THRESHOLD,
+        )
+
+    def test_reordered_identity_name_is_skipped_but_shared_surname_is_imported(self):
+        # The surname pair sits ~55 m apart, outside KAN-388's 20 m window,
+        # so a single shared `rosa` is not enough to merge it.
+        existing = [
+            supplement.Candidate('foursquare', 'ala-sul', 'Ala Sul Café', 'ala sul cafe', 39.80345, -8.10126, 'cafe'),
+            supplement.Candidate('foursquare', 'rosa-family', 'Alberto Rosa & Filhos', 'alberto rosa filhos', 39.80395, -8.10126, 'cafe'),
+        ]
+        imports, stats, _ = supplement.classify_scope([
+            element(1, 'Café Ala Sul', amenity='cafe'),
+            element(2, 'Café Rosa', amenity='cafe'),
+        ], existing, 39.80345)
+
+        # Both are imported since KAN-427, but only Ala Sul matched anything:
+        # it supersedes the Foursquare row, while Café Rosa is a new place.
+        self.assertEqual([poi.name for poi in imports], ['Café Ala Sul', 'Café Rosa'])
+        self.assertEqual([poi.superseded_fsq_place_id for poi in imports], ['ala-sul', None])
+        self.assertEqual(stats['normalized_identity_matched'], 1)
+
+    def test_single_shared_identity_token_merges_only_at_close_range(self):
+        """KAN-388's whole trade, stated as a test.
+
+        "O Teimoso" and "Restaurante Teimoso" both reduce to {teimoso}, which
+        the two-term rule refuses; metres apart they are one venue. The cost
+        is the same shape: "Café Rosa" and "Alberto Rosa & Filhos" — a real
+        Odivelas pair — now merge too if they are ever within 20 m. Measured
+        across the completed PT run that trade is 478 merges at roughly 96%
+        precision, and the wrong ones stay correctable through
+        `poi_source_correction`.
+        """
+        self.assertTrue(supplement.single_identity_token_match('o teimoso', 'restaurante teimoso', 6.1))
+        self.assertFalse(supplement.single_identity_token_match('o teimoso', 'restaurante teimoso', 20.1))
+        self.assertTrue(supplement.single_identity_token_match('cafe rosa', 'alberto rosa filhos', 6.0))
+
+    def test_a_shared_category_word_is_never_an_identity(self):
+        """The failure the un-guarded proposal would have shipped.
+
+        Every pair here is metres apart and shares exactly one token, and
+        every one is two different businesses.
+        """
+        # Both sides carry two identity tokens, so neither is a single-token
+        # identity — this is what keeps rival banks and pharmacies apart.
+        self.assertFalse(supplement.single_identity_token_match('novo banco', 'banco montepio', 0.4))
+        self.assertFalse(supplement.single_identity_token_match('noodle king', 'burger king', 2.6))
+        self.assertFalse(
+            supplement.single_identity_token_match('farmacia nova de cerveira', 'farmacia correia de sampaio', 1.1))
+        # A retail trade word is the type, not noise: dropping it would fuse
+        # a butcher into a jeweller.
+        self.assertFalse(supplement.single_identity_token_match('talho do marques', 'ourivesaria marques', 5.4))
+        # A number alone does not identify a venue; an alphanumeric name does.
+        self.assertFalse(supplement.single_identity_token_match('28 sabores do mundo', '28', 2.0))
+        self.assertTrue(supplement.single_identity_token_match('r3', 'restaurante r3', 5.2))
+
+    def test_a_house_number_does_not_hide_the_identity_behind_it(self):
+        """A number is not evidence, so it must not gate the evidence either.
+
+        The core's size decides whether one shared token is admissible. If a
+        bare number counted toward that size, these two would each measure
+        two tokens wide and their shared `teimoso` would never be weighed —
+        a number blocking a match it is not allowed to contribute to.
+        """
+        self.assertEqual(set(supplement.identity_tokens('restaurante 12 teimoso')), {'teimoso'})
+        self.assertTrue(
+            supplement.single_identity_token_match('restaurante 12 teimoso', 'restaurante 34 teimoso', 6.0))
+        # Still no match when the number was the only thing they shared.
+        self.assertFalse(supplement.single_identity_token_match('restaurante 12 lagar', 'churrasqueira 12 forno', 6.0))
+
+    def test_apostrophe_and_initial_artifacts_are_not_identity_tokens(self):
+        # `normalize_text` leaves a bare `s` behind "McDonald's" and a bare
+        # `d` behind "D'Italia"; `C.` in "Papelaria C. Roque" is an initial.
+        self.assertEqual(set(supplement.identity_tokens('mcdonald s')), {'mcdonald'})
+        self.assertEqual(set(supplement.identity_tokens('d italia pizzeria')), {'italia'})
+        self.assertFalse(supplement.single_identity_token_match('mcdonald s', 'queenmama s', 3.0))
+
+    def test_food_service_words_are_dropped_but_retail_trade_words_are_kept(self):
+        self.assertIn('churrasqueira', supplement.NON_IDENTITY_NAME_TOKENS)
+        self.assertIn('cervejaria', supplement.NON_IDENTITY_NAME_TOKENS)
+        self.assertIn('lda', supplement.NON_IDENTITY_NAME_TOKENS)
+        for retail in ('talho', 'ourivesaria', 'livraria', 'papelaria', 'sapataria', 'optica'):
+            self.assertNotIn(retail, supplement.NON_IDENTITY_NAME_TOKENS)
+        # Two food-service words over the same identity is now a match the
+        # existing two-term rule can make on its own, at any distance.
+        self.assertTrue(
+            supplement.normalized_identity_terms_match('churrasqueira vasco da gama', 'restaurante vasco da gama'))
+
+    def test_differently_named_same_location_is_reported_but_still_admitted(self):
+        # Sharing no identity token, these stay two businesses at one address
+        # — the common case the report exists for.
+        existing = [
+            supplement.Candidate('foursquare', 'fsq-fonseca', 'Adega Fonseca', 'adega fonseca', 39.80345, -8.10126, 'restaurant'),
+        ]
+        imports, _, _ = supplement.classify_scope([
+            element(2, 'O Lagar', lat=39.80346, lng=-8.10127, amenity='restaurant'),
+        ], existing, 39.80345)
+
+        rows = supplement.possible_renames(imports, existing)
+
+        self.assertEqual([poi.name for poi in imports], ['O Lagar'])
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].severity, 'same_location')
+        self.assertEqual(rows[0].source, 'foursquare')
+        self.assertEqual(rows[0].source_name, 'Adega Fonseca')
+
+    def test_same_identity_at_one_address_is_merged_not_reported(self):
+        """The KAN-388 case end to end: "O Lagar" is "Lagar Restaurante"."""
+        existing = [
+            supplement.Candidate('foursquare', 'fsq-lagar', 'Lagar Restaurante', 'lagar restaurante', 39.80345, -8.10126, 'restaurant'),
+        ]
+        imports, stats, _ = supplement.classify_scope([
+            element(2, 'O Lagar', lat=39.80346, lng=-8.10127, amenity='restaurant'),
+        ], existing, 39.80345)
+
+        # One venue, one surviving row — and since KAN-427 the surviving
+        # description is the OSM one, with the Foursquare row retired.
+        self.assertEqual([poi.name for poi in imports], ['O Lagar'])
+        self.assertEqual(imports[0].superseded_fsq_place_id, 'fsq-lagar')
+        self.assertEqual(stats['foursquare_superseded'], 1)
+
+    def test_possible_renames_only_calculates_distance_for_nearby_same_type_rows(self):
+        poi = supplement.osm_poi_from_element(
+            element(2, 'O Lagar', lat=39.80346, lng=-8.10127, amenity='restaurant'), {},
+        )
+        assert poi is not None
+        candidates = [
+            supplement.Candidate('foursquare', 'nearby', 'Adega Fonseca', 'adega fonseca', 39.80345, -8.10126, 'restaurant'),
+            supplement.Candidate('foursquare', 'far-away', 'Other Restaurant', 'other restaurant', 40.80345, -8.10126, 'restaurant'),
+            supplement.Candidate('community', 'wrong-type', 'Other Cafe', 'other cafe', 39.80345, -8.10126, 'cafe'),
+        ]
+        calls = []
+        original_haversine = supplement.haversine_m
+        try:
+            supplement.haversine_m = lambda *args: (calls.append(args), original_haversine(*args))[1]
+            rows = supplement.possible_renames([poi], candidates)
+        finally:
+            supplement.haversine_m = original_haversine
+
+        self.assertEqual([row.source_id for row in rows], ['nearby'])
+        self.assertEqual(len(calls), 1)
+
+    def test_possible_rename_report_is_machine_readable(self):
+        row = supplement.PossibleRename(
+            'node/1', 'O Lagar', 39.80346, -8.10127, 'restaurant',
+            'community', 'curated-1', 'Lagar Restaurante', 39.80345, -8.10126,
+            1.5, 'same_location',
+        )
+        original_build_dir = supplement.BUILD_DIR
+        try:
+            with tempfile.TemporaryDirectory() as temporary_dir:
+                supplement.BUILD_DIR = temporary_dir
+                path = supplement.write_possible_rename_report('test-place', [row])
+                with open(path) as report:
+                    payload = json.load(report)
+        finally:
+            supplement.BUILD_DIR = original_build_dir
+
+        self.assertEqual(payload['label'], 'test-place')
+        self.assertEqual(payload['possible_renames'][0]['severity'], 'same_location')
+        self.assertEqual(payload['possible_renames'][0]['source_id'], 'curated-1')
+
+    def test_ambiguous_nearby_candidates_are_not_imported(self):
+        existing = [
+            supplement.Candidate('foursquare', 'one', 'Casa Verde', 'casa verde', 39.80345, -8.10126, 'restaurant'),
+            supplement.Candidate('foursquare', 'two', 'Casa Verde', 'casa verde', 39.80346, -8.10127, 'restaurant'),
+        ]
+        imports, stats, _ = supplement.classify_scope([
+            element(1, 'Casa Verde', amenity='restaurant'),
+        ], existing, 39.80345)
+        self.assertEqual(imports, [])
+        self.assertEqual(stats['ambiguous_skipped'], 1)
+
+    def test_reimport_uses_osm_element_identity_as_an_update(self):
+        existing = [
+            supplement.Candidate('openstreetmap', 'node/5335674113', 'Santo Amaro', 'santo amaro', 39.80345, -8.10126, 'restaurant'),
+        ]
+        imports, stats, _ = supplement.classify_scope([
+            element(5335674113, 'Santo Amaro', amenity='restaurant'),
+        ], existing, 39.80345)
+        self.assertEqual([poi.osm_element_id for poi in imports], ['node/5335674113'])
+        self.assertEqual(stats['updated'], 1)
+        self.assertNotIn('inserted', stats)
+
+    def test_reviewed_osm_correction_excludes_closed_poi_and_overrides_name(self):
+        corrections = {
+            ('openstreetmap', 'node/5381704191'): supplement.SourceCorrection('openstreetmap', 'node/5381704191', False, None, None),
+            ('openstreetmap', 'node/5381704211'): supplement.SourceCorrection('openstreetmap', 'node/5381704211', True, 'Lagar', 'lagar'),
+        }
+        imports, stats, _ = supplement.classify_scope([
+            element(5381704191, 'O Vilaça', amenity='restaurant'),
+            element(5381704211, 'O Lagar', lat=39.80346, lng=-8.10127, amenity='restaurant'),
+        ], [], 39.80345, corrections)
+
+        self.assertEqual([poi.name for poi in imports], ['Lagar'])
+        self.assertEqual(imports[0].dedupe_name, 'lagar')
+        self.assertEqual(stats['operator_excluded'], 1)
+
+    def test_sql_is_idempotent_and_does_not_fabricate_a_foursquare_id(self):
+        poi = supplement.osm_poi_from_element(element(5335674113, 'Santo Amaro', amenity='restaurant'), {})
+        assert poi is not None
+        sql = supplement.sql_for_pois([poi])
+        self.assertIn('INSERT INTO osm_poi', sql)
+        self.assertIn('node/5335674113', sql)
+        self.assertIn('ON CONFLICT(osm_element_id) DO UPDATE', sql)
+        self.assertNotIn('fsq_place_id', sql)
+
+
+class NameInferredTypeTest(unittest.TestCase):
+    """KAN-391 — the OSM classifier picks up types stated only in the name."""
+
+    def test_a_real_tag_decides_the_primary_type_and_the_name_only_adds(self):
+        # 682 PT rows looked like this: a genuine pastelaria whose only clue
+        # was in its name. The cafe tag is a real claim, so it stays primary
+        # and drives the hero card's icon; bakery joins it.
+        poi = supplement.osm_poi_from_element(
+            element(11, 'Padaria Pastelaria Belo Horizonte', amenity='cafe'), {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertEqual(poi.primary_poi_type, 'cafe')
+        self.assertIn('bakery', poi.poi_types)
+
+    def test_snack_bar_tagged_as_a_cafe_gains_nothing_and_never_a_bar(self):
+        poi = supplement.osm_poi_from_element(element(12, 'Snack-Bar Martinik', amenity='cafe'), {})
+        self.assertIsNotNone(poi)
+        self.assertEqual(poi.poi_types, ('cafe',))
+
+    def test_a_name_alone_cannot_conjure_a_poi_from_an_untyped_element(self):
+        # `shop=yes` is excluded as an empty unit. A promising name must not
+        # be enough to import something nobody classified.
+        self.assertIsNone(supplement.osm_poi_from_element(element(13, 'Papelaria Universal', shop='yes'), {}))
+
+    def test_ice_cream_tags_classify_instead_of_being_dropped_or_shelved(self):
+        # amenity=ice_cream produced no type at all before KAN-399, so the
+        # element was dropped outright at import; shop=ice_cream fell through
+        # to generic `store`.
+        parlour = supplement.osm_poi_from_element(element(20, 'Geladaria Santini', amenity='ice_cream'), {})
+        self.assertIsNotNone(parlour)
+        self.assertEqual(parlour.poi_types, ('ice_cream',))
+
+        counter = supplement.osm_poi_from_element(element(21, 'Gelataria do Cais', shop='ice_cream'), {})
+        self.assertIsNotNone(counter)
+        self.assertIn('ice_cream', counter.poi_types)
+        self.assertNotIn('store', counter.poi_types)
+
+    def test_a_tattoo_shop_is_a_tattoo_studio_not_a_generic_store(self):
+        # shop=tattoo is a standard OSM tag that was never mapped, so 77
+        # Portuguese studios were sitting in generic `store` (KAN-402).
+        poi = supplement.osm_poi_from_element(element(30, 'Sol Ink Tattoos', shop='tattoo'), {})
+        self.assertIsNotNone(poi)
+        self.assertEqual(poi.poi_types, ('tattoo',))
+
+    def test_a_barbershop_that_also_tattoos_keeps_both(self):
+        # "Barbearia 31 Tatuagem" really does cut hair. The multi-type model
+        # is correct here and must not be collapsed to one or the other.
+        poi = supplement.osm_poi_from_element(
+            element(31, 'Barbearia 31 Tatuagem', shop='hairdresser'), {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertIn('tattoo', poi.poi_types)
+        # shop=hairdresser gives hairdresser; the name adds the barber split.
+        self.assertIn('hairdresser', poi.poi_types)
+        self.assertIn('barber', poi.poi_types)
+
+    def test_a_generic_shop_tag_is_replaced_by_what_the_name_says(self):
+        # "Guanabara - Pizzaria Padaria Pastelaria" is a lot of things, but a
+        # store is not one of them. `shop=convenience` was OSM shrugging.
+        poi = supplement.osm_poi_from_element(
+            element(15, 'Guanabara - Pizzaria Padaria Pastelaria', shop='convenience'), {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertNotIn('store', poi.poi_types)
+        self.assertEqual(set(poi.poi_types), {'bakery', 'restaurant'})
+
+    def test_a_known_shop_kind_outranks_the_name_and_keeps_its_store_type(self):
+        # `shop=clothes` is a positive identification, not a shrug — and
+        # dropping `store` would orphan the store_kind attribute.
+        poi = supplement.osm_poi_from_element(
+            element(16, 'Pastelaria Modas', shop='clothes'), {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertIn('store', poi.poi_types)
+        self.assertIn('bakery', poi.poi_types)
+        self.assertIn(('store_kind', 'clothing'), poi.attributes)
+
+    def test_store_survives_when_the_tags_said_something_else_too(self):
+        poi = supplement.osm_poi_from_element(
+            element(17, 'Pastelaria do Cais', shop='convenience', amenity='cafe'), {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertIn('store', poi.poi_types)
+        self.assertIn('cafe', poi.poi_types)
+
+    def test_inferred_types_are_deduplicated_and_ordered_after_the_tagged_one(self):
+        poi = supplement.osm_poi_from_element(
+            element(14, 'Restaurante e Churrasqueira do Cais', amenity='cafe'), {},
+        )
+        self.assertIsNotNone(poi)
+        self.assertEqual(poi.poi_types, ('cafe', 'restaurant'))
+
+
+class ScopedCandidateTest(unittest.TestCase):
+    """KAN-387 — a scope reads its own neighbourhood, not the whole country."""
+
+    def test_bounds_widen_by_the_matching_radius_and_scale_longitude(self):
+        min_lat, max_lat, min_lng, max_lng = supplement.candidate_bounds(38.7, 38.8, -9.2, -9.1)
+        # A Foursquare venue just outside the municipality boundary must still
+        # be able to suppress an OSM element just inside it.
+        self.assertAlmostEqual(38.7 - min_lat, supplement.MATCH_RADIUS_METERS / 111_000, places=9)
+        self.assertAlmostEqual(max_lat - 38.8, supplement.MATCH_RADIUS_METERS / 111_000, places=9)
+        # Longitude degrees are shorter this far north, so the east/west
+        # margin must be wider in degrees to cover the same metres.
+        self.assertGreater(max_lng - -9.1, max_lat - 38.8)
+        self.assertGreater(-9.2 - min_lng, 38.7 - min_lat)
+
+    def test_candidate_query_is_restricted_to_the_widened_box(self):
+        queries = []
+
+        def fake_query(sql):
+            queries.append(sql)
+            return []
+
+        original = supplement.run_d1_query
+        supplement.run_d1_query = fake_query
+        try:
+            rows = supplement.existing_candidates_in_bbox(38.7, 38.8, -9.2, -9.1, {})
+        finally:
+            supplement.run_d1_query = original
+
+        self.assertEqual(rows, [])
+        # poi, curated_poi and osm_poi — the last is what keeps overlapping
+        # municipality bboxes harmless now that each scope writes as it ends.
+        self.assertTrue(any('FROM poi ' in sql for sql in queries))
+        self.assertTrue(any('curated_poi' in sql for sql in queries))
+        self.assertTrue(any('osm_poi ' in sql for sql in queries))
+        for sql in queries:
+            self.assertIn('lat BETWEEN', sql)
+            self.assertIn('lng BETWEEN', sql)
+
+
+class OverpassRateLimitTest(unittest.TestCase):
+    """KAN-387 — 429 is a stop, and must not be retried across mirrors."""
+
+    def test_rate_limit_raises_immediately_without_trying_other_endpoints(self):
+        import io
+        import urllib.error
+        import enrich_osm_cuisine
+
+        attempts = []
+
+        def fake_urlopen(req, timeout=None):
+            attempts.append(req.full_url)
+            raise urllib.error.HTTPError(req.full_url, 429, 'Too Many Requests', {}, io.BytesIO(b''))
+
+        original = enrich_osm_cuisine.urllib.request.urlopen
+        enrich_osm_cuisine.urllib.request.urlopen = fake_urlopen
+        try:
+            with self.assertRaises(enrich_osm_cuisine.OverpassRateLimited):
+                enrich_osm_cuisine.fetch_overpass('[out:json];node;out;')
+        finally:
+            enrich_osm_cuisine.urllib.request.urlopen = original
+        # The limit is on us, so moving to a different mirror is still abuse.
+        self.assertEqual(len(attempts), 1)
+
+    def test_transport_failure_still_falls_back_and_then_raises_plain_runtime_error(self):
+        import urllib.error
+        import enrich_osm_cuisine
+
+        attempts = []
+
+        def fake_urlopen(req, timeout=None):
+            attempts.append(req.full_url)
+            raise urllib.error.URLError('connection reset')
+
+        original_open = enrich_osm_cuisine.urllib.request.urlopen
+        original_sleep = enrich_osm_cuisine.time.sleep
+        enrich_osm_cuisine.urllib.request.urlopen = fake_urlopen
+        enrich_osm_cuisine.time.sleep = lambda _seconds: None
+        try:
+            with self.assertRaises(RuntimeError) as raised:
+                enrich_osm_cuisine.fetch_overpass('[out:json];node;out;')
+        finally:
+            enrich_osm_cuisine.urllib.request.urlopen = original_open
+            enrich_osm_cuisine.time.sleep = original_sleep
+        self.assertNotIsInstance(raised.exception, enrich_osm_cuisine.OverpassRateLimited)
+        self.assertEqual(len(attempts), 2 * len(enrich_osm_cuisine.OVERPASS_ENDPOINTS))
+
+
+class ScopeCheckpointTest(unittest.TestCase):
+    """KAN-387 — the unit the container claims, persists and checkpoints."""
+
+    def test_supplement_scope_reports_its_own_counts_and_writes_nothing(self):
+        calls = {}
+
+        def fake_fetch(query):
+            calls['query'] = query
+            return {'elements': [
+                element(5335674113, 'Santo Amaro', amenity='restaurant'),
+                element(5381704191, 'O Vilaça', lat=39.9, lng=-8.2, amenity='restaurant'),
+            ]}
+
+        original_fetch = supplement.fetch_overpass
+        original_candidates = supplement.existing_candidates_in_bbox
+        supplement.fetch_overpass = fake_fetch
+        supplement.existing_candidates_in_bbox = lambda *args, **kwargs: []
+        try:
+            imports, stats, renames = supplement.supplement_scope('osm-relation-1', 39.8, 40.0, -8.3, -8.0, {})
+        finally:
+            supplement.fetch_overpass = original_fetch
+            supplement.existing_candidates_in_bbox = original_candidates
+
+        self.assertEqual(len(imports), 2)
+        # The counts are per scope: the Worker replaces the scope row with
+        # them rather than adding them to a running total.
+        self.assertEqual(stats['overpass_elements'], 2)
+        self.assertEqual(stats['inserted'], 2)
+        self.assertEqual(renames, [])
+        self.assertIn('39.8', calls['query'])
+
+    def test_rename_report_serializes_without_touching_local_disk(self):
+        report = json.loads(supplement.rename_report_json('osm-relation-1', []))
+        self.assertEqual(report, {'label': 'osm-relation-1', 'possible_renames': []})
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+
+class AmbiguousConflictTest(unittest.TestCase):
+    """KAN-390 — an indistinguishable match is evidence, not just a counter."""
+
+    @staticmethod
+    def candidate(source_id, name):
+        return supplement.Candidate(
+            source='foursquare', source_id=source_id, name=name,
+            dedupe_name=supplement.normalize_text(name),
+            lat=41.5, lng=-8.4, poi_type='cafe',
+        )
+
+    def element(self):
+        return {'type': 'node', 'id': 1, 'lat': 41.5, 'lon': -8.4,
+                'tags': {'amenity': 'cafe', 'name': 'Café Central'}}
+
+    def test_two_indistinguishable_candidates_produce_one_row_each(self):
+        # Same name, same spot, two source ids: the matcher cannot say which
+        # one the element is, so it imports nothing — and that verdict is
+        # exactly what someone needs to review.
+        candidates = [self.candidate('fsq1', 'Café Central'),
+                      self.candidate('fsq2', 'Café Central')]
+
+        imports, stats, conflicts = supplement.classify_scope(
+            [self.element()], candidates, 41.5)
+
+        self.assertEqual(imports, [])
+        self.assertEqual(stats['ambiguous_skipped'], 1)
+        self.assertEqual(len(conflicts), 2)
+        self.assertEqual({c.source_id for c in conflicts}, {'fsq1', 'fsq2'})
+        for conflict in conflicts:
+            self.assertEqual(conflict.conflict_class, 'ambiguous')
+            self.assertEqual(conflict.osm_element_id, 'node/1')
+
+    def test_a_single_confident_match_is_not_a_conflict(self):
+        # One candidate is not ambiguous, so there is nothing to review. Since
+        # KAN-427 the element is imported and supersedes that candidate rather
+        # than being dropped — but the point here is still the empty conflict
+        # list, which is unchanged.
+        imports, stats, conflicts = supplement.classify_scope(
+            [self.element()], [self.candidate('fsq1', 'Café Central')], 41.5)
+
+        self.assertEqual(stats.get('ambiguous_skipped', 0), 0)
+        self.assertEqual(conflicts, [])
+        self.assertEqual([poi.superseded_fsq_place_id for poi in imports], ['fsq1'])
+
+    def test_no_candidates_means_an_import_and_no_conflict(self):
+        imports, _stats, conflicts = supplement.classify_scope(
+            [self.element()], [], 41.5)
+
+        self.assertEqual(len(imports), 1)
+        self.assertEqual(conflicts, [])
+
+
+class Kan408ImporterCoverageTest(unittest.TestCase):
+    """KAN-408 — every app type the importer claims to supply, it must ask for.
+
+    The app gaining a type does nothing on its own. If the Overpass query
+    never requests the tag, the type is one the app can express and the
+    database can never hold — the same defect KAN-412 named, from the other
+    side.
+    """
+
+    def test_every_tag_rule_is_actually_requested(self):
+        query = supplement.osm_query(41.0, 41.1, -8.5, -8.4)
+        for rule in supplement.TAG_TYPES:
+            key, value, poi_type = rule[0], rule[1], rule[2]
+            companion = rule[3] if len(rule) > 3 else None
+            if key == 'shop':
+                # The blanket shop selector covers every shop value.
+                self.assertIn('"shop"', query)
+                continue
+            self.assertIn(f'"{key}"', query, f'{key}={value} ({poi_type}) never requested')
+            self.assertIn(value, query, f'{key}={value} ({poi_type}) never requested')
+            if companion:
+                # A rule with a companion is only honest if the query carries
+                # it too — otherwise Overpass returns everything the rule
+                # then discards.
+                self.assertIn(f'["{companion[0]}"="{companion[1]}"]', query)
+
+    def test_the_nature_types_reach_the_importer(self):
+        # praia fluvial is the case that exposed this: Foursquare had 160
+        # typed `beach`, OSM had zero, because natural=beach was not asked
+        # for and no OSM beach could ever be imported.
+        mapped = {rule[2]: (rule[0], rule[1]) for rule in supplement.TAG_TYPES}
+        for poi_type, expected in [
+            ('beach', ('natural', 'beach')),
+            ('viewpoint', ('tourism', 'viewpoint')),
+            ('waterfall', ('waterway', 'waterfall')),
+            ('lighthouse', ('man_made', 'lighthouse')),
+            ('theatre', ('amenity', 'theatre')),
+        ]:
+            self.assertEqual(mapped.get(poi_type), expected, poi_type)
+
+    def test_the_query_never_asks_for_a_bare_key(self):
+        # `natural` alone would pull every tree and pond in the bbox. Only
+        # `shop` is deliberately blanket, and it predates this.
+        query = supplement.osm_query(41.0, 41.1, -8.5, -8.4)
+        for key in ('natural', 'tourism', 'historic', 'man_made', 'place', 'waterway', 'leisure', 'amenity'):
+            self.assertNotIn(f'nwr["{key}"]', query, f'{key} is requested unscoped')
+
+
+class CompoundTagRuleTest(unittest.TestCase):
+    """KAN-408 review — leisure=pitch alone is every pitch there is.
+
+    Without a companion tag this typed every soccer field in the country as
+    a tennis court. Some OSM concepts need two tags to be themselves.
+    """
+
+    def test_a_tennis_pitch_is_a_tennis_court(self):
+        self.assertIn('tennis_court', supplement.types_for(
+            {'leisure': 'pitch', 'sport': 'tennis'}))
+
+    def test_other_sports_on_the_same_tag_are_not(self):
+        for sport in ('soccer', 'basketball', 'padel', 'futsal'):
+            self.assertEqual(
+                supplement.types_for({'leisure': 'pitch', 'sport': sport}), [],
+                f'{sport} pitch classified as something')
+
+    def test_a_pitch_with_no_sport_is_not_a_tennis_court(self):
+        self.assertEqual(supplement.types_for({'leisure': 'pitch'}), [])
+
+    def test_the_query_asks_for_the_companion_too(self):
+        # Filtering after the fact would still work, but it would make
+        # Overpass return every pitch in the bbox to throw nearly all away.
+        query = supplement.osm_query(41.0, 41.1, -8.5, -8.4)
+        self.assertIn('["leisure"="pitch"]["sport"="tennis"]', query)
+        # ...and `pitch` must be gone from the broad leisure alternation.
+        broad = [part for part in query.split(';') if '"leisure"~' in part]
+        self.assertTrue(broad)
+        for part in broad:
+            self.assertNotIn('pitch', part)
+
+    def test_simple_rules_are_unaffected(self):
+        self.assertIn('beach', supplement.types_for({'natural': 'beach'}))
+        self.assertIn('cafe', supplement.types_for({'amenity': 'cafe'}))

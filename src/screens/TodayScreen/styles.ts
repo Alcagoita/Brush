@@ -27,7 +27,7 @@ export const styles = StyleSheet.create({
   scrollContent: {
     // paddingTop = SECTION_H_REST ensures content always starts exactly where
     // the ring section ends at rest. As the ring section collapses by
-    // SCROLL_RANGE (= 170), content scrolls up the same distance → perfect sync.
+    // SCROLL_RANGE (= 90), content scrolls up the same distance → perfect sync.
     paddingTop: SECTION_H_REST,
   },
   ringSection: {
@@ -62,24 +62,24 @@ export const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   captionLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
-    letterSpacing: 1.5,
+    letterSpacing: 1.2,
     marginBottom: 2,
   },
   captionDay: {
-    fontSize: 80,
+    fontSize: 72,
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     fontVariant: ['tabular-nums'],
-    letterSpacing: -3,
-    lineHeight: 88,
+    letterSpacing: -2,
+    lineHeight: 78,
   },
   captionSub: {
-    fontSize: 13,
+    fontSize: 12,
     fontFamily: 'Geist-Regular',
-    marginTop: 4,
+    marginTop: 2,
   },
   captionSubBold: {
     fontWeight: '600',
@@ -171,7 +171,7 @@ export const styles = StyleSheet.create({
   },
   sectionHeader: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 12,
   },
@@ -180,10 +180,6 @@ export const styles = StyleSheet.create({
     fontWeight: '600',
     fontFamily: 'Geist-SemiBold',
     letterSpacing: 1,
-  },
-  sectionTitleCount: {
-    fontVariant: ['tabular-nums'],
-    letterSpacing: 0,
   },
   sectionTitleRight: {
     fontSize: 11,
@@ -249,10 +245,30 @@ export const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
   },
-  // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (170px)
+  // Extra bottom padding ensures the user can always scroll SCROLL_RANGE (90px)
   // even with a short task list.
   // Clears the floating add-task FAB at the end of the list.
   bottomPad: { height: 96 },
+  // ── "One trip for all of these" entry row (KAN-281) — same bordered-row
+  // template as CalendarScreen's "Going somewhere?" (tripEntryRow). ──
+  oneTripForAllRow: {
+    flexDirection:     'row',
+    alignItems:        'center',
+    gap:               8,
+    minHeight:         44,
+    marginHorizontal:  spacing.page,
+    marginTop:         10,
+    paddingVertical:   10,
+    paddingHorizontal: 12,
+    borderRadius:      radius.ctaBtn,
+    borderWidth:       1,
+  },
+  oneTripForAllLabel: {
+    flex:       1,
+    fontSize:   14,
+    fontWeight: '500',
+    fontFamily: 'Geist-Regular',
+  },
   // ── Empty state CTA ──
   emptyCTAWrap: {
     paddingHorizontal: spacing.page,

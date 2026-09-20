@@ -1,0 +1,325 @@
+import os
+import sqlite3
+import sys
+import unittest
+
+EXTRACTION_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLOUDFLARE_DIR = os.path.dirname(EXTRACTION_DIR)
+sys.path.insert(0, EXTRACTION_DIR)
+sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
+
+from _stubs import stub_missing_dependencies  # noqa: E402
+stub_missing_dependencies()
+
+import promote_poi_candidates  # noqa: E402
+import extract  # noqa: E402
+
+
+def seeded_db():
+    """Real SQLite with the project's own schema — the guards under test are
+    SQL conditions, so a fake that inspects statement text would assert
+    nothing about whether they actually hold."""
+    db = sqlite3.connect(':memory:')
+    db.row_factory = sqlite3.Row
+    for name in ('schema.sql', 'poi_type_schema.sql'):
+        db.executescript(open(os.path.join(CLOUDFLARE_DIR, name)).read())
+    db.executescript(open(os.path.join(
+        CLOUDFLARE_DIR, 'migrations', '0026_poi_candidate.sql')).read())
+    return db
+
+
+def apply(db, statements):
+    for statement in statements:
+        db.executescript(statement)
+    db.commit()
+
+
+class StatusUpdateTest(unittest.TestCase):
+    def candidate(self, db, place_id, status='pending'):
+        db.execute(
+            "INSERT INTO poi_candidate (fsq_place_id, name, lat, lng, imported_at, promotion_status)"
+            " VALUES (?,?,0,0,'t',?)", (place_id, place_id, status))
+        db.commit()
+
+    def status_of(self, db, place_id):
+        row = db.execute('SELECT promotion_status, promotion_note FROM poi_candidate'
+                         ' WHERE fsq_place_id = ?', (place_id,)).fetchone()
+        return row['promotion_status'], row['promotion_note']
+
+    def test_writes_the_reason_not_just_the_status(self):
+        # A status alone cannot be reviewed: "rejected" does not say whether
+        # the row was a duplicate, a road, or a company registration.
+        db = seeded_db()
+        self.candidate(db, 'a')
+        apply(db, promote_poi_candidates.status_updates(
+            [('a', 'geography: Road')], 'rejected'))
+        self.assertEqual(self.status_of(db, 'a'), ('rejected', 'geography: Road'))
+
+    def test_keeps_reasons_distinct_within_one_chunk(self):
+        # Rows sharing a statement must not share one another's reason.
+        db = seeded_db()
+        for place_id in ('a', 'b'):
+            self.candidate(db, place_id)
+        apply(db, promote_poi_candidates.status_updates(
+            [('a', 'geography: Road'), ('b', 'duplicate of osm "x" (0.91)')], 'rejected'))
+        self.assertEqual(self.status_of(db, 'a')[1], 'geography: Road')
+        self.assertEqual(self.status_of(db, 'b')[1], 'duplicate of osm "x" (0.91)')
+
+    def test_never_overwrites_a_decision_already_made(self):
+        # The rerun guard. On a second pass a row promoted by the first is in
+        # `poi`, so the duplicate check matches it against itself and would
+        # re-decide it as a duplicate — turning a promotion into a rejection.
+        db = seeded_db()
+        self.candidate(db, 'a', status='promoted')
+        db.execute("UPDATE poi_candidate SET promotion_note = 'existing type via store'"
+                   " WHERE fsq_place_id = 'a'")
+        db.commit()
+        apply(db, promote_poi_candidates.status_updates(
+            [('a', 'duplicate of fsq "a" (1.00)')], 'rejected'))
+        self.assertEqual(self.status_of(db, 'a'), ('promoted', 'existing type via store'))
+
+    def test_a_pending_row_is_still_decided(self):
+        # The guard must not block the first decision.
+        db = seeded_db()
+        self.candidate(db, 'a')
+        apply(db, promote_poi_candidates.status_updates([('a', 'lodging: Hostel')], 'promoted'))
+        self.assertEqual(self.status_of(db, 'a'), ('promoted', 'lodging: Hostel'))
+
+    def test_escapes_a_reason_containing_a_quote(self):
+        db = seeded_db()
+        self.candidate(db, 'a')
+        apply(db, promote_poi_candidates.status_updates(
+            [('a', 'duplicate of osm "O\'Tacho" (0.95)')], 'rejected'))
+        self.assertIn("O'Tacho", self.status_of(db, 'a')[1])
+
+
+class CountryCodeValidationTest(unittest.TestCase):
+    """country_code reaches the SQL through out_path, which cannot be a bound
+    parameter — DuckDB's COPY target is interpolated. So it is validated at
+    the boundary instead."""
+
+    def test_rejects_anything_that_is_not_two_letters(self):
+        for bad in ("PT'; DROP TABLE poi; --", '../../etc/passwd', 'PRT', 'P', '', None, 'P7'):
+            with self.assertRaises(ValueError):
+                extract.extract_country_candidates('jwt', bad)
+
+    def test_accepts_a_real_country_code(self):
+        # Fails at _connect (no JWT/network), which is past the validation —
+        # ValueError would mean a valid code was rejected.
+        with self.assertRaises(Exception) as caught:
+            extract.extract_country_candidates('not-a-jwt', 'PT')
+        self.assertNotIsInstance(caught.exception, ValueError)
+
+
+if __name__ == '__main__':
+    unittest.main()
+
+
+class CategoryMapPortabilityTest(unittest.TestCase):
+    """KAN-410 — promoting rows fixes Portugal; the map fixes everywhere else.
+
+    `extract_place`/`extract_country` filter Foursquare to the ids in
+    poiTypeCategories.json + the two subtype files. A category absent from
+    them is never downloaded, so it can never be promoted later. PT only has
+    these rows because KAN-404 ran one unfiltered extract by hand.
+
+    A type promoted here but missing from the map is therefore a type only
+    Portugal will ever have — and nothing reports it, because coverage still
+    reads `mapped`.
+    """
+
+    # Every leaf this ticket maps, and the type it must land on. Enumerated
+    # rather than counted: a total tells you something changed, this tells
+    # you WHAT, and it is the thing a reviewer can check against the ticket.
+    LEAF_TO_TYPE = {
+        'Scenic Lookout': 'viewpoint',
+        'Plaza': 'plaza', 'Pedestrian Plaza': 'plaza',
+        'Garden': 'botanical_garden', 'Sculpture Garden': 'botanical_garden',
+        'Music Venue': 'music_venue', 'Concert Hall': 'music_venue',
+        'Rock Club': 'music_venue',
+        'Theater': 'theatre', 'Performing Arts Venue': 'theatre',
+        'Amphitheater': 'theatre', 'Comedy Club': 'theatre',
+        'Monument': 'historical_landmark', 'Castle': 'historical_landmark',
+        'Palace': 'historical_landmark',
+        'River': 'river', 'Mountain': 'mountain', 'Bridge': 'bridge',
+        'Harbor or Marina': 'marina', 'Lake': 'lake', 'Surf Spot': 'surf_spot',
+        'Lighthouse': 'lighthouse', 'Waterfall': 'waterfall',
+        'Nature Preserve': 'nature_preserve', 'Hot Spring': 'hot_spring',
+        'Island': 'island', 'Soccer Stadium': 'stadium',
+    }
+
+    def setUp(self):
+        import analyse_poi_candidates as analyse
+        self.analyse = analyse
+        self.labels = analyse.mapped_category_labels()
+        # reachable_types() reads `type_relation` from LIVE D1. A unit test
+        # must not depend on the network, nor on production data being in any
+        # particular state — the bridges are stubbed with the two the
+        # docstring names, which is all this test needs to be meaningful.
+        self._real_pairs = analyse._type_relation_pairs
+        analyse._type_relation_pairs = lambda: [
+            ('fitness_center', 'gym'), ('grocery_store', 'supermarket'),
+        ]
+        self.reachable = analyse.reachable_types()
+
+    def tearDown(self):
+        self.analyse._type_relation_pairs = self._real_pairs
+
+    def test_the_union_parser_sees_every_type_this_ticket_needs(self):
+        # It split on the first `;` after the union began, including one
+        # inside a comment, and read 33 of 86 — silently. Every type declared
+        # after that point looked unreachable, which blocked its candidates
+        # from ever promoting.
+        union = self.analyse._union_types()
+        missing = sorted(set(self.LEAF_TO_TYPE.values()) - union)
+        self.assertEqual(missing, [], 'union parse truncated or types removed')
+        # A type declared FIRST and one declared LAST, so a truncation at
+        # either end is caught rather than only the tail.
+        self.assertIn('atm', union)
+        self.assertIn('music_venue', union)
+
+    def test_every_leaf_this_ticket_maps_resolves_to_its_type(self):
+        for leaf, expected in sorted(self.LEAF_TO_TYPE.items()):
+            self.assertEqual(self.labels.get(leaf), expected,
+                             f'{leaf} does not map to {expected}')
+            self.assertIn(expected, self.reachable, f'{expected} is unreachable')
+
+    def test_the_contaminated_leaf_is_gated_by_name_not_by_category(self):
+        # `Bathing Area` must never map as a category: it holds real natural
+        # pools alongside beauty businesses, hotel jacuzzis and a bridge.
+        # KAN-421 admits it only through the name gate, whose target type
+        # still has to be reachable or the gate would promote nothing.
+        self.assertIsNone(self.labels.get('Bathing Area'))
+        import promote_poi_candidates as promote
+        gated_type, phrases = promote.NAME_GATED_LEAVES['Bathing Area']
+        self.assertEqual(gated_type, 'beach')
+        self.assertIn(gated_type, self.reachable)
+        self.assertEqual(set(phrases),
+                         {'praia fluvial', 'piscina natural', 'piscinas naturais'})
+
+    def test_the_extraction_filter_asks_for_every_mapped_id(self):
+        # Derived from the mapping files themselves rather than a magic
+        # number, so the assertion stays exact as the map grows.
+        import json
+        from category_ids import all_category_ids
+        # all_category_ids returns a sorted list, not a set.
+        ids = set(all_category_ids())
+        expected = set()
+        for filename in ('poiTypeCategories.json', 'storeSubtypeCategories.json',
+                         'foodSubtypeCategories.json'):
+            path = os.path.join(os.path.dirname(EXTRACTION_DIR), 'src', filename)
+            with open(path, encoding='utf-8') as handle:
+                mapping = json.load(handle)
+            for entry in mapping.values():
+                if 'category_id' in entry:
+                    expected.add(entry['category_id'])
+                for extra in entry.get('also', ()):
+                    expected.add(extra['category_id'])
+        self.assertEqual(ids, expected, 'the filter and the map disagree')
+
+    def test_a_multi_leaf_type_contributes_all_its_ids(self):
+        # `historical_landmark` is Monument AND Castle AND Palace. Reading
+        # only the primary would extract a third of the material and report
+        # success.
+        import json
+        from category_ids import all_category_ids
+        path = os.path.join(os.path.dirname(EXTRACTION_DIR), 'src',
+                            'poiTypeCategories.json')
+        with open(path, encoding='utf-8') as handle:
+            mapping = json.load(handle)
+        entry = mapping['historical_landmark']
+        names = {entry['category_name']} | {a['category_name'] for a in entry.get('also', ())}
+        self.assertTrue({'Monument', 'Castle', 'Palace'} <= names)
+        ids = set(all_category_ids())
+        for extra in entry.get('also', ()):
+            self.assertIn(extra['category_id'], ids)
+
+
+class NameGatedLeafTest(unittest.TestCase):
+    """KAN-421 — `Bathing Area` decided by the name, never by the category.
+
+    Every name below is a real row from the 87 pending PT candidates in that
+    leaf, so these assertions describe the data the rule actually meets.
+    """
+
+    # Only `beach` matters here, and hard-coding it keeps the test hermetic:
+    # the real reachable map is read from live D1.
+    REACHABLE = {'beach': 'beach'}
+
+    def decide(self, name, leaf='Landmarks and Outdoors > Bathing Area'):
+        row = {'name': name, 'lat': 39.5, 'lng': -8.1, 'raw_category_labels': leaf}
+        return promote_poi_candidates.decide(row, {}, {}, self.REACHABLE)
+
+    def test_the_genuine_natural_pools_promote_as_beach(self):
+        for name in ('Praia Fluvial de Meitriz', 'Praia Fluvial Senhora da Ribeira',
+                     'Piscinas Naturais de Mosteiros', 'Piscinas Naturais da Fajã Grande',
+                     'piscina natural negrito'):
+            with self.subTest(name=name):
+                status, poi_type, _ = self.decide(name)
+                self.assertEqual((status, poi_type), ('promoted', 'beach'))
+
+    def test_everything_else_in_the_leaf_stays_pending(self):
+        # Three distinct kinds of wrong, all filed under Bathing Area. The
+        # last two are why a beauty-word reject list was not enough.
+        for name in ('The Beauty Clinic', 'Vida City SPA e Espaço ZEN',   # beauty
+                     'Infinity Pool', 'Jacuzzi',                          # hotel amenities
+                     'Casa De Banho', 'Ponte Sobre Tejo A13',             # a toilet, a bridge
+                     'ATLANTIC OCEAN SOUTH OF MADEIRA', 'Braga, Portugal',
+                     'Albufeira De Borba', 'Poço Azul'):                  # reservoir, well
+            with self.subTest(name=name):
+                self.assertEqual(self.decide(name)[0], 'pending')
+
+    def test_the_phrase_must_lead_the_name(self):
+        # A bar, a bridge, a garden and a pitch beside a praia fluvial all
+        # carry the phrase. Only the place itself is named for it.
+        for name in ('Bar da Praia Fluvial Cristalina', 'Ponte da Praia Fluvial',
+                     'Jardim da Praia Fluvial', 'Campo de Jogos da Praia Fluvial',
+                     'Parque de Piscinas Naturais do Ourondo'):
+            with self.subTest(name=name):
+                self.assertEqual(self.decide(name)[0], 'pending')
+
+    def test_the_same_rule_covers_the_swimming_pool_leaf(self):
+        # The larger half of the same problem: 938 pending rows, mostly
+        # municipal and hotel pools, holding the natural pools of the Azores
+        # and Madeira. Same two phrases separate them.
+        pool = 'Sports and Recreation > Water Sports > Swimming > Swimming Pool'
+        for name in ('Piscinas Naturais dos Biscoitos', 'Piscina Natural Do Refugo',
+                     'Praia Fluvial da Benfeita'):
+            with self.subTest(name=name):
+                self.assertEqual(
+                    self.decide(name, leaf=pool),
+                    ('promoted', 'beach', 'name-gated Swimming Pool: beach'))
+        for name in ('Piscina Municipal de Oeiras', 'Hotel Tivoli Pool'):
+            with self.subTest(name=name):
+                self.assertEqual(self.decide(name, leaf=pool)[0], 'pending')
+
+    def test_the_gate_cannot_fire_on_an_ungated_leaf(self):
+        # Same name, a leaf with no gate: decided by the ordinary category
+        # path, which does not map it.
+        status, poi_type, _ = self.decide(
+            'Praia Fluvial de Meitriz', leaf='Travel and Transportation > Hotel Pool')
+        self.assertEqual((status, poi_type), ('pending', None))
+
+    def test_a_name_the_gate_rejects_still_reaches_the_classifier(self):
+        # The gate only ever ADDS a promotion. A row it does not admit falls
+        # through unchanged — measured over all 1,019 pending rows in the two
+        # gated leaves, the classifier promotes none of them today, so this
+        # matters the day one of these leaves is mapped deliberately.
+        seen = {}
+        real = promote_poi_candidates.type_from_name
+        promote_poi_candidates.type_from_name = lambda n: seen.setdefault('name', n) and None
+        try:
+            self.decide('Piscina Municipal de Oeiras')
+        finally:
+            promote_poi_candidates.type_from_name = real
+        self.assertEqual(seen.get('name'), 'piscina municipal de oeiras')
+
+    def test_an_unreachable_gated_type_promotes_nothing(self):
+        row = {'name': 'Praia Fluvial de Meitriz', 'lat': 39.5, 'lng': -8.1,
+               'raw_category_labels': 'Landmarks and Outdoors > Bathing Area'}
+        status, poi_type, _ = promote_poi_candidates.decide(row, {}, {}, {})
+        self.assertEqual((status, poi_type), ('pending', None))
+
+    def test_the_decision_is_stable_when_repeated(self):
+        first = self.decide('Praia Fluvial de Meitriz')
+        self.assertEqual(first, self.decide('Praia Fluvial de Meitriz'))

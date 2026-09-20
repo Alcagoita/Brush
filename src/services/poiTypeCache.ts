@@ -10,7 +10,12 @@
 
 import { getCopyLanguage, type SupportedLanguage } from '../constants/copy';
 import { normalize } from './poiInference';
-import { isGenericPlaceType, type PlaceTypeSuggestion } from './maps';
+import { isGenericPlaceType } from './maps';
+
+export type PlaceTypeSuggestion = {
+  type: string;
+  label: string;
+};
 
 const EN_DICTIONARY = require('../constants/poiDictionary.en.json') as Record<string, string>;
 const PT_DICTIONARY = require('../constants/poiDictionary.pt-PT.json') as Record<string, string>;
@@ -28,20 +33,14 @@ type CandidateKey = {
 
 const COMMERCIAL_POI_TYPES = new Set([
   'bakery',
-  'book_store',
-  'clothing_store',
   'coffee_shop',
   'convenience_store',
   'department_store',
   'discount_store',
   'drugstore',
-  'electronics_store',
   'florist',
-  'furniture_store',
   'grocery_store',
-  'home_goods_store',
   'liquor_store',
-  'pet_store',
   'pharmacy',
   'shoe_store',
   'sporting_goods_store',
@@ -85,6 +84,7 @@ const QUERY_NOISE_WORDS: Record<SupportedLanguage, string[]> = {
 
 type PoiConcept = {
   intents: SearchIntent[];
+  explicitRequiredTerms?: Record<SupportedLanguage, string[]>;
   intentRequiredTerms?: Record<SupportedLanguage, string[]>;
   terms: Record<SupportedLanguage, string[]>;
   types: string[];
@@ -101,7 +101,7 @@ const POI_CONCEPTS: PoiConcept[] = [
   },
   {
     intents: ['retail'],
-    types: ['book_store'],
+    types: ['store'],
     intentRequiredTerms: {
       en: ['book', 'books'],
       'pt-PT': ['livro', 'livros'],
@@ -121,10 +121,18 @@ const POI_CONCEPTS: PoiConcept[] = [
   },
   {
     intents: ['retail', 'food'],
-    types: ['coffee_shop', 'cafe'],
+    types: ['cafe', 'coffee_shop'],
     terms: {
       en: ['coffee', 'coffee shop', 'espresso', 'latte'],
       'pt-PT': ['cafe', 'café', 'cafetaria', 'expresso', 'galão'],
+    },
+  },
+  {
+    intents: ['retail', 'food'],
+    types: ['cafe'],
+    terms: {
+      en: ['coffee roastery', 'roastery'],
+      'pt-PT': ['coffee roastery', 'café roastery', 'cafe roastery', 'roastery'],
     },
   },
   {
@@ -137,10 +145,18 @@ const POI_CONCEPTS: PoiConcept[] = [
   },
   {
     intents: ['retail'],
-    types: ['shoe_store'],
+    types: ['store'],
     terms: {
       en: ['shoe', 'shoes', 'sneakers', 'footwear', 'boots'],
       'pt-PT': ['sapato', 'sapatos', 'tenis', 'ténis', 'calcado', 'calçado', 'botas'],
+    },
+  },
+  {
+    intents: ['food'],
+    types: ['restaurant'],
+    terms: {
+      en: ['sushi', 'sushi restaurant'],
+      'pt-PT': ['sushi', 'restaurante de sushi'],
     },
   },
   {
@@ -165,6 +181,30 @@ const POI_CONCEPTS: PoiConcept[] = [
     terms: {
       en: ['mail', 'post', 'ship', 'send package', 'post office'],
       'pt-PT': ['correio', 'posta', 'enviar encomenda', 'correios'],
+    },
+  },
+  {
+    intents: ['retail'],
+    types: ['currency_exchange'],
+    terms: {
+      en: ['currency exchange', 'bureau de change', 'exchange money', 'foreign currency', 'cambio'],
+      'pt-PT': ['câmbio', 'cambio', 'casa de câmbio', 'trocar moeda', 'câmbio de moeda'],
+    },
+  },
+  {
+    intents: ['retail'],
+    types: ['money_transfer'],
+    terms: {
+      en: ['money transfer', 'send money', 'remittance', 'western union', 'moneygram'],
+      'pt-PT': ['transferência de dinheiro', 'transferir dinheiro', 'remessa', 'western union', 'moneygram'],
+    },
+  },
+  {
+    intents: ['retail'],
+    types: ['financial_service'],
+    terms: {
+      en: ['financial service', 'consumer credit', 'credit', 'insurance', 'financial intermediary', 'leasing', 'factoring', 'central bank', 'tax office'],
+      'pt-PT': ['serviço financeiro', 'crédito', 'crédito ao consumo', 'seguros', 'intermediário financeiro', 'leasing', 'factoring', 'banco central', 'finanças'],
     },
   },
 ];
@@ -200,6 +240,18 @@ const INTENT_REQUIRED_ALIAS_KEYS: Partial<Record<string, Record<SupportedLanguag
       const existing = acc[type] ?? { en: [], 'pt-PT': [] };
       existing.en.push(...concept.intentRequiredTerms.en);
       existing['pt-PT'].push(...concept.intentRequiredTerms['pt-PT']);
+      acc[type] = existing;
+    }
+    return acc;
+  }, {} as Partial<Record<string, Record<SupportedLanguage, string[]>>>);
+
+const EXPLICIT_REQUIRED_ALIAS_KEYS: Partial<Record<string, Record<SupportedLanguage, string[]>>> = POI_CONCEPTS
+  .reduce((acc, concept) => {
+    if (!concept.explicitRequiredTerms) { return acc; }
+    for (const type of concept.types) {
+      const existing = acc[type] ?? { en: [], 'pt-PT': [] };
+      existing.en.push(...concept.explicitRequiredTerms.en);
+      existing['pt-PT'].push(...concept.explicitRequiredTerms['pt-PT']);
       acc[type] = existing;
     }
     return acc;
@@ -310,6 +362,11 @@ export function localPoiLabel(type: string): string {
   return lang === 'pt-PT' ? ptLabel : enLabel;
 }
 
+/** Whether a type is present in the bundled POI suggestion dictionary. */
+export function isSuggestedPoiType(type: string): boolean {
+  return Object.prototype.hasOwnProperty.call(EN_DICTIONARY, type);
+}
+
 function inferIntents(queryKey: string, lang: SupportedLanguage): Set<SearchIntent> {
   const intents = new Set<SearchIntent>();
   const haystack = ` ${queryKey} `;
@@ -357,10 +414,36 @@ function inferConceptMatches(
   return matches;
 }
 
+function explicitAliasMatches(queryVariants: QueryVariant[], aliases: string[]): boolean {
+  return aliases.some(alias =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, alias)),
+  );
+}
+
+function isGenericCoffeeIntent(queryVariants: QueryVariant[], lang: SupportedLanguage): boolean {
+  const genericTerms = lang === 'pt-PT'
+    ? ['cafe', 'café', 'expresso', 'galão']
+    : ['coffee', 'espresso', 'latte'];
+  const explicitSubtypeTerms = [
+    ...(lang === 'pt-PT' ? ['cafetaria'] : ['coffee shop', 'coffee stand']),
+    'coffee roastery',
+    'roastery',
+  ];
+
+  const hasGenericCoffee = genericTerms.some(term =>
+    queryVariants.some(queryVariant => conceptTermMatches(queryVariant.haystack, queryVariant.tokens, term)),
+  );
+  if (!hasGenericCoffee) { return false; }
+
+  return !explicitAliasMatches(queryVariants, explicitSubtypeTerms);
+}
+
 function intentScoreAdjustment(
+  queryVariants: QueryVariant[],
   entry: PoiDictionaryEntry,
   intents: Set<SearchIntent>,
   conceptMatches: Map<string, ConceptMatch>,
+  lang: SupportedLanguage,
 ): number {
   let adjustment = 0;
   const conceptMatch = conceptMatches.get(entry.type);
@@ -377,6 +460,10 @@ function intentScoreAdjustment(
 
   if (intents.has('food') && ['bakery', 'cafe', 'coffee_shop', 'restaurant'].includes(entry.type)) {
     adjustment -= 2;
+  }
+  if (isGenericCoffeeIntent(queryVariants, lang)) {
+    if (entry.type === 'cafe') { adjustment -= 12; }
+    if (['coffee_shop', 'coffee_stand', 'coffee_roastery'].includes(entry.type)) { adjustment += 8; }
   }
   if (intents.has('fitness') && entry.type === 'gym') { adjustment -= 3; }
   if (intents.has('medical') && ['pharmacy', 'drugstore', 'clinic'].includes(entry.type)) {
@@ -415,6 +502,11 @@ function entryScore(
   lang: SupportedLanguage,
 ): number | null {
   const hasAlignedIntent = conceptMatches.get(entry.type)?.intentAligned ?? false;
+  const explicitAliases = normalizeKeys(EXPLICIT_REQUIRED_ALIAS_KEYS[entry.type]?.[lang] ?? []);
+  const matchedExplicitAlias = explicitAliasMatches(queryVariants, explicitAliases);
+  if (explicitAliases.length > 0 && !matchedExplicitAlias) {
+    return null;
+  }
   const restrictedAliases = normalizeKeys(INTENT_REQUIRED_ALIAS_KEYS[entry.type]?.[lang] ?? []);
   const restrictedAliasSet = new Set(restrictedAliases);
   const matchedRestrictedAlias = restrictedAliases.some(alias =>
@@ -442,7 +534,7 @@ function entryScore(
   }
 
   if (best == null) { return null; }
-  return best + intentScoreAdjustment(entry, intents, conceptMatches);
+  return best + intentScoreAdjustment(queryVariants, entry, intents, conceptMatches, lang);
 }
 
 function sortSuggestions(
@@ -464,6 +556,9 @@ function localPoiSuggestions(query: string): PlaceTypeSuggestion[] {
   const queryVariants = buildQueryVariants(queryKey, lang);
   const intents = inferIntents(queryKey, lang);
   const conceptMatches = inferConceptMatches(queryVariants, intents, lang);
+  const directConceptSuggestions = Array.from(conceptMatches.entries())
+    .filter(([type, match]) => type === 'store' && match.intentAligned)
+    .map(([type]) => ({ type, label: localPoiLabel(type) }));
   const ranked = SEARCH_ENTRIES
     .map(entry => {
       const score = entryScore(queryVariants, intents, conceptMatches, entry, lang);
@@ -479,7 +574,8 @@ function localPoiSuggestions(query: string): PlaceTypeSuggestion[] {
     .filter((value): value is { suggestion: PlaceTypeSuggestion; score: number } => value !== null)
     .sort(sortSuggestions);
 
-  return ranked.slice(0, MAX_RESULTS).map(item => item.suggestion);
+  return [...directConceptSuggestions, ...ranked.map(item => item.suggestion)]
+    .slice(0, MAX_RESULTS);
 }
 
 /** Synchronous local search for UI paths that render suggestions inline. */

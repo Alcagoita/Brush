@@ -323,6 +323,54 @@ export function PinIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Footsteps: the places you usually go (KAN-304 "Your usuals") ────────────────
+export function FootstepsIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Left foot — toe sole + heel arc */}
+      <Path
+        d="M6 3.6c1.5 0 2.4 1.3 2.4 3.1 0 1.7-.5 3.4-1.2 4.6-.4.7-1.6.7-2.1 0-.7-1.2-1.4-2.9-1.4-4.6 0-1.8.9-3.1 2.3-3.1z"
+        stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+      <Path d="M4.6 13.6c1 .5 2.4.5 3.3 0" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+      {/* Right foot — offset down and right, a step ahead */}
+      <Path
+        d="M16.6 9c1.5 0 2.4 1.3 2.4 3.1 0 1.7-.5 3.4-1.2 4.6-.4.7-1.6.7-2.1 0-.7-1.2-1.4-2.9-1.4-4.6 0-1.8.9-3.1 2.3-3.1z"
+        stroke={color} strokeWidth={1.5} strokeLinejoin="round" />
+      <Path d="M15.2 19c1 .5 2.4.5 3.3 0" stroke={color} strokeWidth={1.5} strokeLinecap="round" />
+    </Svg>
+  );
+}
+
+// ── Trip: folded map + location marker (KAN-304 Trips tab) ──────────────────────
+export function TripMapIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      {/* Folded map, lower-right */}
+      <Path
+        d="M8 10.5l5-2 4 2 5-1.8v10.6l-5 1.8-4-2-5 2z"
+        stroke={color} strokeWidth={1.6} strokeLinejoin="round" strokeLinecap="round" />
+      <Path d="M13 8.5v10.6M17 10.5v10.6" stroke={color} strokeWidth={1.6} strokeLinecap="round" />
+      {/* Location marker, upper-left */}
+      <Path
+        d="M6.5 2.2c-2 0-3.6 1.6-3.6 3.6 0 2.7 3.6 6.2 3.6 6.2s3.6-3.5 3.6-6.2c0-2-1.6-3.6-3.6-3.6z"
+        stroke={color} strokeWidth={1.6} strokeLinejoin="round" />
+      <Circle cx="6.5" cy="5.8" r="1.3" stroke={color} strokeWidth={1.4} />
+    </Svg>
+  );
+}
+
+// ── Compass/directions (KAN-279 "Take me there") ────────────────────────────────
+// A paper-plane/send glyph reads as "share" (which this app already has a
+// dedicated icon for) — this is a compass needle instead, unambiguous.
+export function NavigateIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="9" stroke={color} strokeWidth={1.6} {...S} />
+      <Path d="M15.5 8.5l-2 5-5 2 2-5 5-2z" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── Home (Settings home-address row, KAN-247) ─────────────────────────────────
 export function HomeIcon({ color, size = 24 }: IconProps) {
   return (
@@ -448,6 +496,19 @@ export function SuitcaseIcon({ color, size = 24 }: IconProps) {
   );
 }
 
+// ── Shopping bag (mall card, KAN-282) ──────────────────────────────────────────
+export function ShoppingBagIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M6 8h12l1 12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1L6 8z"
+        stroke={color} strokeWidth={1.6} {...S}
+      />
+      <Path d="M9 8V6a3 3 0 0 1 6 0v2" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
 // ── Cloud-off (ContextChip offline-with-coverage glyph, KAN-241) ──────────────
 export function CloudOffIcon({ color, size = 24 }: IconProps) {
   return (
@@ -457,6 +518,23 @@ export function CloudOffIcon({ color, size = 24 }: IconProps) {
         stroke={color} strokeWidth={1.6} {...S}
       />
       <Line x1="4" y1="4" x2="20" y2="20" stroke={color} strokeWidth={1.6} {...S} />
+    </Svg>
+  );
+}
+
+// ── Crosshair (Lantern "no home set" state, KAN-301) ──────────────────────────
+// A locating reticle: "the app hasn't been told where to center yet." Distinct
+// from PinIcon (a known place) and HomeIcon (a set home) — this is the unset,
+// still-searching state.
+export function CrosshairIcon({ color, size = 24 }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Circle cx="12" cy="12" r="7" stroke={color} strokeWidth={1.7} {...S} />
+      <Line x1="12" y1="2"  x2="12" y2="5"  stroke={color} strokeWidth={1.7} {...S} />
+      <Line x1="12" y1="19" x2="12" y2="22" stroke={color} strokeWidth={1.7} {...S} />
+      <Line x1="2"  y1="12" x2="5"  y2="12" stroke={color} strokeWidth={1.7} {...S} />
+      <Line x1="19" y1="12" x2="22" y2="12" stroke={color} strokeWidth={1.7} {...S} />
+      <Circle cx="12" cy="12" r="1.4" fill={color} />
     </Svg>
   );
 }

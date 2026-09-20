@@ -44,17 +44,29 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { categories, fonts } from '../theme/tokens';
-import { PoiType, CategoryKey, Category, POI_CATALOG, poiCatalogLabel } from '../types';
+import { categories, fonts, spacing } from '../theme/tokens';
+import { PoiType, CategoryKey, Category, QUICK_ACTIONABLE_POI_TYPES, POI_CATALOG, poiCatalogLabel } from '../types';
 import { addTask } from '../services/firestore';
 import { inferPoiForQuickAdd, learnFromClassification, learnFromUserEdit } from '../services/poiLlm';
 import { CloseIcon, PoiIcon } from './AppIcon';
 import { navigateTo } from '../navigation/navigationRef';
-import { todayISO } from '../utils/date';
 import { COPY } from '../constants/copy';
 import { useToastStore } from '../store/toastStore';
 import RotatingTitlePlaceholder from './RotatingTitlePlaceholder';
 import { localPoiLabel } from '../services/poiTypeCache';
+import FoodTypeSelector from './FoodTypeSelector';
+import FinancialServiceKindSelector from './FinancialServiceKindSelector';
+import type { RestaurantFoodType } from '../services/restaurantFoodTypes';
+import StoreSubtypeSelector from './StoreSubtypeSelector';
+import StoreBrandInput from './StoreBrandInput';
+import StoreDetailModeSelector from './StoreDetailModeSelector';
+import BrandSelector from './BrandSelector';
+import {
+  inferStoreSubtype,
+  type StoreSubtype,
+} from '../services/storeSubtypes';
+import { findBrandInText, isCanonicalBrandForType, poiTypeRequiresBrand } from '../services/brandDictionary';
+import { inferFinancialServiceKind, type FinancialServiceKind } from '../services/financialServiceKinds';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -178,7 +190,7 @@ function SuggestionTile({ type, label, selected, touched, onPress, palette }: Su
       accessibilityState={{ selected, disabled: !known }}
       style={[
         styles.poiTile,
-        showHint && styles.poiTileSuggested,
+        (showHint || confirmed) && styles.poiTileSuggested,
         {
           backgroundColor: live ? palette.nearTint : confirmed ? palette.nearTint2 : known ? palette.surface : palette.nearTint,
           borderColor:     live || confirmed || !known ? palette.nearBorder : palette.line,
@@ -215,6 +227,15 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     const [title,    setTitle]    = useState('');
     const [category, setCategory] = useState<string | null>(null);
     const [poi,      setPoi]      = useState<string | null>(null);
+    const [restaurantFoodType, setRestaurantFoodType] = useState<RestaurantFoodType | null>(null);
+    const [financialServiceKind, setFinancialServiceKind] = useState<FinancialServiceKind | null>(null);
+    const [financialServiceKindTouched, setFinancialServiceKindTouched] = useState(false);
+    const [storeSubtype, setStoreSubtype] = useState<StoreSubtype | null>(null);
+    const [storeSubtypeTouched, setStoreSubtypeTouched] = useState(false);
+    const [storeDetailMode, setStoreDetailMode] = useState<'type' | 'brand'>('type');
+    const [poiBrand, setPoiBrand] = useState<string | null>(null);
+    const [poiBrandTouched, setPoiBrandTouched] = useState(false);
+    const previousBrandPoiRef = useRef<string | null>(poi);
     // KAN-249 — the raw inference result, frozen the moment the user touches
     // the carousel. Compared against `poi` at submit time to tell a Confirm
     // (poi === suggestedPoi) from a Replace (poi !== suggestedPoi); null means
@@ -256,6 +277,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     // containers) — leaves a permanent gap. Driven explicitly off Keyboard
     // events instead, so hide always forces this back to 0.
     const kbOffset      = useSharedValue(0);
+    // The transform above keeps the sheet's bottom edge above Android's
+    // keyboard. Its height must be constrained to that same visible viewport:
+    // otherwise an expanded inline picker (such as Store brands) can make the
+    // title field travel above the top of the screen with the sheet.
+    const [keyboardHeight, setKeyboardHeight] = useState(0);
 
     const sheetStyle = useAnimatedStyle(() => ({
       transform: [{ translateY: translateY.value + dragOffset.value + kbOffset.value }],
@@ -269,10 +295,13 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
     useEffect(() => {
       if (Platform.OS !== 'android') return;
       const showSub = Keyboard.addListener('keyboardDidShow', (e) => {
-        kbOffset.value = withTiming(-e.endCoordinates.height, { duration: 200 });
+        const height = Math.max(e.endCoordinates.height, 0);
+        kbOffset.value = withTiming(-height, { duration: 200 });
+        setKeyboardHeight(height);
       });
       const hideSub = Keyboard.addListener('keyboardDidHide', () => {
         kbOffset.value = withTiming(0, { duration: 200 });
+        setKeyboardHeight(0);
       });
       return () => {
         showSub.remove();
@@ -284,11 +313,20 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       setTitle('');
       setCategory(null);
       setPoi(null);
+      setRestaurantFoodType(null);
+      setFinancialServiceKind(null);
+      setFinancialServiceKindTouched(false);
+      setStoreSubtype(null);
+      setStoreSubtypeTouched(false);
+      setStoreDetailMode('type');
+      setPoiBrand(null);
+      setPoiBrandTouched(false);
       setSuggestedPoi(null);
       setSuggestedTitle(null);
       setPoiTouched(false);
       setSubmitting(false);
       setTitleFocused(false);
+      setKeyboardHeight(0);
       dragOffset.value = 0;
       kbOffset.value = 0;
       userTouchedPoiRef.current = false;
@@ -398,7 +436,61 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }), []);
 
-    const canSubmit = title.trim().length > 0 && poi !== null;
+    const hasRequiredStoreDetail = poi !== 'store' || (
+      storeDetailMode === 'brand'
+        ? isCanonicalBrandForType('store', poiBrand)
+        : Boolean(storeSubtype && storeSubtype !== 'any')
+    );
+    const canSubmit = title.trim().length > 0 && poi !== null && hasRequiredStoreDetail && (
+      !poiTypeRequiresBrand(poi) || isCanonicalBrandForType(poi, poiBrand)
+    );
+
+    useEffect(() => {
+      if (poi !== 'restaurant') { setRestaurantFoodType(null); }
+      if (poi !== 'financial_service') {
+        setFinancialServiceKind(null);
+        setFinancialServiceKindTouched(false);
+      }
+      if (poi !== 'store') {
+        setStoreSubtype(null);
+        setStoreSubtypeTouched(false);
+        setStoreDetailMode('type');
+      }
+      if (previousBrandPoiRef.current !== poi || (!poiTypeRequiresBrand(poi) && poi !== 'store')) {
+        setPoiBrand(null);
+        setPoiBrandTouched(false);
+      }
+      previousBrandPoiRef.current = poi;
+    }, [poi]);
+
+    useEffect(() => {
+      if (poi !== 'store' || storeDetailMode !== 'type' || storeSubtypeTouched) { return; }
+      setStoreSubtype(inferStoreSubtype(title.trim()));
+    }, [poi, storeDetailMode, storeSubtypeTouched, title]);
+
+    useEffect(() => {
+      if (poi !== 'financial_service' || financialServiceKindTouched) return;
+      setFinancialServiceKind(current => current ?? inferFinancialServiceKind(title.trim()));
+    }, [poi, financialServiceKindTouched, title]);
+
+    const handleFinancialServiceKindSelect = useCallback((kind: FinancialServiceKind | null) => {
+      setFinancialServiceKindTouched(true);
+      setFinancialServiceKind(kind);
+    }, []);
+
+    const suggestedBrand = (poiTypeRequiresBrand(poi) || poi === 'store') ? findBrandInText(poi, title) : null;
+    useEffect(() => {
+      if ((!poiTypeRequiresBrand(poi) && poi !== 'store') || poiBrandTouched || (poi === 'store' && storeSubtypeTouched)) { return; }
+      setPoiBrand(suggestedBrand);
+      if (poi === 'store') {
+        if (suggestedBrand) {
+          setStoreSubtype(null);
+          setStoreDetailMode('brand');
+        } else {
+          setStoreDetailMode('type');
+        }
+      }
+    }, [poi, poiBrandTouched, storeSubtypeTouched, suggestedBrand]);
 
     // KAN-249 — the leading suggestion tile's content. `suggestionType` is
     // sticky once inference lands on something: replacing it with a
@@ -411,10 +503,18 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         : localPoiLabel(suggestionType))
       : null;
     const suggestionSelected = suggestionType !== null && poi === suggestionType;
+    const suggestedStoreSubtype = poi === 'store' && storeSubtype && !storeSubtypeTouched && storeSubtype !== 'any'
+      ? storeSubtype
+      : null;
 
     const handleSubmit = useCallback(async () => {
       const trimmed = title.trim();
-      if (!trimmed || !poi || !uid || submitting) { return; }
+      const canSaveStoreDetail = poi !== 'store' || (
+        storeDetailMode === 'brand'
+          ? isCanonicalBrandForType('store', poiBrand)
+          : Boolean(storeSubtype && storeSubtype !== 'any')
+      );
+      if (!trimmed || !poi || !uid || submitting || !canSaveStoreDetail || (poiTypeRequiresBrand(poi) && !isCanonicalBrandForType(poi, poiBrand))) { return; }
 
       setSubmitting(true);
       try {
@@ -422,8 +522,11 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           title:    trimmed,
           category: category ?? 'personal',
           done:     false,
-          date:     todayISO(),
           poi,
+          ...(poi === 'store' && storeDetailMode === 'type' && storeSubtype && storeSubtype !== 'any' ? { storeSubtype } : {}),
+          ...(poi === 'restaurant' && restaurantFoodType ? { restaurantFoodType } : {}),
+          ...(poi === 'financial_service' && financialServiceKind ? { financialServiceKind } : {}),
+          ...((poiTypeRequiresBrand(poi) || poi === 'store') && isCanonicalBrandForType(poi, poiBrand) ? { poiBrand: poiBrand! } : {}),
         });
         // KAN-249 learn-back — only meaningful when a suggestion actually
         // fired for THIS title. Inference is skipped once the carousel is
@@ -449,17 +552,34 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
         console.warn('[NewTaskSheet] addTask failed', err);
         setSubmitting(false);
       }
-    }, [title, category, poi, suggestedPoi, suggestedTitle, uid, submitting, resetForm]);
+    }, [title, category, poi, storeDetailMode, storeSubtype, restaurantFoodType, financialServiceKind, poiBrand, suggestedPoi, suggestedTitle, uid, submitting]);
 
     const handleMoreDetails = useCallback(() => {
       handleClose();
       setTimeout(() => navigateTo('TaskForm', {
         uid,
-        initialTitle: title.trim() || undefined,
-        initialPoi:   poi ?? undefined,
+        initialTitle:    title.trim() || undefined,
+        initialCategory: category ?? undefined,
+        initialPoi:      poi ?? undefined,
+        ...(poi === 'store' ? {
+          initialStoreSubtype: isCanonicalBrandForType('store', poiBrand) ? undefined : storeSubtype ?? undefined,
+          initialStoreSubtypeExplicitlySelected: !isCanonicalBrandForType('store', poiBrand) && storeSubtypeTouched,
+        } : {}),
+        ...(poi === 'restaurant' && restaurantFoodType ? {
+          initialRestaurantFoodType: restaurantFoodType,
+        } : {}),
+        ...(poi === 'financial_service' ? {
+          initialFinancialServiceKind: financialServiceKind ?? undefined,
+          initialFinancialServiceKindExplicitlySelected: financialServiceKindTouched,
+        } : {}),
+        ...((poiTypeRequiresBrand(poi) || poi === 'store') && poiBrand ? { initialPoiBrand: poiBrand } : {}),
         initialPoiExplicitlySelected: poiTouched,
       }), 80);
-    }, [handleClose, uid, title, poi]);
+    }, [handleClose, uid, title, category, poi, storeSubtype, storeSubtypeTouched, restaurantFoodType, financialServiceKind, financialServiceKindTouched, poiBrand, poiTouched]);
+
+    const keyboardSafeSheetHeight = keyboardHeight > 0
+      ? Math.max(SCREEN_H - keyboardHeight - insets.top, 0)
+      : undefined;
 
     // Always mounted — built once, shown/hidden via transform. `pointerEvents`
     // goes inert when closed so the off-screen sheet never blocks the screen.
@@ -483,7 +603,12 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
           pointerEvents="box-none">
 
           <Animated.View
-            style={[styles.sheet, { backgroundColor: palette.bg, borderTopColor: palette.line }, sheetStyle]}>
+            style={[
+              styles.sheet,
+              keyboardSafeSheetHeight != null && { maxHeight: keyboardSafeSheetHeight },
+              { backgroundColor: palette.bg, borderTopColor: palette.line },
+              sheetStyle,
+            ]}>
 
             {/* Drag handle */}
             <View style={styles.handleWrap} {...panResponder.panHandlers}>
@@ -586,7 +711,7 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 snapToInterval={POI_TILE_WIDTH + 10}
                 decelerationRate="fast"
                 style={styles.carouselMask}>
-                {POI_CATALOG.map(({ type }) => (
+                {QUICK_ACTIONABLE_POI_TYPES.map(type => (
                   <PoiTile
                     key={type}
                     type={type}
@@ -602,6 +727,147 @@ const NewTaskSheet = forwardRef<NewTaskSheetHandle, NewTaskSheetProps>(
                 ))}
               </ScrollView>
               </View>
+
+              {poi === 'restaurant' && (
+                <View style={styles.foodTypeSection}>
+                  <View style={styles.questionRow}>
+                    <Text style={[styles.questionLabel, { color: palette.text }]}>
+                      {COPY.newTaskSheet.subtypeQuestion}
+                    </Text>
+                    <Text style={[styles.questionOptional, { color: palette.faint }]}>
+                      {COPY.newTaskSheet.catOptional}
+                    </Text>
+                  </View>
+                  <View style={styles.foodTypePad}>
+                  <FoodTypeSelector
+                    selected={restaurantFoodType}
+                    onSelect={setRestaurantFoodType}
+                  />
+                  </View>
+                </View>
+              )}
+
+              {poi === 'store' && (
+                <View style={styles.foodTypeSection}>
+                  <View style={styles.questionRow}>
+                    <Text style={[styles.questionLabel, { color: palette.text }]}>
+                      {COPY.newTaskSheet.storeDetailQuestion}
+                    </Text>
+                  </View>
+                  <View style={styles.storeDetailModePad}>
+                    <StoreDetailModeSelector
+                      value={storeDetailMode}
+                      onSelect={mode => {
+                        if (mode === 'type') {
+                          setStoreDetailMode('type');
+                          setPoiBrand(null);
+                          setPoiBrandTouched(false);
+                          setStoreSubtypeTouched(false);
+                        } else {
+                          setStoreDetailMode('brand');
+                          setStoreSubtype(null);
+                          setStoreSubtypeTouched(false);
+                          // A deliberate mode change must not be overwritten by
+                          // the title's automatic brand inference.
+                          setPoiBrandTouched(true);
+                        }
+                      }}
+                    />
+                  </View>
+                  <View style={[styles.foodTypePad, storeDetailMode === 'brand' && styles.storeBrandPad]}>
+                    {storeDetailMode === 'type' ? (
+                      <StoreSubtypeSelector
+                        selected={storeSubtype}
+                        suggested={suggestedStoreSubtype}
+                        onSelect={subtype => {
+                          setStoreSubtypeTouched(true);
+                          setPoiBrand(null);
+                          setPoiBrandTouched(false);
+                          setStoreSubtype(subtype);
+                        }}
+                      />
+                    ) : (
+                      <StoreBrandInput
+                        poiType="store"
+                        selected={poiBrand}
+                        placeholder={COPY.newTaskSheet.storeBrandPlaceholder}
+                        unmatchedLabel={COPY.newTaskSheet.storeBrandUnknown}
+                        onClear={() => {
+                          setPoiBrand(null);
+                          setPoiBrandTouched(true);
+                        }}
+                        onSelect={brand => {
+                          setPoiBrandTouched(true);
+                          setPoiBrand(brand);
+                          setStoreSubtype(null);
+                          setStoreSubtypeTouched(false);
+                        }}
+                      />
+                    )}
+                  </View>
+                </View>
+              )}
+
+              {poi === 'financial_service' && (
+                <View style={styles.foodTypeSection}>
+                  <View style={styles.questionRow}>
+                    <Text style={[styles.questionLabel, { color: palette.text }]}>
+                      {COPY.newTaskSheet.subtypeQuestion}
+                    </Text>
+                    <Text style={[styles.questionOptional, { color: palette.faint }]}>
+                      {COPY.newTaskSheet.catOptional}
+                    </Text>
+                  </View>
+                  <View style={styles.foodTypePad}>
+                    <FinancialServiceKindSelector selected={financialServiceKind} onSelect={handleFinancialServiceKindSelect} />
+                  </View>
+                </View>
+              )}
+
+              {poi === 'bank' ? (
+                <View style={styles.foodTypeSection}>
+                  <View style={styles.questionRow}>
+                    <Text style={[styles.questionLabel, { color: palette.text }]}>
+                      {COPY.newTaskSheet.brandQuestion}
+                    </Text>
+                  </View>
+                  <View style={[styles.foodTypePad, styles.storeBrandPad]}>
+                    <StoreBrandInput
+                      poiType="bank"
+                      selected={poiBrand}
+                      placeholder={COPY.newTaskSheet.bankBrandPlaceholder}
+                      unmatchedLabel={COPY.newTaskSheet.bankBrandUnknown}
+                      onClear={() => {
+                        setPoiBrand(null);
+                        setPoiBrandTouched(true);
+                      }}
+                      onSelect={brand => {
+                        setPoiBrandTouched(true);
+                        setPoiBrand(brand);
+                      }}
+                    />
+                  </View>
+                </View>
+              ) : poiTypeRequiresBrand(poi) && (
+                <View style={styles.foodTypeSection}>
+                  <View style={styles.questionRow}>
+                    <Text style={[styles.questionLabel, { color: palette.text }]}>
+                      {COPY.newTaskSheet.brandQuestion}
+                    </Text>
+                  </View>
+                  <View style={styles.foodTypePad}>
+                    <BrandSelector
+                      poiType={poi}
+                      selected={poiBrand}
+                      suggested={poiBrandTouched ? null : suggestedBrand}
+                      onSelect={brand => {
+                        setPoiBrandTouched(true);
+                        setPoiBrand(brand);
+                      }}
+                    />
+                  </View>
+                </View>
+              )}
 
               {/* ── Category question (optional) ── */}
               <View style={styles.questionRow}>
@@ -764,6 +1030,7 @@ const styles = StyleSheet.create({
   },
   formScroll: {
     flexGrow: 0,
+    flexShrink: 1,
   },
   fieldPad: {
     paddingHorizontal: 22,
@@ -825,6 +1092,20 @@ const styles = StyleSheet.create({
     paddingLeft:        22,
     paddingBottom:       4,
     gap:                10,
+  },
+  foodTypePad: {
+    paddingLeft:   22,
+    paddingTop:     8,
+    paddingBottom:  2,
+  },
+  foodTypeSection: {
+    paddingTop: 2,
+  },
+  storeBrandPad: {
+    paddingRight: spacing.page,
+  },
+  storeDetailModePad: {
+    paddingHorizontal: spacing.page,
   },
   carouselMask: {
     // Soft fade on the trailing edge via paddingRight on the content and overflow

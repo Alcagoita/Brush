@@ -23,8 +23,6 @@ import {
   normalize,
   registerLearnedKeyword,
   registerPoiKeywords,
-  registerCategoryKeywords,
-  syncCategoryKeywords,
   clearLearnedKeywords,
   isSupportedLang,
 } from '../../src/services/poiInference';
@@ -70,16 +68,43 @@ describe('normalize', () => {
 // ─── inferPoiFromRules: English ────────────────────────────────────────────────
 
 describe('inferPoiFromRules (en)', () => {
-  it('maps "buy bread" to supermarket', () => {
-    expect(inferPoiFromRules('buy bread')).toBe('supermarket');
+  it('maps "buy bread" to bakery', () => {
+    expect(inferPoiFromRules('buy bread')).toBe('bakery');
   });
 
   it('maps a coffee task to cafe', () => {
     expect(inferPoiFromRules('grab a coffee')).toBe('cafe');
   });
 
+  it('keeps the four hair and beauty errands apart', () => {
+    expect(inferPoiFromRules('need a haircut')).toBe('hairdresser');
+    expect(inferPoiFromRules('go to the barbershop')).toBe('barber');
+    expect(inferPoiFromRules('book a manicure')).toBe('nail_salon');
+  });
+
+  it('maps a tattoo task to tattoo', () => {
+    expect(inferPoiFromRules('book a tattoo')).toBe('tattoo');
+    expect(inferPoiFromRules('get inked')).toBe('tattoo');
+  });
+
+  it('maps ice cream tasks to ice_cream, however they are written', () => {
+    expect(inferPoiFromRules('buy ice cream')).toBe('ice_cream');
+    expect(inferPoiFromRules('Gelato!')).toBe('ice_cream');
+    // Punctuation and case are normalized away before matching.
+    expect(inferPoiFromRules('ICE CREAM, please')).toBe('ice_cream');
+  });
+
   it('maps a cash task to atm', () => {
     expect(inferPoiFromRules('withdraw cash')).toBe('atm');
+  });
+
+  it('maps cigarette and vape errands to the tobacco intent', () => {
+    expect(inferPoiFromRules('buy cigarettes')).toBe('tobacco');
+    expect(inferPoiFromRules('buy vape liquid')).toBe('tobacco');
+  });
+
+  it('maps luggage-storage errands to luggage_storage', () => {
+    expect(inferPoiFromRules('store luggage before check-in')).toBe('luggage_storage');
   });
 
   it('maps a prescription task to pharmacy', () => {
@@ -102,16 +127,43 @@ describe('inferPoiFromRules (en)', () => {
 // ─── inferPoiFromRules: Português de Portugal ──────────────────────────────────
 
 describe('inferPoiFromRules (pt-PT)', () => {
-  it('maps "comprar pão" to supermarket', () => {
-    expect(inferPoiFromRules('comprar pão', 'pt-PT')).toBe('supermarket');
+  it('maps "comprar pão" to bakery', () => {
+    expect(inferPoiFromRules('comprar pão', 'pt-PT')).toBe('bakery');
   });
 
   it('maps a café task to cafe', () => {
     expect(inferPoiFromRules('tomar um café', 'pt-PT')).toBe('cafe');
   });
 
+  it('keeps barbearia, cabeleireiro and manicure apart', () => {
+    expect(inferPoiFromRules('ir à barbearia', 'pt-PT')).toBe('barber');
+    expect(inferPoiFromRules('cortar o cabelo', 'pt-PT')).toBe('hairdresser');
+    expect(inferPoiFromRules('fazer as unhas', 'pt-PT')).toBe('nail_salon');
+  });
+
+  it('maps a tatuagem task to tattoo', () => {
+    expect(inferPoiFromRules('fazer uma tatuagem', 'pt-PT')).toBe('tattoo');
+    expect(inferPoiFromRules('marcar tatuagens', 'pt-PT')).toBe('tattoo');
+  });
+
+  it('maps both spellings of gelataria to ice_cream', () => {
+    // Geladaria is the more correct spelling; gelataria is also current.
+    expect(inferPoiFromRules('ir à geladaria', 'pt-PT')).toBe('ice_cream');
+    expect(inferPoiFromRules('Gelataria do Cais', 'pt-PT')).toBe('ice_cream');
+    expect(inferPoiFromRules('comprar um gelado', 'pt-PT')).toBe('ice_cream');
+  });
+
   it('maps a multibanco task to atm', () => {
     expect(inferPoiFromRules('levantar dinheiro no multibanco', 'pt-PT')).toBe('atm');
+  });
+
+  it('maps tabacaria errands to the tobacco intent', () => {
+    expect(inferPoiFromRules('comprar cigarros', 'pt-PT')).toBe('tobacco');
+    expect(inferPoiFromRules('ir à tabacaria', 'pt-PT')).toBe('tobacco');
+  });
+
+  it('maps depósito de bagagem errands to luggage_storage', () => {
+    expect(inferPoiFromRules('guardar bagagem', 'pt-PT')).toBe('luggage_storage');
   });
 
   it('maps a farmácia task to pharmacy', () => {
@@ -131,26 +183,31 @@ describe('inferPoiFromRules (pt-PT)', () => {
   });
 });
 
-// ─── All 16 built-in POI types ─────────────────────────────────────────────────
+// ─── All built-in POI types ────────────────────────────────────────────────────
 
-describe('inferPoiFromRules: all 16 built-in types (en)', () => {
+describe('inferPoiFromRules: all built-in types (en)', () => {
   const cases: [string, string][] = [
     ['withdraw cash',            'atm'],
     ['grab a coffee',           'cafe'],
-    ['buy bread',               'supermarket'],
+    ['buy bread',               'bakery'],
     ['pick up prescription',    'pharmacy'],
     ['fill up on petrol',       'gas'],
     ['morning workout',         'gym'],
     ['deposit cheque at bank',  'bank'],
     ['dinner reservation',      'restaurant'],
+    ['meet for cocktails',      'bar'],
     ['walk in the park',        'park'],
     ['return book to library',  'library'],
     ['mail a parcel',           'post'],
     ['shop at the mall',        'store'],
+    ['buy flowers',             'florist'],
     ['dentist checkup',         'clinic'],
-    ['book a haircut',          'salon'],
+    ['book a haircut',          'hairdresser'],
     ['catch the bus',           'bus'],
     ['pick up kids from school','school'],
+    ['exchange money',          'currency_exchange'],
+    ['send money with Western Union', 'money_transfer'],
+    ['renew insurance',         'financial_service'],
   ];
 
   it.each(cases)('maps %p to %p', (title, expected) => {
@@ -163,15 +220,21 @@ describe('inferPoiFromRules: extended types (pt-PT)', () => {
     ['meter gasolina',           'gas'],
     ['ir ao ginásio',            'gym'],
     ['ir ao banco',              'bank'],
+    ['comprar pão',              'bakery'],
     ['reserva no restaurante',   'restaurant'],
+    ['beber cocktails',          'bar'],
     ['passear no parque',        'park'],
     ['devolver livro',           'library'],
     ['enviar encomenda',         'post'],
     ['comprar no centro comercial', 'store'],
+    ['comprar flores',           'florist'],
     ['consulta no médico',       'clinic'],
-    ['corte de cabelo',          'salon'],
+    ['corte de cabelo',          'hairdresser'],
     ['apanhar o autocarro',      'bus'],
     ['reunião de pais',          'school'],
+    ['trocar câmbio',            'currency_exchange'],
+    ['transferir dinheiro',      'money_transfer'],
+    ['pagar crédito',            'financial_service'],
   ];
 
   it.each(cases)('maps %p to %p', (title, expected) => {
@@ -255,70 +318,26 @@ describe('learned layer', () => {
   });
 });
 
-// ─── Dynamic custom-category registration ──────────────────────────────────────
-
-describe('registerCategoryKeywords (user adds a new POI)', () => {
-  it('registers a custom category name → its POI', () => {
-    expect(inferPoiFromRules('weekly book club')).toBeNull();
-    registerCategoryKeywords({ name: 'Book club', poi: 'library' });
-    expect(inferPoiFromRules('weekly book club')).toBe('library');
+describe('KAN-408 review — keywords the dedupe gave to the wrong type', () => {
+  // Both were silently skipped when these types were added, because an
+  // earlier type already claimed the word. The result was a split concept:
+  // `area protegida` and `parque natural` resolved to nature_preserve while
+  // `reserva natural` — the most direct phrase of the three — resolved to
+  // hiking_area.
+  it.each([
+    ['reserva natural', 'nature_preserve'],
+    ['area protegida', 'nature_preserve'],
+    ['parque natural', 'nature_preserve'],
+    ['termas', 'hot_spring'],
+    ['aguas termais', 'hot_spring'],
+  ])('%s resolves to %s', (phrase, expected) => {
+    expect(inferPoiFromRules(phrase, 'pt-PT')).toBe(expected);
   });
 
-  it('supports a custom Google Places type beyond the 16 built-ins', () => {
-    registerCategoryKeywords({ name: 'Bakery run', poi: 'bakery' });
-    expect(inferPoiFromRules('morning bakery run')).toBe('bakery');
-  });
-
-  it('registers extra synonyms alongside the name', () => {
-    registerCategoryKeywords({ name: 'Vet', poi: 'veterinary_care', synonyms: ['vaccine', 'pet checkup'] });
-    expect(inferPoiFromRules('dog vaccine')).toBe('veterinary_care');
-    expect(inferPoiFromRules('pet checkup')).toBe('veterinary_care');
-  });
-
-  it('is a no-op when the category has no POI', () => {
-    registerCategoryKeywords({ name: 'Misc', poi: null });
-    expect(inferPoiFromRules('some misc task')).toBeNull();
-  });
-
-  it('is a no-op for an empty name', () => {
-    registerCategoryKeywords({ name: '   ', poi: 'gym' });
-    expect(inferPoiFromRules('   ')).toBeNull();
-  });
-
-  it('syncCategoryKeywords bulk-registers many categories', () => {
-    syncCategoryKeywords([
-      { name: 'Florist', poi: 'florist' },
-      { name: 'Hardware store', poi: 'hardware_store' },
-      { name: 'No location', poi: null },
-    ]);
-    expect(inferPoiFromRules('order from florist')).toBe('florist');
-    expect(inferPoiFromRules('go to the hardware store')).toBe('hardware_store');
-  });
-
-  it('registers category terms across all languages (matches a pt-PT lookup)', () => {
-    // Firestore callers pass no lang; the term must match regardless of the
-    // language the import later infers with.
-    registerCategoryKeywords({ name: 'Padaria', poi: 'bakery' });
-    expect(inferPoiFromRules('ir à padaria', 'pt-PT')).toBe('bakery');
-    expect(inferPoiFromRules('stop at padaria', 'en')).toBe('bakery');
-  });
-
-  it('replaceCategoryKeywords prunes categories no longer in the list', () => {
-    syncCategoryKeywords([
-      { name: 'Florist', poi: 'florist' },
-      { name: 'Hardware store', poi: 'hardware_store' },
-    ]);
-    expect(inferPoiFromRules('order from florist')).toBe('florist');
-
-    // Re-sync with the florist removed (e.g. user deleted that category).
-    syncCategoryKeywords([{ name: 'Hardware store', poi: 'hardware_store' }]);
-    expect(inferPoiFromRules('order from florist')).toBeNull();
-    expect(inferPoiFromRules('go to the hardware store')).toBe('hardware_store');
-  });
-
-  it('explicit user/LLM learned entry wins over a category-derived term', () => {
-    registerCategoryKeywords({ name: 'pilates', poi: 'gym' });
-    registerLearnedKeyword('pilates', 'salon'); // hypothetical correction
-    expect(inferPoiFromRules('book pilates')).toBe('salon');
+  it('leaves the types that gave the keywords up still reachable', () => {
+    // hiking_area and spa lost a keyword each; neither may become
+    // unreachable as a result.
+    expect(inferPoiFromRules('trilho', 'pt-PT')).toBe('hiking_area');
+    expect(inferPoiFromRules('spa', 'pt-PT')).toBe('spa');
   });
 });

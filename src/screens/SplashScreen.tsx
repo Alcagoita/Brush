@@ -44,20 +44,19 @@ import {
   getCategories,
   getInboxUnreadCount,
   getPoiPreferencesMap,
-  getTasksForDate,
+  ensureCurrentDay,
   getTotalPoints,
   getTrips,
   getUser,
   getUserPreferences,
   loadLearnedKeywords,
-  rolloverIncompleteTasks,
 } from '../services/firestore';
 import { getIncomingSharedTasksCount } from '../services/sharing';
-import { checkAndRunTripPreRefresh } from '../services/tripDownload';
+import { checkAndRunTripPreRefresh, getAreaDownloadPoiTypes } from '../services/tripDownload';
 import { deleteExpiredTripPlaces, refreshHabitatCacheIfStale } from '../services/habitatCache';
 import { getMallSnapshot } from '../services/mallSnapshots';
-import { ALL_POI_TYPES } from '../types';
-import { todayISO } from '../utils/date';
+import { setHomeLocation } from '../services/home';
+import { CLUSTER_LEISURE_TYPES } from '../types';
 import { lightPalette } from '../theme/tokens';
 
 // ─── Timing constants ─────────────────────────────────────────────────────────
@@ -77,8 +76,8 @@ const ENTRANCE_DUR_MS   = 650;
 const MAX_WAIT_AFTER_READY_MS = 4_000;
 
 /**
- * Absolute upper bound on boot. The KAN-146 rollover + Firestore fetch run
- * before `markReady`; if either stalls (offline, large batch write) the splash
+ * Absolute upper bound on boot. The Firestore fetch runs before `markReady`;
+ * if it stalls (offline, slow network) the splash
  * would otherwise cycle forever. After this deadline we mark ready regardless —
  * the Today screen does its own fetch and shows an error/retry if needed.
  */
@@ -289,7 +288,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     // commits through the ShadowTree (Yoga + RawProps), so a perpetually looping
     // splash animation pegs the JS thread. While pegged, the boot promises and
     // `markReady`/`doNavigate` timers can't run — so the splash would loop
-    // forever and the app would never appear (the KAN-146 rollover made boot slow
+    // forever and the app would never appear (a slow data fetch can otherwise be
     // enough to fall into this deadlock). With a single cycle the thread frees
     // after ~3s; boot callbacks then run and exit is driven by `restTimerRef`
     // (fast path) or `markReady`'s abort timer (slow path). KAN-157 lesson:
@@ -345,6 +344,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     let cancelled = false;
 
     if (!user) {
+      setHomeLocation(null);
       markReady();
       return () => { cancelled = true; };
     }
@@ -362,15 +362,15 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
     // learned-places ranking is missing historical visits until next boot.
     backfillLearnedPlaceCounts(uid)
       .catch(err => console.warn('[SplashScreen] backfillLearnedPlaceCounts failed (non-critical)', err));
-    // Roll forward yesterday's undone tasks before fetching today's list, so
-    // they're already included (KAN-146 — tasks persist until brushed away).
-    // This is the per-user-timezone-correct fallback to the best-effort UTC
-    // server-side rollover Cloud Function; failures here are non-fatal — the
-    // server-side job (or tomorrow's rollover) will catch anything missed.
-    rolloverIncompleteTasks(uid)
-      .catch(err => console.warn('[SplashScreen] rolloverIncompleteTasks failed (non-critical)', err))
-      .then(() => Promise.allSettled([
-        getTasksForDate(uid, todayISO()),
+    // Resolve stale tasks into today's in-memory list before loading the
+    // screen, but do not make splash navigation wait for their Firestore
+    // write. ensureCurrentDay keeps the per-device local-day behaviour and
+    // retries naturally on the next active/focus refresh if persistence fails.
+    Promise.allSettled([
+        ensureCurrentDay(uid).then(({ tasks, persistence }) => {
+          persistence.catch(err => console.warn('[SplashScreen] current-day persistence failed (non-critical)', err));
+          return tasks;
+        }),
         getUser(uid),
         getUserPreferences(uid),
         getPoiPreferencesMap(uid),
@@ -380,7 +380,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         getInboxUnreadCount(uid),
         getTrips(uid),
         getMallSnapshot(uid),
-      ]))
+      ])
       .then(([
         tasksResult,
         userDataResult,
@@ -395,7 +395,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
       ]) => {
         if (cancelled) { return; }
 
-        if (tasksResult.status === 'rejected') { console.warn('[SplashScreen] getTasksForDate failed (non-critical)', tasksResult.reason); }
+        if (tasksResult.status === 'rejected') { console.warn('[SplashScreen] ensureCurrentDay failed (non-critical)', tasksResult.reason); }
         if (userDataResult.status === 'rejected') { console.warn('[SplashScreen] getUser failed (non-critical)', userDataResult.reason); }
         if (userPrefsResult.status === 'rejected') { console.warn('[SplashScreen] getUserPreferences failed (non-critical)', userPrefsResult.reason); }
         if (poiPrefsMapResult.status === 'rejected') { console.warn('[SplashScreen] getPoiPreferencesMap failed (non-critical)', poiPrefsMapResult.reason); }
@@ -406,7 +406,13 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         if (tripsResult.status === 'rejected') { console.warn('[SplashScreen] getTrips failed (non-critical)', tripsResult.reason); }
         if (mallSnapshotResult.status === 'rejected') { console.warn('[SplashScreen] getMallSnapshot failed (non-critical)', mallSnapshotResult.reason); }
 
-        const tasks = tasksResult.status === 'fulfilled' ? tasksResult.value : [];
+        // Do not publish a failed task read as a successful empty boot list.
+        // Today will establish its listener and show a recoverable error.
+        if (tasksResult.status === 'rejected') {
+          markReady();
+          return;
+        }
+        const tasks = tasksResult.value;
         const userData = userDataResult.status === 'fulfilled' ? userDataResult.value : null;
         const userPrefs = userPrefsResult.status === 'fulfilled' ? userPrefsResult.value : {};
         const poiPrefsMap = poiPrefsMapResult.status === 'fulfilled' ? poiPrefsMapResult.value : {};
@@ -416,6 +422,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         const socialUnreadCount = socialUnreadCountResult.status === 'fulfilled' ? socialUnreadCountResult.value : 0;
         const trips = tripsResult.status === 'fulfilled' ? tripsResult.value : [];
         const mallSnapshot = mallSnapshotResult.status === 'fulfilled' ? mallSnapshotResult.value : null;
+        setHomeLocation(userData?.home ?? null);
 
         useAppStore.getState().setBootData({
           ownerUid: uid,
@@ -435,9 +442,8 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         // Trip areas (KAN-234): app is foreground-only (KAN-231), so the
         // day-before-departure refresh has no native scheduler to run on —
         // piggyback on this boot path instead, same "non-fatal, best effort,
-        // once per boot" shape as rolloverIncompleteTasks above.
-        const customCategoryPoiTypes = categories.map(c => c.poi).filter((p): p is string => !!p);
-        checkAndRunTripPreRefresh(uid, trips, customCategoryPoiTypes)
+        // once-per-boot shape as the other prefetches above.
+        checkAndRunTripPreRefresh(uid, trips)
           .catch(err => console.warn('[SplashScreen] checkAndRunTripPreRefresh failed (non-critical)', err));
         try { deleteExpiredTripPlaces(); } catch (err) { console.warn('[SplashScreen] deleteExpiredTripPlaces failed (non-critical)', err); }
 
@@ -445,7 +451,9 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
         // opportunistic habitat pool — same "non-fatal, best effort, once per
         // boot" shape as the trip pre-refresh above. No-ops when unset.
         if (userData?.home) {
-          const prefetchTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+          const prefetchTypes = [...new Set([
+            ...getAreaDownloadPoiTypes(), ...CLUSTER_LEISURE_TYPES,
+          ])];
           refreshHabitatCacheIfStale(userData.home.lat, userData.home.lng, prefetchTypes)
             .catch(err => console.warn('[SplashScreen] home habitat prefetch failed (non-critical)', err));
         }
@@ -459,7 +467,7 @@ export default function SplashScreen({ onExit }: SplashScreenProps) {
   }, [authLoading, user, markReady]);
 
   // ── Boot safety net ────────────────────────────────────────────────────────
-  // Guarantee the splash exits even if rollover/fetch never resolves.
+  // Guarantee the splash exits even if the data fetch never resolves.
   useEffect(() => {
     const t = setTimeout(markReady, BOOT_HARD_TIMEOUT_MS);
     return () => clearTimeout(t);

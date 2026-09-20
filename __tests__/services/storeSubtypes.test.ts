@@ -1,0 +1,167 @@
+import {
+  filterStorePlacesForTasks,
+  groupStorePlaceCandidates,
+  inferStoreSubtype,
+  inferStoreSubtypeForPoiInference,
+  storePlaceMatchesSubtype,
+  storeSubtypeSuggestions,
+  storeTaskSubtype,
+  storeTaskMatchesAnyPlace,
+} from '../../src/services/storeSubtypes';
+
+describe('storeSubtypes', () => {
+  it('infers store subtype intent from English and pt-PT task text', () => {
+    expect(inferStoreSubtype('Buy a t-shirt')).toBe('clothing');
+    expect(inferStoreSubtype('Comprar ténis')).toBe('shoes');
+    expect(inferStoreSubtype('Comprar carregador')).toBe('electronics');
+    expect(inferStoreSubtype('Buy computer parts')).toBe('electronics');
+    expect(inferStoreSubtype('Comprar peças de computador')).toBe('electronics');
+    expect(inferStoreSubtype('Buy furniture')).toBe('furniture');
+    expect(inferStoreSubtype('Buy a book')).toBe('books');
+    expect(inferStoreSubtype('Comprar material escolar')).toBe('cards_and_stationery');
+    expect(inferStoreSubtype('Buy a sofa')).toBe('furniture');
+    expect(inferStoreSubtype('Buy screws')).toBe('hardware');
+    expect(inferStoreSubtype('Buy a bicycle helmet')).toBe('bicycle');
+    expect(inferStoreSubtype('Buy a necklace')).toBe('jewelry');
+    expect(inferStoreSubtype('Buy contact lenses')).toBe('eyewear_and_optician');
+    expect(inferStoreSubtype('Comprar líquido para lentes')).toBe('eyewear_and_optician');
+    expect(inferStoreSubtype('Comprar vinho')).toBe('wine_and_spirits');
+    expect(inferStoreSubtype('Comprar cápsulas de café')).toBe('coffee_supplies');
+    expect(inferStoreSubtype('Comprar numa loja de descontos')).toBe('discount_store');
+    expect(inferStoreSubtype('Comprar produtos de limpeza')).toBe('household_supplies');
+    expect(inferStoreSubtype('Ir à drogaria')).toBe('household_supplies');
+    expect(inferStoreSubtype('Ir beber um copo')).not.toBe('wine_and_spirits');
+  });
+
+  it('requires shopping context before promoting subtype intent to store POI inference', () => {
+    expect(inferStoreSubtypeForPoiInference('buy a t-shirt')).toBe('clothing');
+    expect(inferStoreSubtypeForPoiInference('organize clothes')).toBeNull();
+  });
+
+  it('does not compact-match aliases inside larger words', () => {
+    expect(inferStoreSubtype('Comprar prato')).toBeNull();
+    expect(inferStoreSubtypeForPoiInference('Comprar prato')).toBeNull();
+    expect(filterStorePlacesForTasks('store', [{ name: 'Worten' }], [
+      { title: 'Comprar prato', poi: 'store' },
+    ])).toEqual([{ name: 'Worten' }]);
+  });
+
+  it('does not read generic shopping words as a club store', () => {
+    // KAN-447 review: the club aliases must not catch first-aid kits,
+    // scarves, or "official store" on its own.
+    expect(inferStoreSubtype('Buy a first-aid kit')).not.toBe('club_store');
+    expect(inferStoreSubtype('Comprar um cachecol')).not.toBe('club_store');
+    expect(inferStoreSubtype('Buy merchandise for the party')).not.toBe('club_store');
+    expect(inferStoreSubtype('Comprar a camisola oficial do Benfica')).toBe('club_store');
+    expect(inferStoreSubtype('Buy the new football kit')).toBe('club_store');
+  });
+
+  it('suggests store types by visible label correspondence', () => {
+    expect(storeSubtypeSuggestions('')).toContain('any');
+    // KAN-447: `Club store` shares the prefix, and both are right to offer.
+    expect(storeSubtypeSuggestions('Cl')).toEqual(['clothing', 'club_store']);
+    expect(storeSubtypeSuggestions('El')).toEqual(['electronics']);
+    expect(storeSubtypeSuggestions('Fu')).toEqual(['furniture']);
+    expect(storeSubtypeSuggestions('Ha')).toEqual(['hardware']);
+    expect(storeSubtypeSuggestions('Bi')).toEqual(['bicycle']);
+    expect(storeSubtypeSuggestions('Je')).toEqual(['jewelry']);
+    expect(storeSubtypeSuggestions('Sh')).toEqual(['shoes']);
+    expect(storeSubtypeSuggestions('Op')).toEqual(['eyewear_and_optician']);
+    expect(storeSubtypeSuggestions('Sap', 'pt-PT')).toEqual(['shoes']);
+  });
+
+  it('matches nearby store names against the bundled subtype list', () => {
+    expect(storePlaceMatchesSubtype('Aquaplante', 'any')).toBe(true);
+    expect(storePlaceMatchesSubtype('Zara Colombo', 'clothing')).toBe(true);
+    expect(storePlaceMatchesSubtype('NORMAL LoureShopping', 'discount_store')).toBe(true);
+    expect(storePlaceMatchesSubtype('Nespresso Colombo', 'coffee_supplies')).toBe(true);
+    expect(storePlaceMatchesSubtype('Aquaplante', 'clothing')).toBe(false);
+  });
+
+  it('matches cached stores by stored subtype before falling back to name', () => {
+    expect(storePlaceMatchesSubtype({ name: 'store', storeSubtype: 'clothing' }, 'clothing')).toBe(true);
+    expect(storePlaceMatchesSubtype({ name: 'Zara', storeSubtype: 'pet' }, 'clothing')).toBe(false);
+    expect(storePlaceMatchesSubtype({ name: 'store', storeSubtype: 'pet' }, 'clothing')).toBe(false);
+    expect(storePlaceMatchesSubtype({ name: 'store', storeSubtypes: ['clothing', 'sports'] }, 'sports')).toBe(true);
+  });
+
+  it('filters store places only when a store task has subtype intent', () => {
+    const places = [
+      { name: 'Aquaplante', distanceMeters: 30 },
+      { name: 'Zara', distanceMeters: 70 },
+    ];
+
+    expect(filterStorePlacesForTasks('store', places, [
+      { title: 'Buy a t-shirt', poi: 'store' },
+    ])).toEqual([places[1]]);
+
+    expect(filterStorePlacesForTasks('store', [
+      { name: 'store', storeSubtype: 'clothing', distanceMeters: 30 },
+      { name: 'store', storeSubtype: 'pet', distanceMeters: 70 },
+    ], [
+      { title: 'Buy a t-shirt', poi: 'store' },
+    ])).toEqual([{ name: 'store', storeSubtype: 'clothing', distanceMeters: 30 }]);
+
+    expect(filterStorePlacesForTasks('store', places, [
+      { title: 'Buy something', poi: 'store' },
+    ])).toEqual(places);
+  });
+
+  it('keeps store tasks with subtype intent uncovered by unrelated store places', () => {
+    expect(storeTaskMatchesAnyPlace(
+      { title: 'Buy a t-shirt', poi: 'store' },
+      [{ name: 'Aquaplante' }],
+    )).toBe(false);
+  });
+
+  it('prefers an explicit task store subtype before title inference', () => {
+    expect(storeTaskSubtype({
+      title: 'Buy a t-shirt',
+      poi: 'store',
+      storeSubtype: 'electronics',
+    })).toBe('electronics');
+  });
+
+  it('does not infer a subtype for a Store task with a selected brand', () => {
+    expect(storeTaskSubtype({
+      title: 'Buy electronics at Worten',
+      poi: 'store',
+      poiBrand: 'Worten',
+    })).toBeNull();
+  });
+
+  it('groups simultaneous store subtype intents by matching task', () => {
+    const places = [
+      { placeId: 's1', name: 'Zara', distanceMeters: 30 },
+      { placeId: 's2', name: 'Worten', distanceMeters: 80 },
+    ];
+
+    expect(groupStorePlaceCandidates('store', places, [
+      { id: 'clothing', title: 'Buy a t-shirt', poi: 'store' },
+      { id: 'electronics', title: 'Buy a charger', poi: 'store' },
+    ])).toEqual([
+      { task: { id: 'clothing', title: 'Buy a t-shirt', poi: 'store' }, places: [places[0]] },
+      { task: { id: 'electronics', title: 'Buy a charger', poi: 'store' }, places: [places[1]] },
+    ]);
+  });
+});
+
+describe('gift stores (KAN-457)', () => {
+  it('infers the gift kind from English and pt-PT task text', () => {
+    expect(inferStoreSubtype('Buy a gift for Ana')).toBe('gift');
+    expect(inferStoreSubtype('Comprar uma prenda')).toBe('gift');
+    expect(inferStoreSubtype('Comprar lembranças')).toBe('gift');
+  });
+
+  it('offers the kind by its visible label', () => {
+    expect(storeSubtypeSuggestions('Gi')).toEqual(['gift']);
+    expect(storeSubtypeSuggestions('Pre', 'pt-PT')).toEqual(['gift']);
+  });
+
+  it('knows Ale-Hop on every branch, however it is spelt', () => {
+    expect(storePlaceMatchesSubtype('ALE-HOP Rua do Ouro', 'gift')).toBe(true);
+    expect(storePlaceMatchesSubtype('Ale Hop', 'gift')).toBe(true);
+    expect(storePlaceMatchesSubtype('Ale-Hop Faro', 'gift')).toBe(true);
+    expect(storePlaceMatchesSubtype('Ale-Hop Faro', 'clothing')).toBe(false);
+  });
+});

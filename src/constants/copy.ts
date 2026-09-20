@@ -96,6 +96,16 @@ const en = {
   newTaskSheet: {
     title:        'What do you need?',
     poiQuestion:  'Where does this happen?',
+    subtypeQuestion: 'Specific type?',
+    brandQuestion: 'Which brand?',
+    storeDetailQuestion: 'What are you looking for?',
+    storeDetailType: 'Type',
+    storeDetailBrand: 'Store',
+    storeDetailBrandA11y: 'Specific store',
+    storeBrandPlaceholder: 'Search a store brand',
+    storeBrandUnknown: "I don't know that shop yet — choose a store type instead.",
+    bankBrandPlaceholder: 'Search a bank',
+    bankBrandUnknown: "I don't know that bank yet — choose one from the list.",
     catQuestion:  'Which part of your life?',
     catOptional:  ' (optional)',
     swipeHint:    'Swipe for more',
@@ -114,7 +124,10 @@ const en = {
     poiSearchPlaceholder: 'A café, a pharmacy, a gym…',
     timeQuestion:         'Around when?',
     timeOptional:         ' (optional)',
+    datePlaceholder:      'No date',
     timePlaceholder:      'Anytime is fine',
+    clearDateA11y:        'Clear date',
+    clearTimeA11y:        'Clear time',
     footerHint:           'Just the what and the where',
     /** Fires after a successful add from either surface — never on edit. */
     confirmToast:         "Got it — I'll keep an eye out.",
@@ -126,11 +139,8 @@ const en = {
 
   // ─── Offline expectations messaging (KAN-236) ──────────────────────────────
   // Never say "POI"/"cache" here — frame everything as the app's own
-  // limitation, not the user's problem. State-based, not launch-based: only
-  // shown when it's actually true this session, never a blanket warning.
+  // limitation, not the user's problem.
   offline: {
-    /** NetworkBanner text when offline AND the habitat cache has never been seeded (fresh install/new phone) — the only fully broken case (KAN-241: every other offline case is now a quiet ContextChip glyph instead of a banner). */
-    noCacheYetBanner: "No connection — I can't look around for places yet. I'll start learning your area once you're online.",
     /** One-time toast, once per session — offline and the user has moved beyond what the cache knows for their pending errands. Plain apology variant, shown after the invitation variant below has reached its lifetime cap (KAN-244). */
     uncoveredAreaToast: "You're outside the area I know by heart — I'll need a connection to spot places here.",
     /** KAN-244 — same trigger as uncoveredAreaToast, but teaches the fix instead of just apologizing. Shown up to COVERAGE_INVITATION_LIFETIME_CAP times (see proximity.ts), then this moment reverts to the plain copy above. */
@@ -147,6 +157,11 @@ const en = {
     refreshTripA11y: (destination: string) => `Refresh ${destination}`,
     refresh: 'Refresh',
     deleteTripA11y: (destination: string) => `Delete ${destination}`,
+    changeTripDates: 'Edit dates',
+    addTripDates: 'Edit dates',
+    changeTripDatesA11y: (destination: string) => `Change the dates for ${destination}`,
+    learnBiggerArea: 'Edit area size',
+    learnBiggerAreaA11y: (destination: string) => `Learn a bigger area around ${destination}`,
     entryRowLabel: 'Going somewhere?',
     entryRowA11y:  'Plan a trip',
     /** KAN-243 — the future-day CTA in Calendar's detail card; dateLabel is the full formatted date (e.g. "Friday, July 24"). */
@@ -164,10 +179,17 @@ const en = {
       untilDate
         ? `About ${mb} — I'll know it until ${untilDate}.`
         : `About ${mb} — I'll keep it fresh for about a month.`,
+    exactDownloadSizeLine: (size: string) => `This download is ${size}. Tap again to continue.`,
+    exactDownloadButton: (size: string) => `Download ${size}`,
     downloadButton:   'Learn this area',
+    saveDatesButton:  'Save dates',
+    saveAreaButton:   'Save area',
     downloadingLabel: 'Learning the area…',
     downloadErrorToast: "Couldn't learn this area — check your connection and try again.",
     downloadSuccessToast: (destination: string) => `Got it — I know ${destination} now.`,
+    editDatesSuccessToast: (destination: string) => `Dates updated for ${destination}.`,
+    editRadiusSuccessToast: (destination: string) => `Area updated for ${destination}.`,
+    changeDatesTitle: 'Change the dates',
     placesIKnowTitle: 'Places I know',
     placesIKnowEmpty: "I don't know any trip areas yet — add one above.",
     /**
@@ -227,13 +249,45 @@ const en = {
     cancel: 'Cancel',
   },
 
+  // ─── One trip for all of these (KAN-281) — offer, never a command; no
+  // "itinerary"/"optimize" jargon anywhere in this copy. ────────────────────
+  oneTripForAll: {
+    entryLabel: 'One trip for all of these',
+    entryA11y:  'One trip for all of these',
+  },
+
+  itineraryOptionsScreen: {
+    screenTitle:  'One trip for all of these',
+    cardLabel:    'Stop by stop',
+    backA11y:     'Back',
+    loadingLabel: 'Finding the way…',
+    stopsCount:   (n: number) => (n === 1 ? '1 stop' : `${n} stops`),
+    /** "{name} · your usual" — learned-place stop. */
+    destinationLearned: (name: string) => `${name} · your usual`,
+    /** "{name} · {distance}" — cache/live-resolved stop. */
+    destinationWithDistance: (name: string, distance: string) => `${name} · ${distance}`,
+    /** Straight-line sum, clearly approximate — Maps owns real routing. */
+    totalDistance:  (km: string) => `About ${km} km all together`,
+    exclusionLine:  (n: number) => (n === 1 ? "Couldn't find a place for 1 of them" : `Couldn't find a place for ${n} of them`),
+    openInMapsA11y: 'Open directions in Maps',
+    emptyStateBody: "Couldn't find places for any of these right now.",
+    errorBody:      "Something went wrong finding the way.",
+    retryLabel:     'Try again',
+    mapsOpenFailed: "Couldn't open Maps — try again.",
+    // ── Mall card (KAN-282) ──
+    mallCardTitle:     'All in one place',
+    mallCardSubtitle:  (name: string) => name,
+    mallCardDistance:  (distance: string) => `${distance} away`,
+    mallCardA11y:      (name: string) => `All in one place — ${name}`,
+    mallOpenInMapsA11y: 'Open directions to the mall in Maps',
+  },
+
   // ─── Context chip (KAN-241 / KAN-242) ──────────────────────────────────────
   // Never say "mode"/"cache"/"snapshot" here — same first-person voice as
   // offline/tripPlanner above. The offline glyph's sheet copy stays
   // area-name-agnostic (no reverse geocoding available); the mall/trip sheets
   // can name the place since it's a destination the user chose themselves.
   contextChip: {
-    offlineGlyphA11y: 'Offline — I know this area',
     closeSheetA11y: 'Close sheet',
     closeA11y:      'Close',
     sheetTitle: 'What I know here',
@@ -249,7 +303,6 @@ const en = {
     // KAN-242 — mall/trip place contexts.
     mallChipA11y: (name: string) => `In ${name} — tap for details`,
     tripChipA11y: (destination: string) => `In ${destination} — tap for details`,
-    offlineDotA11y: 'Offline',
     mallSheetTitle: (name: string) => `While you're at ${name}`,
     tripSheetTitle: (destination: string) => `While you're in ${destination}`,
     placeSheetCoverageLine: "I've learned the places around here.",
@@ -280,7 +333,28 @@ const en = {
     sheetIntro: 'These can happen close together — see what fits, in whatever order suits you.',
     closeA11y: 'Close',
     closeSheetA11y: 'Close sheet',
-    openAnchorInMaps: (anchorName: string) => `Open ${anchorName} in Maps`,
+    // KAN-283 — route handoff for the whole cluster. States the number of
+    // stops and nothing else: no "best", no "optimal", no suggestion that
+    // this order is the one to follow.
+    openAllInMaps: (stopCount: number) => `Open in Maps — all ${stopCount} stops`,
+    openAllInMapsA11y: (stopCount: number) => `Open all ${stopCount} stops in Maps`,
+    deselectStopA11y: (taskTitle: string) => `Leave out ${taskTitle}`,
+    selectStopA11y:   (taskTitle: string) => `Include ${taskTitle}`,
+    // Two stops is the floor — fewer isn't a route, and a single place is
+    // already one tap away in the Nearby list.
+    deselectStopDisabledA11y: 'Keeping this one — a route needs at least two stops',
+    // KAN-293 — the leisure companion line. An invitation, never a plan: it
+    // states a fact (the place is there) and offers. No urgency, no deals,
+    // no prices, and never an instruction to go.
+    leisureParkLine: (placeName: string) =>
+      `${placeName} is right there — fancy a walk while you're at it?`,
+    leisureOtherLine: (placeName: string) => `${placeName} is right there too.`,
+    leisureKeepInMind: 'Add to this walk',
+    leisureKeepInMindA11y: (placeName: string) => `Add ${placeName} to this walk`,
+    leisureKeptConfirmation: (placeName: string) => `${placeName} will be added to this Maps route.`,
+    // Naming the action, not selling it — "Get tickets", never a price or an offer.
+    leisureGetTickets: 'Get tickets',
+    leisureGetTicketsA11y: (placeName: string) => `Open the ${placeName} website`,
   },
 
   // ─── Contextual trip suggestions (KAN-245) ─────────────────────────────────
@@ -341,6 +415,85 @@ const en = {
     clearErrorToast: "Couldn't clear — check your connection and try again.",
   },
 
+  // ─── Lantern — Today place-familiarity header (KAN-301) ──────────────────────
+  lantern: {
+    /** Home state phrase — a relationship, not a place name. */
+    home: 'Around home',
+    /** Outside state, offline fallback — never a stale or guessed place name. */
+    outside: 'Outside',
+    /** No-home-set state label — the question the pill answers. */
+    whereIsHome: "Where's home?",
+    /** No-home-set pill — the answer to the question above. */
+    tellMe: 'Tell me',
+    /** Held state while waiting for the first position fix. Same word-budget as a place name. */
+    lookingAround: 'Looking around…',
+    /** The fix never arrived (past the ceiling). First-person, no claimed cause. */
+    cantFindYou: "Can't find you",
+    /**
+     * KAN-349 — the two lines the Lantern zone flexes to hold. Never name a
+     * source, a server, an API or a list: the user's model is the app, not our
+     * plumbing. Both second sentences are promises the refresh loop keeps —
+     * if that loop is ever removed, cut the second sentence with it.
+     */
+    buildingArea: "Still getting to know this area — I'll have more soon.",
+    /** Running on the fallback source. A fault, not progress — but still calm. */
+    degradedArea: "I know less than usual around here right now. I'll top it up when I can.",
+    /** Pill a11y for the resolved states (label = current place word). */
+    placesPillA11y: (label: string) => `${label} — see the places I know`,
+    /** Pill a11y for the unset state. */
+    setHomePillA11y: 'Tell me where home is',
+  },
+
+  // ─── Places — screen behind the Lantern pill (KAN-304) ───────────────────────
+  places: {
+    // Shares its name with the Lantern pill that opens it (KAN-301).
+    screenTitle: 'Places I know',
+    backA11y: 'Back',
+    // Tabs
+    tabPlaces: 'Places',
+    tabTrips: 'Trips',
+    // Places tab
+    teachAction: 'Somewhere you like?',
+    sectionFavourites: 'Favourites',
+    sectionUsuals: 'Your usuals',
+    usualSecondary: (typeLabel: string) => `your usual ${typeLabel}`,
+    // Trips tab
+    tripsAddAction: 'Going somewhere?',
+    nextUp: 'Next up',
+    sectionWhereGoing: "Where you're going",
+    whereGoingSub: "I'll know my way around, even with no signal.",
+    sectionWhereBeen: "Where you've been",
+    // Empty states (one icon + line each)
+    emptyFavourites: "Star a place and it'll wait here for you.",
+    emptyUsuals: 'The places you keep going back to turn up here on their own.',
+    emptyPlanned: "Tell me before you go and I'll learn the place ahead of time.",
+    emptyPastTrips: "Trips you've finished come to rest here.",
+    // Teach flow (TeachSheet)
+    teachTitle: 'Somewhere you like?',
+    teachSubtitle: "When there's more than one, I'll pick yours.",
+    teachTypeLabel: 'What kind of place?',
+    teachFoodType: 'Food type',
+    teachStoreType: 'Store type',
+    teachNameLabel: 'Which one do you go to?',
+    teachNamePlaceholder: 'Type a brand — like Whole Foods',
+    teachFoodTypeNameLabel: 'What kind of food?',
+    teachFoodTypePlaceholder: 'Type a food type — like Sushi',
+    teachStoreTypeNameLabel: 'What kind of store?',
+    teachStoreTypePlaceholder: 'Type a store type — like Clothing',
+    teachSaveAction: 'Add it',
+    teachCancelA11y: 'Cancel',
+    // Long-press forget
+    forgetA11y: (name: string) => `Forget ${name}`,
+    forgetPlaceTitle: (name: string) => `Forget ${name}?`,
+    forgetPlaceBody: "I'll stop putting it first.",
+    forgetPlaceConfirm: 'Forget it',
+    forgetPlaceCancel: 'Keep it',
+    forgetTripTitle: (dest: string) => `Forget ${dest}?`,
+    forgetTripBody: 'The memory goes; nothing else changes.',
+    forgetTripConfirm: 'Forget this trip',
+    forgetTripCancel: 'Keep it',
+  },
+
   // ─── Settings (KAN-252) ─────────────────────────────────────────────────────
   settings: {
     screenTitle: 'Settings',
@@ -356,6 +509,15 @@ const en = {
     darkModeToggleA11y: 'Dark mode toggle',
     pauseLowBattery: 'Pause nearby alerts on low battery',
     pauseLowBatteryToggleA11y: 'Pause nearby alerts on low battery toggle',
+    /**
+     * KAN-366 — restraint, not permission. The download itself has no switch;
+     * this only makes it wait. The size is stated because it is the one real
+     * concern behind the setting, and because knowing it is roughly 30 KB is
+     * what tells someone they can safely leave this off.
+     */
+    wifiOnlyDownloads: 'Only download on Wi-Fi',
+    wifiOnlyDownloadsSublabel: 'I learn the places around you before you need them — about 30 KB for an area. Leave this off and I do it on any connection.',
+    wifiOnlyDownloadsToggleA11y: 'Only download on Wi-Fi toggle',
     languageRowLabel: 'Language',
     languageSheetTitle: 'Choose a language',
     languageEnglish: 'English',
@@ -376,129 +538,122 @@ const en = {
     signOutErrorTitle: 'Error',
     signOutErrorBody: 'Failed to sign out. Please try again.',
     footerVersion: (version: string) => `Brush Away · v${version}`,
-    footerAttribution: 'Place data © OpenStreetMap contributors (ODbL)',
+    footerAttribution: 'Place & location data © Overture Maps Foundation (CDLA-Permissive 2.0) and OpenStreetMap contributors (ODbL), with Brush community corrections and official MULTIBANCO ATM data',
   },
 
   // ─── Login (KAN-252) ────────────────────────────────────────────────────────
   login: {
     // "Brush away" is the brand verb — kept in English (see taskRow above).
-    tagline: 'Brush away os teus to-dos, à medida que os vais encontrando.',
-    emailLabel: 'E-mail',
+    tagline: 'Brush away your to-dos, as you pass them.',
+    emailLabel: 'Email',
     emailPlaceholder: 'you@example.com',
-    passwordLabel: 'Palavra-passe',
-    forgotPassword: 'Esqueceste-te da palavra-passe?',
-    showPassword: 'Mostrar',
-    hidePassword: 'Ocultar',
-    showPasswordA11y: 'Mostrar palavra-passe',
-    hidePasswordA11y: 'Ocultar palavra-passe',
-    passwordPlaceholderSignup: 'Mín. 6 caracteres',
+    passwordLabel: 'Password',
+    forgotPassword: 'Forgot password?',
+    showPassword: 'Show',
+    hidePassword: 'Hide',
+    showPasswordA11y: 'Show password',
+    hidePasswordA11y: 'Hide password',
+    passwordPlaceholderSignup: 'Min. 6 characters',
     passwordPlaceholderSignin: '••••••••',
-    orDivider: 'ou',
-    continueWithGoogle: 'Continuar com o Google',
-    createAccount: 'Criar conta',
-    signIn: 'Iniciar sessão',
-    createAccountA11y: 'Criar conta',
-    signInA11y: 'Iniciar sessão',
-    alreadyHaveAccount: 'Já tens conta? ',
-    dontHaveAccount: 'Ainda não tens conta? ',
-    signInLink: 'Iniciar sessão',
-    signUpLink: 'Criar conta',
-    errorInvalidEmail: 'Introduz um endereço de e-mail válido.',
-    errorUserNotFound: 'Não encontrei nenhuma conta com este e-mail.',
-    errorInvalidCredential: 'E-mail ou palavra-passe inválidos. Confirma os teus dados.',
-    errorWrongPassword: 'Palavra-passe incorreta. Tenta novamente.',
-    errorEmailInUse: 'Já existe uma conta com este e-mail.',
-    errorWeakPassword: 'A palavra-passe tem de ter pelo menos 6 caracteres.',
-    errorTooManyRequests: 'Demasiadas tentativas. Espera um momento e volta a tentar.',
-    errorNetwork: 'Erro de rede — verifica a tua ligação.',
-    errorCreateAccountGeneric: 'Não foi possível criar a conta. Tenta novamente.',
-    errorSignInGeneric: 'Falha no início de sessão. Tenta novamente.',
-    errorEmailRequired: 'Introduz o teu endereço de e-mail.',
-    errorPasswordRequired: 'Introduz a tua palavra-passe.',
-    errorGoogleSignIn: 'Falha no início de sessão com o Google. Tenta novamente.',
+    orDivider: 'or',
+    continueWithGoogle: 'Continue with Google',
+    createAccount: 'Create Account',
+    signIn: 'Sign In',
+    createAccountA11y: 'Create account',
+    signInA11y: 'Sign in',
+    alreadyHaveAccount: 'Already have an account? ',
+    dontHaveAccount: "Don't have an account? ",
+    signInLink: 'Sign in',
+    signUpLink: 'Sign up',
+    errorInvalidEmail: 'Please enter a valid email address.',
+    errorUserNotFound: 'No account found with this email.',
+    errorInvalidCredential: 'Invalid email or password. Please check your credentials.',
+    errorWrongPassword: 'Incorrect password. Please try again.',
+    errorEmailInUse: 'An account already exists with this email.',
+    errorWeakPassword: 'Password must be at least 6 characters.',
+    errorTooManyRequests: 'Too many attempts. Please wait a moment and try again.',
+    errorNetwork: 'Network error — check your connection.',
+    errorCreateAccountGeneric: 'Could not create account. Please try again.',
+    errorSignInGeneric: 'Sign in failed. Please try again.',
+    errorEmailRequired: 'Please enter your email address.',
+    errorPasswordRequired: 'Please enter your password.',
+    errorGoogleSignIn: 'Google sign-in failed. Please try again.',
   },
 
   // ─── Username setup (KAN-97, KAN-252) ──────────────────────────────────────
   usernameSetup: {
-    title: 'Escolhe um nome de utilizador',
-    subtitle: 'O teu identificador único para partilhares tarefas e ligares-te a amigos.',
+    title: 'Choose a username',
+    subtitle: 'Your unique handle for sharing tasks and connecting with friends.',
     placeholder: 'yourhandle',
-    inputA11y: 'Nome de utilizador',
-    hint: '3–20 carateres · só letras, números e sublinhados',
-    continueButton: 'Continuar',
-    note: 'Podes mudar o teu nome de utilizador uma vez a cada 30 dias.',
-    errorTaken: (value: string) => `@${value} já está em uso. Escolhe outro.`,
-    errorGeneric: 'Algo correu mal. Tenta novamente.',
-    errorTooShort: (min: number) => `São necessários pelo menos ${min} carateres.`,
-    errorTooLong: (max: number) => `Máximo de ${max} carateres.`,
-    errorInvalidChars: 'Apenas letras minúsculas, números e sublinhados.',
+    inputA11y: 'Username',
+    hint: '3–20 chars · letters, numbers, underscores only',
+    continueButton: 'Continue',
+    note: 'You can change your username once every 30 days.',
+    errorTaken: (value: string) => `@${value} is already taken. Please choose another.`,
+    errorGeneric: 'Something went wrong. Please try again.',
+    errorTooShort: (min: number) => `At least ${min} characters required.`,
+    errorTooLong: (max: number) => `Maximum ${max} characters.`,
+    errorInvalidChars: 'Only lowercase letters, numbers, and underscores.',
   },
 
   // ─── Notification preferences (KAN-80, KAN-252) ────────────────────────────
   notificationPreferences: {
-    screenTitle: 'Notificações',
-    backA11y: 'Voltar',
-    loadingA11y: 'A carregar preferências',
-    sectionDaily: 'DIÁRIO',
-    sectionStreaks: 'SEQUÊNCIAS',
-    sectionSummary: 'RESUMO',
-    sectionEngagement: 'INTERAÇÃO',
-    sectionLocation: 'LOCALIZAÇÃO',
-    sectionAchievements: 'CONQUISTAS',
-    eodLabel: 'Resumo do fim do dia',
-    eodSublabel: 'Lembra-te de quaisquer tarefas de localização por terminar.',
-    streakLabel: 'Sequência em risco',
-    streakSublabel: 'Avisa-te às 20:00 quando a tua sequência estiver em risco.',
-    weeklyLabel: 'Resumo semanal',
-    weeklySublabel: 'Resumo de domingo à noite da tua semana.',
-    reengageLabel: 'Lembretes de regresso',
-    reengageSublabel: 'Um toque depois de 3 dias longe da app.',
-    exitPromptLabel: 'Aviso ao sair',
-    exitPromptSublabel: 'Pergunta se concluíste uma tarefa depois de saíres de um local marcado.',
-    achievementNudgesLabel: 'Sugestões de conquistas',
-    achievementNudgesSublabel: 'Notifica-te quando falta 1 passo para desbloquear uma distinção.',
-    reminderTimeLabel: 'Hora do lembrete',
-    reminderTimeA11y: (time: string) => `Hora do lembrete: ${time}`,
+    screenTitle: 'Notifications',
+    backA11y: 'Back',
+    loadingA11y: 'Loading preferences',
+    sectionWhenOut: "When I'm out",
+    sectionDaily: 'Daily',
+    sectionFromPeople: 'From people',
+    proximityLabel: 'Nearby nudges',
+    proximitySublabel: "When you're near a place a task belongs to, I'll let you know.",
+    exitPromptLabel: 'Did you get it?',
+    exitPromptSublabel: 'After you leave a place, a quiet check on whether you brushed it away.',
+    eodLabel: 'Morning check-in',
+    eodSublabel: "One calm nudge each morning to picture what you might need while you're out.",
+    reminderTimeLabel: 'Reminder time',
+    reminderTimeA11y: (time: string) => `Reminder time: ${time}`,
+    sharedTasksLabel: 'Shared tasks',
+    sharedTasksSublabel: 'When a friend sends you a task.',
   },
 
   // ─── Onboarding (KAN-140, KAN-252) ──────────────────────────────────────────
   onboarding: {
     // "BRUSH AWAY" is the app name — kept in English (see taskRow above).
     eyebrow: 'BRUSH AWAY',
-    welcomeTagline: 'Uma casa calma para o que os teus dias te vão pedindo em silêncio.',
-    letsBegin: 'Vamos começar',
-    reassurance: 'Sem configuração. Sem visita guiada. Só o teu dia.',
-    addFirstThing: '+ Adiciona a tua primeira coisa',
-    addFirstThingA11y: 'Adicionar a tua primeira coisa',
-    emptyHelper: 'São só ideias passageiras. Adiciona o que é mesmo teu.',
-    sheetEyebrow: 'A primeira coisa em que estás a pensar…',
-    sheetHelper: 'Hora e local podem esperar. Tira isso da cabeça.',
-    addTaskA11y: 'Adicionar tarefa',
-    addItButton: 'Adicionar',
-    greeting: 'Bom dia',
+    welcomeTagline: 'A calm home for the things your days keep quietly asking for.',
+    letsBegin: 'Let’s begin',
+    reassurance: 'No setup. No tour. Just your day.',
+    addFirstThing: '+ Add your first thing',
+    addFirstThingA11y: 'Add your first thing',
+    emptyHelper: 'Those are just passing thoughts. Add what’s actually yours.',
+    sheetEyebrow: 'The first thing on your mind…',
+    sheetHelper: 'Time & place can wait. Just get it out of your head.',
+    addTaskA11y: 'Add task',
+    addItButton: 'Add it',
+    greeting: 'Good morning',
     todayLabel: 'TODAY',
-    doneCountDone: '1 / 1 concluído',
+    doneCountDone: '1 / 1 done',
     doneCountPending: '0 / 1',
-    defaultTaskTitle: 'A tua tarefa',
-    hintPrefix: 'Toca no círculo para ',
+    defaultTaskTitle: 'Your task',
+    hintPrefix: 'Tap the circle to ',
     // "brush it away" is the brand verb — kept in English (see taskRow above).
     hintBold: 'brush it away.',
-    rewardHeadline: 'É uma. Já foi tratada.',
-    rewardCaption: 'O Dia 1 da tua sequência começa aqui. No fundo, é só isto a app: ver, passar, deixar ir.',
-    seeFullDay: 'Ver um dia completo →',
+    rewardHeadline: 'That’s one. Brushed away.',
+    rewardCaption: 'Day 1 of your streak starts here. That’s the whole app, really — see it, pass it, let it go.',
+    seeFullDay: 'See a full day →',
     nudgeTexts: {
-      bread: 'Não te apetece pão?',
-      coffeeOutside: 'Talvez hoje seja um bom dia para café na rua.',
-      postOffice: 'Esta é a semana para ir aos CTT.',
-      sportOutside: 'Que bom dia para fazer desporto lá fora.',
-      pendingErrand: 'Esse recado que tens adiado? Continua à espera.',
-      fridgeReplacement: 'Provavelmente há algo no frigorífico que precisa de ser substituído.',
+      bread: 'Don’t you feel the need for bread?',
+      coffeeOutside: 'Maybe today it’s a good day for coffee outside.',
+      postOffice: 'This is the week to go to the post office.',
+      sportOutside: 'What a lovely day to do some sport outside.',
+      pendingErrand: 'That errand you’ve been putting off? Still there.',
+      fridgeReplacement: 'There’s probably something in the fridge that needs replacing.',
     },
-    chipBuyBread: 'Comprar pão',
-    chipCoffeeOutside: 'Café na rua',
-    chipGoForRun: 'Ir correr',
-    chipWithdrawCash: 'Levantar dinheiro',
-    chipGroceries: 'Compras',
+    chipBuyBread: 'Buy bread',
+    chipCoffeeOutside: 'Coffee outside',
+    chipGoForRun: 'Go for a run',
+    chipWithdrawCash: 'Withdraw cash',
+    chipGroceries: 'Groceries',
   },
 
   // ─── Built-in category labels (KAN-252) — read live by theme/tokens.ts's
@@ -516,18 +671,92 @@ const en = {
   // poiCatalogLabel(type) in types/index.ts, same reasoning as categories
   // above. ─────────────────────────────────────────────────────────────────
   poiCatalog: {
+    // KAN-408 — Nature and Landmarks.
+    viewpoint:                            'Viewpoint',
+    waterfall:                            'Waterfall',
+    river:                                'River',
+    mountain:                             'Mountain',
+    lake:                                 'Lake',
+    island:                               'Island',
+    surf_spot:                            'Surf spot',
+    hot_spring:                           'Hot spring',
+    nature_preserve:                      'Nature reserve',
+    plaza:                                'Square',
+    bridge:                               'Bridge',
+    lighthouse:                           'Lighthouse',
+    marina:                               'Marina',
+    theatre:                              'Theatre',
+    music_venue:                          'Music venue',
+    amusement_park:                       'Amusement park',
+    aquarium:                             'Aquarium',
+    art_gallery:                          'Art gallery',
+    beach:                                'Beach',
+    botanical_garden:                     'Botanical garden',
+    bowling_alley:                        'Bowling',
+    brewery:                              'Brewery',
+    campground:                           'Campsite',
+    casino:                               'Casino',
+    cemetery:                             'Cemetery',
+    church:                               'Church',
+    community_center:                     'Community centre',
+    cultural_center:                      'Cultural centre',
+    golf_course:                          'Golf course',
+    hiking_area:                          'Hiking area',
+    historical_landmark:                  'Historic place',
+    mosque:                               'Mosque',
+    museum:                               'Museum',
+    night_club:                           'Night club',
+    rv_park:                              'Motorhome park',
+    spa:                                  'Spa',
+    stadium:                              'Stadium',
+    synagogue:                            'Synagogue',
+    tennis_court:                         'Tennis court',
+    tourist_attraction:                   'Attraction',
+    water_park:                           'Water park',
+    winery:                               'Winery',
+    zoo:                                  'Zoo',
     atm: 'ATM',
     cafe: 'Café',
+    bakery: 'Bakery',
+    ice_cream: 'Ice cream',
+    tea: 'Tea room',
+    juice: 'Juice bar',
+    tattoo: 'Tattoo studio',
+    phone_repair: 'Phone repair',
+    shoe_repair: 'Shoe repair',
+    clothing_repair: 'Clothing alterations',
+    lottery: 'Lottery',
+    tobacco: 'Tobacco',
+    luggage_storage: 'Luggage storage',
+    butcher: 'Butcher',
+    fishmonger: 'Fishmonger',
+    laundry: 'Laundry',
+    veterinary_care: 'Vet',
+    car_wash: 'Car wash',
+    car_rental: 'Car rental',
+    movie_theater: 'Cinema',
+    yoga_studio: 'Yoga studio',
+    playground: 'Playground',
+    electric_vehicle_charging_station: 'EV charging',
+    barber: 'Barbershop',
+    hairdresser: 'Hairdresser',
+    nail_salon: 'Nail salon',
     supermarket: 'Market',
+    mini_market: 'Mini-market',
     pharmacy: 'Pharmacy',
     gas: 'Gas',
     gym: 'Gym',
     bank: 'Bank',
+    currency_exchange: 'Currency exchange',
+    money_transfer: 'Money transfer',
+    financial_service: 'Financial service',
     restaurant: 'Restaurant',
+    bar: 'Bar',
     park: 'Park',
     library: 'Library',
     post: 'Post',
     store: 'Store',
+    florist: 'Florist',
     clinic: 'Clinic',
     salon: 'Salon',
     bus: 'Bus',
@@ -556,12 +785,7 @@ const en = {
     swatchA11y: (hex: string) => `Color ${hex}`,
     hexPlaceholder: '#rrggbb',
     hexA11y: 'Custom hex colour',
-    locationFieldLabel: 'LOCATION TYPE',
-    locationNone: 'None',
-    locationSearchPlaceholder: 'Search more types…',
-    locationSearchA11y: 'Search location type',
-    locationSelectedLabel: 'Selected:',
-    locationClearA11y: 'Clear location type',
+    dismissSheetA11y: 'Dismiss category sheet',
     cancel: 'Cancel',
     save: 'Save',
     saveA11y: 'Save category',
@@ -569,10 +793,6 @@ const en = {
     editButton: 'Edit',
     editA11y: (name: string) => `Edit ${name}`,
     deleteA11y: (name: string) => `Delete ${name}`,
-    quickPickAtm: 'ATM',
-    quickPickCafe: 'Café',
-    quickPickSupermarket: 'Supermarket',
-    quickPickPharmacy: 'Pharmacy',
   },
 
   // ─── Today screen (KAN-45, KAN-252) ─────────────────────────────────────────
@@ -590,7 +810,7 @@ const en = {
       'What’s the one thing future-you will thank you for?',
       'Going somewhere soon?',
     ],
-    sectionTitlePrefix: 'TODAY · ',
+    sectionTitlePrefix: 'WHAT I NEED',
     leftCount: (n: number) => `${n} left`,
     retry: 'Try again',
     addSomething: 'Add something',
@@ -615,6 +835,7 @@ const en = {
     socialA11yNoBadge: 'Social',
     notificationsA11yUnread: 'Notifications, unread',
     notificationsA11y: 'Notifications',
+    offlineA11y: 'No internet connection',
   },
 
   // ─── Achievements (KAN-114, KAN-252) ────────────────────────────────────────
@@ -915,6 +1136,11 @@ const en = {
     save: 'Save',
     shareMyProfileA11y: 'Share my profile',
     shareMyProfile: 'Share my profile',
+    sectionCommunity: 'COMMUNITY',
+    suggestMissingPlaceErrorTitle: 'Error',
+    suggestMissingPlace: 'Suggest a missing place',
+    suggestMissingPlaceSub: 'Help improve nearby results',
+    suggestMissingPlaceError: 'Could not open the suggestion page. Please try again.',
     pointsAndAchievements: 'POINTS & ACHIEVEMENTS',
     totalPointsLabel: 'TOTAL POINTS',
     totalPointsA11y: (n: number) => `${n} points`,
@@ -954,6 +1180,14 @@ const en = {
     birthdayUnsetWarningConfirm: 'Unmark',
   },
 
+  takeMeThere: {
+    /** Never "Navigate to nearest POI" — no jargon, no urgency (KAN-279). */
+    a11yFor: (poiLabel: string) => {
+      const article = /^[aeiou]/i.test(poiLabel) ? 'an' : 'a';
+      return `Take me to ${article} ${poiLabel}`;
+    },
+  },
+
   pointsHistoryScreen: {
     backA11y: 'Back',
     loadingA11y: 'Loading points history',
@@ -965,14 +1199,22 @@ const en = {
     startDateA11y: 'Start date',
     endDateA11y: 'End date',
     continueA11y: 'Continue',
+    continue: 'Continue',
   },
 
   nearbyCard: {
     headerLabel: 'Nearby',
     headerNowLabel: 'Nearby · now',
     placesCount: (n: number) => (n === 1 ? '1 Place' : `${n} Places`),
+    openInMaps: 'Open in Maps',
+    openInMapsA11y: (placeName: string) => `Open ${placeName} in Maps`,
+    tryAnotherPlace: 'Try another place',
     tryAnotherPlaceA11y: 'Try another place',
     refreshLocationA11y: 'Refresh location',
+    storeTuningOn: 'Store tuning on',
+    refreshUpdated: 'Updated',
+    refreshFailed: 'Failed',
+    alsoClose: 'Also close',
   },
 
   newTaskSheet2: {
@@ -994,6 +1236,36 @@ const en = {
 
   errorBoundary: {
     tryAgainA11y: 'Try again',
+  },
+
+  timePicker: {
+    hourA11y: 'Hour',
+    minuteA11y: 'Minute',
+    formatToggleTo24: 'Clock format: 12 hour. Switch to 24 hour.',
+    formatToggleTo12: 'Clock format: 24 hour. Switch to 12 hour.',
+  },
+
+  taskReminder: {
+    /** notifee trigger notification fired at the task's user-set time (KAN-280). Never "due"/"deadline"/"overdue" — the user asked for this, it's service, not pressure. */
+    title: (time: string) => `You wanted this at ${time}`,
+    body: (taskTitle: string) => taskTitle,
+  },
+
+  datedTaskHandoff: {
+    title: 'Brush',
+    sheetTitle: 'What would you like to do?',
+    body: (taskTitle: string) => `You wanted this today — ${taskTitle}`,
+    multipleBody: 'You wanted these today',
+    forget: 'Forget it',
+    tomorrow: 'Tomorrow instead',
+    loadError: 'Could not load these tasks. Please try again.',
+    tryAgain: 'Try again',
+  },
+
+  dailyCheckin: {
+    /** KAN-303: the morning "Daily" notification. Intention, not a verdict — no count, no "left"/"overdue"/"unfinished". Echoes the app's own question. */
+    title: 'Morning',
+    body: "Anything you need while you're out today?",
   },
 
   calendar: {
@@ -1120,6 +1392,16 @@ const ptPT: typeof en = {
   newTaskSheet: {
     title:        'O que precisas de fazer?',
     poiQuestion:  'Onde é que isto acontece?',
+    subtypeQuestion: 'Tipo específico?',
+    brandQuestion: 'Que marca?',
+    storeDetailQuestion: 'O que procuras?',
+    storeDetailType: 'Tipo',
+    storeDetailBrand: 'Loja',
+    storeDetailBrandA11y: 'Loja específica',
+    storeBrandPlaceholder: 'Procurar marca de loja',
+    storeBrandUnknown: 'Ainda não conheço essa loja — escolhe antes um tipo de loja.',
+    bankBrandPlaceholder: 'Procurar banco',
+    bankBrandUnknown: 'Ainda não conheço esse banco — escolhe um da lista.',
     catQuestion:  'Que parte da tua vida?',
     catOptional:  ' (opcional)',
     swipeHint:    'Desliza para ver mais',
@@ -1136,7 +1418,10 @@ const ptPT: typeof en = {
     poiSearchPlaceholder: 'Um café, uma farmácia, um ginásio…',
     timeQuestion:         'Para quando, mais ou menos?',
     timeOptional:         ' (opcional)',
+    datePlaceholder:      'Sem data',
     timePlaceholder:      'Qualquer altura serve',
+    clearDateA11y:        'Limpar data',
+    clearTimeA11y:        'Limpar hora',
     footerHint:           'Só o quê e o onde',
     confirmToast:         'Entendido — vou estar atento.',
     poiSuggestionHint:    'o meu palpite?',
@@ -1144,7 +1429,6 @@ const ptPT: typeof en = {
   },
 
   offline: {
-    noCacheYetBanner: 'Sem ligação — ainda não consigo procurar sítios por perto. Vou começar a aprender a tua zona assim que estiveres online.',
     uncoveredAreaToast: 'Estás fora da zona que já conheço bem — vou precisar de ligação para encontrar sítios aqui.',
     uncoveredAreaInvitationToast: 'Estás fora da zona que já conheço bem. Para a próxima, diz-me antes de saíres — posso aprender um sítio com antecedência.',
     uncoveredAreaInvitationAction: 'Mostra-me',
@@ -1155,6 +1439,11 @@ const ptPT: typeof en = {
     refreshTripA11y: (destination: string) => `Atualizar ${destination}`,
     refresh: 'Atualizar',
     deleteTripA11y: (destination: string) => `Eliminar ${destination}`,
+    changeTripDates: 'Editar datas',
+    addTripDates: 'Editar datas',
+    changeTripDatesA11y: (destination: string) => `Alterar as datas de ${destination}`,
+    learnBiggerArea: 'Editar tamanho da zona',
+    learnBiggerAreaA11y: (destination: string) => `Aprender uma zona maior à volta de ${destination}`,
     entryRowLabel: 'Vais a algum lado?',
     entryRowA11y:  'Planear uma viagem',
     entryRowA11yWithDate: (dateLabel: string) => `Planear uma viagem a partir de ${dateLabel}`,
@@ -1170,10 +1459,17 @@ const ptPT: typeof en = {
       untilDate
         ? `Cerca de ${mb} — vou saber até ${untilDate}.`
         : `Cerca de ${mb} — vou manter isto atualizado durante cerca de um mês.`,
+    exactDownloadSizeLine: (size: string) => `Esta transferência tem ${size}. Toca novamente para continuar.`,
+    exactDownloadButton: (size: string) => `Descarregar ${size}`,
     downloadButton:   'Aprender esta zona',
+    saveDatesButton:  'Guardar datas',
+    saveAreaButton:   'Guardar zona',
     downloadingLabel: 'A aprender a zona…',
     downloadErrorToast: 'Não consegui aprender esta zona — verifica a tua ligação e tenta outra vez.',
     downloadSuccessToast: (destination: string) => `Entendido — já conheço ${destination}.`,
+    editDatesSuccessToast: (destination: string) => `Datas atualizadas para ${destination}.`,
+    editRadiusSuccessToast: (destination: string) => `Zona atualizada para ${destination}.`,
+    changeDatesTitle: 'Alterar as datas',
     placesIKnowTitle: 'Sítios que conheço',
     placesIKnowEmpty: 'Ainda não conheço nenhuma zona de viagem — adiciona uma acima.',
     tripUpcomingRowLabel: (destination: string) => `Vou a ${destination} em breve`,
@@ -1211,8 +1507,35 @@ const ptPT: typeof en = {
     cancel: 'Cancelar',
   },
 
+  oneTripForAll: {
+    entryLabel: 'Uma viagem para todas estas',
+    entryA11y:  'Uma viagem para todas estas',
+  },
+
+  itineraryOptionsScreen: {
+    screenTitle:  'Uma viagem para todas estas',
+    cardLabel:    'Paragem a paragem',
+    backA11y:     'Voltar',
+    loadingLabel: 'A encontrar o caminho…',
+    stopsCount:   (n: number) => (n === 1 ? '1 paragem' : `${n} paragens`),
+    destinationLearned: (name: string) => `${name} · o teu habitual`,
+    destinationWithDistance: (name: string, distance: string) => `${name} · ${distance}`,
+    totalDistance:  (km: string) => `Cerca de ${km} km no total`,
+    exclusionLine:  (n: number) => (n === 1 ? 'Não encontrei um local para 1 delas' : `Não encontrei um local para ${n} delas`),
+    openInMapsA11y: 'Abrir direções no Maps',
+    emptyStateBody: 'Não encontrei locais para nenhuma delas agora.',
+    errorBody:      'Algo correu mal ao encontrar o caminho.',
+    retryLabel:     'Tentar novamente',
+    mapsOpenFailed: 'Não consegui abrir o Maps — tenta outra vez.',
+    // ── Mall card (KAN-282) ──
+    mallCardTitle:     'Tudo num só lugar',
+    mallCardSubtitle:  (name: string) => name,
+    mallCardDistance:  (distance: string) => `A ${distance}`,
+    mallCardA11y:      (name: string) => `Tudo num só lugar — ${name}`,
+    mallOpenInMapsA11y: 'Abrir direções para o centro comercial no Maps',
+  },
+
   contextChip: {
-    offlineGlyphA11y: 'Offline — conheço esta zona',
     closeSheetA11y: 'Fechar painel',
     closeA11y:      'Fechar',
     sheetTitle: 'O que conheço aqui',
@@ -1226,7 +1549,6 @@ const ptPT: typeof en = {
 
     mallChipA11y: (name: string) => `Em ${name} — toca para detalhes`,
     tripChipA11y: (destination: string) => `Em ${destination} — toca para detalhes`,
-    offlineDotA11y: 'Offline',
     mallSheetTitle: (name: string) => `Enquanto estás em ${name}`,
     tripSheetTitle: (destination: string) => `Enquanto estás em ${destination}`,
     placeSheetCoverageLine: 'Aprendi os sítios aqui perto.',
@@ -1252,7 +1574,22 @@ const ptPT: typeof en = {
     sheetIntro: 'Estas podem acontecer perto umas das outras — vê o que encaixa, pela ordem que preferires.',
     closeA11y: 'Fechar',
     closeSheetA11y: 'Fechar painel',
-    openAnchorInMaps: (anchorName: string) => `Abrir ${anchorName} no Maps`,
+    // KAN-283 — ver nota na versão EN: indica apenas o número de paragens.
+    openAllInMaps: (stopCount: number) => `Abrir no Maps — as ${stopCount} paragens`,
+    openAllInMapsA11y: (stopCount: number) => `Abrir as ${stopCount} paragens no Maps`,
+    deselectStopA11y: (taskTitle: string) => `Deixar ${taskTitle} de fora`,
+    selectStopA11y:   (taskTitle: string) => `Incluir ${taskTitle}`,
+    deselectStopDisabledA11y: 'Esta fica — uma rota precisa de pelo menos duas paragens',
+    // KAN-293 — ver nota na versão EN: convite, nunca plano. Sem urgência,
+    // sem promoções, sem preços.
+    leisureParkLine: (placeName: string) =>
+      `${placeName} fica mesmo ali — que tal um passeio, já que estás por perto?`,
+    leisureOtherLine: (placeName: string) => `${placeName} também fica mesmo ali.`,
+    leisureKeepInMind: 'Juntar à rota',
+    leisureKeepInMindA11y: (placeName: string) => `Juntar ${placeName} a esta rota`,
+    leisureKeptConfirmation: (placeName: string) => `${placeName} vai entrar nesta rota do Maps.`,
+    leisureGetTickets: 'Comprar bilhetes',
+    leisureGetTicketsA11y: (placeName: string) => `Abrir o site de ${placeName}`,
   },
 
   tripSuggestion: {
@@ -1304,6 +1641,63 @@ const ptPT: typeof en = {
     clearErrorToast: 'Não consegui limpar — verifica a tua ligação e tenta outra vez.',
   },
 
+  // ─── Lantern — cabeçalho de familiaridade do Hoje (KAN-301) ──────────────────
+  lantern: {
+    home: 'À volta de casa',
+    outside: 'Fora',
+    whereIsHome: 'Onde é casa?',
+    tellMe: 'Diz-me',
+    lookingAround: 'À procura…',
+    cantFindYou: 'Não te encontro',
+    buildingArea: 'Ainda estou a conhecer esta zona — em breve sei mais.',
+    degradedArea: 'Neste momento conheço menos por aqui do que é costume. Vou completar quando puder.',
+    placesPillA11y: (label: string) => `${label} — vê os sítios que conheço`,
+    setHomePillA11y: 'Diz-me onde é casa',
+  },
+
+  // ─── Places — ecrã atrás do botão da Lanterna (KAN-304) ──────────────────────
+  places: {
+    screenTitle: 'Sítios que conheço',
+    backA11y: 'Voltar',
+    tabPlaces: 'Sítios',
+    tabTrips: 'Viagens',
+    teachAction: 'Um sítio de que gostas?',
+    sectionFavourites: 'Favoritos',
+    sectionUsuals: 'Os teus habituais',
+    usualSecondary: (typeLabel: string) => `o teu ${typeLabel} do costume`,
+    tripsAddAction: 'Vais a algum lado?',
+    nextUp: 'A seguir',
+    sectionWhereGoing: 'Onde vais',
+    whereGoingSub: 'Vou saber orientar-me, mesmo sem rede.',
+    sectionWhereBeen: 'Onde estiveste',
+    emptyFavourites: 'Marca um sítio com estrela e ele fica aqui à tua espera.',
+    emptyUsuals: 'Os sítios onde voltas sempre aparecem aqui sozinhos.',
+    emptyPlanned: 'Diz-me antes de ires e aprendo o sítio com antecedência.',
+    emptyPastTrips: 'As viagens que terminaste vêm descansar aqui.',
+    teachTitle: 'Um sítio de que gostas?',
+    teachSubtitle: 'Quando houver mais do que um, escolho o teu.',
+    teachTypeLabel: 'Que tipo de sítio?',
+    teachFoodType: 'Tipo de comida',
+    teachStoreType: 'Tipo de loja',
+    teachNameLabel: 'A qual costumas ir?',
+    teachNamePlaceholder: 'Escreve uma marca — tipo Pingo Doce',
+    teachFoodTypeNameLabel: 'Que tipo de comida?',
+    teachFoodTypePlaceholder: 'Escreve um tipo — tipo Sushi',
+    teachStoreTypeNameLabel: 'Que tipo de loja?',
+    teachStoreTypePlaceholder: 'Escreve um tipo — tipo Roupa',
+    teachSaveAction: 'Adicionar',
+    teachCancelA11y: 'Cancelar',
+    forgetA11y: (name: string) => `Esquecer ${name}`,
+    forgetPlaceTitle: (name: string) => `Esquecer ${name}?`,
+    forgetPlaceBody: 'Deixo de o pôr à frente.',
+    forgetPlaceConfirm: 'Esquecer',
+    forgetPlaceCancel: 'Manter',
+    forgetTripTitle: (dest: string) => `Esquecer ${dest}?`,
+    forgetTripBody: 'A memória vai-se; o resto fica.',
+    forgetTripConfirm: 'Esquecer esta viagem',
+    forgetTripCancel: 'Manter',
+  },
+
   settings: {
     screenTitle: 'Definições',
     backA11y: 'Voltar',
@@ -1318,6 +1712,9 @@ const ptPT: typeof en = {
     darkModeToggleA11y: 'Alternar modo escuro',
     pauseLowBattery: 'Pausar alertas próximos com bateria fraca',
     pauseLowBatteryToggleA11y: 'Alternar pausa de alertas com bateria fraca',
+    wifiOnlyDownloads: 'Só descarregar com Wi-Fi',
+    wifiOnlyDownloadsSublabel: 'Aprendo os sítios à tua volta antes de precisares deles — cerca de 30 KB por zona. Se deixares desligado, faço-o em qualquer ligação.',
+    wifiOnlyDownloadsToggleA11y: 'Alternar descarregar só com Wi-Fi',
     languageRowLabel: 'Idioma',
     languageSheetTitle: 'Escolhe um idioma',
     languageEnglish: 'English',
@@ -1338,7 +1735,7 @@ const ptPT: typeof en = {
     signOutErrorTitle: 'Erro',
     signOutErrorBody: 'Falha ao terminar sessão. Tenta outra vez.',
     footerVersion: (version: string) => `Brush Away · v${version}`,
-    footerAttribution: 'Dados de locais © colaboradores do OpenStreetMap (ODbL)',
+    footerAttribution: 'Dados de locais e localização © Overture Maps Foundation (CDLA-Permissive 2.0) e colaboradores do OpenStreetMap (ODbL), com correções da comunidade Brush e dados oficiais de caixas MULTIBANCO',
   },
 
   login: {
@@ -1397,26 +1794,19 @@ const ptPT: typeof en = {
     screenTitle: 'Notificações',
     backA11y: 'Voltar',
     loadingA11y: 'A carregar preferências',
-    sectionDaily: 'DIÁRIO',
-    sectionStreaks: 'SEQUÊNCIAS',
-    sectionSummary: 'RESUMO',
-    sectionEngagement: 'ENVOLVIMENTO',
-    sectionLocation: 'LOCALIZAÇÃO',
-    sectionAchievements: 'CONQUISTAS',
-    eodLabel: 'Ponto de situação do dia',
-    eodSublabel: 'Recorda-te de tarefas de localização por terminar.',
-    streakLabel: 'Sequência em risco',
-    streakSublabel: 'Avisa-te às 20h quando a tua sequência estiver em risco.',
-    weeklyLabel: 'Resumo semanal',
-    weeklySublabel: 'Resumo da tua semana ao domingo à noite.',
-    reengageLabel: 'Lembretes de regresso',
-    reengageSublabel: 'Um toque depois de 3 dias sem abrir a app.',
-    exitPromptLabel: 'Pergunta ao sair',
-    exitPromptSublabel: 'Pergunta se concluíste uma tarefa depois de saíres de um local marcado.',
-    achievementNudgesLabel: 'Lembretes de conquistas',
-    achievementNudgesSublabel: 'Avisa-te quando estiveres a 1 passo de desbloquear um distintivo.',
+    sectionWhenOut: 'Quando estou fora',
+    sectionDaily: 'Diário',
+    sectionFromPeople: 'De pessoas',
+    proximityLabel: 'Avisos por perto',
+    proximitySublabel: 'Quando estiveres perto de um sítio a que uma tarefa pertence, eu aviso-te.',
+    exitPromptLabel: 'Conseguiste?',
+    exitPromptSublabel: 'Depois de saíres de um sítio, uma verificação discreta se o riscaste.',
+    eodLabel: 'Ponto da manhã',
+    eodSublabel: 'Um toque calmo de manhã para imaginares o que podes precisar quando saíres.',
     reminderTimeLabel: 'Hora do lembrete',
     reminderTimeA11y: (time: string) => `Hora do lembrete: ${time}`,
+    sharedTasksLabel: 'Tarefas partilhadas',
+    sharedTasksSublabel: 'Quando um amigo te envia uma tarefa.',
   },
 
   onboarding: {
@@ -1464,18 +1854,97 @@ const ptPT: typeof en = {
   },
 
   poiCatalog: {
+    // KAN-408 — Nature and Landmarks.
+    viewpoint:                            'Miradouro',
+    waterfall:                            'Cascata',
+    river:                                'Rio',
+    mountain:                             'Montanha',
+    lake:                                 'Lago',
+    island:                               'Ilha',
+    surf_spot:                            'Praia de surf',
+    hot_spring:                           'Termas',
+    nature_preserve:                      'Reserva natural',
+    plaza:                                'Praça',
+    bridge:                               'Ponte',
+    lighthouse:                           'Farol',
+    marina:                               'Marina',
+    theatre:                              'Teatro',
+    music_venue:                          'Sala de espetáculos',
+    amusement_park:                       'Parque de diversões',
+    aquarium:                             'Aquário',
+    art_gallery:                          'Galeria de arte',
+    beach:                                'Praia',
+    botanical_garden:                     'Jardim botânico',
+    bowling_alley:                        'Bowling',
+    brewery:                              'Cervejaria artesanal',
+    campground:                           'Parque de campismo',
+    casino:                               'Casino',
+    cemetery:                             'Cemitério',
+    church:                               'Igreja',
+    community_center:                     'Centro comunitário',
+    cultural_center:                      'Centro cultural',
+    golf_course:                          'Campo de golfe',
+    hiking_area:                          'Percurso pedestre',
+    historical_landmark:                  'Local histórico',
+    mosque:                               'Mesquita',
+    museum:                               'Museu',
+    night_club:                           'Discoteca',
+    rv_park:                              'Parque de autocaravanas',
+    spa:                                  'Spa',
+    stadium:                              'Estádio',
+    synagogue:                            'Sinagoga',
+    tennis_court:                         'Court de ténis',
+    tourist_attraction:                   'Ponto de interesse',
+    water_park:                           'Parque aquático',
+    winery:                               'Adega',
+    zoo:                                  'Jardim zoológico',
     atm: 'Multibanco',
     cafe: 'Café',
+    bakery: 'Padaria',
+    ice_cream: 'Geladaria',
+    tea: 'Casa de chá',
+    // "Sumos", not a translation of "juice bar" — a Portuguese sign says
+    // Sumos e Batidos, never "bar de sumos".
+    juice: 'Sumos',
+    tattoo: 'Estúdio de tatuagens',
+    phone_repair: 'Reparação de telemóveis',
+    shoe_repair: 'Sapateiro',
+    clothing_repair: 'Arranjos de roupa',
+    lottery: 'Jogos e lotarias',
+    tobacco: 'Tabacaria',
+    luggage_storage: 'Depósito de bagagem',
+    butcher: 'Talho',
+    fishmonger: 'Peixaria',
+    // Covers the launderette and the dry cleaner alike — one type, because
+    // OSM's own shop=dry_cleaning carries 113 elements against 1,232
+    // shop=laundry, a split the data does not reliably hold.
+    laundry: 'Lavandaria',
+    veterinary_care: 'Veterinário',
+    car_wash: 'Lavagem auto',
+    car_rental: 'Aluguer de carros',
+    movie_theater: 'Cinema',
+    yoga_studio: 'Estúdio de ioga',
+    playground: 'Parque infantil',
+    electric_vehicle_charging_station: 'Carregamento elétrico',
+    barber: 'Barbearia',
+    hairdresser: 'Cabeleireiro',
+    nail_salon: 'Manicure',
     supermarket: 'Mercado',
+    mini_market: 'Minimercado',
     pharmacy: 'Farmácia',
     gas: 'Combustível',
     gym: 'Ginásio',
     bank: 'Banco',
+    currency_exchange: 'Câmbio',
+    money_transfer: 'Transferência de dinheiro',
+    financial_service: 'Serviço financeiro',
     restaurant: 'Restaurante',
+    bar: 'Bar',
     park: 'Parque',
     library: 'Biblioteca',
     post: 'Correios',
     store: 'Loja',
+    florist: 'Florista',
     clinic: 'Clínica',
     salon: 'Salão',
     bus: 'Autocarro',
@@ -1503,12 +1972,7 @@ const ptPT: typeof en = {
     swatchA11y: (hex: string) => `Cor ${hex}`,
     hexPlaceholder: '#rrggbb',
     hexA11y: 'Cor hexadecimal personalizada',
-    locationFieldLabel: 'TIPO DE LOCAL',
-    locationNone: 'Nenhum',
-    locationSearchPlaceholder: 'Procura mais tipos…',
-    locationSearchA11y: 'Procurar tipo de local',
-    locationSelectedLabel: 'Selecionado:',
-    locationClearA11y: 'Limpar tipo de local',
+    dismissSheetA11y: 'Fechar painel de categoria',
     cancel: 'Cancelar',
     save: 'Guardar',
     saveA11y: 'Guardar categoria',
@@ -1516,10 +1980,6 @@ const ptPT: typeof en = {
     editButton: 'Editar',
     editA11y: (name: string) => `Editar ${name}`,
     deleteA11y: (name: string) => `Eliminar ${name}`,
-    quickPickAtm: 'Multibanco',
-    quickPickCafe: 'Café',
-    quickPickSupermarket: 'Supermercado',
-    quickPickPharmacy: 'Farmácia',
   },
 
   today: {
@@ -1536,7 +1996,7 @@ const ptPT: typeof en = {
       'Qual é a coisa pela qual o teu eu futuro te vai agradecer?',
       'Vais a algum lado em breve?',
     ],
-    sectionTitlePrefix: 'HOJE · ',
+    sectionTitlePrefix: 'O QUE PRECISO',
     leftCount: (n: number) => (n === 1 ? 'Falta 1' : `Faltam ${n}`),
     retry: 'Tentar outra vez',
     addSomething: 'Adiciona algo',
@@ -1560,6 +2020,7 @@ const ptPT: typeof en = {
     socialA11yNoBadge: 'Social',
     notificationsA11yUnread: 'Notificações, por ler',
     notificationsA11y: 'Notificações',
+    offlineA11y: 'Sem ligação à internet',
   },
 
   achievements: {
@@ -1862,6 +2323,11 @@ const ptPT: typeof en = {
     save: 'Guardar',
     shareMyProfileA11y: 'Partilhar o meu perfil',
     shareMyProfile: 'Partilhar o meu perfil',
+    sectionCommunity: 'COMUNIDADE',
+    suggestMissingPlaceErrorTitle: 'Erro',
+    suggestMissingPlace: 'Sugerir um local em falta',
+    suggestMissingPlaceSub: 'Ajuda a melhorar os resultados próximos',
+    suggestMissingPlaceError: 'Não foi possível abrir a página de sugestões. Tenta outra vez.',
     pointsAndAchievements: 'PONTOS E CONQUISTAS',
     totalPointsLabel: 'PONTOS TOTAIS',
     totalPointsA11y: (n: number) => `${n} pontos`,
@@ -1901,6 +2367,11 @@ const ptPT: typeof en = {
     birthdayUnsetWarningConfirm: 'Desmarcar',
   },
 
+  takeMeThere: {
+    /** "até" sidesteps o/a gender agreement on the POI label. */
+    a11yFor: (poiLabel: string) => `Leva-me até ${poiLabel}`,
+  },
+
   pointsHistoryScreen: {
     backA11y: 'Voltar',
     loadingA11y: 'A carregar histórico de pontos',
@@ -1912,14 +2383,22 @@ const ptPT: typeof en = {
     startDateA11y: 'Data de início',
     endDateA11y: 'Data de fim',
     continueA11y: 'Continuar',
+    continue: 'Continuar',
   },
 
   nearbyCard: {
     headerLabel: 'Na proximidade',
     headerNowLabel: 'Na proximidade · agora',
     placesCount: (n: number) => (n === 1 ? '1 Local' : `${n} Locais`),
+    openInMaps: 'Abrir no Mapas',
+    openInMapsA11y: (placeName: string) => `Abrir ${placeName} no Mapas`,
+    tryAnotherPlace: 'Tentar outro local',
     tryAnotherPlaceA11y: 'Tentar outro local',
     refreshLocationA11y: 'Atualizar localização',
+    storeTuningOn: 'Ajuste de lojas ativo',
+    refreshUpdated: 'Atualizado',
+    refreshFailed: 'Falhou',
+    alsoClose: 'Também perto',
   },
 
   newTaskSheet2: {
@@ -1941,6 +2420,34 @@ const ptPT: typeof en = {
 
   errorBoundary: {
     tryAgainA11y: 'Tentar novamente',
+  },
+
+  timePicker: {
+    hourA11y: 'Hora',
+    minuteA11y: 'Minuto',
+    formatToggleTo24: 'Formato do relógio: 12 horas. Mudar para 24 horas.',
+    formatToggleTo12: 'Formato do relógio: 24 horas. Mudar para 12 horas.',
+  },
+
+  taskReminder: {
+    title: (time: string) => `Querias isto às ${time}`,
+    body: (taskTitle: string) => taskTitle,
+  },
+
+  datedTaskHandoff: {
+    title: 'Brush',
+    sheetTitle: 'O que gostavas de fazer?',
+    body: (taskTitle: string) => `Querias isto hoje — ${taskTitle}`,
+    multipleBody: 'Querias estas coisas hoje',
+    forget: 'Esquecer',
+    tomorrow: 'Amanhã em vez disso',
+    loadError: 'Não foi possível carregar estas tarefas. Tenta novamente.',
+    tryAgain: 'Tentar novamente',
+  },
+
+  dailyCheckin: {
+    title: 'Bom dia',
+    body: 'Precisas de alguma coisa enquanto estás fora hoje?',
   },
 
   calendar: {

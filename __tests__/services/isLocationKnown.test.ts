@@ -18,6 +18,8 @@ jest.mock('../../src/services/habitatCache', () => ({
   hasCachedPlaces:            jest.fn().mockReturnValue(false),
 }));
 
+jest.mock('../../src/services/proximitySnapshot');
+
 jest.mock('@notifee/react-native', () => ({
   __esModule: true,
   default: {

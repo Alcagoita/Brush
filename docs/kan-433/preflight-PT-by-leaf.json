@@ -1,0 +1,1331 @@
+{
+  "archive_key": "country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv",
+  "archive_rows": 396749,
+  "archive_sha256": "82b04934657742e497ba7832a8fab81aa09fb4703958b63cd3e92fa25ab33b98",
+  "curated_rows": 289,
+  "d1_read": true,
+  "in_scope_rows": 41186,
+  "leaves": {
+    "Amphitheater": {
+      "far_same_name_served": 1,
+      "matched": 7,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 29,
+      "verdict": "import"
+    },
+    "Amusement Park": {
+      "far_same_name_served": 14,
+      "matched": 34,
+      "matched_to_business": 2,
+      "suspect": 17,
+      "unique": 130,
+      "verdict": "import with care"
+    },
+    "Aquarium": {
+      "far_same_name_served": 2,
+      "matched": 10,
+      "matched_to_business": 4,
+      "suspect": 3,
+      "unique": 13,
+      "verdict": "import"
+    },
+    "Arcade": {
+      "far_same_name_served": 7,
+      "matched": 16,
+      "matched_to_business": 3,
+      "suspect": 10,
+      "unique": 66,
+      "verdict": "import with care"
+    },
+    "Art Gallery": {
+      "coordinate_twins": 19,
+      "far_same_name_served": 60,
+      "matched": 296,
+      "matched_to_business": 42,
+      "name_near_misses": 0,
+      "suspect": 86,
+      "unique": 509,
+      "verdict": "import"
+    },
+    "Art Museum": {
+      "far_same_name_served": 16,
+      "matched": 92,
+      "matched_to_business": 5,
+      "suspect": 17,
+      "unique": 51,
+      "verdict": "import"
+    },
+    "Arts and Entertainment": {
+      "coordinate_twins": 17,
+      "far_same_name_served": 134,
+      "matched": 205,
+      "matched_to_business": 87,
+      "name_near_misses": 1,
+      "suspect": 216,
+      "unique": 1762,
+      "verdict": "import with care"
+    },
+    "Attraction": {
+      "far_same_name_served": 10,
+      "matched": 11,
+      "matched_to_business": 1,
+      "suspect": 10,
+      "unique": 76,
+      "verdict": "import with care"
+    },
+    "Baseball Stadium": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 3,
+      "verdict": "import"
+    },
+    "Basketball Stadium": {
+      "far_same_name_served": 3,
+      "matched": 16,
+      "matched_to_business": 2,
+      "suspect": 4,
+      "unique": 12,
+      "verdict": "import"
+    },
+    "Bathing Area": {
+      "far_same_name_served": 13,
+      "matched": 15,
+      "matched_to_business": 10,
+      "suspect": 14,
+      "unique": 87,
+      "verdict": "import with care"
+    },
+    "Bay": {
+      "far_same_name_served": 3,
+      "matched": 4,
+      "matched_to_business": 1,
+      "suspect": 3,
+      "unique": 18,
+      "verdict": "noise"
+    },
+    "Beach": {
+      "coordinate_twins": 6,
+      "far_same_name_served": 245,
+      "matched": 572,
+      "matched_to_business": 67,
+      "name_near_misses": 2,
+      "suspect": 308,
+      "unique": 584,
+      "verdict": "import"
+    },
+    "Bike Trail": {
+      "far_same_name_served": 2,
+      "matched": 4,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 16,
+      "verdict": "import"
+    },
+    "Bingo Center": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import with care"
+    },
+    "Boat Launch": {
+      "far_same_name_served": 1,
+      "matched": 2,
+      "matched_to_business": 2,
+      "suspect": 1,
+      "unique": 5,
+      "verdict": "import"
+    },
+    "Botanical Garden": {
+      "far_same_name_served": 4,
+      "matched": 13,
+      "matched_to_business": 2,
+      "suspect": 5,
+      "unique": 16,
+      "verdict": "import"
+    },
+    "Bowling Alley": {
+      "far_same_name_served": 6,
+      "matched": 29,
+      "matched_to_business": 6,
+      "suspect": 7,
+      "unique": 39,
+      "verdict": "import with care"
+    },
+    "Bridge": {
+      "coordinate_twins": 0,
+      "far_same_name_served": 38,
+      "matched": 95,
+      "matched_to_business": 3,
+      "name_near_misses": 0,
+      "suspect": 59,
+      "unique": 201,
+      "verdict": "import"
+    },
+    "Buddhist Temple": {
+      "far_same_name_served": 1,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 3,
+      "verdict": "import"
+    },
+    "Campground": {
+      "coordinate_twins": 0,
+      "far_same_name_served": 72,
+      "matched": 188,
+      "matched_to_business": 21,
+      "name_near_misses": 0,
+      "suspect": 89,
+      "unique": 345,
+      "verdict": "import with care"
+    },
+    "Canal": {
+      "far_same_name_served": 3,
+      "matched": 2,
+      "matched_to_business": 0,
+      "suspect": 6,
+      "unique": 28,
+      "verdict": "noise"
+    },
+    "Canal Lock": {
+      "far_same_name_served": 0,
+      "matched": 3,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 7,
+      "verdict": "noise"
+    },
+    "Carnival": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 4,
+      "verdict": "import with care"
+    },
+    "Casino": {
+      "far_same_name_served": 2,
+      "matched": 16,
+      "matched_to_business": 1,
+      "suspect": 6,
+      "unique": 48,
+      "verdict": "import with care"
+    },
+    "Castle": {
+      "far_same_name_served": 31,
+      "matched": 76,
+      "matched_to_business": 7,
+      "suspect": 37,
+      "unique": 72,
+      "verdict": "import"
+    },
+    "Cave": {
+      "far_same_name_served": 1,
+      "matched": 5,
+      "matched_to_business": 3,
+      "suspect": 2,
+      "unique": 37,
+      "verdict": "import"
+    },
+    "Church": {
+      "coordinate_twins": 18,
+      "far_same_name_served": 302,
+      "matched": 1216,
+      "matched_to_business": 36,
+      "name_near_misses": 2,
+      "suspect": 408,
+      "unique": 1660,
+      "verdict": "import"
+    },
+    "Circus": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 25,
+      "verdict": "import with care"
+    },
+    "City": {
+      "far_same_name_served": 242,
+      "matched": 294,
+      "matched_to_business": 174,
+      "suspect": 917,
+      "unique": 579,
+      "verdict": "noise"
+    },
+    "Comedy Club": {
+      "far_same_name_served": 3,
+      "matched": 10,
+      "matched_to_business": 3,
+      "suspect": 7,
+      "unique": 73,
+      "verdict": "import with care"
+    },
+    "Community Garden": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import"
+    },
+    "Concert Hall": {
+      "coordinate_twins": 4,
+      "far_same_name_served": 19,
+      "matched": 132,
+      "matched_to_business": 17,
+      "name_near_misses": 0,
+      "suspect": 36,
+      "unique": 259,
+      "verdict": "import"
+    },
+    "Country": {
+      "far_same_name_served": 0,
+      "matched": 1,
+      "matched_to_business": 1,
+      "suspect": 0,
+      "unique": 0,
+      "verdict": "noise"
+    },
+    "Country Club": {
+      "far_same_name_served": 0,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import with care"
+    },
+    "Country Dance Club": {
+      "far_same_name_served": 0,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 13,
+      "verdict": "import with care"
+    },
+    "County": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 3,
+      "unique": 0,
+      "verdict": "noise"
+    },
+    "Dam": {
+      "far_same_name_served": 0,
+      "matched": 2,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 11,
+      "verdict": "import"
+    },
+    "Dance Hall": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import with care"
+    },
+    "Disc Golf": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 1,
+      "verdict": "import with care"
+    },
+    "Disc Golf Course": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import"
+    },
+    "Dive Spot": {
+      "far_same_name_served": 3,
+      "matched": 2,
+      "matched_to_business": 1,
+      "suspect": 7,
+      "unique": 48,
+      "verdict": "import with care"
+    },
+    "Dog Park": {
+      "far_same_name_served": 16,
+      "matched": 26,
+      "matched_to_business": 1,
+      "suspect": 37,
+      "unique": 168,
+      "verdict": "import"
+    },
+    "Drive-in Theater": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import with care"
+    },
+    "Erotic Museum": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import"
+    },
+    "Escape Room": {
+      "far_same_name_served": 0,
+      "matched": 16,
+      "matched_to_business": 2,
+      "suspect": 0,
+      "unique": 20,
+      "verdict": "import with care"
+    },
+    "Exhibit": {
+      "far_same_name_served": 6,
+      "matched": 8,
+      "matched_to_business": 0,
+      "suspect": 8,
+      "unique": 70,
+      "verdict": "import"
+    },
+    "Fair": {
+      "far_same_name_served": 17,
+      "matched": 14,
+      "matched_to_business": 12,
+      "suspect": 19,
+      "unique": 128,
+      "verdict": "import with care"
+    },
+    "Farm": {
+      "far_same_name_served": 26,
+      "matched": 48,
+      "matched_to_business": 41,
+      "suspect": 268,
+      "unique": 1633,
+      "verdict": "noise"
+    },
+    "Field": {
+      "far_same_name_served": 71,
+      "matched": 38,
+      "matched_to_business": 13,
+      "suspect": 106,
+      "unique": 901,
+      "verdict": "noise"
+    },
+    "Football Stadium": {
+      "far_same_name_served": 1,
+      "matched": 8,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 10,
+      "verdict": "import"
+    },
+    "Forest": {
+      "far_same_name_served": 2,
+      "matched": 5,
+      "matched_to_business": 0,
+      "suspect": 6,
+      "unique": 52,
+      "verdict": "noise"
+    },
+    "Fort": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 0,
+      "verdict": "import with care"
+    },
+    "Fountain": {
+      "far_same_name_served": 7,
+      "matched": 24,
+      "matched_to_business": 0,
+      "suspect": 9,
+      "unique": 61,
+      "verdict": "import"
+    },
+    "Gaming Cafe": {
+      "far_same_name_served": 2,
+      "matched": 14,
+      "matched_to_business": 14,
+      "suspect": 6,
+      "unique": 32,
+      "verdict": "import with care"
+    },
+    "Garden": {
+      "coordinate_twins": 3,
+      "far_same_name_served": 111,
+      "matched": 200,
+      "matched_to_business": 93,
+      "name_near_misses": 0,
+      "suspect": 163,
+      "unique": 659,
+      "verdict": "import"
+    },
+    "General Entertainment": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import with care"
+    },
+    "Go Kart Track": {
+      "far_same_name_served": 0,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 39,
+      "verdict": "import with care"
+    },
+    "Harbor or Marina": {
+      "coordinate_twins": 3,
+      "far_same_name_served": 50,
+      "matched": 50,
+      "matched_to_business": 22,
+      "name_near_misses": 1,
+      "suspect": 67,
+      "unique": 219,
+      "verdict": "import with care"
+    },
+    "Hiking Trail": {
+      "coordinate_twins": 0,
+      "far_same_name_served": 49,
+      "matched": 105,
+      "matched_to_business": 4,
+      "name_near_misses": 1,
+      "suspect": 69,
+      "unique": 409,
+      "verdict": "import"
+    },
+    "Hill": {
+      "far_same_name_served": 2,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 7,
+      "verdict": "noise"
+    },
+    "Hindu Temple": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import"
+    },
+    "Historic and Protected Site": {
+      "coordinate_twins": 10,
+      "far_same_name_served": 137,
+      "matched": 419,
+      "matched_to_business": 33,
+      "name_near_misses": 1,
+      "suspect": 193,
+      "unique": 699,
+      "verdict": "import"
+    },
+    "History Museum": {
+      "coordinate_twins": 4,
+      "far_same_name_served": 47,
+      "matched": 169,
+      "matched_to_business": 2,
+      "name_near_misses": 0,
+      "suspect": 54,
+      "unique": 129,
+      "verdict": "import"
+    },
+    "Hockey Stadium": {
+      "far_same_name_served": 2,
+      "matched": 9,
+      "matched_to_business": 2,
+      "suspect": 4,
+      "unique": 14,
+      "verdict": "import"
+    },
+    "Hot Spring": {
+      "far_same_name_served": 9,
+      "matched": 11,
+      "matched_to_business": 2,
+      "suspect": 14,
+      "unique": 65,
+      "verdict": "import with care"
+    },
+    "Indie Movie Theater": {
+      "far_same_name_served": 7,
+      "matched": 32,
+      "matched_to_business": 1,
+      "suspect": 10,
+      "unique": 27,
+      "verdict": "import with care"
+    },
+    "Indie Theater": {
+      "far_same_name_served": 0,
+      "matched": 10,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 20,
+      "verdict": "import"
+    },
+    "Internet Cafe": {
+      "far_same_name_served": 4,
+      "matched": 19,
+      "matched_to_business": 17,
+      "suspect": 8,
+      "unique": 68,
+      "verdict": "import with care"
+    },
+    "Island": {
+      "far_same_name_served": 6,
+      "matched": 8,
+      "matched_to_business": 2,
+      "suspect": 11,
+      "unique": 48,
+      "verdict": "import"
+    },
+    "Jazz and Blues Venue": {
+      "far_same_name_served": 5,
+      "matched": 16,
+      "matched_to_business": 6,
+      "suspect": 9,
+      "unique": 20,
+      "verdict": "import with care"
+    },
+    "Kingdom Hall": {
+      "far_same_name_served": 1,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 0,
+      "verdict": "import with care"
+    },
+    "Lake": {
+      "coordinate_twins": 0,
+      "far_same_name_served": 37,
+      "matched": 68,
+      "matched_to_business": 1,
+      "name_near_misses": 1,
+      "suspect": 47,
+      "unique": 186,
+      "verdict": "import"
+    },
+    "Landmarks and Outdoors": {
+      "far_same_name_served": 26,
+      "matched": 19,
+      "matched_to_business": 3,
+      "suspect": 35,
+      "unique": 153,
+      "verdict": "import with care"
+    },
+    "Laser Tag Center": {
+      "far_same_name_served": 1,
+      "matched": 3,
+      "matched_to_business": 1,
+      "suspect": 2,
+      "unique": 11,
+      "verdict": "import with care"
+    },
+    "Lighthouse": {
+      "far_same_name_served": 10,
+      "matched": 53,
+      "matched_to_business": 2,
+      "suspect": 21,
+      "unique": 64,
+      "verdict": "import"
+    },
+    "Memorial Site": {
+      "far_same_name_served": 3,
+      "matched": 8,
+      "matched_to_business": 1,
+      "suspect": 3,
+      "unique": 20,
+      "verdict": "import"
+    },
+    "Mini Golf Course": {
+      "far_same_name_served": 5,
+      "matched": 2,
+      "matched_to_business": 0,
+      "suspect": 6,
+      "unique": 20,
+      "verdict": "import with care"
+    },
+    "Monastery": {
+      "far_same_name_served": 8,
+      "matched": 14,
+      "matched_to_business": 0,
+      "suspect": 8,
+      "unique": 8,
+      "verdict": "import"
+    },
+    "Monument": {
+      "coordinate_twins": 4,
+      "far_same_name_served": 54,
+      "matched": 174,
+      "matched_to_business": 17,
+      "name_near_misses": 0,
+      "suspect": 69,
+      "unique": 367,
+      "verdict": "import"
+    },
+    "Mosque": {
+      "far_same_name_served": 1,
+      "matched": 4,
+      "matched_to_business": 4,
+      "suspect": 3,
+      "unique": 10,
+      "verdict": "import"
+    },
+    "Mountain": {
+      "coordinate_twins": 0,
+      "far_same_name_served": 22,
+      "matched": 48,
+      "matched_to_business": 2,
+      "name_near_misses": 0,
+      "suspect": 28,
+      "unique": 295,
+      "verdict": "import"
+    },
+    "Mountain Hut": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 2,
+      "verdict": "import with care"
+    },
+    "Movie Theater": {
+      "far_same_name_served": 15,
+      "matched": 126,
+      "matched_to_business": 11,
+      "suspect": 26,
+      "unique": 130,
+      "verdict": "import with care"
+    },
+    "Museum": {
+      "coordinate_twins": 2,
+      "far_same_name_served": 53,
+      "matched": 271,
+      "matched_to_business": 12,
+      "name_near_misses": 0,
+      "suspect": 66,
+      "unique": 247,
+      "verdict": "import"
+    },
+    "Music Venue": {
+      "coordinate_twins": 9,
+      "far_same_name_served": 30,
+      "matched": 136,
+      "matched_to_business": 60,
+      "name_near_misses": 0,
+      "suspect": 120,
+      "unique": 388,
+      "verdict": "import"
+    },
+    "National Park": {
+      "far_same_name_served": 1,
+      "matched": 10,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 35,
+      "verdict": "import"
+    },
+    "Natural Park": {
+      "far_same_name_served": 0,
+      "matched": 2,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 14,
+      "verdict": "import"
+    },
+    "Nature Preserve": {
+      "far_same_name_served": 9,
+      "matched": 22,
+      "matched_to_business": 0,
+      "suspect": 10,
+      "unique": 83,
+      "verdict": "import"
+    },
+    "Nature Trail": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import"
+    },
+    "Neighborhood": {
+      "far_same_name_served": 378,
+      "matched": 241,
+      "matched_to_business": 179,
+      "suspect": 537,
+      "unique": 1099,
+      "verdict": "noise"
+    },
+    "Night Club": {
+      "coordinate_twins": 25,
+      "far_same_name_served": 61,
+      "matched": 367,
+      "matched_to_business": 186,
+      "name_near_misses": 0,
+      "suspect": 139,
+      "unique": 889,
+      "verdict": "import with care"
+    },
+    "Nudist Beach": {
+      "far_same_name_served": 8,
+      "matched": 3,
+      "matched_to_business": 0,
+      "suspect": 10,
+      "unique": 12,
+      "verdict": "import with care"
+    },
+    "Opera House": {
+      "far_same_name_served": 0,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 4,
+      "verdict": "import"
+    },
+    "Other Great Outdoors": {
+      "far_same_name_served": 200,
+      "matched": 194,
+      "matched_to_business": 67,
+      "suspect": 307,
+      "unique": 1498,
+      "verdict": "noise"
+    },
+    "Outdoor Sculpture": {
+      "far_same_name_served": 6,
+      "matched": 30,
+      "matched_to_business": 3,
+      "suspect": 14,
+      "unique": 120,
+      "verdict": "import"
+    },
+    "Palace": {
+      "far_same_name_served": 5,
+      "matched": 16,
+      "matched_to_business": 2,
+      "suspect": 7,
+      "unique": 39,
+      "verdict": "import"
+    },
+    "Park": {
+      "coordinate_twins": 2,
+      "far_same_name_served": 214,
+      "matched": 357,
+      "matched_to_business": 22,
+      "name_near_misses": 2,
+      "suspect": 275,
+      "unique": 663,
+      "verdict": "import"
+    },
+    "Party Center": {
+      "far_same_name_served": 1,
+      "matched": 2,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 20,
+      "verdict": "import with care"
+    },
+    "Pass": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 3,
+      "verdict": "noise"
+    },
+    "Pedestrian Plaza": {
+      "far_same_name_served": 13,
+      "matched": 24,
+      "matched_to_business": 4,
+      "suspect": 18,
+      "unique": 80,
+      "verdict": "import"
+    },
+    "Performing Arts Venue": {
+      "far_same_name_served": 18,
+      "matched": 56,
+      "matched_to_business": 11,
+      "suspect": 31,
+      "unique": 113,
+      "verdict": "import"
+    },
+    "Picnic Area": {
+      "far_same_name_served": 0,
+      "matched": 2,
+      "matched_to_business": 1,
+      "suspect": 0,
+      "unique": 24,
+      "verdict": "import"
+    },
+    "Picnic Shelter": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 5,
+      "verdict": "import"
+    },
+    "Planetarium": {
+      "far_same_name_served": 0,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 8,
+      "verdict": "import"
+    },
+    "Playground": {
+      "coordinate_twins": 5,
+      "far_same_name_served": 77,
+      "matched": 170,
+      "matched_to_business": 18,
+      "name_near_misses": 2,
+      "suspect": 101,
+      "unique": 524,
+      "verdict": "import"
+    },
+    "Plaza": {
+      "coordinate_twins": 4,
+      "far_same_name_served": 104,
+      "matched": 439,
+      "matched_to_business": 61,
+      "name_near_misses": 0,
+      "suspect": 147,
+      "unique": 546,
+      "verdict": "import"
+    },
+    "Pond": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "noise"
+    },
+    "Pool Hall": {
+      "far_same_name_served": 8,
+      "matched": 38,
+      "matched_to_business": 34,
+      "suspect": 17,
+      "unique": 126,
+      "verdict": "import with care"
+    },
+    "Prayer Room": {
+      "far_same_name_served": 11,
+      "matched": 22,
+      "matched_to_business": 5,
+      "suspect": 13,
+      "unique": 131,
+      "verdict": "import"
+    },
+    "Psychic and Astrologer": {
+      "far_same_name_served": 2,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 19,
+      "verdict": "import with care"
+    },
+    "Public Art": {
+      "far_same_name_served": 15,
+      "matched": 26,
+      "matched_to_business": 8,
+      "suspect": 23,
+      "unique": 198,
+      "verdict": "import"
+    },
+    "Reservoir": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 13,
+      "verdict": "noise"
+    },
+    "River": {
+      "coordinate_twins": 1,
+      "far_same_name_served": 36,
+      "matched": 79,
+      "matched_to_business": 7,
+      "name_near_misses": 0,
+      "suspect": 44,
+      "unique": 267,
+      "verdict": "import"
+    },
+    "Rock Climbing Spot": {
+      "far_same_name_served": 3,
+      "matched": 2,
+      "matched_to_business": 1,
+      "suspect": 3,
+      "unique": 42,
+      "verdict": "import"
+    },
+    "Rock Club": {
+      "far_same_name_served": 3,
+      "matched": 29,
+      "matched_to_business": 14,
+      "suspect": 4,
+      "unique": 69,
+      "verdict": "import with care"
+    },
+    "Roller Rink": {
+      "far_same_name_served": 1,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 10,
+      "verdict": "import with care"
+    },
+    "Roof Deck": {
+      "far_same_name_served": 4,
+      "matched": 17,
+      "matched_to_business": 16,
+      "suspect": 5,
+      "unique": 66,
+      "verdict": "import with care"
+    },
+    "Rugby Stadium": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import"
+    },
+    "Ruin": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import"
+    },
+    "Salsa Club": {
+      "far_same_name_served": 0,
+      "matched": 3,
+      "matched_to_business": 1,
+      "suspect": 1,
+      "unique": 13,
+      "verdict": "import with care"
+    },
+    "Scenic Lookout": {
+      "coordinate_twins": 11,
+      "far_same_name_served": 128,
+      "matched": 406,
+      "matched_to_business": 40,
+      "name_near_misses": 0,
+      "suspect": 202,
+      "unique": 977,
+      "verdict": "import"
+    },
+    "Science Museum": {
+      "far_same_name_served": 4,
+      "matched": 34,
+      "matched_to_business": 2,
+      "suspect": 4,
+      "unique": 26,
+      "verdict": "import"
+    },
+    "Sculpture Garden": {
+      "far_same_name_served": 6,
+      "matched": 17,
+      "matched_to_business": 0,
+      "suspect": 12,
+      "unique": 55,
+      "verdict": "import"
+    },
+    "Shrine": {
+      "far_same_name_served": 9,
+      "matched": 20,
+      "matched_to_business": 0,
+      "suspect": 13,
+      "unique": 59,
+      "verdict": "import"
+    },
+    "Soccer Stadium": {
+      "coordinate_twins": 3,
+      "far_same_name_served": 37,
+      "matched": 126,
+      "matched_to_business": 13,
+      "name_near_misses": 0,
+      "suspect": 42,
+      "unique": 200,
+      "verdict": "import"
+    },
+    "Spiritual Center": {
+      "coordinate_twins": 2,
+      "far_same_name_served": 23,
+      "matched": 106,
+      "matched_to_business": 8,
+      "name_near_misses": 0,
+      "suspect": 39,
+      "unique": 239,
+      "verdict": "import with care"
+    },
+    "Stable": {
+      "far_same_name_served": 5,
+      "matched": 7,
+      "matched_to_business": 5,
+      "suspect": 10,
+      "unique": 143,
+      "verdict": "import with care"
+    },
+    "Stadium": {
+      "far_same_name_served": 21,
+      "matched": 67,
+      "matched_to_business": 10,
+      "suspect": 23,
+      "unique": 71,
+      "verdict": "import"
+    },
+    "State": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 3,
+      "verdict": "noise"
+    },
+    "State or Provincial Park": {
+      "far_same_name_served": 1,
+      "matched": 4,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 18,
+      "verdict": "import"
+    },
+    "States and Municipalities": {
+      "far_same_name_served": 10,
+      "matched": 6,
+      "matched_to_business": 4,
+      "suspect": 16,
+      "unique": 26,
+      "verdict": "noise"
+    },
+    "Street Art": {
+      "far_same_name_served": 6,
+      "matched": 6,
+      "matched_to_business": 2,
+      "suspect": 8,
+      "unique": 93,
+      "verdict": "import"
+    },
+    "Strip Club": {
+      "far_same_name_served": 4,
+      "matched": 14,
+      "matched_to_business": 12,
+      "suspect": 18,
+      "unique": 202,
+      "verdict": "import with care"
+    },
+    "Structure": {
+      "far_same_name_served": 201,
+      "matched": 158,
+      "matched_to_business": 99,
+      "suspect": 325,
+      "unique": 2791,
+      "verdict": "noise"
+    },
+    "Surf Spot": {
+      "coordinate_twins": 1,
+      "far_same_name_served": 48,
+      "matched": 123,
+      "matched_to_business": 31,
+      "name_near_misses": 0,
+      "suspect": 62,
+      "unique": 158,
+      "verdict": "import with care"
+    },
+    "Synagogue": {
+      "far_same_name_served": 1,
+      "matched": 3,
+      "matched_to_business": 3,
+      "suspect": 1,
+      "unique": 4,
+      "verdict": "import"
+    },
+    "Temple": {
+      "far_same_name_served": 6,
+      "matched": 16,
+      "matched_to_business": 0,
+      "suspect": 10,
+      "unique": 44,
+      "verdict": "import"
+    },
+    "Tennis Stadium": {
+      "far_same_name_served": 4,
+      "matched": 7,
+      "matched_to_business": 7,
+      "suspect": 6,
+      "unique": 24,
+      "verdict": "import"
+    },
+    "Terreiro": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import"
+    },
+    "Theater": {
+      "coordinate_twins": 4,
+      "far_same_name_served": 23,
+      "matched": 161,
+      "matched_to_business": 7,
+      "name_near_misses": 0,
+      "suspect": 34,
+      "unique": 126,
+      "verdict": "import"
+    },
+    "Ticket Seller": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 3,
+      "verdict": "import with care"
+    },
+    "Tower": {
+      "far_same_name_served": 0,
+      "matched": 0,
+      "matched_to_business": 0,
+      "suspect": 0,
+      "unique": 1,
+      "verdict": "import"
+    },
+    "Town": {
+      "far_same_name_served": 44,
+      "matched": 47,
+      "matched_to_business": 24,
+      "suspect": 130,
+      "unique": 133,
+      "verdict": "noise"
+    },
+    "Track Stadium": {
+      "far_same_name_served": 1,
+      "matched": 4,
+      "matched_to_business": 1,
+      "suspect": 1,
+      "unique": 5,
+      "verdict": "import"
+    },
+    "Tree": {
+      "far_same_name_served": 4,
+      "matched": 4,
+      "matched_to_business": 0,
+      "suspect": 6,
+      "unique": 27,
+      "verdict": "noise"
+    },
+    "Tunnel": {
+      "far_same_name_served": 4,
+      "matched": 2,
+      "matched_to_business": 1,
+      "suspect": 5,
+      "unique": 23,
+      "verdict": "import"
+    },
+    "Urban Park": {
+      "far_same_name_served": 4,
+      "matched": 3,
+      "matched_to_business": 0,
+      "suspect": 4,
+      "unique": 9,
+      "verdict": "import"
+    },
+    "VR Cafe": {
+      "far_same_name_served": 0,
+      "matched": 2,
+      "matched_to_business": 2,
+      "suspect": 0,
+      "unique": 2,
+      "verdict": "import with care"
+    },
+    "Village": {
+      "far_same_name_served": 72,
+      "matched": 59,
+      "matched_to_business": 34,
+      "suspect": 190,
+      "unique": 350,
+      "verdict": "noise"
+    },
+    "Volcano": {
+      "far_same_name_served": 1,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 3,
+      "unique": 23,
+      "verdict": "import"
+    },
+    "Water Park": {
+      "far_same_name_served": 14,
+      "matched": 29,
+      "matched_to_business": 2,
+      "suspect": 24,
+      "unique": 89,
+      "verdict": "import with care"
+    },
+    "Waterfall": {
+      "far_same_name_served": 10,
+      "matched": 15,
+      "matched_to_business": 0,
+      "suspect": 15,
+      "unique": 72,
+      "verdict": "import"
+    },
+    "Waterfront": {
+      "far_same_name_served": 3,
+      "matched": 7,
+      "matched_to_business": 2,
+      "suspect": 5,
+      "unique": 28,
+      "verdict": "noise"
+    },
+    "Well": {
+      "far_same_name_served": 3,
+      "matched": 5,
+      "matched_to_business": 0,
+      "suspect": 7,
+      "unique": 62,
+      "verdict": "noise"
+    },
+    "Windmill": {
+      "far_same_name_served": 2,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 4,
+      "unique": 19,
+      "verdict": "import"
+    },
+    "Zoo": {
+      "far_same_name_served": 2,
+      "matched": 11,
+      "matched_to_business": 0,
+      "suspect": 2,
+      "unique": 12,
+      "verdict": "import"
+    },
+    "Zoo Exhibit": {
+      "far_same_name_served": 1,
+      "matched": 1,
+      "matched_to_business": 0,
+      "suspect": 1,
+      "unique": 12,
+      "verdict": "import"
+    }
+  },
+  "mode": "by-leaf",
+  "overture_key": "overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv",
+  "overture_promoted": 215698
+}

@@ -9,8 +9,11 @@
 import { useCallback } from 'react';
 import { Platform, Vibration, InteractionManager } from 'react-native';
 import { setTaskDone } from '../../services/firestore';
-import { checkAndFireAchievementNudge } from '../../services/achievements';
+import { getActivePlaceContext } from '../../services/proximity';
+import { completedTripIdFor } from '../../services/tripStamp';
 import { getActiveChallengesForUser, incrementCompletedCount } from '../../services/challenges';
+import { cancelTaskReminder } from '../../services/notifications';
+import { refreshDatedTaskHandoff } from '../../services/datedTaskHandoff';
 import type { NearbyPlace } from '../../services/maps';
 import type { Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
@@ -29,6 +32,11 @@ export function useTaskCompletion(
 
     Vibration.vibrate(Platform.OS === 'android' ? 18 : 1);
 
+    // Capture this before the optimistic update. The dated handoff is shared
+    // by every unfinished task on that day, so brushing one must rebuild its
+    // single 20:00 notification without affecting the other tasks.
+    const taskBeforeToggle = latestTasksRef.current.find(t => t.id === taskId);
+
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done, pendingSync: true } : t));
 
     try {
@@ -42,10 +50,19 @@ export function useTaskCompletion(
           ? { placeId: nearbyPlace.placeId, name: nearbyPlace.name, poiType: brushedTask.poi }
           : undefined;
 
-      if (completedPlace) {
-        await setTaskDone(uid, taskId, done, completedPlace);
-      } else {
-        await setTaskDone(uid, taskId, done);
+      // KAN-304 — stamp the active trip id when brushing inside a trip area.
+      const completedTripId = completedTripIdFor(getActivePlaceContext(), done);
+
+      await setTaskDone(uid, taskId, done, completedPlace, completedTripId);
+      // Brushing cancels any pending time reminder for this task (KAN-280).
+      // Best-effort — never let a notifee failure surface as a toggle failure.
+      if (done) {
+        cancelTaskReminder(taskId).catch(() => {});
+      }
+      // Completion and reopening both change which tasks are eligible for a
+      // shared date handoff notification.
+      if (taskBeforeToggle?.scheduledDate) {
+        refreshDatedTaskHandoff(uid, taskBeforeToggle.scheduledDate).catch(() => {});
       }
       // Only clear pendingSync if the row still reflects this write (same
       // optimistic done value) — a newer toggle that landed while this write
@@ -76,10 +93,9 @@ export function useTaskCompletion(
           // total for the header badge.
           InteractionManager.runAfterInteractions(() => {
             processTaskCompletionRewards(taskId, new Date().getHours())
-              .then(({ nudgeCandidate, totalPoints }) => {
-                if (nudgeCandidate) {
-                  checkAndFireAchievementNudge(uid, nudgeCandidate).catch(() => {});
-                }
+              .then(({ totalPoints }) => {
+                // KAN-303: the achievement nudge was cut — only the points
+                // header total is refreshed here now.
                 setTotalPoints(totalPoints);
               })
               .catch(() => {});

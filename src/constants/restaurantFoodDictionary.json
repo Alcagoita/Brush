@@ -1,0 +1,230 @@
+{
+  "sushi": {
+    "label": "Sushi",
+    "labelPt": "Sushi",
+    "aliases": ["sushi", "japanese", "japonês", "japones"],
+    "restaurants": [
+      "Yakuza by Olivier",
+      "Aron Sushi",
+      "Confraria",
+      "SushiCafé",
+      "Noori",
+      "Sushicome",
+      "Sushi Factory",
+      "Sushi Shop",
+      "Go Juu",
+      "Koppu Ramen"
+    ]
+  },
+  "vegetarian": {
+    "label": "Vegetarian",
+    "labelPt": "Vegetariano",
+    "aliases": ["vegetarian", "vegetarian food", "vegan", "vegetariano", "vegetariana", "vegano", "vegana"],
+    "restaurants": [
+      "The Green Affair",
+      "O Botanista",
+      "Jardim das Cerejas",
+      "Eight - The Health Lounge",
+      "Ao 26",
+      "PSI",
+      "My Mother's Daughters",
+      "Organi Chiado",
+      "Legumi Sushi Vegan"
+    ]
+  },
+  "gluten_free": {
+    "label": "Gluten-free",
+    "labelPt": "Sem glúten",
+    "aliases": ["gluten free", "gluten-free", "sem glúten", "sem gluten"],
+    "restaurants": [
+      "Glutenfreak",
+      "Longe da Espiga"
+    ]
+  },
+  "fondue": {
+    "label": "Fondue",
+    "labelPt": "Fondue",
+    "aliases": ["fondue"],
+    "restaurants": [
+      "O Fondue",
+      "Peppers Fondue"
+    ]
+  },
+  "portuguese": {
+    "label": "Portuguese",
+    "labelPt": "Português",
+    "aliases": ["portuguese", "português", "portuguesa", "tasca", "comida portuguesa"],
+    "restaurants": [
+      "Portugália",
+      "A Valenciana",
+      "Adega da Tia Matilde",
+      "Solar dos Presuntos",
+      "Laurentina",
+      "Cervejaria Ramiro",
+      "Zé da Mouraria",
+      "Tasca da Esquina"
+    ]
+  },
+  "italian": {
+    "label": "Italian",
+    "labelPt": "Italiano",
+    "aliases": ["italian", "italiano", "italiana", "pasta"],
+    "restaurants": [
+      "ZeroZero",
+      "Mercantina",
+      "La Trattoria",
+      "Capricciosa",
+      "Pizzeria Romana Bio",
+      "Luzzo",
+      "Pizza Hut",
+      "Telepizza"
+    ]
+  },
+  "burger": {
+    "label": "Burgers",
+    "labelPt": "Hambúrguer",
+    "aliases": ["burger", "burgers", "hamburger", "hambúrguer", "hamburguer", "hambúrgueres", "hamburgueres"],
+    "restaurants": [
+      "H3",
+      "Honorato",
+      "McDonald's",
+      "Burger King",
+      "Ground Burger",
+      "A Cultura do Hambúrguer",
+      "Dallas Burger Joint"
+    ]
+  },
+  "healthy": {
+    "label": "Healthy",
+    "labelPt": "Saudável",
+    "aliases": ["healthy", "salad", "salads", "saudável", "saudavel", "salada", "saladas"],
+    "restaurants": [
+      "Vitaminas",
+      "Go Natural",
+      "The Green Affair",
+      "Eight - The Health Lounge",
+      "Local",
+      "Nicolau",
+      "Honest Greens"
+    ]
+  },
+  "indian": {
+    "label": "Indian",
+    "labelPt": "Indiano",
+    "aliases": ["indian", "indiano", "indiana", "caril", "curry"],
+    "restaurants": [
+      "Natraj",
+      "Chutnify",
+      "Jesus é Goês",
+      "Tamarind",
+      "The Old House",
+      "Passage To India"
+    ]
+  },
+  "thai": {
+    "label": "Thai",
+    "labelPt": "Tailandês",
+    "aliases": ["thai", "tailandês", "tailandes", "tailandesa"],
+    "restaurants": [
+      "Boa-Bao",
+      "Thai Garden",
+      "Soão",
+      "Sala Thai",
+      "Wok to Walk"
+    ]
+  },
+  "mexican": {
+    "label": "Mexican",
+    "labelPt": "Mexicano",
+    "aliases": ["mexican", "mexicano", "mexicana", "taco", "tacos", "burrito", "burritos"],
+    "restaurants": [
+      "Taco Bell",
+      "Coyo Taco",
+      "Guacamole",
+      "Pistola y Corazon",
+      "El Paso"
+    ]
+  },
+  "steak": {
+    "label": "Steak",
+    "labelPt": "Bife",
+    "aliases": ["steak", "steakhouse", "meat", "carne", "bife", "bifes"],
+    "restaurants": [
+      "Sala de Corte",
+      "Atalho Real",
+      "Block House",
+      "Butchers",
+      "K.O.B by Olivier"
+    ]
+  },
+  "pizza": {
+    "label": "Pizza",
+    "labelPt": "Pizza",
+    "aliases": ["pizza", "pizzas", "piza", "pizzaria", "pizzeria"],
+    "restaurants": [
+      "Telepizza",
+      "Pizza Hut",
+      "Domino's Pizza",
+      "Forno d'Oro",
+      "Pizzaria Lisboa",
+      "Casanova",
+      "ZeroZero"
+    ]
+  },
+  "seafood": {
+    "label": "Seafood",
+    "labelPt": "Marisco",
+    "aliases": ["seafood", "marisco", "mariscos", "marisqueira"],
+    "restaurants": [
+      "Cervejaria Ramiro",
+      "Sea Me",
+      "Nunes Real Marisqueira",
+      "Cervejaria O Farol",
+      "Marisqueira Azul"
+    ]
+  },
+  "bbq": {
+    "label": "BBQ",
+    "labelPt": "Churrasco",
+    "aliases": ["bbq", "barbecue", "barbeque", "churrasco", "churrascaria"],
+    "restaurants": [
+      "Bonjardim",
+      "Churrasqueira O Corvo",
+      "Pinóquio",
+      "O Prego da Peixaria"
+    ]
+  },
+  "brazilian": {
+    "label": "Brazilian",
+    "labelPt": "Brasileiro",
+    "aliases": ["brazilian", "brasileiro", "brasileira", "brasil"],
+    "restaurants": [
+      "Fogo de Chão",
+      "Galeto",
+      "Rubro",
+      "Boi-Cavalo"
+    ]
+  },
+  "mediterranean": {
+    "label": "Mediterranean",
+    "labelPt": "Mediterrânico",
+    "aliases": ["mediterranean", "mediterranea", "mediterrânico", "mediterranico", "mediterrânica", "mediterrâneo", "mediterraneo"],
+    "restaurants": [
+      "Mez Cais",
+      "Tapisco",
+      "Prado"
+    ]
+  },
+  "asian": {
+    "label": "Asian",
+    "labelPt": "Asiático",
+    "aliases": ["asian", "asiatico", "asiático", "asiatica", "asiática", "chinese", "chines", "chinês", "chinesa", "china", "korean", "coreano", "vietnamita"],
+    "restaurants": [
+      "Wok to Walk",
+      "Fu Hao",
+      "China Sabor",
+      "B101 Noodle Bar",
+      "Mr. Kimchi"
+    ]
+  }
+}

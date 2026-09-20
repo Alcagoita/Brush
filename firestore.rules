@@ -40,6 +40,163 @@ service cloud.firestore {
       ];
     }
 
+    function validPoiType(value) {
+      return value == null || value in [
+        'accounting',
+        'airport',
+        'amusement_park',
+        'aquarium',
+        'art_gallery',
+        'atm',
+        'bakery',
+        'bank',
+        'currency_exchange',
+        'money_transfer',
+        'financial_service',
+        'bar',
+        'beach',
+        'beauty_salon',
+        'bicycle_store',
+        'book_store',
+        'botanical_garden',
+        'bowling_alley',
+        'brewery',
+        'bus',
+        'bus_station',
+        'cafe',
+        'campground',
+        'car_dealer',
+        'car_rental',
+        'car_repair',
+        'car_wash',
+        'casino',
+        'cemetery',
+        'church',
+        'city_hall',
+        'clinic',
+        'clothing_store',
+        'coffee_shop',
+        'community_center',
+        'convenience_store',
+        'courthouse',
+        'cultural_center',
+        'dentist',
+        'doctor',
+        'electric_vehicle_charging_station',
+        'electronics_store',
+        'embassy',
+        'ferry_terminal',
+        'fire_station',
+        'fitness_center',
+        'florist',
+        'furniture_store',
+        'gas',
+        'gas_station',
+        'golf_course',
+        'grocery_store',
+        'gym',
+        'hair_care',
+        'hardware_store',
+        'hiking_area',
+        'historical_landmark',
+        'home_goods_store',
+        'hospital',
+        'hotel',
+        'ice_cream_shop',
+        'jewelry_store',
+        'laundry',
+        'library',
+        'liquor_store',
+        'local_government_office',
+        'lodging',
+        'medical_lab',
+        'mosque',
+        'movie_rental',
+        'movie_theater',
+        'museum',
+        'nail_salon',
+        'night_club',
+        'park',
+        'parking',
+        'pet_store',
+        'pharmacy',
+        'physiotherapist',
+        'playground',
+        'police',
+        'post',
+        'post_office',
+        'primary_school',
+        'pub',
+        'restaurant',
+        'rv_park',
+        'salon',
+        'school',
+        'shopping_mall',
+        'spa',
+        'stadium',
+        'store',
+        'subway_station',
+        'supermarket',
+        'synagogue',
+        'taxi_stand',
+        'tennis_court',
+        'tourist_attraction',
+        'train_station',
+        'transit_station',
+        'university',
+        'veterinary_care',
+        'water_park',
+        'winery',
+        'yoga_studio',
+        'zoo',
+      ];
+    }
+
+    function validRequiredPoiType(value) {
+      return value is string && validPoiType(value);
+    }
+
+    function validRestaurantFoodType(value) {
+      return value in [
+        'sushi', 'vegetarian', 'portuguese', 'italian', 'burger',
+        'healthy', 'indian', 'thai', 'mexican', 'steak',
+      ];
+    }
+
+    function validFinancialServiceKind(value) {
+      return value in [
+        'consumer_credit', 'insurance', 'financial_intermediary',
+        'leasing_factoring', 'central_bank', 'public_finance',
+      ];
+    }
+
+    function validDateHandoff(value) {
+      return value is map
+        && value.keys().hasOnly(['date', 'outcome', 'resolvedAt'])
+        && validDateString(value.date)
+        && value.outcome in ['forgotten', 'tomorrow']
+        && value.resolvedAt is timestamp;
+    }
+
+    // A delayed local notification may arrive after the task was edited or
+    // brushed elsewhere. Keep normal client writes (and offline queuing), but
+    // have the server reject a handoff unless it still targets this exact
+    // unfinished scheduled date.
+    function validDatedTaskHandoffUpdate(next, current) {
+      return !next.diff(current).affectedKeys().hasAny(['dateHandoff'])
+        || (
+          current.get('done', false) == false
+          && next.done == false
+          && current.get('scheduledDate', '') == next.dateHandoff.date
+          && (
+            (next.dateHandoff.outcome == 'forgotten'
+              && next.get('scheduledDate', '') == current.get('scheduledDate', ''))
+            || (next.dateHandoff.outcome == 'tomorrow'
+              && next.get('scheduledDate', '') != current.get('scheduledDate', ''))
+          )
+        );
+    }
+
     function validPointsReason(reason) {
       return reason in [
         'task_completed',
@@ -67,8 +224,95 @@ service cloud.firestore {
       ];
     }
 
+    // BEGIN GENERATED POI BRAND ALLOWLIST
+    // Source: src/constants/brandDictionary.json. Run npm run rules:brands after editing it.
+    function validPoiBrand(poi, brand) {
+      return (poi == 'gym' && brand in [
+        'Fitness Hut', 'Solinca', 'Holmes Place', 'Go Fit', 'Element',
+        'Pump Fitness Spirit', 'Time to Fitness', 'Urban Sports Club', 'Fitness Factory', 'Vivafit'
+      ]) ||
+        (poi == 'bank' && brand in [
+        'Novo Banco', 'Millennium bcp', 'ActivoBank', 'Santander', 'Montepio',
+        'Banco do Brasil', 'Itaú BBA', 'ABANCA', 'Carregosa', 'Banco Português de Gestão',
+        'Bank of China', 'Credit Suisse', 'PrivatBank', 'Sabadell', 'Haitong Bank',
+        'Banco CTT', 'Bankinter', 'Banco BPI', 'Caixa Geral de Depósitos', 'CaixaBI',
+        'BBVA', 'Deutsche Bank', 'Banco Invest', 'Finantia', 'BNP Paribas',
+        'ATLANTICO', 'Caja de Badajoz', 'BNI Europa', 'BANC Angolano', 'Crédito Agrícola',
+        'Rothschild Europe', 'Banco BiG', 'Banco BEST', 'La Caixa', 'Banco Popular',
+        'Unicaja', 'Banque Populaire'
+      ]) ||
+        (poi == 'store' && brand in [
+        'Adidas', 'Adolfo Dominguez', 'Aldo', 'Ale-Hop', 'Antarte',
+        'Aromas', 'Auchan Tecnologia', 'Bang & Olufsen', 'Bata', 'Bershka',
+        'Bijou Brigitte', 'Bike Zone', 'Bimba y Lola', 'Bluebird', 'BOSS',
+        'Boutique dos Relógios', 'Bricomarché', 'H&M', 'C&A', 'Calçado Guimarães',
+        'Calzedonia', 'Camport', 'Cash Converters', 'CeX', 'Chicco',
+        'Chip7', 'Claire\'s', 'Clarks', 'Columbia', 'Conforama',
+        'Cortefiel', 'Darty', 'Decathlon', 'Decenio', 'Deichmann',
+        'Desigual', 'Diesel', 'Douglas', 'Equivalenza', 'Ericeira Surf & Skate',
+        'Espaço Casa', 'Eurekakids', 'Flormar', 'Fnac', 'Foot Locker',
+        'Fuxia', 'Gant', 'Gato Preto', 'Geox', 'Guess',
+        'Havaianas', 'Hôma', 'Hush Puppies', 'IKEA', 'iServices',
+        'iStore', 'Imaginarium', 'Intersport', 'Intimissimi', 'JD Sports',
+        'JOM', 'Juguettos', 'JYSK', 'Kiehl\'s', 'Kiabi',
+        'Kiko', 'Kiwoko', 'Lacoste', 'Lanidor', 'Worten',
+        'Leroy Merlin', 'Levi\'s', 'Lefties', 'Lion of Porches', 'Mango',
+        'Marypaz', 'Massimo Dutti', 'Maxmat', 'MEO', 'Merrell',
+        'Modalfa', 'Moviflor', 'Mr. Blue', 'New Balance', 'New Yorker',
+        'Nike', 'Normal', 'NOS', 'NOWO', 'O Boticário',
+        'Oro Vivo', 'Pandora', 'Parfois', 'Pedra Dura', 'Perfumes & Companhia',
+        'Pet Outlet', 'Pluricosmética', 'Pollux', 'Primark', 'Primor',
+        'Pull&Bear', 'Quebramar', 'Quiksilver', 'Radio Popular', 'Red Oak',
+        'Rituals', 'Sacoor Brothers', 'Salsa', 'Samsung', 'Scalpers',
+        'Science4you', 'Seaside', 'Sephora', 'Sfera', 'Skechers',
+        'Snipes', 'Sport Zone', 'Sports Direct', 'Sportino', 'Springfield',
+        'Staples', 'Stradivarius', 'Swarovski', 'Swatch', 'Tezenis',
+        'The Body Shop', 'The Phone House', 'Tiendanimal', 'Tiffosi', 'Timberland',
+        'Tintas CIN', 'Tommy Hilfiger', 'Toys"R"Us', 'United Colors of Benetton', 'Vans',
+        'Vilanova', 'Vista Alegre Atlantis', 'Vodafone', 'Wells', 'Xiaomi',
+        'Yves Rocher', 'Bertrand', 'Zara Home', 'Zara', 'Zippy',
+        'Zu'
+      ]);
+    }
+    // END GENERATED POI BRAND ALLOWLIST
+
+    function validTaskBrand(data) {
+      return ((('poi' in data.keys()) && data.poi in ['gym', 'bank'])
+        ? ('poiBrand' in data.keys() && validPoiBrand(data.poi, data.poiBrand))
+        : (('poi' in data.keys()) && data.poi == 'store')
+          ? (!('poiBrand' in data.keys()) || validPoiBrand(data.poi, data.poiBrand))
+          : !('poiBrand' in data.keys()));
+    }
+
+    // KAN-364: old generic Gym/Bank records remain usable. A status-only
+    // lifecycle write must not force a user to choose a brand first, but any
+    // POI/brand edit still has to satisfy validTaskBrand above.
+    function validLegacyRequiredBrandLifecycleUpdate(data, previous) {
+      return ('poi' in previous.keys())
+        && previous.poi in ['gym', 'bank']
+        && !('poiBrand' in previous.keys())
+        && ('poi' in data.keys())
+        && data.poi == previous.poi
+        && !('poiBrand' in data.keys())
+        && data.diff(previous).affectedKeys().hasOnly([
+          'done',
+          'completedAt',
+          'completedPlaceId',
+          'completedPlaceName',
+          'completedPoiType',
+          'completedTripId',
+          'poiAlertSeenDate',
+          'exitPromptSeenDate',
+          'pendingSync',
+          'dateHandoff',
+        ]);
+    }
+
     function validTaskData(data) {
+      // KAN-353 removed the unused Google-specific poiPlaceId field after a
+      // production audit confirmed no persisted tasks carried it.
       return data.keys().hasOnly([
+          'id',
           'title',
           'category',
           'done',
@@ -76,35 +320,52 @@ service cloud.firestore {
           'time',
           'source',
           'poi',
-          'poiPlaceId',
+          'storeSubtype',
+          'restaurantFoodType',
+          'financialServiceKind',
+          'poiBrand',
           'completedPlaceId',
           'completedPlaceName',
           'completedPoiType',
+          'completedTripId',
           'poiAlertSeenDate',
           'exitPromptSeenDate',
           'createdAt',
           'completedAt',
           'date',
+          'scheduledDate',
+          'originalScheduledDate',
+          'dateHandoff',
           'originDate',
           'pendingSync',
           'kind',
         ])
+        && (!('id' in data.keys()) || validString(data.id, 200))
         && validNonEmptyString(data.title, 500)
         && validNonEmptyString(data.category, 120)
         && data.done is bool
         && (!('description' in data.keys()) || validString(data.description, 2000))
         && (!('time' in data.keys()) || validTimeString(data.time))
         && (!('source' in data.keys()) || validTaskSource(data.source))
-        && (!('poi' in data.keys()) || validString(data.poi, 100))
-        && (!('poiPlaceId' in data.keys()) || validString(data.poiPlaceId, 200))
+        && (!('poi' in data.keys()) || validPoiType(data.poi))
+        && (!('storeSubtype' in data.keys()) ||
+          (data.poi == 'store' && !('poiBrand' in data.keys()) && validString(data.storeSubtype, 50)))
+        && (!('restaurantFoodType' in data.keys()) ||
+          (data.poi == 'restaurant' && validRestaurantFoodType(data.restaurantFoodType)))
+        && (!('financialServiceKind' in data.keys()) ||
+          (data.poi == 'financial_service' && validFinancialServiceKind(data.financialServiceKind)))
         && (!('completedPlaceId' in data.keys()) || validString(data.completedPlaceId, 200))
         && (!('completedPlaceName' in data.keys()) || validString(data.completedPlaceName, 200))
-        && (!('completedPoiType' in data.keys()) || validString(data.completedPoiType, 100))
+        && (!('completedPoiType' in data.keys()) || validPoiType(data.completedPoiType))
+        && (!('completedTripId' in data.keys()) || validString(data.completedTripId, 200))
         && (!('poiAlertSeenDate' in data.keys()) || validDateString(data.poiAlertSeenDate))
         && (!('exitPromptSeenDate' in data.keys()) || validDateString(data.exitPromptSeenDate))
         && data.createdAt is timestamp
         && (!('completedAt' in data.keys()) || data.completedAt is timestamp)
-        && validDateString(data.date)
+        && (!('date' in data.keys()) || validDateString(data.date))
+        && (!('scheduledDate' in data.keys()) || validDateString(data.scheduledDate))
+        && (!('originalScheduledDate' in data.keys()) || validDateString(data.originalScheduledDate))
+        && (!('dateHandoff' in data.keys()) || validDateHandoff(data.dateHandoff))
         && (!('originDate' in data.keys()) || validDateString(data.originDate))
         && (!('pendingSync' in data.keys()) || data.pendingSync is bool)
         && (!('kind' in data.keys()) || data.kind == 'birthday');
@@ -115,7 +376,7 @@ service cloud.firestore {
         && validNonEmptyString(data.name, 80)
         && data.color is string
         && data.color.matches('^#[0-9A-Fa-f]{6}$')
-        && (data.poi == null || validString(data.poi, 100))
+        && validPoiType(data.poi)
         && data.isBuiltIn == false;
     }
 
@@ -154,6 +415,14 @@ service cloud.firestore {
         && data.createdAt is timestamp;
     }
 
+    // Taught places / favourites (KAN-304) — exactly (poiType, name, createdAt).
+    function validPlaceData(data) {
+      return data.keys().hasOnly(['poiType', 'name', 'createdAt'])
+        && validRequiredPoiType(data.poiType)
+        && validNonEmptyString(data.name, 120)
+        && data.createdAt is timestamp;
+    }
+
     function validMallSnapshotData(data) {
       return data.keys().hasOnly([
           'placeId',
@@ -184,7 +453,7 @@ service cloud.firestore {
     function validPoiPreferenceData(data, poiType) {
       return data.keys().hasOnly(['type', 'radiusMeters'])
         && data.type == poiType
-        && validNonEmptyString(data.type, 100)
+        && validRequiredPoiType(data.type)
         && data.radiusMeters is int
         && data.radiusMeters > 0
         && data.radiusMeters <= 1000;
@@ -224,7 +493,7 @@ service cloud.firestore {
         && validNonEmptyString(data.taskId, 200)
         && validNonEmptyString(data.title, 500)
         && validNonEmptyString(data.category, 120)
-        && (!('poi' in data.keys()) || validString(data.poi, 100))
+        && (!('poi' in data.keys()) || validPoiType(data.poi))
         && validNonEmptyString(data.sentBy, 128)
         && validNonEmptyString(data.sentByName, 80)
         && (!('sentByUsername' in data.keys()) || validString(data.sentByUsername, 30))
@@ -333,7 +602,12 @@ service cloud.firestore {
       match /tasks/{taskId} {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
-          && validTaskData(request.resource.data);
+          && validTaskData(request.resource.data)
+          && (validTaskBrand(request.resource.data)
+            || (request.method == 'update'
+              && validLegacyRequiredBrandLifecycleUpdate(request.resource.data, resource.data)))
+          && (request.method == 'create'
+            || validDatedTaskHandoffUpdate(request.resource.data, resource.data));
       }
 
       // ─── Custom categories ───────────────────────────────────────────────────
@@ -348,6 +622,13 @@ service cloud.firestore {
         allow read, delete: if isOwner(userId);
         allow create, update: if isOwner(userId)
           && validTripData(request.resource.data);
+      }
+
+      // ─── Taught places / favourites (KAN-304) ────────────────────────────────
+      match /places/{placeId} {
+        allow read, delete: if isOwner(userId);
+        allow create, update: if isOwner(userId)
+          && validPlaceData(request.resource.data);
       }
 
       // ─── Mall snapshot (KAN-237) ─────────────────────────────────────────────
@@ -370,7 +651,7 @@ service cloud.firestore {
         allow create, update: if isOwner(userId)
           && request.resource.data.keys().hasOnly(['keyword', 'poi', 'lang', 'source', 'updatedAt'])
           && validString(request.resource.data.keyword, 200)
-          && validString(request.resource.data.poi, 50)
+          && validRequiredPoiType(request.resource.data.poi)
           && request.resource.data.lang in ['en', 'pt-PT']
           && request.resource.data.source in ['llm', 'user']
           && request.resource.data.updatedAt is timestamp;
@@ -396,7 +677,7 @@ service cloud.firestore {
           && request.resource.data.keys().hasOnly(['placeId', 'name', 'poiType', 'visitCount'])
           && request.resource.data.placeId == placeId
           && validString(request.resource.data.name, 200)
-          && validString(request.resource.data.poiType, 50)
+          && validRequiredPoiType(request.resource.data.poiType)
           && request.resource.data.visitCount is int
           && request.resource.data.visitCount >= 0;
       }

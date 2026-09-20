@@ -27,16 +27,18 @@ jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }));
 
-const mockNavigate = jest.fn();
-const mockPush     = jest.fn();
-const mockGoBack   = jest.fn();
+const mockNavigate  = jest.fn();
+const mockPush      = jest.fn();
+const mockGoBack    = jest.fn();
+const mockPopToTop  = jest.fn();
 jest.mock('@react-navigation/native', () => {
   const actualReact = require('react');
   return {
     useNavigation: () => ({
-      navigate: (...args: unknown[]) => mockNavigate(...args),
-      push:     (...args: unknown[]) => mockPush(...args),
-      goBack:   (...args: unknown[]) => mockGoBack(...args),
+      navigate:   (...args: unknown[]) => mockNavigate(...args),
+      push:       (...args: unknown[]) => mockPush(...args),
+      goBack:     (...args: unknown[]) => mockGoBack(...args),
+      popToTop:   (...args: unknown[]) => mockPopToTop(...args),
     }),
     useRoute:      () => ({ params: {} }),
     // Mirrors focus-on-mount for tests — no blur/refocus cycle exercised here.
@@ -69,6 +71,12 @@ jest.mock('../../src/services/firestore', () => ({
   getCategories:    (...args: unknown[]) => mockGetCategories(...args),
   setTaskDone:      (...args: unknown[]) => mockSetTaskDone(...args),
   getTrips:         (...args: unknown[]) => mockGetTrips(...args),
+}));
+
+// KAN-280 — handleToggleTask cancels a task's reminder on brush.
+const mockCancelTaskReminder = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/notifications', () => ({
+  cancelTaskReminder: (...args: unknown[]) => mockCancelTaskReminder(...args),
 }));
 
 jest.mock('../../src/theme', () => ({
@@ -146,7 +154,14 @@ describe('CalendarScreen', () => {
   it('back button always returns to Today, not whatever screen pushed Calendar', async () => {
     await renderScreen();
     await act(async () => { fireEvent.press(screen.getByLabelText('Back')); });
-    expect(mockNavigate).toHaveBeenCalledWith('Today');
+    // popToTop() (not navigate('Today') or goBack()) — always lands on the
+    // initial route regardless of entry depth (PlacesIKnowScreen can also
+    // push here), and pops through the same mechanism as goBack() so it
+    // doesn't remount Today (KAN-285 — navigate() to an already-in-stack
+    // route was remounting it, resetting the proximity engine for no
+    // reason).
+    expect(mockPopToTop).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).not.toHaveBeenCalledWith('Today');
     expect(mockGoBack).not.toHaveBeenCalled();
   });
 
@@ -640,6 +655,20 @@ describe('CalendarScreen', () => {
     });
 
     expect(mockSetTaskDone).toHaveBeenCalledWith('test-uid', 't1', true);
+  });
+
+  it('cancels the task\'s pending reminder when brushed (KAN-280)', async () => {
+    mockGetTasksForMonth.mockResolvedValue([
+      { id: 't1', title: 'Buy groceries', category: 'errands', done: false,
+        date: new Date().toISOString().slice(0, 10), createdAt: {} },
+    ]);
+    await renderScreen();
+
+    await act(async () => {
+      fireEvent.press(screen.getByRole('checkbox'));
+    });
+
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('t1');
   });
 
   it('reverts the optimistic toggle when setTaskDone fails', async () => {

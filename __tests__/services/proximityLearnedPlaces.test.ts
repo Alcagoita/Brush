@@ -21,6 +21,29 @@ jest.mock('@react-native-community/netinfo', () =>
 // KAN-228 — proximity.ts fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
 jest.mock('../../src/services/habitatCache');
+jest.mock('../../src/services/proximitySnapshot');
+jest.mock('../../src/services/reverseGeocodeCache', () => ({
+  getCachedCity: jest.fn(() => ({ hit: false, city: null })),
+  putCachedCity: jest.fn(),
+}));
+
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy: jest.fn(),
+}));
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   jest.fn(),
+}));
+// KAN-342: live search is Cloudflare-first, OSM-failsafe — Google is no
+// longer part of searchNearbyPlaces's path. cloudflareCoverageProxy above
+// is left unconfigured (rejects to undefined -> caught -> falls through),
+// so every fixture here is injected via the OSM mock instead.
+const mockSearchOsmPlaces = jest.fn();
+jest.mock('../../src/services/osmPlaces', () => ({
+  searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlaces(...args),
+}));
 
 const mockDisplayNotification = jest.fn().mockResolvedValue(undefined);
 jest.mock('@notifee/react-native', () => ({
@@ -69,7 +92,8 @@ jest.mock('../../src/constants/copy', () => ({
       proximityTitle: (label: string) => `You're near ${label}`,
       proximityBody:  (count: number) => `${count} task(s) nearby`,
     },
-    offline: { genericBanner: '', noCacheYetBanner: '', uncoveredAreaToast: '' },
+    offline: { genericBanner: '', uncoveredAreaToast: '' },
+    poiCatalog: new Proxy({}, { get: (_t, key) => String(key) }),
   },
 }));
 
@@ -79,6 +103,8 @@ global.fetch = mockFetch as unknown as typeof fetch;
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
 import { runProximitySearch, resetProximityState, setLearnedPlaces } from '../../src/services/proximity';
+import { restaurantFoodTypeFavouriteName } from '../../src/services/restaurantFoodTypes';
+import { storeSubtypeFavouriteName } from '../../src/services/storeSubtypes';
 import type { Task } from '../../src/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -103,23 +129,34 @@ function mockAtmPlaces(places: Array<{ id: string; name: string; distanceMeters:
   mockPlacesResponse(places.map(p => ({ ...p, type: 'atm' })));
 }
 
+function mockRestaurantPlaces(places: Array<{ id: string; name: string; distanceMeters: number }>) {
+  mockPlacesResponse(places.map(p => ({ ...p, type: 'restaurant' })));
+}
+
+function mockStorePlaces(places: Array<{ id: string; name: string; distanceMeters: number }>) {
+  mockPlacesResponse(places.map(p => ({ ...p, type: 'store' })));
+}
+
 function mockPlacesResponse(places: Array<{ id: string; name: string; distanceMeters: number; type: string }>) {
-  mockFetch.mockResolvedValueOnce({
-    ok:   true,
-    json: async () => ({
-      places: places.map(p => ({
-        id: p.id,
-        displayName: { text: p.name },
-        location: { latitude: LAT_PER_METRE * p.distanceMeters, longitude: 0 },
-        types: [p.type],
-      })),
-    }),
-  });
+  const byType: Record<string, Array<{ osmId: string; name: string; isGenericName: boolean; lat: number; lng: number; distanceMeters: number; footprintAreaM2: number }>> = {};
+  for (const p of places) {
+    (byType[p.type] ??= []).push({
+      osmId:           p.id,
+      name:            p.name,
+      isGenericName:   false,
+      lat:             LAT_PER_METRE * p.distanceMeters,
+      lng:             0,
+      distanceMeters:  p.distanceMeters,
+      footprintAreaM2: 0,
+    });
+  }
+  mockSearchOsmPlaces.mockResolvedValueOnce(byType);
 }
 
 beforeEach(() => {
   jest.clearAllMocks();
   mockFetch.mockReset();
+  mockSearchOsmPlaces.mockReset();
   mockGetPosition.mockResolvedValue(ORIGIN);
   jest.spyOn(Date.prototype, 'getHours').mockReturnValue(10);
   resetProximityState();
@@ -145,7 +182,7 @@ describe('below-threshold behavior is unchanged', () => {
 
 describe('a learned place gets top priority within its own hero range', () => {
   it('prefers the learned place over a closer stranger of the same type, when the learned place is itself within HERO_RADIUS_M', async () => {
-    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
     mockAtmPlaces([
       { id: 'atm-stranger', name: 'Random ATM',  distanceMeters: 20 }, // closer, but not learned
       { id: 'atm-learned',  name: 'My Usual ATM', distanceMeters: 90 }, // learned, still hero-eligible (<100m)
@@ -161,8 +198,27 @@ describe('a learned place gets top priority within its own hero range', () => {
     );
   });
 
+  it('promotes any branch of the learned brand — matches by name, not place id (KAN-304)', async () => {
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    mockAtmPlaces([
+      { id: 'atm-stranger', name: 'Random ATM',  distanceMeters: 20 },
+      // A DIFFERENT branch id than anything ever brushed — same brand name, so
+      // the brand preference must still promote it.
+      { id: 'atm-other-branch', name: 'My Usual ATM', distanceMeters: 90 },
+    ]);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'atm',
+      expect.objectContaining({ placeId: 'atm-other-branch', name: 'My Usual ATM' }),
+      expect.anything(),
+    );
+  });
+
   it('does not duplicate the learned place in the carousel after promoting it from a later position', async () => {
-    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
     mockAtmPlaces([
       { id: 'atm-stranger', name: 'Random ATM',  distanceMeters: 20 },
       { id: 'atm-learned',  name: 'My Usual ATM', distanceMeters: 90 },
@@ -177,7 +233,7 @@ describe('a learned place gets top priority within its own hero range', () => {
   });
 
   it('does not promote a learned place that is outside HERO_RADIUS_M over a closer hero-eligible stranger', async () => {
-    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
     mockAtmPlaces([
       { id: 'atm-stranger', name: 'Random ATM',  distanceMeters: 20 },  // hero-eligible on its own
       { id: 'atm-learned',  name: 'My Usual ATM', distanceMeters: 150 }, // learned, but NOT hero-eligible
@@ -196,7 +252,7 @@ describe('a learned place gets top priority within its own hero range', () => {
   });
 
   it('a type whose TRUE nearest already wins the cross-type hero race keeps winning after its own learned-place promotion (regression: promotion must not feed an inflated distance back into cross-type comparison)', async () => {
-    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
     // atm's TRUE nearest (20 m) already beats cafe's nearest (50 m) — that
     // must decide the cross-type race BEFORE atm's own learned place (90 m,
     // still hero-eligible) gets swapped in for display.
@@ -222,11 +278,87 @@ describe('a learned place gets top priority within its own hero range', () => {
       expect.anything(),
     );
   });
+
+  it('prefers the favourite restaurant food type for a generic restaurant task', async () => {
+    setLearnedPlaces([{ name: restaurantFoodTypeFavouriteName('sushi'), poiType: 'restaurant', visitCount: 5 }]);
+    mockRestaurantPlaces([
+      { id: 'restaurant-portuguese', name: 'Portugália', distanceMeters: 20 },
+      { id: 'restaurant-sushi', name: 'Yakuza by Olivier', distanceMeters: 80 },
+    ]);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [
+      makeTask({ id: 'dinner', poi: 'restaurant', title: 'Book dinner' }),
+    ], onUpdate);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'restaurant',
+      expect.objectContaining({ placeId: 'restaurant-sushi', name: 'Yakuza by Olivier' }),
+      expect.anything(),
+    );
+  });
+
+  it('ignores favourite food type when the restaurant task already has a food type', async () => {
+    setLearnedPlaces([{ name: restaurantFoodTypeFavouriteName('portuguese'), poiType: 'restaurant', visitCount: 5 }]);
+    mockRestaurantPlaces([
+      { id: 'restaurant-portuguese', name: 'Portugália', distanceMeters: 20 },
+      { id: 'restaurant-sushi', name: 'Yakuza by Olivier', distanceMeters: 80 },
+    ]);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [
+      makeTask({ id: 'sushi', poi: 'restaurant', title: 'Go out to sushi' }),
+    ], onUpdate);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'restaurant',
+      expect.objectContaining({ placeId: 'restaurant-sushi', name: 'Yakuza by Olivier' }),
+      expect.anything(),
+    );
+  });
+
+  it('prefers the favourite store subtype for a generic store task', async () => {
+    setLearnedPlaces([{ name: storeSubtypeFavouriteName('clothing'), poiType: 'store', visitCount: 5 }]);
+    mockStorePlaces([
+      { id: 'store-pet', name: 'Aquaplante', distanceMeters: 20 },
+      { id: 'store-clothing', name: 'Zara', distanceMeters: 80 },
+    ]);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [
+      makeTask({ id: 'shop', poi: 'store', title: 'Buy something' }),
+    ], onUpdate);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'store',
+      expect.objectContaining({ placeId: 'store-clothing', name: 'Zara' }),
+      expect.anything(),
+    );
+  });
+
+  it('ignores favourite store subtype when the store task already has a subtype', async () => {
+    setLearnedPlaces([{ name: storeSubtypeFavouriteName('pet'), poiType: 'store', visitCount: 5 }]);
+    mockStorePlaces([
+      { id: 'store-pet', name: 'Aquaplante', distanceMeters: 20 },
+      { id: 'store-clothing', name: 'Zara', distanceMeters: 80 },
+    ]);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [
+      makeTask({ id: 'shirt', poi: 'store', title: 'Buy a t-shirt' }),
+    ], onUpdate);
+
+    expect(onUpdate).toHaveBeenCalledWith(
+      'store',
+      expect.objectContaining({ placeId: 'store-clothing', name: 'Zara' }),
+      expect.anything(),
+    );
+  });
 });
 
 describe('clearing the learned-place ranking', () => {
   it('setLearnedPlaces(null) reverts to plain distance ordering', async () => {
-    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
     setLearnedPlaces(null);
 
     mockAtmPlaces([
@@ -241,7 +373,7 @@ describe('clearing the learned-place ranking', () => {
   });
 
   it('resetProximityState() clears the learned-place ranking', async () => {
-    setLearnedPlaces([{ placeId: 'atm-learned', name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
+    setLearnedPlaces([{ name: 'My Usual ATM', poiType: 'atm', visitCount: 5 }]);
     resetProximityState();
 
     mockAtmPlaces([

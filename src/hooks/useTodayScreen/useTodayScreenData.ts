@@ -11,16 +11,19 @@
  * local state reverts (see useTaskCompletion).
  */
 
+import { setWifiOnlyDownloads } from '../../services/habitatCache';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import {
   getCategories,
-  getTasksForDate,
   getUserPreferences,
   getPoiPreferencesMap,
   getUser,
   getTotalPoints,
   getInboxUnreadCount,
   getTrips,
+  filterActiveTasksForDate,
+  subscribeToActiveTasks,
 } from '../../services/firestore';
 import { getMallSnapshot } from '../../services/mallSnapshots';
 import { getIncomingSharedTasksCount } from '../../services/sharing';
@@ -58,7 +61,12 @@ export interface TodayScreenData {
   isLoading:         boolean;
   isRefreshing:      boolean;
   error:             string | null;
-  refresh:           () => void;
+  /** Re-runs the full fetch. Returns the in-flight promise so callers that
+   *  need to know when the data has actually landed can await it — firing and
+   *  forgetting made a refresh look instantaneous. */
+  refresh:           () => Promise<void>;
+  /** Refreshes the active list only when the local calendar day changes. */
+  ensureCurrentDay:  () => Promise<void>;
   customCategories:  Category[];
   totalPoints:       number;
   setTotalPoints:    React.Dispatch<React.SetStateAction<number>>;
@@ -94,8 +102,12 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
   const [storeTuningEnabled, setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [mallSnapshot, setMallSnapshot] = useState<MallSnapshot | null>(null);
+  const [listenerGeneration, setListenerGeneration] = useState(0);
+  const retryAttemptRef = useRef(0);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const latestTasksRef = useRef<Task[]>([]);
+  const currentDayRef = useRef(todayISO());
   useEffect(() => { latestTasksRef.current = tasks; }, [tasks]);
 
   const latestDataRef = useRef({
@@ -132,8 +144,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
 
   // ── One-shot data fetch ────────────────────────────────────────────────────
   //
-  // No background watchers. Called once on mount and again on pull-to-refresh,
-  // error retry, or when onTaskAdded fires after a new task is created.
+  // No background watchers. Called once on mount and again on error retry,
+  // focus refresh, or when onTaskAdded fires after a new task is created.
   //
   // requestIdRef guards against overlapping calls (e.g. a fast refocus refresh
   // firing while the initial fetch is still in flight) — only the most recent
@@ -169,13 +181,18 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         clearBootData();
       } else if (bootData) {
         if (!isStale()) {
-          setTasks(bootData.tasks);
+          // Splash data may have been fetched before midnight. Revalidate it
+          // against a fresh local day before showing it as the active list.
+          const bootToday = todayISO();
+          currentDayRef.current = bootToday;
+          setTasks(filterActiveTasksForDate(bootData.tasks, bootToday));
           setCustomCategories(bootData.customCategories.filter(c => !c.isBuiltIn));
           setTotalPoints(bootData.totalPoints);
           setInboxCount(bootData.inboxCount);
           setSocialUnreadCount(bootData.socialUnreadCount ?? 0);
           if (bootData.userData) {
             setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
+            setWifiOnlyDownloads(bootData.userData.poiPreferences?.wifiOnlyDownloads ?? false);
             setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
           }
           setTrips(bootData.trips);
@@ -208,7 +225,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
 
     try {
       const [
-        fetchedTasksResult,
         userDataResult,
         userPrefsResult,
         poiPrefsMapResult,
@@ -219,7 +235,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         fetchedTripsResult,
         fetchedMallSnapshotResult,
       ] = await Promise.allSettled([
-        withTimeout(getTasksForDate(uid, todayISO()), 'tasks'),
         withTimeout(getUser(uid), 'user'),
         withTimeout(getUserPreferences(uid), 'userPrefs'),
         withTimeout(getPoiPreferencesMap(uid), 'poiPrefs'),
@@ -233,7 +248,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
 
       if (isStale()) { return; }
 
-      logFetchFailure('tasks', fetchedTasksResult);
       logFetchFailure('user', userDataResult);
       logFetchFailure('userPrefs', userPrefsResult);
       logFetchFailure('poiPrefs', poiPrefsMapResult);
@@ -243,16 +257,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       logFetchFailure('socialInbox', socialUnreadResult);
       logFetchFailure('trips', fetchedTripsResult);
       logFetchFailure('mallSnapshot', fetchedMallSnapshotResult);
-
-      const cachedTasks = latestTasksRef.current;
-      setTasks(
-        fetchedTasksResult.status === 'fulfilled'
-          ? fetchedTasksResult.value
-          : cachedTasks,
-      );
-      if (fetchedTasksResult.status === 'rejected' && cachedTasks.length === 0) {
-        setError(TASKS_LOAD_ERROR);
-      }
 
       const categories = categoriesResult.status === 'fulfilled'
         ? categoriesResult.value
@@ -291,6 +295,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         const userData = userDataResult.value;
         setHomeLocation(userData?.home ?? null);
         setLowBatteryPausePref(userData?.poiPreferences?.lowBatteryPause ?? false);
+        setWifiOnlyDownloads(userData?.poiPreferences?.wifiOnlyDownloads ?? false);
         setStoreTuningEnabled(userData?.poiPreferences?.storeTuningEnabled);
       }
 
@@ -311,8 +316,10 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       }
     } finally {
       if (!isStale()) {
-        setIsLoading(false);
-        setIsRefreshing(false);
+        // Initial task readiness belongs to the live listener: clearing here
+        // would briefly render a false empty state before its cache/server
+        // snapshot (or recoverable error) arrives.
+        if (isRefresh) { setIsRefreshing(false); }
       }
     }
   }, [uid]);
@@ -321,7 +328,76 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     loadData();
   }, [loadData]);
 
-  const refresh = useCallback(() => { loadData(true); }, [loadData]);
+  const refresh = useCallback(async () => {
+    retryAttemptRef.current = 0;
+    setListenerGeneration(generation => generation + 1);
+    await loadData(true);
+  }, [loadData]);
+
+  // This is the sole long-lived active-task read. Firestore serves its local
+  // cache first, then pushes local and remote writes without focus/polling.
+  useEffect(() => {
+    if (!uid) { return; }
+    let active = true;
+    const unsubscribe = subscribeToActiveTasks(
+      uid,
+      currentDayRef.current,
+      nextTasks => {
+        if (!active) { return; }
+        retryAttemptRef.current = 0;
+        setTasks(nextTasks);
+        setError(null);
+        setIsLoading(false);
+      },
+      listenerError => {
+        if (!active) { return; }
+        console.warn('[useTodayScreenData] active-task listener failed', listenerError);
+        setError(TASKS_LOAD_ERROR);
+        setIsLoading(false);
+        const delay = Math.min(1_000 * 2 ** retryAttemptRef.current++, 30_000);
+        retryTimerRef.current = setTimeout(() => setListenerGeneration(generation => generation + 1), delay);
+      },
+    );
+    return () => {
+      active = false;
+      unsubscribe();
+      if (retryTimerRef.current) { clearTimeout(retryTimerRef.current); retryTimerRef.current = null; }
+    };
+  }, [uid, listenerGeneration]);
+
+  const ensureCurrentDayForLifecycle = useCallback(async () => {
+    const currentDay = todayISO();
+    if (currentDay === currentDayRef.current) { return; }
+    currentDayRef.current = currentDay;
+    setListenerGeneration(generation => generation + 1);
+  }, []);
+
+  // A foreground session can cross midnight without navigating away. Refresh
+  // just after the local boundary so selected-date tasks leave the active list.
+  useEffect(() => {
+    if (!uid) { return; }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleNextMidnight = () => {
+      const now = new Date();
+      const next = new Date(now);
+      next.setHours(24, 0, 1, 0);
+      timer = setTimeout(() => {
+        void ensureCurrentDayForLifecycle().finally(scheduleNextMidnight);
+      }, next.getTime() - now.getTime());
+    };
+    scheduleNextMidnight();
+    return () => { if (timer) { clearTimeout(timer); } };
+  }, [uid, ensureCurrentDayForLifecycle]);
+
+  useEffect(() => {
+    if (!uid) { return; }
+    const subscription = AppState.addEventListener('change', nextState => {
+      if (nextState === 'active') {
+        void ensureCurrentDayForLifecycle();
+      }
+    });
+    return () => subscription.remove();
+  }, [uid, ensureCurrentDayForLifecycle]);
 
   // ── Wear OS sync (KAN-35) ──────────────────────────────────────────────────
 
@@ -337,6 +413,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     isRefreshing,
     error,
     refresh,
+    ensureCurrentDay: ensureCurrentDayForLifecycle,
     customCategories,
     totalPoints,
     setTotalPoints,

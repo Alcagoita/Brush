@@ -23,6 +23,60 @@ describe('COPY language switching', () => {
   });
 });
 
+describe('COPY — notification preferences', () => {
+  beforeEach(() => {
+    setCopyLanguage('en');
+  });
+
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it('keeps the English notification preferences block distinct from pt-PT', () => {
+    const keys = [
+      'screenTitle',
+      'backA11y',
+      'loadingA11y',
+      'sectionWhenOut',
+      'sectionDaily',
+      'sectionFromPeople',
+      'proximityLabel',
+      'proximitySublabel',
+      'exitPromptLabel',
+      'exitPromptSublabel',
+      'eodLabel',
+      'eodSublabel',
+      'reminderTimeLabel',
+      'sharedTasksLabel',
+      'sharedTasksSublabel',
+    ] as const;
+
+    setCopyLanguage('en');
+    const englishValues = keys.map(key => COPY.notificationPreferences[key]);
+    const englishReminderTime = COPY.notificationPreferences.reminderTimeA11y('20:00');
+
+    setCopyLanguage('pt-PT');
+    keys.forEach((key, index) => {
+      expect(englishValues[index]).not.toBe(COPY.notificationPreferences[key]);
+    });
+    expect(englishReminderTime).not.toBe(COPY.notificationPreferences.reminderTimeA11y('20:00'));
+  });
+
+  it('renders section labels in sentence case, not ALL CAPS (KAN-303, AC8)', () => {
+    for (const lang of ['en', 'pt-PT'] as const) {
+      setCopyLanguage(lang);
+      for (const label of [
+        COPY.notificationPreferences.sectionWhenOut,
+        COPY.notificationPreferences.sectionDaily,
+        COPY.notificationPreferences.sectionFromPeople,
+      ]) {
+        expect(label).toMatch(/[a-z]/);
+        expect(label).not.toBe(label.toUpperCase());
+      }
+    }
+  });
+});
+
 describe('COPY — pt-PT localized count strings', () => {
   beforeEach(() => {
     setCopyLanguage('pt-PT');
@@ -40,6 +94,13 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.nearbyCard.headerLabel).toBe('Na proximidade');
     expect(COPY.nearbyCard.placesCount(1)).toBe('1 Local');
     expect(COPY.nearbyCard.placesCount(2)).toBe('2 Locais');
+    expect(COPY.nearbyCard.openInMaps).toBe('Abrir no Mapas');
+    expect(COPY.nearbyCard.openInMapsA11y('Continente')).toBe('Abrir Continente no Mapas');
+    expect(COPY.nearbyCard.tryAnotherPlace).toBe('Tentar outro local');
+    expect(COPY.nearbyCard.storeTuningOn).toBe('Ajuste de lojas ativo');
+    expect(COPY.nearbyCard.refreshUpdated).toBe('Atualizado');
+    expect(COPY.nearbyCard.refreshFailed).toBe('Falhou');
+    expect(COPY.nearbyCard.alsoClose).toBe('Também perto');
   });
 
   it('keeps Brush in English and localizes achievements tiers', () => {
@@ -60,5 +121,21 @@ describe('COPY — pt-PT localized count strings', () => {
     setCopyLanguage('pt-PT');
     expect(COPY.mallSnapshot.rowLabel).toBe('Activar modo Shopping');
     expect(COPY.mallSnapshot.rowSublabel).toBe('Descarregue os locais deste Shopping para que eu te ajude mais rapidamente e sem internet.');
+  });
+});
+
+describe('COPY — attribution names every source that ships (KAN-451)', () => {
+  afterEach(() => {
+    setCopyLanguage('en');
+  });
+
+  it.each(['en', 'pt-PT'] as const)('%s credits Overture and OpenStreetMap and nothing that no longer ships', (language) => {
+    setCopyLanguage(language);
+    const attribution = COPY.settings.footerAttribution;
+    expect(attribution).toContain('Overture Maps Foundation');
+    expect(attribution).toContain('OpenStreetMap');
+    expect(attribution).toContain('MULTIBANCO');
+    // Retired sources must not be credited: the footer is a licence statement, not a history.
+    expect(attribution).not.toMatch(/Foursquare|Google/);
   });
 });

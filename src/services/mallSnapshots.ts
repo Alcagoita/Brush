@@ -16,7 +16,7 @@
 import { getDoc, setDoc, deleteDoc, Timestamp } from '@react-native-firebase/firestore';
 import type { MallSnapshot } from '../types';
 import { mallSnapshotRef } from './firestore/refs';
-import { searchNearbyPlaces } from './maps';
+import { searchNearbyPlaces, isGenuineMallType } from './maps';
 import { downloadAreaSnapshot } from './tripDownload';
 import { NEARBY_RADIUS } from './proximity';
 
@@ -65,8 +65,8 @@ export async function deleteMallSnapshotDoc(uid: string): Promise<void> {
 /**
  * Looks up the shopping mall at `center` (throws if none found within
  * MALL_SEARCH_RADIUS_M — the toggle can only be turned on while physically
- * inside one), downloads its POIs (ALL_POI_TYPES ∪ customCategoryPoiTypes,
- * same union the Trip Planner uses), and persists the snapshot doc.
+ * inside one), downloads its POIs (the same curated allowlist the Trip
+ * Planner uses), and persists the snapshot doc.
  *
  * Throws on any failure — this is a user-initiated, visible-progress
  * action (the Profile toggle's loading state), not a silent background
@@ -77,8 +77,18 @@ export async function downloadMallSnapshot(
   center: { lat: number; lng: number },
   poiTypes: string[],
 ): Promise<MallSnapshot> {
-  const mallResults = await searchNearbyPlaces(center.lat, center.lng, ['shopping_mall'], MALL_SEARCH_RADIUS_M);
-  const mall = mallResults.shopping_mall?.[0];
+  const { results: mallResults } = await searchNearbyPlaces(center.lat, center.lng, ['shopping_mall'], MALL_SEARCH_RADIUS_M);
+  // A place lands in the shopping_mall bucket if ANY of its Google types
+  // matched our request (searchNearbyPlaces buckets by "matched something
+  // we asked for", not "this IS its type") — a parking/loading-dock feature
+  // near a real mall can carry shopping_mall as a secondary tag and, if
+  // nearest, get taken as "the mall" under its own wrong name. isGenuineMallType
+  // checks BOTH primaryType AND the full types array (2026-07-19) — an
+  // individual store inside the real mall can have primaryType:
+  // 'shopping_mall' too while still carrying its own real category (e.g.
+  // clothing_store), which primaryType alone wouldn't catch. Results stay
+  // nearest-first, so the first genuine match here is still the closest one.
+  const mall = mallResults.shopping_mall?.find(isGenuineMallType);
   if (!mall) { throw new NoMallFoundError(); }
 
   const expiresAt = Date.now() + MALL_SNAPSHOT_STALE_MS;

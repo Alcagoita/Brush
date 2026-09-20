@@ -8,13 +8,14 @@
  *   - refresh(): re-runs the full fetch (used by onTaskAdded after task creation)
  *   - Proximity engine: starts when undone POI tasks are present
  *   - Proximity engine: does NOT start without POI tasks
- *   - Optimistic toggle: calls setTaskDone and evaluateAchievements
+ *   - Optimistic toggle: calls setTaskDone and processTaskCompletionRewards
  *   - Progress derived values: totalTasks, doneTasks, progress, nearbyCount
  */
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
 const mockGetTasksForDate        = jest.fn();
+const mockEnsureCurrentDay       = jest.fn();
 const mockGetCategories          = jest.fn();
 const mockGetUser                = jest.fn();
 const mockGetUserPreferences     = jest.fn();
@@ -27,13 +28,22 @@ const mockGetLearnedPlaceCounts = jest.fn().mockResolvedValue([]);
 const mockGetTrips = jest.fn().mockResolvedValue([]);
 const mockGetMallSnapshot = jest.fn().mockResolvedValue(null);
 const mockSetLearnedPlaces           = jest.fn();
-const mockSetCustomCategoryPoiTypes  = jest.fn();
 const mockSetActiveTrips             = jest.fn();
 const mockSetMallSnapshot            = jest.fn();
 const mockSetHomeLocation            = jest.fn();
+const mockClearBootData = jest.fn();
+let mockBootData: any = null;
 
 jest.mock('../../src/services/firestore', () => ({
+  subscribeToActiveTasks: jest.fn((_uid: string, _today: string, onNext: (tasks: unknown[]) => void, onError: (error: Error) => void) => {
+    Promise.resolve(mockGetTasksForDate()).then(onNext, onError);
+    return jest.fn();
+  }),
   getTasksForDate:      (...args: unknown[]) => mockGetTasksForDate(...args),
+  ensureCurrentDay:     (...args: unknown[]) => mockEnsureCurrentDay(...args),
+  filterActiveTasksForDate: (tasks: any[], today: string) => tasks.filter(task =>
+    !task.done && (!task.scheduledDate || task.scheduledDate >= today),
+  ),
   getCategories:        (...args: unknown[]) => mockGetCategories(...args),
   getUser:              (...args: unknown[]) => mockGetUser(...args),
   upsertUser:           jest.fn().mockResolvedValue(undefined),
@@ -46,6 +56,7 @@ jest.mock('../../src/services/firestore', () => ({
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
   getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
+  getTaughtPlaces:       jest.fn().mockResolvedValue([]),
   getTrips:              (...args: unknown[]) => mockGetTrips(...args),
 }));
 
@@ -95,8 +106,26 @@ jest.mock('../../src/utils/date', () => ({
 
 jest.mock('../../src/store/appStore', () => ({
   useAppStore: {
-    getState: () => ({ bootData: null, clearBootData: jest.fn() }),
+    getState: () => ({ bootData: mockBootData, clearBootData: mockClearBootData }),
   },
+}));
+
+// useTaskCompletion imports rewardFunctions, which reaches
+// @react-native-firebase/functions — a native module unavailable under Jest,
+// and the reason this whole suite failed to load. Stub at the service
+// boundary; these tests are about the hook's derived state, not the reward
+// round-trip (that lives server-side since KAN-271).
+// useErrandBundle -> clusterLeisure -> habitatCache -> expo-sqlite (ESM,
+// untransformed under this config). Stub the leisure lookup itself; the
+// bundle service above is already mocked, and neither is what these tests
+// assert on. See __tests__/services/clusterLeisure.test.ts for its own suite.
+jest.mock('../../src/services/clusterLeisure', () => ({
+  findClusterLeisure: jest.fn(() => null),
+}));
+
+jest.mock('../../src/services/rewardFunctions', () => ({
+  processTaskCompletionRewards: jest.fn().mockResolvedValue({ totalPoints: 0, nudgeCandidate: null }),
+  awardOnboardingBonus:         jest.fn().mockResolvedValue(undefined),
 }));
 
 jest.mock('../../src/services/achievements', () => ({
@@ -109,14 +138,40 @@ jest.mock('../../src/services/challenges', () => ({
   incrementCompletedCount:    jest.fn().mockResolvedValue(false),
 }));
 
+// KAN-280 — useTaskCompletion cancels a task's reminder on brush.
+const mockCancelTaskReminder = jest.fn().mockResolvedValue(undefined);
+const mockRefreshDatedTaskHandoff = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/notifications', () => ({
+  cancelTaskReminder: (...args: unknown[]) => mockCancelTaskReminder(...args),
+}));
+jest.mock('../../src/services/datedTaskHandoff', () => ({
+  refreshDatedTaskHandoff: (...args: unknown[]) => mockRefreshDatedTaskHandoff(...args),
+}));
+
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
+  // KAN-301 — useProximityEngine seeds the Lantern's position with one
+  // low-accuracy fix on permission grant. Mocked so it resolves cleanly.
+  getPositionLowAccuracy:    jest.fn().mockResolvedValue({ lat: 0, lng: 0 }),
+  // KAN-377 — the nearby search is driven by a foreground distance watcher
+  // now, not a timer. These tests don't move the user, so the watcher never
+  // fires; they only need it to exist.
+  startTracking:             jest.fn(),
+  stopTracking:              jest.fn(),
   LocationContext:           {},
 }));
 
 jest.mock('../../src/services/proximity', () => ({
   runProximitySearch:            (...args: unknown[]) => mockRunProximitySearch(...args),
+  // The automatic paths (mount, foreground) go through the snapshot-reusing
+  // wrapper since the KAN-285 follow-up; the mock predated it and omitting it
+  // threw "is not a function" out of the hook's mount effect.
+  runProximitySearchOrReuseSnapshot: (...args: unknown[]) => mockRunProximitySearch(...args),
   getLastSearchCoords:           jest.fn().mockReturnValue(null),
+  // useTaskCompletion reads this to stamp completedTripId — omitting it threw
+  // "is not a function" inside handleToggle's try block, silently swallowing
+  // every optimistic-toggle test (caught by the same block's catch/revert).
+  getActivePlaceContext:         jest.fn().mockReturnValue(null),
   updateProximityPoiPreferences: jest.fn(),
   setLocationTap:                jest.fn(),
   setPlaceContextTap:            jest.fn(),
@@ -124,7 +179,6 @@ jest.mock('../../src/services/proximity', () => ({
   updateNotifNearbyEnabled:      jest.fn(),
   updateExitPromptPref:          jest.fn(),
   setLearnedPlaces:              (...args: unknown[]) => mockSetLearnedPlaces(...args),
-  setCustomCategoryPoiTypes:     (...args: unknown[]) => mockSetCustomCategoryPoiTypes(...args),
   setActiveTrips:                (...args: unknown[]) => mockSetActiveTrips(...args),
   setMallSnapshot:               (...args: unknown[]) => mockSetMallSnapshot(...args),
 }));
@@ -192,6 +246,10 @@ const POI_TASK = {
 
 function setupDefaults() {
   mockGetTasksForDate.mockResolvedValue([]);
+  mockEnsureCurrentDay.mockImplementation(async (uid: string) => ({
+    tasks: await mockGetTasksForDate(uid, '2026-06-15'),
+    persistence: Promise.resolve(),
+  }));
   mockGetCategories.mockResolvedValue([]);
   mockGetUser.mockResolvedValue(null);
   mockGetUserPreferences.mockResolvedValue({});
@@ -206,6 +264,7 @@ function setupDefaults() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockBootData = null;
   setupDefaults();
 });
 
@@ -273,6 +332,7 @@ describe('useTodayScreen — one-shot fetch', () => {
     jest.useFakeTimers();
     try {
       mockGetTasksForDate.mockResolvedValue([TASK]);
+      mockEnsureCurrentDay.mockResolvedValue({ tasks: [TASK], persistence: Promise.resolve() });
       mockGetCategories.mockReturnValue(new Promise(() => {}));
 
       const { result } = renderHook(() => useTodayScreen(UID));
@@ -296,6 +356,24 @@ describe('useTodayScreen — one-shot fetch', () => {
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).toBeNull();
     expect(result.current.tasks).toHaveLength(0);
+  });
+
+  it('revalidates splash boot tasks against a fresh local day before rendering', async () => {
+    mockBootData = {
+      ownerUid: UID,
+      tasks: [
+        { ...TASK, id: 'undated' },
+        { ...TASK, id: 'past', scheduledDate: '2026-06-14' },
+        { ...TASK, id: 'today', scheduledDate: '2026-06-15' },
+      ],
+      customCategories: [], totalPoints: 0, inboxCount: 0, socialUnreadCount: 0,
+      trips: [], mallSnapshot: null, userData: null, userPrefs: {}, poiPrefsMap: {},
+    };
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(result.current.tasks.map(task => task.id)).toEqual(['undated', 'today']);
   });
 });
 
@@ -349,17 +427,28 @@ describe('useTodayScreen — proximity engine', () => {
   });
 });
 
-describe('useTodayScreen — custom category POI types (KAN-238)', () => {
-  it('feeds the habitat cache prefetch with custom category place types', async () => {
-    mockGetCategories.mockResolvedValue([
-      { id: 'cat-1', name: 'Climbing', color: '#123456', poi: 'climbing_gym', isBuiltIn: false },
-      { id: 'cat-2', name: 'No Place', color: '#654321', poi: null, isBuiltIn: false },
-    ]);
+describe('useTodayScreen — nearbyReady (KAN-281 follow-up)', () => {
+  it('is false while a first proximity search is in flight, true once it resolves', async () => {
+    mockGetTasksForDate.mockResolvedValue([POI_TASK]);
+    let resolveSearch: (() => void) | undefined;
+    mockRunProximitySearch.mockReturnValue(new Promise<void>(resolve => { resolveSearch = resolve; }));
 
-    renderHook(() => useTodayScreen(UID));
+    const { result } = renderHook(() => useTodayScreen(UID));
     await act(async () => {});
 
-    expect(mockSetCustomCategoryPoiTypes).toHaveBeenCalledWith(['climbing_gym']);
+    expect(result.current.nearbyReady).toBe(false);
+
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    await act(async () => { onUpdate(null, null, {}); resolveSearch?.(); });
+
+    expect(result.current.nearbyReady).toBe(true);
+  });
+
+  it('is true immediately when there are no POI tasks (nothing to wait for)', async () => {
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    expect(result.current.nearbyReady).toBe(true);
   });
 });
 
@@ -414,7 +503,73 @@ describe('useTodayScreen — progress derived values', () => {
     expect(result.current.totalTasks).toBe(3);
     expect(result.current.doneTasks).toBe(1);
     expect(result.current.progress).toBeCloseTo(1 / 3);
+    // KAN-287 — nothing resolved yet, so nothing is "nearby" regardless of
+    // how many tasks carry a POI type.
+    expect(result.current.nearbyCount).toBe(0);
+
+    const onUpdate = mockRunProximitySearch.mock.calls[0][2];
+    const place = { placeId: 'p-1', name: 'Corner Pharmacy', lat: 1, lng: 2, distanceMeters: 30 };
+    await act(async () => { onUpdate('pharmacy', place, { pharmacy: [place] }); });
+
     expect(result.current.nearbyCount).toBe(1);
+  });
+
+  describe('nearbyCount (KAN-287)', () => {
+    const placeFor = (name: string) => ({ placeId: `p-${name}`, name, lat: 1, lng: 2, distanceMeters: 30 });
+
+    /** Renders, then drives the proximity engine's onUpdate with `poiPlaces`. */
+    async function renderWithPlaces(tasks: unknown[], poiPlaces: Record<string, unknown[]>) {
+      mockGetTasksForDate.mockResolvedValue(tasks);
+      const { result } = renderHook(() => useTodayScreen(UID));
+      await act(async () => {});
+      const onUpdate = mockRunProximitySearch.mock.calls[0]?.[2];
+      if (onUpdate) { await act(async () => { onUpdate(null, null, poiPlaces); }); }
+      return result;
+    }
+
+    it('does not count a task whose POI type resolved no place', async () => {
+      const result = await renderWithPlaces([{ ...POI_TASK, poi: 'pharmacy' }], { pharmacy: [] });
+      expect(result.current.nearbyCount).toBe(0);
+    });
+
+    it('does not count a done task even when its place is right there', async () => {
+      const result = await renderWithPlaces(
+        [{ ...POI_TASK, poi: 'pharmacy', done: true }],
+        { pharmacy: [placeFor('Corner Pharmacy')] },
+      );
+      expect(result.current.nearbyCount).toBe(0);
+    });
+
+    it('does not count a task with no POI type at all', async () => {
+      const result = await renderWithPlaces([TASK], { pharmacy: [placeFor('Corner Pharmacy')] });
+      expect(result.current.nearbyCount).toBe(0);
+    });
+
+    it('counts each open task whose own POI type resolved a place', async () => {
+      const result = await renderWithPlaces(
+        [
+          { ...POI_TASK, id: 'a', poi: 'pharmacy' },
+          { ...POI_TASK, id: 'b', poi: 'cafe' },
+          { ...POI_TASK, id: 'c', poi: 'atm' },      // no places for atm
+          { ...POI_TASK, id: 'd', poi: 'cafe', done: true },
+          TASK,                                       // no poi
+        ],
+        { pharmacy: [placeFor('Pharmacy')], cafe: [placeFor('Cafe')], atm: [] },
+      );
+      // a + b only.
+      expect(result.current.nearbyCount).toBe(2);
+    });
+
+    it('counts two open tasks sharing one resolved POI type as two, not one', async () => {
+      const result = await renderWithPlaces(
+        [
+          { ...POI_TASK, id: 'a', poi: 'pharmacy' },
+          { ...POI_TASK, id: 'b', poi: 'pharmacy' },
+        ],
+        { pharmacy: [placeFor('Corner Pharmacy')] },
+      );
+      expect(result.current.nearbyCount).toBe(2);
+    });
   });
 
   it('excludes birthday tasks (KAN-248) from totalTasks/doneTasks/progress but not the task list', async () => {
@@ -444,7 +599,47 @@ describe('useTodayScreen — optimistic toggle', () => {
       await result.current.handleToggle('task-1', true);
     });
 
-    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true);
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true, undefined, undefined);
+  });
+
+  it('cancels the task\'s pending reminder when brushed (KAN-280)', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.handleToggle('task-1', true);
+    });
+
+    expect(mockCancelTaskReminder).toHaveBeenCalledWith('task-1');
+  });
+
+  it('does NOT cancel a reminder when un-brushing (done:false)', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => {
+      await result.current.handleToggle('task-1', false);
+    });
+
+    expect(mockCancelTaskReminder).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds a dated handoff after both brushing and reopening its task', async () => {
+    const datedTask = { ...TASK, scheduledDate: '2026-06-15' };
+    mockGetTasksForDate.mockResolvedValue([datedTask]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    await act(async () => { await result.current.handleToggle('task-1', true); });
+    await act(async () => { await result.current.handleToggle('task-1', false); });
+
+    expect(mockRefreshDatedTaskHandoff).toHaveBeenCalledTimes(2);
+    expect(mockRefreshDatedTaskHandoff).toHaveBeenLastCalledWith(UID, '2026-06-15');
   });
 
   it('refreshes the learned-place ranking after both a done:true and a done:false toggle (KAN-230)', async () => {
@@ -462,6 +657,30 @@ describe('useTodayScreen — optimistic toggle', () => {
 
     await act(async () => { await result.current.handleToggle('task-1', false); });
     expect(mockGetLearnedPlaceCounts).toHaveBeenCalledTimes(3);
+  });
+
+  it('suppresses learned-place refresh failures after the toggle succeeds', async () => {
+    mockGetTasksForDate.mockResolvedValue([TASK]);
+    mockGetLearnedPlaceCounts.mockResolvedValue([]);
+
+    const { result } = renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+    expect(mockGetLearnedPlaceCounts).toHaveBeenCalledTimes(1); // initial mount fetch
+
+    mockGetLearnedPlaceCounts.mockRejectedValueOnce(new Error('Learned places unavailable'));
+
+    let thrown: unknown;
+    await act(async () => {
+      try {
+        await result.current.handleToggle('task-1', true);
+      } catch (error) {
+        thrown = error;
+      }
+    });
+
+    expect(thrown).toBeUndefined();
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'task-1', true, undefined, undefined);
+    expect(mockGetLearnedPlaceCounts).toHaveBeenCalledTimes(2);
   });
 
   it('passes completedPlace to setTaskDone when brushing a task near its own POI type (KAN-226)', async () => {
@@ -484,7 +703,7 @@ describe('useTodayScreen — optimistic toggle', () => {
       placeId: 'place-abc',
       name: 'Corner Pharmacy',
       poiType: 'pharmacy',
-    });
+    }, undefined);
   });
 
   it('does NOT pass completedPlace when the nearby place does not match the task POI type', async () => {
@@ -501,12 +720,18 @@ describe('useTodayScreen — optimistic toggle', () => {
       await result.current.handleToggle('poi-task-1', true);
     });
 
-    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'poi-task-1', true);
+    expect(mockSetTaskDone).toHaveBeenCalledWith(UID, 'poi-task-1', true, undefined, undefined);
   });
 
-  it('calls evaluateAchievements when marking done', async () => {
-    const { evaluateAchievements } = jest.requireMock('../../src/services/achievements');
+  // KAN-271 — reward evaluation (achievements + points) moved server-side,
+  // behind processTaskCompletionRewards (a Cloud Function proxy). The client
+  // no longer computes or sends allTasksDone/remainingTaskCount at all; it
+  // just calls the function with (taskId, hour) and applies whatever comes
+  // back.
+  it('calls processTaskCompletionRewards when marking done', async () => {
+    const { processTaskCompletionRewards } = jest.requireMock('../../src/services/rewardFunctions');
     mockGetTasksForDate.mockResolvedValue([TASK]);
+    jest.spyOn(Date.prototype, 'getHours').mockReturnValue(14);
 
     const { result } = renderHook(() => useTodayScreen(UID));
     await act(async () => {});
@@ -516,15 +741,12 @@ describe('useTodayScreen — optimistic toggle', () => {
     });
     await act(async () => {});
 
-    expect(evaluateAchievements).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({ id: 'task-1' }),
-      expect.any(Object),
-    );
+    expect(processTaskCompletionRewards).toHaveBeenCalledWith('task-1', 14);
+    jest.restoreAllMocks();
   });
 
-  it('never calls evaluateAchievements when marking a birthday task done (KAN-248 — unscored)', async () => {
-    const { evaluateAchievements } = jest.requireMock('../../src/services/achievements');
+  it('never calls processTaskCompletionRewards when marking a birthday task done (KAN-248 — unscored)', async () => {
+    const { processTaskCompletionRewards } = jest.requireMock('../../src/services/rewardFunctions');
     const birthday = { ...TASK, id: 'bday-1', kind: 'birthday' as const };
     mockGetTasksForDate.mockResolvedValue([birthday]);
 
@@ -536,41 +758,18 @@ describe('useTodayScreen — optimistic toggle', () => {
     });
     await act(async () => {});
 
-    expect(evaluateAchievements).not.toHaveBeenCalled();
-  });
-
-  it('excludes a birthday task from allTasksDone/remainingTaskCount passed to evaluateAchievements', async () => {
-    const { evaluateAchievements } = jest.requireMock('../../src/services/achievements');
-    const birthday = { ...TASK, id: 'bday-1', kind: 'birthday' as const, done: false };
-    mockGetTasksForDate.mockResolvedValue([TASK, birthday]);
-
-    const { result } = renderHook(() => useTodayScreen(UID));
-    await act(async () => {});
-
-    await act(async () => {
-      await result.current.handleToggle('task-1', true);
-    });
-    await act(async () => {});
-
-    // Only TASK is scorable; with it done and excluded from its own
-    // "others done" check, allTasksDone should be true despite the
-    // still-undone birthday task sitting alongside it.
-    expect(evaluateAchievements).toHaveBeenCalledWith(
-      UID,
-      expect.objectContaining({ id: 'task-1' }),
-      expect.objectContaining({ allTasksDone: true, remainingTaskCount: 0 }),
-    );
+    expect(processTaskCompletionRewards).not.toHaveBeenCalled();
   });
 
   it('refreshes only the points total after completing a task, not the full data (KAN-157)', async () => {
+    const { processTaskCompletionRewards } = jest.requireMock('../../src/services/rewardFunctions');
+    processTaskCompletionRewards.mockResolvedValueOnce({ totalPoints: 7, nudgeCandidate: null });
     mockGetTasksForDate.mockResolvedValue([TASK]);
-    mockGetTotalPoints.mockResolvedValue(7);
 
     const { result } = renderHook(() => useTodayScreen(UID));
     await act(async () => {});
 
     // Ignore the calls made during the initial one-shot load.
-    mockGetTotalPoints.mockClear();
     mockGetTasksForDate.mockClear();
 
     await act(async () => {
@@ -579,8 +778,8 @@ describe('useTodayScreen — optimistic toggle', () => {
     // Flush the deferred (InteractionManager) achievement + points work.
     await act(async () => {});
 
-    // Completion refreshes ONLY the lightweight total-points read…
-    expect(mockGetTotalPoints).toHaveBeenCalledWith(UID);
+    // Completion applies ONLY the points total the reward call returned…
+    expect(result.current.totalPoints).toBe(7);
     // …and does NOT trigger a full task refetch.
     expect(mockGetTasksForDate).not.toHaveBeenCalled();
   });

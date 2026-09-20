@@ -106,6 +106,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   ListCheckIcon:    () => null,
   LogOutIcon:       () => null,
   MoonIcon:         () => null,
+  PinIcon:          () => null,
   SunIcon:          () => null,
 }));
 
@@ -166,6 +167,21 @@ describe('SettingsScreen — KAN-113: rendering', () => {
   it('renders the footer with app version', async () => {
     await renderScreen();
     expect(screen.getByText(/Brush Away · v/)).toBeTruthy();
+  });
+
+  // KAN-351 — every place-data source currently reachable from the app must
+  // stay credited (OpenStreetMap ODbL, Foursquare OS Places Apache 2.0, and
+  // Google while the autocomplete path still calls it) — a licence
+  // obligation, not a feature, so it must never be silently dropped by a
+  // future copy edit.
+  it('renders attribution for every reachable place-data source', async () => {
+    await renderScreen();
+    // Import rows ("Google Tasks", "Google Calendar") also contain "Google",
+    // so match the whole attribution line rather than each source in
+    // isolation — this is the one node the licence obligation actually lives on.
+    const attribution = screen.getByText(/OpenStreetMap contributors \(ODbL\)/);
+    expect(attribution.props.children).toContain('Foursquare Open Source Places (Apache 2.0)');
+    expect(attribution.props.children).toContain('Google');
   });
 
   it('keeps the scroll view keyboard-safe and full-height', async () => {
@@ -338,6 +354,19 @@ describe('SettingsScreen — KAN-113: IMPORT TASKS section', () => {
     } finally {
       Object.defineProperty(require('react-native').Platform, 'OS', { value: original, writable: true });
     }
+  });
+});
+
+// ─── COMMUNITY section (KAN-362) ─────────────────────────────────────────────
+
+describe('SettingsScreen — KAN-374: community section moved to Profile', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('no longer shows the community section or the suggest-a-place row', async () => {
+    await renderScreen();
+
+    expect(screen.queryByText('COMMUNITY')).toBeNull();
+    expect(screen.queryByLabelText('Suggest a missing place')).toBeNull();
   });
 });
 

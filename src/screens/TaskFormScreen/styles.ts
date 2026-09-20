@@ -1,10 +1,15 @@
 import { StyleSheet } from 'react-native';
-import { radius, spacing } from '../../theme/tokens';
+import { fonts, radius, spacing } from '../../theme/tokens';
 
 export const POI_TILE_WIDTH = 72;
 
 export const styles = StyleSheet.create({
   root: {
+    flex: 1,
+  },
+  // Inner wrapper the screen lifts by the keyboard overlap (KAN-369) — kept
+  // separate from root so it never fights KeyboardAvoidingView's own padding.
+  lift: {
     flex: 1,
   },
   scrollView: {
@@ -37,7 +42,10 @@ export const styles = StyleSheet.create({
     fontFamily: 'Geist-Medium',
   },
   topBarRight: {
-    width: 40,
+    width:  40,
+    height: 40,
+    alignItems:     'flex-end',
+    justifyContent: 'center',
   },
 
   // ── Scroll body ──
@@ -182,33 +190,34 @@ export const styles = StyleSheet.create({
   },
   poiTile: {
     width:          POI_TILE_WIDTH,
+    height:         84,
     borderRadius:   14,
     borderWidth:     1,
     alignItems:     'center',
     justifyContent: 'center',
     gap:             6,
-    minHeight:      88,
     paddingTop:     12,
     paddingBottom:  10,
     paddingHorizontal: 4,
   },
-  poiSuggestionTile: {
+  poiTileSuggested: {
     borderStyle: 'dashed',
   },
-  poiTileSuggested: {
-    borderStyle: 'solid',
-  },
   poiTileLabel: {
-    fontSize:   11,
-    fontFamily: 'Geist-Regular',
-    textAlign:  'center',
+    fontSize:      11,
+    fontFamily:    'Geist-Regular',
+    textAlign:     'center',
+    letterSpacing: 0.01,
   },
   poiTileHint: {
-    fontSize:   11,
-    fontFamily: 'Geist-Medium',
+    fontSize:   9,
+    fontFamily: fonts.families.regular,
     textAlign:  'center',
   },
-
+  subtypeSection: {
+    gap: 10,
+    paddingTop: 2,
+  },
   // ── Category ──
   categoryRow: {
     flexDirection: 'row',
@@ -325,6 +334,10 @@ export const styles = StyleSheet.create({
     fontSize:   14,
     fontFamily: 'Geist-Regular',
     padding:     0,
+  },
+  clearTimeBtn: {
+    alignItems:     'center',
+    justifyContent: 'center',
   },
 
   // ── Notes ──

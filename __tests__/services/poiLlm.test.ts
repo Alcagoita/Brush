@@ -31,12 +31,25 @@ jest.mock('../../src/services/placesFunctions', () => ({
   searchNearbyPlacesProxy: jest.fn(),
   searchPlaceTypesProxy: jest.fn(),
 }));
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   jest.fn(),
+}));
+
+jest.mock('expo-sqlite', () => ({
+  openDatabaseSync: jest.fn(() => ({
+    execSync: jest.fn(),
+    getFirstSync: jest.fn(),
+    runSync: jest.fn(),
+  })),
+}));
 
 import {
   tokenize,
   validatePoi,
   isLlmAvailable,
   classifyPoi,
+  getUnsuggestedPoiInferenceTypes,
   inferPoiForQuickAdd,
   learnPoiKeyword,
   learnFromClassification,
@@ -46,6 +59,7 @@ import {
   __resetModelForTests,
 } from '../../src/services/poiLlm';
 import { inferPoiFromRules, registerLearnedKeyword, clearLearnedKeywords } from '../../src/services/poiInference';
+import { isQuickActionablePoiType } from '../../src/types';
 import labels from '../../assets/poi-model/labels.json';
 
 const LABELS = labels as string[];
@@ -169,6 +183,18 @@ describe('classifyPoi', () => {
 // ─── inferPoiForQuickAdd (KAN-232) ─────────────────────────────────────────────
 
 describe('inferPoiForQuickAdd', () => {
+  it('keeps static POI inference targets covered by the suggestion dictionary', () => {
+    expect(getUnsuggestedPoiInferenceTypes()).toEqual([]);
+  });
+
+  it.each(['bank', 'post office', 'clinic', 'bus stop', 'school run'])(
+    'only returns a quick-actionable type for %s',
+    async title => {
+      const result = await inferPoiForQuickAdd(title);
+      expect(result === null || isQuickActionablePoiType(result)).toBe(true);
+    },
+  );
+
   it('returns the rule match without calling the LLM classifier', async () => {
     expect(await inferPoiForQuickAdd('pick up prescription')).toBe('pharmacy');
     expect(mockLoad).not.toHaveBeenCalled();
@@ -179,18 +205,71 @@ describe('inferPoiForQuickAdd', () => {
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
-  it('treats book-buying phrasing as book_store without calling the LLM classifier', async () => {
-    expect(await inferPoiForQuickAdd('buy a book')).toBe('book_store');
+  it('routes book-buying phrasing through store without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('buy a book')).toBe('store');
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
-  it('treats pt-PT book-buying phrasing as book_store without calling the LLM classifier', async () => {
-    expect(await inferPoiForQuickAdd('comprar um livro')).toBe('book_store');
+  it('routes pt-PT book-buying phrasing through store without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('comprar um livro')).toBe('store');
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
-  it('uses the local dictionary for police phrasing without calling the LLM classifier', async () => {
-    expect(await inferPoiForQuickAdd('visit police')).toBe('police');
+  it('does not use non-quick local suggestions', async () => {
+    expect(await inferPoiForQuickAdd('visit police')).toBeNull();
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('uses the built-in cafe for generic coffee phrasing without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('go out for coffee')).toBe('cafe');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('uses the new quick POI dictionary entries without calling the LLM classifier', async () => {
+    expect(await inferPoiForQuickAdd('buy bread')).toBe('bakery');
+    expect(await inferPoiForQuickAdd('buy flowers')).toBe('florist');
+    expect(await inferPoiForQuickAdd('meet for cocktails')).toBe('bar');
+    expect(await inferPoiForQuickAdd('comprar flores')).toBe('florist');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('keeps restaurant food intent on the broad restaurant type', async () => {
+    expect(await inferPoiForQuickAdd('go out to sushi')).toBe('restaurant');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it('keeps store subtype intent on the broad store type', async () => {
+    expect(await inferPoiForQuickAdd('buy a t-shirt')).toBe('store');
+    expect(await inferPoiForQuickAdd('Buy a new shirt')).toBe('store');
+    expect(await inferPoiForQuickAdd('comprar carregador')).toBe('store');
+    expect(await inferPoiForQuickAdd('buy computer parts')).toBe('store');
+    expect(await inferPoiForQuickAdd('buy furniture')).toBe('store');
+    expect(mockLoad).not.toHaveBeenCalled();
+  });
+
+  it.each(['Go to the nearest FNAC', 'Find a FNAC'])(
+    'uses a recognised Store brand for %s without calling the LLM classifier',
+    async title => {
+      expect(await inferPoiForQuickAdd(title)).toBe('store');
+      expect(mockLoad).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(['buy a mango', 'comprar diesel', 'levantar nos correios'])(
+    'does not infer Store from ambiguous brand wording in %s',
+    async title => {
+      expect(await inferPoiForQuickAdd(title)).not.toBe('store');
+    },
+  );
+
+  it('does not force ambiguous food shopping or preparation phrases to restaurant', async () => {
+    await expect(inferPoiForQuickAdd('buy pasta')).resolves.not.toBe('restaurant');
+    await expect(inferPoiForQuickAdd('buy meat')).resolves.not.toBe('restaurant');
+    await expect(inferPoiForQuickAdd('make salad')).resolves.not.toBe('restaurant');
+  });
+
+  it('maps coffee roastery to cafe — a deliberately trimmed microtype, not its own catalog entry', async () => {
+    expect(await inferPoiForQuickAdd('go to a coffee roastery')).toBe('cafe');
     expect(mockLoad).not.toHaveBeenCalled();
   });
 
@@ -205,7 +284,7 @@ describe('inferPoiForQuickAdd', () => {
     expect(await inferPoiForQuickAdd('call mom')).toBeNull();
   });
 
-  it('returns a non-catalog learned type when the local dictionary misses', async () => {
+  it('uses a learned type when it is in the quick-actionable list', async () => {
     registerLearnedKeyword('foobar', 'bakery', 'en');
     registerLearnedKeyword('foobar', 'pharmacy', 'pt-PT');
 

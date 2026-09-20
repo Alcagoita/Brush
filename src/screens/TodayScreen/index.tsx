@@ -14,13 +14,13 @@
  *   3. Nearby Card                        — KAN-46
  *   4. Task list                          — KAN-15
  *
- * Scroll collapse:  k = clamp(scrollY / 170, 0, 1)
+ * Scroll collapse:  k = clamp(scrollY / 90, 0, 1)
  *
  * k=0 (rest)        k=1 (collapsed)
- * diameter  246     112
- * stroke     14      10
- * left       (screen–246)/2    22
- * height    320     150
+ * diameter  184     112
+ * stroke     11      10
+ * left       (screen–184)/2    22
+ * height    240     150
  * caption   opaque  transparent   (fades over k 0→0.625)
  * counter   hidden   visible       (fades over k 0.45→0.91)
  *
@@ -35,7 +35,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { PlusIcon } from '../../components/AppIcon';
+import { ChevronRightIcon, NavigateIcon, PlusIcon } from '../../components/AppIcon';
 import ScrRotatingNudge from '../../components/ScrRotatingNudge';
 import Animated from 'react-native-reanimated';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -45,38 +45,43 @@ import '@react-native-firebase/auth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme';
 import Header from '../../components/Header';
-import ProgressRing from '../../components/ProgressRing';
+import Lantern from '../../components/Lantern';
 import TaskRow from '../../components/TaskRow';
 import NearbyCard from '../../components/NearbyCard';
 import ErrandBundleCard from '../../components/ErrandBundleCard';
 import TripSuggestionCard from '../../components/TripSuggestionCard';
-import NetworkBanner from '../../components/NetworkBanner';
-import ContextChip from '../../components/ContextChip';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
 import { useNewTaskSheetStore } from '../../store/newTaskSheetStore';
 import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
+import { useLanternState } from '../../hooks/useLanternState';
+import { useAreaCoverageNotice } from '../../hooks/useAreaCoverageNotice';
+import { consumeTasksDirty } from '../../services/taskMutationSignal';
 import { COPY } from '../../constants/copy';
 import { localDateISO } from '../../utils/date';
+import { restaurantTaskMatchesAnyPlace } from '../../services/restaurantFoodTypes';
+import type { PlacesMap } from '../../services/proximity';
 import {
   SECTION_H_REST,
   buildEmptyMessages,
-  getWeekdays,
-  getMonths,
   DEBUG_SHOW_LIST,
   DEBUG_SHOW_NEARBY,
   DEBUG_SHOW_RING,
   DEBUG_SIMPLE_ROWS,
   DEBUG_MINIMAL,
-  RING_REST,
-  STROKE_REST,
 } from './constants';
 import { useCollapseAnimation } from './useCollapseAnimation';
 import { SkeletonRow } from './SkeletonRow';
 import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
+
+function taskHasNearbyPlace(task: { poi?: string | null; title: string }, places: PlacesMap): boolean {
+  if (!task.poi) { return false; }
+  const nearbyPlaces = places[task.poi];
+  return !!nearbyPlaces?.length && restaurantTaskMatchesAnyPlace(task, nearbyPlaces);
+}
 
 export default function TodayScreen() {
   const { palette, language } = useTheme();
@@ -95,25 +100,24 @@ export default function TodayScreen() {
     isRefreshing,
     error,
     refresh,
+    ensureCurrentDay,
     nearbyPoiType,
     poiPlaces,
     placeContext,
+    coords,
+    permissionGranted,
     storeTuningActive,
     showStoreTuningPrompt,
     onStoreTuningTurnOn,
     onStoreTuningNotNow,
     customCategories,
-    totalTasks,
-    doneTasks,
-    progress,
-    nearbyCount,
-    totalPoints,
     inboxCount,
     socialUnreadCount,
     handleToggle,
-    permissionGranted,
+    nearbyReady,
     refreshProximity,
     errandBundle,
+    errandBundleLeisure,
     dismissErrandBundle,
     tripSuggestion,
     dismissTripSuggestion,
@@ -121,13 +125,20 @@ export default function TodayScreen() {
 
   const [nearbyHasContent, setNearbyHasContent] = useState(false);
 
-  // Refresh tasks on focus so accepted shared tasks appear on return.
+  // Refresh tasks on focus — but only when a real mutation happened
+  // somewhere since the last load (a task edited/added/deleted, a shared
+  // task accepted, an import, a toggle from CalendarScreen). Every task
+  // write marks taskMutationSignal at its source (services/firestore/
+  // tasks.ts, sharing.ts, import.ts); refresh() otherwise did 10 parallel
+  // Firestore reads on every single return to this screen regardless of
+  // whether anything had changed (KAN-285 follow-up).
   // Skip the very first focus — SplashScreen already preloaded data.
   const hasFocusedOnce = useRef(false);
   useFocusEffect(useCallback(() => {
     if (!hasFocusedOnce.current) { hasFocusedOnce.current = true; return; }
-    refresh();
-  }, [refresh]));
+    void ensureCurrentDay();
+    if (consumeTasksDirty()) { void refresh(); }
+  }, [ensureCurrentDay, refresh]));
 
   // ── New Task sheet open trigger ───────────────────────────────────────────────
   // Visibility lives in useNewTaskSheetStore, NOT screen state. `openSheet` is
@@ -135,18 +146,24 @@ export default function TodayScreen() {
   // screen; the sheet itself is rendered by NewTaskSheetHost which subscribes.
   const openSheet = useCallback(() => useNewTaskSheetStore.getState().open(), []);
 
-  // ── Date display ──────────────────────────────────────────────────────────────
-  const now     = new Date();
-  const weekday = getWeekdays()[now.getDay()];
-  const month   = getMonths()[now.getMonth()];
-  const day     = now.getDate();
+  // ── Scroll-driven header collapse (KAN-157) ───────────────────────────────────
+  // Reused unmodified (KAN-301 AC12). captionStyle is the rest-layer opacity,
+  // collapsedStyle the collapsed-layer opacity — fed straight to the Lantern's
+  // two crossfade layers. ringWrapStyle (the old ring scale) is no longer used.
+  const { scrollHandler, collapsed, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
 
-  // ── Scroll-driven ring collapse (KAN-157) ─────────────────────────────────────
-  const { scrollHandler, collapsed, ringWrapStyle, bgStyle, captionStyle, collapsedStyle } = useCollapseAnimation();
-
-  // ── Progress counters ─────────────────────────────────────────────────────────
-  const pct       = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-  const remaining = totalTasks - doneTasks;
+  // ── Lantern — persistent place-familiarity header (KAN-301) ───────────────────
+  const lanternState = useLanternState(placeContext, coords, permissionGranted);
+  // KAN-349 — the other half of what the Lantern says about here: the zone
+  // flexes to explain a building or degraded area, and the same hook owns the
+  // re-check that keeps that explanation's promise.
+  const { notice: areaNotice } = useAreaCoverageNotice(coords, refreshProximity);
+  const onLanternPill = useCallback(() => {
+    // Unset points at the home-address flow; every other state opens Places
+    // (KAN-304).
+    if (lanternState.kind === 'unset') { navigation.navigate('HomeAddress'); }
+    else { navigation.navigate('Places'); }
+  }, [lanternState.kind, navigation]);
 
   // ── Task display order: undone first, done at bottom ─────────────────────────
   // Memoized so a nearby-data change (which leaves `tasks` untouched) doesn't
@@ -158,6 +175,26 @@ export default function TodayScreen() {
     }),
     [tasks],
   );
+
+  // ── "One trip for all of these" entry row (KAN-281) ───────────────────────────
+  // Pure sync check against data already in memory — no Firestore, no network,
+  // nothing async. Visible when there's more than one open POI task AND at
+  // least one of them isn't already covered by the Nearby card (same
+  // hero+grey `poiPlaces` set each row's `isFar` indicator checks). Tasks
+  // that are all already nearby don't need a trip — that's what the Nearby
+  // card is for.
+  //
+  // Gated on `nearbyReady`: before the Nearby list has actually been
+  // computed, poiPlaces is just its {} default, which would make every POI
+  // task read as "not nearby" — showing the button, then yanking it away
+  // moments later once the real scan lands is worse than not showing it at
+  // all, so it waits.
+  const oneTripVisible = useMemo(() => {
+    if (!nearbyReady) { return false; }
+    const eligible = sortedTasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+    if (eligible.length < 2) { return false; }
+    return eligible.some(t => !taskHasNearbyPlace(t, poiPlaces));
+  }, [nearbyReady, sortedTasks, poiPlaces]);
 
   // Stable row-press handler — an inline arrow here would change identity every
   // render and defeat React.memo on TaskRow.
@@ -182,8 +219,8 @@ export default function TodayScreen() {
   const isEmpty = !isBusy && !error && tasks.length === 0;
 
   // ── Virtualized task list (KAN-157 follow-up) ─────────────────────────────────
-  // Post-rollover (KAN-146) the Today list can hold every undone task carried
-  // forward from past days — potentially dozens. Rendering them all eagerly in a
+  // The active list can hold every undated task plus dated tasks whose selected
+  // day has not passed — potentially dozens. Rendering them all eagerly in a
   // .map() inside a ScrollView meant every proximity tick re-rendered the whole
   // animation-heavy list, saturating the JS thread (buttons dead). FlatList
   // virtualizes: only on-screen rows mount, and stable props keep React.memo
@@ -202,6 +239,12 @@ export default function TodayScreen() {
           // every other row keeps a stable `null` across location ticks and its
           // memo holds (no re-render).
           nearbyPoiType={item.poi && item.poi === nearbyPoiType ? nearbyPoiType : null}
+          // KAN-279 — quiet nav-arrow indicator: this task's POI isn't in
+          // the Nearby list at all (same hero+grey set NearbyCard renders
+          // from poiPlaces), so "Take me there" is available for it. Gated
+          // on nearbyReady — see oneTripVisible's comment above, same
+          // "don't show it just to yank it away" reasoning.
+          isFar={nearbyReady && !!item.poi && !taskHasNearbyPlace(item, poiPlaces)}
           onToggle={handleToggle}
           onPress={handleTaskPress}
           customCategories={customCategories}
@@ -209,7 +252,7 @@ export default function TodayScreen() {
       </View>
       )
     ),
-    [nearbyPoiType, handleToggle, handleTaskPress, customCategories, palette.text],
+    [nearbyReady, nearbyPoiType, poiPlaces, handleToggle, handleTaskPress, customCategories, palette.text],
   );
 
   const keyExtractor = useCallback((t: typeof tasks[number]) => t.id, []);
@@ -230,7 +273,11 @@ export default function TodayScreen() {
 
       {/* ── Errand bundle card (KAN-235) — absent by default ── */}
       {errandBundle && (
-        <ErrandBundleCard bundle={errandBundle} onDismiss={dismissErrandBundle} />
+        <ErrandBundleCard
+          bundle={errandBundle}
+          onDismiss={dismissErrandBundle}
+          leisure={errandBundleLeisure}
+        />
       )}
 
       {/* ── Trip suggestion card (KAN-245 calendar signal) — absent by default ── */}
@@ -248,27 +295,42 @@ export default function TodayScreen() {
         <View style={styles.sectionHeader}>
           <Text style={[styles.sectionTitle, { color: palette.muted }]}>
             {COPY.today.sectionTitlePrefix}
-            <Text style={[styles.sectionTitleCount, { color: palette.text }]}
-              accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}>
-              {`${doneTasks}/${totalTasks}`}
-            </Text>
           </Text>
-          {remaining > 0 && (
-            <Text style={[styles.sectionTitleRight, { color: palette.muted }]}>
-              {COPY.today.leftCount(remaining)}
-            </Text>
-          )}
         </View>
       </View>
     </>
   ), [
     sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
-    permissionGranted, nearbyCount, isLoading,
-    palette, doneTasks, totalTasks, remaining,
+    palette,
     nearbyHasContent, setNearbyHasContent,
+    refreshProximity,
     errandBundle, dismissErrandBundle,
+    errandBundleLeisure,
     tripSuggestion, dismissTripSuggestion, handleTripSuggestionPress, language,
   ]);
+
+  const listFooter = useMemo(() => (
+    <>
+      {/* ── "One trip for all of these" (KAN-281) — quiet, absence-is-default,
+          same bordered-row template as CalendarScreen's "Going somewhere?"
+          entry row (tripEntryRow). ── */}
+      {oneTripVisible && (
+        <Pressable
+          style={[styles.oneTripForAllRow, { borderColor: palette.line }]}
+          hitSlop={4}
+          onPress={() => navigation.navigate('ItineraryOptions')}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.oneTripForAll.entryA11y}>
+          <NavigateIcon color={palette.muted} size={16} />
+          <Text style={[styles.oneTripForAllLabel, { color: palette.text }]}>
+            {COPY.oneTripForAll.entryLabel}
+          </Text>
+          <ChevronRightIcon color={palette.faint} size={14} strokeWidth={1.8} />
+        </Pressable>
+      )}
+      <View style={styles.bottomPad} />
+    </>
+  ), [oneTripVisible, navigation, palette]);
 
   const listEmpty = isBusy ? (
     <View style={styles.rowPad}>
@@ -305,17 +367,11 @@ export default function TodayScreen() {
           photoURL={user?.photoURL}
           hasUnread={inboxCount > 0 || socialUnreadCount > 0}
           socialBadge={0}
-          points={totalPoints}
           onAvatarPress={() => navigation.navigate('Profile')}
           onBellPress={() => navigation.navigate('SharedTaskInbox')}
           onPeoplePress={() => navigation.navigate('SocialHub')}
-          onAchievementsPress={() => navigation.navigate('Achievements')}
-          contextChip={<ContextChip placeContext={placeContext} />}
         />
       </View>
-
-      {/* ── Offline banner — below app bar ── */}
-      <NetworkBanner />
 
       {/* ── Scroll area — ring section overlaid on content ── */}
       {(DEBUG_SHOW_LIST || DEBUG_SHOW_RING) && (
@@ -352,9 +408,9 @@ export default function TodayScreen() {
         ) : (
           /*
             The ScrollView fills the entire scrollArea (absoluteFill).
-            paddingTop = SECTION_H_REST means content always starts 320px down,
+            paddingTop = SECTION_H_REST means content always starts 240px down,
             directly below where the ring section sits at rest. As the ring
-            section collapses by SCROLL_RANGE (170px), content scrolls up the
+            section collapses by SCROLL_RANGE (90px), content scrolls up the
             same distance — they stay in perfect alignment throughout.
           */
           <Animated.FlatList
@@ -368,7 +424,7 @@ export default function TodayScreen() {
             keyExtractor={keyExtractor}
             ListHeaderComponent={listHeader}
             ListEmptyComponent={listEmpty}
-            ListFooterComponent={<View style={styles.bottomPad} />}
+            ListFooterComponent={listFooter}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={scrollHandler}
@@ -379,15 +435,15 @@ export default function TodayScreen() {
           />
         ))}
 
-        {/* ── Collapsible ring section — absolutely positioned ON TOP of content ── */}
+        {/* ── Collapsible Lantern section — absolutely positioned ON TOP of content (KAN-301) ── */}
         {/*                                                                         */}
-        {/* 3-STATE SNAP (KAN-157): the header has three fixed layouts (rest /      */}
-        {/* middle / collapsed) selected by `stage`. Nothing animates per frame —   */}
-        {/* a stage change swaps to a different set of STATIC styles. This removes  */}
-        {/* the per-frame layout/commit work that froze the thread on scroll.       */}
+        {/* Replaces the progress ring. The Lantern owns two static layouts (rest  */}
+        {/* centred; collapsed = icon+label left, pill right) that cross-fade via   */}
+        {/* captionStyle / collapsedStyle — nothing animates per frame, matching    */}
+        {/* the KAN-157 doctrine. The breathing halo is a View, never SVG.          */}
         {/*                                                                         */}
-        {/* pointerEvents="box-none" lets scroll gestures pass through to the      */}
-        {/* ScrollView while still allowing the day-number Pressable to work.       */}
+        {/* pointerEvents="box-none" lets scroll gestures pass through to the       */}
+        {/* FlatList while the Lantern's pill stays tappable.                       */}
         {DEBUG_SHOW_RING && (
         <View
           pointerEvents="box-none"
@@ -403,78 +459,14 @@ export default function TodayScreen() {
             ]}
           />
 
-          {/* Ring — rendered once at rest size; scaled/translated per stage */}
-          <Animated.View style={[styles.ringWrap, ringWrapStyle]} pointerEvents="none">
-            <ProgressRing
-              progress={progress}
-              diameter={RING_REST}
-              strokeWidth={STROKE_REST}
-            />
-          </Animated.View>
-
-          {/* Full caption — fades out as the header collapses */}
-          <Animated.View
-            style={[styles.captionWrap, captionStyle]}
-            pointerEvents={collapsed ? 'none' : 'box-none'}>
-            <Text style={[styles.captionLabel, { color: palette.muted }]}>
-              {weekday.toUpperCase()}
-            </Text>
-            <Pressable
-              onPress={() => navigation.navigate('Calendar')}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.today.openCalendarA11y(weekday, day)}
-              hitSlop={{ top: 12, bottom: 12, left: 24, right: 24 }}>
-              <Text style={[styles.captionDay, { color: palette.text }]}>
-                {day}
-              </Text>
-            </Pressable>
-            {isEmpty ? (
-              <Text style={[styles.captionSub, { color: palette.muted }]}>{month}</Text>
-            ) : (
-              <Text style={[styles.captionSub, { color: palette.muted }]}>
-                {`${month} · `}
-                <Text style={[styles.captionSubBold, { color: palette.text }]}>
-                  {COPY.today.nearbyCount(nearbyCount)}
-                </Text>
-              </Text>
-            )}
-          </Animated.View>
-
-          {/* Compact caption — fades in when collapsed */}
-          <Animated.View style={[styles.ringCaption, collapsedStyle]} pointerEvents="none">
-            <Text style={[styles.ringCaptionDay3, { color: palette.muted }]}>
-              {weekday.slice(0, 3).toUpperCase()}
-            </Text>
-            <Text style={[styles.ringCaptionNum, { color: palette.text }]}>
-              {day}
-            </Text>
-            <Text style={[styles.ringCaptionMonth, { color: palette.muted }]}>
-              {month}
-            </Text>
-          </Animated.View>
-
-          {/* Progress panel — fades in when collapsed */}
-          <Animated.View
-            style={[styles.progressWrap, collapsedStyle]}
-            accessibilityLabel={COPY.progress.ringA11y(doneTasks, totalTasks)}
-            accessibilityRole="text"
-            pointerEvents="none">
-            <Text style={[styles.progressLabel, { color: palette.muted }]}>
-              {COPY.today.progressLabel}
-            </Text>
-            <View style={styles.fractionRow}>
-              <Text style={[styles.counterDone, { color: palette.text }]}>
-                {doneTasks}
-              </Text>
-              <Text style={[styles.counterSep, { color: palette.faint }]}>/</Text>
-              <Text style={[styles.counterTotal, { color: palette.muted }]}>
-                {totalTasks}
-              </Text>
-            </View>
-            <Text style={[styles.progressSub, { color: palette.muted }]}>
-              {COPY.today.progressSummary(pct, remaining)}
-            </Text>
-          </Animated.View>
+          <Lantern
+            state={lanternState}
+            notice={areaNotice}
+            onPillPress={onLanternPill}
+            restStyle={captionStyle}
+            collapsedStyle={collapsedStyle}
+            collapsed={collapsed}
+          />
         </View>
         )}
 
@@ -514,7 +506,12 @@ export default function TodayScreen() {
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ── */}
       {isLoading && !DEBUG_MINIMAL && (
-        <View style={[styles.loadingOverlay, { backgroundColor: palette.scrim }]} pointerEvents="box-only">
+        <View
+          style={[
+            styles.loadingOverlay,
+            { backgroundColor: palette.scrim },
+          ]}
+          pointerEvents="box-only">
           <ActivityIndicator size="large" color={palette.accent} />
         </View>
       )}

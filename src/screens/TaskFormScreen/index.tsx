@@ -15,7 +15,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Keyboard,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
   Pressable,
   ScrollView,
   Switch,
@@ -31,20 +33,37 @@ import { getScreenKeyboardAvoidingBehavior } from '../../utils/keyboardAvoiding'
 import { addTask, updateTask, deleteTask, getCategories, addCategory } from '../../services/firestore';
 import { deleteField } from '@react-native-firebase/firestore';
 import { inferPoiForQuickAdd, learnFromUserEdit } from '../../services/poiLlm';
-import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, PoiIcon } from '../../components/AppIcon';
+import { CakeIcon, CalendarIcon, ClockIcon, CloseIcon, NavigateIcon, PoiIcon } from '../../components/AppIcon';
 import type { Category, PoiType, Task } from '../../types';
 import { logTap } from '../../services/analytics';
-import { POI_CATALOG, poiCatalogLabel } from '../../types';
+import { QUICK_ACTIONABLE_POI_TYPES, isCatalogPoiType, poiCatalogLabel } from '../../types';
 import { todayISO, formatDateShort } from '../../utils/date';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { COPY } from '../../constants/copy';
 import { useToastStore } from '../../store/toastStore';
 import RotatingTitlePlaceholder from '../../components/RotatingTitlePlaceholder';
 import MiniCalendar from '../../components/MiniCalendar';
+import MiniTimePicker from '../../components/MiniTimePicker';
+import FoodTypeSelector from '../../components/FoodTypeSelector';
+import FinancialServiceKindSelector from '../../components/FinancialServiceKindSelector';
+import { scheduleTaskReminder, cancelTaskReminder } from '../../services/notifications';
+import { refreshDatedTaskHandoff } from '../../services/datedTaskHandoff';
+import { isTaskPoiFarAway, openTakeMeThereMaps, getTakeMeThereA11yLabel } from '../../services/takeMeThere';
 import { getTypeSuggestions } from './poiSuggestions';
 import { PoiTile } from './PoiTile';
 import { POI_TILE_WIDTH, styles } from './styles';
 import { localPoiLabel } from '../../services/poiTypeCache';
+import type { RestaurantFoodType } from '../../services/restaurantFoodTypes';
+import StoreSubtypeSelector from '../../components/StoreSubtypeSelector';
+import StoreBrandInput from '../../components/StoreBrandInput';
+import StoreDetailModeSelector from '../../components/StoreDetailModeSelector';
+import BrandSelector from '../../components/BrandSelector';
+import {
+  inferStoreSubtype,
+  type StoreSubtype,
+} from '../../services/storeSubtypes';
+import { findBrandInText, isCanonicalBrandForType, poiTypeRequiresBrand } from '../../services/brandDictionary';
+import { inferFinancialServiceKind, type FinancialServiceKind } from '../../services/financialServiceKinds';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -53,7 +72,14 @@ export interface TaskFormParams {
   task?: Task;
   initialDate?: string;
   initialTitle?: string;
+  initialCategory?: string;
   initialPoi?: string;
+  initialRestaurantFoodType?: RestaurantFoodType;
+  initialFinancialServiceKind?: FinancialServiceKind;
+  initialFinancialServiceKindExplicitlySelected?: boolean;
+  initialStoreSubtype?: StoreSubtype;
+  initialPoiBrand?: string;
+  initialStoreSubtypeExplicitlySelected?: boolean;
   initialPoiExplicitlySelected?: boolean;
 }
 
@@ -65,32 +91,30 @@ export default function TaskFormScreen() {
   const insets       = useSafeAreaInsets();
   const route        = useRoute<RouteProp<RootStackParamList, 'TaskForm'>>();
 
-  const { uid, task: existingTask, initialDate, initialTitle, initialPoi, initialPoiExplicitlySelected } = route.params;
+  const { uid, task: existingTask, initialDate, initialTitle, initialCategory, initialPoi, initialRestaurantFoodType, initialFinancialServiceKind, initialFinancialServiceKindExplicitlySelected, initialStoreSubtype, initialPoiBrand, initialStoreSubtypeExplicitlySelected, initialPoiExplicitlySelected } = route.params;
   const isEdit = !!existingTask;
   const hasExplicitInitialPoi = Boolean(existingTask?.poi || initialPoiExplicitlySelected);
-  const isCatalogPoiType = (value: string | null | undefined): value is PoiType => (
-    value != null && POI_CATALOG.some(item => item.type === value)
-  );
 
   // ── Form state ──────────────────────────────────────────────────────────────
 
   const [title,    setTitle]    = useState(existingTask?.title    ?? initialTitle ?? '');
-  const [category, setCategory] = useState<string | null>(existingTask?.category ?? null);
+  const [category, setCategory] = useState<string | null>(existingTask?.category ?? initialCategory ?? null);
   const [notes,    setNotes]    = useState(existingTask?.description ?? '');
   // Rotating title placeholder freezes permanently once the user taps the field (KAN-149).
   const [titleFocused, setTitleFocused] = useState(false);
 
   // Due date
-  const [date, setDate] = useState<string>(() => {
-    if (existingTask?.date) { return existingTask.date; }
+  const [date, setDate] = useState<string | null>(() => {
+    if (existingTask?.scheduledDate) { return existingTask.scheduledDate; }
     if (initialDate)        { return initialDate; }
-    return todayISO();
+    return null;
   });
 
   const [dateFieldOpen, setDateFieldOpen] = useState(false);
 
   // Time
   const [time, setTime] = useState<string>(existingTask?.time ?? '');
+  const [timeFieldOpen, setTimeFieldOpen] = useState(false);
 
   // Birthday toggle (KAN-248) — edit-mode-only correction path for import
   // detection misses. Never shown/settable from the create flow.
@@ -154,6 +178,40 @@ export default function TaskFormScreen() {
     if (initialPoi && !isCatalogPoiType(initialPoi)) { return initialPoi; }
     return null;
   });
+  const [restaurantFoodType, setRestaurantFoodType] = useState<RestaurantFoodType | null>(
+    existingTask?.poi === 'restaurant'
+      ? existingTask.restaurantFoodType ?? null
+      : initialPoi === 'restaurant' ? initialRestaurantFoodType ?? null : null,
+  );
+  const [financialServiceKind, setFinancialServiceKind] = useState<FinancialServiceKind | null>(
+    existingTask?.poi === 'financial_service'
+      ? existingTask.financialServiceKind ?? null
+      : initialPoi === 'financial_service' ? initialFinancialServiceKind ?? null : null,
+  );
+  const [financialServiceKindTouched, setFinancialServiceKindTouched] = useState(
+    Boolean(initialFinancialServiceKindExplicitlySelected),
+  );
+  const [storeSubtype, setStoreSubtype] = useState<StoreSubtype | null>(
+    existingTask?.poi === 'store'
+      ? existingTask.storeSubtype ?? null
+      : initialPoi === 'store'
+        ? initialStoreSubtype ?? null
+        : null,
+  );
+  const [storeSubtypeTouched, setStoreSubtypeTouched] = useState(
+    Boolean(existingTask?.storeSubtype || initialStoreSubtypeExplicitlySelected),
+  );
+  const [storeDetailMode, setStoreDetailMode] = useState<'type' | 'brand'>(() =>
+    (existingTask?.poi === 'store' && Boolean(existingTask.poiBrand))
+      || (initialPoi === 'store' && Boolean(initialPoiBrand))
+      ? 'brand' : 'type',
+  );
+  const [poiBrand, setPoiBrand] = useState<string | null>(() =>
+    poiTypeRequiresBrand(existingTask?.poi) || existingTask?.poi === 'store' ? existingTask?.poiBrand ?? null
+      : poiTypeRequiresBrand(initialPoi) || initialPoi === 'store' ? initialPoiBrand ?? null : null,
+  );
+  const [poiBrandTouched, setPoiBrandTouched] = useState(Boolean(existingTask?.poiBrand || initialPoiBrand));
+  const previousBrandPoiRef = useRef<string | null>(poiKey ?? customPoiType);
   const [focused,       setFocused]       = useState(false);
   const [suggestedPoi, setSuggestedPoi] = useState<string | null>(
     existingTask?.poi ?? (hasExplicitInitialPoi ? null : initialPoi ?? null),
@@ -174,6 +232,14 @@ export default function TaskFormScreen() {
       .catch(err => console.warn('[TaskFormScreen] categories error', err));
   }, [uid]);
 
+  // "Take me there" (KAN-279) — edit mode only. Only question the app asks
+  // itself: is this task's POI type NOT the one currently on the Nearby
+  // card? Synchronous, no location fetch — visibility never depends on a
+  // permission/GPS round-trip. The actual position is only fetched at tap
+  // time, right before opening Maps.
+  const takeMeThereFar = isEdit && !!existingTask && !isBirthday
+    && !!existingTask.poi && isTaskPoiFarAway(existingTask.poi);
+
   // Inline new-category editor
   const [addingCat,   setAddingCat]   = useState(false);
   const [newCatName,  setNewCatName]  = useState('');
@@ -192,9 +258,9 @@ export default function TaskFormScreen() {
     if (!trimmed) { return; }
     setNewCatSaving(true);
     try {
-      const id = await addCategory(uid, { name: trimmed, color: newCatColor, poi: null });
+      const id = await addCategory(uid, { name: trimmed, color: newCatColor });
       // No live listener anymore (KAN-218) — append locally instead of refetching.
-      setCustomCategories(prev => [...prev, { id, name: trimmed, color: newCatColor, poi: null, isBuiltIn: false }]);
+      setCustomCategories(prev => [...prev, { id, name: trimmed, color: newCatColor, isBuiltIn: false }]);
       setCategory(id);
       setAddingCat(false);
     } catch (err) {
@@ -209,40 +275,117 @@ export default function TaskFormScreen() {
   const [submitting, setSubmitting] = useState(false);
   const titleRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    if (isEdit || userTouchedPoiRef.current) { return; }
+  // ── Keeping Notes above the keyboard (KAN-369) ──────────────────────────────
+  //
+  // Notes is the last section of the scroll content, so an opening keyboard
+  // lands right on top of it, and nothing moves it on its own: Android's
+  // KeyboardAvoidingView is deliberately a no-op (windowSoftInputMode
+  // adjustResize is meant to own the resize — see
+  // getScreenKeyboardAvoidingBehavior) and automaticallyAdjustKeyboardInsets
+  // is iOS-only.
+  //
+  // Scrolling alone is not enough, because the resize cannot be relied on:
+  // under edge-to-edge the window keeps its full height and the keyboard
+  // simply covers it, so there is no extra scroll range to move Notes into.
+  // NewTaskSheet hit the same wall and moves itself off the keyboard metrics
+  // (see its kbOffset) — do the same here.
+  //
+  // Rather than assume either behaviour, derive the overlap: the screen's own
+  // box runs from the top of the window down by its measured height, and
+  // keyboardDidShow reports where the keyboard's top edge lands. Pad the
+  // content by whatever the keyboard reaches into that box, then scroll Notes
+  // into view inside the lifted viewport. When the OS did resize the window,
+  // the box already ends at the keyboard, the overlap clamps to 0 and this
+  // stays inert — the double-compensation bug the hotfix warned about cannot
+  // come back.
+  const scrollRef       = useRef<ScrollView>(null);
+  const notesOffsetRef  = useRef<number | null>(null);
+  const notesFocusedRef = useRef(false);
+  // Height of everything this screen draws — i.e. the app window's height.
+  const screenHeightRef = useRef(0);
+  const [keyboardInset, setKeyboardInset] = useState(0);
 
+  const handleNotesLayout = useCallback((e: LayoutChangeEvent) => {
+    notesOffsetRef.current = e.nativeEvent.layout.y;
+  }, []);
+
+  const handleLiftLayout = useCallback((e: LayoutChangeEvent) => {
+    // Measured with the lift already applied, so add it back to recover the
+    // unlifted height the next overlap calculation needs.
+    screenHeightRef.current = e.nativeEvent.layout.height + keyboardInset;
+  }, [keyboardInset]);
+
+  const scrollNotesIntoView = useCallback(() => {
+    const y = notesOffsetRef.current;
+    if (y == null) { return; }
+    // Leave the section label visible above the box.
+    scrollRef.current?.scrollTo({ y: Math.max(y - 24, 0), animated: true });
+  }, []);
+
+  const handleNotesFocus = useCallback(() => {
+    notesFocusedRef.current = true;
+    scrollNotesIntoView();
+  }, [scrollNotesIntoView]);
+
+  const handleNotesBlur = useCallback(() => {
+    notesFocusedRef.current = false;
+  }, []);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener('keyboardDidShow', e => {
+      // How far the keyboard reaches into the screen's own box. When the OS
+      // resized the window, the box already ends at (or above) the keyboard
+      // and this clamps to 0 — no double compensation.
+      setKeyboardInset(Math.max(screenHeightRef.current - e.endCoordinates.screenY, 0));
+      if (notesFocusedRef.current) { scrollNotesIntoView(); }
+    });
+    const hideSub = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardInset(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, [scrollNotesIntoView]);
+
+  useEffect(() => {
     const myRequestId = ++inferenceRequestIdRef.current;
     const trimmed = title.trim();
 
-    // Title edits invalidate any still-unconfirmed inferred POI immediately,
-    // so a stale guess never remains active while the next debounce runs.
-    setPoiKey(null);
-    setCustomPoiType(null);
-    setQuery('');
-    setSuggestedPoi(null);
-    setSuggestedTitle(trimmed || null);
+    if (!userTouchedPoiRef.current) {
+      // Title edits invalidate any still-unconfirmed inferred POI immediately,
+      // so a stale guess never remains active while the next debounce runs.
+      setPoiKey(null);
+      setCustomPoiType(null);
+      setQuery('');
+      setSuggestedPoi(null);
+      setSuggestedTitle(trimmed || null);
+    }
 
     if (!trimmed) { return; }
 
     const timer = setTimeout(() => {
-      if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+      if (inferenceRequestIdRef.current !== myRequestId) { return; }
 
       inferPoiForQuickAdd(trimmed)
         .then(suggestion => {
-          if (userTouchedPoiRef.current || inferenceRequestIdRef.current !== myRequestId) { return; }
+          if (inferenceRequestIdRef.current !== myRequestId) { return; }
 
           if (!suggestion) {
-            setPoiKey(null);
-            setCustomPoiType(null);
-            setQuery('');
             setSuggestedPoi(null);
             setSuggestedTitle(trimmed);
+            if (!userTouchedPoiRef.current) {
+              setPoiKey(null);
+              setCustomPoiType(null);
+              setQuery('');
+            }
             return;
           }
 
           setSuggestedPoi(suggestion);
           setSuggestedTitle(trimmed);
+
+          if (userTouchedPoiRef.current) { return; }
 
           if (isCatalogPoiType(suggestion)) {
             setPoiKey(suggestion);
@@ -266,27 +409,95 @@ export default function TaskFormScreen() {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [title, isEdit]);
+  }, [title]);
 
   // poi is required: quick-pick key → customPoiType (from suggestion) → raw query text
   const effectivePoi: string | null = poiKey ?? customPoiType ?? (query.trim() || null);
 
+  useEffect(() => {
+    if (effectivePoi !== 'restaurant') { setRestaurantFoodType(null); }
+    if (effectivePoi !== 'financial_service') {
+      setFinancialServiceKind(null);
+      setFinancialServiceKindTouched(false);
+    }
+    if (effectivePoi !== 'store') {
+      setStoreSubtype(null);
+      setStoreSubtypeTouched(false);
+      setStoreDetailMode('type');
+    }
+    if (previousBrandPoiRef.current !== effectivePoi || (!poiTypeRequiresBrand(effectivePoi) && effectivePoi !== 'store')) {
+      setPoiBrand(null);
+      setPoiBrandTouched(false);
+    }
+    previousBrandPoiRef.current = effectivePoi;
+  }, [effectivePoi]);
+
+  useEffect(() => {
+    if (effectivePoi !== 'store' || storeDetailMode !== 'type' || storeSubtypeTouched) { return; }
+    setStoreSubtype(inferStoreSubtype(title.trim()));
+  }, [effectivePoi, storeDetailMode, storeSubtypeTouched, title]);
+
+  useEffect(() => {
+    if (effectivePoi !== 'financial_service' || financialServiceKindTouched) return;
+    setFinancialServiceKind(current => current ?? inferFinancialServiceKind(title.trim()));
+  }, [effectivePoi, financialServiceKindTouched, title]);
+
+  const handleFinancialServiceKindSelect = useCallback((kind: FinancialServiceKind | null) => {
+    setFinancialServiceKindTouched(true);
+    setFinancialServiceKind(kind);
+  }, []);
+
+  const suggestedBrand = (poiTypeRequiresBrand(effectivePoi) || effectivePoi === 'store') ? findBrandInText(effectivePoi, title) : null;
+    useEffect(() => {
+      if ((!poiTypeRequiresBrand(effectivePoi) && effectivePoi !== 'store') || poiBrandTouched || (effectivePoi === 'store' && storeSubtypeTouched)) { return; }
+      setPoiBrand(suggestedBrand);
+      if (effectivePoi === 'store') {
+        if (suggestedBrand) {
+          setStoreSubtype(null);
+          setStoreDetailMode('brand');
+        } else {
+          setStoreDetailMode('type');
+        }
+      }
+  }, [effectivePoi, poiBrandTouched, storeSubtypeTouched, suggestedBrand]);
+
   // Suggestions shown while the user is actively typing (hidden once a suggestion is selected)
   const suggestions = !customPoiType && query.trim() ? getTypeSuggestions(query) : [];
   // Birthday tasks are exempt from the POI requirement (KAN-248) — date-shaped, not place-shaped.
-  const canSubmit = title.trim().length > 0 && (isBirthday || effectivePoi !== null);
+  const hasRequiredStoreDetail = effectivePoi !== 'store' || (
+    storeDetailMode === 'brand'
+      ? isCanonicalBrandForType('store', poiBrand)
+      : Boolean(storeSubtype && storeSubtype !== 'any')
+  );
+  const canSubmit = title.trim().length > 0 && (isBirthday || (
+    effectivePoi !== null
+      && hasRequiredStoreDetail
+      && (!poiTypeRequiresBrand(effectivePoi) || isCanonicalBrandForType(effectivePoi, poiBrand))
+  ));
   const suggestionType = suggestedTitle === title.trim() ? suggestedPoi : null;
   const suggestionLabel = suggestionType
     ? (isCatalogPoiType(suggestionType) ? poiCatalogLabel(suggestionType) : localPoiLabel(suggestionType))
     : null;
   const suggestionSelected = suggestionType !== null && effectivePoi === suggestionType;
-  const liveSuggestion = suggestionType !== null && suggestionSelected && !poiTouched;
+  const liveSuggestion = suggestionType !== null && (
+    (suggestionSelected && !poiTouched)
+    || (isEdit && !suggestionSelected && suggestionType !== existingTask?.poi)
+  );
   const confirmedSuggestion = suggestionType !== null && suggestionSelected && poiTouched;
   const showSuggestionHint = liveSuggestion || suggestionType === null;
+  const suggestionHighlighted = liveSuggestion || suggestionSelected;
+  const suggestedStoreSubtype = effectivePoi === 'store' && storeSubtype && !storeSubtypeTouched && storeSubtype !== 'any'
+    ? storeSubtype
+    : null;
 
   const handleSave = useCallback(async () => {
     const trimmed = title.trim();
-    if (!trimmed || (!isBirthday && !effectivePoi)) { return; }
+    const canSaveStoreDetail = effectivePoi !== 'store' || (
+      storeDetailMode === 'brand'
+        ? isCanonicalBrandForType('store', poiBrand)
+        : Boolean(storeSubtype && storeSubtype !== 'any')
+    );
+    if (!trimmed || (!isBirthday && (!effectivePoi || !canSaveStoreDetail || (poiTypeRequiresBrand(effectivePoi) && !isCanonicalBrandForType(effectivePoi, poiBrand))))) { return; }
 
     setSubmitting(true);
     try {
@@ -294,9 +505,16 @@ export default function TaskFormScreen() {
         title:    trimmed,
         category: isBirthday ? 'personal' : (category ?? 'personal'),
         done:     existingTask?.done ?? false,
-        date,
+        ...(date ? {
+          scheduledDate: date,
+          originalScheduledDate: existingTask?.originalScheduledDate ?? existingTask?.scheduledDate ?? date,
+        } : {}),
         ...(time.trim() ? { time: time.trim() } : {}),
         ...(isBirthday ? { kind: 'birthday' as const } : { poi: effectivePoi! }),
+        ...(!isBirthday && effectivePoi === 'store' && storeDetailMode === 'type' && storeSubtype && storeSubtype !== 'any' ? { storeSubtype } : {}),
+        ...(!isBirthday && effectivePoi === 'restaurant' && restaurantFoodType ? { restaurantFoodType } : {}),
+        ...(!isBirthday && effectivePoi === 'financial_service' && financialServiceKind ? { financialServiceKind } : {}),
+        ...(!isBirthday && (poiTypeRequiresBrand(effectivePoi) || effectivePoi === 'store') && isCanonicalBrandForType(effectivePoi, poiBrand) ? { poiBrand: poiBrand! } : {}),
       };
 
       if (notes.trim()) {
@@ -311,15 +529,69 @@ export default function TaskFormScreen() {
         const updateData: Record<string, unknown> = { ...payload };
         if (isBirthday) {
           updateData.poi = deleteField();
+          updateData.storeSubtype = deleteField();
+          updateData.restaurantFoodType = deleteField();
+          updateData.financialServiceKind = deleteField();
+          updateData.poiBrand = deleteField();
         } else if (existingTask.kind === 'birthday') {
           updateData.kind = deleteField();
         }
+        if (!isBirthday && (effectivePoi !== 'store' || isCanonicalBrandForType('store', poiBrand))) {
+          updateData.storeSubtype = deleteField();
+        }
+        if (!isBirthday && (effectivePoi !== 'restaurant' || !restaurantFoodType)) {
+          updateData.restaurantFoodType = deleteField();
+        }
+        if (!isBirthday && (effectivePoi !== 'financial_service' || !financialServiceKind)) {
+          updateData.financialServiceKind = deleteField();
+        }
+        if (!isBirthday && (!poiTypeRequiresBrand(effectivePoi) && (effectivePoi !== 'store' || !isCanonicalBrandForType('store', poiBrand)))) {
+          updateData.poiBrand = deleteField();
+        }
+        if (!date) {
+          updateData.scheduledDate = deleteField();
+          updateData.originalScheduledDate = deleteField();
+        }
+        if (!time.trim()) {
+          updateData.time = deleteField();
+        }
         await updateTask(uid, existingTask.id, updateData as Partial<Task>);
         logTap('task_edit', { category: payload.category });
+        // A time reminder is valid only when both a date and a time remain.
+        // Clearing either one must cancel the prior trigger explicitly.
+        if (date && time.trim()) {
+          await scheduleTaskReminder({
+            taskId:    existingTask.id,
+            taskTitle: trimmed,
+            date,
+            time:      time.trim(),
+          }).catch(() => {});
+        } else {
+          cancelTaskReminder(existingTask.id).catch(() => {});
+        }
+        await Promise.all([
+          existingTask.scheduledDate
+            ? refreshDatedTaskHandoff(uid, existingTask.scheduledDate)
+            : Promise.resolve(),
+          date && date !== existingTask.scheduledDate
+            ? refreshDatedTaskHandoff(uid, date)
+            : Promise.resolve(),
+        ]).catch(() => {});
       } else {
-        await addTask(uid, payload);
+        const newTaskId = await addTask(uid, payload);
         logTap('task_create', { category: payload.category });
         useToastStore.getState().showToast(COPY.newTaskSheet.confirmToast);
+        if (date && time.trim()) {
+          await scheduleTaskReminder({
+            taskId:    newTaskId,
+            taskTitle: trimmed,
+            date,
+            time:      time.trim(),
+          }).catch(() => {});
+        }
+        if (date) {
+          await refreshDatedTaskHandoff(uid, date).catch(() => {});
+        }
       }
 
       // Feed the user's title→POI choice back into the inference dictionary
@@ -335,7 +607,7 @@ export default function TaskFormScreen() {
     } finally {
       setSubmitting(false);
     }
-  }, [title, category, effectivePoi, time, date, notes, uid, isEdit, existingTask, isBirthday, navigation]);
+  }, [title, category, effectivePoi, storeDetailMode, storeSubtype, restaurantFoodType, financialServiceKind, poiBrand, time, date, notes, uid, isEdit, existingTask, isBirthday, navigation]);
 
   // ── Delete (edit mode only) ─────────────────────────────────────────────────
 
@@ -355,6 +627,12 @@ export default function TaskFormScreen() {
             setDeleting(true);
             try {
               await deleteTask(uid, existingTask.id);
+              // Best-effort — a notifee failure here must never block
+              // navigation or be reported as a delete failure.
+              cancelTaskReminder(existingTask.id).catch(() => {});
+              if (existingTask.scheduledDate) {
+                refreshDatedTaskHandoff(uid, existingTask.scheduledDate).catch(() => {});
+              }
               logTap('task_delete', { category: existingTask.category });
               navigation.goBack();
             } catch (err) {
@@ -383,6 +661,13 @@ export default function TaskFormScreen() {
       style={[styles.root, { backgroundColor: palette.bg }]}
       behavior={getScreenKeyboardAvoidingBehavior()}>
 
+      {/* Everything the screen draws, lifted clear of the keyboard when the
+          window itself did not move (KAN-369). */}
+      <View
+        testID="task-form-lift"
+        onLayout={handleLiftLayout}
+        style={[styles.lift, { paddingBottom: keyboardInset }]}>
+
       {/* ── Sticky top bar ── */}
       <View style={[
         styles.topBar,
@@ -403,10 +688,22 @@ export default function TaskFormScreen() {
         <Text style={[styles.topBarTitle, { color: palette.text }]}>
           {isEdit ? COPY.taskFormScreen.editTaskTitle : COPY.newTaskSheet.title}
         </Text>
-        <View style={styles.topBarRight} />
+        {takeMeThereFar ? (
+          <Pressable
+            onPress={() => { openTakeMeThereMaps(existingTask!.poi!).catch(() => {}); }}
+            hitSlop={12}
+            style={styles.topBarRight}
+            accessibilityRole="button"
+            accessibilityLabel={getTakeMeThereA11yLabel(existingTask!.poi!)}>
+            <NavigateIcon color={palette.muted} size={20} />
+          </Pressable>
+        ) : (
+          <View style={styles.topBarRight} />
+        )}
       </View>
 
       <ScrollView
+        ref={scrollRef}
         testID="task-form-scroll"
         style={[styles.scrollView, { backgroundColor: palette.bg }]}
         contentContainerStyle={[
@@ -585,8 +882,7 @@ export default function TaskFormScreen() {
               accessibilityState={{ selected: suggestionSelected, disabled: suggestionType === null }}
               style={[
                 styles.poiTile,
-                showSuggestionHint && styles.poiSuggestionTile,
-                confirmedSuggestion && styles.poiTileSuggested,
+                (showSuggestionHint || confirmedSuggestion) && styles.poiTileSuggested,
                 {
                   width: POI_TILE_WIDTH,
                   backgroundColor: liveSuggestion
@@ -605,15 +901,16 @@ export default function TaskFormScreen() {
                 <>
                   <PoiIcon
                     type={suggestionType}
-                    color={suggestionSelected ? palette.nearText : palette.muted}
+                    color={suggestionHighlighted ? palette.nearText : palette.muted}
                     size={22}
                   />
                   <Text
                     style={[
                       styles.poiTileLabel,
-                      { color: suggestionSelected ? palette.nearText : palette.muted },
+                      { color: suggestionHighlighted ? palette.nearText : palette.muted },
                     ]}
-                    numberOfLines={1}>
+                    numberOfLines={1}
+                    ellipsizeMode="tail">
                     {suggestionLabel}
                   </Text>
                 </>
@@ -633,7 +930,7 @@ export default function TaskFormScreen() {
               snapToInterval={POI_TILE_WIDTH + 10}
               decelerationRate="fast"
               style={styles.poiCarouselMask}>
-              {POI_CATALOG.map(({ type }) => (
+              {QUICK_ACTIONABLE_POI_TYPES.map(type => (
                 <PoiTile
                   key={type}
                   type={type}
@@ -656,6 +953,135 @@ export default function TaskFormScreen() {
               ))}
             </ScrollView>
           </View>
+
+          {effectivePoi === 'restaurant' && (
+            <View style={styles.subtypeSection}>
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.subtypeQuestion}
+                </Text>
+                <Text style={[styles.questionOptional, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.catOptional}
+                </Text>
+              </View>
+              <FoodTypeSelector
+                selected={restaurantFoodType}
+                onSelect={setRestaurantFoodType}
+              />
+            </View>
+          )}
+
+          {effectivePoi === 'store' && (
+            <View style={styles.subtypeSection}>
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.storeDetailQuestion}
+                </Text>
+              </View>
+              <StoreDetailModeSelector
+                value={storeDetailMode}
+                onSelect={mode => {
+                  if (mode === 'type') {
+                    setStoreDetailMode('type');
+                    setPoiBrand(null);
+                    setPoiBrandTouched(false);
+                    setStoreSubtypeTouched(false);
+                  } else {
+                    setStoreDetailMode('brand');
+                    setStoreSubtype(null);
+                    setStoreSubtypeTouched(false);
+                    // A deliberate mode change must not be overwritten by
+                    // the title's automatic brand inference.
+                    setPoiBrandTouched(true);
+                  }
+                }}
+              />
+              {storeDetailMode === 'type' ? (
+                <StoreSubtypeSelector
+                  selected={storeSubtype}
+                  suggested={suggestedStoreSubtype}
+                  onSelect={subtype => {
+                    setStoreSubtypeTouched(true);
+                    setPoiBrand(null);
+                    setPoiBrandTouched(false);
+                    setStoreSubtype(subtype);
+                  }}
+                />
+              ) : (
+                <StoreBrandInput
+                  poiType="store"
+                  selected={poiBrand}
+                  placeholder={COPY.newTaskSheet.storeBrandPlaceholder}
+                  unmatchedLabel={COPY.newTaskSheet.storeBrandUnknown}
+                  onClear={() => {
+                    setPoiBrand(null);
+                    setPoiBrandTouched(true);
+                  }}
+                  onSelect={brand => {
+                    setPoiBrandTouched(true);
+                    setPoiBrand(brand);
+                    setStoreSubtype(null);
+                    setStoreSubtypeTouched(false);
+                  }}
+                />
+              )}
+            </View>
+          )}
+
+          {effectivePoi === 'financial_service' && (
+            <View style={styles.subtypeSection}>
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.subtypeQuestion}
+                </Text>
+                <Text style={[styles.questionOptional, { color: palette.faint }]}>
+                  {COPY.newTaskSheet.catOptional}
+                </Text>
+              </View>
+              <FinancialServiceKindSelector selected={financialServiceKind} onSelect={handleFinancialServiceKindSelect} />
+            </View>
+          )}
+
+          {effectivePoi === 'bank' ? (
+            <View style={styles.subtypeSection}>
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.brandQuestion}
+                </Text>
+              </View>
+              <StoreBrandInput
+                poiType="bank"
+                selected={poiBrand}
+                placeholder={COPY.newTaskSheet.bankBrandPlaceholder}
+                unmatchedLabel={COPY.newTaskSheet.bankBrandUnknown}
+                onClear={() => {
+                  setPoiBrand(null);
+                  setPoiBrandTouched(true);
+                }}
+                onSelect={brand => {
+                  setPoiBrandTouched(true);
+                  setPoiBrand(brand);
+                }}
+              />
+            </View>
+          ) : poiTypeRequiresBrand(effectivePoi) && (
+            <View style={styles.subtypeSection}>
+              <View style={styles.questionRow}>
+                <Text style={[styles.questionLabel, { color: palette.text }]}>
+                  {COPY.newTaskSheet.brandQuestion}
+                </Text>
+              </View>
+              <BrandSelector
+                poiType={effectivePoi}
+                selected={poiBrand}
+                suggested={poiBrandTouched ? null : suggestedBrand}
+                onSelect={brand => {
+                  setPoiBrandTouched(true);
+                  setPoiBrand(brand);
+                }}
+              />
+            </View>
+          )}
         </View>
         )}
 
@@ -786,35 +1212,68 @@ export default function TaskFormScreen() {
               accessibilityRole="button"
               accessibilityLabel={COPY.newTaskSheet.timeQuestion}>
               <CalendarIcon color={palette.faint} size={16} />
-              <Text style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}>
-                {date === todayISO() ? `Today · ${formatDateShort(date)}` : formatDateShort(date)}
+              <Text style={[styles.scheduleInput, { color: date ? palette.text : palette.muted, fontVariant: ['tabular-nums'] }]}>
+                {date
+                  ? (date === todayISO() ? `Today · ${formatDateShort(date)}` : formatDateShort(date))
+                  : COPY.newTaskSheet.datePlaceholder}
               </Text>
+              {date && (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); setDate(null); setDateFieldOpen(false); setTime(''); }}
+                  style={styles.clearTimeBtn}
+                  hitSlop={15}
+                  accessibilityRole="button"
+                  accessibilityLabel={COPY.newTaskSheet.clearDateA11y}>
+                  <CloseIcon color={palette.faint} size={14} />
+                </Pressable>
+              )}
             </Pressable>
             {/* Time */}
-            <View style={[styles.scheduleField, { backgroundColor: palette.surface, borderColor: palette.line }]}>
+            <Pressable
+              style={[
+                styles.scheduleField,
+                { backgroundColor: palette.surface, borderColor: timeFieldOpen ? palette.text : palette.line },
+              ]}
+              onPress={() => { if (date) { setTimeFieldOpen(o => !o); } }}
+              disabled={!date}
+              accessibilityRole="button"
+              accessibilityLabel={COPY.newTaskSheet.timeQuestion}>
               <ClockIcon color={palette.faint} size={16} />
-              <TextInput
-                style={[styles.scheduleInput, { color: palette.text, fontVariant: ['tabular-nums'] }]}
-                placeholder={COPY.newTaskSheet.timePlaceholder}
-                placeholderTextColor={palette.muted}
-                value={time}
-                onChangeText={setTime}
-                keyboardType="numbers-and-punctuation"
-                maxLength={5}
-              />
-            </View>
+              <Text style={[
+                styles.scheduleInput,
+                { color: time ? palette.text : palette.muted, fontVariant: ['tabular-nums'] },
+              ]}>
+                {date ? (time || COPY.newTaskSheet.timePlaceholder) : COPY.newTaskSheet.datePlaceholder}
+              </Text>
+              {time.length > 0 && (
+                <Pressable
+                  onPress={(e) => { e.stopPropagation(); setTime(''); setTimeFieldOpen(false); }}
+                  style={styles.clearTimeBtn}
+                  hitSlop={15}
+                  accessibilityRole="button"
+                  accessibilityLabel={COPY.newTaskSheet.clearTimeA11y}>
+                  <CloseIcon color={palette.faint} size={14} />
+                </Pressable>
+              )}
+            </Pressable>
           </View>
           {dateFieldOpen && (
             <MiniCalendar
-              value={date}
+              value={date ?? todayISO()}
               minimumDate={todayISO()}
               onChange={iso => { setDate(iso); setDateFieldOpen(false); }}
+            />
+          )}
+          {timeFieldOpen && (
+            <MiniTimePicker
+              value={time || null}
+              onChange={hhmm => setTime(hhmm)}
             />
           )}
         </View>
 
         {/* ── NOTES section ── */}
-        <View style={styles.section}>
+        <View style={styles.section} onLayout={handleNotesLayout}>
           <View style={styles.sectionLabelRow}>
             <Text style={[styles.sectionLabel, { color: palette.muted }]}>NOTES</Text>
             <Text style={[styles.sectionLabelOptional, { color: palette.faint }]}>
@@ -822,6 +1281,7 @@ export default function TaskFormScreen() {
             </Text>
           </View>
           <TextInput
+            testID="task-form-notes"
             style={[
               styles.notesInput,
               {
@@ -834,6 +1294,8 @@ export default function TaskFormScreen() {
             placeholderTextColor={palette.muted}
             value={notes}
             onChangeText={setNotes}
+            onFocus={handleNotesFocus}
+            onBlur={handleNotesBlur}
             multiline
             numberOfLines={3}
             textAlignVertical="top"
@@ -860,14 +1322,18 @@ export default function TaskFormScreen() {
       </ScrollView>
 
       {/* ── Sticky bottom CTA ── */}
-      <View style={[
-        styles.bottomCta,
-        {
-          borderTopColor:    palette.line,
-          backgroundColor:   palette.bg,
-          paddingBottom:     insets.bottom + 16,
-        },
-      ]}>
+      <View
+        testID="task-form-cta"
+        style={[
+          styles.bottomCta,
+          {
+            borderTopColor:    palette.line,
+            backgroundColor:   palette.bg,
+            // The home-indicator gap is the OS keyboard's own space once it is
+            // open — keeping it would leave a dead strip above the keys.
+            paddingBottom:     (keyboardInset > 0 ? 0 : insets.bottom) + 16,
+          },
+        ]}>
         <Text style={[styles.ctaHelper, { color: canSubmit ? palette.muted : palette.faint }]}>
           {isEdit
             ? (canSubmit ? 'Ready to save' : '')
@@ -896,6 +1362,7 @@ export default function TaskFormScreen() {
               : (isEdit ? 'Save changes' : COPY.newTaskSheet.cta)}
           </Text>
         </Pressable>
+      </View>
       </View>
     </KeyboardAvoidingView>
   );

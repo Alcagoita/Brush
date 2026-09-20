@@ -9,9 +9,11 @@
  * ones simply go stale and get evicted under the size budget. "Habitat"
  * emerges as a property of the cache's contents rather than a tracked signal.
  *
- * Cross-source place identity: the same physical place may be seen via
- * Google (live search, has a placeId) or OSM (cache refresh, has an osmId).
- * `upsertPlace` is the single entry point both paths go through — it matches
+ * Cross-source place identity: the same physical place may be seen via our
+ * API (Overture, or one of our own records), OSM, or — on rows cached before
+ * KAN-342 — Google. Each source's id lives in its own column (see
+ * placeIdentity.ts for why they must not share one).
+ * `upsertPlace` is the single entry point every path goes through — it matches
  * an incoming candidate against existing rows (same POI type, within
  * IDENTITY_MATCH_RADIUS_M, similar normalized name) and merges the source ref
  * in rather than creating a duplicate, so a place seen via one source today
@@ -47,10 +49,21 @@
 import * as SQLite from 'expo-sqlite';
 import NetInfo from '@react-native-community/netinfo';
 import { normalize } from './poiInference';
-import { searchOsmPlaces } from './osmPlaces';
+import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
-import { getDistanceMeters } from './maps';
-import { POI_OSM_TAGS } from '../types';
+import { getDistanceMeters, searchNearbyPlaces } from './maps';
+import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
+import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
+import {
+  inferRestaurantFoodTypeFromPlaceName,
+  listRestaurantFoodTypes,
+  type RestaurantFoodType,
+} from './restaurantFoodTypes';
+import {
+  inferStoreSubtypeFromPlaceName,
+  listStoreSubtypes,
+  type StoreSubtype,
+} from './storeSubtypes';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -60,14 +73,57 @@ export const HABITAT_CACHE_STALE_MS = 14 * 24 * 60 * 60 * 1_000; // 14 days
 /** Default query/refresh radius around a search origin. */
 export const HABITAT_RADIUS_M = 5_000;
 
+/**
+ * How far around the user the proactive download reaches (KAN-366).
+ *
+ * Its own constant, deliberately not shared with HABITAT_RADIUS_M or any
+ * nearby radius even where the number happens to match: this one answers
+ * "how much do we pull down ahead of time", and it will move on its own
+ * evidence (data cost, testing) without dragging query or hero behaviour
+ * with it. 1 km is more than a walking user gets through before the next
+ * prefetch runs.
+ */
+export const HABITAT_PREFETCH_RADIUS_M = 1_000;
+
+/**
+ * Whether the proactive download waits for Wi-Fi (KAN-366). Off by default:
+ * the download is how the app works, and at 21–36 KB per kilometre it is not
+ * a cost worth asking anyone to opt into. The switch exists for the one real
+ * concern — roaming or a metered plan — and only ever holds it back.
+ *
+ * Module-level and set from the app, matching how proximity.ts takes its own
+ * preferences: this file is reached from background/best-effort paths that
+ * have no user context to read Firestore with.
+ */
+let _wifiOnlyDownloads = false;
+
+export function setWifiOnlyDownloads(enabled: boolean): void {
+  _wifiOnlyDownloads = enabled;
+}
+
 /** Hard cap on total cached rows — keeps the on-device footprint small. */
 export const MAX_CACHED_PLACES = 2_000;
+
+/**
+ * Separate cap for `shopping_mall` rows (KAN-282). They're excluded from the
+ * MAX_CACHED_PLACES pool because ordinary LRU eviction is the wrong signal
+ * for them (see enforceSizeBudget) — but "exempt from LRU" must not mean
+ * "unbounded", or a well-travelled user's mall rows would grow forever.
+ * Generous relative to reality (a dense metro yields ~45 within 5 km), so it
+ * only ever bites after many cities.
+ */
+export const MAX_CACHED_MALLS = 200;
 
 /** Two candidates within this distance (same POI type, similar name) are treated as the same place. */
 const IDENTITY_MATCH_RADIUS_M = 150;
 
-/** Caps each query type bucket, matching maps.ts's searchNearbyPlaces behavior. */
-const MAX_RESULTS_PER_TYPE = 5;
+/** Caps each query type bucket — a global top-N across the whole query
+ *  radius. Kept generous (not 5) mainly for mall discovery (KAN-282):
+ *  mallRoute reads ALL `shopping_mall` rows in range to size-filter them, so
+ *  a low cap could return only the nearest few small galleries and never
+ *  surface the big destination mall further out. Ordinary POI resolution is
+ *  unaffected either way — it only ever reads the nearest ([0]) result. */
+const MAX_RESULTS_PER_TYPE = 50;
 
 const DB_NAME = 'habitat_cache.db';
 
@@ -81,14 +137,36 @@ const METRES_PER_DEGREE_LAT = 111_195;
  * corrected by cos(latitude) — clamped away from 0 so it never blows up near
  * the poles.
  */
+type LongitudeRange = readonly [min: number, max: number];
+
 function boundingBoxDeg(lat: number, lng: number, radiusMeters: number) {
   const latDeg = radiusMeters / METRES_PER_DEGREE_LAT;
   const cosLat = Math.max(Math.cos(lat * DEG_TO_RAD), 0.01);
   const lngDeg = radiusMeters / (METRES_PER_DEGREE_LAT * cosLat);
+
+  // A longitude span covering half the globe or more contains every valid
+  // longitude. This is only plausible very close to a pole, but avoids
+  // generating invalid wrapped ranges there.
+  const lngRanges: LongitudeRange[] = lngDeg >= 180
+    ? [[-180, 180]]
+    : lng - lngDeg < -180
+      ? [[lng - lngDeg + 360, 180], [-180, lng + lngDeg]]
+      : lng + lngDeg > 180
+        ? [[lng - lngDeg, 180], [-180, lng + lngDeg - 360]]
+        : [[lng - lngDeg, lng + lngDeg]];
+
   return {
     latMin: lat - latDeg, latMax: lat + latDeg,
-    lngMin: lng - lngDeg, lngMax: lng + lngDeg,
+    lngRanges,
   };
+}
+
+function longitudeRangePredicate(ranges: readonly LongitudeRange[]): string {
+  return `(${ranges.map(() => 'lng BETWEEN ? AND ?').join(' OR ')})`;
+}
+
+function longitudeRangeParams(ranges: readonly LongitudeRange[]): number[] {
+  return ranges.flatMap(([min, max]) => [min, max]);
 }
 
 // ─── DB handle (lazy, cached) ─────────────────────────────────────────────────
@@ -114,6 +192,7 @@ function getDb(): SQLite.SQLiteDatabase {
         lng REAL NOT NULL,
         google_place_id TEXT,
         osm_id TEXT,
+        brand TEXT,
         osm_fetched_at INTEGER NOT NULL,
         last_matched_at INTEGER NOT NULL
       );
@@ -133,6 +212,77 @@ function getDb(): SQLite.SQLiteDatabase {
     }
     if (!existingColumns.has('expires_at')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN expires_at INTEGER');
+    }
+    // KAN-282 migration — building-footprint area for OSM-sourced malls, used
+    // to filter destination malls from small ones. Nullable, and the NULL is
+    // meaningful: it marks a row cached BEFORE this field existed, whose area
+    // is simply unknown. A row fetched with geometry always stores a number
+    // (0 for a bare node — see osmPlaces.OsmPlace.footprintAreaM2).
+    if (!existingColumns.has('footprint_area_m2')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN footprint_area_m2 REAL');
+    }
+    // Backfill: a mall row with an unknown (NULL) area can never satisfy
+    // mallRoute's size gate, so it would sit useless until it aged out
+    // (HABITAT_CACHE_STALE_MS — up to 14 days). Force those rows stale so the
+    // next refresh re-fetches them WITH geometry. Deliberately outside the
+    // ADD COLUMN branch above: a device that already ran the build which
+    // added the column still has NULL-area mall rows to repair. Self-
+    // terminating — once refreshed every row holds a number (0 or an area),
+    // so this matches nothing on later launches.
+    database.runSync(
+      `UPDATE habitat_places SET osm_fetched_at = 0
+        WHERE poi_type = 'shopping_mall' AND footprint_area_m2 IS NULL AND osm_fetched_at > 0`,
+    );
+    // KAN-293 migration — the place's own site, from OSM's `website` tag. Only
+    // ever read back to decide whether the cluster box's leisure line can
+    // offer a ticket link; NULL simply means "OSM has no site for this place"
+    // and the link is omitted. We never fetch to fill it.
+    if (!existingColumns.has('website')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN website TEXT');
+    }
+    // KAN-317 migration — subtype metadata lets offline nearby matching keep
+    // restaurant/store precision without relying only on name matching.
+    if (!existingColumns.has('restaurant_food_type')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN restaurant_food_type TEXT');
+    }
+    if (!existingColumns.has('store_subtype')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN store_subtype TEXT');
+    }
+    // KAN-342 migration — Foursquare (via Cloudflare) became a third live
+    // source, freely storable like OSM (Apache 2.0), with its own identity
+    // column rather than being shoehorned into google_place_id or osm_id.
+    if (!existingColumns.has('fsq_place_id')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN fsq_place_id TEXT');
+    }
+    // KAN-451 migration — our API serves Overture since KAN-438, and its own
+    // registry records (community, manual, Multibanco) alongside. Each gets
+    // its own column for the same reason Foursquare did: an id column that
+    // lies about origin can't be audited against the source's terms, and
+    // cross-source dedupe breaks the moment two namespaces share one. Rows
+    // written between KAN-438 and this migration hold Overture ids under
+    // fsq_place_id; they stay readable and count as coverage, and the next
+    // live sighting fills overture_id beside them.
+    if (!existingColumns.has('overture_id')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN overture_id TEXT');
+    }
+    if (!existingColumns.has('brush_id')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN brush_id TEXT');
+    }
+    // KAN-377 migration — the settlement this place sits in, as the POI source
+    // named it. Stored per row so name coverage equals POI coverage: previously
+    // the only offline names were reverseGeocodeCache's ~100 m cells, i.e. the
+    // ground the user had physically stood on while online, while the POI cache
+    // spans kilometres. NULL means a row cached before this existed, or from a
+    // source that doesn't name areas (OSM) — the Lantern falls through to its
+    // usual "Outside" in that case, exactly as before.
+    if (!existingColumns.has('area_name')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN area_name TEXT');
+    }
+    // KAN-368 follow-up — specific Store/Gym/Bank tasks match a canonical
+    // brand. Keep it in the offline cache just like subtype metadata so a
+    // cache-served tick does not erase a live match.
+    if (!existingColumns.has('brand')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN brand TEXT');
     }
     database.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
     db = database;
@@ -156,13 +306,34 @@ export interface HabitatRow {
   lng: number;
   google_place_id: string | null;
   osm_id: string | null;
+  /** Foursquare id (KAN-342): a row cached before KAN-438, or a `legacy` fallback row our API still serves. Also holds an Overture id on rows written before KAN-451's migration. */
+  fsq_place_id: string | null;
+  /** Overture GERS id via our API (KAN-451) — null for rows never matched to an Overture result. */
+  overture_id: string | null;
+  /** Id of a record our own registry owns — community correction, manual POI, Multibanco ATM (KAN-451). */
+  brush_id: string | null;
   osm_fetched_at: number;
   last_matched_at: number;
   /** Non-null when this row belongs to a KAN-234 trip download — joins to Trip.cacheAreaId. Null for ordinary opportunistic habitat rows. */
   cache_area_id: string | null;
   /** Epoch ms this row is valid until (trip rows only) — null for ordinary habitat rows, which are governed by osm_fetched_at/HABITAT_CACHE_STALE_MS instead. */
   expires_at: number | null;
+  /** OSM building-footprint area in m² (KAN-282) — only set for OSM way/relation malls; null for everything else. */
+  footprint_area_m2: number | null;
+  /** The place's own site from OSM's `website` tag (KAN-293); null when OSM has none. */
+  website: string | null;
+  /** Settlement name carried by the POI source (KAN-377); null for rows cached before this, or from a source that doesn't name areas. */
+  area_name: string | null;
+  /** Restaurant food subtype inferred at cache-write time (KAN-317). */
+  restaurant_food_type: RestaurantFoodType | null;
+  /** Store subtype inferred at cache-write time (KAN-317). */
+  store_subtype: StoreSubtype | null;
+  /** Canonical Store/Gym/Bank brand when known from a live source. */
+  brand: string | null;
 }
+
+/** SQL predicate: the row is anchored by a source whose coordinates we may keep (see placeIdentity.isFreelyStorable). */
+const ANCHORED_BY_A_STORABLE_SOURCE = '(osm_id IS NOT NULL OR fsq_place_id IS NOT NULL OR overture_id IS NOT NULL OR brush_id IS NOT NULL)';
 
 function generateId(): string {
   return `hp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
@@ -177,7 +348,46 @@ export interface PlaceCandidate {
   isGenericName?: boolean;
   lat: number;
   lng: number;
-  source: { google?: string; osm?: string };
+  /**
+   * Which source's id anchors this candidate — see placeIdentity.ts for the
+   * namespaces. `google` is never written by any live code path anymore
+   * (KAN-342) and survives only because pre-KAN-342 rows may carry one.
+   * Every other namespace is freely storable and may create or move a row;
+   * Google could only ever merge into an existing one (see upsertPlaceCore).
+   */
+  source: PlaceSourceRef;
+  /** OSM building-footprint area in m² (KAN-282) — only OSM way/relation malls carry this; omitted otherwise. */
+  footprintAreaM2?: number;
+  /** The settlement this place sits in, as the source named it (KAN-377). Omitted by sources that don't name areas. */
+  areaName?: string | null;
+  /** The place's own site from OSM's `website` tag (KAN-293); omitted when OSM has none. */
+  website?: string;
+  /** Optional subtype metadata for restaurant rows (KAN-317). */
+  restaurantFoodType?: RestaurantFoodType | null;
+  /** Optional subtype metadata for store rows (KAN-317). */
+  storeSubtype?: StoreSubtype | null;
+  /** Canonical brand supplied by the source; never a free-form guess. */
+  brand?: string | null;
+}
+
+function candidateRestaurantFoodType(candidate: PlaceCandidate): RestaurantFoodType | null {
+  if (candidate.poiType !== 'restaurant') { return null; }
+  return candidate.restaurantFoodType ?? inferRestaurantFoodTypeFromPlaceName(candidate.name);
+}
+
+function candidateStoreSubtype(candidate: PlaceCandidate): StoreSubtype | null {
+  if (candidate.poiType !== 'store') { return null; }
+  return candidate.storeSubtype ?? inferStoreSubtypeFromPlaceName(candidate.name);
+}
+
+function normalizeCachedRestaurantFoodType(value: RestaurantFoodType | string | null): RestaurantFoodType | undefined {
+  if (value == null) { return undefined; }
+  return (listRestaurantFoodTypes() as string[]).includes(value) ? value as RestaurantFoodType : undefined;
+}
+
+function normalizeCachedStoreSubtype(value: StoreSubtype | string | null): StoreSubtype | undefined {
+  if (value == null) { return undefined; }
+  return (listStoreSubtypes() as string[]).includes(value) ? value as StoreSubtype : undefined;
 }
 
 /**
@@ -212,8 +422,8 @@ function findMatchingRow(
     `SELECT * FROM habitat_places
      WHERE poi_type = ?
        AND lat BETWEEN ? AND ?
-       AND lng BETWEEN ? AND ?`,
-    [poiType, box.latMin, box.latMax, box.lngMin, box.lngMax],
+       AND ${longitudeRangePredicate(box.lngRanges)}`,
+    [poiType, box.latMin, box.latMax, ...longitudeRangeParams(box.lngRanges)],
   );
 
   const candidateName = normalize(name);
@@ -269,35 +479,63 @@ interface TripStamp { cacheAreaId: string; expiresAt: number; }
 function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const database = getDb();
   const now = Date.now();
-  const isOsmSourced = candidate.source.osm != null;
-
+  // Every source but Google is freely storable — it can create a new row or
+  // move an existing one's coordinates. Google cannot (restricted
+  // coordinate-caching terms), which is the entire reason this flag exists:
+  // it's the gate on "may this candidate actually persist its own lat/lng",
+  // not just "is this a live hit". A Google-sourced candidate (source.google
+  // set, only possible on pre-KAN-342 rows re-merging) can still update
+  // OTHER fields below, just never lat/lng/fetched_at.
+  const isFreelyStorable = refIsFreelyStorable(candidate.source);
   const match = findMatchingRow(
     database, candidate.poiType, candidate.name, candidate.isGenericName,
     candidate.lat, candidate.lng,
   );
 
   if (match) {
-    const osmFlag = isOsmSourced ? 1 : 0;
+    const storableFlag = isFreelyStorable ? 1 : 0;
     const tripCacheAreaId = trip?.cacheAreaId ?? null;
     const tripExpiresAt = trip?.expiresAt ?? null;
+    const restaurantFoodType = match.restaurant_food_type == null ? candidateRestaurantFoodType(candidate) : null;
+    const storeSubtype = match.store_subtype == null ? candidateStoreSubtype(candidate) : null;
     database.runSync(
       `UPDATE habitat_places
-       SET google_place_id = COALESCE(google_place_id, ?),
-           osm_id          = COALESCE(osm_id, ?),
-           lat             = CASE WHEN ? = 1 THEN ? ELSE lat END,
-           lng             = CASE WHEN ? = 1 THEN ? ELSE lng END,
-           osm_fetched_at  = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
-           cache_area_id   = COALESCE(cache_area_id, ?),
-           expires_at      = CASE
+       SET google_place_id   = COALESCE(google_place_id, ?),
+           osm_id            = COALESCE(osm_id, ?),
+           fsq_place_id      = COALESCE(fsq_place_id, ?),
+           overture_id       = COALESCE(overture_id, ?),
+           brush_id          = COALESCE(brush_id, ?),
+           lat               = CASE WHEN ? = 1 THEN ? ELSE lat END,
+           lng               = CASE WHEN ? = 1 THEN ? ELSE lng END,
+           osm_fetched_at    = CASE WHEN ? = 1 THEN ? ELSE osm_fetched_at END,
+           footprint_area_m2 = COALESCE(?, footprint_area_m2),
+           website           = COALESCE(?, website),
+           restaurant_food_type = COALESCE(?, restaurant_food_type),
+           store_subtype        = COALESCE(?, store_subtype),
+           brand                = COALESCE(?, brand),
+           -- KAN-377: an OSM-seeded row later matched by a Cloudflare result
+           -- picks up the settlement name here. Without this the name only ever
+           -- reached rows Cloudflare created, and the prefetch seeds from OSM
+           -- (KAN-366), so the common row would stay nameless forever.
+           area_name            = COALESCE(?, area_name),
+           cache_area_id     = COALESCE(cache_area_id, ?),
+           expires_at        = CASE
                                 WHEN ? IS NULL THEN expires_at
                                 WHEN expires_at IS NULL THEN ?
                                 ELSE MAX(expires_at, ?)
                               END,
-           last_matched_at = ?
+           last_matched_at   = ?
        WHERE id = ?`,
       [
-        candidate.source.google ?? null, candidate.source.osm ?? null,
-        osmFlag, candidate.lat, osmFlag, candidate.lng, osmFlag, now,
+        candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
+        candidate.source.overture ?? null, candidate.source.brush ?? null,
+        storableFlag, candidate.lat, storableFlag, candidate.lng, storableFlag, now,
+        candidate.footprintAreaM2 ?? null,
+        candidate.website ?? null,
+        restaurantFoodType,
+        storeSubtype,
+        candidate.brand ?? null,
+        candidate.areaName ?? null,
         tripCacheAreaId,
         tripExpiresAt, tripExpiresAt, tripExpiresAt,
         now, match.id,
@@ -307,17 +545,22 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   }
 
   // No existing row. Google coordinates are never persisted long-term
-  // (Places ToS) — only an OSM-anchored candidate may create a new row.
-  if (!isOsmSourced) { return generateId(); }
+  // (Places ToS) — only a candidate anchored by a freely storable source
+  // may create a new row.
+  if (!isFreelyStorable) { return generateId(); }
 
   const id = generateId();
+  const restaurantFoodType = candidateRestaurantFoodType(candidate);
+  const storeSubtype = candidateStoreSubtype(candidate);
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
-      candidate.source.google ?? null, candidate.source.osm ?? null, now, now,
-      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null],
+      candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
+      candidate.source.overture ?? null, candidate.source.brush ?? null, now, now,
+      trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null,
+      candidate.website ?? null, restaurantFoodType, storeSubtype, candidate.brand ?? null, candidate.areaName ?? null],
   );
   return id;
 }
@@ -384,22 +627,36 @@ export function writeTripAreaPlaces(
 }
 
 /**
- * Feeds a live (Google-sourced) search hit into the cache's identity table.
- * Never creates a new row or persists Google coordinates — see upsertPlace.
+ * Feeds a live search hit into the cache's identity table — source-aware
+ * (KAN-342, KAN-451): the caller (proximity.ts) passes the ref
+ * `placeIdentity.placeSourceRef` derived from which chain answered the tick
+ * and which table our API read the row from. There is no `google` option
+ * here — Google Places has no role in live search — but upsertPlace still
+ * accepts it, since pre-KAN-342 rows may carry a real google_place_id and
+ * this same merge path is what reconciles them going forward.
+ *
+ * Every live source is freely storable and may create a new row or move an
+ * existing one's coordinates (see upsertPlaceCore).
  */
 export function recordLiveResult(candidate: {
   poiType: string;
   name: string;
   lat: number;
   lng: number;
-  googlePlaceId: string;
+  source: Omit<PlaceSourceRef, 'google'>;
+  /** Settlement name from the same live answer (KAN-377). */
+  areaName?: string | null;
+  /** Canonical brand returned by the same live source. */
+  brand?: string | null;
 }): void {
   upsertPlace({
     poiType: candidate.poiType,
     name:    candidate.name,
     lat:     candidate.lat,
     lng:     candidate.lng,
-    source:  { google: candidate.googlePlaceId },
+    source:  candidate.source,
+    brand:   candidate.brand,
+    areaName: candidate.areaName,
   });
 }
 
@@ -418,7 +675,15 @@ export function queryHabitatCache(
   lng: number,
   poiTypes: string[],
   radiusMeters: number = HABITAT_RADIUS_M,
+  options: { maxResultsPerType?: number | null } = {},
 ): Record<string, NearbyPlace[]> {
+  if (
+    options.maxResultsPerType != null
+    && (!Number.isInteger(options.maxResultsPerType) || options.maxResultsPerType < 0)
+  ) {
+    throw new RangeError('maxResultsPerType must be a non-negative integer, null, or undefined');
+  }
+
   const result: Record<string, NearbyPlace[]> = {};
   for (const poiType of poiTypes) { result[poiType] = []; }
   if (poiTypes.length === 0) { return result; }
@@ -431,8 +696,8 @@ export function queryHabitatCache(
       `SELECT * FROM habitat_places
        WHERE poi_type IN (${placeholders})
          AND lat BETWEEN ? AND ?
-         AND lng BETWEEN ? AND ?`,
-      [...poiTypes, box.latMin, box.latMax, box.lngMin, box.lngMax],
+         AND ${longitudeRangePredicate(box.lngRanges)}`,
+      [...poiTypes, box.latMin, box.latMax, ...longitudeRangeParams(box.lngRanges)],
     );
 
     for (const row of rows) {
@@ -444,13 +709,21 @@ export function queryHabitatCache(
         lat:     row.lat,
         lng:     row.lng,
         distanceMeters,
+        footprintAreaM2: row.footprint_area_m2 ?? undefined,
+        website:         row.website ?? undefined,
+        restaurantFoodType: normalizeCachedRestaurantFoodType(row.restaurant_food_type),
+        storeSubtype:       normalizeCachedStoreSubtype(row.store_subtype),
+        brand:              row.brand ?? getCanonicalBrand(row.poi_type, row.name) ?? undefined,
       });
     }
 
     for (const poiType of poiTypes) {
       result[poiType].sort((a, b) => a.distanceMeters - b.distanceMeters);
-      if (result[poiType].length > MAX_RESULTS_PER_TYPE) {
-        result[poiType] = result[poiType].slice(0, MAX_RESULTS_PER_TYPE);
+      const maxResults = options.maxResultsPerType === undefined
+        ? MAX_RESULTS_PER_TYPE
+        : options.maxResultsPerType;
+      if (maxResults != null && result[poiType].length > maxResults) {
+        result[poiType] = result[poiType].slice(0, maxResults);
       }
     }
   } catch (err) {
@@ -458,6 +731,42 @@ export function queryHabitatCache(
   }
 
   return result;
+}
+
+/**
+ * Look up a single cached place by its internal id — the same id
+ * `queryHabitatCache`/`upsertPlace` key off (KAN-228 cross-source identity),
+ * and what `LearnedPlace.placeId` (learnedPlaces.ts) carries. Unlike
+ * `queryHabitatCache`, this doesn't need a search origin — a learned place's
+ * location is resolved from the id alone, independent of current distance
+ * (KAN-279: "your place wins even if farther").
+ *
+ * Never throws — a DB failure or missing row returns null.
+ */
+export function getHabitatPlaceById(id: string): NearbyPlace | null {
+  try {
+    const database = getDb();
+    const row = database.getFirstSync<HabitatRow>(
+      'SELECT * FROM habitat_places WHERE id = ?',
+      [id],
+    );
+    if (!row) { return null; }
+    return {
+      placeId: row.id,
+      name: row.name,
+      lat: row.lat,
+      lng: row.lng,
+      distanceMeters: 0,
+      footprintAreaM2: row.footprint_area_m2 ?? undefined,
+      website:         row.website ?? undefined,
+      restaurantFoodType: normalizeCachedRestaurantFoodType(row.restaurant_food_type),
+      storeSubtype:       normalizeCachedStoreSubtype(row.store_subtype),
+      brand:              row.brand ?? getCanonicalBrand(row.poi_type, row.name) ?? undefined,
+    };
+  } catch (err) {
+    console.warn('[habitatCache] getHabitatPlaceById failed', err);
+    return null;
+  }
 }
 
 // ─── Refresh ──────────────────────────────────────────────────────────────────
@@ -470,7 +779,33 @@ export function queryHabitatCache(
  * capable of ever reaching empty for a custom-only request (KAN-238 review).
  */
 function isOsmMappable(poiType: string): boolean {
-  return poiType in POI_OSM_TAGS;
+  // hasOwnProperty, not `in`. `'constructor' in POI_OSM_TAGS` is true, as are
+  // toString, valueOf and __proto__ — every object inherits them. A task can
+  // carry a free-text POI the user typed, so those are reachable strings, and
+  // `in` waved them straight past the very guard this function is.
+  return hasOwn(POI_OSM_TAGS, poiType) || hasOwn(SUPPLEMENTARY_OSM_TAGS, poiType);
+}
+
+function hasOwn(table: object, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(table, key);
+}
+
+/**
+ * Types the prefetch below is allowed to ask for (KAN-407).
+ *
+ * The comment above describes why this used to be `isOsmMappable` alone, and
+ * that reason expired with KAN-366: the fetch is `searchNearbyPlaces` (our
+ * API first, Overpass second), and the freshness query counts a row anchored
+ * by any source as coverage, not only an `osm_id` one. A type our API
+ * can answer for no longer needs an OSM tag to escape being permanently
+ * stale — it just needed to be asked for.
+ *
+ * The runaway-refetch guard the OSM filter provided is preserved by
+ * `isPoiApiServableType`, which admits the imported vocabulary and still
+ * excludes free-text custom POI strings.
+ */
+function isPrefetchable(poiType: string): boolean {
+  return isOsmMappable(poiType) || isPoiApiServableType(poiType);
 }
 
 /** Refetch cooldown for a (poiType, area) pair that came back with zero OSM
@@ -500,6 +835,37 @@ function emptyResultAttemptKey(poiType: string, lat: number, lng: number): strin
 /** Test-only: clears the empty-result retry throttle between test cases. */
 export function __resetEmptyResultAttemptsForTests(): void {
   _emptyResultAttempts.clear();
+  _mallSweepAttempts.clear();
+}
+
+/** How long before another full mall sweep of the same area is allowed (see refreshMallsIfDue). */
+const MALL_SWEEP_COOLDOWN_MS = 6 * 60 * 60 * 1_000; // 6 hours
+
+/** Same in-memory, coarse-grid throttle as _emptyResultAttempts above. */
+const _mallSweepAttempts = new Map<string, number>();
+
+/**
+ * Forces a `shopping_mall` re-fetch for this area, at most once per
+ * MALL_SWEEP_COOLDOWN_MS (KAN-282 review).
+ *
+ * Why forced rather than a plain refreshHabitatCacheIfStale call: that
+ * function treats a POI type as fresh if ANY row of it exists in the 5 km
+ * box. One cached small gallery therefore marks `shopping_mall` fresh for
+ * the whole area, so a plain call would no-op and a genuinely big mall that
+ * was never cached could stay invisible for the full HABITAT_CACHE_STALE_MS
+ * (14 days) — the exact "mall card never appears" failure this ticket
+ * chased. Presence of *a* mall says nothing about whether we ever swept the
+ * area for *all* of them, so the sweep needs its own cadence.
+ *
+ * Never throws; safe to call fire-and-forget.
+ */
+export async function refreshMallsIfDue(lat: number, lng: number): Promise<void> {
+  const key = emptyResultAttemptKey('shopping_mall_sweep', lat, lng);
+  const lastAttempt = _mallSweepAttempts.get(key);
+  if (lastAttempt != null && Date.now() - lastAttempt < MALL_SWEEP_COOLDOWN_MS) { return; }
+  _mallSweepAttempts.set(key, Date.now());
+
+  await refreshHabitatCacheIfStale(lat, lng, ['shopping_mall'], true);
 }
 
 /**
@@ -527,13 +893,23 @@ export async function refreshHabitatCacheIfStale(
   poiTypes: string[],
   force = false,
 ): Promise<void> {
-  const mappableTypes = poiTypes.filter(isOsmMappable);
+  const mappableTypes = poiTypes.filter(isPrefetchable);
   if (mappableTypes.length === 0) { return; }
 
   try {
     let isConnected: boolean | null = null;
-    try { isConnected = (await NetInfo.fetch()).isConnected; } catch { /* treat as unknown */ }
+    let connectionType: string | null = null;
+    try {
+      const netState = await NetInfo.fetch();
+      isConnected = netState.isConnected;
+      connectionType = netState.type;
+    } catch { /* treat as unknown */ }
     if (isConnected === false) { return; }
+    // KAN-366 — the user asked us to wait for Wi-Fi. An unknown connection
+    // type (the fetch threw) is not treated as cellular: refusing to download
+    // on a guess would quietly leave the cache empty for someone who never
+    // asked for that.
+    if (_wifiOnlyDownloads && connectionType != null && connectionType !== 'wifi') { return; }
 
     const now = Date.now();
     let typesToFetch: string[];
@@ -541,18 +917,26 @@ export async function refreshHabitatCacheIfStale(
       typesToFetch = mappableTypes;
     } else {
       const database = getDb();
-      const box = boundingBoxDeg(lat, lng, HABITAT_RADIUS_M);
+      // KAN-366: freshness is judged over the radius we actually fill. Asking
+      // about a wider area than was ever fetched reports stale forever and
+      // re-downloads on every tick.
+      const box = boundingBoxDeg(lat, lng, HABITAT_PREFETCH_RADIUS_M);
       const placeholders = mappableTypes.map(() => '?').join(',');
       const staleCutoff = now - HABITAT_CACHE_STALE_MS;
 
+      // A row counts as real coverage if ANY freely storable source anchored
+      // it. Before KAN-366 only osm_id qualified, because OSM was the only
+      // thing that filled this cache; now that our API seeds it too (Overture,
+      // our own records, the legacy fallback), requiring osm_id would call a
+      // fully-stocked area stale and re-fetch it forever.
       const freshRows = database.getAllSync<{ poi_type: string }>(
         `SELECT poi_type FROM habitat_places
          WHERE poi_type IN (${placeholders})
            AND lat BETWEEN ? AND ?
-           AND lng BETWEEN ? AND ?
-           AND osm_id IS NOT NULL
+           AND ${longitudeRangePredicate(box.lngRanges)}
+           AND ${ANCHORED_BY_A_STORABLE_SOURCE}
            AND osm_fetched_at >= ?`,
-        [...mappableTypes, box.latMin, box.latMax, box.lngMin, box.lngMax, staleCutoff],
+        [...mappableTypes, box.latMin, box.latMax, ...longitudeRangeParams(box.lngRanges), staleCutoff],
       );
       const freshTypes = new Set(freshRows.map(r => r.poi_type));
       const staleTypes = mappableTypes.filter(t => !freshTypes.has(t));
@@ -565,22 +949,43 @@ export async function refreshHabitatCacheIfStale(
       if (typesToFetch.length === 0) { return; }
     }
 
-    const osmResults = await searchOsmPlaces(lat, lng, typesToFetch, HABITAT_RADIUS_M);
+    // KAN-366 — our API first, OSM second, mirroring the live chain. This used
+    // to call OSM directly, which inverted the migration: online the user got
+    // our API's data, offline they got whatever Overpass had, in
+    // exactly the areas OSM is thinnest. searchNearbyPlaces owns that ordering
+    // already and reports which source answered, which is what the cooldown
+    // below needs. It also returns the settlement name (KAN-377), so a
+    // proactively downloaded area is nameable offline, not just searchable.
+    const search = await searchNearbyPlaces(
+      lat, lng, typesToFetch, HABITAT_PREFETCH_RADIUS_M,
+      typesToFetch.map(type => ({ key: type, type })),
+    );
     let didUpsert = false;
     for (const poiType of typesToFetch) {
-      const places = osmResults[poiType] ?? [];
+      const places = search.results[poiType] ?? [];
       if (places.length === 0) {
-        _emptyResultAttempts.set(emptyResultAttemptKey(poiType, lat, lng), now);
+        // The cooldown exists for Overpass, which returns empty often and
+        // cheaply. An empty answer from OUR api means something else entirely
+        // — the Place isn't mapped yet, which is precisely what asks the
+        // extraction worker to map it (KAN-354). Backing off there would slow
+        // down the thing we want to happen, so the cooldown stays with the
+        // source it was built for.
+        if (search.source === 'osm') {
+          _emptyResultAttempts.set(emptyResultAttemptKey(poiType, lat, lng), now);
+        }
         continue;
       }
       for (const place of places) {
         upsertPlace({
           poiType,
-          name:          place.name,
-          isGenericName: place.isGenericName,
-          lat:           place.lat,
-          lng:           place.lng,
-          source:        { osm: place.osmId },
+          name:            place.name,
+          lat:             place.lat,
+          lng:             place.lng,
+          source:          placeSourceRef(place.placeId, search.source, place.sourceKind),
+          footprintAreaM2: place.footprintAreaM2,
+          website:         place.website,
+          brand:           place.brand,
+          areaName:        search.areaName,
         });
         didUpsert = true;
       }
@@ -607,6 +1012,83 @@ export function hasCachedPlaces(): boolean {
     return rows.length > 0;
   } catch (err) {
     console.warn('[habitatCache] hasCachedPlaces failed', err);
+    return false;
+  }
+}
+
+/**
+ * True if the cache holds any place within `radiusMeters` of `lat`/`lng` — the
+ * "nothing cached near here" half of the distinction hasCachedPlaces() above
+ * can't make (KAN-316).
+ *
+ * Type-blind on purpose: this answers "is there cached ground where you're
+ * standing", not "can I solve one of your tasks here". A place of any type
+ * within reach means we learned this area while we had a connection.
+ *
+ * Never throws — a DB failure returns false (the cautious answer: claim
+ * nothing).
+ */
+/**
+ * The settlement name stored with the cached places around `lat`/`lng`, or
+ * null if none of them carries one (KAN-377).
+ *
+ * The nearest naming row wins. Rows from sources that don't name areas (OSM)
+ * and rows cached before this column existed hold NULL and are skipped, so an
+ * older cache degrades to the previous behaviour rather than to a wrong name.
+ *
+ * This is what makes an area nameable offline across the whole downloaded
+ * region instead of only the ~100 m cells reverseGeocodeCache happened to
+ * record. Costs no network call of any kind.
+ *
+ * Never throws — a DB failure returns null, and the caller falls back to the
+ * literal "Outside".
+ */
+export function getCachedAreaName(
+  lat: number,
+  lng: number,
+  radiusMeters: number = HABITAT_RADIUS_M,
+): string | null {
+  try {
+    const box = boundingBoxDeg(lat, lng, radiusMeters);
+    const rows = getDb().getAllSync<{ lat: number; lng: number; area_name: string | null }>(
+      `SELECT lat, lng, area_name FROM habitat_places
+       WHERE area_name IS NOT NULL
+         AND lat BETWEEN ? AND ?
+         AND ${longitudeRangePredicate(box.lngRanges)}`,
+      [box.latMin, box.latMax, ...longitudeRangeParams(box.lngRanges)],
+    );
+    let best: { name: string; distance: number } | null = null;
+    for (const row of rows) {
+      if (!row.area_name) { continue; }
+      const distance = getDistanceMeters(lat, lng, row.lat, row.lng);
+      if (distance > radiusMeters) { continue; }
+      if (!best || distance < best.distance) { best = { name: row.area_name, distance }; }
+    }
+    return best?.name ?? null;
+  } catch (err) {
+    console.warn('[habitatCache] getCachedAreaName failed', err);
+    return null;
+  }
+}
+
+export function hasCachedPlacesNear(
+  lat: number,
+  lng: number,
+  radiusMeters: number = HABITAT_RADIUS_M,
+): boolean {
+  try {
+    const box = boundingBoxDeg(lat, lng, radiusMeters);
+    const rows = getDb().getAllSync<{ lat: number; lng: number }>(
+      `SELECT lat, lng FROM habitat_places
+       WHERE lat BETWEEN ? AND ?
+         AND ${longitudeRangePredicate(box.lngRanges)}`,
+      [box.latMin, box.latMax, ...longitudeRangeParams(box.lngRanges)],
+    );
+    // The bounding box is a square around a circle, so the corners still need
+    // the real distance check before we claim anything.
+    return rows.some(row => getDistanceMeters(lat, lng, row.lat, row.lng) <= radiusMeters);
+  } catch (err) {
+    console.warn('[habitatCache] hasCachedPlacesNear failed', err);
     return false;
   }
 }
@@ -639,21 +1121,53 @@ export function getMostRecentHabitatUpdateAt(): number | null {
  * so a burst of opportunistic caching elsewhere could otherwise silently
  * evict an unexpired trip's coverage mid-trip with no user-facing signal —
  * breaking the "I'll know it until <date>" promise.
+ *
+ * `shopping_mall` rows are held out of that pool (KAN-282) and trimmed under
+ * their own MAX_CACHED_MALLS budget instead, because both halves of ordinary
+ * LRU are wrong for them:
+ *
+ *   - As a BUDGET: `last_matched_at` is bumped by proximity's ordinary live
+ *     searches, which cover the user's TASK POI types (pharmacy, cafe, ...)
+ *     and never shopping_mall. Mall rows are therefore never re-matched,
+ *     always sort oldest, and were evicted first every time the pool crossed
+ *     the cap — the mall card worked once, then silently lost all its data.
+ *   - As an ORDER: for the same reason, `last_matched_at` says nothing about
+ *     a mall's usefulness. Malls are trimmed by `osm_fetched_at` instead —
+ *     oldest DATA first, which is the only age that means anything here.
+ *
+ * Trip rows stay exempt from both budgets (see above).
  */
 export function enforceSizeBudget(): void {
   try {
     const database = getDb();
-    const [{ count } = { count: 0 }] = database.getAllSync<{ count: number }>(
-      'SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL',
-    );
-    if (count <= MAX_CACHED_PLACES) { return; }
 
-    database.runSync(
-      `DELETE FROM habitat_places WHERE id IN (
-         SELECT id FROM habitat_places WHERE cache_area_id IS NULL ORDER BY last_matched_at ASC LIMIT ?
-       )`,
-      [count - MAX_CACHED_PLACES],
+    const [{ count } = { count: 0 }] = database.getAllSync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'",
     );
+    if (count > MAX_CACHED_PLACES) {
+      database.runSync(
+        `DELETE FROM habitat_places WHERE id IN (
+           SELECT id FROM habitat_places
+            WHERE cache_area_id IS NULL AND poi_type != 'shopping_mall'
+            ORDER BY last_matched_at ASC LIMIT ?
+         )`,
+        [count - MAX_CACHED_PLACES],
+      );
+    }
+
+    const [{ count: mallCount } = { count: 0 }] = database.getAllSync<{ count: number }>(
+      "SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL AND poi_type = 'shopping_mall'",
+    );
+    if (mallCount > MAX_CACHED_MALLS) {
+      database.runSync(
+        `DELETE FROM habitat_places WHERE id IN (
+           SELECT id FROM habitat_places
+            WHERE cache_area_id IS NULL AND poi_type = 'shopping_mall'
+            ORDER BY osm_fetched_at ASC LIMIT ?
+         )`,
+        [mallCount - MAX_CACHED_MALLS],
+      );
+    }
   } catch (err) {
     console.warn('[habitatCache] enforceSizeBudget failed', err);
   }

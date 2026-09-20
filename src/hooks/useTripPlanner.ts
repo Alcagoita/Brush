@@ -7,26 +7,25 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import NetInfo from '@react-native-community/netinfo';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
-import {
-  searchDestinationAutocomplete,
-  getPlaceDetails,
-  buildStaticMapPreviewUrl,
-} from '../services/maps';
+import { searchDestinationAutocomplete } from '../services/maps';
 import type { PlaceAutocompleteSuggestion } from '../services/maps';
-import { addTrip, getCategories } from '../services/firestore';
+import { addTrip, getTrip, updateTrip } from '../services/firestore';
 import {
-  downloadTripArea,
+  downloadTripAreaWithCloudflare,
+  getCloudflareTripExportSize,
   computeTripExpiresAt,
   estimateTripDownloadBytes,
+  getAreaDownloadPoiTypes,
   TRIP_RADIUS_PRESETS,
 } from '../services/tripDownload';
 import { deleteTripAreaPlaces } from '../services/habitatCache';
-import { ALL_POI_TYPES } from '../types';
 import type { TripRadiusPreset } from '../types';
 import { useToastStore } from '../store/toastStore';
 import { COPY } from '../constants/copy';
+import type { Trip } from '../types';
 
 export type TripPlannerStep = 'destination' | 'dates' | 'radius' | 'downloading';
 
@@ -40,11 +39,9 @@ function isValidIsoDate(iso: string | undefined): iso is string {
 
 const AUTOCOMPLETE_DEBOUNCE_MS = 300;
 
-/** Static map preview frame size — exported so the screen's circle overlay can size itself to match (see maps.ts's buildStaticMapPreviewUrl, which zooms the map to keep the circle at a fixed fraction of this frame regardless of which radius preset is selected). */
+/** Map preview frame size — exported so the screen's MapView/Circle can size itself to match (see maps.ts's computeTripPreviewRegion, which zooms to keep the circle at a fixed fraction of this frame regardless of which radius preset is selected). */
 export const TRIP_PREVIEW_WIDTH = 320;
 export const TRIP_PREVIEW_HEIGHT = 200;
-const PREVIEW_WIDTH = TRIP_PREVIEW_WIDTH;
-const PREVIEW_HEIGHT = TRIP_PREVIEW_HEIGHT;
 
 export interface ResolvedDestination {
   placeId: string;
@@ -53,12 +50,18 @@ export interface ResolvedDestination {
   lng: number;
 }
 
+export interface TripPlannerEditOptions {
+  editTripId: string;
+  initialStep: 'dates' | 'radius';
+}
+
 export interface TripPlannerState {
   step: TripPlannerStep;
 
   query: string;
   setQuery: (q: string) => void;
   suggestions: PlaceAutocompleteSuggestion[];
+  searching: boolean;
   selectDestination: (s: PlaceAutocompleteSuggestion) => Promise<void>;
   destination: ResolvedDestination | null;
 
@@ -72,21 +75,30 @@ export interface TripPlannerState {
   radiusKey: TripRadiusPreset;
   setRadiusKey: (k: TripRadiusPreset) => void;
   estimatedBytes: number;
-  previewUrl: string;
+  /** Meters for the currently-selected radiusKey — for the screen's MapView Circle radius. */
+  radiusMeters: number;
+  /** Exact R2 export size after the user first requests a covered download. */
+  exactDownloadBytes: number | null;
 
   confirmDownload: () => Promise<void>;
   error: string | null;
   goBack: () => void;
+  isEditing: boolean;
+  editInitialStep: 'dates' | 'radius' | null;
 }
 
 export function useTripPlanner(
   onDone: () => void,
   initialStartDate?: string,
   initialDestinationQuery?: string,
+  editOptions?: TripPlannerEditOptions,
 ): TripPlannerState {
   const uid = getAuth().currentUser?.uid ?? '';
+  const editTripId = editOptions?.editTripId;
+  const editInitialStep = editOptions?.initialStep;
+  const isEditing = !!editTripId && !!editInitialStep;
 
-  const [step, setStep] = useState<TripPlannerStep>('destination');
+  const [step, setStep] = useState<TripPlannerStep>(editInitialStep ?? 'destination');
   // KAN-245 — pre-filled from the calendar signal's free-text event location.
   // Only ever a search-box seed, never a resolved place: the calendar signal
   // deliberately never geocodes (on-device text match only), so there are no
@@ -94,6 +106,7 @@ export function useTripPlanner(
   // from the resulting autocomplete suggestions, same as typing it manually.
   const [query, setQuery] = useState(initialDestinationQuery?.trim() ?? '');
   const [suggestions, setSuggestions] = useState<PlaceAutocompleteSuggestion[]>([]);
+  const [searching, setSearching] = useState(false);
   const [destination, setDestination] = useState<ResolvedDestination | null>(null);
   // Pre-filled when opened from a future Calendar day (KAN-243) — still just
   // the dates step's normal state, so the user can change or clear it same
@@ -103,54 +116,87 @@ export function useTripPlanner(
   );
   const [endDate, setEndDate] = useState<string | undefined>(undefined);
   const [radiusKey, setRadiusKey] = useState<TripRadiusPreset>('town_and_around');
+  const [exactDownloadBytes, setExactDownloadBytes] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [customCategoryPoiTypes, setCustomCategoryPoiTypes] = useState<string[]>([]);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+
+  // Set right before selectDestination or edit-mode hydration changes `query`
+  // itself, so the debounced effect below can tell those controlled changes
+  // apart from "user is typing".
+  const justSelectedRef = useRef(false);
+  const onDoneRef = useRef(onDone);
 
   useEffect(() => {
-    if (!uid) { return; }
-    getCategories(uid)
-      .then(categories => setCustomCategoryPoiTypes(categories.map(c => c.poi).filter((p): p is string => !!p)))
-      .catch(err => console.warn('[useTripPlanner] getCategories failed', err));
-  }, [uid]);
-
-  // Set right before selectDestination changes `query` itself, so the
-  // debounced effect below can tell "query changed because of a selection"
-  // apart from "query changed because the user is typing" — comparing query
-  // to destination.name isn't reliable since query is set from the
-  // suggestion's name while destination.name comes from resolved place
-  // details, and the two can differ.
-  const justSelectedRef = useRef(false);
+    onDoneRef.current = onDone;
+  }, [onDone]);
 
   // Debounced destination autocomplete.
   useEffect(() => {
     if (justSelectedRef.current) { justSelectedRef.current = false; return; }
-    if (!query.trim()) { setSuggestions([]); return; }
+    if (!query.trim()) { setSuggestions([]); setSearching(false); return; }
 
     const timer = setTimeout(() => {
+      setSearching(true);
       searchDestinationAutocomplete(query)
         .then(setSuggestions)
-        .catch(err => console.warn('[useTripPlanner] searchDestinationAutocomplete failed', err));
+        .catch(err => console.warn('[useTripPlanner] searchDestinationAutocomplete failed', err))
+        .finally(() => setSearching(false));
     }, AUTOCOMPLETE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    if (!editTripId || !editInitialStep || !uid) { return; }
+
+    let cancelled = false;
+    setError(null);
+    setStep(editInitialStep);
+    getTrip(uid, editTripId)
+      .then(trip => {
+        if (cancelled) { return; }
+        if (!trip) {
+          setError(COPY.tripPlanner.downloadErrorToast);
+          useToastStore.getState().showToast(COPY.tripPlanner.downloadErrorToast);
+          onDoneRef.current();
+          return;
+        }
+        justSelectedRef.current = true;
+        setEditingTrip(trip);
+        setQuery(trip.destination);
+        setDestination({
+          placeId: trip.placeRef,
+          name:    trip.destination,
+          lat:     trip.centerLat,
+          lng:     trip.centerLng,
+        });
+        setStartDate(trip.startDate);
+        setEndDate(trip.endDate);
+        setRadiusKey(radiusPresetForMeters(trip.areaRadius));
+        setStep(editInitialStep);
+      })
+      .catch(err => {
+        console.warn('[useTripPlanner] getTrip failed', err);
+        if (cancelled) { return; }
+        setError(COPY.tripPlanner.downloadErrorToast);
+        useToastStore.getState().showToast(COPY.tripPlanner.downloadErrorToast);
+        onDoneRef.current();
+      });
+
+    return () => { cancelled = true; };
+  }, [editTripId, editInitialStep, uid]);
 
   const selectDestination = useCallback(async (suggestion: PlaceAutocompleteSuggestion) => {
     justSelectedRef.current = true;
     setQuery(suggestion.name);
     setSuggestions([]);
-    try {
-      const details = await getPlaceDetails(suggestion.placeId);
-      if (!details) {
-        setError(COPY.tripPlanner.downloadErrorToast);
-        return;
-      }
-      setDestination({ placeId: suggestion.placeId, name: details.name, lat: details.lat, lng: details.lng });
-      setError(null);
-      setStep('dates');
-    } catch (err) {
-      console.warn('[useTripPlanner] getPlaceDetails failed', err);
+    setExactDownloadBytes(null);
+    if (suggestion.lat == null || suggestion.lng == null) {
       setError(COPY.tripPlanner.downloadErrorToast);
+      return;
     }
+    setDestination({ placeId: suggestion.placeId, name: suggestion.name, lat: suggestion.lat, lng: suggestion.lng });
+    setError(null);
+    setStep('dates');
   }, []);
 
   const goToRadius = useCallback(() => setStep('radius'), []);
@@ -160,17 +206,79 @@ export function useTripPlanner(
     setStep('radius');
   }, []);
 
+  const setTripRadiusKey = useCallback((key: TripRadiusPreset) => {
+    setExactDownloadBytes(null);
+    setRadiusKey(key);
+  }, []);
+
   const preset = TRIP_RADIUS_PRESETS.find(p => p.key === radiusKey) ?? TRIP_RADIUS_PRESETS[1];
-  // Matches downloadTripArea's exact union semantics (new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes]).size),
-  // so the size estimate can't drift from what's actually downloaded if a custom category reuses a built-in POI type.
-  const poiTypeCount = new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes]).size;
+  // Matches downloadTripArea's exact allowlist semantics, so the size
+  // estimate can't drift from what's actually downloaded.
+  const poiTypeCount = getAreaDownloadPoiTypes().length;
   const estimatedBytes = estimateTripDownloadBytes(preset.radiusMeters, poiTypeCount);
-  const previewUrl = destination
-    ? buildStaticMapPreviewUrl(destination.lat, destination.lng, preset.radiusMeters, PREVIEW_WIDTH, PREVIEW_HEIGHT)
-    : '';
 
   const confirmDownload = useCallback(async () => {
+    if (isEditing) {
+      if (!editingTrip || !uid) { return; }
+      setError(null);
+
+      const expiresAt = computeTripExpiresAt(endDate);
+      try {
+        if (editInitialStep === 'dates') {
+          await updateTrip(uid, editingTrip.id, { startDate, endDate, expiresAt });
+          setEditingTrip({ ...editingTrip, startDate, endDate, expiresAt });
+          useToastStore.getState().showToast(COPY.tripPlanner.editDatesSuccessToast(editingTrip.destination));
+          onDone();
+          return;
+        }
+
+        const grewArea = preset.radiusMeters > editingTrip.areaRadius;
+        const isOnline = (await NetInfo.fetch()).isConnected !== false;
+
+        if (grewArea && isOnline) {
+          const result = await downloadTripAreaWithCloudflare(
+            { lat: editingTrip.centerLat, lng: editingTrip.centerLng },
+            preset.radiusMeters,
+            editingTrip.cacheAreaId,
+            expiresAt,
+            editingTrip.cloudflareExport,
+          );
+          const preRefreshedAt = Date.now();
+          await updateTrip(uid, editingTrip.id, {
+            areaRadius: preset.radiusMeters,
+            expiresAt,
+            preRefreshedAt,
+            cloudflareExport: result.cloudflareExport,
+          });
+          setEditingTrip({ ...editingTrip, areaRadius: preset.radiusMeters, expiresAt, preRefreshedAt, cloudflareExport: result.cloudflareExport });
+        } else if (grewArea) {
+          await updateTrip(uid, editingTrip.id, { expiresAt });
+          setEditingTrip({ ...editingTrip, expiresAt });
+        } else {
+          await updateTrip(uid, editingTrip.id, { areaRadius: preset.radiusMeters, expiresAt });
+          setEditingTrip({ ...editingTrip, areaRadius: preset.radiusMeters, expiresAt });
+        }
+        useToastStore.getState().showToast(COPY.tripPlanner.editRadiusSuccessToast(editingTrip.destination));
+        onDone();
+      } catch (err) {
+        console.warn('[useTripPlanner] edit failed', err);
+        setError(COPY.tripPlanner.downloadErrorToast);
+        setStep(editInitialStep ?? 'radius');
+      }
+      return;
+    }
+
     if (!destination || !uid) { return; }
+    // A ready Cloudflare destination has an R2 object whose exact size is
+    // known without downloading it. First tap surfaces that fact; the second
+    // tap is the user's explicit approval to transfer it.
+    if (exactDownloadBytes == null) {
+      const exportBytes = await getCloudflareTripExportSize(destination);
+      if (exportBytes != null) {
+        setExactDownloadBytes(exportBytes);
+        return;
+      }
+    }
     setStep('downloading');
     setError(null);
 
@@ -178,12 +286,11 @@ export function useTripPlanner(
     const expiresAt = computeTripExpiresAt(endDate);
 
     try {
-      await downloadTripArea(
+      const result = await downloadTripAreaWithCloudflare(
         { lat: destination.lat, lng: destination.lng },
         preset.radiusMeters,
         cacheAreaId,
         expiresAt,
-        customCategoryPoiTypes,
       );
       try {
         await addTrip(uid, {
@@ -196,6 +303,7 @@ export function useTripPlanner(
           areaRadius: preset.radiusMeters,
           cacheAreaId,
           expiresAt,
+          cloudflareExport: result.cloudflareExport,
         });
       } catch (err) {
         // The habitat rows were already written under cacheAreaId — without
@@ -212,22 +320,31 @@ export function useTripPlanner(
       setError(COPY.tripPlanner.downloadErrorToast);
       setStep('radius');
     }
-  }, [destination, uid, endDate, startDate, preset.radiusMeters, customCategoryPoiTypes, onDone]);
+  }, [
+    isEditing, editingTrip, uid, endDate, startDate, preset.radiusMeters,
+    editInitialStep, onDone, destination, exactDownloadBytes,
+  ]);
 
   const goBack = useCallback(() => {
     setError(null);
     setStep(prev => {
       if (prev === 'radius') { return 'dates'; }
+      if (isEditing && prev === 'dates') { return prev; }
       if (prev === 'dates') { return 'destination'; }
       return prev;
     });
-  }, []);
+  }, [isEditing]);
 
   return {
     step,
-    query, setQuery, suggestions, selectDestination, destination,
+    query, setQuery, suggestions, searching, selectDestination, destination,
     startDate, endDate, setStartDate, setEndDate, goToRadius, skipDates,
-    radiusKey, setRadiusKey, estimatedBytes, previewUrl,
+    radiusKey, setRadiusKey: setTripRadiusKey, estimatedBytes, radiusMeters: preset.radiusMeters, exactDownloadBytes,
     confirmDownload, error, goBack,
+    isEditing, editInitialStep: editInitialStep ?? null,
   };
+}
+
+function radiusPresetForMeters(radiusMeters: number): TripRadiusPreset {
+  return TRIP_RADIUS_PRESETS.find(p => p.radiusMeters === radiusMeters)?.key ?? 'town_and_around';
 }

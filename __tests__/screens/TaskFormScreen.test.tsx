@@ -14,7 +14,11 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
+import { Keyboard, ScrollView, StyleSheet } from 'react-native';
+import type { Alert as AlertType } from 'react-native';
 import TaskFormScreen from '../../src/screens/TaskFormScreen';
+import { COPY } from '../../src/constants/copy';
+import { todayISO } from '../../src/utils/date';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -48,6 +52,47 @@ jest.mock('../../src/services/placesFunctions', () => ({
   placesAutocompleteProxy: jest.fn(),
   searchNearbyPlacesProxy: jest.fn(),
   searchPlaceTypesProxy: jest.fn(),
+}));
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   jest.fn(),
+}));
+
+jest.mock('expo-sqlite', () => ({
+  openDatabaseSync: jest.fn(() => ({
+    execSync: jest.fn(),
+    getFirstSync: jest.fn(),
+    getAllSync: jest.fn(() => []),
+    runSync: jest.fn(),
+  })),
+}));
+
+// KAN-280 — notifications.ts transitively imports @notifee/react-native
+// (native module, unavailable under Jest) — mocked at the service boundary,
+// matching this suite's existing mocking style (see achievements.ts above).
+const mockScheduleTaskReminder = jest.fn().mockResolvedValue(undefined);
+const mockCancelTaskReminder   = jest.fn().mockResolvedValue(undefined);
+const mockRefreshDatedTaskHandoff = jest.fn().mockResolvedValue(undefined);
+jest.mock('../../src/services/notifications', () => ({
+  scheduleTaskReminder: (...args: unknown[]) => mockScheduleTaskReminder(...args),
+  cancelTaskReminder:   (...args: unknown[]) => mockCancelTaskReminder(...args),
+}));
+jest.mock('../../src/services/datedTaskHandoff', () => ({
+  refreshDatedTaskHandoff: (...args: unknown[]) => mockRefreshDatedTaskHandoff(...args),
+}));
+
+// KAN-279 — mocked at the service boundary (same style as notifications/
+// achievements above) rather than mocking takeMeThere.ts's own transitive
+// deps (proximity.ts pulls in notifee/NetInfo/expo-sqlite, unavailable
+// under Jest). poiSuggestions.ts (via poiTypeCache.ts) still needs the
+// real services/maps/geolocation exports, so those are left unmocked here.
+const mockIsTaskPoiFarAway     = jest.fn().mockReturnValue(false);
+const mockOpenTakeMeThereMaps  = jest.fn().mockResolvedValue(undefined);
+const mockGetTakeMeThereA11yLabel = jest.fn().mockReturnValue('Take me to a Pharmacy');
+jest.mock('../../src/services/takeMeThere', () => ({
+  isTaskPoiFarAway:        (...args: unknown[]) => mockIsTaskPoiFarAway(...args),
+  openTakeMeThereMaps:     (...args: unknown[]) => mockOpenTakeMeThereMaps(...args),
+  getTakeMeThereA11yLabel: (...args: unknown[]) => mockGetTakeMeThereA11yLabel(...args),
 }));
 
 // KAN-248 — deleteField is imported directly (not via the src/services/firestore
@@ -108,8 +153,11 @@ jest.mock('../../src/components/AppIcon', () => {
   return {
     CakeIcon:     stub,
     CalendarIcon: stub,
+    ChevronLeftIcon: stub,
+    ChevronRightIcon: stub,
     ClockIcon:    stub,
     CloseIcon:    stub,
+    NavigateIcon: stub,
     PoiIcon:      stub,
   };
 });
@@ -121,7 +169,11 @@ type RouteParams = {
   task?: any;
   initialDate?: string;
   initialTitle?: string;
+  initialCategory?: string;
   initialPoi?: string;
+  initialRestaurantFoodType?: string;
+  initialStoreSubtype?: string;
+  initialPoiBrand?: string;
   initialPoiExplicitlySelected?: boolean;
 };
 
@@ -140,7 +192,8 @@ function makeTask(overrides: Partial<any> = {}) {
     category:  'errands',
     done:      false,
     poi:       'supermarket',
-    date:      '2026-06-03',
+    date:      '2026-06-03', // legacy date: intentionally not treated as scheduled
+    scheduledDate: '2026-06-03',
     createdAt: { seconds: 0, nanoseconds: 0 },
     ...overrides,
   };
@@ -228,6 +281,46 @@ describe('TaskFormScreen — edit mode', () => {
     expect(screen.getByText('Ready to save')).toBeTruthy();
   });
 
+  it('renders a non-catalog recommended POI in edit mode', () => {
+    setRouteParams({
+      uid:  'user-123',
+      task: makeTask({ title: 'Visit police', poi: 'police' }),
+    });
+
+    render(<TaskFormScreen />);
+
+    expect(screen.getByLabelText(`Police ${COPY.newTaskSheet.poiSuggestionConfirmedSuffix}`)).toBeTruthy();
+    expect(screen.getByText('Police')).toBeTruthy();
+  });
+
+  it('updates the recommended POI from the dictionary while preserving the saved POI', async () => {
+    jest.useFakeTimers();
+    mockInferPoiForQuickAdd.mockResolvedValue('police');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('Task title'), 'Visit police');
+
+    await act(async () => {
+      jest.advanceTimersByTime(350);
+      await Promise.resolve();
+    });
+
+    let suggestion: ReturnType<typeof screen.getByLabelText>;
+    await waitFor(() => {
+      suggestion = screen.getByLabelText(`Police, ${COPY.newTaskSheet.poiSuggestionHint}`);
+      expect(suggestion).toBeTruthy();
+    });
+    const suggestionStyle = StyleSheet.flatten(suggestion!.props.style);
+
+    expect(suggestionStyle.backgroundColor).toBe('#fdf7f0');
+    expect(suggestionStyle.borderColor).toBe('#e8c9a0');
+    expect(suggestionStyle.borderStyle).toBe('dashed');
+    expect(screen.getByText(COPY.newTaskSheet.poiSuggestionHint)).toBeTruthy();
+    expect(screen.getByText('Market').parent?.parent?.props.accessibilityState?.selected).toBe(true);
+
+    jest.useRealTimers();
+  });
+
   it('pre-populates the notes field from existing description', () => {
     setRouteParams({
       uid:  'user-123',
@@ -302,6 +395,22 @@ describe('TaskFormScreen — POI free-text type', () => {
     );
 
     expect(screen.getByText('Police')).toBeTruthy();
+  });
+
+  it.each([
+    ['Financial service', 'Financial service'],
+    ['Credit', 'Financial service'],
+    ['Currency exchange', 'Currency exchange'],
+    ['Money transfer', 'Money transfer'],
+  ])('shows %s from the bundled local dictionary', (query, expectedLabel) => {
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(
+      screen.getByPlaceholderText('A café, a pharmacy, a gym…'),
+      query,
+    );
+
+    expect(screen.getByText(expectedLabel)).toBeTruthy();
   });
 
   it('adjusts the form scroll view for the keyboard', () => {
@@ -411,6 +520,26 @@ describe('TaskFormScreen — POI free-text type', () => {
     await waitFor(() => {
       expect(screen.getByText('my guess?')).toBeTruthy();
     });
+  });
+
+  it('keeps the selected recommendation dashed after confirmation', async () => {
+    mockInferPoiForQuickAdd.mockResolvedValue('pharmacy');
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'buy aspirin');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('Pharmacy, my guess?')).toBeTruthy();
+    });
+
+    fireEvent.press(screen.getByLabelText('Pharmacy, my guess?'));
+
+    const suggestion = screen.getByLabelText('Pharmacy suggestion');
+    const suggestionStyle = StyleSheet.flatten(suggestion.props.style);
+
+    expect(suggestion.props.accessibilityState?.selected).toBe(true);
+    expect(suggestionStyle.borderStyle).toBe('dashed');
+    expect(screen.queryByText('my guess?')).toBeNull();
   });
 
   it('auto-suggests a custom poi from the title', async () => {
@@ -631,6 +760,199 @@ describe('TaskFormScreen — save (create)', () => {
       );
     });
   });
+
+  it('saves the selected store subtype in create mode', async () => {
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a t-shirt');
+    fireEvent.press(screen.getByText('Store'));
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+    await waitFor(() => {
+      expect(mockAddTask).toHaveBeenCalledWith(
+        'user-123',
+        expect.objectContaining({
+          poi:          'store',
+          storeSubtype: 'clothing',
+        }),
+      );
+    });
+  });
+
+  it('requires a Store subtype or a recognised Store brand in create mode', () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'store', initialPoiExplicitlySelected: true });
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Find a shop');
+
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+  });
+
+  it('infers and saves a Store brand without a Store subtype in create mode', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'store', initialPoiExplicitlySelected: true });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy headphones at Worten');
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'store', poiBrand: 'Worten',
+    })));
+    expect(mockAddTask.mock.calls.at(-1)?.[1]).not.toHaveProperty('storeSubtype');
+  });
+
+  it('returns to Store type inference when an automatically detected brand is removed from the title', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'store', initialPoiExplicitlySelected: true });
+    render(<TaskFormScreen />);
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a shirt at Zara');
+    await waitFor(() => expect(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y).props.accessibilityState?.checked).toBe(true));
+
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a new shirt');
+
+    await waitFor(() => {
+      expect(screen.getByLabelText(COPY.newTaskSheet.storeDetailType).props.accessibilityState?.checked).toBe(true);
+      expect(screen.getByLabelText('Clothing').props.accessibilityState?.selected).toBe(true);
+    });
+  });
+
+  it('saves the Store brand received from quick create in More Details', async () => {
+    setRouteParams({
+      uid: 'user-123',
+      initialTitle: 'Buy a charging cable',
+      initialPoi: 'store',
+      initialPoiBrand: 'Worten',
+      initialPoiExplicitlySelected: true,
+    });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(false);
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'store', poiBrand: 'Worten',
+    })));
+    expect(mockAddTask.mock.calls.at(-1)?.[1]).not.toHaveProperty('storeSubtype');
+  });
+
+  it('switches a Store from type to brand in create mode without saving a subtype', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'store', initialPoiExplicitlySelected: true });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a new shirt');
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.changeText(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder), 'Wor');
+    fireEvent.press(screen.getByLabelText('Worten'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'store', poiBrand: 'Worten',
+    })));
+    expect(mockAddTask.mock.calls.at(-1)?.[1]).not.toHaveProperty('storeSubtype');
+  });
+
+  it('switches a Store from brand to type in create mode without saving a brand', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'store', initialPoiExplicitlySelected: true });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Buy a new shirt');
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.changeText(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder), 'Wor');
+    fireEvent.press(screen.getByLabelText('Worten'));
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailType));
+    await waitFor(() => expect(screen.getByLabelText('Clothing').props.accessibilityState?.selected).toBe(true));
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'store', storeSubtype: 'clothing',
+    })));
+    expect(mockAddTask.mock.calls.at(-1)?.[1]).not.toHaveProperty('poiBrand');
+  });
+
+  it('saves a Financial service kind selected in More Details', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'financial_service', initialPoiExplicitlySelected: true });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Sort my finances');
+    fireEvent.press(screen.getByLabelText('Consumer credit'));
+    await waitFor(() => expect(screen.getByLabelText('Consumer credit').props.accessibilityState?.selected).toBe(true));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'financial_service', financialServiceKind: 'consumer_credit',
+    })));
+  });
+
+  it('keeps an explicitly cleared Financial service kind generic after a title edit', async () => {
+    setRouteParams({
+      uid: 'user-123', initialPoi: 'financial_service', initialPoiExplicitlySelected: true,
+      initialFinancialServiceKind: 'consumer_credit', initialFinancialServiceKindExplicitlySelected: true,
+    });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    expect(screen.getByLabelText('Consumer credit').props.accessibilityState?.selected).toBe(true);
+    fireEvent.press(screen.getByLabelText('Consumer credit'));
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Pay Cofidis again');
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'financial_service',
+    })));
+    expect(mockAddTask.mock.calls.at(-1)?.[1]).not.toHaveProperty('financialServiceKind');
+  });
+
+  it('hydrates and saves a restaurant food type passed from quick create', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'restaurant', initialPoiExplicitlySelected: true, initialRestaurantFoodType: 'vegetarian' });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    expect(screen.getByLabelText('Vegetarian').props.accessibilityState?.selected).toBe(true);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Have dinner');
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'restaurant', restaurantFoodType: 'vegetarian',
+    })));
+  });
+
+  it('requires and saves a canonical Gym brand in create mode', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'gym', initialPoiExplicitlySelected: true });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Training tonight');
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+    fireEvent.press(screen.getByLabelText('Solinca'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'gym', poiBrand: 'Solinca',
+    })));
+  });
+
+  it('requires and saves a canonical Bank brand in create mode', async () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'bank', initialPoiExplicitlySelected: true });
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Visit my bank');
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+    fireEvent.changeText(screen.getByLabelText('Search a bank'), 'novo');
+    fireEvent.press(screen.getByLabelText('Novo Banco'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+      poi: 'bank', poiBrand: 'Novo Banco',
+    })));
+  });
+
+  it('keeps Bank saving disabled for an unknown typed brand', () => {
+    setRouteParams({ uid: 'user-123', initialPoi: 'bank', initialPoiExplicitlySelected: true });
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Visit my bank');
+    fireEvent.changeText(screen.getByLabelText('Search a bank'), 'A made-up bank');
+
+    expect(screen.getByText("I don't know that bank yet — choose one from the list.")).toBeTruthy();
+    expect(screen.getByLabelText('Add it').props.accessibilityState?.disabled).toBe(true);
+  });
 });
 
 // ── Save — edit ───────────────────────────────────────────────────────────────
@@ -659,6 +981,211 @@ describe('TaskFormScreen — save (edit)', () => {
       expect(mockAddTask).not.toHaveBeenCalled();
       expect(mockGoBack).toHaveBeenCalled();
     });
+  });
+
+  it('hydrates and updates the store subtype in edit mode', async () => {
+    setRouteParams({
+      uid: 'user-123',
+      task: makeTask({ poi: 'store', storeSubtype: 'clothing' }),
+    });
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+
+    expect(screen.getByLabelText('Clothing').props.accessibilityState?.selected).toBe(true);
+    fireEvent.press(screen.getByLabelText('Electronics'));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+
+    await waitFor(() => {
+      expect(mockUpdateTask).toHaveBeenCalledWith(
+        'user-123',
+        'task-1',
+        expect.objectContaining({
+          poi:          'store',
+          storeSubtype: 'electronics',
+        }),
+      );
+    });
+  });
+
+  it('hydrates and updates a canonical Bank brand in edit mode', async () => {
+    setRouteParams({
+      uid: 'user-123',
+      task: makeTask({ poi: 'bank', poiBrand: 'Novo Banco' }),
+    });
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+
+    expect(screen.getByLabelText('Search a bank').props.value).toBe('Novo Banco');
+    fireEvent.changeText(screen.getByLabelText('Search a bank'), 'sant');
+    fireEvent.press(screen.getByLabelText('Santander'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Save changes')); });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith('user-123', 'task-1', expect.objectContaining({
+      poi: 'bank', poiBrand: 'Santander',
+    })));
+  });
+
+  it('requires an existing generic Store task to gain a specific detail before saving', () => {
+    setRouteParams({
+      uid: 'user-123',
+      task: makeTask({ poi: 'store', storeSubtype: 'any' }),
+    });
+    render(<TaskFormScreen />);
+
+    expect(screen.getByLabelText('Save changes').props.accessibilityState?.disabled).toBe(true);
+
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    expect(screen.getByLabelText('Save changes').props.accessibilityState?.disabled).toBe(false);
+  });
+
+  it('switches a Store from type to brand in edit mode and deletes the old subtype', async () => {
+    setRouteParams({
+      uid: 'user-123',
+      task: makeTask({ poi: 'store', storeSubtype: 'clothing' }),
+    });
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailBrandA11y));
+    fireEvent.changeText(screen.getByLabelText(COPY.newTaskSheet.storeBrandPlaceholder), 'Wor');
+    fireEvent.press(screen.getByLabelText('Worten'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Save changes')); });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith('user-123', 'task-1', expect.objectContaining({
+      poi: 'store', poiBrand: 'Worten', storeSubtype: DELETE_FIELD_SENTINEL,
+    })));
+  });
+
+  it('switches a Store from brand to type in edit mode and deletes the old brand', async () => {
+    setRouteParams({
+      uid: 'user-123',
+      task: makeTask({ poi: 'store', poiBrand: 'Worten' }),
+    });
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    render(<TaskFormScreen />);
+    fireEvent.press(screen.getByLabelText(COPY.newTaskSheet.storeDetailType));
+    fireEvent.press(screen.getByLabelText('Clothing'));
+    await act(async () => { fireEvent.press(screen.getByLabelText('Save changes')); });
+
+    await waitFor(() => expect(mockUpdateTask).toHaveBeenCalledWith('user-123', 'task-1', expect.objectContaining({
+      poi: 'store', storeSubtype: 'clothing', poiBrand: DELETE_FIELD_SENTINEL,
+    })));
+  });
+});
+
+// ── Task reminder scheduling (KAN-280) ──────────────────────────────────────
+
+describe('TaskFormScreen — reminder scheduling', () => {
+  it('create: does NOT schedule a reminder when no time was set', async () => {
+    // Driving the MiniTimePicker to actually pick a time is covered by
+    // MiniTimePicker.test.tsx; the edit-mode test below confirms the create/edit
+    // wiring end-to-end via an existing time. This test only needs to confirm
+    // the `if (time.trim())` guard around scheduleTaskReminder in the create path.
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+
+    fireEvent.press(screen.getAllByLabelText('Around when?')[0]);
+    const today = new Date();
+    fireEvent.press(screen.getByLabelText(
+      `${COPY.calendar.monthNamesFull[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`,
+    ));
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+    await waitFor(() => expect(mockAddTask).toHaveBeenCalled());
+    expect(mockScheduleTaskReminder).not.toHaveBeenCalled();
+  });
+
+  it('create: schedules a reminder for the new task id when a time is picked', async () => {
+    // Force 24h columns so the picker's testIDs are deterministic regardless
+    // of the test environment's default ICU locale.
+    const intlSpy = jest.spyOn(Intl, 'DateTimeFormat').mockImplementation(((..._args: ConstructorParameters<typeof Intl.DateTimeFormat>) => ({
+      resolvedOptions: () => ({ hour12: false }),
+    })) as unknown as typeof Intl.DateTimeFormat);
+
+    mockAddTask.mockResolvedValueOnce('new-id');
+    render(<TaskFormScreen />);
+    fireEvent.changeText(screen.getByLabelText('What do you need?'), 'Walk the dog');
+    fireEvent.press(screen.getByText('Park'));
+
+    // A time can only be set after the user explicitly chooses a date.
+    fireEvent.press(screen.getAllByLabelText('Around when?')[0]);
+    const today = new Date();
+    fireEvent.press(screen.getByLabelText(
+      `${COPY.calendar.monthNamesFull[today.getMonth()]} ${today.getDate()}, ${today.getFullYear()}`,
+    ));
+    // Both the date and time fields share the "Around when?" label — the
+    // time field is the second one.
+    fireEvent.press(screen.getAllByLabelText('Around when?')[1]);
+    fireEvent.press(screen.getByTestId('time-hour24-14'));
+    fireEvent.press(screen.getByTestId('time-minute-30'));
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Add it'));
+    });
+
+    await waitFor(() => {
+      expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+        taskId:    'new-id',
+        taskTitle: 'Walk the dog',
+        date:      todayISO(),
+        time:      '14:30',
+      });
+    });
+
+    intlSpy.mockRestore();
+  });
+
+  it('edit: reschedules the reminder with the task\'s id, title, date, and time', async () => {
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    setRouteParams({ uid: 'user-123', task: makeTask({ time: '14:00' }) });
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+    await waitFor(() => {
+      expect(mockScheduleTaskReminder).toHaveBeenCalledWith({
+        taskId:    'task-1',
+        taskTitle: 'Buy milk',
+        date:      '2026-06-03',
+        time:      '14:00',
+      });
+    });
+  });
+
+  it('edit: calling scheduleTaskReminder with an empty time is how a cleared time cancels the reminder (no-ops downstream)', async () => {
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+    setRouteParams({ uid: 'user-123', task: makeTask() }); // no `time` field
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Save changes'));
+    });
+    await waitFor(() => {
+      expect(mockCancelTaskReminder).toHaveBeenCalledWith('task-1');
+    });
+  });
+
+  it('delete: cancels the task\'s reminder', async () => {
+    mockDeleteTask.mockResolvedValueOnce(undefined);
+    setRouteParams({ uid: 'user-123', task: makeTask({ time: '14:00' }) });
+    const alertSpy = jest
+      .spyOn(require('react-native').Alert, 'alert')
+      .mockImplementation(((_title: string, _msg?: string, buttons?: Parameters<typeof AlertType.alert>[2]) => {
+        const destructive = buttons?.find(b => b.style === 'destructive');
+        destructive?.onPress?.();
+      }) as typeof AlertType.alert);
+    render(<TaskFormScreen />);
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Delete task'));
+    });
+    await waitFor(() => {
+      expect(mockDeleteTask).toHaveBeenCalledWith('user-123', 'task-1');
+      expect(mockCancelTaskReminder).toHaveBeenCalledWith('task-1');
+    });
+    alertSpy.mockRestore();
   });
 });
 
@@ -748,10 +1275,10 @@ describe('TaskFormScreen — KAN-149 copy', () => {
     expect(screen.getByText('Which part of your life?')).toBeTruthy();
   });
 
-  it('time question reads "Around when?" with "Anytime is fine" placeholder', () => {
+  it('time question starts without a date, so the task remains active until the user explicitly dates it', () => {
     render(<TaskFormScreen />);
     expect(screen.getByText('Around when?')).toBeTruthy();
-    expect(screen.getByPlaceholderText('Anytime is fine')).toBeTruthy();
+    expect(screen.getAllByText('No date')).toHaveLength(2);
   });
 
   it('renders a rotating example as the title input\'s faux placeholder in create mode', () => {
@@ -935,5 +1462,319 @@ describe('TaskFormScreen — birthday toggle (KAN-248)', () => {
     await waitFor(() => expect(mockAddTask).toHaveBeenCalled());
     const payload = mockAddTask.mock.calls[0][1];
     expect('kind' in payload).toBe(false);
+  });
+});
+
+// ── Take me there (KAN-279) ─────────────────────────────────────────────────
+
+describe('TaskFormScreen — take me there', () => {
+  it('does NOT render in create mode', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123' });
+    render(<TaskFormScreen />);
+    expect(mockIsTaskPoiFarAway).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
+  });
+
+  it('does NOT render when the POI is in the Nearby list (not far)', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(false);
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
+  });
+
+  it('renders the top-bar icon when the POI is far (not in the Nearby list)', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    render(<TaskFormScreen />);
+    expect(screen.getByLabelText('Take me to a Pharmacy')).toBeTruthy();
+  });
+
+  it('checks farness against the task\'s saved poi', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy' }) });
+    render(<TaskFormScreen />);
+    expect(mockIsTaskPoiFarAway).toHaveBeenCalledWith('pharmacy');
+    expect(mockGetTakeMeThereA11yLabel).toHaveBeenCalledWith('pharmacy');
+  });
+
+  it('does NOT render for a birthday task', () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ kind: 'birthday' }) });
+    render(<TaskFormScreen />);
+    expect(mockIsTaskPoiFarAway).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Take me to a Pharmacy')).toBeNull();
+  });
+
+  it('tapping the top-bar icon opens a Maps search for the task\'s poi', async () => {
+    mockIsTaskPoiFarAway.mockReturnValue(true);
+    setRouteParams({ uid: 'user-123', task: makeTask({ poi: 'pharmacy' }) });
+    render(<TaskFormScreen />);
+
+    await act(async () => {
+      fireEvent.press(screen.getByLabelText('Take me to a Pharmacy'));
+    });
+
+    expect(mockOpenTakeMeThereMaps).toHaveBeenCalledWith('pharmacy');
+  });
+});
+
+// ── Notes above the keyboard (KAN-369) ────────────────────────────────────────
+
+describe('TaskFormScreen — Notes stays above the keyboard (KAN-369)', () => {
+  const NOTES_Y = 900;
+
+  // Height of the screen's own box, as a layout pass would report it.
+  const SCREEN_HEIGHT = 800;
+
+  // Captures the screen's keyboard subscriptions so a test can fire them.
+  type KeyboardEvent = { endCoordinates: { screenY: number } };
+  const keyboardShowHandlers: Array<(e: KeyboardEvent) => void> = [];
+  const keyboardHideHandlers: Array<() => void> = [];
+
+  beforeEach(() => {
+    keyboardShowHandlers.length = 0;
+    keyboardHideHandlers.length = 0;
+    jest.spyOn(Keyboard, 'addListener').mockImplementation(((event: string, cb: (e: KeyboardEvent) => void) => {
+      if (event === 'keyboardDidShow') { keyboardShowHandlers.push(cb); }
+      if (event === 'keyboardDidHide') { keyboardHideHandlers.push(cb as () => void); }
+      return { remove: jest.fn() };
+    }) as unknown as typeof Keyboard.addListener);
+  });
+
+  // Renders the screen and reports its box height, the way a layout pass would.
+  function renderScreen(height = SCREEN_HEIGHT) {
+    const result = render(<TaskFormScreen />);
+    layoutScreen(height);
+    return result;
+  }
+
+  function layoutScreen(height: number) {
+    fireEvent(
+      screen.getByTestId('task-form-lift'),
+      'layout',
+      { nativeEvent: { layout: { x: 0, y: 0, width: 400, height } } },
+    );
+  }
+
+  /** @param keyboardTop screen Y of the keyboard's top edge. */
+  function emitKeyboardDidShow(keyboardTop = 500) {
+    keyboardShowHandlers.forEach(handler => handler({ endCoordinates: { screenY: keyboardTop } }));
+  }
+
+  function emitKeyboardDidHide() {
+    keyboardHideHandlers.forEach(handler => handler());
+  }
+
+  function liftPaddingBottom() {
+    return StyleSheet.flatten(screen.getByTestId('task-form-lift').props.style).paddingBottom;
+  }
+
+  // Reports the Notes section's position inside the scroll content, the way a
+  // real layout pass would.
+  function layoutNotesSection() {
+    const notes = screen.getByTestId('task-form-notes');
+    fireEvent(notes.parent!, 'layout', { nativeEvent: { layout: { x: 0, y: NOTES_Y, width: 300, height: 120 } } });
+  }
+
+  function spyOnScroll() {
+    return jest.spyOn(ScrollView.prototype, 'scrollTo').mockImplementation(() => {});
+  }
+
+  afterEach(() => { jest.restoreAllMocks(); });
+
+  it('scrolls the Notes section into view when it takes focus in create mode', () => {
+    const scrollTo = spyOnScroll();
+    renderScreen();
+    layoutNotesSection();
+
+    fireEvent(screen.getByTestId('task-form-notes'), 'focus');
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: NOTES_Y - 24, animated: true });
+  });
+
+  it('scrolls the Notes section into view when it takes focus in edit mode', () => {
+    const scrollTo = spyOnScroll();
+    setRouteParams({ uid: 'user-123', task: makeTask() });
+    renderScreen();
+    layoutNotesSection();
+
+    fireEvent(screen.getByTestId('task-form-notes'), 'focus');
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: NOTES_Y - 24, animated: true });
+  });
+
+  it('scrolls again once the keyboard has opened, since the resize lands after focus', () => {
+    const scrollTo = spyOnScroll();
+    renderScreen();
+    layoutNotesSection();
+    fireEvent(screen.getByTestId('task-form-notes'), 'focus');
+    scrollTo.mockClear();
+
+    act(() => { emitKeyboardDidShow(); });
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: NOTES_Y - 24, animated: true });
+  });
+
+  it('does not scroll on keyboardDidShow when Notes does not hold focus', () => {
+    const scrollTo = spyOnScroll();
+    renderScreen();
+    layoutNotesSection();
+
+    act(() => { emitKeyboardDidShow(); });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('stops scrolling on keyboardDidShow after Notes loses focus', () => {
+    const scrollTo = spyOnScroll();
+    renderScreen();
+    layoutNotesSection();
+    fireEvent(screen.getByTestId('task-form-notes'), 'focus');
+    fireEvent(screen.getByTestId('task-form-notes'), 'blur');
+    scrollTo.mockClear();
+
+    act(() => { emitKeyboardDidShow(); });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('never scrolls to a negative offset when Notes sits near the top', () => {
+    const scrollTo = spyOnScroll();
+    renderScreen();
+    fireEvent(
+      screen.getByTestId('task-form-notes').parent!,
+      'layout',
+      { nativeEvent: { layout: { x: 0, y: 10, width: 300, height: 120 } } },
+    );
+
+    fireEvent(screen.getByTestId('task-form-notes'), 'focus');
+
+    expect(scrollTo).toHaveBeenCalledWith({ y: 0, animated: true });
+  });
+
+  // ── Lifting the screen off the keyboard ──────────────────────────────────
+  //
+  // The window does not always shrink when the keyboard opens (edge-to-edge
+  // Android keeps its full height), so the screen pads itself by however much
+  // the keyboard actually covers.
+
+  it('lifts the screen by the height the keyboard covers when the window does not resize', () => {
+    spyOnScroll();
+    renderScreen();
+
+    // The screen's box runs to 800; the keyboard's top edge is at 500.
+    act(() => { emitKeyboardDidShow(500); });
+
+    expect(liftPaddingBottom()).toBe(SCREEN_HEIGHT - 500);
+  });
+
+  it('stays inert when the window already resized above the keyboard', () => {
+    spyOnScroll();
+    renderScreen();
+
+    // Keyboard top below the screen's own box — the OS already made the room.
+    act(() => { emitKeyboardDidShow(SCREEN_HEIGHT + 40); });
+
+    expect(liftPaddingBottom()).toBe(0);
+  });
+
+  it('drops the screen back down when the keyboard hides', () => {
+    spyOnScroll();
+    renderScreen();
+    act(() => { emitKeyboardDidShow(500); });
+    expect(liftPaddingBottom()).toBeGreaterThan(0);
+
+    act(() => { emitKeyboardDidHide(); });
+
+    expect(liftPaddingBottom()).toBe(0);
+  });
+
+  it('lifts by the same amount when the keyboard reopens after a lifted re-layout', () => {
+    spyOnScroll();
+    renderScreen();
+    act(() => { emitKeyboardDidShow(500); });
+
+    // The lift shrinks the box, so the re-layout reports the reduced height —
+    // it must not be mistaken for a smaller window.
+    act(() => { layoutScreen(SCREEN_HEIGHT - (SCREEN_HEIGHT - 500)); });
+    act(() => { emitKeyboardDidShow(500); });
+
+    expect(liftPaddingBottom()).toBe(SCREEN_HEIGHT - 500);
+  });
+
+  it('scrolls Notes into view on top of lifting the screen', () => {
+    const scrollTo = spyOnScroll();
+    renderScreen();
+    layoutNotesSection();
+    fireEvent(screen.getByTestId('task-form-notes'), 'focus');
+    scrollTo.mockClear();
+
+    act(() => { emitKeyboardDidShow(500); });
+
+    expect(liftPaddingBottom()).toBe(SCREEN_HEIGHT - 500);
+    expect(scrollTo).toHaveBeenCalledWith({ y: NOTES_Y - 24, animated: true });
+  });
+});
+
+// ── Category handed over from the quick sheet (KAN-372) ───────────────────────
+
+describe('TaskFormScreen — initialCategory (KAN-372)', () => {
+  it('saves the category chosen in the quick sheet', async () => {
+    setRouteParams({
+      uid:             'user-123',
+      initialTitle:    'Call the clinic',
+      initialCategory: 'health',
+      initialPoi:      'pharmacy',
+      initialPoiExplicitlySelected: true,
+    });
+    mockAddTask.mockResolvedValueOnce('new-id');
+
+    render(<TaskFormScreen />);
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+
+    await waitFor(() =>
+      expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        title:    'Call the clinic',
+        category: 'health',
+      })),
+    );
+  });
+
+  it('still falls back to personal when the quick sheet passes no category', async () => {
+    setRouteParams({
+      uid:          'user-123',
+      initialTitle: 'Call the clinic',
+      initialPoi:   'pharmacy',
+      initialPoiExplicitlySelected: true,
+    });
+    mockAddTask.mockResolvedValueOnce('new-id');
+
+    render(<TaskFormScreen />);
+    await act(async () => { fireEvent.press(screen.getByLabelText('Add it')); });
+
+    await waitFor(() =>
+      expect(mockAddTask).toHaveBeenCalledWith('user-123', expect.objectContaining({
+        category: 'personal',
+      })),
+    );
+  });
+
+  it('prefers the edited task own category over any passed-in one', async () => {
+    setRouteParams({
+      uid:             'user-123',
+      task:            makeTask({ category: 'errands' }),
+      initialCategory: 'health',
+    });
+    mockUpdateTask.mockResolvedValueOnce(undefined);
+
+    render(<TaskFormScreen />);
+    await act(async () => { fireEvent.press(screen.getByLabelText('Save changes')); });
+
+    await waitFor(() =>
+      expect(mockUpdateTask).toHaveBeenCalledWith('user-123', 'task-1', expect.objectContaining({
+        category: 'errands',
+      })),
+    );
   });
 });

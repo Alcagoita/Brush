@@ -10,10 +10,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { setStoreTuningPref } from '../../services/firestore';
-import { requestLocationPermission } from '../../services/geolocation';
+import { requestLocationPermission, startTracking, stopTracking } from '../../services/geolocation';
 import type { LocationContext } from '../../services/geolocation';
 import {
   runProximitySearch,
+  runProximitySearchOrReuseSnapshot,
   getLastSearchCoords,
   setLocationTap,
   setPlaceContextTap,
@@ -39,8 +40,24 @@ import { getBatteryLevel, useBatteryLevel } from '../../services/battery';
 import type { StoreTuningState, Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
+/**
+ * How far the user must move before the nearby list is recomputed (KAN-377).
+ *
+ * The trigger is distance and nothing else — no timer. Standing still costs
+ * nothing; walking is what changes the answer.
+ */
+export const SEARCH_MOVE_M = 200;
+
 export interface ProximityEngine {
   permissionGranted:  boolean;
+  /** True once the Nearby list reflects a real, settled outcome — either a
+   *  proximity search has completed (success or failure), or there was
+   *  never going to be one (no POI tasks, permission denied, Store tuning
+   *  active). False while a first search is genuinely in flight. Anything
+   *  derived from poiPlaces (far-away arrows, "one trip for all of these")
+   *  must gate on this — showing it against the {} default before the real
+   *  list lands means it can vanish moments later with no explanation. */
+  nearbyReady:        boolean;
   nearbyPoiType:      string | null;
   /** Mirror of nearbyPoiType for stable callbacks (e.g. useTaskCompletion). */
   nearbyPoiTypeRef:   React.RefObject<string | null>;
@@ -48,8 +65,14 @@ export interface ProximityEngine {
   /** Mirror of nearbyPlace for stable callbacks (e.g. useTaskCompletion, KAN-226). */
   nearbyPlaceRef:     React.RefObject<NearbyPlace | null>;
   poiPlaces:          PlacesMap;
-  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip. */
+  /** Mall/trip context for the last position fix (KAN-242) — feeds the header ContextChip / Lantern. */
   placeContext:       PlaceContext;
+  /** Last settled-search position (KAN-301) — feeds the Lantern's home/outside
+   *  resolution while a moving user has open POI tasks. Updated whenever the
+   *  foreground watcher sees SEARCH_MOVE_M of movement (KAN-377). Null when no
+   *  search has run (e.g. no POI tasks); useLanternState takes its own one-shot
+   *  fix in that case. */
+  coords:             { lat: number; lng: number } | null;
   locationUnavailable: boolean;
   storeTuningActive:      boolean;
   showStoreTuningPrompt:  boolean;
@@ -67,13 +90,25 @@ export function useProximityEngine(
 ): ProximityEngine {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const permissionGrantedRef = useRef(false);
-  const refreshProximityRef  = useRef<() => void>(() => {});
   useEffect(() => { permissionGrantedRef.current = permissionGranted; }, [permissionGranted]);
+
+  // Mirrors for the AppState handler below (empty-deps effect — can't close
+  // over current values directly). KAN-285 follow-up: app foreground/resume
+  // (including an emulator/OS process restart after a low-memory kill, which
+  // looks identical to a normal background→foreground transition) must go
+  // through the same 500m/POI-type-set gate as every other automatic check,
+  // not call the raw unconditional search.
+  const uidRef               = useRef<string | undefined>(uid);
+  const hasPOITasksRef       = useRef(false);
+  const isStoreTuningActiveRef = useRef(false);
+  useEffect(() => { uidRef.current = uid; }, [uid]);
+
+  // ── Nearby-list readiness (see ProximityEngine.nearbyReady doc) ────────────
+  const [permissionChecked, setPermissionChecked] = useState(DEBUG_DISABLE_BACKGROUND);
+  const [hasCompletedScan,  setHasCompletedScan]  = useState(false);
 
   /** True while a proximity search Promise is in-flight. */
   const isSearchingRef    = useRef(false);
-  /** Count of undone POI tasks from the last effect run — detects new tasks. */
-  const prevPoiCountRef   = useRef(0);
 
   const [nearbyPoiType,       setNearbyPoiType]       = useState<string | null>(null);
   const nearbyPoiTypeRef = useRef<string | null>(null);
@@ -81,6 +116,7 @@ export function useProximityEngine(
   const nearbyPlaceRef = useRef<NearbyPlace | null>(null);
   const [poiPlaces,           setPoiPlaces]           = useState<PlacesMap>({});
   const [placeContext,        setPlaceContext]        = useState<PlaceContext>(null);
+  const [coords,              setCoords]              = useState<{ lat: number; lng: number } | null>(null);
   const [locationUnavailable, setLocationUnavailable] = useState(false);
 
   // ── Battery level (KAN-52) — read on foreground only; not used for pausing ──
@@ -94,9 +130,20 @@ export function useProximityEngine(
       if (nextState === 'active') {
         setBatteryLevel(await getBatteryLevel());
         if (permissionGrantedRef.current) {
-          // User may have toggled GPS back on — re-run immediately rather than
-          // waiting for the next 3-minute interval tick.
-          refreshProximityRef.current();
+          // Foregrounding (including an OS-level process resume after a
+          // low-memory kill, which fires this exact same 'active' event —
+          // not a fresh cold start the snapshot-reuse gate wouldn't see)
+          // must go through the same gate as every other automatic check:
+          // reuse the persisted snapshot unless the position moved >500m or
+          // the POI-type set changed. The user's own "refresh location" tap
+          // (NearbyCard's onRefreshLocation, wired straight to the
+          // refreshProximity this hook returns) is unaffected — that's an
+          // explicit request, always real, never routed through this gate.
+          const uidNow = uidRef.current;
+          if (uidNow && hasPOITasksRef.current && !isStoreTuningActiveRef.current) {
+            runProximitySearchOrReuseSnapshot(uidNow, latestTasksRef.current, onNearbyUpdateRef.current)
+              .catch(() => setLocationUnavailable(true));
+          }
         } else {
           // Re-check in case the user granted permission in Settings while away.
           requestLocationPermission()
@@ -115,7 +162,6 @@ export function useProximityEngine(
 
   const isIndoorMonitoringRef   = useRef(false);
   const stopIndoorMonitoringRef = useRef<(() => void) | null>(null);
-  const positionTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // ── Location permission (KAN-53) ──────────────────────────────────────────
 
@@ -126,7 +172,7 @@ export function useProximityEngine(
       if (status === 'granted') { setPermissionGranted(true); }
     }).catch(err => {
       console.warn('[useTodayScreen] location permission error', err);
-    });
+    }).finally(() => setPermissionChecked(true));
   }, [uid]);
 
   // ── Indoor detection + store tuning (KAN-73 / KAN-74) ─────────────────────
@@ -173,8 +219,10 @@ export function useProximityEngine(
     () => tasks.some(t => !t.done && t.poi),
     [tasks],
   );
+  useEffect(() => { hasPOITasksRef.current = hasPOITasks; }, [hasPOITasks]);
 
   const isStoreTuningActive = storeTuningState === 'active';
+  useEffect(() => { isStoreTuningActiveRef.current = isStoreTuningActive; }, [isStoreTuningActive]);
 
   // ── Stable onUpdate callback ───────────────────────────────────────────────
 
@@ -186,9 +234,17 @@ export function useProximityEngine(
       setNearbyPlace(place);
       setPoiPlaces(allPlaces);
       setLocationUnavailable(false);
+      setHasCompletedScan(true);
+      // KAN-301 — capture the position this scan ran against for the Lantern's
+      // home/outside resolution. getLastSearchCoords() is set by the search
+      // that just fired this callback, so it's the fresh fix.
+      const searchCoords = getLastSearchCoords();
+      if (searchCoords) { setCoords(searchCoords); }
     },
     [],
   );
+  const onNearbyUpdateRef = useRef(onNearbyUpdate);
+  useEffect(() => { onNearbyUpdateRef.current = onNearbyUpdate; }, [onNearbyUpdate]);
 
   // ── Outdoor proximity lifecycle (KAN-24 / KAN-53) ─────────────────────────
 
@@ -205,51 +261,89 @@ export function useProximityEngine(
         // review fix) — e.g. the user's last POI task got completed while
         // inside a mall, and the chip would freeze there indefinitely.
         setPlaceContext(null);
+        // No POI tasks (or Store tuning owns the nearby state instead) means
+        // there was never a search to wait for — {} is already the settled,
+        // correct answer.
+        setHasCompletedScan(true);
       }
       return;
     }
 
-    const onSearchError = () => setLocationUnavailable(true);
+    const onSearchError = () => { setLocationUnavailable(true); setHasCompletedScan(true); };
 
-    runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
-    prevPoiCountRef.current = latestTasksRef.current.filter(t => !t.done && t.poi).length;
+    // A fresh check is starting for this uid/permission/POI-tasks
+    // combination — the readiness flag from any previous combination (e.g.
+    // "no POI tasks" settling to ready=true) no longer applies. This is the
+    // automatic entry point (mount / permission just granted / POI tasks
+    // just appeared) — KAN-285: reuse a persisted snapshot instead of
+    // re-hitting the Places API when the position hasn't moved and the POI
+    // type set hasn't changed since the last time this ran.
+    setHasCompletedScan(false);
+    runProximitySearchOrReuseSnapshot(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
 
-    positionTimerRef.current = setInterval(async () => {
-      try {
-        const coords = await (await import('../../services/geolocation')).getPositionLowAccuracy();
+    // ── Distance, not time (KAN-377) ────────────────────────────────────────
+    // This used to be a 3-minute setInterval that took a fix and compared it to
+    // the last search position. Time was never the thing we cared about: a user
+    // sitting still for an hour needs no search, and one walking past three
+    // shops in ninety seconds needs three. Worse, offline it read as the app
+    // having stopped — the nearby distance is the clearest proof it hasn't, and
+    // it could sit stale for up to three minutes.
+    //
+    // The watcher does the sampling now, and movement alone triggers the
+    // search. Accuracy is untouched (KAN-55 coarse — AC8); this changes WHEN we
+    // search, never how precisely we look. It is foreground-only (KAN-231): the
+    // AppState effect below stops it the moment the app leaves the screen, so
+    // nothing here runs in the background.
+    const watch = () => startTracking(
+      fix => {
         const last = getLastSearchCoords();
-        if (!last) {
-          runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
-          return;
-        }
-        const moved = getDistanceMeters(coords.lat, coords.lng, last.lat, last.lng);
-        if (moved >= 200) {
+        if (!last || getDistanceMeters(fix.lat, fix.lng, last.lat, last.lng) >= SEARCH_MOVE_M) {
           runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate).catch(onSearchError);
         }
-      } catch { setLocationUnavailable(true); }
-    }, 3 * 60 * 1_000);
+      },
+      // A watcher error is the OS refusing to look (permission pulled, location
+      // services off) — not the same as a search failing, and not something to
+      // retry into. The last resolved nearby state stays on screen.
+      () => setLocationUnavailable(true),
+    );
+    watch();
+
+    // Foreground-only, enforced here rather than trusted (KAN-231): the watcher
+    // is torn down the moment the app stops being the thing on screen, and
+    // rebuilt on return. Nothing observes location in the background.
+    const appStateSub = AppState.addEventListener('change', next => {
+      if (next === 'active') { watch(); } else { stopTracking(); }
+    });
 
     return () => {
-      if (positionTimerRef.current) {
-        clearInterval(positionTimerRef.current);
-        positionTimerRef.current = null;
-      }
+      appStateSub.remove();
+      stopTracking();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
 
-  // ── Re-search when a new POI task is added ─────────────────────────────────
+  // ── Re-check when tasks actually change (KAN-285 follow-up) ────────────────
   //
-  // tasks changes when refresh() re-fetches after onTaskAdded. This effect
-  // fires an immediate proximity search when the undone POI count increases.
-
+  // `tasks` only gets a new array reference when TodayScreen's focus effect
+  // decided a real mutation happened somewhere (taskMutationSignal) and
+  // called refresh() — reacting to its identity here is a reliable "did
+  // something change" signal, not a guess, and it fires for ANY kind of
+  // change (added, removed, completed, or a task's POI type edited — e.g.
+  // on CalendarScreen), not just a count increase.
+  //
+  // Delegates the "is a real Places API call actually needed" decision to
+  // runProximitySearchOrReuseSnapshot's own POI-type-set/500m gate rather
+  // than re-deriving that here — a previous version of this effect only
+  // compared undone-POI counts, which missed a same-count POI-type swap
+  // entirely (e.g. changing a task's category from pharmacy to cafe left
+  // the Nearby zone searching for the wrong type until the next unrelated
+  // recheck).
+  const isFirstTasksIdentityRef = useRef(true);
   useEffect(() => {
+    if (isFirstTasksIdentityRef.current) { isFirstTasksIdentityRef.current = false; return; }
     if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return; }
-    const count = tasks.filter(t => !t.done && t.poi).length;
-    if (count > prevPoiCountRef.current) {
-      runProximitySearch(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
-    }
-    prevPoiCountRef.current = count;
+    setHasCompletedScan(false);
+    runProximitySearchOrReuseSnapshot(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
@@ -324,16 +418,21 @@ export function useProximityEngine(
     }
   }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
 
-  useEffect(() => { refreshProximityRef.current = refreshProximity; }, [refreshProximity]);
+  // Settled once permission is known AND either nothing was ever going to
+  // search (no permission, no POI tasks, Store tuning owns it instead) or a
+  // real search attempt has completed.
+  const nearbyReady = permissionChecked && (!permissionGranted || !hasPOITasks || isStoreTuningActive || hasCompletedScan);
 
   return {
     permissionGranted,
+    nearbyReady,
     nearbyPoiType,
     nearbyPoiTypeRef,
     nearbyPlace,
     nearbyPlaceRef,
     poiPlaces,
     placeContext,
+    coords,
     locationUnavailable,
     storeTuningActive: isStoreTuningActive,
     showStoreTuningPrompt: storeTuningState === 'prompt_shown',

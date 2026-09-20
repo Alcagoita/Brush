@@ -16,7 +16,7 @@
  *   - generic (nameless-fallback) OSM names only merge on an exact match,
  *     never via substring — a real name must not collide with a generic one
  *   - queryHabitatCache returns NearbyPlace-shaped results within radius,
- *     sorted by distance, capped at 5 per type (matches searchNearbyPlaces)
+ *     sorted by distance, capped at 50 per type unless a caller opts out
  *   - refreshHabitatCacheIfStale only fetches OSM for stale/missing types
  *     (judged by osm_fetched_at, not touched by Google-only seeding), and
  *     skips entirely when offline
@@ -27,10 +27,13 @@
  *     never invents an id for an unmatched place)
  *   - every exported function degrades to a safe default (never throws)
  *     when the underlying DB call itself throws
- *   - refreshHabitatCacheIfStale (KAN-238 review) pre-filters to OSM-mappable
- *     types before deciding what's stale — a custom-category string with no
- *     POI_OSM_TAGS mapping can never produce a row, so it must never keep
- *     "staleTypes" non-empty forever; a mapped type that legitimately
+ *   - refreshHabitatCacheIfStale (KAN-238 review) pre-filters to types some
+ *     source can actually answer for, before deciding what's stale — a
+ *     free-text POI string can never produce a row, so it must never keep
+ *     "staleTypes" non-empty forever. KAN-407 widened that filter from
+ *     "OSM-mappable" to "OSM-mappable OR servable by our API": the original
+ *     rule predated KAN-366 and was keeping out leisure types our own
+ *     database holds thousands of rows for; a mapped type that legitimately
  *     returns zero OSM results is throttled per (type, coarse area) instead
  *     of re-hitting Overpass on every single proximity tick; and
  *     enforceSizeBudget's full-table COUNT(*) is skipped when nothing was
@@ -54,18 +57,54 @@ interface MockHabitatRow {
   lng: number;
   google_place_id: string | null;
   osm_id: string | null;
+  /** KAN-342 — Foursquare id, via the Cloudflare POI backend. */
+  fsq_place_id?: string | null;
+  /** KAN-451 — Overture GERS id, via the Cloudflare POI backend. */
+  overture_id?: string | null;
+  /** KAN-451 — id of a record our own registry owns (community, manual, Multibanco). */
+  brush_id?: string | null;
   osm_fetched_at: number;
   last_matched_at: number;
   cache_area_id: string | null;
   expires_at: number | null;
+  /** KAN-282 — OSM building-footprint area; null when unknown (see habitatCache). */
+  footprint_area_m2?: number | null;
+  /** KAN-293 — the place's own site from OSM's `website` tag; null when it has none. */
+  website?: string | null;
+  /** KAN-317 — restaurant subtype metadata persisted in the local cache. */
+  restaurant_food_type?: string | null;
+  /** KAN-317 — store subtype metadata persisted in the local cache. */
+  store_subtype?: string | null;
+  /** KAN-377 — settlement name carried by the POI source. */
+  area_name?: string | null;
+  /** KAN-368 follow-up — canonical chain retained for offline matching. */
+  brand?: string | null;
 }
 
 // ─── In-memory expo-sqlite mock ────────────────────────────────────────────────
 
 let rows: MockHabitatRow[] = [];
 
-function matchesBox(row: MockHabitatRow, latMin: number, latMax: number, lngMin: number, lngMax: number): boolean {
-  return row.lat >= latMin && row.lat <= latMax && row.lng >= lngMin && row.lng <= lngMax;
+function matchesBox(
+  row: MockHabitatRow,
+  latMin: number,
+  latMax: number,
+  lngRanges: Array<readonly [number, number]>,
+): boolean {
+  return row.lat >= latMin
+    && row.lat <= latMax
+    && lngRanges.some(([lngMin, lngMax]) => row.lng >= lngMin && row.lng <= lngMax);
+}
+
+function longitudeRangesFromParams(params: unknown[], start: number, count: number): Array<readonly [number, number]> {
+  return Array.from({ length: count }, (_, index) => {
+    const offset = start + index * 2;
+    return [params[offset], params[offset + 1]] as [number, number];
+  });
+}
+
+function longitudeRangeCount(sql: string): number {
+  return (sql.match(/lng BETWEEN \? AND \?/g) ?? []).length;
 }
 
 const mockDb = {
@@ -76,8 +115,11 @@ const mockDb = {
     if (s.startsWith('PRAGMA table_info(habitat_places)')) {
       return [
         { name: 'id' }, { name: 'poi_type' }, { name: 'name' }, { name: 'is_generic_name' },
-        { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' },
+        { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' }, { name: 'fsq_place_id' },
+        { name: 'overture_id' }, { name: 'brush_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
+        { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' },
+        { name: 'area_name' }, { name: 'brand' },
       ] as unknown as T[];
     }
     if (s.startsWith('SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL')) {
@@ -86,7 +128,17 @@ const mockDb = {
       return [{ maxTs }] as unknown as T[];
     }
     if (s.startsWith('SELECT COUNT(*) as count FROM habitat_places WHERE cache_area_id IS NULL')) {
-      return [{ count: rows.filter(r => r.cache_area_id == null).length }] as unknown as T[];
+      // KAN-282 — two budgets are counted separately: the ordinary pool
+      // (malls excluded) and the malls' own.
+      const mallsOnly = s.includes("poi_type = 'shopping_mall'");
+      const excludesMalls = s.includes("poi_type != 'shopping_mall'");
+      return [{
+        count: rows.filter(r =>
+          r.cache_area_id == null
+          && (mallsOnly ? r.poi_type === 'shopping_mall' : true)
+          && !(excludesMalls && r.poi_type === 'shopping_mall'),
+        ).length,
+      }] as unknown as T[];
     }
     if (s.startsWith('SELECT COUNT(*)')) {
       return [{ count: rows.length }] as unknown as T[];
@@ -95,42 +147,80 @@ const mockDb = {
       return (rows.length > 0 ? [{ one: 1 }] : []) as unknown as T[];
     }
     if (s.startsWith('SELECT poi_type FROM habitat_places WHERE poi_type IN')) {
-      const inCount = (s.match(/\?/g) ?? []).length - 5; // poiTypes + 4 box bounds + 1 cutoff
+      const rangeCount = longitudeRangeCount(s);
+      const inCount = (s.match(/\?/g) ?? []).length - 3 - rangeCount * 2; // poiTypes + lat bounds + lng ranges + cutoff
       const poiTypes = params.slice(0, inCount) as string[];
-      const [latMin, latMax, lngMin, lngMax, cutoff] = params.slice(inCount) as number[];
+      const [latMin, latMax] = params.slice(inCount, inCount + 2) as number[];
+      const lngRanges = longitudeRangesFromParams(params, inCount + 2, rangeCount);
+      const cutoff = params[inCount + 2 + rangeCount * 2] as number;
+      // KAN-366 / KAN-451 — any storable source anchors a row, so all count as coverage.
       return rows.filter(r =>
-        poiTypes.includes(r.poi_type) && matchesBox(r, latMin, latMax, lngMin, lngMax)
-        && r.osm_id != null && r.osm_fetched_at >= cutoff,
+        poiTypes.includes(r.poi_type) && matchesBox(r, latMin, latMax, lngRanges)
+        && (r.osm_id != null || r.fsq_place_id != null || r.overture_id != null || r.brush_id != null)
+        && r.osm_fetched_at >= cutoff,
       ) as unknown as T[];
     }
+    if (s.startsWith('SELECT lat, lng, area_name FROM habitat_places WHERE area_name IS NOT NULL')) {
+      // getCachedAreaName (KAN-377) — named rows only, same bbox prefilter.
+      const [latMin, latMax] = params as number[];
+      const lngRanges = longitudeRangesFromParams(params, 2, longitudeRangeCount(s));
+      return rows
+        .filter(r => r.area_name != null && matchesBox(r, latMin, latMax, lngRanges))
+        .map(r => ({ lat: r.lat, lng: r.lng, area_name: r.area_name })) as unknown as T[];
+    }
+    if (s.startsWith('SELECT lat, lng FROM habitat_places WHERE lat BETWEEN')) {
+      // hasCachedPlacesNear (KAN-316) — type-blind bounding-box prefilter.
+      const [latMin, latMax] = params as number[];
+      const lngRanges = longitudeRangesFromParams(params, 2, longitudeRangeCount(s));
+      return rows
+        .filter(r => matchesBox(r, latMin, latMax, lngRanges))
+        .map(r => ({ lat: r.lat, lng: r.lng })) as unknown as T[];
+    }
     if (s.startsWith('SELECT * FROM habitat_places WHERE poi_type IN')) {
-      const inCount = (s.match(/\?/g) ?? []).length - 4;
+      const rangeCount = longitudeRangeCount(s);
+      const inCount = (s.match(/\?/g) ?? []).length - 2 - rangeCount * 2;
       const poiTypes = params.slice(0, inCount) as string[];
-      const [latMin, latMax, lngMin, lngMax] = params.slice(inCount) as number[];
-      return rows.filter(r => poiTypes.includes(r.poi_type) && matchesBox(r, latMin, latMax, lngMin, lngMax)) as unknown as T[];
+      const [latMin, latMax] = params.slice(inCount, inCount + 2) as number[];
+      const lngRanges = longitudeRangesFromParams(params, inCount + 2, rangeCount);
+      return rows.filter(r => poiTypes.includes(r.poi_type) && matchesBox(r, latMin, latMax, lngRanges)) as unknown as T[];
     }
     if (s.startsWith('SELECT * FROM habitat_places WHERE poi_type = ?')) {
-      const [poiType, latMin, latMax, lngMin, lngMax] = params as [string, number, number, number, number];
-      return rows.filter(r => r.poi_type === poiType && matchesBox(r, latMin, latMax, lngMin, lngMax)) as unknown as T[];
+      const [poiType, latMin, latMax] = params as [string, number, number];
+      const lngRanges = longitudeRangesFromParams(params, 3, longitudeRangeCount(s));
+      return rows.filter(r => r.poi_type === poiType && matchesBox(r, latMin, latMax, lngRanges)) as unknown as T[];
     }
     throw new Error(`mockDb.getAllSync: unrecognized query: ${s}`);
+  }),
+  getFirstSync: jest.fn(<T>(sql: string, params: unknown[] = []): T | null => {
+    const s = sql.replace(/\s+/g, ' ').trim();
+    if (s.startsWith('SELECT * FROM habitat_places WHERE id = ?')) {
+      const [id] = params as [string];
+      return (rows.find(r => r.id === id) ?? null) as T | null;
+    }
+    throw new Error(`mockDb.getFirstSync: unrecognized query: ${s}`);
   }),
   runSync: jest.fn((sql: string, params: unknown[] = []) => {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at] =
-        params as [string, string, string, number, number, number, string | null, string | null, number, number, string | null, number | null];
-      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at });
+      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name] =
+        params as [string, string, string, number, number, number, string | null, string | null, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null];
+      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
-        google, osm, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
+        google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
+        footprintAreaM2, website,
+        restaurantFoodType, storeSubtype, brand,
+        areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
-        string | null, string | null, number, number, number, number, number, number,
+        string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
+        number | null, string | null,
+        string | null, string | null, string | null,
+        string | null,
         string | null, number | null, number | null, number | null,
         number, string,
       ];
@@ -138,9 +228,24 @@ const mockDb = {
       if (row) {
         row.google_place_id = row.google_place_id ?? google;
         row.osm_id = row.osm_id ?? osm;
+        row.fsq_place_id = row.fsq_place_id ?? fsq;
+        row.overture_id = row.overture_id ?? overture;
+        row.brush_id = row.brush_id ?? brush;
         if (osmFlag1 === 1) { row.lat = lat; }
         if (osmFlag2 === 1) { row.lng = lng; }
         if (osmFlag3 === 1) { row.osm_fetched_at = osmFetchedAt; }
+        // COALESCE(?, footprint_area_m2) — a known area fills an unknown one,
+        // and a row that already has one is never downgraded to NULL.
+        row.footprint_area_m2 = footprintAreaM2 ?? row.footprint_area_m2 ?? null;
+        // COALESCE(?, website) — same shape: a discovered site fills an
+        // unknown one, and a row that already has one is never cleared.
+        row.website = website ?? row.website ?? null;
+        row.restaurant_food_type = restaurantFoodType ?? row.restaurant_food_type ?? null;
+        row.store_subtype = storeSubtype ?? row.store_subtype ?? null;
+        row.brand = brand ?? row.brand ?? null;
+        // COALESCE(?, area_name) — a Cloudflare sighting names an OSM-seeded
+        // row, and a row that already has a name is never cleared (KAN-377).
+        row.area_name = areaName ?? row.area_name ?? null;
         row.cache_area_id = row.cache_area_id ?? tripCacheAreaId;
         if (tripExpiresAtA != null) {
           row.expires_at = row.expires_at == null ? tripExpiresAtB : Math.max(row.expires_at, tripExpiresAtC!);
@@ -151,8 +256,19 @@ const mockDb = {
     }
     if (s.startsWith('DELETE FROM habitat_places WHERE id IN')) {
       const [limit] = params as [number];
-      const pool = rows.filter(r => r.cache_area_id == null);
-      const oldestFirst = [...pool].sort((a, b) => a.last_matched_at - b.last_matched_at);
+      // KAN-282 — two distinct eviction passes: the ordinary pool (malls
+      // excluded, ordered by last_matched_at) and the malls' own budget
+      // (malls only, ordered by osm_fetched_at — oldest DATA first).
+      const mallsOnly = s.includes("poi_type = 'shopping_mall'");
+      const excludesMalls = s.includes("poi_type != 'shopping_mall'");
+      const pool = rows.filter(r =>
+        r.cache_area_id == null
+        && (mallsOnly ? r.poi_type === 'shopping_mall' : true)
+        && !(excludesMalls && r.poi_type === 'shopping_mall'),
+      );
+      const oldestFirst = mallsOnly
+        ? [...pool].sort((a, b) => a.osm_fetched_at - b.osm_fetched_at)
+        : [...pool].sort((a, b) => a.last_matched_at - b.last_matched_at);
       const toDelete = new Set(oldestFirst.slice(0, limit).map(r => r.id));
       rows = rows.filter(r => !toDelete.has(r.id));
       return {} as any;
@@ -187,15 +303,65 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseSync: jest.fn(() => mockDb),
 }));
 
-const mockSearchOsmPlaces = jest.fn();
+// osmPlaces is no longer reached directly by the prefetch (KAN-366 routes it
+// through maps.searchNearbyPlaces), but the module is still imported down the
+// chain — stubbed so nothing touches Overpass.
 jest.mock('../../src/services/osmPlaces', () => ({
-  searchOsmPlaces: (...args: unknown[]) => mockSearchOsmPlaces(...args),
+  searchOsmPlaces: jest.fn().mockResolvedValue({}),
+  searchOsmPlacesStrict: jest.fn().mockResolvedValue({}),
 }));
+
+// KAN-366 — the prefetch now goes through maps.searchNearbyPlaces, which owns
+// the our-API-then-OSM order and reports which source answered. Mocked at that
+// boundary so these tests assert the prefetch's own behaviour (radius,
+// freshness, cooldown, what gets written) rather than re-testing the chain,
+// which maps.test.ts already covers. getDistanceMeters is re-exported real —
+// the cache uses it for every identity and radius decision in this file.
+const mockSearchNearbyPlaces = jest.fn();
+jest.mock('../../src/services/maps', () => ({
+  getDistanceMeters: (aLat: number, aLng: number, bLat: number, bLng: number) => {
+    const R = 6371000, toRad = (d: number) => (d * Math.PI) / 180;
+    const dLat = toRad(bLat - aLat), dLng = toRad(bLng - aLng);
+    const a = Math.sin(dLat / 2) ** 2
+      + Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  },
+  searchNearbyPlaces: (...args: unknown[]) => mockSearchNearbyPlaces(...args),
+}));
+
+/** Shapes a searchNearbyPlaces answer the way the prefetch consumes it. */
+function nearbyAnswer(
+  results: Record<string, Array<{ placeId: string; name: string; lat: number; lng: number; sourceKind?: 'overture' | 'community' | 'manual' | 'multibanco' | 'legacy' }>>,
+  source: 'cloudflare' | 'osm' = 'cloudflare',
+  areaName: string | null = null,
+) {
+  const withDistance = Object.fromEntries(
+    Object.entries(results).map(([type, places]) => [
+      type, places.map(p => ({ ...p, distanceMeters: 0 })),
+    ]),
+  );
+  return { results: withDistance, source, areaName };
+}
 
 const mockNetInfoFetch = jest.fn();
 jest.mock('@react-native-community/netinfo', () => ({
   __esModule: true,
   default: { fetch: (...args: unknown[]) => mockNetInfoFetch(...args) },
+}));
+
+// habitatCache imports maps.ts (for getDistanceMeters), which transitively
+// pulls in placesFunctions -> @react-native-firebase/functions, a native
+// module unavailable under Jest. Mock ONLY that native boundary, so maps.ts
+// still contributes its real haversine — the identity-match radius and
+// bounding-box assertions below depend on exact distance behaviour.
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   jest.fn(),
 }));
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
@@ -206,8 +372,13 @@ import {
   queryHabitatCache,
   refreshHabitatCacheIfStale,
   enforceSizeBudget,
+  refreshMallsIfDue,
   findExistingPlaceId,
+  getHabitatPlaceById,
   hasCachedPlaces,
+  hasCachedPlacesNear,
+  getCachedAreaName,
+  setWifiOnlyDownloads,
   getMostRecentHabitatUpdateAt,
   deleteTripAreaPlaces,
   deleteExpiredTripPlaces,
@@ -216,6 +387,7 @@ import {
   __resetHabitatDbForTests,
   __resetEmptyResultAttemptsForTests,
   MAX_CACHED_PLACES,
+  MAX_CACHED_MALLS,
   HABITAT_CACHE_STALE_MS,
   HABITAT_BYTES_PER_ROW,
 } from '../../src/services/habitatCache';
@@ -236,6 +408,21 @@ describe('migration (KAN-234 review fix — schema check instead of blanket catc
 
     const alterCalls = mockDb.execSync.mock.calls.filter(([sql]) => String(sql).includes('ALTER TABLE'));
     expect(alterCalls).toHaveLength(0);
+  });
+
+  // KAN-282 — the footprint backfill runs on EVERY open, not only when the
+  // column is first added: a device that already ran the build which added
+  // the column still has NULL-area mall rows to repair. Forcing them stale
+  // is what makes the next refresh re-fetch them WITH geometry.
+  it('marks mall rows with an unknown footprint as stale, so they get re-fetched', () => {
+    upsertPlace({ poiType: 'pharmacy', name: 'Corner Pharmacy', lat: 0, lng: 0, source: { osm: 'node/1' } });
+
+    const backfill = mockDb.runSync.mock.calls.find(([sql]) =>
+      String(sql).includes('SET osm_fetched_at = 0') && String(sql).includes("poi_type = 'shopping_mall'"),
+    );
+
+    expect(backfill).toBeDefined();
+    expect(String(backfill![0])).toContain('footprint_area_m2 IS NULL');
   });
 
   it('runs ALTER TABLE only for columns missing from the real schema', () => {
@@ -438,6 +625,15 @@ describe('findExistingPlaceId (KAN-229)', () => {
     expect(found).toBe(id);
   });
 
+  it('finds a matching place across the antimeridian', () => {
+    const id = upsertPlace({
+      poiType: 'atm', name: 'Date Line ATM', lat: 0, lng: -179.9995,
+      source: { osm: 'node/date-line' },
+    });
+
+    expect(findExistingPlaceId('atm', 'Date Line ATM', 0, 179.9995)).toBe(id);
+  });
+
   it('returns null when the place has no cache counterpart yet — never invents an id', () => {
     const found = findExistingPlaceId('atm', 'Some New Place', 0, 0);
     expect(found).toBeNull();
@@ -446,7 +642,11 @@ describe('findExistingPlaceId (KAN-229)', () => {
   it('is read-only — never inserts or updates a row', () => {
     findExistingPlaceId('atm', 'Some New Place', 0, 0);
     expect(rows).toHaveLength(0);
-    expect(mockDb.runSync).not.toHaveBeenCalled();
+    // Ignore the one-time footprint backfill that fires when the DB is first
+    // opened (covered by its own migration test) — what matters here is that
+    // findExistingPlaceId contributes no write of its own.
+    const writes = mockDb.runSync.mock.calls.filter(([sql]) => !String(sql).includes('SET osm_fetched_at = 0'));
+    expect(writes).toHaveLength(0);
   });
 
   it('returns null and logs a warning instead of throwing when the DB read fails', () => {
@@ -458,6 +658,27 @@ describe('findExistingPlaceId (KAN-229)', () => {
     expect(found).toBeNull();
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] findExistingPlaceId failed', expect.any(Error));
     warnSpy.mockRestore();
+  });
+});
+
+describe('getHabitatPlaceById', () => {
+  it('returns persisted footprint, website, and validated subtype fields', () => {
+    const id = upsertPlace({
+      poiType: 'restaurant',
+      name: 'Yakuza by Olivier',
+      lat: 0,
+      lng: 0,
+      source: { osm: 'way/restaurant' },
+      footprintAreaM2: 1234,
+      website: 'https://example.com',
+    });
+
+    expect(getHabitatPlaceById(id)).toEqual(expect.objectContaining({
+      placeId: id,
+      footprintAreaM2: 1234,
+      website: 'https://example.com',
+      restaurantFoodType: 'sushi',
+    }));
   });
 });
 
@@ -477,14 +698,115 @@ describe('queryHabitatCache', () => {
     expect(result.atm[0].placeId).toMatch(/^hp_/);
   });
 
-  it('caps results at 5 per type, matching searchNearbyPlaces behavior', () => {
-    for (let i = 0; i < 8; i++) {
+  it('returns in-radius places across the antimeridian', () => {
+    upsertPlace({
+      poiType: 'atm', name: 'Date Line ATM', lat: 0, lng: -179.99,
+      source: { osm: 'node/date-line' },
+    });
+
+    const result = queryHabitatCache(0, 179.999, ['atm'], 2_000);
+
+    expect(result.atm.map(place => place.name)).toEqual(['Date Line ATM']);
+  });
+
+  it('returns stored restaurant and store subtype metadata with cached places', () => {
+    upsertPlace({ poiType: 'restaurant', name: 'Yakuza by Olivier', lat: 0.0003, lng: 0, source: { osm: 'node/restaurant' } });
+    upsertPlace({ poiType: 'store', name: 'Zara', lat: 0.0004, lng: 0, source: { osm: 'node/store' } });
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['restaurant', 'store'], 500);
+
+    expect(rows.find(r => r.name === 'Yakuza by Olivier')?.restaurant_food_type).toBe('sushi');
+    expect(rows.find(r => r.name === 'Zara')?.store_subtype).toBe('clothing');
+    expect(result.restaurant[0]).toEqual(expect.objectContaining({ restaurantFoodType: 'sushi' }));
+    expect(result.store[0]).toEqual(expect.objectContaining({ storeSubtype: 'clothing' }));
+  });
+
+  it('retains canonical brands for offline matching and derives one from a legacy exact-name row', () => {
+    upsertPlace({ poiType: 'store', name: 'Zara', lat: 0.0004, lng: 0, source: { osm: 'node/store' }, brand: 'Zara' });
+    upsertPlace({ poiType: 'store', name: 'Fnac', lat: 0.0005, lng: 0, source: { osm: 'node/fnac' } });
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['store'], 500);
+
+    expect(rows.find(row => row.name === 'Zara')?.brand).toBe('Zara');
+    expect(result.store.map(place => place.brand)).toEqual(['Zara', 'Fnac']);
+  });
+
+  it('drops stale cached subtype keys at the read boundary', () => {
+    upsertPlace({ poiType: 'restaurant', name: 'Yakuza by Olivier', lat: 0.0003, lng: 0, source: { osm: 'node/restaurant' } });
+    rows[0].restaurant_food_type = 'not_real';
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['restaurant'], 500);
+
+    expect(result.restaurant[0].restaurantFoodType).toBeUndefined();
+  });
+
+  it('fills subtype metadata when a later sighting merges into an old row', () => {
+    const id = upsertPlace({ poiType: 'store', name: 'Zara', lat: 0, lng: 0, source: { osm: 'node/old' } });
+    rows[0].store_subtype = null; // Simulates a row created before KAN-317.
+
+    const mergedId = upsertPlace({ poiType: 'store', name: 'Zara', lat: 0.0001, lng: 0, source: { google: 'g-zara' } });
+
+    expect(mergedId).toBe(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].store_subtype).toBe('clothing');
+  });
+
+  // KAN-282 raised the per-type cap from 5 to 50. mallRoute reads ALL
+  // shopping_mall rows in range to size-filter them, so a cap of 5 could
+  // return only the nearest few small galleries and never surface the big
+  // destination mall further out. Ordinary POI resolution reads [0] and is
+  // unaffected either way.
+  it('caps results at MAX_RESULTS_PER_TYPE (50) per type', () => {
+    for (let i = 0; i < 60; i++) {
       upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: i * 0.0001, lng: 0, source: { osm: `node/${i}` } });
     }
 
     const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
 
-    expect(result.atm).toHaveLength(5);
+    expect(result.atm).toHaveLength(50);
+  });
+
+  it('uses the default cap when maxResultsPerType is explicitly undefined', () => {
+    for (let i = 0; i < 60; i++) {
+      upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: i * 0.002, lng: 0, source: { osm: `node/${i}` } });
+    }
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 20_000, { maxResultsPerType: undefined });
+
+    expect(result.atm).toHaveLength(50);
+  });
+
+  it('can opt out of the per-type cap for callers that rank beyond distance', () => {
+    for (let i = 0; i < 60; i++) {
+      upsertPlace({ poiType: 'tourist_attraction', name: `Attraction ${i}`, lat: i * 0.002, lng: 0, source: { osm: `way/${i}` } });
+    }
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['tourist_attraction'], 20_000, { maxResultsPerType: null });
+
+    expect(result.tourist_attraction).toHaveLength(60);
+    expect(result.tourist_attraction[0].distanceMeters).toBeLessThan(result.tourist_attraction[59].distanceMeters);
+  });
+
+  it('preserves explicitly provided integer caps', () => {
+    for (let i = 0; i < 10; i++) {
+      upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: i * 0.0001, lng: 0, source: { osm: `node/${i}` } });
+    }
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, { maxResultsPerType: 3 });
+
+    expect(result.atm).toHaveLength(3);
+  });
+
+  it('rejects negative maxResultsPerType values before querying results', () => {
+    expect(() => queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, { maxResultsPerType: -1 }))
+      .toThrow('maxResultsPerType must be a non-negative integer, null, or undefined');
+    expect(mockDb.getAllSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects fractional maxResultsPerType values before querying results', () => {
+    expect(() => queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000, { maxResultsPerType: 1.5 }))
+      .toThrow('maxResultsPerType must be a non-negative integer, null, or undefined');
+    expect(mockDb.getAllSync).not.toHaveBeenCalled();
   });
 
   it('returns an empty array for a type with no cached rows', () => {
@@ -505,68 +827,274 @@ describe('queryHabitatCache', () => {
 });
 
 describe('refreshHabitatCacheIfStale', () => {
-  it('does nothing when offline', async () => {
+  const PREFETCH_RADIUS = 1000;
+  const requestsFor = (types: string[]) => types.map(type => ({ key: type, type }));
+
+  it('does nothing when offline (KAN-366 AC4)', async () => {
     mockNetInfoFetch.mockResolvedValue({ isConnected: false });
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
-    expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
   });
 
-  it('fetches OSM data when the area has no cached rows yet', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({
-      atm: [{ osmId: 'node/1', name: 'New ATM', isGenericName: false, lat: 0, lng: 0, distanceMeters: 0 }],
-    });
+  it('downloads through our API first, at the prefetch radius (AC1, AC2)', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue(
+      nearbyAnswer({ atm: [{ placeId: 'gers-1', name: 'New ATM', lat: 0, lng: 0 }] }, 'cloudflare', 'Lisboa'),
+    );
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
-    expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      ORIGIN.lat, ORIGIN.lng, ['atm'], PREFETCH_RADIUS, requestsFor(['atm']),
+    );
     expect(rows).toHaveLength(1);
+    // KAN-451 — an API row without a source is Overture, never Foursquare.
+    expect(rows[0].overture_id).toBe('gers-1');
+    expect(rows[0].fsq_place_id).toBeNull();
+    // KAN-377 — a proactively downloaded area is nameable offline, not just
+    // searchable. This is the pairing that makes that ticket's AC5 real.
+    expect(rows[0].area_name).toBe('Lisboa');
   });
 
-  it('does not re-fetch a type whose OSM data is still fresh', async () => {
+  it('writes an OSM-sourced answer under its own identity (AC1 fallback)', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue(
+      nearbyAnswer({ atm: [{ placeId: 'node/9', name: 'Fallback ATM', lat: 0, lng: 0 }] }, 'osm'),
+    );
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    expect(rows[0].osm_id).toBe('node/9');
+    expect(rows[0].fsq_place_id).toBeNull();
+    expect(rows[0].overture_id).toBeNull();
+  });
+
+  it('stores each API row under the namespace the Worker names (KAN-451)', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue(
+      nearbyAnswer({ atm: [
+        { placeId: 'gers-2', sourceKind: 'overture', name: 'Overture ATM', lat: 0, lng: 0 },
+        { placeId: 'multibanco:77', sourceKind: 'multibanco', name: 'MB ATM', lat: 0.01, lng: 0 },
+        { placeId: '4sq-old', sourceKind: 'legacy', name: 'Legacy ATM', lat: 0.02, lng: 0 },
+      ] }, 'cloudflare', 'Lisboa'),
+    );
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    const byName = Object.fromEntries(rows.map(r => [r.name, r]));
+    expect(byName['Overture ATM']).toMatchObject({ overture_id: 'gers-2', fsq_place_id: null, brush_id: null });
+    expect(byName['MB ATM']).toMatchObject({ brush_id: 'multibanco:77', overture_id: null });
+    expect(byName['Legacy ATM']).toMatchObject({ fsq_place_id: '4sq-old', overture_id: null });
+  });
+
+  it('does not re-fetch a type whose data is still fresh', async () => {
     upsertPlace({ poiType: 'atm', name: 'Existing ATM', lat: 0, lng: 0, source: { osm: 'node/1' } });
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
-    expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
   });
 
-  it('re-fetches a type whose OSM data is older than the 14-day staleness window', async () => {
+  it('counts rows our API seeded as coverage, not just OSM ones (AC3)', async () => {
+    // Before KAN-366 the freshness check required osm_id, so an area stocked
+    // entirely by our API looked empty and re-downloaded on every tick.
+    upsertPlace({ poiType: 'atm', name: 'Fsq ATM', lat: 0, lng: 0, source: { fsq: 'fsq-2' } });
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it('counts Overture- and Brush-anchored rows as coverage too (KAN-451)', async () => {
+    upsertPlace({ poiType: 'atm', name: 'Overture ATM', lat: 0, lng: 0, source: { overture: 'gers-3' } });
+    upsertPlace({ poiType: 'pharmacy', name: 'Manual Pharmacy', lat: 0, lng: 0, source: { brush: 'manual:5' } });
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm', 'pharmacy']);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it('a live Overture sighting fills overture_id on a row that predates the migration (KAN-451)', () => {
+    // Rows written between KAN-438 and KAN-451 hold an Overture id under
+    // fsq_place_id. They are not rewritten; the next sighting adds the
+    // honest column beside the old one and the row keeps counting as coverage.
+    const id = upsertPlace({ poiType: 'atm', name: 'Old Row', lat: 0, lng: 0, source: { fsq: 'gers-9' } });
+    upsertPlace({ poiType: 'atm', name: 'Old Row', lat: 0, lng: 0, source: { overture: 'gers-9' } });
+    const row = rows.find(r => r.id === id)!;
+    expect(row).toMatchObject({ fsq_place_id: 'gers-9', overture_id: 'gers-9' });
+  });
+
+  it('judges freshness over the radius it fetches, not a wider one (AC3)', async () => {
+    // ~2 km away: inside the old 5 km freshness window, outside the 1 km we
+    // actually fill. Treating it as coverage would leave the user's own
+    // kilometre permanently empty while the check reported everything fine.
+    upsertPlace({ poiType: 'atm', name: 'Far ATM', lat: 0.018, lng: 0, source: { osm: 'node/far' } });
+    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'cloudflare'));
+
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalled();
+  });
+
+  it('recognizes fresh data across the antimeridian', async () => {
+    upsertPlace({
+      poiType: 'atm', name: 'Date Line ATM', lat: 0, lng: -179.999,
+      source: { osm: 'node/date-line' },
+    });
+
+    await refreshHabitatCacheIfStale(0, 179.9999, ['atm']);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it('re-fetches a type whose data is older than the 14-day staleness window', async () => {
     upsertPlace({ poiType: 'atm', name: 'Stale ATM', lat: 0, lng: 0, source: { osm: 'node/1' } });
     rows[0].osm_fetched_at = Date.now() - HABITAT_CACHE_STALE_MS - 1000;
-    mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
-    expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      ORIGIN.lat, ORIGIN.lng, ['atm'], PREFETCH_RADIUS, requestsFor(['atm']),
+    );
   });
 
-  it('does not skip the OSM refresh just because a live Google hit was seeded for the same type', async () => {
+  it('does not skip the refresh just because a live Google hit was seeded for the same type', async () => {
     // Seed a Google-only candidate first — per the ToS-compliance fix this
-    // never persists a row, so the area still has zero OSM-backed rows and
+    // never persists a row, so the area still has zero source-backed rows and
     // must still be treated as stale.
     upsertPlace({ poiType: 'atm', name: 'Live Hit', lat: 0, lng: 0, source: { google: 'g-1' } });
-    mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
-    expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      ORIGIN.lat, ORIGIN.lng, ['atm'], PREFETCH_RADIUS, requestsFor(['atm']),
+    );
   });
 
-  it('never calls searchOsmPlaces for a custom type with no OSM mapping — it would never satisfy the freshness check and stay stale forever otherwise', async () => {
+  describe('the empty-result cooldown belongs to OSM (AC7)', () => {
+    it('an empty answer from our API does not arm it — that empty is what asks the worker to map the place', async () => {
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'cloudflare'));
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2); // asked again, not backed off
+    });
+
+    it('an empty answer from OSM still arms it', async () => {
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1); // second call backed off
+    });
+  });
+
+  describe('"Only download on Wi-Fi" (AC5, AC6)', () => {
+    afterEach(() => setWifiOnlyDownloads(false)); // module-level: restore the default
+
+    it('runs on a cellular connection by default — the switch is off (AC6)', async () => {
+      mockNetInfoFetch.mockResolvedValue({ isConnected: true, type: 'cellular' });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+      expect(mockSearchNearbyPlaces).toHaveBeenCalled();
+    });
+
+    it('does not run on cellular once enabled (AC5)', async () => {
+      setWifiOnlyDownloads(true);
+      mockNetInfoFetch.mockResolvedValue({ isConnected: true, type: 'cellular' });
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+      expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+    });
+
+    it('still runs on Wi-Fi when enabled — it defers the download, never cancels it', async () => {
+      setWifiOnlyDownloads(true);
+      mockNetInfoFetch.mockResolvedValue({ isConnected: true, type: 'wifi' });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+      expect(mockSearchNearbyPlaces).toHaveBeenCalled();
+    });
+
+    it('downloads when the connection type is unknown rather than guessing cellular', async () => {
+      // Refusing on a guess would quietly leave the cache empty for someone
+      // who never asked for that.
+      setWifiOnlyDownloads(true);
+      mockNetInfoFetch.mockRejectedValue(new Error('netinfo unavailable'));
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
+
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
+
+      expect(mockSearchNearbyPlaces).toHaveBeenCalled();
+    });
+  });
+
+  it('never fetches a custom type with no OSM mapping — it would never satisfy the freshness check and stay stale forever otherwise', async () => {
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['my_custom_unmapped_type']);
-    expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
   });
 
   it('fetches only the OSM-mappable subset when poiTypes mixes mapped and unmapped types', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm', 'my_custom_unmapped_type']);
 
-    expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      ORIGIN.lat, ORIGIN.lng, ['atm'], PREFETCH_RADIUS, requestsFor(['atm']),
+    );
   });
 
+  it('asks for leisure types our API can answer even though OSM cannot (KAN-407)', async () => {
+    // historical_landmark and tourist_attraction have no OSM tag mapping, so
+    // the old mappable-only filter dropped them before any fetch — 1,865 and
+    // 128 rows in D1 that the leisure companion could never see. KAN-366 had
+    // already made the prefetch go through our API first; only the filter was
+    // still holding them out.
+    mockSearchNearbyPlaces.mockResolvedValue(
+      nearbyAnswer({ historical_landmark: [], tourist_attraction: [] }, 'cloudflare'),
+    );
+
+    await refreshHabitatCacheIfStale(
+      ORIGIN.lat, ORIGIN.lng, ['historical_landmark', 'tourist_attraction'],
+    );
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      ORIGIN.lat, ORIGIN.lng,
+      ['historical_landmark', 'tourist_attraction'],
+      PREFETCH_RADIUS,
+      requestsFor(['historical_landmark', 'tourist_attraction']),
+    );
+  });
+
+  it('still refuses a free-text POI no source can answer for', async () => {
+    // The guard the OSM filter used to provide. A custom string matches
+    // nothing in either source, so admitting it would mean an empty answer
+    // and a retry on every cooldown, forever.
+    await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['o meu sitio secreto']);
+
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it.each(['constructor', 'toString', '__proto__', 'valueOf', 'hasOwnProperty'])(
+    'refuses inherited Object property %s as a POI type',
+    async (inherited) => {
+      // These are real free-text strings a user could type, and `key in obj`
+      // is true for every one of them on any object literal. The mappable
+      // check used `in`, so they passed the guard, got prefetched, matched
+      // nothing, and came back for another try on every cooldown.
+      await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, [inherited]);
+
+      expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+    },
+  );
+
   it('skips enforceSizeBudget\'s full-table COUNT(*) when OSM returned zero results for every fetched type', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
@@ -575,25 +1103,27 @@ describe('refreshHabitatCacheIfStale', () => {
   });
 
   it('still runs enforceSizeBudget when at least one place was upserted', async () => {
-    mockSearchOsmPlaces.mockResolvedValue({
-      atm: [{ osmId: 'node/1', name: 'New ATM', isGenericName: false, lat: 0, lng: 0, distanceMeters: 0 }],
-    });
+    mockSearchNearbyPlaces.mockResolvedValue(
+      nearbyAnswer({ atm: [{ placeId: 'node/1', name: 'New ATM', lat: 0, lng: 0 }] }, 'osm'),
+    );
 
     await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
 
+    // Two counts, one per budget (KAN-282): the ordinary pool and the
+    // separate shopping_mall cap.
     const countCalls = mockDb.getAllSync.mock.calls.filter(([sql]) => String(sql).includes('SELECT COUNT(*)'));
-    expect(countCalls).toHaveLength(1);
+    expect(countCalls).toHaveLength(2);
   });
 
   describe('empty-result retry cooldown', () => {
     it('does not re-fetch a mapped type shortly after it returned zero OSM results', async () => {
-      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
 
-      mockSearchOsmPlaces.mockClear();
+      mockSearchNearbyPlaces.mockClear();
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
-      expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+      expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
     });
 
     it('retries once the cooldown window has passed', async () => {
@@ -601,26 +1131,26 @@ describe('refreshHabitatCacheIfStale', () => {
       let now = 1_000_000;
       nowSpy.mockImplementation(() => now);
 
-      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
 
-      mockSearchOsmPlaces.mockClear();
+      mockSearchNearbyPlaces.mockClear();
       now += 60 * 60 * 1_000 + 1; // just past the 1-hour cooldown
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
 
       nowSpy.mockRestore();
     });
 
     it('throttles independently per area — a different location for the same type still fetches', async () => {
-      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
       await refreshHabitatCacheIfStale(0, 0, ['atm']);
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
 
-      mockSearchOsmPlaces.mockClear();
+      mockSearchNearbyPlaces.mockClear();
       await refreshHabitatCacheIfStale(10, 10, ['atm']); // far enough to be a different grid cell
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -637,28 +1167,76 @@ describe('refreshHabitatCacheIfStale', () => {
   describe('force (KAN-241 — ContextChip manual "Refresh now")', () => {
     it('re-fetches a type even when its OSM data is still fresh', async () => {
       upsertPlace({ poiType: 'atm', name: 'Fresh ATM', lat: 0, lng: 0, source: { osm: 'node/1' } });
-      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
 
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm'], true);
 
-      expect(mockSearchOsmPlaces).toHaveBeenCalledWith(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
+      ORIGIN.lat, ORIGIN.lng, ['atm'], PREFETCH_RADIUS, requestsFor(['atm']),
+    );
     });
 
     it('re-fetches a type even during its empty-result cooldown window', async () => {
-      mockSearchOsmPlaces.mockResolvedValue({ atm: [] });
+      mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ atm: [] }, 'osm'));
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm']);
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
 
-      mockSearchOsmPlaces.mockClear();
+      mockSearchNearbyPlaces.mockClear();
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm'], true);
-      expect(mockSearchOsmPlaces).toHaveBeenCalledTimes(1);
+      expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
     });
 
     it('still does nothing when offline, even with force', async () => {
       mockNetInfoFetch.mockResolvedValue({ isConnected: false });
       await refreshHabitatCacheIfStale(ORIGIN.lat, ORIGIN.lng, ['atm'], true);
-      expect(mockSearchOsmPlaces).not.toHaveBeenCalled();
+      expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
     });
+  });
+});
+
+// KAN-282 review — refreshHabitatCacheIfStale treats a POI type as fresh if
+// ANY row of it exists in the 5km box, so one cached small gallery would mark
+// shopping_mall fresh for the whole area and a genuinely big mall that was
+// never cached could stay invisible for the full 14-day staleness window.
+// refreshMallsIfDue therefore forces the sweep, on its own cooldown.
+describe('refreshMallsIfDue (KAN-282)', () => {
+  beforeEach(() => {
+    mockNetInfoFetch.mockResolvedValue({ isConnected: true });
+    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ shopping_mall: [] }, 'osm'));
+  });
+
+  it('sweeps even when a fresh shopping_mall row already exists in the area', async () => {
+    // A small gallery, cached just now — enough to make the plain staleness
+    // check consider the whole type fresh.
+    upsertPlace({
+      poiType: 'shopping_mall', name: 'Galeria Uruguai',
+      lat: 0, lng: 0, source: { osm: 'node/11883971544' }, footprintAreaM2: 0,
+    });
+
+    await refreshMallsIfDue(0, 0);
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    const [, , poiTypes] = mockSearchNearbyPlaces.mock.calls[0];
+    expect(poiTypes).toEqual(['shopping_mall']);
+  });
+
+  it('does not sweep the same area twice inside the cooldown', async () => {
+    await refreshMallsIfDue(0, 0);
+    await refreshMallsIfDue(0, 0);
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+  });
+
+  it('still sweeps a different area during another area\'s cooldown', async () => {
+    await refreshMallsIfDue(0, 0);
+    await refreshMallsIfDue(10, 10);
+
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+  });
+
+  it('never throws when the underlying refresh fails', async () => {
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('Overpass unreachable'));
+    await expect(refreshMallsIfDue(0, 0)).resolves.toBeUndefined();
   });
 });
 
@@ -692,6 +1270,67 @@ describe('enforceSizeBudget', () => {
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] enforceSizeBudget failed', expect.any(Error));
     warnSpy.mockRestore();
+  });
+
+  // KAN-282 regression: proximity's live searches bump last_matched_at for
+  // ordinary task POI types but NEVER for shopping_mall, so mall rows always
+  // sort oldest and were the first evicted every time the pool crossed the
+  // cap — the mall card worked once, then silently lost all its data.
+  it('never evicts a shopping_mall row, however stale its last_matched_at (KAN-282)', () => {
+    const mallId = upsertPlace({
+      poiType: 'shopping_mall', name: 'Centro Comercial Colombo',
+      lat: 0, lng: 0, source: { osm: 'way/42645796' }, footprintAreaM2: 116_791,
+    });
+    const mallRow = rows.find(r => r.id === mallId);
+    if (mallRow) { mallRow.last_matched_at = -1; } // older than every other row
+
+    for (let i = 0; i < MAX_CACHED_PLACES + 5; i++) {
+      const id = upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: (i + 1) * 0.01, lng: 0, source: { osm: `node/${i}` } });
+      const row = rows.find(r => r.id === id);
+      if (row) { row.last_matched_at = i; }
+    }
+
+    enforceSizeBudget();
+
+    expect(rows.some(r => r.id === mallId)).toBe(true);
+    // ...and the mall didn't consume budget either: the ordinary pool is
+    // trimmed to exactly the cap, rather than the cap minus the mall.
+    expect(rows.filter(r => r.poi_type === 'atm')).toHaveLength(MAX_CACHED_PLACES);
+  });
+
+  // KAN-282 review — "exempt from LRU" must not mean "unbounded": mall rows
+  // get their own cap, trimmed by osm_fetched_at (oldest DATA first), since
+  // last_matched_at is meaningless for a type nothing ever re-matches.
+  it('trims shopping_mall rows beyond MAX_CACHED_MALLS, oldest-fetched first', () => {
+    for (let i = 0; i < MAX_CACHED_MALLS + 3; i++) {
+      const id = upsertPlace({
+        poiType: 'shopping_mall', name: `Mall ${i}`,
+        lat: (i + 1) * 0.01, lng: 0, source: { osm: `way/${i}` }, footprintAreaM2: 30_000,
+      });
+      const row = rows.find(r => r.id === id);
+      if (row) { row.osm_fetched_at = i; } // ascending — Mall 0 has the oldest data
+    }
+
+    enforceSizeBudget();
+
+    expect(rows.filter(r => r.poi_type === 'shopping_mall')).toHaveLength(MAX_CACHED_MALLS);
+    expect(rows.some(r => r.name === 'Mall 0')).toBe(false);
+    expect(rows.some(r => r.name === `Mall ${MAX_CACHED_MALLS + 2}`)).toBe(true);
+  });
+
+  it('leaves malls alone while under their own cap, even when the ordinary pool overflows', () => {
+    upsertPlace({
+      poiType: 'shopping_mall', name: 'Colombo', lat: 0, lng: 0,
+      source: { osm: 'way/42645796' }, footprintAreaM2: 116_791,
+    });
+    for (let i = 0; i < MAX_CACHED_PLACES + 5; i++) {
+      upsertPlace({ poiType: 'atm', name: `ATM ${i}`, lat: (i + 1) * 0.01, lng: 0, source: { osm: `node/${i}` } });
+    }
+
+    enforceSizeBudget();
+
+    expect(rows.some(r => r.name === 'Colombo')).toBe(true);
+    expect(rows.filter(r => r.poi_type === 'atm')).toHaveLength(MAX_CACHED_PLACES);
   });
 
   it('never evicts a trip-tagged row (KAN-234) — only counts/evicts within the cache_area_id IS NULL pool', () => {
@@ -932,6 +1571,123 @@ describe('hasCachedPlaces (KAN-236)', () => {
     expect(hasCachedPlaces()).toBe(false);
 
     expect(warnSpy).toHaveBeenCalledWith('[habitatCache] hasCachedPlaces failed', expect.any(Error));
+    warnSpy.mockRestore();
+  });
+});
+
+describe('getCachedAreaName (KAN-377)', () => {
+  const LISBON = { lat: 38.7223, lng: -9.1393 };
+
+  it('names a row that was first seeded from OSM and later matched by our API', () => {
+    // The common shape once the prefetch runs (KAN-366 rewires it to our API,
+    // but today it seeds from OSM): the row exists before any settlement name
+    // does, so the name has to arrive through the merge, not the insert.
+    upsertPlace({
+      poiType: 'cafe', name: 'Corner Cafe', lat: LISBON.lat, lng: LISBON.lng,
+      source: { osm: 'node/7' },
+    });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBeNull();
+
+    upsertPlace({
+      poiType: 'cafe', name: 'Corner Cafe', lat: LISBON.lat, lng: LISBON.lng,
+      source: { fsq: 'fsq-7' }, areaName: 'Lisboa',
+    });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBe('Lisboa');
+  });
+
+  it('never clears a stored name when a later sighting carries none', () => {
+    upsertPlace({
+      poiType: 'cafe', name: 'Corner Cafe', lat: LISBON.lat, lng: LISBON.lng,
+      source: { fsq: 'fsq-8' }, areaName: 'Lisboa',
+    });
+    upsertPlace({
+      poiType: 'cafe', name: 'Corner Cafe', lat: LISBON.lat, lng: LISBON.lng,
+      source: { osm: 'node/8' },
+    });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBe('Lisboa');
+  });
+
+  it('returns null when nothing nearby carries a name', () => {
+    upsertPlace({ poiType: 'atm', name: 'Bank ATM', lat: LISBON.lat, lng: LISBON.lng, source: { osm: 'node/1' } });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBeNull();
+  });
+
+  it('returns the settlement stored with a nearby place', () => {
+    upsertPlace({
+      poiType: 'cafe', name: 'Corner Cafe', lat: LISBON.lat, lng: LISBON.lng,
+      source: { fsq: 'fsq-1' }, areaName: 'Lisboa',
+    });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBe('Lisboa');
+  });
+
+  it('prefers the nearest naming row', () => {
+    upsertPlace({
+      poiType: 'cafe', name: 'Far Cafe', lat: LISBON.lat + 0.002, lng: LISBON.lng,
+      source: { fsq: 'fsq-far' }, areaName: 'Farther Parish',
+    });
+    upsertPlace({
+      poiType: 'atm', name: 'Near ATM', lat: LISBON.lat, lng: LISBON.lng,
+      source: { fsq: 'fsq-near' }, areaName: 'Nearer Parish',
+    });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBe('Nearer Parish');
+  });
+
+  it('ignores names stored outside the radius', () => {
+    upsertPlace({
+      poiType: 'cafe', name: 'Distant Cafe', lat: LISBON.lat + 0.02, lng: LISBON.lng,
+      source: { fsq: 'fsq-2' }, areaName: 'Somewhere Else',
+    });
+    expect(getCachedAreaName(LISBON.lat, LISBON.lng, 400)).toBeNull();
+  });
+});
+
+describe('hasCachedPlacesNear (KAN-316)', () => {
+  const LISBON = { lat: 38.7223, lng: -9.1393 };
+  const TOKYO  = { lat: 35.6762, lng: 139.6503 };
+
+  it('returns false when the cache is empty', () => {
+    expect(hasCachedPlacesNear(LISBON.lat, LISBON.lng, 400)).toBe(false);
+  });
+
+  it('true when a place of any type sits within the radius — type-blind', () => {
+    upsertPlace({ poiType: 'atm', name: 'Bank ATM', lat: LISBON.lat, lng: LISBON.lng, source: { osm: 'node/1' } });
+    expect(hasCachedPlacesNear(LISBON.lat, LISBON.lng, 400)).toBe(true);
+  });
+
+  it('finds cached places across the antimeridian', () => {
+    upsertPlace({
+      poiType: 'cafe', name: 'Date Line Cafe', lat: 0, lng: -179.99,
+      source: { osm: 'node/date-line' },
+    });
+
+    expect(hasCachedPlacesNear(0, 179.999, 2_000)).toBe(true);
+  });
+
+  it('false for a cache seeded somewhere else entirely — the Lisbon/Tokyo case', () => {
+    upsertPlace({ poiType: 'atm', name: 'Bank ATM', lat: LISBON.lat, lng: LISBON.lng, source: { osm: 'node/1' } });
+    expect(hasCachedPlaces()).toBe(true);                              // seeded
+    expect(hasCachedPlacesNear(TOKYO.lat, TOKYO.lng, 400)).toBe(false); // but not here
+  });
+
+  it('excludes a place inside the bounding box but outside the circle', () => {
+    // ~0.0035° of latitude ≈ 390 m north; the same offset applied on both axes
+    // lands inside the square and outside the 400 m circle (~550 m away).
+    upsertPlace({
+      poiType: 'cafe', name: 'Corner Cafe',
+      lat: LISBON.lat + 0.0035, lng: LISBON.lng + 0.0045,
+      source: { osm: 'node/2' },
+    });
+    expect(hasCachedPlacesNear(LISBON.lat, LISBON.lng, 400)).toBe(false);
+    expect(hasCachedPlacesNear(LISBON.lat, LISBON.lng, 700)).toBe(true);
+  });
+
+  it('returns false and logs a warning instead of throwing when the DB read fails', () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockDb.getAllSync.mockImplementationOnce(() => { throw new Error('disk full'); });
+
+    expect(hasCachedPlacesNear(LISBON.lat, LISBON.lng, 400)).toBe(false);
+
+    expect(warnSpy).toHaveBeenCalledWith('[habitatCache] hasCachedPlacesNear failed', expect.any(Error));
     warnSpy.mockRestore();
   });
 });

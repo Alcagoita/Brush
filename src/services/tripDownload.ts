@@ -2,11 +2,11 @@
  * tripDownload.ts — Trip Planner business logic (KAN-234).
  *
  * Orchestrates a manual, destination-based offline area download: derives
- * the full ALL_POI_TYPES ∪ customCategoryPoiTypes union (same reasoning as
- * proximity.ts's KAN-238 habitat-cache prefetch — a trip task is created
- * *during* the trip, so a download filtered to today's tasks couldn't serve
- * tomorrow's "buy sunscreen"), fetches once via osmPlaces.searchOsmPlaces,
- * and upserts every result into the habitat cache tagged with this trip's
+ * the curated POI allowlist plus supported custom categories (same reasoning
+ * as proximity.ts's habitat-cache prefetch — a trip task is created *during*
+ * the trip, so a download filtered to today's tasks couldn't serve tomorrow's
+ * "buy sunscreen"), fetches once via osmPlaces.searchOsmPlaces, and upserts
+ * every result into the habitat cache tagged with this trip's
  * cacheAreaId/expiresAt (habitatCache.upsertTripPlace).
  *
  * Unlike habitatCache's own silent opportunistic refresh, downloadTripArea/
@@ -22,11 +22,14 @@
 
 import NetInfo from '@react-native-community/netinfo';
 import { ALL_POI_TYPES } from '../types';
+import { SUPPORTED_GOOGLE_PLACE_TYPES } from '../constants/googlePlaceTypes';
 import type { Trip, TripRadiusPreset } from '../types';
 import { searchOsmPlacesStrict } from './osmPlaces';
 import { writeTripAreaPlaces, HABITAT_BYTES_PER_ROW } from './habitatCache';
 import { updateTrip } from './firestore/trips';
 import { todayISO } from '../utils/date';
+import { cloudflareCoverageProxy } from './cloudflarePoiFunctions';
+import { importCloudflareTripExport } from './cloudflareTripExport';
 // ─── Radius presets ───────────────────────────────────────────────────────────
 
 /**
@@ -42,6 +45,13 @@ export const TRIP_RADIUS_PRESETS: { key: TripRadiusPreset; radiusMeters: number 
   { key: 'town_and_around', radiusMeters: 15_000 },
   { key: 'region',          radiusMeters: 40_000 },
 ];
+
+export function getAreaDownloadPoiTypes(): string[] {
+  return [...new Set([
+    ...ALL_POI_TYPES,
+    ...SUPPORTED_GOOGLE_PLACE_TYPES,
+  ])];
+}
 
 /** A larger request (16+ types, up to 40km) than the opportunistic 5km refresh has ever needed — give Overpass more time before giving up (see osmPlaces.searchOsmPlaces's timeoutMs param). Shared by trip and mall snapshot downloads. */
 const AREA_DOWNLOAD_TIMEOUT_MS = 20_000;
@@ -118,6 +128,14 @@ export function formatTripSizeMb(bytes: number): string {
   return mb < 1 ? '< 1 MB' : `${Math.round(mb)} MB`;
 }
 
+/** Exact R2 export size for the post-tap download confirmation. */
+export function formatTripDownloadSize(bytes: number): string {
+  if (bytes < 1_000) return `${bytes} B`;
+  if (bytes < 1_000_000) return `${Math.round(bytes / 1_000)} KB`;
+  const mb = bytes / 1_000_000;
+  return `${mb < 10 ? mb.toFixed(1) : Math.round(mb)} MB`;
+}
+
 // ─── Download orchestration ───────────────────────────────────────────────────
 
 /**
@@ -165,19 +183,20 @@ export async function downloadAreaSnapshot(
   const places = poiTypes.flatMap(poiType =>
     (osmResults[poiType] ?? []).map(place => ({
       poiType,
-      name:          place.name,
-      isGenericName: place.isGenericName,
-      lat:           place.lat,
-      lng:           place.lng,
-      source:        { osm: place.osmId },
+      name:            place.name,
+      isGenericName:   place.isGenericName,
+      lat:             place.lat,
+      lng:             place.lng,
+      source:          { osm: place.osmId },
+      footprintAreaM2: place.footprintAreaM2,
     })),
   );
   return writeTripAreaPlaces(cacheAreaId, expiresAt, places);
 }
 
 /**
- * Derives the full ALL_POI_TYPES ∪ customCategoryPoiTypes union (same
- * reasoning as proximity.ts's KAN-238 habitat-cache prefetch — a trip task
+ * Derives the full curated POI allowlist (same reasoning as proximity.ts's
+ * KAN-238 habitat-cache prefetch — a trip task
  * is created *during* the trip, so a download filtered to today's tasks
  * couldn't serve tomorrow's "buy sunscreen") and delegates to
  * downloadAreaSnapshot.
@@ -187,10 +206,65 @@ export async function downloadTripArea(
   radiusMeters: number,
   cacheAreaId: string,
   expiresAt: number,
-  customCategoryPoiTypes: string[],
 ): Promise<number> {
-  const poiTypes = [...new Set([...ALL_POI_TYPES, ...customCategoryPoiTypes])];
+  const poiTypes = getAreaDownloadPoiTypes();
   return downloadAreaSnapshot(center, radiusMeters, cacheAreaId, expiresAt, poiTypes);
+}
+
+export type TripDownloadResult = {
+  placesWritten: number;
+  cloudflareExport?: NonNullable<Trip['cloudflareExport']>;
+};
+
+/**
+ * Looks up the exact R2 export size without downloading it. Undefined keeps
+ * the existing OSM path intact for uncovered/building destinations.
+ */
+export async function getCloudflareTripExportSize(
+  center: { lat: number; lng: number },
+): Promise<number | undefined> {
+  try {
+    const coverage = await cloudflareCoverageProxy(center.lat, center.lng);
+    return coverage.status === 'ready' && typeof coverage.exportBytes === 'number'
+      ? coverage.exportBytes
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Cloudflare is preferred for covered destinations; every unavailable or
+ * failed export falls back to the established OSM path without touching the
+ * existing cache until a complete replacement is ready. */
+export async function downloadTripAreaWithCloudflare(
+  center: { lat: number; lng: number },
+  radiusMeters: number,
+  cacheAreaId: string,
+  expiresAt: number,
+  cachedExport?: Trip['cloudflareExport'],
+): Promise<TripDownloadResult> {
+  try {
+    const coverage = await cloudflareCoverageProxy(center.lat, center.lng);
+    if (coverage.status === 'ready' && coverage.placeId && coverage.buildId) {
+      if (
+        cachedExport?.placeId === coverage.placeId
+        && cachedExport.buildId === coverage.buildId
+        && cachedExport.radiusMeters >= radiusMeters
+      ) {
+        return { placesWritten: 0, cloudflareExport: cachedExport };
+      }
+      const placesWritten = await importCloudflareTripExport(
+        coverage.placeId, center, radiusMeters, cacheAreaId, expiresAt, getAreaDownloadPoiTypes(),
+      );
+      return {
+        placesWritten,
+        cloudflareExport: { placeId: coverage.placeId, buildId: coverage.buildId, radiusMeters, downloadedAt: Date.now() },
+      };
+    }
+  } catch (error) {
+    console.warn('[tripDownload] Cloudflare export failed; falling back to OSM', error);
+  }
+  return { placesWritten: await downloadTripArea(center, radiusMeters, cacheAreaId, expiresAt) };
 }
 
 /**
@@ -201,17 +275,16 @@ export async function downloadTripArea(
 export async function refreshTripArea(
   uid: string,
   trip: Trip,
-  customCategoryPoiTypes: string[],
 ): Promise<void> {
   const expiresAt = computeTripExpiresAt(trip.endDate);
-  await downloadTripArea(
+  const result = await downloadTripAreaWithCloudflare(
     { lat: trip.centerLat, lng: trip.centerLng },
     trip.areaRadius,
     trip.cacheAreaId,
     expiresAt,
-    customCategoryPoiTypes,
+    trip.cloudflareExport,
   );
-  await updateTrip(uid, trip.id, { expiresAt, preRefreshedAt: Date.now() });
+  await updateTrip(uid, trip.id, { expiresAt, preRefreshedAt: Date.now(), cloudflareExport: result.cloudflareExport });
 }
 
 /**
@@ -223,7 +296,6 @@ export async function refreshTripArea(
 export async function checkAndRunTripPreRefresh(
   uid: string,
   trips: Trip[],
-  customCategoryPoiTypes: string[],
 ): Promise<void> {
   const today = todayISO();
   let isOnline = false;
@@ -232,7 +304,7 @@ export async function checkAndRunTripPreRefresh(
   for (const trip of trips) {
     if (!shouldPreRefreshTrip(trip, today, isOnline)) { continue; }
     try {
-      await refreshTripArea(uid, trip, customCategoryPoiTypes);
+      await refreshTripArea(uid, trip);
     } catch (err) {
       console.warn('[tripDownload] checkAndRunTripPreRefresh failed for trip', trip.id, err);
     }

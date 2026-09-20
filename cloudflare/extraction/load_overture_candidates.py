@@ -1,0 +1,195 @@
+"""
+KAN-431 phase 2. Loads an Overture extract into `overture_candidate`.
+
+What this deliberately does NOT do, mirroring KAN-404's loader:
+
+  * It does not classify, compute geohashes, resolve brands or touch any
+    poi_type table. Candidates are inert rows until something promotes them.
+  * It does not read or write `poi`, `osm_poi` or `curated_poi`. Overture
+    rows carry their own GERS ids and live in their own tables, so there is
+    no id space to reconcile and nothing existing to disturb.
+  * It deletes nothing.
+
+Idempotence: INSERT OR IGNORE on the primary key. Re-running after a partial
+load fills the gaps; re-running after someone has set `promotion_status`
+leaves those decisions alone, because an existing row is ignored rather than
+replaced. That property is what makes it safe to re-run a load that died
+halfway without auditing what had already been decided.
+
+Rows with no name or no coordinates are dropped rather than staged. A place
+with no name cannot be matched, shown, or judged by a human later, and one
+with no position cannot be promoted into a geohash-indexed table. (In PT
+this drops nothing: all 440,594 Overture rows carry both.)
+
+Usage:
+  python3 load_overture_candidates.py <extract.csv> --sql-out <dir>
+  python3 load_overture_candidates.py <extract.csv> --sql-out <dir> --dry-run
+
+Writes batched SQL rather than executing it, so the statements can be read
+before they touch production and applied with
+`wrangler d1 execute brush-poi-registry --remote --file <sql>`.
+"""
+import argparse
+import csv
+import os
+import sys
+from datetime import datetime, timezone
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from classify_and_load import MAX_STATEMENT_BYTES, byte_len, sql_escape
+
+INSERT_PREFIX = (
+    'INSERT OR IGNORE INTO overture_candidate '
+    '(overture_id, name, lat, lng, address, locality, category, basic_category, '
+    'category_path, confidence, source_datasets, imported_at, country_source_r2_key, last_seen_source_key) VALUES '
+)
+MAX_VALUES_TERMS = 500
+
+
+def candidate_rows(csv_path, country_source_r2_key=None):
+    """The rows worth staging, with the source's own values preserved."""
+    imported_at = datetime.now(timezone.utc).isoformat()
+    seen = set()
+    with open(csv_path, newline='') as handle:
+        for row in csv.DictReader(handle):
+            overture_id = (row.get('overture_id') or '').strip()
+            name = (row.get('name') or '').strip()
+            lat = (row.get('lat') or '').strip()
+            lng = (row.get('lng') or '').strip()
+            if not overture_id or not name or not lat or not lng:
+                continue
+            if overture_id in seen:
+                continue
+            seen.add(overture_id)
+            confidence = (row.get('confidence') or '').strip()
+            yield (
+                overture_id, name, float(lat), float(lng),
+                (row.get('address') or '').strip() or None,
+                (row.get('locality') or '').strip() or None,
+                (row.get('category') or '').strip() or None,
+                (row.get('basic_category') or '').strip() or None,
+                (row.get('category_path') or '').strip() or None,
+                float(confidence) if confidence else None,
+                (row.get('source_datasets') or '').strip() or None,
+                imported_at, country_source_r2_key,
+            )
+
+
+def value_tuple(row):
+    (overture_id, name, lat, lng, address, locality, category,
+     basic_category, category_path, confidence, sources, imported_at,
+     country_source_r2_key) = row
+    return (
+        f'({sql_escape(overture_id)},{sql_escape(name)},{lat},{lng},'
+        f'{sql_escape(address)},{sql_escape(locality)},{sql_escape(category)},'
+        f'{sql_escape(basic_category)},{sql_escape(category_path)},'
+        f'{"NULL" if confidence is None else confidence},'
+        f'{sql_escape(sources)},{sql_escape(imported_at)},{sql_escape(country_source_r2_key)},'
+        f'{sql_escape(country_source_r2_key)})'
+    )
+
+
+def batched(pieces):
+    values, size = [], byte_len(INSERT_PREFIX) + 2
+    for piece in pieces:
+        # +2, not +1: join writes ',\n' between values. Undercounting by a
+        # byte per value lets a 500-value statement exceed the cap it is
+        # measured against.
+        piece_size = byte_len(piece) + 2
+        if values and (size + piece_size > MAX_STATEMENT_BYTES
+                       or len(values) >= MAX_VALUES_TERMS):
+            yield INSERT_PREFIX + ',\n'.join(values) + ';\n'
+            values, size = [], byte_len(INSERT_PREFIX) + 2
+        values.append(piece)
+        size += piece_size
+    if values:
+        yield INSERT_PREFIX + ',\n'.join(values) + ';\n'
+
+
+def _with_country_source(statement):
+    """Keep a retry attached to the immutable archive that supplied it."""
+    return statement[:-2] + (
+        ' ON CONFLICT(overture_id) DO UPDATE SET country_source_r2_key = '
+        'COALESCE(overture_candidate.country_source_r2_key, excluded.country_source_r2_key);\n'
+    )
+
+
+def _with_refresh(statement):
+    """KAN-456: the same GERS id on a newer release is the same row, brought
+    up to date. The source fields take the new release's values, the row
+    moves to the new archive key (so promotion and decision counts scope by
+    the key the country is on now) and `last_seen_source_key` records it.
+    The decision is kept — `promotion_status`/`promotion_note` are not in
+    this SET; a category change is put back to pending by
+    refresh_overture_country.repending_statements, by id, from the local
+    diff. Idempotent: a second run writes the same values."""
+    return statement[:-2] + (
+        ' ON CONFLICT(overture_id) DO UPDATE SET '
+        'name = excluded.name, lat = excluded.lat, lng = excluded.lng, address = excluded.address, '
+        'locality = excluded.locality, category = excluded.category, basic_category = excluded.basic_category, '
+        'category_path = excluded.category_path, confidence = excluded.confidence, '
+        'source_datasets = excluded.source_datasets, '
+        'country_source_r2_key = excluded.country_source_r2_key, '
+        'last_seen_source_key = excluded.country_source_r2_key;\n'
+    )
+
+
+def load(csv_path, country_source_r2_key, refresh=False):
+    """Stream a country archive through one bounded D1 write at a time.
+
+    This is the same transport model that completed the Foursquare country
+    load.  The SQL statement is bounded by ``MAX_STATEMENT_BYTES``; making
+    many of those statements one atomic D1 batch exhausts D1 memory.
+
+    `refresh=True` (KAN-456) upserts instead of ignoring: see _with_refresh.
+    """
+    import d1_client
+
+    offered = inserted = 0
+    attach = _with_refresh if refresh else _with_country_source
+
+    def values():
+        nonlocal offered
+        for row in candidate_rows(csv_path, country_source_r2_key):
+            offered += 1
+            yield value_tuple(row)
+
+    for statement in batched(values()):
+        meta = d1_client.execute(attach(statement))
+        inserted += (meta or {}).get('changes', 0)
+    print(f'{offered:,} candidate rows offered; {inserted:,} D1 changes', file=sys.stderr)
+    return offered
+
+
+def write_sql(csv_path, sql_out, dry_run=False, country_source_r2_key=None):
+    """Write idempotent candidate SQL and return the number of usable rows."""
+    rows = list(candidate_rows(csv_path, country_source_r2_key))
+    statements = list(batched(value_tuple(row) for row in rows))
+    if country_source_r2_key:
+        statements = [_with_country_source(statement) for statement in statements]
+    print(f'{len(rows):,} candidate rows -> {len(statements)} statements', file=sys.stderr)
+    if dry_run:
+        print('--dry-run: no SQL written', file=sys.stderr)
+        return len(rows)
+    os.makedirs(sql_out, exist_ok=True)
+    for index, statement in enumerate(statements):
+        path = os.path.join(sql_out, f'{index:04d}_overture_candidate.sql')
+        with open(path, 'w') as handle:
+            handle.write(statement)
+    print(f'wrote {len(statements)} files to {sql_out}', file=sys.stderr)
+    return len(rows)
+
+
+def main(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('csv_path')
+    parser.add_argument('--sql-out', required=True)
+    parser.add_argument('--dry-run', action='store_true')
+    args = parser.parse_args(argv)
+
+    write_sql(args.csv_path, args.sql_out, args.dry_run)
+    return 0
+
+
+if __name__ == '__main__':
+    raise SystemExit(main(sys.argv[1:]))

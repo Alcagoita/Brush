@@ -1,5 +1,8 @@
 import { FirebaseFirestoreTypes } from '@react-native-firebase/firestore';
 import { COPY } from '../constants/copy';
+import type { StoreSubtype } from '../services/storeSubtypes';
+import type { RestaurantFoodType } from '../services/restaurantFoodTypes';
+import type { FinancialServiceKind } from '../services/financialServiceKinds';
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
@@ -84,6 +87,15 @@ export interface User {
      */
     lowBatteryPause?: boolean;
     /**
+     * Restraint, not permission (KAN-366). The proactive download is how the
+     * app works and has no off switch; this only defers it to Wi-Fi for
+     * someone roaming or on a metered plan.
+     *
+     * Default false — download on any connection. Measured at 21–36 KB per
+     * kilometre, so cellular is an ordinary choice, not a concession.
+     */
+    wifiOnlyDownloads?: boolean;
+    /**
      * Store fine tuning preference (KAN-74).
      *
      *   absent / undefined — user has never interacted; prompt is shown on first
@@ -111,18 +123,112 @@ export interface User {
 // ─── POI ──────────────────────────────────────────────────────────────────────
 
 export type PoiType =
-  | 'atm' | 'cafe' | 'supermarket' | 'pharmacy'
+  | 'atm' | 'cafe' | 'supermarket' | 'mini_market' | 'pharmacy'
   | 'gas' | 'gym' | 'bank' | 'restaurant' | 'park'
   | 'library' | 'post' | 'store' | 'clinic' | 'salon'
-  | 'bus' | 'school';
+  | 'bus' | 'school' | 'bakery' | 'florist' | 'bar' | 'ice_cream' | 'tattoo'
+  | 'barber' | 'hairdresser' | 'nail_salon'
+  | 'currency_exchange' | 'money_transfer' | 'financial_service'
+  // KAN-411. Repairs people find in a shopping centre and remember only
+  // once they are standing in one. Vehicle repair is deliberately absent:
+  // when a car breaks the user searches for it directly, so it is never a
+  // "you happen to be nearby" errand.
+  | 'phone_repair' | 'shoe_repair' | 'clothing_repair'
+  | 'lottery' | 'tobacco' | 'tea' | 'juice' | 'luggage_storage'
+  // KAN-412. Types the classifiers were already writing with nowhere for a
+  // search to reach them — 64 such types held 75,977 rows. These are the
+  // ones that pass the test: could a user plausibly write a task about
+  // going there?
+  //
+  // The literals match the classifier's own keys exactly, so no
+  // type_relation bridge is needed and the guard test has one rule rather
+  // than three. `veterinary_care` and `electric_vehicle_charging_station`
+  // are ugly as identifiers and correct as keys; the labels users see are
+  // in copy.ts, not here.
+  //
+  // Deliberately NOT here, and left classified-but-unreachable rather than
+  // deleted: car_repair (8,481) and the medical types — dentist 3,066,
+  // hospital 1,400, medical_lab 933, physiotherapist 345. A broken car or a
+  // dentist appointment is searched for by name at a specific address, never
+  // stumbled upon. Pharmacy is the only medical errand the app needs.
+  | 'butcher' | 'fishmonger' | 'laundry' | 'veterinary_care'
+  | 'car_wash' | 'car_rental' | 'movie_theater' | 'yoga_studio'
+  | 'playground' | 'electric_vehicle_charging_station'
+  // KAN-408. Nature and Landmarks, taggable like any other type. The user
+  // writes "visitar o castelo" and tags it; that is a task they chose, and
+  // reaching the Nearby hero at a castle is the product working. The fear
+  // this reverses — tourism outranking errands — only ever applied to the
+  // app VOLUNTEERING a place, which is clusterLeisure's suggestion path and
+  // is governed separately.
+  //
+  // Catalog-only, never quick-actionable: people reach for these
+  // deliberately, and the creation carousel stays short.
+  | 'amusement_park' | 'aquarium' | 'art_gallery' | 'beach'
+  | 'botanical_garden' | 'bowling_alley' | 'brewery' | 'campground'
+  | 'casino' | 'cemetery' | 'church' | 'community_center'
+  | 'cultural_center' | 'golf_course' | 'hiking_area' | 'historical_landmark'
+  | 'mosque' | 'museum' | 'night_club' | 'rv_park'
+  | 'spa' | 'stadium' | 'synagogue' | 'tennis_court'
+  | 'tourist_attraction' | 'water_park' | 'winery' | 'zoo'
+  // KAN-408, second pass. The first 28 came from the classifier's own
+  // vocabulary; these came from the material actually waiting in
+  // poi_candidate, none of which the classifier had a name for. Scenic
+  // Lookout alone is 1,292 rows — a miradouro is the draw, and it had
+  // nowhere to go.
+  | 'viewpoint' | 'waterfall' | 'river' | 'mountain'
+  | 'lake' | 'island' | 'surf_spot' | 'hot_spring'
+  | 'nature_preserve' | 'plaza' | 'bridge' | 'lighthouse'
+  | 'marina' | 'theatre' | 'music_venue';
 
-/** The 16 built-in POI types, in catalog display order. */
+/** All built-in POI types, in catalog display order. */
 export const POI_CATALOG: { type: PoiType }[] = [
-  { type: 'atm' }, { type: 'cafe' }, { type: 'supermarket' }, { type: 'pharmacy' },
-  { type: 'gas' }, { type: 'gym' }, { type: 'bank' }, { type: 'restaurant' },
-  { type: 'park' }, { type: 'library' }, { type: 'post' }, { type: 'store' },
-  { type: 'clinic' }, { type: 'salon' }, { type: 'bus' }, { type: 'school' },
+  // KAN-408 — Nature and Landmarks.
+  { type: 'viewpoint' }, { type: 'waterfall' }, { type: 'river' }, { type: 'mountain' },
+  { type: 'lake' }, { type: 'island' }, { type: 'surf_spot' }, { type: 'hot_spring' },
+  { type: 'nature_preserve' }, { type: 'plaza' }, { type: 'bridge' }, { type: 'lighthouse' },
+  { type: 'marina' }, { type: 'theatre' }, { type: 'music_venue' },
+  { type: 'amusement_park' }, { type: 'aquarium' }, { type: 'art_gallery' }, { type: 'beach' },
+  { type: 'botanical_garden' }, { type: 'bowling_alley' }, { type: 'brewery' }, { type: 'campground' },
+  { type: 'casino' }, { type: 'cemetery' }, { type: 'church' }, { type: 'community_center' },
+  { type: 'cultural_center' }, { type: 'golf_course' }, { type: 'hiking_area' }, { type: 'historical_landmark' },
+  { type: 'mosque' }, { type: 'museum' }, { type: 'night_club' }, { type: 'rv_park' },
+  { type: 'spa' }, { type: 'stadium' }, { type: 'synagogue' }, { type: 'tennis_court' },
+  { type: 'tourist_attraction' }, { type: 'water_park' }, { type: 'winery' }, { type: 'zoo' },
+  { type: 'supermarket' }, { type: 'mini_market' }, { type: 'pharmacy' }, { type: 'atm' }, { type: 'cafe' },
+  { type: 'restaurant' }, { type: 'store' }, { type: 'florist' }, { type: 'bakery' },
+  { type: 'ice_cream' }, { type: 'tea' }, { type: 'juice' },
+  { type: 'tattoo' },
+  { type: 'phone_repair' }, { type: 'shoe_repair' }, { type: 'clothing_repair' },
+  { type: 'lottery' }, { type: 'tobacco' }, { type: 'luggage_storage' },
+  // KAN-412. Catalog and free-text only — none of these joins
+  // QUICK_ACTIONABLE_POI_TYPES. People reach for them specifically ("find a
+  // vet for today"), never by browsing a carousel, so the dictionary is
+  // where the value is.
+  { type: 'butcher' }, { type: 'fishmonger' }, { type: 'laundry' },
+  { type: 'veterinary_care' }, { type: 'car_wash' }, { type: 'car_rental' },
+  { type: 'movie_theater' }, { type: 'yoga_studio' }, { type: 'playground' },
+  { type: 'electric_vehicle_charging_station' },
+  { type: 'barber' }, { type: 'hairdresser' }, { type: 'nail_salon' },
+  { type: 'park' }, { type: 'gym' }, { type: 'bar' }, { type: 'library' }, { type: 'bank' },
+  // Retained for existing documents and free-text lookup, but intentionally
+  // outside the curated quick-actionable list below.
+  { type: 'gas' }, { type: 'post' }, { type: 'clinic' },
+  { type: 'salon' }, { type: 'bus' }, { type: 'school' },
+  { type: 'currency_exchange' }, { type: 'money_transfer' }, { type: 'financial_service' },
 ];
+
+/**
+ * The only built-in POI types offered in quick task creation. Both creation
+ * carousels and their automatic quick suggestion use this single list.
+ */
+export const QUICK_ACTIONABLE_POI_TYPES: readonly PoiType[] = [
+  'supermarket', 'mini_market', 'pharmacy', 'atm', 'cafe', 'restaurant', 'store', 'tobacco',
+  'florist', 'bakery', 'ice_cream', 'park', 'gym', 'bar', 'library',
+];
+
+export function isQuickActionablePoiType(value: string | null | undefined): value is PoiType {
+  return value != null && QUICK_ACTIONABLE_POI_TYPES.includes(value as PoiType);
+}
 
 /**
  * Display label for a built-in POI type — reads live from COPY (KAN-252)
@@ -132,14 +238,29 @@ export function poiCatalogLabel(type: PoiType): string {
   return COPY.poiCatalog[type];
 }
 
+/** Is `value` one of the built-in catalog types (vs. a free-text POI)? */
+export function isCatalogPoiType(value: string | null | undefined): value is PoiType {
+  return value != null && POI_CATALOG.some(item => item.type === value);
+}
+
 /**
- * All 16 built-in POI types, derived from POI_CATALOG. Used by the habitat
+ * All built-in POI types, derived from POI_CATALOG. Used by the habitat
  * cache's prefetch (KAN-238) to warm the cache for every type regardless of
  * open tasks — a task created after caching (e.g. "buy aspirin" while
  * offline) must still find pharmacy candidates even though no pharmacy task
  * existed when the area was last refreshed online.
  */
 export const ALL_POI_TYPES: PoiType[] = POI_CATALOG.map(c => c.type);
+
+/**
+ * POI types worth teaching a *brand* for (KAN-304): places that come as
+ * multiple, chain-able stores where naming a favourite makes sense — a café,
+ * a market, a gym. Excludes one-off/utility types (ATM, park, post, bus…)
+ * where a brand name carries no signal. May grow later.
+ */
+export const TEACHABLE_POI_TYPES: PoiType[] = [
+  'cafe', 'supermarket', 'gas', 'gym', 'restaurant', 'salon',
+];
 
 /** /users/{uid}/pois/{poiType} */
 export interface PoiPreference {
@@ -178,8 +299,14 @@ export interface Task {
    * categories it may be any Google Places type (e.g. "gym", "restaurant").
    */
   poi?: string;
-  /** Google Places ID if the user pinned a specific place — optional. */
-  poiPlaceId?: string;
+  /** Optional store subtype selected by the user for store tasks (KAN-315). */
+  storeSubtype?: StoreSubtype;
+  /** Optional cuisine preference selected for restaurant tasks. */
+  restaurantFoodType?: RestaurantFoodType;
+  /** Optional specific financial service selected for Financial service tasks. */
+  financialServiceKind?: FinancialServiceKind;
+  /** Canonical Gym/Bank brand required for matching, or an optional Store brand. */
+  poiBrand?: string;
   /**
    * Google Places ID of the hero/nearby place the user was next to when this
    * task was brushed away — undefined when no matching place was known at
@@ -190,6 +317,13 @@ export interface Task {
   completedPlaceName?: string;
   /** POI type of `completedPlaceId`, snapshotted at brush time. */
   completedPoiType?: string;
+  /**
+   * KAN-304 — the id of the trip whose area the user was inside when this task
+   * was brushed, if any (live `PlaceContext.kind === 'trip'` at brush time).
+   * Groundwork for later "things to do where you've been" — stored, never yet
+   * surfaced.
+   */
+  completedTripId?: string;
   /**
    * The date (YYYY-MM-DD) on which a geofence-entry notification was last
    * fired for this task. Suppresses repeat alerts on the same day (KAN-24).
@@ -202,27 +336,45 @@ export interface Task {
   exitPromptSeenDate?: string;
   createdAt: FirebaseFirestoreTypes.Timestamp;
   completedAt?: FirebaseFirestoreTypes.Timestamp;
-  /** Calendar date this task belongs to, formatted as "YYYY-MM-DD". */
-  date: string;
   /**
-   * KAN-264 — the day this task was FIRST due, stamped once by rollover the
-   * first time it rolls forward and never overwritten again. `date` keeps
-   * moving forward each rollover (so Today always shows it); `originDate`
-   * stays put, so the Calendar can attribute an undone rolled task to the
-   * day it was actually meant for — a task rolling Mon→Wed was never a
-   * Tuesday intention, so Tuesday's ring is untouched, and Monday's ring
-   * correctly stays open instead of vanishing. Undefined for a task that
-   * has never rolled — treat `originDate ?? date` as its calendar day.
+   * Legacy daily-list date. New code must not use this field to decide whether
+   * a task is active: every pre-KAN-363 task has one, even when the user never
+   * chose a date. It is retained so existing documents are not destructively
+   * migrated and a future history view can still read their original data.
+   */
+  date?: string;
+  /**
+   * An explicit, optional local calendar date chosen by the user, in canonical
+   * YYYY-MM-DD form. A task with
+   * no scheduledDate remains active until it is brushed or deleted. Once this
+   * date has passed, the task simply leaves the active list; it is never
+   * deleted or moved automatically.
+   */
+  scheduledDate?: string;
+  /** The first explicitly selected YYYY-MM-DD date, retained when “Tomorrow instead” moves a task. */
+  originalScheduledDate?: string;
+  /**
+   * The latest explicit end-of-day decision. Its YYYY-MM-DD date identifies the handoff
+   * it belongs to, so absence for a passed scheduled date truthfully means the
+   * user did not answer rather than chose "Forget it".
+   */
+  dateHandoff?: {
+    date: string;
+    outcome: 'forgotten' | 'tomorrow';
+    resolvedAt: FirebaseFirestoreTypes.Timestamp;
+  };
+  /**
+   * Legacy original date retained from the former rollover model. New code
+   * does not write it; Calendar compatibility may read it for old documents.
    */
   originDate?: string;
   /** True when this task has a local write not yet confirmed by the server (KAN-198). */
   pendingSync?: boolean;
   /**
-   * KAN-248 — marks a date-bound, unscored, auto-expiring task imported from a
-   * calendar birthday event (or retroactively flagged via the edit-screen
-   * toggle). A deliberate, narrow exception to "no POI required" and "no
-   * auto-expiry" — never generalize beyond this one kind. undefined for
-   * every other task.
+   * KAN-248 — marks a date-bound, unscored task imported from a calendar
+   * birthday event (or retroactively flagged via the edit-screen toggle).
+   * It is a semantic task kind, not a POI type; birthdays have no place and
+   * never earn points. Undefined for every other task.
    */
   kind?: 'birthday';
 }
@@ -242,13 +394,10 @@ export interface Category {
   name: string;
   /** Hex colour string, e.g. one from `categories` or `categoryHues` in theme/tokens.ts. */
   color: string;
-  /**
-   * Google Places primary type string (e.g. "gym", "restaurant", "atm").
-   * Built-in categories use one of the four PoiType values; custom categories
-   * may store any Google Places type discovered via the search feature.
-   * Null means no location association.
-   */
-  poi: string | null;
+  // A category carries no place type. It used to (`poi`), and the Add Category
+  // sheet asked for one, but a category is a colour and a name — where a task
+  // happens belongs to the task (KAN-371). Documents written before this may
+  // still hold a stale `poi`; nothing reads it.
   /** Built-in categories cannot be renamed, recoloured, or deleted. */
   isBuiltIn: boolean;
 }
@@ -257,17 +406,23 @@ export interface Category {
 
 /** Which POI types can appear on tasks of each category. */
 export const CATEGORY_POI_MAP: Record<CategoryKey, PoiType[]> = {
-  errands:  ['supermarket', 'atm', 'pharmacy', 'bank', 'post', 'store'],
+  errands:  ['supermarket', 'mini_market', 'atm', 'pharmacy', 'bank', 'currency_exchange', 'money_transfer', 'financial_service', 'post', 'store', 'bakery', 'florist', 'tobacco', 'luggage_storage'],
   health:   ['pharmacy', 'clinic', 'gym'],
-  personal: ['cafe', 'restaurant', 'park', 'salon'],
+  personal: ['cafe', 'restaurant', 'bar', 'park', 'salon', 'ice_cream', 'tattoo', 'barber', 'hairdresser', 'nail_salon'],
   work:     ['library', 'school'],
 };
 
-/** Maps our PoiType to the corresponding Google Places type string. */
-export const POI_GOOGLE_TYPES: Record<PoiType, string> = {
+/** Maps the legacy Google fallback's supported PoiTypes to a Places type.
+ *
+ * Currency exchange and money transfer intentionally have no Google fallback:
+ * Google exposes neither as a distinct searchable type, and mapping either to
+ * Bank would return the wrong places. The Brush POI API remains authoritative.
+ */
+export const POI_GOOGLE_TYPES: Partial<Record<PoiType, string>> = {
   atm:         'atm',
   cafe:         'cafe',
   supermarket:  'supermarket',
+  mini_market:  'convenience_store',
   pharmacy:     'pharmacy',
   gas:          'gas_station',
   gym:          'gym',
@@ -278,9 +433,17 @@ export const POI_GOOGLE_TYPES: Record<PoiType, string> = {
   post:         'post_office',
   store:        'store',
   clinic:       'doctor',
-  salon:        'hair_care',
+  salon:        'beauty_salon',
+  barber:       'barber_shop',
+  hairdresser:  'hair_care',
+  nail_salon:   'nail_salon',
   bus:          'bus_station',
   school:       'school',
+  bakery:       'bakery',
+  ice_cream:    'ice_cream_shop',
+  tattoo:       'tattoo_parlor',
+  florist:      'florist',
+  bar:          'bar',
 };
 
 /**
@@ -290,34 +453,367 @@ export const POI_GOOGLE_TYPES: Record<PoiType, string> = {
  * is sourced from OSM instead — this is the OSM equivalent of
  * POI_GOOGLE_TYPES above.
  */
-export const POI_OSM_TAGS: Record<PoiType, { key: string; value: string }> = {
+/**
+ * One OSM tag selector. `value` is the primary/representative value; `values`
+ * lists the full accepted set when a single value cannot express the concept
+ * — `historical_landmark` is `historic=castle|monument|ruins|...`, not any one
+ * of them. Read the accepted set through `osmTagValues`, never by hand, so the
+ * query and the response filter can never disagree about what matches.
+ */
+export interface OsmTagSelector {
+  key: string;
+  value: string;
+  values?: readonly string[];
+  /**
+   * A companion tag that must ALSO be present (KAN-408 review).
+   *
+   * Some OSM concepts need two tags to be themselves. `leisure=pitch` is
+   * every pitch there is — football, basketball, padel — and only
+   * `sport=tennis` alongside it means a tennis court. Without this the
+   * selector typed every soccer field in the country as one.
+   */
+  where?: { key: string; value: string };
+}
+
+/** Every value this selector accepts. The single source of truth for both the
+ *  Overpass clause and the filter applied to its response. */
+export function osmTagValues(tag: OsmTagSelector): readonly string[] {
+  return tag.values ?? [tag.value];
+}
+
+export const POI_OSM_TAGS: Record<PoiType, OsmTagSelector> = {
+  // KAN-408 — Nature and Landmarks.
+  viewpoint:                            { key: 'tourism', value: 'viewpoint' },
+  waterfall:                            { key: 'waterway', value: 'waterfall' },
+  river:                                { key: 'waterway', value: 'river' },
+  mountain:                             { key: 'natural', value: 'peak' },
+  lake:                                 { key: 'natural', value: 'water' },
+  island:                               { key: 'place', value: 'island' },
+  surf_spot:                            { key: 'sport', value: 'surfing' },
+  hot_spring:                           { key: 'natural', value: 'hot_spring' },
+  nature_preserve:                      { key: 'boundary', value: 'protected_area' },
+  plaza:                                { key: 'place', value: 'square' },
+  bridge:                               { key: 'man_made', value: 'bridge' },
+  lighthouse:                           { key: 'man_made', value: 'lighthouse' },
+  marina:                               { key: 'leisure', value: 'marina' },
+  theatre:                              { key: 'amenity', value: 'theatre' },
+  music_venue:                          { key: 'amenity', value: 'music_venue' },
+  amusement_park:                       { key: 'tourism', value: 'theme_park' },
+  aquarium:                             { key: 'tourism', value: 'aquarium' },
+  art_gallery:                          { key: 'tourism', value: 'gallery' },
+  beach:                                { key: 'natural', value: 'beach' },
+  botanical_garden:                     { key: 'leisure', value: 'garden' },
+  bowling_alley:                        { key: 'leisure', value: 'bowling_alley' },
+  brewery:                              { key: 'craft', value: 'brewery' },
+  campground:                           { key: 'tourism', value: 'camp_site' },
+  casino:                               { key: 'amenity', value: 'casino' },
+  cemetery:                             { key: 'landuse', value: 'cemetery' },
+  church:                               { key: 'building', value: 'church' },
+  community_center:                     { key: 'amenity', value: 'community_centre' },
+  cultural_center:                      { key: 'amenity', value: 'arts_centre' },
+  golf_course:                          { key: 'leisure', value: 'golf_course' },
+  hiking_area:                          { key: 'leisure', value: 'nature_reserve' },
+  // KAN-406's multi-value selector, preserved: "a historic place" has no
+  // single tag value, and picking one silently drops the rest.
+  historical_landmark:                  {
+    key: 'historic',
+    value: 'castle',
+    values: [
+      'castle', 'monument', 'memorial', 'ruins', 'archaeological_site',
+      'fort', 'manor', 'monastery', 'tower', 'city_gate', 'aqueduct',
+    ],
+  },
+  mosque:                               { key: 'building', value: 'mosque' },
+  museum:                               { key: 'tourism', value: 'museum' },
+  night_club:                           { key: 'amenity', value: 'nightclub' },
+  rv_park:                              { key: 'tourism', value: 'caravan_site' },
+  spa:                                  { key: 'leisure', value: 'spa' },
+  stadium:                              { key: 'leisure', value: 'stadium' },
+  synagogue:                            { key: 'building', value: 'synagogue' },
+  tennis_court:                         { key: 'leisure', value: 'pitch', where: { key: 'sport', value: 'tennis' } },
+  tourist_attraction:                   { key: 'tourism', value: 'attraction' },
+  water_park:                           { key: 'leisure', value: 'water_park' },
+  winery:                               { key: 'craft', value: 'winery' },
+  zoo:                                  { key: 'tourism', value: 'zoo' },
   atm:         { key: 'amenity', value: 'atm' },
   cafe:        { key: 'amenity', value: 'cafe' },
   supermarket: { key: 'shop',    value: 'supermarket' },
+  mini_market: { key: 'shop',    value: 'convenience' },
   pharmacy:    { key: 'amenity', value: 'pharmacy' },
   gas:         { key: 'amenity', value: 'fuel' },
   gym:         { key: 'leisure', value: 'fitness_centre' },
   bank:        { key: 'amenity', value: 'bank' },
+  currency_exchange: { key: 'amenity', value: 'bureau_de_change' },
+  money_transfer: { key: 'amenity', value: 'money_transfer' },
+  financial_service: { key: 'office', value: 'financial' },
   restaurant:  { key: 'amenity', value: 'restaurant' },
   park:        { key: 'leisure', value: 'park' },
   library:     { key: 'amenity', value: 'library' },
   post:        { key: 'amenity', value: 'post_office' },
   store:       { key: 'shop',    value: 'convenience' },
   clinic:      { key: 'amenity', value: 'clinic' },
-  salon:       { key: 'shop',    value: 'hairdresser' },
+  // salon is full service; hairdresser is hair only; barber is men's.
+  salon:       { key: 'shop',    value: 'beauty' },
+  barber:      { key: 'shop',    value: 'hairdresser' },
+  hairdresser: { key: 'shop',    value: 'hairdresser' },
+  nail_salon:  { key: 'shop',    value: 'beauty' },
   bus:         { key: 'highway', value: 'bus_stop' },
   school:      { key: 'amenity', value: 'school' },
+  bakery:      { key: 'shop',    value: 'bakery' },
+  // amenity=ice_cream is the parlour you sit in; shop=ice_cream also exists
+  // and is picked up server-side (supplement_osm_pois.py's TAG_TYPES).
+  ice_cream:   { key: 'amenity', value: 'ice_cream' },
+  tattoo:      { key: 'shop',    value: 'tattoo' },
+  florist:     { key: 'shop',    value: 'florist' },
+  bar:         { key: 'amenity', value: 'bar' },
+  // KAN-411. A type listed here but absent from what Overpass is actually
+  // asked for matches nothing (KAN-398's dead types, and KAN-405's
+  // amenity=ice_cream). These tags are the well-established ones:
+  //   craft=shoemaker  cobblers
+  //   craft=tailor     alterations; shop=tailor is the retail twin
+  //   shop=lottery     lottery retailers
+  //   shop=tea         tea shops and rooms
+  // shop=mobile_phone covers both selling and repair in OSM practice —
+  // most Portuguese phone shops do both, and OSM has no widely used
+  // repair-only tag.
+  phone_repair:    { key: 'shop',  value: 'mobile_phone' },
+  shoe_repair:     { key: 'craft', value: 'shoemaker' },
+  clothing_repair: { key: 'craft', value: 'tailor' },
+  lottery:         { key: 'shop',  value: 'lottery' },
+  tobacco:         { key: 'shop',  value: 'tobacco' },
+  luggage_storage: { key: 'amenity', value: 'luggage_storage' },
+  tea:             { key: 'shop',  value: 'tea' },
+  // OSM has no settled juice tag. shop=beverages is the closest widely
+  // used one, but it means drinks retail rather than a juice counter, so
+  // this will under-match until KAN-405 checks what PT actually carries.
+  juice:           { key: 'shop',  value: 'beverages' },
+  // KAN-412. Tags chosen from what OSM actually carries in PT, measured in
+  // KAN-405 — shop=butcher 1,153, shop=laundry 1,232, shop=seafood, and
+  // leisure=playground 5,275 that the selector does not yet request.
+  butcher:         { key: 'shop',    value: 'butcher' },
+  fishmonger:      { key: 'shop',    value: 'seafood' },
+  laundry:         { key: 'shop',    value: 'laundry' },
+  veterinary_care: { key: 'amenity', value: 'veterinary' },
+  car_wash:        { key: 'amenity', value: 'car_wash' },
+  car_rental:      { key: 'amenity', value: 'car_rental' },
+  movie_theater:   { key: 'amenity', value: 'cinema' },
+  yoga_studio:     { key: 'leisure', value: 'fitness_centre' },
+  playground:      { key: 'leisure', value: 'playground' },
+  electric_vehicle_charging_station: { key: 'amenity', value: 'charging_station' },
 };
+
+/**
+ * OSM tags for internal/supplementary search types that aren't user-facing
+ * task categories (so they can't live in POI_OSM_TAGS, which is keyed to
+ * the PoiType catalog) but still need offline OSM-backed caching — e.g.
+ * shopping_mall for KAN-282's "One trip for all of these" mall detection,
+ * which must work fully offline against the habitat cache the same way
+ * every catalog type does, not just from a live Google search.
+ */
+export const SUPPLEMENTARY_OSM_TAGS: Record<string, OsmTagSelector> = {
+  shopping_mall: { key: 'shop', value: 'mall' },
+  // KAN-293 — leisure/cultural draws for the cluster box's companion line.
+  // `park` is absent here on purpose: it's already a PoiType in
+  // POI_OSM_TAGS, so it rides the normal prefetch without duplication.
+  // KAN-408 — museum, aquarium, tourist_attraction and historical_landmark
+  // graduated to real PoiTypes and now live in POI_OSM_TAGS. Leaving copies
+  // here would be two sources of truth for one selector, and the lookup
+  // prefers POI_OSM_TAGS, so the copies would be silently dead.
+  // KAN-406. `tourism=attraction` used to be mapped under the bare name
+  // `attraction`, which our own database has never once written — 0 rows,
+  // against 128 for `tourist_attraction`. Two names for one concept, split
+  // across two source vocabularies, so whichever one a lookup used it saw
+  // half the world. One type now carries both: the D1 name, the OSM tag.
+};
+
+/**
+ * Place types the errand-cluster box may mention as a leisure companion
+ * ("Central Park is right there — fancy a walk?", KAN-293).
+ *
+ * COMMERCIAL NEUTRALITY: this list is a fixed, hand-authored set of OSM tag
+ * types. It takes no partner, sponsor or revenue input of any kind, and
+ * nothing may ever be added to it in exchange for payment. A place surfaces
+ * here for exactly one reason — it is physically near the user's errands.
+ * Monetization, if it ever arrives, attaches to the fulfilment action (the
+ * ticket link) and never to detection, ranking or copy. See KAN-239.
+ */
+// Notable leisure / cultural places worth naming as you pass them on a trip
+// (clusterLeisure). historical_landmark + tourist_attraction added so heritage
+// sites — monasteries, castles, monuments — can surface too; they were a blind
+// spot (e.g. Mosteiro de Alcobaça sits metres from a stop but is typed
+// historical_landmark).
+//
+// This comment used to end "Both are already prefetched into the habitat
+// cache." They were not: neither has an OSM tag mapping, so the prefetch's
+// mappable-types filter dropped both before any fetch ran, and 1,865
+// historical_landmark + 128 tourist_attraction rows in D1 stayed invisible
+// (KAN-407).
+/**
+ * The recommendation groups (KAN-408).
+ *
+ * `PoiType` says WHAT a place is. These say what kind of outing it serves,
+ * which is what the planned features ask: "what is worth seeing around
+ * here". All of them feed the recommended set.
+ *
+ * **No group is a ranking tier.** `tourist_attraction` sits alongside the
+ * historic places, not behind them — these names are classifier leaves, not
+ * a hierarchy, and the same castle arrives as `historical_landmark` from one
+ * source and `tourist_attraction` from another purely by how that source
+ * described it. Ranking stays on physical signals, as
+ * `clusterLeisure.compareSuggestions` already does.
+ */
+export const TOURISM_GROUPS = {
+  // Somewhere outdoors, under the sky. A miradouro is the draw here — 1,292
+  // Scenic Lookout rows were waiting with no type to land in.
+  nature: [
+    'beach', 'botanical_garden', 'campground', 'hiking_area', 'hot_spring',
+    'island', 'lake', 'mountain', 'nature_preserve', 'park', 'river',
+    'rv_park', 'surf_spot', 'viewpoint', 'waterfall',
+  ],
+  // Kept apart from the rest rather than filed under culture: someone
+  // looking for a church on a Sunday morning is not sightseeing, and the
+  // three faiths are one group because the intent is shared.
+  religion: ['church', 'mosque', 'synagogue'],
+  // Built, and old.
+  historic: ['cemetery', 'historical_landmark'],
+  // Built, and worth stopping at. `bridge`, `lighthouse` and `plaza` live
+  // here rather than in nature: they are structures you go and look at.
+  landmark: ['bridge', 'lighthouse', 'marina', 'plaza', 'tourist_attraction'],
+  // Something on, or something to look at indoors.
+  culture: ['art_gallery', 'cultural_center', 'museum', 'music_venue', 'theatre'],
+} as const;
+
+export type TourismGroup = keyof typeof TOURISM_GROUPS;
+
+/**
+ * Deliberately in NO group: amusement_park, aquarium, bowling_alley,
+ * brewery, casino, community_center, golf_course, night_club, spa, stadium,
+ * tennis_court, water_park, winery, zoo.
+ *
+ * They are real taggable types — someone does write "levar os miúdos ao
+ * zoo" — but they are entertainment and amenities rather than the kinds of
+ * outing this models. Forcing a bowling alley into a group to make the
+ * partition total would make every group mean less, and a group that means
+ * less is one a feature cannot act on.
+ */
+export function tourismGroupFor(poiType: string): TourismGroup | null {
+  for (const [group, types] of Object.entries(TOURISM_GROUPS)) {
+    if ((types as readonly string[]).includes(poiType)) { return group as TourismGroup; }
+  }
+  return null;
+}
+
+export const CLUSTER_LEISURE_TYPES = ['park', 'museum', 'aquarium', 'historical_landmark', 'tourist_attraction'] as const;
+
+export type ClusterLeisureType = typeof CLUSTER_LEISURE_TYPES[number];
+
+/**
+ * Can the POI API answer for this type? (KAN-407.)
+ *
+ * The habitat prefetch used to accept only OSM-mappable types, because a type
+ * with no OSM tag could never satisfy a freshness check judged purely on
+ * `osm_fetched_at` and would re-fetch forever. KAN-366 ended that: the
+ * prefetch goes through `searchNearbyPlaces` (our API first, Overpass second)
+ * and counts a row anchored by any source as real coverage. So an OSM tag stopped
+ * being the price of admission — but the filter stayed, and kept the two
+ * heritage types out.
+ *
+ * Deliberately NOT "anything goes". A task can carry a free-text POI the user
+ * typed themselves, and those match nothing in either source: they would come
+ * back empty forever and retry on every cooldown. This admits the vocabulary
+ * we actually import — catalog types and the fixed leisure set — and nothing
+ * else.
+ */
+export function isPoiApiServableType(poiType: string): boolean {
+  return isCatalogPoiType(poiType)
+    || (CLUSTER_LEISURE_TYPES as readonly string[]).includes(poiType);
+}
+
+/**
+ * Under this distance a place is "at your feet" — the orange hero zone.
+ *
+ * One authority, because two consumers decide the same thing with it and
+ * must never drift apart (KAN-419): `proximity.ts` picks the hero POI type,
+ * fires the notification and records the exit prompt; `NearbyCard` decides
+ * which tasks render as hero cards. The card ORs its own distance filter
+ * with the engine's verdict — `heroEntries.length > 0 || nearbyPoiType !==
+ * null` — so a divergence is incoherent either way round: a wider card
+ * radius renders heroes that never notified, a narrower one leaves the
+ * orange state on with no card to show.
+ *
+ * It lives here rather than in `proximity.ts` for a concrete reason. The
+ * card's only other link to the engine is `import type { PlacesMap }`,
+ * which TypeScript erases, so the card has no runtime dependency on the
+ * engine at all. Importing a *value* from `proximity.ts` would pull
+ * `@notifee/react-native` into the card's module graph, which fails outright
+ * under Jest. A dependency-light module both sides already use keeps them
+ * agreeing on the number without coupling their runtime graphs.
+ *
+ * Distinct from `NEARBY_RADIUS` (400), `HOME_RADIUS_M`, `HABITAT_RADIUS_M`
+ * and `POI_GEOFENCE_RADIUS` below — different quantities, never merged. Also
+ * distinct from `clusterLeisure.ts`'s `LEISURE_NEAR_STOP_RADIUS_M`, which is
+ * the same number and a different meaning.
+ */
+export const HERO_RADIUS_M = 100;
 
 /** Default geofence radius in metres per POI type. */
 export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
+  // KAN-408 — an area, not a shopfront: a beach or a hiking route is
+  // somewhere you are, not a door you stand at.
+  viewpoint:                            150,
+  waterfall:                            200,
+  river:                                500,
+  mountain:                             1000,
+  lake:                                 500,
+  island:                               1000,
+  surf_spot:                            300,
+  hot_spring:                           200,
+  nature_preserve:                      1000,
+  plaza:                                100,
+  bridge:                               200,
+  lighthouse:                           200,
+  marina:                               300,
+  theatre:                              100,
+  music_venue:                          100,
+  amusement_park:                       300,
+  aquarium:                             100,
+  art_gallery:                          75,
+  beach:                                500,
+  botanical_garden:                     300,
+  bowling_alley:                        75,
+  brewery:                              100,
+  campground:                           300,
+  casino:                               100,
+  cemetery:                             200,
+  church:                               100,
+  community_center:                     100,
+  cultural_center:                      100,
+  golf_course:                          500,
+  hiking_area:                          1000,
+  historical_landmark:                  200,
+  mosque:                               100,
+  museum:                               100,
+  night_club:                           75,
+  rv_park:                              300,
+  spa:                                  100,
+  stadium:                              300,
+  synagogue:                            100,
+  tennis_court:                         100,
+  tourist_attraction:                   200,
+  water_park:                           300,
+  winery:                               200,
+  zoo:                                  300,
   atm:         50,
   pharmacy:    50,
   cafe:        75,
   supermarket: 75,
+  mini_market: 50,
   gas:         75,
   gym:         100,
   bank:        50,
+  currency_exchange: 50,
+  money_transfer: 50,
+  financial_service: 50,
   restaurant:  75,
   park:        150,
   library:     75,
@@ -325,8 +821,38 @@ export const POI_GEOFENCE_RADIUS: Record<PoiType, number> = {
   store:       75,
   clinic:      75,
   salon:       50,
+  barber:      50,
+  hairdresser: 50,
+  nail_salon:  50,
   bus:         100,
   school:      100,
+  bakery:      75,
+  ice_cream:   50,
+  tattoo:      50,
+  florist:     75,
+  bar:         75,
+  // KAN-411. Small shopfronts, so tight radii — a cobbler or a lottery
+  // counter is a doorway, not a forecourt.
+  phone_repair:    50,
+  shoe_repair:     50,
+  clothing_repair: 50,
+  lottery:         50,
+  tobacco:         50,
+  luggage_storage: 50,
+  tea:             50,
+  juice:           50,
+  // KAN-412. Small shopfronts stay tight; a playground and a charging
+  // station are open areas you approach rather than doorways.
+  butcher:         50,
+  fishmonger:      50,
+  laundry:         50,
+  veterinary_care: 50,
+  car_wash:        75,
+  car_rental:      75,
+  movie_theater:   75,
+  yoga_studio:     50,
+  playground:      100,
+  electric_vehicle_charging_station: 75,
 };
 
 // ─── Points & Achievements ────────────────────────────────────────────────────
@@ -435,26 +961,21 @@ export interface PointsHistoryEntry {
  * metadata. Merged-write safe — use `setDoc(..., { merge: true })`.
  */
 export interface UserPreferences {
+  // ── Three notification channels (KAN-303) ──
+  // "When I'm out": proximity alerts (notif_nearby_enabled) + the exit prompt.
   exitPrompt:               boolean;                             // KAN-119
-  eodReminder:              { enabled: boolean; time: string };  // KAN-120 — "21:00"
-  streakReminder:           boolean;                             // KAN-121
-  achievementNudges:        boolean;                             // KAN-122
-  weeklyRecap:              boolean;                             // KAN-123
-  reengagementReminders:    boolean;                             // KAN-124
-  friendActivity:           boolean;                             // KAN-125
   /** Whether to fire local proximity alerts when near a POI type with pending tasks. KAN-142. */
   notif_nearby_enabled:     boolean;
-  /** Updated on every app foreground — used by re-engagement logic (KAN-124). */
+  // "Daily": the morning check-in, with its user-set reminder time.
+  eodReminder:              { enabled: boolean; time: string };  // KAN-120 — morning
+  // "From people": shared tasks from friends. KAN-303 — default on.
+  sharedTasks:              boolean;
+
+  // Friend-activity pushes — gated server-side (onFriendActivity), not on the
+  // notifications screen. KAN-125.
+  friendActivity:           boolean;
+  /** Updated on every app foreground. */
   lastOpenedAt?:            FirebaseFirestoreTypes.Timestamp;
-  /** Set after the 3-day re-engagement nudge fires (KAN-124) — prevents duplicate sends. */
-  lastReengagementNudge?:   FirebaseFirestoreTypes.Timestamp;
-  /**
-   * Timestamp when the 7-day lapse nudge fired (KAN-127).
-   * Prevents further re-engagement nudges for this lapse episode.
-   */
-  reengagementChurned?:     FirebaseFirestoreTypes.Timestamp;
-  /** "YYYY-MM-DD" — prevents more than one achievement nudge per day (KAN-122). */
-  lastAchievementNudgeDate?: string;
   /**
    * Per-actor last-nudge timestamps for friend activity (KAN-125).
    * Key = actor UID; value = last time a friend-activity nudge was sent from that actor.
@@ -467,19 +988,13 @@ export interface UserPreferences {
 export const DEFAULT_USER_PREFERENCES: Omit<
   UserPreferences,
   | 'lastOpenedAt'
-  | 'lastReengagementNudge'
-  | 'lastAchievementNudgeDate'
   | 'lastFriendNudgeFrom'
-  | 'reengagementChurned'
 > = {
   exitPrompt:            true,
-  eodReminder:           { enabled: true, time: '21:00' },
-  streakReminder:        true,
-  achievementNudges:     true,
-  weeklyRecap:           true,
-  reengagementReminders: true,
-  friendActivity:        true,
   notif_nearby_enabled:  true,
+  eodReminder:           { enabled: true, time: '08:00' },
+  sharedTasks:           true,
+  friendActivity:        true,
 };
 
 export interface Achievement {
@@ -695,6 +1210,14 @@ export interface Trip {
   expiresAt: number;
   /** Set once the day-before-departure pre-refresh has run, so it isn't repeated every app open during the trip window. */
   preRefreshedAt?: number;
+  /** Version of the Cloudflare SQLite export imported into this trip's local cache. */
+  cloudflareExport?: {
+    placeId: string;
+    buildId: string;
+    /** The largest area imported from this build; prevents reusing a smaller cache after radius expansion. */
+    radiusMeters: number;
+    downloadedAt: number;
+  };
   /**
    * KAN-246 — absent (undefined) for a regular future/destination trip.
    * `'offgrid'` marks a now + duration connectivity window instead (center =

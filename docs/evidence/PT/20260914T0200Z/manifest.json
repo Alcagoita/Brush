@@ -1,0 +1,26 @@
+{
+  "country": "PT",
+  "run_id": "20260914T0200Z",
+  "generated_at": "2026-09-14T01:51:55.023433+00:00",
+  "tool_commit": "cdefc902ba1f628816b98860d6568233e703a128",
+  "config_sha256": "fd149153ddcb8ec15357157c238d0f2f3cc8c6cd39b5dfbbe55c8bb34389c7bd",
+  "inputs": {
+    "overture": {
+      "key": "overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv",
+      "sha256": "01d3a2f27e67145c77699db757e3a322c5f47eb11496b74b8043d68f72c77e51"
+    },
+    "foursquare": {
+      "key": "country-sources-unfiltered/PT/4ac4b7ca-6e8d-4e49-92b1-28f3a15e10ca.csv",
+      "sha256": "82b04934657742e497ba7832a8fab81aa09fb4703958b63cd3e92fa25ab33b98"
+    },
+    "osm": {
+      "archive_key": "archives/osm-retail/PT/20260914T0200Z.tsv",
+      "sha256": "e1afc1122dbc1d7c12224f67fd9c6d141c780b3e488d662723ed5c311360680c"
+    }
+  },
+  "outputs": {
+    "suggestions.jsonl": "5e8c3d2a46cd7121bc60374dbdf2fb04fc79652b54bba45ff6667a09c9ddc10e",
+    "overrides-draft.json": "b60c0d2e1450988682365d5f1ead3a56539409114dae8d9759903cf726a87644",
+    "residual-report.json": "23d2911052ed5f602c84f2c8ab98df94a5ab85dac8d0e3659b584e1b275e64b2"
+  }
+}

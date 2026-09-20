@@ -17,6 +17,16 @@ const mockComputeErrandBundles = jest.fn();
 const mockDismissBundleForToday = jest.fn();
 const mockGetDismissedBundleKeysToday = jest.fn().mockReturnValue(new Set());
 
+// KAN-293 — the hook now also asks clusterLeisure for a companion place.
+// That module imports maps.ts, which reaches @react-native-firebase/functions
+// (native, unavailable under Jest), so stub at the service boundary. These
+// tests are about bundle selection and dismissal, not leisure detection —
+// clusterLeisure has its own suite.
+const mockFindClusterLeisure = jest.fn(() => null);
+jest.mock('../../src/services/clusterLeisure', () => ({
+  findClusterLeisure: () => mockFindClusterLeisure(),
+}));
+
 jest.mock('../../src/services/errandBundles', () => ({
   computeErrandBundles: (...args: unknown[]) => mockComputeErrandBundles(...args),
   dismissBundleForToday: (...args: unknown[]) => mockDismissBundleForToday(...args),

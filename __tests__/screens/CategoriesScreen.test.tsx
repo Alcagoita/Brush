@@ -17,7 +17,7 @@
  */
 
 import React from 'react';
-import { Alert } from 'react-native';
+import { Alert, StyleSheet } from 'react-native';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
@@ -83,6 +83,7 @@ jest.mock('../../src/theme', () => ({
       nearTint2:  '#f9ede0',
       nearBorder: '#e8c9a0',
       nearText:   '#7a4a20',
+      scrim:      'rgba(0,0,0,0.25)',
     },
   }),
 }));
@@ -102,7 +103,6 @@ const CUSTOM_CATEGORY: Category = {
   id:        'custom-1',
   name:      'Shopping',
   color:     '#5b7fd4',
-  poi:       'supermarket',
   isBuiltIn: false,
 };
 
@@ -216,6 +216,23 @@ describe('CategoriesScreen — add category', () => {
     expect(screen.getByText('New Category')).toBeTruthy();
   });
 
+  it('keeps the category form keyboard-safe and scrollable', async () => {
+    await renderWith();
+    await openAddSheet();
+
+    const overlay = screen.getByTestId('category-sheet-overlay');
+    const sheetOuter = screen.getByTestId('category-sheet-outer');
+    const sheetScroll = screen.getByTestId('category-sheet-scroll');
+    const overlayStyle = StyleSheet.flatten(overlay.props.style);
+    const sheetOuterStyle = StyleSheet.flatten(sheetOuter.props.style);
+
+    expect(overlayStyle.flex).toBe(1);
+    expect(sheetOuterStyle.width).toBe('100%');
+    expect(sheetOuterStyle.position).toBeUndefined();
+    expect(sheetScroll.props.keyboardShouldPersistTaps).toBe('handled');
+    expect(sheetScroll.props.automaticallyAdjustKeyboardInsets).toBe(true);
+  });
+
   it('shows a name error when saving with empty name', async () => {
     await renderWith();
     await openAddSheet();
@@ -229,7 +246,6 @@ describe('CategoriesScreen — add category', () => {
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Category name'), '  Fitness  ');
-    fireEvent.press(screen.getByRole('radio', { name: 'Café' }));
 
     fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
@@ -237,7 +253,6 @@ describe('CategoriesScreen — add category', () => {
       expect(mockAddCategory).toHaveBeenCalledWith('test-uid', {
         name:  'Fitness',
         color: expect.any(String),
-        poi:   'cafe',
       }),
     );
   });
@@ -246,6 +261,17 @@ describe('CategoriesScreen — add category', () => {
     await renderWith();
     await openAddSheet();
     fireEvent.press(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByText('New Category')).toBeNull(),
+    );
+  });
+
+  it('closes the sheet when the overlay is pressed', async () => {
+    await renderWith();
+    await openAddSheet();
+
+    fireEvent.press(screen.getByTestId('category-sheet-overlay'));
+
     await waitFor(() =>
       expect(screen.queryByText('New Category')).toBeNull(),
     );
@@ -398,111 +424,46 @@ describe('CategoriesScreen — color picker', () => {
 
 // ── Location type ─────────────────────────────────────────────────────────────
 
-describe('CategoriesScreen — location type', () => {
-  it('renders the None chip and the 4 quick-pick chips', async () => {
+describe('CategoriesScreen — no location type (KAN-371)', () => {
+  it('does not offer a location type picker in the add sheet', async () => {
     await renderWith();
     await openAddSheet();
-    expect(screen.getByRole('radio', { name: 'None' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'ATM' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Café' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Supermarket' })).toBeTruthy();
-    expect(screen.getByRole('radio', { name: 'Pharmacy' })).toBeTruthy();
+
+    expect(screen.queryByText('LOCATION TYPE')).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'None' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Pharmacy' })).toBeNull();
+    expect(screen.queryByLabelText('Search location type')).toBeNull();
   });
 
-  it('selecting a quick-pick chip saves that POI type', async () => {
+  it('saves a new category with just a name and a colour', async () => {
     mockAddCategory.mockResolvedValueOnce('id');
     await renderWith();
     await openAddSheet();
 
     fireEvent.changeText(screen.getByLabelText('Category name'), 'Meds');
-    fireEvent.press(screen.getByRole('radio', { name: 'Pharmacy' }));
-
     fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
 
     await waitFor(() =>
-      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
-        expect.objectContaining({ poi: 'pharmacy' }),
-      ),
+      expect(mockAddCategory).toHaveBeenCalledWith('test-uid', {
+        name:  'Meds',
+        color: expect.any(String),
+      }),
     );
   });
 
-  it('None chip saves null POI', async () => {
-    mockAddCategory.mockResolvedValueOnce('id');
+  it('never searches place types from this screen', async () => {
     await renderWith();
     await openAddSheet();
-
-    fireEvent.changeText(screen.getByLabelText('Category name'), 'Work');
-    // ATM is currently active after pressing it; then go back to None
-    fireEvent.press(screen.getByRole('radio', { name: 'ATM' }));
-    fireEvent.press(screen.getByRole('radio', { name: 'None' }));
-
-    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-
-    await waitFor(() =>
-      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
-        expect.objectContaining({ poi: null }),
-      ),
-    );
-  });
-
-  it('renders a location type search input', async () => {
-    await renderWith();
-    await openAddSheet();
-    expect(screen.getByLabelText('Search location type')).toBeTruthy();
-  });
-
-  it('typing in search calls searchPlaceTypes after debounce', async () => {
-    mockSearchPlaceTypes.mockResolvedValueOnce([
-      { type: 'gym', label: 'Gym' },
-    ]);
-    await renderWith();
-    await openAddSheet();
-
-    fireEvent.changeText(screen.getByLabelText('Search location type'), 'gym');
-
-    // Fast-forward past the 350ms debounce
-    await act(async () => {
-      jest.advanceTimersByTime(400);
-    });
-
-    expect(mockSearchPlaceTypes).toHaveBeenCalledWith('gym');
-  });
-
-  it('search results appear and can be selected', async () => {
-    mockSearchPlaceTypes.mockResolvedValueOnce([
-      { type: 'gym',        label: 'Gym' },
-      { type: 'restaurant', label: 'Restaurant' },
-    ]);
-    mockAddCategory.mockResolvedValueOnce('id');
-    await renderWith();
-    await openAddSheet();
-
-    fireEvent.changeText(screen.getByLabelText('Search location type'), 'gym');
-    await act(async () => { jest.advanceTimersByTime(400); });
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Gym' })).toBeTruthy());
-
-    // Tap the Gym result
-    fireEvent.press(screen.getByRole('button', { name: 'Gym' }));
-
-    // Save
-    fireEvent.changeText(screen.getByLabelText('Category name'), 'Fitness');
-    fireEvent.press(screen.getByRole('button', { name: 'Save category' }));
-
-    await waitFor(() =>
-      expect(mockAddCategory).toHaveBeenCalledWith('test-uid',
-        expect.objectContaining({ poi: 'gym' }),
-      ),
-    );
-  });
-
-  it('does not call searchPlaceTypes for empty input', async () => {
-    await renderWith();
-    await openAddSheet();
-
-    fireEvent.changeText(screen.getByLabelText('Search location type'), '');
-    await act(async () => { jest.advanceTimersByTime(400); });
+    await act(async () => { jest.advanceTimersByTime(1000); });
 
     expect(mockSearchPlaceTypes).not.toHaveBeenCalled();
+  });
+
+  it('shows no place-type badge on a category row', async () => {
+    await renderWith([CUSTOM_CATEGORY]);
+
+    expect(screen.getByText('Shopping')).toBeTruthy();
+    expect(screen.queryByText('Market')).toBeNull();
   });
 });
 
@@ -539,7 +500,7 @@ describe('CategoriesScreen — KAN-57 / KAN-58 UiState error branch & retry', ()
   it('re-fetches and shows categories when "Try again" is pressed after recovery', async () => {
     mockGetCategories
       .mockRejectedValueOnce(new Error('Network error'))
-      .mockResolvedValueOnce([{ id: 'cat-gym', name: 'Gym', color: '#ff0000', poi: null, isBuiltIn: false }]);
+      .mockResolvedValueOnce([{ id: 'cat-gym', name: 'Gym', color: '#ff0000', isBuiltIn: false }]);
 
     render(<CategoriesScreen />);
     await act(async () => {});

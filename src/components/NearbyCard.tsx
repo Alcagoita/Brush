@@ -46,14 +46,34 @@ import { useTheme } from '../theme';
 import { spacing, radius } from '../theme/tokens';
 
 import { NearbyPlace, openInMaps, formatDistance, placeTypeLabel } from '../services/maps';
-import { PlacesMap } from '../services/proximity';
-import { Task } from '../types';
+import type { PlacesMap } from '../services/proximity';
+// Same HERO_RADIUS_M the proximity engine uses — one number, two consumers
+// that must agree (KAN-419).
+import { HERO_RADIUS_M, Task } from '../types';
 import { ChevronRightIcon, PoiIcon, RefreshIcon } from './AppIcon';
 import { logTap } from '../services/analytics';
 import { COPY } from '../constants/copy';
+import { restaurantPlacesForTask, restaurantTaskMatchesAnyPlace } from '../services/restaurantFoodTypes';
+import { storePlacesForTask, storeTaskMatchesAnyPlace } from '../services/storeSubtypes';
 
-// Distance threshold that separates the orange hero zone from the grey zone.
-const HERO_RADIUS_M = 100;
+
+function nearestDistanceForTask(task: Task, poiPlaces: PlacesMap): number {
+  if (!task.poi) { return Number.POSITIVE_INFINITY; }
+  const places = placesForTask(task, poiPlaces[task.poi] ?? []);
+  return places[0]?.distanceMeters ?? Number.POSITIVE_INFINITY;
+}
+
+function placesForTask(task: Task, places: NearbyPlace[]): NearbyPlace[] {
+  if (task.poi === 'restaurant') { return restaurantPlacesForTask(task, places); }
+  if (task.poi === 'store') { return storePlacesForTask(task, places); }
+  return places;
+}
+
+function taskMatchesAnyPlace(task: Task, places: NearbyPlace[]): boolean {
+  if (task.poi === 'restaurant') { return restaurantTaskMatchesAnyPlace(task, places); }
+  if (task.poi === 'store') { return storeTaskMatchesAnyPlace(task, places); }
+  return true;
+}
 
 function capitalizeFirstLetter(text: string): string {
   if (!text) { return text; }
@@ -180,7 +200,6 @@ function HeroCard({
   const placesSignature = places.map(p => p.placeId).join(',');
   React.useEffect(() => {
     setCurrentIndex(0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placesSignature]);
 
   const place = places[Math.min(currentIndex, places.length - 1)];
@@ -234,8 +253,8 @@ function HeroCard({
         ]}
         onPress={() => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); }}
         accessibilityRole="button"
-        accessibilityLabel={`Open ${place.name} in Maps`}>
-        <Text style={[styles.ctaLabel, { color: palette.bg }]}>Open in Maps</Text>
+        accessibilityLabel={COPY.nearbyCard.openInMapsA11y(place.name)}>
+        <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.nearbyCard.openInMaps}</Text>
       </Pressable>
 
       {/* "Try another place" — only when 2+ POIs found */}
@@ -249,7 +268,7 @@ function HeroCard({
           accessibilityRole="button"
           accessibilityLabel={COPY.nearbyCard.tryAnotherPlaceA11y}>
           <Text style={[styles.tryAnotherLabel, { color: palette.nearText }]}>
-            Try another place
+            {COPY.nearbyCard.tryAnotherPlace}
           </Text>
         </Pressable>
       )}
@@ -280,7 +299,7 @@ function AlsoCloseRow({
       ]}
       onPress={place ? () => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); } : undefined}
       accessibilityRole={place ? 'button' : 'text'}
-      accessibilityLabel={place ? `Open ${place.name} in Maps` : task.title}>
+      accessibilityLabel={place ? COPY.nearbyCard.openInMapsA11y(place.name) : task.title}>
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
         <PoiIcon type={task.poi ?? 'atm'} color={palette.muted} size={20} />
       </View>
@@ -357,6 +376,7 @@ function NearbyCard({
   const slideWidth = windowWidth - spacing.page * 2;
 
   // Active carousel page — updated once per swipe settle (cheap; not per-frame).
+  const carouselRef = React.useRef<ScrollView>(null);
   const [activeIndex, setActiveIndex] = React.useState(0);
   const onCarouselScroll = React.useCallback(
     (e: { nativeEvent: { contentOffset: { x: number } } }) => {
@@ -372,14 +392,15 @@ function NearbyCard({
   const heroEntries = poiTasks.reduce<Array<{ task: Task; places: NearbyPlace[]; poiType: string }>>(
     (acc, t) => {
       if (!t.poi) { return acc; }
-      const places = poiPlaces[t.poi];
+      const places = placesForTask(t, poiPlaces[t.poi] ?? []);
       if (!places?.length || places[0].distanceMeters >= HERO_RADIUS_M) { return acc; }
-      if (acc.find(e => e.poiType === t.poi)) { return acc; }
+      if (!taskMatchesAnyPlace(t, places)) { return acc; }
+      if (t.poi !== 'restaurant' && t.poi !== 'store' && acc.find(e => e.poiType === t.poi)) { return acc; }
       acc.push({ task: t, places, poiType: t.poi });
       return acc;
     },
     [],
-  );
+  ).sort((a, b) => a.places[0].distanceMeters - b.places[0].distanceMeters);
 
   const isHero = heroEntries.length > 0 || nearbyPoiType !== null;
 
@@ -387,13 +408,28 @@ function NearbyCard({
   const heroPoiTypes = new Set(heroEntries.map(e => e.poiType));
   const greyTasks = poiTasks.filter(t => {
     if (!t.poi || heroPoiTypes.has(t.poi)) { return false; }
-    return !!poiPlaces[t.poi]?.length;
-  });
+    const places = placesForTask(t, poiPlaces[t.poi] ?? []);
+    return !!places?.length && taskMatchesAnyPlace(t, places);
+  }).sort((a, b) => nearestDistanceForTask(a, poiPlaces) - nearestDistanceForTask(b, poiPlaces));
 
   const hasContent = poiTasks.length > 0 && (heroEntries.length > 0 || greyTasks.length > 0);
 
   // Notify parent after render — never during render (avoids setState-in-render warning).
   React.useEffect(() => { onHasContent?.(hasContent); }, [hasContent, onHasContent]);
+
+  // Rewind the carousel whenever the slide set changes (KAN-327).
+  //
+  // The ScrollView keeps its contentOffset across content changes. Swipe to
+  // slide 3, then let a proximity search drop the set to 1–2 slides, and the
+  // offset now points past the end of the content: the carousel renders as an
+  // empty gap until something remounts it. Keying on the entry signature (not
+  // just the count) also covers a same-length set whose slides are different
+  // tasks, where the offset stays valid but lands on an unrelated card.
+  const heroSignature = heroEntries.map(e => `${e.poiType}:${e.task.id}`).join(',');
+  React.useEffect(() => {
+    carouselRef.current?.scrollTo({ x: 0, animated: false });
+    setActiveIndex(0);
+  }, [heroSignature]);
 
   if (poiTasks.length === 0) { return null; }
 
@@ -417,11 +453,11 @@ function NearbyCard({
         <View style={styles.headerRight}>
           {storeTuningActive && (
             <Text style={[styles.tuningLabel, { color: palette.accent }]}>
-              Store tuning on
+              {COPY.nearbyCard.storeTuningOn}
             </Text>
           )}
           <Animated.Text style={[styles.feedbackLabel, { color: refreshResult === 'ok' ? palette.accent : palette.muted }, feedbackStyle]}>
-            {refreshResult === 'ok' ? 'Updated' : 'Failed'}
+            {refreshResult === 'ok' ? COPY.nearbyCard.refreshUpdated : COPY.nearbyCard.refreshFailed}
           </Animated.Text>
           <Text style={[styles.placesCount, { color: palette.muted }]}>
             {COPY.nearbyCard.placesCount(totalPlaces)}
@@ -444,6 +480,7 @@ function NearbyCard({
       {heroEntries.length > 0 && (
         <>
           <ScrollView
+            ref={carouselRef}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}
@@ -452,7 +489,7 @@ function NearbyCard({
             style={styles.carousel}
             contentContainerStyle={styles.carouselContent}>
             {heroEntries.map(({ task, places, poiType }) => (
-              <View key={poiType} style={{ width: slideWidth }}>
+              <View key={`${poiType}:${task.id}`} style={{ width: slideWidth }}>
                 <HeroCard poiType={poiType} task={task} places={places} />
               </View>
             ))}
@@ -462,11 +499,11 @@ function NearbyCard({
               dot widens into a pill; inactive dots are faint. */}
           {heroEntries.length > 1 && (
             <View style={styles.dotsRow} testID="nearby-page-dots">
-              {heroEntries.map(({ poiType }, i) => {
+              {heroEntries.map(({ task, poiType }, i) => {
                 const active = i === Math.min(activeIndex, heroEntries.length - 1);
                 return (
                   <View
-                    key={poiType}
+                    key={`${poiType}:${task.id}`}
                     testID={`nearby-page-dot${active ? '-active' : ''}`}
                     style={[
                       styles.dot,
@@ -485,13 +522,13 @@ function NearbyCard({
       {greyTasks.length > 0 && (
         <View style={[styles.listSection, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           {isHero && (
-            <Text style={[styles.listSectionLabel, { color: palette.muted }]}>ALSO CLOSE</Text>
+            <Text style={[styles.listSectionLabel, { color: palette.muted }]}>{COPY.nearbyCard.alsoClose.toUpperCase()}</Text>
           )}
           {greyTasks.map((task, index) => (
             <AlsoCloseRow
               key={task.id}
               task={task}
-              place={task.poi ? poiPlaces[task.poi]?.[0] : undefined}
+              place={task.poi ? placesForTask(task, poiPlaces[task.poi] ?? [])[0] : undefined}
               isFirst={index === 0}
             />
           ))}

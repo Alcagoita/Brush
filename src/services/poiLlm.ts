@@ -26,20 +26,26 @@
 
 import { loadTensorflowModel, type TensorflowModel } from 'react-native-fast-tflite';
 import type { PoiType } from '../types';
-import { POI_CATALOG } from '../types';
+import {
+  isCatalogPoiType, isQuickActionablePoiType, POI_CATALOG,
+  POI_GOOGLE_TYPES, QUICK_ACTIONABLE_POI_TYPES,
+} from '../types';
 import {
   inferPoiFromRules,
+  listSeedPoiTargets,
   normalize,
   registerLearnedKeyword,
   type PoiResolution,
   type SupportedLang,
 } from './poiInference';
 import { persistLearnedKeyword } from './firestore';
-import { searchPlaceTypesLocal } from './poiTypeCache';
+import { isSuggestedPoiType, searchPlaceTypesLocal } from './poiTypeCache';
+import { inferRestaurantFoodTypeForPoiInference } from './restaurantFoodTypes';
+import { inferStoreSubtypeForPoiInference } from './storeSubtypes';
+import { findBrandInText, findRequiredBrandInText } from './brandDictionary';
 import vocabJson from '../../assets/poi-model/vocab.json';
 import labelsJson from '../../assets/poi-model/labels.json';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const MODEL_ASSET = require('../../assets/poi-model/poi_classifier.tflite');
 
 // Must match ml/poi-classifier/train_colab.py.
@@ -118,6 +124,7 @@ export async function isLlmAvailable(): Promise<boolean> {
  */
 export function tokenize(title: string): Int32Array {
   const ids = new Int32Array(MAXLEN); // zero-filled = PAD_ID
+  ids.fill(PAD_ID);
   const tokens = normalize(title).split(' ').filter(Boolean);
   const n = Math.min(tokens.length, MAXLEN);
   for (let i = 0; i < n; i++) {
@@ -192,16 +199,50 @@ export async function classifyPoi(
  * to `null` on failure, so this works fully offline (airplane mode).
  */
 export async function inferPoiForQuickAdd(title: string): Promise<PoiResolution | null> {
+  // Gym and Bank tasks are brand-specific. A recognised chain is therefore
+  // stronger than generic title keywords and lets the form preselect both
+  // the type and its canonical brand (KAN-364).
+  const requiredBrand = findRequiredBrandInText(title);
+  if (requiredBrand) { return requiredBrand.poiType; }
+  if (inferRestaurantFoodTypeForPoiInference(title)) { return 'restaurant'; }
+  // Store brands are optional, but a recognised chain is still an unambiguous
+  // Store signal. The form resolves the same canonical brand from the title
+  // once this broad type is selected.
+  if (findBrandInText('store', title)) { return 'store'; }
+
   const localSuggestion = searchPlaceTypesLocal(title)[0]?.type ?? null;
-  if (localSuggestion) { return localSuggestion; }
+  if (localSuggestion) {
+    return isQuickActionablePoiType(localSuggestion) ? localSuggestion : null;
+  }
+
+  if (inferStoreSubtypeForPoiInference(title)) { return 'store'; }
 
   const en = inferPoiFromRules(title, 'en');
-  if (en) { return en; }
+  if (en) { return isQuickActionablePoiType(en) ? en : null; }
 
   const pt = inferPoiFromRules(title, 'pt-PT');
-  if (pt) { return pt; }
+  if (pt) { return isQuickActionablePoiType(pt) ? pt : null; }
 
-  return classifyPoi(title, 'en');
+  const classification = await classifyPoi(title, 'en');
+  return isQuickActionablePoiType(classification) ? classification : null;
+}
+
+/**
+ * Returns static POI-inference targets that the suggestion dictionary cannot
+ * represent. Built-in Brush IDs are compared through their external POI type
+ * mapping, so `gas` correctly checks against `gas_station`, for example.
+ */
+export function getUnsuggestedPoiInferenceTypes(): string[] {
+  const inferredTypes = new Set<string>([
+    ...QUICK_ACTIONABLE_POI_TYPES,
+    ...listSeedPoiTargets(),
+  ]);
+
+  return Array.from(inferredTypes)
+    .filter(isQuickActionablePoiType)
+    .map(type => isCatalogPoiType(type) ? POI_GOOGLE_TYPES[type] : type)
+    .filter(type => !isSuggestedPoiType(type))
+    .sort();
 }
 
 // ─── Learn-back ───────────────────────────────────────────────────────────────

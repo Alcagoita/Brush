@@ -12,11 +12,7 @@ if (getApps().length === 0) {
   initializeApp();
 }
 
-export { parseMessageToTask } from './parseMessageToTask';
-export { onUserInactive } from './onUserInactive';
-export { onUserLapsed } from './onUserLapsed';
 export { onFriendActivity } from './onFriendActivity';
-export { rolloverIncompleteTasks } from './rolloverIncompleteTasks';
 export { sweepPoiInferenceMisses } from './sweepPoiInferenceMisses';
 export { onFollowRequest } from './onFollowRequest';
 export { onSharedTaskCreated } from './onSharedTaskCreated';
@@ -32,3 +28,8 @@ export {
   placesAutocompleteProxy,
   getPlaceDetailsProxy,
 } from './places';
+export {
+  cloudflareCoverageProxy,
+  cloudflarePoiAllProxy,
+  cloudflareRequestCoverageProxy,
+} from './cloudflarePoi';

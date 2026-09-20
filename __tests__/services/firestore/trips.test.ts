@@ -4,14 +4,17 @@
  * Covers:
  *   - addTrip stamps createdAt and returns the new doc id
  *   - getTrips maps docs into Trip objects, including optional startDate/endDate/preRefreshedAt
- *   - updateTrip only writes the allowed fields (preRefreshedAt/expiresAt)
+ *   - getTrip maps one trip doc
+ *   - updateTrip writes mutable trip metadata
  *   - deleteTrip removes the doc (habitat_places cleanup is the caller's job — see module docs)
  */
 
 const mockAddDoc    = jest.fn();
 const mockGetDocs   = jest.fn();
+const mockGetDoc    = jest.fn();
 const mockUpdateDoc = jest.fn();
 const mockDeleteDoc = jest.fn();
+const mockDeleteField = jest.fn(() => ({ _type: 'deleteField' }));
 
 const NOW_TIMESTAMP = { _isNow: true };
 
@@ -19,14 +22,16 @@ jest.mock('@react-native-firebase/firestore', () => ({
   getFirestore: jest.fn(),
   collection:   jest.fn(() => ({ _type: 'collection' })),
   doc:          jest.fn(() => ({ _type: 'doc' })),
-  addDoc:       (...args: unknown[]) => mockAddDoc(...args),
-  getDocs:      (...args: unknown[]) => mockGetDocs(...args),
-  updateDoc:    (...args: unknown[]) => mockUpdateDoc(...args),
-  deleteDoc:    (...args: unknown[]) => mockDeleteDoc(...args),
-  Timestamp:    { now: jest.fn(() => NOW_TIMESTAMP) },
-}));
+	  addDoc:       (...args: unknown[]) => mockAddDoc(...args),
+	  getDocs:      (...args: unknown[]) => mockGetDocs(...args),
+	  getDoc:       (...args: unknown[]) => mockGetDoc(...args),
+	  updateDoc:    (...args: unknown[]) => mockUpdateDoc(...args),
+	  deleteDoc:    (...args: unknown[]) => mockDeleteDoc(...args),
+	  deleteField:  (...args: unknown[]) => mockDeleteField(...args),
+	  Timestamp:    { now: jest.fn(() => NOW_TIMESTAMP) },
+	}));
 
-import { addTrip, getTrips, updateTrip, deleteTrip } from '../../../src/services/firestore';
+import { addTrip, getTrips, getTrip, updateTrip, deleteTrip } from '../../../src/services/firestore';
 import type { Trip } from '../../../src/types';
 
 function fakeSnap(docs: Array<{ id: string; data: Record<string, unknown> }>) {
@@ -138,13 +143,62 @@ describe('getTrips', () => {
   });
 });
 
+describe('getTrip', () => {
+  it('maps one trip doc by id', async () => {
+    mockGetDoc.mockResolvedValue({
+      exists: () => true,
+      id: 'trip-1',
+      data: () => ({
+        destination: 'Faro', placeRef: 'place-abc',
+        centerLat: 37.0179, centerLng: -7.9304,
+        areaRadius: 15_000, cacheAreaId: 'ta_123', expiresAt: 1_800_000_000_000,
+        createdAt: NOW_TIMESTAMP,
+      }),
+    });
+
+    await expect(getTrip('uid-1', 'trip-1')).resolves.toEqual({
+      id: 'trip-1',
+      destination: 'Faro', placeRef: 'place-abc',
+      centerLat: 37.0179, centerLng: -7.9304,
+      areaRadius: 15_000, cacheAreaId: 'ta_123', expiresAt: 1_800_000_000_000,
+      createdAt: NOW_TIMESTAMP,
+    });
+  });
+
+  it('returns null when the trip does not exist', async () => {
+    mockGetDoc.mockResolvedValue({ exists: () => false });
+
+    await expect(getTrip('uid-1', 'missing')).resolves.toBeNull();
+  });
+});
+
 describe('updateTrip', () => {
-  it('writes only the given fields', async () => {
+  it('writes mutable trip fields', async () => {
     mockUpdateDoc.mockResolvedValue(undefined);
 
-    await updateTrip('uid-1', 'trip-1', { preRefreshedAt: 1_700_000_000_000 });
+    await updateTrip('uid-1', 'trip-1', {
+      startDate: '2026-07-24',
+      endDate: '2026-07-28',
+      areaRadius: 40_000,
+      expiresAt: 1_700_000_000_000,
+    });
 
-    expect(mockUpdateDoc).toHaveBeenCalledWith({ _type: 'doc' }, { preRefreshedAt: 1_700_000_000_000 });
+    expect(mockUpdateDoc).toHaveBeenCalledWith({ _type: 'doc' }, {
+      startDate: '2026-07-24',
+      endDate: '2026-07-28',
+      areaRadius: 40_000,
+      expiresAt: 1_700_000_000_000,
+    });
+  });
+
+  it('deletes date fields when an edit clears them', async () => {
+    mockUpdateDoc.mockResolvedValue(undefined);
+
+    await updateTrip('uid-1', 'trip-1', { endDate: undefined });
+
+    expect(mockUpdateDoc).toHaveBeenCalledWith({ _type: 'doc' }, {
+      endDate: { _type: 'deleteField' },
+    });
   });
 });
 

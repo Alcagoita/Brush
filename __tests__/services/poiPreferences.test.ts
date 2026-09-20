@@ -22,6 +22,7 @@ jest.mock('@react-native-community/netinfo', () =>
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
 jest.mock('../../src/services/habitatCache');
+jest.mock('../../src/services/proximitySnapshot');
 
 // ─── Firestore mock ───────────────────────────────────────────────────────────
 
@@ -92,17 +93,49 @@ jest.mock('../../src/constants/copy', () => ({
       proximityTitle: (label: string) => `You're near ${label}`,
       proximityBody:  (count: number) => `${count} task(s) nearby`,
     },
+    poiCatalog: new Proxy({}, { get: (_t, key) => String(key) }),
   },
 }));
 
-const mockFetch = jest.fn();
-global.fetch    = mockFetch as unknown as typeof fetch;
+// KAN-342 — live search is Cloudflare-first, OSM-failsafe; Google is no
+// longer reachable from this path. cloudflarePoiFunctions is left
+// unconfigured (rejects to undefined -> caught -> falls through), so every
+// fixture here is injected via the OSM mock instead.
+jest.mock('../../src/services/placesFunctions', () => ({
+  searchNearbyPlacesProxy: jest.fn(),
+  placesAutocompleteProxy: jest.fn(),
+  getPlaceDetailsProxy:    jest.fn(),
+}));
+jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
+  cloudflareCoverageProxy: jest.fn(),
+  cloudflarePoiAllProxy:   jest.fn(),
+}));
+const mockSearchOsmPlacesStrict = jest.fn();
+jest.mock('../../src/services/osmPlaces', () => ({
+  searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlacesStrict(...args),
+}));
+jest.mock('../../src/services/reverseGeocodeCache', () => ({
+  getCachedCity: jest.fn(() => ({ hit: false, city: null })),
+  putCachedCity: jest.fn(),
+}));
 
-function mockPlacesResponse(places: Array<{ id: string; displayName: { text: string }; location: { latitude: number; longitude: number } }>) {
-  mockFetch.mockResolvedValueOnce({
-    ok:   true,
-    json: async () => ({ places }),
-  });
+/** Approximate latitude offset to produce a given distance in metres north of the equator. */
+const LAT_PER_METRE = 1 / 111_195;
+
+function mockPlacesResponse(places: Array<{
+  id: string; displayName: { text: string }; location: { latitude: number; longitude: number }; types?: string[];
+}>) {
+  const byType: Record<string, unknown[]> = {};
+  for (const p of places) {
+    const poiType = p.types?.[0] ?? 'atm';
+    (byType[poiType] ??= []).push({
+      osmId: p.id, name: p.displayName.text, isGenericName: false,
+      lat: p.location.latitude, lng: p.location.longitude,
+      distanceMeters: p.location.latitude / LAT_PER_METRE,
+      footprintAreaM2: 0,
+    });
+  }
+  mockSearchOsmPlacesStrict.mockResolvedValueOnce(byType);
 }
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
@@ -117,6 +150,7 @@ import {
   resetProximityState,
   updateProximityPoiPreferences,
 } from '../../src/services/proximity';
+import { POI_GEOFENCE_RADIUS, PoiType } from '../../src/types';
 
 // ─── getPoiPreference ─────────────────────────────────────────────────────────
 
@@ -143,9 +177,16 @@ describe('getPoiPreference', () => {
   it('returns 75 m default for unknown custom type with no stored preference', async () => {
     mockGetDoc.mockResolvedValue({ exists: () => false });
 
-    // 'yoga_studio' is not in POI_GEOFENCE_RADIUS so it falls back to DEFAULT_GEOFENCE_RADIUS (75 m)
-    const pref = await getPoiPreference('uid-1', 'yoga_studio');
-    expect(pref).toEqual({ type: 'yoga_studio', radiusMeters: 75 });
+    // A free-text POI the user typed themselves. This used to say
+    // 'yoga_studio', which KAN-412 turned into a real catalog type with its
+    // own 50 m radius — so the example stopped being unknown and the test
+    // started asserting the fallback against a type that no longer takes it.
+    // Derived rather than hardcoded so the next new type cannot repeat that.
+    const unknown = 'cheesemonger_and_cave';
+    expect(POI_GEOFENCE_RADIUS[unknown as PoiType]).toBeUndefined();
+
+    const pref = await getPoiPreference('uid-1', unknown);
+    expect(pref).toEqual({ type: unknown, radiusMeters: 75 });
   });
 });
 
@@ -213,7 +254,7 @@ const atmTask = {
 };
 
 beforeEach(() => {
-  mockFetch.mockClear();
+  mockSearchOsmPlacesStrict.mockClear();
   mockGetPosition.mockClear();
   mockGetPosition.mockResolvedValue(ORIGIN);
   resetProximityState();

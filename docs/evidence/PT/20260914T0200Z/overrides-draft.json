@@ -1,0 +1,95 @@
+{
+  "overture-country-sources/PT/1ea48e22-9b0d-47a2-beb7-29f5203bc204.csv": {
+    "evidence_20260914T0200Z_store_nursery_and_gardening": {
+      "c8daf50a-4333-42ba-ac06-aeaa69fe0376": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "nursery_and_gardening"
+      }
+    },
+    "evidence_20260914T0200Z_store_cards_and_stationery": {
+      "120f84c1-17d8-4612-ae67-161a29ed6aac": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "cards_and_stationery"
+      },
+      "c5e57c04-7f7c-43ac-93d5-0a2e5ec62b6c": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "cards_and_stationery"
+      }
+    },
+    "evidence_20260914T0200Z_store_newspaper_and_magazines": {
+      "353f4664-947c-431e-9764-2d2383748a61": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "newspaper_and_magazines"
+      },
+      "413a9ddc-eefa-429c-8a72-8f2a6d61bb96": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "newspaper_and_magazines"
+      },
+      "de239bd1-976a-4497-a027-0d20a996c61c": {
+        "poi_type": "store",
+        "reason": "Foursquare name and location match",
+        "store_kind": "newspaper_and_magazines"
+      }
+    },
+    "evidence_20260914T0200Z_store_toys": {
+      "7e4cbaf0-fd4d-45b4-8eda-f9f9d94f93ab": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "toys"
+      }
+    },
+    "evidence_20260914T0200Z_store_clothing": {
+      "9aea432c-4323-41b4-ba71-c4afb54b44b3": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "clothing"
+      }
+    },
+    "evidence_20260914T0200Z_store_fabric": {
+      "161e4aa1-2442-4518-b2cb-d069a6432768": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "fabric"
+      }
+    },
+    "evidence_20260914T0200Z_store_gift": {
+      "7f8a8625-1475-4df3-9d97-e29c8a91570d": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "gift"
+      }
+    },
+    "evidence_20260914T0200Z_store_office_equipment": {
+      "5ee74efb-27ec-4460-aef9-8dc52272fe36": {
+        "poi_type": "store",
+        "reason": "Foursquare name and location match",
+        "store_kind": "office_equipment"
+      }
+    },
+    "evidence_20260914T0200Z_laundry": {
+      "aa3f1edc-b362-4917-8580-d8bc70c31b60": {
+        "poi_type": "laundry",
+        "reason": "OSM name and location match"
+      }
+    },
+    "evidence_20260914T0200Z_store_home": {
+      "86b18265-8a68-4e44-b3b5-178f2632cce9": {
+        "poi_type": "store",
+        "reason": "OSM name and location match",
+        "store_kind": "home"
+      }
+    },
+    "evidence_20260914T0200Z_store_boutique": {
+      "7d728ada-1f05-46c1-b19c-5867e68bf52e": {
+        "poi_type": "store",
+        "reason": "Foursquare name and location match",
+        "store_kind": "boutique"
+      }
+    }
+  }
+}

@@ -59,6 +59,7 @@ import '@react-native-firebase/auth';
 import { useTheme } from '../theme';
 import { spacing, radius, fonts, categories as builtInCategories, fallbackCategoryColor } from '../theme/tokens';
 import { getTasksForMonth, getAchievements, getCategories, setTaskDone, getTrips } from '../services/firestore';
+import { cancelTaskReminder } from '../services/notifications';
 import { Task, Category, MonthTasksUiState, AchievementsMap, Trip } from '../types';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { ChevronLeftIcon, ChevronRightIcon, SuitcaseIcon } from '../components/AppIcon';
@@ -432,7 +433,7 @@ export default function CalendarScreen() {
       })
       .catch(err => {
         if (cancelled) { return; }
-        console.warn('[CalendarScreen] tasks fetch error', err);
+        console.warn(`[CalendarScreen] tasks fetch error${retryKey > 0 ? ' after retry' : ''}`, err);
         setMonthTasksState({ status: 'error', message: COPY.calendar.loadError });
       });
     return () => { cancelled = true; };
@@ -454,6 +455,10 @@ export default function CalendarScreen() {
         ? { status: 'success', tasks: prev.tasks.map(t => t.id === taskId ? { ...t, done: !done, completedAt: !done ? Timestamp.now() : undefined } : t) }
         : prev);
     });
+    // Brushing cancels any pending time reminder for this task (KAN-280).
+    if (done) {
+      cancelTaskReminder(taskId).catch(() => {});
+    }
   }, [uid]);
 
   // ── Custom categories — one-shot, mirrors TaskRow's resolution. Re-run on
@@ -502,7 +507,8 @@ export default function CalendarScreen() {
   const dayStats = useMemo<Record<string, { done: number; total: number }>>(() => {
     const map: Record<string, { done: number; total: number }> = {};
     for (const t of monthTasks) {
-      const day = t.originDate ?? t.date;
+      const day = t.scheduledDate ?? t.originDate ?? t.date;
+      if (!day) { continue; }
       if (!map[day]) { map[day] = { done: 0, total: 0 }; }
       map[day].total += 1;
       if (t.done) { map[day].done += 1; }
@@ -582,7 +588,7 @@ export default function CalendarScreen() {
   // up in its origin day's list (to tell the redemption story), not
   // wherever it currently lives.
   const selectedTasks = useMemo(
-    () => monthTasks.filter(t => (t.originDate ?? t.date) === selectedDate).sort((a, b) => {
+    () => monthTasks.filter(t => (t.scheduledDate ?? t.originDate ?? t.date) === selectedDate).sort((a, b) => {
       const ta = a.time ?? '';
       const tb = b.time ?? '';
       return ta.localeCompare(tb);
@@ -687,7 +693,16 @@ export default function CalendarScreen() {
       <View style={styles.topBar}>
         <Pressable
           style={styles.navBtn}
-          onPress={() => navigation.navigate('Today')}
+          // popToTop() (not navigate('Today')) — this button must always land
+          // on Today regardless of entry depth (PlacesIKnowScreen can also
+          // push here, one level deeper than Today's own direct push), but
+          // navigate() to an already-in-stack route goes through a different
+          // action path than a plain pop and was remounting Today, resetting
+          // useProximityEngine's state and re-triggering the Nearby-zone
+          // check for no reason. popToTop() pops back to the initial route
+          // (Today) through the same POP mechanism as goBack(), which
+          // doesn't remount it — same fix as "Open today"'s CTA below.
+          onPress={() => navigation.popToTop()}
           accessibilityRole="button"
           accessibilityLabel={COPY.calendar.backA11y}>
           <ChevronLeftIcon color={palette.text} size={22} />

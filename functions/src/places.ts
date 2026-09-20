@@ -6,7 +6,6 @@ const googlePlacesApiKey = defineSecret('GOOGLE_PLACES_API_KEY');
 
 const FETCH_TIMEOUT_MS = 8_000;
 const PLACES_NEARBY_URL = 'https://places.googleapis.com/v1/places:searchNearby';
-const PLACES_TEXT_SEARCH_URL = 'https://places.googleapis.com/v1/places:searchText';
 const PLACES_AUTOCOMPLETE_URL = 'https://places.googleapis.com/v1/places:autocomplete';
 const PLACES_DETAILS_URL = 'https://places.googleapis.com/v1/places';
 const PLACES_PROXY_MAX_INSTANCES = 10;
@@ -177,7 +176,7 @@ export const searchNearbyPlacesProxy = onCall(
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': getApiKey(),
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.types',
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.types,places.primaryType',
         },
         body: JSON.stringify({
           locationRestriction: {

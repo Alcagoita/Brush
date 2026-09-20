@@ -17,6 +17,7 @@ import {
   __setGeofenceEntryTime,
   __clearGeofenceEntryTimes,
 } from '../../src/services/proximity';
+import { todayISO } from '../../src/utils/date';
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,7 @@ jest.mock('@react-native-community/netinfo', () =>
 // KAN-228 — proximity.ts now fire-and-forgets into the habitat cache, which
 // pulls in expo-sqlite (ESM, breaks Jest's transform). Not under test here.
 jest.mock('../../src/services/habitatCache');
+jest.mock('../../src/services/proximitySnapshot');
 
 jest.mock('../../src/services/firestore', () => ({
   markExitPromptSeen: (...args: any[]) => mockMarkExitSeen(...args),
@@ -89,7 +91,12 @@ jest.mock('@notifee/react-native', () => ({
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const TODAY = new Date().toISOString().split('T')[0];
+// handleGeofenceExit compares against todayISO() (local date) — matching
+// that here, not a UTC toISOString() date, avoids a real bug: near local
+// midnight in timezones ahead of UTC, the UTC date is still "yesterday",
+// so exitPromptSeenDate === TODAY would wrongly fail to match and this
+// test would flake depending on wall-clock time when it ran.
+const TODAY = todayISO();
 const UID   = 'uid-test-user';
 const DWELL_OVER_5_MIN = Date.now() - 6 * 60 * 1000; // 6 minutes ago
 

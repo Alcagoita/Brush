@@ -2,7 +2,7 @@
  * TripPlannerScreen — KAN-234
  *
  * "Going somewhere?" flow: destination search → optional dates → radius +
- * static map preview + size estimate → download. All state/logic lives in
+ * native map preview + size estimate → download. All state/logic lives in
  * useTripPlanner (see that file) — this component is rendering only.
  *
  * No region drawing — the user thinks in destinations. Copy never says
@@ -12,7 +12,6 @@
 
 import React from 'react';
 import {
-  Image,
   KeyboardAvoidingView,
   Pressable,
   ScrollView,
@@ -21,6 +20,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Map, Camera, GeoJSONSource, Layer } from '@maplibre/maplibre-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -32,8 +32,8 @@ import { ChevronLeftIcon, SuitcaseIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import MiniCalendar from '../components/MiniCalendar';
 import { useTripPlanner, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT } from '../hooks/useTripPlanner';
-import { CIRCLE_FRACTION_OF_HALF_DIM } from '../services/maps';
-import { TRIP_RADIUS_PRESETS, formatTripSizeMb } from '../services/tripDownload';
+import { computeTripPreviewZoom, buildTripPreviewCircle, TRIP_PREVIEW_STYLE_URL } from '../services/maps';
+import { TRIP_RADIUS_PRESETS, formatTripDownloadSize, formatTripSizeMb } from '../services/tripDownload';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { TripRadiusPreset } from '../types';
 import { todayISO, formatDateShort } from '../utils/date';
@@ -41,8 +41,6 @@ import { COPY } from '../constants/copy';
 
 type Nav   = NativeStackNavigationProp<RootStackParamList, 'TripPlanner'>;
 type Route = RouteProp<RootStackParamList, 'TripPlanner'>;
-
-const CIRCLE_DIAMETER = Math.min(TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT) * CIRCLE_FRACTION_OF_HALF_DIM;
 
 /** Looks up a radius preset's label live at render time (KAN-252 review) —
  *  TRIP_RADIUS_PRESETS itself carries no label since COPY is language-dynamic
@@ -62,22 +60,28 @@ export default function TripPlannerScreen() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const insets = useSafeAreaInsets();
+  const editOptions = route.params?.editTripId && route.params.initialStep
+    ? { editTripId: route.params.editTripId, initialStep: route.params.initialStep }
+    : undefined;
 
   const {
-    step, query, setQuery, suggestions, selectDestination, destination,
+    step, query, setQuery, suggestions, searching, selectDestination, destination,
     startDate, endDate, setStartDate, setEndDate, goToRadius, skipDates,
-    radiusKey, setRadiusKey, estimatedBytes, previewUrl,
-    confirmDownload, error, goBack,
+    radiusKey, setRadiusKey, estimatedBytes, radiusMeters, exactDownloadBytes,
+    confirmDownload, error, goBack, isEditing, editInitialStep,
   } = useTripPlanner(
-    () => navigation.navigate('PlacesIKnow'),
+    () => navigation.navigate(route.params?.doneReturnTo ?? 'PlacesIKnow'),
     route.params?.prefillStartDate,
     route.params?.prefillDestinationQuery,
+    editOptions,
   );
 
   const [openPicker, setOpenPicker] = React.useState<'start' | 'end' | null>(null);
 
   const stepIndex = STEPS.indexOf(step as (typeof STEPS)[number]);
   const stepTitle =
+    isEditing && editInitialStep === 'dates'  ? COPY.tripPlanner.changeDatesTitle :
+    isEditing && editInitialStep === 'radius' ? COPY.tripPlanner.learnBiggerArea :
     step === 'destination' ? COPY.tripPlanner.destinationQuestion :
     step === 'dates'       ? COPY.tripPlanner.datesQuestion :
     step === 'radius'      ? COPY.tripPlanner.entryRowLabel :
@@ -87,6 +91,13 @@ export default function TripPlannerScreen() {
     ? (endDate ? formatDateShort(endDate) : undefined)
     : undefined;
 
+  const previewZoom = destination
+    ? computeTripPreviewZoom(destination.lat, radiusMeters, TRIP_PREVIEW_WIDTH, TRIP_PREVIEW_HEIGHT)
+    : null;
+  const previewCircle = destination
+    ? buildTripPreviewCircle(destination.lat, destination.lng, radiusMeters)
+    : null;
+
   return (
     <KeyboardAvoidingView
       style={[styles.root, { backgroundColor: palette.bg }]}
@@ -95,7 +106,7 @@ export default function TripPlannerScreen() {
         <View style={[styles.topBar, { borderBottomColor: palette.line }]}>
           <Pressable
             style={styles.navBtn}
-            onPress={() => (stepIndex <= 0 ? navigation.goBack() : goBack())}
+            onPress={() => (isEditing && step === editInitialStep) || stepIndex <= 0 ? navigation.goBack() : goBack()}
             accessibilityRole="button"
             accessibilityLabel={COPY.tripPlannerScreen.backA11y}>
             <ChevronLeftIcon color={palette.text} size={22} />
@@ -135,6 +146,12 @@ export default function TripPlannerScreen() {
                 returnKeyType="search"
               />
             </View>
+
+            {searching && suggestions.length === 0 && (
+              <View style={styles.searchLoadingWrap}>
+                <LoadingDots color={palette.accent} size={6} />
+              </View>
+            )}
 
             {suggestions.length > 0 && (
               <View style={[styles.dropdown, { backgroundColor: palette.surface, borderColor: palette.line }]}>
@@ -205,33 +222,47 @@ export default function TripPlannerScreen() {
               />
             )}
 
-            <Pressable onPress={skipDates} accessibilityRole="button">
-              <Text style={[styles.skipLink, { color: palette.muted }]}>{COPY.tripPlanner.datesSkip}</Text>
-            </Pressable>
+            {!isEditing && (
+              <Pressable onPress={skipDates} accessibilityRole="button">
+                <Text style={[styles.skipLink, { color: palette.muted }]}>{COPY.tripPlanner.datesSkip}</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
         {step === 'radius' && destination && (
           <View style={styles.radiusSection}>
             <View style={[styles.previewFrame, { width: TRIP_PREVIEW_WIDTH, height: TRIP_PREVIEW_HEIGHT, backgroundColor: palette.surface2 }]}>
-              {previewUrl ? (
-                <Image
-                  source={{ uri: previewUrl }}
-                  style={{ width: TRIP_PREVIEW_WIDTH, height: TRIP_PREVIEW_HEIGHT, borderRadius: radii.card }}
-                  onError={() => { /* falls back to the plain surface backdrop below — never blocks the flow */ }}
-                />
-              ) : null}
-              <View
-                pointerEvents="none"
-                style={[
-                  styles.previewCircle,
-                  {
-                    width: CIRCLE_DIAMETER, height: CIRCLE_DIAMETER, borderRadius: CIRCLE_DIAMETER / 2,
-                    marginLeft: -CIRCLE_DIAMETER / 2, marginTop: -CIRCLE_DIAMETER / 2,
-                    backgroundColor: `${palette.accent}33`, borderColor: palette.accent,
-                  },
-                ]}
-              />
+              {previewZoom != null && previewCircle && (
+                <Map
+                  style={{ width: TRIP_PREVIEW_WIDTH, height: TRIP_PREVIEW_HEIGHT }}
+                  mapStyle={TRIP_PREVIEW_STYLE_URL}
+                  dragPan={false}
+                  touchZoom={false}
+                  doubleTapZoom={false}
+                  doubleTapHoldZoom={false}
+                  touchRotate={false}
+                  touchPitch={false}
+                  compass={false}
+                  scaleBar={false}
+                  pointerEvents="none"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants">
+                  <Camera center={[destination.lng, destination.lat]} zoom={previewZoom} />
+                  <GeoJSONSource id="trip-radius-circle" data={previewCircle}>
+                    <Layer
+                      type="fill"
+                      id="trip-radius-fill"
+                      paint={{ 'fill-color': palette.accent, 'fill-opacity': 0.2 }}
+                    />
+                    <Layer
+                      type="line"
+                      id="trip-radius-line"
+                      paint={{ 'line-color': palette.accent, 'line-width': 1.5 }}
+                    />
+                  </GeoJSONSource>
+                </Map>
+              )}
             </View>
 
             <View style={styles.radiusChips}>
@@ -256,7 +287,9 @@ export default function TripPlannerScreen() {
             </View>
 
             <Text style={[styles.sizeEstimate, { color: palette.muted }]}>
-              {COPY.tripPlanner.sizeEstimateLine(formatTripSizeMb(estimatedBytes), untilDate)}
+              {exactDownloadBytes != null
+                ? COPY.tripPlanner.exactDownloadSizeLine(formatTripDownloadSize(exactDownloadBytes))
+                : COPY.tripPlanner.sizeEstimateLine(formatTripSizeMb(estimatedBytes), untilDate)}
             </Text>
 
             {!!error && <Text style={[styles.errorText, { color: palette.nearText }]}>{error}</Text>}
@@ -271,29 +304,37 @@ export default function TripPlannerScreen() {
         )}
       </ScrollView>
 
-      {step === 'radius' && (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: palette.line, backgroundColor: palette.bg }]}>
-          <Pressable
-            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
-            onPress={confirmDownload}
-            accessibilityRole="button"
-            accessibilityLabel={COPY.tripPlanner.downloadButton}>
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.tripPlanner.downloadButton}</Text>
-          </Pressable>
-        </View>
-      )}
+	      {step === 'radius' && (
+	        <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: palette.line, backgroundColor: palette.bg }]}>
+	          <Pressable
+	            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
+	            onPress={confirmDownload}
+	            accessibilityRole="button"
+	            accessibilityLabel={isEditing ? COPY.tripPlanner.saveAreaButton : COPY.tripPlanner.downloadButton}>
+	            <Text style={[styles.ctaLabel, { color: palette.bg }]}>
+              {isEditing
+                ? COPY.tripPlanner.saveAreaButton
+                : exactDownloadBytes != null
+                  ? COPY.tripPlanner.exactDownloadButton(formatTripDownloadSize(exactDownloadBytes))
+                  : COPY.tripPlanner.downloadButton}
+	            </Text>
+	          </Pressable>
+	        </View>
+	      )}
 
       {step === 'dates' && (
         <View style={[styles.footer, { paddingBottom: insets.bottom + 16, borderTopColor: palette.line, backgroundColor: palette.bg }]}>
-          <Pressable
-            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
-            onPress={goToRadius}
-            accessibilityRole="button"
-            accessibilityLabel={COPY.tripPlannerScreen.continueA11y}>
-            <Text style={[styles.ctaLabel, { color: palette.bg }]}>Continue</Text>
-          </Pressable>
-        </View>
-      )}
+	          <Pressable
+	            style={({ pressed }) => [styles.cta, { backgroundColor: palette.text }, pressed && { opacity: 0.8 }]}
+	            onPress={isEditing ? confirmDownload : goToRadius}
+	            accessibilityRole="button"
+	            accessibilityLabel={isEditing ? COPY.tripPlanner.saveDatesButton : COPY.tripPlannerScreen.continueA11y}>
+	            <Text style={[styles.ctaLabel, { color: palette.bg }]}>
+	              {isEditing ? COPY.tripPlanner.saveDatesButton : COPY.tripPlannerScreen.continue}
+	            </Text>
+	          </Pressable>
+	        </View>
+	      )}
     </KeyboardAvoidingView>
   );
 }
@@ -326,6 +367,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.ctaBtn, borderWidth: 1, paddingHorizontal: 14, height: 48,
   },
   searchInput: { flex: 1, fontSize: 16, fontFamily: 'Geist-Regular', height: '100%' },
+  searchLoadingWrap: { alignItems: 'center', paddingVertical: 14 },
   dropdown: { borderRadius: radii.card, borderWidth: 1, overflow: 'hidden' },
   dropdownRow: { paddingHorizontal: 14, paddingVertical: 12, gap: 2 },
   dropdownLabel: { fontSize: 15, fontFamily: 'Geist-Medium', fontWeight: '500' },
@@ -340,7 +382,6 @@ const styles = StyleSheet.create({
   // Radius + preview
   radiusSection: { gap: 16, alignItems: 'center' },
   previewFrame: { borderRadius: radii.card, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  previewCircle: { position: 'absolute', left: '50%', top: '50%', borderWidth: 2 },
   radiusChips: { flexDirection: 'row', gap: 8, alignSelf: 'stretch' },
   radiusChip: { flex: 1, height: 44, borderRadius: radii.ctaBtn, borderWidth: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 },
   radiusChipLabel: { fontSize: 12, fontFamily: 'Geist-Medium', fontWeight: '500', textAlign: 'center' },
