@@ -99,3 +99,38 @@ describe('a curated row with a poi_type attribute', () => {
     expect(results.church).toEqual([]);
   });
 });
+
+import { curatedTypeClause } from '../index';
+
+describe('curatedTypeClause', () => {
+  // 2026-09-20: the first version bound each type twice (primary IN + EXISTS
+  // IN) and a 32-request batch tripped SQLite's variable cap in prod. Each
+  // type is bound once and referenced twice by number.
+  it('binds each type once and references it twice by ordered placeholder', () => {
+    const clause = curatedTypeClause(['church', 'historical_landmark'], 6, null);
+    expect(clause.binds).toEqual(['church', 'historical_landmark']);
+    expect(clause.sql.match(/\?7\b/g)).toHaveLength(2);
+    expect(clause.sql.match(/\?8\b/g)).toHaveLength(2);
+    expect(clause.sql).not.toMatch(/\?(?!\d)/);
+  });
+
+  it('numbers the brand after the types', () => {
+    const clause = curatedTypeClause(['gym'], 2, 'Fitness Hut');
+    expect(clause.binds).toEqual(['gym', 'Fitness Hut']);
+    expect(clause.sql).toContain('curated_poi.brand = ?4');
+  });
+
+  it('serves a full 32-request batch with brands over real SQLite', async () => {
+    const database = db();
+    insertCurated(database, 'fsq:jeronimos', 'Mosteiro dos Jerónimos', 'historical_landmark', ['church']);
+    const types = ['church', 'historical_landmark', 'museum', 'supermarket', 'pharmacy', 'bank', 'gym', 'cafe',
+      'restaurant', 'bakery', 'store', 'park', 'hotel', 'library', 'hospital', 'dentist', 'doctor', 'florist',
+      'laundry', 'hairdresser', 'gas_station', 'convenience_store', 'grocery_store', 'ice_cream_shop', 'fitness_center',
+      'courthouse', 'embassy', 'fire_station', 'fishmonger', 'golf_course', 'hiking_area', 'lake'];
+    expect(types).toHaveLength(32);
+    const results = await nearby(database, types);
+    expect(results.church.map(poi => poi.poi_id)).toEqual(['fsq:jeronimos']);
+    expect(results.historical_landmark.map(poi => poi.poi_id)).toEqual(['fsq:jeronimos']);
+    expect(results.museum).toEqual([]);
+  });
+});
