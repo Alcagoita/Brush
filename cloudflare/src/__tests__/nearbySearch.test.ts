@@ -54,12 +54,6 @@ interface FakeMultibancoPoi {
   is_demo_zone?: number;
 }
 
-interface FakeLegacyPoi {
-  source_id: string;
-  name: string;
-  primary_poi_type: string;
-}
-
 interface FakeSourceCorrection {
   source: 'overture' | 'openstreetmap';
   source_id: string;
@@ -73,7 +67,7 @@ const LNG = -9.14;
 
 function fakeDb(
   pois: FakePoi[], curatedPois: FakeCuratedPoi[] = [], osmPois: FakeOsmPoi[] = [],
-  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [], legacyPois: FakeLegacyPoi[] = [],
+  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [],
 ): Env['REGISTRY_DB'] {
   const prepare = (sql: string) => {
     const trimmed = sql.trim();
@@ -162,9 +156,8 @@ function fakeDb(
             ...p, dedupe_name: p.name.toLowerCase(), lat: LAT, lng: LNG, address: 'Odivelas', is_demo_zone: p.is_demo_zone ?? 0,
           })) };
         }
-        if (trimmed.startsWith('SELECT legacy_poi.source_id')) {
-          return { results: legacyPois.map(p => ({ ...p, dedupe_name: p.name.toLowerCase(), lat: LAT, lng: LNG, address: null, matched_type: p.primary_poi_type })) };
-        }
+        // KAN-454: nearby reads Overture, curated and MULTIBANCO only. A
+        // query against legacy_poi or osm_poi is a regression, not a fixture.
         throw new Error(`fake D1 unhandled all(): ${trimmed}`);
       },
     };
@@ -192,9 +185,9 @@ function nearbyRequest(requests: unknown[]) {
 
 function env(
   pois: FakePoi[] = POIS, curatedPois: FakeCuratedPoi[] = [], osmPois: FakeOsmPoi[] = [],
-  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [], legacyPois: FakeLegacyPoi[] = [],
+  sourceCorrections: FakeSourceCorrection[] = [], multibancoPois: FakeMultibancoPoi[] = [],
 ): Env {
-  return { API_KEY: 'test-key', REGISTRY_DB: fakeDb(pois, curatedPois, osmPois, sourceCorrections, multibancoPois, legacyPois) } as unknown as Env;
+  return { API_KEY: 'test-key', REGISTRY_DB: fakeDb(pois, curatedPois, osmPois, sourceCorrections, multibancoPois) } as unknown as Env;
 }
 
 const CTX = { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext;
@@ -230,7 +223,7 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
       { key: 'restaurant', type: 'restaurant' },
     ]), env([], [], [{ osm_element_id: 'node/5335674113', name: 'Santo Amaro', primary_poi_type: 'restaurant' }]), CTX);
     expect(res.status).toBe(200);
-    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; fsq_place_id: string | null; source: string }>> };
+    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; source: string }>> };
     expect(body.results.restaurant).toEqual([]);
   });
 
@@ -376,8 +369,10 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
     const res = await worker.fetch(nearbyRequest([
       { key: 'restaurant:food_cuisine:sushi', type: 'restaurant', attribute: { dimension: 'food_cuisine', values: ['sushi'] } },
     ]), env([], [{ poi_id: 'community:123', name: 'The Sushi Soul', primary_poi_type: 'restaurant', food_cuisine: ['sushi'] }]), CTX);
-    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; fsq_place_id: string | null; source: string }>> };
-    expect(body.results['restaurant:food_cuisine:sushi']).toEqual([expect.objectContaining({ poi_id: 'community:123', fsq_place_id: null, source: 'community' })]);
+    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; source: string }>> };
+    expect(body.results['restaurant:food_cuisine:sushi']).toEqual([expect.objectContaining({ poi_id: 'community:123', source: 'community' })]);
+    // KAN-454: no fsq_place_id on the wire — not null, absent.
+    expect(body.results['restaurant:food_cuisine:sushi'][0]).not.toHaveProperty('fsq_place_id');
   });
 
   it('returns only the requested Financial service kind', async () => {

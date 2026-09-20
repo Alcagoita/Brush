@@ -20,11 +20,15 @@ The Place path is now the country path in miniature, on the same code:
   4. `load_overture_candidates.load` and `promote_overture_candidates
      .run_country`, scoped to that key: chain rules, evidence batches and
      the category map are the same decision the country run makes;
-  5. the OSM supplement, unchanged (KAN-394);
-  6. an Overture SQLite export of the served rows inside the bbox, the
+  5. an Overture SQLite export of the served rows inside the bbox, the
      contract the app's trip download reads (KAN-451), uploaded to
      `exports/<place_id>/<build_id>.sqlite` where `/export/` already looks;
-  7. `build_complete` with the extent actually pulled.
+  6. `build_complete` with the extent actually pulled.
+
+There is no OSM step (KAN-454). The per-Place Overpass supplement wrote
+`osm_poi`, which `/poi/nearby` stopped reading at KAN-442; whatever OSM
+still has to contribute arrives as a curated row through a reviewed import
+(KAN-461), never from a build. A Place build makes no Overpass call.
 
 Same failure contract as the Foursquare path: `place-failed` before a
 build id exists, `build_complete{failed}` after; a container that never
@@ -49,8 +53,6 @@ import extract
 import extract_overture
 import load_overture_candidates
 import promote_overture_candidates
-import supplement_osm_pois
-import enrich_osm_cuisine
 from analyse_poi_candidates import paged
 from load_overture_candidates import sql_escape
 
@@ -216,10 +218,6 @@ def map_place(place_id):
         staged = load_overture_candidates.load(csv_path, raw_key)
         stage = 'promote'
         decisions = promote_overture_candidates.run_country(PROMOTION_PAGE_SIZE, raw_key)
-        # KAN-394 — before the Place is reported mapped, so `mapped` means the
-        # same thing however the Place got here. Never fails the Place.
-        stage = 'osm_supplement'
-        supplement_place_with_osm(place_id, *bbox, country_code=country_code)
         stage = 'export'
         rows_loaded, extent = export_place(place_id, build_id, bbox)
         stage = 'build_complete_callback'
@@ -236,30 +234,6 @@ def map_place(place_id):
         else:
             worker_client.place_failed(place_id, stage, type(error).__name__)
         raise
-
-
-def supplement_place_with_osm(place_id, min_lat, max_lat, min_lng, max_lng, country_code=None):
-    """The per-Place OSM pass (KAN-394), unchanged from the Foursquare path:
-    additive, idempotent on element id, and never fails the Place."""
-    try:
-        imports, stats, conflicts = supplement_osm_pois.supplement_scope(
-            place_id, min_lat, max_lat, min_lng, max_lng)
-        for statement in supplement_osm_pois.statements_for_pois(imports):
-            d1_client.execute(statement)
-        for statement in supplement_osm_pois.statements_for_conflicts(
-                conflicts, country_code=country_code, place_id=place_id):
-            d1_client.execute(statement)
-        print(f"[overture_place] {place_id}: OSM supplement added "
-              f"{stats.get('unique_rows_to_write', 0)} rows, {len(conflicts)} source conflicts")
-        return stats
-    except enrich_osm_cuisine.OverpassRateLimited:
-        traceback.print_exc()
-        print(f'[overture_place] {place_id}: Overpass rate limited — completing with Overture only')
-        return None
-    except Exception:
-        traceback.print_exc()
-        print(f'[overture_place] {place_id}: OSM supplement failed — completing with Overture only')
-        return None
 
 
 # --------------------------------------------------------------------------- country

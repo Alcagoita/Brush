@@ -105,10 +105,11 @@ class ExportTest(unittest.TestCase):
 
 
 class _Patched:
-    def __init__(self, d1=None, r2=None, worker=None, nominatim=None, extract=None, promote=None, load=None, osm=None):
+    def __init__(self, d1=None, r2=None, worker=None, nominatim=None, extract=None, promote=None, load=None):
         self.fakes = dict(d1_client=d1, r2_client=r2, worker_client=worker)
-        self.nominatim, self.extract_fn, self.promote_fn, self.load_fn, self.osm = nominatim, extract, promote, load, osm
+        self.nominatim, self.extract_fn, self.promote_fn, self.load_fn = nominatim, extract, promote, load
         self.saved = {}
+        self.overpass_calls = []
 
     def __enter__(self):
         import analyse_poi_candidates
@@ -131,9 +132,12 @@ class _Patched:
         if self.load_fn:
             self.saved['load'] = overture_place.load_overture_candidates.load
             overture_place.load_overture_candidates.load = self.load_fn
-        if self.osm:
-            self.saved['supplement'] = overture_place.supplement_place_with_osm
-            overture_place.supplement_place_with_osm = self.osm
+        # KAN-454: a Place build makes no Overpass call. The supplement module
+        # still exists (KAN-433's matcher lives there); its entry point is
+        # trapped so any path back into it is a test failure, not a request.
+        import supplement_osm_pois
+        self.saved['supplement_scope'] = supplement_osm_pois.supplement_scope
+        supplement_osm_pois.supplement_scope = lambda *a, **k: self.overpass_calls.append((a, k)) or ([], {}, [])
         self.saved['BUILD_DIR'] = overture_place.extract.BUILD_DIR
         self.tmp = tempfile.TemporaryDirectory()
         overture_place.extract.BUILD_DIR = self.tmp.name
@@ -153,8 +157,8 @@ class _Patched:
             overture_place.promote_overture_candidates.run_country = self.saved['run_country']
         if 'load' in self.saved:
             overture_place.load_overture_candidates.load = self.saved['load']
-        if 'supplement' in self.saved:
-            overture_place.supplement_place_with_osm = self.saved['supplement']
+        import supplement_osm_pois
+        supplement_osm_pois.supplement_scope = self.saved['supplement_scope']
         overture_place.extract.BUILD_DIR = self.saved['BUILD_DIR']
         self.tmp.cleanup()
         return False
@@ -163,7 +167,7 @@ class _Patched:
 class MapPlaceTest(unittest.TestCase):
     def setUp(self):
         self.d1, self.r2, self.worker = FakeD1(), FakeR2(), FakeWorker()
-        self.calls = {'extract': [], 'load': [], 'promote': [], 'osm': []}
+        self.calls = {'extract': [], 'load': [], 'promote': []}
 
         def extract(min_lat, max_lat, min_lng, max_lng, out_path, release=None, country=None):
             self.calls['extract'].append({'bbox': (min_lat, max_lat, min_lng, max_lng), 'country': country})
@@ -179,22 +183,18 @@ class MapPlaceTest(unittest.TestCase):
             self.calls['promote'].append(key)
             return {'promoted': 2, 'rejected': 0, 'pending': 0}
 
-        def osm(place_id, *bbox, country_code=None):
-            self.calls['osm'].append((place_id, country_code))
-            return {}
-
-        self.patch = dict(d1=self.d1, r2=self.r2, worker=self.worker, extract=extract, promote=promote, load=load, osm=osm,
+        self.patch = dict(d1=self.d1, r2=self.r2, worker=self.worker, extract=extract, promote=promote, load=load,
                           nominatim=lambda pid: (BBOX, 'PT'))
 
-    def test_a_place_is_extracted_promoted_supplemented_exported_and_reported(self):
-        with _Patched(**self.patch):
+    def test_a_place_is_extracted_promoted_exported_and_reported(self):
+        with _Patched(**self.patch) as patched:
             result = overture_place.map_place('osm-relation-1')
+        self.assertEqual(patched.overpass_calls, [], 'KAN-454: a Place build makes no Overpass call')
         build_id = result['build_id']
         self.assertEqual(self.calls['extract'][0], {'bbox': BBOX, 'country': 'PT'})
         raw_key = f'overture-place-sources/osm-relation-1/{build_id}.csv'
         self.assertEqual(self.calls['load'], [raw_key], 'overrides key on the Place archive')
         self.assertEqual(self.calls['promote'], [raw_key])
-        self.assertEqual(self.calls['osm'], [('osm-relation-1', 'PT')])
         self.assertEqual([k for _, k in self.r2.uploads], [raw_key, f'exports/osm-relation-1/{build_id}.sqlite'])
         self.assertTrue(any('INSERT INTO build_log' in s and "'overture_places'" in s for s in self.d1.executed))
         done = self.worker.complete[0]
@@ -225,18 +225,14 @@ class MapPlaceTest(unittest.TestCase):
         self.assertEqual(self.worker.failed, [])
         self.assertEqual(self.worker.complete, [])
 
-    def test_an_osm_failure_never_fails_the_place(self):
-        # The real supplement, with Overpass failing underneath it.
-        self.patch['osm'] = None
-        saved = overture_place.supplement_osm_pois.supplement_scope
-        overture_place.supplement_osm_pois.supplement_scope = lambda *a, **k: (_ for _ in ()).throw(RuntimeError('overpass'))
-        try:
-            with _Patched(**self.patch):
-                overture_place.map_place('osm-relation-1')
-        finally:
-            overture_place.supplement_osm_pois.supplement_scope = saved
+    def test_a_place_build_writes_no_osm_poi(self):
+        # KAN-454: nothing a Place build executes touches osm_poi — the
+        # supplement is gone, not merely skipped.
+        with _Patched(**self.patch) as patched:
+            overture_place.map_place('osm-relation-1')
+        self.assertEqual(patched.overpass_calls, [])
+        self.assertFalse(any('osm_poi' in s for s in self.d1.executed))
         self.assertEqual(len(self.worker.complete), 1)
-        self.assertEqual(self.worker.build_failed_calls, [])
 
     def test_run_job_place_mode_is_the_overture_build(self):
         with _Patched(**self.patch):

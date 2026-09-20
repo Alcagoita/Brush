@@ -8,10 +8,10 @@ Nominatim bbox → Foursquare Iceberg pull on a hand-renewed JWT →
 `classify_and_load` → `INSERT INTO poi` → OSM supplement → a
 Foursquare-shaped SQLite export → `build_complete`.
 
-Since KAN-438 `/poi/nearby` reads `overture_poi`, `legacy_poi`, community
-and Multibanco. It does not read `poi` — nor `osm_poi`, which KAN-438
-retired from serving (the per-Place OSM supplement still writes there; see
-the KAN-451 audit note). An on-demand Place
+Since KAN-438 `/poi/nearby` reads `overture_poi`, community and Multibanco
+(`legacy_poi`, empty since KAN-438, left the query at KAN-454). It does not
+read `poi` — nor `osm_poi`, which KAN-442 retired from serving and which
+KAN-454 stopped the Place build from writing. An on-demand Place
 therefore spent a Foursquare pull on rows nobody served, reported `mapped`
 with an extent that blocked re-mapping, and gave the user the OSM supplement
 only. The Trip Planner's download (`/export/<placeId>`) was the old
@@ -34,10 +34,17 @@ Foursquare snapshot, or a 404 for a Place that only existed through Overture.
 5. `load_overture_candidates.load` + `promote_overture_candidates.run_country`
    scoped to that key — the same decision code, chain rules and evidence
    batches as the country run;
-6. the per-Place OSM supplement, unchanged (KAN-394; never fails the Place);
-7. the **Overture export** (below) uploaded to
+6. the **Overture export** (below) uploaded to
    `exports/<place_id>/<build_id>.sqlite`, where `/export/` already looks;
-8. `build_complete` with the extent of the rows actually served.
+7. `build_complete` with the extent of the rows actually served.
+
+There is no OSM step. KAN-454 removed the per-Place Overpass supplement
+(KAN-394): it wrote `osm_poi`, which nothing has served since KAN-442, and
+a build makes no Overpass call now (`test_overture_place.py` traps
+`supplement_scope`). What OSM still has to contribute arrives as reviewed
+curated rows (KAN-461), never from a build. `supplement_osm_pois.py` stays
+as a module: its matcher is the one KAN-433's import and the KAN-453
+preflight use.
 
 Failure contract unchanged: `place-failed` before the build_log row exists,
 `build_complete{status:'failed'}` after (`worker_client.build_failed`); the

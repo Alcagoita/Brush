@@ -153,9 +153,6 @@ function createFakeDb(
             }
             return { results: results as T[] };
           }
-          if (trimmed.startsWith('SELECT legacy_poi.source_id')) {
-            return { results: [] as T[] };
-          }
           // KAN-362 adds a second, curated source to the same radius search.
           // These existing tests seed only Foursquare rows, so its result is
           // deliberately empty here rather than making the fixture pretend a
@@ -545,13 +542,13 @@ describe('GET /poi/nearby', () => {
     const res = await worker.fetch(apiRequest('/poi/nearby?lat=38.7223&lng=-9.1393&radius=500&types=cafe,pharmacy&limitPerType=2'), env);
     expect(res.status).toBe(200);
     expect(res.headers.get('Server-Timing')).toContain('d1;dur=');
-    const body = await res.json() as { results: Record<string, Array<{ poi_id: string; fsq_place_id: string | null }>> };
+    const body = await res.json() as { results: Record<string, Array<{ poi_id: string }>> };
     expect(body.results.cafe.map(poi => poi.poi_id)).toEqual(['cafe-near', 'both']);
     expect(body.results.pharmacy.map(poi => poi.poi_id)).toEqual(['both', 'pharmacy-far']);
     expect(body.results.cafe.map(poi => poi.poi_id)).not.toContain('cafe-outside-radius');
-    // Foursquare is retired; the field stays in the payload for installed
-    // clients but must never carry another source's id.
-    expect(body.results.cafe.every(poi => poi.fsq_place_id === null)).toBe(true);
+    // KAN-454: Foursquare is retired and the field is gone from the wire —
+    // an id from another source must never travel under that name.
+    expect(body.results.cafe.every(poi => !('fsq_place_id' in poi))).toBe(true);
   });
 
   it('requires requested types and a bounded per-type limit', async () => {
