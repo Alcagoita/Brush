@@ -40,6 +40,7 @@ import {
   resolveTripDestinations,
   planTrip,
   MAX_WAYPOINTS,
+  MAX_LOCAL_ALTERNATIVES,
   type TripStop,
 } from '../../src/services/oneTripForAll';
 import type { Task } from '../../src/types';
@@ -353,5 +354,20 @@ describe('local itinerary alternatives (KAN-291)', () => {
     ];
 
     expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(1);
+  });
+
+  it('caps coprime cached cycles at the local alternative limit', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: Array.from({ length: 101 }, (_, index) => ({
+        placeId: `p${index}`, name: `Pharmacy ${index}`, lat: 38.7 + index / 1_000_000, lng: -9.1, distanceMeters: index,
+      })),
+      atm: Array.from({ length: 103 }, (_, index) => ({
+        placeId: `a${index}`, name: `ATM ${index}`, lat: 38.8 + index / 1_000_000, lng: -9.1, distanceMeters: index,
+      })),
+    });
+
+    expect(getLocalTripAlternativeCount([
+      makeTask({ id: 'pharmacy', poi: 'pharmacy' }), makeTask({ id: 'atm', poi: 'atm' }),
+    ], COORDS)).toBe(MAX_LOCAL_ALTERNATIVES);
   });
 });

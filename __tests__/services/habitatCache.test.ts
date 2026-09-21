@@ -75,6 +75,8 @@ interface MockHabitatRow {
   restaurant_food_type?: string | null;
   /** KAN-317 — store subtype metadata persisted in the local cache. */
   store_subtype?: string | null;
+  /** Authoritative financial-service kinds persisted as JSON. */
+  financial_service_kinds?: string | null;
   /** KAN-377 — settlement name carried by the POI source. */
   area_name?: string | null;
   /** KAN-368 follow-up — canonical chain retained for offline matching. */
@@ -118,7 +120,7 @@ const mockDb = {
         { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' }, { name: 'fsq_place_id' },
         { name: 'overture_id' }, { name: 'brush_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
-        { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' },
+        { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' }, { name: 'financial_service_kinds' },
         { name: 'area_name' }, { name: 'brand' },
       ] as unknown as T[];
     }
@@ -203,23 +205,23 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name] =
-        params as [string, string, string, number, number, number, string | null, string | null, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null];
-      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name });
+      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] =
+        params as [string, string, string, number, number, number, string | null, string | null, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null, string | null];
+      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
         footprintAreaM2, website,
-        restaurantFoodType, storeSubtype, brand,
+        restaurantFoodType, storeSubtype, financialServiceKinds, brand,
         areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
         number | null, string | null,
-        string | null, string | null, string | null,
+        string | null, string | null, string | null, string | null,
         string | null,
         string | null, number | null, number | null, number | null,
         number, string,
@@ -242,6 +244,7 @@ const mockDb = {
         row.website = website ?? row.website ?? null;
         row.restaurant_food_type = restaurantFoodType ?? row.restaurant_food_type ?? null;
         row.store_subtype = storeSubtype ?? row.store_subtype ?? null;
+        row.financial_service_kinds = financialServiceKinds ?? row.financial_service_kinds ?? null;
         row.brand = brand ?? row.brand ?? null;
         // COALESCE(?, area_name) — a Cloudflare sighting names an OSM-seeded
         // row, and a row that already has a name is never cleared (KAN-377).
@@ -719,6 +722,18 @@ describe('queryHabitatCache', () => {
     expect(rows.find(r => r.name === 'Zara')?.store_subtype).toBe('clothing');
     expect(result.restaurant[0]).toEqual(expect.objectContaining({ restaurantFoodType: 'sushi' }));
     expect(result.store[0]).toEqual(expect.objectContaining({ storeSubtype: 'clothing' }));
+  });
+
+  it('returns stored financial-service kinds with cached places', () => {
+    upsertPlace({
+      poiType: 'financial_service', name: 'Cofidis', lat: 0.0003, lng: 0,
+      source: { fsq: 'cofidis' }, financialServiceKinds: ['consumer_credit'],
+    });
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['financial_service'], 500);
+
+    expect(rows[0].financial_service_kinds).toBe(JSON.stringify(['consumer_credit']));
+    expect(result.financial_service[0]).toEqual(expect.objectContaining({ financialServiceKinds: ['consumer_credit'] }));
   });
 
   it('retains canonical brands for offline matching and derives one from a legacy exact-name row', () => {

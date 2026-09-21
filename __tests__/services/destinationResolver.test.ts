@@ -101,6 +101,19 @@ describe('resolveTaskDestination', () => {
     expect(result?.internalId).toBe('vegetarian');
   });
 
+  it('uses only cached financial services that match the selected kind', async () => {
+    mockQueryHabitatCache.mockReturnValue({
+      financial_service: [
+        { placeId: 'insurance', name: 'Secure Cover', lat: 38.701, lng: -9.101, distanceMeters: 50, financialServiceKinds: ['insurance'] },
+        { placeId: 'credit', name: 'Credit Point', lat: 38.702, lng: -9.102, distanceMeters: 100, financialServiceKinds: ['consumer_credit'] },
+      ],
+    });
+
+    const result = await resolveTaskDestination(makeTask({ poi: 'financial_service', financialServiceKind: 'consumer_credit' }), COORDS, []);
+
+    expect(result?.internalId).toBe('credit');
+  });
+
   it('resolves from pre-fetched liveResults when nothing else matched', async () => {
     const liveResults = {
       pharmacy: [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 4000 }],

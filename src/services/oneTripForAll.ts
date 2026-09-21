@@ -37,6 +37,8 @@ import type { Task } from '../types';
 
 /** Google Maps' directions URL supports ~9 waypoints total. */
 export const MAX_WAYPOINTS = 9;
+/** Bounds local route enumeration so a large cache cannot stall refresh. */
+export const MAX_LOCAL_ALTERNATIVES = 100;
 
 export interface TripStop {
   task: Task;
@@ -79,7 +81,10 @@ export function getLocalTripAlternativeCount(
     .filter(count => count > 0);
   if (cycleLength.length === 0) { return 0; }
 
-  const rawCycleLength = cycleLength.reduce((total, count) => leastCommonMultiple(total, count), 1);
+  const rawCycleLength = cycleLength.reduce(
+    (total, count) => boundedLeastCommonMultiple(total, count, MAX_LOCAL_ALTERNATIVES),
+    1,
+  );
   const visibleRoutes = new Set<string>();
   for (let index = 0; index < rawCycleLength; index++) {
     visibleRoutes.add(placeIdSetSignature(planCachedTripAlternative(eligible, coords, cached, index)));
@@ -159,9 +164,14 @@ function greatestCommonDivisor(a: number, b: number): number {
   return a;
 }
 
-/** Cycle length at which two cached POI lists return to their first pairing. */
-function leastCommonMultiple(a: number, b: number): number {
-  return (a / greatestCommonDivisor(a, b)) * b;
+/**
+ * Cycle length at which two cached POI lists return to their first pairing,
+ * saturated at the local enumeration limit before multiplication can overflow.
+ */
+function boundedLeastCommonMultiple(a: number, b: number, limit: number): number {
+  const factor = b / greatestCommonDivisor(a, b);
+  const safeLimit = Math.min(limit, Number.MAX_SAFE_INTEGER);
+  return a > Math.floor(safeLimit / factor) ? safeLimit : a * factor;
 }
 
 async function isOnline(): Promise<boolean> {

@@ -806,6 +806,7 @@ async function runProximitySearch(
                 lng:    place.lng,
                 source: placeSourceRef(place.placeId, tickSource, place.sourceKind),
                 brand: place.brand,
+                financialServiceKinds: place.financialServiceKinds,
                 // KAN-377 — the settlement name rides along with the places it
                 // came with, so this area stays nameable offline everywhere we
                 // hold POIs. Undefined on an OSM tick: that source doesn't name
