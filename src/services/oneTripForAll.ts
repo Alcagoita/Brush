@@ -31,8 +31,7 @@ import { orderStopsNearestFirst } from './routeHandoff';
 import { getLearnedPlaceCounts } from './firestore';
 import { queryHabitatCache } from './habitatCache';
 import { computeLearnedPlaces } from './learnedPlaces';
-import { storePlacesForTask } from './storeSubtypes';
-import { resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
+import { filterRoutePlacesForTask, resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
 import type { PlacesMap } from './proximity';
 import type { Task } from '../types';
 
@@ -135,9 +134,9 @@ function planCachedTripAlternative(
   return planTrip(coords, resolved, eligible.length - resolved.length);
 }
 
-/** Applies task-specific filters, including Store subtype, to cached candidates. */
+/** Applies each task's optional subtype constraint to cached candidates. */
 function cachedPlacesForTask(task: Task, cached: PlacesMap) {
-  return storePlacesForTask(task, uniqueCachedPlaces(cached[task.poi as string]));
+  return filterRoutePlacesForTask(task, uniqueCachedPlaces(cached[task.poi as string]));
 }
 
 /** Stable identity for the visible venue set; stop ordering alone is not a new route. */

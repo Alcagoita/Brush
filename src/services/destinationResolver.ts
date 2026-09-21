@@ -22,7 +22,10 @@
 
 import { queryHabitatCache } from './habitatCache';
 import { getLearnedPlaceForPoiType, type LearnedBrand } from './learnedPlaces';
+import { financialServiceTaskMatchesPlace } from './financialServiceKinds';
+import { restaurantPlacesForTask } from './restaurantFoodTypes';
 import { storePlacesForTask } from './storeSubtypes';
+import type { NearbyPlace } from './maps';
 import type { PlacesMap } from './proximity';
 import type { Task } from '../types';
 
@@ -43,6 +46,19 @@ export interface ResolvedPlace {
   source: DestinationSource;
 }
 
+/**
+ * Keeps only venues compatible with a task's optional subtype constraint.
+ *
+ * The same filtering is shared by the initial cache/live resolver and
+ * KAN-291's local refresh cycle, so neither path can suggest the wrong
+ * Store, Restaurant, or Financial Service subtype.
+ */
+export function filterRoutePlacesForTask(task: Task, places: NearbyPlace[]): NearbyPlace[] {
+  const storeMatches = storePlacesForTask(task, places);
+  const restaurantMatches = restaurantPlacesForTask(task, storeMatches);
+  return restaurantMatches.filter(place => financialServiceTaskMatchesPlace(task, place));
+}
+
 /** Resolves one task to a matching cached, learned, or pre-fetched live destination. */
 export async function resolveTaskDestination(
   task: Task,
@@ -56,7 +72,7 @@ export async function resolveTaskDestination(
   // the learned-brand match (2) and the plain nearest fallback (3). Uncapped
   // (maxResultsPerType: null): a branch of the learned brand could sit past the
   // default per-type cap and would otherwise be missed by the name match below.
-  const candidates = storePlacesForTask(task, queryHabitatCache(
+  const candidates = filterRoutePlacesForTask(task, queryHabitatCache(
     coords.lat, coords.lng, [task.poi], ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
   )[task.poi] ?? []);
 
@@ -93,7 +109,7 @@ export async function resolveTaskDestination(
 
   // 3. A pre-fetched live-search result for this type, if the orchestrator
   // supplied one (respects the same radius cap).
-  const live = storePlacesForTask(task, liveResults[task.poi] ?? [])[0];
+  const live = filterRoutePlacesForTask(task, liveResults[task.poi] ?? [])[0];
   if (live && live.distanceMeters <= ROUTE_MAX_RADIUS_M) {
     return {
       internalId:     live.placeId,

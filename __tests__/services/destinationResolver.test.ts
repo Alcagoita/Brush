@@ -88,6 +88,19 @@ describe('resolveTaskDestination', () => {
     expect(result?.internalId).toBe('electronics');
   });
 
+  it('uses only cached restaurants that match the task cuisine', async () => {
+    mockQueryHabitatCache.mockReturnValue({
+      restaurant: [
+        { placeId: 'sushi', name: 'Sushi House', lat: 38.701, lng: -9.101, distanceMeters: 50, restaurantFoodType: 'sushi' },
+        { placeId: 'vegetarian', name: 'Green Table', lat: 38.702, lng: -9.102, distanceMeters: 100, restaurantFoodType: 'vegetarian' },
+      ],
+    });
+
+    const result = await resolveTaskDestination(makeTask({ poi: 'restaurant', restaurantFoodType: 'vegetarian' }), COORDS, []);
+
+    expect(result?.internalId).toBe('vegetarian');
+  });
+
   it('resolves from pre-fetched liveResults when nothing else matched', async () => {
     const liveResults = {
       pharmacy: [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 4000 }],
@@ -119,6 +132,19 @@ describe('resolveTaskDestination', () => {
     const result = await resolveTaskDestination(makeTask({ poi: 'store', storeSubtype: 'electronics' }), COORDS, [], liveResults);
 
     expect(result?.internalId).toBe('electronics');
+  });
+
+  it('uses only live financial services that match the task kind', async () => {
+    const liveResults = {
+      financial_service: [
+        { placeId: 'insurance', name: 'Secure Cover', lat: 38.701, lng: -9.101, distanceMeters: 50, financialServiceKinds: ['insurance'] },
+        { placeId: 'credit', name: 'Credit Point', lat: 38.702, lng: -9.102, distanceMeters: 100, financialServiceKinds: ['consumer_credit'] },
+      ],
+    };
+
+    const result = await resolveTaskDestination(makeTask({ poi: 'financial_service', financialServiceKind: 'consumer_credit' }), COORDS, [], liveResults);
+
+    expect(result?.internalId).toBe('credit');
   });
 
   it('returns null for a task with no poi', async () => {

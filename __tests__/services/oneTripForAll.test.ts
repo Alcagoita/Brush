@@ -317,6 +317,28 @@ describe('local itinerary alternatives (KAN-291)', () => {
     expect(planLocalTripAlternative(tasks, COORDS, 1).stops[0].place.internalId).toBe('electronics-2');
   });
 
+  it('cycles only cached restaurants and financial services matching their selected subtypes', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      restaurant: [
+        { placeId: 'sushi', name: 'Sushi House', lat: 38.701, lng: -9.101, distanceMeters: 50, restaurantFoodType: 'sushi' },
+        { placeId: 'vegetarian-1', name: 'Green Table A', lat: 38.702, lng: -9.102, distanceMeters: 100, restaurantFoodType: 'vegetarian' },
+        { placeId: 'vegetarian-2', name: 'Green Table B', lat: 38.703, lng: -9.103, distanceMeters: 150, restaurantFoodType: 'vegetarian' },
+      ],
+      financial_service: [
+        { placeId: 'insurance', name: 'Secure Cover', lat: 38.704, lng: -9.104, distanceMeters: 200, financialServiceKinds: ['insurance'] },
+        { placeId: 'credit', name: 'Credit Point', lat: 38.705, lng: -9.105, distanceMeters: 250, financialServiceKinds: ['consumer_credit'] },
+      ],
+    });
+    const tasks = [
+      makeTask({ id: 'restaurant', poi: 'restaurant', restaurantFoodType: 'vegetarian' }),
+      makeTask({ id: 'financial', poi: 'financial_service', financialServiceKind: 'consumer_credit' }),
+    ];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(2);
+    expect(planLocalTripAlternative(tasks, COORDS, 0).stops.map(stop => stop.place.internalId).sort()).toEqual(['credit', 'vegetarian-1']);
+    expect(planLocalTripAlternative(tasks, COORDS, 1).stops.map(stop => stop.place.internalId).sort()).toEqual(['credit', 'vegetarian-2']);
+  });
+
   it('does not count a variation that falls after the waypoint cap', () => {
     mockQueryHabitatCache.mockReturnValue({
       pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.7001, lng: -9.1, distanceMeters: 10 }],
