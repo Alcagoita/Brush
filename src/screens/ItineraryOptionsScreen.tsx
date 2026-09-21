@@ -145,6 +145,7 @@ export default function ItineraryOptionsScreen() {
     });
   };
 
+  /** Advance the walking-only, cache-backed route cycle without touching the mall option. */
   const refreshRoute = () => {
     if (!origin || localAlternativeCount <= 1 || !plan) { return; }
 

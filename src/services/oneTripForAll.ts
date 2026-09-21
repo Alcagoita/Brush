@@ -127,11 +127,13 @@ function uniqueCachedPlaces<T extends { placeId: string }>(places: T[] | undefin
   return [...byPlaceId.values()];
 }
 
+/** Euclidean greatest-common-divisor calculation for route-cycle lengths. */
 function greatestCommonDivisor(a: number, b: number): number {
   while (b !== 0) { [a, b] = [b, a % b]; }
   return a;
 }
 
+/** Cycle length at which two cached POI lists return to their first pairing. */
 function leastCommonMultiple(a: number, b: number): number {
   return (a / greatestCommonDivisor(a, b)) * b;
 }
