@@ -301,4 +301,20 @@ describe('local itinerary alternatives (KAN-291)', () => {
 
     expect(getLocalTripAlternativeCount([makeTask()], COORDS)).toBe(1);
   });
+
+  it('does not count a variation that falls after the waypoint cap', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.7001, lng: -9.1, distanceMeters: 10 }],
+      atm: [
+        { placeId: 'a1', name: 'ATM A', lat: 38.8, lng: -9.1, distanceMeters: 11_000 },
+        { placeId: 'a2', name: 'ATM B', lat: 38.9, lng: -9.1, distanceMeters: 22_000 },
+      ],
+    });
+    const tasks = [
+      ...Array.from({ length: MAX_WAYPOINTS }, (_, index) => makeTask({ id: `p${index}`, poi: 'pharmacy' })),
+      makeTask({ id: 'atm', poi: 'atm' }),
+    ];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(1);
+  });
 });

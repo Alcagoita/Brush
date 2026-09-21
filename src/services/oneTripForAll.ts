@@ -73,12 +73,18 @@ export function getLocalTripAlternativeCount(
   const cached = queryHabitatCache(
     coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
   );
-  const counts = eligibleTypes
+  const cycleLength = eligibleTypes
     .map(type => uniqueCachedPlaces(cached[type]).length)
     .filter(count => count > 0);
-  if (counts.length === 0) { return 0; }
+  if (cycleLength.length === 0) { return 0; }
 
-  return counts.reduce((total, count) => leastCommonMultiple(total, count), 1);
+  const rawCycleLength = cycleLength.reduce((total, count) => leastCommonMultiple(total, count), 1);
+  const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+  const visibleRoutes = new Set<string>();
+  for (let index = 0; index < rawCycleLength; index++) {
+    visibleRoutes.add(placeIdSetSignature(planCachedTripAlternative(eligible, coords, cached, index)));
+  }
+  return visibleRoutes.size;
 }
 
 /**
@@ -97,6 +103,16 @@ export function planLocalTripAlternative(
     coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
   );
 
+  return planCachedTripAlternative(eligible, coords, cached, alternativeIndex);
+}
+
+/** Builds one capped route from a previously read local cache snapshot. */
+function planCachedTripAlternative(
+  eligible: Task[],
+  coords: { lat: number; lng: number },
+  cached: PlacesMap,
+  alternativeIndex: number,
+): TripPlan {
   const resolved: TripStop[] = [];
   for (const task of eligible) {
     const candidates = uniqueCachedPlaces(cached[task.poi as string]);
@@ -116,6 +132,11 @@ export function planLocalTripAlternative(
   }
 
   return planTrip(coords, resolved, eligible.length - resolved.length);
+}
+
+/** Stable identity for the visible venue set; stop ordering alone is not a new route. */
+function placeIdSetSignature(plan: TripPlan): string {
+  return [...new Set(plan.stops.map(stop => stop.place.internalId))].sort().join('\u0000');
 }
 
 /** Same place under two cached rows still counts as one venue in a route. */
