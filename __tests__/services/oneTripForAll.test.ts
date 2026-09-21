@@ -34,7 +34,14 @@ jest.mock('../../src/services/firestore', () => ({
 }));
 
 import NetInfo from '@react-native-community/netinfo';
-import { resolveTripDestinations, planTrip, MAX_WAYPOINTS, type TripStop } from '../../src/services/oneTripForAll';
+import {
+  getLocalTripAlternativeCount,
+  planLocalTripAlternative,
+  resolveTripDestinations,
+  planTrip,
+  MAX_WAYPOINTS,
+  type TripStop,
+} from '../../src/services/oneTripForAll';
 import type { Task } from '../../src/types';
 
 const COORDS = { lat: 38.7, lng: -9.1 };
@@ -226,5 +233,72 @@ describe('planTrip', () => {
     const plan = planTrip({ lat: 0, lng: 0 }, []);
     expect(plan.stops).toHaveLength(0);
     expect(plan.totalDistanceMeters).toBe(0);
+  });
+});
+
+describe('local itinerary alternatives (KAN-291)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('cycles cached POIs locally without calling Places', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [
+        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
+        { placeId: 'p2', name: 'Pharmacy B', lat: 38.72, lng: -9.12, distanceMeters: 300 },
+      ],
+      atm: [
+        { placeId: 'a1', name: 'ATM A', lat: 38.73, lng: -9.13, distanceMeters: 400 },
+        { placeId: 'a2', name: 'ATM B', lat: 38.74, lng: -9.14, distanceMeters: 500 },
+      ],
+    });
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' })];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(2);
+    expect(planLocalTripAlternative(tasks, COORDS, 0).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
+    expect(planLocalTripAlternative(tasks, COORDS, 1).stops.map(stop => stop.place.internalId).sort()).toEqual(['a2', 'p2']);
+    expect(planLocalTripAlternative(tasks, COORDS, 2).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
+  });
+
+  it('uses the least common multiple so mixed candidate lists cycle correctly', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [
+        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
+        { placeId: 'p2', name: 'Pharmacy B', lat: 38.72, lng: -9.12, distanceMeters: 300 },
+      ],
+      atm: [
+        { placeId: 'a1', name: 'ATM A', lat: 38.73, lng: -9.13, distanceMeters: 400 },
+        { placeId: 'a2', name: 'ATM B', lat: 38.74, lng: -9.14, distanceMeters: 500 },
+        { placeId: 'a3', name: 'ATM C', lat: 38.75, lng: -9.15, distanceMeters: 600 },
+      ],
+    });
+    const tasks = [makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' })];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(6);
+    expect(planLocalTripAlternative(tasks, COORDS, 5).stops.map(stop => stop.place.internalId).sort()).toEqual(['a3', 'p2']);
+    expect(planLocalTripAlternative(tasks, COORDS, 6).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
+  });
+
+  it('reports one alternative when every resolvable type has one cached POI', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
+      atm: [{ placeId: 'a1', name: 'ATM A', lat: 38.73, lng: -9.13, distanceMeters: 400 }],
+    });
+
+    expect(getLocalTripAlternativeCount([
+      makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' }),
+    ], COORDS)).toBe(1);
+  });
+
+  it('does not count duplicate cached rows as another route', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [
+        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
+        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
+      ],
+    });
+
+    expect(getLocalTripAlternativeCount([makeTask()], COORDS)).toBe(1);
   });
 });

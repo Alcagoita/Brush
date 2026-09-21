@@ -20,7 +20,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, PoiIcon, ShoppingBagIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, PoiIcon, RefreshIcon, ShoppingBagIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
 import { ensureCurrentDay } from '../services/firestore';
@@ -29,10 +29,17 @@ import { getPositionLowAccuracy } from '../services/geolocation';
 import { getLastSearchCoords } from '../services/proximity';
 import { refreshMallsIfDue } from '../services/habitatCache';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
-import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
+import {
+  getLocalTripAlternativeCount,
+  planLocalTripAlternative,
+  resolveTripDestinations,
+  planTrip,
+  type TripPlan,
+} from '../services/oneTripForAll';
 import { findMallOption, type MallOption } from '../services/mallRoute';
 import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import type { Task } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ItineraryOptions'>;
 
@@ -40,6 +47,12 @@ function stopLine(stop: TripPlan['stops'][number]): string {
   return stop.place.source === 'learned'
     ? COPY.itineraryOptionsScreen.destinationLearned(stop.place.name)
     : COPY.itineraryOptionsScreen.destinationWithDistance(stop.place.name, formatDistance(stop.place.distanceMeters));
+}
+
+/** A reordering of the same venues is not an alternative route. */
+function hasNewStop(current: TripPlan, candidate: TripPlan): boolean {
+  const currentPlaceIds = new Set(current.stops.map(stop => stop.place.internalId));
+  return candidate.stops.some(stop => !currentPlaceIds.has(stop.place.internalId));
 }
 
 export default function ItineraryOptionsScreen() {
@@ -53,6 +66,9 @@ export default function ItineraryOptionsScreen() {
   const [mallOption, setMallOption] = useState<MallOption | null>(null);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
+  const [localAlternativeCount, setLocalAlternativeCount] = useState(0);
+  const [localAlternativeIndex, setLocalAlternativeIndex] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +99,14 @@ export default function ItineraryOptionsScreen() {
         // the snapshot just means the snapshot tier is skipped.
         const snapshot = await getMallSnapshot(uid).catch(() => null);
         const mall = findMallOption(coords, tripPlan.stops, snapshot);
-        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setOrigin(coords); }
+        if (!cancelled) {
+          setPlan(tripPlan);
+          setMallOption(mall);
+          setOrigin(coords);
+          setTasksForRefresh(tasks);
+          setLocalAlternativeCount(getLocalTripAlternativeCount(tasks, coords));
+          setLocalAlternativeIndex(0);
+        }
 
         // KAN-282 — no qualifying mall can mean "none nearby" (fine, normal)
         // or "we have never swept this area for malls". Kick off a
@@ -122,6 +145,27 @@ export default function ItineraryOptionsScreen() {
     });
   };
 
+  const refreshRoute = () => {
+    if (!origin || localAlternativeCount <= 1 || !plan) { return; }
+
+    // The cached sequence is cyclic. Start after the current slot so a press
+    // always changes at least one stop; the one-combination case is disabled.
+    let nextIndex = (localAlternativeIndex + 1) % localAlternativeCount;
+    let nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
+
+    // The initial route may use a learned or live place and therefore not be
+    // slot zero of the cache-only cycle. Skip one slot if needed so the first
+    // refresh still introduces a venue the user was not already shown.
+    if (!hasNewStop(plan, nextPlan)) {
+      nextIndex = (nextIndex + 1) % localAlternativeCount;
+      nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
+    }
+    if (!hasNewStop(plan, nextPlan)) { return; }
+
+    setPlan(nextPlan);
+    setLocalAlternativeIndex(nextIndex);
+  };
+
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
 
   return (
@@ -135,7 +179,16 @@ export default function ItineraryOptionsScreen() {
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>{COPY.itineraryOptionsScreen.screenTitle}</Text>
-        <View style={styles.navBtn} />
+        <Pressable
+          testID="refresh-itinerary-button"
+          style={styles.navBtn}
+          onPress={refreshRoute}
+          disabled={localAlternativeCount <= 1}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.itineraryOptionsScreen.refreshA11y}
+          accessibilityState={{ disabled: localAlternativeCount <= 1 }}>
+          <RefreshIcon color={localAlternativeCount > 1 ? palette.text : palette.faint} size={20} />
+        </Pressable>
       </View>
 
       {loading ? (

@@ -37,7 +37,7 @@ jest.mock('../../src/components/AppIcon', () => {
   const React = require('react');
   const { View } = require('react-native');
   const stub = (props: React.ComponentProps<typeof View>) => React.createElement(View, props);
-  return { ChevronLeftIcon: stub, PoiIcon: stub, ShoppingBagIcon: stub };
+  return { ChevronLeftIcon: stub, PoiIcon: stub, RefreshIcon: stub, ShoppingBagIcon: stub };
 });
 
 const mockGetAuth = jest.fn(() => ({ currentUser: { uid: 'user-123' } }));
@@ -68,7 +68,11 @@ jest.mock('../../src/services/maps', () => ({
 
 const mockResolveTripDestinations = jest.fn();
 const mockPlanTrip = jest.fn();
+const mockGetLocalTripAlternativeCount = jest.fn();
+const mockPlanLocalTripAlternative = jest.fn();
 jest.mock('../../src/services/oneTripForAll', () => ({
+  getLocalTripAlternativeCount: (...args: unknown[]) => mockGetLocalTripAlternativeCount(...args),
+  planLocalTripAlternative: (...args: unknown[]) => mockPlanLocalTripAlternative(...args),
   resolveTripDestinations: (...args: unknown[]) => mockResolveTripDestinations(...args),
   planTrip: (...args: unknown[]) => mockPlanTrip(...args),
 }));
@@ -108,6 +112,7 @@ beforeEach(() => {
   mockGetLastSearchCoords.mockReturnValue({ lat: 38.7, lng: -9.1 });
   mockResolveTripDestinations.mockResolvedValue({ resolved: [], excludedCount: 0 });
   mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 0, totalDistanceMeters: 0 });
+  mockGetLocalTripAlternativeCount.mockReturnValue(0);
   mockGetMallSnapshot.mockResolvedValue(null);
   mockFindMallOption.mockReturnValue(null);
 });
@@ -172,6 +177,54 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
       { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
       [stops[0].place, stops[1].place],
+    );
+  });
+
+  it('refreshes only the walking route when local alternatives exist', async () => {
+    const refreshedPlan = { stops: [makeStop('t3', 'Farmácia Nova')], excludedCount: 0, totalDistanceMeters: 900 };
+    mockEnsureCurrentDay.mockResolvedValue({ tasks: [{ id: 't1' }] });
+    mockGetLocalTripAlternativeCount.mockReturnValue(2);
+    mockPlanLocalTripAlternative.mockReturnValue(refreshedPlan);
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
+    });
+
+    expect(mockPlanLocalTripAlternative).toHaveBeenCalledWith(
+      [{ id: 't1' }], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 1,
+    );
+    expect(mockFindMallOption).toHaveBeenCalledTimes(1);
+  });
+
+  it('disables refresh when cached POIs form only one route', async () => {
+    mockGetLocalTripAlternativeCount.mockReturnValue(1);
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+    expect(screen.getByTestId('refresh-itinerary-button').props.accessibilityState).toEqual({ disabled: true });
+  });
+
+  it('skips a cache slot that repeats the initially displayed POIs', async () => {
+    const currentPlan = { stops: [makeStop('t1', 'Farmácia A')], excludedCount: 0, totalDistanceMeters: 400 };
+    const alternativePlan = { stops: [makeStop('t2', 'Farmácia B')], excludedCount: 0, totalDistanceMeters: 500 };
+    mockPlanTrip.mockReturnValue(currentPlan);
+    mockGetLocalTripAlternativeCount.mockReturnValue(2);
+    mockPlanLocalTripAlternative
+      .mockReturnValueOnce(currentPlan)
+      .mockReturnValueOnce(alternativePlan);
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+
+    await act(async () => {
+      fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
+    });
+
+    expect(mockPlanLocalTripAlternative).toHaveBeenNthCalledWith(
+      1, [], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 1,
+    );
+    expect(mockPlanLocalTripAlternative).toHaveBeenNthCalledWith(
+      2, [], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 0,
     );
   });
 

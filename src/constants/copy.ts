@@ -260,6 +260,7 @@ const en = {
     screenTitle:  'One trip for all of these',
     cardLabel:    'Stop by stop',
     backA11y:     'Back',
+    refreshA11y:  'Show another route',
     loadingLabel: 'Finding the way…',
     stopsCount:   (n: number) => (n === 1 ? '1 stop' : `${n} stops`),
     /** "{name} · your usual" — learned-place stop. */
@@ -1516,6 +1517,7 @@ const ptPT: typeof en = {
     screenTitle:  'Uma viagem para todas estas',
     cardLabel:    'Paragem a paragem',
     backA11y:     'Voltar',
+    refreshA11y:  'Mostrar outro percurso',
     loadingLabel: 'A encontrar o caminho…',
     stopsCount:   (n: number) => (n === 1 ? '1 paragem' : `${n} paragens`),
     destinationLearned: (name: string) => `${name} · o teu habitual`,

@@ -29,6 +29,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { searchNearbyPlaces, getDistanceMeters } from './maps';
 import { orderStopsNearestFirst } from './routeHandoff';
 import { getLearnedPlaceCounts } from './firestore';
+import { queryHabitatCache } from './habitatCache';
 import { computeLearnedPlaces } from './learnedPlaces';
 import { resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
 import type { PlacesMap } from './proximity';
@@ -49,6 +50,90 @@ export interface TripPlan {
   excludedCount: number;
   /** Sum of straight-line legs (origin -> stop1 -> stop2 -> ... -> last), meters. */
   totalDistanceMeters: number;
+}
+
+/**
+ * Number of locally cached route variants available for a set of tasks.
+ *
+ * Each POI type advances through its nearby cached places in lockstep, just
+ * like Nearby's "Try another place" cycle. The least common multiple makes
+ * the sequence return to its first combination only after every type is back
+ * at its first place. This is deliberately in-memory UI state only; nothing
+ * about a route suggestion is persisted.
+ */
+export function getLocalTripAlternativeCount(
+  tasks: Task[],
+  coords: { lat: number; lng: number },
+): number {
+  const eligibleTypes = [...new Set(tasks
+    .filter(t => !t.done && t.kind !== 'birthday' && t.poi)
+    .map(t => t.poi as string))];
+  if (eligibleTypes.length === 0) { return 0; }
+
+  const cached = queryHabitatCache(
+    coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
+  );
+  const counts = eligibleTypes
+    .map(type => uniqueCachedPlaces(cached[type]).length)
+    .filter(count => count > 0);
+  if (counts.length === 0) { return 0; }
+
+  return counts.reduce((total, count) => leastCommonMultiple(total, count), 1);
+}
+
+/**
+ * Rebuild one alternative using only the POIs already in the habitat cache.
+ * It never reads learned places or makes a Places request, so refresh remains
+ * a fully local operation even while offline.
+ */
+export function planLocalTripAlternative(
+  tasks: Task[],
+  coords: { lat: number; lng: number },
+  alternativeIndex: number,
+): TripPlan {
+  const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+  const eligibleTypes = [...new Set(eligible.map(t => t.poi as string))];
+  const cached = queryHabitatCache(
+    coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
+  );
+
+  const resolved: TripStop[] = [];
+  for (const task of eligible) {
+    const candidates = uniqueCachedPlaces(cached[task.poi as string]);
+    if (candidates.length === 0) { continue; }
+    const candidate = candidates[alternativeIndex % candidates.length];
+    resolved.push({
+      task,
+      place: {
+        internalId: candidate.placeId,
+        name: candidate.name,
+        lat: candidate.lat,
+        lng: candidate.lng,
+        distanceMeters: candidate.distanceMeters,
+        source: 'cache',
+      },
+    });
+  }
+
+  return planTrip(coords, resolved, eligible.length - resolved.length);
+}
+
+/** Same place under two cached rows still counts as one venue in a route. */
+function uniqueCachedPlaces<T extends { placeId: string }>(places: T[] | undefined): T[] {
+  const byPlaceId = new Map<string, T>();
+  for (const place of places ?? []) {
+    if (!byPlaceId.has(place.placeId)) { byPlaceId.set(place.placeId, place); }
+  }
+  return [...byPlaceId.values()];
+}
+
+function greatestCommonDivisor(a: number, b: number): number {
+  while (b !== 0) { [a, b] = [b, a % b]; }
+  return a;
+}
+
+function leastCommonMultiple(a: number, b: number): number {
+  return (a / greatestCommonDivisor(a, b)) * b;
 }
 
 async function isOnline(): Promise<boolean> {
