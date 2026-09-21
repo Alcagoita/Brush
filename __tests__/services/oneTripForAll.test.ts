@@ -302,6 +302,21 @@ describe('local itinerary alternatives (KAN-291)', () => {
     expect(getLocalTripAlternativeCount([makeTask()], COORDS)).toBe(1);
   });
 
+  it('cycles only cached stores that match the task subtype', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      store: [
+        { placeId: 'clothes', name: 'Fashion House', lat: 38.701, lng: -9.101, distanceMeters: 50, storeSubtype: 'clothing' },
+        { placeId: 'electronics-1', name: 'Tech Shop A', lat: 38.702, lng: -9.102, distanceMeters: 100, storeSubtype: 'electronics' },
+        { placeId: 'electronics-2', name: 'Tech Shop B', lat: 38.703, lng: -9.103, distanceMeters: 150, storeSubtype: 'electronics' },
+      ],
+    });
+    const tasks = [makeTask({ poi: 'store', storeSubtype: 'electronics' })];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(2);
+    expect(planLocalTripAlternative(tasks, COORDS, 0).stops[0].place.internalId).toBe('electronics-1');
+    expect(planLocalTripAlternative(tasks, COORDS, 1).stops[0].place.internalId).toBe('electronics-2');
+  });
+
   it('does not count a variation that falls after the waypoint cap', () => {
     mockQueryHabitatCache.mockReturnValue({
       pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.7001, lng: -9.1, distanceMeters: 10 }],

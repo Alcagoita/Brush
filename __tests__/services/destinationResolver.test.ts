@@ -75,6 +75,19 @@ describe('resolveTaskDestination', () => {
     expect(result).toEqual({ internalId: 'cache-1', name: 'Cached Pharmacy', lat: 38.72, lng: -9.12, distanceMeters: 900, source: 'cache' });
   });
 
+  it('uses only cached stores that match the task subtype', async () => {
+    mockQueryHabitatCache.mockReturnValue({
+      store: [
+        { placeId: 'clothes', name: 'Fashion House', lat: 38.701, lng: -9.101, distanceMeters: 50, storeSubtype: 'clothing' },
+        { placeId: 'electronics', name: 'Tech Shop', lat: 38.702, lng: -9.102, distanceMeters: 100, storeSubtype: 'electronics' },
+      ],
+    });
+
+    const result = await resolveTaskDestination(makeTask({ poi: 'store', storeSubtype: 'electronics' }), COORDS, []);
+
+    expect(result?.internalId).toBe('electronics');
+  });
+
   it('resolves from pre-fetched liveResults when nothing else matched', async () => {
     const liveResults = {
       pharmacy: [{ placeId: 'live-1', name: 'Live Pharmacy', lat: 38.73, lng: -9.13, distanceMeters: 4000 }],
@@ -93,6 +106,19 @@ describe('resolveTaskDestination', () => {
     const result = await resolveTaskDestination(makeTask(), COORDS, [], liveResults);
 
     expect(result).toBeNull();
+  });
+
+  it('uses only live stores that match the task subtype', async () => {
+    const liveResults = {
+      store: [
+        { placeId: 'clothes', name: 'Fashion House', lat: 38.701, lng: -9.101, distanceMeters: 50, storeSubtype: 'clothing' },
+        { placeId: 'electronics', name: 'Tech Shop', lat: 38.702, lng: -9.102, distanceMeters: 100, storeSubtype: 'electronics' },
+      ],
+    };
+
+    const result = await resolveTaskDestination(makeTask({ poi: 'store', storeSubtype: 'electronics' }), COORDS, [], liveResults);
+
+    expect(result?.internalId).toBe('electronics');
   });
 
   it('returns null for a task with no poi', async () => {

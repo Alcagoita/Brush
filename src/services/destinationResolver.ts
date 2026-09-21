@@ -22,6 +22,7 @@
 
 import { queryHabitatCache } from './habitatCache';
 import { getLearnedPlaceForPoiType, type LearnedBrand } from './learnedPlaces';
+import { storePlacesForTask } from './storeSubtypes';
 import type { PlacesMap } from './proximity';
 import type { Task } from '../types';
 
@@ -42,6 +43,7 @@ export interface ResolvedPlace {
   source: DestinationSource;
 }
 
+/** Resolves one task to a matching cached, learned, or pre-fetched live destination. */
 export async function resolveTaskDestination(
   task: Task,
   coords: { lat: number; lng: number },
@@ -54,9 +56,9 @@ export async function resolveTaskDestination(
   // the learned-brand match (2) and the plain nearest fallback (3). Uncapped
   // (maxResultsPerType: null): a branch of the learned brand could sit past the
   // default per-type cap and would otherwise be missed by the name match below.
-  const candidates = queryHabitatCache(
+  const candidates = storePlacesForTask(task, queryHabitatCache(
     coords.lat, coords.lng, [task.poi], ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
-  )[task.poi] ?? [];
+  )[task.poi] ?? []);
 
   // 1. Learned brand — the user's preferred brand for this type wins even if a
   // same-type stranger is closer (KAN-304: match by brand name, not place id).
@@ -91,7 +93,7 @@ export async function resolveTaskDestination(
 
   // 3. A pre-fetched live-search result for this type, if the orchestrator
   // supplied one (respects the same radius cap).
-  const live = liveResults[task.poi]?.[0];
+  const live = storePlacesForTask(task, liveResults[task.poi] ?? [])[0];
   if (live && live.distanceMeters <= ROUTE_MAX_RADIUS_M) {
     return {
       internalId:     live.placeId,

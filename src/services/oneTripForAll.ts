@@ -31,6 +31,7 @@ import { orderStopsNearestFirst } from './routeHandoff';
 import { getLearnedPlaceCounts } from './firestore';
 import { queryHabitatCache } from './habitatCache';
 import { computeLearnedPlaces } from './learnedPlaces';
+import { storePlacesForTask } from './storeSubtypes';
 import { resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
 import type { PlacesMap } from './proximity';
 import type { Task } from '../types';
@@ -73,13 +74,13 @@ export function getLocalTripAlternativeCount(
   const cached = queryHabitatCache(
     coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
   );
-  const cycleLength = eligibleTypes
-    .map(type => uniqueCachedPlaces(cached[type]).length)
+  const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+  const cycleLength = eligible
+    .map(task => cachedPlacesForTask(task, cached).length)
     .filter(count => count > 0);
   if (cycleLength.length === 0) { return 0; }
 
   const rawCycleLength = cycleLength.reduce((total, count) => leastCommonMultiple(total, count), 1);
-  const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
   const visibleRoutes = new Set<string>();
   for (let index = 0; index < rawCycleLength; index++) {
     visibleRoutes.add(placeIdSetSignature(planCachedTripAlternative(eligible, coords, cached, index)));
@@ -115,7 +116,7 @@ function planCachedTripAlternative(
 ): TripPlan {
   const resolved: TripStop[] = [];
   for (const task of eligible) {
-    const candidates = uniqueCachedPlaces(cached[task.poi as string]);
+    const candidates = cachedPlacesForTask(task, cached);
     if (candidates.length === 0) { continue; }
     const candidate = candidates[alternativeIndex % candidates.length];
     resolved.push({
@@ -132,6 +133,11 @@ function planCachedTripAlternative(
   }
 
   return planTrip(coords, resolved, eligible.length - resolved.length);
+}
+
+/** Applies task-specific filters, including Store subtype, to cached candidates. */
+function cachedPlacesForTask(task: Task, cached: PlacesMap) {
+  return storePlacesForTask(task, uniqueCachedPlaces(cached[task.poi as string]));
 }
 
 /** Stable identity for the visible venue set; stop ordering alone is not a new route. */
