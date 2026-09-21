@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import ItineraryOptionsScreen from '../../src/screens/ItineraryOptionsScreen';
+import ItineraryOptionsScreen, { withLoadTimeout } from '../../src/screens/ItineraryOptionsScreen';
 
 const mockGoBack = jest.fn();
 jest.mock('@react-navigation/native', () => ({
@@ -127,6 +127,10 @@ describe('ItineraryOptionsScreen — loading', () => {
     render(<ItineraryOptionsScreen />);
     fireEvent.press(screen.getByLabelText('Back'));
     expect(mockGoBack).toHaveBeenCalled();
+  });
+
+  it('rejects a location load that never settles', async () => {
+    await expect(withLoadTimeout(new Promise(() => {}), 1)).rejects.toThrow('itinerary load timeout');
   });
 });
 

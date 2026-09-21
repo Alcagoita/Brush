@@ -43,6 +43,18 @@ import type { Task } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ItineraryOptions'>;
 
+/** Maximum time the initial itinerary screen may keep the user in loading state. */
+export const ITINERARY_LOAD_TIMEOUT_MS = 15_000;
+
+/** Rejects when an initial itinerary dependency does not settle before the UI deadline. */
+export function withLoadTimeout<T>(promise: Promise<T>, timeoutMs: number = ITINERARY_LOAD_TIMEOUT_MS): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('itinerary load timeout')), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 function stopLine(stop: TripPlan['stops'][number]): string {
   return stop.place.source === 'learned'
     ? COPY.itineraryOptionsScreen.destinationLearned(stop.place.name)
@@ -79,26 +91,28 @@ export default function ItineraryOptionsScreen() {
       if (!uid) { if (!cancelled) { setLoadError(true); setLoading(false); } return; }
 
       try {
-        // A user-requested trip deserves the freshest position we can get —
-        // the last proximity-engine fix (getLastSearchCoords) is only a
-        // fallback if a fresh read fails (permission hiccup, GPS cold start).
-        let coords: { lat: number; lng: number };
-        try {
-          coords = await getPositionLowAccuracy();
-        } catch {
-          const cached = getLastSearchCoords();
-          if (!cached) { throw new Error('no position available'); }
-          coords = cached;
-        }
+        const { coords, tasks, tripPlan, mall } = await withLoadTimeout((async () => {
+          // A user-requested trip deserves the freshest position we can get —
+          // the last proximity-engine fix (getLastSearchCoords) is only a
+          // fallback if a fresh read fails (permission hiccup, GPS cold start).
+          let coords: { lat: number; lng: number };
+          try {
+            coords = await getPositionLowAccuracy();
+          } catch {
+            const cached = getLastSearchCoords();
+            if (!cached) { throw new Error('no position available'); }
+            coords = cached;
+          }
 
-        const { tasks } = await ensureCurrentDay(uid);
-        const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
-        const tripPlan = planTrip(coords, resolved, excludedCount);
-        // KAN-282 — opportunistic only: reads the user's mall snapshot and the
-        // offline habitat cache, never a search of its own. Failure to fetch
-        // the snapshot just means the snapshot tier is skipped.
-        const snapshot = await getMallSnapshot(uid).catch(() => null);
-        const mall = findMallOption(coords, tripPlan.stops, snapshot);
+          const { tasks } = await ensureCurrentDay(uid);
+          const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
+          const tripPlan = planTrip(coords, resolved, excludedCount);
+          // KAN-282 — opportunistic only: reads the user's mall snapshot and the
+          // offline habitat cache, never a search of its own. Failure to fetch
+          // the snapshot just means the snapshot tier is skipped.
+          const snapshot = await getMallSnapshot(uid).catch(() => null);
+          return { coords, tasks, tripPlan, mall: findMallOption(coords, tripPlan.stops, snapshot) };
+        })());
         if (!cancelled) {
           setPlan(tripPlan);
           setMallOption(mall);
