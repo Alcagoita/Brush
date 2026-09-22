@@ -66,10 +66,15 @@ export default function ItineraryOptionsScreen() {
   const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
   const [localAlternativeCount, setLocalAlternativeCount] = useState(0);
   const [localAlternativeIndex, setLocalAlternativeIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const refreshRotation = useRef(new Animated.Value(0)).current;
+  const requestId = useRef(0);
+  const mallSweep = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const requestIdRef = requestId;
+    const currentRequest = ++requestId.current;
     setPositionLoading(true);
     setWalkingLoading(true);
     setMallLoading(true);
@@ -82,24 +87,26 @@ export default function ItineraryOptionsScreen() {
 
     const cachedMall = findMallOption(coords, null);
     setMallOption(cachedMall);
-    if (!cachedMall) {
-      refreshMallsIfDue(coords.lat, coords.lng)
-        .then(() => { if (!cancelled) { setMallOption(findMallOption(coords, null)); } })
-        .catch(() => {});
-    }
+    const sweep = refreshMallsIfDue(coords.lat, coords.lng);
+    mallSweep.current = sweep;
+    const clearSweep = () => { if (mallSweep.current === sweep) { mallSweep.current = null; } };
+    sweep.then(clearSweep, clearSweep);
+    sweep
+      .then(() => { if (!cancelled && requestId.current === currentRequest) { setMallOption(findMallOption(coords, null)); } })
+      .catch(() => {});
 
     setTasksForRefresh(params.tasks);
     void planTripAroundFarTask(params.tasks, coords, params.farTaskIds)
       .then(tripPlan => {
-        if (cancelled) { return; }
+        if (cancelled || requestId.current !== currentRequest) { return; }
         setPlan(tripPlan);
         setLocalAlternativeCount(getLocalTripAlternativeCount(params.tasks, coords));
         setLocalAlternativeIndex(0);
       })
-      .catch(() => { if (!cancelled) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
-      .finally(() => { if (!cancelled) { setWalkingLoading(false); } });
+      .catch(() => { if (!cancelled && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
+      .finally(() => { if (!cancelled && requestId.current === currentRequest) { setWalkingLoading(false); } });
     setMallLoading(false);
-    return () => { cancelled = true; };
+    return () => { cancelled = true; ++requestIdRef.current; };
   }, [params]);
 
   const openCard = () => {
@@ -118,9 +125,15 @@ export default function ItineraryOptionsScreen() {
     });
   };
 
-  /** Advance the walking-only, cache-backed route cycle without touching the mall option. */
-  const refreshRoute = () => {
-    if (!origin || localAlternativeCount <= 1 || !plan) { return; }
+  /** Retry both suggestions; use the local walking cycle when it has another venue set. */
+  const refreshRoute = async () => {
+    if (!origin || refreshing || (plan?.stops.length && localAlternativeCount <= 1)) { return; }
+    const currentRequest = ++requestId.current;
+    setRefreshing(true);
+    setWalkingLoading(true);
+    setMallLoading(true);
+    setPlan(null);
+    setMallOption(null);
 
     refreshRotation.setValue(0);
     Animated.timing(refreshRotation, {
@@ -129,28 +142,61 @@ export default function ItineraryOptionsScreen() {
       useNativeDriver: true,
     }).start();
 
-    // The cached sequence is cyclic. Start after the current slot so a press
-    // always changes at least one stop; the one-combination case is disabled.
-    let nextIndex = (localAlternativeIndex + 1) % localAlternativeCount;
-    let nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
+    const walkingSearch = (async () => {
+      try {
+        if (plan?.stops.length && localAlternativeCount > 1) {
+          // A reordering of the same venues is not a new walking route.
+          let nextIndex = (localAlternativeIndex + 1) % localAlternativeCount;
+          let nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
+          if (!hasNewStop(plan, nextPlan)) {
+            nextIndex = (nextIndex + 1) % localAlternativeCount;
+            nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
+          }
+          if (requestId.current === currentRequest) {
+            setPlan(hasNewStop(plan, nextPlan) ? nextPlan : plan);
+            setLocalAlternativeIndex(nextIndex);
+          }
+        } else {
+          const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds);
+          if (requestId.current === currentRequest) {
+            setPlan(nextPlan);
+            setLocalAlternativeCount(getLocalTripAlternativeCount(tasksForRefresh, origin));
+            setLocalAlternativeIndex(0);
+          }
+        }
+      } catch {
+        if (requestId.current === currentRequest) {
+          setPlan({ stops: [], excludedCount: tasksForRefresh.length, totalDistanceMeters: 0 });
+        }
+      } finally {
+        if (requestId.current === currentRequest) { setWalkingLoading(false); }
+      }
+    })();
+    const mallSearch = (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng))
+      .catch(() => {})
+      .then(() => { if (requestId.current === currentRequest) { setMallOption(findMallOption(origin, null)); } })
+      .finally(() => { if (requestId.current === currentRequest) { setMallLoading(false); } });
 
-    // The initial route may use a learned or live place and therefore not be
-    // slot zero of the cache-only cycle. Skip one slot if needed so the first
-    // refresh still introduces a venue the user was not already shown.
-    if (!hasNewStop(plan, nextPlan)) {
-      nextIndex = (nextIndex + 1) % localAlternativeCount;
-      nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
+    // A stalled provider must never trap the screen in its loading state.
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      Promise.allSettled([walkingSearch, mallSearch]),
+      new Promise<void>(resolve => { timeout = setTimeout(resolve, 15_000); }),
+    ]);
+    if (timeout) { clearTimeout(timeout); }
+    if (requestId.current === currentRequest) {
+      ++requestId.current;
+      setWalkingLoading(false);
+      setMallLoading(false);
+      setRefreshing(false);
     }
-    if (!hasNewStop(plan, nextPlan)) { return; }
-
-    setPlan(nextPlan);
-    setLocalAlternativeIndex(nextIndex);
   };
 
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
   const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
   const hasContent = hasWalkingPlan || mallOption !== null;
   const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
+  const refreshDisabled = !origin || refreshing || (hasWalkingPlan && localAlternativeCount <= 1);
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -167,10 +213,10 @@ export default function ItineraryOptionsScreen() {
           testID="refresh-itinerary-button"
           style={styles.navBtn}
           onPress={refreshRoute}
-          disabled={localAlternativeCount <= 1}
+          disabled={refreshDisabled}
           accessibilityRole="button"
           accessibilityLabel={COPY.itineraryOptionsScreen.refreshA11y}
-          accessibilityState={{ disabled: localAlternativeCount <= 1 }}>
+          accessibilityState={{ disabled: refreshDisabled }}>
           <Animated.View
             testID="refresh-itinerary-icon"
             style={{
@@ -181,7 +227,7 @@ export default function ItineraryOptionsScreen() {
                 }),
               }],
             }}>
-            <RefreshIcon color={localAlternativeCount > 1 ? palette.text : palette.faint} size={20} />
+            <RefreshIcon color={refreshDisabled ? palette.faint : palette.text} size={20} />
           </Animated.View>
         </Pressable>
       </View>

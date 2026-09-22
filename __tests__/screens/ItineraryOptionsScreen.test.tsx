@@ -186,7 +186,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     );
   });
 
-  it('refreshes only the walking route when local alternatives exist', async () => {
+  it('refreshes the walking route and rechecks the mall when local alternatives exist', async () => {
     const refreshedPlan = { stops: [makeStop('t3', 'Farmácia Nova')], excludedCount: 0, totalDistanceMeters: 900 };
     mockEnsureCurrentDay.mockResolvedValue({ tasks: [{ id: 't1' }] });
     mockGetLocalTripAlternativeCount.mockReturnValue(2);
@@ -202,7 +202,8 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(mockPlanLocalTripAlternative).toHaveBeenCalledWith(
       [], { lat: 38.7, lng: -9.1 }, 1,
     );
-    expect(mockFindMallOption).toHaveBeenCalledTimes(2);
+    expect(mockFindMallOption).toHaveBeenCalledTimes(3);
+    expect(mockRefreshMallsIfDue).toHaveBeenCalledTimes(2);
   });
 
   it('disables refresh when cached POIs form only one route', async () => {
@@ -251,6 +252,56 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(screen.queryByTestId('itinerary-card')).toBeNull();
   });
 
+  it('retries walking and mall searches from a mall-only result, showing loading', async () => {
+    const mall = { placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 };
+    const nextMall = { ...mall, placeId: 'mall-2', name: 'Strada Outlet' };
+    const nextPlan = { stops: [makeStop('t1', 'Farmácia Nova')], excludedCount: 0, totalDistanceMeters: 700 };
+    let finishWalking: (plan: typeof nextPlan) => void = () => {};
+    let finishMall: () => void = () => {};
+    mockPlanTrip.mockReturnValueOnce({ stops: [], excludedCount: 4, totalDistanceMeters: 0 })
+      .mockImplementationOnce(() => new Promise(resolve => { finishWalking = resolve; }));
+    mockFindMallOption.mockReturnValueOnce(mall).mockReturnValueOnce(mall).mockReturnValue(nextMall);
+    mockRefreshMallsIfDue.mockResolvedValueOnce(undefined)
+      .mockImplementationOnce(() => new Promise<void>(resolve => { finishMall = resolve; }));
+
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
+    await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(1));
+    expect(screen.getByTestId('refresh-itinerary-button').props.accessibilityState.disabled).toBe(false);
+
+    fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
+    expect(screen.getByText('Finding the way…')).toBeTruthy();
+    expect(mockPlanTrip).toHaveBeenCalledTimes(2);
+    expect(mockRefreshMallsIfDue).toHaveBeenCalledTimes(2);
+
+    await act(async () => { finishMall(); });
+    expect(screen.getByText('Strada Outlet')).toBeTruthy();
+    expect(screen.queryByTestId('itinerary-card')).toBeNull();
+
+    await act(async () => { finishWalking(nextPlan); });
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+    expect(screen.getByText('Strada Outlet')).toBeTruthy();
+  });
+
+  it('waits for an in-flight mall sweep when refreshing a mall-only result', async () => {
+    const mall = { placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 };
+    const nextMall = { ...mall, placeId: 'mall-2', name: 'Strada Outlet' };
+    let finishSweep: () => void = () => {};
+    let sweepFinished = false;
+    mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 4, totalDistanceMeters: 0 });
+    mockFindMallOption.mockImplementation(() => sweepFinished ? nextMall : mall);
+    mockRefreshMallsIfDue.mockImplementationOnce(() => new Promise<void>(resolve => {
+      finishSweep = () => { sweepFinished = true; resolve(); };
+    }));
+
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
+    fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
+    expect(mockRefreshMallsIfDue).toHaveBeenCalledTimes(1);
+    await act(async () => { finishSweep(); });
+    await waitFor(() => expect(screen.getByText('Strada Outlet')).toBeTruthy());
+  });
+
   it('keeps a qualifying mall visible when walking resolution fails', async () => {
     mockResolveTripDestinations.mockRejectedValue(new Error('walking lookup failed'));
     mockFindMallOption.mockReturnValue({ placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 });
@@ -275,7 +326,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     const refreshedMall = { placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 };
     let refreshFinished = false;
     let completeRefresh: () => void = () => {};
-    mockRefreshMallsIfDue.mockImplementation(() => new Promise<void>(resolve => {
+    mockRefreshMallsIfDue.mockImplementationOnce(() => new Promise<void>(resolve => {
       completeRefresh = () => {
         refreshFinished = true;
         resolve();
@@ -318,10 +369,24 @@ describe('ItineraryOptionsScreen — mall card (KAN-282)', () => {
     expect(screen.getByText('900 m away')).toBeTruthy();
   });
 
-  it('does NOT kick off a mall cache refresh when a mall already qualifies', async () => {
+  it('refreshes mall candidates even when one is already cached', async () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
-    expect(mockRefreshMallsIfDue).not.toHaveBeenCalled();
+    expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1);
+  });
+
+  it('updates an already visible mall when the refresh finds a closer candidate', async () => {
+    const closerMall = { placeId: 'mall-2', name: 'Closer Mall', lat: 38.71, lng: -9.11, distanceMeters: 400 };
+    let completeRefresh: () => void = () => {};
+    mockRefreshMallsIfDue.mockImplementationOnce(() => new Promise<void>(resolve => {
+      completeRefresh = resolve;
+    }));
+    mockFindMallOption.mockReturnValueOnce(mallOption).mockReturnValue(closerMall);
+
+    render(<ItineraryOptionsScreen />);
+    expect(screen.getByText('Centro Colombo')).toBeTruthy();
+    await act(async () => { completeRefresh(); });
+    expect(screen.getByText('Closer Mall')).toBeTruthy();
   });
 
   it('tapping the mall card opens Maps with the mall as the single destination', async () => {
