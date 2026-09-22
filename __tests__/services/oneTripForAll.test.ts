@@ -438,6 +438,28 @@ describe('far-task live search fallback', () => {
     expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-atm', 'live-anchor']);
   });
 
+  it('fills a cached companion even when the live route already meets 80% coverage', async () => {
+    const fiveTasks = [
+      makeTask({ id: 'anchor', poi: 'pharmacy' }),
+      makeTask({ id: 'atm', poi: 'atm' }),
+      makeTask({ id: 'cafe', poi: 'cafe' }),
+      makeTask({ id: 'market', poi: 'supermarket' }),
+      makeTask({ id: 'store', poi: 'store' }),
+    ];
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: {
+        pharmacy: [place('live-anchor', 1000)], atm: [place('live-atm', 1020)],
+        cafe: [place('live-cafe', 1040)], supermarket: [place('live-market', 1060)],
+      }, source: 'osm',
+    });
+    mockQueryHabitatCache.mockReturnValue({ store: [place('cached-store', 1080)] });
+
+    const plan = await planTripAroundFarTask(fiveTasks, COORDS, ['anchor']);
+
+    expect(plan.stops).toHaveLength(5);
+    expect(plan.stops.map(stop => stop.place.internalId)).toContain('cached-store');
+  });
+
   it('uses a cached far anchor when live search returns no usable anchor', async () => {
     mockSearchNearbyPlaces.mockResolvedValue({
       results: { pharmacy: [place('live-nearby', 100)], atm: [place('live-atm', 1050)] }, source: 'osm',

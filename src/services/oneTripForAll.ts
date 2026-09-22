@@ -80,11 +80,11 @@ export async function planTripAroundFarTask(
   ).then(result => result.results).catch(() => ({} as PlacesMap));
   const liveAnchor = filterRoutePlacesForTask(anchorTask, live[anchorTask.poi as string] ?? [])
     .find(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M);
-  if (liveAnchor) {
-    const livePlan = planAroundAnchor(eligible, origin, anchorTask, liveAnchor, task =>
-      filterRoutePlacesForTask(task, live[task.poi as string] ?? []));
-    if (livePlan.stops.length > 0) { return livePlan; }
-  }
+  const livePlan = liveAnchor
+    ? planAroundAnchor(eligible, origin, anchorTask, liveAnchor, task =>
+      filterRoutePlacesForTask(task, live[task.poi as string] ?? []))
+    : emptyTrip(eligible.length);
+  if (livePlan.stops.length === eligible.length) { return livePlan; }
 
   const cached = queryHabitatCache(origin.lat, origin.lng, types, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null });
   const cachedAnchor = cachedPlacesForTask(anchorTask, cached)
@@ -96,9 +96,9 @@ export async function planTripAroundFarTask(
       ...filterRoutePlacesForTask(task, live[task.poi as string] ?? []),
       ...cachedPlacesForTask(task, cached),
     ]);
-    if (plan.stops.length > 0) { return plan; }
+    if (plan.stops.length > livePlan.stops.length) { return plan; }
   }
-  return emptyTrip(eligible.length);
+  return livePlan;
 }
 
 /** Resolve companions near one far anchor, accepting only a capped 80%-coverage trip. */
