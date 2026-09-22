@@ -39,6 +39,9 @@ import type { Task } from '../types';
 export const MAX_WAYPOINTS = 9;
 /** Bounds local route enumeration so a large cache cannot stall refresh. */
 export const MAX_LOCAL_ALTERNATIVES = 100;
+/** Keeps local combination search responsive while still considering a useful local neighbourhood. */
+const MAX_CANDIDATES_PER_REQUIREMENT = 5;
+const MAX_ROUTE_EVALUATIONS = 10_000;
 
 export interface TripStop {
   task: Task;
@@ -52,6 +55,77 @@ export interface TripPlan {
   excludedCount: number;
   /** Sum of straight-line legs (origin -> stop1 -> stop2 -> ... -> last), meters. */
   totalDistanceMeters: number;
+}
+
+/**
+ * Finds the shortest straight-line walk through one locally cached candidate
+ * for every requested task. Candidate choice and stop order are optimized
+ * together; no network or persisted itinerary state is involved.
+ */
+export function planBestLocalTrip(
+  tasks: Task[],
+  coords: { lat: number; lng: number },
+): TripPlan {
+  const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi).slice(0, MAX_WAYPOINTS);
+  const excludedByCap = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi).length - eligible.length;
+  const types = [...new Set(eligible.map(task => task.poi as string))];
+  const cached = queryHabitatCache(coords.lat, coords.lng, types, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null });
+  const candidatesByTask = eligible.map(task => cachedPlacesForTask(task, cached).slice(0, MAX_CANDIDATES_PER_REQUIREMENT));
+
+  if (eligible.length === 0 || candidatesByTask.some(candidates => candidates.length === 0)) {
+    return { stops: [], excludedCount: eligible.length + excludedByCap, totalDistanceMeters: 0 };
+  }
+
+  let best: TripPlan | null = null;
+  let evaluations = 0;
+  const chosen: TripStop[] = [];
+  const consider = () => {
+    const permutations = permute(chosen);
+    for (const ordered of permutations) {
+      if (evaluations++ >= MAX_ROUTE_EVALUATIONS) { return; }
+      const totalDistanceMeters = routeDistance(coords, ordered);
+      if (!best || totalDistanceMeters < best.totalDistanceMeters) {
+        best = { stops: ordered, excludedCount: excludedByCap, totalDistanceMeters };
+      }
+    }
+  };
+  const choose = (taskIndex: number) => {
+    if (evaluations >= MAX_ROUTE_EVALUATIONS) { return; }
+    if (taskIndex === eligible.length) { consider(); return; }
+    for (const candidate of candidatesByTask[taskIndex]) {
+      chosen.push({
+        task: eligible[taskIndex],
+        place: { internalId: candidate.placeId, name: candidate.name, lat: candidate.lat, lng: candidate.lng, distanceMeters: candidate.distanceMeters, source: 'cache' },
+      });
+      choose(taskIndex + 1);
+      chosen.pop();
+      if (evaluations >= MAX_ROUTE_EVALUATIONS) { return; }
+    }
+  };
+  choose(0);
+  return best ?? { stops: [], excludedCount: eligible.length + excludedByCap, totalDistanceMeters: 0 };
+}
+
+/** Calculates the straight-line length of an already ordered local itinerary. */
+function routeDistance(origin: { lat: number; lng: number }, stops: readonly TripStop[]): number {
+  let total = 0;
+  let previous = origin;
+  for (const stop of stops) {
+    total += getDistanceMeters(previous.lat, previous.lng, stop.place.lat, stop.place.lng);
+    previous = stop.place;
+  }
+  return total;
+}
+
+/** Returns every visit order for the small, waypoint-capped stop set. */
+function permute<T>(items: readonly T[]): T[][] {
+  if (items.length <= 1) { return [Array.from(items)]; }
+  const result: T[][] = [];
+  for (let index = 0; index < items.length; index++) {
+    const remaining = [...items.slice(0, index), ...items.slice(index + 1)];
+    for (const suffix of permute(remaining)) { result.push([items[index], ...suffix]); }
+  }
+  return result;
 }
 
 /**

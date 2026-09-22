@@ -37,6 +37,7 @@ import WhereWeveBeenScreen from '../screens/WhereWeveBeenScreen';
 import ItineraryOptionsScreen from '../screens/ItineraryOptionsScreen';
 import PlacesScreen from '../screens/PlacesScreen';
 import EndOfDayHandoffScreen from '../screens/EndOfDayHandoffScreen';
+import type { Task } from '../types';
 
 export type RootStackParamList = {
   Today: undefined;
@@ -94,7 +95,7 @@ export type RootStackParamList = {
   WhereWeveBeen: { highlightTripId?: string } | undefined;
   /** "One trip for all of these" — resolves + orders open POI tasks into a
    *  multi-stop route into a single suggestion card (KAN-281). */
-  ItineraryOptions: undefined;
+  ItineraryOptions: { tasks: Task[]; origin: { lat: number; lng: number } };
   /** Per-task resolver opened from a multi-task dated-task notification. */
   EndOfDayHandoff: { uid: string; date: string; taskIds: string[] };
 };

@@ -431,7 +431,10 @@ describe('KAN-281 — "one trip for all of these" entry row', () => {
     await act(async () => {});
 
     fireEvent.press(screen.getByLabelText('One trip for all of these'));
-    expect(mockNavigate).toHaveBeenCalledWith('ItineraryOptions');
+    expect(mockNavigate).toHaveBeenCalledWith('ItineraryOptions', expect.objectContaining({
+      tasks: expect.arrayContaining([expect.objectContaining({ poi: 'pharmacy' }), expect.objectContaining({ poi: 'atm' })]),
+      origin: { lat: 0, lng: 0 },
+    }));
   });
 });
 

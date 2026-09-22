@@ -318,7 +318,13 @@ export default function TodayScreen() {
         <Pressable
           style={[styles.oneTripForAllRow, { borderColor: palette.line }]}
           hitSlop={4}
-          onPress={() => navigation.navigate('ItineraryOptions')}
+          onPress={() => {
+            if (!coords) { return; }
+            navigation.navigate('ItineraryOptions', {
+              tasks: sortedTasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi),
+              origin: { lat: coords.lat, lng: coords.lng },
+            });
+          }}
           accessibilityRole="button"
           accessibilityLabel={COPY.oneTripForAll.entryA11y}>
           <NavigateIcon color={palette.muted} size={16} />
@@ -330,7 +336,7 @@ export default function TodayScreen() {
       )}
       <View style={styles.bottomPad} />
     </>
-  ), [oneTripVisible, navigation, palette]);
+  ), [oneTripVisible, navigation, palette, coords, sortedTasks]);
 
   const listEmpty = isBusy ? (
     <View style={styles.rowPad}>

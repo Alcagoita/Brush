@@ -37,6 +37,7 @@ import NetInfo from '@react-native-community/netinfo';
 import {
   getLocalTripAlternativeCount,
   planLocalTripAlternative,
+  planBestLocalTrip,
   resolveTripDestinations,
   planTrip,
   MAX_WAYPOINTS,
@@ -240,6 +241,27 @@ describe('planTrip', () => {
 describe('local itinerary alternatives (KAN-291)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  it('chooses the candidate combination and stop order with the shortest local walk', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      restaurant: [
+        { placeId: 'closest-restaurant', name: 'Near Restaurant', lat: 0.001, lng: 0, distanceMeters: 111 },
+        { placeId: 'clustered-restaurant', name: 'Cluster Restaurant', lat: 0, lng: 0.01, distanceMeters: 1_110 },
+      ],
+      atm: [{ placeId: 'clustered-atm', name: 'Cluster ATM', lat: 0, lng: 0.011, distanceMeters: 1_221 }],
+      cafe: [{ placeId: 'clustered-cafe', name: 'Cluster Cafe', lat: 0, lng: 0.012, distanceMeters: 1_332 }],
+    });
+
+    const plan = planBestLocalTrip([
+      makeTask({ id: 'restaurant', poi: 'restaurant' }),
+      makeTask({ id: 'atm', poi: 'atm' }),
+      makeTask({ id: 'cafe', poi: 'cafe' }),
+    ], { lat: 0, lng: 0 });
+
+    expect(plan.stops.map(stop => stop.place.internalId)).toEqual([
+      'clustered-restaurant', 'clustered-atm', 'clustered-cafe',
+    ]);
   });
 
   it('cycles cached POIs locally without calling Places', () => {

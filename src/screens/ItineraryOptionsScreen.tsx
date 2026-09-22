@@ -15,25 +15,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
 import { ChevronLeftIcon, PoiIcon, RefreshIcon, ShoppingBagIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
-import { ensureCurrentDay } from '../services/firestore';
-import { getMallSnapshot } from '../services/mallSnapshots';
-import { getPositionLowAccuracy } from '../services/geolocation';
-import { getLastSearchCoords } from '../services/proximity';
 import { refreshMallsIfDue } from '../services/habitatCache';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import {
   getLocalTripAlternativeCount,
   planLocalTripAlternative,
-  resolveTripDestinations,
-  planTrip,
+  planBestLocalTrip,
   type TripPlan,
 } from '../services/oneTripForAll';
 import { findMallOption, type MallOption } from '../services/mallRoute';
@@ -42,18 +37,7 @@ import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Task } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ItineraryOptions'>;
-
-/** Maximum time the initial itinerary screen may keep the user in loading state. */
-export const ITINERARY_LOAD_TIMEOUT_MS = 15_000;
-
-/** Rejects when an initial itinerary dependency does not settle before the UI deadline. */
-export function withLoadTimeout<T>(promise: Promise<T>, timeoutMs: number = ITINERARY_LOAD_TIMEOUT_MS): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<T>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('itinerary load timeout')), timeoutMs);
-  });
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
-}
+type Route = RouteProp<RootStackParamList, 'ItineraryOptions'>;
 
 function stopLine(stop: TripPlan['stops'][number]): string {
   return stop.place.source === 'learned'
@@ -70,16 +54,15 @@ function hasNewStop(current: TripPlan, candidate: TripPlan): boolean {
 export default function ItineraryOptionsScreen() {
   const { palette } = useTheme();
   const navigation = useNavigation<Nav>();
+  const { params } = useRoute<Route>();
   const insets = useSafeAreaInsets();
 
   const [positionLoading, setPositionLoading] = useState(true);
   const [walkingLoading, setWalkingLoading] = useState(true);
   const [mallLoading, setMallLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [mallOption, setMallOption] = useState<MallOption | null>(null);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
   const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
   const [localAlternativeCount, setLocalAlternativeCount] = useState(0);
   const [localAlternativeIndex, setLocalAlternativeIndex] = useState(0);
@@ -90,83 +73,30 @@ export default function ItineraryOptionsScreen() {
     setPositionLoading(true);
     setWalkingLoading(true);
     setMallLoading(true);
-    setLoadError(false);
     setPlan(null);
     setMallOption(null);
     setOrigin(null);
-    (async () => {
-      const uid = getAuth().currentUser?.uid;
-      if (!uid) {
-        if (!cancelled) {
-          setLoadError(true);
-          setPositionLoading(false);
-          setWalkingLoading(false);
-          setMallLoading(false);
-        }
-        return;
-      }
+    const coords = params.origin;
+    setOrigin(coords);
+    setPositionLoading(false);
 
-      try {
-        // A user-requested trip deserves the freshest position we can get —
-        // the last proximity-engine fix (getLastSearchCoords) is only a
-        // fallback if a fresh read fails (permission hiccup, GPS cold start).
-        const coords = await withLoadTimeout((async () => {
-          try { return await getPositionLowAccuracy(); }
-          catch {
-            const cached = getLastSearchCoords();
-            if (!cached) { throw new Error('no position available'); }
-            return cached;
-          }
-        })());
-        if (cancelled) { return; }
-        setOrigin(coords);
-        setPositionLoading(false);
+    const cachedMall = findMallOption(coords, null);
+    setMallOption(cachedMall);
+    if (!cachedMall) {
+      refreshMallsIfDue(coords.lat, coords.lng)
+        .then(() => { if (!cancelled) { setMallOption(findMallOption(coords, null)); } })
+        .catch(() => {});
+    }
 
-        // A qualifying cached mall is immediately useful on its own, so do
-        // not make it wait on either the route or the Firestore snapshot.
-        const cachedMall = findMallOption(coords, null);
-        setMallOption(cachedMall);
-        if (!cachedMall) {
-          refreshMallsIfDue(coords.lat, coords.lng)
-            .then(() => { if (!cancelled) { setMallOption(findMallOption(coords, null)); } })
-            .catch(() => {});
-        }
-
-        void withLoadTimeout((async () => {
-          const { tasks } = await ensureCurrentDay(uid);
-          const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
-          const tripPlan = planTrip(coords, resolved, excludedCount);
-          return { tasks, tripPlan };
-        })()).then(({ tasks, tripPlan }) => {
-          if (cancelled) { return; }
-          setPlan(tripPlan);
-          setTasksForRefresh(tasks);
-          setLocalAlternativeCount(getLocalTripAlternativeCount(tasks, coords));
-          setLocalAlternativeIndex(0);
-        }).catch(() => {
-          if (!cancelled) { setLoadError(true); }
-        }).finally(() => {
-          if (!cancelled) { setWalkingLoading(false); }
-        });
-
-        // A user-pinned snapshot can supply an additional qualifying mall,
-        // but it must never delay the already available cached option.
-        void withLoadTimeout(getMallSnapshot(uid)).then(snapshot => {
-          if (!cancelled) { setMallOption(findMallOption(coords, snapshot)); }
-        }).catch(() => {}).finally(() => {
-          if (!cancelled) { setMallLoading(false); }
-        });
-      } catch {
-        if (!cancelled) {
-          setLoadError(true);
-          setPositionLoading(false);
-          setWalkingLoading(false);
-          setMallLoading(false);
-        }
-      }
-    })();
+    const tripPlan = planBestLocalTrip(params.tasks, coords);
+    setPlan(tripPlan);
+    setTasksForRefresh(params.tasks);
+    setLocalAlternativeCount(getLocalTripAlternativeCount(params.tasks, coords));
+    setLocalAlternativeIndex(0);
+    setWalkingLoading(false);
+    setMallLoading(false);
     return () => { cancelled = true; };
-  }, [retryCount]);
+  }, [params]);
 
   const openCard = () => {
     if (!plan || plan.stops.length === 0 || !origin) { return; }
@@ -213,15 +143,6 @@ export default function ItineraryOptionsScreen() {
     setLocalAlternativeIndex(nextIndex);
   };
 
-  /** Return to the loading state immediately while every source is retried. */
-  const retryLoad = () => {
-    setPositionLoading(true);
-    setWalkingLoading(true);
-    setMallLoading(true);
-    setLoadError(false);
-    setRetryCount(count => count + 1);
-  };
-
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
   const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
   const hasContent = hasWalkingPlan || mallOption !== null;
@@ -265,16 +186,6 @@ export default function ItineraryOptionsScreen() {
         <View style={styles.loadingWrap}>
           <LoadingDots color={palette.accent} />
           <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
-        </View>
-      ) : !hasContent && loadError ? (
-        <View style={styles.loadingWrap}>
-          <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
-          <Pressable
-            onPress={retryLoad}
-            accessibilityRole="button"
-            accessibilityLabel={COPY.itineraryOptionsScreen.retryLabel}>
-            <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.itineraryOptionsScreen.retryLabel}</Text>
-          </Pressable>
         </View>
       ) : !hasContent ? (
         <View style={styles.loadingWrap}>

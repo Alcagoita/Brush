@@ -12,11 +12,13 @@
 
 import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-native';
-import ItineraryOptionsScreen, { withLoadTimeout } from '../../src/screens/ItineraryOptionsScreen';
+import ItineraryOptionsScreen from '../../src/screens/ItineraryOptionsScreen';
 
 const mockGoBack = jest.fn();
+const mockRouteParams = { tasks: [], origin: { lat: 38.7, lng: -9.1 } };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack }),
+  useRoute: () => ({ params: mockRouteParams }),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
@@ -73,6 +75,7 @@ const mockPlanLocalTripAlternative = jest.fn();
 jest.mock('../../src/services/oneTripForAll', () => ({
   getLocalTripAlternativeCount: (...args: unknown[]) => mockGetLocalTripAlternativeCount(...args),
   planLocalTripAlternative: (...args: unknown[]) => mockPlanLocalTripAlternative(...args),
+  planBestLocalTrip: (...args: unknown[]) => mockPlanTrip(...args),
   resolveTripDestinations: (...args: unknown[]) => mockResolveTripDestinations(...args),
   planTrip: (...args: unknown[]) => mockPlanTrip(...args),
 }));
@@ -118,9 +121,9 @@ beforeEach(() => {
 });
 
 describe('ItineraryOptionsScreen — loading', () => {
-  it('shows a loading state before resolution settles', () => {
+  it('resolves from the handed-off local data without a loading wait', () => {
     render(<ItineraryOptionsScreen />);
-    expect(screen.getByText('Finding the way…')).toBeTruthy();
+    expect(screen.getByText("Couldn't find places for any of these right now.")).toBeTruthy();
   });
 
   it('calls navigation.goBack when the back button is pressed', () => {
@@ -129,23 +132,7 @@ describe('ItineraryOptionsScreen — loading', () => {
     expect(mockGoBack).toHaveBeenCalled();
   });
 
-  it('rejects a location load that never settles', async () => {
-    await expect(withLoadTimeout(new Promise(() => {}), 1)).rejects.toThrow('itinerary load timeout');
-  });
 
-  it('returns to loading immediately when retry is pressed', async () => {
-    mockGetPositionLowAccuracy
-      .mockRejectedValueOnce(new Error('location unavailable'))
-      .mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
-    mockGetLastSearchCoords.mockReturnValue(null);
-
-    render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getByText("We couldn't find a path for these tasks near you.")).toBeTruthy());
-
-    fireEvent.press(screen.getByLabelText('Try again'));
-
-    expect(screen.getByText('Finding the way…')).toBeTruthy();
-  });
 });
 
 describe('ItineraryOptionsScreen — empty', () => {
@@ -193,7 +180,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     });
 
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
-      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
+      { lat: 38.7, lng: -9.1 },
       [stops[0].place, stops[1].place],
     );
   });
@@ -212,9 +199,9 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
 
     expect(screen.getByTestId('refresh-itinerary-icon')).toBeTruthy();
     expect(mockPlanLocalTripAlternative).toHaveBeenCalledWith(
-      [{ id: 't1' }], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 1,
+      [], { lat: 38.7, lng: -9.1 }, 1,
     );
-    expect(mockFindMallOption).toHaveBeenCalledTimes(3);
+    expect(mockFindMallOption).toHaveBeenCalledTimes(2);
   });
 
   it('disables refresh when cached POIs form only one route', async () => {
@@ -240,10 +227,10 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     });
 
     expect(mockPlanLocalTripAlternative).toHaveBeenNthCalledWith(
-      1, [], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 1,
+      1, [], { lat: 38.7, lng: -9.1 }, 1,
     );
     expect(mockPlanLocalTripAlternative).toHaveBeenNthCalledWith(
-      2, [], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 0,
+      2, [], { lat: 38.7, lng: -9.1 }, 0,
     );
   });
 
@@ -345,7 +332,7 @@ describe('ItineraryOptionsScreen — mall card (KAN-282)', () => {
     });
 
     expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
-      { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 },
+      { lat: 38.7, lng: -9.1 },
       [mallOption],
     );
   });
