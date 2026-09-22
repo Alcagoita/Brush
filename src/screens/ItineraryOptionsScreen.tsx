@@ -140,16 +140,16 @@ export default function ItineraryOptionsScreen() {
     setMallIndex(index => (index + 1) % mallOptions.length);
   };
 
-  /** Retry both suggestions; use the local walking cycle when it has another venue set. */
+  /** Retry the missing option; known malls stay untouched while walking alternatives cycle. */
   const refreshRoute = async () => {
-    if (!origin || refreshing || (plan?.stops.length && localAlternativeCount <= 1)) { return; }
+    if (!origin || refreshing || ((plan?.stops.length ?? 0) > 0 && localAlternativeCount <= 1 && mallOptions.length > 0)) { return; }
+    const needsWalkingSearch = (plan?.stops.length ?? 0) === 0;
+    const needsMallSearch = mallOptions.length === 0;
     const currentRequest = ++requestId.current;
     setRefreshing(true);
-    setWalkingLoading(true);
-    setMallLoading(true);
-    setPlan(null);
-    setMallOptions([]);
-    setMallIndex(0);
+    setWalkingLoading(needsWalkingSearch);
+    setMallLoading(needsMallSearch);
+    if (needsWalkingSearch) { setPlan(null); }
 
     refreshRotation.setValue(0);
     Animated.timing(refreshRotation, {
@@ -172,7 +172,7 @@ export default function ItineraryOptionsScreen() {
             setPlan(hasNewStop(plan, nextPlan) ? nextPlan : plan);
             setLocalAlternativeIndex(nextIndex);
           }
-        } else {
+        } else if (needsWalkingSearch) {
           const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds);
           if (requestId.current === currentRequest) {
             setPlan(nextPlan);
@@ -188,15 +188,17 @@ export default function ItineraryOptionsScreen() {
         if (requestId.current === currentRequest) { setWalkingLoading(false); }
       }
     })();
-    const mallSearch = (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng))
-      .catch(() => {})
-      .then(() => {
-        if (requestId.current === currentRequest) {
-          setMallOptions(findMallOptions(origin, null));
-          setMallIndex(0);
-        }
-      })
-      .finally(() => { if (requestId.current === currentRequest) { setMallLoading(false); } });
+    const mallSearch = needsMallSearch
+      ? (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng))
+        .catch(() => {})
+        .then(() => {
+          if (requestId.current === currentRequest) {
+            setMallOptions(findMallOptions(origin, null));
+            setMallIndex(0);
+          }
+        })
+        .finally(() => { if (requestId.current === currentRequest) { setMallLoading(false); } })
+      : Promise.resolve();
 
     // A stalled provider must never trap the screen in its loading state.
     let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -218,7 +220,7 @@ export default function ItineraryOptionsScreen() {
   const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
   const hasContent = hasWalkingPlan || mallOption !== null;
   const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
-  const refreshDisabled = !origin || refreshing || (hasWalkingPlan && localAlternativeCount <= 1);
+  const refreshDisabled = !origin || refreshing || (hasWalkingPlan && localAlternativeCount <= 1 && mallOptions.length > 0);
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
