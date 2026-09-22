@@ -132,6 +132,20 @@ describe('ItineraryOptionsScreen — loading', () => {
   it('rejects a location load that never settles', async () => {
     await expect(withLoadTimeout(new Promise(() => {}), 1)).rejects.toThrow('itinerary load timeout');
   });
+
+  it('returns to loading immediately when retry is pressed', async () => {
+    mockGetPositionLowAccuracy
+      .mockRejectedValueOnce(new Error('location unavailable'))
+      .mockResolvedValue({ lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 });
+    mockGetLastSearchCoords.mockReturnValue(null);
+
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText("We couldn't find a path for these tasks near you.")).toBeTruthy());
+
+    fireEvent.press(screen.getByLabelText('Try again'));
+
+    expect(screen.getByText('Finding the way…')).toBeTruthy();
+  });
 });
 
 describe('ItineraryOptionsScreen — empty', () => {
@@ -196,10 +210,11 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
       fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
     });
 
+    expect(screen.getByTestId('refresh-itinerary-icon')).toBeTruthy();
     expect(mockPlanLocalTripAlternative).toHaveBeenCalledWith(
       [{ id: 't1' }], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 1,
     );
-    expect(mockFindMallOption).toHaveBeenCalledTimes(2);
+    expect(mockFindMallOption).toHaveBeenCalledTimes(3);
   });
 
   it('disables refresh when cached POIs form only one route', async () => {
@@ -266,6 +281,26 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
     await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1));
+  });
+
+  it('rechecks the mall cache when the background refresh completes', async () => {
+    const refreshedMall = { placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 };
+    let refreshFinished = false;
+    let completeRefresh: () => void = () => {};
+    mockRefreshMallsIfDue.mockImplementation(() => new Promise<void>(resolve => {
+      completeRefresh = () => {
+        refreshFinished = true;
+        resolve();
+      };
+    }));
+    mockFindMallOption.mockImplementation(() => (refreshFinished ? refreshedMall : null));
+
+    render(<ItineraryOptionsScreen />);
+
+    await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1));
+    expect(screen.queryByTestId('mall-card')).toBeNull();
+    await act(async () => { completeRefresh(); });
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
   });
 
   it('still renders normally when that background refresh rejects', async () => {

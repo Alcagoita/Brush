@@ -272,7 +272,7 @@ const en = {
     exclusionLine:  (n: number) => (n === 1 ? "Couldn't find a place for 1 of them" : `Couldn't find a place for ${n} of them`),
     openInMapsA11y: 'Open directions in Maps',
     emptyStateBody: "Couldn't find places for any of these right now.",
-    errorBody:      "Something went wrong finding the way.",
+    errorBody:      "We couldn't find a path for these tasks near you.",
     retryLabel:     'Try again',
     mapsOpenFailed: "Couldn't open Maps — try again.",
     // ── Mall card (KAN-282) ──
@@ -1526,7 +1526,7 @@ const ptPT: typeof en = {
     exclusionLine:  (n: number) => (n === 1 ? 'Não encontrei um local para 1 delas' : `Não encontrei um local para ${n} delas`),
     openInMapsA11y: 'Abrir direções no Maps',
     emptyStateBody: 'Não encontrei locais para nenhuma delas agora.',
-    errorBody:      'Algo correu mal ao encontrar o caminho.',
+    errorBody:      'Não conseguimos encontrar um percurso para estas tarefas perto de si.',
     retryLabel:     'Tentar novamente',
     mapsOpenFailed: 'Não consegui abrir o Maps — tenta outra vez.',
     // ── Mall card (KAN-282) ──

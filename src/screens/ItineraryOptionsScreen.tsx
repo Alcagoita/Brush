@@ -12,8 +12,8 @@
  * complete only by brushing, same as always.
  */
 
-import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -83,6 +83,7 @@ export default function ItineraryOptionsScreen() {
   const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
   const [localAlternativeCount, setLocalAlternativeCount] = useState(0);
   const [localAlternativeIndex, setLocalAlternativeIndex] = useState(0);
+  const refreshRotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     let cancelled = false;
@@ -125,7 +126,11 @@ export default function ItineraryOptionsScreen() {
         // not make it wait on either the route or the Firestore snapshot.
         const cachedMall = findMallOption(coords, null);
         setMallOption(cachedMall);
-        if (!cachedMall) { refreshMallsIfDue(coords.lat, coords.lng).catch(() => {}); }
+        if (!cachedMall) {
+          refreshMallsIfDue(coords.lat, coords.lng)
+            .then(() => { if (!cancelled) { setMallOption(findMallOption(coords, null)); } })
+            .catch(() => {});
+        }
 
         void withLoadTimeout((async () => {
           const { tasks } = await ensureCurrentDay(uid);
@@ -183,6 +188,13 @@ export default function ItineraryOptionsScreen() {
   const refreshRoute = () => {
     if (!origin || localAlternativeCount <= 1 || !plan) { return; }
 
+    refreshRotation.setValue(0);
+    Animated.timing(refreshRotation, {
+      toValue: -1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+
     // The cached sequence is cyclic. Start after the current slot so a press
     // always changes at least one stop; the one-combination case is disabled.
     let nextIndex = (localAlternativeIndex + 1) % localAlternativeCount;
@@ -199,6 +211,15 @@ export default function ItineraryOptionsScreen() {
 
     setPlan(nextPlan);
     setLocalAlternativeIndex(nextIndex);
+  };
+
+  /** Return to the loading state immediately while every source is retried. */
+  const retryLoad = () => {
+    setPositionLoading(true);
+    setWalkingLoading(true);
+    setMallLoading(true);
+    setLoadError(false);
+    setRetryCount(count => count + 1);
   };
 
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
@@ -225,7 +246,18 @@ export default function ItineraryOptionsScreen() {
           accessibilityRole="button"
           accessibilityLabel={COPY.itineraryOptionsScreen.refreshA11y}
           accessibilityState={{ disabled: localAlternativeCount <= 1 }}>
-          <RefreshIcon color={localAlternativeCount > 1 ? palette.text : palette.faint} size={20} />
+          <Animated.View
+            testID="refresh-itinerary-icon"
+            style={{
+              transform: [{
+                rotate: refreshRotation.interpolate({
+                  inputRange: [-1, 0],
+                  outputRange: ['-360deg', '0deg'],
+                }),
+              }],
+            }}>
+            <RefreshIcon color={localAlternativeCount > 1 ? palette.text : palette.faint} size={20} />
+          </Animated.View>
         </Pressable>
       </View>
 
@@ -238,7 +270,7 @@ export default function ItineraryOptionsScreen() {
         <View style={styles.loadingWrap}>
           <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
           <Pressable
-            onPress={() => setRetryCount(c => c + 1)}
+            onPress={retryLoad}
             accessibilityRole="button"
             accessibilityLabel={COPY.itineraryOptionsScreen.retryLabel}>
             <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.itineraryOptionsScreen.retryLabel}</Text>
