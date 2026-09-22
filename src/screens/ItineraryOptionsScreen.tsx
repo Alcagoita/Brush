@@ -65,8 +65,8 @@ export default function ItineraryOptionsScreen() {
   const [mallIndex, setMallIndex] = useState(0);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
-  const [localAlternativeCount, setLocalAlternativeCount] = useState(0);
-  const [localAlternativeIndex, setLocalAlternativeIndex] = useState(0);
+  const [localAlternativeIndices, setLocalAlternativeIndices] = useState<number[]>([]);
+  const [localAlternativePosition, setLocalAlternativePosition] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const refreshRotation = useRef(new Animated.Value(0)).current;
   const requestId = useRef(0);
@@ -110,8 +110,8 @@ export default function ItineraryOptionsScreen() {
       .then(tripPlan => {
         if (cancelled || requestId.current !== currentRequest) { return; }
         setPlan(tripPlan);
-        setLocalAlternativeCount(getLocalTripAlternativeCount(params.tasks, coords));
-        setLocalAlternativeIndex(0);
+        setLocalAlternativeIndices(getLocalTripAlternativeCount(params.tasks, coords, params.farTaskIds));
+        setLocalAlternativePosition(0);
       })
       .catch(() => { if (!cancelled && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
       .finally(() => { if (!cancelled && requestId.current === currentRequest) { setWalkingLoading(false); } });
@@ -142,7 +142,7 @@ export default function ItineraryOptionsScreen() {
 
   /** Retry the missing option; known malls stay untouched while walking alternatives cycle. */
   const refreshRoute = async () => {
-    if (!origin || refreshing || ((plan?.stops.length ?? 0) > 0 && localAlternativeCount <= 1 && mallOptions.length > 0)) { return; }
+    if (!origin || refreshing || ((plan?.stops.length ?? 0) > 0 && localAlternativeIndices.length <= 1 && mallOptions.length > 0)) { return; }
     const needsWalkingSearch = (plan?.stops.length ?? 0) === 0;
     const needsMallSearch = mallOptions.length === 0;
     const currentRequest = ++requestId.current;
@@ -160,24 +160,26 @@ export default function ItineraryOptionsScreen() {
 
     const walkingSearch = (async () => {
       try {
-        if (plan?.stops.length && localAlternativeCount > 1) {
+        if (plan?.stops.length && localAlternativeIndices.length > 1) {
           // A reordering of the same venues is not a new walking route.
-          let nextIndex = (localAlternativeIndex + 1) % localAlternativeCount;
-          let nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
-          if (!hasNewStop(plan, nextPlan)) {
-            nextIndex = (nextIndex + 1) % localAlternativeCount;
-            nextPlan = planLocalTripAlternative(tasksForRefresh, origin, nextIndex);
-          }
-          if (requestId.current === currentRequest) {
-            setPlan(hasNewStop(plan, nextPlan) ? nextPlan : plan);
-            setLocalAlternativeIndex(nextIndex);
+          for (let offset = 1; offset <= localAlternativeIndices.length; offset++) {
+            const nextPosition = (localAlternativePosition + offset) % localAlternativeIndices.length;
+            const nextPlan = planLocalTripAlternative(
+              tasksForRefresh, origin, params.farTaskIds, localAlternativeIndices[nextPosition],
+            );
+            if (!hasNewStop(plan, nextPlan)) { continue; }
+            if (requestId.current === currentRequest) {
+              setPlan(nextPlan);
+              setLocalAlternativePosition(nextPosition);
+            }
+            break;
           }
         } else if (needsWalkingSearch) {
           const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds);
           if (requestId.current === currentRequest) {
             setPlan(nextPlan);
-            setLocalAlternativeCount(getLocalTripAlternativeCount(tasksForRefresh, origin));
-            setLocalAlternativeIndex(0);
+            setLocalAlternativeIndices(getLocalTripAlternativeCount(tasksForRefresh, origin, params.farTaskIds));
+            setLocalAlternativePosition(0);
           }
         }
       } catch {
@@ -220,7 +222,7 @@ export default function ItineraryOptionsScreen() {
   const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
   const hasContent = hasWalkingPlan || mallOption !== null;
   const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
-  const refreshDisabled = !origin || refreshing || (hasWalkingPlan && localAlternativeCount <= 1 && mallOptions.length > 0);
+  const refreshDisabled = !origin || refreshing || (hasWalkingPlan && localAlternativeIndices.length <= 1 && mallOptions.length > 0);
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -420,8 +422,10 @@ const styles = StyleSheet.create({
   mallTryAnotherBtn: {
     marginTop: 8,
     borderRadius: radii.ctaBtn,
+    minHeight: 44,
     paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: StyleSheet.hairlineWidth,
   },
   mallTryAnotherLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },

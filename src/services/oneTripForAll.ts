@@ -26,7 +26,7 @@
  */
 
 import NetInfo from '@react-native-community/netinfo';
-import { searchNearbyPlaces, getDistanceMeters } from './maps';
+import { searchNearbyPlaces, getDistanceMeters, type NearbyPlace } from './maps';
 import { orderStopsNearestFirst } from './routeHandoff';
 import { getLearnedPlaceCounts } from './firestore';
 import { queryHabitatCache } from './habitatCache';
@@ -75,28 +75,60 @@ export async function planTripAroundFarTask(
   if (!anchorTask || eligible.length === 0) { return { stops: [], excludedCount: eligible.length, totalDistanceMeters: 0 }; }
 
   const types = [...new Set(eligible.map(task => task.poi as string))];
-  const { results } = await searchNearbyPlaces(
+  const live = await searchNearbyPlaces(
     origin.lat, origin.lng, types, ROUTE_MAX_RADIUS_M, buildNearbySearchRequests(eligible),
-  );
-  const anchor = filterRoutePlacesForTask(anchorTask, results[anchorTask.poi as string] ?? [])
+  ).then(result => result.results).catch(() => ({} as PlacesMap));
+  const liveAnchor = filterRoutePlacesForTask(anchorTask, live[anchorTask.poi as string] ?? [])
     .find(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M);
-  if (!anchor) { return { stops: [], excludedCount: eligible.length, totalDistanceMeters: 0 }; }
+  if (liveAnchor) {
+    const livePlan = planAroundAnchor(eligible, origin, anchorTask, liveAnchor, task =>
+      filterRoutePlacesForTask(task, live[task.poi as string] ?? []));
+    if (livePlan.stops.length > 0) { return livePlan; }
+  }
 
+  const cached = queryHabitatCache(origin.lat, origin.lng, types, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null });
+  const cachedAnchor = cachedPlacesForTask(anchorTask, cached)
+    .find(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M);
+
+  for (const anchor of [liveAnchor, cachedAnchor]) {
+    if (!anchor) { continue; }
+    const plan = planAroundAnchor(eligible, origin, anchorTask, anchor, task => [
+      ...filterRoutePlacesForTask(task, live[task.poi as string] ?? []),
+      ...cachedPlacesForTask(task, cached),
+    ]);
+    if (plan.stops.length > 0) { return plan; }
+  }
+  return emptyTrip(eligible.length);
+}
+
+/** Resolve companions near one far anchor, accepting only a capped 80%-coverage trip. */
+function planAroundAnchor(
+  eligible: Task[],
+  origin: { lat: number; lng: number },
+  anchorTask: Task,
+  anchor: NearbyPlace,
+  candidatesForTask: (task: Task) => NearbyPlace[],
+  alternativeIndex = 0,
+): TripPlan {
   const resolved: TripStop[] = [];
   for (const task of eligible) {
     const candidates = task.id === anchorTask.id
       ? [anchor]
-      : filterRoutePlacesForTask(task, results[task.poi as string] ?? [])
-        .filter(place => getDistanceMeters(anchor.lat, anchor.lng, place.lat, place.lng) <= ROUTE_CLUSTER_RADIUS_M);
-    const place = candidates[0];
+      : candidatesForTask(task).filter(place =>
+        getDistanceMeters(anchor.lat, anchor.lng, place.lat, place.lng) <= ROUTE_CLUSTER_RADIUS_M,
+      );
+    const place = candidates[alternativeIndex % candidates.length];
     if (!place) { continue; }
     resolved.push({ task, place: { internalId: place.placeId, name: place.name, lat: place.lat, lng: place.lng, distanceMeters: place.distanceMeters, source: 'cache' } });
   }
+  if (resolved.length < Math.ceil(eligible.length * 0.8)) { return emptyTrip(eligible.length); }
+  const plan = planTrip(origin, resolved, eligible.length - resolved.length);
+  return plan.stops.length >= Math.ceil(eligible.length * 0.8) ? plan : emptyTrip(eligible.length);
+}
 
-  if (resolved.length < Math.ceil(eligible.length * 0.8)) {
-    return { stops: [], excludedCount: eligible.length, totalDistanceMeters: 0 };
-  }
-  return planTrip(origin, resolved, eligible.length - resolved.length);
+/** No qualifying anchored itinerary exists for these eligible tasks. */
+function emptyTrip(excludedCount: number): TripPlan {
+  return { stops: [], excludedCount, totalDistanceMeters: 0 };
 }
 
 /**
@@ -171,7 +203,7 @@ function permute<T>(items: readonly T[]): T[][] {
 }
 
 /**
- * Number of locally cached route variants available for a set of tasks.
+ * Raw local-cycle indices for distinct, valid route variants.
  *
  * Each POI type advances through its nearby cached places in lockstep, just
  * like Nearby's "Try another place" cycle. The least common multiple makes
@@ -182,30 +214,51 @@ function permute<T>(items: readonly T[]): T[][] {
 export function getLocalTripAlternativeCount(
   tasks: Task[],
   coords: { lat: number; lng: number },
-): number {
+  farTaskIds: readonly string[],
+): number[] {
   const eligibleTypes = [...new Set(tasks
     .filter(t => !t.done && t.kind !== 'birthday' && t.poi)
     .map(t => t.poi as string))];
-  if (eligibleTypes.length === 0) { return 0; }
+  if (eligibleTypes.length === 0) { return []; }
 
   const cached = queryHabitatCache(
     coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
   );
   const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
+  const anchorTask = eligible.find(task => farTaskIds.includes(task.id));
+  if (!anchorTask) { return []; }
+  const anchors = cachedPlacesForTask(anchorTask, cached)
+    .filter(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M)
+    .slice(0, MAX_LOCAL_ALTERNATIVES);
+  if (anchors.length === 0) { return []; }
   const cycleLength = eligible
     .map(task => cachedPlacesForTask(task, cached).length)
     .filter(count => count > 0);
-  if (cycleLength.length === 0) { return 0; }
+  for (const anchor of anchors) {
+    for (const task of eligible) {
+      if (task.id === anchorTask.id) { continue; }
+      const count = cachedPlacesForTask(task, cached).filter(place =>
+        getDistanceMeters(anchor.lat, anchor.lng, place.lat, place.lng) <= ROUTE_CLUSTER_RADIUS_M,
+      ).length;
+      if (count > 0) { cycleLength.push(count); }
+    }
+  }
 
   const rawCycleLength = cycleLength.reduce(
     (total, count) => boundedLeastCommonMultiple(total, count, MAX_LOCAL_ALTERNATIVES),
     1,
   );
   const visibleRoutes = new Set<string>();
+  const indices: number[] = [];
   for (let index = 0; index < rawCycleLength; index++) {
-    visibleRoutes.add(placeIdSetSignature(planCachedTripAlternative(eligible, coords, cached, index)));
+    const plan = planCachedTripAlternative(eligible, coords, cached, farTaskIds, index);
+    if (plan.stops.length === 0) { continue; }
+    const signature = placeIdSetSignature(plan);
+    if (visibleRoutes.has(signature)) { continue; }
+    visibleRoutes.add(signature);
+    indices.push(index);
   }
-  return visibleRoutes.size;
+  return indices;
 }
 
 /**
@@ -216,6 +269,7 @@ export function getLocalTripAlternativeCount(
 export function planLocalTripAlternative(
   tasks: Task[],
   coords: { lat: number; lng: number },
+  farTaskIds: readonly string[],
   alternativeIndex: number,
 ): TripPlan {
   const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
@@ -224,7 +278,7 @@ export function planLocalTripAlternative(
     coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
   );
 
-  return planCachedTripAlternative(eligible, coords, cached, alternativeIndex);
+  return planCachedTripAlternative(eligible, coords, cached, farTaskIds, alternativeIndex);
 }
 
 /** Builds one capped route from a previously read local cache snapshot. */
@@ -232,27 +286,18 @@ function planCachedTripAlternative(
   eligible: Task[],
   coords: { lat: number; lng: number },
   cached: PlacesMap,
+  farTaskIds: readonly string[],
   alternativeIndex: number,
 ): TripPlan {
-  const resolved: TripStop[] = [];
-  for (const task of eligible) {
-    const candidates = cachedPlacesForTask(task, cached);
-    if (candidates.length === 0) { continue; }
-    const candidate = candidates[alternativeIndex % candidates.length];
-    resolved.push({
-      task,
-      place: {
-        internalId: candidate.placeId,
-        name: candidate.name,
-        lat: candidate.lat,
-        lng: candidate.lng,
-        distanceMeters: candidate.distanceMeters,
-        source: 'cache',
-      },
-    });
-  }
-
-  return planTrip(coords, resolved, eligible.length - resolved.length);
+  const anchorTask = eligible.find(task => farTaskIds.includes(task.id));
+  if (!anchorTask) { return emptyTrip(eligible.length); }
+  const anchors = cachedPlacesForTask(anchorTask, cached)
+    .filter(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M);
+  if (anchors.length === 0) { return emptyTrip(eligible.length); }
+  return planAroundAnchor(
+    eligible, coords, anchorTask, anchors[alternativeIndex % anchors.length],
+    task => cachedPlacesForTask(task, cached), alternativeIndex,
+  );
 }
 
 /** Applies each task's optional subtype constraint to cached candidates. */

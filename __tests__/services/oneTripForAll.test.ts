@@ -37,6 +37,7 @@ import NetInfo from '@react-native-community/netinfo';
 import {
   getLocalTripAlternativeCount,
   planLocalTripAlternative,
+  planTripAroundFarTask,
   planBestLocalTrip,
   resolveTripDestinations,
   planTrip,
@@ -243,6 +244,11 @@ describe('local itinerary alternatives (KAN-291)', () => {
     jest.clearAllMocks();
   });
 
+  const place = (id: string, metersNorth: number, extra: Record<string, unknown> = {}) => ({
+    placeId: id, name: id, lat: COORDS.lat + metersNorth / 111_000, lng: COORDS.lng,
+    distanceMeters: metersNorth, ...extra,
+  });
+
   it('chooses the candidate combination and stop order with the shortest local walk', () => {
     mockQueryHabitatCache.mockReturnValue({
       restaurant: [
@@ -266,90 +272,76 @@ describe('local itinerary alternatives (KAN-291)', () => {
 
   it('cycles cached POIs locally without calling Places', () => {
     mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [
-        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
-        { placeId: 'p2', name: 'Pharmacy B', lat: 38.72, lng: -9.12, distanceMeters: 300 },
-      ],
-      atm: [
-        { placeId: 'a1', name: 'ATM A', lat: 38.73, lng: -9.13, distanceMeters: 400 },
-        { placeId: 'a2', name: 'ATM B', lat: 38.74, lng: -9.14, distanceMeters: 500 },
-      ],
+      pharmacy: [place('p1', 1000), place('p2', 1020)],
+      atm: [place('a1', 1040), place('a2', 1060)],
     });
     const tasks = [makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' })];
 
-    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(2);
-    expect(planLocalTripAlternative(tasks, COORDS, 0).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
-    expect(planLocalTripAlternative(tasks, COORDS, 1).stops.map(stop => stop.place.internalId).sort()).toEqual(['a2', 'p2']);
-    expect(planLocalTripAlternative(tasks, COORDS, 2).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['t1'])).toEqual([0, 1]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['t1'], 0).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
+    expect(planLocalTripAlternative(tasks, COORDS, ['t1'], 1).stops.map(stop => stop.place.internalId).sort()).toEqual(['a2', 'p2']);
+    expect(planLocalTripAlternative(tasks, COORDS, ['t1'], 2).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
     expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
   });
 
   it('uses the least common multiple so mixed candidate lists cycle correctly', () => {
     mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [
-        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
-        { placeId: 'p2', name: 'Pharmacy B', lat: 38.72, lng: -9.12, distanceMeters: 300 },
-      ],
-      atm: [
-        { placeId: 'a1', name: 'ATM A', lat: 38.73, lng: -9.13, distanceMeters: 400 },
-        { placeId: 'a2', name: 'ATM B', lat: 38.74, lng: -9.14, distanceMeters: 500 },
-        { placeId: 'a3', name: 'ATM C', lat: 38.75, lng: -9.15, distanceMeters: 600 },
-      ],
+      pharmacy: [place('p1', 1000), place('p2', 1020)],
+      atm: [place('a1', 1040), place('a2', 1060), place('a3', 1080)],
     });
     const tasks = [makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' })];
 
-    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(6);
-    expect(planLocalTripAlternative(tasks, COORDS, 5).stops.map(stop => stop.place.internalId).sort()).toEqual(['a3', 'p2']);
-    expect(planLocalTripAlternative(tasks, COORDS, 6).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['t1'])).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['t1'], 5).stops.map(stop => stop.place.internalId).sort()).toEqual(['a3', 'p2']);
+    expect(planLocalTripAlternative(tasks, COORDS, ['t1'], 6).stops.map(stop => stop.place.internalId).sort()).toEqual(['a1', 'p1']);
   });
 
   it('reports one alternative when every resolvable type has one cached POI', () => {
     mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 }],
-      atm: [{ placeId: 'a1', name: 'ATM A', lat: 38.73, lng: -9.13, distanceMeters: 400 }],
+      pharmacy: [place('p1', 1000)],
+      atm: [place('a1', 1050)],
     });
 
     expect(getLocalTripAlternativeCount([
       makeTask({ id: 't1', poi: 'pharmacy' }), makeTask({ id: 't2', poi: 'atm' }),
-    ], COORDS)).toBe(1);
+    ], COORDS, ['t1'])).toEqual([0]);
   });
 
   it('does not count duplicate cached rows as another route', () => {
     mockQueryHabitatCache.mockReturnValue({
       pharmacy: [
-        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
-        { placeId: 'p1', name: 'Pharmacy A', lat: 38.71, lng: -9.11, distanceMeters: 200 },
+        place('p1', 1000), place('p1', 1000),
       ],
     });
 
-    expect(getLocalTripAlternativeCount([makeTask()], COORDS)).toBe(1);
+    expect(getLocalTripAlternativeCount([makeTask()], COORDS, ['task-1'])).toEqual([0]);
   });
 
   it('cycles only cached stores that match the task subtype', () => {
     mockQueryHabitatCache.mockReturnValue({
       store: [
-        { placeId: 'clothes', name: 'Fashion House', lat: 38.701, lng: -9.101, distanceMeters: 50, storeSubtype: 'clothing' },
-        { placeId: 'electronics-1', name: 'Tech Shop A', lat: 38.702, lng: -9.102, distanceMeters: 100, storeSubtype: 'electronics' },
-        { placeId: 'electronics-2', name: 'Tech Shop B', lat: 38.703, lng: -9.103, distanceMeters: 150, storeSubtype: 'electronics' },
+        place('clothes', 1010, { storeSubtype: 'clothing' }),
+        place('electronics-1', 1000, { storeSubtype: 'electronics' }),
+        place('electronics-2', 1050, { storeSubtype: 'electronics' }),
       ],
     });
     const tasks = [makeTask({ poi: 'store', storeSubtype: 'electronics' })];
 
-    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(2);
-    expect(planLocalTripAlternative(tasks, COORDS, 0).stops[0].place.internalId).toBe('electronics-1');
-    expect(planLocalTripAlternative(tasks, COORDS, 1).stops[0].place.internalId).toBe('electronics-2');
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['task-1'])).toEqual([0, 1]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['task-1'], 0).stops[0].place.internalId).toBe('electronics-1');
+    expect(planLocalTripAlternative(tasks, COORDS, ['task-1'], 1).stops[0].place.internalId).toBe('electronics-2');
   });
 
   it('cycles only cached restaurants and financial services matching their selected subtypes', () => {
     mockQueryHabitatCache.mockReturnValue({
       restaurant: [
-        { placeId: 'sushi', name: 'Sushi House', lat: 38.701, lng: -9.101, distanceMeters: 50, restaurantFoodType: 'sushi' },
-        { placeId: 'vegetarian-1', name: 'Green Table A', lat: 38.702, lng: -9.102, distanceMeters: 100, restaurantFoodType: 'vegetarian' },
-        { placeId: 'vegetarian-2', name: 'Green Table B', lat: 38.703, lng: -9.103, distanceMeters: 150, restaurantFoodType: 'vegetarian' },
+        place('sushi', 1010, { restaurantFoodType: 'sushi' }),
+        place('vegetarian-1', 1000, { restaurantFoodType: 'vegetarian' }),
+        place('vegetarian-2', 1050, { restaurantFoodType: 'vegetarian' }),
       ],
       financial_service: [
-        { placeId: 'insurance', name: 'Secure Cover', lat: 38.704, lng: -9.104, distanceMeters: 200, financialServiceKinds: ['insurance'] },
-        { placeId: 'credit', name: 'Credit Point', lat: 38.705, lng: -9.105, distanceMeters: 250, financialServiceKinds: ['consumer_credit'] },
+        place('insurance', 1060, { financialServiceKinds: ['insurance'] }),
+        place('credit', 1080, { financialServiceKinds: ['consumer_credit'] }),
       ],
     });
     const tasks = [
@@ -357,17 +349,16 @@ describe('local itinerary alternatives (KAN-291)', () => {
       makeTask({ id: 'financial', poi: 'financial_service', financialServiceKind: 'consumer_credit' }),
     ];
 
-    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(2);
-    expect(planLocalTripAlternative(tasks, COORDS, 0).stops.map(stop => stop.place.internalId).sort()).toEqual(['credit', 'vegetarian-1']);
-    expect(planLocalTripAlternative(tasks, COORDS, 1).stops.map(stop => stop.place.internalId).sort()).toEqual(['credit', 'vegetarian-2']);
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['restaurant'])).toEqual([0, 1]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['restaurant'], 0).stops.map(stop => stop.place.internalId).sort()).toEqual(['credit', 'vegetarian-1']);
+    expect(planLocalTripAlternative(tasks, COORDS, ['restaurant'], 1).stops.map(stop => stop.place.internalId).sort()).toEqual(['credit', 'vegetarian-2']);
   });
 
   it('does not count a variation that falls after the waypoint cap', () => {
     mockQueryHabitatCache.mockReturnValue({
-      pharmacy: [{ placeId: 'p1', name: 'Pharmacy A', lat: 38.7001, lng: -9.1, distanceMeters: 10 }],
+      pharmacy: [place('p1', 1000)],
       atm: [
-        { placeId: 'a1', name: 'ATM A', lat: 38.8, lng: -9.1, distanceMeters: 11_000 },
-        { placeId: 'a2', name: 'ATM B', lat: 38.9, lng: -9.1, distanceMeters: 22_000 },
+        place('a1', 1050), place('a2', 1070),
       ],
     });
     const tasks = [
@@ -375,21 +366,104 @@ describe('local itinerary alternatives (KAN-291)', () => {
       makeTask({ id: 'atm', poi: 'atm' }),
     ];
 
-    expect(getLocalTripAlternativeCount(tasks, COORDS)).toBe(1);
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['p0'])).toEqual([0]);
   });
 
   it('caps coprime cached cycles at the local alternative limit', () => {
     mockQueryHabitatCache.mockReturnValue({
       pharmacy: Array.from({ length: 101 }, (_, index) => ({
-        placeId: `p${index}`, name: `Pharmacy ${index}`, lat: 38.7 + index / 1_000_000, lng: -9.1, distanceMeters: index,
+        ...place(`p${index}`, 1000 + index / 10),
       })),
       atm: Array.from({ length: 103 }, (_, index) => ({
-        placeId: `a${index}`, name: `ATM ${index}`, lat: 38.8 + index / 1_000_000, lng: -9.1, distanceMeters: index,
+        ...place(`a${index}`, 1050 + index / 10),
       })),
     });
 
     expect(getLocalTripAlternativeCount([
       makeTask({ id: 'pharmacy', poi: 'pharmacy' }), makeTask({ id: 'atm', poi: 'atm' }),
-    ], COORDS)).toBe(MAX_LOCAL_ALTERNATIVES);
+    ], COORDS, ['pharmacy'])).toHaveLength(MAX_LOCAL_ALTERNATIVES);
+  });
+
+  it('returns only the raw indices for distinct valid anchored routes', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [place('p1', 1000), place('p2', 3000), place('p3', 1020)],
+      atm: [place('a1', 1050)],
+    });
+    const tasks = [makeTask({ id: 'anchor' }), makeTask({ id: 'companion', poi: 'atm' })];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['anchor'])).toEqual([0, 2]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['anchor'], 1).stops).toHaveLength(0);
+  });
+
+  it('rejects cached routes without a far anchor or 80% coverage', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [place('near', 100), place('far', 1000)],
+      atm: [place('too-far', 3000)],
+    });
+    const tasks = [makeTask({ id: 'anchor' }), makeTask({ id: 'companion', poi: 'atm' })];
+
+    expect(getLocalTripAlternativeCount(tasks, COORDS, [])).toEqual([]);
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['anchor'])).toEqual([]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['anchor'], 0).stops).toHaveLength(0);
+  });
+});
+
+describe('far-task live search fallback', () => {
+  beforeEach(() => { jest.clearAllMocks(); });
+
+  const place = (id: string, metersNorth: number) => ({
+    placeId: id, name: id, lat: COORDS.lat + metersNorth / 111_000, lng: COORDS.lng,
+    distanceMeters: metersNorth,
+  });
+  const tasks = [makeTask({ id: 'anchor', poi: 'pharmacy' }), makeTask({ id: 'companion', poi: 'atm' })];
+
+  it('uses clustered cached candidates when live search rejects', async () => {
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('timeout'));
+    mockQueryHabitatCache.mockReturnValue({ pharmacy: [place('cached-anchor', 1000)], atm: [place('cached-atm', 1050)] });
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-anchor', 'cached-atm']);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+  });
+
+  it('fills a missing live companion from the cluster cache while keeping the live anchor', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: { pharmacy: [place('live-anchor', 1000)], atm: [place('live-atm-too-far', 3000)] }, source: 'osm',
+    });
+    mockQueryHabitatCache.mockReturnValue({ pharmacy: [place('cached-anchor', 1100)], atm: [place('cached-atm', 1050)] });
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-atm', 'live-anchor']);
+  });
+
+  it('uses a cached far anchor when live search returns no usable anchor', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: { pharmacy: [place('live-nearby', 100)], atm: [place('live-atm', 1050)] }, source: 'osm',
+    });
+    mockQueryHabitatCache.mockReturnValue({ pharmacy: [place('cached-anchor', 1000)], atm: [] });
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-anchor', 'live-atm']);
+  });
+
+  it('keeps a complete live result without reading the cache', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: { pharmacy: [place('live-anchor', 1000)], atm: [place('live-atm', 1050)] }, source: 'osm',
+    });
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['live-anchor', 'live-atm']);
+    expect(mockQueryHabitatCache).not.toHaveBeenCalled();
+  });
+
+  it('rejects cached fallback that cannot meet the cluster and coverage rules', async () => {
+    mockSearchNearbyPlaces.mockRejectedValue(new Error('timeout'));
+    mockQueryHabitatCache.mockReturnValue({ pharmacy: [place('cached-anchor', 1000)], atm: [place('cached-atm-too-far', 3000)] });
+
+    expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(0);
   });
 });
