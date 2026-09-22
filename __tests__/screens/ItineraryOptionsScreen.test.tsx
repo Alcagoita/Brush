@@ -199,7 +199,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(mockPlanLocalTripAlternative).toHaveBeenCalledWith(
       [{ id: 't1' }], { lat: 38.7, lng: -9.1, accuracy: 10, timestamp: 0 }, 1,
     );
-    expect(mockFindMallOption).toHaveBeenCalledTimes(1);
+    expect(mockFindMallOption).toHaveBeenCalledTimes(2);
   });
 
   it('disables refresh when cached POIs form only one route', async () => {
@@ -236,6 +236,26 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
     expect(screen.queryByTestId('mall-card')).toBeNull();
+  });
+
+  it('renders a qualifying mall when no walking stop resolves', async () => {
+    mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 4, totalDistanceMeters: 0 });
+    mockFindMallOption.mockReturnValue({ placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 });
+
+    render(<ItineraryOptionsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
+    expect(screen.queryByTestId('itinerary-card')).toBeNull();
+  });
+
+  it('keeps a qualifying mall visible when walking resolution fails', async () => {
+    mockResolveTripDestinations.mockRejectedValue(new Error('walking lookup failed'));
+    mockFindMallOption.mockReturnValue({ placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 });
+
+    render(<ItineraryOptionsScreen />);
+
+    await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
+    expect(screen.queryByText('Something went wrong finding the way.')).toBeNull();
   });
 
   // KAN-282 — "no qualifying mall" can mean we simply have no OSM mall data

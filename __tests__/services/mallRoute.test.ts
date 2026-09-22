@@ -31,8 +31,7 @@ jest.mock('../../src/services/maps', () => ({
 import { queryHabitatCache } from '../../src/services/habitatCache';
 import { findMallOption } from '../../src/services/mallRoute';
 import { ROUTE_MAX_RADIUS_M } from '../../src/services/destinationResolver';
-import type { TripStop } from '../../src/services/oneTripForAll';
-import type { MallSnapshot, Task } from '../../src/types';
+import type { MallSnapshot } from '../../src/types';
 
 const mockQueryHabitatCache = queryHabitatCache as jest.Mock;
 
@@ -45,21 +44,6 @@ const SMALL_GALLERY_AREA_M2 = 8_481; // Fonte Nova — a real mall, but too smal
 /** `lat + degrees` at COORDS.lng, i.e. `degrees * 111_000` metres away. */
 function northOf(degrees: number) {
   return { lat: COORDS.lat + degrees, lng: COORDS.lng };
-}
-
-function makeTask(id: string, poi: string): Task {
-  return {
-    id, title: `Task ${id}`, category: 'errands', done: false, date: '2026-07-19',
-    poi: poi as Task['poi'],
-    createdAt: { seconds: 0, nanoseconds: 0 } as unknown as Task['createdAt'],
-  };
-}
-
-function stop(id: string, poi: string): TripStop {
-  return {
-    task: makeTask(id, poi),
-    place: { internalId: `${id}-place`, name: `${poi} place`, lat: COORDS.lat, lng: COORDS.lng, distanceMeters: 50, source: 'cache' },
-  };
 }
 
 /** A cached OSM mall row, as queryHabitatCache would return it. */
@@ -96,22 +80,20 @@ function makeSnapshot(overrides: Partial<MallSnapshot> = {}): MallSnapshot {
   };
 }
 
-const TWO_STOPS = [stop('a', 'pharmacy'), stop('b', 'supermarket')];
-
 beforeEach(() => {
   jest.clearAllMocks();
   mockQueryHabitatCache.mockReturnValue({});
 });
 
-describe('findMallOption — trip preconditions', () => {
-  it('returns null for a trip with fewer than 2 stops', () => {
+describe('findMallOption — independent availability', () => {
+  it('returns a qualifying mall even when no walking stops resolved', () => {
     withCachedMalls([cachedMall({ name: 'Colombo', degreesNorth: 0.002, footprintAreaM2: COLOMBO_AREA_M2 })]);
 
-    expect(findMallOption(COORDS, [stop('a', 'pharmacy')], null)).toBeNull();
+    expect(findMallOption(COORDS, null)).toMatchObject({ name: 'Colombo' });
   });
 
   it('returns null when nothing is cached and there is no snapshot', () => {
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toBeNull();
+    expect(findMallOption(COORDS, null)).toBeNull();
   });
 });
 
@@ -119,25 +101,25 @@ describe('findMallOption — the size gate', () => {
   it('accepts a cached mall whose footprint clears the threshold', () => {
     withCachedMalls([cachedMall({ name: 'Colombo', degreesNorth: 0.002, footprintAreaM2: COLOMBO_AREA_M2 })]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toMatchObject({ name: 'Colombo' });
+    expect(findMallOption(COORDS, null)).toMatchObject({ name: 'Colombo' });
   });
 
   it('rejects a real but too-small mall, however close it is', () => {
     withCachedMalls([cachedMall({ name: 'Fonte Nova', degreesNorth: 0.0005, footprintAreaM2: SMALL_GALLERY_AREA_M2 })]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toBeNull();
+    expect(findMallOption(COORDS, null)).toBeNull();
   });
 
   it('rejects a bare OSM node — no footprint at all (a mistagged store)', () => {
     withCachedMalls([cachedMall({ name: 'Galeria Uruguai', degreesNorth: 0.001, footprintAreaM2: 0 })]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toBeNull();
+    expect(findMallOption(COORDS, null)).toBeNull();
   });
 
   it('rejects a row whose footprint is unknown (cached before the field existed)', () => {
     withCachedMalls([cachedMall({ name: 'Legacy Row', degreesNorth: 0.001, footprintAreaM2: undefined })]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toBeNull();
+    expect(findMallOption(COORDS, null)).toBeNull();
   });
 });
 
@@ -148,7 +130,7 @@ describe('findMallOption — choosing between candidates', () => {
       cachedMall({ name: 'Near Big Mall', degreesNorth: 0.004, footprintAreaM2: 40_000 }),
     ]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toMatchObject({ name: 'Near Big Mall' });
+    expect(findMallOption(COORDS, null)).toMatchObject({ name: 'Near Big Mall' });
   });
 
   it('does not let a much closer small mall beat a farther big one — it is excluded, not ranked', () => {
@@ -157,7 +139,7 @@ describe('findMallOption — choosing between candidates', () => {
       cachedMall({ name: 'Colombo', degreesNorth: 0.02, footprintAreaM2: COLOMBO_AREA_M2 }),
     ]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toMatchObject({ name: 'Colombo' });
+    expect(findMallOption(COORDS, null)).toMatchObject({ name: 'Colombo' });
   });
 
   it('ignores cached malls beyond ROUTE_MAX_RADIUS_M', () => {
@@ -165,7 +147,7 @@ describe('findMallOption — choosing between candidates', () => {
     // never reaches mallRoute in the first place.
     withCachedMalls([]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toBeNull();
+    expect(findMallOption(COORDS, null)).toBeNull();
     expect(mockQueryHabitatCache).toHaveBeenCalledWith(
       COORDS.lat, COORDS.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M,
     );
@@ -183,7 +165,7 @@ describe('findMallOption — duplicate merging', () => {
       cachedMall({ name: 'Centro Comercial Colombo', degreesNorth: 0.0021, footprintAreaM2: COLOMBO_AREA_M2, placeId: 'way-row' }),
     ]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toMatchObject({ placeId: 'node-row', name: 'Colombo' });
+    expect(findMallOption(COORDS, null)).toMatchObject({ placeId: 'node-row', name: 'Colombo' });
   });
 
   it('does not merge two genuinely different malls that happen to be neighbours', () => {
@@ -194,27 +176,27 @@ describe('findMallOption — duplicate merging', () => {
       cachedMall({ name: 'Amoreiras', degreesNorth: 0.0021, footprintAreaM2: COLOMBO_AREA_M2 }),
     ]);
 
-    expect(findMallOption(COORDS, TWO_STOPS, null)).toMatchObject({ name: 'Amoreiras' });
+    expect(findMallOption(COORDS, null)).toMatchObject({ name: 'Amoreiras' });
   });
 });
 
 describe('findMallOption — the user\'s own mall snapshot', () => {
   it('is exempt from the size gate — the user already vouched for it', () => {
     // No footprint data at all, and nothing else cached: it still wins.
-    expect(findMallOption(COORDS, TWO_STOPS, makeSnapshot())).toMatchObject({ name: 'Snapshot Mall' });
+    expect(findMallOption(COORDS, makeSnapshot())).toMatchObject({ name: 'Snapshot Mall' });
   });
 
   it('is ignored when it sits beyond ROUTE_MAX_RADIUS_M', () => {
     const farAway = northOf(0.06); // ~6.6 km
     const snapshot = makeSnapshot({ centerLat: farAway.lat, centerLng: farAway.lng });
 
-    expect(findMallOption(COORDS, TWO_STOPS, snapshot)).toBeNull();
+    expect(findMallOption(COORDS, snapshot)).toBeNull();
   });
 
   it('still loses to a closer qualifying mall — exemption is not preference', () => {
     withCachedMalls([cachedMall({ name: 'Colombo', degreesNorth: 0.001, footprintAreaM2: COLOMBO_AREA_M2 })]);
 
     // Snapshot is ~333 m out; Colombo is ~111 m.
-    expect(findMallOption(COORDS, TWO_STOPS, makeSnapshot())).toMatchObject({ name: 'Colombo' });
+    expect(findMallOption(COORDS, makeSnapshot())).toMatchObject({ name: 'Colombo' });
   });
 });

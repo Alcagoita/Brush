@@ -45,7 +45,6 @@ import { getDistanceMeters } from './maps';
 import { queryHabitatCache } from './habitatCache';
 import { ROUTE_MAX_RADIUS_M } from './destinationResolver';
 import type { MallSnapshot } from '../types';
-import type { TripStop } from './oneTripForAll';
 
 /** Minimum OSM building-footprint area (m²) for a cached mall to qualify as
  *  a destination worth the trip — calibrated against a real Lisbon sample
@@ -169,17 +168,15 @@ function collectCandidates(
 /**
  * The closest qualifying mall within range, or null if none qualifies.
  * Qualifying = the user's own snapshot, or a cached OSM mall whose footprint
- * clears MALL_MIN_FOOTPRINT_M2 (see header). Requires the trip to have >= 2
- * tasks. No network, no per-candidate work — pure reads over data already
- * on hand.
+ * clears MALL_MIN_FOOTPRINT_M2 (see header). It is independent from walking
+ * route resolution, so a mall remains a useful option when no walking POI
+ * can be resolved. No network, no per-candidate work — pure reads over data
+ * already on hand.
  */
 export function findMallOption(
   coords: { lat: number; lng: number },
-  stops: TripStop[],
   mallSnapshot: MallSnapshot | null,
 ): MallOption | null {
-  if (stops.length < 2) { return null; }
-
   const qualifying = collectCandidates(coords, mallSnapshot).filter(qualifies);
   if (qualifying.length === 0) { return null; }
 

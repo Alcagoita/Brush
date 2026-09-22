@@ -72,7 +72,9 @@ export default function ItineraryOptionsScreen() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
 
-  const [loading, setLoading] = useState(true);
+  const [positionLoading, setPositionLoading] = useState(true);
+  const [walkingLoading, setWalkingLoading] = useState(true);
+  const [mallLoading, setMallLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [plan, setPlan] = useState<TripPlan | null>(null);
   const [mallOption, setMallOption] = useState<MallOption | null>(null);
@@ -84,60 +86,78 @@ export default function ItineraryOptionsScreen() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    setPositionLoading(true);
+    setWalkingLoading(true);
+    setMallLoading(true);
     setLoadError(false);
+    setPlan(null);
+    setMallOption(null);
+    setOrigin(null);
     (async () => {
       const uid = getAuth().currentUser?.uid;
-      if (!uid) { if (!cancelled) { setLoadError(true); setLoading(false); } return; }
+      if (!uid) {
+        if (!cancelled) {
+          setLoadError(true);
+          setPositionLoading(false);
+          setWalkingLoading(false);
+          setMallLoading(false);
+        }
+        return;
+      }
 
       try {
-        const { coords, tasks, tripPlan, mall } = await withLoadTimeout((async () => {
-          // A user-requested trip deserves the freshest position we can get —
-          // the last proximity-engine fix (getLastSearchCoords) is only a
-          // fallback if a fresh read fails (permission hiccup, GPS cold start).
-          let coords: { lat: number; lng: number };
-          try {
-            coords = await getPositionLowAccuracy();
-          } catch {
+        // A user-requested trip deserves the freshest position we can get —
+        // the last proximity-engine fix (getLastSearchCoords) is only a
+        // fallback if a fresh read fails (permission hiccup, GPS cold start).
+        const coords = await withLoadTimeout((async () => {
+          try { return await getPositionLowAccuracy(); }
+          catch {
             const cached = getLastSearchCoords();
             if (!cached) { throw new Error('no position available'); }
-            coords = cached;
+            return cached;
           }
+        })());
+        if (cancelled) { return; }
+        setOrigin(coords);
+        setPositionLoading(false);
 
+        // A qualifying cached mall is immediately useful on its own, so do
+        // not make it wait on either the route or the Firestore snapshot.
+        const cachedMall = findMallOption(coords, null);
+        setMallOption(cachedMall);
+        if (!cachedMall) { refreshMallsIfDue(coords.lat, coords.lng).catch(() => {}); }
+
+        void withLoadTimeout((async () => {
           const { tasks } = await ensureCurrentDay(uid);
           const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
           const tripPlan = planTrip(coords, resolved, excludedCount);
-          // KAN-282 — opportunistic only: reads the user's mall snapshot and the
-          // offline habitat cache, never a search of its own. Failure to fetch
-          // the snapshot just means the snapshot tier is skipped.
-          const snapshot = await getMallSnapshot(uid).catch(() => null);
-          return { coords, tasks, tripPlan, mall: findMallOption(coords, tripPlan.stops, snapshot) };
-        })());
-        if (!cancelled) {
+          return { tasks, tripPlan };
+        })()).then(({ tasks, tripPlan }) => {
+          if (cancelled) { return; }
           setPlan(tripPlan);
-          setMallOption(mall);
-          setOrigin(coords);
           setTasksForRefresh(tasks);
           setLocalAlternativeCount(getLocalTripAlternativeCount(tasks, coords));
           setLocalAlternativeIndex(0);
-        }
+        }).catch(() => {
+          if (!cancelled) { setLoadError(true); }
+        }).finally(() => {
+          if (!cancelled) { setWalkingLoading(false); }
+        });
 
-        // KAN-282 — no qualifying mall can mean "none nearby" (fine, normal)
-        // or "we have never swept this area for malls". Kick off a
-        // fire-and-forget sweep so the next visit has the data, rather than
-        // waiting on proximity's 200m-movement gate. Same background-cache
-        // pattern proximity.ts already uses (Overpass, free — not a Places
-        // call). refreshMallsIfDue carries its own cooldown, so this can't
-        // fire on every screen open; it deliberately does NOT go through the
-        // plain staleness check, which one cached small gallery would satisfy
-        // for the whole area (see refreshMallsIfDue).
-        if (!mall) {
-          refreshMallsIfDue(coords.lat, coords.lng).catch(() => {});
-        }
+        // A user-pinned snapshot can supply an additional qualifying mall,
+        // but it must never delay the already available cached option.
+        void withLoadTimeout(getMallSnapshot(uid)).then(snapshot => {
+          if (!cancelled) { setMallOption(findMallOption(coords, snapshot)); }
+        }).catch(() => {}).finally(() => {
+          if (!cancelled) { setMallLoading(false); }
+        });
       } catch {
-        if (!cancelled) { setLoadError(true); }
-      } finally {
-        if (!cancelled) { setLoading(false); }
+        if (!cancelled) {
+          setLoadError(true);
+          setPositionLoading(false);
+          setWalkingLoading(false);
+          setMallLoading(false);
+        }
       }
     })();
     return () => { cancelled = true; };
@@ -182,6 +202,9 @@ export default function ItineraryOptionsScreen() {
   };
 
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
+  const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
+  const hasContent = hasWalkingPlan || mallOption !== null;
+  const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -211,7 +234,7 @@ export default function ItineraryOptionsScreen() {
           <LoadingDots color={palette.accent} />
           <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
         </View>
-      ) : loadError ? (
+      ) : !hasContent && loadError ? (
         <View style={styles.loadingWrap}>
           <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
           <Pressable
@@ -221,13 +244,13 @@ export default function ItineraryOptionsScreen() {
             <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.itineraryOptionsScreen.retryLabel}</Text>
           </Pressable>
         </View>
-      ) : !plan || plan.stops.length === 0 ? (
+      ) : !hasContent ? (
         <View style={styles.loadingWrap}>
           <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.emptyStateBody}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-          <Pressable
+          {hasWalkingPlan && <Pressable
             testID="itinerary-card"
             onPress={openCard}
             style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.line }]}
@@ -236,11 +259,11 @@ export default function ItineraryOptionsScreen() {
             <View style={styles.cardHeader}>
               <Text style={[styles.cardTitle, { color: palette.text }]}>{COPY.itineraryOptionsScreen.cardLabel}</Text>
               <Text style={[styles.cardStopsCount, { color: palette.muted }]}>
-                {COPY.itineraryOptionsScreen.stopsCount(plan.stops.length)}
+                {COPY.itineraryOptionsScreen.stopsCount(plan?.stops.length ?? 0)}
               </Text>
             </View>
 
-            {plan.stops.map((stop, i) => (
+            {plan?.stops.map((stop, i) => (
               <View key={stop.task.id} style={styles.stopRow}>
                 <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
                   <PoiIcon type={stop.task.poi ?? ''} color={palette.muted} size={20} />
@@ -255,12 +278,12 @@ export default function ItineraryOptionsScreen() {
               {COPY.itineraryOptionsScreen.totalDistance(totalKm)}
             </Text>
 
-            {plan.excludedCount > 0 && (
+            {(plan?.excludedCount ?? 0) > 0 && (
               <Text style={[styles.exclusionLine, { color: palette.faint }]}>
-                {COPY.itineraryOptionsScreen.exclusionLine(plan.excludedCount)}
+                {COPY.itineraryOptionsScreen.exclusionLine(plan?.excludedCount ?? 0)}
               </Text>
             )}
-          </Pressable>
+          </Pressable>}
 
           {/* KAN-282 — mall card, only when a qualifying destination mall is
               in range. Always below the stop-by-stop card: tinted AND first
