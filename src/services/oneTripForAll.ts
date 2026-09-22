@@ -32,6 +32,7 @@ import { getLearnedPlaceCounts } from './firestore';
 import { queryHabitatCache } from './habitatCache';
 import { computeLearnedPlaces } from './learnedPlaces';
 import { filterRoutePlacesForTask, resolveTaskDestination, ROUTE_MAX_RADIUS_M, type ResolvedPlace } from './destinationResolver';
+import { buildNearbySearchRequests } from './nearbySearchRequests';
 import type { PlacesMap } from './proximity';
 import type { Task } from '../types';
 
@@ -39,6 +40,8 @@ import type { Task } from '../types';
 export const MAX_WAYPOINTS = 9;
 /** Bounds local route enumeration so a large cache cannot stall refresh. */
 export const MAX_LOCAL_ALTERNATIVES = 100;
+/** Maximum distance between the chosen far-away anchor and the companion stops. */
+export const ROUTE_CLUSTER_RADIUS_M = 200;
 /** Keeps local combination search responsive while still considering a useful local neighbourhood. */
 const MAX_CANDIDATES_PER_REQUIREMENT = 5;
 const MAX_ROUTE_EVALUATIONS = 10_000;
@@ -55,6 +58,45 @@ export interface TripPlan {
   excludedCount: number;
   /** Sum of straight-line legs (origin -> stop1 -> stop2 -> ... -> last), meters. */
   totalDistanceMeters: number;
+}
+
+/**
+ * Finds one compact itinerary around an arbitrary far-away task. A single
+ * type-aware lookup supplies all candidates; companions must sit within the
+ * cluster radius of the selected anchor and at least 80% of tasks must fit.
+ */
+export async function planTripAroundFarTask(
+  tasks: Task[],
+  origin: { lat: number; lng: number },
+  farTaskIds: readonly string[],
+): Promise<TripPlan> {
+  const eligible = tasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi);
+  const anchorTask = eligible.find(task => farTaskIds.includes(task.id));
+  if (!anchorTask || eligible.length === 0) { return { stops: [], excludedCount: eligible.length, totalDistanceMeters: 0 }; }
+
+  const types = [...new Set(eligible.map(task => task.poi as string))];
+  const { results } = await searchNearbyPlaces(
+    origin.lat, origin.lng, types, ROUTE_MAX_RADIUS_M, buildNearbySearchRequests(eligible),
+  );
+  const anchor = filterRoutePlacesForTask(anchorTask, results[anchorTask.poi as string] ?? [])
+    .find(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M);
+  if (!anchor) { return { stops: [], excludedCount: eligible.length, totalDistanceMeters: 0 }; }
+
+  const resolved: TripStop[] = [];
+  for (const task of eligible) {
+    const candidates = task.id === anchorTask.id
+      ? [anchor]
+      : filterRoutePlacesForTask(task, results[task.poi as string] ?? [])
+        .filter(place => getDistanceMeters(anchor.lat, anchor.lng, place.lat, place.lng) <= ROUTE_CLUSTER_RADIUS_M);
+    const place = candidates[0];
+    if (!place) { continue; }
+    resolved.push({ task, place: { internalId: place.placeId, name: place.name, lat: place.lat, lng: place.lng, distanceMeters: place.distanceMeters, source: 'cache' } });
+  }
+
+  if (resolved.length < Math.ceil(eligible.length * 0.8)) {
+    return { stops: [], excludedCount: eligible.length, totalDistanceMeters: 0 };
+  }
+  return planTrip(origin, resolved, eligible.length - resolved.length);
 }
 
 /**

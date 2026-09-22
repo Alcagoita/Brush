@@ -28,7 +28,7 @@ import { openMultiStopDirections, formatDistance } from '../services/maps';
 import {
   getLocalTripAlternativeCount,
   planLocalTripAlternative,
-  planBestLocalTrip,
+  planTripAroundFarTask,
   type TripPlan,
 } from '../services/oneTripForAll';
 import { findMallOption, type MallOption } from '../services/mallRoute';
@@ -88,12 +88,16 @@ export default function ItineraryOptionsScreen() {
         .catch(() => {});
     }
 
-    const tripPlan = planBestLocalTrip(params.tasks, coords);
-    setPlan(tripPlan);
     setTasksForRefresh(params.tasks);
-    setLocalAlternativeCount(getLocalTripAlternativeCount(params.tasks, coords));
-    setLocalAlternativeIndex(0);
-    setWalkingLoading(false);
+    void planTripAroundFarTask(params.tasks, coords, params.farTaskIds)
+      .then(tripPlan => {
+        if (cancelled) { return; }
+        setPlan(tripPlan);
+        setLocalAlternativeCount(getLocalTripAlternativeCount(params.tasks, coords));
+        setLocalAlternativeIndex(0);
+      })
+      .catch(() => { if (!cancelled) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
+      .finally(() => { if (!cancelled) { setWalkingLoading(false); } });
     setMallLoading(false);
     return () => { cancelled = true; };
   }, [params]);

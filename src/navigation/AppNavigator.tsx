@@ -95,7 +95,7 @@ export type RootStackParamList = {
   WhereWeveBeen: { highlightTripId?: string } | undefined;
   /** "One trip for all of these" — resolves + orders open POI tasks into a
    *  multi-stop route into a single suggestion card (KAN-281). */
-  ItineraryOptions: { tasks: Task[]; origin: { lat: number; lng: number } };
+  ItineraryOptions: { tasks: Task[]; origin: { lat: number; lng: number }; farTaskIds: string[] };
   /** Per-task resolver opened from a multi-task dated-task notification. */
   EndOfDayHandoff: { uid: string; date: string; taskIds: string[] };
 };

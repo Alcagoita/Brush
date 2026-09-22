@@ -15,7 +15,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react-
 import ItineraryOptionsScreen from '../../src/screens/ItineraryOptionsScreen';
 
 const mockGoBack = jest.fn();
-const mockRouteParams = { tasks: [], origin: { lat: 38.7, lng: -9.1 } };
+const mockRouteParams = { tasks: [], origin: { lat: 38.7, lng: -9.1 }, farTaskIds: [] };
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ goBack: mockGoBack }),
   useRoute: () => ({ params: mockRouteParams }),
@@ -76,6 +76,7 @@ jest.mock('../../src/services/oneTripForAll', () => ({
   getLocalTripAlternativeCount: (...args: unknown[]) => mockGetLocalTripAlternativeCount(...args),
   planLocalTripAlternative: (...args: unknown[]) => mockPlanLocalTripAlternative(...args),
   planBestLocalTrip: (...args: unknown[]) => mockPlanTrip(...args),
+  planTripAroundFarTask: (...args: unknown[]) => Promise.resolve(mockPlanTrip(...args)),
   resolveTripDestinations: (...args: unknown[]) => mockResolveTripDestinations(...args),
   planTrip: (...args: unknown[]) => mockPlanTrip(...args),
 }));
@@ -121,9 +122,9 @@ beforeEach(() => {
 });
 
 describe('ItineraryOptionsScreen — loading', () => {
-  it('resolves from the handed-off local data without a loading wait', () => {
+  it('shows loading while the single anchored candidate lookup is in progress', () => {
     render(<ItineraryOptionsScreen />);
-    expect(screen.getByText("Couldn't find places for any of these right now.")).toBeTruthy();
+    expect(screen.getByText('Finding the way…')).toBeTruthy();
   });
 
   it('calls navigation.goBack when the back button is pressed', () => {

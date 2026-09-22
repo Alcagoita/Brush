@@ -323,6 +323,7 @@ export default function TodayScreen() {
             navigation.navigate('ItineraryOptions', {
               tasks: sortedTasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi),
               origin: { lat: coords.lat, lng: coords.lng },
+              farTaskIds: sortedTasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi && !taskHasNearbyPlace(task, poiPlaces)).map(task => task.id),
             });
           }}
           accessibilityRole="button"
@@ -336,7 +337,7 @@ export default function TodayScreen() {
       )}
       <View style={styles.bottomPad} />
     </>
-  ), [oneTripVisible, navigation, palette, coords, sortedTasks]);
+  ), [oneTripVisible, navigation, palette, coords, sortedTasks, poiPlaces]);
 
   const listEmpty = isBusy ? (
     <View style={styles.rowPad}>
