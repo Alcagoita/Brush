@@ -31,7 +31,7 @@ import {
   planTripAroundFarTask,
   type TripPlan,
 } from '../services/oneTripForAll';
-import { findMallOption, type MallOption } from '../services/mallRoute';
+import { findMallOptions, type MallOption } from '../services/mallRoute';
 import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
 import type { Task } from '../types';
@@ -61,7 +61,8 @@ export default function ItineraryOptionsScreen() {
   const [walkingLoading, setWalkingLoading] = useState(true);
   const [mallLoading, setMallLoading] = useState(true);
   const [plan, setPlan] = useState<TripPlan | null>(null);
-  const [mallOption, setMallOption] = useState<MallOption | null>(null);
+  const [mallOptions, setMallOptions] = useState<MallOption[]>([]);
+  const [mallIndex, setMallIndex] = useState(0);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
   const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
   const [localAlternativeCount, setLocalAlternativeCount] = useState(0);
@@ -70,6 +71,11 @@ export default function ItineraryOptionsScreen() {
   const refreshRotation = useRef(new Animated.Value(0)).current;
   const requestId = useRef(0);
   const mallSweep = useRef<Promise<void> | null>(null);
+  const mallSignature = mallOptions.map(mall => mall.placeId).join(',');
+
+  // Match Nearby: a new result set starts at its nearest place; rereading
+  // the same set must not undo a user's manual choice.
+  useEffect(() => { setMallIndex(0); }, [mallSignature]);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,20 +85,24 @@ export default function ItineraryOptionsScreen() {
     setWalkingLoading(true);
     setMallLoading(true);
     setPlan(null);
-    setMallOption(null);
+    setMallOptions([]);
+    setMallIndex(0);
     setOrigin(null);
     const coords = params.origin;
     setOrigin(coords);
     setPositionLoading(false);
 
-    const cachedMall = findMallOption(coords, null);
-    setMallOption(cachedMall);
+    setMallOptions(findMallOptions(coords, null));
     const sweep = refreshMallsIfDue(coords.lat, coords.lng);
     mallSweep.current = sweep;
     const clearSweep = () => { if (mallSweep.current === sweep) { mallSweep.current = null; } };
     sweep.then(clearSweep, clearSweep);
     sweep
-      .then(() => { if (!cancelled && requestId.current === currentRequest) { setMallOption(findMallOption(coords, null)); } })
+      .then(() => {
+        if (!cancelled && requestId.current === currentRequest) {
+          setMallOptions(findMallOptions(coords, null));
+        }
+      })
       .catch(() => {});
 
     setTasksForRefresh(params.tasks);
@@ -125,6 +135,11 @@ export default function ItineraryOptionsScreen() {
     });
   };
 
+  /** Cycle the already-known malls exactly like Nearby's place switcher. */
+  const tryAnotherMall = () => {
+    setMallIndex(index => (index + 1) % mallOptions.length);
+  };
+
   /** Retry both suggestions; use the local walking cycle when it has another venue set. */
   const refreshRoute = async () => {
     if (!origin || refreshing || (plan?.stops.length && localAlternativeCount <= 1)) { return; }
@@ -133,7 +148,8 @@ export default function ItineraryOptionsScreen() {
     setWalkingLoading(true);
     setMallLoading(true);
     setPlan(null);
-    setMallOption(null);
+    setMallOptions([]);
+    setMallIndex(0);
 
     refreshRotation.setValue(0);
     Animated.timing(refreshRotation, {
@@ -174,7 +190,12 @@ export default function ItineraryOptionsScreen() {
     })();
     const mallSearch = (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng))
       .catch(() => {})
-      .then(() => { if (requestId.current === currentRequest) { setMallOption(findMallOption(origin, null)); } })
+      .then(() => {
+        if (requestId.current === currentRequest) {
+          setMallOptions(findMallOptions(origin, null));
+          setMallIndex(0);
+        }
+      })
       .finally(() => { if (requestId.current === currentRequest) { setMallLoading(false); } });
 
     // A stalled provider must never trap the screen in its loading state.
@@ -193,6 +214,7 @@ export default function ItineraryOptionsScreen() {
   };
 
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
+  const mallOption = mallOptions[mallIndex] ?? null;
   const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
   const hasContent = hasWalkingPlan || mallOption !== null;
   const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
@@ -282,31 +304,48 @@ export default function ItineraryOptionsScreen() {
               in range. Always below the stop-by-stop card: tinted AND first
               would read as "recommended", which the doctrine bans. */}
           {mallOption && (
-            <Pressable
-              testID="mall-card"
-              onPress={openMallCard}
-              style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name)}
-              accessibilityHint={COPY.itineraryOptionsScreen.mallOpenInMapsA11y}>
-              <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
-                <ShoppingBagIcon color={palette.accent} size={22} />
-              </View>
-              <View style={styles.mallTextWrap}>
-                {/* nearText is designed to pair with nearTint/nearBorder in
-                    both palettes (see ContextChip) — no runtime contrast
-                    check needed, the token pairing already guarantees it. */}
-                <Text style={[styles.mallTitle, { color: palette.nearText }]}>
-                  {COPY.itineraryOptionsScreen.mallCardTitle}
-                </Text>
-                <Text style={[styles.mallSubtitle, { color: palette.muted }]} numberOfLines={1}>
-                  {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name)}
-                </Text>
-                <Text style={[styles.mallDistance, { color: palette.muted }]}>
-                  {COPY.itineraryOptionsScreen.mallCardDistance(formatDistance(mallOption.distanceMeters))}
-                </Text>
-              </View>
-            </Pressable>
+            <View style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}>
+              <Pressable
+                testID="mall-card"
+                onPress={openMallCard}
+                style={styles.mallRow}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name)}
+                accessibilityHint={COPY.itineraryOptionsScreen.mallOpenInMapsA11y}>
+                <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
+                  <ShoppingBagIcon color={palette.accent} size={22} />
+                </View>
+                <View style={styles.mallTextWrap}>
+                  {/* nearText is designed to pair with nearTint/nearBorder in
+                      both palettes (see ContextChip) — no runtime contrast
+                      check needed, the token pairing already guarantees it. */}
+                  <Text style={[styles.mallTitle, { color: palette.nearText }]}>
+                    {COPY.itineraryOptionsScreen.mallCardTitle}
+                  </Text>
+                  <Text style={[styles.mallSubtitle, { color: palette.muted }]} numberOfLines={1}>
+                    {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name)}
+                  </Text>
+                  <Text style={[styles.mallDistance, { color: palette.muted }]}>
+                    {COPY.itineraryOptionsScreen.mallCardDistance(formatDistance(mallOption.distanceMeters))}
+                  </Text>
+                </View>
+              </Pressable>
+              {mallOptions.length > 1 && (
+                <Pressable
+                  testID="mall-try-another-button"
+                  style={({ pressed }) => [
+                    styles.mallTryAnotherBtn,
+                    { borderColor: palette.nearBorder, opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  onPress={tryAnotherMall}
+                  accessibilityRole="button"
+                  accessibilityLabel={COPY.nearbyCard.tryAnotherPlaceA11y}>
+                  <Text style={[styles.mallTryAnotherLabel, { color: palette.nearText }]}>
+                    {COPY.nearbyCard.tryAnotherPlace}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           )}
         </ScrollView>
       )}
@@ -363,13 +402,11 @@ const styles = StyleSheet.create({
 
   // ── Mall card (KAN-282) ──
   mallCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     borderRadius: radii.card,
     borderWidth: 1,
     padding: 16,
   },
+  mallRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   mallIconTile: {
     width: 46, height: 46, borderRadius: radii.heroIcon,
     alignItems: 'center', justifyContent: 'center',
@@ -378,6 +415,14 @@ const styles = StyleSheet.create({
   mallTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
   mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular' },
   mallDistance: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
+  mallTryAnotherBtn: {
+    marginTop: 8,
+    borderRadius: radii.ctaBtn,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  mallTryAnotherLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
 
   // ── TEMPORARY debug list (KAN-282) — remove once detection bug is fixed ──
 });

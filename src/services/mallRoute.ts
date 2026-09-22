@@ -36,7 +36,7 @@
  * The user's own mall snapshot (KAN-237 — a mall they explicitly downloaded)
  * is exempt from the size gate: they already vouched for it.
  *
- * Among qualifying candidates, the closest wins. Copy built from a
+ * Qualifying candidates are sorted nearest first. Copy built from a
  * MallOption states only name + distance — never a store count (unknowable)
  * or "biggest"/"largest" (not claimed).
  */
@@ -147,7 +147,9 @@ function collectCandidates(
     }
   }
 
-  const cachedMalls = queryHabitatCache(coords.lat, coords.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M).shopping_mall ?? [];
+  const cachedMalls = queryHabitatCache(
+    coords.lat, coords.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
+  ).shopping_mall ?? [];
   candidates.push(...cachedMalls.map(c => ({
     placeId: c.placeId, name: c.name, lat: c.lat, lng: c.lng,
     distanceMeters: c.distanceMeters, footprintAreaM2: c.footprintAreaM2, userPinned: false,
@@ -166,20 +168,27 @@ function collectCandidates(
 }
 
 /**
- * The closest qualifying mall within range, or null if none qualifies.
+ * Every distinct qualifying mall within range, nearest first.
  * Qualifying = the user's own snapshot, or a cached OSM mall whose footprint
  * clears MALL_MIN_FOOTPRINT_M2 (see header). It is independent from walking
  * route resolution, so a mall remains a useful option when no walking POI
- * can be resolved. No network, no per-candidate work — pure reads over data
- * already on hand.
+ * can be resolved. This is a local read only; the UI can cycle these options
+ * without recalculating or searching again.
  */
+export function findMallOptions(
+  coords: { lat: number; lng: number },
+  mallSnapshot: MallSnapshot | null,
+): MallOption[] {
+  return collectCandidates(coords, mallSnapshot)
+    .filter(qualifies)
+    .sort((a, b) => a.distanceMeters - b.distanceMeters)
+    .map(({ placeId, name, lat, lng, distanceMeters }) => ({ placeId, name, lat, lng, distanceMeters }));
+}
+
+/** The nearest qualifying mall, retained for callers that need one result. */
 export function findMallOption(
   coords: { lat: number; lng: number },
   mallSnapshot: MallSnapshot | null,
 ): MallOption | null {
-  const qualifying = collectCandidates(coords, mallSnapshot).filter(qualifies);
-  if (qualifying.length === 0) { return null; }
-
-  const nearest = qualifying.reduce((a, b) => a.distanceMeters < b.distanceMeters ? a : b);
-  return { placeId: nearest.placeId, name: nearest.name, lat: nearest.lat, lng: nearest.lng, distanceMeters: nearest.distanceMeters };
+  return findMallOptions(coords, mallSnapshot)[0] ?? null;
 }

@@ -89,8 +89,13 @@ jest.mock('../../src/services/mallSnapshots', () => ({
 }));
 
 const mockFindMallOption = jest.fn().mockReturnValue(null);
+const mockFindMallOptions = jest.fn((...args: unknown[]) => {
+  const option = mockFindMallOption(...args);
+  return option ? [option] : [];
+});
 jest.mock('../../src/services/mallRoute', () => ({
   findMallOption: (...args: unknown[]) => mockFindMallOption(...args),
+  findMallOptions: (...args: unknown[]) => mockFindMallOptions(...args),
 }));
 
 // KAN-282 — the screen kicks off a fire-and-forget mall sweep when no mall
@@ -119,6 +124,10 @@ beforeEach(() => {
   mockGetLocalTripAlternativeCount.mockReturnValue(0);
   mockGetMallSnapshot.mockResolvedValue(null);
   mockFindMallOption.mockReturnValue(null);
+  mockFindMallOptions.mockImplementation((...args: unknown[]) => {
+    const option = mockFindMallOption(...args);
+    return option ? [option] : [];
+  });
 });
 
 describe('ItineraryOptionsScreen — loading', () => {
@@ -367,6 +376,44 @@ describe('ItineraryOptionsScreen — mall card (KAN-282)', () => {
     expect(screen.getByText('All in one place')).toBeTruthy();
     expect(screen.getByText('Centro Colombo')).toBeTruthy();
     expect(screen.getByText('900 m away')).toBeTruthy();
+    expect(screen.queryByText('Try another place')).toBeNull();
+  });
+
+  it('cycles known malls from a card button without searching again or opening Maps', async () => {
+    const secondMall = { ...mallOption, placeId: 'mall-2', name: 'Strada Outlet', distanceMeters: 1200 };
+    mockFindMallOptions.mockReturnValue([mallOption, secondMall]);
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText('Centro Colombo')).toBeTruthy());
+    const searchesBeforePress = mockRefreshMallsIfDue.mock.calls.length;
+    const mallReadsBeforePress = mockFindMallOptions.mock.calls.length;
+
+    fireEvent.press(screen.getByTestId('mall-try-another-button'));
+    expect(screen.getByText('Strada Outlet')).toBeTruthy();
+    expect(screen.getByText('1.2 km away')).toBeTruthy();
+    expect(mockRefreshMallsIfDue).toHaveBeenCalledTimes(searchesBeforePress);
+    expect(mockFindMallOptions).toHaveBeenCalledTimes(mallReadsBeforePress);
+    expect(mockOpenMultiStopDirections).not.toHaveBeenCalled();
+
+    fireEvent.press(screen.getByTestId('mall-card'));
+    expect(mockOpenMultiStopDirections).toHaveBeenCalledWith(
+      { lat: 38.7, lng: -9.1 }, [secondMall],
+    );
+
+    fireEvent.press(screen.getByTestId('mall-try-another-button'));
+    expect(screen.getByText('Centro Colombo')).toBeTruthy();
+  });
+
+  it('keeps the selected mall when a background sweep returns the same candidates', async () => {
+    const secondMall = { ...mallOption, placeId: 'mall-2', name: 'Strada Outlet', distanceMeters: 1200 };
+    let finishSweep: () => void = () => {};
+    mockFindMallOptions.mockReturnValue([mallOption, secondMall]);
+    mockRefreshMallsIfDue.mockImplementationOnce(() => new Promise<void>(resolve => { finishSweep = resolve; }));
+
+    render(<ItineraryOptionsScreen />);
+    fireEvent.press(screen.getByTestId('mall-try-another-button'));
+    expect(screen.getByText('Strada Outlet')).toBeTruthy();
+    await act(async () => { finishSweep(); });
+    expect(screen.getByText('Strada Outlet')).toBeTruthy();
   });
 
   it('refreshes mall candidates even when one is already cached', async () => {

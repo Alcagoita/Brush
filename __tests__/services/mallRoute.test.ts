@@ -29,7 +29,7 @@ jest.mock('../../src/services/maps', () => ({
 }));
 
 import { queryHabitatCache } from '../../src/services/habitatCache';
-import { findMallOption } from '../../src/services/mallRoute';
+import { findMallOption, findMallOptions } from '../../src/services/mallRoute';
 import { ROUTE_MAX_RADIUS_M } from '../../src/services/destinationResolver';
 import type { MallSnapshot } from '../../src/types';
 
@@ -124,6 +124,20 @@ describe('findMallOption — the size gate', () => {
 });
 
 describe('findMallOption — choosing between candidates', () => {
+  it('returns every distinct qualifying mall in nearest-first order without the cache result cap', () => {
+    withCachedMalls([
+      cachedMall({ name: 'Far Big Mall', degreesNorth: 0.03, footprintAreaM2: COLOMBO_AREA_M2 }),
+      cachedMall({ name: 'Tiny Gallery', degreesNorth: 0.001, footprintAreaM2: SMALL_GALLERY_AREA_M2 }),
+      cachedMall({ name: 'Near Big Mall', degreesNorth: 0.004, footprintAreaM2: 40_000 }),
+      cachedMall({ name: 'Centro Comercial Near Big Mall', degreesNorth: 0.0041, footprintAreaM2: 40_000 }),
+    ]);
+
+    expect(findMallOptions(COORDS, null).map(mall => mall.name)).toEqual(['Near Big Mall', 'Far Big Mall']);
+    expect(mockQueryHabitatCache).toHaveBeenCalledWith(
+      COORDS.lat, COORDS.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
+    );
+  });
+
   it('picks the nearest among several qualifying malls', () => {
     withCachedMalls([
       cachedMall({ name: 'Far Big Mall', degreesNorth: 0.03, footprintAreaM2: COLOMBO_AREA_M2 }),
@@ -149,7 +163,7 @@ describe('findMallOption — choosing between candidates', () => {
 
     expect(findMallOption(COORDS, null)).toBeNull();
     expect(mockQueryHabitatCache).toHaveBeenCalledWith(
-      COORDS.lat, COORDS.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M,
+      COORDS.lat, COORDS.lng, ['shopping_mall'], ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
     );
   });
 });
