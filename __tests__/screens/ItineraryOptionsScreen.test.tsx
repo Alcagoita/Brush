@@ -318,6 +318,22 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(screen.getByText('Centro Colombo')).toBeTruthy();
   });
 
+  it('advances the far-anchor attempt after each failed walking search', async () => {
+    mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 4, totalDistanceMeters: 0 });
+    render(<ItineraryOptionsScreen />);
+
+    await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(1));
+    expect(mockPlanTrip.mock.calls[0][3]).toBeUndefined();
+
+    await act(async () => { fireEvent.press(screen.getByTestId('refresh-itinerary-button')); });
+    await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(2));
+    expect(mockPlanTrip.mock.calls[1][3]).toBe(1);
+
+    await act(async () => { fireEvent.press(screen.getByTestId('refresh-itinerary-button')); });
+    await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(3));
+    expect(mockPlanTrip.mock.calls[2][3]).toBe(2);
+  });
+
   it('waits for an in-flight mall sweep only when no mall is known', async () => {
     const mall = { placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 };
     let finishSweep: () => void = () => {};

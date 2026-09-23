@@ -51,6 +51,7 @@ function hasNewStop(current: TripPlan, candidate: TripPlan): boolean {
   return candidate.stops.some(stop => !currentPlaceIds.has(stop.place.internalId));
 }
 
+/** Presents independently loaded walking and mall options with bounded retries. */
 export default function ItineraryOptionsScreen() {
   const { palette } = useTheme();
   const navigation = useNavigation<Nav>();
@@ -70,6 +71,7 @@ export default function ItineraryOptionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const refreshRotation = useRef(new Animated.Value(0)).current;
   const requestId = useRef(0);
+  const walkingAttempt = useRef(0);
   const mallSweep = useRef<Promise<void> | null>(null);
   const mallSignature = mallOptions.map(mall => mall.placeId).join(',');
 
@@ -88,6 +90,7 @@ export default function ItineraryOptionsScreen() {
     setMallOptions([]);
     setMallIndex(0);
     setOrigin(null);
+    walkingAttempt.current = 0;
     const coords = params.origin;
     setOrigin(coords);
     setPositionLoading(false);
@@ -175,7 +178,9 @@ export default function ItineraryOptionsScreen() {
             break;
           }
         } else if (needsWalkingSearch) {
-          const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds);
+          const nextPlan = await planTripAroundFarTask(
+            tasksForRefresh, origin, params.farTaskIds, ++walkingAttempt.current,
+          );
           if (requestId.current === currentRequest) {
             setPlan(nextPlan);
             setLocalAlternativeIndices(getLocalTripAlternativeCount(tasksForRefresh, origin, params.farTaskIds));

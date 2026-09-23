@@ -488,4 +488,35 @@ describe('far-task live search fallback', () => {
 
     expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(0);
   });
+
+  it('uses the next far anchor on retry when the first cannot cover the tasks', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: {
+        pharmacy: [place('first-anchor', 500), place('second-anchor', 1000)],
+        atm: [place('clustered-atm', 1050)],
+      }, source: 'cloudflare',
+    });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(0);
+    const retry = await planTripAroundFarTask(tasks, COORDS, ['anchor'], 1);
+
+    expect(retry.stops.map(stop => stop.place.internalId).sort()).toEqual(['clustered-atm', 'second-anchor']);
+  });
+
+  it('tries another far task before returning to the first task’s next place', async () => {
+    const farTasks = [makeTask({ id: 'first', poi: 'pharmacy' }), makeTask({ id: 'second', poi: 'atm' })];
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: {
+        pharmacy: [place('first-anchor', 500), place('later-pharmacy', 1000)],
+        atm: [place('second-anchor', 1050)],
+      }, source: 'cloudflare',
+    });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const retry = await planTripAroundFarTask(farTasks, COORDS, ['first', 'second'], 1);
+
+    expect(retry.stops.find(stop => stop.task.id === 'second')?.place.internalId).toBe('second-anchor');
+    expect(retry.stops).toHaveLength(2);
+  });
 });

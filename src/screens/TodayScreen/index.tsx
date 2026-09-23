@@ -61,7 +61,10 @@ import { consumeTasksDirty } from '../../services/taskMutationSignal';
 import { COPY } from '../../constants/copy';
 import { localDateISO } from '../../utils/date';
 import { restaurantTaskMatchesAnyPlace } from '../../services/restaurantFoodTypes';
+import { storeTaskMatchesAnyPlace } from '../../services/storeSubtypes';
+import { financialServiceTaskMatchesPlace } from '../../services/financialServiceKinds';
 import type { PlacesMap } from '../../services/proximity';
+import type { Task } from '../../types';
 import {
   SECTION_H_REST,
   buildEmptyMessages,
@@ -77,10 +80,14 @@ import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
 
-function taskHasNearbyPlace(task: { poi?: string | null; title: string }, places: PlacesMap): boolean {
+/** A task is nearby only when a nearby venue matches its selected subtype. */
+function taskHasNearbyPlace(task: Task, places: PlacesMap): boolean {
   if (!task.poi) { return false; }
   const nearbyPlaces = places[task.poi];
-  return !!nearbyPlaces?.length && restaurantTaskMatchesAnyPlace(task, nearbyPlaces);
+  return !!nearbyPlaces?.length
+    && restaurantTaskMatchesAnyPlace(task, nearbyPlaces)
+    && storeTaskMatchesAnyPlace(task, nearbyPlaces)
+    && nearbyPlaces.some(place => financialServiceTaskMatchesPlace(task, place));
 }
 
 export default function TodayScreen() {
