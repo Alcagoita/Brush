@@ -52,7 +52,7 @@ import { normalize } from './poiInference';
 import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
-import { OverpassRateLimitedError, searchOsmPlacesStrict } from './osmPlaces';
+import { OverpassHttpError, OverpassRateLimitedError, searchOsmPlacesStrict } from './osmPlaces';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
 import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
 import {
@@ -930,8 +930,8 @@ export async function refreshMallsIfDue(lat: number, lng: number, radiusMeters: 
       } catch (err) {
         // A fresh deadline lets a transient 504/timeout recover without asking
         // the user to reopen the screen. A 429 is a stop signal, not a retry.
-        const nonRetryableResponse = err instanceof Error
-          && /^Overpass request failed: 4(?!08)\d\d$/.test(err.message);
+        const nonRetryableResponse = err instanceof OverpassHttpError
+          && err.status >= 400 && err.status < 500 && err.status !== 408;
         if (err instanceof OverpassRateLimitedError || nonRetryableResponse
           || attempt === MALL_SWEEP_MAX_ATTEMPTS - 1) { throw err; }
       }

@@ -48,6 +48,23 @@ const MAX_ANCHOR_RESULTS_PER_REQUEST = 50;
 const MAX_CANDIDATES_PER_REQUIREMENT = 5;
 const MAX_ROUTE_EVALUATIONS = 10_000;
 
+/** Stop awaiting an in-flight lookup when its screen closes; do not start more lookups. */
+function awaitUnlessAborted<T>(request: Promise<T>, signal?: AbortSignal): Promise<T> {
+  if (!signal) { return request; }
+  if (signal.aborted) { return Promise.reject(new Error('Trip search cancelled')); }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => {
+      signal.removeEventListener('abort', onAbort);
+      reject(new Error('Trip search cancelled'));
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+    request.then(
+      value => { signal.removeEventListener('abort', onAbort); resolve(value); },
+      error => { signal.removeEventListener('abort', onAbort); reject(error); },
+    );
+  });
+}
+
 export interface TripStop {
   task: Task;
   place: ResolvedPlace;
@@ -72,30 +89,36 @@ export async function planTripAroundFarTask(
   tasks: Task[],
   origin: { lat: number; lng: number },
   farTaskIds: readonly string[],
+  signal?: AbortSignal,
 ): Promise<TripPlan> {
   const eligible = tasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi);
+  if (signal?.aborted) { return emptyTrip(eligible.length); }
   const farTasks = eligible.filter(task => farTaskIds.includes(task.id));
   if (farTasks.length === 0) { return emptyTrip(eligible.length, true); }
 
   const farTypes = [...new Set(farTasks.map(task => task.poi as string))];
   const farRequests = buildNearbySearchRequests(farTasks);
-  const liveAnchorSearch = await searchNearbyPlaces(
+  const liveAnchorSearch = await awaitUnlessAborted(searchNearbyPlaces(
     origin.lat, origin.lng, farTypes, ROUTE_SEARCH_RADIUS_M, farRequests, MAX_ANCHOR_RESULTS_PER_REQUEST,
-  ).catch(() => null);
+  ), signal).catch(() => null);
+  if (signal?.aborted) { return emptyTrip(eligible.length); }
   const liveAnchors = liveAnchorSearch?.results ?? {} as PlacesMap;
   const cachedAnchors = queryHabitatCache(origin.lat, origin.lng, farTypes, ROUTE_SEARCH_RADIUS_M, { maxResultsPerType: null });
   let searchComplete = (liveAnchorSearch?.source === 'cloudflare' || liveAnchorSearch?.cloudflareSettledEmpty === true)
     && farTypes.every(type => (liveAnchors[type] ?? []).length < MAX_ANCHOR_RESULTS_PER_REQUEST);
+  let canSearchLiveCompanions = true;
   const seenPlaceIds = new Set<string>();
   const candidatesByTask = farTasks.map(task => ({
     task,
     places: [...filterRoutePlacesForTask(task, liveAnchors[task.poi as string] ?? []), ...cachedPlacesForTask(task, cachedAnchors)]
       .filter(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters),
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, MAX_ANCHOR_RESULTS_PER_REQUEST),
   })).sort((a, b) => (a.places[0]?.distanceMeters ?? Infinity) - (b.places[0]?.distanceMeters ?? Infinity));
 
   for (const { task: anchorTask, places } of candidatesByTask) {
     for (const anchor of places) {
+      if (signal?.aborted) { return emptyTrip(eligible.length); }
       if (seenPlaceIds.has(anchor.placeId)) { continue; }
       seenPlaceIds.add(anchor.placeId);
       const companionTasks = eligible.filter(task => task.id !== anchorTask.id);
@@ -106,12 +129,20 @@ export async function planTripAroundFarTask(
       const cachedPlan = planAroundAnchor(eligible, origin, anchorTask, anchor, task => cachedPlacesForTask(task, cachedCompanions));
       if (cachedPlan.stops.length > 0) { return cachedPlan; }
 
-      const liveCompanionSearch = await searchNearbyPlaces(
-        anchor.lat, anchor.lng, companionTypes, ROUTE_CLUSTER_RADIUS_M,
-        buildNearbySearchRequests(companionTasks),
-      ).catch(() => null);
-      if (liveCompanionSearch?.source !== 'cloudflare' && liveCompanionSearch?.cloudflareSettledEmpty !== true) {
-        searchComplete = false;
+      let liveCompanionSearch: Awaited<ReturnType<typeof searchNearbyPlaces>> | null = null;
+      if (canSearchLiveCompanions) {
+        try {
+          liveCompanionSearch = await awaitUnlessAborted(searchNearbyPlaces(
+            anchor.lat, anchor.lng, companionTypes, ROUTE_CLUSTER_RADIUS_M,
+            buildNearbySearchRequests(companionTasks),
+          ), signal);
+        } catch {
+          canSearchLiveCompanions = false;
+        }
+        if (signal?.aborted) { return emptyTrip(eligible.length); }
+        if (liveCompanionSearch?.source !== 'cloudflare' && liveCompanionSearch?.cloudflareSettledEmpty !== true) {
+          searchComplete = false;
+        }
       }
       const liveCompanions = liveCompanionSearch?.results ?? {} as PlacesMap;
       const plan = planAroundAnchor(eligible, origin, anchorTask, anchor, task => [
@@ -165,9 +196,10 @@ function planAroundAnchor(
     if (!place) { continue; }
     resolved.push({ task, place: { internalId: place.placeId, name: place.name, lat: place.lat, lng: place.lng, distanceMeters: getDistanceMeters(origin.lat, origin.lng, place.lat, place.lng), source: 'cache' } });
   }
-  if (resolved.length < Math.ceil(eligible.length * 0.8)) { return emptyTrip(eligible.length); }
+  const minimumStops = Math.ceil(Math.min(eligible.length, MAX_WAYPOINTS) * 0.8);
+  if (resolved.length < minimumStops) { return emptyTrip(eligible.length); }
   const plan = planTrip(origin, resolved, eligible.length - resolved.length);
-  return plan.stops.length >= Math.ceil(eligible.length * 0.8) ? plan : emptyTrip(eligible.length);
+  return plan.stops.length >= minimumStops ? plan : emptyTrip(eligible.length);
 }
 
 /** No qualifying anchored itinerary exists for these eligible tasks. */

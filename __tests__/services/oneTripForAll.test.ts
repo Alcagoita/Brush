@@ -670,4 +670,80 @@ describe('far-task live search fallback', () => {
     expect(plan.searchExhausted).toBe(false);
     expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(51);
   });
+
+  it('checks at most 50 anchors for each far task, including cached candidates', async () => {
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('live-anchor', 500)] }, source: 'cloudflare' })
+      .mockResolvedValue({ results: { atm: [] }, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: Array.from({ length: 70 }, (_, index) => place(`cached-${index}`, 600 + index * 10)),
+      atm: [],
+    });
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops).toHaveLength(0);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(51);
+  });
+
+  it('continues with cached anchors but stops live companion calls after one rejects', async () => {
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('first', 500), place('second', 1000)] }, source: 'cloudflare' })
+      .mockRejectedValueOnce(new Error('companion API unavailable'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [place('cached-atm', 1050)] });
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-atm', 'second']);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+  });
+
+  it('exits promptly after cancellation without searching another anchor', async () => {
+    const controller = new AbortController();
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('first', 500), place('second', 1000)] }, source: 'cloudflare' })
+      .mockImplementationOnce(() => new Promise(() => {}));
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const pending = planTripAroundFarTask(tasks, COORDS, ['anchor'], controller.signal);
+    for (let tick = 0; tick < 5 && mockSearchNearbyPlaces.mock.calls.length < 2; tick++) {
+      await Promise.resolve();
+    }
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+    controller.abort();
+    const plan = await pending;
+
+    expect(plan.stops).toHaveLength(0);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses the nine-stop capacity for 80% coverage when more tasks are eligible', async () => {
+    const types = ['pharmacy', 'atm', 'cafe', 'supermarket', 'store', 'restaurant', 'bank', 'bakery', 'bar', 'library', 'florist'];
+    const manyTasks = types.map((poi, index) => makeTask({ id: `task-${index}`, poi: poi as Task['poi'] }));
+    const companions = Object.fromEntries(types.slice(1, 8).map((type, index) => [type, [place(type, 1020 + index * 10)]]));
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('anchor', 1000)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: companions, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(manyTasks, COORDS, ['task-0']);
+
+    expect(plan.stops).toHaveLength(8);
+    expect(plan.excludedCount).toBe(3);
+  });
+
+  it('keeps a qualifying route when the waypoint cap trims resolved stops', async () => {
+    const types = ['pharmacy', 'atm', 'cafe', 'supermarket', 'store', 'restaurant', 'bank', 'bakery', 'bar', 'library', 'florist', 'pet_store'];
+    const manyTasks = types.map((poi, index) => makeTask({ id: `task-${index}`, poi: poi as Task['poi'] }));
+    const companions = Object.fromEntries(types.slice(1, 10).map((type, index) => [type, [place(type, 1020 + index * 10)]]));
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('anchor', 1000)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: companions, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(manyTasks, COORDS, ['task-0']);
+
+    expect(plan.stops).toHaveLength(MAX_WAYPOINTS);
+    expect(plan.excludedCount).toBe(3);
+  });
 });

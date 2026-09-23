@@ -27,7 +27,7 @@ jest.mock('../../src/services/reverseGeocodeCache', () => ({
   putCachedCity: jest.fn(),
 }));
 
-import { searchOsmPlaces, searchOsmPlacesStrict } from '../../src/services/osmPlaces';
+import { OverpassHttpError, searchOsmPlaces, searchOsmPlacesStrict } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
 
@@ -245,6 +245,14 @@ describe('searchOsmPlaces', () => {
 });
 
 describe('searchOsmPlacesStrict (KAN-234 trip downloads)', () => {
+  it('preserves the HTTP status after both endpoints reject the request', async () => {
+    mockFetch.mockResolvedValue({ ok: false, status: 400 });
+    const error = await searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['atm'], 5000).catch(err => err);
+    expect(error).toBeInstanceOf(OverpassHttpError);
+    expect(error.status).toBe(400);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('parses results the same way as searchOsmPlaces on success', async () => {
     mockOverpassResponse([{ id: 1, lat: 0.0001, lon: 0, tags: { amenity: 'pharmacy', name: 'Corner Pharmacy' } }]);
     const result = await searchOsmPlacesStrict(ORIGIN.lat, ORIGIN.lng, ['pharmacy'], 5000);

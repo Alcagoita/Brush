@@ -195,6 +195,38 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(screen.queryByTestId('mall-route-loading')).toBeNull();
   });
 
+  it('applies a completed mall sweep after a walking refresh changes the request ID', async () => {
+    const firstMall = { placeId: 'mall-1', name: 'First Mall', lat: 38.72, lng: -9.12, distanceMeters: 900 };
+    const newMall = { placeId: 'mall-2', name: 'New Mall', lat: 38.73, lng: -9.13, distanceMeters: 1000 };
+    let finishSweep!: () => void;
+    let sweepFinished = false;
+    mockFindMallOption.mockImplementation(() => sweepFinished ? newMall : firstMall);
+    mockRefreshMallsIfDue.mockImplementationOnce(() => new Promise<void>(resolve => {
+      finishSweep = () => { sweepFinished = true; resolve(); };
+    }));
+    mockGetLocalTripAlternativeCount.mockReturnValue([0, 1]);
+    mockPlanTrip.mockReturnValue({ stops: [makeStop('t1', 'First stop')], excludedCount: 0, totalDistanceMeters: 500 });
+    mockPlanLocalTripAlternative.mockReturnValue({ stops: [makeStop('t2', 'Next stop')], excludedCount: 0, totalDistanceMeters: 600 });
+
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByText('First Mall')).toBeTruthy());
+    await waitFor(() => expect(screen.getByTestId('refresh-itinerary-button').props.accessibilityState.disabled).toBe(false));
+    await act(async () => { fireEvent.press(screen.getByTestId('refresh-itinerary-button')); });
+    await act(async () => { finishSweep(); });
+
+    expect(screen.getByText('New Mall')).toBeTruthy();
+  });
+
+  it('aborts the walking search when the screen effect is cleaned up', () => {
+    mockPlanTrip.mockReturnValue(new Promise(() => {}));
+    const { unmount } = render(<ItineraryOptionsScreen />);
+    const signal = mockPlanTrip.mock.calls[0][3] as AbortSignal;
+
+    expect(signal.aborted).toBe(false);
+    unmount();
+    expect(signal.aborted).toBe(true);
+  });
+
   it('shows the learned-place and distance labels correctly', async () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByText(/Farmácia Silva · your usual/)).toBeTruthy());

@@ -73,6 +73,7 @@ export default function ItineraryOptionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const refreshRotation = useRef(new Animated.Value(0)).current;
   const requestId = useRef(0);
+  const walkingAbortController = useRef<AbortController | null>(null);
   const mallSweep = useRef<Promise<void> | null>(null);
   const mallSignature = mallOptions.map(mall => mall.placeId).join(',');
 
@@ -82,6 +83,8 @@ export default function ItineraryOptionsScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    const controller = new AbortController();
+    walkingAbortController.current = controller;
     const requestIdRef = requestId;
     const currentRequest = ++requestId.current;
     setPositionLoading(true);
@@ -105,15 +108,15 @@ export default function ItineraryOptionsScreen() {
     sweep.then(clearSweep, clearSweep);
     sweep
       .then(() => {
-        if (!cancelled && requestId.current === currentRequest) {
+        if (!cancelled) {
           setMallOptions(findMallOptions(coords, null));
           setMallLoading(false);
         }
       })
-      .catch(() => { if (!cancelled && requestId.current === currentRequest) { setMallLoading(false); } });
+      .catch(() => { if (!cancelled) { setMallLoading(false); } });
 
     setTasksForRefresh(params.tasks);
-    void planTripAroundFarTask(params.tasks, coords, params.farTaskIds)
+    void planTripAroundFarTask(params.tasks, coords, params.farTaskIds, controller.signal)
       .then(tripPlan => {
         if (cancelled || requestId.current !== currentRequest) { return; }
         setPlan(tripPlan);
@@ -123,7 +126,12 @@ export default function ItineraryOptionsScreen() {
       })
       .catch(() => { if (!cancelled && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
       .finally(() => { if (!cancelled && requestId.current === currentRequest) { setWalkingLoading(false); } });
-    return () => { cancelled = true; ++requestIdRef.current; };
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (walkingAbortController.current === controller) { walkingAbortController.current = null; }
+      ++requestIdRef.current;
+    };
   }, [params]);
 
   const openCard = () => {
@@ -182,7 +190,7 @@ export default function ItineraryOptionsScreen() {
             break;
           }
         } else if (needsWalkingSearch) {
-          const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds);
+          const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds, walkingAbortController.current?.signal);
           if (requestId.current === currentRequest) {
             setPlan(nextPlan);
             setWalkingExhausted(!!nextPlan.searchExhausted);

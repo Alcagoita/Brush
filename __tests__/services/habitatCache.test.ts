@@ -313,6 +313,7 @@ jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlaces: jest.fn().mockResolvedValue({}),
   searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlacesStrict(...args),
   OverpassRateLimitedError: class OverpassRateLimitedError extends Error {},
+  OverpassHttpError: jest.requireActual('../../src/services/osmPlaces').OverpassHttpError,
 }));
 
 // KAN-366 — the prefetch now goes through maps.searchNearbyPlaces, which owns
@@ -395,7 +396,7 @@ import {
   HABITAT_CACHE_STALE_MS,
   HABITAT_BYTES_PER_ROW,
 } from '../../src/services/habitatCache';
-import { OverpassRateLimitedError } from '../../src/services/osmPlaces';
+import { OverpassHttpError, OverpassRateLimitedError } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
 
@@ -1300,9 +1301,25 @@ describe('refreshMallsIfDue (KAN-282)', () => {
     await refreshMallsIfDue(0, 0, 4_500);
     expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
 
-    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('Overpass request failed: 400'));
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new OverpassHttpError(400));
     await refreshMallsIfDue(10, 10, 4_500);
     expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
+  });
+
+  it('retries HTTP 408 but not a 400 with misleading message text', async () => {
+    mockSearchOsmPlacesStrict
+      .mockRejectedValueOnce(new OverpassHttpError(408))
+      .mockResolvedValueOnce({ shopping_mall: [] });
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const badRequest = new OverpassHttpError(400);
+    badRequest.message = 'Overpass request failed: 504';
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(badRequest);
+    await refreshMallsIfDue(10, 10, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(3);
     warnSpy.mockRestore();
   });
 });
