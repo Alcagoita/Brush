@@ -391,8 +391,20 @@ describe('local itinerary alternatives (KAN-291)', () => {
     });
     const tasks = [makeTask({ id: 'anchor' }), makeTask({ id: 'companion', poi: 'atm' })];
 
-    expect(getLocalTripAlternativeCount(tasks, COORDS, ['anchor'])).toEqual([0, 2]);
-    expect(planLocalTripAlternative(tasks, COORDS, ['anchor'], 1).stops).toHaveLength(0);
+    expect(getLocalTripAlternativeCount(tasks, COORDS, ['anchor'])).toEqual([0, 1]);
+    expect(planLocalTripAlternative(tasks, COORDS, ['anchor'], 2).stops).toHaveLength(0);
+  });
+
+  it('uses the nearest far-task place as the local alternative anchor', () => {
+    mockQueryHabitatCache.mockReturnValue({
+      pharmacy: [place('distant-pharmacy', 1000), place('nearby-pharmacy', 550)],
+      atm: [place('nearest-atm', 500)],
+    });
+    const tasks = [makeTask({ id: 'pharmacy' }), makeTask({ id: 'atm', poi: 'atm' })];
+
+    const plan = planLocalTripAlternative(tasks, COORDS, ['pharmacy', 'atm'], 0);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['nearby-pharmacy', 'nearest-atm']);
   });
 
   it('rejects cached routes without a far anchor or 80% coverage', () => {
@@ -424,7 +436,7 @@ describe('far-task live search fallback', () => {
     const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
 
     expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-anchor', 'cached-atm']);
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
   });
 
   it('fills a missing live companion from the cluster cache while keeping the live anchor', async () => {
@@ -471,7 +483,7 @@ describe('far-task live search fallback', () => {
     expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-anchor', 'live-atm']);
   });
 
-  it('keeps a complete live result without reading the cache', async () => {
+  it('keeps a complete live result after searching around the anchor', async () => {
     mockSearchNearbyPlaces.mockResolvedValue({
       results: { pharmacy: [place('live-anchor', 1000)], atm: [place('live-atm', 1050)] }, source: 'osm',
     });
@@ -479,7 +491,9 @@ describe('far-task live search fallback', () => {
     const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
 
     expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['live-anchor', 'live-atm']);
-    expect(mockQueryHabitatCache).not.toHaveBeenCalled();
+    expect(mockSearchNearbyPlaces).toHaveBeenNthCalledWith(
+      2, expect.any(Number), expect.any(Number), ['atm'], 200, expect.any(Array),
+    );
   });
 
   it('rejects cached fallback that cannot meet the cluster and coverage rules', async () => {
@@ -502,22 +516,56 @@ describe('far-task live search fallback', () => {
     const retry = await planTripAroundFarTask(tasks, COORDS, ['anchor'], 1);
 
     expect(retry.stops.map(stop => stop.place.internalId).sort()).toEqual(['clustered-atm', 'second-anchor']);
+    expect(mockSearchNearbyPlaces.mock.calls[1].slice(0, 2)).toEqual([place('first-anchor', 500).lat, COORDS.lng]);
+    expect(mockSearchNearbyPlaces.mock.calls[3].slice(0, 2)).toEqual([place('second-anchor', 1000).lat, COORDS.lng]);
   });
 
-  it('tries another far task before returning to the first task’s next place', async () => {
+  it('centers on the nearest far place regardless of task order', async () => {
     const farTasks = [makeTask({ id: 'first', poi: 'pharmacy' }), makeTask({ id: 'second', poi: 'atm' })];
-    mockSearchNearbyPlaces.mockResolvedValue({
-      results: {
-        pharmacy: [place('first-anchor', 500), place('later-pharmacy', 1000)],
-        atm: [place('second-anchor', 1050)],
-      }, source: 'cloudflare',
-    });
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('later-pharmacy', 1000)], atm: [place('nearest-atm', 500)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: { pharmacy: [place('nearby-pharmacy', 550)] }, source: 'cloudflare' });
     mockQueryHabitatCache.mockReturnValue({});
 
-    const retry = await planTripAroundFarTask(farTasks, COORDS, ['first', 'second'], 1);
+    const plan = await planTripAroundFarTask(farTasks, COORDS, ['first', 'second']);
 
-    expect(retry.stops.find(stop => stop.task.id === 'second')?.place.internalId).toBe('second-anchor');
-    expect(retry.stops).toHaveLength(2);
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['nearby-pharmacy', 'nearest-atm']);
+    expect(mockSearchNearbyPlaces).toHaveBeenNthCalledWith(
+      2, place('nearest-atm', 500).lat, COORDS.lng, ['pharmacy'], 200, expect.any(Array),
+    );
+  });
+
+  it('finds all companions around a Books anchor even when origin search returns only Books', async () => {
+    const book = { ...place('bookstore', 800), storeSubtype: 'books', storeSubtypes: ['books'] };
+    const fourTasks = [
+      makeTask({ id: 'book', poi: 'store', storeSubtype: 'books' }),
+      makeTask({ id: 'food', poi: 'restaurant' }),
+      makeTask({ id: 'cash', poi: 'atm' }),
+      makeTask({ id: 'coffee', poi: 'cafe' }),
+    ];
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { store: [book] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: {
+        restaurant: [{ ...place('restaurant', 830), distanceMeters: 30 }],
+        atm: [{ ...place('atm', 850), distanceMeters: 50 }],
+        cafe: [{ ...place('cafe', 870), distanceMeters: 70 }],
+      }, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(fourTasks, COORDS, ['book']);
+
+    expect(plan.stops).toHaveLength(4);
+    expect(mockSearchNearbyPlaces).toHaveBeenNthCalledWith(
+      1, COORDS.lat, COORDS.lng, ['store'], 5000,
+      [{ key: 'store:store_kind:books', type: 'store', attribute: { dimension: 'store_kind', values: ['books'] } }],
+    );
+    expect(mockSearchNearbyPlaces).toHaveBeenNthCalledWith(
+      2, book.lat, book.lng, ['restaurant', 'atm', 'cafe'], 200, expect.any(Array),
+    );
+    expect(mockQueryHabitatCache).toHaveBeenNthCalledWith(
+      2, book.lat, book.lng, ['restaurant', 'atm', 'cafe'], 200, { maxResultsPerType: null },
+    );
+    expect(plan.stops.find(stop => stop.task.id === 'food')?.place.distanceMeters).toBe(830);
   });
 
   it('does not retry the same anchor when it is the only candidate', async () => {
@@ -529,6 +577,6 @@ describe('far-task live search fallback', () => {
 
     expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(2);
     expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'], 1)).stops).toHaveLength(0);
-    expect(mockQueryHabitatCache).toHaveBeenCalledTimes(1);
+    expect(mockQueryHabitatCache).toHaveBeenCalledTimes(3);
   });
 });

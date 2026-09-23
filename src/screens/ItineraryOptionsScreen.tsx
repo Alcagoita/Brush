@@ -109,17 +109,27 @@ export default function ItineraryOptionsScreen() {
       .catch(() => {});
 
     setTasksForRefresh(params.tasks);
+    let walkingTimedOut = false;
+    const walkingTimeout = setTimeout(() => {
+      if (cancelled || requestId.current !== currentRequest) { return; }
+      walkingTimedOut = true;
+      setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 });
+      setWalkingLoading(false);
+    }, 15000);
     void planTripAroundFarTask(params.tasks, coords, params.farTaskIds)
       .then(tripPlan => {
-        if (cancelled || requestId.current !== currentRequest) { return; }
+        if (cancelled || walkingTimedOut || requestId.current !== currentRequest) { return; }
         setPlan(tripPlan);
         setLocalAlternativeIndices(getLocalTripAlternativeCount(params.tasks, coords, params.farTaskIds));
         setLocalAlternativePosition(0);
       })
-      .catch(() => { if (!cancelled && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
-      .finally(() => { if (!cancelled && requestId.current === currentRequest) { setWalkingLoading(false); } });
+      .catch(() => { if (!cancelled && !walkingTimedOut && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
+      .finally(() => {
+        clearTimeout(walkingTimeout);
+        if (!cancelled && !walkingTimedOut && requestId.current === currentRequest) { setWalkingLoading(false); }
+      });
     setMallLoading(false);
-    return () => { cancelled = true; ++requestIdRef.current; };
+    return () => { cancelled = true; clearTimeout(walkingTimeout); ++requestIdRef.current; };
   }, [params]);
 
   const openCard = () => {

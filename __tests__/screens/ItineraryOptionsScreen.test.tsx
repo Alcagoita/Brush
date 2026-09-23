@@ -143,6 +143,28 @@ describe('ItineraryOptionsScreen — loading', () => {
     expect(mockGoBack).toHaveBeenCalled();
   });
 
+  it('stops the initial walking loader after 15 seconds and ignores a late result', async () => {
+    let finishLookup!: (plan: { stops: ReturnType<typeof makeStop>[]; excludedCount: number; totalDistanceMeters: number }) => void;
+    mockPlanTrip.mockReturnValue(new Promise(resolve => { finishLookup = resolve; }));
+    jest.useFakeTimers();
+    try {
+      render(<ItineraryOptionsScreen />);
+      expect(screen.getByText('Finding the way…')).toBeTruthy();
+
+      act(() => { jest.advanceTimersByTime(15000); });
+      expect(screen.queryByText('Finding the way…')).toBeNull();
+      expect(screen.getByText("Couldn't find places for any of these right now.")).toBeTruthy();
+
+      act(() => {
+        finishLookup({ stops: [makeStop('late', 'Late result')], excludedCount: 0, totalDistanceMeters: 100 });
+      });
+      await Promise.resolve();
+      expect(screen.queryByText('Late result')).toBeNull();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
 
 });
 
