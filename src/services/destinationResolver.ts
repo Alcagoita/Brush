@@ -29,10 +29,8 @@ import type { NearbyPlace } from './maps';
 import type { PlacesMap } from './proximity';
 import type { Task } from '../types';
 
-/** Wider than the cache's own default (5 km) is not needed — this doubles as
- *  the live-search radius, tuned to the same generous-but-bounded reach as
- *  KAN-279's original design intent. Start here, tune later. */
-export const ROUTE_MAX_RADIUS_M = 5_000;
+/** Route search limit, shared by cache and live results; the POI API rejects larger radii. */
+export const ROUTE_MAX_RADIUS_M = 4_500;
 
 export type DestinationSource = 'learned' | 'cache' | 'live';
 

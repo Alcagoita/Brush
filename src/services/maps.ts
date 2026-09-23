@@ -310,9 +310,8 @@ interface CloudflareAttempt {
 
 /**
  * Brush's own Cloudflare-backed global POI database (poi-api.brushaway.app).
- * Tried first on every call; any failure (API error, rejected radius — our Worker's own MAX_RADIUS_METERS is
- * 4500m, tighter than some callers' radii like destinationResolver's
- * 5000m ROUTE_MAX_RADIUS_M) falls straight through to OSM, silently — this
+ * Tried first on every call; any failure (including an API error or a
+ * rejected radius) falls straight through to OSM, silently — this
  * must never be the reason a search comes back empty when OSM would have
  * answered.
  *

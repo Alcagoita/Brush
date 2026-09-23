@@ -99,7 +99,7 @@ describe('resolveTripDestinations', () => {
 
     expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
     expect(mockSearchNearbyPlaces).toHaveBeenCalledWith(
-      COORDS.lat, COORDS.lng, expect.arrayContaining(['pharmacy', 'atm', 'cafe']), expect.any(Number),
+      COORDS.lat, COORDS.lng, expect.arrayContaining(['pharmacy', 'atm', 'cafe']), 4_500,
     );
     expect(resolved).toHaveLength(2); // cafe never resolved (not in live results)
   });

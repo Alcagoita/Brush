@@ -126,12 +126,22 @@ describe('resolveTaskDestination', () => {
 
   it('ignores a live result beyond ROUTE_MAX_RADIUS_M', async () => {
     const liveResults = {
-      pharmacy: [{ placeId: 'live-1', name: 'Far Pharmacy', lat: 39.5, lng: -9.9, distanceMeters: 50_000 }],
+      pharmacy: [{ placeId: 'live-1', name: 'Far Pharmacy', lat: 38.74, lng: -9.1, distanceMeters: 4_501 }],
     };
 
     const result = await resolveTaskDestination(makeTask(), COORDS, [], liveResults);
 
     expect(result).toBeNull();
+  });
+
+  it('accepts a live result at the 4.5 km route limit', async () => {
+    const liveResults = {
+      pharmacy: [{ placeId: 'live-1', name: 'Edge Pharmacy', lat: 38.74, lng: -9.1, distanceMeters: 4_500 }],
+    };
+
+    const result = await resolveTaskDestination(makeTask(), COORDS, [], liveResults);
+
+    expect(result?.internalId).toBe('live-1');
   });
 
   it('uses only live stores that match the task subtype', async () => {
