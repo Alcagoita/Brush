@@ -52,7 +52,7 @@ import { normalize } from './poiInference';
 import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
-import { searchOsmPlacesStrict } from './osmPlaces';
+import { OverpassRateLimitedError, searchOsmPlacesStrict } from './osmPlaces';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
 import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
 import {
@@ -881,6 +881,7 @@ export function __resetEmptyResultAttemptsForTests(): void {
 
 /** How long before another full mall sweep of the same area is allowed (see refreshMallsIfDue). */
 const MALL_SWEEP_COOLDOWN_MS = 6 * 60 * 60 * 1_000; // 6 hours
+const MALL_SWEEP_MAX_ATTEMPTS = 3;
 
 /** Same in-memory, coarse-grid throttle as _emptyResultAttempts above. */
 const _mallSweepAttempts = new Map<string, number>();
@@ -921,7 +922,20 @@ export async function refreshMallsIfDue(lat: number, lng: number, radiusMeters: 
 
     // The general POI API has no footprint area; OSM geometry is required to
     // distinguish a destination mall from a small gallery or mistagged shop.
-    const malls = (await searchOsmPlacesStrict(lat, lng, ['shopping_mall'], radiusMeters)).shopping_mall ?? [];
+    let malls: Awaited<ReturnType<typeof searchOsmPlacesStrict>>['shopping_mall'] = [];
+    for (let attempt = 0; attempt < MALL_SWEEP_MAX_ATTEMPTS; attempt++) {
+      try {
+        malls = (await searchOsmPlacesStrict(lat, lng, ['shopping_mall'], radiusMeters)).shopping_mall ?? [];
+        break;
+      } catch (err) {
+        // A fresh deadline lets a transient 504/timeout recover without asking
+        // the user to reopen the screen. A 429 is a stop signal, not a retry.
+        const nonRetryableResponse = err instanceof Error
+          && /^Overpass request failed: 4(?!08)\d\d$/.test(err.message);
+        if (err instanceof OverpassRateLimitedError || nonRetryableResponse
+          || attempt === MALL_SWEEP_MAX_ATTEMPTS - 1) { throw err; }
+      }
+    }
     for (const mall of malls) {
       upsertPlace({
         poiType: 'shopping_mall', name: mall.name, isGenericName: mall.isGenericName,

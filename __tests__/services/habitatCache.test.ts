@@ -312,6 +312,7 @@ const mockSearchOsmPlacesStrict = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlaces: jest.fn().mockResolvedValue({}),
   searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlacesStrict(...args),
+  OverpassRateLimitedError: class OverpassRateLimitedError extends Error {},
 }));
 
 // KAN-366 — the prefetch now goes through maps.searchNearbyPlaces, which owns
@@ -394,6 +395,7 @@ import {
   HABITAT_CACHE_STALE_MS,
   HABITAT_BYTES_PER_ROW,
 } from '../../src/services/habitatCache';
+import { OverpassRateLimitedError } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
 
@@ -1264,9 +1266,42 @@ describe('refreshMallsIfDue (KAN-282)', () => {
 
   it('never throws when the underlying refresh fails', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    mockSearchOsmPlacesStrict.mockRejectedValue(new Error('Overpass unreachable'));
+    mockSearchOsmPlacesStrict.mockRejectedValue(new Error('Overpass request failed: 504'));
     await expect(refreshMallsIfDue(0, 0, 4_500)).resolves.toBeUndefined();
     await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(6);
+    warnSpy.mockRestore();
+  });
+
+  it('recovers from a failed mall call during the same sweep', async () => {
+    mockSearchOsmPlacesStrict
+      .mockRejectedValueOnce(new Error('Overpass request failed: 504'))
+      .mockRejectedValueOnce(new Error('Overpass request failed: 504'))
+      .mockResolvedValueOnce({ shopping_mall: [{
+        osmId: 'way/123', name: 'Destination Mall', isGenericName: false,
+        lat: 0.02, lng: 0, distanceMeters: 2_224, footprintAreaM2: 30_000,
+      }] });
+
+    await refreshMallsIfDue(0, 0, 4_500);
+
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(3);
+    expect(queryHabitatCache(0, 0, ['shopping_mall'], 4_500).shopping_mall)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Destination Mall' })]));
+  });
+
+  it('does not retry a successful empty result', async () => {
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a rate limit or invalid request', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new OverpassRateLimitedError('rate limited'));
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
+
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('Overpass request failed: 400'));
+    await refreshMallsIfDue(10, 10, 4_500);
     expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
     warnSpy.mockRestore();
   });
