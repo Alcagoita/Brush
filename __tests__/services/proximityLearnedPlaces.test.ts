@@ -127,16 +127,18 @@ function mockAtmPlaces(places: Array<{ id: string; name: string; distanceMeters:
   mockPlacesResponse(places.map(p => ({ ...p, type: 'atm' })));
 }
 
-function mockRestaurantPlaces(places: Array<{ id: string; name: string; distanceMeters: number }>) {
+type MockPlace = { id: string; name: string; distanceMeters: number; brand?: string; attributes?: Record<string, string[]> };
+
+function mockRestaurantPlaces(places: MockPlace[]) {
   mockPlacesResponse(places.map(p => ({ ...p, type: 'restaurant' })));
 }
 
-function mockStorePlaces(places: Array<{ id: string; name: string; distanceMeters: number }>) {
+function mockStorePlaces(places: MockPlace[]) {
   mockPlacesResponse(places.map(p => ({ ...p, type: 'store' })));
 }
 
-function mockPlacesResponse(places: Array<{ id: string; name: string; distanceMeters: number; type: string }>) {
-  const byType: Record<string, Array<{ osmId: string; name: string; isGenericName: boolean; lat: number; lng: number; distanceMeters: number; footprintAreaM2: number }>> = {};
+function mockPlacesResponse(places: Array<MockPlace & { type: string }>) {
+  const byType: Record<string, Array<{ osmId: string; name: string; isGenericName: boolean; lat: number; lng: number; distanceMeters: number; footprintAreaM2: number; brand?: string; attributes?: Record<string, string[]> }>> = {};
   for (const p of places) {
     (byType[p.type] ??= []).push({
       osmId:           p.id,
@@ -146,6 +148,8 @@ function mockPlacesResponse(places: Array<{ id: string; name: string; distanceMe
       lng:             0,
       distanceMeters:  p.distanceMeters,
       footprintAreaM2: 0,
+      brand:           p.brand,
+      attributes:      p.attributes,
     });
   }
   mockSearchOsmPlaces.mockResolvedValueOnce(byType);
@@ -280,8 +284,8 @@ describe('a learned place gets top priority within its own hero range', () => {
   it('prefers the favourite restaurant food type for a generic restaurant task', async () => {
     setLearnedPlaces([{ name: restaurantFoodTypeFavouriteName('sushi'), poiType: 'restaurant', visitCount: 5 }]);
     mockRestaurantPlaces([
-      { id: 'restaurant-portuguese', name: 'Portugália', distanceMeters: 20 },
-      { id: 'restaurant-sushi', name: 'Yakuza by Olivier', distanceMeters: 80 },
+      { id: 'restaurant-portuguese', name: 'Portugália', distanceMeters: 20, attributes: { food_cuisine: ['portuguese'] } },
+      { id: 'restaurant-sushi', name: 'Yakuza by Olivier', distanceMeters: 80, attributes: { food_cuisine: ['sushi'] } },
     ]);
 
     const onUpdate = jest.fn();
@@ -299,8 +303,8 @@ describe('a learned place gets top priority within its own hero range', () => {
   it('ignores favourite food type when the restaurant task already has a food type', async () => {
     setLearnedPlaces([{ name: restaurantFoodTypeFavouriteName('portuguese'), poiType: 'restaurant', visitCount: 5 }]);
     mockRestaurantPlaces([
-      { id: 'restaurant-portuguese', name: 'Portugália', distanceMeters: 20 },
-      { id: 'restaurant-sushi', name: 'Yakuza by Olivier', distanceMeters: 80 },
+      { id: 'restaurant-portuguese', name: 'Portugália', distanceMeters: 20, attributes: { food_cuisine: ['portuguese'] } },
+      { id: 'restaurant-sushi', name: 'Yakuza by Olivier', distanceMeters: 80, attributes: { food_cuisine: ['sushi'] } },
     ]);
 
     const onUpdate = jest.fn();
@@ -318,8 +322,8 @@ describe('a learned place gets top priority within its own hero range', () => {
   it('prefers the favourite store subtype for a generic store task', async () => {
     setLearnedPlaces([{ name: storeSubtypeFavouriteName('clothing'), poiType: 'store', visitCount: 5 }]);
     mockStorePlaces([
-      { id: 'store-pet', name: 'Aquaplante', distanceMeters: 20 },
-      { id: 'store-clothing', name: 'Zara', distanceMeters: 80 },
+      { id: 'store-pet', name: 'Aquaplante', distanceMeters: 20, attributes: { store_kind: ['pet'] } },
+      { id: 'store-clothing', name: 'Zara', distanceMeters: 80, attributes: { store_kind: ['clothing'] } },
     ]);
 
     const onUpdate = jest.fn();
@@ -337,8 +341,8 @@ describe('a learned place gets top priority within its own hero range', () => {
   it('ignores favourite store subtype when the store task already has a subtype', async () => {
     setLearnedPlaces([{ name: storeSubtypeFavouriteName('pet'), poiType: 'store', visitCount: 5 }]);
     mockStorePlaces([
-      { id: 'store-pet', name: 'Aquaplante', distanceMeters: 20 },
-      { id: 'store-clothing', name: 'Zara', distanceMeters: 80 },
+      { id: 'store-pet', name: 'Aquaplante', distanceMeters: 20, attributes: { store_kind: ['pet'] } },
+      { id: 'store-clothing', name: 'Zara', distanceMeters: 80, attributes: { store_kind: ['clothing'] } },
     ]);
 
     const onUpdate = jest.fn();

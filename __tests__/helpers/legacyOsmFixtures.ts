@@ -5,9 +5,10 @@ type LegacyPlace = {
   lng: number;
   distanceMeters: number;
   brand?: string;
+  attributes?: Record<string, string[]>;
 };
 
-type NearbyRequest = { key: string; type: string; attribute?: { values: string[] } };
+type NearbyRequest = { key: string; type: string; brand?: string; attribute?: { dimension: string; values: string[] } };
 
 /** Keep older proximity fixtures while routing their answers through Brush's API. */
 export async function cloudflareViaLegacyOsm(
@@ -21,8 +22,12 @@ export async function cloudflareViaLegacyOsm(
     results: Object.fromEntries(requests.map(request => [
       request.key,
       (byType[request.type] ?? [])
-        .filter(place => !request.attribute || request.attribute.values.some(value =>
-          `${place.osmId} ${place.name}`.toLowerCase().includes(value.toLowerCase())))
+        .filter(place => !request.brand || place.brand === request.brand)
+        .filter(place => {
+          const attribute = request.attribute;
+          return !attribute || attribute.values.some(value =>
+            place.attributes?.[attribute.dimension]?.includes(value));
+        })
         .map(place => ({
           poi_id: place.osmId,
           name: place.name,
@@ -31,7 +36,7 @@ export async function cloudflareViaLegacyOsm(
           distanceMeters: place.distanceMeters,
           primary_poi_type: request.type,
           brand: place.brand ?? null,
-          attributes: {},
+          attributes: place.attributes ?? {},
         })),
     ])),
   };
