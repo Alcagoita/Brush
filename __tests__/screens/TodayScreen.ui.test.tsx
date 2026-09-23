@@ -78,9 +78,10 @@ jest.mock('@react-native-firebase/auth', () => ({}));
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
+const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => ({
   useFocusEffect: (fn: () => void) => fn(),
-  useNavigation: () => ({ navigate: jest.fn(), push: jest.fn() }),
+  useNavigation: () => ({ navigate: mockNavigate, push: jest.fn() }),
 }));
 jest.mock('@react-navigation/native-stack', () => ({}));
 
@@ -293,5 +294,27 @@ describe('TodayScreen UI — KAN-60 interaction', () => {
       fireEvent.press(screen.getByTestId('task-row-task-1'));
     });
     expect(mockHandleToggle).toHaveBeenCalledWith('task-1', true);
+  });
+
+  it('keeps Books in the far-task anchors when only an unrelated store is nearby', () => {
+    mockHookReturn = {
+      ...mockHookReturn,
+      nearbyReady: true,
+      coords: { lat: 38.7, lng: -9.1 },
+      tasks: [
+        { ...TASK, poi: 'store', storeSubtype: 'books' },
+        { ...TASK, id: 'task-2', poi: 'atm' },
+      ],
+      poiPlaces: {
+        store: [{ placeId: 'generic-store', name: 'Generic Shop', lat: 38.7, lng: -9.1, distanceMeters: 20 }],
+      },
+    };
+
+    render(<TodayScreen />);
+    fireEvent.press(screen.getByLabelText('One trip for all of these'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('ItineraryOptions', expect.objectContaining({
+      farTaskIds: expect.arrayContaining(['task-1']),
+    }));
   });
 });

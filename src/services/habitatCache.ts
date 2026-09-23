@@ -52,6 +52,7 @@ import { normalize } from './poiInference';
 import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
+import { OverpassHttpError, OverpassRateLimitedError, searchOsmPlacesStrict } from './osmPlaces';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
 import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
 import {
@@ -64,6 +65,7 @@ import {
   listStoreSubtypes,
   type StoreSubtype,
 } from './storeSubtypes';
+import { listFinancialServiceKinds, type FinancialServiceKind } from './financialServiceKinds';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -248,6 +250,12 @@ function getDb(): SQLite.SQLiteDatabase {
     if (!existingColumns.has('store_subtype')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN store_subtype TEXT');
     }
+    // Financial services can carry more than one authoritative kind, unlike
+    // the single restaurant/store fallback field. Keep the source-provided
+    // list so offline route resolution can still honour a selected kind.
+    if (!existingColumns.has('financial_service_kinds')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN financial_service_kinds TEXT');
+    }
     // KAN-342 migration — Foursquare (via Cloudflare) became a third live
     // source, freely storable like OSM (Apache 2.0), with its own identity
     // column rather than being shoehorned into google_place_id or osm_id.
@@ -328,6 +336,8 @@ export interface HabitatRow {
   restaurant_food_type: RestaurantFoodType | null;
   /** Store subtype inferred at cache-write time (KAN-317). */
   store_subtype: StoreSubtype | null;
+  /** JSON-encoded authoritative financial-service kinds from the POI source. */
+  financial_service_kinds: string | null;
   /** Canonical Store/Gym/Bank brand when known from a live source. */
   brand: string | null;
 }
@@ -366,6 +376,8 @@ export interface PlaceCandidate {
   restaurantFoodType?: RestaurantFoodType | null;
   /** Optional subtype metadata for store rows (KAN-317). */
   storeSubtype?: StoreSubtype | null;
+  /** Authoritative financial-service kinds returned by the POI source. */
+  financialServiceKinds?: FinancialServiceKind[] | null;
   /** Canonical brand supplied by the source; never a free-form guess. */
   brand?: string | null;
 }
@@ -388,6 +400,22 @@ function normalizeCachedRestaurantFoodType(value: RestaurantFoodType | string | 
 function normalizeCachedStoreSubtype(value: StoreSubtype | string | null): StoreSubtype | undefined {
   if (value == null) { return undefined; }
   return (listStoreSubtypes() as string[]).includes(value) ? value as StoreSubtype : undefined;
+}
+
+/** Parses and validates persisted financial-service kinds at the cache boundary. */
+function normalizeCachedFinancialServiceKinds(value: string | null | undefined): FinancialServiceKind[] | undefined {
+  if (!value) { return undefined; }
+  try {
+    const kinds = JSON.parse(value);
+    if (!Array.isArray(kinds)) { return undefined; }
+    const knownKinds = new Set<string>(listFinancialServiceKinds());
+    const validKinds = kinds.filter((kind): kind is FinancialServiceKind =>
+      typeof kind === 'string' && knownKinds.has(kind),
+    );
+    return validKinds.length > 0 ? [...new Set(validKinds)] : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -498,6 +526,9 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
     const tripExpiresAt = trip?.expiresAt ?? null;
     const restaurantFoodType = match.restaurant_food_type == null ? candidateRestaurantFoodType(candidate) : null;
     const storeSubtype = match.store_subtype == null ? candidateStoreSubtype(candidate) : null;
+    const financialServiceKinds = match.financial_service_kinds == null && candidate.financialServiceKinds?.length
+      ? JSON.stringify(candidate.financialServiceKinds)
+      : null;
     database.runSync(
       `UPDATE habitat_places
        SET google_place_id   = COALESCE(google_place_id, ?),
@@ -512,6 +543,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
            website           = COALESCE(?, website),
            restaurant_food_type = COALESCE(?, restaurant_food_type),
            store_subtype        = COALESCE(?, store_subtype),
+           financial_service_kinds = COALESCE(?, financial_service_kinds),
            brand                = COALESCE(?, brand),
            -- KAN-377: an OSM-seeded row later matched by a Cloudflare result
            -- picks up the settlement name here. Without this the name only ever
@@ -534,6 +566,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
         candidate.website ?? null,
         restaurantFoodType,
         storeSubtype,
+        financialServiceKinds,
         candidate.brand ?? null,
         candidate.areaName ?? null,
         tripCacheAreaId,
@@ -552,15 +585,18 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const id = generateId();
   const restaurantFoodType = candidateRestaurantFoodType(candidate);
   const storeSubtype = candidateStoreSubtype(candidate);
+  const financialServiceKinds = candidate.financialServiceKinds?.length
+    ? JSON.stringify(candidate.financialServiceKinds)
+    : null;
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
       candidate.source.overture ?? null, candidate.source.brush ?? null, now, now,
       trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null,
-      candidate.website ?? null, restaurantFoodType, storeSubtype, candidate.brand ?? null, candidate.areaName ?? null],
+      candidate.website ?? null, restaurantFoodType, storeSubtype, financialServiceKinds, candidate.brand ?? null, candidate.areaName ?? null],
   );
   return id;
 }
@@ -648,6 +684,8 @@ export function recordLiveResult(candidate: {
   areaName?: string | null;
   /** Canonical brand returned by the same live source. */
   brand?: string | null;
+  /** Authoritative financial-service kinds returned by the same live source. */
+  financialServiceKinds?: FinancialServiceKind[];
 }): void {
   upsertPlace({
     poiType: candidate.poiType,
@@ -657,6 +695,7 @@ export function recordLiveResult(candidate: {
     source:  candidate.source,
     brand:   candidate.brand,
     areaName: candidate.areaName,
+    financialServiceKinds: candidate.financialServiceKinds,
   });
 }
 
@@ -713,6 +752,7 @@ export function queryHabitatCache(
         website:         row.website ?? undefined,
         restaurantFoodType: normalizeCachedRestaurantFoodType(row.restaurant_food_type),
         storeSubtype:       normalizeCachedStoreSubtype(row.store_subtype),
+        financialServiceKinds: normalizeCachedFinancialServiceKinds(row.financial_service_kinds),
         brand:              row.brand ?? getCanonicalBrand(row.poi_type, row.name) ?? undefined,
       });
     }
@@ -761,6 +801,7 @@ export function getHabitatPlaceById(id: string): NearbyPlace | null {
       website:         row.website ?? undefined,
       restaurantFoodType: normalizeCachedRestaurantFoodType(row.restaurant_food_type),
       storeSubtype:       normalizeCachedStoreSubtype(row.store_subtype),
+      financialServiceKinds: normalizeCachedFinancialServiceKinds(row.financial_service_kinds),
       brand:              row.brand ?? getCanonicalBrand(row.poi_type, row.name) ?? undefined,
     };
   } catch (err) {
@@ -840,16 +881,17 @@ export function __resetEmptyResultAttemptsForTests(): void {
 
 /** How long before another full mall sweep of the same area is allowed (see refreshMallsIfDue). */
 const MALL_SWEEP_COOLDOWN_MS = 6 * 60 * 60 * 1_000; // 6 hours
+const MALL_SWEEP_MAX_ATTEMPTS = 3;
 
 /** Same in-memory, coarse-grid throttle as _emptyResultAttempts above. */
 const _mallSweepAttempts = new Map<string, number>();
 
 /**
- * Forces a `shopping_mall` re-fetch for this area, at most once per
- * MALL_SWEEP_COOLDOWN_MS (KAN-282 review).
+ * Fetches malls with OSM footprints across the card's full search radius,
+ * at most once per MALL_SWEEP_COOLDOWN_MS.
  *
  * Why forced rather than a plain refreshHabitatCacheIfStale call: that
- * function treats a POI type as fresh if ANY row of it exists in the 5 km
+ * function treats a POI type as fresh if ANY row of it exists in the prefetch
  * box. One cached small gallery therefore marks `shopping_mall` fresh for
  * the whole area, so a plain call would no-op and a genuinely big mall that
  * was never cached could stay invisible for the full HABITAT_CACHE_STALE_MS
@@ -859,13 +901,53 @@ const _mallSweepAttempts = new Map<string, number>();
  *
  * Never throws; safe to call fire-and-forget.
  */
-export async function refreshMallsIfDue(lat: number, lng: number): Promise<void> {
+export async function refreshMallsIfDue(lat: number, lng: number, radiusMeters: number): Promise<void> {
   const key = emptyResultAttemptKey('shopping_mall_sweep', lat, lng);
   const lastAttempt = _mallSweepAttempts.get(key);
   if (lastAttempt != null && Date.now() - lastAttempt < MALL_SWEEP_COOLDOWN_MS) { return; }
   _mallSweepAttempts.set(key, Date.now());
 
-  await refreshHabitatCacheIfStale(lat, lng, ['shopping_mall'], true);
+  try {
+    let isConnected: boolean | null = null;
+    let connectionType: string | null = null;
+    try {
+      const netState = await NetInfo.fetch();
+      isConnected = netState.isConnected;
+      connectionType = netState.type;
+    } catch { /* treat as unknown */ }
+    if (isConnected === false || (_wifiOnlyDownloads && connectionType != null && connectionType !== 'wifi')) {
+      _mallSweepAttempts.delete(key);
+      return;
+    }
+
+    // The general POI API has no footprint area; OSM geometry is required to
+    // distinguish a destination mall from a small gallery or mistagged shop.
+    let malls: Awaited<ReturnType<typeof searchOsmPlacesStrict>>['shopping_mall'] = [];
+    for (let attempt = 0; attempt < MALL_SWEEP_MAX_ATTEMPTS; attempt++) {
+      try {
+        malls = (await searchOsmPlacesStrict(lat, lng, ['shopping_mall'], radiusMeters)).shopping_mall ?? [];
+        break;
+      } catch (err) {
+        // A fresh deadline lets a transient 504/timeout recover without asking
+        // the user to reopen the screen. A 429 is a stop signal, not a retry.
+        const nonRetryableResponse = err instanceof OverpassHttpError
+          && err.status >= 400 && err.status < 500 && err.status !== 408;
+        if (err instanceof OverpassRateLimitedError || nonRetryableResponse
+          || attempt === MALL_SWEEP_MAX_ATTEMPTS - 1) { throw err; }
+      }
+    }
+    for (const mall of malls) {
+      upsertPlace({
+        poiType: 'shopping_mall', name: mall.name, isGenericName: mall.isGenericName,
+        lat: mall.lat, lng: mall.lng, source: { osm: mall.osmId },
+        footprintAreaM2: mall.footprintAreaM2, website: mall.website, brand: mall.brand,
+      });
+    }
+    if (malls.length > 0) { enforceSizeBudget(); }
+  } catch (err) {
+    _mallSweepAttempts.delete(key);
+    console.warn('[habitatCache] refreshMallsIfDue failed', err);
+  }
 }
 
 /**
@@ -985,6 +1067,7 @@ export async function refreshHabitatCacheIfStale(
           footprintAreaM2: place.footprintAreaM2,
           website:         place.website,
           brand:           place.brand,
+          financialServiceKinds: place.financialServiceKinds,
           areaName:        search.areaName,
         });
         didUpsert = true;

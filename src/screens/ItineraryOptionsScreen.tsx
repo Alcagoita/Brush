@@ -12,29 +12,33 @@
  * complete only by brushing, same as always.
  */
 
-import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import { useTheme } from '../theme';
 import { spacing, radius as radii } from '../theme/tokens';
-import { ChevronLeftIcon, PoiIcon, ShoppingBagIcon } from '../components/AppIcon';
+import { ChevronLeftIcon, PoiIcon, RefreshIcon, ShoppingBagIcon } from '../components/AppIcon';
 import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
-import { ensureCurrentDay } from '../services/firestore';
-import { getMallSnapshot } from '../services/mallSnapshots';
-import { getPositionLowAccuracy } from '../services/geolocation';
-import { getLastSearchCoords } from '../services/proximity';
 import { refreshMallsIfDue } from '../services/habitatCache';
+import { ROUTE_MAX_RADIUS_M } from '../services/destinationResolver';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
-import { resolveTripDestinations, planTrip, type TripPlan } from '../services/oneTripForAll';
-import { findMallOption, type MallOption } from '../services/mallRoute';
+import {
+  getLocalTripAlternativeCount,
+  planLocalTripAlternative,
+  planTripAroundFarTask,
+  type TripPlan,
+} from '../services/oneTripForAll';
+import { findMallOptions, type MallOption } from '../services/mallRoute';
 import { useToastStore } from '../store/toastStore';
 import type { RootStackParamList } from '../navigation/AppNavigator';
+import type { Task } from '../types';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'ItineraryOptions'>;
+type Route = RouteProp<RootStackParamList, 'ItineraryOptions'>;
 
 function stopLine(stop: TripPlan['stops'][number]): string {
   return stop.place.source === 'learned'
@@ -42,69 +46,93 @@ function stopLine(stop: TripPlan['stops'][number]): string {
     : COPY.itineraryOptionsScreen.destinationWithDistance(stop.place.name, formatDistance(stop.place.distanceMeters));
 }
 
+/** A reordering of the same venues is not an alternative route. */
+function hasNewStop(current: TripPlan, candidate: TripPlan): boolean {
+  const currentPlaceIds = new Set(current.stops.map(stop => stop.place.internalId));
+  return candidate.stops.some(stop => !currentPlaceIds.has(stop.place.internalId));
+}
+
+/** Presents independently loaded walking and mall options with bounded retries. */
 export default function ItineraryOptionsScreen() {
   const { palette } = useTheme();
   const navigation = useNavigation<Nav>();
+  const { params } = useRoute<Route>();
   const insets = useSafeAreaInsets();
 
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState(false);
+  const [positionLoading, setPositionLoading] = useState(true);
+  const [walkingLoading, setWalkingLoading] = useState(true);
+  const [mallLoading, setMallLoading] = useState(true);
   const [plan, setPlan] = useState<TripPlan | null>(null);
-  const [mallOption, setMallOption] = useState<MallOption | null>(null);
+  const [walkingExhausted, setWalkingExhausted] = useState(false);
+  const [mallOptions, setMallOptions] = useState<MallOption[]>([]);
+  const [mallIndex, setMallIndex] = useState(0);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
-  const [retryCount, setRetryCount] = useState(0);
+  const [tasksForRefresh, setTasksForRefresh] = useState<Task[]>([]);
+  const [localAlternativeIndices, setLocalAlternativeIndices] = useState<number[]>([]);
+  const [localAlternativePosition, setLocalAlternativePosition] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const refreshRotation = useRef(new Animated.Value(0)).current;
+  const requestId = useRef(0);
+  const walkingAbortController = useRef<AbortController | null>(null);
+  const mallSweep = useRef<Promise<void> | null>(null);
+  const mallSignature = mallOptions.map(mall => mall.placeId).join(',');
+
+  // Match Nearby: a new result set starts at its nearest place; rereading
+  // the same set must not undo a user's manual choice.
+  useEffect(() => { setMallIndex(0); }, [mallSignature]);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setLoadError(false);
-    (async () => {
-      const uid = getAuth().currentUser?.uid;
-      if (!uid) { if (!cancelled) { setLoadError(true); setLoading(false); } return; }
+    const controller = new AbortController();
+    walkingAbortController.current = controller;
+    const requestIdRef = requestId;
+    const currentRequest = ++requestId.current;
+    setPositionLoading(true);
+    setWalkingLoading(true);
+    setMallLoading(true);
+    setPlan(null);
+    setWalkingExhausted(false);
+    setMallOptions([]);
+    setMallIndex(0);
+    setOrigin(null);
+    const coords = params.origin;
+    setOrigin(coords);
+    setPositionLoading(false);
 
-      try {
-        // A user-requested trip deserves the freshest position we can get —
-        // the last proximity-engine fix (getLastSearchCoords) is only a
-        // fallback if a fresh read fails (permission hiccup, GPS cold start).
-        let coords: { lat: number; lng: number };
-        try {
-          coords = await getPositionLowAccuracy();
-        } catch {
-          const cached = getLastSearchCoords();
-          if (!cached) { throw new Error('no position available'); }
-          coords = cached;
+    const cachedMalls = findMallOptions(coords, null);
+    setMallOptions(cachedMalls);
+    if (cachedMalls.length > 0) { setMallLoading(false); }
+    const sweep = refreshMallsIfDue(coords.lat, coords.lng, ROUTE_MAX_RADIUS_M);
+    mallSweep.current = sweep;
+    const clearSweep = () => { if (mallSweep.current === sweep) { mallSweep.current = null; } };
+    sweep.then(clearSweep, clearSweep);
+    sweep
+      .then(() => {
+        if (!cancelled) {
+          setMallOptions(findMallOptions(coords, null));
+          setMallLoading(false);
         }
+      })
+      .catch(() => { if (!cancelled) { setMallLoading(false); } });
 
-        const { tasks } = await ensureCurrentDay(uid);
-        const { resolved, excludedCount } = await resolveTripDestinations(tasks, coords, uid);
-        const tripPlan = planTrip(coords, resolved, excludedCount);
-        // KAN-282 — opportunistic only: reads the user's mall snapshot and the
-        // offline habitat cache, never a search of its own. Failure to fetch
-        // the snapshot just means the snapshot tier is skipped.
-        const snapshot = await getMallSnapshot(uid).catch(() => null);
-        const mall = findMallOption(coords, tripPlan.stops, snapshot);
-        if (!cancelled) { setPlan(tripPlan); setMallOption(mall); setOrigin(coords); }
-
-        // KAN-282 — no qualifying mall can mean "none nearby" (fine, normal)
-        // or "we have never swept this area for malls". Kick off a
-        // fire-and-forget sweep so the next visit has the data, rather than
-        // waiting on proximity's 200m-movement gate. Same background-cache
-        // pattern proximity.ts already uses (Overpass, free — not a Places
-        // call). refreshMallsIfDue carries its own cooldown, so this can't
-        // fire on every screen open; it deliberately does NOT go through the
-        // plain staleness check, which one cached small gallery would satisfy
-        // for the whole area (see refreshMallsIfDue).
-        if (!mall) {
-          refreshMallsIfDue(coords.lat, coords.lng).catch(() => {});
-        }
-      } catch {
-        if (!cancelled) { setLoadError(true); }
-      } finally {
-        if (!cancelled) { setLoading(false); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [retryCount]);
+    setTasksForRefresh(params.tasks);
+    void planTripAroundFarTask(params.tasks, coords, params.farTaskIds, controller.signal)
+      .then(tripPlan => {
+        if (cancelled || requestId.current !== currentRequest) { return; }
+        setPlan(tripPlan);
+        setWalkingExhausted(!!tripPlan.searchExhausted);
+        setLocalAlternativeIndices(getLocalTripAlternativeCount(params.tasks, coords, params.farTaskIds));
+        setLocalAlternativePosition(0);
+      })
+      .catch(() => { if (!cancelled && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
+      .finally(() => { if (!cancelled && requestId.current === currentRequest) { setWalkingLoading(false); } });
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (walkingAbortController.current === controller) { walkingAbortController.current = null; }
+      ++requestIdRef.current;
+    };
+  }, [params]);
 
   const openCard = () => {
     if (!plan || plan.stops.length === 0 || !origin) { return; }
@@ -122,7 +150,90 @@ export default function ItineraryOptionsScreen() {
     });
   };
 
+  /** Cycle the already-known malls exactly like Nearby's place switcher. */
+  const tryAnotherMall = () => {
+    setMallIndex(index => (index + 1) % mallOptions.length);
+  };
+
+  /** Retry the missing option; known malls stay untouched while walking alternatives cycle. */
+  const refreshRoute = async () => {
+    if (!origin || refreshing || walkingLoading || mallLoading || (walkingExhausted && mallOptions.length > 0) || ((plan?.stops.length ?? 0) > 0 && localAlternativeIndices.length <= 1 && mallOptions.length > 0)) { return; }
+    const needsWalkingSearch = (plan?.stops.length ?? 0) === 0 && !walkingExhausted;
+    const needsMallSearch = mallOptions.length === 0;
+    const currentRequest = ++requestId.current;
+    setRefreshing(true);
+    setWalkingLoading(needsWalkingSearch);
+    setMallLoading(needsMallSearch);
+    if (needsWalkingSearch) { setPlan(null); }
+
+    refreshRotation.setValue(0);
+    Animated.timing(refreshRotation, {
+      toValue: -1,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+
+    const walkingSearch = (async () => {
+      try {
+        if (plan?.stops.length && localAlternativeIndices.length > 1) {
+          // A reordering of the same venues is not a new walking route.
+          for (let offset = 1; offset <= localAlternativeIndices.length; offset++) {
+            const nextPosition = (localAlternativePosition + offset) % localAlternativeIndices.length;
+            const nextPlan = planLocalTripAlternative(
+              tasksForRefresh, origin, params.farTaskIds, localAlternativeIndices[nextPosition],
+            );
+            if (!hasNewStop(plan, nextPlan)) { continue; }
+            if (requestId.current === currentRequest) {
+              setPlan(nextPlan);
+              setLocalAlternativePosition(nextPosition);
+            }
+            break;
+          }
+        } else if (needsWalkingSearch) {
+          const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds, walkingAbortController.current?.signal);
+          if (requestId.current === currentRequest) {
+            setPlan(nextPlan);
+            setWalkingExhausted(!!nextPlan.searchExhausted);
+            setLocalAlternativeIndices(getLocalTripAlternativeCount(tasksForRefresh, origin, params.farTaskIds));
+            setLocalAlternativePosition(0);
+          }
+        }
+      } catch {
+        if (requestId.current === currentRequest) {
+          setPlan({ stops: [], excludedCount: tasksForRefresh.length, totalDistanceMeters: 0 });
+        }
+      } finally {
+        if (requestId.current === currentRequest) { setWalkingLoading(false); }
+      }
+    })();
+    const mallSearch = needsMallSearch
+      ? (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng, ROUTE_MAX_RADIUS_M))
+        .catch(() => {})
+        .then(() => {
+          if (requestId.current === currentRequest) {
+            setMallOptions(findMallOptions(origin, null));
+            setMallIndex(0);
+          }
+        })
+        .finally(() => { if (requestId.current === currentRequest) { setMallLoading(false); } })
+      : Promise.resolve();
+
+    await Promise.allSettled([walkingSearch, mallSearch]);
+    if (requestId.current === currentRequest) {
+      ++requestId.current;
+      setWalkingLoading(false);
+      setMallLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   const totalKm = plan ? (plan.totalDistanceMeters / 1000).toFixed(1) : '0.0';
+  const mallOption = mallOptions[mallIndex] ?? null;
+  const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
+  const hasContent = hasWalkingPlan || mallOption !== null;
+  const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
+  const refreshDisabled = !origin || refreshing || walkingLoading || mallLoading || (walkingExhausted && mallOptions.length > 0)
+    || (hasWalkingPlan && localAlternativeIndices.length <= 1 && mallOptions.length > 0);
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -135,31 +246,52 @@ export default function ItineraryOptionsScreen() {
           <ChevronLeftIcon color={palette.text} size={22} />
         </Pressable>
         <Text style={[styles.title, { color: palette.text }]}>{COPY.itineraryOptionsScreen.screenTitle}</Text>
-        <View style={styles.navBtn} />
+        <Pressable
+          testID="refresh-itinerary-button"
+          style={styles.navBtn}
+          onPress={refreshRoute}
+          disabled={refreshDisabled}
+          accessibilityRole="button"
+          accessibilityLabel={COPY.itineraryOptionsScreen.refreshA11y}
+          accessibilityState={{ disabled: refreshDisabled }}>
+          <Animated.View
+            testID="refresh-itinerary-icon"
+            style={{
+              transform: [{
+                rotate: refreshRotation.interpolate({
+                  inputRange: [-1, 0],
+                  outputRange: ['-360deg', '0deg'],
+                }),
+              }],
+            }}>
+            <RefreshIcon color={refreshDisabled ? palette.faint : palette.text} size={20} />
+          </Animated.View>
+        </Pressable>
       </View>
 
       {loading ? (
         <View style={styles.loadingWrap}>
           <LoadingDots color={palette.accent} />
-          <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
+          <Text style={[styles.loadingLabel, { color: palette.muted }]}>
+            {walkingLoading ? COPY.itineraryOptionsScreen.loadingLabel : COPY.itineraryOptionsScreen.mallLoadingLabel}
+          </Text>
         </View>
-      ) : loadError ? (
-        <View style={styles.loadingWrap}>
-          <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
-          <Pressable
-            onPress={() => setRetryCount(c => c + 1)}
-            accessibilityRole="button"
-            accessibilityLabel={COPY.itineraryOptionsScreen.retryLabel}>
-            <Text style={[styles.retryLabel, { color: palette.text }]}>{COPY.itineraryOptionsScreen.retryLabel}</Text>
-          </Pressable>
-        </View>
-      ) : !plan || plan.stops.length === 0 ? (
+      ) : !hasContent ? (
         <View style={styles.loadingWrap}>
           <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.emptyStateBody}</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
-          <Pressable
+          {walkingLoading && !hasWalkingPlan && (
+            <View testID="walking-route-loading" style={styles.sectionLoading}>
+              <LoadingDots color={palette.accent} />
+              <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
+            </View>
+          )}
+          {!walkingLoading && !hasWalkingPlan && mallOption && (
+            <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
+          )}
+          {hasWalkingPlan && <Pressable
             testID="itinerary-card"
             onPress={openCard}
             style={[styles.card, { backgroundColor: palette.surface, borderColor: palette.line }]}
@@ -168,11 +300,11 @@ export default function ItineraryOptionsScreen() {
             <View style={styles.cardHeader}>
               <Text style={[styles.cardTitle, { color: palette.text }]}>{COPY.itineraryOptionsScreen.cardLabel}</Text>
               <Text style={[styles.cardStopsCount, { color: palette.muted }]}>
-                {COPY.itineraryOptionsScreen.stopsCount(plan.stops.length)}
+                {COPY.itineraryOptionsScreen.stopsCount(plan?.stops.length ?? 0)}
               </Text>
             </View>
 
-            {plan.stops.map((stop, i) => (
+            {plan?.stops.map((stop, i) => (
               <View key={stop.task.id} style={styles.stopRow}>
                 <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
                   <PoiIcon type={stop.task.poi ?? ''} color={palette.muted} size={20} />
@@ -187,42 +319,66 @@ export default function ItineraryOptionsScreen() {
               {COPY.itineraryOptionsScreen.totalDistance(totalKm)}
             </Text>
 
-            {plan.excludedCount > 0 && (
+            {(plan?.excludedCount ?? 0) > 0 && (
               <Text style={[styles.exclusionLine, { color: palette.faint }]}>
-                {COPY.itineraryOptionsScreen.exclusionLine(plan.excludedCount)}
+                {COPY.itineraryOptionsScreen.exclusionLine(plan?.excludedCount ?? 0)}
               </Text>
             )}
-          </Pressable>
+          </Pressable>}
+
+          {mallLoading && !mallOption && (
+            <View testID="mall-route-loading" style={styles.sectionLoading}>
+              <LoadingDots color={palette.accent} />
+              <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.mallLoadingLabel}</Text>
+            </View>
+          )}
 
           {/* KAN-282 — mall card, only when a qualifying destination mall is
               in range. Always below the stop-by-stop card: tinted AND first
               would read as "recommended", which the doctrine bans. */}
           {mallOption && (
-            <Pressable
-              testID="mall-card"
-              onPress={openMallCard}
-              style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}
-              accessibilityRole="button"
-              accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name)}
-              accessibilityHint={COPY.itineraryOptionsScreen.mallOpenInMapsA11y}>
-              <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
-                <ShoppingBagIcon color={palette.accent} size={22} />
-              </View>
-              <View style={styles.mallTextWrap}>
-                {/* nearText is designed to pair with nearTint/nearBorder in
-                    both palettes (see ContextChip) — no runtime contrast
-                    check needed, the token pairing already guarantees it. */}
-                <Text style={[styles.mallTitle, { color: palette.nearText }]}>
-                  {COPY.itineraryOptionsScreen.mallCardTitle}
-                </Text>
-                <Text style={[styles.mallSubtitle, { color: palette.muted }]} numberOfLines={1}>
-                  {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name)}
-                </Text>
-                <Text style={[styles.mallDistance, { color: palette.muted }]}>
-                  {COPY.itineraryOptionsScreen.mallCardDistance(formatDistance(mallOption.distanceMeters))}
-                </Text>
-              </View>
-            </Pressable>
+            <View style={[styles.mallCard, { backgroundColor: palette.nearTint, borderColor: palette.nearBorder }]}>
+              <Pressable
+                testID="mall-card"
+                onPress={openMallCard}
+                style={styles.mallRow}
+                accessibilityRole="button"
+                accessibilityLabel={COPY.itineraryOptionsScreen.mallCardA11y(mallOption.name)}
+                accessibilityHint={COPY.itineraryOptionsScreen.mallOpenInMapsA11y}>
+                <View style={[styles.mallIconTile, { backgroundColor: palette.accent + '33' }]}>
+                  <ShoppingBagIcon color={palette.accent} size={22} />
+                </View>
+                <View style={styles.mallTextWrap}>
+                  {/* nearText is designed to pair with nearTint/nearBorder in
+                      both palettes (see ContextChip) — no runtime contrast
+                      check needed, the token pairing already guarantees it. */}
+                  <Text style={[styles.mallTitle, { color: palette.nearText }]}>
+                    {COPY.itineraryOptionsScreen.mallCardTitle}
+                  </Text>
+                  <Text style={[styles.mallSubtitle, { color: palette.muted }]} numberOfLines={1}>
+                    {COPY.itineraryOptionsScreen.mallCardSubtitle(mallOption.name)}
+                  </Text>
+                  <Text style={[styles.mallDistance, { color: palette.muted }]}>
+                    {COPY.itineraryOptionsScreen.mallCardDistance(formatDistance(mallOption.distanceMeters))}
+                  </Text>
+                </View>
+              </Pressable>
+              {mallOptions.length > 1 && (
+                <Pressable
+                  testID="mall-try-another-button"
+                  style={({ pressed }) => [
+                    styles.mallTryAnotherBtn,
+                    { borderColor: palette.nearBorder, opacity: pressed ? 0.6 : 1 },
+                  ]}
+                  onPress={tryAnotherMall}
+                  accessibilityRole="button"
+                  accessibilityLabel={COPY.nearbyCard.tryAnotherPlaceA11y}>
+                  <Text style={[styles.mallTryAnotherLabel, { color: palette.nearText }]}>
+                    {COPY.nearbyCard.tryAnotherPlace}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
           )}
         </ScrollView>
       )}
@@ -250,6 +406,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.page,
   },
   loadingLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
+  sectionLoading: { minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyText: { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center' },
   retryLabel: { fontSize: 14, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 
@@ -279,13 +436,11 @@ const styles = StyleSheet.create({
 
   // ── Mall card (KAN-282) ──
   mallCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
     borderRadius: radii.card,
     borderWidth: 1,
     padding: 16,
   },
+  mallRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   mallIconTile: {
     width: 46, height: 46, borderRadius: radii.heroIcon,
     alignItems: 'center', justifyContent: 'center',
@@ -294,6 +449,16 @@ const styles = StyleSheet.create({
   mallTitle: { fontSize: 15, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
   mallSubtitle: { fontSize: 13, fontFamily: 'Geist-Regular' },
   mallDistance: { fontSize: 12, fontFamily: 'Geist-Regular', fontVariant: ['tabular-nums'] },
+  mallTryAnotherBtn: {
+    marginTop: 8,
+    borderRadius: radii.ctaBtn,
+    minHeight: 44,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: StyleSheet.hairlineWidth,
+  },
+  mallTryAnotherLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
 
   // ── TEMPORARY debug list (KAN-282) — remove once detection bug is fixed ──
 });

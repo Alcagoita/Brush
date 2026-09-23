@@ -75,6 +75,8 @@ interface MockHabitatRow {
   restaurant_food_type?: string | null;
   /** KAN-317 — store subtype metadata persisted in the local cache. */
   store_subtype?: string | null;
+  /** Authoritative financial-service kinds persisted as JSON. */
+  financial_service_kinds?: string | null;
   /** KAN-377 — settlement name carried by the POI source. */
   area_name?: string | null;
   /** KAN-368 follow-up — canonical chain retained for offline matching. */
@@ -118,7 +120,7 @@ const mockDb = {
         { name: 'lat' }, { name: 'lng' }, { name: 'google_place_id' }, { name: 'osm_id' }, { name: 'fsq_place_id' },
         { name: 'overture_id' }, { name: 'brush_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
-        { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' },
+        { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' }, { name: 'financial_service_kinds' },
         { name: 'area_name' }, { name: 'brand' },
       ] as unknown as T[];
     }
@@ -203,23 +205,23 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name] =
-        params as [string, string, string, number, number, number, string | null, string | null, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null];
-      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, brand, area_name });
+      const [id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] =
+        params as [string, string, string, number, number, number, string | null, string | null, string | null, string | null, string | null, number, number, string | null, number | null, number | null, string | null, string | null, string | null, string | null, string | null, string | null];
+      rows.push({ id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
         footprintAreaM2, website,
-        restaurantFoodType, storeSubtype, brand,
+        restaurantFoodType, storeSubtype, financialServiceKinds, brand,
         areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
         number | null, string | null,
-        string | null, string | null, string | null,
+        string | null, string | null, string | null, string | null,
         string | null,
         string | null, number | null, number | null, number | null,
         number, string,
@@ -242,6 +244,7 @@ const mockDb = {
         row.website = website ?? row.website ?? null;
         row.restaurant_food_type = restaurantFoodType ?? row.restaurant_food_type ?? null;
         row.store_subtype = storeSubtype ?? row.store_subtype ?? null;
+        row.financial_service_kinds = financialServiceKinds ?? row.financial_service_kinds ?? null;
         row.brand = brand ?? row.brand ?? null;
         // COALESCE(?, area_name) — a Cloudflare sighting names an OSM-seeded
         // row, and a row that already has a name is never cleared (KAN-377).
@@ -303,12 +306,14 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseSync: jest.fn(() => mockDb),
 }));
 
-// osmPlaces is no longer reached directly by the prefetch (KAN-366 routes it
-// through maps.searchNearbyPlaces), but the module is still imported down the
-// chain — stubbed so nothing touches Overpass.
+// Ordinary prefetch uses maps.searchNearbyPlaces; the destination-mall sweep
+// uses OSM directly because its building footprint is needed for qualification.
+const mockSearchOsmPlacesStrict = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlaces: jest.fn().mockResolvedValue({}),
-  searchOsmPlacesStrict: jest.fn().mockResolvedValue({}),
+  searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlacesStrict(...args),
+  OverpassRateLimitedError: class OverpassRateLimitedError extends Error {},
+  OverpassHttpError: jest.requireActual('../../src/services/osmPlaces').OverpassHttpError,
 }));
 
 // KAN-366 — the prefetch now goes through maps.searchNearbyPlaces, which owns
@@ -391,6 +396,7 @@ import {
   HABITAT_CACHE_STALE_MS,
   HABITAT_BYTES_PER_ROW,
 } from '../../src/services/habitatCache';
+import { OverpassHttpError, OverpassRateLimitedError } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
 
@@ -719,6 +725,18 @@ describe('queryHabitatCache', () => {
     expect(rows.find(r => r.name === 'Zara')?.store_subtype).toBe('clothing');
     expect(result.restaurant[0]).toEqual(expect.objectContaining({ restaurantFoodType: 'sushi' }));
     expect(result.store[0]).toEqual(expect.objectContaining({ storeSubtype: 'clothing' }));
+  });
+
+  it('returns stored financial-service kinds with cached places', () => {
+    upsertPlace({
+      poiType: 'financial_service', name: 'Cofidis', lat: 0.0003, lng: 0,
+      source: { fsq: 'cofidis' }, financialServiceKinds: ['consumer_credit'],
+    });
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['financial_service'], 500);
+
+    expect(rows[0].financial_service_kinds).toBe(JSON.stringify(['consumer_credit']));
+    expect(result.financial_service[0]).toEqual(expect.objectContaining({ financialServiceKinds: ['consumer_credit'] }));
   });
 
   it('retains canonical brands for offline matching and derives one from a legacy exact-name row', () => {
@@ -1202,7 +1220,7 @@ describe('refreshHabitatCacheIfStale', () => {
 describe('refreshMallsIfDue (KAN-282)', () => {
   beforeEach(() => {
     mockNetInfoFetch.mockResolvedValue({ isConnected: true });
-    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ shopping_mall: [] }, 'osm'));
+    mockSearchOsmPlacesStrict.mockResolvedValue({ shopping_mall: [] });
   });
 
   it('sweeps even when a fresh shopping_mall row already exists in the area', async () => {
@@ -1213,30 +1231,96 @@ describe('refreshMallsIfDue (KAN-282)', () => {
       lat: 0, lng: 0, source: { osm: 'node/11883971544' }, footprintAreaM2: 0,
     });
 
-    await refreshMallsIfDue(0, 0);
+    await refreshMallsIfDue(0, 0, 4_500);
 
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
-    const [, , poiTypes] = mockSearchNearbyPlaces.mock.calls[0];
-    expect(poiTypes).toEqual(['shopping_mall']);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledWith(0, 0, ['shopping_mall'], 4_500);
+  });
+
+  it('caches a footprint-qualified mall beyond the ordinary 1 km prefetch radius', async () => {
+    mockSearchOsmPlacesStrict.mockResolvedValue({ shopping_mall: [{
+      osmId: 'way/123', name: 'Destination Mall', isGenericName: false,
+      lat: 0.02, lng: 0, distanceMeters: 2_224, footprintAreaM2: 30_000,
+    }] });
+
+    await refreshMallsIfDue(0, 0, 4_500);
+
+    expect(queryHabitatCache(0, 0, ['shopping_mall'], 4_500).shopping_mall)
+      .toEqual(expect.arrayContaining([expect.objectContaining({
+        name: 'Destination Mall', footprintAreaM2: 30_000,
+      })]));
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
   });
 
   it('does not sweep the same area twice inside the cooldown', async () => {
-    await refreshMallsIfDue(0, 0);
-    await refreshMallsIfDue(0, 0);
+    await refreshMallsIfDue(0, 0, 4_500);
+    await refreshMallsIfDue(0, 0, 4_500);
 
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
   });
 
   it('still sweeps a different area during another area\'s cooldown', async () => {
-    await refreshMallsIfDue(0, 0);
-    await refreshMallsIfDue(10, 10);
+    await refreshMallsIfDue(0, 0, 4_500);
+    await refreshMallsIfDue(10, 10, 4_500);
 
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
   });
 
   it('never throws when the underlying refresh fails', async () => {
-    mockSearchNearbyPlaces.mockRejectedValue(new Error('Overpass unreachable'));
-    await expect(refreshMallsIfDue(0, 0)).resolves.toBeUndefined();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockSearchOsmPlacesStrict.mockRejectedValue(new Error('Overpass request failed: 504'));
+    await expect(refreshMallsIfDue(0, 0, 4_500)).resolves.toBeUndefined();
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(6);
+    warnSpy.mockRestore();
+  });
+
+  it('recovers from a failed mall call during the same sweep', async () => {
+    mockSearchOsmPlacesStrict
+      .mockRejectedValueOnce(new Error('Overpass request failed: 504'))
+      .mockRejectedValueOnce(new Error('Overpass request failed: 504'))
+      .mockResolvedValueOnce({ shopping_mall: [{
+        osmId: 'way/123', name: 'Destination Mall', isGenericName: false,
+        lat: 0.02, lng: 0, distanceMeters: 2_224, footprintAreaM2: 30_000,
+      }] });
+
+    await refreshMallsIfDue(0, 0, 4_500);
+
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(3);
+    expect(queryHabitatCache(0, 0, ['shopping_mall'], 4_500).shopping_mall)
+      .toEqual(expect.arrayContaining([expect.objectContaining({ name: 'Destination Mall' })]));
+  });
+
+  it('does not retry a successful empty result', async () => {
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not retry a rate limit or invalid request', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new OverpassRateLimitedError('rate limited'));
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
+
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new OverpassHttpError(400));
+    await refreshMallsIfDue(10, 10, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
+  });
+
+  it('retries HTTP 408 but not a 400 with misleading message text', async () => {
+    mockSearchOsmPlacesStrict
+      .mockRejectedValueOnce(new OverpassHttpError(408))
+      .mockResolvedValueOnce({ shopping_mall: [] });
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
+
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const badRequest = new OverpassHttpError(400);
+    badRequest.message = 'Overpass request failed: 504';
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(badRequest);
+    await refreshMallsIfDue(10, 10, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(3);
+    warnSpy.mockRestore();
   });
 });
 

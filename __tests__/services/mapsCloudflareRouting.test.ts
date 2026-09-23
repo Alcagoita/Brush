@@ -153,11 +153,20 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
 
     const result = await searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS);
 
-    expect(mockPoiAll).toHaveBeenCalledWith(LAT, LNG, RADIUS, [{ key: 'cafe', type: 'cafe' }]);
+    expect(mockPoiAll).toHaveBeenCalledWith(LAT, LNG, RADIUS, [{ key: 'cafe', type: 'cafe' }], 20);
     expect(mockOsmSearch).toHaveBeenCalledWith(LAT, LNG, ['cafe'], RADIUS);
     expect(result.results.cafe.map(p => p.placeId)).toEqual(['node/1']);
     expect(result.source).toBe('osm');
+    expect(result.cloudflareSettledEmpty).toBe(true);
     expect(result.coverageStatus).toBeUndefined();
+  });
+
+  it('passes a larger result limit through for route-anchor discovery', async () => {
+    mockPoiAll.mockResolvedValue({ results: { store: [{ poi_id: 'book-1', name: 'Bookstore', lat: LAT, lng: LNG, distanceMeters: 300 }] } });
+
+    await searchNearbyPlaces(LAT, LNG, ['store'], RADIUS, [{ key: 'store', type: 'store' }], 50);
+
+    expect(mockPoiAll).toHaveBeenCalledWith(LAT, LNG, RADIUS, [{ key: 'store', type: 'store' }], 50);
   });
 
   it('carries an OSM canonical brand through the fallback result', async () => {

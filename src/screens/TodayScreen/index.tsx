@@ -61,7 +61,10 @@ import { consumeTasksDirty } from '../../services/taskMutationSignal';
 import { COPY } from '../../constants/copy';
 import { localDateISO } from '../../utils/date';
 import { restaurantTaskMatchesAnyPlace } from '../../services/restaurantFoodTypes';
+import { storeTaskMatchesAnyPlace } from '../../services/storeSubtypes';
+import { financialServiceTaskMatchesPlace } from '../../services/financialServiceKinds';
 import type { PlacesMap } from '../../services/proximity';
+import type { Task } from '../../types';
 import {
   SECTION_H_REST,
   buildEmptyMessages,
@@ -77,10 +80,14 @@ import { styles } from './styles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Today'>;
 
-function taskHasNearbyPlace(task: { poi?: string | null; title: string }, places: PlacesMap): boolean {
+/** A task is nearby only when a nearby venue matches its selected subtype. */
+function taskHasNearbyPlace(task: Task, places: PlacesMap): boolean {
   if (!task.poi) { return false; }
   const nearbyPlaces = places[task.poi];
-  return !!nearbyPlaces?.length && restaurantTaskMatchesAnyPlace(task, nearbyPlaces);
+  return !!nearbyPlaces?.length
+    && restaurantTaskMatchesAnyPlace(task, nearbyPlaces)
+    && storeTaskMatchesAnyPlace(task, nearbyPlaces)
+    && nearbyPlaces.some(place => financialServiceTaskMatchesPlace(task, place));
 }
 
 export default function TodayScreen() {
@@ -318,7 +325,14 @@ export default function TodayScreen() {
         <Pressable
           style={[styles.oneTripForAllRow, { borderColor: palette.line }]}
           hitSlop={4}
-          onPress={() => navigation.navigate('ItineraryOptions')}
+          onPress={() => {
+            if (!coords) { return; }
+            navigation.navigate('ItineraryOptions', {
+              tasks: sortedTasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi),
+              origin: { lat: coords.lat, lng: coords.lng },
+              farTaskIds: sortedTasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi && !taskHasNearbyPlace(task, poiPlaces)).map(task => task.id),
+            });
+          }}
           accessibilityRole="button"
           accessibilityLabel={COPY.oneTripForAll.entryA11y}>
           <NavigateIcon color={palette.muted} size={16} />
@@ -330,7 +344,7 @@ export default function TodayScreen() {
       )}
       <View style={styles.bottomPad} />
     </>
-  ), [oneTripVisible, navigation, palette]);
+  ), [oneTripVisible, navigation, palette, coords, sortedTasks, poiPlaces]);
 
   const listEmpty = isBusy ? (
     <View style={styles.rowPad}>

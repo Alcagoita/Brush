@@ -142,6 +142,13 @@ function sleep(ms: number): Promise<void> {
 /** Thrown when Overpass returns 429 — a distinct type (not a plain Error) so fetchOverpass's retry loop can recognize it and stop immediately, never caught-and-retried like a transient failure. */
 export class OverpassRateLimitedError extends Error {}
 
+/** Preserves HTTP status for callers that distinguish transient failures from invalid requests. */
+export class OverpassHttpError extends Error {
+  constructor(public readonly status: number) {
+    super(`Overpass request failed: ${status}`);
+  }
+}
+
 /**
  * POSTs `query` to each OVERPASS_ENDPOINTS entry in turn, with bounded
  * exponential-backoff retries per endpoint for transient failures (timeout,
@@ -189,7 +196,7 @@ async function fetchOverpass(query: string, timeoutMs: number): Promise<Overpass
         if (response.ok) {
           return (await response.json()) as OverpassResponse;
         }
-        lastError = new Error(`Overpass request failed: ${response.status}`);
+        lastError = new OverpassHttpError(response.status);
         if (!isRetryableStatus(response.status)) { break; } // non-retryable — try the next endpoint, not another attempt here
       } catch (err) {
         if (err instanceof OverpassRateLimitedError) { throw err; }
