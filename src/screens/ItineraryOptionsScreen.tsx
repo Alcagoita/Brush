@@ -24,6 +24,7 @@ import { ChevronLeftIcon, PoiIcon, RefreshIcon, ShoppingBagIcon } from '../compo
 import LoadingDots from '../components/LoadingDots';
 import { COPY } from '../constants/copy';
 import { refreshMallsIfDue } from '../services/habitatCache';
+import { ROUTE_MAX_RADIUS_M } from '../services/destinationResolver';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
 import {
   getLocalTripAlternativeCount,
@@ -98,7 +99,7 @@ export default function ItineraryOptionsScreen() {
     const cachedMalls = findMallOptions(coords, null);
     setMallOptions(cachedMalls);
     if (cachedMalls.length > 0) { setMallLoading(false); }
-    const sweep = refreshMallsIfDue(coords.lat, coords.lng);
+    const sweep = refreshMallsIfDue(coords.lat, coords.lng, ROUTE_MAX_RADIUS_M);
     mallSweep.current = sweep;
     const clearSweep = () => { if (mallSweep.current === sweep) { mallSweep.current = null; } };
     sweep.then(clearSweep, clearSweep);
@@ -198,7 +199,7 @@ export default function ItineraryOptionsScreen() {
       }
     })();
     const mallSearch = needsMallSearch
-      ? (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng))
+      ? (mallSweep.current ?? refreshMallsIfDue(origin.lat, origin.lng, ROUTE_MAX_RADIUS_M))
         .catch(() => {})
         .then(() => {
           if (requestId.current === currentRequest) {

@@ -52,6 +52,7 @@ import { normalize } from './poiInference';
 import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
+import { searchOsmPlacesStrict } from './osmPlaces';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
 import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
 import {
@@ -885,11 +886,11 @@ const MALL_SWEEP_COOLDOWN_MS = 6 * 60 * 60 * 1_000; // 6 hours
 const _mallSweepAttempts = new Map<string, number>();
 
 /**
- * Forces a `shopping_mall` re-fetch for this area, at most once per
- * MALL_SWEEP_COOLDOWN_MS (KAN-282 review).
+ * Fetches malls with OSM footprints across the card's full search radius,
+ * at most once per MALL_SWEEP_COOLDOWN_MS.
  *
  * Why forced rather than a plain refreshHabitatCacheIfStale call: that
- * function treats a POI type as fresh if ANY row of it exists in the 5 km
+ * function treats a POI type as fresh if ANY row of it exists in the prefetch
  * box. One cached small gallery therefore marks `shopping_mall` fresh for
  * the whole area, so a plain call would no-op and a genuinely big mall that
  * was never cached could stay invisible for the full HABITAT_CACHE_STALE_MS
@@ -899,13 +900,40 @@ const _mallSweepAttempts = new Map<string, number>();
  *
  * Never throws; safe to call fire-and-forget.
  */
-export async function refreshMallsIfDue(lat: number, lng: number): Promise<void> {
+export async function refreshMallsIfDue(lat: number, lng: number, radiusMeters: number): Promise<void> {
   const key = emptyResultAttemptKey('shopping_mall_sweep', lat, lng);
   const lastAttempt = _mallSweepAttempts.get(key);
   if (lastAttempt != null && Date.now() - lastAttempt < MALL_SWEEP_COOLDOWN_MS) { return; }
   _mallSweepAttempts.set(key, Date.now());
 
-  await refreshHabitatCacheIfStale(lat, lng, ['shopping_mall'], true);
+  try {
+    let isConnected: boolean | null = null;
+    let connectionType: string | null = null;
+    try {
+      const netState = await NetInfo.fetch();
+      isConnected = netState.isConnected;
+      connectionType = netState.type;
+    } catch { /* treat as unknown */ }
+    if (isConnected === false || (_wifiOnlyDownloads && connectionType != null && connectionType !== 'wifi')) {
+      _mallSweepAttempts.delete(key);
+      return;
+    }
+
+    // The general POI API has no footprint area; OSM geometry is required to
+    // distinguish a destination mall from a small gallery or mistagged shop.
+    const malls = (await searchOsmPlacesStrict(lat, lng, ['shopping_mall'], radiusMeters)).shopping_mall ?? [];
+    for (const mall of malls) {
+      upsertPlace({
+        poiType: 'shopping_mall', name: mall.name, isGenericName: mall.isGenericName,
+        lat: mall.lat, lng: mall.lng, source: { osm: mall.osmId },
+        footprintAreaM2: mall.footprintAreaM2, website: mall.website, brand: mall.brand,
+      });
+    }
+    if (malls.length > 0) { enforceSizeBudget(); }
+  } catch (err) {
+    _mallSweepAttempts.delete(key);
+    console.warn('[habitatCache] refreshMallsIfDue failed', err);
+  }
 }
 
 /**

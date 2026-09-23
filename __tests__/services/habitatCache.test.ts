@@ -306,12 +306,12 @@ jest.mock('expo-sqlite', () => ({
   openDatabaseSync: jest.fn(() => mockDb),
 }));
 
-// osmPlaces is no longer reached directly by the prefetch (KAN-366 routes it
-// through maps.searchNearbyPlaces), but the module is still imported down the
-// chain — stubbed so nothing touches Overpass.
+// Ordinary prefetch uses maps.searchNearbyPlaces; the destination-mall sweep
+// uses OSM directly because its building footprint is needed for qualification.
+const mockSearchOsmPlacesStrict = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlaces: jest.fn().mockResolvedValue({}),
-  searchOsmPlacesStrict: jest.fn().mockResolvedValue({}),
+  searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlacesStrict(...args),
 }));
 
 // KAN-366 — the prefetch now goes through maps.searchNearbyPlaces, which owns
@@ -1217,7 +1217,7 @@ describe('refreshHabitatCacheIfStale', () => {
 describe('refreshMallsIfDue (KAN-282)', () => {
   beforeEach(() => {
     mockNetInfoFetch.mockResolvedValue({ isConnected: true });
-    mockSearchNearbyPlaces.mockResolvedValue(nearbyAnswer({ shopping_mall: [] }, 'osm'));
+    mockSearchOsmPlacesStrict.mockResolvedValue({ shopping_mall: [] });
   });
 
   it('sweeps even when a fresh shopping_mall row already exists in the area', async () => {
@@ -1228,30 +1228,47 @@ describe('refreshMallsIfDue (KAN-282)', () => {
       lat: 0, lng: 0, source: { osm: 'node/11883971544' }, footprintAreaM2: 0,
     });
 
-    await refreshMallsIfDue(0, 0);
+    await refreshMallsIfDue(0, 0, 4_500);
 
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
-    const [, , poiTypes] = mockSearchNearbyPlaces.mock.calls[0];
-    expect(poiTypes).toEqual(['shopping_mall']);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledWith(0, 0, ['shopping_mall'], 4_500);
+  });
+
+  it('caches a footprint-qualified mall beyond the ordinary 1 km prefetch radius', async () => {
+    mockSearchOsmPlacesStrict.mockResolvedValue({ shopping_mall: [{
+      osmId: 'way/123', name: 'Destination Mall', isGenericName: false,
+      lat: 0.02, lng: 0, distanceMeters: 2_224, footprintAreaM2: 30_000,
+    }] });
+
+    await refreshMallsIfDue(0, 0, 4_500);
+
+    expect(queryHabitatCache(0, 0, ['shopping_mall'], 4_500).shopping_mall)
+      .toEqual(expect.arrayContaining([expect.objectContaining({
+        name: 'Destination Mall', footprintAreaM2: 30_000,
+      })]));
+    expect(mockSearchNearbyPlaces).not.toHaveBeenCalled();
   });
 
   it('does not sweep the same area twice inside the cooldown', async () => {
-    await refreshMallsIfDue(0, 0);
-    await refreshMallsIfDue(0, 0);
+    await refreshMallsIfDue(0, 0, 4_500);
+    await refreshMallsIfDue(0, 0, 4_500);
 
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(1);
   });
 
   it('still sweeps a different area during another area\'s cooldown', async () => {
-    await refreshMallsIfDue(0, 0);
-    await refreshMallsIfDue(10, 10);
+    await refreshMallsIfDue(0, 0, 4_500);
+    await refreshMallsIfDue(10, 10, 4_500);
 
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
   });
 
   it('never throws when the underlying refresh fails', async () => {
-    mockSearchNearbyPlaces.mockRejectedValue(new Error('Overpass unreachable'));
-    await expect(refreshMallsIfDue(0, 0)).resolves.toBeUndefined();
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    mockSearchOsmPlacesStrict.mockRejectedValue(new Error('Overpass unreachable'));
+    await expect(refreshMallsIfDue(0, 0, 4_500)).resolves.toBeUndefined();
+    await refreshMallsIfDue(0, 0, 4_500);
+    expect(mockSearchOsmPlacesStrict).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
   });
 });
 

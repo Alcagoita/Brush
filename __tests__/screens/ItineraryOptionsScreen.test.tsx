@@ -395,7 +395,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
   it('kicks off a background mall cache refresh when no mall qualifies', async () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
-    await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1));
+    await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1, 4_500));
   });
 
   it('rechecks the mall cache when the background refresh completes', async () => {
@@ -412,7 +412,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
 
     render(<ItineraryOptionsScreen />);
 
-    await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1));
+    await waitFor(() => expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1, 4_500));
     expect(screen.queryByTestId('mall-card')).toBeNull();
     await act(async () => { completeRefresh(); });
     await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
@@ -488,7 +488,7 @@ describe('ItineraryOptionsScreen — mall card (KAN-282)', () => {
   it('refreshes mall candidates even when one is already cached', async () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
-    expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1);
+    expect(mockRefreshMallsIfDue).toHaveBeenCalledWith(38.7, -9.1, 4_500);
   });
 
   it('updates an already visible mall when the refresh finds a closer candidate', async () => {
