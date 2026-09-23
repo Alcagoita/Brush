@@ -519,4 +519,16 @@ describe('far-task live search fallback', () => {
     expect(retry.stops.find(stop => stop.task.id === 'second')?.place.internalId).toBe('second-anchor');
     expect(retry.stops).toHaveLength(2);
   });
+
+  it('does not retry the same anchor when it is the only candidate', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue({
+      results: { pharmacy: [place('only-anchor', 500)], atm: [place('matching-atm', 550)] },
+      source: 'cloudflare',
+    });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(2);
+    expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'], 1)).stops).toHaveLength(0);
+    expect(mockQueryHabitatCache).toHaveBeenCalledTimes(1);
+  });
 });

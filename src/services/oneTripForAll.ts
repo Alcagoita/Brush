@@ -125,6 +125,7 @@ function selectFarAnchor(
     }
     if (!added) { break; }
   }
+  if (anchors.length === 1 && attemptIndex > 0) { return null; }
   return anchors.length > 0 ? anchors[attemptIndex % anchors.length] : null;
 }
 
