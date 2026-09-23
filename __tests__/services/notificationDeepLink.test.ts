@@ -64,12 +64,11 @@ jest.mock('../../src/services/placesFunctions', () => ({
 }));
 jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflareCoverageProxy: jest.fn(),
-  cloudflarePoiAllProxy:   jest.fn(),
+  cloudflarePoiAllProxy: (...args: [number, number, number, { key: string; type: string }[]]) =>
+    require('../helpers/legacyOsmFixtures').cloudflareViaLegacyOsm(mockSearchOsmPlacesStrict, args),
 }));
 
-// live search falls through Cloudflare (unconfigured -> caught -> falls
-// through) to OSM — inject the fixture via the OSM mock, same pattern as
-// mapsCloudflareRouting.test.ts.
+// Adapt the older OSM-shaped fixture to the Brush API's live response.
 const mockSearchOsmPlacesStrict = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlacesStrict(...args),

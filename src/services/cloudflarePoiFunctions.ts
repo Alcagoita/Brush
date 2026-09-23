@@ -4,10 +4,8 @@
  * KAN-367: these three used to go through Firebase callables of the same
  * names; they now call poi-api.brushaway.app directly with the user's
  * Firebase ID token (see poiApi.ts). The exported names keep the `Proxy`
- * suffix on purpose — they are load-bearing across ~20 test files' module
- * mocks and every call site in maps.ts, and renaming them is churn this
- * ticket does not need. The Firebase functions themselves stay deployed as
- * the rollback path until this build is verified in production.
+ * suffix to avoid unrelated call-site churn. The old Firebase callables were
+ * retired in KAN-350.
  */
 
 import { poiApiGet, poiApiGetBinary, poiApiPost } from './poiApi';

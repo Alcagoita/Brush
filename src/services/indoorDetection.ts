@@ -8,7 +8,7 @@
  *   "Degraded" : ≥ 70% of readings have accuracy > 50 m  → indoor candidate
  *   "Recovered": ≥ 70% of readings have accuracy ≤ 50 m  → outdoor
  *
- * ── Signal 2: Google Places shopping-mall lookup ──────────────────────────────
+ * ── Signal 2: shopping-mall lookup ────────────────────────────────────────────
  * Triggered once the accuracy signal has been degraded for 15 consecutive
  * seconds (debounce). If a shopping mall is found within 300 m, the context
  * upgrades indoor_unmapped → indoor_mapped.
@@ -68,7 +68,7 @@ export const ACCURACY_THRESHOLD_M = 50;
 /** Debounce: the signal must be stable for this many ms before we transition. */
 export const DEBOUNCE_MS = 15_000;
 
-/** Radius (metres) used for the shopping-mall Places lookup. */
+/** Radius (metres) used for the shopping-mall lookup. */
 export const MALL_SEARCH_RADIUS_M = 300;
 
 /** Minimum readings in the window before any classification is attempted. */
