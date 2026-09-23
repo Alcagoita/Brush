@@ -143,23 +143,17 @@ describe('ItineraryOptionsScreen — loading', () => {
     expect(mockGoBack).toHaveBeenCalled();
   });
 
-  it('stops the initial walking loader after 15 seconds and ignores a late result', async () => {
-    let finishLookup!: (plan: { stops: ReturnType<typeof makeStop>[]; excludedCount: number; totalDistanceMeters: number }) => void;
-    mockPlanTrip.mockReturnValue(new Promise(resolve => { finishLookup = resolve; }));
+  it('keeps the walking loader visible beside a known mall beyond 15 seconds', () => {
+    mockPlanTrip.mockReturnValue(new Promise(() => {}));
+    mockFindMallOption.mockReturnValue({ placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 });
     jest.useFakeTimers();
     try {
       render(<ItineraryOptionsScreen />);
-      expect(screen.getByText('Finding the way…')).toBeTruthy();
+      expect(screen.getByTestId('mall-card')).toBeTruthy();
+      expect(screen.getByTestId('walking-route-loading')).toBeTruthy();
 
       act(() => { jest.advanceTimersByTime(15000); });
-      expect(screen.queryByText('Finding the way…')).toBeNull();
-      expect(screen.getByText("Couldn't find places for any of these right now.")).toBeTruthy();
-
-      act(() => {
-        finishLookup({ stops: [makeStop('late', 'Late result')], excludedCount: 0, totalDistanceMeters: 100 });
-      });
-      await Promise.resolve();
-      expect(screen.queryByText('Late result')).toBeNull();
+      expect(screen.getByTestId('walking-route-loading')).toBeTruthy();
     } finally {
       jest.useRealTimers();
     }
@@ -186,6 +180,19 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     render(<ItineraryOptionsScreen />);
     await waitFor(() => expect(screen.getByText(/Farmácia Silva/)).toBeTruthy());
     expect(screen.getByText(/Mercado da Vila/)).toBeTruthy();
+  });
+
+  it('shows mall discovery loading beside an already available walking route', async () => {
+    let finishSweep!: () => void;
+    mockRefreshMallsIfDue.mockImplementationOnce(() => new Promise<void>(resolve => { finishSweep = resolve; }));
+
+    render(<ItineraryOptionsScreen />);
+    await waitFor(() => expect(screen.getByTestId('itinerary-card')).toBeTruthy());
+    expect(screen.getByTestId('mall-route-loading')).toBeTruthy();
+    expect(screen.getByText('Finding shopping malls…')).toBeTruthy();
+
+    await act(async () => { finishSweep(); });
+    expect(screen.queryByTestId('mall-route-loading')).toBeNull();
   });
 
   it('shows the learned-place and distance labels correctly', async () => {
@@ -340,20 +347,15 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     expect(screen.getByText('Centro Colombo')).toBeTruthy();
   });
 
-  it('advances the far-anchor attempt after each failed walking search', async () => {
-    mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 4, totalDistanceMeters: 0 });
+  it('does not retry walking after every far candidate was checked', async () => {
+    mockPlanTrip.mockReturnValue({ stops: [], excludedCount: 4, totalDistanceMeters: 0, searchExhausted: true });
+    mockFindMallOption.mockReturnValue({ placeId: 'mall-1', name: 'Centro Colombo', lat: 38.72, lng: -9.12, distanceMeters: 900 });
     render(<ItineraryOptionsScreen />);
 
     await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(1));
-    expect(mockPlanTrip.mock.calls[0][3]).toBeUndefined();
-
-    await act(async () => { fireEvent.press(screen.getByTestId('refresh-itinerary-button')); });
-    await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(2));
-    expect(mockPlanTrip.mock.calls[1][3]).toBe(1);
-
-    await act(async () => { fireEvent.press(screen.getByTestId('refresh-itinerary-button')); });
-    await waitFor(() => expect(mockPlanTrip).toHaveBeenCalledTimes(3));
-    expect(mockPlanTrip.mock.calls[2][3]).toBe(2);
+    await waitFor(() => expect(screen.getByTestId('refresh-itinerary-button').props.accessibilityState.disabled).toBe(true));
+    fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
+    expect(mockPlanTrip).toHaveBeenCalledTimes(1);
   });
 
   it('waits for an in-flight mall sweep only when no mall is known', async () => {
@@ -367,7 +369,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     }));
 
     render(<ItineraryOptionsScreen />);
-    await waitFor(() => expect(screen.getByText("Couldn't find places for any of these right now.")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('Finding shopping malls…')).toBeTruthy());
     fireEvent.press(screen.getByTestId('refresh-itinerary-button'));
     expect(mockRefreshMallsIfDue).toHaveBeenCalledTimes(1);
     await act(async () => { finishSweep(); });
@@ -383,6 +385,7 @@ describe('ItineraryOptionsScreen — resolved trip', () => {
     await waitFor(() => expect(screen.getByTestId('mall-card')).toBeTruthy());
     await waitFor(() => expect(screen.getByTestId('refresh-itinerary-button').props.accessibilityState.disabled).toBe(false));
     expect(screen.queryByTestId('itinerary-card')).toBeNull();
+    expect(screen.getByText("We couldn't find a path for these tasks near you.")).toBeTruthy();
   });
 
   // KAN-282 — "no qualifying mall" can mean we simply have no OSM mall data

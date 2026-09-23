@@ -62,6 +62,7 @@ export default function ItineraryOptionsScreen() {
   const [walkingLoading, setWalkingLoading] = useState(true);
   const [mallLoading, setMallLoading] = useState(true);
   const [plan, setPlan] = useState<TripPlan | null>(null);
+  const [walkingExhausted, setWalkingExhausted] = useState(false);
   const [mallOptions, setMallOptions] = useState<MallOption[]>([]);
   const [mallIndex, setMallIndex] = useState(0);
   const [origin, setOrigin] = useState<{ lat: number; lng: number } | null>(null);
@@ -71,7 +72,6 @@ export default function ItineraryOptionsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const refreshRotation = useRef(new Animated.Value(0)).current;
   const requestId = useRef(0);
-  const walkingAttempt = useRef(0);
   const mallSweep = useRef<Promise<void> | null>(null);
   const mallSignature = mallOptions.map(mall => mall.placeId).join(',');
 
@@ -87,15 +87,17 @@ export default function ItineraryOptionsScreen() {
     setWalkingLoading(true);
     setMallLoading(true);
     setPlan(null);
+    setWalkingExhausted(false);
     setMallOptions([]);
     setMallIndex(0);
     setOrigin(null);
-    walkingAttempt.current = 0;
     const coords = params.origin;
     setOrigin(coords);
     setPositionLoading(false);
 
-    setMallOptions(findMallOptions(coords, null));
+    const cachedMalls = findMallOptions(coords, null);
+    setMallOptions(cachedMalls);
+    if (cachedMalls.length > 0) { setMallLoading(false); }
     const sweep = refreshMallsIfDue(coords.lat, coords.lng);
     mallSweep.current = sweep;
     const clearSweep = () => { if (mallSweep.current === sweep) { mallSweep.current = null; } };
@@ -104,32 +106,23 @@ export default function ItineraryOptionsScreen() {
       .then(() => {
         if (!cancelled && requestId.current === currentRequest) {
           setMallOptions(findMallOptions(coords, null));
+          setMallLoading(false);
         }
       })
-      .catch(() => {});
+      .catch(() => { if (!cancelled && requestId.current === currentRequest) { setMallLoading(false); } });
 
     setTasksForRefresh(params.tasks);
-    let walkingTimedOut = false;
-    const walkingTimeout = setTimeout(() => {
-      if (cancelled || requestId.current !== currentRequest) { return; }
-      walkingTimedOut = true;
-      setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 });
-      setWalkingLoading(false);
-    }, 15000);
     void planTripAroundFarTask(params.tasks, coords, params.farTaskIds)
       .then(tripPlan => {
-        if (cancelled || walkingTimedOut || requestId.current !== currentRequest) { return; }
+        if (cancelled || requestId.current !== currentRequest) { return; }
         setPlan(tripPlan);
+        setWalkingExhausted(!!tripPlan.searchExhausted);
         setLocalAlternativeIndices(getLocalTripAlternativeCount(params.tasks, coords, params.farTaskIds));
         setLocalAlternativePosition(0);
       })
-      .catch(() => { if (!cancelled && !walkingTimedOut && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
-      .finally(() => {
-        clearTimeout(walkingTimeout);
-        if (!cancelled && !walkingTimedOut && requestId.current === currentRequest) { setWalkingLoading(false); }
-      });
-    setMallLoading(false);
-    return () => { cancelled = true; clearTimeout(walkingTimeout); ++requestIdRef.current; };
+      .catch(() => { if (!cancelled && requestId.current === currentRequest) { setPlan({ stops: [], excludedCount: params.tasks.length, totalDistanceMeters: 0 }); } })
+      .finally(() => { if (!cancelled && requestId.current === currentRequest) { setWalkingLoading(false); } });
+    return () => { cancelled = true; ++requestIdRef.current; };
   }, [params]);
 
   const openCard = () => {
@@ -155,8 +148,8 @@ export default function ItineraryOptionsScreen() {
 
   /** Retry the missing option; known malls stay untouched while walking alternatives cycle. */
   const refreshRoute = async () => {
-    if (!origin || refreshing || ((plan?.stops.length ?? 0) > 0 && localAlternativeIndices.length <= 1 && mallOptions.length > 0)) { return; }
-    const needsWalkingSearch = (plan?.stops.length ?? 0) === 0;
+    if (!origin || refreshing || walkingLoading || mallLoading || (walkingExhausted && mallOptions.length > 0) || ((plan?.stops.length ?? 0) > 0 && localAlternativeIndices.length <= 1 && mallOptions.length > 0)) { return; }
+    const needsWalkingSearch = (plan?.stops.length ?? 0) === 0 && !walkingExhausted;
     const needsMallSearch = mallOptions.length === 0;
     const currentRequest = ++requestId.current;
     setRefreshing(true);
@@ -188,11 +181,10 @@ export default function ItineraryOptionsScreen() {
             break;
           }
         } else if (needsWalkingSearch) {
-          const nextPlan = await planTripAroundFarTask(
-            tasksForRefresh, origin, params.farTaskIds, ++walkingAttempt.current,
-          );
+          const nextPlan = await planTripAroundFarTask(tasksForRefresh, origin, params.farTaskIds);
           if (requestId.current === currentRequest) {
             setPlan(nextPlan);
+            setWalkingExhausted(!!nextPlan.searchExhausted);
             setLocalAlternativeIndices(getLocalTripAlternativeCount(tasksForRefresh, origin, params.farTaskIds));
             setLocalAlternativePosition(0);
           }
@@ -217,13 +209,7 @@ export default function ItineraryOptionsScreen() {
         .finally(() => { if (requestId.current === currentRequest) { setMallLoading(false); } })
       : Promise.resolve();
 
-    // A stalled provider must never trap the screen in its loading state.
-    let timeout: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([
-      Promise.allSettled([walkingSearch, mallSearch]),
-      new Promise<void>(resolve => { timeout = setTimeout(resolve, 15_000); }),
-    ]);
-    if (timeout) { clearTimeout(timeout); }
+    await Promise.allSettled([walkingSearch, mallSearch]);
     if (requestId.current === currentRequest) {
       ++requestId.current;
       setWalkingLoading(false);
@@ -237,7 +223,8 @@ export default function ItineraryOptionsScreen() {
   const hasWalkingPlan = (plan?.stops.length ?? 0) > 0;
   const hasContent = hasWalkingPlan || mallOption !== null;
   const loading = positionLoading || (!hasContent && (walkingLoading || mallLoading));
-  const refreshDisabled = !origin || refreshing || (hasWalkingPlan && localAlternativeIndices.length <= 1 && mallOptions.length > 0);
+  const refreshDisabled = !origin || refreshing || walkingLoading || mallLoading || (walkingExhausted && mallOptions.length > 0)
+    || (hasWalkingPlan && localAlternativeIndices.length <= 1 && mallOptions.length > 0);
 
   return (
     <View style={[styles.root, { backgroundColor: palette.bg, paddingTop: insets.top }]}>
@@ -276,7 +263,9 @@ export default function ItineraryOptionsScreen() {
       {loading ? (
         <View style={styles.loadingWrap}>
           <LoadingDots color={palette.accent} />
-          <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
+          <Text style={[styles.loadingLabel, { color: palette.muted }]}>
+            {walkingLoading ? COPY.itineraryOptionsScreen.loadingLabel : COPY.itineraryOptionsScreen.mallLoadingLabel}
+          </Text>
         </View>
       ) : !hasContent ? (
         <View style={styles.loadingWrap}>
@@ -284,6 +273,15 @@ export default function ItineraryOptionsScreen() {
         </View>
       ) : (
         <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 }]}>
+          {walkingLoading && !hasWalkingPlan && (
+            <View testID="walking-route-loading" style={styles.sectionLoading}>
+              <LoadingDots color={palette.accent} />
+              <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.loadingLabel}</Text>
+            </View>
+          )}
+          {!walkingLoading && !hasWalkingPlan && mallOption && (
+            <Text style={[styles.emptyText, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.errorBody}</Text>
+          )}
           {hasWalkingPlan && <Pressable
             testID="itinerary-card"
             onPress={openCard}
@@ -318,6 +316,13 @@ export default function ItineraryOptionsScreen() {
               </Text>
             )}
           </Pressable>}
+
+          {mallLoading && !mallOption && (
+            <View testID="mall-route-loading" style={styles.sectionLoading}>
+              <LoadingDots color={palette.accent} />
+              <Text style={[styles.loadingLabel, { color: palette.muted }]}>{COPY.itineraryOptionsScreen.mallLoadingLabel}</Text>
+            </View>
+          )}
 
           {/* KAN-282 — mall card, only when a qualifying destination mall is
               in range. Always below the stop-by-stop card: tinted AND first
@@ -392,6 +397,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', gap: 10, paddingHorizontal: spacing.page,
   },
   loadingLabel: { fontSize: 14, fontFamily: 'Geist-Regular' },
+  sectionLoading: { minHeight: 88, alignItems: 'center', justifyContent: 'center', gap: 8 },
   emptyText: { fontSize: 14, fontFamily: 'Geist-Regular', textAlign: 'center' },
   retryLabel: { fontSize: 14, fontWeight: '600', fontFamily: 'Geist-SemiBold' },
 

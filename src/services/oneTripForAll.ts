@@ -40,6 +40,10 @@ export const MAX_WAYPOINTS = 9;
 export const MAX_LOCAL_ALTERNATIVES = 100;
 /** Maximum distance between the chosen far-away anchor and the companion stops. */
 export const ROUTE_CLUSTER_RADIUS_M = 200;
+/** The POI API rejects radii above 4.5 km, even though legacy resolution allows 5 km. */
+const ROUTE_SEARCH_RADIUS_M = Math.min(ROUTE_MAX_RADIUS_M, 4_500);
+/** The POI API's maximum per-request result count; a full bucket is not exhaustive. */
+const MAX_ANCHOR_RESULTS_PER_REQUEST = 50;
 /** Keeps local combination search responsive while still considering a useful local neighbourhood. */
 const MAX_CANDIDATES_PER_REQUIREMENT = 5;
 const MAX_ROUTE_EVALUATIONS = 10_000;
@@ -56,65 +60,71 @@ export interface TripPlan {
   excludedCount: number;
   /** Sum of straight-line legs (origin -> stop1 -> stop2 -> ... -> last), meters. */
   totalDistanceMeters: number;
+  /** True only when every known far anchor was checked without a qualifying route. */
+  searchExhausted?: boolean;
 }
 
 /**
- * Finds the nearest candidate for a far-away task, then looks for the other
- * tasks around that candidate. Retry advances to the next far candidate;
- * companions must sit within the cluster radius and cover at least 80%.
+ * Checks far-task POIs nearest-first within each task type, stopping at the
+ * first 200 m cluster that covers at least 80% of eligible tasks.
  */
 export async function planTripAroundFarTask(
   tasks: Task[],
   origin: { lat: number; lng: number },
   farTaskIds: readonly string[],
-  anchorAttemptIndex = 0,
 ): Promise<TripPlan> {
   const eligible = tasks.filter(task => !task.done && task.kind !== 'birthday' && task.poi);
   const farTasks = eligible.filter(task => farTaskIds.includes(task.id));
-  if (farTasks.length === 0) { return emptyTrip(eligible.length); }
+  if (farTasks.length === 0) { return emptyTrip(eligible.length, true); }
 
   const farTypes = [...new Set(farTasks.map(task => task.poi as string))];
-  const liveAnchors = await searchNearbyPlaces(
-    origin.lat, origin.lng, farTypes, ROUTE_MAX_RADIUS_M, buildNearbySearchRequests(farTasks),
-  ).then(result => result.results).catch(() => ({} as PlacesMap));
-  const cachedAnchors = queryHabitatCache(origin.lat, origin.lng, farTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null });
-  const anchor = selectFarAnchor(eligible, farTaskIds, task => [
-    ...filterRoutePlacesForTask(task, liveAnchors[task.poi as string] ?? []),
-    ...cachedPlacesForTask(task, cachedAnchors),
-  ], anchorAttemptIndex);
-  if (!anchor) { return emptyTrip(eligible.length); }
+  const farRequests = buildNearbySearchRequests(farTasks);
+  const liveAnchorSearch = await searchNearbyPlaces(
+    origin.lat, origin.lng, farTypes, ROUTE_SEARCH_RADIUS_M, farRequests, MAX_ANCHOR_RESULTS_PER_REQUEST,
+  ).catch(() => null);
+  const liveAnchors = liveAnchorSearch?.results ?? {} as PlacesMap;
+  const cachedAnchors = queryHabitatCache(origin.lat, origin.lng, farTypes, ROUTE_SEARCH_RADIUS_M, { maxResultsPerType: null });
+  let searchComplete = (liveAnchorSearch?.source === 'cloudflare' || liveAnchorSearch?.cloudflareSettledEmpty === true)
+    && farTypes.every(type => (liveAnchors[type] ?? []).length < MAX_ANCHOR_RESULTS_PER_REQUEST);
+  const seenPlaceIds = new Set<string>();
+  const candidatesByTask = farTasks.map(task => ({
+    task,
+    places: [...filterRoutePlacesForTask(task, liveAnchors[task.poi as string] ?? []), ...cachedPlacesForTask(task, cachedAnchors)]
+      .filter(place => place.distanceMeters > ROUTE_CLUSTER_RADIUS_M)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters),
+  })).sort((a, b) => (a.places[0]?.distanceMeters ?? Infinity) - (b.places[0]?.distanceMeters ?? Infinity));
 
-  const companionTasks = eligible.filter(task => task.id !== anchor.task.id);
-  const companionTypes = [...new Set(companionTasks.map(task => task.poi as string))];
-  const liveCompanionsPromise = companionTasks.length > 0
-    ? searchNearbyPlaces(
-      anchor.place.lat, anchor.place.lng, companionTypes, ROUTE_CLUSTER_RADIUS_M,
-      buildNearbySearchRequests(companionTasks),
-    ).then(result => result.results).catch(() => ({} as PlacesMap))
-    : Promise.resolve({} as PlacesMap);
-  const cachedCompanions = companionTasks.length > 0
-    ? queryHabitatCache(anchor.place.lat, anchor.place.lng, companionTypes, ROUTE_CLUSTER_RADIUS_M, { maxResultsPerType: null })
-    : {} as PlacesMap;
-  const liveCompanions = await liveCompanionsPromise;
-  return planAroundAnchor(eligible, origin, anchor.task, anchor.place, task => [
-    ...filterRoutePlacesForTask(task, liveCompanions[task.poi as string] ?? []),
-    ...cachedPlacesForTask(task, cachedCompanions),
-  ]);
+  for (const { task: anchorTask, places } of candidatesByTask) {
+    for (const anchor of places) {
+      if (seenPlaceIds.has(anchor.placeId)) { continue; }
+      seenPlaceIds.add(anchor.placeId);
+      const companionTasks = eligible.filter(task => task.id !== anchorTask.id);
+      const companionTypes = [...new Set(companionTasks.map(task => task.poi as string))];
+      const cachedCompanions = queryHabitatCache(
+        anchor.lat, anchor.lng, companionTypes, ROUTE_CLUSTER_RADIUS_M, { maxResultsPerType: null },
+      );
+      const cachedPlan = planAroundAnchor(eligible, origin, anchorTask, anchor, task => cachedPlacesForTask(task, cachedCompanions));
+      if (cachedPlan.stops.length > 0) { return cachedPlan; }
+
+      const liveCompanionSearch = await searchNearbyPlaces(
+        anchor.lat, anchor.lng, companionTypes, ROUTE_CLUSTER_RADIUS_M,
+        buildNearbySearchRequests(companionTasks),
+      ).catch(() => null);
+      if (liveCompanionSearch?.source !== 'cloudflare' && liveCompanionSearch?.cloudflareSettledEmpty !== true) {
+        searchComplete = false;
+      }
+      const liveCompanions = liveCompanionSearch?.results ?? {} as PlacesMap;
+      const plan = planAroundAnchor(eligible, origin, anchorTask, anchor, task => [
+        ...filterRoutePlacesForTask(task, liveCompanions[task.poi as string] ?? []),
+        ...cachedPlacesForTask(task, cachedCompanions),
+      ]);
+      if (plan.stops.length > 0) { return plan; }
+    }
+  }
+  return emptyTrip(eligible.length, searchComplete);
 }
 
-/** Chooses a distinct far POI in nearest-first order, regardless of task order. */
-function selectFarAnchor(
-  eligible: Task[],
-  farTaskIds: readonly string[],
-  candidatesForTask: (task: Task) => NearbyPlace[],
-  attemptIndex: number,
-): { task: Task; place: NearbyPlace } | null {
-  const anchors = listFarAnchors(eligible, farTaskIds, candidatesForTask);
-  if (anchors.length === 1 && attemptIndex > 0) { return null; }
-  return anchors.length > 0 ? anchors[attemptIndex % anchors.length] : null;
-}
-
-/** Deduplicates far-task venues and bounds their nearest-first retry cycle. */
+/** Deduplicates and bounds far-task venues for the cached alternative cycle. */
 function listFarAnchors(
   eligible: Task[],
   farTaskIds: readonly string[],
@@ -161,8 +171,8 @@ function planAroundAnchor(
 }
 
 /** No qualifying anchored itinerary exists for these eligible tasks. */
-function emptyTrip(excludedCount: number): TripPlan {
-  return { stops: [], excludedCount, totalDistanceMeters: 0 };
+function emptyTrip(excludedCount: number, searchExhausted = false): TripPlan {
+  return { stops: [], excludedCount, totalDistanceMeters: 0, searchExhausted };
 }
 
 /**
@@ -256,7 +266,7 @@ export function getLocalTripAlternativeCount(
   if (eligibleTypes.length === 0) { return []; }
 
   const cached = queryHabitatCache(
-    coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
+    coords.lat, coords.lng, eligibleTypes, ROUTE_SEARCH_RADIUS_M, { maxResultsPerType: null },
   );
   const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
   const anchors = listFarAnchors(eligible, farTaskIds, task => cachedPlacesForTask(task, cached));
@@ -305,7 +315,7 @@ export function planLocalTripAlternative(
   const eligible = tasks.filter(t => !t.done && t.kind !== 'birthday' && t.poi);
   const eligibleTypes = [...new Set(eligible.map(t => t.poi as string))];
   const cached = queryHabitatCache(
-    coords.lat, coords.lng, eligibleTypes, ROUTE_MAX_RADIUS_M, { maxResultsPerType: null },
+    coords.lat, coords.lng, eligibleTypes, ROUTE_SEARCH_RADIUS_M, { maxResultsPerType: null },
   );
 
   return planCachedTripAlternative(eligible, coords, cached, farTaskIds, alternativeIndex);

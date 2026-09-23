@@ -262,6 +262,7 @@ const en = {
     backA11y:     'Back',
     refreshA11y:  'Show another route',
     loadingLabel: 'Finding the way…',
+    mallLoadingLabel: 'Finding shopping malls…',
     stopsCount:   (n: number) => (n === 1 ? '1 stop' : `${n} stops`),
     /** "{name} · your usual" — learned-place stop. */
     destinationLearned: (name: string) => `${name} · your usual`,
@@ -1519,6 +1520,7 @@ const ptPT: typeof en = {
     backA11y:     'Voltar',
     refreshA11y:  'Mostrar outro percurso',
     loadingLabel: 'A encontrar o caminho…',
+    mallLoadingLabel: 'A procurar centros comerciais…',
     stopsCount:   (n: number) => (n === 1 ? '1 paragem' : `${n} paragens`),
     destinationLearned: (name: string) => `${name} · o teu habitual`,
     destinationWithDistance: (name: string, distance: string) => `${name} · ${distance}`,

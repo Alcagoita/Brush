@@ -436,7 +436,7 @@ describe('far-task live search fallback', () => {
     const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
 
     expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['cached-anchor', 'cached-atm']);
-    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
   });
 
   it('fills a missing live companion from the cluster cache while keeping the live anchor', async () => {
@@ -503,7 +503,7 @@ describe('far-task live search fallback', () => {
     expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(0);
   });
 
-  it('uses the next far anchor on retry when the first cannot cover the tasks', async () => {
+  it('checks the next far anchor during the same search when the first cannot cover the tasks', async () => {
     mockSearchNearbyPlaces.mockResolvedValue({
       results: {
         pharmacy: [place('first-anchor', 500), place('second-anchor', 1000)],
@@ -512,12 +512,11 @@ describe('far-task live search fallback', () => {
     });
     mockQueryHabitatCache.mockReturnValue({});
 
-    expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(0);
-    const retry = await planTripAroundFarTask(tasks, COORDS, ['anchor'], 1);
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
 
-    expect(retry.stops.map(stop => stop.place.internalId).sort()).toEqual(['clustered-atm', 'second-anchor']);
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['clustered-atm', 'second-anchor']);
     expect(mockSearchNearbyPlaces.mock.calls[1].slice(0, 2)).toEqual([place('first-anchor', 500).lat, COORDS.lng]);
-    expect(mockSearchNearbyPlaces.mock.calls[3].slice(0, 2)).toEqual([place('second-anchor', 1000).lat, COORDS.lng]);
+    expect(mockSearchNearbyPlaces.mock.calls[2].slice(0, 2)).toEqual([place('second-anchor', 1000).lat, COORDS.lng]);
   });
 
   it('centers on the nearest far place regardless of task order', async () => {
@@ -556,8 +555,9 @@ describe('far-task live search fallback', () => {
 
     expect(plan.stops).toHaveLength(4);
     expect(mockSearchNearbyPlaces).toHaveBeenNthCalledWith(
-      1, COORDS.lat, COORDS.lng, ['store'], 5000,
+      1, COORDS.lat, COORDS.lng, ['store'], 4500,
       [{ key: 'store:store_kind:books', type: 'store', attribute: { dimension: 'store_kind', values: ['books'] } }],
+      50,
     );
     expect(mockSearchNearbyPlaces).toHaveBeenNthCalledWith(
       2, book.lat, book.lng, ['restaurant', 'atm', 'cafe'], 200, expect.any(Array),
@@ -568,7 +568,7 @@ describe('far-task live search fallback', () => {
     expect(plan.stops.find(stop => stop.task.id === 'food')?.place.distanceMeters).toBe(830);
   });
 
-  it('does not retry the same anchor when it is the only candidate', async () => {
+  it('checks a sole anchor only once', async () => {
     mockSearchNearbyPlaces.mockResolvedValue({
       results: { pharmacy: [place('only-anchor', 500)], atm: [place('matching-atm', 550)] },
       source: 'cloudflare',
@@ -576,7 +576,98 @@ describe('far-task live search fallback', () => {
     mockQueryHabitatCache.mockReturnValue({});
 
     expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'])).stops).toHaveLength(2);
-    expect((await planTripAroundFarTask(tasks, COORDS, ['anchor'], 1)).stops).toHaveLength(0);
-    expect(mockQueryHabitatCache).toHaveBeenCalledTimes(3);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(2);
+  });
+
+  it('finds a complete Books cluster at the third bookstore without a user retry', async () => {
+    const book = (id: string, meters: number) => ({ ...place(id, meters), storeSubtype: 'books' as const });
+    const fourTasks = [
+      makeTask({ id: 'book', poi: 'store', storeSubtype: 'books' }),
+      makeTask({ id: 'food', poi: 'restaurant' }),
+      makeTask({ id: 'cash', poi: 'atm' }),
+      makeTask({ id: 'coffee', poi: 'cafe' }),
+    ];
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { store: [book('first', 737), book('second', 795), book('third', 802)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: { restaurant: [place('food-1', 750)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: { restaurant: [place('food-2', 810)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: {
+        restaurant: [place('food-3', 820)], atm: [place('cash-3', 830)], cafe: [place('coffee-3', 840)],
+      }, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(fourTasks, COORDS, ['book']);
+
+    expect(plan.stops).toHaveLength(4);
+    expect(plan.stops.map(stop => stop.place.internalId)).toContain('third');
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(4);
+    expect(mockSearchNearbyPlaces.mock.calls.slice(1).map(call => call[0])).toEqual([
+      book('first', 737).lat, book('second', 795).lat, book('third', 802).lat,
+    ]);
+  });
+
+  it('marks all candidates exhausted only after every known anchor fails', async () => {
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('first', 500), place('second', 1000)] }, source: 'cloudflare' })
+      .mockResolvedValue({ results: { atm: [] }, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops).toHaveLength(0);
+    expect(plan.searchExhausted).toBe(true);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(3);
+  });
+
+  it('moves to another far task type after checking the first type', async () => {
+    const farTasks = [makeTask({ id: 'pharmacy' }), makeTask({ id: 'atm', poi: 'atm' })];
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('pharmacy-anchor', 500)], atm: [place('atm-anchor', 1000)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: { atm: [] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: { pharmacy: [place('near-atm', 1050)] }, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(farTasks, COORDS, ['pharmacy', 'atm']);
+
+    expect(plan.stops.map(stop => stop.place.internalId).sort()).toEqual(['atm-anchor', 'near-atm']);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(3);
+  });
+
+  it('does not save exhaustion when live companion searches fall back to OSM', async () => {
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({ results: { pharmacy: [place('anchor', 500)] }, source: 'cloudflare' })
+      .mockResolvedValueOnce({ results: { atm: [] }, source: 'osm' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops).toHaveLength(0);
+    expect(plan.searchExhausted).toBe(false);
+  });
+
+  it('saves an exhaustive empty result when both completed sources find no anchors', async () => {
+    mockSearchNearbyPlaces.mockResolvedValue({ results: { pharmacy: [] }, source: 'osm', cloudflareSettledEmpty: true });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.searchExhausted).toBe(true);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not claim exhaustion when the anchor bucket hits the API result cap', async () => {
+    mockSearchNearbyPlaces
+      .mockResolvedValueOnce({
+        results: { pharmacy: Array.from({ length: 50 }, (_, index) => place(`anchor-${index}`, 500 + index * 10)) },
+        source: 'cloudflare',
+      })
+      .mockResolvedValue({ results: { atm: [] }, source: 'cloudflare' });
+    mockQueryHabitatCache.mockReturnValue({});
+
+    const plan = await planTripAroundFarTask(tasks, COORDS, ['anchor']);
+
+    expect(plan.stops).toHaveLength(0);
+    expect(plan.searchExhausted).toBe(false);
+    expect(mockSearchNearbyPlaces).toHaveBeenCalledTimes(51);
   });
 });

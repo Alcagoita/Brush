@@ -264,6 +264,8 @@ export type PoiCoverageStatus = 'none' | 'building' | 'ready';
 export interface PoiSearchResult {
   results: Record<string, NearbyPlace[]>;
   source: PoiSearchSource;
+  /** True when Cloudflare completed an empty query before a successful OSM fallback. */
+  cloudflareSettledEmpty?: boolean;
   /** Only meaningful when source is 'cloudflare' or 'osm' (derived from the POST /poi/nearby response either way) — undefined for a 'cache' answer, which doesn't consult Cloudflare's coverage state at all. */
   coverageStatus?: PoiCoverageStatus;
   /** Present only when coverageStatus is 'building' and the Worker has an ETA to offer — currently always undefined (no ETA data exists yet); kept in the shape now so KAN-348/349 don't need to touch this contract again once it does. */
@@ -409,12 +411,14 @@ function requestCoverageDemandOnce(lat: number, lng: number): void {
   });
 }
 
+/** Queries typed Cloudflare buckets with the caller's per-bucket result limit. */
 async function searchNearbyPlacesCloudflare(
   lat: number,
   lng: number,
   poiTypes: string[],
   radiusMeters: number,
   requests: NearbySearchRequest[],
+  limitPerRequest: number,
 ): Promise<CloudflareAttempt> {
   try {
     const result: Record<string, NearbyPlace[]> = {};
@@ -430,6 +434,7 @@ async function searchNearbyPlacesCloudflare(
         lng,
         radiusMeters,
         requests.slice(start, start + MAX_NEARBY_REQUESTS_PER_CALL),
+        limitPerRequest,
       );
       Object.assign(data.results, response.results);
       data.placeName ??= response.placeName ?? null;
@@ -556,10 +561,11 @@ export async function searchNearbyPlaces(
   poiTypes: string[],
   radiusMeters: number,
   requestedSearches: NearbySearchRequest[] = poiTypes.map(type => ({ key: type, type })),
+  limitPerRequest = 20,
 ): Promise<PoiSearchResult> {
   if (poiTypes.length === 0) { return { results: {}, source: 'cloudflare' }; }
 
-  const cf = await searchNearbyPlacesCloudflare(lat, lng, poiTypes, radiusMeters, requestedSearches);
+  const cf = await searchNearbyPlacesCloudflare(lat, lng, poiTypes, radiusMeters, requestedSearches, limitPerRequest);
   if (cf.ok && cf.results) {
     return { results: cf.results, source: 'cloudflare', coverageStatus: 'ready', areaName: cf.placeName ?? null };
   }
@@ -593,7 +599,7 @@ export async function searchNearbyPlaces(
     });
   }
 
-  return { results: result, source: 'osm' };
+  return { results: result, source: 'osm', cloudflareSettledEmpty: cf.settledEmpty === true };
 }
 
 /** Google types carried by every place regardless of what it actually is —
