@@ -10,7 +10,7 @@ import {
 import { GoogleAuthProvider, OAuthProvider } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { appleAuth } from '@invertase/react-native-apple-authentication';
-import { GOOGLE_OAUTH_WEB_CLIENT_ID } from '../config/keys';
+import { GOOGLE_OAUTH_WEB_CLIENT_ID } from '../config/oauthClient';
 
 // Scopes added in KAN-84: tasks.readonly and calendar.readonly for the import connectors.
 GoogleSignin.configure({

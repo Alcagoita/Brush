@@ -1,25 +1,19 @@
 /**
- * KAN-342 — searchNearbyPlaces tries Brush's own Cloudflare POI database
- * first (covered cities), falls through to OSM (not Google) for anything
- * else. Google Places has no role in this function's path anymore.
+ * KAN-350 — searchNearbyPlaces uses Brush's own POI API only. A completed
+ * empty response is an answer; a failed request remains an error.
  *
  * Covers:
- *   - global typed Cloudflare results used directly — OSM never called
- *   - global empty result: falls through to OSM
- *   - Cloudflare poi/all throws: falls through to OSM, no throw
- *   - a completed Cloudflare empty result plus OSM empty triggers coverage demand
+ *   - global typed results used directly
+ *   - global empty result: returned without another place source
+ *   - API failures propagate for offline-cache/retry callers
+ *   - a completed empty result triggers coverage demand
  */
 import { searchNearbyPlaces } from '../../src/services/maps';
-import { searchOsmPlacesStrict } from '../../src/services/osmPlaces';
 import { cloudflarePoiAllProxy, cloudflareRequestCoverageProxy } from '../../src/services/cloudflarePoiFunctions';
 
 jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflarePoiAllProxy:         jest.fn(),
   cloudflareRequestCoverageProxy: jest.fn(),
-}));
-
-jest.mock('../../src/services/osmPlaces', () => ({
-  searchOsmPlacesStrict: jest.fn(),
 }));
 
 // reverseGeocodeCache -> expo-sqlite, unavailable under Jest — stub it, same
@@ -30,19 +24,17 @@ jest.mock('../../src/services/reverseGeocodeCache', () => ({
 }));
 
 const mockPoiAll = cloudflarePoiAllProxy as jest.Mock;
-const mockOsmSearch = searchOsmPlacesStrict as jest.Mock;
 const mockRequestCoverage = cloudflareRequestCoverageProxy as jest.Mock;
 
 const LAT = 38.7223, LNG = -9.1393, RADIUS = 500;
 
-describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => {
+describe('searchNearbyPlaces — Brush API routing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOsmSearch.mockResolvedValue({});
     mockRequestCoverage.mockResolvedValue({ coverageStatus: 'none', cityId: null });
   });
 
-  it('uses globally returned, pre-bucketed Cloudflare results without an OSM request', async () => {
+  it('uses globally returned, pre-bucketed Brush API results', async () => {
     mockPoiAll.mockResolvedValue({
       results: { cafe: [
         { poi_id: 'near', fsq_place_id: 'near', name: 'Near Cafe', lat: LAT, lng: LNG, primary_poi_type: 'cafe', brand: null, category_label: null, address: null, distanceMeters: 50 },
@@ -53,7 +45,6 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
     const result = await searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS);
 
     expect(result.results.cafe.map(p => p.placeId)).toEqual(['near', 'far']);
-    expect(mockOsmSearch).not.toHaveBeenCalled();
     expect(result.source).toBe('cloudflare');
     expect(result.coverageStatus).toBe('ready');
   });
@@ -77,7 +68,6 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
     expect(mockPoiAll.mock.calls.map(call => call[3])).toHaveLength(2);
     expect(mockPoiAll.mock.calls.map(call => call[3].length)).toEqual([32, 1]);
     expect(result.results.store.map(place => place.name)).toEqual(['Brand 1', 'Brand 33']);
-    expect(mockOsmSearch).not.toHaveBeenCalled();
   });
 
   it('uses the explicit community POI identity when a moderated record has no Foursquare id', async () => {
@@ -90,7 +80,6 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
     const result = await searchNearbyPlaces(LAT, LNG, ['restaurant'], RADIUS);
 
     expect(result.results.restaurant).toMatchObject([{ placeId: 'community:the-sushi-soul', name: 'The Sushi Soul' }]);
-    expect(mockOsmSearch).not.toHaveBeenCalled();
   });
 
   it('merges request-keyed subtype buckets into the broad app type with stored attributes', async () => {
@@ -116,7 +105,6 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
       restaurantFoodType: 'sushi',
       restaurantFoodTypes: expect.arrayContaining(['sushi', 'vegetarian']),
     }]);
-    expect(mockOsmSearch).not.toHaveBeenCalled();
   });
 
   it('propagates a group subtype onto both singular and plural fields for a generic-first pizzeria (KAN-344)', async () => {
@@ -142,23 +130,18 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
       restaurantFoodType: 'pizza',
       restaurantFoodTypes: ['pizza'],
     });
-    expect(mockOsmSearch).not.toHaveBeenCalled();
   });
 
-  it('falls through to OSM when the global query is empty', async () => {
+  it('returns a completed empty API answer without another place source', async () => {
     mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
-    mockOsmSearch.mockResolvedValue({
-      cafe: [{ osmId: 'node/1', name: 'OSM Cafe', isGenericName: false, lat: LAT, lng: LNG, distanceMeters: 30, footprintAreaM2: 0 }],
-    });
 
     const result = await searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS);
 
     expect(mockPoiAll).toHaveBeenCalledWith(LAT, LNG, RADIUS, [{ key: 'cafe', type: 'cafe' }], 20);
-    expect(mockOsmSearch).toHaveBeenCalledWith(LAT, LNG, ['cafe'], RADIUS);
-    expect(result.results.cafe.map(p => p.placeId)).toEqual(['node/1']);
-    expect(result.source).toBe('osm');
+    expect(result.results.cafe).toEqual([]);
+    expect(result.source).toBe('cloudflare');
     expect(result.cloudflareSettledEmpty).toBe(true);
-    expect(result.coverageStatus).toBeUndefined();
+    expect(result.coverageStatus).toBe('ready');
   });
 
   it('passes a larger result limit through for route-anchor discovery', async () => {
@@ -169,69 +152,20 @@ describe('searchNearbyPlaces — Cloudflare-first, OSM-failsafe routing', () => 
     expect(mockPoiAll).toHaveBeenCalledWith(LAT, LNG, RADIUS, [{ key: 'store', type: 'store' }], 50);
   });
 
-  it('carries an OSM canonical brand through the fallback result', async () => {
-    mockPoiAll.mockResolvedValue({ results: { store: [] } });
-    mockOsmSearch.mockResolvedValue({
-      store: [{ osmId: 'node/zara', name: 'Zara', isGenericName: false, lat: LAT, lng: LNG, distanceMeters: 30, footprintAreaM2: 0, brand: 'Zara' }],
-    });
-
-    const result = await searchNearbyPlaces(LAT, LNG, ['store'], RADIUS);
-
-    expect(result.results.store).toMatchObject([{ placeId: 'node/zara', brand: 'Zara' }]);
-  });
-
-  it('falls through to OSM when the Cloudflare request throws', async () => {
+  it('propagates an API transport failure for cache or retry callers', async () => {
     mockPoiAll.mockRejectedValue(new Error('network error'));
 
-    await expect(searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS)).resolves.toBeDefined();
-    expect(mockOsmSearch).toHaveBeenCalled();
+    await expect(searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS)).rejects.toThrow('network error');
   });
 
-  it('uses OSM when the global query has no requested POIs', async () => {
-    mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
-    mockOsmSearch.mockResolvedValue({ cafe: [{ osmId: 'node/2', name: 'OSM Cafe', isGenericName: false, lat: LAT, lng: LNG, distanceMeters: 25, footprintAreaM2: 0 }] });
-
-    const result = await searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS);
-
-    expect(result.results.cafe.map(p => p.placeId)).toEqual(['node/2']);
-    expect(mockOsmSearch).toHaveBeenCalled();
-    expect(result.source).toBe('osm');
-  });
-
-  it('AC: no Google path exists — Cloudflare failure + OSM failure never reaches a Google call (structurally, none is imported)', async () => {
+  it('does not use Google when the Brush API fails', async () => {
     mockPoiAll.mockRejectedValue(new Error('network error'));
-    mockOsmSearch.mockRejectedValue(new Error('Overpass: all endpoints failed'));
-
-    await expect(searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS)).rejects.toThrow('Overpass: all endpoints failed');
-    // Importing maps without a Google-client mock proves this path cannot
-    // reach Google after a Cloudflare failure.
-  });
-
-  // KAN-342 review: searchOsmPlacesStrict (not the lenient searchOsmPlaces)
-  // is used deliberately — proximity.ts's offline retry-queue depends on
-  // catching a real thrown error to distinguish "couldn't look" (retry
-  // later) from "looked, found nothing" (a settled answer). Collapsing both
-  // into an empty result would silently break that distinction. See
-  // tripDownload.ts for the same choice made for the same reason.
-  it('AC: a genuine OSM network failure propagates as a thrown error, not an empty result', async () => {
-    mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
-    mockOsmSearch.mockRejectedValue(new Error('Overpass: all endpoints failed'));
-
-    await expect(searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS)).rejects.toThrow('Overpass: all endpoints failed');
-  });
-
-  it('AC: OSM genuinely finding zero results resolves normally (the settled path), not a throw', async () => {
-    mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
-    mockOsmSearch.mockResolvedValue({ cafe: [] });
-
-    const result = await searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS);
-
-    expect(result.results.cafe).toEqual([]);
+    await expect(searchNearbyPlaces(LAT, LNG, ['cafe'], RADIUS)).rejects.toThrow('network error');
   });
 });
 
-// KAN-347 zero check: a coverage-demand request fires only on a genuine
-// zero — the global query AND OSM both found nothing — and only when
+// KAN-347 zero check: a coverage-demand request fires only on a completed
+// empty API answer, and only when
 // the location reverse-geocodes to a real, unmapped settlement (not the
 // ocean, not farmland with no settlement). Deduped per coarse (~1km) cell
 // for the app's session; never retried for 'building'/'ready'. Distinct
@@ -253,12 +187,11 @@ describe('searchNearbyPlaces — KAN-355 zero check / coverage demand recording'
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockOsmSearch.mockResolvedValue({ cafe: [] });
     mockRequestCoverage.mockResolvedValue({ coverageStatus: 'none', cityId: null });
     mockClassifyFetch(SETTLEMENT_GEOCODE);
   });
 
-  it('fires a background coverage-request on a genuine zero (global empty + OSM empty) in a real settlement', async () => {
+  it('fires a background coverage-request on an empty API answer in a real settlement', async () => {
     mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
 
     await searchNearbyPlaces(10.0, 10.0, ['cafe'], RADIUS);
@@ -287,19 +220,6 @@ describe('searchNearbyPlaces — KAN-355 zero check / coverage demand recording'
     expect(mockRequestCoverage).not.toHaveBeenCalled();
   });
 
-  it('does not fire when OSM actually found something — not a genuine zero', async () => {
-    mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
-    mockOsmSearch.mockResolvedValue({
-      cafe: [{ osmId: 'node/1', name: 'OSM Cafe', isGenericName: false, lat: 10.5, lng: 10.5, distanceMeters: 20, footprintAreaM2: 0 }],
-    });
-
-    await searchNearbyPlaces(10.5, 10.5, ['cafe'], RADIUS);
-    await flushZeroCheck();
-
-    expect(mockRequestCoverage).not.toHaveBeenCalled();
-    expect(global.fetch).not.toHaveBeenCalled(); // never even classifies — no zero to check
-  });
-
   it('does not fire when the point has no settlement — desert/farmland between towns', async () => {
     mockClassifyFetch(NO_SETTLEMENT_GEOCODE);
     mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
@@ -323,7 +243,7 @@ describe('searchNearbyPlaces — KAN-355 zero check / coverage demand recording'
   it('does not fire a coverage-request when the global request itself fails', async () => {
     mockPoiAll.mockRejectedValue(new Error('network error'));
 
-    await searchNearbyPlaces(11.0, 11.0, ['cafe'], RADIUS);
+    await expect(searchNearbyPlaces(11.0, 11.0, ['cafe'], RADIUS)).rejects.toThrow('network error');
     await flushZeroCheck();
 
     expect(mockRequestCoverage).not.toHaveBeenCalled();
@@ -355,7 +275,7 @@ describe('searchNearbyPlaces — KAN-355 zero check / coverage demand recording'
     const result = await searchNearbyPlaces(14.0, 14.0, ['cafe'], RADIUS);
 
     expect(result.results.cafe).toEqual([]);
-    expect(result.source).toBe('osm');
+    expect(result.source).toBe('cloudflare');
     await flushZeroCheck();
     expect(mockRequestCoverage).toHaveBeenCalledWith(14.0, 14.0);
     // Observe the rejection explicitly — if requestCoverageDemandOnce ever
@@ -364,13 +284,12 @@ describe('searchNearbyPlaces — KAN-355 zero check / coverage demand recording'
     await expect(mockRequestCoverage.mock.results[0].value).rejects.toThrow('network error');
   });
 
-  it('still resolves with real OSM fallback results when a genuine zero check runs in the background', async () => {
+  it('still resolves with a settled empty result when a zero check runs in the background', async () => {
     mockPoiAll.mockResolvedValue({ results: { cafe: [] } });
-    mockOsmSearch.mockResolvedValue({ cafe: [] });
 
     const result = await searchNearbyPlaces(15.0, 15.0, ['cafe'], RADIUS);
 
     expect(result.results.cafe).toEqual([]);
-    expect(result.source).toBe('osm');
+    expect(result.source).toBe('cloudflare');
   });
 });

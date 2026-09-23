@@ -93,10 +93,8 @@ global.fetch = mockFetch as unknown as typeof fetch;
 // proximity imports maps.ts, which transitively pulls in placesFunctions ->
 // @react-native-firebase/functions, a native module unavailable under Jest.
 // Mock ONLY that native boundary so maps.ts's real helpers still load.
-// The live Places search goes through the Cloud Function proxy, not raw
-// fetch — mock it here (it also pulls in @react-native-firebase/functions, a
-// native module unavailable under Jest). Resolves a well-formed empty
-// response by default: maps.ts reads `.places` off it.
+// Nearby search uses Brush's API. The old fixture shape is adapted below;
+// this keeps the tests focused on prefetch and source handling.
 jest.mock('../../src/services/placesFunctions', () => ({
   searchNearbyPlacesProxy: jest.fn(),
   placesAutocompleteProxy: jest.fn(),
@@ -108,10 +106,7 @@ jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflarePoiAllProxy:   (...args: unknown[]) => mockCloudflarePoiAllProxy(...args),
   cloudflareRequestCoverageProxy: jest.fn(),
 }));
-// KAN-342: live search is Cloudflare-first, OSM-failsafe — Google is no
-// longer part of searchNearbyPlaces's path. cloudflareCoverageProxy above
-// is left unconfigured (rejects to undefined -> caught -> falls through),
-// so live-search fixtures are injected via the OSM mock instead.
+// Existing place fixtures are adapted to the Brush API response shape.
 const mockSearchOsmPlaces = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({
   searchOsmPlacesStrict: (...args: unknown[]) => mockSearchOsmPlaces(...args),
@@ -160,6 +155,8 @@ function mockAtmSearchResponse() {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  mockCloudflarePoiAllProxy.mockImplementation((...args: [number, number, number, { key: string; type: string }[]]) =>
+    require('../helpers/legacyOsmFixtures').cloudflareViaLegacyOsm(mockSearchOsmPlaces, args));
   mockFetch.mockReset();
   mockSearchOsmPlaces.mockReset();
   mockSearchOsmPlaces.mockResolvedValue({});
@@ -222,13 +219,13 @@ describe('habitat cache prefetch covers all POI types', () => {
 });
 
 describe('KAN-342: source-aware identity + source/coverageStatus threading', () => {
-  it('AC: an OSM live hit is recorded with source.osm, never googlePlaceId', async () => {
+  it('AC: a live hit is recorded under the API identity, never googlePlaceId', async () => {
     mockAtmSearchResponse();
 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
 
     expect(mockRecordLiveResult).toHaveBeenCalledWith(
-      expect.objectContaining({ poiType: 'atm', source: { osm: 'atm-1' } }),
+      expect.objectContaining({ poiType: 'atm', source: { overture: 'atm-1' } }),
     );
     const call = mockRecordLiveResult.mock.calls[0][0];
     expect(call.source.google).toBeUndefined();
@@ -261,10 +258,9 @@ describe('KAN-342: source-aware identity + source/coverageStatus threading', () 
     await runProximitySearch('uid-1', [makeTask({ poi: 'atm' })], jest.fn());
 
     const state = getLastPoiSearchState();
-    expect(state.source).toBe('osm');
-    // cloudflarePoiAllProxy is unconfigured here (undefined -> caught -> falls
-    // through), so coverageStatus is genuinely unknown for this tick.
-    expect(state.degraded).toBe(true);
+    expect(state.source).toBe('cloudflare');
+    expect(state.coverageStatus).toBe('ready');
+    expect(state.degraded).toBe(false);
     expect(state).not.toHaveProperty('_degraded');
   });
 });

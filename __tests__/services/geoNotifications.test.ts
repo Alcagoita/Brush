@@ -87,10 +87,7 @@ jest.mock('../../src/native/WearNotificationModule', () => ({
   sendProximityAlert: jest.fn(),
 }));
 
-// KAN-342 — live search is Cloudflare-first, OSM-failsafe; Google is no
-// longer reachable from this path. cloudflarePoiFunctions is left
-// unconfigured (rejects to undefined -> caught -> falls through), so every
-// fixture here is injected via the OSM mock instead.
+// Adapt older OSM-shaped place fixtures to the Brush API's live response.
 jest.mock('../../src/services/placesFunctions', () => ({
   searchNearbyPlacesProxy: jest.fn(),
   placesAutocompleteProxy: jest.fn(),
@@ -98,7 +95,8 @@ jest.mock('../../src/services/placesFunctions', () => ({
 }));
 jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflareCoverageProxy: jest.fn(),
-  cloudflarePoiAllProxy:   jest.fn(),
+  cloudflarePoiAllProxy: (...args: [number, number, number, { key: string; type: string }[]]) =>
+    require('../helpers/legacyOsmFixtures').cloudflareViaLegacyOsm(mockSearchOsmPlacesStrict, args),
 }));
 const mockSearchOsmPlacesStrict = jest.fn();
 jest.mock('../../src/services/osmPlaces', () => ({

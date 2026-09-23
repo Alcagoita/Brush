@@ -24,11 +24,6 @@ export {
   onCategoryCreatedRewards,
 } from './rewards';
 export {
-  searchNearbyPlacesProxy,
-  placesAutocompleteProxy,
-  getPlaceDetailsProxy,
-} from './places';
-export {
   cloudflareCoverageProxy,
   cloudflarePoiAllProxy,
   cloudflareRequestCoverageProxy,

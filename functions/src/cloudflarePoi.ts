@@ -6,11 +6,8 @@ import financialServiceKindDictionary from '../../src/constants/financialService
 
 /**
  * Proxy for Brush's own Cloudflare-backed POI API (poi-api.brushaway.app,
- * KAN-329 through KAN-341) — mirrors places.ts's Google Places proxy
- * pattern exactly (onCall, defineSecret, per-user rate limit, HttpsError),
- * for the same reason: the API key must never be embedded in the client
- * bundle (KAN-273/274's reasoning applies equally here — this key is ours,
- * not Google's, but the exposure risk is the same).
+ * KAN-329 through KAN-341). It uses onCall, defineSecret, a per-user rate
+ * limit, and HttpsError so the API key never enters the client bundle.
  */
 const cloudflarePoiApiKey = defineSecret('CLOUDFLARE_POI_API_KEY');
 

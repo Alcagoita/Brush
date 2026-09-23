@@ -1,25 +1,13 @@
 /**
- * maps.ts — Google Places API (New) integration.
+ * maps.ts — place discovery and native Maps handoff.
  *
- * Decision (KAN-21):
- *   We use the Google Places API (New) via REST — no native Maps SDK embedded
- *   in the app. The "Open in Maps" CTA deep-links to the device's native Maps
- *   application. This keeps the binary size small and avoids a heavy native
- *   dependency for v1.0.
- *
- *   API reference: https://developers.google.com/maps/documentation/places/web-service
- *
- * Nearby Search endpoint used:
- *   POST https://places.googleapis.com/v1/places:searchNearby
- *
- * Field mask (billing impact — only request what we need):
- *   places.id, places.displayName, places.location, places.types
+ * Live place discovery uses Brush's POI API. The "Open in Maps"
+ * CTA deep-links to the device's native Maps application.
  */
 
 import { Linking, Platform } from 'react-native';
 import type { Feature, Polygon } from 'geojson';
 import { cloudflarePoiAllProxy, cloudflareRequestCoverageProxy, type CloudflareNearbyRequest } from './cloudflarePoiFunctions';
-import { searchOsmPlacesStrict } from './osmPlaces';
 import { getCachedCity, putCachedCity } from './reverseGeocodeCache';
 import { PoiType, poiCatalogLabel } from '../types';
 import type { RestaurantFoodType } from './restaurantFoodTypes';
@@ -250,11 +238,9 @@ export function __resetReverseGeocodeForTests(): void {
  * of calling searchNearbyPlaces at all (e.g. proximity.ts's KAN-237
  * trip/mall-area and offline-fallback branches), not by this file.
  *
- * There is no 'google' value — Google Places has no role in this path
- * (2026-08-04 decision, KAN-342). KAN-350 removes the now-unreferenced
- * Google Cloud Function proxy and disables billing once this two-source
- * chain is proven in production; it stays deployed-but-unused until then
- * as a rollback path, deliberately not deleted in this change.
+ * There is no 'google' value — Google Places has no role in this path.
+ * The 'osm' value remains for older cached answers and explicit OSM workflows;
+ * live nearby search uses Brush's own API only.
  */
 export type PoiSearchSource = 'cloudflare' | 'osm' | 'cache';
 
@@ -264,9 +250,9 @@ export type PoiCoverageStatus = 'none' | 'building' | 'ready';
 export interface PoiSearchResult {
   results: Record<string, NearbyPlace[]>;
   source: PoiSearchSource;
-  /** True when Cloudflare completed an empty query before a successful OSM fallback. */
+  /** True when Brush's API completed a query with no matching places. */
   cloudflareSettledEmpty?: boolean;
-  /** Only meaningful when source is 'cloudflare' or 'osm' (derived from the POST /poi/nearby response either way) — undefined for a 'cache' answer, which doesn't consult Cloudflare's coverage state at all. */
+  /** Only meaningful for a live API answer — undefined for a cached answer. */
   coverageStatus?: PoiCoverageStatus;
   /** Present only when coverageStatus is 'building' and the Worker has an ETA to offer — currently always undefined (no ETA data exists yet); kept in the shape now so KAN-348/349 don't need to touch this contract again once it does. */
   retryAfterSeconds?: number;
@@ -287,8 +273,8 @@ export interface PoiSearchResult {
  * prevent (KAN-342 review) — compute it fresh every time instead.
  *
  * Only a Cloudflare answer from a 'ready' city counts as non-degraded.
- * OSM (whatever the reason it was reached) and 'cache' (an offline or
- * bounded-area fallback) are always degraded, even on a tick that found
+ * OSM (older or explicit workflows) and 'cache' (an offline or bounded-area
+ * fallback) are always degraded, even on a tick that found
  * real results — this describes the SOURCE's completeness, not whether
  * this particular search happened to find anything (see NearbyPlace vs.
  * "empty is not a failure" — a fully-covered city with genuinely zero
@@ -306,14 +292,13 @@ interface CloudflareAttempt {
   /** A completed global query with no matches. This is the only API result
    * that can contribute to the settled-zero coverage-demand decision. */
   settledEmpty?: boolean;
+  error?: Error;
 }
 
 /**
  * Brush's own Cloudflare-backed global POI database (poi-api.brushaway.app).
- * Tried first on every call; any failure (including an API error or a
- * rejected radius) falls straight through to OSM, silently — this
- * must never be the reason a search comes back empty when OSM would have
- * answered.
+ * A completed empty answer is valid; a transport failure remains an error so
+ * callers can use their existing cache or retry behavior.
  *
  * KAN-347's single /poi/nearby call returns already-filtered buckets for the
  * requested types. A venue can correctly appear in more than one bucket.
@@ -342,9 +327,8 @@ function coverageDemandCellKey(lat: number, lng: number): string {
  * see its own doc comment for the field-priority reasoning.
  *
  * Own Nominatim call, deliberately not sharing reverseGeocode's cache or
- * rate-limit clock above: this only ever runs on a genuine zero result
- * (both Cloudflare and OSM came back empty — see searchNearbyPlaces), which
- * is rare by construction, not a per-tick call that needs pacing against
+ * rate-limit clock above: this only runs on a settled empty API result,
+ * not a per-tick call that needs pacing against
  * Nominatim's policy the way the Lantern's ambient polling does.
  *
  * Returns null on any transport failure — callers must treat that as
@@ -402,8 +386,8 @@ function requestCoverageDemandOnce(lat: number, lng: number): void {
   if (coverageDemandRequestedCells.has(cell)) { return; }
   coverageDemandRequestedCells.add(cell);
   cloudflareRequestCoverageProxy(lat, lng).catch(() => {
-    // Best-effort — an uncovered area already falls back to OSM regardless;
-    // losing this one demand-recording call changes nothing for this user.
+    // Best-effort — losing this one demand-recording call changes nothing
+    // about the current settled search answer.
     // Un-mark the cell so a later proximity tick retries instead of the
     // failure permanently suppressing this area's demand for the session.
     coverageDemandRequestedCells.delete(cell);
@@ -511,13 +495,13 @@ async function searchNearbyPlacesCloudflare(
       result[poiType].sort((a, b) => a.distanceMeters - b.distanceMeters);
     }
     if (poiTypes.every(poiType => result[poiType].length === 0)) {
-      return { ok: false, settledEmpty: true };
+      return { ok: true, results: result, placeName: data.placeName ?? null, settledEmpty: true };
     }
     return { ok: true, results: result, placeName: data.placeName ?? null };
-  } catch {
+  } catch (error) {
     // Network error/timeout before any response — genuinely unknown, not
     // "none". A caller that cares can treat undefined as "couldn't tell."
-    return { ok: false };
+    return { ok: false, error: error instanceof Error ? error : new Error('Brush POI search unavailable') };
   }
 }
 
@@ -531,28 +515,10 @@ async function searchNearbyPlacesCloudflare(
  * ascending by straight-line distance. See PoiSearchSource/isPoiSearchDegraded
  * above for what `source`/`coverageStatus` mean and how to use them.
  *
- * KAN-342: tries Brush's own Cloudflare POI database first (see
- * searchNearbyPlacesCloudflare) for cities it covers. Falls through to OSM
- * for everywhere else — OSM is the failsafe. There is no Google fallback:
- * this function structurally cannot reach Google, not just "doesn't call it
- * today" — no Google import exists anywhere in this call chain.
- *
- * Uses searchOsmPlacesStrict, not the lenient searchOsmPlaces (same choice
- * tripDownload.ts already made, for the same reason — see there) — this
- * function's main caller, proximity.ts, distinguishes "couldn't look"
- * (network failure — retry later, meanwhile answer from the habitat cache)
- * from "looked, found nothing" (a settled, real answer) by catching a
- * thrown error here. Collapsing both into the same empty-result value would
- * silently break that distinction, not just look different: the offline
- * retry-queue and messaging both depend on it. An empty result from EITHER
- * source (Cloudflare or OSM) is always a settled, non-degrading answer —
- * only a genuine transport failure escalates down the chain, never a
- * source legitimately finding zero places. The Cloudflare attempt above
- * never throws for that reason (a covered city's own failure isn't "we're
- * offline", it's "fall back to OSM and let OSM's real network state
- * decide"). Background/best-effort callers (habitatCache.ts's own
- * prefetch) still use the lenient searchOsmPlaces, unchanged — silence is
- * correct there.
+ * KAN-350: Brush's own API is the only live source. An empty API result is a
+ * settled answer. A failed request throws so proximity and other callers can
+ * use their existing offline-cache or retry behavior without treating an
+ * unknown result as a genuine zero.
  */
 export async function searchNearbyPlaces(
   lat: number,
@@ -566,39 +532,20 @@ export async function searchNearbyPlaces(
 
   const cf = await searchNearbyPlacesCloudflare(lat, lng, poiTypes, radiusMeters, requestedSearches, limitPerRequest);
   if (cf.ok && cf.results) {
-    return { results: cf.results, source: 'cloudflare', coverageStatus: 'ready', areaName: cf.placeName ?? null };
+    if (cf.settledEmpty) {
+      void classifyLocation(lat, lng).then(classification => {
+        if (classification === 'settlement') { requestCoverageDemandOnce(lat, lng); }
+      });
+    }
+    return {
+      results: cf.results,
+      source: 'cloudflare',
+      coverageStatus: 'ready',
+      areaName: cf.placeName ?? null,
+      cloudflareSettledEmpty: cf.settledEmpty === true,
+    };
   }
-
-  const osmResults = await searchOsmPlacesStrict(lat, lng, poiTypes, radiusMeters);
-
-  const result: Record<string, NearbyPlace[]> = {};
-  for (const poiType of poiTypes) {
-    result[poiType] = (osmResults[poiType] ?? []).map(place => ({
-      placeId:         place.osmId,
-      name:            place.name,
-      lat:             place.lat,
-      lng:             place.lng,
-      distanceMeters:  place.distanceMeters,
-      footprintAreaM2: place.footprintAreaM2,
-      website:         place.website,
-      brand:           place.brand,
-    }));
-  }
-
-  // KAN-347 zero check: both the completed global query and OSM, tried
-  // right above, found nothing for any requested type. Classify before deciding whether this is worth
-  // recording as demand: an unmapped settlement is (start the worker via
-  // the existing dedup'd request), a country with no settlement here or no
-  // country at all is not (nothing to map). Fire-and-forget — never blocks
-  // this search's own return, matches the app's "never wait on
-  // provisioning" rule.
-  if (cf.settledEmpty && poiTypes.every(poiType => result[poiType].length === 0)) {
-    void classifyLocation(lat, lng).then(classification => {
-      if (classification === 'settlement') { requestCoverageDemandOnce(lat, lng); }
-    });
-  }
-
-  return { results: result, source: 'osm', cloudflareSettledEmpty: cf.settledEmpty === true };
+  throw cf.error ?? new Error('Brush POI search unavailable');
 }
 
 /** Google types carried by every place regardless of what it actually is —
