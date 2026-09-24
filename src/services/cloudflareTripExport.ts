@@ -20,6 +20,9 @@ import type { PlaceSourceRef } from './placeIdentity';
 type ExportRow = {
   source_id: string;
   name: string;
+  name_local: string | null;
+  name_en: string | null;
+  name_local_lang: string | null;
   lat: number;
   lng: number;
   poi_type: string;
@@ -67,10 +70,15 @@ export async function importCloudflareTripExport(
   const database = await SQLite.deserializeDatabaseAsync(data);
   try {
     const shape = await detectExportShape(database);
+    const poiColumns = await database.getAllAsync<{ name: string }>('PRAGMA table_info(poi)');
+    const nameColumn = (column: string) => poiColumns.some(item => item.name === column)
+      ? `p.${column}` : `NULL AS ${column}`;
     const box = bounds(center, radiusMeters);
     const placeholders = poiTypes.map(() => '?').join(',');
     const rows = await database.getAllAsync<ExportRow>(
-      `SELECT p.${shape.idColumn} AS source_id, p.name, p.lat, p.lng, p.brand, pt.poi_type
+      `SELECT p.${shape.idColumn} AS source_id, p.name,
+              ${nameColumn('name_local')}, ${nameColumn('name_en')}, ${nameColumn('name_local_lang')},
+              p.lat, p.lng, p.brand, pt.poi_type
        FROM poi p JOIN poi_type pt ON pt.${shape.idColumn} = p.${shape.idColumn}
        WHERE p.lat BETWEEN ? AND ? AND p.lng BETWEEN ? AND ?
          AND pt.poi_type IN (${placeholders})`,
@@ -81,6 +89,9 @@ export async function importCloudflareTripExport(
       .map(row => ({
         poiType: row.poi_type,
         name: row.name,
+        nameLocal: row.name_local,
+        nameEn: row.name_en,
+        nameLocalLang: row.name_local_lang,
         lat: row.lat,
         lng: row.lng,
         brand: row.brand,

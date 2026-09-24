@@ -52,6 +52,7 @@ import { normalize } from './poiInference';
 import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
+import { selectPoiName } from './poiName';
 import { OverpassHttpError, OverpassRateLimitedError, searchOsmPlacesStrict } from './osmPlaces';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
 import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
@@ -292,6 +293,11 @@ function getDb(): SQLite.SQLiteDatabase {
     if (!existingColumns.has('brand')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN brand TEXT');
     }
+    for (const column of ['name_local', 'name_en', 'name_local_lang']) {
+      if (!existingColumns.has(column)) {
+        database.execSync(`ALTER TABLE habitat_places ADD COLUMN ${column} TEXT`);
+      }
+    }
     database.execSync('CREATE INDEX IF NOT EXISTS idx_habitat_cache_area ON habitat_places(cache_area_id);');
     db = database;
   }
@@ -309,6 +315,9 @@ export interface HabitatRow {
   id: string;
   poi_type: string;
   name: string;
+  name_local: string | null;
+  name_en: string | null;
+  name_local_lang: string | null;
   is_generic_name: number;
   lat: number;
   lng: number;
@@ -354,6 +363,9 @@ function generateId(): string {
 export interface PlaceCandidate {
   poiType: string;
   name: string;
+  nameLocal?: string | null;
+  nameEn?: string | null;
+  nameLocalLang?: string | null;
   /** True when `name` is a generic tag-value fallback, not a real identifying name (see osmPlaces.ts). */
   isGenericName?: boolean;
   lat: number;
@@ -545,6 +557,9 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
            store_subtype        = COALESCE(?, store_subtype),
            financial_service_kinds = COALESCE(?, financial_service_kinds),
            brand                = COALESCE(?, brand),
+           name_local           = COALESCE(?, name_local),
+           name_en              = COALESCE(?, name_en),
+           name_local_lang      = COALESCE(?, name_local_lang),
            -- KAN-377: an OSM-seeded row later matched by a Cloudflare result
            -- picks up the settlement name here. Without this the name only ever
            -- reached rows Cloudflare created, and the prefetch seeds from OSM
@@ -568,6 +583,9 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
         storeSubtype,
         financialServiceKinds,
         candidate.brand ?? null,
+        candidate.nameLocal ?? null,
+        candidate.nameEn ?? null,
+        candidate.nameLocalLang ?? null,
         candidate.areaName ?? null,
         tripCacheAreaId,
         tripExpiresAt, tripExpiresAt, tripExpiresAt,
@@ -590,9 +608,10 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
     : null;
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, candidate.poiType, candidate.name, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
+       (id, poi_type, name, name_local, name_en, name_local_lang, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, candidate.poiType, candidate.name, candidate.nameLocal ?? null, candidate.nameEn ?? null,
+      candidate.nameLocalLang ?? null, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
       candidate.source.overture ?? null, candidate.source.brush ?? null, now, now,
       trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null,
@@ -677,6 +696,9 @@ export function writeTripAreaPlaces(
 export function recordLiveResult(candidate: {
   poiType: string;
   name: string;
+  nameLocal?: string | null;
+  nameEn?: string | null;
+  nameLocalLang?: string | null;
   lat: number;
   lng: number;
   source: Omit<PlaceSourceRef, 'google'>;
@@ -690,6 +712,9 @@ export function recordLiveResult(candidate: {
   upsertPlace({
     poiType: candidate.poiType,
     name:    candidate.name,
+    nameLocal: candidate.nameLocal,
+    nameEn: candidate.nameEn,
+    nameLocalLang: candidate.nameLocalLang,
     lat:     candidate.lat,
     lng:     candidate.lng,
     source:  candidate.source,
@@ -744,7 +769,11 @@ export function queryHabitatCache(
       if (distanceMeters > radiusMeters) { continue; }
       result[row.poi_type]?.push({
         placeId: row.id,
-        name:    row.name,
+        name:    selectPoiName(row.name, row.name_local, row.name_en, row.name_local_lang),
+        nameOriginal: row.name,
+        nameLocal: row.name_local,
+        nameEn: row.name_en,
+        nameLocalLang: row.name_local_lang,
         lat:     row.lat,
         lng:     row.lng,
         distanceMeters,
@@ -793,7 +822,11 @@ export function getHabitatPlaceById(id: string): NearbyPlace | null {
     if (!row) { return null; }
     return {
       placeId: row.id,
-      name: row.name,
+      name: selectPoiName(row.name, row.name_local, row.name_en, row.name_local_lang),
+      nameOriginal: row.name,
+      nameLocal: row.name_local,
+      nameEn: row.name_en,
+      nameLocalLang: row.name_local_lang,
       lat: row.lat,
       lng: row.lng,
       distanceMeters: 0,
@@ -1060,7 +1093,10 @@ export async function refreshHabitatCacheIfStale(
       for (const place of places) {
         upsertPlace({
           poiType,
-          name:            place.name,
+          name:            place.nameOriginal ?? place.name,
+          nameLocal:       place.nameLocal,
+          nameEn:          place.nameEn,
+          nameLocalLang:   place.nameLocalLang,
           lat:             place.lat,
           lng:             place.lng,
           source:          placeSourceRef(place.placeId, search.source, place.sourceKind),

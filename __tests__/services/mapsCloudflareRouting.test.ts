@@ -49,6 +49,21 @@ describe('searchNearbyPlaces — Brush API routing', () => {
     expect(result.coverageStatus).toBe('ready');
   });
 
+  it('selects a source-supplied device-language name and retains all variants for caching', async () => {
+    mockPoiAll.mockResolvedValue({ results: { store: [
+      { poi_id: 'bookshop', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop',
+        name_local_lang: 'pt', lat: LAT, lng: LNG, primary_poi_type: 'store',
+        brand: null, category_label: null, address: null, distanceMeters: 20 },
+    ] } });
+
+    const result = await searchNearbyPlaces(LAT, LNG, ['store'], RADIUS);
+
+    expect(result.results.store[0]).toEqual(expect.objectContaining({
+      name: 'Bookshop', nameOriginal: 'Livraria', nameLocal: 'Livraria',
+      nameEn: 'Bookshop', nameLocalLang: 'pt',
+    }));
+  });
+
   it('splits more than 32 nearby buckets so a large Store-brand task list stays searchable', async () => {
     const requests = Array.from({ length: 33 }, (_, index) => ({
       key: `store:brand:Brand ${index + 1}`,

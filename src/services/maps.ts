@@ -14,6 +14,7 @@ import type { RestaurantFoodType } from './restaurantFoodTypes';
 import type { StoreSubtype } from './storeSubtypes';
 import type { FinancialServiceKind } from './financialServiceKinds';
 import type { PoiRecordSource } from './placeIdentity';
+import { selectPoiName } from './poiName';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,11 @@ export interface NearbyPlace {
   sourceKind?: PoiRecordSource;
   /** Human-readable place name. */
   name: string;
+  /** Original source label and explicitly tagged translations, retained for offline caching. */
+  nameOriginal?: string;
+  nameLocal?: string | null;
+  nameEn?: string | null;
+  nameLocalLang?: string | null;
   /** Latitude of the place. */
   lat: number;
   /** Longitude of the place. */
@@ -473,7 +479,11 @@ async function searchNearbyPlacesCloudflare(
         const place: NearbyPlace = {
           placeId: p.poi_id,
           sourceKind: p.source,
-          name: p.name,
+          name: selectPoiName(p.name, p.name_local, p.name_en, p.name_local_lang),
+          nameOriginal: p.name,
+          nameLocal: p.name_local,
+          nameEn: p.name_en,
+          nameLocalLang: p.name_local_lang,
           lat: p.lat,
           lng: p.lng,
           distanceMeters: p.distanceMeters,

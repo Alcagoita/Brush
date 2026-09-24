@@ -1231,6 +1231,7 @@ type NearbyPoi = {
    */
   poi_id: string;
   name: string; lat: number; lng: number;
+  name_local?: string | null; name_en?: string | null; name_local_lang?: string | null;
   primary_poi_type: string; brand: string | null;
   category_label: string | null; address: string | null;
   /** KAN-318: default opening window, minutes from local midnight; null = always open. */
@@ -1370,6 +1371,7 @@ async function queryNearbyPoiDb(
       // Face, adidas, Triumph, Farmacia). Without the join those duplicates
       // ship, and a shop shown twice in Nearby is the failure users notice.
       `SELECT overture_poi.overture_id, overture_poi.dedupe_name, overture_poi.name,
+            overture_poi.name_local, overture_poi.name_en, overture_poi.name_local_lang,
             overture_poi.lat, overture_poi.lng, overture_poi.primary_poi_type,
             overture_poi.brand, overture_poi.address, overture_poi.floor,
             overture_poi.open_min, overture_poi.close_min,
@@ -1388,7 +1390,8 @@ async function queryNearbyPoiDb(
      WHERE overture_poi.retired_in_release IS NULL
        AND (${geohashClauses.join(' OR ')}) AND (${poiRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...poiRequestBinds).all<{
-      overture_id: string; dedupe_name: string; name: string; lat: number; lng: number;
+      overture_id: string; dedupe_name: string; name: string; name_local: string | null;
+      name_en: string | null; name_local_lang: string | null; lat: number; lng: number;
       primary_poi_type: string; brand: string | null;
       address: string | null; floor: string | null;
       open_min: number | null; close_min: number | null; matched_type: string;
@@ -1397,7 +1400,9 @@ async function queryNearbyPoiDb(
       correction_dedupe_name_override: string | null;
     }>(),
     db.prepare(
-      `SELECT curated_poi.poi_id, curated_poi.dedupe_name, curated_poi.name, curated_poi.lat, curated_poi.lng,
+      `SELECT curated_poi.poi_id, curated_poi.dedupe_name, curated_poi.name,
+            curated_poi.name_local, curated_poi.name_en, curated_poi.name_local_lang,
+            curated_poi.lat, curated_poi.lng,
             curated_poi.primary_poi_type, curated_poi.brand, curated_poi.address, curated_poi.floor,
             curated_poi_attribute.dimension AS attribute_dimension, curated_poi_attribute.value AS attribute_value
      FROM curated_poi
@@ -1407,7 +1412,8 @@ async function queryNearbyPoiDb(
        AND (${curatedGeohashClauses.join(' OR ')})
        AND (${curatedRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...curatedRequestBinds).all<{
-      poi_id: string; dedupe_name: string; name: string; lat: number; lng: number;
+      poi_id: string; dedupe_name: string; name: string; name_local: string | null;
+      name_en: string | null; name_local_lang: string | null; lat: number; lng: number;
       primary_poi_type: string; brand: string | null; address: string | null; floor: string | null;
       attribute_dimension: string | null; attribute_value: string | null;
     }>(),
@@ -1442,6 +1448,9 @@ async function queryNearbyPoiDb(
       candidates.set(candidateKey, {
         poi_id: row.overture_id,
         name: row.correction_name_override ?? row.name, lat: row.lat, lng: row.lng,
+        name_local: row.correction_name_override ? null : row.name_local,
+        name_en: row.correction_name_override ? null : row.name_en,
+        name_local_lang: row.correction_name_override ? null : row.name_local_lang,
         primary_poi_type: row.primary_poi_type, brand: row.brand,
         // Overture carries no equivalent of Foursquare's display category
         // label, and inventing one from the type would be a claim the source
@@ -1478,6 +1487,7 @@ async function queryNearbyPoiDb(
     } else {
       candidates.set(candidateKey, {
         poi_id: row.poi_id, name: row.name, lat: row.lat, lng: row.lng,
+        name_local: row.name_local, name_en: row.name_en, name_local_lang: row.name_local_lang,
         primary_poi_type: row.primary_poi_type, brand: row.brand, category_label: null,
         // Community rows do not carry curated hours yet: NULL keeps KAN-318's
         // safe always-open behaviour rather than hiding an approved POI.
@@ -1541,7 +1551,13 @@ async function queryNearbyPoiDb(
     if (rank < 0) continue;
     const suppressors = SUPPRESSION_ORDER.slice(rank + 1)
       .flatMap(source => bySource.get(source) ?? []);
-    if (suppressors.some(primary => primary.dedupeName === candidate.dedupeName && haversineMeters(primary.lat, primary.lng, candidate.lat, candidate.lng) <= MANUAL_POI_DUPLICATE_DISTANCE_METERS)) {
+    if (suppressors.some(primary => {
+      if (haversineMeters(primary.lat, primary.lng, candidate.lat, candidate.lng) > MANUAL_POI_DUPLICATE_DISTANCE_METERS) return false;
+      const names = new Set([candidate.dedupeName, candidate.name_local, candidate.name_en]
+        .filter((name): name is string => !!name).map(normalizePoiName));
+      return [primary.dedupeName, primary.name_local, primary.name_en]
+        .filter((name): name is string => !!name).some(name => names.has(normalizePoiName(name)));
+    })) {
       candidates.delete(key);
     }
   }
@@ -1559,6 +1575,9 @@ async function queryNearbyPoiDb(
     const poi: NearbyPoi = {
       poi_id: candidate.poi_id,
       name: candidate.name, lat: candidate.lat, lng: candidate.lng,
+      name_local: candidate.name_local ?? null,
+      name_en: candidate.name_en ?? null,
+      name_local_lang: candidate.name_local_lang ?? null,
       primary_poi_type: candidate.primary_poi_type, brand: candidate.brand,
       category_label: candidate.category_label, address: candidate.address,
       open_min: candidate.open_min, close_min: candidate.close_min,

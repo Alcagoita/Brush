@@ -57,6 +57,9 @@ interface PoiAllResponse {
     /** Which table the row came from — what makes `poi_id` interpretable (KAN-451). Absent from an older Worker; read as Overture. */
     source?: PoiRecordSource;
     name: string;
+    name_local?: string | null;
+    name_en?: string | null;
+    name_local_lang?: string | null;
     lat: number;
     lng: number;
     primary_poi_type: string;

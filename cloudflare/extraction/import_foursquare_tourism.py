@@ -83,7 +83,7 @@ EXTRA_TYPE_DIMENSION = 'poi_type'
 GEOHASH_PRECISION = 7  # what the Worker writes for a moderator-approved row
 
 CURATED_COLUMNS = (
-    'poi_id', 'source', 'name', 'dedupe_name', 'lat', 'lng', 'geohash', 'primary_poi_type', 'address',
+    'poi_id', 'source', 'name', 'name_local', 'name_local_lang', 'dedupe_name', 'lat', 'lng', 'geohash', 'primary_poi_type', 'address',
     'status', 'created_at', 'created_by', 'updated_at', 'updated_by',
     'origin_source', 'origin_id', 'origin_licence', 'imported_at', 'import_run_id',
 )
@@ -398,6 +398,21 @@ def translated_counterpart(record, grid, table, terms):
     return best
 
 
+def source_name_counterpart(record, grid):
+    """Match source-supplied aliases before consulting the translation table."""
+    best = None
+    for place in preflight.near(grid, record['lat'], record['lng']):
+        distance = haversine_m(record['lat'], record['lng'], place['lat'], place['lng'])
+        if distance > MATCH_RADIUS_METERS:
+            continue
+        for alias in (place.get('name_local'), place.get('name_en')):
+            if alias and names_match(record['dedupe_name'], normalize_text(alias), distance):
+                if best is None or distance < best[1]:
+                    best = (place, distance)
+                break
+    return best
+
+
 # "Same name" for the 75–400 m skip. name_similarity has three rungs: 1.0
 # for equal names, 0.9 for containment ("Pico dos Barcelos" in "Miradouro
 # do Pico dos Barcelos") or the same identity terms reordered, and below
@@ -447,6 +462,10 @@ def decide_against_served(record, grid, translation=None):
     if counterpart and counterpart[3] == 'matched':
         place, distance, similarity, _ = counterpart
         return 'matched', f'{place["source"]}:{place["id"]} "{place["name"]}" ({place["type"]}) at {distance:.0f} m, sim {similarity:.2f}'
+    source_match = source_name_counterpart(record, grid)
+    if source_match:
+        place, distance = source_match
+        return 'matched', f'{place["source"]}:{place["id"]} "{place["name"]}" ({place["type"]}) at {distance:.0f} m, source alias'
     if translation:
         translated = translated_counterpart(record, grid, *translation)
         if translated:
@@ -570,10 +589,12 @@ def curated_address(record):
     return ', '.join(parts) if parts else None
 
 
-def curated_value(record, imported_at, run_id):
+def curated_value(record, imported_at, run_id, country='PT'):
     fsq_id = record['fsq_place_id']
+    local_lang = {'PT': 'pt', 'ES': 'es'}.get(country.upper())
     values = (
         sql_escape(POI_ID_PREFIX + fsq_id), sql_escape('community'), sql_escape(record['name']),
+        sql_escape(record['name']) if local_lang else 'NULL', sql_escape(local_lang),
         sql_escape(record['dedupe_name']), repr(float(record['lat'])), repr(float(record['lng'])),
         sql_escape(encode_geohash(record['lat'], record['lng'], GEOHASH_PRECISION)), sql_escape(record['types'][0]),
         sql_escape(curated_address(record)), sql_escape('active'),
@@ -604,9 +625,9 @@ def batched(pieces, prefix, suffix):
         yield prefix + ',\n'.join(values) + suffix
 
 
-def statements(inserts, imported_at, run_id):
+def statements(inserts, imported_at, run_id, country='PT'):
     """Every SQL statement the run would execute, curated rows first."""
-    out = list(batched((curated_value(r, imported_at, run_id) for r in inserts), CURATED_INSERT_PREFIX, CURATED_INSERT_SUFFIX))
+    out = list(batched((curated_value(r, imported_at, run_id, country) for r in inserts), CURATED_INSERT_PREFIX, CURATED_INSERT_SUFFIX))
     out += list(batched((v for r in inserts for v in attribute_values(r)), ATTRIBUTE_INSERT_PREFIX, ATTRIBUTE_INSERT_SUFFIX))
     return out
 
@@ -920,7 +941,7 @@ def run(args):
     inserts.sort(key=lambda r: r['fsq_place_id'])
     skips.sort(key=lambda s: s[0]['fsq_place_id'])
     imported_at = args.imported_at or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-    stmts = statements(inserts, imported_at, args.run_id)
+    stmts = statements(inserts, imported_at, args.run_id, args.country)
 
     skip_counts = Counter(reason for _, reason, _ in skips)
     weak_counts = Counter(detail for _, reason, detail in skips if reason == 'weak name')

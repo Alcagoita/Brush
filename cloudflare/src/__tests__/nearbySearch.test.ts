@@ -24,6 +24,9 @@ import worker, { type Env } from '../index';
 interface FakePoi {
   overture_id: string;
   name: string;
+  name_local?: string | null;
+  name_en?: string | null;
+  name_local_lang?: string | null;
   food_cuisine?: string[];
   financial_service_kind?: string[];
   primary_poi_type?: string;
@@ -36,6 +39,9 @@ interface FakePoi {
 interface FakeCuratedPoi {
   poi_id: string;
   name: string;
+  name_local?: string | null;
+  name_en?: string | null;
+  name_local_lang?: string | null;
   primary_poi_type: string;
   food_cuisine?: string[];
 }
@@ -82,7 +88,9 @@ function fakeDb(
           for (const p of pois) {
             const correction = sourceCorrections.find(candidate => candidate.source === 'overture' && candidate.source_id === p.overture_id);
             const base = {
-              overture_id: p.overture_id, dedupe_name: p.name.toLowerCase(), name: p.name, lat: LAT, lng: LNG,
+              overture_id: p.overture_id, dedupe_name: p.name.toLowerCase(), name: p.name,
+              name_local: p.name_local ?? null, name_en: p.name_en ?? null,
+              name_local_lang: p.name_local_lang ?? null, lat: LAT, lng: LNG,
               primary_poi_type: p.primary_poi_type ?? 'restaurant', brand: p.brand ?? null,
               address: null, floor: p.floor ?? null, open_min: p.open_min ?? null, close_min: p.close_min ?? null,
               matched_type: p.primary_poi_type ?? 'restaurant',
@@ -108,7 +116,9 @@ function fakeDb(
           const results: unknown[] = [];
           for (const p of curatedPois) {
             const base = {
-              poi_id: p.poi_id, dedupe_name: p.name.toLowerCase(), name: p.name, lat: LAT, lng: LNG,
+              poi_id: p.poi_id, dedupe_name: p.name.toLowerCase(), name: p.name,
+              name_local: p.name_local ?? null, name_en: p.name_en ?? null,
+              name_local_lang: p.name_local_lang ?? null, lat: LAT, lng: LNG,
               primary_poi_type: p.primary_poi_type, address: null, floor: null,
             };
             const cuisines = p.food_cuisine ?? [];
@@ -169,6 +179,28 @@ const CTX = { waitUntil() {}, passThroughOnException() {} } as unknown as Execut
 const names = (bucket: Array<{ name: string }> | undefined) => (bucket ?? []).map(p => p.name).sort();
 
 describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
+  it('serves source-supplied language variants without changing the legacy name', async () => {
+    const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
+      { overture_id: 'bookshop', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop',
+        name_local_lang: 'pt', primary_poi_type: 'store' },
+    ]), CTX);
+    const body = await res.json() as { results: Record<string, Array<Record<string, unknown>>> };
+    expect(body.results.store).toEqual([expect.objectContaining({
+      name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop', name_local_lang: 'pt',
+    })]);
+  });
+
+  it('suppresses cross-source duplicates when their source-supplied aliases match', async () => {
+    const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
+      { overture_id: 'bookshop', name: 'Bookshop', name_local: 'Livraria',
+        name_en: 'Bookshop', name_local_lang: 'pt', primary_poi_type: 'store' },
+    ], [
+      { poi_id: 'curated-bookshop', name: 'Livraria', primary_poi_type: 'store' },
+    ]), CTX);
+    const body = await res.json() as { results: Record<string, Array<{ poi_id: string }>> };
+    expect(body.results.store.map(place => place.poi_id)).toEqual(['curated-bookshop']);
+  });
+
   it('uses the official MULTIBANCO ATM and suppresses the matching Odivelas source row', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'atm', type: 'atm' }]), env([
       { overture_id: 'stale-atm', name: 'ATM', primary_poi_type: 'atm' },
