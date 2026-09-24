@@ -112,13 +112,6 @@ class DedupeDecisionTest(unittest.TestCase):
         self.assertEqual(decision, 'matched')
         self.assertIn('overture:overture-mosteiro-dos-jeronimos', detail)
 
-    def test_source_supplied_alias_matches_before_translation(self):
-        place = served('Jerónimos Monastery', 0, 'church')
-        place['name_local'] = 'Mosteiro dos Jerónimos'
-        decision, detail = self.decide(archive('Mosteiro dos Jerónimos', 20), [place])
-        self.assertEqual(decision, 'matched')
-        self.assertIn('source alias', detail)
-
     def test_match_is_type_blind_and_reaches_curated_and_multibanco(self):
         self.assertEqual(self.decide(archive('Capela de São Jorge', 5), [served('Capela de São Jorge', 0, 'restaurant')])[0], 'matched')
         self.assertEqual(self.decide(archive('Ponte Romana', 5), [served('Ponte Romana', 0, 'bridge', 'curated')])[0], 'matched')
@@ -337,8 +330,6 @@ class SqlShapeTest(unittest.TestCase):
         ])
         self.assertEqual(db.execute('SELECT poi_id, dimension, value FROM curated_poi_attribute').fetchall(),
                          [('fsq:fsq-a', 'poi_type', 'church')])
-        self.assertEqual(db.execute('SELECT name_local, name_en, name_local_lang FROM curated_poi WHERE poi_id = ?',
-                                    ('fsq:fsq-a',)).fetchone(), ('Mosteiro dos Jerónimos', None, 'pt'))
 
     def test_statements_stay_under_the_byte_cap(self):
         rows = []

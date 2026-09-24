@@ -81,7 +81,7 @@ describe('importCloudflareTripExport', () => {
     expect(written).toBe(1);
     expect(mockWriteTripAreaPlaces).toHaveBeenCalledWith('trip-1', 123, [
       { poiType: 'pharmacy', name: 'Farmácia', nameLocal: null, nameEn: null, nameLocalLang: null,
-        lat: 38.7205, lng: -9.14, brand: null, source: { overture: 'g1' } },
+        names: {}, countryCode: undefined, lat: 38.7205, lng: -9.14, brand: null, source: { overture: 'g1' } },
     ]);
     expect(database.queries.some(q => q.includes('p.overture_id AS source_id') && q.includes('pt.overture_id = p.overture_id'))).toBe(true);
     expect(database.closeAsync).toHaveBeenCalled();

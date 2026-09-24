@@ -53,6 +53,7 @@ import { HERO_RADIUS_M, Task } from '../types';
 import { ChevronRightIcon, PoiIcon, RefreshIcon } from './AppIcon';
 import { logTap } from '../services/analytics';
 import { COPY } from '../constants/copy';
+import { displayPlaceName } from '../services/poiName';
 import { restaurantPlacesForTask, restaurantTaskMatchesAnyPlace } from '../services/restaurantFoodTypes';
 import { storePlacesForTask, storeTaskMatchesAnyPlace } from '../services/storeSubtypes';
 
@@ -234,7 +235,7 @@ function HeroCard({
             {formatDistance(place.distanceMeters).toUpperCase()}
             {'  '}
             <Text style={styles.heroPlaceName}>
-              {place.name.toUpperCase()}
+              {displayPlaceName(place).toUpperCase()}
             </Text>
           </Text>
           <Text
@@ -251,9 +252,9 @@ function HeroCard({
           styles.ctaButton,
           { backgroundColor: palette.text, opacity: pressed ? 0.8 : 1 },
         ]}
-        onPress={() => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); }}
+        onPress={() => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, displayPlaceName(place)); }}
         accessibilityRole="button"
-        accessibilityLabel={COPY.nearbyCard.openInMapsA11y(place.name)}>
+        accessibilityLabel={COPY.nearbyCard.openInMapsA11y(displayPlaceName(place))}>
         <Text style={[styles.ctaLabel, { color: palette.bg }]}>{COPY.nearbyCard.openInMaps}</Text>
       </Pressable>
 
@@ -297,9 +298,9 @@ function AlsoCloseRow({
         !isFirst && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: separatorColor },
         { opacity: pressed && !!place ? 0.65 : 1 },
       ]}
-      onPress={place ? () => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, place.name); } : undefined}
+      onPress={place ? () => { logTap('nearby_open_maps'); openInMaps(place.lat, place.lng, displayPlaceName(place)); } : undefined}
       accessibilityRole={place ? 'button' : 'text'}
-      accessibilityLabel={place ? COPY.nearbyCard.openInMapsA11y(place.name) : task.title}>
+      accessibilityLabel={place ? COPY.nearbyCard.openInMapsA11y(displayPlaceName(place)) : task.title}>
       <View style={[styles.idleIconTile, { backgroundColor: palette.surface2 }]}>
         <PoiIcon type={task.poi ?? 'atm'} color={palette.muted} size={20} />
       </View>
@@ -310,7 +311,7 @@ function AlsoCloseRow({
         </Text>
         <Text style={[styles.idleSub, { color: palette.muted }]} numberOfLines={1}>
           {place
-            ? `${place.name} · ${formatDistance(place.distanceMeters)}`
+            ? `${displayPlaceName(place)} · ${formatDistance(place.distanceMeters)}`
             : task.poi ? capitalizeFirstLetter(placeTypeLabel(task.poi)) : ''}
         </Text>
       </View>

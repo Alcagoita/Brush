@@ -41,6 +41,7 @@ import { MIN_BUNDLE_TASKS } from '../services/errandBundles';
 import type { ErrandBundle } from '../services/errandBundles';
 import type { ClusterLeisureSuggestion } from '../services/clusterLeisure';
 import { COPY } from '../constants/copy';
+import { displayPlaceName } from '../services/poiName';
 
 export interface ErrandBundleCardProps {
   bundle: ErrandBundle;
@@ -292,7 +293,7 @@ export default function ErrandBundleCard({
                       <Text
                         style={[styles.rowSub, { color: selected ? palette.muted : palette.faint }]}
                         numberOfLines={1}>
-                        {`${place.name} · ${formatDistance(place.distanceMeters)}`}
+                        {`${displayPlaceName(place)} · ${formatDistance(place.distanceMeters)}`}
                       </Text>
                     </View>
                   </Pressable>
@@ -309,8 +310,8 @@ export default function ErrandBundleCard({
                 style={[styles.leisure, { borderTopColor: palette.line }]}>
                 <Text style={[styles.leisureLine, { color: palette.text }]}>
                   {leisure.type === 'park'
-                    ? COPY.errandBundle.leisureParkLine(leisure.place.name)
-                    : COPY.errandBundle.leisureOtherLine(leisure.place.name)}
+                    ? COPY.errandBundle.leisureParkLine(displayPlaceName(leisure.place))
+                    : COPY.errandBundle.leisureOtherLine(displayPlaceName(leisure.place))}
                 </Text>
                 <View style={styles.leisureActions}>
                   <Pressable
@@ -320,7 +321,7 @@ export default function ErrandBundleCard({
                     disabled={leisureKept}
                     hitSlop={4}
                     accessibilityRole="button"
-                    accessibilityLabel={COPY.errandBundle.leisureKeepInMindA11y(leisure.place.name)}>
+                    accessibilityLabel={COPY.errandBundle.leisureKeepInMindA11y(displayPlaceName(leisure.place))}>
                     <Text style={[styles.leisureBtnLabel, { color: leisureKept ? palette.faint : palette.text }]}>
                       {COPY.errandBundle.leisureKeepInMind}
                     </Text>
@@ -334,7 +335,7 @@ export default function ErrandBundleCard({
                       onPress={handleLeisureTickets}
                       hitSlop={4}
                       accessibilityRole="button"
-                      accessibilityLabel={COPY.errandBundle.leisureGetTicketsA11y(leisure.place.name)}>
+                      accessibilityLabel={COPY.errandBundle.leisureGetTicketsA11y(displayPlaceName(leisure.place))}>
                       <Text style={[styles.leisureBtnLabel, { color: palette.text }]}>
                         {COPY.errandBundle.leisureGetTickets}
                       </Text>
@@ -343,7 +344,7 @@ export default function ErrandBundleCard({
                 </View>
                 {leisureKept && (
                   <Text style={[styles.leisureConfirm, { color: palette.muted }]}>
-                    {COPY.errandBundle.leisureKeptConfirmation(leisure.place.name)}
+                    {COPY.errandBundle.leisureKeptConfirmation(displayPlaceName(leisure.place))}
                   </Text>
                 )}
               </View>

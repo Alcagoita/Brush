@@ -60,6 +60,8 @@ interface PoiAllResponse {
     name_local?: string | null;
     name_en?: string | null;
     name_local_lang?: string | null;
+    names?: Record<string, string>;
+    country_code?: string | null;
     lat: number;
     lng: number;
     primary_poi_type: string;
@@ -72,6 +74,21 @@ interface PoiAllResponse {
     distanceMeters: number;
     attributes: Record<string, string[]>;
   }>>;
+}
+
+export interface PlaceNameLanguagesResponse {
+  countryCode: string | null;
+  languages: string[];
+}
+
+/** Small settings lookup; a country import publishes its actual Overture language keys. */
+export function cloudflarePlaceNameLanguages(
+  location: { lat: number; lng: number } | { countryCode: string },
+): Promise<PlaceNameLanguagesResponse> {
+  const query = 'countryCode' in location
+    ? `countryCode=${encodeURIComponent(location.countryCode)}`
+    : `lat=${encodeURIComponent(location.lat)}&lng=${encodeURIComponent(location.lng)}`;
+  return poiApiGet<PlaceNameLanguagesResponse>(`/poi/name-languages?${query}`);
 }
 
 export function cloudflareCoverageProxy(lat: number, lng: number): Promise<CoverageResponse> {

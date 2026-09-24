@@ -136,6 +136,8 @@ def extract_bbox(min_lat, max_lat, min_lng, max_lng, out_path,
           SELECT id AS overture_id,
                  names.primary AS name,
                  {_name_columns(country)}
+                 to_json(names.common) AS names_json,
+                 addresses[1].country AS country_code,
                  ST_Y(geometry) AS lat,
                  ST_X(geometry) AS lng,
                  addresses[1].freeform AS address,
@@ -190,6 +192,8 @@ def extract_country(country_code, out_path, release=OVERTURE_RELEASE):
           SELECT id AS overture_id,
                  names.primary AS name,
                  {_name_columns(country_code)}
+                 to_json(names.common) AS names_json,
+                 addresses[1].country AS country_code,
                  ST_Y(geometry) AS lat,
                  ST_X(geometry) AS lng,
                  addresses[1].freeform AS address,

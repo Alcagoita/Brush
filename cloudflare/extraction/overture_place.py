@@ -75,7 +75,7 @@ def served_rows(min_lat, max_lat, min_lng, max_lng):
     release retired (KAN-456) is not served and not exported."""
     pois = list(paged(
         'overture_poi',
-        ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'lat', 'lng', 'primary_poi_type', 'brand', 'address', 'open_min', 'close_min'),
+        ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'primary_poi_type', 'brand', 'address', 'open_min', 'close_min'),
         'overture_id', EXPORT_PAGE_SIZE,
         where=bbox_where(min_lat, max_lat, min_lng, max_lng) + ' AND retired_in_release IS NULL'))
     ids = [row['overture_id'] for row in pois]
@@ -109,6 +109,8 @@ def write_export(place_id, build_id, pois, types, attributes, out_path):
           name_local       TEXT,
           name_en          TEXT,
           name_local_lang  TEXT,
+          names_json       TEXT,
+          country_code     TEXT,
           lat              REAL NOT NULL,
           lng              REAL NOT NULL,
           primary_poi_type TEXT NOT NULL,
@@ -140,8 +142,9 @@ def write_export(place_id, build_id, pois, types, attributes, out_path):
         );
     """)
     connection.executemany(
-        'INSERT INTO poi VALUES (?,?,?,?,?,?,?,?,?,?,?,?)',
+        'INSERT INTO poi VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [(r['overture_id'], r['name'], r.get('name_local'), r.get('name_en'), r.get('name_local_lang'),
+          r.get('names_json'), r.get('country_code'),
           r['lat'], r['lng'], r['primary_poi_type'], r.get('brand'),
           r.get('address'), r.get('open_min'), r.get('close_min')) for r in pois])
     connection.executemany('INSERT OR IGNORE INTO poi_type VALUES (?,?,?)',

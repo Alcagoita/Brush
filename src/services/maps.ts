@@ -45,6 +45,8 @@ export interface NearbyPlace {
   nameLocal?: string | null;
   nameEn?: string | null;
   nameLocalLang?: string | null;
+  names?: Record<string, string>;
+  countryCode?: string | null;
   /** Latitude of the place. */
   lat: number;
   /** Longitude of the place. */
@@ -479,11 +481,13 @@ async function searchNearbyPlacesCloudflare(
         const place: NearbyPlace = {
           placeId: p.poi_id,
           sourceKind: p.source,
-          name: selectPoiName(p.name, p.name_local, p.name_en, p.name_local_lang),
+          name: selectPoiName(p.name, p.names, p.country_code, undefined, p.name_en),
           nameOriginal: p.name,
           nameLocal: p.name_local,
           nameEn: p.name_en,
           nameLocalLang: p.name_local_lang,
+          names: p.names,
+          countryCode: p.country_code,
           lat: p.lat,
           lng: p.lng,
           distanceMeters: p.distanceMeters,

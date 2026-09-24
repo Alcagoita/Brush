@@ -297,6 +297,26 @@ describe('setLanguage', () => {
   });
 });
 
+describe('place-name choice', () => {
+  it('loads country choices and saves a change independently of app language', async () => {
+    signedIn('user-abc');
+    mockGetDoc.mockResolvedValue({ exists: () => true, data: () => ({
+      language: 'pt-PT', placeNameChoices: { PT: 'native', CA: 'fr' },
+    }) });
+    mockSetDoc.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useTheme(), { wrapper });
+    await act(async () => {});
+    expect(result.current.placeNameChoices).toEqual({ PT: 'native', CA: 'fr' });
+
+    await act(async () => { await result.current.setPlaceNameChoice('PT', 'en'); });
+    expect(result.current.placeNameChoices).toEqual({ PT: 'en', CA: 'fr' });
+    expect(result.current.language).toBe('pt-PT');
+    expect(mockSetDoc).toHaveBeenCalledWith(expect.anything(), {
+      placeNameChoices: { PT: 'en', CA: 'fr' },
+    }, { merge: true });
+  });
+});
+
 // ── Race condition guard ──────────────────────────────────────────────────────
 
 describe('race condition guard', () => {

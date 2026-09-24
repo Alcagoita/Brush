@@ -27,6 +27,8 @@ interface FakePoi {
   name_local?: string | null;
   name_en?: string | null;
   name_local_lang?: string | null;
+  names_json?: string | null;
+  country_code?: string | null;
   food_cuisine?: string[];
   financial_service_kind?: string[];
   primary_poi_type?: string;
@@ -90,7 +92,8 @@ function fakeDb(
             const base = {
               overture_id: p.overture_id, dedupe_name: p.name.toLowerCase(), name: p.name,
               name_local: p.name_local ?? null, name_en: p.name_en ?? null,
-              name_local_lang: p.name_local_lang ?? null, lat: LAT, lng: LNG,
+              name_local_lang: p.name_local_lang ?? null, names_json: p.names_json ?? null,
+              country_code: p.country_code ?? null, lat: LAT, lng: LNG,
               primary_poi_type: p.primary_poi_type ?? 'restaurant', brand: p.brand ?? null,
               address: null, floor: p.floor ?? null, open_min: p.open_min ?? null, close_min: p.close_min ?? null,
               matched_type: p.primary_poi_type ?? 'restaurant',
@@ -182,11 +185,12 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
   it('serves source-supplied language variants without changing the legacy name', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
       { overture_id: 'bookshop', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop',
-        name_local_lang: 'pt', primary_poi_type: 'store' },
+        name_local_lang: 'pt', names_json: '{"pt":"Livraria","en":"Bookshop"}', country_code: 'PT', primary_poi_type: 'store' },
     ]), CTX);
     const body = await res.json() as { results: Record<string, Array<Record<string, unknown>>> };
     expect(body.results.store).toEqual([expect.objectContaining({
       name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop', name_local_lang: 'pt',
+      names: { pt: 'Livraria', en: 'Bookshop' }, country_code: 'PT',
     })]);
   });
 

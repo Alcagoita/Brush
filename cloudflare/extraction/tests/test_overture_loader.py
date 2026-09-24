@@ -18,7 +18,7 @@ sys.path.insert(0, os.path.join(EXTRACTION_DIR, 'tests'))
 from _stubs import stub_missing_dependencies  # noqa: E402
 stub_missing_dependencies()
 
-FIELDS = ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'lat', 'lng', 'address', 'locality',
+FIELDS = ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'locality',
           'category', 'basic_category', 'category_path', 'confidence',
           'source_datasets')
 
@@ -80,22 +80,32 @@ class CandidateRowsTest(unittest.TestCase):
     def test_a_missing_confidence_becomes_null_not_zero(self):
         # Zero is a real confidence value and would misreport the source.
         staged = self.rows([_row(confidence='')])
-        self.assertIsNone(staged[0][12])
+        self.assertIsNone(staged[0][14])
 
     def test_the_sources_own_values_are_preserved(self):
         staged = self.rows([_row(category='pharmacy',
                                  basic_category='drugstore',
                                  category_path='health|pharmacy',
                                  source_datasets='Overture|meta')])
-        self.assertEqual(staged[0][9], 'pharmacy')
-        self.assertEqual(staged[0][10], 'drugstore')
-        self.assertEqual(staged[0][11], 'health|pharmacy')
-        self.assertEqual(staged[0][13], 'Overture|meta')
+        self.assertEqual(staged[0][11], 'pharmacy')
+        self.assertEqual(staged[0][12], 'drugstore')
+        self.assertEqual(staged[0][13], 'health|pharmacy')
+        self.assertEqual(staged[0][15], 'Overture|meta')
 
     def test_source_supplied_names_are_staged_without_inference(self):
-        staged = self.rows([_row(name_local='Farmácia Nabais', name_en='Nabais Pharmacy', name_local_lang='pt')])
+        staged = self.rows([_row(name_local='Farmácia Nabais', name_en='Nabais Pharmacy', name_local_lang='pt',
+                                 names_json='{"pt":"Farmácia Nabais","en":"Nabais Pharmacy"}', country_code='PT')])
         self.assertEqual(staged[0][2:5], ('Farmácia Nabais', 'Nabais Pharmacy', 'pt'))
+        self.assertEqual(staged[0][6], 'PT')
         self.assertIn("'Nabais Pharmacy'", __import__('load_overture_candidates').value_tuple(staged[0]))
+
+    def test_country_manifest_includes_only_supplied_language_keys(self):
+        import load_overture_candidates as loader
+        path = _csv([_row(names_json='{"en":"Bookshop","es":"Librería","fr":""}')])
+        try:
+            self.assertEqual(loader.source_name_languages(path), ['en', 'es'])
+        finally:
+            os.unlink(path)
 
     def test_extract_selects_only_explicit_overture_language_keys(self):
         import extract_overture

@@ -141,6 +141,7 @@ class OvertureCountryRunTest(unittest.TestCase):
             'promoted_rows': 1, 'rejected_rows': 0, 'pending_rows': 0,
             'release': run_job.extract_overture.OVERTURE_RELEASE,
             'new_rows': 1, 'changed_rows': 0, 'retired_rows': 0,
+            'name_languages': [],
         })
 
     def test_a_first_import_stages_with_insert_or_ignore(self):

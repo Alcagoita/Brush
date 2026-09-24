@@ -31,7 +31,9 @@ before they touch production and applied with
 """
 import argparse
 import csv
+import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 
@@ -40,10 +42,26 @@ from classify_and_load import MAX_STATEMENT_BYTES, byte_len, sql_escape
 
 INSERT_PREFIX = (
     'INSERT OR IGNORE INTO overture_candidate '
-    '(overture_id, name, name_local, name_en, name_local_lang, lat, lng, address, locality, category, basic_category, '
+    '(overture_id, name, name_local, name_en, name_local_lang, names_json, country_code, lat, lng, address, locality, category, basic_category, '
     'category_path, confidence, source_datasets, imported_at, country_source_r2_key, last_seen_source_key) VALUES '
 )
 MAX_VALUES_TERMS = 500
+
+
+def source_name_languages(csv_path):
+    """Language keys with a real Overture name anywhere in this country archive."""
+    languages = set()
+    with open(csv_path, newline='') as handle:
+        for row in csv.DictReader(handle):
+            try:
+                names = json.loads(row.get('names_json') or '{}')
+            except (TypeError, ValueError):
+                continue
+            if isinstance(names, dict):
+                languages.update(code for code, value in names.items()
+                                 if isinstance(code, str) and re.fullmatch(r'[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*', code)
+                                 and isinstance(value, str) and value.strip())
+    return sorted(languages)
 
 
 def candidate_rows(csv_path, country_source_r2_key=None):
@@ -67,6 +85,8 @@ def candidate_rows(csv_path, country_source_r2_key=None):
                 (row.get('name_local') or '').strip() or None,
                 (row.get('name_en') or '').strip() or None,
                 (row.get('name_local_lang') or '').strip() or None,
+                (row.get('names_json') or '').strip() or None,
+                (row.get('country_code') or '').strip().upper() or None,
                 float(lat), float(lng),
                 (row.get('address') or '').strip() or None,
                 (row.get('locality') or '').strip() or None,
@@ -80,12 +100,13 @@ def candidate_rows(csv_path, country_source_r2_key=None):
 
 
 def value_tuple(row):
-    (overture_id, name, name_local, name_en, name_local_lang, lat, lng, address, locality, category,
+    (overture_id, name, name_local, name_en, name_local_lang, names_json, country_code, lat, lng, address, locality, category,
      basic_category, category_path, confidence, sources, imported_at,
      country_source_r2_key) = row
     return (
         f'({sql_escape(overture_id)},{sql_escape(name)},'
-        f'{sql_escape(name_local)},{sql_escape(name_en)},{sql_escape(name_local_lang)},{lat},{lng},'
+        f'{sql_escape(name_local)},{sql_escape(name_en)},{sql_escape(name_local_lang)},'
+        f'{sql_escape(names_json)},{sql_escape(country_code)},{lat},{lng},'
         f'{sql_escape(address)},{sql_escape(locality)},{sql_escape(category)},'
         f'{sql_escape(basic_category)},{sql_escape(category_path)},'
         f'{"NULL" if confidence is None else confidence},'
@@ -131,7 +152,8 @@ def _with_refresh(statement):
     return statement[:-2] + (
         ' ON CONFLICT(overture_id) DO UPDATE SET '
         'name = excluded.name, name_local = excluded.name_local, name_en = excluded.name_en, '
-        'name_local_lang = excluded.name_local_lang, lat = excluded.lat, lng = excluded.lng, address = excluded.address, '
+        'name_local_lang = excluded.name_local_lang, names_json = excluded.names_json, '
+        'country_code = excluded.country_code, lat = excluded.lat, lng = excluded.lng, address = excluded.address, '
         'locality = excluded.locality, category = excluded.category, basic_category = excluded.basic_category, '
         'category_path = excluded.category_path, confidence = excluded.confidence, '
         'source_datasets = excluded.source_datasets, '

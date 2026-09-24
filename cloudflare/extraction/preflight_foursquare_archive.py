@@ -328,7 +328,6 @@ def served_overture(overture_csv, overture_key):
                 continue
             served.append({
                 'source': 'overture', 'id': row['overture_id'], 'name': row['name'],
-                'name_local': row.get('name_local'), 'name_en': row.get('name_en'),
                 'dedupe_name': normalize_text(row['name'] or ''),
                 'lat': float(row['lat']), 'lng': float(row['lng']), 'type': types[0],
             })
@@ -384,9 +383,8 @@ def served_curated_all():
     on any type of the family (an archived viewpoint against a curated
     park), and the Overture side of the base is already every promoted
     type, so a curated business can be the 'other kind' counterpart too."""
-    rows = d1_read("SELECT poi_id, name, name_local, name_en, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
+    rows = d1_read("SELECT poi_id, name, dedupe_name, lat, lng, primary_poi_type FROM curated_poi WHERE status = 'active'")
     return [{'source': 'curated', 'id': r['poi_id'], 'name': r['name'], 'dedupe_name': r['dedupe_name'],
-             'name_local': r.get('name_local'), 'name_en': r.get('name_en'),
              'lat': float(r['lat']), 'lng': float(r['lng']), 'type': r['primary_poi_type']} for r in rows]
 
 

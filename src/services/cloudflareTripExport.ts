@@ -16,6 +16,7 @@ import { cloudflareExportProxy } from './cloudflarePoiFunctions';
 import { writeTripAreaPlaces } from './habitatCache';
 import type { PlaceCandidate } from './habitatCache';
 import type { PlaceSourceRef } from './placeIdentity';
+import { parsePlaceNames } from './poiName';
 
 type ExportRow = {
   source_id: string;
@@ -23,6 +24,8 @@ type ExportRow = {
   name_local: string | null;
   name_en: string | null;
   name_local_lang: string | null;
+  names_json: string | null;
+  country_code: string | null;
   lat: number;
   lng: number;
   poi_type: string;
@@ -78,6 +81,7 @@ export async function importCloudflareTripExport(
     const rows = await database.getAllAsync<ExportRow>(
       `SELECT p.${shape.idColumn} AS source_id, p.name,
               ${nameColumn('name_local')}, ${nameColumn('name_en')}, ${nameColumn('name_local_lang')},
+              ${nameColumn('names_json')}, ${nameColumn('country_code')},
               p.lat, p.lng, p.brand, pt.poi_type
        FROM poi p JOIN poi_type pt ON pt.${shape.idColumn} = p.${shape.idColumn}
        WHERE p.lat BETWEEN ? AND ? AND p.lng BETWEEN ? AND ?
@@ -92,6 +96,8 @@ export async function importCloudflareTripExport(
         nameLocal: row.name_local,
         nameEn: row.name_en,
         nameLocalLang: row.name_local_lang,
+        names: parsePlaceNames(row.names_json),
+        countryCode: row.country_code,
         lat: row.lat,
         lng: row.lng,
         brand: row.brand,

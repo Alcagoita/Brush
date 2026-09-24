@@ -66,17 +66,20 @@ export async function completeOvertureCountryImport(env: Env, options: {
   stagedRows: number; droppedRows: number; promotedRows: number; rejectedRows: number; pendingRows: number; now: number;
   /** KAN-456: the release the source was extracted from and the refresh report (a first import reports every row as new). */
   release?: string | null; newRows?: number; changedRows?: number; retiredRows?: number;
+  nameLanguages?: string[];
 }): Promise<boolean> {
   if (options.sourceRows !== options.stagedRows + options.droppedRows) return false;
   if (options.promotedRows + options.rejectedRows + options.pendingRows !== options.stagedRows) return false;
   const result = await env.REGISTRY_DB.prepare(
     `UPDATE overture_country_import SET status = 'mapped', completed_at = ?, backlog_report_r2_key = ?,
        source_rows = ?, staged_rows = ?, dropped_rows = ?, promoted_rows = ?, rejected_rows = ?, pending_rows = ?, last_error = NULL,
-       release = COALESCE(?, release), new_rows = ?, changed_rows = ?, retired_rows = ?
+       release = COALESCE(?, release), new_rows = ?, changed_rows = ?, retired_rows = ?,
+       name_languages_json = COALESCE(?, name_languages_json)
      WHERE country_code = ? AND active_run_id = ? AND status = 'mapping' AND raw_extract_r2_key IS NOT NULL`,
   ).bind(iso(options.now), options.backlogReportR2Key, options.sourceRows, options.stagedRows,
     options.droppedRows, options.promotedRows, options.rejectedRows, options.pendingRows,
     options.release ?? null, options.newRows ?? options.stagedRows, options.changedRows ?? 0, options.retiredRows ?? 0,
+    options.nameLanguages ? JSON.stringify(options.nameLanguages) : null,
     options.countryCode, options.runId).run();
   return result.meta.changes === 1;
 }

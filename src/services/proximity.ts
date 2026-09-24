@@ -805,6 +805,8 @@ async function runProximitySearch(
                 nameLocal: place.nameLocal,
                 nameEn: place.nameEn,
                 nameLocalLang: place.nameLocalLang,
+                names: place.names,
+                countryCode: place.countryCode,
                 lat:    place.lat,
                 lng:    place.lng,
                 source: placeSourceRef(place.placeId, tickSource, place.sourceKind),

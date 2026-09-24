@@ -55,6 +55,8 @@ interface MockHabitatRow {
   name_local?: string | null;
   name_en?: string | null;
   name_local_lang?: string | null;
+  names_json?: string | null;
+  country_code?: string | null;
   is_generic_name: number;
   lat: number;
   lng: number;
@@ -125,6 +127,7 @@ const mockDb = {
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
         { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' }, { name: 'financial_service_kinds' },
         { name: 'area_name' }, { name: 'brand' }, { name: 'name_local' }, { name: 'name_en' }, { name: 'name_local_lang' },
+        { name: 'names_json' }, { name: 'country_code' },
       ] as unknown as T[];
     }
     if (s.startsWith('SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL')) {
@@ -208,22 +211,22 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, name_local, name_en, name_local_lang, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] = params as any[];
-      rows.push({ id, poi_type, name, name_local, name_en, name_local_lang, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
+      const [id, poi_type, name, name_local, name_en, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] = params as any[];
+      rows.push({ id, poi_type, name, name_local, name_en, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
         footprintAreaM2, website,
-        restaurantFoodType, storeSubtype, financialServiceKinds, brand, nameLocal, nameEn, nameLocalLang,
+        restaurantFoodType, storeSubtype, financialServiceKinds, brand, nameLocal, nameEn, nameLocalLang, namesJson, countryCode,
         areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
         number | null, string | null,
-        string | null, string | null, string | null, string | null, string | null, string | null, string | null,
+        string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null,
         string | null,
         string | null, number | null, number | null, number | null,
         number, string,
@@ -251,6 +254,8 @@ const mockDb = {
         row.name_local = nameLocal ?? row.name_local ?? null;
         row.name_en = nameEn ?? row.name_en ?? null;
         row.name_local_lang = nameLocalLang ?? row.name_local_lang ?? null;
+        row.names_json = namesJson ?? row.names_json ?? null;
+        row.country_code = countryCode ?? row.country_code ?? null;
         // COALESCE(?, area_name) — a Cloudflare sighting names an OSM-seeded
         // row, and a row that already has a name is never cleared (KAN-377).
         row.area_name = areaName ?? row.area_name ?? null;
