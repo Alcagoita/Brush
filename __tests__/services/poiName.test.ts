@@ -12,15 +12,16 @@ describe('place-name selection', () => {
   it('uses a saved country-specific source language without changing place identity', () => {
     expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', { PT: 'en' })).toBe('Jerónimos Monastery');
     expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', { PT: 'fr' })).toBe('Monastère des Hiéronymites');
-    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'ES', { PT: 'en' })).toBe('Jerónimos Monastery');
+    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'ES', { PT: 'en' })).toBe('Mosteiro dos Jerónimos');
   });
 
-  it('falls back to English, then the source name, when a translation is absent', () => {
-    expect(selectPoiName('Original', { en: 'English' }, 'PT', { PT: 'fr' })).toBe('English');
-    expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' }, 'Legacy English')).toBe('Legacy English');
+  it('falls back to the source name when the chosen or native name is absent', () => {
+    expect(selectPoiName('Original', { en: 'English' }, 'PT', { PT: 'fr' })).toBe('Original');
+    expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' }, 'Legacy English')).toBe('Original');
     expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' })).toBe('Original');
-    expect(selectPoiName('Original', { en: 'English' }, 'PT')).toBe('English');
-    expect(selectPoiName('Original', { en: 'English', fr: ' ' }, 'PT', { PT: 'fr' })).toBe('English');
+    expect(selectPoiName('Original', { en: 'English' }, 'PT')).toBe('Original');
+    expect(selectPoiName('Original', { en: 'English', fr: ' ' }, 'PT', { PT: 'fr' })).toBe('Original');
+    expect(selectPoiName('Original', {}, 'PT', { PT: 'en' }, 'Legacy English')).toBe('Legacy English');
   });
 
   it('uses English with no known country and otherwise keeps the source name', () => {
