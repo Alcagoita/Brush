@@ -5,18 +5,22 @@ afterEach(() => setPlaceNameChoices({}));
 describe('place-name selection', () => {
   const names = { en: 'Jerónimos Monastery', pt: 'Mosteiro dos Jerónimos', fr: 'Monastère des Hiéronymites' };
 
-  it('defaults to the source name for a known country regardless of app language', () => {
-    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT')).toBe('Mosteiro dos Jerónimos');
+  it('defaults to the local name for a known country regardless of app language', () => {
+    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', {}, null, names.pt)).toBe('Mosteiro dos Jerónimos');
   });
 
   it('uses a saved country-specific source language without changing place identity', () => {
     expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', { PT: 'en' })).toBe('Jerónimos Monastery');
     expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', { PT: 'fr' })).toBe('Monastère des Hiéronymites');
-    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'ES', { PT: 'en' })).toBe('Mosteiro dos Jerónimos');
+    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'ES', { PT: 'en' })).toBe('Jerónimos Monastery');
   });
 
-  it('falls back to the source name when a selected translation is absent', () => {
-    expect(selectPoiName('Original', { en: 'English' }, 'PT', { PT: 'fr' })).toBe('Original');
+  it('falls back to English, then the source name, when a translation is absent', () => {
+    expect(selectPoiName('Original', { en: 'English' }, 'PT', { PT: 'fr' })).toBe('English');
+    expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' }, 'Legacy English')).toBe('Legacy English');
+    expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' })).toBe('Original');
+    expect(selectPoiName('Original', { en: 'English' }, 'PT')).toBe('English');
+    expect(selectPoiName('Original', { en: 'English', fr: ' ' }, 'PT', { PT: 'fr' })).toBe('English');
   });
 
   it('uses English with no known country and otherwise keeps the source name', () => {
@@ -25,7 +29,7 @@ describe('place-name selection', () => {
   });
 
   it('updates an already loaded place when the preference changes', () => {
-    const place = { name: 'Mosteiro dos Jerónimos', names, countryCode: 'PT' };
+    const place = { name: 'Mosteiro dos Jerónimos', nameLocal: names.pt, names, countryCode: 'PT' };
     setPlaceNameChoices({ PT: 'en' });
     expect(displayPlaceName(place)).toBe('Jerónimos Monastery');
     setPlaceNameChoices({ PT: 'native' });

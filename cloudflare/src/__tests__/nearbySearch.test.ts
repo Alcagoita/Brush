@@ -194,6 +194,20 @@ describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
     })]);
   });
 
+  it('returns English for a missing local name and never returns an empty display fallback', async () => {
+    const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
+      { overture_id: 'english-fallback', name: 'Source', name_en: 'English', country_code: 'PT', primary_poi_type: 'store' },
+      { overture_id: 'source-fallback', name: 'Only source', country_code: 'PT', primary_poi_type: 'store' },
+      { overture_id: 'blank-local', name: 'Another source', name_local: ' ', name_en: 'Another English', country_code: 'PT', primary_poi_type: 'store' },
+    ]), CTX);
+    const body = await res.json() as { results: Record<string, Array<Record<string, unknown>>> };
+    expect(body.results.store).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Source', name_local: 'English', name_en: 'English' }),
+      expect.objectContaining({ name: 'Only source', name_local: 'Only source', name_en: 'Only source' }),
+      expect.objectContaining({ name: 'Another source', name_local: 'Another English', name_en: 'Another English' }),
+    ]));
+  });
+
   it('suppresses cross-source duplicates when their source-supplied aliases match', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
       { overture_id: 'bookshop', name: 'Bookshop', name_local: 'Livraria',

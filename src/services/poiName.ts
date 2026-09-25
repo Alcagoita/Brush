@@ -18,24 +18,27 @@ export function parsePlaceNames(value: unknown): Record<string, string> {
   )) as Record<string, string>;
 }
 
-/** No translation is generated: absent source names fall back to the original. */
+/** No translation is generated: absent variants fall back to English, then the source name. */
 export function selectPoiName(
   name: string,
   names: Record<string, string> | null | undefined,
   countryCode: string | null | undefined,
   preference: PlaceNameChoices = choices,
   legacyEnglish?: string | null,
+  localName?: string | null,
 ): string {
   const variants = names ?? {};
-  if (!countryCode) return variants.en || legacyEnglish || name;
+  const nonBlank = (value?: string | null) => value?.trim() || null;
+  const english = nonBlank(variants.en) || nonBlank(legacyEnglish) || name;
+  if (!countryCode) return english;
   const selected = preference[countryCode.toUpperCase()] ?? 'native';
-  if (selected === 'native') return name;
-  return variants[selected] || (selected === 'en' ? legacyEnglish : null) || name;
+  if (selected === 'native') return nonBlank(localName) || english;
+  return nonBlank(variants[selected]) || english;
 }
 
 export function displayPlaceName(place: {
   name: string; nameOriginal?: string; names?: Record<string, string> | null;
-  countryCode?: string | null; nameEn?: string | null;
+  countryCode?: string | null; nameEn?: string | null; nameLocal?: string | null;
 }): string {
-  return selectPoiName(place.nameOriginal ?? place.name, place.names, place.countryCode, choices, place.nameEn);
+  return selectPoiName(place.nameOriginal ?? place.name, place.names, place.countryCode, choices, place.nameEn, place.nameLocal);
 }

@@ -1594,8 +1594,10 @@ async function queryNearbyPoiDb(
     const poi: NearbyPoi = {
       poi_id: candidate.poi_id,
       name: candidate.name, lat: candidate.lat, lng: candidate.lng,
-      name_local: candidate.name_local ?? null,
-      name_en: candidate.name_en ?? null,
+      // Keep missing translations NULL in D1; the API always returns a usable
+      // display value, preferring English before the source name.
+      name_local: candidate.name_local?.trim() || candidate.name_en?.trim() || candidate.name,
+      name_en: candidate.name_en?.trim() || candidate.name,
       name_local_lang: candidate.name_local_lang ?? null,
       names: candidate.names ?? {}, country_code: candidate.country_code ?? null,
       primary_poi_type: candidate.primary_poi_type, brand: candidate.brand,
