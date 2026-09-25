@@ -26,6 +26,7 @@ import { COPY } from '../constants/copy';
 import { refreshMallsIfDue } from '../services/habitatCache';
 import { ROUTE_MAX_RADIUS_M } from '../services/destinationResolver';
 import { openMultiStopDirections, formatDistance } from '../services/maps';
+import { displayPlaceName } from '../services/poiName';
 import {
   getLocalTripAlternativeCount,
   planLocalTripAlternative,
@@ -42,8 +43,8 @@ type Route = RouteProp<RootStackParamList, 'ItineraryOptions'>;
 
 function stopLine(stop: TripPlan['stops'][number]): string {
   return stop.place.source === 'learned'
-    ? COPY.itineraryOptionsScreen.destinationLearned(stop.place.name)
-    : COPY.itineraryOptionsScreen.destinationWithDistance(stop.place.name, formatDistance(stop.place.distanceMeters));
+    ? COPY.itineraryOptionsScreen.destinationLearned(displayPlaceName(stop.place))
+    : COPY.itineraryOptionsScreen.destinationWithDistance(displayPlaceName(stop.place), formatDistance(stop.place.distanceMeters));
 }
 
 /** A reordering of the same venues is not an alternative route. */

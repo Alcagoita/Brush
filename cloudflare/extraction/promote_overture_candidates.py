@@ -52,7 +52,7 @@ MAX_VALUES_TERMS = 500
 
 POI_INSERT_PREFIX = (
     'INSERT OR IGNORE INTO overture_poi '
-    '(overture_id, name, dedupe_name, lat, lng, geohash, primary_poi_type, brand, '
+    '(overture_id, name, name_local, name_en, name_local_lang, names_json, country_code, dedupe_name, lat, lng, geohash, primary_poi_type, brand, '
     'address, category, confidence, source_datasets, open_min, close_min, '
     'imported_at, updated_at) VALUES '
 )
@@ -671,6 +671,9 @@ def poi_values(row, poi_type, brand_dictionary, refreshed):
     confidence = row.get('confidence')
     return (
         f"({sql_escape(row['overture_id'])},{sql_escape(name)},"
+        f"{sql_escape(row.get('name_local'))},{sql_escape(row.get('name_en'))},"
+        f"{sql_escape(row.get('name_local_lang'))},"
+        f"{sql_escape(row.get('names_json'))},{sql_escape(row.get('country_code'))},"
         f"{sql_escape(normalize_text(name) or name.strip().lower())},"
         f"{row['lat']},{row['lng']},"
         f"{sql_escape(encode_geohash(row['lat'], row['lng']))},"
@@ -794,7 +797,7 @@ def run_country(batch, country_source_r2_key):
         f"{sql_escape(country_source_r2_key)}")
     rows = paged(
         'overture_candidate',
-        ('overture_id', 'name', 'lat', 'lng', 'address', 'category',
+        ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'category',
          'category_path', 'confidence', 'source_datasets'),
         'overture_id', batch, where=where)
 
@@ -887,7 +890,7 @@ def run_country_repromote(batch, country_source_r2_key):
         f"{sql_escape(country_source_r2_key)}")
     rows = paged(
         'overture_candidate',
-        ('overture_id', 'name', 'lat', 'lng', 'address', 'category',
+        ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'category',
          'category_path', 'confidence', 'source_datasets'),
         'overture_id', batch, where=where)
 
@@ -981,7 +984,7 @@ def run_country_overrides(country_source_r2_key, batch=None):
         requested = ids[start:start + MAX_VALUES_TERMS]
         values = ','.join(sql_escape(overture_id) for overture_id in requested)
         rows = d1_client.select(
-            'SELECT overture_id, name, lat, lng, address, category, category_path, '
+            'SELECT overture_id, name, name_local, name_en, name_local_lang, names_json, country_code, lat, lng, address, category, category_path, '
             'confidence, source_datasets FROM overture_candidate '
             "WHERE country_source_r2_key = "
             f"{sql_escape(country_source_r2_key)} AND overture_id IN ({values}) "
@@ -1017,7 +1020,7 @@ def run(batch, out_dir, dry_run, country_source_r2_key=None):
         where += f' AND country_source_r2_key = {sql_escape(country_source_r2_key)}'
     for row in paged(
         'overture_candidate',
-        ('overture_id', 'name', 'lat', 'lng', 'address', 'category',
+        ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'category',
          'category_path', 'confidence', 'source_datasets'),
         'overture_id', batch,
         where=where,

@@ -56,7 +56,7 @@ import promote_overture_candidates
 from analyse_poi_candidates import paged
 from load_overture_candidates import sql_escape
 
-EXPORT_VERSION = 'overture-export-v1'
+EXPORT_VERSION = 'overture-export-v2'
 BUILD_SOURCE = 'overture_places'
 PROMOTION_PAGE_SIZE = 500
 EXPORT_PAGE_SIZE = 1000
@@ -75,7 +75,7 @@ def served_rows(min_lat, max_lat, min_lng, max_lng):
     release retired (KAN-456) is not served and not exported."""
     pois = list(paged(
         'overture_poi',
-        ('overture_id', 'name', 'lat', 'lng', 'primary_poi_type', 'brand', 'address', 'open_min', 'close_min'),
+        ('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'primary_poi_type', 'brand', 'address', 'open_min', 'close_min'),
         'overture_id', EXPORT_PAGE_SIZE,
         where=bbox_where(min_lat, max_lat, min_lng, max_lng) + ' AND retired_in_release IS NULL'))
     ids = [row['overture_id'] for row in pois]
@@ -106,6 +106,11 @@ def write_export(place_id, build_id, pois, types, attributes, out_path):
         CREATE TABLE poi (
           overture_id      TEXT PRIMARY KEY,
           name             TEXT NOT NULL,
+          name_local       TEXT,
+          name_en          TEXT,
+          name_local_lang  TEXT,
+          names_json       TEXT,
+          country_code     TEXT,
           lat              REAL NOT NULL,
           lng              REAL NOT NULL,
           primary_poi_type TEXT NOT NULL,
@@ -137,8 +142,10 @@ def write_export(place_id, build_id, pois, types, attributes, out_path):
         );
     """)
     connection.executemany(
-        'INSERT INTO poi VALUES (?,?,?,?,?,?,?,?,?)',
-        [(r['overture_id'], r['name'], r['lat'], r['lng'], r['primary_poi_type'], r.get('brand'),
+        'INSERT INTO poi VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+        [(r['overture_id'], r['name'], r.get('name_local'), r.get('name_en'), r.get('name_local_lang'),
+          r.get('names_json'), r.get('country_code'),
+          r['lat'], r['lng'], r['primary_poi_type'], r.get('brand'),
           r.get('address'), r.get('open_min'), r.get('close_min')) for r in pois])
     connection.executemany('INSERT OR IGNORE INTO poi_type VALUES (?,?,?)',
                            [(r['overture_id'], r['poi_type'], r['rank']) for r in types])

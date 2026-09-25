@@ -57,6 +57,7 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { ImportResult } from '../types';
 import { COPY, type SupportedLanguage } from '../constants/copy';
 import { setWifiOnlyDownloads } from '../services/habitatCache';
+import { resolvePlaceNameCountry } from '../services/placeNameCountry';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -168,6 +169,7 @@ interface SettingsRowProps {
   danger?:  boolean;
   isLast?:  boolean;
   accessibilityLabel?: string;
+  disabled?: boolean;
 }
 
 function SettingsRow({
@@ -179,6 +181,7 @@ function SettingsRow({
   danger = false,
   isLast = false,
   accessibilityLabel,
+  disabled = false,
 }: SettingsRowProps) {
   const { palette } = useTheme();
   const textColor = danger ? palette.accent : palette.text;
@@ -186,9 +189,10 @@ function SettingsRow({
   return (
     <>
       <Pressable
-        style={({ pressed }) => [s.row, pressed && onPress && { opacity: 0.6 }]}
-        onPress={onPress}
+        style={({ pressed }) => [s.row, disabled && { opacity: 0.45 }, pressed && onPress && !disabled && { opacity: 0.6 }]}
+        onPress={disabled ? undefined : onPress}
         accessibilityRole={onPress ? 'button' : 'none'}
+        accessibilityState={{ disabled }}
         accessibilityLabel={accessibilityLabel ?? label}>
         <View style={[s.iconTile, { backgroundColor: palette.surface2 }]}>
           <Icon color={danger ? palette.accent : palette.muted} size={19} />
@@ -298,10 +302,72 @@ function LanguagePickerSheet({ visible, current, onSelect, onClose }: LanguagePi
   );
 }
 
+function placeLanguageLabel(code: string): string {
+  if (code === 'native') return COPY.settings.placeNamesNative;
+  const staticLabels: Record<string, string> = {
+    en: 'English', pt: 'Português', es: 'Español', fr: 'Français',
+    de: 'Deutsch', it: 'Italiano', nl: 'Nederlands', ca: 'Català',
+  };
+  const lower = code.toLowerCase();
+  const primary = lower.split('-')[0];
+  if (staticLabels[lower]) return staticLabels[lower];
+  if (staticLabels[primary]) return staticLabels[primary];
+  try {
+    const DisplayNames = Intl.DisplayNames;
+    if (typeof DisplayNames === 'function') {
+      const displayNames = new DisplayNames([code], { type: 'language' });
+      const full = displayNames.of(code);
+      if (full) return full;
+      if (primary !== lower) {
+        const primaryName = new DisplayNames([primary], { type: 'language' }).of(primary);
+        if (primaryName) return primaryName;
+      }
+    }
+  } catch { /* Hermes may not implement DisplayNames or a particular tag. */ }
+  return code.toUpperCase();
+}
+
+function PlaceNamePickerSheet({ visible, current, languages, onSelect, onClose }: {
+  visible: boolean; current: string; languages: string[];
+  onSelect: (code: string) => void; onClose: () => void;
+}) {
+  const { palette } = useTheme();
+  const insets = useSafeAreaInsets();
+  const options = ['native', ...languages];
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: palette.scrim }]}
+        onPress={onClose} accessibilityRole="button" accessibilityLabel={COPY.settings.languageCancel} />
+      <View style={[s.sheetWrap, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={[s.sheetCard, { backgroundColor: palette.surface }]}>
+          <Text style={[s.sheetTitle, { color: palette.muted }]}>{COPY.settings.placeNamesSheetTitle}</Text>
+          <ScrollView style={{ maxHeight: 360 }} accessibilityRole="radiogroup">
+            {options.map((code, index) => (
+              <React.Fragment key={code}>
+                <Pressable style={({ pressed }) => [s.row, pressed && { opacity: 0.6 }]}
+                  onPress={() => onSelect(code)} accessibilityRole="radio"
+                  accessibilityState={{ selected: code === current }} accessibilityLabel={placeLanguageLabel(code)}>
+                  <Text style={[s.rowLabel, { color: palette.text, flex: 1 }]}>{placeLanguageLabel(code)}</Text>
+                  {code === current && <CheckIcon color={palette.accent} size={18} />}
+                </Pressable>
+                {index < options.length - 1 && <View style={[s.divider, { backgroundColor: palette.line, marginLeft: 16 }]} />}
+              </React.Fragment>
+            ))}
+          </ScrollView>
+        </View>
+        <Pressable style={({ pressed }) => [s.sheetCancel, { backgroundColor: palette.surface }, pressed && { opacity: 0.6 }]}
+          onPress={onClose}>
+          <Text style={[s.sheetCancelLabel, { color: palette.text }]}>{COPY.settings.languageCancel}</Text>
+        </Pressable>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
 export default function SettingsScreen() {
-  const { palette, dark, setDark, language, setLanguage } = useTheme();
+  const { palette, dark, setDark, language, setLanguage, placeNameChoices, setPlaceNameChoice } = useTheme();
   const navigation = useNavigation<Nav>();
   const insets     = useSafeAreaInsets();
 
@@ -329,12 +395,32 @@ export default function SettingsScreen() {
   }, [setDark]);
 
   const [languageSheetOpen, setLanguageSheetOpen] = useState(false);
+  const [placeNameSheetOpen, setPlaceNameSheetOpen] = useState(false);
+  const [placeNameCountry, setPlaceNameCountry] = useState<string | null>(null);
+  const [placeNameLanguages, setPlaceNameLanguages] = useState<string[]>([]);
+
+  useFocusEffect(useCallback(() => {
+    if (!uid) return;
+    let cancelled = false;
+    resolvePlaceNameCountry(uid).then(result => {
+      if (!cancelled) {
+        setPlaceNameCountry(result.countryCode);
+        setPlaceNameLanguages(result.languages);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [uid]));
 
   const handleLanguageSelect = useCallback((value: SupportedLanguage) => {
     setLanguage(value);
     logTap('settings_language_change', { language: value });
     setLanguageSheetOpen(false);
   }, [setLanguage]);
+
+  const handlePlaceNameSelect = useCallback((value: string) => {
+    if (placeNameCountry) setPlaceNameChoice(placeNameCountry, value);
+    setPlaceNameSheetOpen(false);
+  }, [placeNameCountry, setPlaceNameChoice]);
 
   const handleLowBatteryToggle = useCallback(async (value: boolean) => {
     setLowBatteryPause(value);
@@ -471,8 +557,18 @@ export default function SettingsScreen() {
             label={COPY.settings.languageRowLabel}
             sublabel={languageLabel(language)}
             onPress={() => setLanguageSheetOpen(true)}
-            isLast
             accessibilityLabel={COPY.settings.languageRowLabel}
+          />
+          <SettingsRow
+            Icon={GlobeIcon}
+            label={COPY.settings.placeNamesRowLabel}
+            sublabel={placeNameCountry
+              ? placeLanguageLabel(placeNameChoices[placeNameCountry] ?? 'native')
+              : COPY.settings.languageEnglish}
+            onPress={() => setPlaceNameSheetOpen(true)}
+            disabled={!placeNameCountry || placeNameLanguages.length <= 1}
+            isLast
+            accessibilityLabel={COPY.settings.placeNamesRowLabel}
           />
         </Section>
 
@@ -553,6 +649,13 @@ export default function SettingsScreen() {
         current={language}
         onSelect={handleLanguageSelect}
         onClose={() => setLanguageSheetOpen(false)}
+      />
+      <PlaceNamePickerSheet
+        visible={placeNameSheetOpen}
+        current={placeNameCountry ? placeNameChoices[placeNameCountry] ?? 'native' : 'native'}
+        languages={placeNameLanguages}
+        onSelect={handlePlaceNameSelect}
+        onClose={() => setPlaceNameSheetOpen(false)}
       />
     </View>
   );

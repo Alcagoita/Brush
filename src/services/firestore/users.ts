@@ -3,6 +3,36 @@ import { getDoc, setDoc, updateDoc, deleteField, serverTimestamp } from '@react-
 import type { User } from '../../types';
 import { userRef } from './refs';
 
+export interface PlaceNameCountryState {
+  countryCode: string | null;
+  languages: string[];
+}
+
+function normalizePlaceNameCountryState(data: Record<string, unknown> | undefined): PlaceNameCountryState {
+  const countryCode = typeof data?.placeNameLastCountryCode === 'string' && /^[A-Z]{2}$/.test(data.placeNameLastCountryCode)
+    ? data.placeNameLastCountryCode
+    : null;
+  const languages = Array.isArray(data?.placeNameLastLanguages)
+    ? [...new Set(data.placeNameLastLanguages.filter((value): value is string =>
+      typeof value === 'string' && /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(value)))]
+    : [];
+  return { countryCode, languages };
+}
+
+/** Read the last country/language manifest used by the place-name setting. */
+export async function getPlaceNameCountry(uid: string): Promise<PlaceNameCountryState> {
+  const snapshot = await getDoc(userRef(uid));
+  return normalizePlaceNameCountryState(snapshot.data() as Record<string, unknown> | undefined);
+}
+
+/** Persist the last resolved country and its source-provided language keys. */
+export async function savePlaceNameCountry(uid: string, state: PlaceNameCountryState): Promise<void> {
+  await setDoc(userRef(uid), {
+    placeNameLastCountryCode: state.countryCode,
+    placeNameLastLanguages: state.languages,
+  }, { merge: true });
+}
+
 /**
  * Create or update a user document on sign-up / profile change.
  * Uses merge so partial updates don't wipe existing fields.

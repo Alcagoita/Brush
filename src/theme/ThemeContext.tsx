@@ -31,6 +31,7 @@ import '@react-native-firebase/auth';
 import { darkPalette, lightPalette, Palette } from './tokens';
 import { setCopyLanguage, type SupportedLanguage } from '../constants/copy';
 import { detectDeviceLanguage } from '../services/deviceLocale';
+import { setPlaceNameChoices, type PlaceNameChoices } from '../services/poiName';
 
 // ─── Context shape ────────────────────────────────────────────────────────────
 
@@ -45,6 +46,8 @@ interface ThemeContextValue {
   language: SupportedLanguage;
   /** Change the UI language and persist the preference to Firestore. */
   setLanguage: (value: SupportedLanguage) => Promise<void>;
+  placeNameChoices: PlaceNameChoices;
+  setPlaceNameChoice: (countryCode: string, choice: string) => Promise<void>;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -70,6 +73,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setCopyLanguage(initial);
     return initial;
   });
+  const [placeNameChoices, setPlaceNameChoicesState] = useState<PlaceNameChoices>({});
 
   /**
    * Guards against a race condition where the Firestore load completes AFTER
@@ -136,6 +140,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
             setLanguageState(data.language);
             setCopyLanguage(data.language);
           }
+          if (data?.placeNameChoices && typeof data.placeNameChoices === 'object') {
+            const saved = Object.fromEntries(Object.entries(data.placeNameChoices)
+              .filter(([country, choice]) => /^[A-Z]{2}$/.test(country) && typeof choice === 'string')) as PlaceNameChoices;
+            setPlaceNameChoicesState(saved);
+            setPlaceNameChoices(saved);
+          }
         }
       } catch {
         // Non-critical — fall back to device preference silently.
@@ -197,11 +207,25 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setPlaceNameChoice = useCallback(async (countryCode: string, choice: string) => {
+    if (!/^[A-Z]{2}$/.test(countryCode)) return;
+    const next = { ...placeNameChoices, [countryCode]: choice };
+    setPlaceNameChoicesState(next);
+    setPlaceNameChoices(next);
+    const uid = getAuth().currentUser?.uid;
+    if (!uid) return;
+    try {
+      await setDoc(doc(getFirestore(), 'users', uid), { placeNameChoices: next }, { merge: true });
+    } catch {
+      // The in-memory choice still applies; Firestore retries its offline write.
+    }
+  }, [placeNameChoices]);
+
   const palette: Palette = dark ? darkPalette : lightPalette;
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ palette, dark, setDark, language, setLanguage }),
-    [palette, dark, setDark, language, setLanguage],
+    () => ({ palette, dark, setDark, language, setLanguage, placeNameChoices, setPlaceNameChoice }),
+    [palette, dark, setDark, language, setLanguage, placeNameChoices, setPlaceNameChoice],
   );
 
   // Block the first paint until the saved preference is known.

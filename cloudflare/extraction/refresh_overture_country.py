@@ -52,7 +52,7 @@ from classify_and_load import MAX_STATEMENT_BYTES, byte_len, encode_geohash, nor
 D1_ID_BATCH = 150
 MAX_VALUES_TERMS = 500
 # The source fields whose change means the served row must be refreshed.
-COMPARED_FIELDS = ('name', 'lat', 'lng', 'address', 'category')
+COMPARED_FIELDS = ('name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'category')
 
 
 def archive_rows(csv_path):
@@ -69,7 +69,13 @@ def archive_rows(csv_path):
             if not overture_id or not name or not lat or not lng or overture_id in out:
                 continue
             out[overture_id] = {
-                'overture_id': overture_id, 'name': name, 'lat': float(lat), 'lng': float(lng),
+                'overture_id': overture_id, 'name': name,
+                'name_local': (row.get('name_local') or '').strip() or None,
+                'name_en': (row.get('name_en') or '').strip() or None,
+                'name_local_lang': (row.get('name_local_lang') or '').strip() or None,
+                'names_json': (row.get('names_json') or '').strip() or None,
+                'country_code': (row.get('country_code') or '').strip().upper() or None,
+                'lat': float(lat), 'lng': float(lng),
                 'address': (row.get('address') or '').strip() or None,
                 'category': (row.get('category') or '').strip() or None,
                 'confidence': float(row['confidence']) if (row.get('confidence') or '').strip() else None,
@@ -139,11 +145,15 @@ def repending_statements(ids, release):
 # UPDATE … FROM (SQLite ≥ 3.33; D1 is newer). SQLite has no `AS v(a, b)`
 # column-alias list, so the VALUES rows are named through a SELECT.
 SERVED_REFRESH_PREFIX = (
-    'UPDATE overture_poi SET name = v.name, dedupe_name = v.dedupe_name, lat = v.lat, lng = v.lng, '
+    'UPDATE overture_poi SET name = v.name, name_local = v.name_local, name_en = v.name_en, '
+    'name_local_lang = v.name_local_lang, names_json = v.names_json, country_code = v.country_code, '
+    'dedupe_name = v.dedupe_name, lat = v.lat, lng = v.lng, '
     'geohash = v.geohash, address = v.address, category = v.category, confidence = v.confidence, '
-    'updated_at = v.updated_at FROM (SELECT column1 AS overture_id, column2 AS name, column3 AS dedupe_name, '
-    'column4 AS lat, column5 AS lng, column6 AS geohash, column7 AS address, column8 AS category, '
-    'column9 AS confidence, column10 AS updated_at FROM (VALUES '
+    'updated_at = v.updated_at FROM (SELECT column1 AS overture_id, column2 AS name, '
+    'column3 AS name_local, column4 AS name_en, column5 AS name_local_lang, '
+    'column6 AS names_json, column7 AS country_code, column8 AS dedupe_name, '
+    'column9 AS lat, column10 AS lng, column11 AS geohash, column12 AS address, column13 AS category, '
+    'column14 AS confidence, column15 AS updated_at FROM (VALUES '
 )
 SERVED_REFRESH_SUFFIX = ')) AS v WHERE overture_poi.overture_id = v.overture_id;\n'
 
@@ -153,6 +163,9 @@ def served_refresh_value(row, refreshed):
     confidence = row.get('confidence')
     return (
         f"({sql_escape(row['overture_id'])},{sql_escape(name)},"
+        f"{sql_escape(row.get('name_local'))},{sql_escape(row.get('name_en'))},"
+        f"{sql_escape(row.get('name_local_lang'))},"
+        f"{sql_escape(row.get('names_json'))},{sql_escape(row.get('country_code'))},"
         f"{sql_escape(normalize_text(name) or name.strip().lower())},"
         f"{row['lat']},{row['lng']},{sql_escape(encode_geohash(row['lat'], row['lng']))},"
         f"{sql_escape(row.get('address'))},{sql_escape(row.get('category'))},"

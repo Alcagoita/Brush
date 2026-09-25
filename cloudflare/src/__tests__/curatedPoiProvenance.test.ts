@@ -106,6 +106,9 @@ describe('migration 0042 — curated_poi provenance', () => {
   it('leaves curated_poi with exactly the columns schema.sql declares', () => {
     const db = productionShapedDb();
     db.exec(MIGRATION);
+    // This assertion compares today's full schema, including KAN-460's
+    // additive name columns; this fixture has no Overture tables for 0049.
+    db.exec('ALTER TABLE curated_poi ADD COLUMN name_local TEXT; ALTER TABLE curated_poi ADD COLUMN name_en TEXT; ALTER TABLE curated_poi ADD COLUMN name_local_lang TEXT;');
     const columns = (database: DatabaseSync) =>
       (database.prepare('PRAGMA table_info(curated_poi)').all() as Array<{ name: string }>).map(column => column.name);
     expect(columns(db)).toEqual(columns(schemaDb()));

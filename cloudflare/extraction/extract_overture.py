@@ -69,6 +69,19 @@ EXCLUDED_CATEGORIES = (
     'financial_advising',
 )
 
+# A country's display language is explicit, never inferred from a POI's
+# spelling. Extend only when that country's import is configured.
+COUNTRY_NAME_LANGUAGES = {'PT': 'pt', 'ES': 'es'}
+
+
+def _name_columns(country):
+    """Overture common names are a language-keyed map; primary is unlabelled."""
+    language = COUNTRY_NAME_LANGUAGES.get((country or '').upper())
+    local = f"map_extract(names.common, {_sql_literal(language)})[1]" if language else 'NULL'
+    english = "map_extract(names.common, 'en')[1]"
+    local_lang = f"CASE WHEN {local} IS NOT NULL THEN {_sql_literal(language)} ELSE NULL END" if language else 'NULL'
+    return f"{local} AS name_local, {english} AS name_en, {local_lang} AS name_local_lang,"
+
 
 def _sql_literal(value):
     """A single-quoted SQL string literal with apostrophes doubled.
@@ -123,6 +136,9 @@ def extract_bbox(min_lat, max_lat, min_lng, max_lng, out_path,
         COPY (
           SELECT id AS overture_id,
                  names.primary AS name,
+                 {_name_columns(country)}
+                 to_json(names.common) AS names_json,
+                 addresses[1].country AS country_code,
                  ST_Y(geometry) AS lat,
                  ST_X(geometry) AS lng,
                  addresses[1].freeform AS address,
@@ -176,6 +192,9 @@ def extract_country(country_code, out_path, release=OVERTURE_RELEASE):
         COPY (
           SELECT id AS overture_id,
                  names.primary AS name,
+                 {_name_columns(country_code)}
+                 to_json(names.common) AS names_json,
+                 addresses[1].country AS country_code,
                  ST_Y(geometry) AS lat,
                  ST_X(geometry) AS lng,
                  addresses[1].freeform AS address,

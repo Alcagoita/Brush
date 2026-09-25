@@ -29,10 +29,10 @@ RELEASE = '2026-10-15.0'
 
 def write_archive(path, rows):
     with open(path, 'w', newline='') as handle:
-        writer = csv.DictWriter(handle, fieldnames=('overture_id', 'name', 'lat', 'lng', 'address', 'category', 'confidence'))
+        writer = csv.DictWriter(handle, fieldnames=('overture_id', 'name', 'name_local', 'name_en', 'name_local_lang', 'lat', 'lng', 'address', 'category', 'confidence'))
         writer.writeheader()
         for row in rows:
-            writer.writerow(row)
+            writer.writerow({field: row.get(field, '') for field in writer.fieldnames})
 
 
 def row(overture_id, name, lat=38.7, lng=-9.1, address='Rua A', category='pharmacy', confidence='0.9'):
@@ -58,6 +58,15 @@ class DiffTest(unittest.TestCase):
             write_archive(new, [row('a', 'A'), {'overture_id': 'x', 'name': '', 'lat': '1', 'lng': '2'}])
             sets = refresh.diff_archives(refresh.archive_rows(old), refresh.archive_rows(new))
         self.assertEqual((sets['new'], sets['unchanged']), ([], ['a']))
+
+    def test_a_new_source_translation_refreshes_the_existing_place(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            old, new = os.path.join(tmp, 'old.csv'), os.path.join(tmp, 'new.csv')
+            write_archive(old, [row('a', 'Livraria')])
+            write_archive(new, [{**row('a', 'Livraria'), 'name_local': 'Livraria',
+                                 'name_en': 'Bookshop', 'name_local_lang': 'pt'}])
+            sets = refresh.diff_archives(refresh.archive_rows(old), refresh.archive_rows(new))
+        self.assertEqual(sets['changed'], [('a', ('name_local', 'name_en', 'name_local_lang'))])
 
 
 class StatementBoundsTest(unittest.TestCase):

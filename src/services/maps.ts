@@ -39,6 +39,13 @@ export interface NearbyPlace {
   sourceKind?: PoiRecordSource;
   /** Human-readable place name. */
   name: string;
+  /** Original source label and explicitly tagged translations, retained for offline caching. */
+  nameOriginal?: string;
+  nameLocal?: string | null;
+  nameEn?: string | null;
+  nameLocalLang?: string | null;
+  names?: Record<string, string>;
+  countryCode?: string | null;
   /** Latitude of the place. */
   lat: number;
   /** Longitude of the place. */
@@ -474,6 +481,12 @@ async function searchNearbyPlacesCloudflare(
           placeId: p.poi_id,
           sourceKind: p.source,
           name: p.name,
+          nameOriginal: p.name,
+          nameLocal: p.name_local,
+          nameEn: p.name_en,
+          nameLocalLang: p.name_local_lang,
+          names: p.names,
+          countryCode: p.country_code,
           lat: p.lat,
           lng: p.lng,
           distanceMeters: p.distanceMeters,

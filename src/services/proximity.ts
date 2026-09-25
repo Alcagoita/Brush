@@ -801,7 +801,12 @@ async function runProximitySearch(
             for (const place of results[poiType] ?? []) {
               recordLiveResult({
                 poiType,
-                name:   place.name,
+                name:   place.nameOriginal ?? place.name,
+                nameLocal: place.nameLocal,
+                nameEn: place.nameEn,
+                nameLocalLang: place.nameLocalLang,
+                names: place.names,
+                countryCode: place.countryCode,
                 lat:    place.lat,
                 lng:    place.lng,
                 source: placeSourceRef(place.placeId, tickSource, place.sourceKind),

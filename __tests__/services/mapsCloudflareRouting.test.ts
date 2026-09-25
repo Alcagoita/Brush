@@ -10,6 +10,7 @@
  */
 import { searchNearbyPlaces } from '../../src/services/maps';
 import { cloudflarePoiAllProxy, cloudflareRequestCoverageProxy } from '../../src/services/cloudflarePoiFunctions';
+import { displayPlaceName, setPlaceNameChoices } from '../../src/services/poiName';
 
 jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflarePoiAllProxy:         jest.fn(),
@@ -31,6 +32,7 @@ const LAT = 38.7223, LNG = -9.1393, RADIUS = 500;
 describe('searchNearbyPlaces — Brush API routing', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    setPlaceNameChoices({});
     mockRequestCoverage.mockResolvedValue({ coverageStatus: 'none', cityId: null });
   });
 
@@ -47,6 +49,24 @@ describe('searchNearbyPlaces — Brush API routing', () => {
     expect(result.results.cafe.map(p => p.placeId)).toEqual(['near', 'far']);
     expect(result.source).toBe('cloudflare');
     expect(result.coverageStatus).toBe('ready');
+  });
+
+  it('keeps the source identity name and localizes only at display time', async () => {
+    mockPoiAll.mockResolvedValue({ results: { store: [
+      { poi_id: 'bookshop', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop',
+        name_local_lang: 'pt', names: { pt: 'Livraria', en: 'Bookshop' }, country_code: 'PT',
+        lat: LAT, lng: LNG, primary_poi_type: 'store',
+        brand: null, category_label: null, address: null, distanceMeters: 20 },
+    ] } });
+
+    const result = await searchNearbyPlaces(LAT, LNG, ['store'], RADIUS);
+
+    expect(result.results.store[0]).toEqual(expect.objectContaining({
+      name: 'Livraria', nameOriginal: 'Livraria', nameLocal: 'Livraria',
+      nameEn: 'Bookshop', nameLocalLang: 'pt',
+    }));
+    setPlaceNameChoices({ PT: 'en' });
+    expect(displayPlaceName(result.results.store[0])).toBe('Bookshop');
   });
 
   it('splits more than 32 nearby buckets so a large Store-brand task list stays searchable', async () => {

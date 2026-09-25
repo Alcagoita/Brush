@@ -118,7 +118,12 @@ CREATE TABLE IF NOT EXISTS overture_poi (
   -- KAN-456 (0048). The release that stopped carrying the row. Nearby serves
   -- only NULL; the row, its types, attributes and overrides stay, and a
   -- later release that lists the id again clears it.
-  retired_in_release  TEXT
+  retired_in_release  TEXT,
+  name_local          TEXT,
+  name_en             TEXT,
+  name_local_lang     TEXT,
+  names_json          TEXT,
+  country_code        TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_overture_poi_geo ON overture_poi (geohash);
 CREATE INDEX IF NOT EXISTS idx_overture_poi_retired ON overture_poi (retired_in_release);
@@ -148,7 +153,12 @@ CREATE TABLE IF NOT EXISTS overture_candidate (
   -- KAN-456 (0048). The archive key of the most recent release that carried
   -- the row; after a refresh, rows for the country still on an older key are
   -- the retired set.
-  last_seen_source_key TEXT
+  last_seen_source_key TEXT,
+  name_local TEXT,
+  name_en TEXT,
+  name_local_lang TEXT,
+  names_json TEXT,
+  country_code TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_overture_candidate_status ON overture_candidate (promotion_status);
 CREATE INDEX IF NOT EXISTS idx_overture_candidate_last_seen ON overture_candidate (last_seen_source_key);
@@ -180,7 +190,8 @@ CREATE TABLE IF NOT EXISTS overture_country_import (
   release TEXT,
   new_rows INTEGER NOT NULL DEFAULT 0,
   changed_rows INTEGER NOT NULL DEFAULT 0,
-  retired_rows INTEGER NOT NULL DEFAULT 0
+  retired_rows INTEGER NOT NULL DEFAULT 0,
+  name_languages_json TEXT
 );
 
 -- KAN-438. Frozen, deliberately narrow fallback copied from the 2026-08-29
@@ -411,7 +422,10 @@ CREATE TABLE IF NOT EXISTS curated_poi (
   origin_id                  TEXT,
   origin_licence             TEXT,
   imported_at                TEXT,
-  import_run_id              TEXT
+  import_run_id              TEXT,
+  name_local                 TEXT,
+  name_en                    TEXT,
+  name_local_lang            TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_curated_poi_geo ON curated_poi (geohash);
 CREATE INDEX IF NOT EXISTS idx_curated_poi_name ON curated_poi (dedupe_name);

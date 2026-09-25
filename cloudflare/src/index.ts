@@ -1231,6 +1231,8 @@ type NearbyPoi = {
    */
   poi_id: string;
   name: string; lat: number; lng: number;
+  name_local?: string | null; name_en?: string | null; name_local_lang?: string | null;
+  names?: Record<string, string>; country_code?: string | null;
   primary_poi_type: string; brand: string | null;
   category_label: string | null; address: string | null;
   /** KAN-318: default opening window, minutes from local midnight; null = always open. */
@@ -1318,6 +1320,19 @@ export function curatedTypeClause(types: string[], offset: number, brand?: strin
   };
 }
 
+function parseSourceNames(value: string | null): Record<string, string> {
+  if (!value) return {};
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+    return Object.fromEntries(Object.entries(parsed).filter(([code, name]) =>
+      /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(code) && typeof name === 'string' && name.trim(),
+    )) as Record<string, string>;
+  } catch {
+    return {};
+  }
+}
+
 async function queryNearbyPoiDb(
   db: D1Database,
   lat: number,
@@ -1370,6 +1385,8 @@ async function queryNearbyPoiDb(
       // Face, adidas, Triumph, Farmacia). Without the join those duplicates
       // ship, and a shop shown twice in Nearby is the failure users notice.
       `SELECT overture_poi.overture_id, overture_poi.dedupe_name, overture_poi.name,
+            overture_poi.name_local, overture_poi.name_en, overture_poi.name_local_lang,
+            overture_poi.names_json, overture_poi.country_code,
             overture_poi.lat, overture_poi.lng, overture_poi.primary_poi_type,
             overture_poi.brand, overture_poi.address, overture_poi.floor,
             overture_poi.open_min, overture_poi.close_min,
@@ -1388,7 +1405,9 @@ async function queryNearbyPoiDb(
      WHERE overture_poi.retired_in_release IS NULL
        AND (${geohashClauses.join(' OR ')}) AND (${poiRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...poiRequestBinds).all<{
-      overture_id: string; dedupe_name: string; name: string; lat: number; lng: number;
+      overture_id: string; dedupe_name: string; name: string; name_local: string | null;
+      name_en: string | null; name_local_lang: string | null; names_json: string | null;
+      country_code: string | null; lat: number; lng: number;
       primary_poi_type: string; brand: string | null;
       address: string | null; floor: string | null;
       open_min: number | null; close_min: number | null; matched_type: string;
@@ -1397,7 +1416,9 @@ async function queryNearbyPoiDb(
       correction_dedupe_name_override: string | null;
     }>(),
     db.prepare(
-      `SELECT curated_poi.poi_id, curated_poi.dedupe_name, curated_poi.name, curated_poi.lat, curated_poi.lng,
+      `SELECT curated_poi.poi_id, curated_poi.dedupe_name, curated_poi.name,
+            curated_poi.name_local, curated_poi.name_en, curated_poi.name_local_lang,
+            curated_poi.lat, curated_poi.lng,
             curated_poi.primary_poi_type, curated_poi.brand, curated_poi.address, curated_poi.floor,
             curated_poi_attribute.dimension AS attribute_dimension, curated_poi_attribute.value AS attribute_value
      FROM curated_poi
@@ -1407,7 +1428,8 @@ async function queryNearbyPoiDb(
        AND (${curatedGeohashClauses.join(' OR ')})
        AND (${curatedRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...curatedRequestBinds).all<{
-      poi_id: string; dedupe_name: string; name: string; lat: number; lng: number;
+      poi_id: string; dedupe_name: string; name: string; name_local: string | null;
+      name_en: string | null; name_local_lang: string | null; lat: number; lng: number;
       primary_poi_type: string; brand: string | null; address: string | null; floor: string | null;
       attribute_dimension: string | null; attribute_value: string | null;
     }>(),
@@ -1442,6 +1464,11 @@ async function queryNearbyPoiDb(
       candidates.set(candidateKey, {
         poi_id: row.overture_id,
         name: row.correction_name_override ?? row.name, lat: row.lat, lng: row.lng,
+        name_local: row.correction_name_override ? null : row.name_local,
+        name_en: row.correction_name_override ? null : row.name_en,
+        name_local_lang: row.correction_name_override ? null : row.name_local_lang,
+        names: row.correction_name_override ? {} : parseSourceNames(row.names_json),
+        country_code: row.country_code,
         primary_poi_type: row.primary_poi_type, brand: row.brand,
         // Overture carries no equivalent of Foursquare's display category
         // label, and inventing one from the type would be a claim the source
@@ -1478,6 +1505,7 @@ async function queryNearbyPoiDb(
     } else {
       candidates.set(candidateKey, {
         poi_id: row.poi_id, name: row.name, lat: row.lat, lng: row.lng,
+        name_local: row.name_local, name_en: row.name_en, name_local_lang: row.name_local_lang,
         primary_poi_type: row.primary_poi_type, brand: row.brand, category_label: null,
         // Community rows do not carry curated hours yet: NULL keeps KAN-318's
         // safe always-open behaviour rather than hiding an approved POI.
@@ -1541,7 +1569,14 @@ async function queryNearbyPoiDb(
     if (rank < 0) continue;
     const suppressors = SUPPRESSION_ORDER.slice(rank + 1)
       .flatMap(source => bySource.get(source) ?? []);
-    if (suppressors.some(primary => primary.dedupeName === candidate.dedupeName && haversineMeters(primary.lat, primary.lng, candidate.lat, candidate.lng) <= MANUAL_POI_DUPLICATE_DISTANCE_METERS)) {
+    if (suppressors.some(primary => {
+      if (haversineMeters(primary.lat, primary.lng, candidate.lat, candidate.lng) > MANUAL_POI_DUPLICATE_DISTANCE_METERS) return false;
+      const names = new Set([candidate.dedupeName, candidate.name_local, candidate.name_en]
+        .concat(Object.values(candidate.names ?? {}))
+        .filter((name): name is string => !!name).map(normalizePoiName));
+      return [primary.dedupeName, primary.name_local, primary.name_en, ...Object.values(primary.names ?? {})]
+        .filter((name): name is string => !!name).some(name => names.has(normalizePoiName(name)));
+    })) {
       candidates.delete(key);
     }
   }
@@ -1559,6 +1594,12 @@ async function queryNearbyPoiDb(
     const poi: NearbyPoi = {
       poi_id: candidate.poi_id,
       name: candidate.name, lat: candidate.lat, lng: candidate.lng,
+      // Keep missing translations NULL in D1; the API falls back to the
+      // source name when there is no separate local-language name.
+      name_local: candidate.name_local?.trim() || candidate.name,
+      name_en: candidate.name_en?.trim() || candidate.name,
+      name_local_lang: candidate.name_local_lang ?? null,
+      names: candidate.names ?? {}, country_code: candidate.country_code ?? null,
       primary_poi_type: candidate.primary_poi_type, brand: candidate.brand,
       category_label: candidate.category_label, address: candidate.address,
       open_min: candidate.open_min, close_min: candidate.close_min,
@@ -2489,6 +2530,8 @@ export default {
           typeof body.backlogReportR2Key !== 'string' || !body.backlogReportR2Key.startsWith(`overture-country-reports/${countryCode}/`) ||
           counts.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0) ||
           refreshCounts.some(field => body[field] !== undefined && (!Number.isSafeInteger(body[field]) || (body[field] as number) < 0)) ||
+          (body.nameLanguages !== undefined && (!Array.isArray(body.nameLanguages) ||
+            body.nameLanguages.length > 500 || body.nameLanguages.some(value => typeof value !== 'string' || !/^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(value)))) ||
           (body.release !== undefined && body.release !== null && (typeof body.release !== 'string' || !OVERTURE_RELEASE_PATTERN.test(body.release)))) {
         return json({ error: 'invalid Overture completion payload' }, 400);
       }
@@ -2501,6 +2544,7 @@ export default {
         newRows: (body.newRows as number | undefined) ?? (body.stagedRows as number),
         changedRows: (body.changedRows as number | undefined) ?? 0,
         retiredRows: (body.retiredRows as number | undefined) ?? 0,
+        nameLanguages: body.nameLanguages as string[] | undefined,
       });
       if (!ok) return json({ error: 'run is not active or source accounting is invalid' }, 409);
       return json({ ok: true });
@@ -3223,6 +3267,35 @@ export default {
 
     const caller = await authenticate(request, env);
     if (caller instanceof Response) return caller;
+
+    // Settings-only lookup: the import records which source language keys
+    // actually occur in a country's Overture archive. No POI search is run.
+    if (url.pathname === '/poi/name-languages' && request.method === 'GET') {
+      const limited = await enforceUserRateLimit(caller, env.POI_RATE_LIMITER, 'poiAll');
+      if (limited) return limited;
+      let countryCode = url.searchParams.get('countryCode')?.toUpperCase() ?? null;
+      if (!countryCode) {
+        if (!url.searchParams.has('lat') || !url.searchParams.has('lng')) {
+          return json({ error: 'valid coordinates or countryCode required' }, 400);
+        }
+        const lat = Number(url.searchParams.get('lat'));
+        const lng = Number(url.searchParams.get('lng'));
+        if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+          return json({ error: 'valid coordinates or countryCode required' }, 400);
+        }
+        countryCode = (await findPlace(env, lat, lng))?.country_code ?? null;
+      }
+      if (!countryCode || !/^[A-Z]{2}$/.test(countryCode)) return json({ countryCode: null, languages: [] });
+      const row = await env.REGISTRY_DB.prepare(
+        "SELECT name_languages_json FROM overture_country_import WHERE country_code = ? AND status = 'mapped'",
+      ).bind(countryCode).first<{ name_languages_json: string | null }>();
+      let languages: string[] = [];
+      try {
+        const parsed: unknown = JSON.parse(row?.name_languages_json ?? '[]');
+        if (Array.isArray(parsed)) languages = parsed.filter(value => typeof value === 'string');
+      } catch { /* An older or partial import has no manifest. */ }
+      return json({ countryCode, languages });
+    }
 
     // GET /poi/nearby?lat=&lng=&radius=&types=cafe,pharmacy&limitPerType=20
     // Backwards-compatible KAN-347 hot path. Coverage/Place resolution is

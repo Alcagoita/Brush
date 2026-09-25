@@ -22,6 +22,7 @@ const mockGetLowBatteryPausePref = jest.fn();
 const mockSetLowBatteryPausePref = jest.fn();
 const mockLogout                 = jest.fn();
 const mockGetUser                = jest.fn();
+const mockResolvePlaceNameCountry = jest.fn();
 
 jest.mock('../../src/services/firestore', () => ({
   getLowBatteryPausePref: (...args: unknown[]) => mockGetLowBatteryPausePref(...args),
@@ -31,6 +32,10 @@ jest.mock('../../src/services/firestore', () => ({
 
 jest.mock('../../src/services/auth', () => ({
   logout: (...args: unknown[]) => mockLogout(...args),
+}));
+
+jest.mock('../../src/services/placeNameCountry', () => ({
+  resolvePlaceNameCountry: (...args: unknown[]) => mockResolvePlaceNameCountry(...args),
 }));
 
 jest.mock('../../src/services/import', () => ({
@@ -61,6 +66,8 @@ jest.mock('react-native-safe-area-context', () => ({
 
 const mockSetDark = jest.fn();
 const mockSetLanguage = jest.fn();
+const mockSetPlaceNameChoice = jest.fn();
+let mockPlaceNameChoices: Record<string, string> = {};
 let mockDark = false;
 let mockLanguage: 'en' | 'pt-PT' = 'en';
 jest.mock('../../src/theme', () => ({
@@ -79,6 +86,8 @@ jest.mock('../../src/theme', () => ({
     setDark:     mockSetDark,
     language:    mockLanguage,
     setLanguage: mockSetLanguage,
+    placeNameChoices: mockPlaceNameChoices,
+    setPlaceNameChoice: mockSetPlaceNameChoice,
   }),
 }));
 
@@ -121,6 +130,8 @@ function setupDefaultMocks() {
   mockSetLowBatteryPausePref.mockResolvedValue(undefined);
   mockLogout.mockResolvedValue(undefined);
   mockGetUser.mockResolvedValue(null);
+  mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'PT', languages: ['en', 'pt'] });
+  mockPlaceNameChoices = {};
 }
 
 async function renderScreen() {
@@ -170,18 +181,13 @@ describe('SettingsScreen — KAN-113: rendering', () => {
   });
 
   // KAN-351 — every place-data source currently reachable from the app must
-  // stay credited (OpenStreetMap ODbL, Foursquare OS Places Apache 2.0, and
-  // Google while the autocomplete path still calls it) — a licence
-  // obligation, not a feature, so it must never be silently dropped by a
-  // future copy edit.
+  // stay credited (Overture Maps and OpenStreetMap) — a licence obligation,
+  // not a feature, so it must never be silently dropped by a future copy edit.
   it('renders attribution for every reachable place-data source', async () => {
     await renderScreen();
-    // Import rows ("Google Tasks", "Google Calendar") also contain "Google",
-    // so match the whole attribution line rather than each source in
-    // isolation — this is the one node the licence obligation actually lives on.
+    // Match the attribution line rather than unrelated settings rows.
     const attribution = screen.getByText(/OpenStreetMap contributors \(ODbL\)/);
-    expect(attribution.props.children).toContain('Foursquare Open Source Places (Apache 2.0)');
-    expect(attribution.props.children).toContain('Google');
+    expect(attribution.props.children).toContain('Overture Maps Foundation (CDLA-Permissive 2.0)');
   });
 
   it('keeps the scroll view keyboard-safe and full-height', async () => {
@@ -257,6 +263,34 @@ describe('SettingsScreen — KAN-252: language picker sheet', () => {
     await renderScreen();
     fireEvent.press(screen.getByLabelText('Language'));
     expect(screen.UNSAFE_getByProps({ accessibilityRole: 'radiogroup' })).toBeTruthy();
+  });
+});
+
+describe('SettingsScreen — KAN-460: place-name language', () => {
+  beforeEach(() => { jest.clearAllMocks(); setupDefaultMocks(); });
+
+  it('shows source languages for the current country and saves that country only', async () => {
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Place names'));
+    fireEvent.press(screen.getByLabelText('English'));
+    expect(mockSetPlaceNameChoice).toHaveBeenCalledWith('PT', 'en');
+  });
+
+  it('keeps the setting visible but disabled for a single-language country', async () => {
+    mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'GB', languages: ['en'] });
+    await renderScreen();
+    const row = screen.getByLabelText('Place names');
+    expect(row.props.accessibilityState.disabled).toBe(true);
+    fireEvent.press(row);
+    expect(mockSetPlaceNameChoice).not.toHaveBeenCalled();
+  });
+
+  it('uses English as the unchangeable fallback without a known country', async () => {
+    mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: null, languages: [] });
+    await renderScreen();
+    const row = screen.getByLabelText('Place names');
+    expect(row.props.accessibilityState.disabled).toBe(true);
+    expect(screen.getAllByText('English').length).toBeGreaterThan(0);
   });
 });
 

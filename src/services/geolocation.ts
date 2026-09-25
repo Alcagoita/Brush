@@ -12,7 +12,7 @@
  */
 
 import * as Location from 'expo-location';
-import { Alert, Linking, Platform } from 'react-native';
+import { Alert, Linking } from 'react-native';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -205,6 +205,34 @@ export function getCurrentPosition(): Promise<Coordinates> {
     accuracy:  position.coords.accuracy ?? 999,
     timestamp: position.timestamp,
   }));
+}
+
+/**
+ * Return a current fix when foreground permission is already granted.
+ * A settings lookup or GPS request that stalls is treated as unavailable.
+ */
+export async function getCurrentPositionIfPermitted(timeoutMs = 8_000): Promise<Coordinates | null> {
+  try {
+    const permission = await Location.getForegroundPermissionsAsync();
+    if (!permission.granted) return null;
+    return await new Promise<Coordinates | null>(resolve => {
+      let settled = false;
+      let timer: ReturnType<typeof setTimeout>;
+      const finish = (value: Coordinates | null) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      };
+      timer = setTimeout(() => {
+        settled = true;
+        resolve(null);
+      }, timeoutMs);
+      getCurrentPosition().then(finish).catch(() => finish(null));
+    });
+  } catch {
+    return null;
+  }
 }
 
 /**

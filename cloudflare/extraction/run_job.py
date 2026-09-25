@@ -102,6 +102,7 @@ def run_overture_country(country_code, run_id, source_r2_key=None, previous_sour
         r2_client.upload_file(report_path, report_key)
 
         staged_rows = load_overture_candidates.load(csv_path, raw_key, refresh=refresh)
+        name_languages = load_overture_candidates.source_name_languages(csv_path)
         refresh_stats = {'new_rows': staged_rows, 'changed_rows': 0, 'retired_rows': 0}
         if refresh:
             r2_client.download_file(previous_source_r2_key, previous_csv_path)
@@ -120,6 +121,7 @@ def run_overture_country(country_code, run_id, source_r2_key=None, previous_sour
             'release': release,
             'new_rows': refresh_stats['new_rows'], 'changed_rows': refresh_stats['changed_rows'],
             'retired_rows': refresh_stats['retired_rows'],
+            'name_languages': name_languages,
         }
         worker_client.overture_country_complete(country_code, run_id, report_key, stats)
         print(f'[run_job] Overture {country_code}: {stats}')

@@ -7,6 +7,7 @@
  */
 
 const mockGetCurrentPositionAsync = jest.fn();
+const mockGetForegroundPermissionsAsync = jest.fn();
 
 jest.mock('expo-location', () => ({
   Accuracy: {
@@ -15,6 +16,7 @@ jest.mock('expo-location', () => ({
     Low:      2,
   },
   requestForegroundPermissionsAsync:  jest.fn(),
+  getForegroundPermissionsAsync:      (...args: unknown[]) => mockGetForegroundPermissionsAsync(...args),
   requestBackgroundPermissionsAsync:  jest.fn(),
   watchPositionAsync:                 jest.fn(),
   getCurrentPositionAsync:            (...args: unknown[]) => mockGetCurrentPositionAsync(...args),
@@ -27,7 +29,7 @@ jest.mock('react-native', () => ({
 }));
 
 import { Accuracy } from 'expo-location';
-import { getPositionLowAccuracy } from '../../src/services/geolocation';
+import { getCurrentPositionIfPermitted, getPositionLowAccuracy } from '../../src/services/geolocation';
 
 const makePosition = (lat: number, lng: number) => ({
   coords: { latitude: lat, longitude: lng, accuracy: 20 },
@@ -37,6 +39,17 @@ const makePosition = (lat: number, lng: number) => ({
 describe('getPositionLowAccuracy — GPS fallback', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ granted: false });
+  });
+
+  it('returns a permitted current fix and clears its timeout when the request settles', async () => {
+    jest.useFakeTimers();
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ granted: true });
+    mockGetCurrentPositionAsync.mockResolvedValue(makePosition(38.7, -9.1));
+    const result = await getCurrentPositionIfPermitted(8_000);
+    expect(result?.lat).toBe(38.7);
+    expect(jest.getTimerCount()).toBe(0);
+    jest.useRealTimers();
   });
 
   it('returns Balanced result when network positioning succeeds', async () => {

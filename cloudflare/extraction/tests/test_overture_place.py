@@ -23,7 +23,8 @@ import extract_overture  # noqa: E402
 
 BBOX = (38.70, 38.75, -9.20, -9.10)
 POIS = [
-    {'overture_id': 'g1', 'name': 'Farmácia Central', 'lat': 38.71, 'lng': -9.15, 'primary_poi_type': 'pharmacy',
+    {'overture_id': 'g1', 'name': 'Farmácia Central', 'name_local': 'Farmácia Central',
+     'name_en': 'Central Pharmacy', 'name_local_lang': 'pt', 'lat': 38.71, 'lng': -9.15, 'primary_poi_type': 'pharmacy',
      'brand': None, 'address': 'Rua A', 'open_min': 540, 'close_min': 1140},
     {'overture_id': 'g2', 'name': 'Sapataria Sol', 'lat': 38.72, 'lng': -9.14, 'primary_poi_type': 'store',
      'brand': None, 'address': None, 'open_min': None, 'close_min': None},
@@ -83,6 +84,8 @@ class ExportTest(unittest.TestCase):
             db = sqlite3.connect(path)
             self.assertEqual(db.execute('SELECT overture_id, primary_poi_type, open_min FROM poi ORDER BY 1').fetchall(),
                              [('g1', 'pharmacy', 540), ('g2', 'store', None)])
+            self.assertEqual(db.execute('SELECT name_local, name_en, name_local_lang FROM poi WHERE overture_id = ?',
+                                        ('g1',)).fetchone(), ('Farmácia Central', 'Central Pharmacy', 'pt'))
             self.assertEqual(db.execute('SELECT overture_id, dimension, value FROM poi_attribute').fetchall(),
                              [('g2', 'store_kind', 'shoes')])
             self.assertEqual(db.execute('SELECT place_id, build_id, pipeline_version, source, row_count FROM _export_meta').fetchone(),

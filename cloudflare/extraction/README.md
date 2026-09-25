@@ -6,6 +6,16 @@ import, the evidence-join tooling and the one-off backfills that write
 migrations. `docs/evidence-join-runbook.md` is the operator's guide; this
 file is about running the tests.
 
+## Country name data
+
+Every new Overture country extract must retain `names.primary`, the complete
+source-supplied `names.common` language map, and its ISO country code. The
+loader carries those fields through candidates and served POIs and publishes
+the country’s available language keys on successful import. Do not hardcode a
+two-language list or infer translations from the spelling of the primary name.
+The original name remains the compatibility fallback when a source language
+is absent. Importing a new country is still a separate deployment decision.
+
 ## Tests
 
 One command, from this directory, on a bare interpreter (Python 3.11+, no
