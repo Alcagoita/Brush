@@ -52,7 +52,7 @@ import { normalize } from './poiInference';
 import { getCanonicalBrand } from './brandDictionary';
 import type { NearbyPlace } from './maps';
 import { getDistanceMeters, searchNearbyPlaces } from './maps';
-import { parsePlaceNames, selectPoiName } from './poiName';
+import { parsePlaceNames } from './poiName';
 import { OverpassHttpError, OverpassRateLimitedError, searchOsmPlacesStrict } from './osmPlaces';
 import { POI_OSM_TAGS, SUPPLEMENTARY_OSM_TAGS, isPoiApiServableType } from '../types';
 import { placeSourceRef, isFreelyStorable as refIsFreelyStorable, type PlaceSourceRef } from './placeIdentity';
@@ -360,6 +360,12 @@ function generateId(): string {
   return `hp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function serializePlaceNames(names: Record<string, string> | null | undefined): string | null {
+  if (!names) return null;
+  const entries = Object.entries(names).filter(([, value]) => typeof value === 'string' && value.trim().length > 0);
+  return entries.length > 0 ? JSON.stringify(Object.fromEntries(entries)) : null;
+}
+
 // ─── Identity resolution ──────────────────────────────────────────────────────
 
 export interface PlaceCandidate {
@@ -592,7 +598,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
         candidate.nameLocal ?? null,
         candidate.nameEn ?? null,
         candidate.nameLocalLang ?? null,
-        candidate.names ? JSON.stringify(candidate.names) : null,
+        serializePlaceNames(candidate.names),
         candidate.countryCode ?? null,
         candidate.areaName ?? null,
         tripCacheAreaId,
@@ -619,7 +625,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
        (id, poi_type, name, name_local, name_en, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.nameLocal ?? null, candidate.nameEn ?? null,
-      candidate.nameLocalLang ?? null, candidate.names ? JSON.stringify(candidate.names) : null,
+      candidate.nameLocalLang ?? null, serializePlaceNames(candidate.names),
       candidate.countryCode ?? null, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
       candidate.source.overture ?? null, candidate.source.brush ?? null, now, now,
@@ -782,7 +788,7 @@ export function queryHabitatCache(
       if (distanceMeters > radiusMeters) { continue; }
       result[row.poi_type]?.push({
         placeId: row.id,
-        name:    selectPoiName(row.name, parsePlaceNames(row.names_json), row.country_code, undefined, row.name_en),
+        name:    row.name,
         nameOriginal: row.name,
         nameLocal: row.name_local,
         nameEn: row.name_en,
@@ -837,7 +843,7 @@ export function getHabitatPlaceById(id: string): NearbyPlace | null {
     if (!row) { return null; }
     return {
       placeId: row.id,
-      name: selectPoiName(row.name, parsePlaceNames(row.names_json), row.country_code, undefined, row.name_en),
+      name: row.name,
       nameOriginal: row.name,
       nameLocal: row.name_local,
       nameEn: row.name_en,

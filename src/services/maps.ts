@@ -14,7 +14,6 @@ import type { RestaurantFoodType } from './restaurantFoodTypes';
 import type { StoreSubtype } from './storeSubtypes';
 import type { FinancialServiceKind } from './financialServiceKinds';
 import type { PoiRecordSource } from './placeIdentity';
-import { selectPoiName } from './poiName';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -481,7 +480,7 @@ async function searchNearbyPlacesCloudflare(
         const place: NearbyPlace = {
           placeId: p.poi_id,
           sourceKind: p.source,
-          name: selectPoiName(p.name, p.names, p.country_code, undefined, p.name_en),
+          name: p.name,
           nameOriginal: p.name,
           nameLocal: p.name_local,
           nameEn: p.name_en,

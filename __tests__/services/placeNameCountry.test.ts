@@ -1,55 +1,49 @@
-const mockPermission = jest.fn();
-const mockCurrent = jest.fn();
+const mockCurrentIfPermitted = jest.fn();
 const mockLast = jest.fn();
 const mockLookup = jest.fn();
-const mockGetDoc = jest.fn();
-const mockSetDoc = jest.fn();
-const mockLastSearchCoords = jest.fn();
-
-jest.mock('expo-location', () => ({ getForegroundPermissionsAsync: (...args: unknown[]) => mockPermission(...args) }));
 jest.mock('../../src/services/geolocation', () => ({
-  getCurrentPosition: (...args: unknown[]) => mockCurrent(...args),
+  getCurrentPositionIfPermitted: (...args: unknown[]) => mockCurrentIfPermitted(...args),
   getLastKnownPosition: (...args: unknown[]) => mockLast(...args),
 }));
-jest.mock('../../src/services/proximity', () => ({ getLastSearchCoords: () => mockLastSearchCoords() }));
 jest.mock('../../src/services/cloudflarePoiFunctions', () => ({
   cloudflarePlaceNameLanguages: (...args: unknown[]) => mockLookup(...args),
 }));
-jest.mock('@react-native-firebase/firestore', () => ({
-  getFirestore: () => ({}), doc: () => 'user-ref',
-  getDoc: (...args: unknown[]) => mockGetDoc(...args),
-  setDoc: (...args: unknown[]) => mockSetDoc(...args),
+const mockSavedCountry = jest.fn();
+const mockPersistCountry = jest.fn();
+jest.mock('../../src/services/firestore/users', () => ({
+  getPlaceNameCountry: (...args: unknown[]) => mockSavedCountry(...args),
+  savePlaceNameCountry: (...args: unknown[]) => mockPersistCountry(...args),
 }));
 
 import { resolvePlaceNameCountry } from '../../src/services/placeNameCountry';
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockPermission.mockResolvedValue({ granted: false });
-  mockCurrent.mockResolvedValue(null);
+  mockCurrentIfPermitted.mockResolvedValue(null);
   mockLast.mockResolvedValue(null);
-  mockLastSearchCoords.mockReturnValue(null);
-  mockGetDoc.mockResolvedValue({ data: () => ({}) });
-  mockSetDoc.mockResolvedValue(undefined);
+  mockSavedCountry.mockResolvedValue({ countryCode: null, languages: [] });
+  mockPersistCountry.mockResolvedValue(undefined);
 });
 
 it('uses last-known coordinates when location permission is blocked', async () => {
   mockLast.mockResolvedValue({ lat: 38.7, lng: -9.1 });
   mockLookup.mockResolvedValue({ countryCode: 'PT', languages: ['pt', 'en', 'pt'] });
   expect(await resolvePlaceNameCountry('user')).toEqual({ countryCode: 'PT', languages: ['en', 'pt'] });
-  expect(mockCurrent).not.toHaveBeenCalled();
+  expect(mockCurrentIfPermitted).toHaveBeenCalled();
   expect(mockLookup).toHaveBeenCalledWith({ lat: 38.7, lng: -9.1 });
 });
 
-it('uses the app’s last searched coordinates when the OS fix is unavailable', async () => {
-  mockLastSearchCoords.mockReturnValue({ lat: 41.1, lng: -8.6 });
+it('uses a permitted current position when available', async () => {
+  mockCurrentIfPermitted.mockResolvedValue({ lat: 41.1, lng: -8.6 });
+  mockLast.mockResolvedValue(null);
   mockLookup.mockResolvedValue({ countryCode: 'PT', languages: ['pt', 'en'] });
   expect(await resolvePlaceNameCountry('user')).toEqual({ countryCode: 'PT', languages: ['en', 'pt'] });
   expect(mockLookup).toHaveBeenCalledWith({ lat: 41.1, lng: -8.6 });
+  expect(mockPersistCountry).toHaveBeenCalledWith('user', { countryCode: 'PT', languages: ['en', 'pt'] });
 });
 
 it('uses the saved last country if position and network are unavailable', async () => {
-  mockGetDoc.mockResolvedValue({ data: () => ({ placeNameLastCountryCode: 'CA', placeNameLastLanguages: ['en', 'fr'] }) });
+  mockSavedCountry.mockResolvedValue({ countryCode: 'CA', languages: ['en', 'fr'] });
   expect(await resolvePlaceNameCountry('user')).toEqual({ countryCode: 'CA', languages: ['en', 'fr'] });
   expect(mockLookup).not.toHaveBeenCalled();
 });

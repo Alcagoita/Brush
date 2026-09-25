@@ -406,6 +406,7 @@ import {
   HABITAT_CACHE_STALE_MS,
   HABITAT_BYTES_PER_ROW,
 } from '../../src/services/habitatCache';
+import { displayPlaceName, setPlaceNameChoices } from '../../src/services/poiName';
 import { OverpassHttpError, OverpassRateLimitedError } from '../../src/services/osmPlaces';
 
 const ORIGIN = { lat: 0, lng: 0 };
@@ -699,14 +700,26 @@ describe('getHabitatPlaceById', () => {
 });
 
 describe('queryHabitatCache', () => {
+  beforeEach(() => setPlaceNameChoices({}));
   it('retains source names through an offline cache read', () => {
     upsertPlace({ poiType: 'store', name: 'Livraria', nameLocal: 'Livraria', nameEn: 'Bookshop',
-      nameLocalLang: 'pt', lat: 0.0003, lng: 0, source: { overture: 'gers-bookshop' } });
+      nameLocalLang: 'pt', names: { pt: 'Livraria', en: 'Bookshop' }, countryCode: 'PT',
+      lat: 0.0003, lng: 0, source: { overture: 'gers-bookshop' } });
 
     expect(queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['store'], 500).store[0]).toEqual(
-      expect.objectContaining({ name: 'Bookshop', nameOriginal: 'Livraria',
+      expect.objectContaining({ name: 'Livraria', nameOriginal: 'Livraria',
         nameLocal: 'Livraria', nameEn: 'Bookshop', nameLocalLang: 'pt' }),
     );
+    setPlaceNameChoices({ PT: 'en' });
+    expect(displayPlaceName(queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['store'], 500).store[0])).toBe('Bookshop');
+  });
+
+  it('does not persist empty language maps and fills one when a later source hit has names', () => {
+    const candidate = { poiType: 'store', name: 'Bookshop', lat: 0, lng: 0, source: { overture: 'gers-bookshop' } };
+    upsertPlace({ ...candidate, names: { en: '' } });
+    expect(rows[0].names_json).toBeNull();
+    upsertPlace({ ...candidate, names: { en: 'Bookshop', pt: 'Livraria' }, countryCode: 'PT' });
+    expect(rows[0].names_json).toBe('{"en":"Bookshop","pt":"Livraria"}');
   });
 
   it('returns NearbyPlace-shaped results within radius, sorted by distance', () => {

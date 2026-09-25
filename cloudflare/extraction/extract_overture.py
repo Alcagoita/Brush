@@ -77,9 +77,10 @@ COUNTRY_NAME_LANGUAGES = {'PT': 'pt', 'ES': 'es'}
 def _name_columns(country):
     """Overture common names are a language-keyed map; primary is unlabelled."""
     language = COUNTRY_NAME_LANGUAGES.get((country or '').upper())
-    local = f"names.common['{language}']" if language else 'NULL'
+    local = f"map_extract(names.common, {_sql_literal(language)})[1]" if language else 'NULL'
+    english = "map_extract(names.common, 'en')[1]"
     local_lang = f"CASE WHEN {local} IS NOT NULL THEN {_sql_literal(language)} ELSE NULL END" if language else 'NULL'
-    return f"{local} AS name_local, names.common['en'] AS name_en, {local_lang} AS name_local_lang,"
+    return f"{local} AS name_local, {english} AS name_en, {local_lang} AS name_local_lang,"
 
 
 def _sql_literal(value):

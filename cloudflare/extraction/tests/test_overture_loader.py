@@ -110,9 +110,9 @@ class CandidateRowsTest(unittest.TestCase):
     def test_extract_selects_only_explicit_overture_language_keys(self):
         import extract_overture
         columns = extract_overture._name_columns('PT')
-        self.assertIn("names.common['pt'] AS name_local", columns)
-        self.assertIn("names.common['en'] AS name_en", columns)
-        self.assertIn("CASE WHEN names.common['pt'] IS NOT NULL", columns)
+        self.assertIn("map_extract(names.common, 'pt')[1] AS name_local", columns)
+        self.assertIn("map_extract(names.common, 'en')[1] AS name_en", columns)
+        self.assertIn("CASE WHEN map_extract(names.common, 'pt')[1] IS NOT NULL", columns)
         self.assertIn('NULL AS name_local', extract_overture._name_columns('ZZ'))
 
     def test_country_load_streams_one_bounded_statement_at_a_time(self):

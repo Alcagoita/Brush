@@ -304,8 +304,27 @@ function LanguagePickerSheet({ visible, current, onSelect, onClose }: LanguagePi
 
 function placeLanguageLabel(code: string): string {
   if (code === 'native') return COPY.settings.placeNamesNative;
-  try { return new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code.toUpperCase(); }
-  catch { return code.toUpperCase(); }
+  const staticLabels: Record<string, string> = {
+    en: 'English', pt: 'Português', es: 'Español', fr: 'Français',
+    de: 'Deutsch', it: 'Italiano', nl: 'Nederlands', ca: 'Català',
+  };
+  const lower = code.toLowerCase();
+  const primary = lower.split('-')[0];
+  if (staticLabels[lower]) return staticLabels[lower];
+  if (staticLabels[primary]) return staticLabels[primary];
+  try {
+    const DisplayNames = Intl.DisplayNames;
+    if (typeof DisplayNames === 'function') {
+      const displayNames = new DisplayNames([code], { type: 'language' });
+      const full = displayNames.of(code);
+      if (full) return full;
+      if (primary !== lower) {
+        const primaryName = new DisplayNames([primary], { type: 'language' }).of(primary);
+        if (primaryName) return primaryName;
+      }
+    }
+  } catch { /* Hermes may not implement DisplayNames or a particular tag. */ }
+  return code.toUpperCase();
 }
 
 function PlaceNamePickerSheet({ visible, current, languages, onSelect, onClose }: {
