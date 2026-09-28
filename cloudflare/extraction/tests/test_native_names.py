@@ -258,3 +258,63 @@ class TranslateTest(unittest.TestCase):
             vocabulary = translate.learn_vocabulary(path)
         self.assertIn('falesia', vocabulary)
         self.assertNotIn('atlantic', vocabulary)
+
+
+class OwnerRulesTest(unittest.TestCase):
+    """The rules the owner gave on 2026-09-28, as the specification.
+
+    Rule: with more than one English word, neither of them is the name — both
+    get translated."""
+
+    LEARNED = {'monserrate': 'de', 'ria formosa': 'da', 'sintra': 'de'}
+
+    def say(self, name):
+        import translate_place_names as translate
+        result = translate.translate(name, self.LEARNED)
+        return None if result is None else result['name_local']
+
+    def test_more_than_one_english_word_means_both_translate(self):
+        self.assertEqual(self.say('Waterfall Lake'), 'Cascata do Lago')
+        self.assertEqual(self.say('The Roman Bridge'), 'Ponte Romana')
+        self.assertEqual(self.say('Park and Palace of Monserrate'), 'Parque e Palácio de Monserrate')
+
+    def test_an_adjective_agrees_with_its_descriptor(self):
+        """`Ponte` is feminine and `Parque` masculine, so the same English
+        adjective lands differently."""
+        self.assertEqual(self.say('Roman Bridge'), 'Ponte Romana')
+        self.assertEqual(self.say('Urban Park'), 'Parque Urbano')
+
+    def test_the_english_article_is_not_part_of_the_name(self):
+        self.assertEqual(self.say('The Roman Bridge'), 'Ponte Romana')
+
+    def test_the_set_phrases_the_owner_added(self):
+        self.assertEqual(self.say('Ria Formosa National Park'), 'Parque Nacional da Ria Formosa')
+        self.assertEqual(self.say('Sintra National Palace'), 'Palácio Nacional de Sintra')
+        self.assertEqual(self.say('Pinus Urban Garden'), 'Jardim Urbano de Pinus')
+
+    def test_a_castle_keep_is_a_torre_de_menagem(self):
+        """`Tower of the Keep` was flagged on `keep` being an unknown word."""
+        self.assertEqual(self.say('Tower of the Keep'), 'Torre de Menagem')
+
+    def test_the_names_the_owner_confirmed_are_left_alone(self):
+        for name in ('Yuppi kids park', 'UnderGround Park', 'Under The Bridge',
+                     'Tempo de Adorar - Cosmopolitan Church', 'Sirius Park',
+                     'Silver Coast Non Denominational English Church',
+                     'Quinta do Mouricão Mobile Home Park', 'Pink Palace'):
+            self.assertIsNone(self.say(name), name)
+
+    def test_a_title_takes_no_preposition(self):
+        self.assertEqual(self.say('Urban Park Dr. Mário Fonseca'), 'Parque Urbano Dr. Mário Fonseca')
+
+    def test_the_withdrawn_rows_are_not_candidates(self):
+        """Migration 0051 stops serving them, so they are not candidates for a
+        name either."""
+        import detect_english_names as detect
+        self.assertIn('b941ff8a-5312-4179-961f-23fd035ce349', detect.WITHDRAWN)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = archive(tmp, [
+                ('b941ff8a-5312-4179-961f-23fd035ce349', 'Tagus Park!', 38.74, -9.30, 'park'),
+                ('keeper', 'Machico Beach', 32.7, -16.7, 'beach'),
+            ])
+            report = detect.candidates(path)
+        self.assertEqual([row['overture_id'] for row in report['candidates']], ['keeper'])

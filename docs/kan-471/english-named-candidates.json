@@ -1276,16 +1276,6 @@
    "overture_id": "47b396b2-ba40-487e-b780-f318e9218c5b"
   },
   {
-   "category": "museum",
-   "english_words": [
-    "monastery"
-   ],
-   "lat": 38.69707356,
-   "lng": -9.20477752,
-   "name": "Tickets office Jerónimos Monastery",
-   "overture_id": "59277518-5c11-49aa-9a35-446170764ed9"
-  },
-  {
    "category": "religious_organization",
    "english_words": [
     "monastery"
@@ -2729,16 +2719,6 @@
    "overture_id": "d1e50908-9b04-4b6a-9dbd-fe8e6af728a8"
   },
   {
-   "category": "landmark_and_historical_building",
-   "english_words": [
-    "garden"
-   ],
-   "lat": 38.71376873,
-   "lng": -8.95000346,
-   "name": "Pinus Urban Garden",
-   "overture_id": "9a39bbec-8dd1-49b9-bb9e-d444e5907e4c"
-  },
-  {
    "category": "park",
    "english_words": [
     "park"
@@ -3799,16 +3779,6 @@
    "lng": -9.2367381,
    "name": "Park Fantasia",
    "overture_id": "1b6bcd17-8bc5-4b6c-b3e8-502342bf5ddf"
-  },
-  {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 38.740636,
-   "lng": -9.304663,
-   "name": "Tagus Park!",
-   "overture_id": "b941ff8a-5312-4179-961f-23fd035ce349"
   },
   {
    "category": "landmark_and_historical_building",

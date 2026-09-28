@@ -115,6 +115,15 @@ BUSINESS_WORDS = (
 )
 
 
+# Rows the owner withdrew (migration 0051, 2026-09-28): they are not places
+# we serve, so they are not candidates for a name either.
+WITHDRAWN = frozenset({
+    '59277518-5c11-49aa-9a35-446170764ed9',  # Tickets office Jerónimos Monastery
+    '9a39bbec-8dd1-49b9-bb9e-d444e5907e4c',  # Pinus Urban Garden
+    'b941ff8a-5312-4179-961f-23fd035ce349',  # Tagus Park!
+})
+
+
 def fold(value):
     """Accent-free, punctuation-free lower case, for word matching."""
     text = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode()
@@ -152,6 +161,8 @@ def candidates(archive_path, categories=None):
     with open(archive_path, newline='') as handle:
         for row in csv.DictReader(handle):
             scanned += 1
+            if row['overture_id'] in WITHDRAWN:
+                continue
             category = (row.get('category') or '').strip()
             if category not in categories:
                 continue

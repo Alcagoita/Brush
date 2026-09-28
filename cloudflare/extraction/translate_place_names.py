@@ -39,21 +39,65 @@ import unicodedata
 EXTRACTION_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, EXTRACTION_DIR)
 
-# English descriptor -> Portuguese. Order matters only for the longest match.
-DESCRIPTORS = {
-    'cathedral': 'Sé', 'church': 'Igreja', 'chapel': 'Capela',
-    'monastery': 'Mosteiro', 'convent': 'Convento', 'hermitage': 'Ermida',
-    'sanctuary': 'Santuário', 'basilica': 'Basílica', 'mosque': 'Mesquita',
-    'synagogue': 'Sinagoga', 'castle': 'Castelo', 'fortress': 'Fortaleza',
-    'fort': 'Forte', 'tower': 'Torre', 'palace': 'Palácio',
-    'beach': 'Praia', 'park': 'Parque', 'garden': 'Jardim',
-    'botanical garden': 'Jardim Botânico', 'lighthouse': 'Farol',
-    'bridge': 'Ponte', 'aqueduct': 'Aqueduto', 'museum': 'Museu',
-    'monument': 'Monumento', 'fountain': 'Fonte', 'mill': 'Moinho',
-    'waterfall': 'Cascata', 'cave': 'Gruta', 'island': 'Ilha',
-    'viewpoint': 'Miradouro', 'square': 'Praça', 'cemetery': 'Cemitério',
-    'ruins': 'Ruínas', 'lake': 'Lago', 'cape': 'Cabo', 'quay': 'Cais',
+# English descriptor -> (Portuguese, gender). The gender is needed because an
+# adjective agrees with it: `Ponte Romana` but `Parque Urbano`.
+DESCRIPTORS_GENDERED = {
+    'cathedral': ('Sé', 'f'), 'church': ('Igreja', 'f'), 'chapel': ('Capela', 'f'),
+    'monastery': ('Mosteiro', 'm'), 'convent': ('Convento', 'm'), 'hermitage': ('Ermida', 'f'),
+    'sanctuary': ('Santuário', 'm'), 'basilica': ('Basílica', 'f'), 'mosque': ('Mesquita', 'f'),
+    'synagogue': ('Sinagoga', 'f'), 'castle': ('Castelo', 'm'), 'fortress': ('Fortaleza', 'f'),
+    'fort': ('Forte', 'm'), 'tower': ('Torre', 'f'), 'palace': ('Palácio', 'm'),
+    'beach': ('Praia', 'f'), 'park': ('Parque', 'm'), 'garden': ('Jardim', 'm'),
+    'lighthouse': ('Farol', 'm'), 'bridge': ('Ponte', 'f'), 'aqueduct': ('Aqueduto', 'm'),
+    'museum': ('Museu', 'm'), 'monument': ('Monumento', 'm'), 'fountain': ('Fonte', 'f'),
+    'mill': ('Moinho', 'm'), 'waterfall': ('Cascata', 'f'), 'cave': ('Gruta', 'f'),
+    'island': ('Ilha', 'f'), 'viewpoint': ('Miradouro', 'm'), 'square': ('Praça', 'f'),
+    'cemetery': ('Cemitério', 'm'), 'ruins': ('Ruínas', 'f'), 'lake': ('Lago', 'm'),
+    'cape': ('Cabo', 'm'), 'quay': ('Cais', 'm'), 'keep': ('Torre de Menagem', 'f'),
 }
+DESCRIPTORS = {english: pair[0] for english, pair in DESCRIPTORS_GENDERED.items()}
+GENDER = {english: pair[1] for english, pair in DESCRIPTORS_GENDERED.items()}
+
+# Two English words, neither of them the name: both get translated.
+# `Park and Palace of Monserrate` is `Parque e Palácio de Monserrate`;
+# `Waterfall Lake` is `Cascata do Lago`; `The Roman Bridge` is `Ponte Romana`.
+# Owner's rule, 2026-09-28.
+MULTIWORD = {
+    'national park': ('Parque Nacional', 'm'),
+    'national palace': ('Palácio Nacional', 'm'),
+    'urban garden': ('Jardim Urbano', 'm'),
+    'urban park': ('Parque Urbano', 'm'),
+    'botanical garden': ('Jardim Botânico', 'm'),
+    'natural park': ('Parque Natural', 'm'),
+    'municipal park': ('Parque Municipal', 'm'),
+    'forest park': ('Parque Florestal', 'm'),
+    'water park': ('Parque Aquático', 'm'),
+    'roman bridge': ('Ponte Romana', 'f'),
+    'roman ruins': ('Ruínas Romanas', 'f'),
+    'castle keep': ('Torre de Menagem', 'f'),
+    'tower of the keep': ('Torre de Menagem', 'f'),
+}
+
+# An adjective agrees with the descriptor it qualifies: (masculine, feminine).
+ADJECTIVES = {
+    'roman': ('Romano', 'Romana'), 'national': ('Nacional', 'Nacional'),
+    'urban': ('Urbano', 'Urbana'), 'municipal': ('Municipal', 'Municipal'),
+    'natural': ('Natural', 'Natural'), 'botanical': ('Botânico', 'Botânica'),
+    'old': ('Velho', 'Velha'), 'new': ('Novo', 'Nova'),
+    'forest': ('Florestal', 'Florestal'), 'maritime': ('Marítimo', 'Marítima'),
+    'main': ('Principal', 'Principal'), 'small': ('Pequeno', 'Pequena'),
+    'great': ('Grande', 'Grande'), 'high': ('Alto', 'Alta'), 'low': ('Baixo', 'Baixa'),
+}
+
+# Names the owner has confirmed ARE the place's name, whatever they look
+# like. Nothing about these is translated (owner's list, 2026-09-28). Folded
+# at import, below `fold`.
+KEEP_AS_IS = (
+    'Yuppi kids park', 'UnderGround Park', 'Under The Bridge',
+    'Tempo de Adorar - Cosmopolitan Church', 'Sirius Park',
+    'Silver Coast Non Denominational English Church',
+    'Quinta do Mouricão Mobile Home Park', 'Pink Palace',
+)
 
 # Set phrases that are names in their own right, not descriptor + noun.
 PHRASES = {
@@ -178,8 +222,15 @@ COMMON_NOUN_ARTICLES = {
     'igreja': 'a', 'capela': 'a', 'fonte': 'a', 'ponte': 'a', 'torre': 'a',
     'jardim': 'o', 'parque': 'o', 'monte': 'o', 'castelo': 'o', 'forte': 'o',
     'cabo': 'o', 'porto': 'o', 'mosteiro': 'o', 'convento': 'o', 'moinho': 'o',
-    'moinhos': 'os', 'lagoas': 'as',
+    'moinhos': 'os', 'lagoas': 'as', 'lago': 'o', 'lagoa': 'a', 'cais': 'o',
+    'gruta': 'a', 'ermida': 'a', 'praca': 'a', 'praça': 'a', 'ilheu': 'o',
+    'ria': 'a', 'mata': 'a', 'quinta': 'a', 'vila': 'a', 'largo': 'o',
 }
+
+# A person's title takes no preposition: `Parque Urbano Dr. Mário Fonseca`,
+# not `Parque Urbano DE Dr. Mário Fonseca`.
+TITLES = ('dr', 'dra', 'eng', 'prof', 'padre', 'frei', 'dom', 'rei', 'rainha',
+          'comendador', 'general', 'almirante', 'presidente', 'professor')
 
 
 # A word from this list surviving into the remainder means the name is not
@@ -198,6 +249,9 @@ ENGLISH_WORDS = (
 def fold(value):
     text = unicodedata.normalize('NFKD', value or '').encode('ascii', 'ignore').decode()
     return re.sub(r'\s+', ' ', re.sub(r'[^a-z0-9 ]', ' ', text.lower())).strip()
+
+
+DO_NOT_TRANSLATE = frozenset(fold(name) for name in KEEP_AS_IS)
 
 
 def article_of(toponym):
@@ -243,6 +297,108 @@ def is_portuguese_already(text):
     return bool(re.match(r'^(nossa\s+senhora|s[ãa]o|santa|santo)\b', text.strip(), flags=re.IGNORECASE))
 
 
+def strip_leading_article(name):
+    """`The Roman Bridge` is `Ponte Romana`: the English article is not part
+    of the Portuguese name."""
+    return re.sub(r'^the\s+', '', name.strip(), flags=re.IGNORECASE)
+
+
+def multiword_at(name):
+    """(portuguese, gender, remainder, had_of) for a two-word descriptor the
+    owner has confirmed — `National Park` is `Parque Nacional`, never
+    `Parque de National`. Longest phrase wins."""
+    folded = fold(name)
+    for phrase in sorted(MULTIWORD, key=len, reverse=True):
+        portuguese, gender = MULTIWORD[phrase]
+        size = len(phrase.split())
+        words, folded_words = name.split(), folded.split()
+        if folded_words[:size] == phrase.split():
+            rest = words[size:]
+            had_of = bool(rest) and fold(rest[0]) in ('of', 'de')
+            if had_of:
+                rest = rest[1:]
+                if rest and fold(rest[0]) == 'the':
+                    rest = rest[1:]
+            return portuguese, gender, ' '.join(rest).strip(' ,-'), had_of
+        if folded_words[-size:] == phrase.split():
+            return portuguese, gender, ' '.join(words[:-size]).strip(' ,-'), False
+    return None
+
+
+def adjective_and_descriptor(name):
+    """`The Roman Bridge` -> `Ponte Romana`. An adjective qualifying a
+    descriptor is translated too and agrees with its gender; neither word is
+    the place's name."""
+    words = fold(strip_leading_article(name)).split()
+    if len(words) != 2:
+        return None
+    first, second = words
+    if first in ADJECTIVES and second in DESCRIPTORS_GENDERED:
+        portuguese, gender = DESCRIPTORS_GENDERED[second]
+        masculine, feminine = ADJECTIVES[first]
+        return f'{portuguese} {feminine if gender == "f" else masculine}'
+    return None
+
+
+def stacked_descriptors(name, learned=None):
+    """Two descriptors and nothing else: `Waterfall Lake` is `Cascata do
+    Lago`. Owner's rule — with more than one English word, neither is the
+    name, so both are translated."""
+    words = fold(strip_leading_article(name)).split()
+    if len(words) == 3 and words[1] == 'and' and words[0] in DESCRIPTORS and words[2] in DESCRIPTORS:
+        return f'{DESCRIPTORS[words[0]]} e {DESCRIPTORS[words[2]]}'
+    if len(words) != 2:
+        return None
+    head, tail = words
+    if head in DESCRIPTORS and tail in DESCRIPTORS:
+        return f'{DESCRIPTORS[head]} {preposition(DESCRIPTORS[tail], learned)} {DESCRIPTORS[tail]}'
+    return None
+
+
+def joined_descriptors(name):
+    """`Park and Palace of Monserrate` -> (`Parque e Palácio`, remainder).
+    Both descriptors translate; the proper noun follows."""
+    match = re.match(r'^(\w+)\s+and\s+(\w+)\s+(?:of|de)\s+(?:the\s+)?(.+)$',
+                     strip_leading_article(name), flags=re.IGNORECASE)
+    if not match:
+        return None
+    first, second, rest = fold(match.group(1)), fold(match.group(2)), match.group(3)
+    if first in DESCRIPTORS and second in DESCRIPTORS:
+        gender = GENDER[second]
+        return f'{DESCRIPTORS[first]} e {DESCRIPTORS[second]}', gender, rest.strip(' ,-'), True
+    return None
+
+
+def doubts(name, remainder, vocabulary=None):
+    """(confidence, why) — the checks every path has to pass, not only the
+    single-descriptor one. `Funchal´s Botanical Garden` matched a set phrase
+    and skipped them."""
+    if re.search(r'\b(' + '|'.join(ENGLISH_WORDS) + r'|' + '|'.join(DESCRIPTORS) + r')\b', fold(remainder)):
+        return 'needs_review', 'an English word survives in the name'
+    if re.search(r"['\u00b4\u2019]s\b", name):
+        return 'needs_review', 'the name carries an English possessive'
+    if re.search(r'\b(saints?|st\.?)\s+\w+', fold(remainder)):
+        return 'needs_review', 'a saint this module has no Portuguese form for'
+    if ',' in name:
+        return 'needs_review', 'the name carries a comma: it is a name plus a description'
+    if vocabulary is not None:
+        unknown = [word for word in fold(remainder).split()
+                   if word not in vocabulary and not word.isdigit() and len(word) > 2
+                   and word not in TITLES]
+        if unknown:
+            return 'needs_review', f'not words Portuguese names here use: {unknown}'
+    return 'high', None
+
+
+def join(portuguese, remainder, learned=None):
+    """`Parque Urbano Dr. Mário Fonseca` — a title joins directly; a toponym
+    takes the preposition its article decides."""
+    head = fold(remainder).split(' ')[0] if remainder else ''
+    if head in TITLES:
+        return f'{portuguese} {remainder}'
+    return f'{portuguese} {preposition(remainder, learned)} {remainder}'
+
+
 def descriptor_at(name):
     """(english, portuguese, remainder, had_of) for the longest descriptor in
     the name, or None. Handles both `Beach of X` and `X Beach`.
@@ -280,9 +436,37 @@ def contract_inner_of(text, learned=None):
 
 def translate(name, learned=None, vocabulary=None):
     """{name_local, confidence, why} or None when nothing here applies."""
+    if fold(name) in DO_NOT_TRANSLATE:
+        return None  # the owner has confirmed this IS the place's name
+
     for english, portuguese in PHRASES.items():
         if fold(name) == english:
             return {'name_local': portuguese, 'confidence': 'high', 'rule': 'set phrase'}
+
+    # Owner's rule: more than one English word and neither of them is the
+    # name — `The Roman Bridge`, `Waterfall Lake`, `Park and Palace`.
+    for rule_name, produced in (('adjective + descriptor', adjective_and_descriptor(name)),
+                                ('two descriptors', stacked_descriptors(name, learned))):
+        if produced:
+            return {'name_local': produced, 'confidence': 'high', 'rule': rule_name}
+
+    joined = joined_descriptors(name)
+    if joined:
+        portuguese, _gender, remainder, _had_of = joined
+        remainder = contract_inner_of(translate_saints(remainder), learned)
+        confidence, why = doubts(name, remainder, vocabulary)
+        return {'name_local': join(portuguese, remainder, learned),
+                'confidence': confidence, 'rule': 'two descriptors + proper noun', 'why': why}
+
+    multi = multiword_at(name)
+    if multi:
+        portuguese, _gender, remainder, _had_of = multi
+        if not remainder:
+            return {'name_local': portuguese, 'confidence': 'high', 'rule': 'set descriptor'}
+        remainder = contract_inner_of(translate_saints(remainder), learned)
+        confidence, why = doubts(name, remainder, vocabulary)
+        return {'name_local': join(portuguese, remainder, learned),
+                'confidence': confidence, 'rule': 'set descriptor + proper noun', 'why': why}
 
     found = descriptor_at(name)
     if not found:
@@ -301,12 +485,6 @@ def translate(name, learned=None, vocabulary=None):
 
     if re.search(r'[A-Za-z]', fold(remainder)) is None:
         return None
-    # An English word left in the remainder is a proper noun we must not
-    # touch (`Igreja Anglicana All Saints`) or a word we have no mapping
-    # for — either way a human decides.
-    leftover_english = bool(re.search(
-        r'\b(' + '|'.join(ENGLISH_WORDS) + r'|' + '|'.join(DESCRIPTORS) + r')\b', fold(remainder)))
-
     # `Chapel Nossa Senhora da Rocha` is `Capela Nossa Senhora da Rocha` —
     # the descriptor came first and the rest is already a Portuguese phrase,
     # so nothing is inserted. `Santo André Beach` is different: the
@@ -317,30 +495,13 @@ def translate(name, learned=None, vocabulary=None):
         local = f'{portuguese} {remainder}'
         rule = f'{english} -> {portuguese}, joined directly'
     else:
-        joiner = preposition(remainder, learned)
-        local = f'{portuguese} {joiner} {remainder}'
-        rule = f'{english} -> {portuguese} {joiner}'
+        local = join(portuguese, remainder, learned)
+        rule = f'{english} -> {portuguese}'
 
     # A bare `de` is what most Portuguese toponyms take; the ones that carry
     # an article are the exception and are listed. So an unlisted toponym is
     # not a doubt, it is the common case. Only a surviving English word is.
-    confidence, why = 'high', None
-    if leftover_english:
-        confidence, why = 'needs_review', 'an English word survives in the name'
-    elif re.search(r"['\u00b4\u2019]s\b", name):
-        confidence, why = 'needs_review', 'the name carries an English possessive'
-    elif re.search(r'\b(saints?|st\.?)\s+\w+', fold(remainder)):
-        confidence, why = 'needs_review', 'a saint this module has no Portuguese form for'
-    elif ',' in name:
-        # `Church of the Son, Ponta do Sol, Madeira` is a name plus a
-        # description; splitting it correctly is a judgement, not a rule.
-        confidence, why = 'needs_review', 'the name carries a comma: it is a name plus a description'
-    elif vocabulary is not None:
-        unknown = [word for word in fold(remainder).split()
-                   if word not in vocabulary and not word.isdigit() and len(word) > 2]
-        if unknown:
-            confidence = 'needs_review'
-            why = f'not words Portuguese names here use: {unknown}'
+    confidence, why = doubts(name, remainder, vocabulary)
     return {'name_local': re.sub(r'\s+', ' ', local).strip(),
             'confidence': confidence, 'rule': rule, 'why': why}
 
