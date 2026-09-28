@@ -121,19 +121,105 @@ class RetiredStoreKindTest(unittest.TestCase):
             for child in value:
                 yield from self.store_kinds(child)
 
+    # `storeSubtypeCategories.json` is the vocabulary itself: the store kinds
+    # are its top-level KEYS (`adult`, `antique`, …), not values under a
+    # `store_kind` key. Scanning it like the others would look at the file
+    # that defines the name and see nothing.
+    KEYS_ARE_KINDS = ('storeSubtypeCategories.json',)
+
+    def kinds_in(self, name, document):
+        kinds = set(self.store_kinds(document))
+        if name in self.KEYS_ARE_KINDS and isinstance(document, dict):
+            kinds |= {key for key in document if isinstance(key, str)}
+        return kinds
+
     def test_no_mapping_emits_a_retired_store_kind(self):
         import json
-        checked = 0
         for name in self.FEEDS_SERVED_SET:
             path = os.path.join(self.SRC, name)
-            if not os.path.exists(path):
-                continue
-            checked += 1
+            # Not `continue`: a mapping that moved is a guard checking nothing,
+            # and the test must fail rather than quietly pass on the rest.
+            self.assertTrue(os.path.exists(path), f'{name} is not at {self.SRC}; update FEEDS_SERVED_SET')
             with open(path) as handle:
                 document = json.load(handle)
-            found = sorted({kind for kind in self.store_kinds(document) if kind in self.RETIRED})
+            found = sorted(self.kinds_in(name, document) & set(self.RETIRED))
             self.assertEqual(found, [], f'{name} still emits a retired store_kind: {found}')
-        self.assertGreater(checked, 0, 'the mapping files moved; this guard is checking nothing')
+
+    def test_the_guard_would_catch_the_retired_name_in_either_shape(self):
+        """The guard is only worth having if it fails on the thing it guards:
+        a value under a `store_kind` key, and a top-level key in the
+        vocabulary file."""
+        self.assertIn('drinks', self.kinds_in('venueWords.json',
+                                              {'garrafeira': {'store_kind': 'drinks'}}))
+        self.assertIn('drinks', self.kinds_in('storeSubtypeCategories.json',
+                                              {'drinks': {'category_name': 'Drinks'}}))
+        self.assertNotIn('drinks', self.kinds_in('venueWords.json',
+                                                 {'drinks': {'store_kind': 'wine_and_spirits'}}))
+
+
+class Migration0050Test(unittest.TestCase):
+    """The rename runs over the committed schema, including the case its
+    DELETEs exist for: the attribute tables are keyed
+    PRIMARY KEY (id, dimension, value), so renaming `drinks` on a row that
+    already holds `wine_and_spirits` would collide with itself."""
+
+    CLOUDFLARE_DIR = os.path.dirname(EXTRACTION_DIR)
+
+    def setUp(self):
+        import sqlite3
+        self.db = sqlite3.connect(':memory:')
+        for name in ('schema.sql',):
+            with open(os.path.join(self.CLOUDFLARE_DIR, name)) as handle:
+                self.db.executescript(handle.read())
+
+    def serve(self, overture_id):
+        self.db.execute(
+            'INSERT INTO overture_poi (overture_id, name, dedupe_name, lat, lng, geohash, '
+            "primary_poi_type, imported_at, updated_at) VALUES (?, 'N', 'n', 38.7, -9.1, 'eyckq', 'store', 'd', 'd')",
+            (overture_id,))
+
+    def attribute(self, overture_id, value):
+        self.db.execute("INSERT INTO overture_poi_attribute VALUES (?, 'store_kind', ?)", (overture_id, value))
+
+    def apply_migration(self):
+        with open(os.path.join(self.CLOUDFLARE_DIR, 'migrations', '0050_finish_drinks_rename.sql')) as handle:
+            self.db.executescript(handle.read())
+        self.db.commit()
+
+    def kinds(self, overture_id):
+        return sorted(r[0] for r in self.db.execute(
+            "SELECT value FROM overture_poi_attribute WHERE overture_id = ? AND dimension = 'store_kind'",
+            (overture_id,)))
+
+    def test_a_plain_row_is_renamed(self):
+        self.serve('plain')
+        self.attribute('plain', 'drinks')
+        self.apply_migration()
+        self.assertEqual(self.kinds('plain'), ['wine_and_spirits'])
+
+    def test_a_row_holding_both_values_does_not_collide(self):
+        self.serve('both')
+        self.attribute('both', 'drinks')
+        self.attribute('both', 'wine_and_spirits')
+        self.apply_migration()  # would raise IntegrityError without the DELETEs
+        self.assertEqual(self.kinds('both'), ['wine_and_spirits'])
+
+    def test_another_dimension_and_kind_are_untouched(self):
+        self.serve('other')
+        self.attribute('other', 'sports')
+        self.db.execute("INSERT INTO overture_poi_attribute VALUES ('other', 'cuisine', 'drinks')")
+        self.apply_migration()
+        self.assertEqual(self.kinds('other'), ['sports'])
+        self.assertEqual(self.db.execute(
+            "SELECT value FROM overture_poi_attribute WHERE dimension = 'cuisine'").fetchone()[0], 'drinks')
+
+    def test_a_second_apply_matches_nothing(self):
+        self.serve('plain')
+        self.attribute('plain', 'drinks')
+        self.apply_migration()
+        before = self.db.execute('SELECT * FROM overture_poi_attribute').fetchall()
+        self.apply_migration()
+        self.assertEqual(before, self.db.execute('SELECT * FROM overture_poi_attribute').fetchall())
 
 
 if __name__ == '__main__':

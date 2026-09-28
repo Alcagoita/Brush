@@ -22,6 +22,30 @@
 --   poi_attribute (legacy)  store_kind = 'drinks'             0
 --
 -- Re-runnable: a second apply matches nothing.
+--
+-- The DELETEs come first because the attribute tables are keyed
+-- PRIMARY KEY (overture_id, dimension, value): a row that somehow carries
+-- BOTH `drinks` and `wine_and_spirits` for the same id would make the rename
+-- collide with the row it already has and abort the statement. No id in
+-- production held both when this was applied (791 + 18 = 809 exactly), so
+-- these two statements matched nothing there; they keep a replay on another
+-- database from failing.
+DELETE FROM overture_poi_attribute
+ WHERE dimension = 'store_kind'
+   AND value = 'drinks'
+   AND EXISTS (SELECT 1 FROM overture_poi_attribute AS kept
+                WHERE kept.overture_id = overture_poi_attribute.overture_id
+                  AND kept.dimension = 'store_kind'
+                  AND kept.value = 'wine_and_spirits');
+
+DELETE FROM curated_poi_attribute
+ WHERE dimension = 'store_kind'
+   AND value = 'drinks'
+   AND EXISTS (SELECT 1 FROM curated_poi_attribute AS kept
+                WHERE kept.poi_id = curated_poi_attribute.poi_id
+                  AND kept.dimension = 'store_kind'
+                  AND kept.value = 'wine_and_spirits');
+
 UPDATE overture_poi_attribute
    SET value = 'wine_and_spirits'
  WHERE dimension = 'store_kind'
