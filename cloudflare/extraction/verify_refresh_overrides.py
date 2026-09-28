@@ -49,9 +49,22 @@ def in_batches(items, size=D1_ID_BATCH):
         yield items[start:start + size]
 
 
+def expected_types(entry, reachable):
+    """The served types an override asks for, in the promoter's own
+    vocabulary. `poi_type` is one type or a ranked list of them (KAN-455),
+    and the names are the classifier's, not the app's — `gas_station` lands
+    on `gas`, `grocery_store` on `supermarket`. `decide()` resolves them
+    through `reachable`, so comparing the raw strings to what is served
+    reports correct rows as lost."""
+    value = entry.get('poi_type')
+    names = value if isinstance(value, list) else [value]
+    return [reachable.get(name, name) for name in names if name]
+
+
 def prod_state(ids, d1_read=None):
-    """{overture_id: {status, poi_type, store_kinds, retired}} for the ids,
-    in bounded reads."""
+    """{overture_id: {status, poi_type, poi_types, store_kinds, retired}} for
+    the ids, in bounded reads. `poi_types` is every type the row is served
+    as, because an override may name several and only rank 0 is primary."""
     d1_read = d1_read or preflight.d1_read
     out = {}
     for batch in in_batches(ids):
@@ -62,8 +75,13 @@ def prod_state(ids, d1_read=None):
                 f'WHERE c.overture_id IN ({values})'):
             out[row['overture_id']] = {
                 'status': row['promotion_status'], 'poi_type': row['primary_poi_type'],
-                'retired': row['retired_in_release'], 'store_kinds': set(),
+                'retired': row['retired_in_release'], 'store_kinds': set(), 'poi_types': set(),
             }
+        for row in d1_read(
+                'SELECT overture_id, poi_type FROM overture_poi_type '
+                f'WHERE overture_id IN ({values})'):
+            if row['overture_id'] in out:
+                out[row['overture_id']]['poi_types'].add(row['poi_type'])
         for row in d1_read(
                 "SELECT overture_id, value FROM overture_poi_attribute "
                 f"WHERE dimension = 'store_kind' AND overture_id IN ({values})"):
@@ -72,8 +90,11 @@ def prod_state(ids, d1_read=None):
     return out
 
 
-def compare(expected, state):
+def compare(expected, state, reachable=None):
     """Per id: kept | retired | absent | lost:<why>."""
+    if reachable is None:
+        from analyse_poi_candidates import reachable_types
+        reachable = reachable_types()
     verdicts = {}
     for overture_id, entry in expected.items():
         got = state.get(overture_id)
@@ -86,10 +107,17 @@ def compare(expected, state):
         if got['retired']:
             verdicts[overture_id] = 'retired'
             continue
+        wanted = expected_types(entry, reachable)
+        missing = [name for name in wanted if name not in got['poi_types']]
         if got['status'] != 'promoted':
             verdicts[overture_id] = f"lost: expected promoted, is {got['status']}"
-        elif got['poi_type'] != entry.get('poi_type'):
-            verdicts[overture_id] = f"lost: expected {entry.get('poi_type')}, served as {got['poi_type']}"
+        elif missing:
+            verdicts[overture_id] = (
+                f"lost: expected {'+'.join(wanted)}, served as "
+                f"{'+'.join(sorted(got['poi_types'])) or got['poi_type']}")
+        elif wanted and got['poi_type'] != wanted[0]:
+            # rank 0 is what the app shows, so a reordered list is a loss.
+            verdicts[overture_id] = f"lost: expected {wanted[0]} first, served as {got['poi_type']}"
         elif entry.get('store_kind') and entry['store_kind'] not in got['store_kinds']:
             verdicts[overture_id] = f"lost: store_kind {entry['store_kind']} missing"
         else:

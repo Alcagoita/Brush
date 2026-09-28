@@ -240,9 +240,15 @@ class VerifyRefreshOverridesTest(unittest.TestCase):
         def d1_read(sql):
             if 'store_kind' in sql:
                 return [{'overture_id': i, 'value': v} for i, (_, _, _, kinds) in rows.items() for v in kinds if f"'{i}'" in sql]
+            # KAN-473: the checker reads every served type, not only the
+            # primary one, because an override may name a ranked list.
+            if 'FROM overture_poi_type' in sql:
+                return [{'overture_id': i, 'poi_type': t}
+                        for i, (_, t, _, _) in rows.items() if t and f"'{i}'" in sql]
             return [{'overture_id': i, 'promotion_status': s, 'primary_poi_type': t, 'retired_in_release': r}
                     for i, (s, t, r, _) in rows.items() if f"'{i}'" in sql]
-        verdicts = verify.compare(expected, verify.prod_state(expected, d1_read))
+        reachable = {'store': 'store', 'supermarket': 'supermarket', 'bank': 'bank'}
+        verdicts = verify.compare(expected, verify.prod_state(expected, d1_read), reachable)
         self.assertEqual(verdicts, {
             'kept-1': 'kept', 'kept-2': 'kept', 'retired-1': 'retired',
             'lost-type': 'lost: expected supermarket, served as store',
@@ -259,4 +265,7 @@ class VerifyRefreshOverridesTest(unittest.TestCase):
             return []
         verify.prod_state([f'id-{i}' for i in range(400)], d1_read)
         self.assertTrue(all(n <= 150 for n in seen))
-        self.assertEqual(len(seen), 6)
+        # 400 ids is 3 batches of <= 150, and KAN-473 added a third read per
+        # batch (the served types) alongside the candidate join and the
+        # store_kind attributes.
+        self.assertEqual(len(seen), 9)
