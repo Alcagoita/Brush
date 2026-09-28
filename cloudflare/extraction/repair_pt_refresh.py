@@ -29,17 +29,20 @@ WHAT IT WRITES
 Stage 1, the key move: the remaining candidates move to the run's archive
 key and take the import's country code. Nothing else about the row changes.
 
-Stage 2, the import row: `status = 'mapped'`, `previous_source_r2_key`
-NULL, counters set to the measured truth rather than left at zero. The
-archive key is KEPT — KAN-471 reads that archive.
-
-Stage 3, `overture_poi.country_code`: taken from the candidate row by
+Stage 2, `overture_poi.country_code`: taken from the candidate row by
 `overture_id`, never a literal, because the registry is PT-only today and
 that will stop being true. Only `country_code` is written; `name`,
 `name_local`, `name_en`, `names_json`, coordinates, category, types,
 attributes and decisions are all untouched, and the NULL name columns stay
 NULL (KAN-471's destination, and a NULL language list is what keeps the
 Settings picker disabled until then).
+
+Stage 3, the import row, LAST: `status = 'mapped'`, `previous_source_r2_key`
+NULL, counters set to the measured truth rather than left at zero. The
+archive key is KEPT — KAN-471 reads that archive. It goes last because it is
+the record that the run finished: if an earlier statement fails, the row
+stays `failed` and a re-run resumes. A row already `mapped` is skipped, so a
+repeated `--apply` leaves the completed record alone.
 
 BOUNDING
 
@@ -133,16 +136,22 @@ def import_row(country_code, d1_read):
     return rows[0]
 
 
-def state(country_code, d1_read):
-    """Everything the repair decides from, in three bounded reads."""
+def state(country_code, d1_read, original_previous_key=None):
+    """Everything the repair decides from, in three bounded reads.
+
+    `original_previous_key` is required for the read AFTER a repair: the
+    import update clears `previous_source_r2_key`, so re-reading the row
+    would compare the candidates against NULL and report "0 left on the
+    previous key" no matter what is actually there."""
     row = import_row(country_code, d1_read)
+    previous_key = original_previous_key if original_previous_key is not None else row['previous_source_r2_key']
     counts = d1_read(
         "SELECT SUM(CASE WHEN promotion_status = 'promoted' THEN 1 ELSE 0 END) AS promoted, "
         "SUM(CASE WHEN promotion_status = 'rejected' THEN 1 ELSE 0 END) AS rejected, "
         "SUM(CASE WHEN promotion_status = 'pending' THEN 1 ELSE 0 END) AS pending, "
         'COUNT(*) AS staged_rows, '
         'SUM(CASE WHEN country_code IS NULL THEN 1 ELSE 0 END) AS candidates_without_country, '
-        f'SUM(CASE WHEN country_source_r2_key = {sql_escape(row["previous_source_r2_key"] or "")} THEN 1 ELSE 0 END) AS on_previous_key '
+        f'SUM(CASE WHEN country_source_r2_key = {sql_escape(previous_key or "")} THEN 1 ELSE 0 END) AS on_previous_key '
         'FROM overture_candidate')[0]
     served = d1_read(
         'SELECT COUNT(*) AS served, SUM(CASE WHEN country_code IS NULL THEN 1 ELSE 0 END) AS without_country, '
@@ -152,10 +161,31 @@ def state(country_code, d1_read):
     return row, counts, served
 
 
+def ensure_repairable(row, counts, served, expect_run=None, expect_release=None):
+    """Refuse anything but the run this script is for. A `mapping` row means a
+    country run may be in flight, and marking it mapped from here would
+    declare someone else's half-finished import complete. `--expect-run` and
+    `--expect-release` pin it further; the run id is never inferred from
+    whatever happens to be active."""
+    if row['status'] not in ('failed', 'mapped'):
+        raise SystemExit(
+            f'import row is {row["status"]!r}, not failed or mapped; a run may be in flight. Stopping.')
+    if expect_run and row['active_run_id'] != expect_run:
+        raise SystemExit(f'import row carries run {row["active_run_id"]!r}, not {expect_run!r}. Stopping.')
+    if expect_release and row['release'] != expect_release:
+        raise SystemExit(f'import row carries release {row["release"]!r}, not {expect_release!r}. Stopping.')
+    if counts['promoted'] != served['served']:
+        raise SystemExit(
+            f'promoted candidates ({counts["promoted"]}) != served rows ({served["served"]}); '
+            'the refresh lost or gained a decision. Stopping: investigate before repairing.')
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.strip().splitlines()[0])
     parser.add_argument('--country', default='PT')
     parser.add_argument('--apply', action='store_true', help='write; omitted, nothing is written')
+    parser.add_argument('--expect-run', help='refuse unless the import row carries this active_run_id')
+    parser.add_argument('--expect-release', help='refuse unless the import row carries this release')
     # The work dir holds one transient statement file per request. It goes to
     # a temp dir by default so a run leaves nothing in the repo.
     parser.add_argument('--work-dir', default=None)
@@ -178,23 +208,26 @@ def main(argv=None):
     print(f'served: {served["served"]:,} rows | {served["without_country"]:,} without a country '
           f'| {served["with_names"]:,} carrying any name variant', file=sys.stderr)
 
-    if counts['promoted'] != served['served']:
-        raise SystemExit(
-            f'promoted candidates ({counts["promoted"]}) != served rows ({served["served"]}); '
-            'the refresh lost or gained a decision. Stopping: investigate before repairing.')
+    ensure_repairable(row, counts, served, args.expect_run, args.expect_release)
 
     target_key = row['raw_extract_r2_key']
     previous_key = row['previous_source_r2_key']
     if not target_key:
         raise SystemExit('the import row has no raw_extract_r2_key; nothing to move rows to')
 
+    # The import row goes LAST: it is the record that the run finished, so it
+    # must not be written until the candidates and the served rows are. If a
+    # statement fails midway the row stays `failed` and a re-run resumes.
+    # A row already `mapped` is left alone entirely, so repeated `--apply`
+    # runs do not churn its `completed_at`.
     statements = []
     if previous_key:
         statements += list(key_move_statements(previous_key, target_key, args.country))
-    statements.append(import_row_statement(
-        args.country, row['active_run_id'], target_key, counts,
-        datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')))
     statements += list(country_code_statements())
+    if row['status'] != 'mapped':
+        statements.append(import_row_statement(
+            args.country, row['active_run_id'], target_key, counts,
+            datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.000Z')))
 
     print(f'\n{len(statements)} statements planned', file=sys.stderr)
     if not args.apply:
@@ -203,19 +236,32 @@ def main(argv=None):
         print('\ndry run: nothing written. Re-run with --apply.', file=sys.stderr)
         return 0
 
-    changed = 0
+    # D1 reports `changes = 1` for a statement that matched nothing (measured
+    # 2026-09-28 with `WHERE 1 = 0`), so this total runs one ahead per
+    # statement. The counts that matter are the before/after reads below.
+    reported = 0
     for index, statement in enumerate(statements, 1):
         rows = d1_write(statement, work_dir)
-        changed += rows or 0
-        print(f'[{index}/{len(statements)}] {rows or 0} rows', file=sys.stderr)
-    print(f'{changed:,} rows written', file=sys.stderr)
+        reported += rows or 0
+        print(f'[{index}/{len(statements)}] changes={rows or 0}', file=sys.stderr)
+    print(f'{reported:,} changes reported over {len(statements)} statements '
+          f'(D1 counts 1 per statement even when nothing matched)', file=sys.stderr)
 
-    _, after_counts, after_served = state(args.country, preflight.d1_read)
-    print(f'after: {after_counts["on_previous_key"]:,} candidates on the previous key, '
+    _, after_counts, after_served = state(args.country, preflight.d1_read, original_previous_key=previous_key)
+    print(f'after: {after_counts["on_previous_key"]:,} candidates on the original key, '
           f'{after_counts["candidates_without_country"]:,} without a country; '
           f'{after_served["without_country"]:,} served rows without a country, '
           f'{after_served["with_names"]:,} carrying a name variant', file=sys.stderr)
-    return 0 if after_served['without_country'] == 0 else 1
+    left = {
+        'candidates on the original key': after_counts['on_previous_key'],
+        'candidates without a country': after_counts['candidates_without_country'],
+        'served rows without a country': after_served['without_country'],
+    }
+    unfinished = {name: value for name, value in left.items() if value}
+    if unfinished:
+        print(f'INCOMPLETE: {unfinished}', file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == '__main__':

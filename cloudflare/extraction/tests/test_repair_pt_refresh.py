@@ -67,6 +67,38 @@ class StatementTest(unittest.TestCase):
         self.assertIn('new_rows = 0, changed_rows = 0, retired_rows = 0', statement)
 
 
+class RepairableTest(unittest.TestCase):
+    """What the repair refuses before it writes anything."""
+
+    ROW = {'status': 'failed', 'active_run_id': RUN_ID, 'release': '2026-08-19.0'}
+    COUNTS = {'promoted': 10}
+    SERVED = {'served': 10}
+
+    def refuse(self, row=None, **pins):
+        with self.assertRaises(SystemExit) as caught:
+            repair.ensure_repairable({**self.ROW, **(row or {})}, self.COUNTS, self.SERVED, **pins)
+        return str(caught.exception)
+
+    def test_a_failed_or_mapped_row_is_repairable(self):
+        repair.ensure_repairable(self.ROW, self.COUNTS, self.SERVED)
+        repair.ensure_repairable({**self.ROW, 'status': 'mapped'}, self.COUNTS, self.SERVED)
+
+    def test_a_run_in_flight_is_refused(self):
+        self.assertIn('may be in flight', self.refuse({'status': 'mapping'}))
+
+    def test_a_different_run_or_release_is_refused(self):
+        self.assertIn('not', self.refuse(expect_run='another-run'))
+        self.assertIn('release', self.refuse(expect_release='2026-09-23.0'))
+        # the pins pass when they match, and are optional
+        repair.ensure_repairable(self.ROW, self.COUNTS, self.SERVED,
+                                 expect_run=RUN_ID, expect_release='2026-08-19.0')
+
+    def test_a_decision_count_mismatch_is_refused(self):
+        with self.assertRaises(SystemExit) as caught:
+            repair.ensure_repairable(self.ROW, {'promoted': 9}, self.SERVED)
+        self.assertIn('lost or gained a decision', str(caught.exception))
+
+
 class ApplyTest(unittest.TestCase):
     """The whole repair over the committed schema in sqlite."""
 
@@ -101,21 +133,28 @@ class ApplyTest(unittest.TestCase):
         names = [d[0] for d in cursor.description]
         return [dict(zip(names, r)) for r in cursor.fetchall()]
 
-    def run_repair(self):
-        """Every statement main() would send, in the same order."""
+    def run_repair(self, completed_at='2026-09-28T10:00:00.000Z'):
+        """Every statement main() would send, in the same order: the key move
+        and the served fill first, the import row last, and only when the row
+        is not already mapped."""
+        row = self.rows('SELECT * FROM overture_country_import')[0]
+        previous_key = row['previous_source_r2_key']
         executed = 0
-        for statement in list(repair.key_move_statements(OLD_KEY, NEW_KEY, 'PT')):
-            self.db.executescript(statement)
-            executed += 1
-        counts = self.rows(
-            "SELECT COUNT(*) AS staged_rows, SUM(promotion_status = 'promoted') AS promoted, "
-            "SUM(promotion_status = 'rejected') AS rejected, SUM(promotion_status = 'pending') AS pending "
-            'FROM overture_candidate')[0]
-        counts['source_rows'] = 4
-        self.db.executescript(repair.import_row_statement(
-            'PT', RUN_ID, NEW_KEY, counts, '2026-09-28T10:00:00.000Z'))
+        if previous_key:
+            for statement in repair.key_move_statements(previous_key, NEW_KEY, 'PT'):
+                self.db.executescript(statement)
+                executed += 1
         for statement in repair.country_code_statements():
             self.db.executescript(statement)
+            executed += 1
+        if row['status'] != 'mapped':
+            counts = self.rows(
+                "SELECT COUNT(*) AS staged_rows, SUM(promotion_status = 'promoted') AS promoted, "
+                "SUM(promotion_status = 'rejected') AS rejected, SUM(promotion_status = 'pending') AS pending "
+                'FROM overture_candidate')[0]
+            counts['source_rows'] = 4
+            self.db.executescript(repair.import_row_statement(
+                'PT', RUN_ID, NEW_KEY, counts, completed_at))
             executed += 1
         self.db.commit()
         return executed
@@ -155,18 +194,37 @@ class ApplyTest(unittest.TestCase):
         self.assertEqual((imports['promoted_rows'], imports['rejected_rows'], imports['pending_rows']), (2, 1, 1))
         self.assertEqual((imports['new_rows'], imports['changed_rows'], imports['retired_rows']), (0, 0, 0))
 
+    def snapshot(self):
+        return (self.rows('SELECT * FROM overture_poi ORDER BY overture_id')
+                + self.rows('SELECT * FROM overture_candidate ORDER BY overture_id')
+                + self.rows('SELECT * FROM overture_country_import'))
+
     def test_a_second_run_writes_nothing_further(self):
+        """Including the import row: a completed record must not have its
+        `completed_at` churned by a repeated --apply."""
         self.candidate('a1', NEW_KEY)
         self.candidate('c3', OLD_KEY, country=None)
         self.serve('a1')
         self.serve('c3')
         self.run_repair()
-        before = self.rows('SELECT * FROM overture_poi ORDER BY overture_id') + \
-            self.rows('SELECT * FROM overture_candidate ORDER BY overture_id')
-        self.run_repair()
-        after = self.rows('SELECT * FROM overture_poi ORDER BY overture_id') + \
-            self.rows('SELECT * FROM overture_candidate ORDER BY overture_id')
-        self.assertEqual(before, after)
+        before = self.snapshot()
+        # 17 statements, not 35: the previous key is gone so there is nothing
+        # to move, and the mapped import row is skipped. A later wall clock
+        # would show up as a rewritten completed_at if it were not.
+        self.assertEqual(self.run_repair(completed_at='2026-10-01T00:00:00.000Z'), 17)
+        self.assertEqual(before, self.snapshot())
+
+    def test_the_import_row_is_written_last(self):
+        """It is the record that the run finished, so a failure in an earlier
+        statement must leave it `failed` for the re-run to resume from."""
+        self.candidate('c3', OLD_KEY, country=None)
+        self.serve('c3')
+        boom = RuntimeError('d1 timed out')
+        with self.assertRaises(RuntimeError):
+            for statement in repair.country_code_statements():
+                self.db.executescript(statement)
+                raise boom
+        self.assertEqual(self.rows('SELECT status FROM overture_country_import')[0]['status'], 'failed')
 
     def test_a_served_row_whose_candidate_has_no_country_is_left_null(self):
         """Not every served row has to be in the archive; one that is not
@@ -181,6 +239,23 @@ class ApplyTest(unittest.TestCase):
             self.db.executescript(statement)
         served = {r['overture_id']: r['country_code'] for r in self.rows('SELECT * FROM overture_poi')}
         self.assertEqual(served, {'a1': None, 'orphan': None})
+
+    def test_the_after_read_counts_against_the_original_key(self):
+        """The import update clears `previous_source_r2_key`, so re-reading the
+        row would compare candidates against NULL and always report 0 left."""
+        self.candidate('c3', OLD_KEY, country=None)
+        self.serve('c3')
+        self.db.execute("UPDATE overture_country_import SET status = 'mapped', previous_source_r2_key = NULL")
+        self.db.commit()
+
+        def d1_read(sql):
+            return self.rows(sql)
+
+        # nothing was moved: c3 is still on the old key
+        _, counts, _ = repair.state('PT', d1_read, original_previous_key=OLD_KEY)
+        self.assertEqual(counts['on_previous_key'], 1, 'a real count against the original key')
+        _, blind, _ = repair.state('PT', d1_read)
+        self.assertEqual(blind['on_previous_key'], 0, 'the blind read is the bug this guards')
 
     def test_the_import_row_is_untouched_when_the_run_id_does_not_match(self):
         self.db.executescript(repair.import_row_statement(
