@@ -1,0 +1,6426 @@
+{
+ "businesses": [
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.77386818798,
+   "lng": -16.828215985563,
+   "name": "Porto Da Cruz Beach Bar, Talking To The Locals As I Am A Don!!!",
+   "overture_id": "d1c9f2d5-c461-4668-93ff-efd4bb9f19cb"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.661748701225,
+   "lng": -17.037584781647,
+   "name": "Calhau da Lapa Beach Bar",
+   "overture_id": "2284c48d-dbb8-48b0-9359-79ed0bce0089"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.071575,
+   "lng": -8.776249,
+   "name": "Burgau Beach Bar",
+   "overture_id": "ff1a9ed4-62ce-4107-99b3-4592ff7e890a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.08886266,
+   "lng": -8.6822189,
+   "name": "Lagos Beach Pool Villa",
+   "overture_id": "3c0066af-9475-4da4-a8de-25ee9d9dc09c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.10007494068663,
+   "lng": -8.389642326876018,
+   "name": "White Shell Beach Villas",
+   "overture_id": "ced7ec62-a7b4-40a0-b2be-3b125cf8a6b6"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.693752,
+   "lng": -9.369347,
+   "name": "Enseada Beach Bar",
+   "overture_id": "6843ab73-962e-48eb-a2ea-e42131a4d40d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.644398499999994,
+   "lng": -9.2381498,
+   "name": "Sunset Caparica Beach House",
+   "overture_id": "17b2da09-fce2-44e5-b02e-037a20a1337a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.597721516363,
+   "lng": -9.2079162597656,
+   "name": "Nova Vaga Surf SUP Kite Beach",
+   "overture_id": "e9cb13cf-2ee8-4626-97cb-6db0be946d84"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.5824161,
+   "lng": -9.1754374,
+   "name": "Beach House - South Lisbon",
+   "overture_id": "22044181-1874-4cc6-92ae-ef5ff8ffd73c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.574077924596,
+   "lng": -9.195250719148,
+   "name": "Beach House - Fonte da Telha, Portugal - 123561/al.",
+   "overture_id": "304c8ef9-5c86-486b-81e4-896962ef64d9"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.7045,
+   "lng": -9.40763,
+   "name": "Royal Beach House Monte Estoril",
+   "overture_id": "a4a48525-c02e-4712-bf01-87e0dbfcbe03"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.700640821267235,
+   "lng": -9.41560615376485,
+   "name": "Portogallo, giuncho surf beach Cascais",
+   "overture_id": "b077a2c8-2724-4869-99da-ab9c9fd94565"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.38091846,
+   "lng": -8.80294829,
+   "name": "Comporta Beach Club",
+   "overture_id": "9fe88d31-fd28-4d48-9c21-3cb93f5ab884"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.71277336915375,
+   "lng": -9.132906247340744,
+   "name": "The Cosy Castle Apartments",
+   "overture_id": "f83ebb86-d7df-4949-aacb-4548a2e1f31e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.02577239618424,
+   "lng": -8.025124715284198,
+   "name": "GiGi's Beach Bar, Quinta Do Lago, Portugal",
+   "overture_id": "de04e7f9-6669-4ff1-8b0f-40195f869b8e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.084546,
+   "lng": -8.238194,
+   "name": "Sunset Beach Bar",
+   "overture_id": "570deda0-b9a5-4ca1-9649-6fa56f5573b2"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.073378176227,
+   "lng": -8.1182098388672,
+   "name": "Vilamoura beach apartment",
+   "overture_id": "ac293a5f-1b42-42c5-b9ca-81cfc87e03ea"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.09129,
+   "lng": -8.21431,
+   "name": "Prayer House Church",
+   "overture_id": "e0664c8f-8049-48fd-9c17-03dc9a645403"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "island"
+   ],
+   "lat": 37.09385118220586,
+   "lng": -8.108898527845044,
+   "name": "Kids Club Paradise Island",
+   "overture_id": "8de5ffaa-4388-4f2d-a61a-fe4583df37c6"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.13336979728572,
+   "lng": -7.605797503214284,
+   "name": "Praia Privada Cabanas Park Resort",
+   "overture_id": "10ae8207-4eab-4060-9e79-07eb3af7d1d4"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.1667,
+   "lng": -7.51667,
+   "name": "Secret Beach Club",
+   "overture_id": "c81f148d-8242-49f1-aacf-6bcfa55c4a4b"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.19448750296013,
+   "lng": -7.416155597669056,
+   "name": "Villa Real De Santo Antonio / Monte Gordo Beach - Portugal",
+   "overture_id": "1625498a-5877-43c0-adfd-a049a8fd9710"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.96097441,
+   "lng": -9.41648573,
+   "name": "Feels Like Home - Ericeira Beach Apartments",
+   "overture_id": "f09ee0d4-cc7a-4728-aeb9-14433ec6d41e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.961657880536116,
+   "lng": -9.417330785742305,
+   "name": "Beach House Ericeira",
+   "overture_id": "1a0a0298-8d1a-473c-afb1-cfb0d2ede4e3"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.748477537319,
+   "lng": -8.9717556081399,
+   "name": "Picole Bar - Alcochete Beach",
+   "overture_id": "9ec02aba-548f-49b1-bede-d8ae8e0e399d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 39.752667841888744,
+   "lng": -9.030260443770214,
+   "name": "Saudades de São Pedro - Beach Apartment",
+   "overture_id": "15ed99c3-f776-47e9-ba9f-42afe600a423"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.1468737,
+   "lng": -8.8670267,
+   "name": "Playa Del Cagallon Beach Club",
+   "overture_id": "de5ebff6-ca66-45da-b91c-9fad7541b438"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.162809,
+   "lng": -8.875434,
+   "name": "Gota d'água Figueira Beach Club",
+   "overture_id": "141e1def-e874-40ce-94f1-b2625d3c6bd3"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "sanctuary"
+   ],
+   "lat": 39.62968218,
+   "lng": -8.67198999,
+   "name": "Fatima Sanctuary Store",
+   "overture_id": "1b8488ae-fa93-407b-9fbb-571ae8b2ea17"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.1732776,
+   "lng": -8.6745803,
+   "name": "Surf Church Porto",
+   "overture_id": "3934e22b-8fb8-423a-8bfc-b6f5da58f29a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.37390366,
+   "lng": -8.30354051,
+   "name": "Park Club Vizela",
+   "overture_id": "58535ff3-4c28-462f-b24f-70f3851ae133"
+  },
+  {
+   "category": "national_park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.70653,
+   "lng": -8.16849,
+   "name": "Gerês National Park - Tours & Hiking",
+   "overture_id": "a3b530b9-d890-4cb0-9783-8b0140e20df8"
+  }
+ ],
+ "candidates": [
+  {
+   "category": "beach",
+   "english_words": [
+    "island"
+   ],
+   "lat": 33.085968136919,
+   "lng": -16.345544174949,
+   "name": "@ Porto Santo Island, Atlantic Ocean <3",
+   "overture_id": "76cf4cf3-0928-46af-879a-9c2f4c8f370a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 33.05896749562874,
+   "lng": -16.311640021401292,
+   "name": "Porto Santo Beach",
+   "overture_id": "6c01855a-379a-48ee-9abf-1f8e965f15d2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach",
+    "island"
+   ],
+   "lat": 33.05051370348357,
+   "lng": -16.346805550297496,
+   "name": "Golden Beach - Porto Santo Island",
+   "overture_id": "e64c501a-d4d1-4e4f-8443-d832440d35b6"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "waterfall"
+   ],
+   "lat": 32.867675,
+   "lng": -17.167597,
+   "name": "Risco waterfall",
+   "overture_id": "745701bb-9596-4604-9572-fd45c08b0af5"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 32.8152586,
+   "lng": -17.2546291,
+   "name": "Ponta do Pargo Lighthouse",
+   "overture_id": "908fd0e1-783c-4ee4-be3d-16d763cf2366"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.7352485,
+   "lng": -16.74035323,
+   "name": "Pedra D'eira Beach",
+   "overture_id": "7fd4362c-ef19-4fda-afb3-8f64696fc8bd"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fortress"
+   ],
+   "lat": 32.79181639,
+   "lng": -16.8549886,
+   "name": "Fortress of Faial",
+   "overture_id": "a68fa1f4-2f2d-41fd-8be5-1264d82e592f"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "ruins"
+   ],
+   "lat": 32.8298802,
+   "lng": -16.89765982,
+   "name": "Ruins of St. George",
+   "overture_id": "f7774e02-3231-47de-b49d-0e1359fbc85e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.718569766761,
+   "lng": -16.762604126722,
+   "name": "Machico Beach",
+   "overture_id": "92afe38a-2e87-48a3-af6c-bf12f6854f88"
+  },
+  {
+   "category": "botanical_garden",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 32.67558668,
+   "lng": -16.90051236,
+   "name": "Jardim Monte Palace Madeira",
+   "overture_id": "941424c8-410a-4049-a59e-222b2e41d0d2"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.70503237,
+   "lng": -16.80007317,
+   "name": "Merendas Park",
+   "overture_id": "db59d3cf-9d1e-4cba-a633-95abf9d012b5"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.6808667,
+   "lng": -17.1011861,
+   "name": "Church of the Son, Ponta do Sol, Madeira",
+   "overture_id": "a673dc50-11d7-4ddd-a163-de8170db3ada"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 32.68092502,
+   "lng": -17.10366913,
+   "name": "Chapel S.Sebastião",
+   "overture_id": "f66dad03-3d62-4470-a281-e59dca6bfb13"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.68005102,
+   "lng": -17.10467874,
+   "name": "Church of Nossa Senhora da Luz",
+   "overture_id": "0662baaa-0a2a-4abc-bbbb-eb9f8874a405"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.670788963342,
+   "lng": -17.066285513333,
+   "name": "St Catherine Park Funchal",
+   "overture_id": "7ed9c234-c77b-4012-a8ef-ae3172b00bfc"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.675911,
+   "lng": -16.902412,
+   "name": "Church of our Lady of Monte",
+   "overture_id": "bcc8ce91-d990-43d1-80d0-c7a5a7270055"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.66801464,
+   "lng": -16.93770957,
+   "name": "Aviva Portugal church",
+   "overture_id": "35f4d7df-146b-44be-b700-5d3a10385a2c"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 32.65968736,
+   "lng": -16.9290674,
+   "name": "Edifício Madalenas Palace",
+   "overture_id": "c7af215c-847a-4493-9245-8715c499edea"
+  },
+  {
+   "category": "baptist_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.65125692,
+   "lng": -16.91144299,
+   "name": "English Speaking Church in Funchal-MIBC",
+   "overture_id": "b815275d-06ba-4a26-9248-7851b4c35cce"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "convent"
+   ],
+   "lat": 32.65086414,
+   "lng": -16.91320954,
+   "name": "Convent of Santa Clara",
+   "overture_id": "d3c51880-0a19-4c2b-8800-469e4f5ce5ac"
+  },
+  {
+   "category": "anglican_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.64948065,
+   "lng": -16.91414825,
+   "name": "Holy Trinity Church",
+   "overture_id": "fd92428b-37f3-439d-9c0c-eef28bb4e271"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fortress"
+   ],
+   "lat": 32.647904101461826,
+   "lng": -16.906074253541462,
+   "name": "Fortress of Sao Tiago",
+   "overture_id": "0ae80c6f-2779-421b-89d0-0b521f5075f3"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.64691861914496,
+   "lng": -16.908925759330987,
+   "name": "Funchal Park",
+   "overture_id": "bd082bad-cf36-4fdd-9d0f-72204cadc372"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.64539873,
+   "lng": -16.91671871,
+   "name": "Avenue Park",
+   "overture_id": "4202e2a8-39c4-4787-a6a1-3f7cb7045b16"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 32.64383546,
+   "lng": -16.92185213,
+   "name": "Essencia Crista Church",
+   "overture_id": "5b8b48a0-bb58-4b13-900c-f0018635e29d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.636021,
+   "lng": -16.931318,
+   "name": "Pestana Palms Beach",
+   "overture_id": "c4db3ac1-ac9d-4642-a655-b2c548edf628"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.63895211,
+   "lng": -16.95022977,
+   "name": "Atlantic Gardens Beach",
+   "overture_id": "c0fb4ab3-bb73-4841-bee4-d8b06acec775"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.640129564032584,
+   "lng": -16.94925086759309,
+   "name": "Socorro, Barreirinha Beach",
+   "overture_id": "459000db-ac75-46aa-af89-a0287afa9839"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.641738352221,
+   "lng": -16.953332461075,
+   "name": "Mega Luna Park",
+   "overture_id": "8a7273e1-781f-4c98-8218-6d1a92f291c2"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.64303016,
+   "lng": -16.94754335,
+   "name": "Edificio Monumental Park I",
+   "overture_id": "a4025a7c-24d1-4202-a81e-bbf4a7dafe36"
+  },
+  {
+   "category": "botanical_garden",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 32.660873,
+   "lng": -16.895688,
+   "name": "Funchal´s Botanical Garden",
+   "overture_id": "333ca672-346b-442b-b521-95bd8713a479"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.65795431,
+   "lng": -16.83114595,
+   "name": "Moinhos Park",
+   "overture_id": "48dd0768-1e42-4baa-99a1-1a2cbf9ad9da"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 32.71959,
+   "lng": -17.17381,
+   "name": "Onda Park",
+   "overture_id": "cc0a9450-c41e-41a8-bf88-2932f87b289c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.71915346319345,
+   "lng": -17.173721597462553,
+   "name": "Madeira, Calheta Beach",
+   "overture_id": "5ff3a82a-3bd6-456f-84cb-093c43c44b83"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.71927090482888,
+   "lng": -17.17381607016058,
+   "name": "Savoy Calheta Beach",
+   "overture_id": "253c7b16-ebe5-4da9-8ee9-ec355be32375"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "cape",
+    "viewpoint"
+   ],
+   "lat": 36.99392291,
+   "lng": -8.94715693,
+   "name": "Cape Sagres viewpoint",
+   "overture_id": "fff8f9ff-a5a3-47d6-add1-752c2b43485b"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.05297205135,
+   "lng": -8.924690075227,
+   "name": "Barranco Beach",
+   "overture_id": "65220d0d-87d1-4dbd-866b-0c15b0010d46"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.068244460034826,
+   "lng": -8.830124693970133,
+   "name": "Salema Beach Vilage Vila Do Bispo",
+   "overture_id": "dcf6ca79-2237-40bc-b877-5ff0895ef1fb"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.064127257818,
+   "lng": -8.8305564496121,
+   "name": "Costa Vicentina National Park, Salema",
+   "overture_id": "6e8edcd7-0eed-499c-a5fb-5eb168cbd0f5"
+  },
+  {
+   "category": "lake",
+   "english_words": [
+    "lake"
+   ],
+   "lat": 37.115926,
+   "lng": -8.820053,
+   "name": "Lake Tortoise",
+   "overture_id": "4705df61-3f92-473e-9608-6d9c63344fe4"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0921397,
+   "lng": -8.6833854,
+   "name": "Porto De Mós Beach Condominium, Lagos, Portugal",
+   "overture_id": "652065f8-d680-41ee-9461-3f086d25a06b"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.112372742605,
+   "lng": -8.6656541136111,
+   "name": "Cordoama Beach",
+   "overture_id": "bea6594e-a68d-4298-85e1-c17dbf7e3bf0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.10431275742341,
+   "lng": -8.66639459293693,
+   "name": "Sao Roque Beach",
+   "overture_id": "f367a9bb-87d5-478e-a438-9853b9d93327"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.102817,
+   "lng": -8.672775,
+   "name": "st. Peter's Catholic Church Ejigbo",
+   "overture_id": "374f833e-5161-44ca-ba58-db41508d0136"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.09919971,
+   "lng": -8.67273251,
+   "name": "Bodeira Beach, Portugal",
+   "overture_id": "a88f28e0-d285-406b-9192-31d662a75245"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.09247536117284,
+   "lng": -8.668905567411096,
+   "name": "Dona Ana Beach",
+   "overture_id": "a91ef079-017b-4013-bf6f-4d015100917f"
+  },
+  {
+   "category": "national_park",
+   "english_words": [
+    "cape"
+   ],
+   "lat": 37.094416,
+   "lng": -8.673588,
+   "name": "Cape St Vincent",
+   "overture_id": "e403d8a5-8947-4c5c-9464-bbc8dd70f471"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.118339,
+   "lng": -8.578763,
+   "name": "Alvor Caves Beach",
+   "overture_id": "63ad67cc-5077-43a4-801c-4ed4854b4783"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.11910958015563,
+   "lng": -8.579464683813631,
+   "name": "Prainha Beach",
+   "overture_id": "41476533-71cb-4395-9cce-dbb5ba087a24"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.1333,
+   "lng": -8.56667,
+   "name": "Pestana Beach, Alvor, Portugal",
+   "overture_id": "6fab1a20-5ca0-4fa6-8ced-8b8b2f3e8f97"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.127301962206104,
+   "lng": -8.54588919039581,
+   "name": "Playa De Rocha Beach",
+   "overture_id": "e2260e4d-ef8a-4fc3-bfb8-1190d42c9ce5"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.129337533338735,
+   "lng": -8.542627766679287,
+   "name": "Torralta Beach",
+   "overture_id": "91f1196e-4fe3-4522-9ad5-1cfee366209b"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.13764821401148,
+   "lng": -8.54219434152254,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "ca1dc43b-f22e-44f5-8612-bbafcebdfc5f"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.139228,
+   "lng": -8.5340812,
+   "name": "South Water Park",
+   "overture_id": "b2006f6c-bd95-449e-b37f-098f18918e82"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.11892,
+   "lng": -8.5412,
+   "name": "Beach Side",
+   "overture_id": "0498f5da-e404-4370-9d3b-75bf0f7108f3"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.118267,
+   "lng": -8.534384,
+   "name": "beach of oceano Atlantico",
+   "overture_id": "70fcd6a5-dd42-4618-9380-a07f7b285f48"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.09641815,
+   "lng": -8.4712723,
+   "name": "Carvoeiro Beach",
+   "overture_id": "cafb64ce-30c9-444c-93f5-d49a4d854a7e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0918781,
+   "lng": -8.4451542,
+   "name": "Albandeira Beach",
+   "overture_id": "91812108-84ac-4e41-9801-6f841ce51a3c"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "square"
+   ],
+   "lat": 37.09806847,
+   "lng": -8.47340258,
+   "name": "Monte Carvoeiro Square",
+   "overture_id": "3cc7118a-d827-4f5d-9ed8-d68fa13d5cd6"
+  },
+  {
+   "category": "anglican_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.13706993,
+   "lng": -8.4532606,
+   "name": "All Saints Anglican Church Lagoa",
+   "overture_id": "57378b17-338c-4916-858b-a47c79aa3299"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "convent"
+   ],
+   "lat": 37.1263694444,
+   "lng": -8.42103611111,
+   "name": "Convent of Our Lady of Mount Carmel",
+   "overture_id": "925dfd11-3495-4fea-a056-68641e234a00"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.087722396721,
+   "lng": -8.4407755328337,
+   "name": "Vale Espinhaço beach",
+   "overture_id": "278f0294-b58f-4aa2-b27c-8ea5022e7429"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.092381,
+   "lng": -8.402618,
+   "name": "Paradise Beach",
+   "overture_id": "c75e61a3-fbd6-424d-94bf-ee9f55ecab6e"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 37.09604754,
+   "lng": -8.38643694,
+   "name": "Chapel Nossa Senhora da Rocha",
+   "overture_id": "5b123911-d72a-4a3f-a0b8-9a7b55c47796"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.12542428,
+   "lng": -8.39902038,
+   "name": "Church of Our Lady of the Incarnation",
+   "overture_id": "a363061f-5aff-4a06-8555-76dffa0a027d"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.10241218,
+   "lng": -8.37980105,
+   "name": "Anabella's Kids Park",
+   "overture_id": "fce52705-8db5-4311-b8d1-b9cc1502a94c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.10068908905713,
+   "lng": -8.386004278741323,
+   "name": "Porches Beach, Algarve",
+   "overture_id": "40860d86-0afa-4509-ac22-cf0071ea570f"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0982277,
+   "lng": -8.3835484,
+   "name": "Senhora Da Rocha Beach Algarve - Portugal",
+   "overture_id": "2d628640-e35c-4df8-b722-4fa91298812e"
+  },
+  {
+   "category": "fort",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 37.09560134,
+   "lng": -8.38613048,
+   "name": "Fort of Nossa Senhora da Rocha",
+   "overture_id": "b2dd78be-b929-47b4-8d29-51c42e7bde64"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.8037187,
+   "lng": -25.61683262,
+   "name": "Park Maria das Mercês Carreiro",
+   "overture_id": "dd62a9b0-982c-4379-91e4-3b452d50789d"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 37.77217185338296,
+   "lng": -25.31499675071617,
+   "name": "Terra Nostra Garden",
+   "overture_id": "d15325af-b023-4097-9017-214773dcc5d7"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.7436111111,
+   "lng": -25.6698944444,
+   "name": "Church of the Jesuit College (Ponta Delgada)",
+   "overture_id": "2aac54ce-55b8-4830-a0b0-771fa374c675"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "lake",
+    "park"
+   ],
+   "lat": 37.73962,
+   "lng": -25.66855,
+   "name": "Furnas Lake Adventure Park",
+   "overture_id": "b2f68287-2771-4ed8-b31e-c5a3c2cdf92d"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.74005977199961,
+   "lng": -25.66831646308916,
+   "name": "Matriz Parish Church of San Sebastian",
+   "overture_id": "37763375-f904-47f1-aaef-8b82ea8be282"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.751771847793,
+   "lng": -25.625886930248,
+   "name": "Sao roque beach",
+   "overture_id": "111e65cf-bd0c-4825-82e3-807037f4c971"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.76842516,
+   "lng": -25.6245161,
+   "name": "Rua Azores Park",
+   "overture_id": "37fe6a62-e67d-4916-b2ca-c9cf9b4fde29"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 37.7144,
+   "lng": -25.3701,
+   "name": "Lighthouse of Ponta Garça",
+   "overture_id": "5b49461a-30a7-47e7-85d7-681ee089f5a9"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.54861111,
+   "lng": -27.7675,
+   "name": "Church of Nossa Senhora do Rosário (Calheta)",
+   "overture_id": "82c24caa-df98-42c6-a289-d0505779a239"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "hermitage"
+   ],
+   "lat": 38.54055586,
+   "lng": -28.35354808,
+   "name": "Hermitage of São Vicente",
+   "overture_id": "ea07be0c-cc24-4e7b-bd2e-fdcab4c9aa51"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "convent"
+   ],
+   "lat": 38.52321514,
+   "lng": -28.31880966,
+   "name": "Convent of São Pedro de Alcântara",
+   "overture_id": "3452cefa-2229-40a4-85f6-1f15b7f930b3"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.53388889,
+   "lng": -28.62916667,
+   "name": "Nature Park of Flores",
+   "overture_id": "58fd0e50-af43-4030-8f90-caef6a1eb190"
+  },
+  {
+   "category": "botanical_garden",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 38.5507,
+   "lng": -28.6395,
+   "name": "Botanical Garden of Faial",
+   "overture_id": "65b92370-526e-4166-a1bf-2f327360e678"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 38.65341944,
+   "lng": -27.27458056,
+   "name": "Fort of São João",
+   "overture_id": "dd51a6a7-37ff-46be-92d9-3c4c3fd09aa4"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.6533,
+   "lng": -27.2756,
+   "name": "Church of São Mateus da Calheta (Old)",
+   "overture_id": "bd5ab465-3447-4f2c-9190-2065983eaf74"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.65414916,
+   "lng": -27.21829209,
+   "name": "Church of the Misericordia",
+   "overture_id": "76ddc18e-12b0-4096-9b18-56f50e321f19"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 38.655,
+   "lng": -27.2208333333,
+   "name": "Cathedral of Angra do Heroísmo",
+   "overture_id": "09b1302d-db38-409f-8a64-a8867b53e535"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 38.6563888889,
+   "lng": -27.2661111111,
+   "name": "Fort of Má Ferramenta",
+   "overture_id": "6b7c3e8e-4f75-4e73-b8fb-732f8abf38be"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.6592305556,
+   "lng": -27.21955,
+   "name": "Castle of Moinhos",
+   "overture_id": "9b6826d9-6372-4ad4-8b41-2c8ce718166d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.68617442,
+   "lng": -9.35564164,
+   "name": "Linha Beach",
+   "overture_id": "87a7e36b-225a-4246-80b0-e0d305ba8769"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.685553866360074,
+   "lng": -9.352815353726943,
+   "name": "Parede Beach",
+   "overture_id": "1b4a6be6-7633-4a3f-a3da-ff7c38bafe5d"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.69749815,
+   "lng": -9.42912645,
+   "name": "Riverside International Church",
+   "overture_id": "5929386e-c874-42c7-8626-48ee276a5cb0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.700277414841366,
+   "lng": -9.416795605944571,
+   "name": "Conceicao Beach",
+   "overture_id": "ad6dfb41-a93f-4cd0-aeee-1a86db5dec85"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.69402927641726,
+   "lng": -9.321533847232272,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "e1dd28ce-4684-488e-8ba2-e4ee4671fd4a"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 38.69298247361513,
+   "lng": -9.309924646902282,
+   "name": "S Lourenço de Bugio Fort",
+   "overture_id": "c139f2e8-1ad5-4238-adbf-1ed2b3f0c6fc"
+  },
+  {
+   "category": "lighthouse",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 38.69911111,
+   "lng": -9.26630556,
+   "name": "Gibalta Lighthouse (Portugal)",
+   "overture_id": "47b396b2-ba40-487e-b780-f318e9218c5b"
+  },
+  {
+   "category": "museum",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 38.69707356,
+   "lng": -9.20477752,
+   "name": "Tickets office Jerónimos Monastery",
+   "overture_id": "59277518-5c11-49aa-9a35-446170764ed9"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 38.69792674,
+   "lng": -9.20656794,
+   "name": "Jerónimos Monastery",
+   "overture_id": "ee495395-584e-4a19-8cc7-0274a668ea40"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "monument"
+   ],
+   "lat": 38.693873577229,
+   "lng": -9.2056999866047,
+   "name": "Discoverers Monument, Lisbon",
+   "overture_id": "26b46f5b-9c15-4db4-8eb5-187f65c8c7f8"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.681715295100645,
+   "lng": -9.34090629599313,
+   "name": "Beach Life Portugal",
+   "overture_id": "6dcc21a0-3f1b-4520-9aa0-dfc5f00701f5"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.68266719,
+   "lng": -9.34163414,
+   "name": "Carcavelos beach",
+   "overture_id": "c337e29c-d974-442f-97ad-a0d5eef63bc0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.67975541,
+   "lng": -9.32904928,
+   "name": "Carcavelos Beach Stunning Views",
+   "overture_id": "de11ba19-8cfb-44dc-a425-61be2096408e"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.673401,
+   "lng": -9.160865,
+   "name": "Skate Park",
+   "overture_id": "1206b799-5e3c-492d-b7a4-ebdd350f7ff0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach",
+    "fountain"
+   ],
+   "lat": 38.659715160084026,
+   "lng": -9.165764820130038,
+   "name": "Fountain of Tile Beach",
+   "overture_id": "3a96020e-f8e5-4c86-ae66-0e86efa4c770"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.658445858215856,
+   "lng": -9.239880580659865,
+   "name": "São João De Caparica Beach Portugal",
+   "overture_id": "f33ecfea-6fe6-4f52-ab87-c4367655e4b4"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.647401923312394,
+   "lng": -9.238941253951449,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "adc0f01c-41a4-419e-8c63-3be6196fee8f"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.65171822,
+   "lng": -9.16767912,
+   "name": "CAP Church",
+   "overture_id": "7b155077-2c18-4a36-84c7-43c32258f6bc"
+  },
+  {
+   "category": "pentecostal_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.64484959,
+   "lng": -9.1656277,
+   "name": "Shalom Pentecostal Church Almada",
+   "overture_id": "98f39101-de3b-4fdd-9da3-efb89afdf14a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.642617906345,
+   "lng": -9.2340087890625,
+   "name": "Caparica Beach",
+   "overture_id": "e1f4be31-6235-47c7-96bb-73413ef0111b"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.634823,
+   "lng": -9.23191,
+   "name": "Ondix Beach",
+   "overture_id": "b904499f-09b7-4a3c-adcf-1f007d5cb16e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.6382,
+   "lng": -9.23603,
+   "name": "Costa Da Caparica Beach, Portugal",
+   "overture_id": "7d5e8d11-76c7-432f-9391-df3f39574263"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.61047489540157,
+   "lng": -9.214465476762765,
+   "name": "Bhoemia beach",
+   "overture_id": "5962866d-8fa0-4777-9986-14b3ad61123c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.6049185,
+   "lng": -9.21145201,
+   "name": "Hula Hula Beach",
+   "overture_id": "4129e063-5d2b-4048-a9a5-2aaefaec7c49"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.603644,
+   "lng": -9.209587,
+   "name": "I'm In Caparica Beach",
+   "overture_id": "cccb35cb-d63c-4c53-bec0-c39deb95739a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.600320841367,
+   "lng": -9.2084097862244,
+   "name": "Casablanca Beach, Lisbon",
+   "overture_id": "9bd5f397-4d97-48f4-8409-d0e7803195c4"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.56201751838,
+   "lng": -9.1910719537213,
+   "name": "Nato Beach",
+   "overture_id": "40ed0d51-68ff-4369-8faa-f675a614ee2d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.453698572437,
+   "lng": -9.1939806028677,
+   "name": "Meco Beach",
+   "overture_id": "00905850-1ca3-4c5a-a19e-e54cb95ac665"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.7361412,
+   "lng": -9.3092899,
+   "name": "Ana Lopes Fisio  Tagus Park",
+   "overture_id": "4ae6a8de-7517-452f-9268-c4e66716c6fb"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.732750567156,
+   "lng": -9.47345495224,
+   "name": "Guincho Beach, Cascais",
+   "overture_id": "b6d7c41c-90f7-4a46-b5da-e31e7438a152"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.73030967,
+   "lng": -9.15442535,
+   "name": "Observation Deck Park Eduardo VII",
+   "overture_id": "9de78624-dd1d-4289-9c74-72e6d17c0ddb"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.72975,
+   "lng": -9.194064,
+   "name": "Monsanto Forest Park",
+   "overture_id": "cce634ca-71b4-4536-b9b4-1e7be3efdc68"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.72536,
+   "lng": -9.15477,
+   "name": "IBGV Portugal Church",
+   "overture_id": "7fd34a0e-36eb-4c7e-aa14-340032c312eb"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.7241621,
+   "lng": -9.1595533,
+   "name": "Eduardo VII Park",
+   "overture_id": "b5582e93-060a-47f8-883a-accad8bffc6c"
+  },
+  {
+   "category": "pentecostal_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.72324489,
+   "lng": -9.33895242,
+   "name": "Revival Church For The Nations",
+   "overture_id": "a458b938-883f-4f6b-8edc-2bd706ff9225"
+  },
+  {
+   "category": "botanical_garden",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 38.72255,
+   "lng": -9.15684,
+   "name": "Garden Amoreiras - Marcelino Mesquita Garden",
+   "overture_id": "558b60c8-c73c-43de-9cbd-56153b2a28e6"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 38.72185834,
+   "lng": -9.15657979,
+   "name": "Chapel of Our Lady Of Monserrate",
+   "overture_id": "1f789b4e-d9a9-4f25-bb18-ac8a564226de"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.72068432,
+   "lng": -9.3418863,
+   "name": "New life church",
+   "overture_id": "0072cdfe-58c3-488f-9eaa-e423feea9b9a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.720665560562814,
+   "lng": -9.194609867682837,
+   "name": "Monsanto Forest Park",
+   "overture_id": "384abfd2-94f8-44a6-a3a0-0ec032345a3f"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "fortress"
+   ],
+   "lat": 38.72093830010039,
+   "lng": -9.462787271983208,
+   "name": "Nossa Senhora da Luz Fortress",
+   "overture_id": "f68f307f-abf7-4224-b813-25adf3f96e9f"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "ruins"
+   ],
+   "lat": 38.71914167,
+   "lng": -9.47568889,
+   "name": "Roman ruins of Casais Velhos",
+   "overture_id": "954ecfd8-aa41-4be0-b31e-b05bc6ebe291"
+  },
+  {
+   "category": "art_gallery",
+   "english_words": [
+    "cave"
+   ],
+   "lat": 38.7183729,
+   "lng": -9.16704906,
+   "name": "Cave atelier",
+   "overture_id": "3a175991-2e79-4991-aa31-3c19d72cb0be"
+  },
+  {
+   "category": "anglican_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71575414,
+   "lng": -9.16005064,
+   "name": "St George's Church",
+   "overture_id": "edd33f2b-7431-4bde-8b1f-da6ea15aa4b0"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71526113,
+   "lng": -9.27175341,
+   "name": "Impacto Church - Ministério Amor e Vida",
+   "overture_id": "2bf7ca16-1db9-42ad-90f0-33cff8eeaae8"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71402821790533,
+   "lng": -9.239808590863321,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "dd87b220-2303-49da-8057-6cec89595f81"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.713231,
+   "lng": -9.309996,
+   "name": "Jardim do Lagoas Park",
+   "overture_id": "78535c4f-cbd9-4da0-9765-55c9060c2ee1"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.714100428656,
+   "lng": -9.4829130734544,
+   "name": "Guincho Beach",
+   "overture_id": "499923c9-f279-43a6-92b7-4b24bca96d8c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.711901584779,
+   "lng": -9.4324902555974,
+   "name": "Guincho Beach, Cascais Portugal",
+   "overture_id": "9fe2f402-043a-42d0-aa3e-f98a5e147ff9"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 38.71103708,
+   "lng": -9.15947906,
+   "name": "Chapel of the Lord Jesus of the Navigators",
+   "overture_id": "5265a928-aa03-40b7-81b2-9ad2888d9e63"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.70940432,
+   "lng": -9.22805712,
+   "name": "Santíssima Trindade Church",
+   "overture_id": "028284e5-fad9-4003-8238-fb015b6dd9a9"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7081982,
+   "lng": -9.4200961,
+   "name": "Jesus is Lord Church Portugal",
+   "overture_id": "81e33c23-a704-408c-bddb-c59c1d6bb775"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 38.70656126,
+   "lng": -9.15867054,
+   "name": "Cathedral of St. Paul",
+   "overture_id": "483208e5-8f17-4502-ad31-9d33a4e3fe8d"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.70641560065552,
+   "lng": -9.1612079350253,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "a8509e38-185c-4382-ac85-4116cd338789"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7067877,
+   "lng": -9.40862941,
+   "name": "Esperança Church Cascais",
+   "overture_id": "1c2f812f-6cc2-4e27-8bbe-437922a01d41"
+  },
+  {
+   "category": "fountain",
+   "english_words": [
+    "fountain"
+   ],
+   "lat": 38.705958,
+   "lng": -9.397706,
+   "name": "Fountain, Jardim do Casino Estoril",
+   "overture_id": "2437c62d-3aa1-4ce9-a3e7-91bd0d37edec"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.70566015,
+   "lng": -9.16359645,
+   "name": "Holy Family Church",
+   "overture_id": "dcaaaaf8-ec72-46bc-bebb-1aec6a43ee6f"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.70560853723874,
+   "lng": -9.16364060590981,
+   "name": "St. Andrews Church of Lisbon",
+   "overture_id": "b8eb62cd-f501-419f-bb13-a207e537c9c0"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.705140033337,
+   "lng": -9.1900488499877,
+   "name": "Badoca Safari Park",
+   "overture_id": "ce3d793b-1911-4f5a-8fcb-33ebaa4a6601"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.7047203,
+   "lng": -9.1681107,
+   "name": "Estrela Park, Lisbon",
+   "overture_id": "7845b739-734b-446b-85ee-969b9238d133"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.704129670841816,
+   "lng": -9.394426113393635,
+   "name": "St. Paul's Anglican Church",
+   "overture_id": "e9e02459-a85e-4915-b590-559e80c04557"
+  },
+  {
+   "category": "art_museum",
+   "english_words": [
+    "bridge"
+   ],
+   "lat": 38.70324403215568,
+   "lng": -9.179543622987982,
+   "name": "Under The Bridge",
+   "overture_id": "57a3c4d3-a9f7-404b-ad81-51002e3be656"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.702920020829,
+   "lng": -9.3994628375711,
+   "name": "Estoril Beach",
+   "overture_id": "51c5a86a-32cf-401f-8b48-326c578b0a9e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.70253783,
+   "lng": -9.3986684,
+   "name": "Tamariz Beach",
+   "overture_id": "9e6d64dc-2fff-4f02-97c4-497b9088f8cc"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 38.7022555556,
+   "lng": -9.39328888889,
+   "name": "Fort of São Pedro do Estoril",
+   "overture_id": "42ebb343-a7da-4c61-87e2-e47c60bc5b0d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.70217114681647,
+   "lng": -9.409037525182963,
+   "name": "Oceano Atlantico, Cascais Beach",
+   "overture_id": "f623ed8d-7543-4dfc-b8c9-ef5297dfb7ce"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.70127448,
+   "lng": -9.40859086,
+   "name": "Lloyd's Beach",
+   "overture_id": "45223d93-99b0-496e-a23f-b40924a63fce"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.29482296,
+   "lng": -8.86557287,
+   "name": "Arrifana Beach",
+   "overture_id": "f01f599e-3850-4cd4-b1b7-5eb8c60c45b0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.1981840248928,
+   "lng": -8.903733532468499,
+   "name": "Carrapateira Beach",
+   "overture_id": "1b7067c2-73a0-49bd-a5ba-c6aa9bc9a235"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.16789886910806,
+   "lng": -8.901971046440046,
+   "name": "Amado Beach, Portugal",
+   "overture_id": "65444686-98ed-49c6-8478-0cac561d641e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.339885833531,
+   "lng": -8.8539817165961,
+   "name": "Monte Clerigo Beach Aljezur",
+   "overture_id": "e4e787eb-0f4f-46a6-81ab-2eb3f7ed3141"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.35229373823015,
+   "lng": -8.844079180621996,
+   "name": "Amoreira Beach, Aljezur, Algarve",
+   "overture_id": "e86a6488-1be9-478b-8f3d-0ac0899c853e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.43903256,
+   "lng": -8.80038467,
+   "name": "Adegas Beach",
+   "overture_id": "8aa1561c-31f7-4de1-b469-576d173b23dd"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.65302971991337,
+   "lng": -8.801809313060183,
+   "name": "Almograve \"puro\" Beach",
+   "overture_id": "394829b0-f95a-412d-8094-7e362a66cb58"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.72587422,
+   "lng": -8.79298149,
+   "name": "Beach Patacho",
+   "overture_id": "ad6902dc-87a7-4d61-a3e0-1508b60df62a"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.85150809,
+   "lng": -8.79156978,
+   "name": "Church of Porto Covo",
+   "overture_id": "b80dc973-ea28-4919-be22-cbb35993ed45"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.4411744,
+   "lng": -9.0930095,
+   "name": "Califórnia Beach -Sesimbra",
+   "overture_id": "d3c5b5bb-9f2a-4bff-a65b-53686f862d90"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.44485413828465,
+   "lng": -9.103163582997077,
+   "name": "Ribeira do Cavalo Beach",
+   "overture_id": "10cd78a7-a54b-4831-8c59-bed8aa8f84e1"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.45138677,
+   "lng": -9.10778755,
+   "name": "Church of Santa Maria",
+   "overture_id": "4f6f3316-ec0a-4203-9092-b76918ec39f6"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.43569,
+   "lng": -9.11598,
+   "name": "Sesimbra Golden Beach",
+   "overture_id": "deac4dee-30b8-4c67-80e9-edf12b061aac"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.446,
+   "lng": -9.10783,
+   "name": "Nossa Senhora do Cabo Church",
+   "overture_id": "7a08f849-db35-456c-9be1-a5e906011d21"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.447546788897085,
+   "lng": -9.132206679347624,
+   "name": "Atlantis Cactus Park",
+   "overture_id": "d591e12d-9011-4209-a5df-318d3be3a032"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 38.62676955,
+   "lng": -9.14939584,
+   "name": "Igreja Cristã Lighthouse",
+   "overture_id": "82756271-945f-4771-b071-b3d9f7f805b5"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.649894,
+   "lng": -9.1425076,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "2f322544-4890-4348-a481-b954159e8aa3"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.6198819,
+   "lng": -9.1228388,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "7ec0314d-1407-4112-a996-9e8488a97203"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.63996,
+   "lng": -9.10195,
+   "name": "CF Church Seixal",
+   "overture_id": "b85293f8-81a5-49fe-b688-f8b85d934b7a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.63051113,
+   "lng": -9.08418134,
+   "name": "Paio Pires Bike Park",
+   "overture_id": "8e1b1d2c-2e53-445b-b37e-6bafeb38d8a5"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.65827305,
+   "lng": -9.07192241,
+   "name": "New Live Church - Barreiro",
+   "overture_id": "6eb87788-804d-4ba1-99c7-f13bc7eb5455"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.653892215805335,
+   "lng": -9.067377975151738,
+   "name": "Copacabana Beach",
+   "overture_id": "9d796f87-8b32-4db3-bd2c-b317d9edeeb5"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.65287918,
+   "lng": -9.06361815,
+   "name": "MIF Church",
+   "overture_id": "56f240a8-38d4-4ef8-9e0a-006167240ca1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 38.55980893,
+   "lng": -9.08514374,
+   "name": "Igreja Lighthouse",
+   "overture_id": "18017f22-a23b-4e45-9c3b-528dede0e743"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.521999409982115,
+   "lng": -9.09726673479152,
+   "name": "Sesimbra Natura Park",
+   "overture_id": "5aacb41f-95af-4b06-9a2e-7511edd635db"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.48269620000009,
+   "lng": -9.101016666666771,
+   "name": "Traquinas Park",
+   "overture_id": "25cdad55-1b24-4f07-a06b-1088b6d646f1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.5554203,
+   "lng": -9.05134797,
+   "name": "Power and Grace Church for Nations",
+   "overture_id": "ab6212f3-96f1-4e03-b0c0-2c5e3f4ac1d8"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.6488052754153,
+   "lng": -9.046198104120677,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "8e717ae2-8d86-469e-95ae-5e236adfdea6"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.65542118,
+   "lng": -9.01946604,
+   "name": "Church of Christ Ministry Nova Terra",
+   "overture_id": "5f5f8f2b-1abc-47d4-8ea3-cdb439a8ce4f"
+  },
+  {
+   "category": "national_park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.502,
+   "lng": -8.991,
+   "name": "Nature Park of Arrábida",
+   "overture_id": "bf3ca8c7-5f09-4bdf-8592-982d2554bcb2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.48450329,
+   "lng": -8.96396423,
+   "name": "Galapos beach",
+   "overture_id": "6b56dbe6-4254-46af-b223-6c82eee31a5b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.53327324,
+   "lng": -8.87144544,
+   "name": "IEP Church",
+   "overture_id": "1d799d92-6c38-4393-a9bd-daaf7bc71a1b"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 38.5386021,
+   "lng": -8.87844203,
+   "name": "Azeda Lighthouse",
+   "overture_id": "b24518ce-ef59-437f-a4b2-fcf4016b61e1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 38.5261,
+   "lng": -8.8949,
+   "name": "Monastery of Jesus of Setúbal",
+   "overture_id": "2ea1fc94-de2b-45df-8ab0-5325d3a60e66"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.52818961472326,
+   "lng": -8.893670961833566,
+   "name": "Troia Beach",
+   "overture_id": "0784046f-e28e-4f1b-89d9-90d95a5f87ab"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.53897058,
+   "lng": -8.886211962,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "10ce0244-2ec1-4e4e-9b08-d2ed177a7f15"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.52722769,
+   "lng": -8.88154485,
+   "name": "MVAI CHURCH Setúbal",
+   "overture_id": "649ba969-db2c-4bd0-97bc-16338fd13b70"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.5206,
+   "lng": -8.85229,
+   "name": "Lar Fatima Park",
+   "overture_id": "5d959150-5fb0-4a91-9db3-62f4d51513a2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.381195377666856,
+   "lng": -8.803036158949414,
+   "name": "Comporta Beach",
+   "overture_id": "f808448f-af47-4273-a777-7480484dc187"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.95912203218029,
+   "lng": -8.856783485615397,
+   "name": "Sines beach Portugal",
+   "overture_id": "40c18acc-ca73-467c-a09b-59946424918a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.0524750898,
+   "lng": -8.7863160373,
+   "name": "Badoca Park",
+   "overture_id": "0dbe7be0-473c-4566-b40b-1cfd87b2a1ba"
+  },
+  {
+   "category": "zoo",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.04158408,
+   "lng": -8.74450025,
+   "name": "Badoca Safari Park",
+   "overture_id": "0e2b3245-352f-43f4-a838-c552e52574d3"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.198434466254,
+   "lng": -8.6072519797201,
+   "name": "Badoka Safari Park",
+   "overture_id": "13db4597-bda0-4711-9b13-09b8ab55c4db"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.19424,
+   "lng": -8.58557,
+   "name": "Alvor Beach.",
+   "overture_id": "b5a7c8fe-2ad0-4151-b343-e2914f8e405d"
+  },
+  {
+   "category": "pentecostal_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.14454195,
+   "lng": -8.5596918,
+   "name": "Cristológica Church Portimão",
+   "overture_id": "a8abc017-9b9a-48b7-bae0-0688940612ed"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.150824846107234,
+   "lng": -8.546001134260415,
+   "name": "Lagoinha Portimao Church",
+   "overture_id": "2f528761-1141-412d-b7de-5459d7879642"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.146669444444,
+   "lng": -8.4882888888889,
+   "name": "Church of Saint James the Great",
+   "overture_id": "2905693a-b6d2-40df-b11c-998576925575"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.184278679975,
+   "lng": -8.4415799508896,
+   "name": "Silves Park",
+   "overture_id": "8745a08a-734c-4df3-9fed-b9327efe503d"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.66441473,
+   "lng": -9.07707529,
+   "name": "Church of Santa Cruz",
+   "overture_id": "2ea34f21-5233-487a-a738-bafa78c8acb4"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.706159,
+   "lng": -8.985701,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "14cae5ef-252e-4401-844f-c4421e51263c"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71111007,
+   "lng": -9.12940529,
+   "name": "Church São Miguel",
+   "overture_id": "cb7fbac6-6b85-47a4-b9f8-741021ffdb73"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 38.710090200827494,
+   "lng": -9.126544202514678,
+   "name": "Belém Tower",
+   "overture_id": "914694d6-6186-495e-ab35-eb7bd59c6b7a"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71011211,
+   "lng": -9.13485595,
+   "name": "Church of Saint Mary Magdalene",
+   "overture_id": "a673b766-c5d6-49f8-9788-9ee7a88bd142"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 38.7096535,
+   "lng": -9.13283564,
+   "name": "Lisbon Cathedral",
+   "overture_id": "08463e61-f2e7-43a6-8c11-7f98bbc84dfc"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.70879337,
+   "lng": -9.1341579,
+   "name": "Nossa Senhora da Conceicao Velha Church",
+   "overture_id": "7f278a1b-d9c2-462d-93e8-938943c7ef34"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71116,
+   "lng": -9.14827,
+   "name": "Urdu/Punjabi Church in Portugal",
+   "overture_id": "0a47adc2-4fb7-4c02-9afd-95e078d161bb"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "hermitage"
+   ],
+   "lat": 38.71110217,
+   "lng": -9.1479302,
+   "name": "Hermitage of the Ascensión of Christ",
+   "overture_id": "6c2299f1-63ba-4a94-94f4-638b8d9badf9"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71129877,
+   "lng": -9.14039571,
+   "name": "Church of the Blessed Sacrament",
+   "overture_id": "9847486a-15ea-4c90-a2bb-619c51c59eb5"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.711251475405,
+   "lng": -9.137477986479,
+   "name": "Moorish Castle, Sintra",
+   "overture_id": "9003f04e-b0e6-4d7c-8154-44a76ce75b6f"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.71096069,
+   "lng": -9.13436924,
+   "name": "Penafiel Palace",
+   "overture_id": "79b81dd7-8b26-4c63-a3f6-04530c6a72f1"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.71245372914529,
+   "lng": -9.133177814945501,
+   "name": "San Jorge Castle",
+   "overture_id": "93f45554-5c6a-44d0-8119-bf37d0d953c6"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 38.7155287544,
+   "lng": -9.14208363402,
+   "name": "Monastery At St Jeronimos",
+   "overture_id": "4adafb5e-73af-413c-9cdb-0e33658ad495"
+  },
+  {
+   "category": "history_museum",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.71534705295,
+   "lng": -9.140995074964945,
+   "name": "Saint George Castle Portugal",
+   "overture_id": "3e807a09-7bc1-4323-8fef-1b71d60ab158"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.7154095901,
+   "lng": -9.1413785182954,
+   "name": "Lisbon Castle",
+   "overture_id": "c3a379ee-d1de-4f25-a232-046453f16876"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.714374,
+   "lng": -9.138083,
+   "name": "Costa Da Caparica Beach",
+   "overture_id": "69484d61-3638-486d-8932-0f28f44c5b45"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 38.713639,
+   "lng": -9.133126,
+   "name": "Tower of the Keep",
+   "overture_id": "b048c775-2908-4a7e-8eaf-d3938d0fc2e3"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "castle",
+    "church"
+   ],
+   "lat": 38.71367467,
+   "lng": -9.13228937,
+   "name": "Church of St. George's Castle",
+   "overture_id": "afc34c86-9ba7-4026-8e05-d82a81f583f1"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.7160423,
+   "lng": -9.1362405,
+   "name": "Martin Moniz Park",
+   "overture_id": "bf583468-16d8-4924-a0a9-d948ebdd35d2"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71626812,
+   "lng": -9.13992322,
+   "name": "Church of St. Louis of the French",
+   "overture_id": "c538f276-d54d-46d3-a6f2-565bdd7919cd"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.72084250747934,
+   "lng": -9.150022954475592,
+   "name": "Castle of Sao Jorge",
+   "overture_id": "e402745f-1641-400e-9ac9-8a2c62949715"
+  },
+  {
+   "category": "art_gallery",
+   "english_words": [
+    "mill"
+   ],
+   "lat": 38.72040686,
+   "lng": -9.14101672,
+   "name": "MILL - Makers In Little Lisbon",
+   "overture_id": "5fa00582-71e3-4d3e-a045-a1c9d9b35ff9"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.71961769,
+   "lng": -9.12828204,
+   "name": "Church of Our Lady of the Glory",
+   "overture_id": "d91a920a-a2d3-48ee-a698-6b8f0ee7347e"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 38.719070616858,
+   "lng": -9.1273442878046,
+   "name": "Belem Tower",
+   "overture_id": "ee08a12d-6361-4a98-ac61-32a905ba70bd"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.72347768,
+   "lng": -9.1519237,
+   "name": "Restaurante Queens Beach",
+   "overture_id": "c4a41949-0ad7-438b-ba0b-c5ebbe4d5b9d"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.72458336,
+   "lng": -9.14708266,
+   "name": "Church of the Sacred Heart of Jesus",
+   "overture_id": "9b82045e-73d3-46ff-a944-b99e671d572a"
+  },
+  {
+   "category": "public_plaza",
+   "english_words": [
+    "square"
+   ],
+   "lat": 38.72527778,
+   "lng": -9.15,
+   "name": "Marquis of Pombal Square",
+   "overture_id": "8452f808-8210-4ac9-a7c4-8150719a4047"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7252159,
+   "lng": -9.13628848,
+   "name": "United Nepali Christian Church Portugal",
+   "overture_id": "b5463830-28d1-4840-a090-73a3aaf43371"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "viewpoint"
+   ],
+   "lat": 38.72612006,
+   "lng": -9.13150272,
+   "name": "Viewpoint of Monte Agudo",
+   "overture_id": "bf06cd5c-8920-440d-ba08-6982995aedca"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 38.7261,
+   "lng": -9.1394,
+   "name": "Sao pedro De Alcantara Garden",
+   "overture_id": "7d912389-e50e-4776-aa16-80716273c0b6"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.7279577434,
+   "lng": -9.14492078179,
+   "name": "Pena National Palace",
+   "overture_id": "18e0ab33-afcf-4496-bd67-d5c3da0efe92"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.72886,
+   "lng": -9.13488,
+   "name": "MIF Church - Lisboa",
+   "overture_id": "2828425f-f119-4c7f-ab84-bb9a2634f8b9"
+  },
+  {
+   "category": "cultural_center",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.72893729,
+   "lng": -9.10946509,
+   "name": "EKA Palace",
+   "overture_id": "2e0398d8-ed88-4dc7-983f-f3d84e95291b"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.73243196,
+   "lng": -9.15132887,
+   "name": "Church of Saint Sebastian",
+   "overture_id": "88bb990a-6f2c-4df3-bbd5-de4306e54c8f"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lake",
+    "waterfall"
+   ],
+   "lat": 38.73376340000001,
+   "lng": -9.130513800000001,
+   "name": "Waterfall Lake",
+   "overture_id": "f71f8a2f-80f9-422d-980b-cf67a7ba6aa2"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.73432631,
+   "lng": -9.13122546,
+   "name": "Riverside International Church",
+   "overture_id": "f6fd7a70-81f3-439e-91bd-bc08717e12f8"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.73424519,
+   "lng": -9.13955168,
+   "name": "Lutheran Church of Portugal",
+   "overture_id": "d1e50908-9b04-4b6a-9dbd-fe8e6af728a8"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 38.71376873,
+   "lng": -8.95000346,
+   "name": "Pinus Urban Garden",
+   "overture_id": "9a39bbec-8dd1-49b9-bb9e-d444e5907e4c"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.68394088,
+   "lng": -8.7509343,
+   "name": "Sirius Park",
+   "overture_id": "140c49f6-aa1b-4024-b16c-7eef473cf306"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 37.01425595,
+   "lng": -7.93289716,
+   "name": "Belmarço Palace",
+   "overture_id": "9e442209-1f16-437b-96b3-da586a32214b"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.00269139030584,
+   "lng": -7.986758722000902,
+   "name": "Faro beach Portugal",
+   "overture_id": "0483859b-9af5-4a67-881d-abd5e87d5654"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.03466687,
+   "lng": -8.04220151,
+   "name": "Ancão Beach",
+   "overture_id": "c6f67fa5-2db3-47f0-9688-7032d6c551b4"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.021371465362,
+   "lng": -8.0138475425317,
+   "name": "Quinta Do Lago Beach, Portugal",
+   "overture_id": "3306789a-5745-4f1e-b3b0-64cc2014b1bd"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.02621839204127,
+   "lng": -7.9299083107801955,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "d33a5442-914d-44dc-8ac8-05e0750733fe"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 37.02026104,
+   "lng": -7.93486931,
+   "name": "Chapel of Bones of Faro",
+   "overture_id": "a013ff9d-7958-4a01-9917-4934fecd4bb1"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0167,
+   "lng": -7.93333,
+   "name": "Faro beach, Algarve",
+   "overture_id": "49cdaf7e-0526-4141-92bc-e3cbcd6892b5"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.01722552,
+   "lng": -7.93731452,
+   "name": "Ministério Transbordar ( Church)",
+   "overture_id": "a48db532-2e8e-45cb-930a-b678d88a6021"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.03011276,
+   "lng": -7.86949052,
+   "name": "Yuppi kids park",
+   "overture_id": "6c160fe4-758b-4029-930e-67e0f88e4485"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.04884174328897,
+   "lng": -8.063618113630215,
+   "name": "Sunset - Vale De Lobo Beach",
+   "overture_id": "a9759c33-99f8-4891-8a52-7f4082f10830"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.04872341331435,
+   "lng": -8.06525398381183,
+   "name": "Vale Do Lobo Beach - the Sunny Algarve",
+   "overture_id": "1b3869ed-53b4-4d83-9562-e76168b11e23"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.06246708950449,
+   "lng": -8.057042187850511,
+   "name": "Algarve Beach, Portogallo",
+   "overture_id": "2c89826a-b0cf-4049-9cc5-69899f1d32e2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.062426662381846,
+   "lng": -8.05707133166694,
+   "name": "Vale Do Lobo Beach",
+   "overture_id": "beb7ab61-36ae-4c1a-8c3d-7c31c38826e0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.065539211695,
+   "lng": -8.0939230949468,
+   "name": "Quarteira Beach",
+   "overture_id": "9872b2ab-11e8-4c57-8885-14bcfeebde13"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.07674565178357,
+   "lng": -8.309322982919355,
+   "name": "Manuel Lourenço Beach",
+   "overture_id": "e300b249-9ce8-4ddb-862c-1c4cb39ff770"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0812098,
+   "lng": -8.3167639,
+   "name": "Gale Beach",
+   "overture_id": "ff3655ed-1539-45d2-a109-1b3de657ee36"
+  },
+  {
+   "category": "public_plaza",
+   "english_words": [
+    "square"
+   ],
+   "lat": 37.088312,
+   "lng": -8.252674,
+   "name": "Old Town Square",
+   "overture_id": "21595ba9-2006-4bc0-893a-24d06c4779d8"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.09167943,
+   "lng": -8.24182151,
+   "name": "Universal Church",
+   "overture_id": "7bc76aa9-056b-4ef5-8e1f-b3c7af08a7c2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.091767427,
+   "lng": -8.23569047462,
+   "name": "Albafaria Beach",
+   "overture_id": "d6c16cd3-eda0-43c9-8d2e-48e23c958f1a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.088781,
+   "lng": -8.234735,
+   "name": "Quinta do Lago Beach",
+   "overture_id": "b972d0c8-1272-48d0-9313-0b76f07d7f57"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.086949284745,
+   "lng": -8.2500802854768,
+   "name": "Fishermans beach Albufeira",
+   "overture_id": "e6db10e8-420a-4c2c-adf8-add8ced43e0c"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.085401,
+   "lng": -8.2574566,
+   "name": "Cat’s Park Albufeira",
+   "overture_id": "473d8ab1-df98-43c9-87ba-e4d2a09cfe10"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.08636,
+   "lng": -8.252756,
+   "name": "Beach 420",
+   "overture_id": "bc7bd64d-ab9d-44a0-b7af-869dfcf9bba9"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0833,
+   "lng": -8.25,
+   "name": "Albufeira Fishermans beach",
+   "overture_id": "46280e13-a57d-4922-b83c-2be47822966f"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0749647038,
+   "lng": -8.28072882178,
+   "name": "São Rafael Beach",
+   "overture_id": "459202d7-a53c-479c-bc81-a2ca6c0facd9"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.073875134845,
+   "lng": -8.2934002485203,
+   "name": "Cohela Beach",
+   "overture_id": "a496050f-b94d-4cee-99b9-c8cef42a2442"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.072441919549,
+   "lng": -8.1186356061151,
+   "name": "Vilamoura Beach",
+   "overture_id": "9076c58b-becf-475f-9bb4-bc0035dc8671"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.077594,
+   "lng": -8.122994,
+   "name": "Marina Park Vilamoura Marina",
+   "overture_id": "485b52e6-5968-4c59-bc09-67b6a8dc80f7"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.08666667,
+   "lng": -8.17,
+   "name": "Falésia Beach",
+   "overture_id": "e8ef8c5f-9034-46a3-ae65-d16c296718e3"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.093022640223,
+   "lng": -8.1225841004077,
+   "name": "Vilamoura Beach",
+   "overture_id": "32a46fa6-46ff-4d91-b918-32f998598397"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.091198320958,
+   "lng": -8.1671333312988,
+   "name": "Pine Sun Park Albida",
+   "overture_id": "364fa647-7883-4b78-98a1-38e6382d3459"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.09266199868304,
+   "lng": -8.184445525119612,
+   "name": "Felisia Beach, Algarve Portugal",
+   "overture_id": "af4e85fc-f666-4921-a1a4-8434183f9310"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.09018954,
+   "lng": -8.17956651,
+   "name": "Pine Cliffs beach",
+   "overture_id": "8315c3a6-955c-4a16-ada1-7f482f9ad2c2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.087428206986,
+   "lng": -8.2261176027895,
+   "name": "Appartment Golden Beach",
+   "overture_id": "38663e45-707e-4197-b0ec-3542255b5cde"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.08738159,
+   "lng": -8.23111096,
+   "name": "Falesia Beach",
+   "overture_id": "67215382-8cc5-40d8-99e5-8faa2f57a3fd"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0887419943,
+   "lng": -8.21393687415,
+   "name": "Santa Eulalia Beach",
+   "overture_id": "4a3be341-6a19-42de-95ae-ca2f72d37fb0"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.09148446112959,
+   "lng": -8.21384724380652,
+   "name": "Adventure Park Albuferia",
+   "overture_id": "fe6f2a34-c415-4503-9abb-a8bfd12ac9bd"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.09397644612382,
+   "lng": -8.205849910622097,
+   "name": "Maria Luisa Beach",
+   "overture_id": "a44879d6-f0e7-436c-bb57-d2f897b9c036"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0943601177,
+   "lng": -8.216719497,
+   "name": "St Eulalia Beach",
+   "overture_id": "fb181a76-4078-4e0c-bceb-770a26eb2b2b"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "lake",
+    "park"
+   ],
+   "lat": 37.1014226,
+   "lng": -8.2687539,
+   "name": "Lake Park Albufeira",
+   "overture_id": "a72bb310-cdbe-4a71-90fc-e3b7452b3804"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.1271498,
+   "lng": -8.23441445,
+   "name": "Riverside International Church",
+   "overture_id": "2fa9d72b-e40a-4138-80fc-07766509aff4"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.138147775,
+   "lng": -8.02488439,
+   "name": "Quarteira Beach",
+   "overture_id": "54778331-56b5-40b8-99dc-54cb1389c39f"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.137259618357696,
+   "lng": -8.028739681536855,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "fd5c80bd-8dd8-4374-aabb-4b4677516955"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.1365359,
+   "lng": -8.0165966,
+   "name": "Quateira Beach",
+   "overture_id": "a22162f5-90ea-4754-8a67-4b52c9b59f7d"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.145185872719566,
+   "lng": -8.016470201400521,
+   "name": "Skate Park De Loulé",
+   "overture_id": "8cc95c8f-77b6-44ac-9b11-7f557e0a8044"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.1042934,
+   "lng": -7.9668096,
+   "name": "Copacabana Beach",
+   "overture_id": "3b25c5c0-5796-402c-8299-7f24e658a50b"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.084888033713,
+   "lng": -8.0336669459939,
+   "name": "Almamcil Park",
+   "overture_id": "03398043-7a84-4a1b-b0d3-21186589ed75"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.08431891,
+   "lng": -8.0331136,
+   "name": "Christ The King Anglican Church",
+   "overture_id": "7c6419d5-938e-47ac-ae8a-964074dd4ee6"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.07274210000309,
+   "lng": -8.098772466668143,
+   "name": "Life Church Quarteira Portugal",
+   "overture_id": "5833ba01-fe97-4ca8-8bbe-1f715fe90618"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.1167,
+   "lng": -7.65,
+   "name": "Tavira Beach",
+   "overture_id": "e10b26f8-27ea-4f7b-bbf6-7c072fdb5210"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.13733167519882,
+   "lng": -7.630718130223668,
+   "name": "Albacora Beach",
+   "overture_id": "dd53f5e9-b4be-4492-953e-35e18a7ba9ce"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "island"
+   ],
+   "lat": 37.12573451436317,
+   "lng": -7.648616287620851,
+   "name": "Tavira Island",
+   "overture_id": "c95945ce-ad14-4f05-9f56-f823a85d1c06"
+  },
+  {
+   "category": "bridge",
+   "english_words": [
+    "bridge"
+   ],
+   "lat": 37.1274599228,
+   "lng": -7.65017705236,
+   "name": "The Roman Bridge",
+   "overture_id": "84ce328a-5822-43f2-bee1-617379f89fb5"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.13125009,
+   "lng": -7.65421361,
+   "name": "Skate Park Tavira",
+   "overture_id": "f59fe149-af7f-4434-a086-17657f5b0114"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.16920239,
+   "lng": -7.50067554,
+   "name": "UB2 Altura Beach Spot",
+   "overture_id": "b55eda3b-e23e-443e-b3fc-6b00ed14f8f4"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.0546767,
+   "lng": -7.7483624,
+   "name": "Fuzeta beach",
+   "overture_id": "f057e7ce-6adf-45e0-8656-bf5665920cbc"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.036155659123494,
+   "lng": -7.819190423311783,
+   "name": "Ria Formosa National Park",
+   "overture_id": "e06b9af4-aceb-444c-8a8b-73e4b403750c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "island"
+   ],
+   "lat": 37.0351549,
+   "lng": -7.830915,
+   "name": "Armona Island",
+   "overture_id": "e3bda9cf-057d-4eb6-878c-9b0a3d977c37"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 37.210644119934,
+   "lng": -8.2712459564209,
+   "name": "Quinta do Mouricão Mobile Home Park",
+   "overture_id": "014493e9-f049-42a1-a8a8-e99c77e192c8"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 37.24271036,
+   "lng": -8.04640194,
+   "name": "Castle of Salir",
+   "overture_id": "f194894a-7b61-4f73-868d-7dee4a25e939"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 37.57904944,
+   "lng": -8.30041127,
+   "name": "Castle of Cola",
+   "overture_id": "123f7ad9-a69a-4816-abb1-8588368040bf"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 37.83630047,
+   "lng": -8.24637853,
+   "name": "Castle of Messejana",
+   "overture_id": "8642c06c-ed85-435f-ac8b-e912acd7682b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "sanctuary"
+   ],
+   "lat": 38.64487966671245,
+   "lng": -8.21490253329717,
+   "name": "Sanctuary of Nossa Senhora da Visitacao (Montemor-O-Novo)",
+   "overture_id": "1e35bbcd-98f6-4e50-9da3-e3ff63883de9"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.7252691,
+   "lng": -7.98773075,
+   "name": "Castle of Arraiolos",
+   "overture_id": "65b16c08-d2d1-4111-b93a-398ad162d269"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.57117684,
+   "lng": -7.9099458,
+   "name": "Santo Antão Church",
+   "overture_id": "ef79db1f-1ef6-4823-868e-31552c5f8884"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.56789519013842,
+   "lng": -7.908712174906556,
+   "name": "Royal Palace of Évora",
+   "overture_id": "dd056ab1-60fb-44ad-8f75-4cea7bfab8b1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 38.56879704,
+   "lng": -7.90881231,
+   "name": "Chapel of Bones",
+   "overture_id": "6c278796-12e7-4755-ae16-fae006641bf0"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.57439225,
+   "lng": -7.90776364,
+   "name": "Church of Saint Mamede",
+   "overture_id": "5411d851-17c7-404a-934a-1a7f2414f9e5"
+  },
+  {
+   "category": "museum",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.57319527,
+   "lng": -7.90753921,
+   "name": "Cadaval Palace",
+   "overture_id": "00cced3d-340d-4a77-940f-8a650ec5a6cc"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 38.57175449,
+   "lng": -7.90691534,
+   "name": "Cathedral of Évora",
+   "overture_id": "16f6c644-d426-4a09-8567-407d5f9d29f9"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.57355528,
+   "lng": -7.912967766,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "4a0337d2-a0ab-4a65-a586-2d673b66a547"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.01595413,
+   "lng": -7.866024068,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "ee408432-90e4-42bb-a3d5-39c841d74806"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.01767096,
+   "lng": -7.86615043,
+   "name": "Church of Santo Amaro",
+   "overture_id": "b60cbcb2-e4aa-49b2-88ea-5deeafe391ff"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.29168,
+   "lng": -7.5590907,
+   "name": "Amieira Beach",
+   "overture_id": "89d19261-2096-4bcf-8edd-363592b6ed96"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.64856,
+   "lng": -7.54355,
+   "name": "Redondo Castle",
+   "overture_id": "134c9258-58ac-4790-ae1a-fe2de35a803c"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.35935278,
+   "lng": -7.4032,
+   "name": "Castle of Lousa",
+   "overture_id": "099953e5-5a7f-430f-8600-dda9eea7c9c9"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.17880354,
+   "lng": -7.45827237,
+   "name": "Algarve Beach Residence",
+   "overture_id": "19bb4b77-3df2-4ed4-b577-316d13d194f2"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 37.176903916667,
+   "lng": -7.4478171166667,
+   "name": "Monte Gordo Beach, Algarve",
+   "overture_id": "2c90812b-4d90-4dbc-8ebd-f2c7a1ebd0d5"
+  },
+  {
+   "category": "bridge",
+   "english_words": [
+    "bridge"
+   ],
+   "lat": 37.23764234,
+   "lng": -7.41956876,
+   "name": "Guadiana International Bridge",
+   "overture_id": "e8edc6e3-bd2c-441d-b2b8-415a89db7acf"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 38.75963859763,
+   "lng": -27.075891494751,
+   "name": "Lajes Chapel Community",
+   "overture_id": "90e76db4-4252-4a66-9b1c-14d116e92c64"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.76719146,
+   "lng": -27.10332723,
+   "name": "Church of São Miguel Arcanjo",
+   "overture_id": "28c47ec2-5dd8-453c-a988-304926324479"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "palace",
+    "park"
+   ],
+   "lat": 38.7941888,
+   "lng": -9.42063154,
+   "name": "Park and Palace of Monserrate",
+   "overture_id": "d42064f4-d155-4ae9-9ded-b5a1ea598527"
+  },
+  {
+   "category": "fountain",
+   "english_words": [
+    "fountain"
+   ],
+   "lat": 38.794869252311,
+   "lng": -9.3956746459369,
+   "name": "Fountain of Abundance, Quinta Da Regaleira",
+   "overture_id": "0d87d57d-7d59-49aa-928b-90037d265df3"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.79267323,
+   "lng": -9.38907709,
+   "name": "Castle of the Moors",
+   "overture_id": "cebc573b-28f1-4b11-bea1-5ec27a64c08f"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.78362995,
+   "lng": -9.32009195,
+   "name": "Church Nossa Senhora da Paz",
+   "overture_id": "16a5a315-48fc-4a3f-8bdb-ab7406704af4"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.781499569805796,
+   "lng": -9.192107463662108,
+   "name": "MacDonalds Odivelas Park",
+   "overture_id": "595bbafc-edd5-4464-acb6-54bcb0a9bef5"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.77942957,
+   "lng": -9.16394574,
+   "name": "Renovo Church Lisboa",
+   "overture_id": "67502cdb-0024-43d1-adda-beb8fd1789b4"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.77641764,
+   "lng": -9.25861909,
+   "name": "The Redeemed Christian Church of God",
+   "overture_id": "7f4758dc-c977-4aa2-a650-2815df4f8419"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.7765109,
+   "lng": -9.2207906,
+   "name": "Tejo Fan Park",
+   "overture_id": "60b50573-c065-4dfd-91eb-f9a016aa3c14"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.776252,
+   "lng": -9.207107,
+   "name": "Adventure Park Pontinha",
+   "overture_id": "d3a32fd6-f607-46c7-b0f9-a8fa6d8d606b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.77616729,
+   "lng": -9.33300593,
+   "name": "Gileade Church Lisboa",
+   "overture_id": "cd1c41fa-561d-4a76-a7be-7ee8eb718a70"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.77423,
+   "lng": -9.29665,
+   "name": "Novo Tempo Church",
+   "overture_id": "899fb0a9-36cd-4607-9bcf-9b03d39b93ae"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.77225319,
+   "lng": -9.3257441,
+   "name": "Church of Nossa Senhora de Belém",
+   "overture_id": "1f1a7623-5d86-4b3a-8560-d252ae14ef4c"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.771395940424604,
+   "lng": -9.293811887358592,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "fd30076e-1ecd-4949-aee4-161ce421c5fa"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.77013735,
+   "lng": -9.30357535,
+   "name": "The Church Sintra",
+   "overture_id": "71ca5af7-dfd7-40b9-8f6f-93f01a60c0af"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.76505143,
+   "lng": -9.20095062,
+   "name": "Fm Church",
+   "overture_id": "feeb0116-4f14-4a1c-8f23-6128d49106b5"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7646591,
+   "lng": -9.20203088,
+   "name": "ADONAI International Pentecostal Evangelical Church",
+   "overture_id": "78a8074a-664f-4aa8-8651-1132fa41b623"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.761219,
+   "lng": -9.372843,
+   "name": "Beloura Office Park",
+   "overture_id": "d92f575b-da30-42b7-8161-add0db55cfc0"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7587082,
+   "lng": -9.37691238,
+   "name": "PAZ Church",
+   "overture_id": "baa75baa-be9b-40da-9071-ad0499aa5f28"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7579588959451,
+   "lng": -9.241620179899822,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "dc65e7ba-157f-4695-a76c-39cebe5e40ae"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.75625,
+   "lng": -9.20626,
+   "name": "Logos Church - New Building",
+   "overture_id": "b9edd13e-5459-4794-a492-e73ae3cec0b8"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.75409307,
+   "lng": -9.28305712,
+   "name": "São Bento de Massamá Church",
+   "overture_id": "08fcd416-0ae2-4194-bd0e-9d47d9349ce3"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.75308166,
+   "lng": -9.17303036,
+   "name": "Church São Tomás de Aquino",
+   "overture_id": "ab209944-2b35-4882-9fba-12aae60ce792"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.75300274779257,
+   "lng": -9.202085288407389,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "979f3052-9d5f-4798-add5-0b93c92b0179"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.7487552,
+   "lng": -9.2367381,
+   "name": "Park Fantasia",
+   "overture_id": "1b6bcd17-8bc5-4b6c-b3e8-502342bf5ddf"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.740636,
+   "lng": -9.304663,
+   "name": "Tagus Park!",
+   "overture_id": "b941ff8a-5312-4179-961f-23fd035ce349"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 38.738855225254525,
+   "lng": -9.166605773940695,
+   "name": "Belem Tower",
+   "overture_id": "c27c65ec-2cd0-4950-9e47-e0944bb5bac4"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.73829038,
+   "lng": -9.16103945,
+   "name": "The Church of Pentecost",
+   "overture_id": "fd495f35-197b-460b-b93a-3d5dc00de54e"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.73798543752752,
+   "lng": -9.311134362583212,
+   "name": "Shopping De Oeiras Park",
+   "overture_id": "780eca70-ef3a-415e-9ad3-dc06d47a7832"
+  },
+  {
+   "category": "lighthouse",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 39.088611111111,
+   "lng": -28.008611111111,
+   "name": "Phare du Fort de Corpo Santo",
+   "overture_id": "8750b490-9fdf-41fe-b6f9-aca7053354e4"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.39246247624604,
+   "lng": -31.24840159285255,
+   "name": "Church of Nossa Senhora dos Milagres (Lajedo)",
+   "overture_id": "b67fc383-cac8-4a3d-a778-be4be3ec02ff"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.4322294,
+   "lng": -31.25431663,
+   "name": "Church of Nossa Senhora dos Remédios",
+   "overture_id": "532a8391-5030-4975-8632-67865c700d9d"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.431807,
+   "lng": -31.151902,
+   "name": "Church of Benditas Almas",
+   "overture_id": "6abce4b6-f40e-4c0b-a9e9-43a2ae19643b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.51366667,
+   "lng": -31.20691667,
+   "name": "Church of São Pedro (Ponta Delgada, Flores)",
+   "overture_id": "6a897b31-5051-4fef-9fce-866c2389a540"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 39.66975292,
+   "lng": -31.11482747,
+   "name": "Lighthouse of Ponta Negra",
+   "overture_id": "7262d386-3599-46ba-8273-089a2e71579d"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "cave"
+   ],
+   "lat": 39.35602375,
+   "lng": -9.40076819,
+   "name": "Cave Furninha",
+   "overture_id": "68c71373-231c-42f2-87d5-734f92cb45bf"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 39.36063015,
+   "lng": -9.40777896,
+   "name": "Cabo Carvoeiro Lighthouse",
+   "overture_id": "f6dd69c3-561d-40cf-a5bf-92e086bb73c2"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.329412123591,
+   "lng": -9.3531340873361,
+   "name": "Piscina Da Rita Park",
+   "overture_id": "8e8613c6-8b40-4e4f-ad1d-4de7bdf5ceb9"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 39.2379,
+   "lng": -9.33908,
+   "name": "Lourinha Beach",
+   "overture_id": "7588289e-c401-48f4-b853-77bca8aa9ae8"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 39.21822,
+   "lng": -9.32582,
+   "name": "Porto Dinheiro BEACH",
+   "overture_id": "f052b1fe-4ba0-45f7-8395-9f531be98564"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.095261415568096,
+   "lng": -9.262453881539038,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "331dbe88-9d4b-4f3c-9fc0-c3c40e92da14"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.96803,
+   "lng": -9.40968,
+   "name": "Oasis Church Portugal",
+   "overture_id": "9e7691ad-8235-4f06-a5e6-91174f902ba4"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.93819016528552,
+   "lng": -9.346927763014095,
+   "name": "Ribeira D'Ilhas Beach",
+   "overture_id": "26917d49-3364-4f53-b9a2-7c36b2102b75"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 38.93401402433333,
+   "lng": -9.251308968666669,
+   "name": "Condomínio Alteia Garden",
+   "overture_id": "5d5eebdf-67df-4999-b3a3-9960affdbfba"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.88356608880708,
+   "lng": -9.37516531751877,
+   "name": "Odrinhas Park",
+   "overture_id": "02d80577-c990-4693-9ef9-a5c5c1ce251b"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.850236,
+   "lng": -9.456675,
+   "name": "Aguda Beach",
+   "overture_id": "c4b6627b-e08b-49a1-99eb-2d77f5ed9509"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.82752131,
+   "lng": -9.18428388,
+   "name": "Palace of Correio-Mor",
+   "overture_id": "dcea9372-f3e2-43b9-ab4e-18da614a3eba"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 38.796352777778,
+   "lng": -9.3960305555556,
+   "name": "Inverted Tower",
+   "overture_id": "20ae268c-2935-4983-8887-44d5d7434d90"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.79661205,
+   "lng": -9.39155919,
+   "name": "St. Martin Church",
+   "overture_id": "47001d2b-b9e0-4c01-8c98-6efa88ec7a8e"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 38.79538938,
+   "lng": -9.3959499,
+   "name": "Regaleira Tower",
+   "overture_id": "5c6aa2e7-da53-4f1b-83ff-fd8a9815a7b7"
+  },
+  {
+   "category": "palace",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.79847280345588,
+   "lng": -9.38826885446301,
+   "name": "Palace De Monserrate",
+   "overture_id": "e5377959-f98e-4f18-940e-2748fcf8d4a1"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 38.8,
+   "lng": -9.38333,
+   "name": "Regaleira Palace and Gardens",
+   "overture_id": "37533a73-dc74-4977-a6fd-7b9932619849"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "ruins"
+   ],
+   "lat": 38.80018848,
+   "lng": -9.46810206,
+   "name": "Roman ruins of Santo Andre de Almocageme",
+   "overture_id": "f2001d08-4f68-4e21-b20d-16ea30b290c7"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 38.802358,
+   "lng": -9.484849,
+   "name": "Adraga Beach",
+   "overture_id": "b65b4d2f-ae51-4e8d-a5f1-8a3012e6ec17"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.8074053,
+   "lng": -9.171812604,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "5dc56e80-ae5c-458e-8e76-06974cb8607a"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.75625291,
+   "lng": -9.14124384,
+   "name": "Zion Church - Lisboa",
+   "overture_id": "1c4b8286-82bf-4849-80f3-4ead1b01ef7b"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "square"
+   ],
+   "lat": 38.74038728,
+   "lng": -9.13712914,
+   "name": "London Square | Lisbon",
+   "overture_id": "75060bdd-a42c-48b0-8164-e8d307efbcf6"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.737146916175,
+   "lng": -9.1283512115479,
+   "name": "First Love Church Portugal",
+   "overture_id": "73a3390b-fd89-4830-8f87-6bb3b286f6e0"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 38.78310732,
+   "lng": -9.12582282,
+   "name": "Garden Residence",
+   "overture_id": "cf13cfb8-daf9-4b2d-a34b-2f1fb70a584d"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7658155042936,
+   "lng": -9.15646608943699,
+   "name": "Riverside Church International",
+   "overture_id": "ed6bf76d-5eb4-43fd-a8f7-9fa67009ce3e"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.78508378,
+   "lng": -9.13010408,
+   "name": "LIFE Church - Lisbon",
+   "overture_id": "8b88d75e-a460-4477-9357-6981b47c7b34"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.82661959,
+   "lng": -9.14359528,
+   "name": "Church of São Julião e Santa Basilisa",
+   "overture_id": "0fa65980-7545-4d90-b5f0-643881bd19ef"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.82065367,
+   "lng": -9.09758989,
+   "name": "IMBP Church",
+   "overture_id": "61415454-b7b7-4a92-9526-f6a7715c6967"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.7790165984632,
+   "lng": -9.09841305945511,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "9a781645-ec3a-4a90-acfc-222adec8a02a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.76493585000127,
+   "lng": -9.097537124998423,
+   "name": "Badoca Safari Park",
+   "overture_id": "1bd142b2-5a51-4a85-80c8-a4734e30ceba"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.88906,
+   "lng": -9.03948,
+   "name": "Alverca Retail Park",
+   "overture_id": "5774f99e-77c3-4859-8676-b78ea0f3d285"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.89991905734019,
+   "lng": -9.039284830881144,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "201ed48c-903e-478b-bcae-be026611e00d"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.01791035,
+   "lng": -9.15165587,
+   "name": "Nossa Senhora da Vida Church",
+   "overture_id": "966dd529-5d97-45d2-8f86-301dafd8d47b"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.02266559,
+   "lng": -8.974062022,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "306fbc57-82b4-4947-a986-0927f1f6b75c"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.95451763642143,
+   "lng": -8.998796032156946,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "d9d126e5-e56b-4c46-89ff-b91486ff800c"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.93758226,
+   "lng": -8.87142001,
+   "name": "Church of Nossa Senhora da Oliveira",
+   "overture_id": "53f04615-e903-455d-b5e0-61ea23d50712"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.15702778,
+   "lng": -9.122,
+   "name": "Castle of Vila Verde dos Francos",
+   "overture_id": "84ea301c-5efa-458a-b820-1d9e18683b20"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "sanctuary"
+   ],
+   "lat": 39.28258346,
+   "lng": -9.13548824,
+   "name": "Sanctuary Senhor Jesus do Carvalhal",
+   "overture_id": "ab066ee1-2a1b-4055-9b5c-b5eeefa36dbb"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.16408455,
+   "lng": -9.05524322,
+   "name": "Gama Park",
+   "overture_id": "ab6f7b06-f74c-46ba-84e0-2af274979589"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 39.5483333333,
+   "lng": -8.98,
+   "name": "Alcobaça Monastery",
+   "overture_id": "d8a9f6b6-4a26-48dc-8be3-64206580507d"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 39.60022,
+   "lng": -9.07313,
+   "name": "Nazaré Beach Place",
+   "overture_id": "e6fbc4c3-afc7-4d52-a55f-ff1e635398ba"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.40478,
+   "lng": -9.13738,
+   "name": "Silver Coast Non Denominational English Church",
+   "overture_id": "427ac16a-84e7-403b-a3d1-820ae6d123f1"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.73301117501802,
+   "lng": -8.921057825016964,
+   "name": "Lagoinha Park, Lda",
+   "overture_id": "abf22b37-1d3b-4556-9e42-3336adc720bd"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 39.670737528493454,
+   "lng": -8.828076736595103,
+   "name": "Orthodox Monastery of the Three Hierarchs",
+   "overture_id": "68098d0d-01e3-492e-b55a-4a71180c96fa"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 39.735756464333335,
+   "lng": -8.807460011666667,
+   "name": "Nazaré Sunset Marina Beach",
+   "overture_id": "5dd20507-3d56-485e-a7cc-f04aaec0dc94"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.75682585,
+   "lng": -8.82024819,
+   "name": "Assemblies of God Church",
+   "overture_id": "cac8aa28-c353-4727-aa9c-72630fa1a49f"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.73533705,
+   "lng": -8.7972235,
+   "name": "Leiria X Park",
+   "overture_id": "48703711-4759-4880-bf2f-7ccce78b1020"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.709859,
+   "lng": -8.791263,
+   "name": "Cool Park Leiria",
+   "overture_id": "608e9a80-14f7-4c1c-8aa5-3abd508c1f99"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.746973056839,
+   "lng": -8.7333738775112,
+   "name": "Ebenézer Church Portugal",
+   "overture_id": "5259d46e-e88c-481a-a6e7-b7498e85ebad"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.54002,
+   "lng": -8.70352,
+   "name": "UnderGround Park",
+   "overture_id": "eaef6f19-2e34-431c-a02d-5c1895e9e81e"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.41722169,
+   "lng": -8.8215144,
+   "name": "Castle of Alcanede",
+   "overture_id": "3bc67ff4-0c6f-4b6a-a2db-555cf8c084e3"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.23467143631,
+   "lng": -8.6872673034668,
+   "name": "Arara Park",
+   "overture_id": "31986994-30f4-45fd-8e40-6ad30fa0a37f"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.23484368,
+   "lng": -8.68956121,
+   "name": "Universal church",
+   "overture_id": "0626ffb6-3383-4d6a-abf8-3e2f1b5cc1b7"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.240185,
+   "lng": -8.6973915,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "edb28c10-ee0f-48c4-bb1d-00fbdd32af91"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.215727675972,
+   "lng": -8.6924879503027,
+   "name": "Retail Park Santarem",
+   "overture_id": "f02ab0d6-fe87-4d67-9e57-dbe50a05bea3"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.546059954454,
+   "lng": -8.7876849100558,
+   "name": "Esposende Beach",
+   "overture_id": "3c842fd0-585f-4a57-ab3a-64d7cb92f497"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.511397772798,
+   "lng": -8.7788150132322,
+   "name": "Residências Park Ofir",
+   "overture_id": "cb3aeae4-211f-4d8f-a0a7-333b7b9317c8"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.48322,
+   "lng": -8.76654,
+   "name": "Apúlia Beach",
+   "overture_id": "27a16b64-32ff-47bd-8fb2-dcdf0e0db918"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.4167,
+   "lng": -8.7872,
+   "name": "Santo André Beach",
+   "overture_id": "50a3659f-e641-40b3-8e21-6e99525c1839"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.39806834,
+   "lng": -8.76555737,
+   "name": "Bola de Neve Church Porto",
+   "overture_id": "4afa24b6-d307-4df2-8aa9-e3fcac0a8a79"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.37502644465287,
+   "lng": -8.740379454698605,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "8da71cbd-f9f4-47b9-b96a-7295fbaf0f4a"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "aqueduct"
+   ],
+   "lat": 41.35630956215942,
+   "lng": -8.739913948231584,
+   "name": "Santa Clara Aqueduct",
+   "overture_id": "031f749c-967c-4657-b015-c1c50ce9710e"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.30990516533,
+   "lng": -8.7404823303223,
+   "name": "Mindelo Beach",
+   "overture_id": "f701352a-15cd-4983-bf86-bd868c8e288b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.19360041781,
+   "lng": -8.6932201385498,
+   "name": "Ark Church",
+   "overture_id": "d06d4e16-14de-4b08-99b3-d294a109f1a0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.17556109,
+   "lng": -8.69204058,
+   "name": "Beach Matosinhos",
+   "overture_id": "8952ebfd-b9c9-40eb-9fda-9277ca0dfd8a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.171538003010156,
+   "lng": -8.687961252460664,
+   "name": "Life is a Beach",
+   "overture_id": "cea4762c-b50c-4234-947e-4fb82ed191f1"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.760534461732,
+   "lng": -8.7130504343067,
+   "name": "Torreira Beach - Murtosa Portugal",
+   "overture_id": "852cb341-01c1-441d-ac54-508e6ff53031"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 40.6429929,
+   "lng": -8.7470281,
+   "name": "Lighthouse of Praia da Barra",
+   "overture_id": "8eaf4ec6-f2c0-4144-99fa-f743a4fd3424"
+  },
+  {
+   "category": "lake",
+   "english_words": [
+    "lake"
+   ],
+   "lat": 40.446571481464,
+   "lng": -8.7580186128616,
+   "name": "Brave Lake Ocr",
+   "overture_id": "39843f73-22d6-41ce-ae3d-b183a03a6592"
+  },
+  {
+   "category": "baptist_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.24462,
+   "lng": -8.75558,
+   "name": "Azorean Baptist Church",
+   "overture_id": "b20c15ce-1792-48e8-b753-2dc16842659a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.208222913269,
+   "lng": -8.8941763449365,
+   "name": "Murtinheira Beach - Portugal",
+   "overture_id": "5fb274d9-aa36-4ffe-bc2e-d5d34f55ef24"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.16913877,
+   "lng": -8.80883152,
+   "name": "Caceira Bike Park",
+   "overture_id": "806b8edc-8088-4842-9bf6-519a9d88cb48"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.16657796357898,
+   "lng": -8.88260802708174,
+   "name": "Figueira Da Foz Beach",
+   "overture_id": "c792827a-8c1d-45af-a5ac-ddde3fbde2e3"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.16148142,
+   "lng": -8.85766503,
+   "name": "Figueira da Foz Adventure Park",
+   "overture_id": "d6a7c10a-8c6c-481d-ad6f-14532cd92a12"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 40.15770617,
+   "lng": -8.86778532,
+   "name": "Fort of Palheiros",
+   "overture_id": "e9204c59-890a-48de-8114-7d803b9d1c2f"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.15137610150056,
+   "lng": -8.866196360715362,
+   "name": "Figueira Da Foz Beach Portugal",
+   "overture_id": "c207a1f7-71b9-443c-aca9-eeb24f92c83a"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.148921823166,
+   "lng": -8.7123369053087,
+   "name": "Ereira Beach",
+   "overture_id": "aab32928-57cf-426d-b37f-72018fd52542"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "fort"
+   ],
+   "lat": 41.871753,
+   "lng": -8.838974,
+   "name": "Fort of Lagarteira",
+   "overture_id": "36bfe0d2-aa40-4efa-bde3-cf39ebeb0b37"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.86734169762795,
+   "lng": -8.861296060630863,
+   "name": "Caminha Beach",
+   "overture_id": "67465feb-df24-4552-b1af-e376b837b08c"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "sanctuary"
+   ],
+   "lat": 41.70147013,
+   "lng": -8.83518624,
+   "name": "Sanctuary of the Sacred Heart of Jesus",
+   "overture_id": "fbb240bf-dce2-4af0-b3ba-248beadcbdff"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.69600367,
+   "lng": -8.842811253,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "d993fdf8-4153-42a1-b730-44a6f53d385b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.211002,
+   "lng": -8.6266088,
+   "name": "Luz Mundial Church -lmc",
+   "overture_id": "93b638ed-0336-46ec-bbce-18aa309c3527"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.2124259,
+   "lng": -8.6248301,
+   "name": "Hope Church Almeirim",
+   "overture_id": "a6429793-5611-417a-a350-5e60fd89aedc"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.21392112,
+   "lng": -8.6203006,
+   "name": "Park Zona Norte de Almeirim",
+   "overture_id": "edec34ef-84e8-464d-bb78-968b994d73a0"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.292003677027,
+   "lng": -8.5185891702711,
+   "name": "Tempo de Adorar - Cosmopolitan Church",
+   "overture_id": "9236f467-c1ad-4505-88bd-93daf39b8adb"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.45909279,
+   "lng": -8.47039803,
+   "name": "Sagrada Familia Church",
+   "overture_id": "4ccc0130-b789-4ef3-aa64-e54e7dd59eb9"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.1236501,
+   "lng": -7.28314118,
+   "name": "Castle of Arronches",
+   "overture_id": "f59cc26e-b1a6-49c2-887c-4d1e61299e9d"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.23713287,
+   "lng": -7.32416075,
+   "name": "Castle of Alegrete",
+   "overture_id": "e369053e-347b-4c84-b8c1-9ec12157109a"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.42026643,
+   "lng": -7.45828807,
+   "name": "Church of São Salvador do Mundo",
+   "overture_id": "292e3111-fd00-4511-b82b-cb173f57f08e"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.39684698,
+   "lng": -7.37986158,
+   "name": "Castle of Marvão",
+   "overture_id": "f5914f42-5011-4fa5-9c38-067905aae77a"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "aqueduct"
+   ],
+   "lat": 38.8667822,
+   "lng": -7.2167397,
+   "name": "Amoreira Aqueduct",
+   "overture_id": "bfe24392-3ede-4142-8f07-a3838aa32b48"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 38.77819,
+   "lng": -7.41529,
+   "name": "Vila Vicosa Castle",
+   "overture_id": "8d965681-c7d7-4658-b591-02770a6d44c6"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.48151624,
+   "lng": -8.53591622,
+   "name": "Church of Carmo",
+   "overture_id": "188f6bf6-24c8-48bf-b005-76c6e9be0c8a"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.464766004872,
+   "lng": -8.474322,
+   "name": "Ministério Internacional de Adoração Jireh Church",
+   "overture_id": "acc95dd6-52c8-43ae-aa87-8ff74c8eb8d5"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 39.6274459,
+   "lng": -8.66233254,
+   "name": "Monastery Pio XII",
+   "overture_id": "692b1618-d8a0-451c-848e-b3f6dc427892"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.630907819999,
+   "lng": -8.6759209210992,
+   "name": "Feeling Blessed at Our Lady of Fatima Church in Lisbon Portugal",
+   "overture_id": "09bdcd93-bf07-4c00-a273-896691196ec1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 39.63165534,
+   "lng": -8.67324363,
+   "name": "The Chapel Of Apparitions",
+   "overture_id": "30153e59-9f0c-455d-8702-d7bd33e73717"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.6079094,
+   "lng": -8.403379428,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "d3269248-3ffa-4a9d-ae83-aa9258c423be"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.6,
+   "lng": -8.4166666666667,
+   "name": "Castle of the Knights Templar, Tomar, Portugal",
+   "overture_id": "7770610a-1e59-422b-96f8-b4b0eaa9616b"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.60370459807491,
+   "lng": -8.414970259207148,
+   "name": "Tomar, Central Park",
+   "overture_id": "613660ee-eeb0-4e59-8bcb-aeb3d893ef66"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 39.60452411,
+   "lng": -8.41044877,
+   "name": "Chapel of Santa Iria",
+   "overture_id": "40d68f49-5540-4fe1-bf1f-0c18de39e4c5"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.51708798,
+   "lng": -7.64897026,
+   "name": "Castle Nisa",
+   "overture_id": "3903995c-ef01-4af1-904a-348ba4f1a3b4"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.641514,
+   "lng": -8.5922208,
+   "name": "Castle of Ourem",
+   "overture_id": "05d218a9-27b5-440d-bf74-f36f1adeb33f"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 39.84129,
+   "lng": -8.2264199,
+   "name": "Beach Clube",
+   "overture_id": "bd89594c-777a-466f-9485-e49a3abe50ab"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 39.91403552,
+   "lng": -8.62487994,
+   "name": "Castle of Pombal",
+   "overture_id": "9d76f47e-0b8e-402f-97f4-bae5e3c5f0bc"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 40.02627241,
+   "lng": -8.43047487,
+   "name": "Castle Germanelo",
+   "overture_id": "40d63783-70a9-40ef-b705-794a898a1b9f"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.05637762,
+   "lng": -8.62876808,
+   "name": "Bacelos's Park",
+   "overture_id": "53c1f958-f33c-4e91-967c-58d0fbd9cef1"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.1644078,
+   "lng": -8.452605,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "abcd5c4e-256e-49be-b923-8dbac00ffb07"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "ruins"
+   ],
+   "lat": 40.099444444444,
+   "lng": -8.4933333333333,
+   "name": "Roman Ruins of Conimbriga",
+   "overture_id": "759c2fda-967e-4265-8416-59ef3e61c501"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 40.03106137,
+   "lng": -8.3902063,
+   "name": "Castle of Penela",
+   "overture_id": "1fee01c7-731a-4f52-b5c8-ae25ff2b609c"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.0000992,
+   "lng": -8.32967,
+   "name": "MORE Mountain Park",
+   "overture_id": "6e827e38-c6db-4ae9-9c82-1fc6e69a0c97"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.81939487882661,
+   "lng": -7.506714231586911,
+   "name": "Solário Granja Park",
+   "overture_id": "82e064b8-f34e-4f11-a215-3f6f2776d3c3"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 39.8222026,
+   "lng": -7.4906142,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "5fa1d1ae-6ad9-4988-acc6-78d630c196cc"
+  },
+  {
+   "category": "lake",
+   "english_words": [
+    "lake"
+   ],
+   "lat": 39.969808,
+   "lng": -7.184997,
+   "name": "Boom Lake",
+   "overture_id": "b17d0862-be9c-498e-8caf-68b475476f53"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 40.17591899,
+   "lng": -8.68285686,
+   "name": "Castle of Montemor-o-Velho",
+   "overture_id": "cdebd94c-09cf-4f07-8f19-7f964461cf34"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.192805762712425,
+   "lng": -8.407196340279354,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "53753a17-82f2-4c75-ae81-d7e380ca5eeb"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.200959378722,
+   "lng": -8.4103803634644,
+   "name": "Abba Church Portugal",
+   "overture_id": "f8280b61-bbf3-47b9-9467-db8b7a7ef270"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.19765889,
+   "lng": -8.67592695,
+   "name": "Europaradise-Park Zoo",
+   "overture_id": "4b5a995b-e781-49f3-a9f2-a1996f2303d4"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.21459,
+   "lng": -8.43625,
+   "name": "Joy Church",
+   "overture_id": "d1f7ffa6-f4e1-4d97-b22b-fb9cbd79ccd7"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.210065,
+   "lng": -8.420171,
+   "name": "Santa Cruz park",
+   "overture_id": "eb531146-9b79-4857-8c04-c2fbb738e756"
+  },
+  {
+   "category": "botanical_garden",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 40.206729262126,
+   "lng": -8.4213244519859,
+   "name": "Botanical Garden of the University of Coimbra",
+   "overture_id": "7fd56a46-c8f2-4559-acef-8ce5cde775e2"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 40.20939012,
+   "lng": -8.42452254,
+   "name": "New Cathedral of the Holy Name of Jesus (Coimbra)",
+   "overture_id": "161e3630-7cf8-4f8e-819d-cc89bedc552d"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 40.20945112,
+   "lng": -8.42829381,
+   "name": "Palace Sub-Ripas",
+   "overture_id": "5a058440-16cd-4d15-ae15-9968248ee147"
+  },
+  {
+   "category": "mountain",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 40.205572021789,
+   "lng": -8.423485156858,
+   "name": "Sky Garden",
+   "overture_id": "4817998e-e4e2-494d-85bd-ebc55168ab9a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "palace",
+    "park"
+   ],
+   "lat": 40.21761638,
+   "lng": -8.05056195,
+   "name": "Green Park Sub-Urban Palace",
+   "overture_id": "7a63b271-6a8f-4a87-b449-e80956e4daa7"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.22126908,
+   "lng": -8.42840713,
+   "name": "Open Heavens Church",
+   "overture_id": "d6e1e7cb-79ef-46f6-ae5c-a18bd0e49f72"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.24041698,
+   "lng": -8.25247697,
+   "name": "Sobreiro Church",
+   "overture_id": "d40b5467-2f2a-4a6d-8b8a-12d9bdf9703a"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 40.32154358,
+   "lng": -8.64399959,
+   "name": "Santo Amaro Chapel",
+   "overture_id": "ec70b984-f4c6-4731-8bc8-15870b5cd14c"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.3522942,
+   "lng": -7.0877957,
+   "name": "Seixo do Côa e vale longo beach",
+   "overture_id": "8dd1f9fc-5884-42be-84d6-e4d313eb659f"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.420304770443096,
+   "lng": -7.703305747422813,
+   "name": "Serra da Estrela Natural Park",
+   "overture_id": "0098354a-0dad-4b84-a334-7f138a8d276d"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.420631,
+   "lng": -7.8888701,
+   "name": "Radical Park",
+   "overture_id": "a29e31c2-d281-4656-8ee3-3da6d3de358f"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 40.51106632,
+   "lng": -7.51212928,
+   "name": "Castle of Folgosinho",
+   "overture_id": "ddb88613-b38a-4356-ad74-285e31034be1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.5288615,
+   "lng": -7.85455568,
+   "name": "Fonte Church",
+   "overture_id": "13baf5ff-03de-4f1f-8798-f918dd8df493"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 40.52049441,
+   "lng": -7.53445308,
+   "name": "Chapel of Santa Marta",
+   "overture_id": "62752e5f-f1a5-4905-ac6c-3787352e7ada"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 40.4767299,
+   "lng": -6.94067072,
+   "name": "Castle of Vilar Maior",
+   "overture_id": "68af412d-8139-4967-ac29-8be10109abcb"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.64097040538165,
+   "lng": -8.647161535581963,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "8f754256-6985-4681-9872-da829f9575cd"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.6411073,
+   "lng": -8.6539765,
+   "name": "YAH Church Aveiro",
+   "overture_id": "8d04568b-3243-44ca-bd15-ba8968fd8dcd"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.638921,
+   "lng": -8.656119,
+   "name": "Baixa de Santo António Park",
+   "overture_id": "b7299984-c648-482d-90a6-3ff0338606cc"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lighthouse"
+   ],
+   "lat": 41.14674776,
+   "lng": -8.67729723,
+   "name": "Felgueiras Lighthouse",
+   "overture_id": "5373e576-8f86-4b24-b4ae-52b62a711dbe"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.06921317,
+   "lng": -8.65797346,
+   "name": "Senhor da Pedra beach",
+   "overture_id": "18c19f9c-0e45-4564-b3c4-62b2b91ce4b9"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.1402661,
+   "lng": -8.6503757,
+   "name": "Portoland Park",
+   "overture_id": "6899a289-1e33-4175-abf5-82a4c230a2b7"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.12900933,
+   "lng": -8.64549142,
+   "name": "Tag Park",
+   "overture_id": "20cd4b6e-b1e6-4e19-9d58-479e33ecc679"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.12885704749219,
+   "lng": -8.646024753075796,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "31952521-c151-4d15-83bc-c30e33d23d34"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.06779,
+   "lng": -8.64625,
+   "name": "Gaia Feijão Verde Fun Park",
+   "overture_id": "708fc5b8-e8b7-4528-836d-594c23db71e0"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.00937469669748,
+   "lng": -8.645703745885866,
+   "name": "Espinho Beach",
+   "overture_id": "4fc1935d-2a3d-4f70-96a8-96ec46438ba1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.00641127,
+   "lng": -8.64463951,
+   "name": "OH (Open Heart church)",
+   "overture_id": "a0f57b94-2b49-42fb-aedd-2ad6ff88cbea"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.960924169451225,
+   "lng": -8.653476093493643,
+   "name": "Esmoriz Beach",
+   "overture_id": "06df4b11-b117-4aec-8edd-de8aa222bbae"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.007926537918,
+   "lng": -8.6388716559434,
+   "name": "Central Park of Espinho",
+   "overture_id": "213ed623-e944-48cf-b3ef-5bd33f6fc8ac"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "lake"
+   ],
+   "lat": 41.14255664,
+   "lng": -8.63979892,
+   "name": "Arrábida Lake Towers",
+   "overture_id": "43b17eb8-5b19-4056-8756-cf9f83dfd569"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.118637,
+   "lng": -8.626121,
+   "name": "Condomínio Gaia Park",
+   "overture_id": "fdb3a654-aae6-4101-8c13-811552a1e0e9"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 41.14665,
+   "lng": -8.61718,
+   "name": "Cordoaria Garden View A.L.",
+   "overture_id": "6477423e-959a-45c5-ad04-e03f693ef32d"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.14097485,
+   "lng": -8.61577681,
+   "name": "Church of Saint Francis",
+   "overture_id": "6517f69e-a581-4b2d-aba1-853215419b7a"
+  },
+  {
+   "category": "museum",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 41.13478465,
+   "lng": -8.61464335,
+   "name": "Pink Palace",
+   "overture_id": "901f2df0-7599-475d-afad-f5d581406cc8"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.140804,
+   "lng": -8.614975,
+   "name": "São Francisco Church",
+   "overture_id": "f7fff1ce-99d1-4634-a0c9-93a88e0bf1f2"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church",
+    "tower"
+   ],
+   "lat": 41.14587636,
+   "lng": -8.6139575,
+   "name": "Church and Tower of dos Clérigos",
+   "overture_id": "8d99e612-aa72-4763-a501-879b27815ff6"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.13007565,
+   "lng": -8.61385099,
+   "name": "Brasa Church Portugal",
+   "overture_id": "cc8749c0-0d5f-453b-93b1-c2839a00f467"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "bridge"
+   ],
+   "lat": 41.14068551,
+   "lng": -8.61102283,
+   "name": "Alminhas of the Bridge",
+   "overture_id": "707fc329-93a2-4f82-b15d-00fa078059d8"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 41.14291286,
+   "lng": -8.61104893,
+   "name": "Porto Cathedral",
+   "overture_id": "fe1aad96-7807-41a0-88a5-fc868abbbfd4"
+  },
+  {
+   "category": "public_plaza",
+   "english_words": [
+    "square"
+   ],
+   "lat": 41.14652357,
+   "lng": -8.61140808,
+   "name": "Liberdade Square",
+   "overture_id": "3f765228-032a-4b3e-9ada-6231913b9d6e"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.12256266,
+   "lng": -8.60803141,
+   "name": "Universal Church of the Kingdom of God",
+   "overture_id": "93a3554d-eff1-4004-88b6-0c16c891d7a9"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.14609127,
+   "lng": -8.60669229,
+   "name": "Church of Saint Ildefonso",
+   "overture_id": "c7c0d233-2a51-4606-8e90-63c3e1986d5b"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 41.12200167,
+   "lng": -8.60378142,
+   "name": "Calvary Chapel Grande Porto",
+   "overture_id": "8a83156a-55ee-4ed6-bc83-0f9ebd549e62"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.12175847588132,
+   "lng": -8.603349009698286,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "bd5a4ed9-d667-4b8b-be24-8312d848479d"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.11857709,
+   "lng": -8.59894973,
+   "name": "Feijão Verde Fun Park",
+   "overture_id": "3ca8be24-a32a-4c86-9368-505cebc08f8d"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.75383766,
+   "lng": -8.63358756,
+   "name": "Brilha Church",
+   "overture_id": "ef771064-728d-4cb2-adfc-51aebd697d49"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.65218741,
+   "lng": -8.60836849,
+   "name": "Aveiro Church",
+   "overture_id": "a994126c-44db-4e7c-ad56-f15b66133de6"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.148795795889,
+   "lng": -8.6758892432137,
+   "name": "Ingleses Beach",
+   "overture_id": "750f6b77-9b66-473e-83fb-12118957d0fe"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.1589833502005,
+   "lng": -8.663798666945457,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "dd7dd746-c42f-4185-a938-558fdb080c62"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 41.16033,
+   "lng": -8.6539,
+   "name": "Lemontree Garden - Condomínio Fechado",
+   "overture_id": "59e58f8d-afab-4e3b-a09b-ab2f504bb436"
+  },
+  {
+   "category": "bridge",
+   "english_words": [
+    "bridge"
+   ],
+   "lat": 41.14836256,
+   "lng": -8.64128728,
+   "name": "Porto Bridge Climb",
+   "overture_id": "0ef414d2-5752-46f2-857d-2515be953118"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.18357928,
+   "lng": -8.68434964,
+   "name": "YAH Church Porto",
+   "overture_id": "fd5b7486-45d7-48f3-b2d7-cfa214af1450"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.18760715,
+   "lng": -8.683436385,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "05620bf5-819c-4305-bfd8-2e1621ef7099"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.2333,
+   "lng": -8.61667,
+   "name": "Church",
+   "overture_id": "727cb882-652d-4aa5-8c02-5a0065ba1824"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.24273877,
+   "lng": -8.606493,
+   "name": "Parish Church of São Romão de Vermoim",
+   "overture_id": "e2cbf830-7773-4f60-a726-ef53974d7153"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.181606080052525,
+   "lng": -8.61860952759532,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "dbd8a93f-caa1-4657-851a-27dc714d7917"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.162301,
+   "lng": -8.633,
+   "name": "Park Capitolio",
+   "overture_id": "d0a9a515-21c4-4af5-83cf-7c0d8b4b6b47"
+  },
+  {
+   "category": "fountain",
+   "english_words": [
+    "palace"
+   ],
+   "lat": 41.148658,
+   "lng": -8.62495,
+   "name": "Gardens of the Crystal Palace",
+   "overture_id": "4eb3a2dd-908e-4a42-9e39-e5677a66b458"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 41.14907675,
+   "lng": -8.62488083,
+   "name": "Tower of Pedro",
+   "overture_id": "5934f8fa-9041-40dc-b604-cb97393c0453"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.152172166667,
+   "lng": -8.6279966666667,
+   "name": "Central Park",
+   "overture_id": "314a9142-d052-4790-b84a-045a8dcf4358"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.15743974,
+   "lng": -8.62736665,
+   "name": "Boa Vista Park",
+   "overture_id": "2dacc8a3-e87c-4b20-bef6-ed075b5553c1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.15023471,
+   "lng": -8.62394647,
+   "name": "St James Anglican Church, Porto",
+   "overture_id": "867fafe7-2704-4add-bd9f-b4264d3249bd"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.1707311458,
+   "lng": -8.61025776374,
+   "name": "Matosinhos Beach",
+   "overture_id": "f678cdfa-5484-4b0c-abd5-4f5f0e10e910"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 41.15223456,
+   "lng": -8.60623872,
+   "name": "Chapel of Fradelos",
+   "overture_id": "008a5121-f2b6-4cab-a06f-4ed6f6db9ede"
+  },
+  {
+   "category": "monument",
+   "english_words": [
+    "monument"
+   ],
+   "lat": 41.150474700000004,
+   "lng": -8.6003933,
+   "name": "Christopher Columbus Monument",
+   "overture_id": "c96bd1f8-f967-46b1-a756-e88545060c52"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.15057688,
+   "lng": -8.59706103,
+   "name": "Riverside International Church Porto",
+   "overture_id": "6ace0383-d77c-4ec7-8001-07783246bb6d"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.61157326,
+   "lng": -8.4777478,
+   "name": "Church of Sao Pedro",
+   "overture_id": "c9fa509b-83fe-4231-9fb6-fb8c0260f475"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.61330006978118,
+   "lng": -8.473091388579572,
+   "name": "Águeda Bike Park",
+   "overture_id": "dc3b0ba4-379d-429f-993e-02007ccdd14a"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.60774604,
+   "lng": -8.50150666,
+   "name": "Picnic Park of Fontinha",
+   "overture_id": "e691dffe-bdb9-4a88-939a-2423a160b369"
+  },
+  {
+   "category": "baptist_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.90989616,
+   "lng": -8.55957176,
+   "name": "Bible Baptist Church of Travanca",
+   "overture_id": "232896ec-6900-425a-8ffc-54f76d9b972f"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.92736,
+   "lng": -8.55168,
+   "name": "Meo Suil Park",
+   "overture_id": "2cdc6f69-e544-4cb6-99a5-7595dc0ad798"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.916097167466596,
+   "lng": -8.495475462363597,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "89a7021d-8a8f-434d-93f2-1cef8502cdae"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.900010125146,
+   "lng": -8.496993,
+   "name": "CCA Church Portugal",
+   "overture_id": "0b2a3497-2203-4b75-89b6-0f1d32a50db3"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.0201799,
+   "lng": -8.5550324,
+   "name": "Brinca + Fun Park",
+   "overture_id": "c8c51ee7-bd16-478e-a4f6-34bed9f7b968"
+  },
+  {
+   "category": "bridge",
+   "english_words": [
+    "bridge"
+   ],
+   "lat": 41.14216608178983,
+   "lng": -8.580838587593407,
+   "name": "Freixo Bridge",
+   "overture_id": "f6c01506-905d-4040-bff7-c3fa01c3ae7c"
+  },
+  {
+   "category": "pentecostal_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.148,
+   "lng": -8.58887,
+   "name": "McKeown COP  - Porto City Church",
+   "overture_id": "401d1414-7b3d-46bb-8f53-564a0c52b363"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.15521654,
+   "lng": -8.57181237,
+   "name": "Lagartixa park",
+   "overture_id": "d38e7392-7a42-427e-8511-b7ebeba500b8"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.16126,
+   "lng": -8.59068,
+   "name": "Church his family",
+   "overture_id": "421d6078-cb79-4c3e-9c64-245dff6b7d3b"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.16403744966424,
+   "lng": -8.594172405428159,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "0f7bf4c9-b8d1-4c7c-9af7-49bbf8b835bf"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.21441897,
+   "lng": -8.58843287,
+   "name": "Parish Church of São Tiago of Milheirós",
+   "overture_id": "de1a048a-c60f-4dde-b755-43d7554d9d18"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.22558241,
+   "lng": -8.58924194,
+   "name": "Natura Park",
+   "overture_id": "ae94b9f3-5ae9-4e95-909a-d2be8a4d5f79"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 41.20857941,
+   "lng": -8.27498903,
+   "name": "Sameiro Garden",
+   "overture_id": "2a7e3162-f93e-44ca-bde7-a4386bfd5a0f"
+  },
+  {
+   "category": "venue_and_event_space",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.270337,
+   "lng": -8.613179,
+   "name": "Hey! World - Fun Park",
+   "overture_id": "889bfc9f-6c49-4cd2-afdf-bd2018f01a33"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.26708177,
+   "lng": -8.60538945,
+   "name": "Church of Santa Maria de Avioso",
+   "overture_id": "43bc4fad-7376-4a0b-aeb0-122e2f1882d4"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.41419076,
+   "lng": -8.51827914,
+   "name": "Amigo Íntimo Church Portugal",
+   "overture_id": "c250197d-ff9e-4db8-adfc-9570cc5c3ef3"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "convent"
+   ],
+   "lat": 41.33547309,
+   "lng": -8.5019178,
+   "name": "Convent of St. Joseph",
+   "overture_id": "aa0b1504-d661-45f9-bddb-1a5f3d7e648a"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 41.33593946,
+   "lng": -8.55912399,
+   "name": "Nossa Senhora das Dores Chapel",
+   "overture_id": "bfee4f3e-72c8-463a-8bcd-ebdd5f460edf"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.73849638,
+   "lng": -8.60178813,
+   "name": "Senhora da Boa Morte Park",
+   "overture_id": "4789d83e-4b88-4e05-9dd7-3838edcb52b1"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.77333038,
+   "lng": -8.59217726,
+   "name": "Vila Retail Park",
+   "overture_id": "f6f5216b-f46a-48e8-8277-4614a23b12e1"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "monastery"
+   ],
+   "lat": 42.05111117,
+   "lng": -8.44438984,
+   "name": "Longos Vales Monastery",
+   "overture_id": "79408aef-7c06-4de1-a9a0-97d7e4ca87bf"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "tower"
+   ],
+   "lat": 41.65885936,
+   "lng": -8.49174916,
+   "name": "Tower of Penegate",
+   "overture_id": "63fb18a4-0e8f-4d10-850c-2cc66022bd4b"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.265091592308025,
+   "lng": -8.29118330000047,
+   "name": "Ebenezer Church Portugal",
+   "overture_id": "da2fd244-9cff-466c-ae04-8455677ae73c"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.27656236,
+   "lng": -8.2772551,
+   "name": "Urban Park Dr. Mário Fonseca",
+   "overture_id": "44c09eb5-4de4-4eac-a304-4d057e8b13b1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "sanctuary"
+   ],
+   "lat": 41.38484985,
+   "lng": -8.28802796,
+   "name": "São Bento das Peras Sanctuary",
+   "overture_id": "a0a8f029-8b12-4570-b134-2559092d160c"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 41.47486121,
+   "lng": -8.33551921,
+   "name": "Chapel Our Lady of Fatima",
+   "overture_id": "12b9cd4d-776a-4cf3-9bfa-30744e363468"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.446444190736244,
+   "lng": -8.296598528210968,
+   "name": "Guimarães Castle",
+   "overture_id": "ce32f85f-5637-484c-9b73-ecf5f4fead25"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.44792523,
+   "lng": -8.290231,
+   "name": "Guimarães Castle",
+   "overture_id": "fa4dc922-1960-40a0-8843-6264c7e38219"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.45144,
+   "lng": -8.27967,
+   "name": "Aliança Missionária das Nações Church em Portugal",
+   "overture_id": "a5d28b25-2d75-41d3-b6fc-263d9aa3c17f"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.44357906,
+   "lng": -8.2766805,
+   "name": "Church Santa Marinha Da Costa",
+   "overture_id": "d2200e14-79e9-4b49-8c6e-53373600ead0"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.43812554410628,
+   "lng": -8.290609563489596,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "3c6c0ffc-b111-4a61-8d3b-4e05b6439c03"
+  },
+  {
+   "category": "art_gallery",
+   "english_words": [
+    "cave"
+   ],
+   "lat": 41.54710063,
+   "lng": -8.43100121,
+   "name": "Cave Coletivo",
+   "overture_id": "e61ecfd5-fc6d-44ba-9a97-141d4091667f"
+  },
+  {
+   "category": "museum",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 41.55027558,
+   "lng": -8.42744703,
+   "name": "Tesouro- Braga Cathedral Museum",
+   "overture_id": "b7036e31-ba86-492c-9167-d1b59655cee3"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.54756437,
+   "lng": -8.4291152,
+   "name": "Church of São Sebastião",
+   "overture_id": "753fe8a7-7d24-4fc2-ba9a-5a8c38ca0436"
+  },
+  {
+   "category": "evangelical_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.5417419,
+   "lng": -8.42600274,
+   "name": "RefÚGio Church Portugal",
+   "overture_id": "67be6779-249b-469e-a18c-4bce12b46f9a"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 41.5442,
+   "lng": -8.4219,
+   "name": "Braga Cathedral",
+   "overture_id": "fe0f256a-ee99-451c-9754-fbabc79d9865"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.55148823,
+   "lng": -8.42345007,
+   "name": "Lapa Church",
+   "overture_id": "b171d24f-6fc5-426c-bfbd-3b4840b69dab"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "garden"
+   ],
+   "lat": 41.55034,
+   "lng": -8.4255,
+   "name": "Garden of Santa Barbara",
+   "overture_id": "8240ebed-8249-484d-9ab4-db88a53353e1"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 41.54997558,
+   "lng": -8.42689823,
+   "name": "Braga Cathedral",
+   "overture_id": "8b22c504-d5f8-4d64-b4df-e5cd0e10f2eb"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.54098798,
+   "lng": -8.41479544,
+   "name": "Picoto Park",
+   "overture_id": "698b2baa-1e93-4d4d-a113-5aadeb80c444"
+  },
+  {
+   "category": "religious_organization",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.55175453490367,
+   "lng": -8.400987722983396,
+   "name": "The Church of Jesus Christ of Latter-day Saints",
+   "overture_id": "b41baf3e-9051-4b08-a686-779bb8ef52e6"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "chapel"
+   ],
+   "lat": 41.80061646,
+   "lng": -8.39176691,
+   "name": "Chapel of Santa Rita",
+   "overture_id": "c3709009-020a-45b4-b9a6-2c84d5a29d66"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.867116,
+   "lng": -8.19915796,
+   "name": "Castle of Lindoso",
+   "overture_id": "7e7919d5-a3b7-401e-bc3e-f8c3d3d62954"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 42.09465129,
+   "lng": -8.30154114,
+   "name": "Church of São Martinho",
+   "overture_id": "d9f2a729-7190-4083-95d1-be438b58c399"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 42.1040361111,
+   "lng": -8.21113611111,
+   "name": "Fiães Church",
+   "overture_id": "681e8d90-5092-4ca3-96ed-a291215cf9ab"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 42.0317094,
+   "lng": -8.1590235,
+   "name": "Penedaventura Park",
+   "overture_id": "ceb67eeb-9613-4ce6-9fdf-92e75014fdfb"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "viewpoint"
+   ],
+   "lat": 41.71539211,
+   "lng": -8.1310859,
+   "name": "Viewpoint Rocas",
+   "overture_id": "f86834b0-39b7-4916-87ad-06573a3d58ac"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 40.61255649,
+   "lng": -7.74897168,
+   "name": "Live Beach",
+   "overture_id": "f12458a7-2fa0-4b21-9a13-bec174458e4e"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.6555177,
+   "lng": -7.91537934,
+   "name": "Aquilino Ribeiro Park",
+   "overture_id": "578f6249-4086-49d6-a996-babf165e41f1"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 40.65987954,
+   "lng": -7.91112311,
+   "name": "Viseu Cathedral",
+   "overture_id": "0b4c4820-92b0-40cc-9855-330bd6a72320"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "church"
+   ],
+   "lat": 40.77713481,
+   "lng": -7.06107576,
+   "name": "Church Santa Maria do Castelo",
+   "overture_id": "30bf292d-32e1-4ddd-93ed-baed799e4b13"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 40.81657,
+   "lng": -7.54539,
+   "name": "Castle of Aguiar da Beira",
+   "overture_id": "5e936dd7-e26a-4208-8424-0a5b9f166e0d"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.07261079,
+   "lng": -7.19250748,
+   "name": "Old Castle of Freixo de Numão",
+   "overture_id": "8a0051c9-2b37-43d2-b9c9-adcd1ca62a2b"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.04031913,
+   "lng": -6.92400497,
+   "name": "Castle of Alva",
+   "overture_id": "ed3f9c06-e2dc-4576-b787-752b87573326"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "viewpoint"
+   ],
+   "lat": 41.04451015,
+   "lng": -6.89438396,
+   "name": "Assumadouro Viewpoint",
+   "overture_id": "af012d90-3353-4325-88a9-cf46ecf8b131"
+  },
+  {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 41.17765521609715,
+   "lng": -7.1119801089495835,
+   "name": "Sabor Pesca Beach",
+   "overture_id": "3cd36123-5e8d-4532-9aee-807e9f0026aa"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.16,
+   "lng": -6.90861111,
+   "name": "Castle of Mós",
+   "overture_id": "7c495e26-20d7-4b60-ae32-7f2ed1d1d377"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.18999541,
+   "lng": -7.26645341,
+   "name": "Park Douro Selvagem",
+   "overture_id": "e4f2ed53-f604-41f5-9e23-5ec8a0c114ab"
+  },
+  {
+   "category": "landmark_and_historical_building",
+   "english_words": [
+    "viewpoint"
+   ],
+   "lat": 41.39745468,
+   "lng": -6.36743636,
+   "name": "Fraga do Puio Viewpoint",
+   "overture_id": "dae5f308-1eb6-4419-a130-6374f88f61de"
+  },
+  {
+   "category": "fountain",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.4733,
+   "lng": -6.8568,
+   "name": "Castle of Bemposta",
+   "overture_id": "4313251c-72b3-401d-942b-e05050856b55"
+  },
+  {
+   "category": "catholic_church",
+   "english_words": [
+    "cathedral"
+   ],
+   "lat": 41.49311991,
+   "lng": -6.27336184,
+   "name": "Co-cathedral of Miranda do Douro",
+   "overture_id": "a3bafcd5-b302-4ed1-8ac2-8a0d4205124d"
+  },
+  {
+   "category": "castle",
+   "english_words": [
+    "castle"
+   ],
+   "lat": 41.49640443,
+   "lng": -6.27502084,
+   "name": "Castle of Miranda do Douro",
+   "overture_id": "b9141d50-6e78-45d5-bfdd-ba02af550d5d"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 41.73949302,
+   "lng": -7.47132368,
+   "name": "Misericordia Church",
+   "overture_id": "6265487d-34d5-4656-99c8-a0d24ade4376"
+  },
+  {
+   "category": "national_park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.88,
+   "lng": -6.8,
+   "name": "Montesinho Natural Park",
+   "overture_id": "dbf69ae3-0e36-4f93-b534-696437e9c49f"
+  }
+ ]
+}
