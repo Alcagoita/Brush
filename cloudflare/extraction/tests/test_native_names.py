@@ -180,3 +180,81 @@ class ProposeTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TranslateTest(unittest.TestCase):
+    """Stage 2b: a descriptor plus a proper noun IS translatable, and the
+    owner's own examples are the specification."""
+
+    LEARNED = {'porto santo': 'do', 'falesia': 'da', 'merendas': 'das',
+               'mouros': 'dos', 'monte': 'do', 'faial': 'do'}
+    VOCAB = {'porto', 'santo', 'machico', 'falesia', 'merendas', 'monte',
+             'rocha', 'nossa', 'senhora', 'andre', 'faial', 'jorge'}
+
+    def say(self, name):
+        import translate_place_names as translate
+        result = translate.translate(name, self.LEARNED, self.VOCAB)
+        return None if result is None else (result['name_local'], result['confidence'])
+
+    def test_the_owners_examples(self):
+        self.assertEqual(self.say('Porto Santo Beach'), ('Praia do Porto Santo', 'high'))
+        self.assertEqual(self.say('Church of our Lady of Monte'),
+                         ('Igreja de Nossa Senhora do Monte', 'high'))
+        self.assertEqual(self.say('Chapel Nossa Senhora da Rocha'),
+                         ('Capela Nossa Senhora da Rocha', 'high'))
+
+    def test_the_preposition_comes_from_the_archive_not_a_rule(self):
+        """`Praia do Porto Santo` but `Praia de Machico`: the article belongs
+        to the toponym, and 6,399 names in the archive say which."""
+        self.assertEqual(self.say('Machico Beach')[0], 'Praia de Machico')
+        self.assertEqual(self.say('Falésia Beach')[0], 'Praia da Falésia')
+        self.assertEqual(self.say('Merendas Park')[0], 'Parque das Merendas')
+
+    def test_a_leading_descriptor_on_a_portuguese_phrase_joins_directly(self):
+        self.assertEqual(self.say('Chapel Nossa Senhora da Rocha')[0], 'Capela Nossa Senhora da Rocha')
+
+    def test_a_trailing_descriptor_on_a_toponym_takes_a_preposition(self):
+        """`Santo André Beach` is `Praia DE Santo André`, even though the
+        remainder starts with `Santo`."""
+        self.assertEqual(self.say('Santo André Beach')[0], 'Praia de Santo André')
+
+    def test_the_remainder_is_sliced_from_the_correct_end(self):
+        """Taking the last words for both shapes turned `Machico Beach` into
+        `Praia de Beach`."""
+        self.assertNotIn('Beach', self.say('Machico Beach')[0])
+
+    def test_a_portuguese_common_noun_takes_its_own_article(self):
+        self.assertEqual(self.say('Lighthouse of Praia da Barra')[0], 'Farol da Praia da Barra')
+
+    def test_a_surviving_english_word_is_flagged_not_guessed(self):
+        for name in ('All Saints Anglican Church', 'Castle of the Moors', 'Avenue Park'):
+            self.assertEqual(self.say(name)[1], 'needs_review', name)
+
+    def test_a_possessive_a_comma_and_an_unknown_saint_are_flagged(self):
+        self.assertEqual(self.say('Funchal´s Botanical Garden')[1], 'needs_review')
+        self.assertEqual(self.say('Church of the Son, Ponta do Sol, Madeira')[1], 'needs_review')
+        self.assertEqual(self.say('St Eulalia Beach')[1], 'needs_review')
+
+    def test_a_known_saint_is_rendered_in_portuguese(self):
+        self.assertEqual(self.say('Ruins of St. George')[0], 'Ruínas de São Jorge')
+        self.assertEqual(self.say('Church of Saint Anthony')[0], 'Igreja de Santo António')
+
+    def test_a_name_with_no_descriptor_is_left_alone(self):
+        self.assertIsNone(self.say('Aviva Portugal'))
+
+    def test_the_vocabulary_is_learned_from_connector_bearing_names(self):
+        """Built from every name, it fills with the English business names
+        the archive also holds, and then vouches for the words it exists to
+        catch."""
+        import tempfile, os as _os
+        import translate_place_names as translate
+        with tempfile.TemporaryDirectory() as tmp:
+            path = _os.path.join(tmp, 'a.csv')
+            with open(path, 'w') as handle:
+                handle.write('overture_id,name,lat,lng,category\n')
+                for i in range(3):
+                    handle.write(f'p{i},"Praia da Falésia",1,1,beach\n')
+                    handle.write(f'h{i},"Atlantic Gardens Resort",1,1,hotel\n')
+            vocabulary = translate.learn_vocabulary(path)
+        self.assertIn('falesia', vocabulary)
+        self.assertNotIn('atlantic', vocabulary)

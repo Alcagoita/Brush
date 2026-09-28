@@ -1,0 +1,440 @@
+keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
+	wikidata	92afe38a-2e87-48a3-af6c-bf12f6854f88	Machico Beach	Praia de Machico	beach	Q10352815 @36m
+	wikidata	b2dd78be-b929-47b4-8d29-51c42e7bde64	Fort of Nossa Senhora da Rocha	Forte de Nossa Senhora da Rocha	fort	Q5472492 @7m
+	wikidata	ea07be0c-cc24-4e7b-bd2e-fdcab4c9aa51	Hermitage of São Vicente	Ermida de São Vicente	church_cathedral	Q5741901 @3m
+	wikidata	3452cefa-2229-40a4-85f6-1f15b7f930b3	Convent of São Pedro de Alcântara	Convento de São Pedro de Alcântara	church_cathedral	Q5166195 @48m
+	wikidata	65b92370-526e-4166-a1bf-2f327360e678	Botanical Garden of Faial	Jardim Botânico do Faial	botanical_garden	Q4948437 @0m
+	wikidata	ee495395-584e-4a19-8cc7-0274a668ea40	Jerónimos Monastery	Mosteiro dos Jerónimos	religious_organization	Q272781 @84m
+	wikidata	cce634ca-71b4-4536-b9b4-1e7be3efdc68	Monsanto Forest Park	Parque Florestal de Monsanto	park	Q14040866 @0m
+	wikidata	954ecfd8-aa41-4be0-b31e-b05bc6ebe291	Roman ruins of Casais Velhos	Estação lusitana-romana dos Casais Velhos	landmark_and_historical_building	Q7362327 @0m
+	wikidata	b80dc973-ea28-4919-be22-cbb35993ed45	Church of Porto Covo	Igreja de Porto Covo	catholic_church	Q5117009 @12m
+	wikidata	6b56dbe6-4254-46af-b223-6c82eee31a5b	Galapos beach	Praia de Galápos	beach	Q49323700 @9m
+	wikidata	b24518ce-ef59-437f-a4b2-fcf4016b61e1	Azeda Lighthouse	Farol da Azeda	landmark_and_historical_building	Q10280106 @7m
+	wikidata	08463e61-f2e7-43a6-8c11-7f98bbc84dfc	Lisbon Cathedral	Sé de Lisboa	catholic_church	Q432290 @25m
+	wikidata	79b81dd7-8b26-4c63-a3f6-04530c6a72f1	Penafiel Palace	Palácio Penafiel	landmark_and_historical_building	Q25445164 @21m
+	wikidata	e8ef8c5f-9034-46a3-ae65-d16c296718e3	Falésia Beach	Praia da Falésia	beach	Q2107541 @0m
+	wikidata	f194894a-7b61-4f73-868d-7dee4a25e939	Castle of Salir	Castelo de Salir	landmark_and_historical_building	Q15207902 @30m
+	wikidata	65b16c08-d2d1-4111-b93a-398ad162d269	Castle of Arraiolos	Castelo de Arraiolos	castle	Q5049749 @38m
+	wikidata	16f6c644-d426-4a09-8567-407d5f9d29f9	Cathedral of Évora	Sé Catedral de Évora	catholic_church	Q650037 @24m
+	wikidata	099953e5-5a7f-430f-8600-dda9eea7c9c9	Castle of Lousa	Castelo da Lousa	landmark_and_historical_building	Q1048974 @0m
+	wikidata	e8edc6e3-bd2c-441d-b2b8-415a89db7acf	Guadiana International Bridge	Ponte Internacional do Guadiana	bridge	Q1548495 @62m
+	wikidata	28c47ec2-5dd8-453c-a988-304926324479	Church of São Miguel Arcanjo	Igreja de São Miguel Arcanjo	catholic_church	Q10300801 @8m
+	wikidata	cebc573b-28f1-4b11-bea1-5ec27a64c08f	Castle of the Moors	Castelo dos Mouros	landmark_and_historical_building	Q1049008 @47m
+	wikidata	532a8391-5030-4975-8632-67865c700d9d	Church of Nossa Senhora dos Remédios	Igreja de Nossa Senhora dos Remédios	catholic_church	Q28226089 @9m
+	wikidata	6abce4b6-f40e-4c0b-a9e9-43a2ae19643b	Church of Benditas Almas	Igreja das Benditas Almas	church_cathedral	Q28226105 @0m
+	wikidata	f6dd69c3-561d-40cf-a5bf-92e086bb73c2	Cabo Carvoeiro Lighthouse	Farol do Cabo Carvoeiro	landmark_and_historical_building	Q8960880 @5m
+	wikidata	84ea301c-5efa-458a-b820-1d9e18683b20	Castle of Vila Verde dos Francos	Castelo de Vila Verde dos Francos	castle	Q5049844 @1m
+	wikidata	3bc67ff4-0c6f-4b6a-a2db-555cf8c084e3	Castle of Alcanede	Castelo de Alcanede	castle	Q5049733 @11m
+	wikidata	50a3659f-e641-40b3-8e21-6e99525c1839	Santo André Beach	Praia de Santo André	beach	Q7420473 @0m
+	wikidata	f59cc26e-b1a6-49c2-887c-4d1e61299e9d	Castle of Arronches	Castelo de Arronches	castle	Q5049750 @9m
+	wikidata	e369053e-347b-4c84-b8c1-9ec12157109a	Castle of Alegrete	Castelo de Alegrete	castle	Q5049735 @9m
+	wikidata	f5914f42-5011-4fa5-9c38-067905aae77a	Castle of Marvão	Castelo de Marvão	castle	Q3811187 @52m
+	wikidata	05d218a9-27b5-440d-bf74-f36f1adeb33f	Castle of Ourem	Castelo de Ourém	castle	Q7111322 @44m
+	wikidata	9d76f47e-0b8e-402f-97f4-bae5e3c5f0bc	Castle of Pombal	Castelo de Pombal	castle	Q5050407 @17m
+	wikidata	1fee01c7-731a-4f52-b5c8-ae25ff2b609c	Castle of Penela	Castelo de Penela	castle	Q7162548 @31m
+	wikidata	ddb88613-b38a-4356-ad74-285e31034be1	Castle of Folgosinho	Castelo de Folgosinho	castle	Q5049776 @5m
+	wikidata	68af412d-8139-4967-ac29-8be10109abcb	Castle of Vilar Maior	Castelo de Vilar Maior	castle	Q5049845 @39m
+	wikidata	5373e576-8f86-4b24-b4ae-52b62a711dbe	Felgueiras Lighthouse	Farol de Felgueiras	landmark_and_historical_building	Q10280208 @1m
+	wikidata	fe1aad96-7807-41a0-88a5-fc868abbbfd4	Porto Cathedral	Sé do Porto	catholic_church	Q1441255 @17m
+	wikidata	c7c0d233-2a51-4606-8e90-63c3e1986d5b	Church of Saint Ildefonso	Igreja de Santo Ildefonso	catholic_church	Q2781524 @28m
+	wikidata	f6c01506-905d-4040-bff7-c3fa01c3ae7c	Freixo Bridge	Ponte do Freixo	bridge	Q951109 @51m
+	wikidata	63fb18a4-0e8f-4d10-850c-2cc66022bd4b	Tower of Penegate	Torre de Penegate	landmark_and_historical_building	Q323257 @19m
+	wikidata	b171d24f-6fc5-426c-bfbd-3b4840b69dab	Lapa Church	Igreja da Lapa	catholic_church	Q10300247 @3m
+	wikidata	8b22c504-d5f8-4d64-b4df-e5cd0e10f2eb	Braga Cathedral	Sé de Braga	church_cathedral	Q513902 @7m
+	wikidata	7e7919d5-a3b7-401e-bc3e-f8c3d3d62954	Castle of Lindoso	Castelo de Lindoso	castle	Q5049784 @19m
+	wikidata	d9f2a729-7190-4083-95d1-be438b58c399	Church of São Martinho	Igreja de Alvaredo	catholic_church	Q1570232 @13m
+	wikidata	0b4c4820-92b0-40cc-9855-330bd6a72320	Viseu Cathedral	Sé de Viseu	catholic_church	Q570733 @28m
+	wikidata	5e936dd7-e26a-4208-8424-0a5b9f166e0d	Castle of Aguiar da Beira	Castelo de Aguiar da Beira	castle	Q30622783 @0m
+	wikidata	ed3f9c06-e2dc-4576-b787-752b87573326	Castle of Alva	Castelo de Alva	castle	Q5049745 @0m
+	wikidata	7c495e26-20d7-4b60-ae32-7f2ed1d1d377	Castle of Mós	Castelo de Mós	castle	Q5049804 @19m
+	wikidata	b9141d50-6e78-45d5-bfdd-ba02af550d5d	Castle of Miranda do Douro	Castelo de Miranda do Douro	castle	Q3817607 @22m
+	translated	b65b4d2f-ae51-4e8d-a5f1-8a3012e6ec17	Adraga Beach	Praia da Adraga	beach	beach -> Praia da
+	translated	c4b6627b-e08b-49a1-99eb-2d77f5ed9509	Aguda Beach	Praia da Aguda	beach	beach -> Praia da
+	translated	d8a9f6b6-4a26-48dc-8be3-64206580507d	Alcobaça Monastery	Mosteiro de Alcobaça	religious_organization	monastery -> Mosteiro de
+	translated	b5a7c8fe-2ad0-4151-b343-e2914f8e405d	Alvor Beach.	Praia de Alvor	beach	beach -> Praia de
+	translated	63ad67cc-5077-43a4-801c-4ed4854b4783	Alvor Caves Beach	Praia de Alvor Caves	beach	beach -> Praia de
+	translated	89d19261-2096-4bcf-8edd-363592b6ed96	Amieira Beach	Praia da Amieira	beach	beach -> Praia da
+	translated	bfe24392-3ede-4142-8f07-a3838aa32b48	Amoreira Aqueduct	Aqueduto da Amoreira	landmark_and_historical_building	aqueduct -> Aqueduto da
+	translated	c6f67fa5-2db3-47f0-9688-7032d6c551b4	Ancão Beach	Praia do Ancão	beach	beach -> Praia do
+	translated	27a16b64-32ff-47bd-8fb2-dcdf0e0db918	Apúlia Beach	Praia da Apúlia	beach	beach -> Praia da
+	translated	e3bda9cf-057d-4eb6-878c-9b0a3d977c37	Armona Island	Ilha de Armona	beach	island -> Ilha de
+	translated	f01f599e-3850-4cd4-b1b7-5eb8c60c45b0	Arrifana Beach	Praia da Arrifana	beach	beach -> Praia da
+	translated	a994126c-44db-4e7c-ad56-f15b66133de6	Aveiro Church	Igreja de Aveiro	religious_organization	church -> Igreja de
+	translated	b7299984-c648-482d-90a6-3ff0338606cc	Baixa de Santo António Park	Parque de Baixa de Santo António	park	park -> Parque de
+	translated	65220d0d-87d1-4dbd-866b-0c15b0010d46	Barranco Beach	Praia do Barranco	beach	beach -> Praia do
+	translated	bd89594c-777a-466f-9485-e49a3abe50ab	Beach Clube	Praia de Clube	beach	beach -> Praia de
+	translated	6dcc21a0-3f1b-4520-9aa0-dfc5f00701f5	Beach Life Portugal	Praia de Life Portugal	beach	beach -> Praia de
+	translated	8952ebfd-b9c9-40eb-9fda-9277ca0dfd8a	Beach Matosinhos	Praia de Matosinhos	beach	beach -> Praia de
+	translated	ee08a12d-6361-4a98-ac61-32a905ba70bd	Belem Tower	Torre de Belem	monument	tower -> Torre de
+	translated	c27c65ec-2cd0-4950-9e47-e0944bb5bac4	Belem Tower	Torre de Belem	landmark_and_historical_building	tower -> Torre de
+	translated	d92f575b-da30-42b7-8161-add0db55cfc0	Beloura Office Park	Parque de Beloura Office	park	park -> Parque de
+	translated	914694d6-6186-495e-ab35-eb7bd59c6b7a	Belém Tower	Torre de Belém	landmark_and_historical_building	tower -> Torre de
+	translated	2dacc8a3-e87c-4b20-bef6-ed075b5553c1	Boa Vista Park	Parque de Boa Vista	park	park -> Parque de
+	translated	7fd56a46-c8f2-4559-acef-8ce5cde775e2	Botanical Garden of the University of Coimbra	Jardim Botânico de University de Coimbra	botanical_garden	botanical garden -> Jardim Botânico de
+	translated	fe0f256a-ee99-451c-9754-fbabc79d9865	Braga Cathedral	Sé de Braga	landmark_and_historical_building	cathedral -> Sé de
+	translated	7b155077-2c18-4a36-84c7-43c32258f6bc	CAP Church	Igreja de CAP	church_cathedral	church -> Igreja de
+	translated	00cced3d-340d-4a77-940f-8a650ec5a6cc	Cadaval Palace	Palácio do Cadaval	museum	palace -> Palácio do
+	translated	67465feb-df24-4552-b1af-e376b837b08c	Caminha Beach	Praia de Caminha	beach	beach -> Praia de
+	translated	e1f4be31-6235-47c7-96bb-73413ef0111b	Caparica Beach	Praia da Caparica	beach	beach -> Praia da
+	translated	e403d8a5-8947-4c5c-9464-bbc8dd70f471	Cape St Vincent	Cabo São Vicente	national_park	cape -> Cabo, joined directly
+	translated	c337e29c-d974-442f-97ad-a0d5eef63bc0	Carcavelos beach	Praia de Carcavelos	beach	beach -> Praia de
+	translated	1b7067c2-73a0-49bd-a5ba-c6aa9bc9a235	Carrapateira Beach	Praia da Carrapateira	beach	beach -> Praia da
+	translated	cafb64ce-30c9-444c-93f5-d49a4d854a7e	Carvoeiro Beach	Praia do Carvoeiro	beach	beach -> Praia do
+	translated	3903995c-ef01-4af1-904a-348ba4f1a3b4	Castle Nisa	Castelo de Nisa	castle	castle -> Castelo de
+	translated	4313251c-72b3-401d-942b-e05050856b55	Castle of Bemposta	Castelo de Bemposta	fountain	castle -> Castelo de
+	translated	123f7ad9-a69a-4816-abb1-8588368040bf	Castle of Cola	Castelo de Cola	landmark_and_historical_building	castle -> Castelo de
+	translated	8642c06c-ed85-435f-ac8b-e912acd7682b	Castle of Messejana	Castelo de Messejana	landmark_and_historical_building	castle -> Castelo de
+	translated	9b6826d9-6372-4ad4-8b41-2c8ce718166d	Castle of Moinhos	Castelo dos Moinhos	landmark_and_historical_building	castle -> Castelo dos
+	translated	cdebd94c-09cf-4f07-8f19-7f964461cf34	Castle of Montemor-o-Velho	Castelo de Montemor-o-Velho	castle	castle -> Castelo de
+	translated	e402745f-1641-400e-9ac9-8a2c62949715	Castle of Sao Jorge	Castelo de Sao Jorge	landmark_and_historical_building	castle -> Castelo de
+	translated	09b1302d-db38-409f-8a64-a8867b53e535	Cathedral of Angra do Heroísmo	Sé de Angra do Heroísmo	catholic_church	cathedral -> Sé de
+	translated	483208e5-8f17-4502-ad31-9d33a4e3fe8d	Cathedral of St. Paul	Sé de São Paulo	church_cathedral	cathedral -> Sé de
+	translated	3a175991-2e79-4991-aa31-3c19d72cb0be	Cave atelier	Gruta de atelier	art_gallery	cave -> Gruta de
+	translated	5b123911-d72a-4a3f-a0b8-9a7b55c47796	Chapel Nossa Senhora da Rocha	Capela Nossa Senhora da Rocha	church_cathedral	chapel -> Capela, joined directly
+	translated	12b9cd4d-776a-4cf3-9bfa-30744e363468	Chapel Our Lady of Fatima	Capela Nossa Senhora de Fatima	church_cathedral	chapel -> Capela, joined directly
+	translated	f66dad03-3d62-4470-a281-e59dca6bfb13	Chapel S.Sebastião	Capela de S.Sebastião	church_cathedral	chapel -> Capela de
+	translated	008a5121-f2b6-4cab-a06f-4ed6f6db9ede	Chapel of Fradelos	Capela de Fradelos	church_cathedral	chapel -> Capela de
+	translated	1f789b4e-d9a9-4f25-bb18-ac8a564226de	Chapel of Our Lady Of Monserrate	Capela de Nossa Senhora de Monserrate	church_cathedral	chapel -> Capela de
+	translated	40d68f49-5540-4fe1-bf1f-0c18de39e4c5	Chapel of Santa Iria	Capela de Santa Iria	church_cathedral	chapel -> Capela de
+	translated	62752e5f-f1a5-4905-ac6c-3787352e7ada	Chapel of Santa Marta	Capela de Santa Marta	church_cathedral	chapel -> Capela de
+	translated	c3709009-020a-45b4-b9a6-2c84d5a29d66	Chapel of Santa Rita	Capela de Santa Rita	catholic_church	chapel -> Capela de
+	translated	16a5a315-48fc-4a3f-8bdb-ab7406704af4	Church Nossa Senhora da Paz	Igreja Nossa Senhora da Paz	catholic_church	church -> Igreja, joined directly
+	translated	30bf292d-32e1-4ddd-93ed-baed799e4b13	Church Santa Maria do Castelo	Igreja Santa Maria do Castelo	catholic_church	church -> Igreja, joined directly
+	translated	d2200e14-79e9-4b49-8c6e-53373600ead0	Church Santa Marinha Da Costa	Igreja Santa Marinha Da Costa	church_cathedral	church -> Igreja, joined directly
+	translated	cb7fbac6-6b85-47a4-b9f8-741021ffdb73	Church São Miguel	Igreja São Miguel	catholic_church	church -> Igreja, joined directly
+	translated	ab209944-2b35-4882-9fba-12aae60ce792	Church São Tomás de Aquino	Igreja São Tomás de Aquino	catholic_church	church -> Igreja, joined directly
+	translated	188f6bf6-24c8-48bf-b005-76c6e9be0c8a	Church of Carmo	Igreja do Carmo	catholic_church	church -> Igreja do
+	translated	0662baaa-0a2a-4abc-bbbb-eb9f8874a405	Church of Nossa Senhora da Luz	Igreja de Nossa Senhora da Luz	catholic_church	church -> Igreja de
+	translated	53f04615-e903-455d-b5e0-61ea23d50712	Church of Nossa Senhora da Oliveira	Igreja de Nossa Senhora da Oliveira	church_cathedral	church -> Igreja de
+	translated	1f1a7623-5d86-4b3a-8560-d252ae14ef4c	Church of Nossa Senhora de Belém	Igreja de Nossa Senhora de Belém	church_cathedral	church -> Igreja de
+	translated	82c24caa-df98-42c6-a289-d0505779a239	Church of Nossa Senhora do Rosário (Calheta)	Igreja de Nossa Senhora do Rosário (Calheta)	catholic_church	church -> Igreja de
+	translated	b67fc383-cac8-4a3d-a778-be4be3ec02ff	Church of Nossa Senhora dos Milagres (Lajedo)	Igreja de Nossa Senhora dos Milagres (Lajedo)	church_cathedral	church -> Igreja de
+	translated	6517f69e-a581-4b2d-aba1-853215419b7a	Church of Saint Francis	Igreja de São Francisco	catholic_church	church -> Igreja de
+	translated	88bb990a-6f2c-4df3-bbd5-de4306e54c8f	Church of Saint Sebastian	Igreja de São Sebastião	catholic_church	church -> Igreja de
+	translated	2ea34f21-5233-487a-a738-bafa78c8acb4	Church of Santa Cruz	Igreja de Santa Cruz	catholic_church	church -> Igreja de
+	translated	4f6f3316-ec0a-4203-9092-b76918ec39f6	Church of Santa Maria	Igreja de Santa Maria	catholic_church	church -> Igreja de
+	translated	43bc4fad-7376-4a0b-aeb0-122e2f1882d4	Church of Santa Maria de Avioso	Igreja de Santa Maria de Avioso	church_cathedral	church -> Igreja de
+	translated	b60cbcb2-e4aa-49b2-88ea-5deeafe391ff	Church of Santo Amaro	Igreja de Santo Amaro	catholic_church	church -> Igreja de
+	translated	c9fa509b-83fe-4231-9fb6-fb8c0260f475	Church of Sao Pedro	Igreja de Sao Pedro	church_cathedral	church -> Igreja de
+	translated	292e3111-fd00-4511-b82b-cb173f57f08e	Church of São Salvador do Mundo	Igreja de São Salvador do Mundo	church_cathedral	church -> Igreja de
+	translated	753fe8a7-7d24-4fc2-ba9a-5a8c38ca0436	Church of São Sebastião	Igreja de São Sebastião	catholic_church	church -> Igreja de
+	translated	bcc8ce91-d990-43d1-80d0-c7a5a7270055	Church of our Lady of Monte	Igreja de Nossa Senhora do Monte	church_cathedral	church -> Igreja de
+	translated	76ddc18e-12b0-4096-9b18-56f50e321f19	Church of the Misericordia	Igreja da Misericordia	church_cathedral	church -> Igreja da
+	translated	f808448f-af47-4273-a777-7480484dc187	Comporta Beach	Praia da Comporta	beach	beach -> Praia da
+	translated	ad6dfb41-a93f-4cd0-aeee-1a86db5dec85	Conceicao Beach	Praia da Conceicao	beach	beach -> Praia da
+	translated	fdb3a654-aae6-4101-8c13-811552a1e0e9	Condomínio Gaia Park	Parque de Condomínio Gaia	park	park -> Parque de
+	translated	d3c51880-0a19-4c2b-8800-469e4f5ce5ac	Convent of Santa Clara	Convento de Santa Clara	religious_organization	convent -> Convento de
+	translated	aa0b1504-d661-45f9-bddb-1a5f3d7e648a	Convent of St. Joseph	Convento de São José	church_cathedral	convent -> Convento de
+	translated	9d796f87-8b32-4db3-bd2c-b317d9edeeb5	Copacabana Beach	Praia de Copacabana	beach	beach -> Praia de
+	translated	3b25c5c0-5796-402c-8299-7f24e658a50b	Copacabana Beach	Praia de Copacabana	beach	beach -> Praia de
+	translated	bea6594e-a68d-4298-85e1-c17dbf7e3bf0	Cordoama Beach	Praia da Cordoama	beach	beach -> Praia da
+	translated	69484d61-3638-486d-8932-0f28f44c5b45	Costa Da Caparica Beach	Praia da Costa Da Caparica	beach	beach -> Praia da
+	translated	a91ef079-017b-4013-bf6f-4d015100917f	Dona Ana Beach	Praia de Dona Ana	beach	beach -> Praia de
+	translated	c7af215c-847a-4493-9245-8715c499edea	Edifício Madalenas Palace	Palácio de Edifício Madalenas	landmark_and_historical_building	palace -> Palácio de
+	translated	aab32928-57cf-426d-b37f-72018fd52542	Ereira Beach	Praia de Ereira	beach	beach -> Praia de
+	translated	06df4b11-b117-4aec-8edd-de8aa222bbae	Esmoriz Beach	Praia de Esmoriz	beach	beach -> Praia de
+	translated	4fc1935d-2a3d-4f70-96a8-96ec46438ba1	Espinho Beach	Praia de Espinho	beach	beach -> Praia de
+	translated	3c842fd0-585f-4a57-ab3a-64d7cb92f497	Esposende Beach	Praia de Esposende	beach	beach -> Praia de
+	translated	5b8b48a0-bb58-4b13-900c-f0018635e29d	Essencia Crista Church	Igreja de Essencia Crista	religious_organization	church -> Igreja de
+	translated	51c5a86a-32cf-401f-8b48-326c578b0a9e	Estoril Beach	Praia do Estoril	beach	beach -> Praia do
+	translated	67215382-8cc5-40d8-99e5-8faa2f57a3fd	Falesia Beach	Praia da Falesia	beach	beach -> Praia da
+	translated	c792827a-8c1d-45af-a5ac-ddde3fbde2e3	Figueira Da Foz Beach	Praia da Figueira Da Foz	beach	beach -> Praia da
+	translated	681e8d90-5092-4ca3-96ed-a291215cf9ab	Fiães Church	Igreja de Fiães	church_cathedral	church -> Igreja de
+	translated	feeb0116-4f14-4a1c-8f23-6128d49106b5	Fm Church	Igreja de Fm	religious_organization	church -> Igreja de
+	translated	13baf5ff-03de-4f1f-8798-f918dd8df493	Fonte Church	Igreja da Fonte	church_cathedral	church -> Igreja da
+	translated	e9204c59-890a-48de-8114-7d803b9d1c2f	Fort of Palheiros	Forte de Palheiros	landmark_and_historical_building	fort -> Forte de
+	translated	dd51a6a7-37ff-46be-92d9-3c4c3fd09aa4	Fort of São João	Forte de São João	landmark_and_historical_building	fort -> Forte de
+	translated	42ebb343-a7da-4c61-87e2-e47c60bc5b0d	Fort of São Pedro do Estoril	Forte de São Pedro do Estoril	landmark_and_historical_building	fort -> Forte de
+	translated	a68fa1f4-2f2d-41fd-8be5-1264d82e592f	Fortress of Faial	Fortaleza do Faial	landmark_and_historical_building	fortress -> Fortaleza do
+	translated	0ae80c6f-2779-421b-89d0-0b521f5075f3	Fortress of Sao Tiago	Fortaleza de Sao Tiago	landmark_and_historical_building	fortress -> Fortaleza de
+	translated	bd082bad-cf36-4fdd-9d0f-72204cadc372	Funchal Park	Parque do Funchal	park	park -> Parque do
+	translated	f057e7ce-6adf-45e0-8656-bf5665920cbc	Fuzeta beach	Praia da Fuzeta	beach	beach -> Praia da
+	translated	ff3655ed-1539-45d2-a109-1b3de657ee36	Gale Beach	Praia da Gale	beach	beach -> Praia da
+	translated	ab6f7b06-f74c-46ba-84e0-2af274979589	Gama Park	Parque de Gama	church_cathedral	park -> Parque de
+	translated	cf13cfb8-daf9-4b2d-a34b-2f1fb70a584d	Garden Residence	Jardim de Residence	landmark_and_historical_building	garden -> Jardim de
+	translated	8240ebed-8249-484d-9ab4-db88a53353e1	Garden of Santa Barbara	Jardim de Santa Barbara	landmark_and_historical_building	garden -> Jardim de
+	translated	ce32f85f-5637-484c-9b73-ecf5f4fead25	Guimarães Castle	Castelo de Guimarães	landmark_and_historical_building	castle -> Castelo de
+	translated	fa4dc922-1960-40a0-8843-6264c7e38219	Guimarães Castle	Castelo de Guimarães	castle	castle -> Castelo de
+	translated	499923c9-f279-43a6-92b7-4b24bca96d8c	Guincho Beach	Praia do Guincho	beach	beach -> Praia do
+	translated	fd92428b-37f3-439d-9c0c-eef28bb4e271	Holy Trinity Church	Igreja da Santíssima Trindade	anglican_church	church -> Igreja da
+	translated	cccb35cb-d63c-4c53-bec0-c39deb95739a	I'm In Caparica Beach	Praia de I'm In Caparica	beach	beach -> Praia de
+	translated	82756271-945f-4771-b071-b3d9f7f805b5	Igreja Cristã Lighthouse	Farol da Igreja Cristã	church_cathedral	lighthouse -> Farol da
+	translated	18017f22-a23b-4e45-9c3b-528dede0e743	Igreja Lighthouse	Farol da Igreja	church_cathedral	lighthouse -> Farol da
+	translated	750f6b77-9b66-473e-83fb-12118957d0fe	Ingleses Beach	Praia dos Ingleses	beach	beach -> Praia dos
+	translated	78535c4f-cbd9-4da0-9765-55c9060c2ee1	Jardim do Lagoas Park	Parque do Jardim do Lagoas	park	park -> Parque do
+	translated	2f528761-1141-412d-b7de-5459d7879642	Lagoinha Portimao Church	Igreja de Lagoinha Portimao	church_cathedral	church -> Igreja de
+	translated	5d959150-5fb0-4a91-9db3-62f4d51513a2	Lar Fatima Park	Parque de Lar Fatima	park	park -> Parque de
+	translated	48703711-4759-4880-bf2f-7ccce78b1020	Leiria X Park	Parque de Leiria X	park	park -> Parque de
+	translated	3f765228-032a-4b3e-9ada-6231913b9d6e	Liberdade Square	Praça da Liberdade	public_plaza	square -> Praça da
+	translated	cea4762c-b50c-4234-947e-4fb82ed191f1	Life is a Beach	Praia de Life is a	beach	beach -> Praia de
+	translated	5b49461a-30a7-47e7-85d7-681ee089f5a9	Lighthouse of Ponta Garça	Farol da Ponta Garça	landmark_and_historical_building	lighthouse -> Farol da
+	translated	7262d386-3599-46ba-8273-089a2e71579d	Lighthouse of Ponta Negra	Farol da Ponta Negra	landmark_and_historical_building	lighthouse -> Farol da
+	translated	8eaf4ec6-f2c0-4144-99fa-f743a4fd3424	Lighthouse of Praia da Barra	Farol da Praia da Barra	landmark_and_historical_building	lighthouse -> Farol da
+	translated	87a7e36b-225a-4246-80b0-e0d305ba8769	Linha Beach	Praia de Linha	beach	beach -> Praia de
+	translated	c3a379ee-d1de-4f25-a232-046453f16876	Lisbon Castle	Castelo de Lisbon	monument	castle -> Castelo de
+	translated	79408aef-7c06-4de1-a9a0-97d7e4ca87bf	Longos Vales Monastery	Mosteiro de Longos Vales	religious_organization	monastery -> Mosteiro de
+	translated	7588289e-c401-48f4-b853-77bca8aa9ae8	Lourinha Beach	Praia da Lourinha	beach	beach -> Praia da
+	translated	e300b249-9ce8-4ddb-862c-1c4cb39ff770	Manuel Lourenço Beach	Praia de Manuel Lourenço	beach	beach -> Praia de
+	translated	a44879d6-f0e7-436c-bb57-d2f897b9c036	Maria Luisa Beach	Praia de Maria Luisa	beach	beach -> Praia de
+	translated	f678cdfa-5484-4b0c-abd5-4f5f0e10e910	Matosinhos Beach	Praia de Matosinhos	beach	beach -> Praia de
+	translated	00905850-1ca3-4c5a-a19e-e54cb95ac665	Meco Beach	Praia do Meco	beach	beach -> Praia do
+	translated	8a7273e1-781f-4c98-8218-6d1a92f291c2	Mega Luna Park	Parque de Mega Luna	park	park -> Parque de
+	translated	db59d3cf-9d1e-4cba-a633-95abf9d012b5	Merendas Park	Parque das Merendas	park	park -> Parque das
+	translated	f701352a-15cd-4983-bf86-bd868c8e288b	Mindelo Beach	Praia do Mindelo	beach	beach -> Praia do
+	translated	6265487d-34d5-4656-99c8-a0d24ade4376	Misericordia Church	Igreja da Misericordia	church_cathedral	church -> Igreja da
+	translated	48dd0768-1e42-4baa-99a1-1a2cbf9ad9da	Moinhos Park	Parque dos Moinhos	landmark_and_historical_building	park -> Parque dos
+	translated	2ea1fc94-de2b-45df-8ab0-5325d3a60e66	Monastery of Jesus of Setúbal	Mosteiro de Jesus de Setúbal	church_cathedral	monastery -> Mosteiro de
+	translated	3cc7118a-d827-4f5d-9ed8-d68fa13d5cd6	Monte Carvoeiro Square	Praça do Monte Carvoeiro	landmark_and_historical_building	square -> Praça do
+	translated	dbf69ae3-0e36-4f93-b534-696437e9c49f	Montesinho Natural Park	Parque de Montesinho Natural	national_park	park -> Parque de
+	translated	ae94b9f3-5ae9-4e95-909a-d2be8a4d5f79	Natura Park	Parque de Natura	landmark_and_historical_building	park -> Parque de
+	translated	7f278a1b-d9c2-462d-93e8-938943c7ef34	Nossa Senhora da Conceicao Velha Church	Igreja de Nossa Senhora da Conceicao Velha	catholic_church	church -> Igreja de
+	translated	f68f307f-abf7-4224-b813-25adf3f96e9f	Nossa Senhora da Luz Fortress	Fortaleza de Nossa Senhora da Luz	monument	fortress -> Fortaleza de
+	translated	966dd529-5d97-45d2-8f86-301dafd8d47b	Nossa Senhora da Vida Church	Igreja de Nossa Senhora da Vida	catholic_church	church -> Igreja de
+	translated	bfee4f3e-72c8-463a-8bcd-ebdd5f460edf	Nossa Senhora das Dores Chapel	Capela de Nossa Senhora das Dores	church_cathedral	chapel -> Capela de
+	translated	7a08f849-db35-456c-9be1-a5e906011d21	Nossa Senhora do Cabo Church	Igreja de Nossa Senhora do Cabo	church_cathedral	church -> Igreja de
+	translated	899fb0a9-36cd-4607-9bcf-9b03d39b93ae	Novo Tempo Church	Igreja de Novo Tempo	religious_organization	church -> Igreja de
+	translated	02d80577-c990-4693-9ef9-a5c5c1ce251b	Odrinhas Park	Parque de Odrinhas	park	park -> Parque de
+	translated	cc0a9450-c41e-41a8-bf88-2932f87b289c	Onda Park	Parque de Onda	park	park -> Parque de
+	translated	baa75baa-be9b-40da-9071-ad0499aa5f28	PAZ Church	Igreja da PAZ	evangelical_church	church -> Igreja da
+	translated	8e1b1d2c-2e53-445b-b37e-6bafeb38d8a5	Paio Pires Bike Park	Parque de Paio Pires Bike	park	park -> Parque de
+	translated	e5377959-f98e-4f18-940e-2748fcf8d4a1	Palace De Monserrate	Palácio de Monserrate	palace	palace -> Palácio de
+	translated	dcea9372-f3e2-43b9-ab4e-18da614a3eba	Palace of Correio-Mor	Palácio de Correio-Mor	castle	palace -> Palácio de
+	translated	c75e61a3-fbd6-424d-94bf-ee9f55ecab6e	Paradise Beach	Praia de Paradise	beach	beach -> Praia de
+	translated	1b4a6be6-7633-4a3f-a3da-ff7c38bafe5d	Parede Beach	Praia da Parede	beach	beach -> Praia da
+	translated	1b6bcd17-8bc5-4b6c-b3e8-502342bf5ddf	Park Fantasia	Parque da Fantasia	park	park -> Parque da
+	translated	dd62a9b0-982c-4379-91e4-3b452d50789d	Park Maria das Mercês Carreiro	Parque Maria das Mercês Carreiro	park	park -> Parque, joined directly
+	translated	edec34ef-84e8-464d-bb78-968b994d73a0	Park Zona Norte de Almeirim	Parque Zona Norte de Almeirim	park	park -> Parque, joined directly
+	translated	7fd4362c-ef19-4fda-afb3-8f64696fc8bd	Pedra D'eira Beach	Praia de Pedra D'eira	beach	beach -> Praia de
+	translated	698b2baa-1e93-4d4d-a113-5aadeb80c444	Picoto Park	Parque do Picoto	park	park -> Parque do
+	translated	8e8613c6-8b40-4e4f-ad1d-4de7bdf5ceb9	Piscina Da Rita Park	Parque de Piscina Da Rita	park	park -> Parque de
+	translated	e2260e4d-ef8a-4fc3-bfb8-1190d42c9ce5	Playa De Rocha Beach	Praia de Playa De Rocha	beach	beach -> Praia de
+	translated	908fd0e1-783c-4ee4-be3d-16d763cf2366	Ponta do Pargo Lighthouse	Farol da Ponta do Pargo	landmark_and_historical_building	lighthouse -> Farol da
+	translated	f052b1fe-4ba0-45f7-8395-9f531be98564	Porto Dinheiro BEACH	Praia do Porto Dinheiro	beach	beach -> Praia do
+	translated	6c01855a-379a-48ee-9abf-1f8e965f15d2	Porto Santo Beach	Praia do Porto Santo	beach	beach -> Praia do
+	translated	41476533-71cb-4395-9cce-dbb5ba087a24	Prainha Beach	Praia da Prainha	beach	beach -> Praia da
+	translated	9872b2ab-11e8-4c57-8885-14bcfeebde13	Quarteira Beach	Praia de Quarteira	beach	beach -> Praia de
+	translated	54778331-56b5-40b8-99dc-54cb1389c39f	Quarteira Beach	Praia de Quarteira	beach	beach -> Praia de
+	translated	b972d0c8-1272-48d0-9313-0b76f07d7f57	Quinta do Lago Beach	Praia da Quinta do Lago	beach	beach -> Praia da
+	translated	a29e31c2-d281-4656-8ee3-3da6d3de358f	Radical Park	Parque de Radical	park	park -> Parque de
+	translated	134c9258-58ac-4790-ae1a-fe2de35a803c	Redondo Castle	Castelo do Redondo	landmark_and_historical_building	castle -> Castelo do
+	translated	5c6aa2e7-da53-4f1b-83ff-fd8a9815a7b7	Regaleira Tower	Torre de Regaleira	landmark_and_historical_building	tower -> Torre de
+	translated	26917d49-3364-4f53-b9a2-7c36b2102b75	Ribeira D'Ilhas Beach	Praia da Ribeira D'Ilhas	beach	beach -> Praia da
+	translated	10cd78a7-a54b-4831-8c59-bed8aa8f84e1	Ribeira do Cavalo Beach	Praia da Ribeira do Cavalo	beach	beach -> Praia da
+	translated	745701bb-9596-4604-9572-fd45c08b0af5	Risco waterfall	Cascata de Risco	landmark_and_historical_building	waterfall -> Cascata de
+	translated	37fe6a62-e67d-4916-b2ca-c9cf9b4fde29	Rua Azores Park	Parque de Rua Azores	park	park -> Parque de
+	translated	f7774e02-3231-47de-b49d-0e1359fbc85e	Ruins of St. George	Ruínas de São Jorge	landmark_and_historical_building	ruins -> Ruínas de
+	translated	c139f2e8-1ad5-4238-adbf-1ed2b3f0c6fc	S Lourenço de Bugio Fort	Forte de S Lourenço de Bugio	landmark_and_historical_building	fort -> Forte de
+	translated	3cd36123-5e8d-4532-9aee-807e9f0026aa	Sabor Pesca Beach	Praia de Sabor Pesca	beach	beach -> Praia de
+	translated	4ccc0130-b789-4ef3-aa64-e54e7dd59eb9	Sagrada Familia Church	Igreja da Sagrada Familia	catholic_church	church -> Igreja da
+	translated	2a7e3162-f93e-44ca-bde7-a4386bfd5a0f	Sameiro Garden	Jardim do Sameiro	park	garden -> Jardim do
+	translated	93f45554-5c6a-44d0-8119-bf37d0d953c6	San Jorge Castle	Castelo de San Jorge	monument	castle -> Castelo de
+	translated	ab066ee1-2a1b-4055-9b5c-b5eeefa36dbb	Sanctuary Senhor Jesus do Carvalhal	Santuário Senhor Jesus do Carvalhal	catholic_church	sanctuary -> Santuário, joined directly
+	translated	1e35bbcd-98f6-4e50-9da3-e3ff63883de9	Sanctuary of Nossa Senhora da Visitacao (Montemor-O-Novo)	Santuário de Nossa Senhora da Visitacao (Montemor-O-Novo)	church_cathedral	sanctuary -> Santuário de
+	translated	031f749c-967c-4657-b015-c1c50ce9710e	Santa Clara Aqueduct	Aqueduto de Santa Clara	landmark_and_historical_building	aqueduct -> Aqueduto de
+	translated	eb531146-9b79-4857-8c04-c2fbb738e756	Santa Cruz park	Parque de Santa Cruz	park	park -> Parque de
+	translated	4a3be341-6a19-42de-95ae-ca2f72d37fb0	Santa Eulalia Beach	Praia de Santa Eulalia	beach	beach -> Praia de
+	translated	ec70b984-f4c6-4731-8bc8-15870b5cd14c	Santo Amaro Chapel	Capela de Santo Amaro	church_cathedral	chapel -> Capela de
+	translated	ef79db1f-1ef6-4823-868e-31552c5f8884	Santo Antão Church	Igreja de Santo Antão	catholic_church	church -> Igreja de
+	translated	028284e5-fad9-4003-8238-fb015b6dd9a9	Santíssima Trindade Church	Igreja da Santíssima Trindade	catholic_church	church -> Igreja da
+	translated	f367a9bb-87d5-478e-a438-9853b9d93327	Sao Roque Beach	Praia de Sao Roque	beach	beach -> Praia de
+	translated	7d912389-e50e-4776-aa16-80716273c0b6	Sao pedro De Alcantara Garden	Jardim de Sao pedro De Alcantara	landmark_and_historical_building	garden -> Jardim de
+	translated	111e65cf-bd0c-4825-82e3-807037f4c971	Sao roque beach	Praia de Sao roque	beach	beach -> Praia de
+	translated	8dd1f9fc-5884-42be-84d6-e4d313eb659f	Seixo do Côa e vale longo beach	Praia do Seixo do Côa e vale longo	beach	beach -> Praia do
+	translated	18c19f9c-0e45-4564-b3c4-62b2b91ce4b9	Senhor da Pedra beach	Praia do Senhor da Pedra	church_cathedral	beach -> Praia do
+	translated	4789d83e-4b88-4e05-9dd7-3838edcb52b1	Senhora da Boa Morte Park	Parque da Senhora da Boa Morte	park	park -> Parque da
+	translated	0098354a-0dad-4b84-a334-7f138a8d276d	Serra da Estrela Natural Park	Parque da Serra da Estrela Natural	park	park -> Parque da
+	translated	5aacb41f-95af-4b06-9a2e-7511edd635db	Sesimbra Natura Park	Parque de Sesimbra Natura	park	park -> Parque de
+	translated	780eca70-ef3a-415e-9ad3-dc06d47a7832	Shopping De Oeiras Park	Parque de Shopping De Oeiras	park	park -> Parque de
+	translated	8745a08a-734c-4df3-9fed-b9327efe503d	Silves Park	Parque de Silves	park	park -> Parque de
+	translated	1206b799-5e3c-492d-b7a4-ebdd350f7ff0	Skate Park	Parque de Skate	park	park -> Parque de
+	translated	4817998e-e4e2-494d-85bd-ebc55168ab9a	Sky Garden	Jardim de Sky	mountain	garden -> Jardim de
+	translated	d40b5467-2f2a-4a6d-8b8a-12d9bdf9703a	Sobreiro Church	Igreja do Sobreiro	church_cathedral	church -> Igreja do
+	translated	82e064b8-f34e-4f11-a215-3f6f2776d3c3	Solário Granja Park	Parque de Solário Granja	park	park -> Parque de
+	translated	47001d2b-b9e0-4c01-8c98-6efa88ec7a8e	St. Martin Church	Igreja de São Martinho	catholic_church	church -> Igreja de
+	translated	08fcd416-0ae2-4194-bd0e-9d47d9349ce3	São Bento de Massamá Church	Igreja de São Bento de Massamá	catholic_church	church -> Igreja de
+	translated	f7fff1ce-99d1-4634-a0c9-93a88e0bf1f2	São Francisco Church	Igreja de São Francisco	church_cathedral	church -> Igreja de
+	translated	459202d7-a53c-479c-bc81-a2ca6c0facd9	São Rafael Beach	Praia de São Rafael	beach	beach -> Praia de
+	translated	9e6d64dc-2fff-4f02-97c4-497b9088f8cc	Tamariz Beach	Praia do Tamariz	beach	beach -> Praia do
+	translated	e10b26f8-27ea-4f7b-bbf6-7c072fdb5210	Tavira Beach	Praia de Tavira	beach	beach -> Praia de
+	translated	c95945ce-ad14-4f05-9f56-f823a85d1c06	Tavira Island	Ilha de Tavira	beach	island -> Ilha de
+	translated	5934f8fa-9041-40dc-b604-cb97393c0453	Tower of Pedro	Torre do Pedro	landmark_and_historical_building	tower -> Torre do
+	translated	25cdad55-1b24-4f07-a06b-1088b6d646f1	Traquinas Park	Parque de Traquinas	park	park -> Parque de
+	translated	0784046f-e28e-4f1b-89d9-90d95a5f87ab	Troia Beach	Praia de Troia	beach	beach -> Praia de
+	translated	7bc76aa9-056b-4ef5-8e1f-b3c7af08a7c2	Universal Church	Igreja de Universal	evangelical_church	church -> Igreja de
+	translated	0626ffb6-3383-4d6a-abf8-3e2f1b5cc1b7	Universal church	Igreja de Universal	church_cathedral	church -> Igreja de
+	translated	beb7ab61-36ae-4c1a-8c3d-7c31c38826e0	Vale Do Lobo Beach	Praia de Vale Do Lobo	beach	beach -> Praia de
+	translated	f86834b0-39b7-4916-87ad-06573a3d58ac	Viewpoint Rocas	Miradouro de Rocas	landmark_and_historical_building	viewpoint -> Miradouro de
+	translated	8d965681-c7d7-4658-b591-02770a6d44c6	Vila Vicosa Castle	Castelo de Vila Vicosa	monument	castle -> Castelo de
+	translated	9076c58b-becf-475f-9bb4-bc0035dc8671	Vilamoura Beach	Praia de Vilamoura	beach	beach -> Praia de
+	translated	32a46fa6-46ff-4d91-b918-32f998598397	Vilamoura Beach	Praia de Vilamoura	beach	beach -> Praia de
+	translated	70fcd6a5-dd42-4618-9380-a07f7b285f48	beach of oceano Atlantico	Praia de oceano Atlantico	beach	beach -> Praia de
+	translated	dc3b0ba4-379d-429f-993e-02007ccdd14a	Águeda Bike Park	Parque de Águeda Bike	park	park -> Parque de
+	translated?	78a8074a-664f-4aa8-8651-1132fa41b623	ADONAI International Pentecostal Evangelical Church	Igreja de ADONAI International Pentecostal Evangelical	religious_organization	an English word survives in the name
+	translated?	8aa1561c-31f7-4de1-b469-576d173b23dd	Adegas Beach	Praia de Adegas	beach	not words Portuguese names here use: ['adegas']
+	translated?	dd53f5e9-b4be-4492-953e-35e18a7ba9ce	Albacora Beach	Praia de Albacora	beach	not words Portuguese names here use: ['albacora']
+	translated?	d6c16cd3-eda0-43c9-8d2e-48e23c958f1a	Albafaria Beach	Praia de Albafaria	beach	not words Portuguese names here use: ['albafaria']
+	translated?	91812108-84ac-4e41-9801-6f841ce51a3c	Albandeira Beach	Praia de Albandeira	beach	not words Portuguese names here use: ['albandeira']
+	translated?	46280e13-a57d-4922-b83c-2be47822966f	Albufeira Fishermans beach	Praia de Albufeira Fishermans	beach	not words Portuguese names here use: ['fishermans']
+	translated?	03398043-7a84-4a1b-b0d3-21186589ed75	Almamcil Park	Parque de Almamcil	park	not words Portuguese names here use: ['almamcil']
+	translated?	707fc329-93a2-4f82-b15d-00fa078059d8	Alminhas of the Bridge	Ponte de Alminhas de the	landmark_and_historical_building	an English word survives in the name
+	translated?	394829b0-f95a-412d-8094-7e362a66cb58	"Almograve ""puro"" Beach"	"Praia de Almograve ""puro"""	beach	not words Portuguese names here use: ['puro']
+	translated?	5774f99e-77c3-4859-8676-b78ea0f3d285	Alverca Retail Park	Parque de Alverca Retail	park	not words Portuguese names here use: ['retail']
+	translated?	4ae6a8de-7517-452f-9268-c4e66716c6fb	Ana Lopes Fisio  Tagus Park	Parque da Ana Lopes Fisio Tagus	park	not words Portuguese names here use: ['tagus']
+	translated?	fce52705-8db5-4311-b8d1-b9cc1502a94c	Anabella's Kids Park	Parque de Anabella's Kids	park	the name carries an English possessive
+	translated?	38663e45-707e-4197-b0ec-3542255b5cde	Appartment Golden Beach	Praia de Appartment Golden	beach	an English word survives in the name
+	translated?	578f6249-4086-49d6-a996-babf165e41f1	Aquilino Ribeiro Park	Parque de Aquilino Ribeiro	park	not words Portuguese names here use: ['aquilino']
+	translated?	31986994-30f4-45fd-8e40-6ad30fa0a37f	Arara Park	Parque de Arara	park	not words Portuguese names here use: ['arara']
+	translated?	d06d4e16-14de-4b08-99b3-d294a109f1a0	Ark Church	Igreja de Ark	church_cathedral	not words Portuguese names here use: ['ark']
+	translated?	cac8aa28-c353-4727-aa9c-72630fa1a49f	Assemblies of God Church	Igreja de Assemblies de God	evangelical_church	not words Portuguese names here use: ['assemblies', 'god']
+	translated?	af012d90-3353-4325-88a9-cf46ecf8b131	Assumadouro Viewpoint	Miradouro de Assumadouro	landmark_and_historical_building	not words Portuguese names here use: ['assumadouro']
+	translated?	c0fb4ab3-bb73-4841-bee4-d8b06acec775	Atlantic Gardens Beach	Praia de Atlantic Gardens	landmark_and_historical_building	not words Portuguese names here use: ['atlantic', 'gardens']
+	translated?	d591e12d-9011-4209-a5df-318d3be3a032	Atlantis Cactus Park	Parque de Atlantis Cactus	park	not words Portuguese names here use: ['atlantis', 'cactus']
+	translated?	4202e2a8-39c4-4787-a6a1-3f7cb7045b16	Avenue Park	Parque de Avenue	park	not words Portuguese names here use: ['avenue']
+	translated?	35f4d7df-146b-44be-b700-5d3a10385a2c	Aviva Portugal church	Igreja de Aviva Portugal	church_cathedral	not words Portuguese names here use: ['aviva']
+	translated?	b20c15ce-1792-48e8-b753-2dc16842659a	Azorean Baptist Church	Igreja de Azorean Baptist	baptist_church	an English word survives in the name
+	translated?	53c1f958-f33c-4e91-967c-58d0fbd9cef1	Bacelos's Park	Parque de Bacelos's	park	the name carries an English possessive
+	translated?	0dbe7be0-473c-4566-b40b-1cfd87b2a1ba	Badoca Park	Parque de Badoca	park	not words Portuguese names here use: ['badoca']
+	translated?	ce3d793b-1911-4f5a-8fcb-33ebaa4a6601	Badoca Safari Park	Parque de Badoca Safari	park	not words Portuguese names here use: ['badoca', 'safari']
+	translated?	0e2b3245-352f-43f4-a838-c552e52574d3	Badoca Safari Park	Parque de Badoca Safari	zoo	not words Portuguese names here use: ['badoca', 'safari']
+	translated?	1bd142b2-5a51-4a85-80c8-a4734e30ceba	Badoca Safari Park	Parque de Badoca Safari	park	not words Portuguese names here use: ['badoca', 'safari']
+	translated?	13db4597-bda0-4711-9b13-09b8ab55c4db	Badoka Safari Park	Parque de Badoka Safari	park	not words Portuguese names here use: ['badoka', 'safari']
+	translated?	ad6902dc-87a7-4d61-a3e0-1508b60df62a	Beach Patacho	Praia de Patacho	beach	not words Portuguese names here use: ['patacho']
+	translated?	0498f5da-e404-4370-9d3b-75bf0f7108f3	Beach Side	Praia de Side	beach	not words Portuguese names here use: ['side']
+	translated?	9e442209-1f16-437b-96b3-da586a32214b	Belmarço Palace	Palácio de Belmarço	landmark_and_historical_building	not words Portuguese names here use: ['belmarco']
+	translated?	5962866d-8fa0-4777-9986-14b3ad61123c	Bhoemia beach	Praia de Bhoemia	beach	not words Portuguese names here use: ['bhoemia']
+	translated?	b17d0862-be9c-498e-8caf-68b475476f53	Boom Lake	Lago de Boom	lake	not words Portuguese names here use: ['boom']
+	translated?	ef771064-728d-4cb2-adfc-51aebd697d49	Brilha Church	Igreja de Brilha	church_cathedral	not words Portuguese names here use: ['brilha']
+	translated?	c8c51ee7-bd16-478e-a4f6-34bed9f7b968	Brinca + Fun Park	Parque de Brinca + Fun	park	not words Portuguese names here use: ['brinca', 'fun']
+	translated?	806b8edc-8088-4842-9bf6-519a9d88cb48	Caceira Bike Park	Parque de Caceira Bike	park	not words Portuguese names here use: ['caceira']
+	translated?	fff8f9ff-a5a3-47d6-add1-752c2b43485b	Cape Sagres viewpoint	Miradouro de Cape Sagres	landmark_and_historical_building	an English word survives in the name
+	translated?	40d63783-70a9-40ef-b705-794a898a1b9f	Castle Germanelo	Castelo de Germanelo	castle	not words Portuguese names here use: ['germanelo']
+	translated?	7770610a-1e59-422b-96f8-b4b0eaa9616b	Castle of the Knights Templar, Tomar, Portugal	Castelo de Knights Templar, Tomar, Portugal	landmark_and_historical_building	the name carries a comma: it is a name plus a description
+	translated?	e61ecfd5-fc6d-44ba-9a97-141d4091667f	Cave Coletivo	Gruta de Coletivo	art_gallery	not words Portuguese names here use: ['coletivo']
+	translated?	68c71373-231c-42f2-87d5-734f92cb45bf	Cave Furninha	Gruta de Furninha	landmark_and_historical_building	not words Portuguese names here use: ['furninha']
+	translated?	314a9142-d052-4790-b84a-045a8dcf4358	Central Park	Parque de Central	park	an English word survives in the name
+	translated?	6c278796-12e7-4755-ae16-fae006641bf0	Chapel of Bones	Capela de Bones	church_cathedral	not words Portuguese names here use: ['bones']
+	translated?	a013ff9d-7958-4a01-9917-4934fecd4bb1	Chapel of Bones of Faro	Capela de Bones de Faro	church_cathedral	not words Portuguese names here use: ['bones']
+	translated?	5265a928-aa03-40b7-81b2-9ad2888d9e63	Chapel of the Lord Jesus of the Navigators	Capela de Lord Jesus de Navigators	catholic_church	not words Portuguese names here use: ['navigators']
+	translated?	7c6419d5-938e-47ac-ae8a-964074dd4ee6	Christ The King Anglican Church	Igreja de Christ The King Anglican	church_cathedral	an English word survives in the name
+	translated?	c96bd1f8-f967-46b1-a756-e88545060c52	Christopher Columbus Monument	Monumento de Christopher Columbus	monument	not words Portuguese names here use: ['christopher', 'columbus']
+	translated?	8d99e612-aa72-4763-a501-879b27815ff6	Church and Tower of dos Clérigos	Igreja and Tower de dos Clérigos	church_cathedral	an English word survives in the name
+	translated?	421d6078-cb79-4c3e-9c64-245dff6b7d3b	Church his family	Igreja de his family	church_cathedral	not words Portuguese names here use: ['his']
+	translated?	5f5f8f2b-1abc-47d4-8ea3-cdb439a8ce4f	Church of Christ Ministry Nova Terra	Igreja de Christ Ministry Nova Terra	church_cathedral	not words Portuguese names here use: ['christ', 'ministry']
+	translated?	d91a920a-a2d3-48ee-a698-6b8f0ee7347e	Church of Our Lady of the Glory	Igreja de Nossa Senhora de Glory	catholic_church	not words Portuguese names here use: ['glory']
+	translated?	a363061f-5aff-4a06-8555-76dffa0a027d	Church of Our Lady of the Incarnation	Igreja de Nossa Senhora de Incarnation	catholic_church	not words Portuguese names here use: ['incarnation']
+	translated?	2905693a-b6d2-40df-b11c-998576925575	Church of Saint James the Great	Igreja de São Tiago the Great	catholic_church	an English word survives in the name
+	translated?	5411d851-17c7-404a-934a-1a7f2414f9e5	Church of Saint Mamede	Igreja de Saint Mamede	catholic_church	an English word survives in the name
+	translated?	a673b766-c5d6-49f8-9788-9ee7a88bd142	Church of Saint Mary Magdalene	Igreja de Santa Maria Magdalene	church_cathedral	not words Portuguese names here use: ['magdalene']
+	translated?	afc34c86-9ba7-4026-8e05-d82a81f583f1	Church of St. George's Castle	Igreja de São Jorge's Castle	church_cathedral	an English word survives in the name
+	translated?	c538f276-d54d-46d3-a6f2-565bdd7919cd	Church of St. Louis of the French	Igreja de St. Louis de French	catholic_church	a saint this module has no Portuguese form for
+	translated?	0fa65980-7545-4d90-b5f0-643881bd19ef	Church of São Julião e Santa Basilisa	Igreja de São Julião e Santa Basilisa	church_cathedral	not words Portuguese names here use: ['basilisa']
+	translated?	bd5ab465-3447-4f2c-9190-2065983eaf74	Church of São Mateus da Calheta (Old)	Igreja de São Mateus da Calheta (Old)	catholic_church	an English word survives in the name
+	translated?	6a897b31-5051-4fef-9fce-866c2389a540	Church of São Pedro (Ponta Delgada, Flores)	Igreja de São Pedro (Ponta Delgada, Flores)	church_cathedral	the name carries a comma: it is a name plus a description
+	translated?	9847486a-15ea-4c90-a2bb-619c51c59eb5	Church of the Blessed Sacrament	Igreja de Blessed Sacrament	catholic_church	not words Portuguese names here use: ['blessed', 'sacrament']
+	translated?	2aac54ce-55b8-4830-a0b0-771fa374c675	Church of the Jesuit College (Ponta Delgada)	Igreja de Jesuit College (Ponta Delgada)	church_cathedral	not words Portuguese names here use: ['jesuit']
+	translated?	9b82045e-73d3-46ff-a944-b99e671d572a	Church of the Sacred Heart of Jesus	Igreja de Sacred Heart de Jesus	catholic_church	not words Portuguese names here use: ['sacred', 'heart']
+	translated?	a673dc50-11d7-4ddd-a163-de8170db3ada	Church of the Son, Ponta do Sol, Madeira	Igreja de Son, Ponta do Sol, Madeira	church_cathedral	the name carries a comma: it is a name plus a description
+	translated?	a496050f-b94d-4cee-99b9-c8cef42a2442	Cohela Beach	Praia de Cohela	beach	not words Portuguese names here use: ['cohela']
+	translated?	5d5eebdf-67df-4999-b3a3-9960affdbfba	Condomínio Alteia Garden	Jardim de Condomínio Alteia	landmark_and_historical_building	not words Portuguese names here use: ['alteia']
+	translated?	925dfd11-3495-4fea-a056-68641e234a00	Convent of Our Lady of Mount Carmel	Convento de Nossa Senhora de Mount Carmel	religious_organization	not words Portuguese names here use: ['mount', 'carmel']
+	translated?	2e0398d8-ed88-4dc7-983f-f3d84e95291b	EKA Palace	Palácio de EKA	cultural_center	not words Portuguese names here use: ['eka']
+	translated?	b5582e93-060a-47f8-883a-accad8bffc6c	Eduardo VII Park	Parque de Eduardo VII	park	not words Portuguese names here use: ['vii']
+	translated?	3ca8be24-a32a-4c86-9368-505cebc08f8d	Feijão Verde Fun Park	Parque de Feijão Verde Fun	park	not words Portuguese names here use: ['fun']
+	translated?	d6a7c10a-8c6c-481d-ad6f-14532cd92a12	Figueira da Foz Adventure Park	Parque da Figueira da Foz Adventure	park	not words Portuguese names here use: ['adventure']
+	translated?	36bfe0d2-aa40-4efa-bde3-cf39ebeb0b37	Fort of Lagarteira	Forte de Lagarteira	landmark_and_historical_building	not words Portuguese names here use: ['lagarteira']
+	translated?	6b7c3e8e-4f75-4e73-b8fb-732f8abf38be	Fort of Má Ferramenta	Forte de Má Ferramenta	landmark_and_historical_building	not words Portuguese names here use: ['ferramenta']
+	translated?	0d87d57d-7d59-49aa-928b-90037d265df3	Fountain of Abundance, Quinta Da Regaleira	Fonte de Abundance, Quinta Da Regaleira	fountain	the name carries a comma: it is a name plus a description
+	translated?	3a96020e-f8e5-4c86-ae66-0e86efa4c770	Fountain of Tile Beach	Fonte de Tile Beach	beach	an English word survives in the name
+	translated?	2437c62d-3aa1-4ce9-a3e7-91bd0d37edec	Fountain, Jardim do Casino Estoril	Fonte Jardim do Casino Estoril	fountain	the name carries a comma: it is a name plus a description
+	translated?	dae5f308-1eb6-4419-a130-6374f88f61de	Fraga do Puio Viewpoint	Miradouro da Fraga do Puio	landmark_and_historical_building	not words Portuguese names here use: ['puio']
+	translated?	333ca672-346b-442b-b521-95bd8713a479	Funchal´s Botanical Garden	Jardim Botânico do Funchal´s	botanical_garden	the name carries an English possessive
+	translated?	b2f68287-2771-4ed8-b31e-c5a3c2cdf92d	Furnas Lake Adventure Park	Parque das Furnas Lake Adventure	park	an English word survives in the name
+	translated?	708fc5b8-e8b7-4528-836d-594c23db71e0	Gaia Feijão Verde Fun Park	Parque de Gaia Feijão Verde Fun	park	not words Portuguese names here use: ['fun']
+	translated?	558b60c8-c73c-43de-9cbd-56153b2a28e6	Garden Amoreiras - Marcelino Mesquita Garden	Jardim das Amoreiras - Marcelino Mesquita Garden	botanical_garden	an English word survives in the name
+	translated?	4eb3a2dd-908e-4a42-9e39-e5677a66b458	Gardens of the Crystal Palace	Palácio de Gardens de Crystal	fountain	not words Portuguese names here use: ['gardens', 'crystal']
+	translated?	e64c501a-d4d1-4e4f-8443-d832440d35b6	Golden Beach - Porto Santo Island	Ilha de Golden Beach - Porto Santo	beach	an English word survives in the name
+	translated?	7a63b271-6a8f-4a87-b449-e80956e4daa7	Green Park Sub-Urban Palace	Palácio de Green Park Sub-Urban	park	an English word survives in the name
+	translated?	6c2299f1-63ba-4a94-94f4-638b8d9badf9	Hermitage of the Ascensión of Christ	Ermida de Ascensión de Christ	catholic_church	not words Portuguese names here use: ['ascension', 'christ']
+	translated?	889bfc9f-6c49-4cd2-afdf-bd2018f01a33	Hey! World - Fun Park	Parque de Hey! World - Fun	venue_and_event_space	not words Portuguese names here use: ['hey', 'fun']
+	translated?	dcaaaaf8-ec72-46bc-bebb-1aec6a43ee6f	Holy Family Church	Igreja de Holy Family	church_cathedral	an English word survives in the name
+	translated?	4129e063-5d2b-4048-a9a5-2aaefaec7c49	Hula Hula Beach	Praia de Hula Hula	beach	not words Portuguese names here use: ['hula', 'hula']
+	translated?	7fd34a0e-36eb-4c7e-aa14-340032c312eb	IBGV Portugal Church	Igreja de IBGV Portugal	religious_organization	not words Portuguese names here use: ['ibgv']
+	translated?	1d799d92-6c38-4393-a9bd-daaf7bc71a1b	IEP Church	Igreja de IEP	church_cathedral	not words Portuguese names here use: ['iep']
+	translated?	61415454-b7b7-4a92-9526-f6a7715c6967	IMBP Church	Igreja de IMBP	church_cathedral	not words Portuguese names here use: ['imbp']
+	translated?	20ae268c-2935-4983-8887-44d5d7434d90	Inverted Tower	Torre de Inverted	landmark_and_historical_building	not words Portuguese names here use: ['inverted']
+	translated?	d1f7ffa6-f4e1-4d97-b22b-fb9cbd79ccd7	Joy Church	Igreja de Joy	church_cathedral	not words Portuguese names here use: ['joy']
+	translated?	d38e7392-7a42-427e-8511-b7ebeba500b8	Lagartixa park	Parque de Lagartixa	park	not words Portuguese names here use: ['lagartixa']
+	translated?	a72bb310-cdbe-4a71-90fc-e3b7452b3804	Lake Park Albufeira	Lago de Park Albufeira	park	an English word survives in the name
+	translated?	4705df61-3f92-473e-9608-6d9c63344fe4	Lake Tortoise	Lago de Tortoise	lake	not words Portuguese names here use: ['tortoise']
+	translated?	f12458a7-2fa0-4b21-9a13-bec174458e4e	Live Beach	Praia de Live	beach	not words Portuguese names here use: ['live']
+	translated?	45223d93-99b0-496e-a23f-b40924a63fce	Lloyd's Beach	Praia de Lloyd's	beach	the name carries an English possessive
+	translated?	56f240a8-38d4-4ef8-9e0a-006167240ca1	MIF Church	Igreja de MIF	church_cathedral	not words Portuguese names here use: ['mif']
+	translated?	5fa00582-71e3-4d3e-a045-a1c9d9b35ff9	MILL - Makers In Little Lisbon	Moinho de Makers In Little Lisbon	art_gallery	an English word survives in the name
+	translated?	6e827e38-c6db-4ae9-9c82-1fc6e69a0c97	MORE Mountain Park	Parque de MORE Mountain	park	not words Portuguese names here use: ['more', 'mountain']
+	translated?	595bbafc-edd5-4464-acb6-54bcb0a9bef5	MacDonalds Odivelas Park	Parque de MacDonalds Odivelas	park	not words Portuguese names here use: ['macdonalds']
+	translated?	5ff3a82a-3bd6-456f-84cb-093c43c44b83	Madeira, Calheta Beach	Praia da Madeira, Calheta	beach	the name carries a comma: it is a name plus a description
+	translated?	8452f808-8210-4ac9-a7c4-8150719a4047	Marquis of Pombal Square	Praça de Marquis de Pombal	public_plaza	not words Portuguese names here use: ['marquis']
+	translated?	bf583468-16d8-4924-a0a9-d948ebdd35d2	Martin Moniz Park	Parque de Martin Moniz	park	not words Portuguese names here use: ['martin']
+	translated?	401d1414-7b3d-46bb-8f53-564a0c52b363	McKeown COP  - Porto City Church	Igreja de McKeown COP - Porto City	pentecostal_church	an English word survives in the name
+	translated?	2cdc6f69-e544-4cb6-99a5-7595dc0ad798	Meo Suil Park	Parque de Meo Suil	park	not words Portuguese names here use: ['suil']
+	translated?	acc95dd6-52c8-43ae-aa87-8ff74c8eb8d5	Ministério Internacional de Adoração Jireh Church	Igreja de Ministério Internacional de Adoração Jireh	religious_organization	not words Portuguese names here use: ['jireh']
+	translated?	a48db532-2e8e-45cb-930a-b678d88a6021	Ministério Transbordar ( Church)	Igreja de Ministério Transbordar (	church_cathedral	not words Portuguese names here use: ['transbordar']
+	translated?	4adafb5e-73af-413c-9cdb-0e33658ad495	Monastery At St Jeronimos	Mosteiro de At St Jeronimos	religious_organization	a saint this module has no Portuguese form for
+	translated?	692b1618-d8a0-451c-848e-b3f6dc427892	Monastery Pio XII	Mosteiro de Pio XII	religious_organization	not words Portuguese names here use: ['pio', 'xii']
+	translated?	384abfd2-94f8-44a6-a3a0-0ec032345a3f	Monsanto Forest Park	Parque de Monsanto Forest	park	an English word survives in the name
+	translated?	40ed0d51-68ff-4369-8faa-f675a614ee2d	Nato Beach	Praia da Nato	beach	not words Portuguese names here use: ['nato']
+	translated?	5dd20507-3d56-485e-a7cc-f04aaec0dc94	Nazaré Sunset Marina Beach	Praia da Nazaré Sunset Marina	beach	not words Portuguese names here use: ['sunset']
+	translated?	0072cdfe-58c3-488f-9eaa-e423feea9b9a	New life church	Igreja de New life	church_cathedral	an English word survives in the name
+	translated?	a0f57b94-2b49-42fb-aedd-2ad6ff88cbea	OH (Open Heart church)	Igreja de OH (Open Heart	church_cathedral	not words Portuguese names here use: ['heart']
+	translated?	f623ed8d-7543-4dfc-b8c9-ef5297dfb7ce	Oceano Atlantico, Cascais Beach	Praia de Oceano Atlantico, Cascais	beach	the name carries a comma: it is a name plus a description
+	translated?	21595ba9-2006-4bc0-893a-24d06c4779d8	Old Town Square	Praça de Old Town	public_plaza	an English word survives in the name
+	translated?	b904499f-09b7-4a3c-adcf-1f007d5cb16e	Ondix Beach	Praia de Ondix	beach	not words Portuguese names here use: ['ondix']
+	translated?	d6e1e7cb-79ef-46f6-ae5c-a18bd0e49f72	Open Heavens Church	Igreja de Open Heavens	church_cathedral	not words Portuguese names here use: ['heavens']
+	translated?	5a058440-16cd-4d15-ae15-9968248ee147	Palace Sub-Ripas	Palácio de Sub-Ripas	monument	not words Portuguese names here use: ['ripas']
+	translated?	d0a9a515-21c4-4af5-83cf-7c0d8b4b6b47	Park Capitolio	Parque de Capitolio	park	not words Portuguese names here use: ['capitolio']
+	translated?	e4f2ed53-f604-41f5-9e23-5ec8a0c114ab	Park Douro Selvagem	Parque do Douro Selvagem	park	not words Portuguese names here use: ['selvagem']
+	translated?	d42064f4-d155-4ae9-9ded-b5a1ea598527	Park and Palace of Monserrate	Parque and Palace de Monserrate	landmark_and_historical_building	an English word survives in the name
+	translated?	18e0ab33-afcf-4496-bd67-d5c3da0efe92	Pena National Palace	Palácio de Pena National	monument	an English word survives in the name
+	translated?	ceb67eeb-9613-4ce6-9fdf-92e75014fdfb	Penedaventura Park	Parque de Penedaventura	park	not words Portuguese names here use: ['penedaventura']
+	translated?	c4db3ac1-ac9d-4642-a655-b2c548edf628	Pestana Palms Beach	Praia de Pestana Palms	beach	not words Portuguese names here use: ['palms']
+	translated?	8315c3a6-955c-4a16-ada1-7f482f9ad2c2	Pine Cliffs beach	Praia de Pine Cliffs	beach	not words Portuguese names here use: ['pine', 'cliffs']
+	translated?	901f2df0-7599-475d-afad-f5d581406cc8	Pink Palace	Palácio de Pink	museum	not words Portuguese names here use: ['pink']
+	translated?	9a39bbec-8dd1-49b9-bb9e-d444e5907e4c	Pinus Urban Garden	Jardim de Pinus Urban	landmark_and_historical_building	not words Portuguese names here use: ['pinus']
+	translated?	6899a289-1e33-4175-abf5-82a4c230a2b7	Portoland Park	Parque de Portoland	park	not words Portuguese names here use: ['portoland']
+	translated?	a22162f5-90ea-4754-8a67-4b52c9b59f7d	Quateira Beach	Praia de Quateira	beach	not words Portuguese names here use: ['quateira']
+	translated?	014493e9-f049-42a1-a8a8-e99c77e192c8	Quinta do Mouricão Mobile Home Park	Parque de Quinta do Mouricão Mobile Home	park	not words Portuguese names here use: ['mouricao', 'mobile']
+	translated?	c4a41949-0ad7-438b-ba0b-c5ebbe4d5b9d	Restaurante Queens Beach	Praia de Restaurante Queens	beach	not words Portuguese names here use: ['queens']
+	translated?	e06b9af4-aceb-444c-8a8b-73e4b403750c	Ria Formosa National Park	Parque de Ria Formosa National	park	an English word survives in the name
+	translated?	5929386e-c874-42c7-8626-48ee276a5cb0	Riverside International Church	Igreja de Riverside International	church_cathedral	an English word survives in the name
+	translated?	f6fd7a70-81f3-439e-91bd-bc08717e12f8	Riverside International Church	Igreja de Riverside International	church_cathedral	an English word survives in the name
+	translated?	2fa9d72b-e40a-4138-80fc-07766509aff4	Riverside International Church	Igreja de Riverside International	church_cathedral	an English word survives in the name
+	translated?	fbb240bf-dce2-4af0-b3ba-248beadcbdff	Sanctuary of the Sacred Heart of Jesus	Santuário de Sacred Heart de Jesus	catholic_church	not words Portuguese names here use: ['sacred', 'heart']
+	translated?	253c7b16-ebe5-4da9-8ee9-ec355be32375	Savoy Calheta Beach	Praia de Savoy Calheta	beach	not words Portuguese names here use: ['savoy']
+	translated?	deac4dee-30b8-4c67-80e9-edf12b061aac	Sesimbra Golden Beach	Praia de Sesimbra Golden	beach	an English word survives in the name
+	translated?	427ac16a-84e7-403b-a3d1-820ae6d123f1	Silver Coast Non Denominational English Church	Igreja de Silver Coast Non Denominational English	church_cathedral	not words Portuguese names here use: ['silver', 'coast', 'non', 'denominational']
+	translated?	140c49f6-aa1b-4024-b16c-7eef473cf306	Sirius Park	Parque de Sirius	park	not words Portuguese names here use: ['sirius']
+	translated?	459000db-ac75-46aa-af89-a0287afa9839	Socorro, Barreirinha Beach	Praia do Socorro, Barreirinha	beach	the name carries a comma: it is a name plus a description
+	translated?	b2006f6c-bd95-449e-b37f-098f18918e82	South Water Park	Parque de South Water	park	an English word survives in the name
+	translated?	fb181a76-4078-4e0c-bceb-770a26eb2b2b	St Eulalia Beach	Praia de St Eulalia	beach	a saint this module has no Portuguese form for
+	translated?	edd33f2b-7431-4bde-8b1f-da6ea15aa4b0	St George's Church	Igreja de São Jorge's	anglican_church	the name carries an English possessive
+	translated?	e9e02459-a85e-4915-b590-559e80c04557	St. Paul's Anglican Church	Igreja de São Paulo's Anglican	church_cathedral	an English word survives in the name
+	translated?	a9759c33-99f8-4891-8a52-7f4082f10830	Sunset - Vale De Lobo Beach	Praia de Sunset - Vale De Lobo	beach	not words Portuguese names here use: ['sunset']
+	translated?	a0a8f029-8b12-4570-b134-2559092d160c	São Bento das Peras Sanctuary	Santuário de São Bento das Peras	church_cathedral	not words Portuguese names here use: ['peras']
+	translated?	20cd4b6e-b1e6-4e19-9d58-479e33ecc679	Tag Park	Parque de Tag	park	not words Portuguese names here use: ['tag']
+	translated?	b941ff8a-5312-4179-961f-23fd035ce349	Tagus Park!	Parque de Tagus	park	not words Portuguese names here use: ['tagus']
+	translated?	60b50573-c065-4dfd-91eb-f9a016aa3c14	Tejo Fan Park	Parque do Tejo Fan	park	not words Portuguese names here use: ['fan']
+	translated?	9236f467-c1ad-4505-88bd-93daf39b8adb	Tempo de Adorar - Cosmopolitan Church	Igreja de Tempo de Adorar - Cosmopolitan	church_cathedral	not words Portuguese names here use: ['adorar', 'cosmopolitan']
+	translated?	d15325af-b023-4097-9017-214773dcc5d7	Terra Nostra Garden	Jardim de Terra Nostra	park	not words Portuguese names here use: ['nostra']
+	translated?	b7036e31-ba86-492c-9167-d1b59655cee3	Tesouro- Braga Cathedral Museum	Museu de Tesouro- Braga Cathedral	museum	an English word survives in the name
+	translated?	84ce328a-5822-43f2-bee1-617379f89fb5	The Roman Bridge	Ponte de The Roman	bridge	an English word survives in the name
+	translated?	59277518-5c11-49aa-9a35-446170764ed9	Tickets office Jerónimos Monastery	Mosteiro de Tickets office Jerónimos	museum	not words Portuguese names here use: ['tickets']
+	translated?	613660ee-eeb0-4e59-8bcb-aeb3d893ef66	Tomar, Central Park	Parque de Tomar, Central	park	an English word survives in the name
+	translated?	91f1196e-4fe3-4522-9ad5-1cfee366209b	Torralta Beach	Praia de Torralta	beach	not words Portuguese names here use: ['torralta']
+	translated?	b048c775-2908-4a7e-8eaf-d3938d0fc2e3	Tower of the Keep	Torre de Keep	castle	not words Portuguese names here use: ['keep']
+	translated?	57a3c4d3-a9f7-404b-ad81-51002e3be656	Under The Bridge	Ponte de Under The	art_museum	an English word survives in the name
+	translated?	eaef6f19-2e34-431c-a02d-5c1895e9e81e	UnderGround Park	Parque de UnderGround	park	not words Portuguese names here use: ['underground']
+	translated?	278f0294-b58f-4aa2-b27c-8ea5022e7429	Vale Espinhaço beach	Praia do Vale Espinhaço	beach	not words Portuguese names here use: ['espinhaco']
+	translated?	bf06cd5c-8920-440d-ba08-6982995aedca	Viewpoint of Monte Agudo	Miradouro do Monte Agudo	landmark_and_historical_building	not words Portuguese names here use: ['agudo']
+	translated?	f6f5216b-f46a-48e8-8277-4614a23b12e1	Vila Retail Park	Parque da Vila Retail	park	not words Portuguese names here use: ['retail']
+	translated?	f71f8a2f-80f9-422d-980b-cf67a7ba6aa2	Waterfall Lake	Cascata de Lake	landmark_and_historical_building	an English word survives in the name
+	translated?	6c160fe4-758b-4029-930e-67e0f88e4485	Yuppi kids park	Parque de Yuppi kids	park	not words Portuguese names here use: ['yuppi']
