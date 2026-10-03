@@ -122,6 +122,13 @@ CREATE TABLE IF NOT EXISTS overture_poi (
   name_local          TEXT,
   name_en             TEXT,
   name_local_lang     TEXT,
+  -- KAN-471 (0054). Where `name_local` came from: 'wikidata' with its QID,
+  -- 'owner' for a name confirmed by hand, 'translated' for one derived from
+  -- a descriptor. Three different claims with three different licences, and
+  -- "where did this string come from" has to stay answerable.
+  name_local_source   TEXT,
+  name_local_source_ref TEXT,
+  name_local_updated_at TEXT,
   names_json          TEXT,
   country_code        TEXT
 );
@@ -425,7 +432,11 @@ CREATE TABLE IF NOT EXISTS curated_poi (
   import_run_id              TEXT,
   name_local                 TEXT,
   name_en                    TEXT,
-  name_local_lang            TEXT
+  name_local_lang            TEXT,
+  -- KAN-471 (0055). `selectPoiName` resolves the user's per-country choice
+  -- from the row's own country; without one a curated row takes the
+  -- no-country branch and can never show a native name.
+  country_code               TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_curated_poi_geo ON curated_poi (geohash);
 CREATE INDEX IF NOT EXISTS idx_curated_poi_name ON curated_poi (dedupe_name);

@@ -1418,6 +1418,7 @@ async function queryNearbyPoiDb(
     db.prepare(
       `SELECT curated_poi.poi_id, curated_poi.dedupe_name, curated_poi.name,
             curated_poi.name_local, curated_poi.name_en, curated_poi.name_local_lang,
+            curated_poi.country_code,
             curated_poi.lat, curated_poi.lng,
             curated_poi.primary_poi_type, curated_poi.brand, curated_poi.address, curated_poi.floor,
             curated_poi_attribute.dimension AS attribute_dimension, curated_poi_attribute.value AS attribute_value
@@ -1429,7 +1430,8 @@ async function queryNearbyPoiDb(
        AND (${curatedRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...curatedRequestBinds).all<{
       poi_id: string; dedupe_name: string; name: string; name_local: string | null;
-      name_en: string | null; name_local_lang: string | null; lat: number; lng: number;
+      name_en: string | null; name_local_lang: string | null; country_code: string | null;
+      lat: number; lng: number;
       primary_poi_type: string; brand: string | null; address: string | null; floor: string | null;
       attribute_dimension: string | null; attribute_value: string | null;
     }>(),
@@ -1506,6 +1508,7 @@ async function queryNearbyPoiDb(
       candidates.set(candidateKey, {
         poi_id: row.poi_id, name: row.name, lat: row.lat, lng: row.lng,
         name_local: row.name_local, name_en: row.name_en, name_local_lang: row.name_local_lang,
+        country_code: row.country_code,
         primary_poi_type: row.primary_poi_type, brand: row.brand, category_label: null,
         // Community rows do not carry curated hours yet: NULL keeps KAN-318's
         // safe always-open behaviour rather than hiding an approved POI.
