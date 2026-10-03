@@ -276,13 +276,37 @@ describe('SettingsScreen — KAN-460: place-name language', () => {
     expect(mockSetPlaceNameChoice).toHaveBeenCalledWith('PT', 'en');
   });
 
-  it('keeps the setting visible but disabled for a single-language country', async () => {
+  it('is usable in a single-language country, because the source name is a choice too', async () => {
+    // KAN-474: one language still gives two options — the country's own name
+    // and the name as the source supplied it. This test previously asserted
+    // the control was disabled here, which is what kept a PT user from ever
+    // switching.
     mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'GB', languages: ['en'] });
     await renderScreen();
     const row = screen.getByLabelText('Place names');
-    expect(row.props.accessibilityState.disabled).toBe(true);
+    expect(row.props.accessibilityState.disabled).toBeFalsy();
     fireEvent.press(row);
-    expect(mockSetPlaceNameChoice).not.toHaveBeenCalled();
+    fireEvent.press(screen.getByLabelText('As I found it'));
+    expect(mockSetPlaceNameChoice).toHaveBeenCalledWith('GB', 'source');
+  });
+
+  it('offers the country name and the source name, in that order, for one language', async () => {
+    mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'PT', languages: ['pt'] });
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Place names'));
+    expect(screen.getByLabelText('Country native')).toBeTruthy();
+    expect(screen.getByLabelText('As I found it')).toBeTruthy();
+    expect(screen.queryByLabelText('Português')).toBeNull();
+  });
+
+  it('offers one option per language where a country has two, and no ambiguous native', async () => {
+    mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'CA', languages: ['en', 'fr'] });
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Place names'));
+    expect(screen.getByLabelText('As I found it')).toBeTruthy();
+    expect(screen.getByLabelText('English')).toBeTruthy();
+    expect(screen.getByLabelText('Français')).toBeTruthy();
+    expect(screen.queryByLabelText('Country native')).toBeNull();
   });
 
   it('uses English as the unchangeable fallback without a known country', async () => {

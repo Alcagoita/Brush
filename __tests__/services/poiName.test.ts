@@ -1,4 +1,4 @@
-import { displayPlaceName, parsePlaceNames, selectPoiName, setPlaceNameChoices } from '../../src/services/poiName';
+import { displayPlaceName, parsePlaceNames, placeNameOptions, selectPoiName, setPlaceNameChoices } from '../../src/services/poiName';
 
 afterEach(() => setPlaceNameChoices({}));
 
@@ -40,5 +40,59 @@ describe('place-name selection', () => {
   it('keeps only valid source-provided language names', () => {
     expect(parsePlaceNames('{"en":"English","pt":"Português","bad key":"Wrong","fr":""}'))
       .toEqual({ en: 'English', pt: 'Português' });
+  });
+});
+
+describe('KAN-474 — the source name is a choice of its own', () => {
+  const PT = 'PT';
+
+  it('offers the country name or the source name where there is one language', () => {
+    expect(placeNameOptions(['pt'])).toEqual(['native', 'source']);
+    expect(placeNameOptions([])).toEqual(['native', 'source']);
+  });
+
+  it('offers one choice per language where there are two, and no ambiguous native', () => {
+    expect(placeNameOptions(['en', 'fr'])).toEqual(['source', 'en', 'fr']);
+  });
+
+  it('ignores duplicates and blanks in the configured list', () => {
+    expect(placeNameOptions(['pt', 'pt', '  '])).toEqual(['native', 'source']);
+  });
+
+  it('returns the source name when that is the choice', () => {
+    expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'source' }, null, 'Mosteiro dos Jerónimos'))
+      .toBe('Jerónimos Monastery');
+  });
+
+  it('returns the native name by default, which is what production shows', () => {
+    expect(selectPoiName('Jerónimos Monastery', {}, PT, {}, null, 'Mosteiro dos Jerónimos'))
+      .toBe('Mosteiro dos Jerónimos');
+  });
+
+  it('reads the same under both choices when no native name was recorded', () => {
+    const name = 'Praia de Machico';
+    expect(selectPoiName(name, {}, PT, { PT: 'native' }, null, null)).toBe(name);
+    expect(selectPoiName(name, {}, PT, { PT: 'source' }, null, null)).toBe(name);
+  });
+
+  it('asking for the language of the recorded native name gets it', () => {
+    expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'pt' }, null, 'Mosteiro dos Jerónimos', 'pt'))
+      .toBe('Mosteiro dos Jerónimos');
+  });
+
+  it('asking for the other language of a two-language country reads its map', () => {
+    const names = { fr: 'Rue Saint-Jean' };
+    expect(selectPoiName('Saint John Street', names, 'CA', { CA: 'fr' }, null, 'Saint John Street', 'en'))
+      .toBe('Rue Saint-Jean');
+  });
+
+  it('falls back to the source name when the chosen language has none recorded', () => {
+    expect(selectPoiName('Saint John Street', {}, 'CA', { CA: 'fr' }, null, null, 'en'))
+      .toBe('Saint John Street');
+  });
+
+  it('still has no country to resolve against offline with no country', () => {
+    expect(selectPoiName('Jerónimos Monastery', {}, null, { PT: 'native' }, null, 'Mosteiro dos Jerónimos'))
+      .toBe('Jerónimos Monastery');
   });
 });

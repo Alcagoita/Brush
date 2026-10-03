@@ -1,0 +1,4 @@
+{
+  "_note": "KAN-474. The native languages of each country we serve, which decide the place-name choices a user is offered. This replaces reading Overture's archive for them: Overture supplies no language variants at all, so the scanned list was always empty. One language means two choices (the country's name, or the source's); two or more mean one choice per language. Add a country only when its places are actually served.",
+  "PT": ["pt"]
+}

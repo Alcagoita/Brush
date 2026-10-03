@@ -58,6 +58,7 @@ import { ImportResult } from '../types';
 import { COPY, type SupportedLanguage } from '../constants/copy';
 import { setWifiOnlyDownloads } from '../services/habitatCache';
 import { resolvePlaceNameCountry } from '../services/placeNameCountry';
+import { NATIVE_CHOICE, SOURCE_CHOICE, placeNameOptions } from '../services/poiName';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -303,7 +304,8 @@ function LanguagePickerSheet({ visible, current, onSelect, onClose }: LanguagePi
 }
 
 function placeLanguageLabel(code: string): string {
-  if (code === 'native') return COPY.settings.placeNamesNative;
+  if (code === NATIVE_CHOICE) return COPY.settings.placeNamesNative;
+  if (code === SOURCE_CHOICE) return COPY.settings.placeNamesSource;
   const staticLabels: Record<string, string> = {
     en: 'English', pt: 'Português', es: 'Español', fr: 'Français',
     de: 'Deutsch', it: 'Italiano', nl: 'Nederlands', ca: 'Català',
@@ -333,7 +335,9 @@ function PlaceNamePickerSheet({ visible, current, languages, onSelect, onClose }
 }) {
   const { palette } = useTheme();
   const insets = useSafeAreaInsets();
-  const options = ['native', ...languages];
+  // `placeNameOptions` decides the shape: one language gives the country's
+  // name or the source's, two or more give the source and one per language.
+  const options = placeNameOptions(languages);
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={[StyleSheet.absoluteFill, { backgroundColor: palette.scrim }]}
@@ -566,7 +570,11 @@ export default function SettingsScreen() {
               ? placeLanguageLabel(placeNameChoices[placeNameCountry] ?? 'native')
               : COPY.settings.languageEnglish}
             onPress={() => setPlaceNameSheetOpen(true)}
-            disabled={!placeNameCountry || placeNameLanguages.length <= 1}
+            // Disabled only when no country can be resolved. With one there
+            // are always at least two choices — the country's name and the
+            // source's — so the old `languages.length <= 1` test disabled a
+            // control that had something to offer.
+            disabled={!placeNameCountry || placeNameOptions(placeNameLanguages).length <= 1}
             isLast
             accessibilityLabel={COPY.settings.placeNamesRowLabel}
           />
