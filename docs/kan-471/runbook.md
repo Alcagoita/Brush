@@ -178,3 +178,35 @@ yet; the point of this change is that one would now be shown.
 
 `verify_prod_decisions.py` after the deploy: 7 of 7 checks pass, Odivelas Parque
 still 111 rows, 12 store brands, no inconsistent kinds.
+
+## Branch review, 2026-10-03
+
+Nine findings; eight valid as stated, one narrowed. All fixed.
+
+**Two native names had to be withdrawn** (migration `0056`). `strip_locality_tail`
+used to drop a comma tail on sight, and the shortened name then came back
+`high` because the comma guard only ever saw the core. Both rows it produced
+were wrong and were live in production:
+
+```
+@ Porto Santo Island, Atlantic Ocean <3  ->  Ilha do @ Porto Santo
+Lagoinha Park, Lda                       ->  Parque de Lagoinha
+```
+
+The `@` survived into the first, and `Lda` is the Portuguese company suffix,
+so the second's tail named a company rather than a place. Only the native name
+and its provenance are cleared, guarded on `name_local_source = 'translated'`
+so a looked-up or owner-confirmed name cannot be cleared by it. **315 names
+now carry a native name: 12 owner, 254 translated, 49 Wikidata.**
+
+| finding | verdict |
+|---|---|
+| `name_en` frozen by `name_local_source` | Valid. That column records where `name_LOCAL` came from, so gating `name_en` on it froze the English variant of every reviewed row. Now `COALESCE(NULLIF(v.name_en, ''), …)`: the source still owns it, it just cannot be blanked. |
+| comma tail dropped unverified | Valid, and it had written two wrong names. A tail is now dropped only when every segment is a locality the archive's own `locality` column names (4,038 of them) or a region. |
+| Wikidata never looked across a cell boundary | Valid. A cell is 0.5°, so a candidate metres from an edge had its match in the next cell and could never be found. `cells_near` returns the point's cell plus any neighbour within the match radius — one inland, four at a corner. |
+| write did not check the name it was reviewed against | Valid. A refresh can rename a row between the review and the write, so the predicate now requires `overture_poi.name = v.reviewed_name`. |
+| a derived name displaced a looked-up one | Valid. Only an owner-confirmed name outranks Wikidata now. No production effect — the two files are disjoint, because the translator runs over Wikidata's review list — but nothing in the shapes guaranteed it. |
+| rollback record listed skipped rows | Valid, and it mattered: the second run's record held all 317 ids including the 289 from the first, so a rollback from it would have cleared names it never wrote. The ids are now read back, bounded at 150 per query, before the write. |
+| `unittest.main()` mid-file | Valid. Direct execution ran 8 classes and reported OK; it now runs all 72. |
+| empty plan indexed `planned[0]` | Valid, trivial. |
+| vocabulary membership alone classifies `high` | Narrowed. The real hole was a run with no `--archive` at all, where nothing can be flagged on vocabulary and everything returns `high`. `--out` now requires `--archive`, checked before any file is read. The confidence semantics are unchanged. |

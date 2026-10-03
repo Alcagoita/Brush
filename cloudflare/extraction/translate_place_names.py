@@ -388,7 +388,25 @@ LOCALITY_TAILS = (
 )
 
 
-def strip_locality_tail(name):
+def learn_localities(archive_path):
+    """The localities the archive itself names, folded.
+
+    Dropping a comma tail on sight was wrong: `OH (Open Heart church), Lisboa`
+    and `Chapel of the Lord, my grandmother's house` are not the same claim,
+    and only the first tail is a place. The archive carries a `locality`
+    column for every row, so what counts as a locality here is a fact we
+    already hold rather than a list I would otherwise invent."""
+    import csv as _csv
+    localities = set()
+    with open(archive_path, newline='') as handle:
+        for row in _csv.DictReader(handle):
+            locality = fold(row.get('locality') or '')
+            if locality:
+                localities.add(locality)
+    return localities
+
+
+def strip_locality_tail(name, localities=None):
     """(core, dropped) — the name without its trailing locality.
 
     Two shapes, both common: a comma tail (`Porches Beach, Algarve`,
@@ -397,14 +415,20 @@ def strip_locality_tail(name):
     nor last and nothing matches at all, which is why 188 rows came back
     untouched.
 
-    A comma tail is dropped whatever it says, because the part before the
-    first comma is the name. A BARE trailing word is dropped only when it is
-    in `LOCALITY_TAILS`: `Praia da Madeira` must keep its Madeira."""
+    A comma tail is dropped only when every segment of it is a VERIFIED
+    locality — one the archive names, or a region in `LOCALITY_TAILS`.
+    Anything else keeps its comma and is flagged by `doubts`, because a
+    trailing clause that is not a place is part of the name or a description,
+    and shortening it would silently invent a name. A BARE trailing word is
+    dropped only from `LOCALITY_TAILS`: `Praia da Madeira` keeps its
+    Madeira."""
+    known = set(LOCALITY_TAILS) | (localities or set())
     dropped = []
     core = name.strip()
     if ',' in core:
         head, _, tail = core.partition(',')
-        if head.strip():
+        segments = [part.strip() for part in tail.split(',') if part.strip()]
+        if head.strip() and segments and all(fold(part) in known for part in segments):
             dropped.append(tail.strip())
             core = head.strip()
     words = core.split()
@@ -563,7 +587,7 @@ def contract_inner_of(text, learned=None):
     return re.sub(r'\s+of\s+(?:the\s+)?(\S+(?:\s+\S+)?)$', lambda m: replace(m), text, flags=re.IGNORECASE)
 
 
-def translate(name, learned=None, vocabulary=None, overrides=None):
+def translate(name, learned=None, vocabulary=None, overrides=None, localities=None):
     """{name_local, confidence, why} or None when nothing here applies."""
     if fold(name) in DO_NOT_TRANSLATE:
         return None  # the owner has confirmed this IS the place's name
@@ -572,9 +596,9 @@ def translate(name, learned=None, vocabulary=None, overrides=None):
     if confirmed:
         return {'name_local': confirmed, 'confidence': 'high', 'rule': 'owner-confirmed'}
 
-    core, dropped = strip_locality_tail(name)
+    core, dropped = strip_locality_tail(name, localities)
     if dropped and fold(core) != fold(name):
-        inner = translate(core, learned, vocabulary, overrides or {})
+        inner = translate(core, learned, vocabulary, overrides or {}, localities)
         if inner:
             return {**inner, 'rule': f"{inner['rule']}, dropped the locality {dropped}"}
 
@@ -645,11 +669,11 @@ def translate(name, learned=None, vocabulary=None, overrides=None):
             'confidence': confidence, 'rule': rule, 'why': why}
 
 
-def run(rows, learned=None, vocabulary=None, overrides=None):
+def run(rows, learned=None, vocabulary=None, overrides=None, localities=None):
     overrides = load_overrides() if overrides is None else overrides
     translated, untouched = [], []
     for row in rows:
-        result = translate(row['name'], learned, vocabulary, overrides)
+        result = translate(row['name'], learned, vocabulary, overrides, localities)
         if result is None:
             untouched.append({**row, 'why': 'no descriptor this module knows'})
             continue
@@ -671,14 +695,22 @@ def main(argv=None):
     parser.add_argument('--show', type=int, default=30)
     args = parser.parse_args(argv)
 
+    # Checked before anything is read: without the archive there is no
+    # vocabulary to vouch for a word and no locality list to verify a comma
+    # tail, so everything would come back `high` on the strength of the
+    # checks that remain — and this file feeds `write_native_names`.
+    if args.out and not args.archive:
+        raise SystemExit('--out needs --archive: without it nothing can be flagged on vocabulary')
+
     with open(args.review) as handle:
         rows = json.load(handle)['review']
     learned = learn_articles(args.archive) if args.archive else None
     vocabulary = learn_vocabulary(args.archive) if args.archive else None
+    localities = learn_localities(args.archive) if args.archive else None
     if learned:
-        print(f'{len(learned):,} toponym articles and {len(vocabulary):,} Portuguese words '
-              f'learned from the archive', file=sys.stderr)
-    report = run(rows, learned, vocabulary)
+        print(f'{len(learned):,} toponym articles, {len(vocabulary):,} Portuguese words and '
+              f'{len(localities):,} localities learned from the archive', file=sys.stderr)
+    report = run(rows, learned, vocabulary, localities=localities)
     high = [r for r in report['translated'] if r['confidence'] == 'high']
     flagged = [r for r in report['translated'] if r['confidence'] != 'high']
     print(f"{len(rows):,} for review -> {len(high):,} translated, {len(flagged):,} flagged, "

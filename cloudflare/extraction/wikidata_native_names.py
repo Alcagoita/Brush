@@ -90,6 +90,25 @@ def cell_of(lat, lng):
     return (math.floor(lat / CELL) * CELL, math.floor(lng / CELL) * CELL)
 
 
+def cells_near(lat, lng, max_distance=None):
+    """Every cell that could hold an item within range of this point.
+
+    A cell is 0.5 degrees, so a candidate sitting a few metres from an edge
+    had its match in the NEXT cell and could never be found — the box query
+    is per cell, and `match` only ever saw its own. This returns the point's
+    cell plus any neighbour whose boundary is closer than the match radius,
+    which is one cell inland and up to four at a corner."""
+    max_distance = MAX_DISTANCE_M if max_distance is None else max_distance
+    # Degrees of slack, generous at this latitude: 1 degree of latitude is
+    # ~111 km, and longitude is shorter still away from the equator.
+    slack = max_distance / 111_000.0
+    cells = set()
+    for corner_lat in (lat - slack, lat + slack):
+        for corner_lng in (lng - slack, lng + slack):
+            cells.add(cell_of(corner_lat, corner_lng))
+    return cells
+
+
 def fetch_cell(south, west, cache_dir, opener=None):
     """Every Wikidata item in one box that has both an English and a
     Portuguese label. Cached: the box is a fact about a release of Wikidata,
@@ -151,7 +170,8 @@ def match(candidate, items, max_distance=MAX_DISTANCE_M):
 
 def propose(candidates, cache_dir, fetch=fetch_cell, pause=PAUSE_SECONDS):
     """{proposals, review} — never a write, and never a guess."""
-    cells = sorted({cell_of(row['lat'], row['lng']) for row in candidates})
+    cells = sorted({cell for row in candidates
+                    for cell in cells_near(row['lat'], row['lng'])})
     boxes = {}
     for index, (south, west) in enumerate(cells, 1):
         print(f'[{index}/{len(cells)}] Wikidata box {south},{west}', file=sys.stderr)
@@ -161,7 +181,9 @@ def propose(candidates, cache_dir, fetch=fetch_cell, pause=PAUSE_SECONDS):
 
     proposals, review = [], []
     for row in candidates:
-        items = boxes.get(cell_of(row['lat'], row['lng']), [])
+        # Every cell within reach, not just the one the point falls in.
+        items = [item for cell in cells_near(row['lat'], row['lng'])
+                 for item in boxes.get(cell, [])]
         item, why = match(row, items)
         if item is None:
             review.append({**row, 'why': why})

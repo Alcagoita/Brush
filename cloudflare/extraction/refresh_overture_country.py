@@ -157,8 +157,11 @@ SERVED_REFRESH_PREFIX = (
     'UPDATE overture_poi SET name = v.name, '
     'name_local = CASE WHEN overture_poi.name_local_source IS NOT NULL '
     'THEN overture_poi.name_local ELSE NULLIF(v.name_local, \'\') END, '
-    'name_en = CASE WHEN overture_poi.name_local_source IS NOT NULL '
-    'THEN overture_poi.name_en ELSE NULLIF(v.name_en, \'\') END, '
+    # `name_local_source` records where name_LOCAL came from, so gating
+    # `name_en` on it would freeze the English variant of every reviewed row
+    # for good. Nothing here writes `name_en`, so the source still owns it —
+    # it is only protected from being blanked by an empty archive value.
+    'name_en = COALESCE(NULLIF(v.name_en, \'\'), overture_poi.name_en), '
     'name_local_lang = CASE WHEN overture_poi.name_local_source IS NOT NULL '
     'THEN overture_poi.name_local_lang ELSE NULLIF(v.name_local_lang, \'\') END, '
     'names_json = v.names_json, country_code = v.country_code, '

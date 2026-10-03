@@ -48,7 +48,6 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	wikidata	ed3f9c06-e2dc-4576-b787-752b87573326	Castle of Alva	Castelo de Alva	castle	Q5049745 @0m
 	wikidata	7c495e26-20d7-4b60-ae32-7f2ed1d1d377	Castle of Mós	Castelo de Mós	castle	Q5049804 @19m
 	wikidata	b9141d50-6e78-45d5-bfdd-ba02af550d5d	Castle of Miranda do Douro	Castelo de Miranda do Douro	castle	Q3817607 @22m
-	translated	76cf4cf3-0928-46af-879a-9c2f4c8f370a	@ Porto Santo Island, Atlantic Ocean <3	Ilha do @ Porto Santo	beach	island -> Ilha, dropped the locality ['Atlantic Ocean <3']
 	translated	b65b4d2f-ae51-4e8d-a5f1-8a3012e6ec17	Adraga Beach	Praia da Adraga	beach	beach -> Praia
 	translated	c4b6627b-e08b-49a1-99eb-2d77f5ed9509	Aguda Beach	Praia da Aguda	beach	beach -> Praia
 	translated	d8a9f6b6-4a26-48dc-8be3-64206580507d	Alcobaça Monastery	Mosteiro de Alcobaça	religious_organization	monastery -> Mosteiro
@@ -181,7 +180,7 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	translated	fa4dc922-1960-40a0-8843-6264c7e38219	Guimarães Castle	Castelo de Guimarães	castle	castle -> Castelo
 	translated	499923c9-f279-43a6-92b7-4b24bca96d8c	Guincho Beach	Praia do Guincho	beach	beach -> Praia
 	translated	b6d7c41c-90f7-4a46-b5da-e31e7438a152	Guincho Beach, Cascais	Praia do Guincho	beach	beach -> Praia, dropped the locality ['Cascais']
-	translated	9fe2f402-043a-42d0-aa3e-f98a5e147ff9	Guincho Beach, Cascais Portugal	Praia do Guincho	beach	beach -> Praia, dropped the locality ['Cascais Portugal']
+	translated	9fe2f402-043a-42d0-aa3e-f98a5e147ff9	Guincho Beach, Cascais Portugal	Praia do Guincho	beach	beach -> Praia, dropped the locality ['Cascais'], dropped the locality ['Portugal']
 	translated	dcaaaaf8-ec72-46bc-bebb-1aec6a43ee6f	Holy Family Church	Igreja da Sagrada Família	church_cathedral	church -> Igreja
 	translated	cccb35cb-d63c-4c53-bec0-c39deb95739a	I'm In Caparica Beach	Praia de I'm In Caparica	beach	beach -> Praia
 	translated	82756271-945f-4771-b071-b3d9f7f805b5	Igreja Cristã Lighthouse	Farol da Igreja Cristã	church_cathedral	lighthouse -> Farol
@@ -191,7 +190,6 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	translated	78535c4f-cbd9-4da0-9765-55c9060c2ee1	Jardim do Lagoas Park	Parque do Jardim do Lagoas	park	park -> Parque
 	translated	81e33c23-a704-408c-bddb-c59c1d6bb775	Jesus is Lord Church Portugal	Igreja de Jesus is Senhor	church_cathedral	church -> Igreja, dropped the locality ['Portugal']
 	translated	8b88d75e-a460-4477-9357-6981b47c7b34	LIFE Church - Lisbon	Igreja de LIFE	evangelical_church	church -> Igreja, dropped the locality ['Lisbon']
-	translated	abf22b37-1d3b-4556-9e42-3336adc720bd	Lagoinha Park, Lda	Parque de Lagoinha	park	park -> Parque, dropped the locality ['Lda']
 	translated	2f528761-1141-412d-b7de-5459d7879642	Lagoinha Portimao Church	Igreja de Lagoinha Portimao	church_cathedral	church -> Igreja
 	translated	5d959150-5fb0-4a91-9db3-62f4d51513a2	Lar Fatima Park	Parque de Lar Fatima	park	park -> Parque
 	translated	48703711-4759-4880-bf2f-7ccce78b1020	Leiria X Park	Parque de Leiria X	park	park -> Parque
@@ -361,7 +359,7 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	translated?	c538f276-d54d-46d3-a6f2-565bdd7919cd	Church of St. Louis of the French	Igreja de St. Louis de French	catholic_church	a saint this module has no Portuguese form for
 	translated?	0fa65980-7545-4d90-b5f0-643881bd19ef	Church of São Julião e Santa Basilisa	Igreja de São Julião e Santa Basilisa	church_cathedral	not words Portuguese names here use: ['basilisa']
 	translated?	bd5ab465-3447-4f2c-9190-2065983eaf74	Church of São Mateus da Calheta (Old)	Igreja de São Mateus da Calheta (Old)	catholic_church	an English word survives in the name
-	translated?	6a897b31-5051-4fef-9fce-866c2389a540	Church of São Pedro (Ponta Delgada, Flores)	Igreja de São Pedro (Ponta Delgada	church_cathedral	the name carries a parenthetical
+	translated?	6a897b31-5051-4fef-9fce-866c2389a540	Church of São Pedro (Ponta Delgada, Flores)	Igreja de São Pedro (Ponta Delgada, Flores)	church_cathedral	the name carries a comma: it is a name plus a description
 	translated?	2aac54ce-55b8-4830-a0b0-771fa374c675	Church of the Jesuit College (Ponta Delgada)	Igreja de Jesuit College (Ponta Delgada)	church_cathedral	the name carries a parenthetical
 	translated?	a673dc50-11d7-4ddd-a163-de8170db3ada	Church of the Son, Ponta do Sol, Madeira	Igreja de Son	church_cathedral	not words Portuguese names here use: ['son']
 	translated?	a496050f-b94d-4cee-99b9-c8cef42a2442	Cohela Beach	Praia de Cohela	beach	not words Portuguese names here use: ['cohela']
@@ -377,7 +375,7 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	translated?	73a3390b-fd89-4830-8f87-6bb3b286f6e0	First Love Church Portugal	Igreja de First Love	church_cathedral	an English word survives in the name
 	translated?	36bfe0d2-aa40-4efa-bde3-cf39ebeb0b37	Fort of Lagarteira	Forte de Lagarteira	landmark_and_historical_building	not words Portuguese names here use: ['lagarteira']
 	translated?	6b7c3e8e-4f75-4e73-b8fb-732f8abf38be	Fort of Má Ferramenta	Forte de Má Ferramenta	landmark_and_historical_building	not words Portuguese names here use: ['ferramenta']
-	translated?	0d87d57d-7d59-49aa-928b-90037d265df3	Fountain of Abundance, Quinta Da Regaleira	Fonte de Abundance	fountain	not words Portuguese names here use: ['abundance']
+	translated?	0d87d57d-7d59-49aa-928b-90037d265df3	Fountain of Abundance, Quinta Da Regaleira	Fonte de Abundance, Quinta Da Regaleira	fountain	the name carries a comma: it is a name plus a description
 	translated?	3a96020e-f8e5-4c86-ae66-0e86efa4c770	Fountain of Tile Beach	Fonte de Tile Beach	beach	an English word survives in the name
 	translated?	2437c62d-3aa1-4ce9-a3e7-91bd0d37edec	Fountain, Jardim do Casino Estoril	Fonte Jardim do Casino Estoril	fountain	the name carries a comma: it is a name plus a description
 	translated?	dae5f308-1eb6-4419-a130-6374f88f61de	Fraga do Puio Viewpoint	Miradouro da Fraga do Puio	landmark_and_historical_building	not words Portuguese names here use: ['puio']

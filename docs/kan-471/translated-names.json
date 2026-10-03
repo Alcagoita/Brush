@@ -3,16 +3,6 @@
   {
    "category": "beach",
    "confidence": "high",
-   "name": "@ Porto Santo Island, Atlantic Ocean <3",
-   "name_local": "Ilha do @ Porto Santo",
-   "name_local_lang": "pt",
-   "overture_id": "76cf4cf3-0928-46af-879a-9c2f4c8f370a",
-   "rule": "island -> Ilha, dropped the locality ['Atlantic Ocean <3']",
-   "source": "translated"
-  },
-  {
-   "category": "beach",
-   "confidence": "high",
    "name": "Porto Santo Beach",
    "name_local": "Praia do Porto Santo",
    "name_local_lang": "pt",
@@ -1064,7 +1054,7 @@
    "name_local": "Praia do Guincho",
    "name_local_lang": "pt",
    "overture_id": "9fe2f402-043a-42d0-aa3e-f98a5e147ff9",
-   "rule": "beach -> Praia, dropped the locality ['Cascais Portugal']",
+   "rule": "beach -> Praia, dropped the locality ['Cascais'], dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -2087,7 +2077,7 @@
    "name_local": "Praia de Felisia",
    "name_local_lang": "pt",
    "overture_id": "af4e85fc-f666-4921-a1a4-8434183f9310",
-   "rule": "beach -> Praia, dropped the locality ['Algarve Portugal']",
+   "rule": "beach -> Praia, dropped the locality ['Portugal', 'Algarve']",
    "source": "translated",
    "why": "not words Portuguese names here use: ['felisia']"
   },
@@ -2415,12 +2405,12 @@
    "category": "fountain",
    "confidence": "needs_review",
    "name": "Fountain of Abundance, Quinta Da Regaleira",
-   "name_local": "Fonte de Abundance",
+   "name_local": "Fonte de Abundance, Quinta Da Regaleira",
    "name_local_lang": "pt",
    "overture_id": "0d87d57d-7d59-49aa-928b-90037d265df3",
-   "rule": "fountain -> Fonte, dropped the locality ['Quinta Da Regaleira']",
+   "rule": "fountain -> Fonte",
    "source": "translated",
-   "why": "not words Portuguese names here use: ['abundance']"
+   "why": "the name carries a comma: it is a name plus a description"
   },
   {
    "category": "catholic_church",
@@ -2590,12 +2580,12 @@
    "category": "church_cathedral",
    "confidence": "needs_review",
    "name": "Church of São Pedro (Ponta Delgada, Flores)",
-   "name_local": "Igreja de São Pedro (Ponta Delgada",
+   "name_local": "Igreja de São Pedro (Ponta Delgada, Flores)",
    "name_local_lang": "pt",
    "overture_id": "6a897b31-5051-4fef-9fce-866c2389a540",
-   "rule": "church -> Igreja, dropped the locality ['Flores)']",
+   "rule": "church -> Igreja",
    "source": "translated",
-   "why": "the name carries a parenthetical"
+   "why": "the name carries a comma: it is a name plus a description"
   },
   {
    "category": "landmark_and_historical_building",
@@ -2894,16 +2884,6 @@
    "name_local_lang": "pt",
    "overture_id": "d8a9f6b6-4a26-48dc-8be3-64206580507d",
    "rule": "monastery -> Mosteiro",
-   "source": "translated"
-  },
-  {
-   "category": "park",
-   "confidence": "high",
-   "name": "Lagoinha Park, Lda",
-   "name_local": "Parque de Lagoinha",
-   "name_local_lang": "pt",
-   "overture_id": "abf22b37-1d3b-4556-9e42-3336adc720bd",
-   "rule": "park -> Parque, dropped the locality ['Lda']",
    "source": "translated"
   },
   {
@@ -4212,6 +4192,17 @@
  ],
  "untouched": [
   {
+   "category": "beach",
+   "english_words": [
+    "island"
+   ],
+   "lat": 33.085968136919,
+   "lng": -16.345544174949,
+   "name": "@ Porto Santo Island, Atlantic Ocean <3",
+   "overture_id": "76cf4cf3-0928-46af-879a-9c2f4c8f370a",
+   "why": "no descriptor this module knows"
+  },
+  {
    "category": "park",
    "english_words": [
     "park"
@@ -5133,6 +5124,17 @@
    "lng": -9.13738,
    "name": "Silver Coast Non Denominational English Church",
    "overture_id": "427ac16a-84e7-403b-a3d1-820ae6d123f1",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.73301117501802,
+   "lng": -8.921057825016964,
+   "name": "Lagoinha Park, Lda",
+   "overture_id": "abf22b37-1d3b-4556-9e42-3336adc720bd",
    "why": "no descriptor this module knows"
   },
   {

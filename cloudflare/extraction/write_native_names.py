@@ -27,9 +27,10 @@ the point of the ticket, and it is the first change in it a user can see.
 
 ROLLBACK
 
-The written ids and their prior values — all NULL, since the write is
-guarded on it — go to `--record`, so the change can be reversed by id
-without guessing at what was there before.
+`--record` lists only the rows THIS run wrote, read back before the write
+from the ids that still had `name_local IS NULL`. Recording every proposal
+instead would put earlier batches' ids in the file, and a rollback built
+from it would clear names this run never touched.
 
     python3 write_native_names.py --wikidata docs/kan-471/native-name-proposals.json \\
         --translated docs/kan-471/translated-names.json            # dry run
@@ -55,9 +56,15 @@ UPDATE_PREFIX = (
     'name_local_updated_at = v.name_local_updated_at '
     'FROM (SELECT column1 AS overture_id, column2 AS name_local, column3 AS name_local_lang, '
     'column4 AS name_local_source, column5 AS name_local_source_ref, '
-    'column6 AS name_local_updated_at FROM (VALUES '
+    'column6 AS name_local_updated_at, column7 AS reviewed_name FROM (VALUES '
 )
-UPDATE_SUFFIX = ')) AS v WHERE overture_poi.overture_id = v.overture_id AND overture_poi.name_local IS NULL;\n'
+# The native name was reviewed against a PARTICULAR source name. If the row
+# has been renamed since — a refresh does exactly that — the review no
+# longer applies to what is there, so the write skips it rather than
+# attaching a name to a place that may have become something else.
+UPDATE_SUFFIX = (')) AS v WHERE overture_poi.overture_id = v.overture_id '
+                'AND overture_poi.name = v.reviewed_name '
+                'AND overture_poi.name_local IS NULL;\n')
 
 
 def proposals(wikidata_path, translated_path, skip=None):
@@ -80,6 +87,14 @@ def proposals(wikidata_path, translated_path, skip=None):
             if row.get('confidence') != 'high':
                 continue
             owner = row.get('rule') == 'owner-confirmed'
+            # Wikidata records the name; this module derives one. So a
+            # derived name must NOT displace a looked-up one for the same id
+            # — only a name the owner confirmed by hand outranks it. (The two
+            # files are disjoint today, because the translator runs over
+            # Wikidata's review list, but nothing in the shapes guarantees
+            # that.)
+            if row['overture_id'] in rows and not owner:
+                continue
             rows[row['overture_id']] = {
                 'overture_id': row['overture_id'], 'name': row['name'],
                 'name_local': row['name_local'], 'name_local_lang': row.get('name_local_lang', 'pt'),
@@ -89,11 +104,34 @@ def proposals(wikidata_path, translated_path, skip=None):
     return [row for overture_id, row in sorted(rows.items()) if overture_id not in skip]
 
 
+def unwritten_ids(ids, d1_read=None):
+    """Which of these rows still have no native name, read in bounded
+    batches (<= 150 ids per IN, CLAUDE.md's D1 rule).
+
+    This is what makes the rollback record honest: the write is guarded on
+    `name_local IS NULL`, so a proposal whose row already carries a name is
+    silently skipped, and recording it anyway would let a rollback clear a
+    name from an earlier batch."""
+    import preflight_foursquare_archive as preflight
+
+    d1_read = d1_read or preflight.d1_read
+    ids = list(ids)
+    out = set()
+    for start in range(0, len(ids), 150):
+        batch = ids[start:start + 150]
+        values = ','.join(sql_escape(i) for i in batch)
+        for row in d1_read('SELECT overture_id FROM overture_poi '
+                           f'WHERE name_local IS NULL AND overture_id IN ({values})'):
+            out.add(row['overture_id'])
+    return out
+
+
 def value_tuple(row, written_at):
     return (
         f"({sql_escape(row['overture_id'])},{sql_escape(row['name_local'])},"
         f"{sql_escape(row['name_local_lang'])},{sql_escape(row['source'])},"
-        f"{sql_escape(row['source_ref'])},{sql_escape(written_at)})"
+        f"{sql_escape(row['source_ref'])},{sql_escape(written_at)},"
+        f"{sql_escape(row['name'])})"
     )
 
 
@@ -138,22 +176,33 @@ def main(argv=None):
     print(f'{len(planned)} statements planned', file=sys.stderr)
 
     if not args.apply:
-        print(planned[0][:400] + '…')
+        if planned:
+            print(planned[0][:400] + '…')
+        else:
+            print('nothing to write: every proposal is already written, withdrawn or flagged')
         print('\ndry run: nothing written. Re-run with --apply.', file=sys.stderr)
         return 0
 
     import tempfile
     from import_foursquare_tourism import d1_write
+
+    # Read, BEFORE writing, which rows this run will actually touch.
+    writing = unwritten_ids([row['overture_id'] for row in rows]) if args.record else None
+    if writing is not None:
+        print(f'{len(writing):,} of {len(rows):,} rows have no native name yet; '
+              f'the rest are already written', file=sys.stderr)
+
     work_dir = args.work_dir or tempfile.mkdtemp(prefix='kan471-write-')
     for index, statement in enumerate(planned, 1):
         changes = d1_write(statement, work_dir)
         print(f'[{index}/{len(planned)}] changes={changes}', file=sys.stderr)
 
     if args.record:
+        written = [row for row in rows if row['overture_id'] in writing]
         with open(args.record, 'w') as handle:
             json.dump({'written_at': written_at, 'prior_value': None,
-                       'rows': rows}, handle, ensure_ascii=False, indent=1, sort_keys=True)
-        print(f'rollback record written to {args.record}', file=sys.stderr)
+                       'rows': written}, handle, ensure_ascii=False, indent=1, sort_keys=True)
+        print(f'rollback record written to {args.record}: {len(written):,} rows', file=sys.stderr)
     return 0
 
 

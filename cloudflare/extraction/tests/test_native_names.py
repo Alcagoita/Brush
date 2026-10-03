@@ -178,10 +178,6 @@ class ProposeTest(unittest.TestCase):
         self.assertEqual(len(asked), 1, 'twenty candidates in one 0.5 degree cell is one request')
 
 
-if __name__ == '__main__':
-    unittest.main()
-
-
 class TranslateTest(unittest.TestCase):
     """Stage 2b: a descriptor plus a proper noun IS translatable, and the
     owner's own examples are the specification."""
@@ -583,10 +579,12 @@ class LocalityTailTest(unittest.TestCase):
 
     LEARNED = {'porches': 'de', 'guincho': 'do', 'amoreira': 'da', 'amado': 'do',
                'estrela': 'da', 'sines': 'de'}
+    # What `learn_localities` reads out of the archive's own locality column.
+    LOCALITIES = {'cascais', 'aljezur', 'algarve', 'lisbon', 'ponta do sol'}
 
     def say(self, name):
         import translate_place_names as translate
-        result = translate.translate(name, self.LEARNED, overrides={})
+        result = translate.translate(name, self.LEARNED, overrides={}, localities=self.LOCALITIES)
         return None if result is None else result['name_local']
 
     def test_a_comma_tail_is_dropped(self):
@@ -610,9 +608,143 @@ class LocalityTailTest(unittest.TestCase):
     def test_the_dropped_locality_is_recorded_in_the_rule(self):
         """The reviewer has to be able to see that something was removed."""
         import translate_place_names as translate
-        result = translate.translate('Porches Beach, Algarve', self.LEARNED, overrides={})
+        result = translate.translate('Porches Beach, Algarve', self.LEARNED, overrides={},
+                                     localities=self.LOCALITIES)
         self.assertIn('dropped the locality', result['rule'])
         self.assertIn('Algarve', result['rule'])
 
     def test_a_trailing_phrase_that_is_not_a_locality_is_left_flagged(self):
         self.assertIsNone(self.say('Carcavelos Beach Stunning Views'))
+
+
+
+class ReviewFixesTest(unittest.TestCase):
+    """The review of the KAN-471 branch, 2026-10-03."""
+
+    def test_a_comma_tail_is_dropped_only_when_it_is_a_real_locality(self):
+        """Dropping it on sight shortened names whose tail was a description,
+        and the shortened name came back `high` because the comma guard only
+        ever saw the core."""
+        import translate_place_names as translate
+        localities = {'cascais', 'algarve'}
+        self.assertEqual(translate.strip_locality_tail('Guincho Beach, Cascais', localities)[0],
+                         'Guincho Beach')
+        unverified = 'Carcavelos Beach, Stunning Views Over The Sea'
+        self.assertEqual(translate.strip_locality_tail(unverified, localities)[0], unverified,
+                         'an unverified tail must survive, so the comma guard still flags it')
+
+    def test_every_segment_of_the_tail_has_to_be_a_locality(self):
+        import translate_place_names as translate
+        localities = {'aljezur', 'algarve'}
+        self.assertEqual(translate.strip_locality_tail('Amoreira Beach, Aljezur, Algarve', localities)[0],
+                         'Amoreira Beach')
+        self.assertEqual(
+            translate.strip_locality_tail('Amoreira Beach, Aljezur, open all summer', localities)[0],
+            'Amoreira Beach, Aljezur, open all summer')
+
+    def test_the_localities_come_from_the_archive(self):
+        import translate_place_names as translate
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'a.csv')
+            with open(path, 'w') as handle:
+                handle.write('overture_id,name,lat,lng,category,locality\n')
+                handle.write('a,"Praia X",1,1,beach,Cascais\n')
+                handle.write('b,"Praia Y",1,1,beach,\n')
+            self.assertEqual(translate.learn_localities(path), {'cascais'})
+
+    def test_a_translated_file_cannot_be_produced_without_an_archive(self):
+        """Without one there is no vocabulary to vouch for a word and no
+        locality list to verify a tail, so everything would come back
+        `high` — and that file feeds the writer."""
+        import translate_place_names as translate
+        with self.assertRaises(SystemExit):
+            translate.main(['--review', 'unused.json', '--out', 'out.json'])
+
+    def test_wikidata_looks_across_a_cell_boundary(self):
+        """A cell is 0.5 degrees. A candidate metres from an edge had its
+        match in the next cell and could never be found."""
+        import wikidata_native_names as wikidata
+        self.assertEqual(wikidata.cells_near(38.70, -9.20), {(38.5, -9.5)})
+        self.assertEqual(wikidata.cells_near(38.9999, -9.20), {(38.5, -9.5), (39.0, -9.5)})
+        self.assertEqual(len(wikidata.cells_near(39.0, -9.0)), 4, 'a corner touches four cells')
+
+    def test_a_match_across_the_boundary_is_found(self):
+        import wikidata_native_names as wikidata
+        candidate = {'overture_id': 'a', 'name': 'Boundary Chapel', 'category': 'church_cathedral',
+                     'lat': 38.99995, 'lng': -9.20}
+        item = {'qid': 'Q9', 'en': 'Boundary Chapel', 'pt': 'Capela da Fronteira',
+                'lat': 39.00005, 'lng': -9.20}
+        # The item sits in the cell NORTH of the candidate's.
+        def fetch(south, west, cache_dir):
+            return [item] if (south, west) == (39.0, -9.5) else []
+        report = wikidata.propose([candidate], cache_dir='unused', fetch=fetch, pause=0)
+        self.assertEqual([row['name_local'] for row in report['proposals']], ['Capela da Fronteira'])
+
+    def test_name_en_is_not_frozen_by_a_reviewed_name_local(self):
+        """`name_local_source` records where name_LOCAL came from. Gating
+        `name_en` on it froze the English variant of every reviewed row."""
+        import refresh_overture_country as refresh
+        self.assertIn("name_en = COALESCE(NULLIF(v.name_en, ''), overture_poi.name_en)",
+                      refresh.SERVED_REFRESH_PREFIX)
+        self.assertIn('name_local = CASE WHEN overture_poi.name_local_source IS NOT NULL',
+                      refresh.SERVED_REFRESH_PREFIX)
+
+    def test_the_write_requires_the_name_it_was_reviewed_against(self):
+        """A refresh can rename a row between the review and the write."""
+        import write_native_names as writer
+        self.assertIn('overture_poi.name = v.reviewed_name', writer.UPDATE_SUFFIX)
+        self.assertIn('overture_poi.name_local IS NULL', writer.UPDATE_SUFFIX)
+
+    def test_a_derived_name_does_not_displace_a_looked_up_one(self):
+        import write_native_names as writer
+        with tempfile.TemporaryDirectory() as tmp:
+            wikidata_path = os.path.join(tmp, 'wd.json')
+            translated_path = os.path.join(tmp, 'tr.json')
+            with open(wikidata_path, 'w') as handle:
+                json.dump({'proposals': [{'overture_id': 'a', 'name': 'Lisbon Cathedral',
+                                          'name_local': 'Sé de Lisboa', 'wikidata_qid': 'Q432290'}]}, handle)
+            with open(translated_path, 'w') as handle:
+                json.dump({'translated': [{'overture_id': 'a', 'name': 'Lisbon Cathedral',
+                                           'name_local': 'Catedral de Lisboa', 'confidence': 'high',
+                                           'rule': 'cathedral -> Sé'}], 'untouched': []}, handle)
+            rows = writer.proposals(wikidata_path, translated_path, skip=set())
+        self.assertEqual([(row['name_local'], row['source']) for row in rows],
+                         [('Sé de Lisboa', 'wikidata')])
+
+    def test_the_rollback_record_lists_only_what_this_run_wrote(self):
+        import write_native_names as writer
+        asked = []
+
+        def d1_read(sql):
+            asked.append(sql)
+            return [{'overture_id': 'fresh'}]
+
+        self.assertEqual(writer.unwritten_ids(['fresh', 'already'], d1_read), {'fresh'})
+        self.assertIn('name_local IS NULL', asked[0])
+
+    def test_reads_for_the_record_are_bounded(self):
+        import write_native_names as writer
+        seen = []
+
+        def d1_read(sql):
+            seen.append(sql.count("'id-"))
+            return []
+
+        writer.unwritten_ids([f'id-{i}' for i in range(400)], d1_read)
+        self.assertTrue(all(count <= 150 for count in seen))
+        self.assertEqual(len(seen), 3)
+
+    def test_an_empty_plan_does_not_crash_the_dry_run(self):
+        import write_native_names as writer
+        with tempfile.TemporaryDirectory() as tmp:
+            wikidata_path = os.path.join(tmp, 'wd.json')
+            translated_path = os.path.join(tmp, 'tr.json')
+            with open(wikidata_path, 'w') as handle:
+                json.dump({'proposals': []}, handle)
+            with open(translated_path, 'w') as handle:
+                json.dump({'translated': [], 'untouched': []}, handle)
+            self.assertEqual(writer.main(['--wikidata', wikidata_path, '--translated', translated_path]), 0)
+
+
+if __name__ == '__main__':
+    unittest.main()
