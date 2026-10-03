@@ -574,3 +574,45 @@ class RefreshKeepsReviewedNamesTest(unittest.TestCase):
         self.serve('c', 'Another Place', 'Outro Lugar', 'translated')
         self.refresh([self.source_row('c', 'Another Place')])
         self.assertEqual(self.row('c')[1], 'Outro Lugar')
+
+
+class LocalityTailTest(unittest.TestCase):
+    """A region tacked onto the end is where the place is, not part of its
+    name. Without stripping it the descriptor sits neither first nor last and
+    nothing matches, which is why 188 rows came back untouched."""
+
+    LEARNED = {'porches': 'de', 'guincho': 'do', 'amoreira': 'da', 'amado': 'do',
+               'estrela': 'da', 'sines': 'de'}
+
+    def say(self, name):
+        import translate_place_names as translate
+        result = translate.translate(name, self.LEARNED, overrides={})
+        return None if result is None else result['name_local']
+
+    def test_a_comma_tail_is_dropped(self):
+        self.assertEqual(self.say('Porches Beach, Algarve'), 'Praia de Porches')
+        self.assertEqual(self.say('Guincho Beach, Cascais'), 'Praia do Guincho')
+        self.assertEqual(self.say('Estrela Park, Lisbon'), 'Parque da Estrela')
+
+    def test_several_comma_tails_are_dropped(self):
+        self.assertEqual(self.say('Amoreira Beach, Aljezur, Algarve'), 'Praia da Amoreira')
+
+    def test_a_bare_trailing_region_is_dropped(self):
+        self.assertEqual(self.say('Sines beach Portugal'), 'Praia de Sines')
+
+    def test_a_toponym_that_IS_a_region_keeps_it(self):
+        """`Praia da Madeira` must not become `Praia`. A bare trailing word is
+        dropped only from a name that still has two words left."""
+        import translate_place_names as translate
+        self.assertEqual(translate.strip_locality_tail('Praia da Madeira')[0], 'Praia da Madeira')
+        self.assertEqual(translate.strip_locality_tail('Ilha da Madeira')[0], 'Ilha da Madeira')
+
+    def test_the_dropped_locality_is_recorded_in_the_rule(self):
+        """The reviewer has to be able to see that something was removed."""
+        import translate_place_names as translate
+        result = translate.translate('Porches Beach, Algarve', self.LEARNED, overrides={})
+        self.assertIn('dropped the locality', result['rule'])
+        self.assertIn('Algarve', result['rule'])
+
+    def test_a_trailing_phrase_that_is_not_a_locality_is_left_flagged(self):
+        self.assertIsNone(self.say('Carcavelos Beach Stunning Views'))

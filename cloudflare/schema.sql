@@ -432,7 +432,11 @@ CREATE TABLE IF NOT EXISTS curated_poi (
   import_run_id              TEXT,
   name_local                 TEXT,
   name_en                    TEXT,
-  name_local_lang            TEXT
+  name_local_lang            TEXT,
+  -- KAN-471 (0055). `selectPoiName` resolves the user's per-country choice
+  -- from the row's own country; without one a curated row takes the
+  -- no-country branch and can never show a native name.
+  country_code               TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_curated_poi_geo ON curated_poi (geohash);
 CREATE INDEX IF NOT EXISTS idx_curated_poi_name ON curated_poi (dedupe_name);

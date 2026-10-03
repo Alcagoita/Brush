@@ -107,13 +107,31 @@ describe('migration 0042 — curated_poi provenance', () => {
     const db = productionShapedDb();
     db.exec(MIGRATION);
     // This assertion compares today's full schema, including KAN-460's
-    // additive name columns; this fixture has no Overture tables for 0049.
+    // additive name columns and KAN-471's country; this fixture has no
+    // Overture tables for 0049, and 0055 needs the table to exist.
     db.exec('ALTER TABLE curated_poi ADD COLUMN name_local TEXT; ALTER TABLE curated_poi ADD COLUMN name_en TEXT; ALTER TABLE curated_poi ADD COLUMN name_local_lang TEXT;');
+    db.exec(readFileSync(join(ROOT, 'migrations', '0055_curated_country_code.sql'), 'utf8'));
     const columns = (database: DatabaseSync) =>
       (database.prepare('PRAGMA table_info(curated_poi)').all() as Array<{ name: string }>).map(column => column.name);
     expect(columns(db)).toEqual(columns(schemaDb()));
     const indexes = (database: DatabaseSync) =>
       (database.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'curated_poi' AND name LIKE 'idx_%' ORDER BY name").all() as Array<{ name: string }>).map(index => index.name);
     expect(indexes(db)).toEqual(indexes(schemaDb()));
+  });
+});
+
+describe('KAN-471 — a curated row can show a native name', () => {
+  it('0055 gives every curated row a country, guarded on NULL', () => {
+    const migration = readFileSync(join(ROOT, 'migrations', '0055_curated_country_code.sql'), 'utf8');
+    expect(migration).toContain('ALTER TABLE curated_poi ADD COLUMN country_code TEXT');
+    // Guarded, so a row that already carries a country keeps it and a
+    // re-run changes nothing.
+    expect(migration).toContain('WHERE country_code IS NULL');
+    expect(migration).not.toMatch(/\b(DROP|DELETE|TRUNCATE)\b/i);
+  });
+
+  it('nearby selects and returns the curated country, or the picker can never resolve one', () => {
+    const worker = readFileSync(join(ROOT, 'src', 'index.ts'), 'utf8');
+    expect(worker).toContain('curated_poi.country_code');
   });
 });

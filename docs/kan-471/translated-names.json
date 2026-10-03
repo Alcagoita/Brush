@@ -3,6 +3,16 @@
   {
    "category": "beach",
    "confidence": "high",
+   "name": "@ Porto Santo Island, Atlantic Ocean <3",
+   "name_local": "Ilha do @ Porto Santo",
+   "name_local_lang": "pt",
+   "overture_id": "76cf4cf3-0928-46af-879a-9c2f4c8f370a",
+   "rule": "island -> Ilha, dropped the locality ['Atlantic Ocean <3']",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
    "name": "Porto Santo Beach",
    "name_local": "Praia do Porto Santo",
    "name_local_lang": "pt",
@@ -72,6 +82,16 @@
    "source": "translated"
   },
   {
+   "category": "botanical_garden",
+   "confidence": "high",
+   "name": "Jardim Monte Palace Madeira",
+   "name_local": "Palácio do Jardim Monte",
+   "name_local_lang": "pt",
+   "overture_id": "941424c8-410a-4049-a59e-222b2e41d0d2",
+   "rule": "palace -> Palácio, dropped the locality ['Madeira']",
+   "source": "translated"
+  },
+  {
    "category": "park",
    "confidence": "high",
    "name": "Merendas Park",
@@ -85,12 +105,12 @@
    "category": "church_cathedral",
    "confidence": "needs_review",
    "name": "Church of the Son, Ponta do Sol, Madeira",
-   "name_local": "Igreja de Son, Ponta do Sol, Madeira",
+   "name_local": "Igreja de Son",
    "name_local_lang": "pt",
    "overture_id": "a673dc50-11d7-4ddd-a163-de8170db3ada",
-   "rule": "church -> Igreja",
+   "rule": "church -> Igreja, dropped the locality ['Ponta do Sol, Madeira']",
    "source": "translated",
-   "why": "the name carries a comma: it is a name plus a description"
+   "why": "not words Portuguese names here use: ['son']"
   },
   {
    "category": "church_cathedral",
@@ -312,6 +332,16 @@
    "source": "translated"
   },
   {
+   "category": "park",
+   "confidence": "high",
+   "name": "Costa Vicentina National Park, Salema",
+   "name_local": "Parque Nacional de Costa Vicentina",
+   "name_local_lang": "pt",
+   "overture_id": "6e8edcd7-0eed-499c-a5fb-5eb168cbd0f5",
+   "rule": "set descriptor + proper noun, dropped the locality ['Salema']",
+   "source": "translated"
+  },
+  {
    "category": "lake",
    "confidence": "needs_review",
    "name": "Lake Tortoise",
@@ -341,6 +371,17 @@
    "overture_id": "f367a9bb-87d5-478e-a438-9853b9d93327",
    "rule": "beach -> Praia",
    "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "needs_review",
+   "name": "Bodeira Beach, Portugal",
+   "name_local": "Praia de Bodeira",
+   "name_local_lang": "pt",
+   "overture_id": "a88f28e0-d285-406b-9192-31d662a75245",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['bodeira']"
   },
   {
    "category": "beach",
@@ -380,6 +421,16 @@
    "name_local_lang": "pt",
    "overture_id": "41476533-71cb-4395-9cce-dbb5ba087a24",
    "rule": "owner-confirmed",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Pestana Beach, Alvor, Portugal",
+   "name_local": "Praia de Pestana",
+   "name_local_lang": "pt",
+   "overture_id": "6fab1a20-5ca0-4fa6-8ced-8b8b2f3e8f97",
+   "rule": "beach -> Praia, dropped the locality ['Alvor, Portugal']",
    "source": "translated"
   },
   {
@@ -516,6 +567,26 @@
    "rule": "park -> Parque",
    "source": "translated",
    "why": "the name carries an English possessive"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Porches Beach, Algarve",
+   "name_local": "Praia de Porches",
+   "name_local_lang": "pt",
+   "overture_id": "40860d86-0afa-4509-ac22-cf0071ea570f",
+   "rule": "beach -> Praia, dropped the locality ['Algarve']",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Senhora Da Rocha Beach Algarve - Portugal",
+   "name_local": "Praia da Senhora Da Rocha",
+   "name_local_lang": "pt",
+   "overture_id": "2d628640-e35c-4df8-b722-4fa91298812e",
+   "rule": "beach -> Praia, dropped the locality ['Portugal', 'Algarve']",
+   "source": "translated"
   },
   {
    "category": "park",
@@ -705,13 +776,35 @@
    "source": "translated"
   },
   {
+   "category": "lighthouse",
+   "confidence": "needs_review",
+   "name": "Gibalta Lighthouse (Portugal)",
+   "name_local": "Farol da Gibalta",
+   "name_local_lang": "pt",
+   "overture_id": "47b396b2-ba40-487e-b780-f318e9218c5b",
+   "rule": "lighthouse -> Farol, dropped the locality ['(Portugal)']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['gibalta']"
+  },
+  {
+   "category": "monument",
+   "confidence": "needs_review",
+   "name": "Discoverers Monument, Lisbon",
+   "name_local": "Monumento de Discoverers",
+   "name_local_lang": "pt",
+   "overture_id": "26b46f5b-9c15-4db4-8eb5-187f65c8c7f8",
+   "rule": "monument -> Monumento, dropped the locality ['Lisbon']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['discoverers']"
+  },
+  {
    "category": "beach",
    "confidence": "high",
    "name": "Beach Life Portugal",
-   "name_local": "Praia de Life Portugal",
+   "name_local": "Praia de Life",
    "name_local_lang": "pt",
    "overture_id": "6dcc21a0-3f1b-4520-9aa0-dfc5f00701f5",
-   "rule": "beach -> Praia",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -736,6 +829,16 @@
    "why": "an English word survives in the name"
   },
   {
+   "category": "beach",
+   "confidence": "high",
+   "name": "São João De Caparica Beach Portugal",
+   "name_local": "Praia de São João De Caparica",
+   "name_local_lang": "pt",
+   "overture_id": "f33ecfea-6fe6-4f52-ab87-c4367655e4b4",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
+   "source": "translated"
+  },
+  {
    "category": "church_cathedral",
    "confidence": "high",
    "name": "CAP Church",
@@ -753,6 +856,16 @@
    "name_local_lang": "pt",
    "overture_id": "e1f4be31-6235-47c7-96bb-73413ef0111b",
    "rule": "beach -> Praia",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Costa Da Caparica Beach, Portugal",
+   "name_local": "Praia da Costa Da Caparica",
+   "name_local_lang": "pt",
+   "overture_id": "7d5e8d11-76c7-432f-9391-df3f39574263",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -790,6 +903,17 @@
   {
    "category": "beach",
    "confidence": "needs_review",
+   "name": "Casablanca Beach, Lisbon",
+   "name_local": "Praia de Casablanca",
+   "name_local_lang": "pt",
+   "overture_id": "9bd5f397-4d97-48f4-8409-d0e7803195c4",
+   "rule": "beach -> Praia, dropped the locality ['Lisbon']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['casablanca']"
+  },
+  {
+   "category": "beach",
+   "confidence": "needs_review",
    "name": "Nato Beach",
    "name_local": "Praia da Nato",
    "name_local_lang": "pt",
@@ -818,6 +942,16 @@
    "rule": "park -> Parque",
    "source": "translated",
    "why": "not words Portuguese names here use: ['tagus']"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Guincho Beach, Cascais",
+   "name_local": "Praia do Guincho",
+   "name_local_lang": "pt",
+   "overture_id": "b6d7c41c-90f7-4a46-b5da-e31e7438a152",
+   "rule": "beach -> Praia, dropped the locality ['Cascais']",
+   "source": "translated"
   },
   {
    "category": "religious_organization",
@@ -924,6 +1058,16 @@
    "source": "translated"
   },
   {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Guincho Beach, Cascais Portugal",
+   "name_local": "Praia do Guincho",
+   "name_local_lang": "pt",
+   "overture_id": "9fe2f402-043a-42d0-aa3e-f98a5e147ff9",
+   "rule": "beach -> Praia, dropped the locality ['Cascais Portugal']",
+   "source": "translated"
+  },
+  {
    "category": "catholic_church",
    "confidence": "high",
    "name": "Chapel of the Lord Jesus of the Navigators",
@@ -941,6 +1085,16 @@
    "name_local_lang": "pt",
    "overture_id": "028284e5-fad9-4003-8238-fb015b6dd9a9",
    "rule": "church -> Igreja",
+   "source": "translated"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "high",
+   "name": "Jesus is Lord Church Portugal",
+   "name_local": "Igreja de Jesus is Senhor",
+   "name_local_lang": "pt",
+   "overture_id": "81e33c23-a704-408c-bddb-c59c1d6bb775",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -972,6 +1126,16 @@
    "name_local_lang": "pt",
    "overture_id": "dcaaaaf8-ec72-46bc-bebb-1aec6a43ee6f",
    "rule": "church -> Igreja",
+   "source": "translated"
+  },
+  {
+   "category": "park",
+   "confidence": "high",
+   "name": "Estrela Park, Lisbon",
+   "name_local": "Parque da Estrela",
+   "name_local_lang": "pt",
+   "overture_id": "7845b739-734b-446b-85ee-969b9238d133",
+   "rule": "park -> Parque, dropped the locality ['Lisbon']",
    "source": "translated"
   },
   {
@@ -1055,6 +1219,26 @@
    "name_local_lang": "pt",
    "overture_id": "1b7067c2-73a0-49bd-a5ba-c6aa9bc9a235",
    "rule": "beach -> Praia",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Amado Beach, Portugal",
+   "name_local": "Praia do Amado",
+   "name_local_lang": "pt",
+   "overture_id": "65444686-98ed-49c6-8478-0cac561d641e",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Amoreira Beach, Aljezur, Algarve",
+   "name_local": "Praia da Amoreira",
+   "name_local_lang": "pt",
+   "overture_id": "e86a6488-1be9-478b-8f3d-0ac0899c853e",
+   "rule": "beach -> Praia, dropped the locality ['Aljezur, Algarve']",
    "source": "translated"
   },
   {
@@ -1277,6 +1461,16 @@
   {
    "category": "beach",
    "confidence": "high",
+   "name": "Sines beach Portugal",
+   "name_local": "Praia de Sines",
+   "name_local_lang": "pt",
+   "overture_id": "40c18acc-ca73-467c-a09b-59946424918a",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
    "name": "Alvor Beach.",
    "name_local": "Praia de Alvor",
    "name_local_lang": "pt",
@@ -1387,6 +1581,17 @@
    "source": "translated"
   },
   {
+   "category": "landmark_and_historical_building",
+   "confidence": "needs_review",
+   "name": "Moorish Castle, Sintra",
+   "name_local": "Castelo de Moorish",
+   "name_local_lang": "pt",
+   "overture_id": "9003f04e-b0e6-4d7c-8154-44a76ce75b6f",
+   "rule": "castle -> Castelo, dropped the locality ['Sintra']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['moorish']"
+  },
+  {
    "category": "monument",
    "confidence": "high",
    "name": "San Jorge Castle",
@@ -1406,6 +1611,16 @@
    "rule": "monastery -> Mosteiro",
    "source": "translated",
    "why": "a saint this module has no Portuguese form for"
+  },
+  {
+   "category": "history_museum",
+   "confidence": "high",
+   "name": "Saint George Castle Portugal",
+   "name_local": "Castelo de São Jorge",
+   "name_local_lang": "pt",
+   "overture_id": "3e807a09-7bc1-4323-8fef-1b71d60ab158",
+   "rule": "castle -> Castelo, dropped the locality ['Portugal']",
+   "source": "translated"
   },
   {
    "category": "monument",
@@ -1484,10 +1699,10 @@
    "category": "art_gallery",
    "confidence": "needs_review",
    "name": "MILL - Makers In Little Lisbon",
-   "name_local": "Moinho de Makers In Little Lisbon",
+   "name_local": "Moinho de Makers In Little",
    "name_local_lang": "pt",
    "overture_id": "5fa00582-71e3-4d3e-a045-a1c9d9b35ff9",
-   "rule": "mill -> Moinho",
+   "rule": "mill -> Moinho, dropped the locality ['Lisbon']",
    "source": "translated",
    "why": "an English word survives in the name"
   },
@@ -1544,6 +1759,17 @@
    "why": "not words Portuguese names here use: ['marquis']"
   },
   {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "United Nepali Christian Church Portugal",
+   "name_local": "Igreja de United Nepali Christian",
+   "name_local_lang": "pt",
+   "overture_id": "b5463830-28d1-4840-a090-73a3aaf43371",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "an English word survives in the name"
+  },
+  {
    "category": "landmark_and_historical_building",
    "confidence": "needs_review",
    "name": "Viewpoint of Monte Agudo",
@@ -1573,6 +1799,17 @@
    "overture_id": "18e0ab33-afcf-4496-bd67-d5c3da0efe92",
    "rule": "set descriptor + proper noun",
    "source": "translated"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "MIF Church - Lisboa",
+   "name_local": "Igreja de MIF",
+   "name_local_lang": "pt",
+   "overture_id": "2828425f-f119-4c7f-ab84-bb9a2634f8b9",
+   "rule": "church -> Igreja, dropped the locality ['Lisboa']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['mif']"
   },
   {
    "category": "cultural_center",
@@ -1630,11 +1867,31 @@
   {
    "category": "beach",
    "confidence": "high",
+   "name": "Faro beach Portugal",
+   "name_local": "Praia de Faro",
+   "name_local_lang": "pt",
+   "overture_id": "0483859b-9af5-4a67-881d-abd5e87d5654",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
    "name": "Ancão Beach",
    "name_local": "Praia do Ancão",
    "name_local_lang": "pt",
    "overture_id": "c6f67fa5-2db3-47f0-9688-7032d6c551b4",
    "rule": "beach -> Praia",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Quinta Do Lago Beach, Portugal",
+   "name_local": "Praia da Quinta Do Lago",
+   "name_local_lang": "pt",
+   "overture_id": "3306789a-5745-4f1e-b3b0-64cc2014b1bd",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -1645,6 +1902,16 @@
    "name_local_lang": "pt",
    "overture_id": "a013ff9d-7958-4a01-9917-4934fecd4bb1",
    "rule": "owner-confirmed",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Faro beach, Algarve",
+   "name_local": "Praia de Faro",
+   "name_local_lang": "pt",
+   "overture_id": "49cdaf7e-0526-4141-92bc-e3cbcd6892b5",
+   "rule": "beach -> Praia, dropped the locality ['Algarve']",
    "source": "translated"
   },
   {
@@ -1668,6 +1935,16 @@
    "rule": "beach -> Praia",
    "source": "translated",
    "why": "not words Portuguese names here use: ['sunset']"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Algarve Beach, Portogallo",
+   "name_local": "Praia do Algarve",
+   "name_local_lang": "pt",
+   "overture_id": "2c89826a-b0cf-4049-9cc5-69899f1d32e2",
+   "rule": "beach -> Praia, dropped the locality ['Portogallo']",
+   "source": "translated"
   },
   {
    "category": "beach",
@@ -1802,6 +2079,17 @@
    "overture_id": "32a46fa6-46ff-4d91-b918-32f998598397",
    "rule": "beach -> Praia",
    "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "needs_review",
+   "name": "Felisia Beach, Algarve Portugal",
+   "name_local": "Praia de Felisia",
+   "name_local_lang": "pt",
+   "overture_id": "af4e85fc-f666-4921-a1a4-8434183f9310",
+   "rule": "beach -> Praia, dropped the locality ['Algarve Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['felisia']"
   },
   {
    "category": "beach",
@@ -2104,6 +2392,16 @@
    "source": "translated"
   },
   {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Monte Gordo Beach, Algarve",
+   "name_local": "Praia do Monte Gordo",
+   "name_local_lang": "pt",
+   "overture_id": "2c90812b-4d90-4dbc-8ebd-f2c7a1ebd0d5",
+   "rule": "beach -> Praia, dropped the locality ['Algarve']",
+   "source": "translated"
+  },
+  {
    "category": "landmark_and_historical_building",
    "confidence": "high",
    "name": "Park and Palace of Monserrate",
@@ -2117,12 +2415,12 @@
    "category": "fountain",
    "confidence": "needs_review",
    "name": "Fountain of Abundance, Quinta Da Regaleira",
-   "name_local": "Fonte de Abundance, Quinta Da Regaleira",
+   "name_local": "Fonte de Abundance",
    "name_local_lang": "pt",
    "overture_id": "0d87d57d-7d59-49aa-928b-90037d265df3",
-   "rule": "fountain -> Fonte",
+   "rule": "fountain -> Fonte, dropped the locality ['Quinta Da Regaleira']",
    "source": "translated",
-   "why": "the name carries a comma: it is a name plus a description"
+   "why": "not words Portuguese names here use: ['abundance']"
   },
   {
    "category": "catholic_church",
@@ -2144,6 +2442,27 @@
    "rule": "park -> Parque",
    "source": "translated",
    "why": "not words Portuguese names here use: ['macdonalds']"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "high",
+   "name": "Renovo Church Lisboa",
+   "name_local": "Igreja de Renovo",
+   "name_local_lang": "pt",
+   "overture_id": "67502cdb-0024-43d1-adda-beb8fd1789b4",
+   "rule": "church -> Igreja, dropped the locality ['Lisboa']",
+   "source": "translated"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "Gileade Church Lisboa",
+   "name_local": "Igreja de Gileade",
+   "name_local_lang": "pt",
+   "overture_id": "cd1c41fa-561d-4a76-a7be-7ee8eb718a70",
+   "rule": "church -> Igreja, dropped the locality ['Lisboa']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['gileade']"
   },
   {
    "category": "religious_organization",
@@ -2271,12 +2590,12 @@
    "category": "church_cathedral",
    "confidence": "needs_review",
    "name": "Church of São Pedro (Ponta Delgada, Flores)",
-   "name_local": "Igreja de São Pedro (Ponta Delgada, Flores)",
+   "name_local": "Igreja de São Pedro (Ponta Delgada",
    "name_local_lang": "pt",
    "overture_id": "6a897b31-5051-4fef-9fce-866c2389a540",
-   "rule": "church -> Igreja",
+   "rule": "church -> Igreja, dropped the locality ['Flores)']",
    "source": "translated",
-   "why": "the name carries a comma: it is a name plus a description"
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "landmark_and_historical_building",
@@ -2317,6 +2636,16 @@
    "name_local_lang": "pt",
    "overture_id": "f052b1fe-4ba0-45f7-8395-9f531be98564",
    "rule": "beach -> Praia",
+   "source": "translated"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "high",
+   "name": "Oasis Church Portugal",
+   "name_local": "Igreja do Oasis",
+   "name_local_lang": "pt",
+   "overture_id": "9e7691ad-8235-4f06-a5e6-91174f902ba4",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -2432,6 +2761,39 @@
    "source": "translated"
   },
   {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "Zion Church - Lisboa",
+   "name_local": "Igreja de Zion",
+   "name_local_lang": "pt",
+   "overture_id": "1c4b8286-82bf-4849-80f3-4ead1b01ef7b",
+   "rule": "church -> Igreja, dropped the locality ['Lisboa']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['zion']"
+  },
+  {
+   "category": "park",
+   "confidence": "needs_review",
+   "name": "London Square | Lisbon",
+   "name_local": "Praça de London Square",
+   "name_local_lang": "pt",
+   "overture_id": "75060bdd-a42c-48b0-8164-e8d307efbcf6",
+   "rule": "square -> Praça, dropped the locality ['Lisbon']",
+   "source": "translated",
+   "why": "an English word survives in the name"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "First Love Church Portugal",
+   "name_local": "Igreja de First Love",
+   "name_local_lang": "pt",
+   "overture_id": "73a3390b-fd89-4830-8f87-6bb3b286f6e0",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "an English word survives in the name"
+  },
+  {
    "category": "landmark_and_historical_building",
    "confidence": "high",
    "name": "Garden Residence",
@@ -2439,6 +2801,16 @@
    "name_local_lang": "pt",
    "overture_id": "cf13cfb8-daf9-4b2d-a34b-2f1fb70a584d",
    "rule": "garden -> Jardim",
+   "source": "translated"
+  },
+  {
+   "category": "evangelical_church",
+   "confidence": "high",
+   "name": "LIFE Church - Lisbon",
+   "name_local": "Igreja de LIFE",
+   "name_local_lang": "pt",
+   "overture_id": "8b88d75e-a460-4477-9357-6981b47c7b34",
+   "rule": "church -> Igreja, dropped the locality ['Lisbon']",
    "source": "translated"
   },
   {
@@ -2525,6 +2897,16 @@
    "source": "translated"
   },
   {
+   "category": "park",
+   "confidence": "high",
+   "name": "Lagoinha Park, Lda",
+   "name_local": "Parque de Lagoinha",
+   "name_local_lang": "pt",
+   "overture_id": "abf22b37-1d3b-4556-9e42-3336adc720bd",
+   "rule": "park -> Parque, dropped the locality ['Lda']",
+   "source": "translated"
+  },
+  {
    "category": "beach",
    "confidence": "needs_review",
    "name": "Nazaré Sunset Marina Beach",
@@ -2555,6 +2937,17 @@
    "overture_id": "48703711-4759-4880-bf2f-7ccce78b1020",
    "rule": "park -> Parque",
    "source": "translated"
+  },
+  {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "Ebenézer Church Portugal",
+   "name_local": "Igreja de Ebenézer",
+   "name_local_lang": "pt",
+   "overture_id": "5259d46e-e88c-481a-a6e7-b7498e85ebad",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['ebenezer']"
   },
   {
    "category": "park",
@@ -2670,6 +3063,17 @@
   },
   {
    "category": "beach",
+   "confidence": "needs_review",
+   "name": "Murtinheira Beach - Portugal",
+   "name_local": "Praia da Murtinheira",
+   "name_local_lang": "pt",
+   "overture_id": "5fb274d9-aa36-4ffe-bc2e-d5d34f55ef24",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['murtinheira']"
+  },
+  {
+   "category": "beach",
    "confidence": "high",
    "name": "Figueira Da Foz Beach",
    "name_local": "Praia da Figueira Da Foz",
@@ -2697,6 +3101,16 @@
    "name_local_lang": "pt",
    "overture_id": "e9204c59-890a-48de-8114-7d803b9d1c2f",
    "rule": "fort -> Forte",
+   "source": "translated"
+  },
+  {
+   "category": "beach",
+   "confidence": "high",
+   "name": "Figueira Da Foz Beach Portugal",
+   "name_local": "Praia da Figueira Da Foz",
+   "name_local_lang": "pt",
+   "overture_id": "c207a1f7-71b9-443c-aca9-eeb24f92c83a",
+   "rule": "beach -> Praia, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -2937,6 +3351,17 @@
    "source": "translated"
   },
   {
+   "category": "religious_organization",
+   "confidence": "needs_review",
+   "name": "Abba Church Portugal",
+   "name_local": "Igreja de Abba",
+   "name_local_lang": "pt",
+   "overture_id": "f8280b61-bbf3-47b9-9467-db8b7a7ef270",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['abba']"
+  },
+  {
    "category": "church_cathedral",
    "confidence": "needs_review",
    "name": "Joy Church",
@@ -3173,6 +3598,16 @@
    "source": "translated"
   },
   {
+   "category": "church_cathedral",
+   "confidence": "high",
+   "name": "Brasa Church Portugal",
+   "name_local": "Igreja de Brasa",
+   "name_local_lang": "pt",
+   "overture_id": "cc8749c0-0d5f-453b-93b1-c2839a00f467",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated"
+  },
+  {
    "category": "landmark_and_historical_building",
    "confidence": "needs_review",
    "name": "Alminhas of the Bridge",
@@ -3288,6 +3723,17 @@
    "source": "translated"
   },
   {
+   "category": "church_cathedral",
+   "confidence": "needs_review",
+   "name": "St James Anglican Church, Porto",
+   "name_local": "Igreja de São Tiago Anglican",
+   "name_local_lang": "pt",
+   "overture_id": "867fafe7-2704-4add-bd9f-b4264d3249bd",
+   "rule": "church -> Igreja, dropped the locality ['Porto']",
+   "source": "translated",
+   "why": "an English word survives in the name"
+  },
+  {
    "category": "beach",
    "confidence": "high",
    "name": "Matosinhos Beach",
@@ -3347,6 +3793,17 @@
    "rule": "park -> Parque",
    "source": "translated",
    "why": "not words Portuguese names here use: ['suil']"
+  },
+  {
+   "category": "evangelical_church",
+   "confidence": "needs_review",
+   "name": "CCA Church Portugal",
+   "name_local": "Igreja de CCA",
+   "name_local_lang": "pt",
+   "overture_id": "0b2a3497-2203-4b75-89b6-0f1d32a50db3",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['cca']"
   },
   {
    "category": "pentecostal_church",
@@ -3423,6 +3880,17 @@
    "source": "translated"
   },
   {
+   "category": "evangelical_church",
+   "confidence": "needs_review",
+   "name": "Amigo Íntimo Church Portugal",
+   "name_local": "Igreja de Amigo Íntimo",
+   "name_local_lang": "pt",
+   "overture_id": "c250197d-ff9e-4db8-adfc-9570cc5c3ef3",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['intimo']"
+  },
+  {
    "category": "church_cathedral",
    "confidence": "high",
    "name": "Convent of St. Joseph",
@@ -3461,6 +3929,17 @@
    "overture_id": "79408aef-7c06-4de1-a9a0-97d7e4ca87bf",
    "rule": "monastery -> Mosteiro",
    "source": "translated"
+  },
+  {
+   "category": "evangelical_church",
+   "confidence": "needs_review",
+   "name": "Ebenezer Church Portugal",
+   "name_local": "Igreja de Ebenezer",
+   "name_local_lang": "pt",
+   "overture_id": "da2fd244-9cff-466c-ae04-8455677ae73c",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
+   "source": "translated",
+   "why": "not words Portuguese names here use: ['ebenezer']"
   },
   {
    "category": "park",
@@ -3552,6 +4031,16 @@
    "name_local_lang": "pt",
    "overture_id": "753fe8a7-7d24-4fc2-ba9a-5a8c38ca0436",
    "rule": "church -> Igreja",
+   "source": "translated"
+  },
+  {
+   "category": "evangelical_church",
+   "confidence": "high",
+   "name": "RefÚGio Church Portugal",
+   "name_local": "Igreja de RefÚGio",
+   "name_local_lang": "pt",
+   "overture_id": "67be6779-249b-469e-a18c-4bce12b46f9a",
+   "rule": "church -> Igreja, dropped the locality ['Portugal']",
    "source": "translated"
   },
   {
@@ -3723,28 +4212,6 @@
  ],
  "untouched": [
   {
-   "category": "beach",
-   "english_words": [
-    "island"
-   ],
-   "lat": 33.085968136919,
-   "lng": -16.345544174949,
-   "name": "@ Porto Santo Island, Atlantic Ocean <3",
-   "overture_id": "76cf4cf3-0928-46af-879a-9c2f4c8f370a",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "botanical_garden",
-   "english_words": [
-    "palace"
-   ],
-   "lat": 32.67558668,
-   "lng": -16.90051236,
-   "name": "Jardim Monte Palace Madeira",
-   "overture_id": "941424c8-410a-4049-a59e-222b2e41d0d2",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "park",
    "english_words": [
     "park"
@@ -3800,17 +4267,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 37.064127257818,
-   "lng": -8.8305564496121,
-   "name": "Costa Vicentina National Park, Salema",
-   "overture_id": "6e8edcd7-0eed-499c-a5fb-5eb168cbd0f5",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "landmark_and_historical_building",
    "english_words": [
     "beach"
@@ -3833,28 +4289,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.09919971,
-   "lng": -8.67273251,
-   "name": "Bodeira Beach, Portugal",
-   "overture_id": "a88f28e0-d285-406b-9192-31d662a75245",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.1333,
-   "lng": -8.56667,
-   "name": "Pestana Beach, Alvor, Portugal",
-   "overture_id": "6fab1a20-5ca0-4fa6-8ced-8b8b2f3e8f97",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "religious_organization",
    "english_words": [
     "church"
@@ -3874,28 +4308,6 @@
    "lng": -8.4532606,
    "name": "All Saints Anglican Church Lagoa",
    "overture_id": "57378b17-338c-4916-858b-a47c79aa3299",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.10068908905713,
-   "lng": -8.386004278741323,
-   "name": "Porches Beach, Algarve",
-   "overture_id": "40860d86-0afa-4509-ac22-cf0071ea570f",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.0982277,
-   "lng": -8.3835484,
-   "name": "Senhora Da Rocha Beach Algarve - Portugal",
-   "overture_id": "2d628640-e35c-4df8-b722-4fa91298812e",
    "why": "no descriptor this module knows"
   },
   {
@@ -3932,28 +4344,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "lighthouse",
-   "english_words": [
-    "lighthouse"
-   ],
-   "lat": 38.69911111,
-   "lng": -9.26630556,
-   "name": "Gibalta Lighthouse (Portugal)",
-   "overture_id": "47b396b2-ba40-487e-b780-f318e9218c5b",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "monument",
-   "english_words": [
-    "monument"
-   ],
-   "lat": 38.693873577229,
-   "lng": -9.2056999866047,
-   "name": "Discoverers Monument, Lisbon",
-   "overture_id": "26b46f5b-9c15-4db4-8eb5-187f65c8c7f8",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "beach",
    "english_words": [
     "beach"
@@ -3976,17 +4366,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 38.658445858215856,
-   "lng": -9.239880580659865,
-   "name": "São João De Caparica Beach Portugal",
-   "overture_id": "f33ecfea-6fe6-4f52-ab87-c4367655e4b4",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "religious_organization",
    "english_words": [
     "church"
@@ -4006,39 +4385,6 @@
    "lng": -9.1656277,
    "name": "Shalom Pentecostal Church Almada",
    "overture_id": "98f39101-de3b-4fdd-9da3-efb89afdf14a",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 38.6382,
-   "lng": -9.23603,
-   "name": "Costa Da Caparica Beach, Portugal",
-   "overture_id": "7d5e8d11-76c7-432f-9391-df3f39574263",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 38.600320841367,
-   "lng": -9.2084097862244,
-   "name": "Casablanca Beach, Lisbon",
-   "overture_id": "9bd5f397-4d97-48f4-8409-d0e7803195c4",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 38.732750567156,
-   "lng": -9.47345495224,
-   "name": "Guincho Beach, Cascais",
-   "overture_id": "b6d7c41c-90f7-4a46-b5da-e31e7438a152",
    "why": "no descriptor this module knows"
   },
   {
@@ -4097,28 +4443,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 38.711901584779,
-   "lng": -9.4324902555974,
-   "name": "Guincho Beach, Cascais Portugal",
-   "overture_id": "9fe2f402-043a-42d0-aa3e-f98a5e147ff9",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.7081982,
-   "lng": -9.4200961,
-   "name": "Jesus is Lord Church Portugal",
-   "overture_id": "81e33c23-a704-408c-bddb-c59c1d6bb775",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "religious_organization",
    "english_words": [
     "church"
@@ -4152,17 +4476,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 38.7047203,
-   "lng": -9.1681107,
-   "name": "Estrela Park, Lisbon",
-   "overture_id": "7845b739-734b-446b-85ee-969b9238d133",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "art_museum",
    "english_words": [
     "bridge"
@@ -4178,32 +4491,10 @@
    "english_words": [
     "beach"
    ],
-   "lat": 37.16789886910806,
-   "lng": -8.901971046440046,
-   "name": "Amado Beach, Portugal",
-   "overture_id": "65444686-98ed-49c6-8478-0cac561d641e",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
    "lat": 37.339885833531,
    "lng": -8.8539817165961,
    "name": "Monte Clerigo Beach Aljezur",
    "overture_id": "e4e787eb-0f4f-46a6-81ab-2eb3f7ed3141",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.35229373823015,
-   "lng": -8.844079180621996,
-   "name": "Amoreira Beach, Aljezur, Algarve",
-   "overture_id": "e86a6488-1be9-478b-8f3d-0ac0899c853e",
    "why": "no descriptor this module knows"
   },
   {
@@ -4317,17 +4608,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.95912203218029,
-   "lng": -8.856783485615397,
-   "name": "Sines beach Portugal",
-   "overture_id": "40c18acc-ca73-467c-a09b-59946424918a",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "zoo",
    "english_words": [
     "park"
@@ -4372,50 +4652,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "landmark_and_historical_building",
-   "english_words": [
-    "castle"
-   ],
-   "lat": 38.711251475405,
-   "lng": -9.137477986479,
-   "name": "Moorish Castle, Sintra",
-   "overture_id": "9003f04e-b0e6-4d7c-8154-44a76ce75b6f",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "history_museum",
-   "english_words": [
-    "castle"
-   ],
-   "lat": 38.71534705295,
-   "lng": -9.140995074964945,
-   "name": "Saint George Castle Portugal",
-   "overture_id": "3e807a09-7bc1-4323-8fef-1b71d60ab158",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.7252159,
-   "lng": -9.13628848,
-   "name": "United Nepali Christian Church Portugal",
-   "overture_id": "b5463830-28d1-4840-a090-73a3aaf43371",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.72886,
-   "lng": -9.13488,
-   "name": "MIF Church - Lisboa",
-   "overture_id": "2828425f-f119-4c7f-ab84-bb9a2634f8b9",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "church_cathedral",
    "english_words": [
     "church"
@@ -4438,28 +4674,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.00269139030584,
-   "lng": -7.986758722000902,
-   "name": "Faro beach Portugal",
-   "overture_id": "0483859b-9af5-4a67-881d-abd5e87d5654",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.021371465362,
-   "lng": -8.0138475425317,
-   "name": "Quinta Do Lago Beach, Portugal",
-   "overture_id": "3306789a-5745-4f1e-b3b0-64cc2014b1bd",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "religious_organization",
    "english_words": [
     "church"
@@ -4468,17 +4682,6 @@
    "lng": -7.9299083107801955,
    "name": "The Church of Jesus Christ of Latter-day Saints",
    "overture_id": "d33a5442-914d-44dc-8ac8-05e0750733fe",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.0167,
-   "lng": -7.93333,
-   "name": "Faro beach, Algarve",
-   "overture_id": "49cdaf7e-0526-4141-92bc-e3cbcd6892b5",
    "why": "no descriptor this module knows"
   },
   {
@@ -4501,17 +4704,6 @@
    "lng": -8.06525398381183,
    "name": "Vale Do Lobo Beach - the Sunny Algarve",
    "overture_id": "1b3869ed-53b4-4d83-9562-e76168b11e23",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.06246708950449,
-   "lng": -8.057042187850511,
-   "name": "Algarve Beach, Portogallo",
-   "overture_id": "2c89826a-b0cf-4049-9cc5-69899f1d32e2",
    "why": "no descriptor this module knows"
   },
   {
@@ -4567,17 +4759,6 @@
    "lng": -8.1671333312988,
    "name": "Pine Sun Park Albida",
    "overture_id": "364fa647-7883-4b78-98a1-38e6382d3459",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.09266199868304,
-   "lng": -8.184445525119612,
-   "name": "Felisia Beach, Algarve Portugal",
-   "overture_id": "af4e85fc-f666-4921-a1a4-8434183f9310",
    "why": "no descriptor this module knows"
   },
   {
@@ -4713,17 +4894,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 37.176903916667,
-   "lng": -7.4478171166667,
-   "name": "Monte Gordo Beach, Algarve",
-   "overture_id": "2c90812b-4d90-4dbc-8ebd-f2c7a1ebd0d5",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "church_cathedral",
    "english_words": [
     "chapel"
@@ -4732,17 +4902,6 @@
    "lng": -27.075891494751,
    "name": "Lajes Chapel Community",
    "overture_id": "90e76db4-4252-4a66-9b1c-14d116e92c64",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.77942957,
-   "lng": -9.16394574,
-   "name": "Renovo Church Lisboa",
-   "overture_id": "67502cdb-0024-43d1-adda-beb8fd1789b4",
    "why": "no descriptor this module knows"
   },
   {
@@ -4776,17 +4935,6 @@
    "lng": -9.207107,
    "name": "Adventure Park Pontinha",
    "overture_id": "d3a32fd6-f607-46c7-b0f9-a8fa6d8d606b",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.77616729,
-   "lng": -9.33300593,
-   "name": "Gileade Church Lisboa",
-   "overture_id": "cd1c41fa-561d-4a76-a7be-7ee8eb718a70",
    "why": "no descriptor this module knows"
   },
   {
@@ -4889,17 +5037,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.96803,
-   "lng": -9.40968,
-   "name": "Oasis Church Portugal",
-   "overture_id": "9e7691ad-8235-4f06-a5e6-91174f902ba4",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "landmark_and_historical_building",
    "english_words": [
     "palace"
@@ -4926,54 +5063,10 @@
    "english_words": [
     "church"
    ],
-   "lat": 38.75625291,
-   "lng": -9.14124384,
-   "name": "Zion Church - Lisboa",
-   "overture_id": "1c4b8286-82bf-4849-80f3-4ead1b01ef7b",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "park",
-   "english_words": [
-    "square"
-   ],
-   "lat": 38.74038728,
-   "lng": -9.13712914,
-   "name": "London Square | Lisbon",
-   "overture_id": "75060bdd-a42c-48b0-8164-e8d307efbcf6",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.737146916175,
-   "lng": -9.1283512115479,
-   "name": "First Love Church Portugal",
-   "overture_id": "73a3390b-fd89-4830-8f87-6bb3b286f6e0",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
    "lat": 38.7658155042936,
    "lng": -9.15646608943699,
    "name": "Riverside Church International",
    "overture_id": "ed6bf76d-5eb4-43fd-a8f7-9fa67009ce3e",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "evangelical_church",
-   "english_words": [
-    "church"
-   ],
-   "lat": 38.78508378,
-   "lng": -9.13010408,
-   "name": "LIFE Church - Lisbon",
-   "overture_id": "8b88d75e-a460-4477-9357-6981b47c7b34",
    "why": "no descriptor this module knows"
   },
   {
@@ -5043,17 +5136,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 39.73301117501802,
-   "lng": -8.921057825016964,
-   "name": "Lagoinha Park, Lda",
-   "overture_id": "abf22b37-1d3b-4556-9e42-3336adc720bd",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "religious_organization",
    "english_words": [
     "monastery"
@@ -5073,17 +5155,6 @@
    "lng": -8.791263,
    "name": "Cool Park Leiria",
    "overture_id": "608e9a80-14f7-4c1c-8aa5-3abd508c1f99",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
-   "lat": 39.746973056839,
-   "lng": -8.7333738775112,
-   "name": "Ebenézer Church Portugal",
-   "overture_id": "5259d46e-e88c-481a-a6e7-b7498e85ebad",
    "why": "no descriptor this module knows"
   },
   {
@@ -5175,17 +5246,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 40.208222913269,
-   "lng": -8.8941763449365,
-   "name": "Murtinheira Beach - Portugal",
-   "overture_id": "5fb274d9-aa36-4ffe-bc2e-d5d34f55ef24",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "park",
    "english_words": [
     "park"
@@ -5194,17 +5254,6 @@
    "lng": -8.80883152,
    "name": "Caceira Bike Park",
    "overture_id": "806b8edc-8088-4842-9bf6-519a9d88cb48",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 40.15137610150056,
-   "lng": -8.866196360715362,
-   "name": "Figueira Da Foz Beach Portugal",
-   "overture_id": "c207a1f7-71b9-443c-aca9-eeb24f92c83a",
    "why": "no descriptor this module knows"
   },
   {
@@ -5315,17 +5364,6 @@
    "lng": -8.407196340279354,
    "name": "The Church of Jesus Christ of Latter-day Saints",
    "overture_id": "53753a17-82f2-4c75-ae81-d7e380ca5eeb",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "religious_organization",
-   "english_words": [
-    "church"
-   ],
-   "lat": 40.200959378722,
-   "lng": -8.4103803634644,
-   "name": "Abba Church Portugal",
-   "overture_id": "f8280b61-bbf3-47b9-9467-db8b7a7ef270",
    "why": "no descriptor this module knows"
   },
   {
@@ -5465,17 +5503,6 @@
    "english_words": [
     "church"
    ],
-   "lat": 41.13007565,
-   "lng": -8.61385099,
-   "name": "Brasa Church Portugal",
-   "overture_id": "cc8749c0-0d5f-453b-93b1-c2839a00f467",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
    "lat": 41.12256266,
    "lng": -8.60803141,
    "name": "Universal Church of the Kingdom of God",
@@ -5597,17 +5624,6 @@
    "english_words": [
     "church"
    ],
-   "lat": 41.15023471,
-   "lng": -8.62394647,
-   "name": "St James Anglican Church, Porto",
-   "overture_id": "867fafe7-2704-4add-bd9f-b4264d3249bd",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "church_cathedral",
-   "english_words": [
-    "church"
-   ],
    "lat": 41.15057688,
    "lng": -8.59706103,
    "name": "Riverside International Church Porto",
@@ -5648,17 +5664,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "evangelical_church",
-   "english_words": [
-    "church"
-   ],
-   "lat": 40.900010125146,
-   "lng": -8.496993,
-   "name": "CCA Church Portugal",
-   "overture_id": "0b2a3497-2203-4b75-89b6-0f1d32a50db3",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "park",
    "english_words": [
     "park"
@@ -5692,17 +5697,6 @@
    "why": "no descriptor this module knows"
   },
   {
-   "category": "evangelical_church",
-   "english_words": [
-    "church"
-   ],
-   "lat": 41.41419076,
-   "lng": -8.51827914,
-   "name": "Amigo Íntimo Church Portugal",
-   "overture_id": "c250197d-ff9e-4db8-adfc-9570cc5c3ef3",
-   "why": "no descriptor this module knows"
-  },
-  {
    "category": "park",
    "english_words": [
     "park"
@@ -5711,17 +5705,6 @@
    "lng": -8.59217726,
    "name": "Vila Retail Park",
    "overture_id": "f6f5216b-f46a-48e8-8277-4614a23b12e1",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "evangelical_church",
-   "english_words": [
-    "church"
-   ],
-   "lat": 41.265091592308025,
-   "lng": -8.29118330000047,
-   "name": "Ebenezer Church Portugal",
-   "overture_id": "da2fd244-9cff-466c-ae04-8455677ae73c",
    "why": "no descriptor this module knows"
   },
   {
@@ -5744,17 +5727,6 @@
    "lng": -8.290609563489596,
    "name": "The Church of Jesus Christ of Latter-day Saints",
    "overture_id": "3c6c0ffc-b111-4a61-8d3b-4e05b6439c03",
-   "why": "no descriptor this module knows"
-  },
-  {
-   "category": "evangelical_church",
-   "english_words": [
-    "church"
-   ],
-   "lat": 41.5417419,
-   "lng": -8.42600274,
-   "name": "RefÚGio Church Portugal",
-   "overture_id": "67be6779-249b-469e-a18c-4bce12b46f9a",
    "why": "no descriptor this module knows"
   },
   {

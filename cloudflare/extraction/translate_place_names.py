@@ -378,6 +378,49 @@ def is_portuguese_already(text):
     return bool(re.match(r'^(nossa\s+senhora|s[ãa]o|santa|santo)\b', text.strip(), flags=re.IGNORECASE))
 
 
+# A region or country tacked onto the end is where the place is, not part of
+# its name: `Porches Beach, Algarve` is `Praia de Porches`. Only these, and
+# only as the LAST segment — a toponym can legitimately BE one of them
+# (`Praia da Madeira`), so the word alone is never enough.
+LOCALITY_TAILS = (
+    'portugal', 'algarve', 'madeira', 'azores', 'acores', 'alentejo',
+    'lisboa', 'lisbon', 'ribatejo', 'minho', 'douro', 'beira',
+)
+
+
+def strip_locality_tail(name):
+    """(core, dropped) — the name without its trailing locality.
+
+    Two shapes, both common: a comma tail (`Porches Beach, Algarve`,
+    `Amoreira Beach, Aljezur, Algarve`) and a bare trailing region
+    (`Sines beach Portugal`). Without this the descriptor sits neither first
+    nor last and nothing matches at all, which is why 188 rows came back
+    untouched.
+
+    A comma tail is dropped whatever it says, because the part before the
+    first comma is the name. A BARE trailing word is dropped only when it is
+    in `LOCALITY_TAILS`: `Praia da Madeira` must keep its Madeira."""
+    dropped = []
+    core = name.strip()
+    if ',' in core:
+        head, _, tail = core.partition(',')
+        if head.strip():
+            dropped.append(tail.strip())
+            core = head.strip()
+    words = core.split()
+    while len(words) > 2 and fold(words[-1]) in LOCALITY_TAILS:
+        # A Portuguese connector in front of it makes the region part of the
+        # name, not a tail: `Praia DA Madeira` keeps its Madeira, while
+        # `Sines beach Portugal` does not.
+        if fold(words[-2]) in ('de', 'do', 'da', 'dos', 'das'):
+            break
+        dropped.append(words[-1])
+        words = words[:-1]
+        if words and words[-1] in ('-', '–'):
+            words = words[:-1]
+    return ' '.join(words).strip(' ,-'), [part for part in dropped if part]
+
+
 def strip_leading_article(name):
     """`The Roman Bridge` is `Ponte Romana`: the English article is not part
     of the Portuguese name."""
@@ -528,6 +571,12 @@ def translate(name, learned=None, vocabulary=None, overrides=None):
     confirmed = (overrides if overrides is not None else load_overrides()).get(fold(name))
     if confirmed:
         return {'name_local': confirmed, 'confidence': 'high', 'rule': 'owner-confirmed'}
+
+    core, dropped = strip_locality_tail(name)
+    if dropped and fold(core) != fold(name):
+        inner = translate(core, learned, vocabulary, overrides or {})
+        if inner:
+            return {**inner, 'rule': f"{inner['rule']}, dropped the locality {dropped}"}
 
     for english, portuguese in PHRASES.items():
         if fold(name) == english:

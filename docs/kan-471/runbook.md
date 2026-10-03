@@ -129,3 +129,52 @@ change in it a user can see.
 `written-2026-10-03.json` lists every id written with its prior value, which
 was NULL in all 289 cases because the write is guarded on it. Reversing is an
 `UPDATE … SET name_local = NULL` over those ids.
+
+## Closing the two gaps, 2026-10-03
+
+### Trailing localities (gap 2)
+
+A region tacked onto the end is where the place is, not part of its name, and
+with it there the descriptor sits neither first nor last so nothing matched at
+all. `strip_locality_tail` drops a comma tail whatever it says (the part before
+the first comma is the name) and a bare trailing region only from
+`LOCALITY_TAILS`:
+
+```
+Porches Beach, Algarve              -> Praia de Porches
+Amoreira Beach, Aljezur, Algarve    -> Praia da Amoreira
+São João De Caparica Beach Portugal -> Praia de São João De Caparica
+Guincho Beach, Cascais              -> Praia do Guincho
+Sines beach Portugal                -> Praia de Sines
+```
+
+A Portuguese connector in front of the region keeps it: `Praia da Madeira` and
+`Ilha da Madeira` are untouched. The dropped part is recorded in the rule so a
+reviewer can see something was removed. `Carcavelos Beach Stunning Views` stays
+flagged — a trailing phrase is not a locality.
+
+**28 more names written**, taking the total from 289 to **317** (12 owner, 256
+translated, 49 Wikidata). Untouched fell from 188 to 141.
+
+### Curated rows could never show a native name (gap 3)
+
+0049 gave `curated_poi` its three name columns but no country, and
+`selectPoiName` resolves the per-country choice from the row's own
+`country_code`. Without one every curated row took the no-country branch, so a
+native name written there would never have been displayed — all 9,978 active
+rows.
+
+* Migration `0055` adds the column and sets `'PT'`, guarded on NULL. Every
+  curated row is Portuguese today (PT-only registry, PT Foursquare archive, PT
+  venues), and the value is set explicitly so the first non-PT curated row has
+  to say what it is rather than inherit a wrong default. 9,978 rows.
+* `queryNearbyPoiDb` now selects and returns it. Deployed — version
+  `017f5769-58f1-4f62-aac7-66771ee836b4`.
+
+Verified on the wire at Belém: all 19 rows carry `country_code: "PT"`, 10
+Overture and **9 curated** — `Igreja dos Jerónimos`, `Claustro do Mosteiro dos
+Jerónimos`, `Túmulo de Camões` among them. No curated row has a `name_local`
+yet; the point of this change is that one would now be shown.
+
+`verify_prod_decisions.py` after the deploy: 7 of 7 checks pass, Odivelas Parque
+still 111 rows, 12 store brands, no inconsistent kinds.
