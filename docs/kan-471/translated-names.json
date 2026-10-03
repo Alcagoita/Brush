@@ -155,13 +155,14 @@
   },
   {
    "category": "anglican_church",
-   "confidence": "high",
+   "confidence": "needs_review",
    "name": "Holy Trinity Church",
-   "name_local": "Igreja da Santíssima Trindade",
+   "name_local": "Igreja de Holy Trindade",
    "name_local_lang": "pt",
    "overture_id": "fd92428b-37f3-439d-9c0c-eef28bb4e271",
    "rule": "church -> Igreja",
-   "source": "translated"
+   "source": "translated",
+   "why": "an English word survives in the name"
   },
   {
    "category": "landmark_and_historical_building",
@@ -386,20 +387,20 @@
    "category": "beach",
    "confidence": "high",
    "name": "Prainha Beach",
-   "name_local": "Praia da Prainha",
+   "name_local": "Prainha",
    "name_local_lang": "pt",
    "overture_id": "41476533-71cb-4395-9cce-dbb5ba087a24",
-   "rule": "beach -> Praia",
+   "rule": "owner-confirmed",
    "source": "translated"
   },
   {
    "category": "beach",
    "confidence": "high",
    "name": "Playa De Rocha Beach",
-   "name_local": "Praia de Playa De Rocha",
+   "name_local": "Praia da Rocha",
    "name_local_lang": "pt",
    "overture_id": "e2260e4d-ef8a-4fc3-bfb8-1190d42c9ce5",
-   "rule": "beach -> Praia",
+   "rule": "owner-confirmed",
    "source": "translated"
   },
   {
@@ -423,17 +424,6 @@
    "rule": "set descriptor + proper noun",
    "source": "translated",
    "why": "an English word survives in the name"
-  },
-  {
-   "category": "beach",
-   "confidence": "needs_review",
-   "name": "Beach Side",
-   "name_local": "Praia de Side",
-   "name_local_lang": "pt",
-   "overture_id": "0498f5da-e404-4370-9d3b-75bf0f7108f3",
-   "rule": "beach -> Praia",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['side']"
   },
   {
    "category": "beach",
@@ -478,14 +468,13 @@
   },
   {
    "category": "religious_organization",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Convent of Our Lady of Mount Carmel",
-   "name_local": "Convento de Nossa Senhora de Mount Carmel",
+   "name_local": "Convento de Nossa Senhora do Monte Carmo",
    "name_local_lang": "pt",
    "overture_id": "925dfd11-3495-4fea-a056-68641e234a00",
    "rule": "convent -> Convento",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['mount', 'carmel']"
+   "source": "translated"
   },
   {
    "category": "beach",
@@ -520,14 +509,13 @@
   },
   {
    "category": "catholic_church",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Church of Our Lady of the Incarnation",
-   "name_local": "Igreja de Nossa Senhora de Incarnation",
+   "name_local": "Igreja de Nossa Senhora da Encarnação",
    "name_local_lang": "pt",
    "overture_id": "a363061f-5aff-4a06-8555-76dffa0a027d",
    "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['incarnation']"
+   "source": "translated"
   },
   {
    "category": "park",
@@ -570,7 +558,7 @@
    "overture_id": "2aac54ce-55b8-4830-a0b0-771fa374c675",
    "rule": "church -> Igreja",
    "source": "translated",
-   "why": "not words Portuguese names here use: ['jesuit']"
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "park",
@@ -594,16 +582,6 @@
    "source": "translated"
   },
   {
-   "category": "park",
-   "confidence": "high",
-   "name": "Rua Azores Park",
-   "name_local": "Parque de Rua Azores",
-   "name_local_lang": "pt",
-   "overture_id": "37fe6a62-e67d-4916-b2ca-c9cf9b4fde29",
-   "rule": "park -> Parque",
-   "source": "translated"
-  },
-  {
    "category": "landmark_and_historical_building",
    "confidence": "high",
    "name": "Lighthouse of Ponta Garça",
@@ -615,13 +593,14 @@
   },
   {
    "category": "catholic_church",
-   "confidence": "high",
+   "confidence": "needs_review",
    "name": "Church of Nossa Senhora do Rosário (Calheta)",
    "name_local": "Igreja de Nossa Senhora do Rosário (Calheta)",
    "name_local_lang": "pt",
    "overture_id": "82c24caa-df98-42c6-a289-d0505779a239",
    "rule": "church -> Igreja",
-   "source": "translated"
+   "source": "translated",
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "landmark_and_historical_building",
@@ -754,16 +733,6 @@
    "name_local_lang": "pt",
    "overture_id": "c337e29c-d974-442f-97ad-a0d5eef63bc0",
    "rule": "beach -> Praia",
-   "source": "translated"
-  },
-  {
-   "category": "park",
-   "confidence": "high",
-   "name": "Skate Park",
-   "name_local": "Parque de Skate",
-   "name_local_lang": "pt",
-   "overture_id": "1206b799-5e3c-492d-b7a4-ebdd350f7ff0",
-   "rule": "park -> Parque",
    "source": "translated"
   },
   {
@@ -989,14 +958,13 @@
   },
   {
    "category": "catholic_church",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Chapel of the Lord Jesus of the Navigators",
-   "name_local": "Capela de Lord Jesus de Navigators",
+   "name_local": "Ermida do Senhor Jesus dos Navegantes",
    "name_local_lang": "pt",
    "overture_id": "5265a928-aa03-40b7-81b2-9ad2888d9e63",
-   "rule": "chapel -> Capela",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['navigators']"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "catholic_church",
@@ -1031,25 +999,13 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Holy Family Church",
-   "name_local": "Igreja de Holy Family",
+   "name_local": "Igreja da Sagrada Família",
    "name_local_lang": "pt",
    "overture_id": "dcaaaaf8-ec72-46bc-bebb-1aec6a43ee6f",
    "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "an English word survives in the name"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Badoca Safari Park",
-   "name_local": "Parque de Badoca Safari",
-   "name_local_lang": "pt",
-   "overture_id": "ce3d793b-1911-4f5a-8fcb-33ebaa4a6601",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['badoca', 'safari']"
+   "source": "translated"
   },
   {
    "category": "church_cathedral",
@@ -1292,14 +1248,13 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Church of Christ Ministry Nova Terra",
-   "name_local": "Igreja de Christ Ministry Nova Terra",
+   "name_local": "Igreja de Cristo Ministerio Nova Terra Portugal",
    "name_local_lang": "pt",
    "overture_id": "5f5f8f2b-1abc-47d4-8ea3-cdb439a8ce4f",
-   "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['christ', 'ministry']"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "church_cathedral",
@@ -1351,39 +1306,6 @@
    "overture_id": "f808448f-af47-4273-a777-7480484dc187",
    "rule": "beach -> Praia",
    "source": "translated"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Badoca Park",
-   "name_local": "Parque de Badoca",
-   "name_local_lang": "pt",
-   "overture_id": "0dbe7be0-473c-4566-b40b-1cfd87b2a1ba",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['badoca']"
-  },
-  {
-   "category": "zoo",
-   "confidence": "needs_review",
-   "name": "Badoca Safari Park",
-   "name_local": "Parque de Badoca Safari",
-   "name_local_lang": "pt",
-   "overture_id": "0e2b3245-352f-43f4-a838-c552e52574d3",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['badoca', 'safari']"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Badoka Safari Park",
-   "name_local": "Parque de Badoka Safari",
-   "name_local_lang": "pt",
-   "overture_id": "13db4597-bda0-4711-9b13-09b8ab55c4db",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['badoka', 'safari']"
   },
   {
    "category": "beach",
@@ -1458,14 +1380,13 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Church of Saint Mary Magdalene",
-   "name_local": "Igreja de Santa Maria Magdalene",
+   "name_local": "Igreja de Santa Maria Madalena",
    "name_local_lang": "pt",
    "overture_id": "a673b766-c5d6-49f8-9788-9ee7a88bd142",
    "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['magdalene']"
+   "source": "translated"
   },
   {
    "category": "catholic_church",
@@ -1481,32 +1402,31 @@
    "category": "catholic_church",
    "confidence": "needs_review",
    "name": "Hermitage of the Ascensión of Christ",
-   "name_local": "Ermida de Ascensión de Christ",
+   "name_local": "Ermida de Ascensión de Cristo",
    "name_local_lang": "pt",
    "overture_id": "6c2299f1-63ba-4a94-94f4-638b8d9badf9",
    "rule": "hermitage -> Ermida",
    "source": "translated",
-   "why": "not words Portuguese names here use: ['ascension', 'christ']"
+   "why": "not words Portuguese names here use: ['ascension']"
   },
   {
    "category": "catholic_church",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Church of the Blessed Sacrament",
-   "name_local": "Igreja de Blessed Sacrament",
+   "name_local": "Igreja do Santíssimo Sacramento",
    "name_local_lang": "pt",
    "overture_id": "9847486a-15ea-4c90-a2bb-619c51c59eb5",
    "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['blessed', 'sacrament']"
+   "source": "translated"
   },
   {
    "category": "monument",
    "confidence": "high",
    "name": "San Jorge Castle",
-   "name_local": "Castelo de San Jorge",
+   "name_local": "Castelo de São Jorge",
    "name_local_lang": "pt",
    "overture_id": "93f45554-5c6a-44d0-8119-bf37d0d953c6",
-   "rule": "castle -> Castelo",
+   "rule": "owner-confirmed",
    "source": "translated"
   },
   {
@@ -1606,14 +1526,13 @@
   },
   {
    "category": "catholic_church",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Church of Our Lady of the Glory",
-   "name_local": "Igreja de Nossa Senhora de Glory",
+   "name_local": "Igreja de Nossa Senhora da Glória",
    "name_local_lang": "pt",
    "overture_id": "d91a920a-a2d3-48ee-a698-6b8f0ee7347e",
-   "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['glory']"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "monument",
@@ -1638,14 +1557,13 @@
   },
   {
    "category": "catholic_church",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Church of the Sacred Heart of Jesus",
-   "name_local": "Igreja de Sacred Heart de Jesus",
+   "name_local": "Igreja do Sagrado Coração de Jesus",
    "name_local_lang": "pt",
    "overture_id": "9b82045e-73d3-46ff-a944-b99e671d572a",
    "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['sacred', 'heart']"
+   "source": "translated"
   },
   {
    "category": "public_plaza",
@@ -1754,25 +1672,24 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Chapel of Bones of Faro",
-   "name_local": "Capela de Bones de Faro",
+   "name_local": "Capela dos Ossos de Faro",
    "name_local_lang": "pt",
    "overture_id": "a013ff9d-7958-4a01-9917-4934fecd4bb1",
-   "rule": "chapel -> Capela",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['bones']"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "church_cathedral",
    "confidence": "needs_review",
    "name": "Ministério Transbordar ( Church)",
-   "name_local": "Igreja de Ministério Transbordar (",
+   "name_local": "Igreja do Ministério Transbordar (",
    "name_local_lang": "pt",
    "overture_id": "a48db532-2e8e-45cb-930a-b678d88a6021",
    "rule": "church -> Igreja",
    "source": "translated",
-   "why": "not words Portuguese names here use: ['transbordar']"
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "beach",
@@ -2047,17 +1964,6 @@
    "why": "not words Portuguese names here use: ['almamcil']"
   },
   {
-   "category": "church_cathedral",
-   "confidence": "needs_review",
-   "name": "Christ The King Anglican Church",
-   "name_local": "Igreja de Christ The King Anglican",
-   "name_local_lang": "pt",
-   "overture_id": "7c6419d5-938e-47ac-ae8a-964074dd4ee6",
-   "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "an English word survives in the name"
-  },
-  {
    "category": "beach",
    "confidence": "high",
    "name": "Tavira Beach",
@@ -2150,13 +2056,14 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "high",
+   "confidence": "needs_review",
    "name": "Sanctuary of Nossa Senhora da Visitacao (Montemor-O-Novo)",
    "name_local": "Santuário de Nossa Senhora da Visitacao (Montemor-O-Novo)",
    "name_local_lang": "pt",
    "overture_id": "1e35bbcd-98f6-4e50-9da3-e3ff63883de9",
    "rule": "sanctuary -> Santuário",
-   "source": "translated"
+   "source": "translated",
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "catholic_church",
@@ -2170,14 +2077,13 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Chapel of Bones",
-   "name_local": "Capela de Bones",
+   "name_local": "Capela dos Ossos",
    "name_local_lang": "pt",
    "overture_id": "6c278796-12e7-4755-ae16-fae006641bf0",
-   "rule": "chapel -> Capela",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['bones']"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "catholic_church",
@@ -2396,13 +2302,14 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "high",
+   "confidence": "needs_review",
    "name": "Church of Nossa Senhora dos Milagres (Lajedo)",
    "name_local": "Igreja de Nossa Senhora dos Milagres (Lajedo)",
    "name_local_lang": "pt",
    "overture_id": "b67fc383-cac8-4a3d-a778-be4be3ec02ff",
    "rule": "church -> Igreja",
-   "source": "translated"
+   "source": "translated",
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "church_cathedral",
@@ -2435,16 +2342,6 @@
    "rule": "cave -> Gruta",
    "source": "translated",
    "why": "not words Portuguese names here use: ['furninha']"
-  },
-  {
-   "category": "park",
-   "confidence": "high",
-   "name": "Piscina Da Rita Park",
-   "name_local": "Parque de Piscina Da Rita",
-   "name_local_lang": "pt",
-   "overture_id": "8e8613c6-8b40-4e4f-ad1d-4de7bdf5ceb9",
-   "rule": "park -> Parque",
-   "source": "translated"
   },
   {
    "category": "beach",
@@ -2613,17 +2510,6 @@
   {
    "category": "park",
    "confidence": "needs_review",
-   "name": "Badoca Safari Park",
-   "name_local": "Parque de Badoca Safari",
-   "name_local_lang": "pt",
-   "overture_id": "1bd142b2-5a51-4a85-80c8-a4734e30ceba",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['badoca', 'safari']"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
    "name": "Alverca Retail Park",
    "name_local": "Parque de Alverca Retail",
    "name_local_lang": "pt",
@@ -2697,12 +2583,12 @@
    "category": "evangelical_church",
    "confidence": "needs_review",
    "name": "Assemblies of God Church",
-   "name_local": "Igreja de Assemblies de God",
+   "name_local": "Igreja das Assembleias de Deus",
    "name_local_lang": "pt",
    "overture_id": "cac8aa28-c353-4727-aa9c-72630fa1a49f",
    "rule": "church -> Igreja",
    "source": "translated",
-   "why": "not words Portuguese names here use: ['assemblies', 'god']"
+   "why": "not words Portuguese names here use: ['assembleias']"
   },
   {
    "category": "park",
@@ -2777,14 +2663,13 @@
   },
   {
    "category": "church_cathedral",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Ark Church",
-   "name_local": "Igreja de Ark",
+   "name_local": "Igreja da Arca",
    "name_local_lang": "pt",
    "overture_id": "d06d4e16-14de-4b08-99b3-d294a109f1a0",
    "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['ark']"
+   "source": "translated"
   },
   {
    "category": "beach",
@@ -2826,17 +2711,6 @@
    "rule": "church -> Igreja",
    "source": "translated",
    "why": "an English word survives in the name"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Caceira Bike Park",
-   "name_local": "Parque de Caceira Bike",
-   "name_local_lang": "pt",
-   "overture_id": "806b8edc-8088-4842-9bf6-519a9d88cb48",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['caceira']"
   },
   {
    "category": "beach",
@@ -2902,14 +2776,13 @@
   },
   {
    "category": "catholic_church",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Sanctuary of the Sacred Heart of Jesus",
-   "name_local": "Santuário de Sacred Heart de Jesus",
+   "name_local": "Santuário do Sagrado Coração de Jesus",
    "name_local_lang": "pt",
    "overture_id": "fbb240bf-dce2-4af0-b3ba-248beadcbdff",
    "rule": "sanctuary -> Santuário",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['sacred', 'heart']"
+   "source": "translated"
   },
   {
    "category": "park",
@@ -2975,7 +2848,7 @@
    "category": "religious_organization",
    "confidence": "needs_review",
    "name": "Ministério Internacional de Adoração Jireh Church",
-   "name_local": "Igreja de Ministério Internacional de Adoração Jireh",
+   "name_local": "Igreja do Ministério Internacional de Adoração Jireh",
    "name_local_lang": "pt",
    "overture_id": "acc95dd6-52c8-43ae-aa87-8ff74c8eb8d5",
    "rule": "church -> Igreja",
@@ -2995,14 +2868,13 @@
   },
   {
    "category": "landmark_and_historical_building",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Castle of the Knights Templar, Tomar, Portugal",
-   "name_local": "Castelo de Knights Templar, Tomar, Portugal",
+   "name_local": "Castelo de Tomar",
    "name_local_lang": "pt",
    "overture_id": "7770610a-1e59-422b-96f8-b4b0eaa9616b",
-   "rule": "castle -> Castelo",
-   "source": "translated",
-   "why": "the name carries a comma: it is a name plus a description"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "park",
@@ -3097,17 +2969,6 @@
    "overture_id": "82e064b8-f34e-4f11-a215-3f6f2776d3c3",
    "rule": "park -> Parque",
    "source": "translated"
-  },
-  {
-   "category": "lake",
-   "confidence": "needs_review",
-   "name": "Boom Lake",
-   "name_local": "Lago de Boom",
-   "name_local_lang": "pt",
-   "overture_id": "b17d0862-be9c-498e-8caf-68b475476f53",
-   "rule": "lake -> Lago",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['boom']"
   },
   {
    "category": "castle",
@@ -3234,16 +3095,6 @@
    "source": "translated"
   },
   {
-   "category": "park",
-   "confidence": "high",
-   "name": "Radical Park",
-   "name_local": "Parque de Radical",
-   "name_local_lang": "pt",
-   "overture_id": "a29e31c2-d281-4656-8ee3-3da6d3de358f",
-   "rule": "park -> Parque",
-   "source": "translated"
-  },
-  {
    "category": "church_cathedral",
    "confidence": "high",
    "name": "Fonte Church",
@@ -3330,12 +3181,12 @@
    "category": "church_cathedral",
    "confidence": "needs_review",
    "name": "OH (Open Heart church)",
-   "name_local": "Igreja de OH (Open Heart",
+   "name_local": "Igreja de OH (Open Coração",
    "name_local_lang": "pt",
    "overture_id": "a0f57b94-2b49-42fb-aedd-2ad6ff88cbea",
    "rule": "church -> Igreja",
    "source": "translated",
-   "why": "not words Portuguese names here use: ['heart']"
+   "why": "the name carries a parenthetical"
   },
   {
    "category": "beach",
@@ -3484,14 +3335,13 @@
   },
   {
    "category": "park",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Central Park",
-   "name_local": "Parque de Central",
+   "name_local": "Parque Central",
    "name_local_lang": "pt",
    "overture_id": "314a9142-d052-4790-b84a-045a8dcf4358",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "an English word survives in the name"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "park",
@@ -3525,14 +3375,13 @@
   },
   {
    "category": "monument",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Christopher Columbus Monument",
-   "name_local": "Monumento de Christopher Columbus",
+   "name_local": "Monumento de Cristovão Colombo",
    "name_local_lang": "pt",
    "overture_id": "c96bd1f8-f967-46b1-a756-e88545060c52",
-   "rule": "monument -> Monumento",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['christopher', 'columbus']"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "church_cathedral",
@@ -3564,17 +3413,6 @@
    "rule": "park -> Parque",
    "source": "translated",
    "why": "not words Portuguese names here use: ['suil']"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Brinca + Fun Park",
-   "name_local": "Parque de Brinca + Fun",
-   "name_local_lang": "pt",
-   "overture_id": "c8c51ee7-bd16-478e-a4f6-34bed9f7b968",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['brinca', 'fun']"
   },
   {
    "category": "pentecostal_church",
@@ -3681,17 +3519,6 @@
    "source": "translated"
   },
   {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Vila Retail Park",
-   "name_local": "Parque da Vila Retail",
-   "name_local_lang": "pt",
-   "overture_id": "f6f5216b-f46a-48e8-8277-4614a23b12e1",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['retail']"
-  },
-  {
    "category": "religious_organization",
    "confidence": "high",
    "name": "Longos Vales Monastery",
@@ -3775,14 +3602,13 @@
   },
   {
    "category": "museum",
-   "confidence": "needs_review",
+   "confidence": "high",
    "name": "Tesouro- Braga Cathedral Museum",
-   "name_local": "Museu de Tesouro- Braga Cathedral",
+   "name_local": "Museu da Catedral de Braga",
    "name_local_lang": "pt",
    "overture_id": "b7036e31-ba86-492c-9167-d1b59655cee3",
-   "rule": "museum -> Museu",
-   "source": "translated",
-   "why": "an English word survives in the name"
+   "rule": "owner-confirmed",
+   "source": "translated"
   },
   {
    "category": "catholic_church",
@@ -3907,16 +3733,6 @@
    "rule": "viewpoint -> Miradouro",
    "source": "translated",
    "why": "not words Portuguese names here use: ['assumadouro']"
-  },
-  {
-   "category": "beach",
-   "confidence": "high",
-   "name": "Sabor Pesca Beach",
-   "name_local": "Praia de Sabor Pesca",
-   "name_local_lang": "pt",
-   "overture_id": "3cd36123-5e8d-4532-9aee-807e9f0026aa",
-   "rule": "beach -> Praia",
-   "source": "translated"
   },
   {
    "category": "park",
@@ -4201,6 +4017,17 @@
    "lng": -9.32904928,
    "name": "Carcavelos Beach Stunning Views",
    "overture_id": "de11ba19-8cfb-44dc-a425-61be2096408e",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.673401,
+   "lng": -9.160865,
+   "name": "Skate Park",
+   "overture_id": "1206b799-5e3c-492d-b7a4-ebdd350f7ff0",
    "why": "no descriptor this module knows"
   },
   {
@@ -4545,6 +4372,17 @@
    "why": "no descriptor this module knows"
   },
   {
+   "category": "zoo",
+   "english_words": [
+    "park"
+   ],
+   "lat": 38.04158408,
+   "lng": -8.74450025,
+   "name": "Badoca Safari Park",
+   "overture_id": "0e2b3245-352f-43f4-a838-c552e52574d3",
+   "why": "no descriptor this module knows"
+  },
+  {
    "category": "pentecostal_church",
    "english_words": [
     "church"
@@ -4820,6 +4658,17 @@
    "why": "no descriptor this module knows"
   },
   {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 37.08431891,
+   "lng": -8.0331136,
+   "name": "Christ The King Anglican Church",
+   "overture_id": "7c6419d5-938e-47ac-ae8a-964074dd4ee6",
+   "why": "no descriptor this module knows"
+  },
+  {
    "category": "religious_organization",
    "english_words": [
     "church"
@@ -5048,6 +4897,17 @@
    "lng": -28.008611111111,
    "name": "Phare du Fort de Corpo Santo",
    "overture_id": "8750b490-9fdf-41fe-b6f9-aca7053354e4",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 39.329412123591,
+   "lng": -9.3531340873361,
+   "name": "Piscina Da Rita Park",
+   "overture_id": "8e8613c6-8b40-4e4f-ad1d-4de7bdf5ceb9",
    "why": "no descriptor this module knows"
   },
   {
@@ -5359,6 +5219,17 @@
    "why": "no descriptor this module knows"
   },
   {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.16913877,
+   "lng": -8.80883152,
+   "name": "Caceira Bike Park",
+   "overture_id": "806b8edc-8088-4842-9bf6-519a9d88cb48",
+   "why": "no descriptor this module knows"
+  },
+  {
    "category": "beach",
    "english_words": [
     "beach"
@@ -5510,6 +5381,17 @@
    "lng": -8.42452254,
    "name": "New Cathedral of the Holy Name of Jesus (Coimbra)",
    "overture_id": "161e3630-7cf8-4f8e-819d-cc89bedc552d",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 40.420631,
+   "lng": -7.8888701,
+   "name": "Radical Park",
+   "overture_id": "a29e31c2-d281-4656-8ee3-3da6d3de358f",
    "why": "no descriptor this module knows"
   },
   {
@@ -5788,6 +5670,17 @@
    "why": "no descriptor this module knows"
   },
   {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.0201799,
+   "lng": -8.5550324,
+   "name": "Brinca + Fun Park",
+   "overture_id": "c8c51ee7-bd16-478e-a4f6-34bed9f7b968",
+   "why": "no descriptor this module knows"
+  },
+  {
    "category": "religious_organization",
    "english_words": [
     "church"
@@ -5818,6 +5711,17 @@
    "lng": -8.51827914,
    "name": "Amigo Íntimo Church Portugal",
    "overture_id": "c250197d-ff9e-4db8-adfc-9570cc5c3ef3",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.77333038,
+   "lng": -8.59217726,
+   "name": "Vila Retail Park",
+   "overture_id": "f6f5216b-f46a-48e8-8277-4614a23b12e1",
    "why": "no descriptor this module knows"
   },
   {

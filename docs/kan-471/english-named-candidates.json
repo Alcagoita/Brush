@@ -869,16 +869,6 @@
    "english_words": [
     "beach"
    ],
-   "lat": 37.11892,
-   "lng": -8.5412,
-   "name": "Beach Side",
-   "overture_id": "0498f5da-e404-4370-9d3b-75bf0f7108f3"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
    "lat": 37.118267,
    "lng": -8.534384,
    "name": "beach of oceano Atlantico",
@@ -1074,16 +1064,6 @@
    "lng": -25.625886930248,
    "name": "Sao roque beach",
    "overture_id": "111e65cf-bd0c-4825-82e3-807037f4c971"
-  },
-  {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 37.76842516,
-   "lng": -25.6245161,
-   "name": "Rua Azores Park",
-   "overture_id": "37fe6a62-e67d-4916-b2ca-c9cf9b4fde29"
   },
   {
    "category": "landmark_and_historical_building",
@@ -1771,16 +1751,6 @@
    "english_words": [
     "park"
    ],
-   "lat": 38.705140033337,
-   "lng": -9.1900488499877,
-   "name": "Badoca Safari Park",
-   "overture_id": "ce3d793b-1911-4f5a-8fcb-33ebaa4a6601"
-  },
-  {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
    "lat": 38.7047203,
    "lng": -9.1681107,
    "name": "Estrela Park, Lisbon",
@@ -2257,16 +2227,6 @@
    "overture_id": "40c18acc-ca73-467c-a09b-59946424918a"
   },
   {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 38.0524750898,
-   "lng": -8.7863160373,
-   "name": "Badoca Park",
-   "overture_id": "0dbe7be0-473c-4566-b40b-1cfd87b2a1ba"
-  },
-  {
    "category": "zoo",
    "english_words": [
     "park"
@@ -2275,16 +2235,6 @@
    "lng": -8.74450025,
    "name": "Badoca Safari Park",
    "overture_id": "0e2b3245-352f-43f4-a838-c552e52574d3"
-  },
-  {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
-   "lat": 38.198434466254,
-   "lng": -8.6072519797201,
-   "name": "Badoka Safari Park",
-   "overture_id": "13db4597-bda0-4711-9b13-09b8ab55c4db"
   },
   {
    "category": "beach",
@@ -4165,16 +4115,6 @@
    "english_words": [
     "park"
    ],
-   "lat": 38.76493585000127,
-   "lng": -9.097537124998423,
-   "name": "Badoca Safari Park",
-   "overture_id": "1bd142b2-5a51-4a85-80c8-a4734e30ceba"
-  },
-  {
-   "category": "park",
-   "english_words": [
-    "park"
-   ],
    "lat": 38.88906,
    "lng": -9.03948,
    "name": "Alverca Retail Park",
@@ -4999,16 +4939,6 @@
    "lng": -7.4906142,
    "name": "The Church of Jesus Christ of Latter-day Saints",
    "overture_id": "5fa1d1ae-6ad9-4988-acc6-78d630c196cc"
-  },
-  {
-   "category": "lake",
-   "english_words": [
-    "lake"
-   ],
-   "lat": 39.969808,
-   "lng": -7.184997,
-   "name": "Boom Lake",
-   "overture_id": "b17d0862-be9c-498e-8caf-68b475476f53"
   },
   {
    "category": "castle",
@@ -6301,16 +6231,6 @@
    "lng": -6.89438396,
    "name": "Assumadouro Viewpoint",
    "overture_id": "af012d90-3353-4325-88a9-cf46ecf8b131"
-  },
-  {
-   "category": "beach",
-   "english_words": [
-    "beach"
-   ],
-   "lat": 41.17765521609715,
-   "lng": -7.1119801089495835,
-   "name": "Sabor Pesca Beach",
-   "overture_id": "3cd36123-5e8d-4532-9aee-807e9f0026aa"
   },
   {
    "category": "castle",

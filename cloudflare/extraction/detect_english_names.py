@@ -118,9 +118,28 @@ BUSINESS_WORDS = (
 # Rows the owner withdrew (migration 0051, 2026-09-28): they are not places
 # we serve, so they are not candidates for a name either.
 WITHDRAWN = frozenset({
+    # migration 0051
     '59277518-5c11-49aa-9a35-446170764ed9',  # Tickets office Jerónimos Monastery
     '9a39bbec-8dd1-49b9-bb9e-d444e5907e4c',  # Pinus Urban Garden
     'b941ff8a-5312-4179-961f-23fd035ce349',  # Tagus Park!
+    # migration 0052 — Rua Azores Park, and four copies of Badoca Safari Park
+    # (0e2b3245, the zoo row at confidence 1.00, is the one that stays)
+    '37fe6a62-e67d-4916-b2ca-c9cf9b4fde29',  # Rua Azores Park
+    '0dbe7be0-473c-4566-b40b-1cfd87b2a1ba',  # Badoca Park, 3.9 km
+    '13db4597-bda0-4711-9b13-09b8ab55c4db',  # Badoka Safari Park, 21.2 km
+    'ce3d793b-1911-4f5a-8fcb-33ebaa4a6601',  # Badoca Safari Park, 83.4 km
+    '1bd142b2-5a51-4a85-80c8-a4734e30ceba',  # Badoca Safari Park, 86.1 km
+})
+
+
+# Rows whose TYPE the owner found wrong (2026-10-03). A row filed as the
+# wrong kind of place should not be given a name for that kind — naming it
+# `Praia de …` would dress a restaurant up as a beach. Held out of the
+# naming review until the type is decided; see the KAN-471 runbook.
+WRONG_TYPE = frozenset({
+    '3cd36123-5e8d-4532-9aee-807e9f0026aa',  # Sabor Pesca Beach — a business at a river beach
+    '0498f5da-e404-4370-9d3b-75bf0f7108f3',  # Beach Side — unidentified, Portimão
+    'b17d0862-be9c-498e-8caf-68b475476f53',  # Boom Lake — Idanha-a-Nova reservoir?
 })
 
 
@@ -161,7 +180,7 @@ def candidates(archive_path, categories=None):
     with open(archive_path, newline='') as handle:
         for row in csv.DictReader(handle):
             scanned += 1
-            if row['overture_id'] in WITHDRAWN:
+            if row['overture_id'] in WITHDRAWN or row['overture_id'] in WRONG_TYPE:
                 continue
             category = (row.get('category') or '').strip()
             if category not in categories:

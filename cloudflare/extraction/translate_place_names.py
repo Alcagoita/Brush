@@ -97,7 +97,46 @@ KEEP_AS_IS = (
     'Tempo de Adorar - Cosmopolitan Church', 'Sirius Park',
     'Silver Coast Non Denominational English Church',
     'Quinta do Mouricão Mobile Home Park', 'Pink Palace',
+    # second review, 2026-10-03
+    'Piscina Da Rita Park', 'Radical Park', 'Skate Park', 'Badoca Safari Park',
+    'Brinca + Fun Park', 'Caceira Bike Park', 'Christ The King Anglican Church',
+    'Vila Retail Park',
 )
+
+# Owner-confirmed native names, keyed on the folded English name. These are
+# decisions, not derivations: `Castle of the Knights Templar, Tomar,
+# Portugal` is `Castelo de Tomar`, which no rule produces. Highest
+# precedence of anything in this module.
+OVERRIDES_PATH = os.path.join(os.path.dirname(EXTRACTION_DIR), 'src', 'nativeNameOverrides.json')
+
+# The words a religious or commemorative name is made of. Owner's rule,
+# 2026-10-03: with `Church of …`, the COMPLETE name is translated, not only
+# the descriptor. `(Portuguese, article)` — the article contracts the
+# preposition in front of it.
+WORDS = {
+    'christ': ('Cristo', None), 'ministry': ('Ministério', 'o'),
+    'glory': ('Glória', 'a'), 'bones': ('Ossos', 'os'),
+    'navigators': ('Navegantes', 'os'), 'lord': ('Senhor', 'o'),
+    'jesus': ('Jesus', None), 'king': ('Rei', 'o'), 'queen': ('Rainha', 'a'),
+    'saviour': ('Salvador', 'o'), 'savior': ('Salvador', 'o'),
+    'trinity': ('Trindade', 'a'), 'conception': ('Conceição', 'a'),
+    'assumption': ('Assunção', 'a'), 'ascension': ('Ascensão', 'a'),
+    'incarnation': ('Encarnação', 'a'), 'mercy': ('Misericórdia', 'a'),
+    'remedies': ('Remédios', 'os'), 'rosary': ('Rosário', 'o'),
+    'grace': ('Graça', 'a'), 'snows': ('Neves', 'as'), 'pity': ('Piedade', 'a'),
+    'sorrows': ('Dores', 'as'), 'martyrs': ('Mártires', 'os'),
+    'souls': ('Almas', 'as'), 'angels': ('Anjos', 'os'),
+    'apostles': ('Apóstolos', 'os'), 'god': ('Deus', 'o'),
+    'sacred heart': ('Sagrado Coração', 'o'), 'heart': ('Coração', 'o'),
+    'blessed sacrament': ('Santíssimo Sacramento', 'o'),
+    'resurrection': ('Ressurreição', 'a'), 'ark': ('Arca', 'a'),
+    'kingdom': ('Reino', 'o'), 'magdalene': ('Madalena', 'a'),
+    'mount carmel': ('Monte Carmo', 'o'), 'carmel': ('Carmo', 'o'),
+    'good shepherd': ('Bom Pastor', 'o'), 'nazarene': ('Nazareno', 'o'),
+    'knights templar': ('Templários', 'os'),
+    'assemblies of god': ('Assembleias de Deus', 'as'),
+    'holy family': ('Sagrada Família', 'a'), 'holy name': ('Santo Nome', 'o'),
+}
 
 # Set phrases that are names in their own right, not descriptor + noun.
 PHRASES = {
@@ -253,6 +292,17 @@ def fold(value):
 
 DO_NOT_TRANSLATE = frozenset(fold(name) for name in KEEP_AS_IS)
 
+# A translated word carries its own article into the contraction:
+# `da Glória`, `dos Ossos`, `do Senhor Jesus`.
+# `santo`/`santa`/`são` are saint markers, never article-takers: a head of
+# `Santo Nome` would otherwise teach the table that `Santo` takes `o`, and
+# `Santo André Beach` would come out as `Praia DO Santo André`.
+SAINT_MARKERS = ('santo', 'santa', 'sao')
+COMMON_NOUN_ARTICLES.update({
+    fold(portuguese).split(' ')[0]: article
+    for portuguese, article in WORDS.values()
+    if article and fold(portuguese).split(' ')[0] not in SAINT_MARKERS})
+
 
 def article_of(toponym):
     """The article the toponym takes, or None when we have never seen it."""
@@ -275,6 +325,27 @@ def preposition(toponym, learned=None):
         if found:
             return found
     return CONTRACTIONS[article_of(toponym)]
+
+
+def load_overrides(path=OVERRIDES_PATH):
+    """{folded english name: confirmed portuguese name}."""
+    try:
+        with open(path) as handle:
+            document = json.load(handle)
+    except FileNotFoundError:
+        return {}
+    return {key: value for key, value in document.items() if not key.startswith('_')}
+
+
+def translate_words(text):
+    """Translate the words a religious or commemorative name is made of.
+    Owner's rule: with `Church of …` the complete name is translated, so
+    `Church of Our Lady of the Glory` is `Igreja de Nossa Senhora da
+    Glória`, not `Igreja de Nossa Senhora of the Glory`."""
+    for english in sorted(WORDS, key=len, reverse=True):
+        portuguese, _article = WORDS[english]
+        text = re.sub(rf'\b{re.escape(english)}\b', portuguese, text, flags=re.IGNORECASE)
+    return text
 
 
 def translate_saints(text):
@@ -381,6 +452,11 @@ def doubts(name, remainder, vocabulary=None):
         return 'needs_review', 'a saint this module has no Portuguese form for'
     if ',' in name:
         return 'needs_review', 'the name carries a comma: it is a name plus a description'
+    if '(' in name or ')' in name:
+        # `OH (Open Heart church)` came out as `Igreja de OH (Open Coração`:
+        # the word lexicon translated inside the parenthetical and the
+        # bracket was left dangling.
+        return 'needs_review', 'the name carries a parenthetical'
     if vocabulary is not None:
         unknown = [word for word in fold(remainder).split()
                    if word not in vocabulary and not word.isdigit() and len(word) > 2
@@ -434,10 +510,14 @@ def contract_inner_of(text, learned=None):
     return re.sub(r'\s+of\s+(?:the\s+)?(\S+(?:\s+\S+)?)$', lambda m: replace(m), text, flags=re.IGNORECASE)
 
 
-def translate(name, learned=None, vocabulary=None):
+def translate(name, learned=None, vocabulary=None, overrides=None):
     """{name_local, confidence, why} or None when nothing here applies."""
     if fold(name) in DO_NOT_TRANSLATE:
         return None  # the owner has confirmed this IS the place's name
+
+    confirmed = (overrides if overrides is not None else load_overrides()).get(fold(name))
+    if confirmed:
+        return {'name_local': confirmed, 'confidence': 'high', 'rule': 'owner-confirmed'}
 
     for english, portuguese in PHRASES.items():
         if fold(name) == english:
@@ -453,7 +533,7 @@ def translate(name, learned=None, vocabulary=None):
     joined = joined_descriptors(name)
     if joined:
         portuguese, _gender, remainder, _had_of = joined
-        remainder = contract_inner_of(translate_saints(remainder), learned)
+        remainder = contract_inner_of(translate_words(translate_saints(remainder)), learned)
         confidence, why = doubts(name, remainder, vocabulary)
         return {'name_local': join(portuguese, remainder, learned),
                 'confidence': confidence, 'rule': 'two descriptors + proper noun', 'why': why}
@@ -463,7 +543,7 @@ def translate(name, learned=None, vocabulary=None):
         portuguese, _gender, remainder, _had_of = multi
         if not remainder:
             return {'name_local': portuguese, 'confidence': 'high', 'rule': 'set descriptor'}
-        remainder = contract_inner_of(translate_saints(remainder), learned)
+        remainder = contract_inner_of(translate_words(translate_saints(remainder)), learned)
         confidence, why = doubts(name, remainder, vocabulary)
         return {'name_local': join(portuguese, remainder, learned),
                 'confidence': confidence, 'rule': 'set descriptor + proper noun', 'why': why}
@@ -476,7 +556,7 @@ def translate(name, learned=None, vocabulary=None):
     if not remainder:
         return None
 
-    remainder = translate_saints(remainder)
+    remainder = translate_words(translate_saints(remainder))
     for phrase, replacement in sorted(PHRASES.items(), key=lambda pair: -len(pair[0])):
         if phrase.endswith(' of'):
             continue  # handled by contract_inner_of, which keeps the preposition
@@ -506,10 +586,11 @@ def translate(name, learned=None, vocabulary=None):
             'confidence': confidence, 'rule': rule, 'why': why}
 
 
-def run(rows, learned=None, vocabulary=None):
+def run(rows, learned=None, vocabulary=None, overrides=None):
+    overrides = load_overrides() if overrides is None else overrides
     translated, untouched = [], []
     for row in rows:
-        result = translate(row['name'], learned, vocabulary)
+        result = translate(row['name'], learned, vocabulary, overrides)
         if result is None:
             untouched.append({**row, 'why': 'no descriptor this module knows'})
             continue

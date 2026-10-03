@@ -318,3 +318,63 @@ class OwnerRulesTest(unittest.TestCase):
             ])
             report = detect.candidates(path)
         self.assertEqual([row['overture_id'] for row in report['candidates']], ['keeper'])
+
+
+class SecondReviewTest(unittest.TestCase):
+    """Owner's second pass, 2026-10-03."""
+
+    LEARNED = {'rocha': 'da', 'tomar': 'de'}
+
+    def say(self, name):
+        import translate_place_names as translate
+        result = translate.translate(name, self.LEARNED)
+        return None if result is None else result['name_local']
+
+    def test_the_names_confirmed_by_hand_win_over_every_rule(self):
+        """`Castle of the Knights Templar, Tomar, Portugal` is `Castelo de
+        Tomar`, which no rule produces — and it carries commas, which would
+        otherwise flag it."""
+        for english, portuguese in (
+                ('Playa De Rocha Beach', 'Praia da Rocha'),
+                ('Prainha Beach', 'Prainha'),
+                ('San Jorge Castle', 'Castelo de São Jorge'),
+                ('Castle of the Knights Templar, Tomar, Portugal', 'Castelo de Tomar'),
+                ('Central Park', 'Parque Central'),
+                ('Chapel of Bones', 'Capela dos Ossos'),
+                ('Chapel of Bones of Faro', 'Capela dos Ossos de Faro'),
+                ('Chapel of the Lord Jesus of the Navigators', 'Ermida do Senhor Jesus dos Navegantes'),
+                ('Christopher Columbus Monument', 'Monumento de Cristovão Colombo'),
+                ('Tesouro- Braga Cathedral Museum', 'Museu da Catedral de Braga'),
+                ('Church of Christ Ministry Nova Terra', 'Igreja de Cristo Ministerio Nova Terra Portugal'),
+                ('Church of Our Lady of the Glory', 'Igreja de Nossa Senhora da Glória')):
+            self.assertEqual(self.say(english), portuguese, english)
+
+    def test_church_of_translates_the_complete_name(self):
+        """Owner's rule: with `Church of …` everything translates, not only
+        the descriptor."""
+        self.assertEqual(self.say('Church of the Sacred Heart'), 'Igreja do Sagrado Coração')
+        self.assertEqual(self.say('Chapel of Our Lady of the Conception'),
+                         'Capela de Nossa Senhora da Conceição')
+        self.assertEqual(self.say('Church of the Ascension of Christ'), 'Igreja da Ascensão de Cristo')
+        self.assertEqual(self.say('Church of the Assemblies of God'), 'Igreja das Assembleias de Deus')
+
+    def test_the_second_batch_of_confirmed_names_is_left_alone(self):
+        for name in ('Piscina Da Rita Park', 'Radical Park', 'Skate Park',
+                     'Badoca Safari Park', 'Brinca + Fun Park', 'Caceira Bike Park',
+                     'Christ The King Anglican Church', 'Vila Retail Park'):
+            self.assertIsNone(self.say(name), name)
+
+    def test_the_badoca_copies_are_withdrawn_and_the_real_one_is_not(self):
+        import detect_english_names as detect
+        for duplicate in ('0dbe7be0-473c-4566-b40b-1cfd87b2a1ba', '13db4597-bda0-4711-9b13-09b8ab55c4db',
+                          'ce3d793b-1911-4f5a-8fcb-33ebaa4a6601', '1bd142b2-5a51-4a85-80c8-a4734e30ceba'):
+            self.assertIn(duplicate, detect.WITHDRAWN)
+        self.assertNotIn('0e2b3245-352f-43f4-a838-c552e52574d3', detect.WITHDRAWN,
+                         'the zoo row at confidence 1.00 is the park')
+
+    def test_every_override_key_is_already_folded(self):
+        """A key that is not folded can never match, so the override would be
+        silently dead."""
+        import translate_place_names as translate
+        for key in translate.load_overrides():
+            self.assertEqual(key, translate.fold(key), key)
