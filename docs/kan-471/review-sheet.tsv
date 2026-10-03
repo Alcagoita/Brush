@@ -379,19 +379,15 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	translated?	692b1618-d8a0-451c-848e-b3f6dc427892	Monastery Pio XII	Mosteiro de Pio XII	religious_organization	not words Portuguese names here use: ['pio', 'xii']
 	translated?	40ed0d51-68ff-4369-8faa-f675a614ee2d	Nato Beach	Praia da Nato	beach	not words Portuguese names here use: ['nato']
 	translated?	5dd20507-3d56-485e-a7cc-f04aaec0dc94	Nazaré Sunset Marina Beach	Praia da Nazaré Sunset Marina	beach	not words Portuguese names here use: ['sunset']
-	translated?	0072cdfe-58c3-488f-9eaa-e423feea9b9a	New life church	Igreja de New life	church_cathedral	an English word survives in the name
 	translated?	a0f57b94-2b49-42fb-aedd-2ad6ff88cbea	OH (Open Heart church)	Igreja de OH (Open Coração	church_cathedral	the name carries a parenthetical
 	translated?	f623ed8d-7543-4dfc-b8c9-ef5297dfb7ce	Oceano Atlantico, Cascais Beach	Praia de Oceano Atlantico, Cascais	beach	the name carries a comma: it is a name plus a description
 	translated?	21595ba9-2006-4bc0-893a-24d06c4779d8	Old Town Square	Praça de Old Town	public_plaza	an English word survives in the name
-	translated?	b904499f-09b7-4a3c-adcf-1f007d5cb16e	Ondix Beach	Praia de Ondix	beach	not words Portuguese names here use: ['ondix']
 	translated?	d6e1e7cb-79ef-46f6-ae5c-a18bd0e49f72	Open Heavens Church	Igreja de Open Heavens	church_cathedral	not words Portuguese names here use: ['heavens']
 	translated?	5a058440-16cd-4d15-ae15-9968248ee147	Palace Sub-Ripas	Palácio de Sub-Ripas	monument	not words Portuguese names here use: ['ripas']
 	translated?	d0a9a515-21c4-4af5-83cf-7c0d8b4b6b47	Park Capitolio	Parque de Capitolio	park	not words Portuguese names here use: ['capitolio']
 	translated?	e4f2ed53-f604-41f5-9e23-5ec8a0c114ab	Park Douro Selvagem	Parque do Douro Selvagem	park	not words Portuguese names here use: ['selvagem']
 	translated?	ceb67eeb-9613-4ce6-9fdf-92e75014fdfb	Penedaventura Park	Parque de Penedaventura	park	not words Portuguese names here use: ['penedaventura']
-	translated?	c4db3ac1-ac9d-4642-a655-b2c548edf628	Pestana Palms Beach	Praia de Pestana Palms	beach	not words Portuguese names here use: ['palms']
 	translated?	8315c3a6-955c-4a16-ada1-7f482f9ad2c2	Pine Cliffs beach	Praia de Pine Cliffs	beach	not words Portuguese names here use: ['pine', 'cliffs']
-	translated?	6899a289-1e33-4175-abf5-82a4c230a2b7	Portoland Park	Parque de Portoland	park	not words Portuguese names here use: ['portoland']
 	translated?	a22162f5-90ea-4754-8a67-4b52c9b59f7d	Quateira Beach	Praia de Quateira	beach	not words Portuguese names here use: ['quateira']
 	translated?	c4a41949-0ad7-438b-ba0b-c5ebbe4d5b9d	Restaurante Queens Beach	Praia de Restaurante Queens	beach	not words Portuguese names here use: ['queens']
 	translated?	5929386e-c874-42c7-8626-48ee276a5cb0	Riverside International Church	Igreja de Riverside International	church_cathedral	an English word survives in the name
@@ -407,8 +403,6 @@ keep_or_fix	source	overture_id	current_name	proposed_name_local	category	note
 	translated?	e9e02459-a85e-4915-b590-559e80c04557	St. Paul's Anglican Church	Igreja de São Paulo's Anglican	church_cathedral	an English word survives in the name
 	translated?	a9759c33-99f8-4891-8a52-7f4082f10830	Sunset - Vale De Lobo Beach	Praia de Sunset - Vale De Lobo	beach	not words Portuguese names here use: ['sunset']
 	translated?	a0a8f029-8b12-4570-b134-2559092d160c	São Bento das Peras Sanctuary	Santuário de São Bento das Peras	church_cathedral	not words Portuguese names here use: ['peras']
-	translated?	20cd4b6e-b1e6-4e19-9d58-479e33ecc679	Tag Park	Parque de Tag	park	not words Portuguese names here use: ['tag']
-	translated?	60b50573-c065-4dfd-91eb-f9a016aa3c14	Tejo Fan Park	Parque do Tejo Fan	park	not words Portuguese names here use: ['fan']
 	translated?	d15325af-b023-4097-9017-214773dcc5d7	Terra Nostra Garden	Jardim de Terra Nostra	park	not words Portuguese names here use: ['nostra']
 	translated?	613660ee-eeb0-4e59-8bcb-aeb3d893ef66	Tomar, Central Park	Parque de Tomar, Central	park	an English word survives in the name
 	translated?	91f1196e-4fe3-4522-9ad5-1cfee366209b	Torralta Beach	Praia de Torralta	beach	not words Portuguese names here use: ['torralta']

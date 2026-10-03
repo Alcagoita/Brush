@@ -56,3 +56,25 @@ which looks like a festival-era label. Owner's call.
 * A name carrying a parenthetical is flagged: `OH (Open Heart church)` had come
   out as `Igreja de OH (Open Coração`, the lexicon having translated inside the
   bracket.
+
+## Third owner review, 2026-10-03
+
+### Withdrawn (migration 0053, applied and verified)
+
+| id | name | why |
+|---|---|---|
+| `b904499f` | Ondix Beach | not a place we serve — Almada, confidence **0.38**, the lowest of any row in this review |
+
+`ONDIX` itself is a dance club 8 km away (`4c12ab69`), left alone: a club is a
+real place, just not a beach. Verified through `POST /poi/nearby` — the beach
+is gone from those coordinates and `Praia da Adiça` is still served there.
+
+### Confirmed as the place's own name
+
+`Tejo Fan Park`, `Tag Park`, `Portoland Park`, `Pestana Palms Beach`,
+`New life church`.
+
+`Tejo Fan Park` had been given earlier in this same review as a translation
+example (`Parque Urbano do Tejo`) and was then reversed. The later instruction
+stands; a test asserts it is in the leave-alone list and in no override, so the
+two cannot drift back into conflict.

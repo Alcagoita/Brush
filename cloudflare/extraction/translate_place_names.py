@@ -101,6 +101,11 @@ KEEP_AS_IS = (
     'Piscina Da Rita Park', 'Radical Park', 'Skate Park', 'Badoca Safari Park',
     'Brinca + Fun Park', 'Caceira Bike Park', 'Christ The King Anglican Church',
     'Vila Retail Park',
+    # third review, 2026-10-03. `Tejo Fan Park` had been given as a
+    # translation example earlier in the same review (`Parque Urbano do
+    # Tejo`); the owner reversed it, and the later instruction stands.
+    'Tejo Fan Park', 'Tag Park', 'Portoland Park', 'Pestana Palms Beach',
+    'New life church',
 )
 
 # Owner-confirmed native names, keyed on the folded English name. These are

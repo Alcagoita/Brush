@@ -129,6 +129,8 @@ WITHDRAWN = frozenset({
     '13db4597-bda0-4711-9b13-09b8ab55c4db',  # Badoka Safari Park, 21.2 km
     'ce3d793b-1911-4f5a-8fcb-33ebaa4a6601',  # Badoca Safari Park, 83.4 km
     '1bd142b2-5a51-4a85-80c8-a4734e30ceba',  # Badoca Safari Park, 86.1 km
+    # migration 0053
+    'b904499f-09b7-4a3c-adcf-1f007d5cb16e',  # Ondix Beach, Almada, confidence 0.38
 })
 
 

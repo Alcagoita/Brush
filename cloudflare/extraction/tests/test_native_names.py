@@ -378,3 +378,27 @@ class SecondReviewTest(unittest.TestCase):
         import translate_place_names as translate
         for key in translate.load_overrides():
             self.assertEqual(key, translate.fold(key), key)
+
+
+class ThirdReviewTest(unittest.TestCase):
+    """Owner's third pass, 2026-10-03."""
+
+    def test_the_names_confirmed_as_the_places_own_are_left_alone(self):
+        import translate_place_names as translate
+        for name in ('Tejo Fan Park', 'Tag Park', 'Portoland Park',
+                     'Pestana Palms Beach', 'New life church'):
+            self.assertIsNone(translate.translate(name, {}), name)
+
+    def test_tejo_fan_park_is_not_translated_despite_the_earlier_example(self):
+        """It was given as `Parque Urbano do Tejo` earlier in the same review
+        and then reversed. The later instruction stands, and no override may
+        contradict it."""
+        import translate_place_names as translate
+        self.assertIn(translate.fold('Tejo Fan Park'), translate.DO_NOT_TRANSLATE)
+        self.assertNotIn(translate.fold('Tejo Fan Park'), translate.load_overrides())
+
+    def test_ondix_beach_is_withdrawn_and_the_club_is_not(self):
+        import detect_english_names as detect
+        self.assertIn('b904499f-09b7-4a3c-adcf-1f007d5cb16e', detect.WITHDRAWN)
+        self.assertNotIn('4c12ab69-92d0-471a-9de9-a11b3cdebdc4', detect.WITHDRAWN,
+                         'ONDIX the dance club is a real place, just not a beach')

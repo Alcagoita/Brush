@@ -206,17 +206,6 @@
    "source": "translated"
   },
   {
-   "category": "beach",
-   "confidence": "needs_review",
-   "name": "Pestana Palms Beach",
-   "name_local": "Praia de Pestana Palms",
-   "name_local_lang": "pt",
-   "overture_id": "c4db3ac1-ac9d-4642-a655-b2c548edf628",
-   "rule": "beach -> Praia",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['palms']"
-  },
-  {
    "category": "landmark_and_historical_building",
    "confidence": "needs_review",
    "name": "Atlantic Gardens Beach",
@@ -769,17 +758,6 @@
   {
    "category": "beach",
    "confidence": "needs_review",
-   "name": "Ondix Beach",
-   "name_local": "Praia de Ondix",
-   "name_local_lang": "pt",
-   "overture_id": "b904499f-09b7-4a3c-adcf-1f007d5cb16e",
-   "rule": "beach -> Praia",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['ondix']"
-  },
-  {
-   "category": "beach",
-   "confidence": "needs_review",
    "name": "Bhoemia beach",
    "name_local": "Praia de Bhoemia",
    "name_local_lang": "pt",
@@ -883,17 +861,6 @@
    "overture_id": "1f789b4e-d9a9-4f25-bb18-ac8a564226de",
    "rule": "chapel -> Capela",
    "source": "translated"
-  },
-  {
-   "category": "church_cathedral",
-   "confidence": "needs_review",
-   "name": "New life church",
-   "name_local": "Igreja de New life",
-   "name_local_lang": "pt",
-   "overture_id": "0072cdfe-58c3-488f-9eaa-e423feea9b9a",
-   "rule": "church -> Igreja",
-   "source": "translated",
-   "why": "an English word survives in the name"
   },
   {
    "category": "park",
@@ -2179,17 +2146,6 @@
    "why": "not words Portuguese names here use: ['macdonalds']"
   },
   {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Tejo Fan Park",
-   "name_local": "Parque do Tejo Fan",
-   "name_local_lang": "pt",
-   "overture_id": "60b50573-c065-4dfd-91eb-f9a016aa3c14",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['fan']"
-  },
-  {
    "category": "religious_organization",
    "confidence": "high",
    "name": "Novo Tempo Church",
@@ -3137,28 +3093,6 @@
   {
    "category": "park",
    "confidence": "needs_review",
-   "name": "Portoland Park",
-   "name_local": "Parque de Portoland",
-   "name_local_lang": "pt",
-   "overture_id": "6899a289-1e33-4175-abf5-82a4c230a2b7",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['portoland']"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
-   "name": "Tag Park",
-   "name_local": "Parque de Tag",
-   "name_local_lang": "pt",
-   "overture_id": "20cd4b6e-b1e6-4e19-9d58-479e33ecc679",
-   "rule": "park -> Parque",
-   "source": "translated",
-   "why": "not words Portuguese names here use: ['tag']"
-  },
-  {
-   "category": "park",
-   "confidence": "needs_review",
    "name": "Gaia Feijão Verde Fun Park",
    "name_local": "Parque de Gaia Feijão Verde Fun",
    "name_local_lang": "pt",
@@ -3833,6 +3767,17 @@
    "why": "no descriptor this module knows"
   },
   {
+   "category": "beach",
+   "english_words": [
+    "beach"
+   ],
+   "lat": 32.636021,
+   "lng": -16.931318,
+   "name": "Pestana Palms Beach",
+   "overture_id": "c4db3ac1-ac9d-4642-a655-b2c548edf628",
+   "why": "no descriptor this module knows"
+  },
+  {
    "category": "landmark_and_historical_building",
    "english_words": [
     "park"
@@ -4116,6 +4061,17 @@
    "lng": -9.33895242,
    "name": "Revival Church For The Nations",
    "overture_id": "a458b938-883f-4f6b-8edc-2bd706ff9225",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "church_cathedral",
+   "english_words": [
+    "church"
+   ],
+   "lat": 38.72068432,
+   "lng": -9.3418863,
+   "name": "New life church",
+   "overture_id": "0072cdfe-58c3-488f-9eaa-e423feea9b9a",
    "why": "no descriptor this module knows"
   },
   {
@@ -4805,6 +4761,17 @@
    "english_words": [
     "park"
    ],
+   "lat": 38.7765109,
+   "lng": -9.2207906,
+   "name": "Tejo Fan Park",
+   "overture_id": "60b50573-c065-4dfd-91eb-f9a016aa3c14",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
    "lat": 38.776252,
    "lng": -9.207107,
    "name": "Adventure Park Pontinha",
@@ -5414,6 +5381,28 @@
    "lng": -8.6539765,
    "name": "YAH Church Aveiro",
    "overture_id": "8d04568b-3243-44ca-bd15-ba8968fd8dcd",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.1402661,
+   "lng": -8.6503757,
+   "name": "Portoland Park",
+   "overture_id": "6899a289-1e33-4175-abf5-82a4c230a2b7",
+   "why": "no descriptor this module knows"
+  },
+  {
+   "category": "park",
+   "english_words": [
+    "park"
+   ],
+   "lat": 41.12900933,
+   "lng": -8.64549142,
+   "name": "Tag Park",
+   "overture_id": "20cd4b6e-b1e6-4e19-9d58-479e33ecc679",
    "why": "no descriptor this module knows"
   },
   {
