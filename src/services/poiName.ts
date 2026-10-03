@@ -8,9 +8,11 @@
  *   'native'  the country's own language: `name_local` where we recorded one,
  *             else the source name, which already is Portuguese
  *
- * A country with two native languages (Canada) offers one choice per
- * language instead of the single 'native', because "the country's language"
- * does not name one of them.
+ * A country with two native languages (Canada) offers those languages as
+ * well, so a user can ask for one by name. 'native' is still offered and
+ * still means `name_local` — `name_local_lang` records which language that
+ * is — and it stays the default, so a user who has chosen nothing always has
+ * a selected option that matches what they are shown.
  *
  * Nothing here translates. A choice with no recorded name falls back to the
  * source name rather than inventing one.
@@ -43,13 +45,29 @@ export function parsePlaceNames(value: unknown): Record<string, string> {
 /**
  * The choices to offer for a country, in order.
  *
- * One language: the country's name, or the source's. Two or more: the source,
- * then one per language — 'native' would not say which of them.
+ * Always the country's name and the source's. A country with two or more
+ * native languages adds one choice per language, so a user can ask for one
+ * by name.
+ *
+ * 'native' is deliberately offered everywhere, not only where there is a
+ * single language: it is `selectPoiName`'s default, so leaving it out of a
+ * two-language country's list would mean a user who has chosen nothing has
+ * no option selected and a Settings row labelled with something the picker
+ * never offered.
  */
 export function placeNameOptions(languages: string[]): string[] {
   const distinct = [...new Set(languages.filter(code => code && code.trim()))];
-  if (distinct.length <= 1) return [NATIVE_CHOICE, SOURCE_CHOICE];
-  return [SOURCE_CHOICE, ...distinct];
+  const extra = distinct.length > 1 ? distinct : [];
+  return [NATIVE_CHOICE, SOURCE_CHOICE, ...extra];
+}
+
+/**
+ * What is shown when the user has chosen nothing. Always an option
+ * `placeNameOptions` offers, which is what keeps the Settings row and the
+ * picker's selection honest.
+ */
+export function defaultPlaceNameChoice(): string {
+  return NATIVE_CHOICE;
 }
 
 /** No translation is generated: absent variants fall back to the source name. */

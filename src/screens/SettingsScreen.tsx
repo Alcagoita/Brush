@@ -58,7 +58,7 @@ import { ImportResult } from '../types';
 import { COPY, type SupportedLanguage } from '../constants/copy';
 import { setWifiOnlyDownloads } from '../services/habitatCache';
 import { resolvePlaceNameCountry } from '../services/placeNameCountry';
-import { NATIVE_CHOICE, SOURCE_CHOICE, placeNameOptions } from '../services/poiName';
+import { NATIVE_CHOICE, SOURCE_CHOICE, defaultPlaceNameChoice, placeNameOptions } from '../services/poiName';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const APP_VERSION: string = require('../../package.json').version;
@@ -567,7 +567,7 @@ export default function SettingsScreen() {
             Icon={GlobeIcon}
             label={COPY.settings.placeNamesRowLabel}
             sublabel={placeNameCountry
-              ? placeLanguageLabel(placeNameChoices[placeNameCountry] ?? 'native')
+              ? placeLanguageLabel(placeNameChoices[placeNameCountry] ?? defaultPlaceNameChoice())
               : COPY.settings.languageEnglish}
             onPress={() => setPlaceNameSheetOpen(true)}
             // Disabled only when no country can be resolved. With one there
@@ -660,7 +660,7 @@ export default function SettingsScreen() {
       />
       <PlaceNamePickerSheet
         visible={placeNameSheetOpen}
-        current={placeNameCountry ? placeNameChoices[placeNameCountry] ?? 'native' : 'native'}
+        current={(placeNameCountry && placeNameChoices[placeNameCountry]) || defaultPlaceNameChoice()}
         languages={placeNameLanguages}
         onSelect={handlePlaceNameSelect}
         onClose={() => setPlaceNameSheetOpen(false)}

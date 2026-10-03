@@ -1,4 +1,4 @@
-import { displayPlaceName, parsePlaceNames, placeNameOptions, selectPoiName, setPlaceNameChoices } from '../../src/services/poiName';
+import { defaultPlaceNameChoice, displayPlaceName, parsePlaceNames, placeNameOptions, selectPoiName, setPlaceNameChoices } from '../../src/services/poiName';
 
 afterEach(() => setPlaceNameChoices({}));
 
@@ -51,8 +51,14 @@ describe('KAN-474 — the source name is a choice of its own', () => {
     expect(placeNameOptions([])).toEqual(['native', 'source']);
   });
 
-  it('offers one choice per language where there are two, and no ambiguous native', () => {
-    expect(placeNameOptions(['en', 'fr'])).toEqual(['source', 'en', 'fr']);
+  it('adds one choice per language where there are two, keeping the default offered', () => {
+    expect(placeNameOptions(['en', 'fr'])).toEqual(['native', 'source', 'en', 'fr']);
+  });
+
+  it('always offers the default choice, or a user who has chosen nothing has none selected', () => {
+    for (const languages of [[], ['pt'], ['en', 'fr'], ['en', 'fr', 'iu']]) {
+      expect(placeNameOptions(languages)).toContain(defaultPlaceNameChoice());
+    }
   });
 
   it('ignores duplicates and blanks in the configured list', () => {
@@ -78,6 +84,13 @@ describe('KAN-474 — the source name is a choice of its own', () => {
   it('asking for the language of the recorded native name gets it', () => {
     expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'pt' }, null, 'Mosteiro dos Jerónimos', 'pt'))
       .toBe('Mosteiro dos Jerónimos');
+  });
+
+  it('the default matches what is shown when nothing is chosen', () => {
+    const shown = selectPoiName('Jerónimos Monastery', {}, PT, {}, null, 'Mosteiro dos Jerónimos');
+    const chosen = selectPoiName('Jerónimos Monastery', {}, PT, { PT: defaultPlaceNameChoice() },
+      null, 'Mosteiro dos Jerónimos');
+    expect(chosen).toBe(shown);
   });
 
   it('asking for the other language of a two-language country reads its map', () => {

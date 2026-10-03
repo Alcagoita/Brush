@@ -299,14 +299,26 @@ describe('SettingsScreen — KAN-460: place-name language', () => {
     expect(screen.queryByLabelText('Português')).toBeNull();
   });
 
-  it('offers one option per language where a country has two, and no ambiguous native', async () => {
+  it('adds one option per language where a country has two, and still offers the default', async () => {
     mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'CA', languages: ['en', 'fr'] });
     await renderScreen();
     fireEvent.press(screen.getByLabelText('Place names'));
     expect(screen.getByLabelText('As I found it')).toBeTruthy();
     expect(screen.getByLabelText('English')).toBeTruthy();
     expect(screen.getByLabelText('Français')).toBeTruthy();
-    expect(screen.queryByLabelText('Country native')).toBeNull();
+    // Offered here too: it is the default, so without it a user who has
+    // chosen nothing would see no option selected.
+    expect(screen.getByLabelText('Country native')).toBeTruthy();
+  });
+
+  it('marks an option selected even when nothing has been chosen', async () => {
+    mockResolvePlaceNameCountry.mockResolvedValue({ countryCode: 'CA', languages: ['en', 'fr'] });
+    await renderScreen();
+    fireEvent.press(screen.getByLabelText('Place names'));
+    const selected = ['Country native', 'As I found it', 'English', 'Français']
+      .map(label => screen.getByLabelText(label))
+      .filter(option => option.props.accessibilityState?.selected);
+    expect(selected).toHaveLength(1);
   });
 
   it('uses English as the unchangeable fallback without a known country', async () => {
