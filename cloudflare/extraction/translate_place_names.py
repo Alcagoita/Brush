@@ -87,6 +87,11 @@ ADJECTIVES = {
     'forest': ('Florestal', 'Florestal'), 'maritime': ('Marítimo', 'Marítima'),
     'main': ('Principal', 'Principal'), 'small': ('Pequeno', 'Pequena'),
     'great': ('Grande', 'Grande'), 'high': ('Alto', 'Alta'), 'low': ('Baixo', 'Baixa'),
+    # `Universal church` is `Igreja Universal`, not `Igreja DE Universal`.
+    'universal': ('Universal', 'Universal'), 'central': ('Central', 'Central'),
+    'international': ('Internacional', 'Internacional'),
+    'regional': ('Regional', 'Regional'), 'archaeological': ('Arqueológico', 'Arqueológica'),
+    'ecological': ('Ecológico', 'Ecológica'), 'episcopal': ('Episcopal', 'Episcopal'),
 }
 
 # Names the owner has confirmed ARE the place's name, whatever they look

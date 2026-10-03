@@ -1724,10 +1724,10 @@
    "category": "evangelical_church",
    "confidence": "high",
    "name": "Universal Church",
-   "name_local": "Igreja de Universal",
+   "name_local": "Igreja Universal",
    "name_local_lang": "pt",
    "overture_id": "7bc76aa9-056b-4ef5-8e1f-b3c7af08a7c2",
-   "rule": "church -> Igreja",
+   "rule": "adjective + descriptor",
    "source": "translated"
   },
   {
@@ -2571,10 +2571,10 @@
    "category": "church_cathedral",
    "confidence": "high",
    "name": "Universal church",
-   "name_local": "Igreja de Universal",
+   "name_local": "Igreja Universal",
    "name_local_lang": "pt",
    "overture_id": "0626ffb6-3383-4d6a-abf8-3e2f1b5cc1b7",
-   "rule": "church -> Igreja",
+   "rule": "adjective + descriptor",
    "source": "translated"
   },
   {

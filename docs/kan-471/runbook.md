@@ -78,3 +78,54 @@ is gone from those coordinates and `Praia da Adiça` is still served there.
 example (`Parque Urbano do Tejo`) and was then reversed. The later instruction
 stands; a test asserts it is in the leave-alone list and in no override, so the
 two cannot drift back into conflict.
+
+## The names are written, 2026-10-03
+
+Migration `0054` added the provenance columns; `write_native_names.py` wrote
+the reviewed names. **289 rows** gained a `name_local`:
+
+| source | rows | what it means |
+|---|---|---|
+| `wikidata` | 49 | a label someone recorded, CC0, with its QID and matched distance |
+| `owner` | 12 | confirmed by hand in `src/nativeNameOverrides.json` |
+| `translated` | 228 | derived from a descriptor by rule, with the rule recorded |
+
+**Not one of the 289 equals its own `name`** — every row gained a genuinely
+different second name rather than a copy of the first.
+
+### What was written, and what was not
+
+Only `name_local`, `name_local_lang` and the three 0054 provenance columns.
+`name` is untouched, as are coordinates, category, types, attributes,
+decisions and `name_en`. Every statement is guarded on `name_local IS NULL`,
+so a row that already has a native name keeps it.
+
+Flagged proposals (120) were NOT written: those are a question for a human.
+Withdrawn rows and the three held over their type are skipped even where a
+proposal exists.
+
+### This is a visible change
+
+With `country_code` set by KAN-472 and no stored preference, `selectPoiName`
+defaults to `'native'` and returns `nonBlank(name_local) || name`. So these
+289 places now display in Portuguese. `Jerónimos Monastery` reads
+`Mosteiro dos Jerónimos`. That is the ticket's point, and it is the first
+change in it a user can see.
+
+### Verification, through `POST /poi/nearby`
+
+* Belém, 200 m: the only row whose `name_local` differs from its `name` is
+  `ee495395` — `Jerónimos Monastery` → `Mosteiro dos Jerónimos`, `pt`,
+  `country_code: "PT"`.
+* `verify_prod_decisions.py`: **7 of 7** KAN-455 checks pass; Odivelas Parque
+  200 m / 125 types still **111 rows**, 12 store brands, no inconsistent kinds.
+  Report in `verification-2026-10-03.json`.
+* Idempotent against production: a second `--apply` matched no rows
+  (`changes=1`, D1's per-statement artifact), the count stayed 289 and the
+  write date stayed single-valued.
+
+### Rollback
+
+`written-2026-10-03.json` lists every id written with its prior value, which
+was NULL in all 289 cases because the write is guarded on it. Reversing is an
+`UPDATE … SET name_local = NULL` over those ids.

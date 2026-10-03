@@ -402,3 +402,112 @@ class ThirdReviewTest(unittest.TestCase):
         self.assertIn('b904499f-09b7-4a3c-adcf-1f007d5cb16e', detect.WITHDRAWN)
         self.assertNotIn('4c12ab69-92d0-471a-9de9-a11b3cdebdc4', detect.WITHDRAWN,
                          'ONDIX the dance club is a real place, just not a beach')
+
+
+class WriteTest(unittest.TestCase):
+    """Stage 3 writes `name_local` and its provenance, and nothing else."""
+
+    def setUp(self):
+        import sqlite3
+        self.db = sqlite3.connect(':memory:')
+        with open(os.path.join(os.path.dirname(EXTRACTION_DIR), 'schema.sql')) as handle:
+            self.db.executescript(handle.read())
+
+    def serve(self, overture_id, name):
+        self.db.execute(
+            'INSERT INTO overture_poi (overture_id, name, dedupe_name, lat, lng, geohash, '
+            "primary_poi_type, imported_at, updated_at, country_code) "
+            "VALUES (?, ?, ?, 38.7, -9.1, 'eyckq', 'church', 'd', 'd', 'PT')",
+            (overture_id, name, name.lower()))
+        self.db.commit()
+
+    def row(self, overture_id):
+        cursor = self.db.execute('SELECT * FROM overture_poi WHERE overture_id = ?', (overture_id,))
+        names = [d[0] for d in cursor.description]
+        return dict(zip(names, cursor.fetchone()))
+
+    def files(self, tmp, wikidata, translated):
+        import json as _json
+        a, b = os.path.join(tmp, 'wd.json'), os.path.join(tmp, 'tr.json')
+        with open(a, 'w') as handle:
+            _json.dump({'proposals': wikidata}, handle)
+        with open(b, 'w') as handle:
+            _json.dump({'translated': translated, 'untouched': []}, handle)
+        return a, b
+
+    def test_it_writes_the_name_and_its_provenance_and_nothing_else(self):
+        import write_native_names as writer
+        self.serve('a', 'Jerónimos Monastery')
+        before = self.row('a')
+        with tempfile.TemporaryDirectory() as tmp:
+            wd, tr = self.files(tmp, [{'overture_id': 'a', 'name': 'Jerónimos Monastery',
+                                       'name_local': 'Mosteiro dos Jerónimos', 'name_local_lang': 'pt',
+                                       'wikidata_qid': 'Q272781'}], [])
+            rows = writer.proposals(wd, tr, skip=set())
+            for statement in writer.statements(rows, '2026-10-03'):
+                self.db.executescript(statement)
+        after = self.row('a')
+        self.assertEqual(after['name_local'], 'Mosteiro dos Jerónimos')
+        self.assertEqual((after['name_local_lang'], after['name_local_source'],
+                          after['name_local_source_ref'], after['name_local_updated_at']),
+                         ('pt', 'wikidata', 'Q272781', '2026-10-03'))
+        self.assertEqual(after['name'], 'Jerónimos Monastery', 'the source name is never written')
+        for column, value in before.items():
+            if not column.startswith('name_local'):
+                self.assertEqual(after[column], value, f'{column} must not change')
+
+    def test_an_owner_confirmed_name_outranks_a_looked_up_one(self):
+        import write_native_names as writer
+        with tempfile.TemporaryDirectory() as tmp:
+            wd, tr = self.files(
+                tmp,
+                [{'overture_id': 'a', 'name': 'Central Park', 'name_local': 'Parque da Cidade',
+                  'wikidata_qid': 'Q1'}],
+                [{'overture_id': 'a', 'name': 'Central Park', 'name_local': 'Parque Central',
+                  'confidence': 'high', 'rule': 'owner-confirmed'}])
+            rows = writer.proposals(wd, tr, skip=set())
+        self.assertEqual([(r['name_local'], r['source']) for r in rows], [('Parque Central', 'owner')])
+
+    def test_a_flagged_proposal_is_not_written(self):
+        import write_native_names as writer
+        with tempfile.TemporaryDirectory() as tmp:
+            wd, tr = self.files(tmp, [], [
+                {'overture_id': 'a', 'name': 'Avenue Park', 'name_local': 'Parque de Avenue',
+                 'confidence': 'needs_review', 'rule': 'park -> Parque'},
+                {'overture_id': 'b', 'name': 'Machico Beach', 'name_local': 'Praia de Machico',
+                 'confidence': 'high', 'rule': 'beach -> Praia'}])
+            rows = writer.proposals(wd, tr, skip=set())
+        self.assertEqual([r['overture_id'] for r in rows], ['b'])
+
+    def test_a_withdrawn_row_is_skipped_even_with_a_proposal(self):
+        import write_native_names as writer
+        with tempfile.TemporaryDirectory() as tmp:
+            wd, tr = self.files(tmp, [], [
+                {'overture_id': 'b941ff8a-5312-4179-961f-23fd035ce349', 'name': 'Tagus Park!',
+                 'name_local': 'Parque do Tejo', 'confidence': 'high', 'rule': 'park -> Parque'}])
+            rows = writer.proposals(wd, tr)  # the real withdrawal lists
+        self.assertEqual(rows, [])
+
+    def test_a_row_that_already_has_a_native_name_is_left_alone(self):
+        import write_native_names as writer
+        self.serve('a', 'Jerónimos Monastery')
+        self.db.execute("UPDATE overture_poi SET name_local = 'Mosteiro dos Jerónimos', "
+                        "name_local_source = 'owner' WHERE overture_id = 'a'")
+        self.db.commit()
+        rows = [{'overture_id': 'a', 'name': 'Jerónimos Monastery', 'name_local': 'Something Else',
+                 'name_local_lang': 'pt', 'source': 'translated', 'source_ref': 'x'}]
+        for statement in writer.statements(rows, '2026-10-03'):
+            self.db.executescript(statement)
+        self.assertEqual(self.row('a')['name_local'], 'Mosteiro dos Jerónimos')
+        self.assertEqual(self.row('a')['name_local_source'], 'owner')
+
+    def test_statements_stay_within_the_d1_limits(self):
+        import write_native_names as writer
+        rows = [{'overture_id': f'id-{i}', 'name': 'x', 'name_local': 'Praia de Teste',
+                 'name_local_lang': 'pt', 'source': 'translated', 'source_ref': 'beach -> Praia'}
+                for i in range(1200)]
+        planned = list(writer.statements(rows, '2026-10-03'))
+        self.assertEqual(len(planned), 3)  # 500 + 500 + 200
+        for statement in planned:
+            self.assertLessEqual(len(statement.encode()), 80000)
+            self.assertIn('name_local IS NULL', statement)

@@ -1,0 +1,2318 @@
+{
+ "prior_value": null,
+ "rows": [
+  {
+   "name": "Chapel of Fradelos",
+   "name_local": "Capela de Fradelos",
+   "name_local_lang": "pt",
+   "overture_id": "008a5121-f2b6-4cab-a06f-4ed6f6db9ede",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Meco Beach",
+   "name_local": "Praia do Meco",
+   "name_local_lang": "pt",
+   "overture_id": "00905850-1ca3-4c5a-a19e-e54cb95ac665",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Serra da Estrela Natural Park",
+   "name_local": "Parque Natural da Serra da Estrela",
+   "name_local_lang": "pt",
+   "overture_id": "0098354a-0dad-4b84-a334-7f138a8d276d",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Cadaval Palace",
+   "name_local": "Palácio do Cadaval",
+   "name_local_lang": "pt",
+   "overture_id": "00cced3d-340d-4a77-940f-8a650ec5a6cc",
+   "source": "translated",
+   "source_ref": "palace -> Palácio"
+  },
+  {
+   "name": "Santíssima Trindade Church",
+   "name_local": "Igreja da Santíssima Trindade",
+   "name_local_lang": "pt",
+   "overture_id": "028284e5-fad9-4003-8238-fb015b6dd9a9",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Odrinhas Park",
+   "name_local": "Parque de Odrinhas",
+   "name_local_lang": "pt",
+   "overture_id": "02d80577-c990-4693-9ef9-a5c5c1ce251b",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Santa Clara Aqueduct",
+   "name_local": "Aqueduto de Santa Clara",
+   "name_local_lang": "pt",
+   "overture_id": "031f749c-967c-4657-b015-c1c50ce9710e",
+   "source": "translated",
+   "source_ref": "aqueduct -> Aqueduto"
+  },
+  {
+   "name": "Castle of Ourem",
+   "name_local": "Castelo de Ourém",
+   "name_local_lang": "pt",
+   "overture_id": "05d218a9-27b5-440d-bf74-f36f1adeb33f",
+   "source": "wikidata",
+   "source_ref": "Q7111322"
+  },
+  {
+   "name": "Universal church",
+   "name_local": "Igreja Universal",
+   "name_local_lang": "pt",
+   "overture_id": "0626ffb6-3383-4d6a-abf8-3e2f1b5cc1b7",
+   "source": "translated",
+   "source_ref": "adjective + descriptor"
+  },
+  {
+   "name": "Church of Nossa Senhora da Luz",
+   "name_local": "Igreja de Nossa Senhora da Luz",
+   "name_local_lang": "pt",
+   "overture_id": "0662baaa-0a2a-4abc-bbbb-eb9f8874a405",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Esmoriz Beach",
+   "name_local": "Praia de Esmoriz",
+   "name_local_lang": "pt",
+   "overture_id": "06df4b11-b117-4aec-8edd-de8aa222bbae",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Troia Beach",
+   "name_local": "Praia de Troia",
+   "name_local_lang": "pt",
+   "overture_id": "0784046f-e28e-4f1b-89d9-90d95a5f87ab",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Lisbon Cathedral",
+   "name_local": "Sé de Lisboa",
+   "name_local_lang": "pt",
+   "overture_id": "08463e61-f2e7-43a6-8c11-7f98bbc84dfc",
+   "source": "wikidata",
+   "source_ref": "Q432290"
+  },
+  {
+   "name": "São Bento de Massamá Church",
+   "name_local": "Igreja de São Bento de Massamá",
+   "name_local_lang": "pt",
+   "overture_id": "08fcd416-0ae2-4194-bd0e-9d47d9349ce3",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Castle of Lousa",
+   "name_local": "Castelo da Lousa",
+   "name_local_lang": "pt",
+   "overture_id": "099953e5-5a7f-430f-8600-dda9eea7c9c9",
+   "source": "wikidata",
+   "source_ref": "Q1048974"
+  },
+  {
+   "name": "Cathedral of Angra do Heroísmo",
+   "name_local": "Sé de Angra do Heroísmo",
+   "name_local_lang": "pt",
+   "overture_id": "09b1302d-db38-409f-8a64-a8867b53e535",
+   "source": "translated",
+   "source_ref": "cathedral -> Sé"
+  },
+  {
+   "name": "Fortress of Sao Tiago",
+   "name_local": "Fortaleza de Sao Tiago",
+   "name_local_lang": "pt",
+   "overture_id": "0ae80c6f-2779-421b-89d0-0b521f5075f3",
+   "source": "translated",
+   "source_ref": "fortress -> Fortaleza"
+  },
+  {
+   "name": "Viseu Cathedral",
+   "name_local": "Sé de Viseu",
+   "name_local_lang": "pt",
+   "overture_id": "0b4c4820-92b0-40cc-9855-330bd6a72320",
+   "source": "wikidata",
+   "source_ref": "Q570733"
+  },
+  {
+   "name": "Ribeira do Cavalo Beach",
+   "name_local": "Praia da Ribeira do Cavalo",
+   "name_local_lang": "pt",
+   "overture_id": "10cd78a7-a54b-4831-8c59-bed8aa8f84e1",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Sao roque beach",
+   "name_local": "Praia de Sao roque",
+   "name_local_lang": "pt",
+   "overture_id": "111e65cf-bd0c-4825-82e3-807037f4c971",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Cola",
+   "name_local": "Castelo de Cola",
+   "name_local_lang": "pt",
+   "overture_id": "123f7ad9-a69a-4816-abb1-8588368040bf",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Chapel Our Lady of Fatima",
+   "name_local": "Capela Nossa Senhora de Fatima",
+   "name_local_lang": "pt",
+   "overture_id": "12b9cd4d-776a-4cf3-9bfa-30744e363468",
+   "source": "translated",
+   "source_ref": "chapel -> Capela, joined directly"
+  },
+  {
+   "name": "Redondo Castle",
+   "name_local": "Castelo do Redondo",
+   "name_local_lang": "pt",
+   "overture_id": "134c9258-58ac-4790-ae1a-fe2de35a803c",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Fonte Church",
+   "name_local": "Igreja da Fonte",
+   "name_local_lang": "pt",
+   "overture_id": "13baf5ff-03de-4f1f-8798-f918dd8df493",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Church Nossa Senhora da Paz",
+   "name_local": "Igreja Nossa Senhora da Paz",
+   "name_local_lang": "pt",
+   "overture_id": "16a5a315-48fc-4a3f-8bdb-ab7406704af4",
+   "source": "translated",
+   "source_ref": "church -> Igreja, joined directly"
+  },
+  {
+   "name": "Cathedral of Évora",
+   "name_local": "Sé Catedral de Évora",
+   "name_local_lang": "pt",
+   "overture_id": "16f6c644-d426-4a09-8567-407d5f9d29f9",
+   "source": "wikidata",
+   "source_ref": "Q650037"
+  },
+  {
+   "name": "Igreja Lighthouse",
+   "name_local": "Farol da Igreja",
+   "name_local_lang": "pt",
+   "overture_id": "18017f22-a23b-4e45-9c3b-528dede0e743",
+   "source": "translated",
+   "source_ref": "lighthouse -> Farol"
+  },
+  {
+   "name": "Church of Carmo",
+   "name_local": "Igreja do Carmo",
+   "name_local_lang": "pt",
+   "overture_id": "188f6bf6-24c8-48bf-b005-76c6e9be0c8a",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Senhor da Pedra beach",
+   "name_local": "Praia do Senhor da Pedra",
+   "name_local_lang": "pt",
+   "overture_id": "18c19f9c-0e45-4564-b3c4-62b2b91ce4b9",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Pena National Palace",
+   "name_local": "Palácio Nacional de Pena",
+   "name_local_lang": "pt",
+   "overture_id": "18e0ab33-afcf-4496-bd67-d5c3da0efe92",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Parede Beach",
+   "name_local": "Praia da Parede",
+   "name_local_lang": "pt",
+   "overture_id": "1b4a6be6-7633-4a3f-a3da-ff7c38bafe5d",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Park Fantasia",
+   "name_local": "Parque da Fantasia",
+   "name_local_lang": "pt",
+   "overture_id": "1b6bcd17-8bc5-4b6c-b3e8-502342bf5ddf",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Carrapateira Beach",
+   "name_local": "Praia da Carrapateira",
+   "name_local_lang": "pt",
+   "overture_id": "1b7067c2-73a0-49bd-a5ba-c6aa9bc9a235",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church of Nossa Senhora de Belém",
+   "name_local": "Igreja de Nossa Senhora de Belém",
+   "name_local_lang": "pt",
+   "overture_id": "1f1a7623-5d86-4b3a-8560-d252ae14ef4c",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Chapel of Our Lady Of Monserrate",
+   "name_local": "Capela de Nossa Senhora de Monserrate",
+   "name_local_lang": "pt",
+   "overture_id": "1f789b4e-d9a9-4f25-bb18-ac8a564226de",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Castle of Penela",
+   "name_local": "Castelo de Penela",
+   "name_local_lang": "pt",
+   "overture_id": "1fee01c7-731a-4f52-b5c8-ae25ff2b609c",
+   "source": "wikidata",
+   "source_ref": "Q7162548"
+  },
+  {
+   "name": "Traquinas Park",
+   "name_local": "Parque de Traquinas",
+   "name_local_lang": "pt",
+   "overture_id": "25cdad55-1b24-4f07-a06b-1088b6d646f1",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Ribeira D'Ilhas Beach",
+   "name_local": "Praia da Ribeira D'Ilhas",
+   "name_local_lang": "pt",
+   "overture_id": "26917d49-3364-4f53-b9a2-7c36b2102b75",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Apúlia Beach",
+   "name_local": "Praia da Apúlia",
+   "name_local_lang": "pt",
+   "overture_id": "27a16b64-32ff-47bd-8fb2-dcdf0e0db918",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church of São Miguel Arcanjo",
+   "name_local": "Igreja de São Miguel Arcanjo",
+   "name_local_lang": "pt",
+   "overture_id": "28c47ec2-5dd8-453c-a988-304926324479",
+   "source": "wikidata",
+   "source_ref": "Q10300801"
+  },
+  {
+   "name": "Church of São Salvador do Mundo",
+   "name_local": "Igreja de São Salvador do Mundo",
+   "name_local_lang": "pt",
+   "overture_id": "292e3111-fd00-4511-b82b-cb173f57f08e",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Sameiro Garden",
+   "name_local": "Jardim do Sameiro",
+   "name_local_lang": "pt",
+   "overture_id": "2a7e3162-f93e-44ca-bde7-a4386bfd5a0f",
+   "source": "translated",
+   "source_ref": "garden -> Jardim"
+  },
+  {
+   "name": "Boa Vista Park",
+   "name_local": "Parque de Boa Vista",
+   "name_local_lang": "pt",
+   "overture_id": "2dacc8a3-e87c-4b20-bef6-ed075b5553c1",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Monastery of Jesus of Setúbal",
+   "name_local": "Mosteiro de Jesus de Setúbal",
+   "name_local_lang": "pt",
+   "overture_id": "2ea1fc94-de2b-45df-8ab0-5325d3a60e66",
+   "source": "translated",
+   "source_ref": "monastery -> Mosteiro"
+  },
+  {
+   "name": "Church of Santa Cruz",
+   "name_local": "Igreja de Santa Cruz",
+   "name_local_lang": "pt",
+   "overture_id": "2ea34f21-5233-487a-a738-bafa78c8acb4",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Lagoinha Portimao Church",
+   "name_local": "Igreja de Lagoinha Portimao",
+   "name_local_lang": "pt",
+   "overture_id": "2f528761-1141-412d-b7de-5459d7879642",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Church Santa Maria do Castelo",
+   "name_local": "Igreja Santa Maria do Castelo",
+   "name_local_lang": "pt",
+   "overture_id": "30bf292d-32e1-4ddd-93ed-baed799e4b13",
+   "source": "translated",
+   "source_ref": "church -> Igreja, joined directly"
+  },
+  {
+   "name": "Central Park",
+   "name_local": "Parque Central",
+   "name_local_lang": "pt",
+   "overture_id": "314a9142-d052-4790-b84a-045a8dcf4358",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Vilamoura Beach",
+   "name_local": "Praia de Vilamoura",
+   "name_local_lang": "pt",
+   "overture_id": "32a46fa6-46ff-4d91-b918-32f998598397",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Convent of São Pedro de Alcântara",
+   "name_local": "Convento de São Pedro de Alcântara",
+   "name_local_lang": "pt",
+   "overture_id": "3452cefa-2229-40a4-85f6-1f15b7f930b3",
+   "source": "wikidata",
+   "source_ref": "Q5166195"
+  },
+  {
+   "name": "Monsanto Forest Park",
+   "name_local": "Parque Florestal de Monsanto",
+   "name_local_lang": "pt",
+   "overture_id": "384abfd2-94f8-44a6-a3a0-0ec032345a3f",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Castle Nisa",
+   "name_local": "Castelo de Nisa",
+   "name_local_lang": "pt",
+   "overture_id": "3903995c-ef01-4af1-904a-348ba4f1a3b4",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Cave atelier",
+   "name_local": "Gruta de atelier",
+   "name_local_lang": "pt",
+   "overture_id": "3a175991-2e79-4991-aa31-3c19d72cb0be",
+   "source": "translated",
+   "source_ref": "cave -> Gruta"
+  },
+  {
+   "name": "Copacabana Beach",
+   "name_local": "Praia de Copacabana",
+   "name_local_lang": "pt",
+   "overture_id": "3b25c5c0-5796-402c-8299-7f24e658a50b",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Alcanede",
+   "name_local": "Castelo de Alcanede",
+   "name_local_lang": "pt",
+   "overture_id": "3bc67ff4-0c6f-4b6a-a2db-555cf8c084e3",
+   "source": "wikidata",
+   "source_ref": "Q5049733"
+  },
+  {
+   "name": "Esposende Beach",
+   "name_local": "Praia de Esposende",
+   "name_local_lang": "pt",
+   "overture_id": "3c842fd0-585f-4a57-ab3a-64d7cb92f497",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Monte Carvoeiro Square",
+   "name_local": "Praça do Monte Carvoeiro",
+   "name_local_lang": "pt",
+   "overture_id": "3cc7118a-d827-4f5d-9ed8-d68fa13d5cd6",
+   "source": "translated",
+   "source_ref": "square -> Praça"
+  },
+  {
+   "name": "Liberdade Square",
+   "name_local": "Praça da Liberdade",
+   "name_local_lang": "pt",
+   "overture_id": "3f765228-032a-4b3e-9ada-6231913b9d6e",
+   "source": "translated",
+   "source_ref": "square -> Praça"
+  },
+  {
+   "name": "Chapel of Santa Iria",
+   "name_local": "Capela de Santa Iria",
+   "name_local_lang": "pt",
+   "overture_id": "40d68f49-5540-4fe1-bf1f-0c18de39e4c5",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Prainha Beach",
+   "name_local": "Prainha",
+   "name_local_lang": "pt",
+   "overture_id": "41476533-71cb-4395-9cce-dbb5ba087a24",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Fort of São Pedro do Estoril",
+   "name_local": "Forte de São Pedro do Estoril",
+   "name_local_lang": "pt",
+   "overture_id": "42ebb343-a7da-4c61-87e2-e47c60bc5b0d",
+   "source": "translated",
+   "source_ref": "fort -> Forte"
+  },
+  {
+   "name": "Castle of Bemposta",
+   "name_local": "Castelo de Bemposta",
+   "name_local_lang": "pt",
+   "overture_id": "4313251c-72b3-401d-942b-e05050856b55",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Church of Santa Maria de Avioso",
+   "name_local": "Igreja de Santa Maria de Avioso",
+   "name_local_lang": "pt",
+   "overture_id": "43bc4fad-7376-4a0b-aeb0-122e2f1882d4",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Urban Park Dr. Mário Fonseca",
+   "name_local": "Parque Urbano Dr. Mário Fonseca",
+   "name_local_lang": "pt",
+   "overture_id": "44c09eb5-4de4-4eac-a304-4d057e8b13b1",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "São Rafael Beach",
+   "name_local": "Praia de São Rafael",
+   "name_local_lang": "pt",
+   "overture_id": "459202d7-a53c-479c-bc81-a2ca6c0facd9",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "St. Martin Church",
+   "name_local": "Igreja de São Martinho",
+   "name_local_lang": "pt",
+   "overture_id": "47001d2b-b9e0-4c01-8c98-6efa88ec7a8e",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Senhora da Boa Morte Park",
+   "name_local": "Parque da Senhora da Boa Morte",
+   "name_local_lang": "pt",
+   "overture_id": "4789d83e-4b88-4e05-9dd7-3838edcb52b1",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Sky Garden",
+   "name_local": "Jardim de Sky",
+   "name_local_lang": "pt",
+   "overture_id": "4817998e-e4e2-494d-85bd-ebc55168ab9a",
+   "source": "translated",
+   "source_ref": "garden -> Jardim"
+  },
+  {
+   "name": "Cathedral of St. Paul",
+   "name_local": "Sé de São Paulo",
+   "name_local_lang": "pt",
+   "overture_id": "483208e5-8f17-4502-ad31-9d33a4e3fe8d",
+   "source": "translated",
+   "source_ref": "cathedral -> Sé"
+  },
+  {
+   "name": "Leiria X Park",
+   "name_local": "Parque de Leiria X",
+   "name_local_lang": "pt",
+   "overture_id": "48703711-4759-4880-bf2f-7ccce78b1020",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Moinhos Park",
+   "name_local": "Parque dos Moinhos",
+   "name_local_lang": "pt",
+   "overture_id": "48dd0768-1e42-4baa-99a1-1a2cbf9ad9da",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Guincho Beach",
+   "name_local": "Praia do Guincho",
+   "name_local_lang": "pt",
+   "overture_id": "499923c9-f279-43a6-92b7-4b24bca96d8c",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Santa Eulalia Beach",
+   "name_local": "Praia de Santa Eulalia",
+   "name_local_lang": "pt",
+   "overture_id": "4a3be341-6a19-42de-95ae-ca2f72d37fb0",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Sagrada Familia Church",
+   "name_local": "Igreja da Sagrada Familia",
+   "name_local_lang": "pt",
+   "overture_id": "4ccc0130-b789-4ef3-aa64-e54e7dd59eb9",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Church of Santa Maria",
+   "name_local": "Igreja de Santa Maria",
+   "name_local_lang": "pt",
+   "overture_id": "4f6f3316-ec0a-4203-9092-b76918ec39f6",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Espinho Beach",
+   "name_local": "Praia de Espinho",
+   "name_local_lang": "pt",
+   "overture_id": "4fc1935d-2a3d-4f70-96a8-96ec46438ba1",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Santo André Beach",
+   "name_local": "Praia de Santo André",
+   "name_local_lang": "pt",
+   "overture_id": "50a3659f-e641-40b3-8e21-6e99525c1839",
+   "source": "wikidata",
+   "source_ref": "Q7420473"
+  },
+  {
+   "name": "Estoril Beach",
+   "name_local": "Praia do Estoril",
+   "name_local_lang": "pt",
+   "overture_id": "51c5a86a-32cf-401f-8b48-326c578b0a9e",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Chapel of the Lord Jesus of the Navigators",
+   "name_local": "Ermida do Senhor Jesus dos Navegantes",
+   "name_local_lang": "pt",
+   "overture_id": "5265a928-aa03-40b7-81b2-9ad2888d9e63",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Church of Nossa Senhora dos Remédios",
+   "name_local": "Igreja de Nossa Senhora dos Remédios",
+   "name_local_lang": "pt",
+   "overture_id": "532a8391-5030-4975-8632-67865c700d9d",
+   "source": "wikidata",
+   "source_ref": "Q28226089"
+  },
+  {
+   "name": "Felgueiras Lighthouse",
+   "name_local": "Farol de Felgueiras",
+   "name_local_lang": "pt",
+   "overture_id": "5373e576-8f86-4b24-b4ae-52b62a711dbe",
+   "source": "wikidata",
+   "source_ref": "Q10280208"
+  },
+  {
+   "name": "Church of Nossa Senhora da Oliveira",
+   "name_local": "Igreja de Nossa Senhora da Oliveira",
+   "name_local_lang": "pt",
+   "overture_id": "53f04615-e903-455d-b5e0-61ea23d50712",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Quarteira Beach",
+   "name_local": "Praia de Quarteira",
+   "name_local_lang": "pt",
+   "overture_id": "54778331-56b5-40b8-99dc-54cb1389c39f",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Tower of Pedro",
+   "name_local": "Torre do Pedro",
+   "name_local_lang": "pt",
+   "overture_id": "5934f8fa-9041-40dc-b604-cb97393c0453",
+   "source": "translated",
+   "source_ref": "tower -> Torre"
+  },
+  {
+   "name": "Sesimbra Natura Park",
+   "name_local": "Parque de Sesimbra Natura",
+   "name_local_lang": "pt",
+   "overture_id": "5aacb41f-95af-4b06-9a2e-7511edd635db",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Chapel Nossa Senhora da Rocha",
+   "name_local": "Capela Nossa Senhora da Rocha",
+   "name_local_lang": "pt",
+   "overture_id": "5b123911-d72a-4a3f-a0b8-9a7b55c47796",
+   "source": "translated",
+   "source_ref": "chapel -> Capela, joined directly"
+  },
+  {
+   "name": "Lighthouse of Ponta Garça",
+   "name_local": "Farol da Ponta Garça",
+   "name_local_lang": "pt",
+   "overture_id": "5b49461a-30a7-47e7-85d7-681ee089f5a9",
+   "source": "translated",
+   "source_ref": "lighthouse -> Farol"
+  },
+  {
+   "name": "Essencia Crista Church",
+   "name_local": "Igreja de Essencia Crista",
+   "name_local_lang": "pt",
+   "overture_id": "5b8b48a0-bb58-4b13-900c-f0018635e29d",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Regaleira Tower",
+   "name_local": "Torre de Regaleira",
+   "name_local_lang": "pt",
+   "overture_id": "5c6aa2e7-da53-4f1b-83ff-fd8a9815a7b7",
+   "source": "translated",
+   "source_ref": "tower -> Torre"
+  },
+  {
+   "name": "Lar Fatima Park",
+   "name_local": "Parque de Lar Fatima",
+   "name_local_lang": "pt",
+   "overture_id": "5d959150-5fb0-4a91-9db3-62f4d51513a2",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Castle of Aguiar da Beira",
+   "name_local": "Castelo de Aguiar da Beira",
+   "name_local_lang": "pt",
+   "overture_id": "5e936dd7-e26a-4208-8424-0a5b9f166e0d",
+   "source": "wikidata",
+   "source_ref": "Q30622783"
+  },
+  {
+   "name": "Church of Christ Ministry Nova Terra",
+   "name_local": "Igreja de Cristo Ministerio Nova Terra Portugal",
+   "name_local_lang": "pt",
+   "overture_id": "5f5f8f2b-1abc-47d4-8ea3-cdb439a8ce4f",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Misericordia Church",
+   "name_local": "Igreja da Misericordia",
+   "name_local_lang": "pt",
+   "overture_id": "6265487d-34d5-4656-99c8-a0d24ade4376",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Chapel of Santa Marta",
+   "name_local": "Capela de Santa Marta",
+   "name_local_lang": "pt",
+   "overture_id": "62752e5f-f1a5-4905-ac6c-3787352e7ada",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Alvor Caves Beach",
+   "name_local": "Praia de Alvor Caves",
+   "name_local_lang": "pt",
+   "overture_id": "63ad67cc-5077-43a4-801c-4ed4854b4783",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Tower of Penegate",
+   "name_local": "Torre de Penegate",
+   "name_local_lang": "pt",
+   "overture_id": "63fb18a4-0e8f-4d10-850c-2cc66022bd4b",
+   "source": "wikidata",
+   "source_ref": "Q323257"
+  },
+  {
+   "name": "Church of Saint Francis",
+   "name_local": "Igreja de São Francisco",
+   "name_local_lang": "pt",
+   "overture_id": "6517f69e-a581-4b2d-aba1-853215419b7a",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Barranco Beach",
+   "name_local": "Praia do Barranco",
+   "name_local_lang": "pt",
+   "overture_id": "65220d0d-87d1-4dbd-866b-0c15b0010d46",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Arraiolos",
+   "name_local": "Castelo de Arraiolos",
+   "name_local_lang": "pt",
+   "overture_id": "65b16c08-d2d1-4111-b93a-398ad162d269",
+   "source": "wikidata",
+   "source_ref": "Q5049749"
+  },
+  {
+   "name": "Botanical Garden of Faial",
+   "name_local": "Jardim Botânico do Faial",
+   "name_local_lang": "pt",
+   "overture_id": "65b92370-526e-4166-a1bf-2f327360e678",
+   "source": "wikidata",
+   "source_ref": "Q4948437"
+  },
+  {
+   "name": "Falesia Beach",
+   "name_local": "Praia da Falesia",
+   "name_local_lang": "pt",
+   "overture_id": "67215382-8cc5-40d8-99e5-8faa2f57a3fd",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Caminha Beach",
+   "name_local": "Praia de Caminha",
+   "name_local_lang": "pt",
+   "overture_id": "67465feb-df24-4552-b1af-e376b837b08c",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Fiães Church",
+   "name_local": "Igreja de Fiães",
+   "name_local_lang": "pt",
+   "overture_id": "681e8d90-5092-4ca3-96ed-a291215cf9ab",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Castle of Vilar Maior",
+   "name_local": "Castelo de Vilar Maior",
+   "name_local_lang": "pt",
+   "overture_id": "68af412d-8139-4967-ac29-8be10109abcb",
+   "source": "wikidata",
+   "source_ref": "Q5049845"
+  },
+  {
+   "name": "Costa Da Caparica Beach",
+   "name_local": "Praia da Costa Da Caparica",
+   "name_local_lang": "pt",
+   "overture_id": "69484d61-3638-486d-8932-0f28f44c5b45",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Picoto Park",
+   "name_local": "Parque do Picoto",
+   "name_local_lang": "pt",
+   "overture_id": "698b2baa-1e93-4d4d-a113-5aadeb80c444",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Church of Benditas Almas",
+   "name_local": "Igreja das Benditas Almas",
+   "name_local_lang": "pt",
+   "overture_id": "6abce4b6-f40e-4c0b-a9e9-43a2ae19643b",
+   "source": "wikidata",
+   "source_ref": "Q28226105"
+  },
+  {
+   "name": "Galapos beach",
+   "name_local": "Praia de Galápos",
+   "name_local_lang": "pt",
+   "overture_id": "6b56dbe6-4254-46af-b223-6c82eee31a5b",
+   "source": "wikidata",
+   "source_ref": "Q49323700"
+  },
+  {
+   "name": "Porto Santo Beach",
+   "name_local": "Praia do Porto Santo",
+   "name_local_lang": "pt",
+   "overture_id": "6c01855a-379a-48ee-9abf-1f8e965f15d2",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Chapel of Bones",
+   "name_local": "Capela dos Ossos",
+   "name_local_lang": "pt",
+   "overture_id": "6c278796-12e7-4755-ae16-fae006641bf0",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Beach Life Portugal",
+   "name_local": "Praia de Life Portugal",
+   "name_local_lang": "pt",
+   "overture_id": "6dcc21a0-3f1b-4520-9aa0-dfc5f00701f5",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "beach of oceano Atlantico",
+   "name_local": "Praia de oceano Atlantico",
+   "name_local_lang": "pt",
+   "overture_id": "70fcd6a5-dd42-4618-9380-a07f7b285f48",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Lighthouse of Ponta Negra",
+   "name_local": "Farol da Ponta Negra",
+   "name_local_lang": "pt",
+   "overture_id": "7262d386-3599-46ba-8273-089a2e71579d",
+   "source": "translated",
+   "source_ref": "lighthouse -> Farol"
+  },
+  {
+   "name": "Risco waterfall",
+   "name_local": "Cascata de Risco",
+   "name_local_lang": "pt",
+   "overture_id": "745701bb-9596-4604-9572-fd45c08b0af5",
+   "source": "translated",
+   "source_ref": "waterfall -> Cascata"
+  },
+  {
+   "name": "Ingleses Beach",
+   "name_local": "Praia dos Ingleses",
+   "name_local_lang": "pt",
+   "overture_id": "750f6b77-9b66-473e-83fb-12118957d0fe",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church of São Sebastião",
+   "name_local": "Igreja de São Sebastião",
+   "name_local_lang": "pt",
+   "overture_id": "753fe8a7-7d24-4fc2-ba9a-5a8c38ca0436",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Lourinha Beach",
+   "name_local": "Praia da Lourinha",
+   "name_local_lang": "pt",
+   "overture_id": "7588289e-c401-48f4-b853-77bca8aa9ae8",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Roman Ruins of Conimbriga",
+   "name_local": "Ruínas Romanas de Conimbriga",
+   "name_local_lang": "pt",
+   "overture_id": "759c2fda-967e-4265-8416-59ef3e61c501",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Church of the Misericordia",
+   "name_local": "Igreja da Misericordia",
+   "name_local_lang": "pt",
+   "overture_id": "76ddc18e-12b0-4096-9b18-56f50e321f19",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Castle of the Knights Templar, Tomar, Portugal",
+   "name_local": "Castelo de Tomar",
+   "name_local_lang": "pt",
+   "overture_id": "7770610a-1e59-422b-96f8-b4b0eaa9616b",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Shopping De Oeiras Park",
+   "name_local": "Parque de Shopping De Oeiras",
+   "name_local_lang": "pt",
+   "overture_id": "780eca70-ef3a-415e-9ad3-dc06d47a7832",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Jardim do Lagoas Park",
+   "name_local": "Parque do Jardim do Lagoas",
+   "name_local_lang": "pt",
+   "overture_id": "78535c4f-cbd9-4da0-9765-55c9060c2ee1",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Longos Vales Monastery",
+   "name_local": "Mosteiro de Longos Vales",
+   "name_local_lang": "pt",
+   "overture_id": "79408aef-7c06-4de1-a9a0-97d7e4ca87bf",
+   "source": "translated",
+   "source_ref": "monastery -> Mosteiro"
+  },
+  {
+   "name": "Penafiel Palace",
+   "name_local": "Palácio Penafiel",
+   "name_local_lang": "pt",
+   "overture_id": "79b81dd7-8b26-4c63-a3f6-04530c6a72f1",
+   "source": "wikidata",
+   "source_ref": "Q25445164"
+  },
+  {
+   "name": "Nossa Senhora do Cabo Church",
+   "name_local": "Igreja de Nossa Senhora do Cabo",
+   "name_local_lang": "pt",
+   "overture_id": "7a08f849-db35-456c-9be1-a5e906011d21",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "CAP Church",
+   "name_local": "Igreja de CAP",
+   "name_local_lang": "pt",
+   "overture_id": "7b155077-2c18-4a36-84c7-43c32258f6bc",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Universal Church",
+   "name_local": "Igreja Universal",
+   "name_local_lang": "pt",
+   "overture_id": "7bc76aa9-056b-4ef5-8e1f-b3c7af08a7c2",
+   "source": "translated",
+   "source_ref": "adjective + descriptor"
+  },
+  {
+   "name": "Castle of Mós",
+   "name_local": "Castelo de Mós",
+   "name_local_lang": "pt",
+   "overture_id": "7c495e26-20d7-4b60-ae32-7f2ed1d1d377",
+   "source": "wikidata",
+   "source_ref": "Q5049804"
+  },
+  {
+   "name": "Sao pedro De Alcantara Garden",
+   "name_local": "Jardim de Sao pedro De Alcantara",
+   "name_local_lang": "pt",
+   "overture_id": "7d912389-e50e-4776-aa16-80716273c0b6",
+   "source": "translated",
+   "source_ref": "garden -> Jardim"
+  },
+  {
+   "name": "Castle of Lindoso",
+   "name_local": "Castelo de Lindoso",
+   "name_local_lang": "pt",
+   "overture_id": "7e7919d5-a3b7-401e-bc3e-f8c3d3d62954",
+   "source": "wikidata",
+   "source_ref": "Q5049784"
+  },
+  {
+   "name": "Nossa Senhora da Conceicao Velha Church",
+   "name_local": "Igreja de Nossa Senhora da Conceicao Velha",
+   "name_local_lang": "pt",
+   "overture_id": "7f278a1b-d9c2-462d-93e8-938943c7ef34",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Pedra D'eira Beach",
+   "name_local": "Praia de Pedra D'eira",
+   "name_local_lang": "pt",
+   "overture_id": "7fd4362c-ef19-4fda-afb3-8f64696fc8bd",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Botanical Garden of the University of Coimbra",
+   "name_local": "Jardim Botânico de University de Coimbra",
+   "name_local_lang": "pt",
+   "overture_id": "7fd56a46-c8f2-4559-acef-8ce5cde775e2",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Garden of Santa Barbara",
+   "name_local": "Jardim de Santa Barbara",
+   "name_local_lang": "pt",
+   "overture_id": "8240ebed-8249-484d-9ab4-db88a53353e1",
+   "source": "translated",
+   "source_ref": "garden -> Jardim"
+  },
+  {
+   "name": "Igreja Cristã Lighthouse",
+   "name_local": "Farol da Igreja Cristã",
+   "name_local_lang": "pt",
+   "overture_id": "82756271-945f-4771-b071-b3d9f7f805b5",
+   "source": "translated",
+   "source_ref": "lighthouse -> Farol"
+  },
+  {
+   "name": "Solário Granja Park",
+   "name_local": "Parque de Solário Granja",
+   "name_local_lang": "pt",
+   "overture_id": "82e064b8-f34e-4f11-a215-3f6f2776d3c3",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "The Roman Bridge",
+   "name_local": "Ponte Romana",
+   "name_local_lang": "pt",
+   "overture_id": "84ce328a-5822-43f2-bee1-617379f89fb5",
+   "source": "translated",
+   "source_ref": "adjective + descriptor"
+  },
+  {
+   "name": "Castle of Vila Verde dos Francos",
+   "name_local": "Castelo de Vila Verde dos Francos",
+   "name_local_lang": "pt",
+   "overture_id": "84ea301c-5efa-458a-b820-1d9e18683b20",
+   "source": "wikidata",
+   "source_ref": "Q5049844"
+  },
+  {
+   "name": "Castle of Messejana",
+   "name_local": "Castelo de Messejana",
+   "name_local_lang": "pt",
+   "overture_id": "8642c06c-ed85-435f-ac8b-e912acd7682b",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Silves Park",
+   "name_local": "Parque de Silves",
+   "name_local_lang": "pt",
+   "overture_id": "8745a08a-734c-4df3-9fed-b9327efe503d",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Linha Beach",
+   "name_local": "Praia de Linha",
+   "name_local_lang": "pt",
+   "overture_id": "87a7e36b-225a-4246-80b0-e0d305ba8769",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church of Saint Sebastian",
+   "name_local": "Igreja de São Sebastião",
+   "name_local_lang": "pt",
+   "overture_id": "88bb990a-6f2c-4df3-bbd5-de4306e54c8f",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Beach Matosinhos",
+   "name_local": "Praia de Matosinhos",
+   "name_local_lang": "pt",
+   "overture_id": "8952ebfd-b9c9-40eb-9fda-9277ca0dfd8a",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Novo Tempo Church",
+   "name_local": "Igreja de Novo Tempo",
+   "name_local_lang": "pt",
+   "overture_id": "899fb0a9-36cd-4607-9bcf-9b03d39b93ae",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Amieira Beach",
+   "name_local": "Praia da Amieira",
+   "name_local_lang": "pt",
+   "overture_id": "89d19261-2096-4bcf-8edd-363592b6ed96",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Mega Luna Park",
+   "name_local": "Parque de Mega Luna",
+   "name_local_lang": "pt",
+   "overture_id": "8a7273e1-781f-4c98-8218-6d1a92f291c2",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Braga Cathedral",
+   "name_local": "Sé de Braga",
+   "name_local_lang": "pt",
+   "overture_id": "8b22c504-d5f8-4d64-b4df-e5cd0e10f2eb",
+   "source": "wikidata",
+   "source_ref": "Q513902"
+  },
+  {
+   "name": "Vila Vicosa Castle",
+   "name_local": "Castelo da Vila Vicosa",
+   "name_local_lang": "pt",
+   "overture_id": "8d965681-c7d7-4658-b591-02770a6d44c6",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Church and Tower of dos Clérigos",
+   "name_local": "Igreja e Torre de dos Clérigos",
+   "name_local_lang": "pt",
+   "overture_id": "8d99e612-aa72-4763-a501-879b27815ff6",
+   "source": "translated",
+   "source_ref": "two descriptors + proper noun"
+  },
+  {
+   "name": "Seixo do Côa e vale longo beach",
+   "name_local": "Praia do Seixo do Côa e vale longo",
+   "name_local_lang": "pt",
+   "overture_id": "8dd1f9fc-5884-42be-84d6-e4d313eb659f",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Paio Pires Bike Park",
+   "name_local": "Parque de Paio Pires Bike",
+   "name_local_lang": "pt",
+   "overture_id": "8e1b1d2c-2e53-445b-b37e-6bafeb38d8a5",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Lighthouse of Praia da Barra",
+   "name_local": "Farol da Praia da Barra",
+   "name_local_lang": "pt",
+   "overture_id": "8eaf4ec6-f2c0-4144-99fa-f743a4fd3424",
+   "source": "translated",
+   "source_ref": "lighthouse -> Farol"
+  },
+  {
+   "name": "Vilamoura Beach",
+   "name_local": "Praia de Vilamoura",
+   "name_local_lang": "pt",
+   "overture_id": "9076c58b-becf-475f-9bb4-bc0035dc8671",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Ponta do Pargo Lighthouse",
+   "name_local": "Farol da Ponta do Pargo",
+   "name_local_lang": "pt",
+   "overture_id": "908fd0e1-783c-4ee4-be3d-16d763cf2366",
+   "source": "translated",
+   "source_ref": "lighthouse -> Farol"
+  },
+  {
+   "name": "Belém Tower",
+   "name_local": "Torre de Belém",
+   "name_local_lang": "pt",
+   "overture_id": "914694d6-6186-495e-ab35-eb7bd59c6b7a",
+   "source": "translated",
+   "source_ref": "tower -> Torre"
+  },
+  {
+   "name": "Convent of Our Lady of Mount Carmel",
+   "name_local": "Convento de Nossa Senhora do Monte Carmo",
+   "name_local_lang": "pt",
+   "overture_id": "925dfd11-3495-4fea-a056-68641e234a00",
+   "source": "translated",
+   "source_ref": "convent -> Convento"
+  },
+  {
+   "name": "Machico Beach",
+   "name_local": "Praia de Machico",
+   "name_local_lang": "pt",
+   "overture_id": "92afe38a-2e87-48a3-af6c-bf12f6854f88",
+   "source": "wikidata",
+   "source_ref": "Q10352815"
+  },
+  {
+   "name": "San Jorge Castle",
+   "name_local": "Castelo de São Jorge",
+   "name_local_lang": "pt",
+   "overture_id": "93f45554-5c6a-44d0-8119-bf37d0d953c6",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Roman ruins of Casais Velhos",
+   "name_local": "Estação lusitana-romana dos Casais Velhos",
+   "name_local_lang": "pt",
+   "overture_id": "954ecfd8-aa41-4be0-b31e-b05bc6ebe291",
+   "source": "wikidata",
+   "source_ref": "Q7362327"
+  },
+  {
+   "name": "Nossa Senhora da Vida Church",
+   "name_local": "Igreja de Nossa Senhora da Vida",
+   "name_local_lang": "pt",
+   "overture_id": "966dd529-5d97-45d2-8f86-301dafd8d47b",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Church of the Blessed Sacrament",
+   "name_local": "Igreja do Santíssimo Sacramento",
+   "name_local_lang": "pt",
+   "overture_id": "9847486a-15ea-4c90-a2bb-619c51c59eb5",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Quarteira Beach",
+   "name_local": "Praia de Quarteira",
+   "name_local_lang": "pt",
+   "overture_id": "9872b2ab-11e8-4c57-8885-14bcfeebde13",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Moinhos",
+   "name_local": "Castelo dos Moinhos",
+   "name_local_lang": "pt",
+   "overture_id": "9b6826d9-6372-4ad4-8b41-2c8ce718166d",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Church of the Sacred Heart of Jesus",
+   "name_local": "Igreja do Sagrado Coração de Jesus",
+   "name_local_lang": "pt",
+   "overture_id": "9b82045e-73d3-46ff-a944-b99e671d572a",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Castle of Pombal",
+   "name_local": "Castelo de Pombal",
+   "name_local_lang": "pt",
+   "overture_id": "9d76f47e-0b8e-402f-97f4-bae5e3c5f0bc",
+   "source": "wikidata",
+   "source_ref": "Q5050407"
+  },
+  {
+   "name": "Copacabana Beach",
+   "name_local": "Praia de Copacabana",
+   "name_local_lang": "pt",
+   "overture_id": "9d796f87-8b32-4db3-bd2c-b317d9edeeb5",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Tamariz Beach",
+   "name_local": "Praia do Tamariz",
+   "name_local_lang": "pt",
+   "overture_id": "9e6d64dc-2fff-4f02-97c4-497b9088f8cc",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Chapel of Bones of Faro",
+   "name_local": "Capela dos Ossos de Faro",
+   "name_local_lang": "pt",
+   "overture_id": "a013ff9d-7958-4a01-9917-4934fecd4bb1",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Church of Our Lady of the Incarnation",
+   "name_local": "Igreja de Nossa Senhora da Encarnação",
+   "name_local_lang": "pt",
+   "overture_id": "a363061f-5aff-4a06-8555-76dffa0a027d",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Maria Luisa Beach",
+   "name_local": "Praia de Maria Luisa",
+   "name_local_lang": "pt",
+   "overture_id": "a44879d6-f0e7-436c-bb57-d2f897b9c036",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church of Saint Mary Magdalene",
+   "name_local": "Igreja de Santa Maria Madalena",
+   "name_local_lang": "pt",
+   "overture_id": "a673b766-c5d6-49f8-9788-9ee7a88bd142",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Fortress of Faial",
+   "name_local": "Fortaleza do Faial",
+   "name_local_lang": "pt",
+   "overture_id": "a68fa1f4-2f2d-41fd-8be5-1264d82e592f",
+   "source": "translated",
+   "source_ref": "fortress -> Fortaleza"
+  },
+  {
+   "name": "Dona Ana Beach",
+   "name_local": "Praia de Dona Ana",
+   "name_local_lang": "pt",
+   "overture_id": "a91ef079-017b-4013-bf6f-4d015100917f",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Aveiro Church",
+   "name_local": "Igreja de Aveiro",
+   "name_local_lang": "pt",
+   "overture_id": "a994126c-44db-4e7c-ad56-f15b66133de6",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Convent of St. Joseph",
+   "name_local": "Convento de São José",
+   "name_local_lang": "pt",
+   "overture_id": "aa0b1504-d661-45f9-bddb-1a5f3d7e648a",
+   "source": "translated",
+   "source_ref": "convent -> Convento"
+  },
+  {
+   "name": "Ereira Beach",
+   "name_local": "Praia de Ereira",
+   "name_local_lang": "pt",
+   "overture_id": "aab32928-57cf-426d-b37f-72018fd52542",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Sanctuary Senhor Jesus do Carvalhal",
+   "name_local": "Santuário Senhor Jesus do Carvalhal",
+   "name_local_lang": "pt",
+   "overture_id": "ab066ee1-2a1b-4055-9b5c-b5eeefa36dbb",
+   "source": "translated",
+   "source_ref": "sanctuary -> Santuário, joined directly"
+  },
+  {
+   "name": "Church São Tomás de Aquino",
+   "name_local": "Igreja São Tomás de Aquino",
+   "name_local_lang": "pt",
+   "overture_id": "ab209944-2b35-4882-9fba-12aae60ce792",
+   "source": "translated",
+   "source_ref": "church -> Igreja, joined directly"
+  },
+  {
+   "name": "Gama Park",
+   "name_local": "Parque de Gama",
+   "name_local_lang": "pt",
+   "overture_id": "ab6f7b06-f74c-46ba-84e0-2af274979589",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Conceicao Beach",
+   "name_local": "Praia da Conceicao",
+   "name_local_lang": "pt",
+   "overture_id": "ad6dfb41-a93f-4cd0-aeee-1a86db5dec85",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Natura Park",
+   "name_local": "Parque de Natura",
+   "name_local_lang": "pt",
+   "overture_id": "ae94b9f3-5ae9-4e95-909a-d2be8a4d5f79",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Tower of the Keep",
+   "name_local": "Torre de Menagem",
+   "name_local_lang": "pt",
+   "overture_id": "b048c775-2908-4a7e-8eaf-d3938d0fc2e3",
+   "source": "translated",
+   "source_ref": "set descriptor"
+  },
+  {
+   "name": "Lapa Church",
+   "name_local": "Igreja da Lapa",
+   "name_local_lang": "pt",
+   "overture_id": "b171d24f-6fc5-426c-bfbd-3b4840b69dab",
+   "source": "wikidata",
+   "source_ref": "Q10300247"
+  },
+  {
+   "name": "Azeda Lighthouse",
+   "name_local": "Farol da Azeda",
+   "name_local_lang": "pt",
+   "overture_id": "b24518ce-ef59-437f-a4b2-fcf4016b61e1",
+   "source": "wikidata",
+   "source_ref": "Q10280106"
+  },
+  {
+   "name": "Fort of Nossa Senhora da Rocha",
+   "name_local": "Forte de Nossa Senhora da Rocha",
+   "name_local_lang": "pt",
+   "overture_id": "b2dd78be-b929-47b4-8d29-51c42e7bde64",
+   "source": "wikidata",
+   "source_ref": "Q5472492"
+  },
+  {
+   "name": "Alvor Beach.",
+   "name_local": "Praia de Alvor",
+   "name_local_lang": "pt",
+   "overture_id": "b5a7c8fe-2ad0-4151-b343-e2914f8e405d",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church of Santo Amaro",
+   "name_local": "Igreja de Santo Amaro",
+   "name_local_lang": "pt",
+   "overture_id": "b60cbcb2-e4aa-49b2-88ea-5deeafe391ff",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Adraga Beach",
+   "name_local": "Praia da Adraga",
+   "name_local_lang": "pt",
+   "overture_id": "b65b4d2f-ae51-4e8d-a5f1-8a3012e6ec17",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Tesouro- Braga Cathedral Museum",
+   "name_local": "Museu da Catedral de Braga",
+   "name_local_lang": "pt",
+   "overture_id": "b7036e31-ba86-492c-9167-d1b59655cee3",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Baixa de Santo António Park",
+   "name_local": "Parque de Baixa de Santo António",
+   "name_local_lang": "pt",
+   "overture_id": "b7299984-c648-482d-90a6-3ff0338606cc",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Church of Porto Covo",
+   "name_local": "Igreja de Porto Covo",
+   "name_local_lang": "pt",
+   "overture_id": "b80dc973-ea28-4919-be22-cbb35993ed45",
+   "source": "wikidata",
+   "source_ref": "Q5117009"
+  },
+  {
+   "name": "Castle of Miranda do Douro",
+   "name_local": "Castelo de Miranda do Douro",
+   "name_local_lang": "pt",
+   "overture_id": "b9141d50-6e78-45d5-bfdd-ba02af550d5d",
+   "source": "wikidata",
+   "source_ref": "Q3817607"
+  },
+  {
+   "name": "Quinta do Lago Beach",
+   "name_local": "Praia da Quinta do Lago",
+   "name_local_lang": "pt",
+   "overture_id": "b972d0c8-1272-48d0-9313-0b76f07d7f57",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "PAZ Church",
+   "name_local": "Igreja da PAZ",
+   "name_local_lang": "pt",
+   "overture_id": "baa75baa-be9b-40da-9071-ad0499aa5f28",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Church of our Lady of Monte",
+   "name_local": "Igreja de Nossa Senhora do Monte",
+   "name_local_lang": "pt",
+   "overture_id": "bcc8ce91-d990-43d1-80d0-c7a5a7270055",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Funchal Park",
+   "name_local": "Parque do Funchal",
+   "name_local_lang": "pt",
+   "overture_id": "bd082bad-cf36-4fdd-9d0f-72204cadc372",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Beach Clube",
+   "name_local": "Praia de Clube",
+   "name_local_lang": "pt",
+   "overture_id": "bd89594c-777a-466f-9485-e49a3abe50ab",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Cordoama Beach",
+   "name_local": "Praia da Cordoama",
+   "name_local_lang": "pt",
+   "overture_id": "bea6594e-a68d-4298-85e1-c17dbf7e3bf0",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Vale Do Lobo Beach",
+   "name_local": "Praia de Vale Do Lobo",
+   "name_local_lang": "pt",
+   "overture_id": "beb7ab61-36ae-4c1a-8c3d-7c31c38826e0",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Amoreira Aqueduct",
+   "name_local": "Aqueduto da Amoreira",
+   "name_local_lang": "pt",
+   "overture_id": "bfe24392-3ede-4142-8f07-a3838aa32b48",
+   "source": "translated",
+   "source_ref": "aqueduct -> Aqueduto"
+  },
+  {
+   "name": "Nossa Senhora das Dores Chapel",
+   "name_local": "Capela de Nossa Senhora das Dores",
+   "name_local_lang": "pt",
+   "overture_id": "bfee4f3e-72c8-463a-8bcd-ebdd5f460edf",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "S Lourenço de Bugio Fort",
+   "name_local": "Forte de S Lourenço de Bugio",
+   "name_local_lang": "pt",
+   "overture_id": "c139f2e8-1ad5-4238-adbf-1ed2b3f0c6fc",
+   "source": "translated",
+   "source_ref": "fort -> Forte"
+  },
+  {
+   "name": "Belem Tower",
+   "name_local": "Torre de Belem",
+   "name_local_lang": "pt",
+   "overture_id": "c27c65ec-2cd0-4950-9e47-e0944bb5bac4",
+   "source": "translated",
+   "source_ref": "tower -> Torre"
+  },
+  {
+   "name": "Carcavelos beach",
+   "name_local": "Praia de Carcavelos",
+   "name_local_lang": "pt",
+   "overture_id": "c337e29c-d974-442f-97ad-a0d5eef63bc0",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Chapel of Santa Rita",
+   "name_local": "Capela de Santa Rita",
+   "name_local_lang": "pt",
+   "overture_id": "c3709009-020a-45b4-b9a6-2c84d5a29d66",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Lisbon Castle",
+   "name_local": "Castelo de Lisbon",
+   "name_local_lang": "pt",
+   "overture_id": "c3a379ee-d1de-4f25-a232-046453f16876",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Aguda Beach",
+   "name_local": "Praia da Aguda",
+   "name_local_lang": "pt",
+   "overture_id": "c4b6627b-e08b-49a1-99eb-2d77f5ed9509",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Ancão Beach",
+   "name_local": "Praia do Ancão",
+   "name_local_lang": "pt",
+   "overture_id": "c6f67fa5-2db3-47f0-9688-7032d6c551b4",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Paradise Beach",
+   "name_local": "Praia de Paradise",
+   "name_local_lang": "pt",
+   "overture_id": "c75e61a3-fbd6-424d-94bf-ee9f55ecab6e",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Figueira Da Foz Beach",
+   "name_local": "Praia da Figueira Da Foz",
+   "name_local_lang": "pt",
+   "overture_id": "c792827a-8c1d-45af-a5ac-ddde3fbde2e3",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Edifício Madalenas Palace",
+   "name_local": "Palácio de Edifício Madalenas",
+   "name_local_lang": "pt",
+   "overture_id": "c7af215c-847a-4493-9245-8715c499edea",
+   "source": "translated",
+   "source_ref": "palace -> Palácio"
+  },
+  {
+   "name": "Church of Saint Ildefonso",
+   "name_local": "Igreja de Santo Ildefonso",
+   "name_local_lang": "pt",
+   "overture_id": "c7c0d233-2a51-4606-8e90-63c3e1986d5b",
+   "source": "wikidata",
+   "source_ref": "Q2781524"
+  },
+  {
+   "name": "Tavira Island",
+   "name_local": "Ilha de Tavira",
+   "name_local_lang": "pt",
+   "overture_id": "c95945ce-ad14-4f05-9f56-f823a85d1c06",
+   "source": "translated",
+   "source_ref": "island -> Ilha"
+  },
+  {
+   "name": "Christopher Columbus Monument",
+   "name_local": "Monumento de Cristovão Colombo",
+   "name_local_lang": "pt",
+   "overture_id": "c96bd1f8-f967-46b1-a756-e88545060c52",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Church of Sao Pedro",
+   "name_local": "Igreja de Sao Pedro",
+   "name_local_lang": "pt",
+   "overture_id": "c9fa509b-83fe-4231-9fb6-fb8c0260f475",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Carvoeiro Beach",
+   "name_local": "Praia do Carvoeiro",
+   "name_local_lang": "pt",
+   "overture_id": "cafb64ce-30c9-444c-93f5-d49a4d854a7e",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Church São Miguel",
+   "name_local": "Igreja São Miguel",
+   "name_local_lang": "pt",
+   "overture_id": "cb7fbac6-6b85-47a4-b9f8-741021ffdb73",
+   "source": "translated",
+   "source_ref": "church -> Igreja, joined directly"
+  },
+  {
+   "name": "Onda Park",
+   "name_local": "Parque de Onda",
+   "name_local_lang": "pt",
+   "overture_id": "cc0a9450-c41e-41a8-bf88-2932f87b289c",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "I'm In Caparica Beach",
+   "name_local": "Praia de I'm In Caparica",
+   "name_local_lang": "pt",
+   "overture_id": "cccb35cb-d63c-4c53-bec0-c39deb95739a",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Monsanto Forest Park",
+   "name_local": "Parque Florestal de Monsanto",
+   "name_local_lang": "pt",
+   "overture_id": "cce634ca-71b4-4536-b9b4-1e7be3efdc68",
+   "source": "wikidata",
+   "source_ref": "Q14040866"
+  },
+  {
+   "name": "Castle of Montemor-o-Velho",
+   "name_local": "Castelo de Montemor-o-Velho",
+   "name_local_lang": "pt",
+   "overture_id": "cdebd94c-09cf-4f07-8f19-7f964461cf34",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Guimarães Castle",
+   "name_local": "Castelo de Guimarães",
+   "name_local_lang": "pt",
+   "overture_id": "ce32f85f-5637-484c-9b73-ecf5f4fead25",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Life is a Beach",
+   "name_local": "Praia de Life is a",
+   "name_local_lang": "pt",
+   "overture_id": "cea4762c-b50c-4234-947e-4fb82ed191f1",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of the Moors",
+   "name_local": "Castelo dos Mouros",
+   "name_local_lang": "pt",
+   "overture_id": "cebc573b-28f1-4b11-bea1-5ec27a64c08f",
+   "source": "wikidata",
+   "source_ref": "Q1049008"
+  },
+  {
+   "name": "Garden Residence",
+   "name_local": "Jardim de Residence",
+   "name_local_lang": "pt",
+   "overture_id": "cf13cfb8-daf9-4b2d-a34b-2f1fb70a584d",
+   "source": "translated",
+   "source_ref": "garden -> Jardim"
+  },
+  {
+   "name": "Ark Church",
+   "name_local": "Igreja da Arca",
+   "name_local_lang": "pt",
+   "overture_id": "d06d4e16-14de-4b08-99b3-d294a109f1a0",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Church Santa Marinha Da Costa",
+   "name_local": "Igreja Santa Marinha Da Costa",
+   "name_local_lang": "pt",
+   "overture_id": "d2200e14-79e9-4b49-8c6e-53373600ead0",
+   "source": "translated",
+   "source_ref": "church -> Igreja, joined directly"
+  },
+  {
+   "name": "Convent of Santa Clara",
+   "name_local": "Convento de Santa Clara",
+   "name_local_lang": "pt",
+   "overture_id": "d3c51880-0a19-4c2b-8800-469e4f5ce5ac",
+   "source": "translated",
+   "source_ref": "convent -> Convento"
+  },
+  {
+   "name": "Sobreiro Church",
+   "name_local": "Igreja do Sobreiro",
+   "name_local_lang": "pt",
+   "overture_id": "d40b5467-2f2a-4a6d-8b8a-12d9bdf9703a",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Park and Palace of Monserrate",
+   "name_local": "Parque e Palácio de Monserrate",
+   "name_local_lang": "pt",
+   "overture_id": "d42064f4-d155-4ae9-9ded-b5a1ea598527",
+   "source": "translated",
+   "source_ref": "two descriptors + proper noun"
+  },
+  {
+   "name": "Alcobaça Monastery",
+   "name_local": "Mosteiro de Alcobaça",
+   "name_local_lang": "pt",
+   "overture_id": "d8a9f6b6-4a26-48dc-8be3-64206580507d",
+   "source": "translated",
+   "source_ref": "monastery -> Mosteiro"
+  },
+  {
+   "name": "Church of Our Lady of the Glory",
+   "name_local": "Igreja de Nossa Senhora da Glória",
+   "name_local_lang": "pt",
+   "overture_id": "d91a920a-a2d3-48ee-a698-6b8f0ee7347e",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Beloura Office Park",
+   "name_local": "Parque de Beloura Office",
+   "name_local_lang": "pt",
+   "overture_id": "d92f575b-da30-42b7-8161-add0db55cfc0",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Church of São Martinho",
+   "name_local": "Igreja de Alvaredo",
+   "name_local_lang": "pt",
+   "overture_id": "d9f2a729-7190-4083-95d1-be438b58c399",
+   "source": "wikidata",
+   "source_ref": "Q1570232"
+  },
+  {
+   "name": "Merendas Park",
+   "name_local": "Parque das Merendas",
+   "name_local_lang": "pt",
+   "overture_id": "db59d3cf-9d1e-4cba-a633-95abf9d012b5",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Montesinho Natural Park",
+   "name_local": "Parque Natural de Montesinho",
+   "name_local_lang": "pt",
+   "overture_id": "dbf69ae3-0e36-4f93-b534-696437e9c49f",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Águeda Bike Park",
+   "name_local": "Parque de Águeda Bike",
+   "name_local_lang": "pt",
+   "overture_id": "dc3b0ba4-379d-429f-993e-02007ccdd14a",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Holy Family Church",
+   "name_local": "Igreja da Sagrada Família",
+   "name_local_lang": "pt",
+   "overture_id": "dcaaaaf8-ec72-46bc-bebb-1aec6a43ee6f",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Palace of Correio-Mor",
+   "name_local": "Palácio de Correio-Mor",
+   "name_local_lang": "pt",
+   "overture_id": "dcea9372-f3e2-43b9-ab4e-18da614a3eba",
+   "source": "translated",
+   "source_ref": "palace -> Palácio"
+  },
+  {
+   "name": "Fort of São João",
+   "name_local": "Forte de São João",
+   "name_local_lang": "pt",
+   "overture_id": "dd51a6a7-37ff-46be-92d9-3c4c3fd09aa4",
+   "source": "translated",
+   "source_ref": "fort -> Forte"
+  },
+  {
+   "name": "Park Maria das Mercês Carreiro",
+   "name_local": "Parque Maria das Mercês Carreiro",
+   "name_local_lang": "pt",
+   "overture_id": "dd62a9b0-982c-4379-91e4-3b452d50789d",
+   "source": "translated",
+   "source_ref": "park -> Parque, joined directly"
+  },
+  {
+   "name": "Castle of Folgosinho",
+   "name_local": "Castelo de Folgosinho",
+   "name_local_lang": "pt",
+   "overture_id": "ddb88613-b38a-4356-ad74-285e31034be1",
+   "source": "wikidata",
+   "source_ref": "Q5049776"
+  },
+  {
+   "name": "Ria Formosa National Park",
+   "name_local": "Parque Nacional da Ria Formosa",
+   "name_local_lang": "pt",
+   "overture_id": "e06b9af4-aceb-444c-8a8b-73e4b403750c",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Tavira Beach",
+   "name_local": "Praia de Tavira",
+   "name_local_lang": "pt",
+   "overture_id": "e10b26f8-27ea-4f7b-bbf6-7c072fdb5210",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Caparica Beach",
+   "name_local": "Praia da Caparica",
+   "name_local_lang": "pt",
+   "overture_id": "e1f4be31-6235-47c7-96bb-73413ef0111b",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Playa De Rocha Beach",
+   "name_local": "Praia da Rocha",
+   "name_local_lang": "pt",
+   "overture_id": "e2260e4d-ef8a-4fc3-bfb8-1190d42c9ce5",
+   "source": "owner",
+   "source_ref": null
+  },
+  {
+   "name": "Manuel Lourenço Beach",
+   "name_local": "Praia de Manuel Lourenço",
+   "name_local_lang": "pt",
+   "overture_id": "e300b249-9ce8-4ddb-862c-1c4cb39ff770",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Alegrete",
+   "name_local": "Castelo de Alegrete",
+   "name_local_lang": "pt",
+   "overture_id": "e369053e-347b-4c84-b8c1-9ec12157109a",
+   "source": "wikidata",
+   "source_ref": "Q5049735"
+  },
+  {
+   "name": "Armona Island",
+   "name_local": "Ilha de Armona",
+   "name_local_lang": "pt",
+   "overture_id": "e3bda9cf-057d-4eb6-878c-9b0a3d977c37",
+   "source": "translated",
+   "source_ref": "island -> Ilha"
+  },
+  {
+   "name": "Castle of Sao Jorge",
+   "name_local": "Castelo de Sao Jorge",
+   "name_local_lang": "pt",
+   "overture_id": "e402745f-1641-400e-9ac9-8a2c62949715",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Cape St Vincent",
+   "name_local": "Cabo São Vicente",
+   "name_local_lang": "pt",
+   "overture_id": "e403d8a5-8947-4c5c-9464-bbc8dd70f471",
+   "source": "translated",
+   "source_ref": "cape -> Cabo, joined directly"
+  },
+  {
+   "name": "Palace De Monserrate",
+   "name_local": "Palácio de Monserrate",
+   "name_local_lang": "pt",
+   "overture_id": "e5377959-f98e-4f18-940e-2748fcf8d4a1",
+   "source": "translated",
+   "source_ref": "palace -> Palácio"
+  },
+  {
+   "name": "Guadiana International Bridge",
+   "name_local": "Ponte Internacional do Guadiana",
+   "name_local_lang": "pt",
+   "overture_id": "e8edc6e3-bd2c-441d-b2b8-415a89db7acf",
+   "source": "wikidata",
+   "source_ref": "Q1548495"
+  },
+  {
+   "name": "Falésia Beach",
+   "name_local": "Praia da Falésia",
+   "name_local_lang": "pt",
+   "overture_id": "e8ef8c5f-9034-46a3-ae65-d16c296718e3",
+   "source": "wikidata",
+   "source_ref": "Q2107541"
+  },
+  {
+   "name": "Fort of Palheiros",
+   "name_local": "Forte de Palheiros",
+   "name_local_lang": "pt",
+   "overture_id": "e9204c59-890a-48de-8114-7d803b9d1c2f",
+   "source": "translated",
+   "source_ref": "fort -> Forte"
+  },
+  {
+   "name": "Hermitage of São Vicente",
+   "name_local": "Ermida de São Vicente",
+   "name_local_lang": "pt",
+   "overture_id": "ea07be0c-cc24-4e7b-bd2e-fdcab4c9aa51",
+   "source": "wikidata",
+   "source_ref": "Q5741901"
+  },
+  {
+   "name": "Santa Cruz park",
+   "name_local": "Parque de Santa Cruz",
+   "name_local_lang": "pt",
+   "overture_id": "eb531146-9b79-4857-8c04-c2fbb738e756",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Santo Amaro Chapel",
+   "name_local": "Capela de Santo Amaro",
+   "name_local_lang": "pt",
+   "overture_id": "ec70b984-f4c6-4731-8bc8-15870b5cd14c",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Castle of Alva",
+   "name_local": "Castelo de Alva",
+   "name_local_lang": "pt",
+   "overture_id": "ed3f9c06-e2dc-4576-b787-752b87573326",
+   "source": "wikidata",
+   "source_ref": "Q5049745"
+  },
+  {
+   "name": "Park Zona Norte de Almeirim",
+   "name_local": "Parque Zona Norte de Almeirim",
+   "name_local_lang": "pt",
+   "overture_id": "edec34ef-84e8-464d-bb78-968b994d73a0",
+   "source": "translated",
+   "source_ref": "park -> Parque, joined directly"
+  },
+  {
+   "name": "Belem Tower",
+   "name_local": "Torre de Belem",
+   "name_local_lang": "pt",
+   "overture_id": "ee08a12d-6361-4a98-ac61-32a905ba70bd",
+   "source": "translated",
+   "source_ref": "tower -> Torre"
+  },
+  {
+   "name": "Jerónimos Monastery",
+   "name_local": "Mosteiro dos Jerónimos",
+   "name_local_lang": "pt",
+   "overture_id": "ee495395-584e-4a19-8cc7-0274a668ea40",
+   "source": "wikidata",
+   "source_ref": "Q272781"
+  },
+  {
+   "name": "Santo Antão Church",
+   "name_local": "Igreja de Santo Antão",
+   "name_local_lang": "pt",
+   "overture_id": "ef79db1f-1ef6-4823-868e-31552c5f8884",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Arrifana Beach",
+   "name_local": "Praia da Arrifana",
+   "name_local_lang": "pt",
+   "overture_id": "f01f599e-3850-4cd4-b1b7-5eb8c60c45b0",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Porto Dinheiro BEACH",
+   "name_local": "Praia do Porto Dinheiro",
+   "name_local_lang": "pt",
+   "overture_id": "f052b1fe-4ba0-45f7-8395-9f531be98564",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Fuzeta beach",
+   "name_local": "Praia da Fuzeta",
+   "name_local_lang": "pt",
+   "overture_id": "f057e7ce-6adf-45e0-8656-bf5665920cbc",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Salir",
+   "name_local": "Castelo de Salir",
+   "name_local_lang": "pt",
+   "overture_id": "f194894a-7b61-4f73-868d-7dee4a25e939",
+   "source": "wikidata",
+   "source_ref": "Q15207902"
+  },
+  {
+   "name": "Roman ruins of Santo Andre de Almocageme",
+   "name_local": "Ruínas Romanas de Santo Andre de Almocageme",
+   "name_local_lang": "pt",
+   "overture_id": "f2001d08-4f68-4e21-b20d-16ea30b290c7",
+   "source": "translated",
+   "source_ref": "set descriptor + proper noun"
+  },
+  {
+   "name": "Sao Roque Beach",
+   "name_local": "Praia de Sao Roque",
+   "name_local_lang": "pt",
+   "overture_id": "f367a9bb-87d5-478e-a438-9853b9d93327",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Castle of Marvão",
+   "name_local": "Castelo de Marvão",
+   "name_local_lang": "pt",
+   "overture_id": "f5914f42-5011-4fa5-9c38-067905aae77a",
+   "source": "wikidata",
+   "source_ref": "Q3811187"
+  },
+  {
+   "name": "Castle of Arronches",
+   "name_local": "Castelo de Arronches",
+   "name_local_lang": "pt",
+   "overture_id": "f59cc26e-b1a6-49c2-887c-4d1e61299e9d",
+   "source": "wikidata",
+   "source_ref": "Q5049750"
+  },
+  {
+   "name": "Chapel S.Sebastião",
+   "name_local": "Capela de S.Sebastião",
+   "name_local_lang": "pt",
+   "overture_id": "f66dad03-3d62-4470-a281-e59dca6bfb13",
+   "source": "translated",
+   "source_ref": "chapel -> Capela"
+  },
+  {
+   "name": "Matosinhos Beach",
+   "name_local": "Praia de Matosinhos",
+   "name_local_lang": "pt",
+   "overture_id": "f678cdfa-5484-4b0c-abd5-4f5f0e10e910",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Nossa Senhora da Luz Fortress",
+   "name_local": "Fortaleza de Nossa Senhora da Luz",
+   "name_local_lang": "pt",
+   "overture_id": "f68f307f-abf7-4224-b813-25adf3f96e9f",
+   "source": "translated",
+   "source_ref": "fortress -> Fortaleza"
+  },
+  {
+   "name": "Freixo Bridge",
+   "name_local": "Ponte do Freixo",
+   "name_local_lang": "pt",
+   "overture_id": "f6c01506-905d-4040-bff7-c3fa01c3ae7c",
+   "source": "wikidata",
+   "source_ref": "Q951109"
+  },
+  {
+   "name": "Cabo Carvoeiro Lighthouse",
+   "name_local": "Farol do Cabo Carvoeiro",
+   "name_local_lang": "pt",
+   "overture_id": "f6dd69c3-561d-40cf-a5bf-92e086bb73c2",
+   "source": "wikidata",
+   "source_ref": "Q8960880"
+  },
+  {
+   "name": "Mindelo Beach",
+   "name_local": "Praia do Mindelo",
+   "name_local_lang": "pt",
+   "overture_id": "f701352a-15cd-4983-bf86-bd868c8e288b",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Waterfall Lake",
+   "name_local": "Cascata do Lago",
+   "name_local_lang": "pt",
+   "overture_id": "f71f8a2f-80f9-422d-980b-cf67a7ba6aa2",
+   "source": "translated",
+   "source_ref": "two descriptors"
+  },
+  {
+   "name": "Ruins of St. George",
+   "name_local": "Ruínas de São Jorge",
+   "name_local_lang": "pt",
+   "overture_id": "f7774e02-3231-47de-b49d-0e1359fbc85e",
+   "source": "translated",
+   "source_ref": "ruins -> Ruínas"
+  },
+  {
+   "name": "São Francisco Church",
+   "name_local": "Igreja de São Francisco",
+   "name_local_lang": "pt",
+   "overture_id": "f7fff1ce-99d1-4634-a0c9-93a88e0bf1f2",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Comporta Beach",
+   "name_local": "Praia da Comporta",
+   "name_local_lang": "pt",
+   "overture_id": "f808448f-af47-4273-a777-7480484dc187",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  },
+  {
+   "name": "Viewpoint Rocas",
+   "name_local": "Miradouro de Rocas",
+   "name_local_lang": "pt",
+   "overture_id": "f86834b0-39b7-4916-87ad-06573a3d58ac",
+   "source": "translated",
+   "source_ref": "viewpoint -> Miradouro"
+  },
+  {
+   "name": "Guimarães Castle",
+   "name_local": "Castelo de Guimarães",
+   "name_local_lang": "pt",
+   "overture_id": "fa4dc922-1960-40a0-8843-6264c7e38219",
+   "source": "translated",
+   "source_ref": "castle -> Castelo"
+  },
+  {
+   "name": "Sanctuary of the Sacred Heart of Jesus",
+   "name_local": "Santuário do Sagrado Coração de Jesus",
+   "name_local_lang": "pt",
+   "overture_id": "fbb240bf-dce2-4af0-b3ba-248beadcbdff",
+   "source": "translated",
+   "source_ref": "sanctuary -> Santuário"
+  },
+  {
+   "name": "Condomínio Gaia Park",
+   "name_local": "Parque de Condomínio Gaia",
+   "name_local_lang": "pt",
+   "overture_id": "fdb3a654-aae6-4101-8c13-811552a1e0e9",
+   "source": "translated",
+   "source_ref": "park -> Parque"
+  },
+  {
+   "name": "Braga Cathedral",
+   "name_local": "Sé de Braga",
+   "name_local_lang": "pt",
+   "overture_id": "fe0f256a-ee99-451c-9754-fbabc79d9865",
+   "source": "translated",
+   "source_ref": "cathedral -> Sé"
+  },
+  {
+   "name": "Porto Cathedral",
+   "name_local": "Sé do Porto",
+   "name_local_lang": "pt",
+   "overture_id": "fe1aad96-7807-41a0-88a5-fc868abbbfd4",
+   "source": "wikidata",
+   "source_ref": "Q1441255"
+  },
+  {
+   "name": "Fm Church",
+   "name_local": "Igreja de Fm",
+   "name_local_lang": "pt",
+   "overture_id": "feeb0116-4f14-4a1c-8f23-6128d49106b5",
+   "source": "translated",
+   "source_ref": "church -> Igreja"
+  },
+  {
+   "name": "Gale Beach",
+   "name_local": "Praia da Gale",
+   "name_local_lang": "pt",
+   "overture_id": "ff3655ed-1539-45d2-a109-1b3de657ee36",
+   "source": "translated",
+   "source_ref": "beach -> Praia"
+  }
+ ],
+ "written_at": "2026-10-03"
+}
