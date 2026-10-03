@@ -144,9 +144,24 @@ def repending_statements(ids, release):
 
 # UPDATE … FROM (SQLite ≥ 3.33; D1 is newer). SQLite has no `AS v(a, b)`
 # column-alias list, so the VALUES rows are named through a SELECT.
+# KAN-471. A reviewed native name is OURS, not the source's: it was looked
+# up in Wikidata, confirmed by the owner, or derived here, and
+# `name_local_source` records which. Overture supplies no language variants
+# at all (`names.common` is empty for every place in the theme), so taking
+# the archive's value unconditionally would wipe every reviewed name the
+# moment a refresh touched the row — which is what a refresh does to any row
+# whose name or coordinates moved. A row with a recorded source keeps its
+# name; one without still takes whatever the source offers, so a future
+# release that does start carrying variants is not locked out.
 SERVED_REFRESH_PREFIX = (
-    'UPDATE overture_poi SET name = v.name, name_local = v.name_local, name_en = v.name_en, '
-    'name_local_lang = v.name_local_lang, names_json = v.names_json, country_code = v.country_code, '
+    'UPDATE overture_poi SET name = v.name, '
+    'name_local = CASE WHEN overture_poi.name_local_source IS NOT NULL '
+    'THEN overture_poi.name_local ELSE NULLIF(v.name_local, \'\') END, '
+    'name_en = CASE WHEN overture_poi.name_local_source IS NOT NULL '
+    'THEN overture_poi.name_en ELSE NULLIF(v.name_en, \'\') END, '
+    'name_local_lang = CASE WHEN overture_poi.name_local_source IS NOT NULL '
+    'THEN overture_poi.name_local_lang ELSE NULLIF(v.name_local_lang, \'\') END, '
+    'names_json = v.names_json, country_code = v.country_code, '
     'dedupe_name = v.dedupe_name, lat = v.lat, lng = v.lng, '
     'geohash = v.geohash, address = v.address, category = v.category, confidence = v.confidence, '
     'updated_at = v.updated_at FROM (SELECT column1 AS overture_id, column2 AS name, '

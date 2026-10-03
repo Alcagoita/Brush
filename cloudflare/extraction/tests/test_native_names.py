@@ -511,3 +511,66 @@ class WriteTest(unittest.TestCase):
         for statement in planned:
             self.assertLessEqual(len(statement.encode()), 80000)
             self.assertIn('name_local IS NULL', statement)
+
+
+class RefreshKeepsReviewedNamesTest(unittest.TestCase):
+    """KAN-471. A refresh refreshes SOURCE fields. A reviewed native name is
+    not one: Overture supplies no language variants at all, so taking the
+    archive's empty value would wipe every name the moment a refresh touched
+    the row."""
+
+    def setUp(self):
+        import sqlite3
+        self.db = sqlite3.connect(':memory:')
+        with open(os.path.join(os.path.dirname(EXTRACTION_DIR), 'schema.sql')) as handle:
+            self.db.executescript(handle.read())
+
+    def serve(self, overture_id, name, local=None, source=None):
+        self.db.execute(
+            'INSERT INTO overture_poi (overture_id, name, dedupe_name, lat, lng, geohash, '
+            "primary_poi_type, imported_at, updated_at, name_local, name_local_source) "
+            "VALUES (?, ?, ?, 38.7, -9.1, 'eyckq', 'church', 'd', 'd', ?, ?)",
+            (overture_id, name, name.lower(), local, source))
+        self.db.commit()
+
+    def refresh(self, rows):
+        """The refresh's own served update, over the committed schema."""
+        import refresh_overture_country as refresh
+        for statement in refresh.served_refresh_statements(rows, '2026-11-01'):
+            self.db.executescript(statement)
+        self.db.commit()
+
+    def row(self, overture_id):
+        cursor = self.db.execute(
+            'SELECT name, name_local, name_local_source FROM overture_poi WHERE overture_id = ?',
+            (overture_id,))
+        return cursor.fetchone()
+
+    def source_row(self, overture_id, name):
+        """What the archive carries: a name, and no language variants at all."""
+        return {'overture_id': overture_id, 'name': name, 'lat': 38.71, 'lng': -9.11,
+                'address': 'Rua B', 'category': 'church_cathedral', 'confidence': 0.9,
+                'name_local': None, 'name_en': None, 'name_local_lang': None,
+                'names_json': None, 'country_code': 'PT'}
+
+    def test_a_reviewed_name_survives_a_refresh(self):
+        self.serve('a', 'Jerónimos Monastery', 'Mosteiro dos Jerónimos', 'wikidata')
+        self.refresh([self.source_row('a', 'Jerónimos Monastery (renamed upstream)')])
+        name, local, source = self.row('a')
+        self.assertEqual(local, 'Mosteiro dos Jerónimos', 'the reviewed name must not be wiped')
+        self.assertEqual(source, 'wikidata')
+        self.assertEqual(name, 'Jerónimos Monastery (renamed upstream)', 'the source name still refreshes')
+
+    def test_a_row_with_no_recorded_source_still_takes_what_the_source_offers(self):
+        """A future release that does start carrying variants is not locked
+        out."""
+        self.serve('b', 'Some Place')
+        row = self.source_row('b', 'Some Place')
+        row['name_local'] = 'Algum Lugar'
+        self.refresh([row])
+        self.assertEqual(self.row('b')[1], 'Algum Lugar')
+
+    def test_an_empty_source_value_never_overwrites_anything(self):
+        self.serve('c', 'Another Place', 'Outro Lugar', 'translated')
+        self.refresh([self.source_row('c', 'Another Place')])
+        self.assertEqual(self.row('c')[1], 'Outro Lugar')
