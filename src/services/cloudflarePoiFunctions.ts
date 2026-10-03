@@ -58,7 +58,6 @@ interface PoiAllResponse {
     source?: PoiRecordSource;
     name: string;
     name_local?: string | null;
-    name_en?: string | null;
     name_local_lang?: string | null;
     names?: Record<string, string>;
     country_code?: string | null;

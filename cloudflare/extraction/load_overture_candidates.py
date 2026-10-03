@@ -42,7 +42,7 @@ from classify_and_load import MAX_STATEMENT_BYTES, byte_len, sql_escape
 
 INSERT_PREFIX = (
     'INSERT OR IGNORE INTO overture_candidate '
-    '(overture_id, name, name_local, name_en, name_local_lang, names_json, country_code, lat, lng, address, locality, category, basic_category, '
+    '(overture_id, name, name_local, name_local_lang, names_json, country_code, lat, lng, address, locality, category, basic_category, '
     'category_path, confidence, source_datasets, imported_at, country_source_r2_key, last_seen_source_key) VALUES '
 )
 MAX_VALUES_TERMS = 500
@@ -83,7 +83,6 @@ def candidate_rows(csv_path, country_source_r2_key=None):
             yield (
                 overture_id, name,
                 (row.get('name_local') or '').strip() or None,
-                (row.get('name_en') or '').strip() or None,
                 (row.get('name_local_lang') or '').strip() or None,
                 (row.get('names_json') or '').strip() or None,
                 (row.get('country_code') or '').strip().upper() or None,
@@ -100,12 +99,12 @@ def candidate_rows(csv_path, country_source_r2_key=None):
 
 
 def value_tuple(row):
-    (overture_id, name, name_local, name_en, name_local_lang, names_json, country_code, lat, lng, address, locality, category,
+    (overture_id, name, name_local, name_local_lang, names_json, country_code, lat, lng, address, locality, category,
      basic_category, category_path, confidence, sources, imported_at,
      country_source_r2_key) = row
     return (
         f'({sql_escape(overture_id)},{sql_escape(name)},'
-        f'{sql_escape(name_local)},{sql_escape(name_en)},{sql_escape(name_local_lang)},'
+        f'{sql_escape(name_local)},{sql_escape(name_local_lang)},'
         f'{sql_escape(names_json)},{sql_escape(country_code)},{lat},{lng},'
         f'{sql_escape(address)},{sql_escape(locality)},{sql_escape(category)},'
         f'{sql_escape(basic_category)},{sql_escape(category_path)},'
@@ -151,7 +150,7 @@ def _with_refresh(statement):
     diff. Idempotent: a second run writes the same values."""
     return statement[:-2] + (
         ' ON CONFLICT(overture_id) DO UPDATE SET '
-        'name = excluded.name, name_local = excluded.name_local, name_en = excluded.name_en, '
+        'name = excluded.name, name_local = excluded.name_local, '
         'name_local_lang = excluded.name_local_lang, names_json = excluded.names_json, '
         'country_code = excluded.country_code, lat = excluded.lat, lng = excluded.lng, address = excluded.address, '
         'locality = excluded.locality, category = excluded.category, basic_category = excluded.basic_category, '

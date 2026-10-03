@@ -6,7 +6,7 @@ describe('place-name selection', () => {
   const names = { en: 'Jerónimos Monastery', pt: 'Mosteiro dos Jerónimos', fr: 'Monastère des Hiéronymites' };
 
   it('defaults to the local name for a known country regardless of app language', () => {
-    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', {}, null, names.pt)).toBe('Mosteiro dos Jerónimos');
+    expect(selectPoiName('Mosteiro dos Jerónimos', names, 'PT', {}, names.pt)).toBe('Mosteiro dos Jerónimos');
   });
 
   it('uses a saved country-specific source language without changing place identity', () => {
@@ -17,11 +17,9 @@ describe('place-name selection', () => {
 
   it('falls back to the source name when the chosen or native name is absent', () => {
     expect(selectPoiName('Original', { en: 'English' }, 'PT', { PT: 'fr' })).toBe('Original');
-    expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' }, 'Legacy English')).toBe('Original');
     expect(selectPoiName('Original', {}, 'PT', { PT: 'fr' })).toBe('Original');
     expect(selectPoiName('Original', { en: 'English' }, 'PT')).toBe('Original');
     expect(selectPoiName('Original', { en: 'English', fr: ' ' }, 'PT', { PT: 'fr' })).toBe('Original');
-    expect(selectPoiName('Original', {}, 'PT', { PT: 'en' }, 'Legacy English')).toBe('Legacy English');
   });
 
   it('uses English with no known country and otherwise keeps the source name', () => {
@@ -66,46 +64,46 @@ describe('KAN-474 — the source name is a choice of its own', () => {
   });
 
   it('returns the source name when that is the choice', () => {
-    expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'source' }, null, 'Mosteiro dos Jerónimos'))
+    expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'source' }, 'Mosteiro dos Jerónimos'))
       .toBe('Jerónimos Monastery');
   });
 
   it('returns the native name by default, which is what production shows', () => {
-    expect(selectPoiName('Jerónimos Monastery', {}, PT, {}, null, 'Mosteiro dos Jerónimos'))
+    expect(selectPoiName('Jerónimos Monastery', {}, PT, {}, 'Mosteiro dos Jerónimos'))
       .toBe('Mosteiro dos Jerónimos');
   });
 
   it('reads the same under both choices when no native name was recorded', () => {
     const name = 'Praia de Machico';
-    expect(selectPoiName(name, {}, PT, { PT: 'native' }, null, null)).toBe(name);
-    expect(selectPoiName(name, {}, PT, { PT: 'source' }, null, null)).toBe(name);
+    expect(selectPoiName(name, {}, PT, { PT: 'native' }, null)).toBe(name);
+    expect(selectPoiName(name, {}, PT, { PT: 'source' }, null)).toBe(name);
   });
 
   it('asking for the language of the recorded native name gets it', () => {
-    expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'pt' }, null, 'Mosteiro dos Jerónimos', 'pt'))
+    expect(selectPoiName('Jerónimos Monastery', {}, PT, { PT: 'pt' }, 'Mosteiro dos Jerónimos', 'pt'))
       .toBe('Mosteiro dos Jerónimos');
   });
 
   it('the default matches what is shown when nothing is chosen', () => {
-    const shown = selectPoiName('Jerónimos Monastery', {}, PT, {}, null, 'Mosteiro dos Jerónimos');
+    const shown = selectPoiName('Jerónimos Monastery', {}, PT, {}, 'Mosteiro dos Jerónimos');
     const chosen = selectPoiName('Jerónimos Monastery', {}, PT, { PT: defaultPlaceNameChoice() },
-      null, 'Mosteiro dos Jerónimos');
+      'Mosteiro dos Jerónimos');
     expect(chosen).toBe(shown);
   });
 
   it('asking for the other language of a two-language country reads its map', () => {
     const names = { fr: 'Rue Saint-Jean' };
-    expect(selectPoiName('Saint John Street', names, 'CA', { CA: 'fr' }, null, 'Saint John Street', 'en'))
+    expect(selectPoiName('Saint John Street', names, 'CA', { CA: 'fr' }, 'Saint John Street', 'en'))
       .toBe('Rue Saint-Jean');
   });
 
   it('falls back to the source name when the chosen language has none recorded', () => {
-    expect(selectPoiName('Saint John Street', {}, 'CA', { CA: 'fr' }, null, null, 'en'))
+    expect(selectPoiName('Saint John Street', {}, 'CA', { CA: 'fr' }, null, 'en'))
       .toBe('Saint John Street');
   });
 
   it('still has no country to resolve against offline with no country', () => {
-    expect(selectPoiName('Jerónimos Monastery', {}, null, { PT: 'native' }, null, 'Mosteiro dos Jerónimos'))
+    expect(selectPoiName('Jerónimos Monastery', {}, null, { PT: 'native' }, 'Mosteiro dos Jerónimos'))
       .toBe('Jerónimos Monastery');
   });
 });

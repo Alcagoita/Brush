@@ -18,7 +18,7 @@ jest.mock('expo-sqlite', () => ({
 
 import { importCloudflareTripExport, detectExportShape } from '../../src/services/cloudflareTripExport';
 
-type Row = { id: string; name: string; lat: number; lng: number; poi_type: string; brand: string | null; name_local?: string | null; name_en?: string | null; name_local_lang?: string | null };
+type Row = { id: string; name: string; lat: number; lng: number; poi_type: string; brand: string | null; name_local?: string | null; name_local_lang?: string | null };
 
 /** A fake export: the meta columns decide the shape, the rows come back for any bbox. */
 function fakeExport(metaColumns: string[], source: string | null, rows: Row[], localized = false) {
@@ -28,9 +28,9 @@ function fakeExport(metaColumns: string[], source: string | null, rows: Row[], l
     getAllAsync: jest.fn(async (sql: string) => {
       queries.push(sql);
       if (sql.startsWith('PRAGMA table_info(_export_meta)')) return metaColumns.map(name => ({ name }));
-      if (sql.startsWith('PRAGMA table_info(poi)')) return (localized ? ['name_local', 'name_en', 'name_local_lang'] : []).map(name => ({ name }));
+      if (sql.startsWith('PRAGMA table_info(poi)')) return (localized ? ['name_local', 'name_local_lang'] : []).map(name => ({ name }));
       return rows.map(r => ({ source_id: r.id, name: r.name, name_local: r.name_local ?? null,
-        name_en: r.name_en ?? null, name_local_lang: r.name_local_lang ?? null,
+        name_local_lang: r.name_local_lang ?? null,
         lat: r.lat, lng: r.lng, poi_type: r.poi_type, brand: r.brand }));
     }),
     getFirstAsync: jest.fn(async () => (source == null ? null : { source })),
@@ -80,7 +80,7 @@ describe('importCloudflareTripExport', () => {
 
     expect(written).toBe(1);
     expect(mockWriteTripAreaPlaces).toHaveBeenCalledWith('trip-1', 123, [
-      { poiType: 'pharmacy', name: 'Farmácia', nameLocal: null, nameEn: null, nameLocalLang: null,
+      { poiType: 'pharmacy', name: 'Farmácia', nameLocal: null, nameLocalLang: null,
         names: {}, countryCode: undefined, lat: 38.7205, lng: -9.14, brand: null, source: { overture: 'g1' } },
     ]);
     expect(database.queries.some(q => q.includes('p.overture_id AS source_id') && q.includes('pt.overture_id = p.overture_id'))).toBe(true);
@@ -89,7 +89,7 @@ describe('importCloudflareTripExport', () => {
 
   it('imports source-supplied names from the new export without inventing missing translations', async () => {
     const database = fakeExport(OVERTURE_META, 'overture_places', [
-      { id: 'g1', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop', name_local_lang: 'pt',
+      { id: 'g1', name: 'Livraria', name_local: 'Livraria', name_local_lang: 'pt',
         lat: 38.7205, lng: -9.14, poi_type: 'store', brand: null },
     ], true);
     mockDeserialize.mockResolvedValue(database);
@@ -97,9 +97,9 @@ describe('importCloudflareTripExport', () => {
     await importCloudflareTripExport('osm-relation-1', CENTER, 1000, 'trip-1', 123, ['store']);
 
     expect(mockWriteTripAreaPlaces).toHaveBeenCalledWith('trip-1', 123, [
-      expect.objectContaining({ name: 'Livraria', nameLocal: 'Livraria', nameEn: 'Bookshop', nameLocalLang: 'pt' }),
+      expect.objectContaining({ name: 'Livraria', nameLocal: 'Livraria', nameLocalLang: 'pt' }),
     ]);
-    expect(database.queries.some(q => q.includes('p.name_local') && q.includes('p.name_en'))).toBe(true);
+    expect(database.queries.some(q => q.includes('p.name_local') && q.includes('p.name_local_lang'))).toBe(true);
   });
 
   it('still imports a Foursquare-shaped export, tagged as what it is', async () => {

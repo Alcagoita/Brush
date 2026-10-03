@@ -53,7 +53,7 @@ describe('searchNearbyPlaces — Brush API routing', () => {
 
   it('keeps the source identity name and localizes only at display time', async () => {
     mockPoiAll.mockResolvedValue({ results: { store: [
-      { poi_id: 'bookshop', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop',
+      { poi_id: 'bookshop', name: 'Livraria', name_local: 'Livraria',
         name_local_lang: 'pt', names: { pt: 'Livraria', en: 'Bookshop' }, country_code: 'PT',
         lat: LAT, lng: LNG, primary_poi_type: 'store',
         brand: null, category_label: null, address: null, distanceMeters: 20 },
@@ -63,7 +63,7 @@ describe('searchNearbyPlaces — Brush API routing', () => {
 
     expect(result.results.store[0]).toEqual(expect.objectContaining({
       name: 'Livraria', nameOriginal: 'Livraria', nameLocal: 'Livraria',
-      nameEn: 'Bookshop', nameLocalLang: 'pt',
+      nameLocalLang: 'pt',
     }));
     setPlaceNameChoices({ PT: 'en' });
     expect(displayPlaceName(result.results.store[0])).toBe('Bookshop');

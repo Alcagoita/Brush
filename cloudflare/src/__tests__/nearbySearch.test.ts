@@ -25,7 +25,6 @@ interface FakePoi {
   overture_id: string;
   name: string;
   name_local?: string | null;
-  name_en?: string | null;
   name_local_lang?: string | null;
   names_json?: string | null;
   country_code?: string | null;
@@ -42,7 +41,6 @@ interface FakeCuratedPoi {
   poi_id: string;
   name: string;
   name_local?: string | null;
-  name_en?: string | null;
   name_local_lang?: string | null;
   primary_poi_type: string;
   food_cuisine?: string[];
@@ -91,7 +89,7 @@ function fakeDb(
             const correction = sourceCorrections.find(candidate => candidate.source === 'overture' && candidate.source_id === p.overture_id);
             const base = {
               overture_id: p.overture_id, dedupe_name: p.name.toLowerCase(), name: p.name,
-              name_local: p.name_local ?? null, name_en: p.name_en ?? null,
+              name_local: p.name_local ?? null,
               name_local_lang: p.name_local_lang ?? null, names_json: p.names_json ?? null,
               country_code: p.country_code ?? null, lat: LAT, lng: LNG,
               primary_poi_type: p.primary_poi_type ?? 'restaurant', brand: p.brand ?? null,
@@ -120,7 +118,7 @@ function fakeDb(
           for (const p of curatedPois) {
             const base = {
               poi_id: p.poi_id, dedupe_name: p.name.toLowerCase(), name: p.name,
-              name_local: p.name_local ?? null, name_en: p.name_en ?? null,
+              name_local: p.name_local ?? null,
               name_local_lang: p.name_local_lang ?? null, lat: LAT, lng: LNG,
               primary_poi_type: p.primary_poi_type, address: null, floor: null,
             };
@@ -184,37 +182,37 @@ const names = (bucket: Array<{ name: string }> | undefined) => (bucket ?? []).ma
 describe('POST /poi/nearby — KAN-344 cuisine groups end-to-end', () => {
   it('serves source-supplied language variants without changing the legacy name', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
-      { overture_id: 'bookshop', name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop',
+      { overture_id: 'bookshop', name: 'Livraria', name_local: 'Livraria',
         name_local_lang: 'pt', names_json: '{"pt":"Livraria","en":"Bookshop"}', country_code: 'PT', primary_poi_type: 'store' },
     ]), CTX);
     const body = await res.json() as { results: Record<string, Array<Record<string, unknown>>> };
     expect(body.results.store).toEqual([expect.objectContaining({
-      name: 'Livraria', name_local: 'Livraria', name_en: 'Bookshop', name_local_lang: 'pt',
+      name: 'Livraria', name_local: 'Livraria', name_local_lang: 'pt',
       names: { pt: 'Livraria', en: 'Bookshop' }, country_code: 'PT',
     })]);
   });
 
   it('returns the default name for a missing local name and never returns an empty display fallback', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
-      { overture_id: 'english-fallback', name: 'Source', name_en: 'English', country_code: 'PT', primary_poi_type: 'store' },
+      { overture_id: 'english-fallback', name: 'Source', country_code: 'PT', primary_poi_type: 'store' },
       { overture_id: 'source-fallback', name: 'Only source', country_code: 'PT', primary_poi_type: 'store' },
-      { overture_id: 'blank-local', name: 'Another source', name_local: ' ', name_en: 'Another English', country_code: 'PT', primary_poi_type: 'store' },
+      { overture_id: 'blank-local', name: 'Another source', name_local: ' ', country_code: 'PT', primary_poi_type: 'store' },
     ], [
       { poi_id: 'community-only', name: 'Community name', primary_poi_type: 'store' },
     ]), CTX);
     const body = await res.json() as { results: Record<string, Array<Record<string, unknown>>> };
     expect(body.results.store).toEqual(expect.arrayContaining([
-      expect.objectContaining({ name: 'Source', name_local: 'Source', name_en: 'English' }),
-      expect.objectContaining({ name: 'Only source', name_local: 'Only source', name_en: 'Only source' }),
-      expect.objectContaining({ name: 'Another source', name_local: 'Another source', name_en: 'Another English' }),
-      expect.objectContaining({ name: 'Community name', name_local: 'Community name', name_en: 'Community name' }),
+      expect.objectContaining({ name: 'Source', name_local: 'Source' }),
+      expect.objectContaining({ name: 'Only source', name_local: 'Only source' }),
+      expect.objectContaining({ name: 'Another source', name_local: 'Another source' }),
+      expect.objectContaining({ name: 'Community name', name_local: 'Community name' }),
     ]));
   });
 
   it('suppresses cross-source duplicates when their source-supplied aliases match', async () => {
     const res = await worker.fetch(nearbyRequest([{ key: 'store', type: 'store' }]), env([
       { overture_id: 'bookshop', name: 'Bookshop', name_local: 'Livraria',
-        name_en: 'Bookshop', name_local_lang: 'pt', primary_poi_type: 'store' },
+        name_local_lang: 'pt', primary_poi_type: 'store' },
     ], [
       { poi_id: 'curated-bookshop', name: 'Livraria', primary_poi_type: 'store' },
     ]), CTX);

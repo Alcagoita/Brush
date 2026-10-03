@@ -76,13 +76,12 @@ export function selectPoiName(
   names: Record<string, string> | null | undefined,
   countryCode: string | null | undefined,
   preference: PlaceNameChoices = choices,
-  legacyEnglish?: string | null,
   localName?: string | null,
   localLang?: string | null,
 ): string {
   const variants = names ?? {};
   const nonBlank = (value?: string | null) => value?.trim() || null;
-  if (!countryCode) return nonBlank(variants.en) || nonBlank(legacyEnglish) || name;
+  if (!countryCode) return nonBlank(variants.en) || name;
   const selected = preference[countryCode.toUpperCase()] ?? NATIVE_CHOICE;
   // The source's own name, declared rather than reached by falling through
   // every other branch.
@@ -93,14 +92,14 @@ export function selectPoiName(
   if (localLang && selected.toLowerCase() === localLang.toLowerCase()) {
     return nonBlank(localName) || name;
   }
-  return nonBlank(variants[selected]) || (selected === 'en' && nonBlank(legacyEnglish)) || name;
+  return nonBlank(variants[selected]) || name;
 }
 
 export function displayPlaceName(place: {
   name: string; nameOriginal?: string; names?: Record<string, string> | null;
-  countryCode?: string | null; nameEn?: string | null; nameLocal?: string | null;
+  countryCode?: string | null; nameLocal?: string | null;
   nameLocalLang?: string | null;
 }): string {
   return selectPoiName(place.nameOriginal ?? place.name, place.names, place.countryCode,
-    choices, place.nameEn, place.nameLocal, place.nameLocalLang);
+    choices, place.nameLocal, place.nameLocalLang);
 }
