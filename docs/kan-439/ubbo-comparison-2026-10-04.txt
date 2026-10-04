@@ -1,0 +1,227 @@
+
+===== UBBO — 245 tenants on the operator list =====
+
+  held and confidently matched : 117
+  ESCALATE (a person decides)  : 37
+  ADD from OSM                 : 6
+  on the list, no source has it: 97
+  REMOVE (held, not listed)    : 28   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row O meu Olá / Olá
+                           Olá
+    [1.00] two tenants, one held row Tramas Home / Tramas+
+                           Tramas
+    [0.90] two tenants, one held row 100 Montaditos / A-100
+                           100 Montaditos
+    [0.90] two tenants, one held row Auchan / Auchan Ótica
+                           Auchan
+    [0.90] two tenants, one held row Auchan / Auchan Saúde e Bem Estar
+                           Auchan
+    [0.90] two tenants, one held row Auchan / Auchan Tecnologia
+                           Auchan
+    [0.90] two tenants, one held row Carrossel / Carrossel Experience
+                           Carrossel
+    [0.90] two tenants, one held row Intimissimi / IUMAN Intimissimi Uomo
+                           Intimissimi
+    [0.90] two tenants, one held row Mango / Mango Man
+                           Mango
+    [0.90] two tenants, one held row Mango / Mango Teen
+                           Mango
+    [0.90] two tenants, one held row Açaí Natura / Natura
+                           Açaí Natura
+    [0.83] tenant vs held iStore
+                           QUIOSQUE QSTORE UBBO
+    [0.83] tenant vs held Cacifos CTT Locky
+                           Cacifo Locky
+    [0.82] held vs tenant VitaFlores
+                           Valores
+    [0.80] tenant vs held MO
+                           Loja MEO
+    [0.75] tenant vs held Sould Park Jump
+                           Sould Park TRAMPOLIN JUMP Lisboa
+    [0.75] held vs tenant Ribs & Company Ubbo
+                           Pans & Company
+    [0.73] tenant vs held Galeria da Jóia
+                           Lugar da Jóia
+    [0.71] held vs tenant The Body Shop
+                           Oysho
+    [0.71] tenant vs held Morangos Please
+                           Amor aos Pedaços
+    [0.71] tenant vs held Under Blue
+                           Loja Mr. Blue
+    [0.68] tenant vs held Holmes Place SPA
+                           Holmes Place Tejo - Amadora
+    [0.67] held vs tenant Neffos Ubbo
+                           NOS
+    [0.67] held vs tenant Farmácia Dolce Vita
+                           Farmácia Reis Barata
+    [0.67] held vs tenant Claire's
+                           Carpet Store
+    [0.62] held vs tenant Raia Beauty Spot
+                           Grace and Beauty
+    [0.62] held vs tenant PeSSoaS
+                           Nespresso
+    [0.62] held vs tenant Welder
+                           Celeiro
+    [0.61] held vs tenant Pizzaria Luzzo
+                           Pizza Hut
+    [0.60] held vs tenant MISAKO
+                           MICO
+    [0.60] held vs tenant Euromúsica
+                           Euro Sofás
+    [0.59] held vs tenant AMADORA SC UBBO
+                           Pandora
+    [0.57] held vs tenant Tejo Fan Park
+                           Pet's Park
+    [0.57] held vs tenant Urban Trend
+                           Mango Teen
+    [0.57] held vs tenant Mayoral
+                           MyForce
+    [0.56] held vs tenant Western Union
+                           Mister Minit
+    [0.56] held vs tenant Fornada de Pão
+                           Fireaway Pizza
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    Burger King
+      -> OSM: Burger King
+    Grace and Beauty
+      -> OSM: Grace and Beauty
+    Kiwoko
+      -> OSM: Kiwoko
+    Wells
+      -> OSM: Wells
+    Worten
+      -> OSM: Worten
+    Worten Mobile
+      -> OSM: Worten Mobile
+
+  --- listed but no source can place it (no coordinates) ---
+    1920 Barber Shop
+    Acium
+    Agência Abreu
+    Alentejo
+    Ana Joalheiros
+    Arara
+    Aurya
+    AWA Massage
+    BACHIYO
+    Barber Best Boss
+    Belle Vogue
+    Beontime
+    Bifanas de Vendas Novas
+    Bitoque no Ponto
+    Blue Kids
+    BlueBird
+    Braza
+    Car Wash & Spa
+    Casa da Sorte
+    Casa do Sono
+    Cash Converters
+    Cloud House Vaper Store
+    ColchãoNet
+    Cort&Cose
+    Cortefiel
+    Delícias do Bairro
+    DIGI
+    Dom Gelato
+    Emma
+    Euro Sofás
+    Fábrica dos Óculos
+    Farmácia Reis Barata
+    Figu
+    Fireaway Pizza
+    Food&More
+    Fotosport
+    Georgia Brigadeiros
+    Glo – Quiosque
+    Gold Suisse
+    Grace Hair
+    H3
+    Hair & Body
+    Italian Republic
+    Japon Market
+    JOSE LUIS Joyerías
+    KIKO MILANO
+    Kivet
+    Liberjóia
+    Mandarim
+    Maria Croissant
+    MCS Men
+    Mediterrâneo
+    Merrell CAT
+    Mister Minit
+    Mobile Fix
+    Monster Cookies – Quiosque
+    Morena Rosa
+    Motocard
+    MWash Auto SPA
+    MyForce
+    Nails4'Us
+    New Story
+    Oakberry
+    Oakberry Truck
+    ONLY
+    Ortopedia.pt
+    PACOMARTINEZ
+    Padaria do Bairro
+    Pet's Park
+    Pluricosmética
+    Poke House
+    Presse Linha
+    Ramen Go
+    Real Transfer
+    ROCK'S
+    Shades World
+    Skechers
+    SL Benfica
+    Sporting
+    Stone by Stone
+    Street Smash Burgers
+    Suco Bagaço
+    Suits Inc
+    Tabink
+    Tip Top Tailor
+    Top Atlântico
+    Tudo4Mobile
+    Unicâmbio
+    UZO
+    Vilanova
+    VisionLab
+    Vodafone
+    Weeel
+    Wiñk
+    Women'secret
+    WOO
+    ZooJoy
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    Alfragide-Leroy Merlin  [car_rental]
+    Amadora - Leroy Merlin  [car_rental]
+    Boutique dos Relógios  [store]
+    Convento dos Doces - UBBO Shopping  [bakery]
+    Courir  [store]
+    Cozinha à Bras  [restaurant]
+    Dilúvio Tattoo Ubbo  [tattoo]
+    EB1/JI José Garcês  [school]
+    Eurekakids  [store]
+    FUBBO  [restaurant]
+    Frankie Hot Dogs  [restaurant]
+    Gillamp  [store]
+    H3 Hambúrguer Gourmet  [restaurant]
+    Hong Sha Long  [restaurant]
+    Jumbo na Amadora  [supermarket]
+    La Casa de las Carcasas  [store]
+    Leroy Merlin  [store]
+    Mayoral - Loja de Roupa Infantil e Bebés  [store]
+    McCafé  [cafe]
+    Movefree  [store]
+    Rio Brasil Lisboa  [restaurant]
+    Stefano  [store]
+    Sun Planet Portugal  [store]
+    Sunglass Hut  [store]
+    UCI CINEMAS  [movie_theater]
+    UCI Dolce Vita Tejo  [movie_theater]
+    Vestopazzo CC Dolcevita Tejo Ubbo  [store]
+    Wallstreet Cafe  [cafe]
