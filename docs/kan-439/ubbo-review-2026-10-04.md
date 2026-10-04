@@ -32,11 +32,35 @@ tighter one would cut the Auchan end.
 | listed, **no source can place it** | 97 |
 | REMOVE — held, not listed (look-list only) | 28 |
 
-**97 units nobody can place is the headline.** Neither Overture nor OSM has
-a coordinate for them, so they cannot be added: the ticket's own rule is that
-a list adds only what a source can place, and inventing a point for a shop we
-cannot locate would put a pin on the map for a guess. They are listed in the
-comparison output for the record.
+**97 units nobody can place is the headline** — and the owner has ruled on
+them (2026-10-04): **we cannot exclude a store we know is there.** The
+operator's list is authority that the unit exists, so these are added at the
+shopping centre's own coordinate rather than dropped. Only the position is
+missing, and "in that building" is an honest answer; it claims nothing about
+which unit.
+
+UBBO's coordinate is its OSM mall polygon centroid, `relation/14978983`
+(`shop=mall`, `building=retail`): **38.7769342, −9.2200815**. A centroid, not
+a street door.
+
+These become `curated_poi` rows with provenance, like every served place that
+is not Overture. Each needs a real `poi_type` and a specific `store_kind` —
+no bare `store` — and the operator category is a hint, never the answer. The
+categories of the 97 map mostly cleanly, with one exception: **14 are only
+`Serviços`**, which types nothing by itself (a barber, a car wash, a currency
+exchange and a key cutter all carry it), so those want the name read one by
+one.
+
+Two consequences worth deciding before the rows exist:
+
+1. **A later Overture release can produce a visible duplicate.** Nearby
+   suppresses across sources only within 20 m, and a centroid row sits
+   100–200 m from the unit Overture would carry. Both would ship and the user
+   sees the shop twice — so these rows owe a suppression rule scoped to the
+   mall footprint and matched on name, not on 20 m.
+2. **All 97 share one point**, so a user passing within `NEARBY_RADIUS`
+   (400 m) could get the whole centre in "also close". Inside the mall that
+   is exactly right; outside it is 97 rows from one building.
 
 ## Floors
 

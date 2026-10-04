@@ -90,6 +90,48 @@ establish no rule elsewhere.
   does.
 * **`VitaFlores` is not `Valores`** — the matcher paired them at 0.82.
 
+## A listed tenant nobody can place goes at the mall's own coordinate
+
+Ruled by the owner 2026-10-04: **we cannot exclude a store we know is
+there.** The operator's published list is authority that the unit exists, so
+a tenant that neither Overture nor OSM can place is added at the **shopping
+centre's generic coordinate** rather than dropped.
+
+This reverses the older reading that a list adds only what a source can
+place. The list itself is the source for existence; only the position is
+missing, and the mall's own coordinate is an honest answer to "where" — the
+shop is in that building. It is not a guess about which unit.
+
+The coordinate is the mall's **polygon centroid**, not a street door:
+
+| centre | OSM | centroid |
+|---|---|---|
+| UBBO | `relation/14978983` `shop=mall`, `building=retail` | 38.7769342, −9.2200815 |
+
+These rows are ours, so they are `curated_poi` with provenance recorded, the
+same as every served place that is not Overture. Each still needs a real
+`poi_type` and a specific `store_kind` — **no bare `store`** — and the
+operator's category is a hint toward that, never the answer.
+
+At UBBO this is **97 units**. Their operator categories mostly map cleanly,
+with one exception worth stating: **14 are only `Serviços`**, which types
+nothing on its own (a barber, a car wash, a currency exchange and a key
+cutter all carry it). Those need the name read individually.
+
+### Two consequences, both real
+
+1. **A later Overture release can make a visible duplicate.** Nearby
+   suppresses across sources only within 20 m (`index.ts`,
+   `MANUAL_POI_DUPLICATE_DISTANCE_METERS`), and a curated row at the centroid
+   sits 100–200 m from the unit Overture would eventually carry. Both would
+   ship, and the user sees the shop twice. Adding these rows therefore owes a
+   suppression rule scoped to the mall footprint and matched on name, not on
+   20 m.
+2. **All 97 share one point**, so a user passing within `NEARBY_RADIUS`
+   (400 m) can have the whole centre appear in "also close" at once. Inside
+   the mall that is right — everything is at your feet. Outside it is a lot
+   of rows from one building.
+
 ## Door-pinned duplicates — the rule, and both halves of it
 
 Overture is a conflation of meta, Microsoft, Foursquare and AllThePlaces, and
