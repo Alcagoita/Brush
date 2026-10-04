@@ -7,7 +7,7 @@ Only `name_local`, `name_local_lang` and the three provenance columns 0054
 added. **`name` is never written** — the source's own name stays exactly as
 Overture gave it, and the app chooses between the two at display time
 (`selectPoiName`). Nothing else is touched: no coordinates, category, types,
-attributes, decisions or `name_en`.
+attributes or decisions.
 
 Every write is guarded on `name_local IS NULL`, so a row that already has a
 native name is left alone and a re-run is a no-op. A row the owner withdrew

@@ -546,7 +546,7 @@ class RefreshKeepsReviewedNamesTest(unittest.TestCase):
         """What the archive carries: a name, and no language variants at all."""
         return {'overture_id': overture_id, 'name': name, 'lat': 38.71, 'lng': -9.11,
                 'address': 'Rua B', 'category': 'church_cathedral', 'confidence': 0.9,
-                'name_local': None, 'name_en': None, 'name_local_lang': None,
+                'name_local': None, 'name_local_lang': None,
                 'names_json': None, 'country_code': 'PT'}
 
     def test_a_reviewed_name_survives_a_refresh(self):
@@ -680,12 +680,12 @@ class ReviewFixesTest(unittest.TestCase):
         report = wikidata.propose([candidate], cache_dir='unused', fetch=fetch, pause=0)
         self.assertEqual([row['name_local'] for row in report['proposals']], ['Capela da Fronteira'])
 
-    def test_name_en_is_not_frozen_by_a_reviewed_name_local(self):
-        """`name_local_source` records where name_LOCAL came from. Gating
-        `name_en` on it froze the English variant of every reviewed row."""
+    def test_the_refresh_no_longer_carries_an_english_variant(self):
+        """KAN-474 removed `name_en` from every code path: Overture carries no
+        language variants, so the column was written NULL on every row and read
+        by nothing. The reviewed native name is still guarded."""
         import refresh_overture_country as refresh
-        self.assertIn("name_en = COALESCE(NULLIF(v.name_en, ''), overture_poi.name_en)",
-                      refresh.SERVED_REFRESH_PREFIX)
+        self.assertNotIn('name_en', refresh.SERVED_REFRESH_PREFIX)
         self.assertIn('name_local = CASE WHEN overture_poi.name_local_source IS NOT NULL',
                       refresh.SERVED_REFRESH_PREFIX)
 

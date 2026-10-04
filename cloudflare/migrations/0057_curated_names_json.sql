@@ -1,0 +1,13 @@
+-- KAN-474. `curated_poi` can hold a language map, like `overture_poi`.
+--
+-- A place has one name per language of its country. For a country with two
+-- native languages the second name lives in `names_json`, keyed by language
+-- — the shape `overture_poi` already has. `curated_poi` was the only served
+-- table without it, so a curated row in such a country could not have held
+-- its second name, and adding the column then would have meant a migration
+-- at exactly the wrong moment.
+--
+-- No row is required to carry one. Portugal has one language, so every
+-- curated row's single name stays in `name` with the native form, where we
+-- record one, in `name_local`.
+ALTER TABLE curated_poi ADD COLUMN names_json TEXT;

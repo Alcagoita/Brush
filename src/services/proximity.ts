@@ -803,7 +803,6 @@ async function runProximitySearch(
                 poiType,
                 name:   place.nameOriginal ?? place.name,
                 nameLocal: place.nameLocal,
-                nameEn: place.nameEn,
                 nameLocalLang: place.nameLocalLang,
                 names: place.names,
                 countryCode: place.countryCode,

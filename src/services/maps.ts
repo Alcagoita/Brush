@@ -42,7 +42,6 @@ export interface NearbyPlace {
   /** Original source label and explicitly tagged translations, retained for offline caching. */
   nameOriginal?: string;
   nameLocal?: string | null;
-  nameEn?: string | null;
   nameLocalLang?: string | null;
   names?: Record<string, string>;
   countryCode?: string | null;
@@ -483,7 +482,6 @@ async function searchNearbyPlacesCloudflare(
           name: p.name,
           nameOriginal: p.name,
           nameLocal: p.name_local,
-          nameEn: p.name_en,
           nameLocalLang: p.name_local_lang,
           names: p.names,
           countryCode: p.country_code,

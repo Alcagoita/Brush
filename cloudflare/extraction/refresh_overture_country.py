@@ -52,7 +52,7 @@ from classify_and_load import MAX_STATEMENT_BYTES, byte_len, encode_geohash, nor
 D1_ID_BATCH = 150
 MAX_VALUES_TERMS = 500
 # The source fields whose change means the served row must be refreshed.
-COMPARED_FIELDS = ('name', 'name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'category')
+COMPARED_FIELDS = ('name', 'name_local', 'name_local_lang', 'names_json', 'country_code', 'lat', 'lng', 'address', 'category')
 
 
 def archive_rows(csv_path):
@@ -71,7 +71,6 @@ def archive_rows(csv_path):
             out[overture_id] = {
                 'overture_id': overture_id, 'name': name,
                 'name_local': (row.get('name_local') or '').strip() or None,
-                'name_en': (row.get('name_en') or '').strip() or None,
                 'name_local_lang': (row.get('name_local_lang') or '').strip() or None,
                 'names_json': (row.get('names_json') or '').strip() or None,
                 'country_code': (row.get('country_code') or '').strip().upper() or None,
@@ -157,21 +156,16 @@ SERVED_REFRESH_PREFIX = (
     'UPDATE overture_poi SET name = v.name, '
     'name_local = CASE WHEN overture_poi.name_local_source IS NOT NULL '
     'THEN overture_poi.name_local ELSE NULLIF(v.name_local, \'\') END, '
-    # `name_local_source` records where name_LOCAL came from, so gating
-    # `name_en` on it would freeze the English variant of every reviewed row
-    # for good. Nothing here writes `name_en`, so the source still owns it —
-    # it is only protected from being blanked by an empty archive value.
-    'name_en = COALESCE(NULLIF(v.name_en, \'\'), overture_poi.name_en), '
     'name_local_lang = CASE WHEN overture_poi.name_local_source IS NOT NULL '
     'THEN overture_poi.name_local_lang ELSE NULLIF(v.name_local_lang, \'\') END, '
     'names_json = v.names_json, country_code = v.country_code, '
     'dedupe_name = v.dedupe_name, lat = v.lat, lng = v.lng, '
     'geohash = v.geohash, address = v.address, category = v.category, confidence = v.confidence, '
     'updated_at = v.updated_at FROM (SELECT column1 AS overture_id, column2 AS name, '
-    'column3 AS name_local, column4 AS name_en, column5 AS name_local_lang, '
-    'column6 AS names_json, column7 AS country_code, column8 AS dedupe_name, '
-    'column9 AS lat, column10 AS lng, column11 AS geohash, column12 AS address, column13 AS category, '
-    'column14 AS confidence, column15 AS updated_at FROM (VALUES '
+    'column3 AS name_local, column4 AS name_local_lang, '
+    'column5 AS names_json, column6 AS country_code, column7 AS dedupe_name, '
+    'column8 AS lat, column9 AS lng, column10 AS geohash, column11 AS address, column12 AS category, '
+    'column13 AS confidence, column14 AS updated_at FROM (VALUES '
 )
 SERVED_REFRESH_SUFFIX = ')) AS v WHERE overture_poi.overture_id = v.overture_id;\n'
 
@@ -181,7 +175,7 @@ def served_refresh_value(row, refreshed):
     confidence = row.get('confidence')
     return (
         f"({sql_escape(row['overture_id'])},{sql_escape(name)},"
-        f"{sql_escape(row.get('name_local'))},{sql_escape(row.get('name_en'))},"
+        f"{sql_escape(row.get('name_local'))},"
         f"{sql_escape(row.get('name_local_lang'))},"
         f"{sql_escape(row.get('names_json'))},{sql_escape(row.get('country_code'))},"
         f"{sql_escape(normalize_text(name) or name.strip().lower())},"

@@ -120,6 +120,9 @@ CREATE TABLE IF NOT EXISTS overture_poi (
   -- later release that lists the id again clears it.
   retired_in_release  TEXT,
   name_local          TEXT,
+  -- KAN-474. Dead: Overture carries no language variants, so this was NULL
+  -- on every row and read by nothing. No code path writes or selects it any
+  -- more; the column stays because cleanup means code paths, never data.
   name_en             TEXT,
   name_local_lang     TEXT,
   -- KAN-471 (0054). Where `name_local` came from: 'wikidata' with its QID,
@@ -162,6 +165,9 @@ CREATE TABLE IF NOT EXISTS overture_candidate (
   -- the retired set.
   last_seen_source_key TEXT,
   name_local TEXT,
+  -- KAN-474. Dead: Overture carries no language variants, so this was NULL
+  -- on every row and read by nothing. No code path writes or selects it any
+  -- more; the column stays because cleanup means code paths, never data.
   name_en TEXT,
   name_local_lang TEXT,
   names_json TEXT,
@@ -431,12 +437,20 @@ CREATE TABLE IF NOT EXISTS curated_poi (
   imported_at                TEXT,
   import_run_id              TEXT,
   name_local                 TEXT,
+  -- KAN-474. Dead: Overture carries no language variants, so this was NULL
+  -- on every row and read by nothing. No code path writes or selects it any
+  -- more; the column stays because cleanup means code paths, never data.
   name_en                    TEXT,
   name_local_lang            TEXT,
   -- KAN-471 (0055). `selectPoiName` resolves the user's per-country choice
   -- from the row's own country; without one a curated row takes the
   -- no-country branch and can never show a native name.
-  country_code               TEXT
+  country_code               TEXT,
+  -- KAN-474 (0057). The language map, for a country with two native
+  -- languages. `overture_poi` already has it; this was the only served
+  -- table without one. Declared after `country_code` because that is the
+  -- order the migrations add them in, and this file must match production.
+  names_json                 TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_curated_poi_geo ON curated_poi (geohash);
 CREATE INDEX IF NOT EXISTS idx_curated_poi_name ON curated_poi (dedupe_name);

@@ -20,6 +20,7 @@ import {
   checkpointOvertureCountrySource, completeOvertureCountryImport, failOvertureCountryImport,
   leaseOvertureRepromote, overtureCountryImportStatus, queueOvertureCountryImport, recordOvertureRepromote, releaseOvertureRepromote,
 } from './overtureCountryImport';
+import COUNTRY_LANGUAGES from './countryLanguages.json';
 import brandDictionary from '../../src/constants/brandDictionary.json';
 import financialServiceKindDictionary from '../../src/constants/financialServiceKindDictionary.json';
 
@@ -1231,7 +1232,7 @@ type NearbyPoi = {
    */
   poi_id: string;
   name: string; lat: number; lng: number;
-  name_local?: string | null; name_en?: string | null; name_local_lang?: string | null;
+  name_local?: string | null; name_local_lang?: string | null;
   names?: Record<string, string>; country_code?: string | null;
   primary_poi_type: string; brand: string | null;
   category_label: string | null; address: string | null;
@@ -1385,7 +1386,7 @@ async function queryNearbyPoiDb(
       // Face, adidas, Triumph, Farmacia). Without the join those duplicates
       // ship, and a shop shown twice in Nearby is the failure users notice.
       `SELECT overture_poi.overture_id, overture_poi.dedupe_name, overture_poi.name,
-            overture_poi.name_local, overture_poi.name_en, overture_poi.name_local_lang,
+            overture_poi.name_local, overture_poi.name_local_lang,
             overture_poi.names_json, overture_poi.country_code,
             overture_poi.lat, overture_poi.lng, overture_poi.primary_poi_type,
             overture_poi.brand, overture_poi.address, overture_poi.floor,
@@ -1406,7 +1407,7 @@ async function queryNearbyPoiDb(
        AND (${geohashClauses.join(' OR ')}) AND (${poiRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...poiRequestBinds).all<{
       overture_id: string; dedupe_name: string; name: string; name_local: string | null;
-      name_en: string | null; name_local_lang: string | null; names_json: string | null;
+      name_local_lang: string | null; names_json: string | null;
       country_code: string | null; lat: number; lng: number;
       primary_poi_type: string; brand: string | null;
       address: string | null; floor: string | null;
@@ -1417,8 +1418,8 @@ async function queryNearbyPoiDb(
     }>(),
     db.prepare(
       `SELECT curated_poi.poi_id, curated_poi.dedupe_name, curated_poi.name,
-            curated_poi.name_local, curated_poi.name_en, curated_poi.name_local_lang,
-            curated_poi.country_code,
+            curated_poi.name_local, curated_poi.name_local_lang,
+            curated_poi.names_json, curated_poi.country_code,
             curated_poi.lat, curated_poi.lng,
             curated_poi.primary_poi_type, curated_poi.brand, curated_poi.address, curated_poi.floor,
             curated_poi_attribute.dimension AS attribute_dimension, curated_poi_attribute.value AS attribute_value
@@ -1430,8 +1431,8 @@ async function queryNearbyPoiDb(
        AND (${curatedRequestClauses.join(' OR ')})`,
     ).bind(...prefixes.flatMap(prefix => [prefix, `${prefix}~`]), ...curatedRequestBinds).all<{
       poi_id: string; dedupe_name: string; name: string; name_local: string | null;
-      name_en: string | null; name_local_lang: string | null; country_code: string | null;
-      lat: number; lng: number;
+      name_local_lang: string | null; names_json: string | null;
+      country_code: string | null; lat: number; lng: number;
       primary_poi_type: string; brand: string | null; address: string | null; floor: string | null;
       attribute_dimension: string | null; attribute_value: string | null;
     }>(),
@@ -1467,7 +1468,6 @@ async function queryNearbyPoiDb(
         poi_id: row.overture_id,
         name: row.correction_name_override ?? row.name, lat: row.lat, lng: row.lng,
         name_local: row.correction_name_override ? null : row.name_local,
-        name_en: row.correction_name_override ? null : row.name_en,
         name_local_lang: row.correction_name_override ? null : row.name_local_lang,
         names: row.correction_name_override ? {} : parseSourceNames(row.names_json),
         country_code: row.country_code,
@@ -1507,8 +1507,8 @@ async function queryNearbyPoiDb(
     } else {
       candidates.set(candidateKey, {
         poi_id: row.poi_id, name: row.name, lat: row.lat, lng: row.lng,
-        name_local: row.name_local, name_en: row.name_en, name_local_lang: row.name_local_lang,
-        country_code: row.country_code,
+        name_local: row.name_local, name_local_lang: row.name_local_lang,
+        names: parseSourceNames(row.names_json), country_code: row.country_code,
         primary_poi_type: row.primary_poi_type, brand: row.brand, category_label: null,
         // Community rows do not carry curated hours yet: NULL keeps KAN-318's
         // safe always-open behaviour rather than hiding an approved POI.
@@ -1574,10 +1574,10 @@ async function queryNearbyPoiDb(
       .flatMap(source => bySource.get(source) ?? []);
     if (suppressors.some(primary => {
       if (haversineMeters(primary.lat, primary.lng, candidate.lat, candidate.lng) > MANUAL_POI_DUPLICATE_DISTANCE_METERS) return false;
-      const names = new Set([candidate.dedupeName, candidate.name_local, candidate.name_en]
+      const names = new Set([candidate.dedupeName, candidate.name_local]
         .concat(Object.values(candidate.names ?? {}))
         .filter((name): name is string => !!name).map(normalizePoiName));
-      return [primary.dedupeName, primary.name_local, primary.name_en, ...Object.values(primary.names ?? {})]
+      return [primary.dedupeName, primary.name_local, ...Object.values(primary.names ?? {})]
         .filter((name): name is string => !!name).some(name => names.has(normalizePoiName(name)));
     })) {
       candidates.delete(key);
@@ -1600,7 +1600,6 @@ async function queryNearbyPoiDb(
       // Keep missing translations NULL in D1; the API falls back to the
       // source name when there is no separate local-language name.
       name_local: candidate.name_local?.trim() || candidate.name,
-      name_en: candidate.name_en?.trim() || candidate.name,
       name_local_lang: candidate.name_local_lang ?? null,
       names: candidate.names ?? {}, country_code: candidate.country_code ?? null,
       primary_poi_type: candidate.primary_poi_type, brand: candidate.brand,
@@ -1719,6 +1718,18 @@ const OSM_SCOPE_ERROR_CLASSES = new Set<OsmScopeErrorClass>([
  * is the one list a new country is added to. A code outside it is a 400,
  * never a silent PT.
  */
+/**
+ * KAN-474. A country's native languages, which decide the place-name choices
+ * the app offers: one language gives two choices (the country's name, or the
+ * source's), two or more give one per language. A country absent from the
+ * config has none recorded, and the app falls back to the source name.
+ */
+export function countryLanguages(countryCode: string | null | undefined): string[] {
+  if (!countryCode) return [];
+  const entry = (COUNTRY_LANGUAGES as Record<string, unknown>)[countryCode.toUpperCase()];
+  return Array.isArray(entry) ? entry.filter((code): code is string => typeof code === 'string') : [];
+}
+
 export const SUPPORTED_OVERTURE_COUNTRIES = ['PT'] as const;
 export type OvertureCountry = typeof SUPPORTED_OVERTURE_COUNTRIES[number];
 
@@ -3271,8 +3282,8 @@ export default {
     const caller = await authenticate(request, env);
     if (caller instanceof Response) return caller;
 
-    // Settings-only lookup: the import records which source language keys
-    // actually occur in a country's Overture archive. No POI search is run.
+    // Settings-only lookup: the country's own native languages, which decide
+    // the place-name choices the app offers. No POI search is run.
     if (url.pathname === '/poi/name-languages' && request.method === 'GET') {
       const limited = await enforceUserRateLimit(caller, env.POI_RATE_LIMITER, 'poiAll');
       if (limited) return limited;
@@ -3289,15 +3300,13 @@ export default {
         countryCode = (await findPlace(env, lat, lng))?.country_code ?? null;
       }
       if (!countryCode || !/^[A-Z]{2}$/.test(countryCode)) return json({ countryCode: null, languages: [] });
-      const row = await env.REGISTRY_DB.prepare(
-        "SELECT name_languages_json FROM overture_country_import WHERE country_code = ? AND status = 'mapped'",
-      ).bind(countryCode).first<{ name_languages_json: string | null }>();
-      let languages: string[] = [];
-      try {
-        const parsed: unknown = JSON.parse(row?.name_languages_json ?? '[]');
-        if (Array.isArray(parsed)) languages = parsed.filter(value => typeof value === 'string');
-      } catch { /* An older or partial import has no manifest. */ }
-      return json({ countryCode, languages });
+      // KAN-474. The country's own languages, from a committed config.
+      // This used to read `overture_country_import.name_languages_json`,
+      // scanned out of the Overture archive — and Overture supplies no
+      // language variants at all, so that list was NULL and always would
+      // be. A country's languages are a fact about the country, not about
+      // what a data release happened to carry.
+      return json({ countryCode, languages: countryLanguages(countryCode) });
     }
 
     // GET /poi/nearby?lat=&lng=&radius=&types=cafe,pharmacy&limitPerType=20

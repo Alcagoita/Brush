@@ -9,7 +9,7 @@ import { encodeGeohash } from '../geohash';
 const { mockStart } = vi.hoisted(() => ({ mockStart: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('@cloudflare/containers', () => ({ getContainer: () => ({ start: mockStart }), Container: class {} }));
 
-import worker, { SUPPORTED_OVERTURE_COUNTRIES, overtureCountry, type Env } from '../index';
+import worker, { SUPPORTED_OVERTURE_COUNTRIES, countryLanguages, overtureCountry, type Env } from '../index';
 
 /**
  * KAN-456 — an Overture refresh. Re-queuing a mapped country keeps the
@@ -140,5 +140,37 @@ describe('a retired Overture row', () => {
     expect(response.status).toBe(200);
     const body = await response.json() as { results: Record<string, Array<{ poi_id: string }>> };
     expect(body.results.pharmacy.map(poi => poi.poi_id)).toEqual(['open']);
+  });
+});
+
+describe('KAN-474 — the place-name choices a country offers', () => {
+  it('comes from the committed config, not from the Overture archive', () => {
+    expect(countryLanguages('PT')).toEqual(['pt']);
+    expect(countryLanguages('pt')).toEqual(['pt']);
+  });
+
+  it('a country we do not serve has none recorded', () => {
+    expect(countryLanguages('CA')).toEqual([]);
+    expect(countryLanguages(null)).toEqual([]);
+    expect(countryLanguages(undefined)).toEqual([]);
+  });
+
+  it('the endpoint answers from the config even though the import records nothing', async () => {
+    const db = schemaDb();
+    mapped(db);
+    // `name_languages_json` is NULL and always will be: Overture supplies no
+    // language variants at all. The answer must not depend on it.
+    const response = await worker.fetch(new Request('https://poi-api.test/poi/name-languages?countryCode=PT', {
+      headers: { 'X-Api-Key': 'test-key' },
+    }), envFor(db), CTX);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ countryCode: 'PT', languages: ['pt'] });
+  });
+
+  it('a country with no config entry still answers, with nothing to choose from', async () => {
+    const response = await worker.fetch(new Request('https://poi-api.test/poi/name-languages?countryCode=DE', {
+      headers: { 'X-Api-Key': 'test-key' },
+    }), envFor(schemaDb()), CTX);
+    expect(await response.json()).toEqual({ countryCode: 'DE', languages: [] });
   });
 });

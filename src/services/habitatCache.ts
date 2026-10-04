@@ -293,7 +293,11 @@ function getDb(): SQLite.SQLiteDatabase {
     if (!existingColumns.has('brand')) {
       database.execSync('ALTER TABLE habitat_places ADD COLUMN brand TEXT');
     }
-    for (const column of ['name_local', 'name_en', 'name_local_lang', 'names_json', 'country_code']) {
+    // KAN-474: `name_en` is gone from this list. Nothing writes or reads it
+    // any more, and a device that already added it keeps it, unused, until
+    // the cache is rebuilt — dropping a nullable column nobody touches would
+    // be a device migration for no gain.
+    for (const column of ['name_local', 'name_local_lang', 'names_json', 'country_code']) {
       if (!existingColumns.has(column)) {
         database.execSync(`ALTER TABLE habitat_places ADD COLUMN ${column} TEXT`);
       }
@@ -316,7 +320,6 @@ export interface HabitatRow {
   poi_type: string;
   name: string;
   name_local: string | null;
-  name_en: string | null;
   name_local_lang: string | null;
   names_json: string | null;
   country_code: string | null;
@@ -372,7 +375,6 @@ export interface PlaceCandidate {
   poiType: string;
   name: string;
   nameLocal?: string | null;
-  nameEn?: string | null;
   nameLocalLang?: string | null;
   names?: Record<string, string>;
   countryCode?: string | null;
@@ -568,7 +570,6 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
            financial_service_kinds = COALESCE(?, financial_service_kinds),
            brand                = COALESCE(?, brand),
            name_local           = COALESCE(?, name_local),
-           name_en              = COALESCE(?, name_en),
            name_local_lang      = COALESCE(?, name_local_lang),
            names_json           = COALESCE(?, names_json),
            country_code         = COALESCE(?, country_code),
@@ -596,7 +597,6 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
         financialServiceKinds,
         candidate.brand ?? null,
         candidate.nameLocal ?? null,
-        candidate.nameEn ?? null,
         candidate.nameLocalLang ?? null,
         serializePlaceNames(candidate.names),
         candidate.countryCode ?? null,
@@ -622,9 +622,9 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
     : null;
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, name_local, name_en, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [id, candidate.poiType, candidate.name, candidate.nameLocal ?? null, candidate.nameEn ?? null,
+       (id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [id, candidate.poiType, candidate.name, candidate.nameLocal ?? null,
       candidate.nameLocalLang ?? null, serializePlaceNames(candidate.names),
       candidate.countryCode ?? null, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
@@ -712,7 +712,6 @@ export function recordLiveResult(candidate: {
   poiType: string;
   name: string;
   nameLocal?: string | null;
-  nameEn?: string | null;
   nameLocalLang?: string | null;
   names?: Record<string, string>;
   countryCode?: string | null;
@@ -730,7 +729,6 @@ export function recordLiveResult(candidate: {
     poiType: candidate.poiType,
     name:    candidate.name,
     nameLocal: candidate.nameLocal,
-    nameEn: candidate.nameEn,
     nameLocalLang: candidate.nameLocalLang,
     names: candidate.names,
     countryCode: candidate.countryCode,
@@ -791,7 +789,6 @@ export function queryHabitatCache(
         name:    row.name,
         nameOriginal: row.name,
         nameLocal: row.name_local,
-        nameEn: row.name_en,
         nameLocalLang: row.name_local_lang,
         names: parsePlaceNames(row.names_json),
         countryCode: row.country_code,
@@ -846,7 +843,6 @@ export function getHabitatPlaceById(id: string): NearbyPlace | null {
       name: row.name,
       nameOriginal: row.name,
       nameLocal: row.name_local,
-      nameEn: row.name_en,
       nameLocalLang: row.name_local_lang,
       names: parsePlaceNames(row.names_json),
       countryCode: row.country_code,
@@ -1118,7 +1114,6 @@ export async function refreshHabitatCacheIfStale(
           poiType,
           name:            place.nameOriginal ?? place.name,
           nameLocal:       place.nameLocal,
-          nameEn:          place.nameEn,
           nameLocalLang:   place.nameLocalLang,
           names:           place.names,
           countryCode:     place.countryCode,

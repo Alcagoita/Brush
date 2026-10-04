@@ -53,7 +53,6 @@ interface MockHabitatRow {
   poi_type: string;
   name: string;
   name_local?: string | null;
-  name_en?: string | null;
   name_local_lang?: string | null;
   names_json?: string | null;
   country_code?: string | null;
@@ -126,7 +125,7 @@ const mockDb = {
         { name: 'overture_id' }, { name: 'brush_id' },
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
         { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' }, { name: 'financial_service_kinds' },
-        { name: 'area_name' }, { name: 'brand' }, { name: 'name_local' }, { name: 'name_en' }, { name: 'name_local_lang' },
+        { name: 'area_name' }, { name: 'brand' }, { name: 'name_local' }, { name: 'name_local_lang' },
         { name: 'names_json' }, { name: 'country_code' },
       ] as unknown as T[];
     }
@@ -211,22 +210,22 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, name_local, name_en, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] = params as any[];
-      rows.push({ id, poi_type, name, name_local, name_en, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
+      const [id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] = params as any[];
+      rows.push({ id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
         footprintAreaM2, website,
-        restaurantFoodType, storeSubtype, financialServiceKinds, brand, nameLocal, nameEn, nameLocalLang, namesJson, countryCode,
+        restaurantFoodType, storeSubtype, financialServiceKinds, brand, nameLocal, nameLocalLang, namesJson, countryCode,
         areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
         number | null, string | null,
-        string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null,
+        string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null,
         string | null,
         string | null, number | null, number | null, number | null,
         number, string,
@@ -252,7 +251,6 @@ const mockDb = {
         row.financial_service_kinds = financialServiceKinds ?? row.financial_service_kinds ?? null;
         row.brand = brand ?? row.brand ?? null;
         row.name_local = nameLocal ?? row.name_local ?? null;
-        row.name_en = nameEn ?? row.name_en ?? null;
         row.name_local_lang = nameLocalLang ?? row.name_local_lang ?? null;
         row.names_json = namesJson ?? row.names_json ?? null;
         row.country_code = countryCode ?? row.country_code ?? null;
@@ -702,13 +700,13 @@ describe('getHabitatPlaceById', () => {
 describe('queryHabitatCache', () => {
   beforeEach(() => setPlaceNameChoices({}));
   it('retains source names through an offline cache read', () => {
-    upsertPlace({ poiType: 'store', name: 'Livraria', nameLocal: 'Livraria', nameEn: 'Bookshop',
+    upsertPlace({ poiType: 'store', name: 'Livraria', nameLocal: 'Livraria',
       nameLocalLang: 'pt', names: { pt: 'Livraria', en: 'Bookshop' }, countryCode: 'PT',
       lat: 0.0003, lng: 0, source: { overture: 'gers-bookshop' } });
 
     expect(queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['store'], 500).store[0]).toEqual(
       expect.objectContaining({ name: 'Livraria', nameOriginal: 'Livraria',
-        nameLocal: 'Livraria', nameEn: 'Bookshop', nameLocalLang: 'pt' }),
+        nameLocal: 'Livraria', nameLocalLang: 'pt' }),
     );
     setPlaceNameChoices({ PT: 'en' });
     expect(displayPlaceName(queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['store'], 500).store[0])).toBe('Bookshop');

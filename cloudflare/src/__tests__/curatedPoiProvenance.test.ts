@@ -111,6 +111,7 @@ describe('migration 0042 — curated_poi provenance', () => {
     // Overture tables for 0049, and 0055 needs the table to exist.
     db.exec('ALTER TABLE curated_poi ADD COLUMN name_local TEXT; ALTER TABLE curated_poi ADD COLUMN name_en TEXT; ALTER TABLE curated_poi ADD COLUMN name_local_lang TEXT;');
     db.exec(readFileSync(join(ROOT, 'migrations', '0055_curated_country_code.sql'), 'utf8'));
+    db.exec(readFileSync(join(ROOT, 'migrations', '0057_curated_names_json.sql'), 'utf8'));
     const columns = (database: DatabaseSync) =>
       (database.prepare('PRAGMA table_info(curated_poi)').all() as Array<{ name: string }>).map(column => column.name);
     expect(columns(db)).toEqual(columns(schemaDb()));
