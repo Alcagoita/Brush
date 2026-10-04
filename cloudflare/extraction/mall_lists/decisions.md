@@ -118,19 +118,36 @@ with one exception worth stating: **14 are only `Serviços`**, which types
 nothing on its own (a barber, a car wash, a currency exchange and a key
 cutter all carry it). Those need the name read individually.
 
-### Two consequences, both real
+### A shopping centre is never updated automatically
 
-1. **A later Overture release can make a visible duplicate.** Nearby
-   suppresses across sources only within 20 m (`index.ts`,
-   `MANUAL_POI_DUPLICATE_DISTANCE_METERS`), and a curated row at the centroid
-   sits 100–200 m from the unit Overture would eventually carry. Both would
-   ship, and the user sees the shop twice. Adding these rows therefore owes a
-   suppression rule scoped to the mall footprint and matched on name, not on
-   20 m.
-2. **All 97 share one point**, so a user passing within `NEARBY_RADIUS`
-   (400 m) can have the whole centre appear in "also close" at once. Inside
-   the mall that is right — everything is at your feet. Outside it is a lot
-   of rows from one building.
+Ruled by the owner 2026-10-04, after the duplicate risk above was raised:
+**a shopping centre's contents are manual-only.** No import, promotion or
+refresh may add to, change or retire anything inside a mall footprint.
+
+This is deliberately stronger than suppressing the duplicate at query time.
+The duplicate was a symptom: an automated source writing into a building we
+maintain by hand will always eventually disagree with the operator's own
+list, and the operator is the authority. Removing the writer removes the
+whole class of failure. "This will always fail" — owner.
+
+What it requires, and what is not built yet:
+
+* a registry of mall footprints, so "inside a mall" is a thing code can test;
+* a guard in `promote_overture_candidates` and `refresh_overture_country`
+  that skips any candidate falling inside one.
+
+Until that guard exists, the next Overture refresh will walk into these
+buildings. It is part of KAN-439.
+
+### Many POIs at one point is the intended behaviour
+
+Every unplaceable tenant sits on the centre's single coordinate, so a user
+within `NEARBY_RADIUS` can see dozens of places from one building at once.
+
+**That is wanted, not a bug** (owner, 2026-10-04): "if the user is near 50
+POI, that's because he's close to the Shopping. That is precisely what we
+want." A mall is handled differently from everywhere else. Do not add a cap,
+a collapse-into-one-card, or a rule hiding tenants until the user is inside.
 
 ## Door-pinned duplicates — the rule, and both halves of it
 
