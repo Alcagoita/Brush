@@ -1,5 +1,5 @@
 
-===== UBBO — 245 tenants on the operator list =====
+===== UBBO — 246 tenants on the operator list =====
 
   held and confidently matched : 117
   ESCALATE (a person decides)  : 37
@@ -225,3 +225,30 @@
     UCI Dolce Vita Tejo  [movie_theater]
     Vestopazzo CC Dolcevita Tejo Ubbo  [store]
     Wallstreet Cafe  [cafe]
+
+===== UBBO — door-pinned duplicates, double confirmed =====
+
+  BOTH halves (removable)   : 2
+  one half only (left alone): 11
+
+  Bershka  [Microsoft]  08706da4-2674-466e-820c-cb47f09c015b
+     at door 38.775290,-9.220240 shared with 1 other row(s)
+     address  'AVENIDA CRUZEIRO SEIXAS 5'
+     twin     Bershka [Foursquare] 38.776258,-9.218830 'Av. cruzeiro seixas 5'
+  Oysho  [Microsoft]  2d35b428-f4a8-4e5a-b076-68402eae30e5
+     at door 38.775290,-9.220240 shared with 1 other row(s)
+     address  'Avenida Cruzeiro Seixas 5'
+     twin     Oysho [Foursquare] 38.776436,-9.220108 'C. C. UBBO, Loja 1.103-1.105'
+
+  --- one half only: NOT removable ---
+  Cacifo Locky                           [Microsoft   ] at a door, no twin
+  Amadora - Leroy Merlin                 [AllThePlaces] twin, not at a door
+  Wallstreet Cafe                        [meta        ] at a door, no twin
+  Quiosque Sical                         [meta        ] at a door, no twin
+  Flying Tiger Copenhagen                [Microsoft   ] at a door, no twin
+  Welder                                 [meta        ] at a door, no twin
+  Oysho                                  [Foursquare  ] twin, not at a door
+  New Yorker                             [Microsoft   ] at a door, no twin
+  Mayoral - Loja de Roupa Infantil e Beb [Microsoft   ] at a door, no twin
+  Leroy Merlin                           [meta        ] twin, not at a door
+  Bershka                                [Foursquare  ] twin, not at a door

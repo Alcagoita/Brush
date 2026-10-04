@@ -70,6 +70,58 @@ drop a real place — the type gets added.
   answer.
 * `copy_shop` — Centro de Cópias (Strada).
 
+## UBBO, ruled 2026-10-04
+
+Scoped to UBBO. The owner was explicit that these answer **this** centre and
+establish no rule elsewhere.
+
+* **Three Mango units — `Mango`, `Mango Man`, `Mango Teen` — are all valid
+  and all three stay.** This is not the "one shop, two doors" entry above
+  being reused: UBBO genuinely has three. Do not generalise it to another
+  mall, and do not read the brand-family entries above as applying here.
+* **`Snipes` twice, both real** — two units on the same floor at different
+  coordinates, so the list carries two entries and both rows are valid.
+* **`Merrell | CAT`** carries a literal pipe, which is the list format's
+  separator. Written `Merrell CAT`; either spelling is acceptable (owner).
+* **`Encerrada temporariamente`** — `Flying Tiger Copenhagen`, `Levi's` and
+  `Valores` are **valid stores, temporarily closed**. They stay, and they are
+  matched like any other unit. This is unlike `ABRE BREVEMENTE` below: a shop
+  that has not opened does not exist yet, while a shop that is shut for now
+  does.
+* **`VitaFlores` is not `Valores`** — the matcher paired them at 0.82.
+
+## Door-pinned duplicates — the rule, and both halves of it
+
+Overture is a conflation of meta, Microsoft, Foursquare and AllThePlaces, and
+its matcher does not always merge them, so inside a mall we can hold one shop
+twice: once at the centre's street door, once at the real unit.
+
+**A row may be removed only on DOUBLE confirmation** (owner, 2026-10-04):
+
+1. the **same shop name** is held in the same footprint by a **different**
+   upstream dataset, and
+2. the row sits on a **door coordinate** — shared with at least one other row
+   — while carrying the street address rather than a unit.
+
+**One half is never enough, because losing a real shop cannot be undone.**
+The coordinate on its own is not the test: every provider pins tenants to the
+door, so a shared coordinate usually holds *different* shops. Measured
+2026-10-04 — Amoreiras 38.723600,-9.163390 holds `Oysho`, `Bershka` and
+`Zara`; Ubbo 38.779233,-9.219706 holds `Cacifo Locky`, `Flying Tiger`,
+`New Yorker` and `Mayoral`; Amoreiras 38.725420,-9.163010 holds three
+hairdressers. Every one of those is the only record we hold of that shop.
+
+`mall_door_duplicates.py` applies both halves and prints what matched only
+one, so what was left alone is visible rather than assumed.
+
+Applied at UBBO: `Bershka` `08706da4` and `Oysho` `2d35b428`, both the
+Microsoft copy at the door, both with a Foursquare twin at the unit.
+
+Still needing an individual ruling: **`Leroy Merlin`** / **`Amadora - Leroy
+Merlin`** — a real pair, neither at a door, so which is right cannot be
+decided mechanically. (`LEROY MERLIN` → `AKI` above is Colombo's rebrand and
+does not answer this.)
+
 ## Reading the operator's pages
 
 * **`Encerrado`** means closed RIGHT NOW — opening hours. It appears against

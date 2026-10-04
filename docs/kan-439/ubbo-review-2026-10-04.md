@@ -73,64 +73,57 @@ inside a Continente is a concession, not a unit. Here OSM has one `chemist`,
 and the operator lists `Wells` once under *Perfumaria e Cosmética, Saúde e
 Bem-Estar*. Reads as one unit, but it is the owner's call.
 
-## Decisions needed
+## Owner rulings, 2026-10-04 — applied
 
-### 1. The two Microsoft duplicates (still open from before the list arrived)
+All recorded in `mall_lists/decisions.md`, scoped to UBBO.
 
-| row | id | source | twin |
+* **`Encerrada temporariamente` units are valid stores, temporarily closed.**
+  `Flying Tiger Copenhagen`, `Levi's` and `Valores` stay and are matched like
+  any other unit. Unlike `ABRE BREVEMENTE`: a shop not yet open does not
+  exist, a shop shut for now does.
+* **`Snipes` twice is two real units** — same floor, different coordinates.
+  The list now carries two entries (246 tenants).
+* **Three Mango units — `Mango`, `Mango Man`, `Mango Teen` — all valid.**
+  Explicitly scoped to UBBO: this is not the brand-family entry from another
+  mall being reused, and it establishes no rule elsewhere.
+* **`Merrell | CAT`** — either spelling accepted; kept as `Merrell CAT`
+  because the pipe is the format's separator.
+
+## The duplicate rule, both halves
+
+The rule was mine to get wrong, not the owner's: **same store name, at the
+entrance-door coordinate** — both halves, always, because losing a store
+cannot be undone. Implemented in `mall_door_duplicates.py`, which requires:
+
+1. a name twin in the same footprint from a **different** upstream dataset, and
+2. a **door coordinate** — shared with another row — with the street address
+   rather than a unit.
+
+Run on UBBO: **2 removable, 11 matched one half and were left alone**, and the
+report names all 11 so what was spared is visible rather than assumed. Both
+Foursquare twins appear in that list, correctly — they carry the unit.
+
+| removable | id | at | twin |
 |---|---|---|---|
-| `Bershka` | `08706da4` | Microsoft, mall door | Foursquare, 160 m, real unit |
-| `Oysho` | `2d35b428` | Microsoft, mall door | Foursquare, `Loja 1.103-1.105` |
+| `Bershka` [Microsoft] | `08706da4` | door 38.775290, −9.220240 | Foursquare 38.776258, −9.218830 |
+| `Oysho` [Microsoft] | `2d35b428` | same door | Foursquare, `Loja 1.103-1.105` |
 
-Both tenants appear once on the operator list, so the list confirms one unit
-each. Proposal unchanged: tombstone the Microsoft copy through
-`poi_source_correction` with `visible = 0` (KAN-452), which stops serving and
-keeps the row for audit. **Not the coordinate rule** — see the finding below.
+The operator's list carries one Bershka and one Oysho, which is the third
+independent agreement. Migration `0058` tombstones both through
+`poi_source_correction` (`visible = 0`), so nothing is deleted and the
+removal is reversible. **Not yet applied to production.**
 
-### 2. Three units the operator marks *Encerrada temporariamente*
+Still needing an individual ruling: **`Leroy Merlin`** / **`Amadora - Leroy
+Merlin`** — a real pair, neither at a door, so which is right cannot be
+decided mechanically.
 
-`Flying Tiger Copenhagen`, `Levi's`, `Valores`. decisions.md rules on
-`Encerrado` (opening hours, means nothing) and `ABRE BREVEMENTE` (not open
-yet, do not add) but not on this. A temporarily closed unit exists and will
-reopen, so they are kept in the list with clean names — but it wants a ruling,
-and it is the first time the case has come up.
-
-We already hold `Flying Tiger Copenhagen`; `Levi's` is in OSM at level 1;
-`Valores` is only on the list, and the matcher paired held `VitaFlores`
-against it at 0.82, which is almost certainly false.
-
-### 3. `Snipes` is listed twice
-
-Twice in the supplied list, with different categories (`Desporto, Sapataria`
-and `Desporto, Moda Feminina, Moda Infantil, Sapataria`). Written **once**.
-If Ubbo really has two Snipes units, it is the `BOTA MINUTO` case from
-decisions.md and the second entry should come back — but adding two rows with
-one name on a guess is the duplicate the ticket exists to prevent.
-
-### 4. `Merrell | CAT` carries a literal pipe
-
-The pipe is the list format's separator, so it is written `Merrell CAT`.
-decisions.md already rules `MERREL CATERPILLER` = `Merrell` at Colombo.
-
-### 5. Rulings that exist but are scoped to another mall
-
-decisions.md entries are per-mall, so these re-escalated here:
-
-* `H3` (listed) vs held `H3 Hambúrguer Gourmet` — ruled the same shop at
-  Strada; appears in UBBO's REMOVE list.
-* `Mango` / `Mango Teen`, `Intimissimi` / `IUMAN Intimissimi Uomo` — ruled
-  "one shop, two doors, both rows valid" at other malls.
-
-Worth deciding whether a confirmed pair should be mall-scoped at all, or
-whether brand-family rulings are global.
-
-### 6. Escalations that are plainly false, for the record
+## Escalations that are plainly false, for the record
 
 `The Body Shop` vs `Oysho` · `AMADORA SC UBBO` vs `Pandora` · `Welder` vs
 `Celeiro` · `PeSSoaS` vs `Nespresso` · `Euromúsica` vs `Euro Sofás` ·
-`Western Union` vs `Mister Minit` (already ruled not-a-match in
-decisions.md) · `Tejo Fan Park` vs `Pet's Park` · `Claire's` vs
-`Carpet Store`.
+`Western Union` vs `Mister Minit` (already ruled not-a-match) · `Tejo Fan
+Park` vs `Pet's Park` · `Claire's` vs `Carpet Store` · `VitaFlores` vs
+`Valores`.
 
 The full 37 are in `ubbo-comparison-2026-10-04.txt`.
 
