@@ -149,6 +149,24 @@ POI, that's because he's close to the Shopping. That is precisely what we
 want." A mall is handled differently from everywhere else. Do not add a cap,
 a collapse-into-one-card, or a rule hiding tenants until the user is inside.
 
+## A van desk inside a store is not a place
+
+Ruled 2026-10-04: the `car_rental` rows named after hardware stores are **the
+van-hire desks those stores run so customers can get purchases home** — "we
+don't need that in our app, that's not a valid action. We just need to have
+the store, with the correct type" (owner).
+
+So a `Leroy Merlin` / `AKI` / `IKEA` / `Bricot Depot` row typed `car_rental`
+is never served as car rental. **But it is usually not a removal either:**
+measured nationally, only 6 of the 42 have the host store held separately
+nearby. The other **36 are the only row we hold for that store**, so they are
+retyped, not withdrawn — and three of them have coordinates in the wrong town,
+so each needs its position confirmed first.
+
+That is KAN-478. Inside a mall, do not act on such a row here: UBBO's
+`Amadora - Leroy Merlin` is one of the 36 and `Alfragide-Leroy Merlin` is one
+of the mislocated ones.
+
 ## Door-pinned duplicates — the rule, and both halves of it
 
 Overture is a conflation of meta, Microsoft, Foursquare and AllThePlaces, and
