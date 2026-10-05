@@ -20,6 +20,24 @@ The matcher scored these below its confident bar. They are the same shop.
 | `PANS & COMPANY` | `Pans and Company` | both |
 | `XIAOMI STORE PORTUGAL` | `Mi Store Portugal` | Colombo — renamed |
 | `LEROY MERLIN` | `AKI` | Colombo — rebrand, renamed |
+
+Two Portuguese rebrands, confirmed by the owner 2026-10-05. **The retired name
+is the one that goes**, and the direction matters:
+
+* **`Jumbo` is `Auchan`** — Jumbo was the hypermarket's name before the rebrand.
+* **`AKI` is now `Leroy Merlin`** — note the direction. The row above reads the
+  other way round because Colombo's operator listed `LEROY MERLIN` against a
+  row we held as `AKI`; the surviving brand is Leroy Merlin either way.
+
+Neither is a rule a matcher can apply on its own, because the names share
+nothing — a rebrand is a fact about the world, not a string similarity. Both
+are national: 36 rows carry `Jumbo` and 44 carry `AKI`, measured 2026-10-05.
+See KAN-479.
+
+**`Jumbo` in a name is not always the hypermarket.** Five rows reference it
+without being one — `Jumbo Cascais` is a bar, `Restaurante Chinês Jumbo` a
+restaurant, `Box Jumbo` and `Quiq+, Jumbo Aveiro` are shops named after the
+store they sit beside. None may be touched by a brand sweep.
 | `H3` | `H3 Hambúrguer Gourmet` | Strada — too short for the containment rule |
 
 ## Confirmed NOT matches — different businesses

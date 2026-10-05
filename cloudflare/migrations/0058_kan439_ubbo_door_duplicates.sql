@@ -24,6 +24,16 @@
 -- left alone — they have no twin and are the only record we hold of those
 -- shops (see decisions.md).
 --
+-- A third row, found by a different rule. `Jumbo na Amadora` and `Auchan` are
+-- the same hypermarket: Jumbo is what Auchan was called in Portugal before the
+-- rebrand (owner, 2026-10-05). Two `meta` rows, both `supermarket`, 93 m apart,
+-- one inside the outline and one 39 m outside it. The door rule cannot catch
+-- this one — the names differ, so there is no name twin — which is why a
+-- rebrand is a separate ruling and not a rule.
+--
+--   2b750d22-…  `Jumbo na Amadora` 38.778959,-9.219683. The retired brand is
+--               withdrawn and `Auchan` (aa050475-…, inside the centre) is kept.
+--
 -- `INSERT OR IGNORE`, so a re-run changes nothing.
 INSERT OR IGNORE INTO poi_source_correction
   (source, source_id, visible, review_note, created_at)
@@ -31,4 +41,6 @@ VALUES
   ('overture', '08706da4-2674-466e-820c-cb47f09c015b', 0,
    'KAN-439: Microsoft copy pinned to the UBBO door; Foursquare twin holds the unit; owner rule 2026-10-04', '2026-10-04'),
   ('overture', '2d35b428-f4a8-4e5a-b076-68402eae30e5', 0,
-   'KAN-439: Microsoft copy pinned to the UBBO door; Foursquare twin holds the unit; owner rule 2026-10-04', '2026-10-04');
+   'KAN-439: Microsoft copy pinned to the UBBO door; Foursquare twin holds the unit; owner rule 2026-10-04', '2026-10-04'),
+  ('overture', '2b750d22-b929-4683-b962-70b1c27039a0', 0,
+   'KAN-439: Jumbo is Auchan before the rebrand; same hypermarket at UBBO, Auchan row kept; owner 2026-10-05', '2026-10-05');
