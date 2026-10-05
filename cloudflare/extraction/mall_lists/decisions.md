@@ -4,6 +4,38 @@ Rulings already given. **Read this before proposing anything** — every line
 here is a question that has been answered, and asking it again wastes the
 reviewer's time. `mall_tenants.py` has no memory; this file is it.
 
+## THE rule for every shopping centre (owner, 2026-10-05)
+
+There is **one** rule, and it governs everything else in this file:
+
+> * If the store is in the list of stores from the Mall, we need to have it there.
+> * Never create stores that aren't there.
+>
+> Overture + OSM aren't the source, only the helper.
+
+Read it as three statements, because each changes what the pipeline does:
+
+1. **The operator's list is the complete tenant set.** Every listed unit gets
+   a row — not only the ones a source can place. A tenant nothing can place
+   still gets a row, at the centre's own coordinate.
+2. **Nothing is ever invented.** A row is created only for a unit on the list.
+   An OSM shop inside the footprint that the operator does not list is not a
+   tenant and is never added.
+3. **Overture and OSM are helpers, not sources.** Inside a shopping centre
+   they answer "where is this listed tenant, and on which floor" — never
+   "which tenants exist". That question has exactly one answer, the operator.
+
+This inverts the direction the audit used to run. The comparison no longer
+asks "which of our rows survive the list"; it asks "which listed units do we
+already have, and what is each one's position". The list is the target state.
+
+It also explains the manual-only rule: an automated source cannot write into
+a building whose contents are defined by someone else's document.
+
+**What it does NOT say** is that the list retires anything. A row we hold
+inside a centre that the operator does not list is not deleted by this rule —
+removal still needs a person, ruling on it individually.
+
 ## Confirmed matches — the tenant IS the row we hold
 
 The matcher scored these below its confident bar. They are the same shop.
