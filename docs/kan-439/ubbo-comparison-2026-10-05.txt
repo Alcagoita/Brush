@@ -1,11 +1,11 @@
 
 ===== UBBO — 246 tenants on the operator list =====
 
-  held and confidently matched : 117
-  ESCALATE (a person decides)  : 37
-  ADD from OSM                 : 6
-  on the list, no source has it: 97
-  REMOVE (held, not listed)    : 28   [only types the list covers]
+  held and confidently matched : 97
+  ESCALATE (a person decides)  : 27
+  ADD from OSM                 : 16
+  on the list, no source has it: 110
+  REMOVE (held, not listed)    : 18   [only types the list covers]
 
   --- ESCALATE: too close to call, nothing done ---
     [1.00] two tenants, one held row O meu Olá / Olá
@@ -30,18 +30,8 @@
                            Mango
     [0.90] two tenants, one held row Açaí Natura / Natura
                            Açaí Natura
-    [0.83] tenant vs held iStore
-                           QUIOSQUE QSTORE UBBO
-    [0.83] tenant vs held Cacifos CTT Locky
-                           Cacifo Locky
-    [0.82] held vs tenant VitaFlores
-                           Valores
     [0.80] tenant vs held MO
                            Loja MEO
-    [0.75] tenant vs held Sould Park Jump
-                           Sould Park TRAMPOLIN JUMP Lisboa
-    [0.75] held vs tenant Ribs & Company Ubbo
-                           Pans & Company
     [0.73] tenant vs held Galeria da Jóia
                            Lugar da Jóia
     [0.71] held vs tenant The Body Shop
@@ -50,28 +40,18 @@
                            Amor aos Pedaços
     [0.71] tenant vs held Under Blue
                            Loja Mr. Blue
-    [0.68] tenant vs held Holmes Place SPA
-                           Holmes Place Tejo - Amadora
     [0.67] held vs tenant Neffos Ubbo
                            NOS
-    [0.67] held vs tenant Farmácia Dolce Vita
-                           Farmácia Reis Barata
     [0.67] held vs tenant Claire's
                            Carpet Store
-    [0.62] held vs tenant Raia Beauty Spot
-                           Grace and Beauty
     [0.62] held vs tenant PeSSoaS
                            Nespresso
-    [0.62] held vs tenant Welder
-                           Celeiro
     [0.61] held vs tenant Pizzaria Luzzo
                            Pizza Hut
     [0.60] held vs tenant MISAKO
                            MICO
     [0.60] held vs tenant Euromúsica
                            Euro Sofás
-    [0.59] held vs tenant AMADORA SC UBBO
-                           Pandora
     [0.57] held vs tenant Tejo Fan Park
                            Pet's Park
     [0.57] held vs tenant Urban Trend
@@ -84,12 +64,32 @@
                            Fireaway Pizza
 
   --- ADD: listed, OSM can place it, we lack it ---
+    Action
+      -> OSM: Action
     Burger King
       -> OSM: Burger King
+    CeX
+      -> OSM: CeX
     Grace and Beauty
       -> OSM: Grace and Beauty
+    iStore
+      -> OSM: iStore
+    Jack & Jones
+      -> OSM: Jack & Jones
+    KFC
+      -> OSM: KFC
     Kiwoko
       -> OSM: Kiwoko
+    Levi's
+      -> OSM: Levi's
+    llaollao
+      -> OSM: Llaollao
+    New Yorker
+      -> OSM: New Yorker
+    Pans & Company
+      -> OSM: Pans & Company
+    Subway
+      -> OSM: Subway
     Wells
       -> OSM: Wells
     Worten
@@ -115,6 +115,7 @@
     Blue Kids
     BlueBird
     Braza
+    Cacifos CTT Locky
     Car Wash & Spa
     Casa da Sorte
     Casa do Sono
@@ -123,15 +124,18 @@
     ColchãoNet
     Cort&Cose
     Cortefiel
+    Deichmann
     Delícias do Bairro
     DIGI
     Dom Gelato
+    Don Ciccio
     Emma
     Euro Sofás
     Fábrica dos Óculos
     Farmácia Reis Barata
     Figu
     Fireaway Pizza
+    Flying Tiger Copenhagen
     Food&More
     Fotosport
     Georgia Brigadeiros
@@ -140,12 +144,17 @@
     Grace Hair
     H3
     Hair & Body
+    Havaianas
+    Holmes Place
+    Holmes Place SPA
     Italian Republic
     Japon Market
     JOSE LUIS Joyerías
     KIKO MILANO
     Kivet
+    Lefties
     Liberjóia
+    Lifephone
     Mandarim
     Maria Croissant
     MCS Men
@@ -163,6 +172,7 @@
     Oakberry
     Oakberry Truck
     ONLY
+    Opticália
     Ortopedia.pt
     PACOMARTINEZ
     Padaria do Bairro
@@ -172,10 +182,12 @@
     Presse Linha
     Ramen Go
     Real Transfer
+    Rituals
     ROCK'S
     Shades World
     Skechers
     SL Benfica
+    Sould Park Jump
     Sporting
     Stone by Stone
     Street Smash Burgers
@@ -187,6 +199,7 @@
     Tudo4Mobile
     Unicâmbio
     UZO
+    Valores
     Vilanova
     VisionLab
     Vodafone
@@ -197,58 +210,30 @@
     ZooJoy
 
   --- REMOVE: we hold it, the operator does not list it ---
-    Alfragide-Leroy Merlin  [car_rental]
-    Amadora - Leroy Merlin  [car_rental]
     Boutique dos Relógios  [store]
     Convento dos Doces - UBBO Shopping  [bakery]
     Courir  [store]
     Cozinha à Bras  [restaurant]
     Dilúvio Tattoo Ubbo  [tattoo]
-    EB1/JI José Garcês  [school]
     Eurekakids  [store]
     FUBBO  [restaurant]
     Frankie Hot Dogs  [restaurant]
-    Gillamp  [store]
     H3 Hambúrguer Gourmet  [restaurant]
     Hong Sha Long  [restaurant]
-    Jumbo na Amadora  [supermarket]
     La Casa de las Carcasas  [store]
-    Leroy Merlin  [store]
-    Mayoral - Loja de Roupa Infantil e Bebés  [store]
     McCafé  [cafe]
     Movefree  [store]
     Rio Brasil Lisboa  [restaurant]
     Stefano  [store]
     Sun Planet Portugal  [store]
     Sunglass Hut  [store]
-    UCI CINEMAS  [movie_theater]
     UCI Dolce Vita Tejo  [movie_theater]
-    Vestopazzo CC Dolcevita Tejo Ubbo  [store]
-    Wallstreet Cafe  [cafe]
 
 ===== UBBO — door-pinned duplicates, double confirmed =====
 
-  BOTH halves (removable)   : 2
-  one half only (left alone): 11
+  BOTH halves (removable)   : 0
+  one half only (left alone): 1
 
-  Bershka  [Microsoft]  08706da4-2674-466e-820c-cb47f09c015b
-     at door 38.775290,-9.220240 shared with 1 other row(s)
-     address  'AVENIDA CRUZEIRO SEIXAS 5'
-     twin     Bershka [Foursquare] 38.776258,-9.218830 'Av. cruzeiro seixas 5'
-  Oysho  [Microsoft]  2d35b428-f4a8-4e5a-b076-68402eae30e5
-     at door 38.775290,-9.220240 shared with 1 other row(s)
-     address  'Avenida Cruzeiro Seixas 5'
-     twin     Oysho [Foursquare] 38.776436,-9.220108 'C. C. UBBO, Loja 1.103-1.105'
 
   --- one half only: NOT removable ---
-  Cacifo Locky                           [Microsoft   ] at a door, no twin
-  Amadora - Leroy Merlin                 [AllThePlaces] twin, not at a door
-  Wallstreet Cafe                        [meta        ] at a door, no twin
   Quiosque Sical                         [meta        ] at a door, no twin
-  Flying Tiger Copenhagen                [Microsoft   ] at a door, no twin
-  Welder                                 [meta        ] at a door, no twin
-  Oysho                                  [Foursquare  ] twin, not at a door
-  New Yorker                             [Microsoft   ] at a door, no twin
-  Mayoral - Loja de Roupa Infantil e Beb [Microsoft   ] at a door, no twin
-  Leroy Merlin                           [meta        ] twin, not at a door
-  Bershka                                [Foursquare  ] twin, not at a door

@@ -1,0 +1,191 @@
+
+===== Amoreiras Shopping Center — 197 tenants on the operator list =====
+
+  held and confidently matched : 76
+  ESCALATE (a person decides)  : 22
+  ADD from OSM                 : 2
+  on the list, no source has it: 103
+  REMOVE (held, not listed)    : 18   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [0.90] two tenants, one held row Auchan / Auchan Gourmet
+                           Auchan
+    [0.90] two tenants, one held row Auchan / Auchan Tecnologia
+                           Auchan
+    [0.90] two tenants, one held row Boutique dos Relógios / Boutique dos Relógios Plus
+                           Boutique dos Relogios
+    [0.90] two tenants, one held row Cinemas NOS (Salas 1, 2 e 3) / Cinemas NOS (Salas Vip 1, 2 , 3 e 4)
+                           Cinemas NOS Amoreiras
+    [0.90] two tenants, one held row Mango / Mango Man
+                           Mango
+    [0.90] two tenants, one held row MultiOpticas / Óptica das Amoreiras
+                           MultiOpticas
+    [0.90] two tenants, one held row MultiOpticas / Óptica das Amoreiras
+                           MultiOpticas
+    [0.78] tenant vs OSM  Panda Cantina
+                           Ana e Carina Lda
+    [0.75] tenant vs OSM  A Tarte
+                           Art
+    [0.71] tenant vs OSM  Fotosport
+                           Sport Lisboa e Amoreiras
+    [0.71] tenant vs held Oysho
+                           The Body Shop
+    [0.71] tenant vs OSM  El Ganso
+                           Latel Gás
+    [0.71] tenant vs held Made In
+                           O Madeirense
+    [0.67] held vs tenant Praça Central
+                           Açaí Natura
+    [0.67] held vs tenant Cubanas Shoes
+                           Casa Simões
+    [0.62] held vs tenant Sical
+                           Scalpers
+    [0.62] held vs tenant Salsa
+                           Scalpers
+    [0.60] held vs tenant Crave
+                           Cantê
+    [0.60] held vs tenant Lis-amoreiras
+                           Selfish
+    [0.57] held vs tenant Clarks
+                           Scalpers
+    [0.56] held vs tenant Pepe Jeans
+                           El Ganso
+    [0.45] held vs tenant, shared word agencia Fidelidade Agência Amoreiras
+                           Agência Abreu
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    Empanadas MBQ
+      -> OSM: Empanadas MBQ
+    Novo Banco
+      -> OSM: Novo Banco
+
+  --- listed but no source can place it (no coordinates) ---
+    100 Gramas
+    Adolfo Dominguez
+    Agência Abreu
+    Allways
+    Area
+    Automóvel Club de Portugal
+    Açaí Natura
+    BAEBE
+    Balthazar por Confeitaria Nacional
+    Big Foot
+    Botaminuto
+    Bricolage
+    Brownie
+    Bubbles Company
+    Cantê
+    Capela das Amoreiras
+    Casa Simões
+    Cata Vassalo
+    Claudie Pierlot
+    Companhia
+    Delta Coffee House Experience
+    Delta Espresso
+    Dez Prá Uma
+    Douglas
+    Elements 75'80
+    Espadim 1985
+    Espiral Relojoaria
+    Favorite People
+    Garden Burger
+    Gleba
+    Globe
+    Gold Suisse
+    GreenKiss
+    H3
+    Happy Faces
+    HOSS Intropia
+    Hurley
+    ibeauty Cosmetics
+    Instanta
+    IQOS Store
+    ISTO.
+    Italian Republic
+    Joana Reymão Nogueira doçarias
+    Joshua's Shoarma
+    Knot
+    La Casa de las Carcasas
+    Laranjinha
+    Le Laboratoire
+    Lion of Porches
+    Local Your Healthy Kitchen
+    Lola Casademunt
+    Lusitania
+    M.A.C
+    Maje
+    Merrell
+    Migacho
+    Monkey Brain
+    Nails4’Us
+    NaturaPura
+    Nespresso
+    Noon
+    NovaCâmbios
+    O Lisboeta
+    Oakberry
+    Olhar de Prata
+    Parmeggiana & Cia
+    Perfumes & Companhia
+    Pet's Park
+    Português Café
+    Portugália Balcão
+    Presse Linha
+    Pés de Cereja
+    Raquel Poço Jewellery
+    Sabor Gaúcho
+    Sacoor Brothers
+    Sandro
+    Sanjugo
+    Santini
+    Scalpers
+    Security Center
+    Selfish
+    Serra da Estrela
+    Simple & Fast – Oficina Auto
+    Simple Eco Wash
+    SmashVille
+    Soya Express
+    Sunglass Hut
+    Swarovski
+    Teresa Alecrim
+    The Cut
+    Tomatino
+    Top Atlântico
+    U Chá
+    Verde Côco
+    Viagens El Corte Inglés
+    Vitaminas
+    Vodafone
+    Wickett Jones
+    Wiñk
+    Women'secret
+    Yellow Metric
+    Zara
+    Zara Home
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    A Loja do Gato Preto  [store]
+    Beiju Tapiocaria  [restaurant]
+    Buckle  [store]
+    Bulhosa Books & Living  [store]
+    Denso Fio  [spa]
+    Dreamy World  [store]
+    Godiva  [bakery]
+    Hussel  [bakery]
+    L'Occitane en Provence - Lisboa  [store]
+    Liu Jo  [store]
+    Loja das Sopas  [restaurant]
+    Powerdot  [electric_vehicle_charging_station]
+    Pull&Bear  [store]
+    Reposteiro Dourado  [restaurant]
+    Smooy - Authentic Frozen Yogurt (iogurte gelado)  [ice_cream]
+    United Colors of Benetton  [store]
+    Uterque  [store]
+    Wok to Walk Amoreiras  [restaurant]
+
+===== Amoreiras Shopping Center — door-pinned duplicates, double confirmed =====
+
+  BOTH halves (removable)   : 0
+  one half only (left alone): 0
+

@@ -149,6 +149,46 @@ POI, that's because he's close to the Shopping. That is precisely what we
 want." A mall is handled differently from everywhere else. Do not add a cap,
 a collapse-into-one-card, or a rule hiding tenants until the user is inside.
 
+## A footprint is the building, not a box — and the two audits need two scopes
+
+Found 2026-10-05, while scoping Amoreiras. A lat/lng box around a centre is
+not the centre:
+
+| centre | rows in the box | rows inside the building |
+|---|---|---|
+| Amoreiras Shopping Center | 308 | **109** |
+| UBBO | 176 | **135** |
+
+Amoreiras' box also contains three *different* shopping centres — `Amoreiras
+Plaza`, `Amoreiras Square` and `Amoreiras Shopping Center` are all `shop=mall`
+within 500 m — plus the surrounding Lisbon streets. Comparing that box against
+the operator's list produced a REMOVE list of **139** shops that were never in
+the centre. Scoped to the building it is **18**.
+
+Footprints live in `mall_lists/footprints.json` as the OSM `shop=mall` outline
+with the id it came from, and `mall_footprints.py` tests a point against it.
+Not a radius: a centre is an irregular building, often with a car park and a
+retail park beside it, and a radius either swallows the neighbours or clips
+the far end.
+
+**The two audits need different scopes, and this is not a detail:**
+
+* the **tenant comparison** runs on the building outline — the operator lists
+  what is inside;
+* the **door-duplicate check** must run on the *box*, because a door-pinned
+  row sits on the centre's street address, which is **outside** the outline.
+  Measured: UBBO's duplicate `Bershka` and `Oysho` rows both fall outside the
+  polygon while their real-unit twins fall inside. Running the duplicate check
+  on the outline finds nothing and silently leaves the duplicates serving.
+
+### A caveat that is not yet settled
+
+Tightening UBBO from the box to the outline moved 20 rows out of "confidently
+matched". Some are neighbours that never belonged; others may be real parts of
+the centre in an annex the polygon excludes — a hypermarket wing or a retail
+park unit. `mall_footprints` supports several rings per centre for exactly
+this, and no one has yet checked which of the 20 are which.
+
 ## A van desk inside a store is not a place
 
 Ruled 2026-10-04: the `car_rental` rows named after hardware stores are **the

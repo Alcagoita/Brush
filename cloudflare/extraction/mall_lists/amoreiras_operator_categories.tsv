@@ -1,0 +1,201 @@
+# KAN-439. Amoreiras operator categories, verbatim, from the
+# centre's own marcas/ and restaurantes/ pages. A HELPER ONLY -
+# our poi_type and store_kind are never derived from these.
+name	operator_category
+100 Gramas	Restaurantes
+5àsec	Serviços
+A Padaria Portuguesa	Alimentação
+A Tarte	Alimentação
+ActivoBank	Serviços
+Adolfo Dominguez	Moda e Acessórios
+Agência Abreu	Cultura e Lazer
+Aldo	Moda e Acessórios
+Allways	Restaurantes
+Amor Aos Pedaços	Alimentação
+Amoreiras 360º Panoramic View	Cultura e Lazer
+Anselmo Rosa Joalheiro	Moda e Acessórios
+Area	Casa e Decoração
+Arezzo	Moda e Acessórios
+Auchan	Alimentação
+Auchan Gourmet	Alimentação
+Auchan Tecnologia	Tecnologia e Telecomunicações
+Automóvel Club de Portugal	Serviços
+Açaí Natura	Alimentação
+BAEBE	Beleza e Saúde
+Balthazar por Confeitaria Nacional	Alimentação
+Banco Montepio	Serviços
+Bang & Olufsen	Tecnologia e Telecomunicações
+Benamôr	Beleza e Saúde
+Bento Cabeleireiros	Beleza e Saúde
+Bertrand Livreiros	Cultura e Lazer
+Big Foot	Crianças
+Bimba Y Lola	Moda e Acessórios
+Block House	Restaurantes
+Boss Store	Moda e Acessórios
+Botaminuto	Serviços
+Boutique dos Relógios	Moda e Acessórios
+Boutique dos Relógios Plus	Moda e Acessórios
+Bricolage	Casa e Decoração
+Brownie	Moda e Acessórios
+Bubbles Company	Moda e Acessórios
+Calzedonia	Moda e Acessórios
+Cantê	Crianças
+Capela das Amoreiras	Serviços
+Caroll	Moda e Acessórios
+Casa Havaneza	Serviços
+Casa Simões	Serviços
+Cata Vassalo	Moda e Acessórios
+Celeiro	Alimentação
+Cinemas NOS (Salas 1, 2 e 3)	Cultura e Lazer
+Cinemas NOS (Salas Vip 1, 2 , 3 e 4)	Cultura e Lazer
+Claudie Pierlot	Moda e Acessórios
+Companhia	Restaurantes
+CTT	Serviços
+Delta Coffee House Experience	Alimentação
+Delta Espresso	Alimentação
+Dez Prá Uma	Alimentação
+Dim Sum	Restaurantes
+Douglas	Beleza e Saúde
+Ecco	Moda e Acessórios
+El Ganso	Moda e Acessórios
+Elements 75'80	Moda e Acessórios
+Empanadas MBQ	Alimentação
+Espadim 1985	Casa e Decoração
+Espiral Relojoaria	Moda e Acessórios
+Falconeri	Moda e Acessórios
+Favorite People	Crianças
+Florista Jardim Das Amoreiras	Serviços
+Flying Tiger	Casa e Decoração
+Fnac	Crianças
+Fotosport	Serviços
+Furla	Moda e Acessórios
+GANT	Crianças
+Garden Burger	Restaurantes
+Geox	Crianças
+Gleba	Alimentação
+Globe	Moda e Acessórios
+Gms Store	Tecnologia e Telecomunicações
+Gold Suisse	Serviços
+GreenKiss	Moda e Acessórios
+Guess	Moda e Acessórios
+H3	Restaurantes
+Happy Faces	Crianças
+HOSS Intropia	Moda e Acessórios
+Hurley	Desporto
+Häagen-Dazs	Alimentação
+ibeauty Cosmetics	Beleza e Saúde
+Instanta	Serviços
+Intimissimi	Moda e Acessórios
+IQOS Store	Tecnologia e Telecomunicações
+iServices	Serviços
+ISTO.	Moda e Acessórios
+Italian Republic	Restaurantes
+IUMAN-Intimissimi Uomo	Moda e Acessórios
+Jean Louis David	Beleza e Saúde
+Joana Reymão Nogueira doçarias	Alimentação
+Joshua's Shoarma	Restaurantes
+Kiko Milano	Beleza e Saúde
+Knot	Crianças
+La Brasserie de L’Entrecôte	Restaurantes
+La Casa de las Carcasas	Serviços
+La Crêperie	Alimentação
+Lacoste	Desporto
+Laranjinha	Crianças
+Le Laboratoire	Beleza e Saúde
+Leonor Henriques	Moda e Acessórios
+Let’s Copy	Serviços
+Levi`s	Moda e Acessórios
+Lion of Porches	Moda e Acessórios
+Local Your Healthy Kitchen	Restaurantes
+Loja das Meias	Moda e Acessórios
+Lola Casademunt	Moda e Acessórios
+Lush	Beleza e Saúde
+Lusitania	Serviços
+Lúcia Piloto Cabeleireiros	Beleza e Saúde
+M.A.C	Beleza e Saúde
+Made In	Moda e Acessórios
+Maje	Moda e Acessórios
+Mango	Moda e Acessórios
+Mango Man	Moda e Acessórios
+McDonald's	Restaurantes
+MEO	Tecnologia e Telecomunicações
+Merrell	Desporto
+Migacho	Moda e Acessórios
+Millennium BCP	Serviços
+Monkey Brain	Alimentação
+Mr. Blue	Moda e Acessórios
+MultiOpticas	Beleza e Saúde
+Nails4’Us	Beleza e Saúde
+NaturaPura	Crianças
+Nature & Découvertes	Casa e Decoração
+Nespresso	Alimentação
+Noon	Moda e Acessórios
+Noori	Restaurantes
+NOS	Tecnologia e Telecomunicações
+NovaCâmbios	Serviços
+Novo Banco	Serviços
+O Boticário	Beleza e Saúde
+O Lisboeta	Alimentação
+O Madeirense	Restaurantes
+Oakberry	Alimentação
+Olhar de Prata	Moda e Acessórios
+Oysho	Desporto
+Panda Cantina	Restaurantes
+Parfois	Moda e Acessórios
+Parmeggiana & Cia	Restaurantes
+Perfumes & Companhia	Beleza e Saúde
+Pet's Park	Animais
+Place Santé	Beleza e Saúde
+Poke House	Restaurantes
+Polo Ralph Lauren	Moda e Acessórios
+Português Café	Alimentação
+Portugália Balcão	Restaurantes
+Presse Linha	Cultura e Lazer
+Proshop Surfwear	Crianças
+Pés de Cereja	Crianças
+Raquel Poço Jewellery	Moda e Acessórios
+Rituals	Beleza e Saúde
+Sabor Gaúcho	Restaurantes
+Sacoor Brothers	Moda e Acessórios
+Samsonite	Moda e Acessórios
+Sandro	Moda e Acessórios
+Sanjugo	Restaurantes
+Santini	Alimentação
+Scalpers	Moda e Acessórios
+Sebago	Moda e Acessórios
+Security Center	Serviços
+Selfish	Restaurantes
+Serra da Estrela	Restaurantes
+Simple & Fast – Oficina Auto	Serviços
+Simple Eco Wash	Serviços
+SmashVille	Restaurantes
+Soya Express	Restaurantes
+Sport Zone	Crianças
+Springfield	Moda e Acessórios
+Stone By Stone	Moda e Acessórios
+Sunglass Hut	Moda e Acessórios
+Sushi Café	Restaurantes
+Swarovski	Casa e Decoração
+Swatch	Crianças
+Teresa Alecrim	Casa e Decoração
+The Cut	Restaurantes
+Timberland	Moda e Acessórios
+Tomatino	Restaurantes
+Top Atlântico	Cultura e Lazer
+Tous	Moda e Acessórios
+Triumph	Moda e Acessórios
+U Chá	Alimentação
+Verde Côco	Restaurantes
+Viagens El Corte Inglés	Cultura e Lazer
+Vista Alegre	Casa e Decoração
+Vitaminas	Restaurantes
+Vodafone	Tecnologia e Telecomunicações
+Weeel	Alimentação
+Wickett Jones	Moda e Acessórios
+Wiñk	Beleza e Saúde
+Women'secret	Moda e Acessórios
+Yellow Metric	Serviços
+Zara	Crianças
+Zara Home	Casa e Decoração
+Óptica das Amoreiras	Beleza e Saúde
+Óptica das Amoreiras	Beleza e Saúde
