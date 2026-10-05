@@ -164,7 +164,9 @@
      -9.1624368
     ]
    ]
-  ]
+  ],
+  "buffer_m": 50,
+  "buffer_note": "dense Lisbon, three other centres within 500 m; matches stop climbing at 50 m while REMOVE triples (measured 2026-10-05)"
  },
  "UBBO": {
   "osm": "relation/14978983",
@@ -471,6 +473,8 @@
      -9.2204335
     ]
    ]
-  ]
+  ],
+  "buffer_m": 75,
+  "buffer_note": "isolated retail complex; matches climb to 75 m, REMOVE barely moves (measured 2026-10-05)"
  }
 }

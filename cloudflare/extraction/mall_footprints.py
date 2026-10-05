@@ -33,10 +33,34 @@ projection would add a dependency for nothing.
 from __future__ import annotations
 
 import json
+import math
 import os
 
 FOOTPRINTS_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'mall_lists', 'footprints.json')
+
+# How far outside the outline still counts as the centre.
+#
+# Strict point-in-polygon is too brittle for this data: source coordinates are
+# coarse and often pinned to a street door, so a tenant's own point routinely
+# falls just outside its own building. At UBBO the Auchan hypermarket sits
+# 39 m outside, UCI Cinemas 35 m, and a door-pin cluster 65 m.
+#
+# The buffer is PER CENTRE, in `footprints.json`. It was first written as one
+# constant on the theory that it only compensates for coordinate quality.
+# Measuring both centres disproved that — it also depends on how isolated the
+# building is, and the two behave nothing alike:
+#
+#   UBBO        an isolated retail complex. Matches climb 97 -> 117 as the
+#               buffer reaches 75 m and the REMOVE list barely moves, 18 -> 24.
+#   Amoreiras   dense Lisbon, with three other shopping centres and a street
+#               of shops within 500 m. Matches stop climbing at 50 m (87) while
+#               the REMOVE list runs 18 -> 55 and escalations 22 -> 54 — all
+#               of it neighbouring shops that were never tenants.
+#
+# So each centre carries the buffer its own measurement supports, and the
+# default below is only for a centre nobody has measured yet.
+DEFAULT_BUFFER_M = 75
 
 
 def load(path=FOOTPRINTS_PATH):
@@ -61,28 +85,64 @@ def in_ring(lat, lng, ring) -> bool:
     return hit
 
 
-def in_footprint(lat, lng, footprint) -> bool:
-    """Inside any outer ring of one centre. A centre with two buildings — a
-    mall and its annex across the road — is two rings, not two centres."""
-    return any(in_ring(lat, lng, ring) for ring in footprint['rings'])
+def _segment_metres(lat, lng, start, end) -> float:
+    """Metres from a point to one edge, in a local flat projection. At a
+    building's scale that is far more precise than the data it measures."""
+    scale = math.cos(math.radians(lat))
+    px, py = lng * scale, lat
+    ax, ay = start[1] * scale, start[0]
+    bx, by = end[1] * scale, end[0]
+    dx, dy = bx - ax, by - ay
+    if dx == 0 and dy == 0:
+        t = 0.0
+    else:
+        t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy)) * 111320
 
 
-def mall_at(lat, lng, footprints=None):
+def metres_outside(lat, lng, footprint) -> float:
+    """0.0 inside the outline, else the distance to its nearest edge."""
+    if any(in_ring(lat, lng, ring) for ring in footprint['rings']):
+        return 0.0
+    return min(
+        _segment_metres(lat, lng, ring[i], ring[(i + 1) % len(ring)])
+        for ring in footprint['rings']
+        for i in range(len(ring)))
+
+
+def buffer_for(footprint, buffer_m=None) -> float:
+    """The centre's own measured buffer, unless one is passed explicitly."""
+    if buffer_m is not None:
+        return buffer_m
+    return footprint.get('buffer_m', DEFAULT_BUFFER_M)
+
+
+def in_footprint(lat, lng, footprint, buffer_m=None) -> bool:
+    """Inside the centre, allowing for how coarse POI coordinates are.
+
+    `buffer_m=0` is the strict outline — which the door-duplicate audit wants,
+    since a door-pinned row sits on the street address, outside the building.
+    """
+    return metres_outside(lat, lng, footprint) <= buffer_for(footprint, buffer_m)
+
+
+def mall_at(lat, lng, footprints=None, buffer_m=None):
     """The centre containing this point, or None.
 
     This is the test the manual-only rule needs: a candidate returning a name
     here must not be written by an import, a promotion or a refresh.
     """
     for name, footprint in (footprints or load()).items():
-        if in_footprint(lat, lng, footprint):
+        if in_footprint(lat, lng, footprint, buffer_m):
             return name
     return None
 
 
-def inside(rows, name, footprints=None):
+def inside(rows, name, footprints=None, buffer_m=None):
     """The subset of `rows` inside one named centre. Rows carry `lat`/`lng`."""
     footprint = (footprints or load())[name]
-    return [row for row in rows if in_footprint(row['lat'], row['lng'], footprint)]
+    return [row for row in rows
+            if in_footprint(row['lat'], row['lng'], footprint, buffer_m)]
 
 
 def main(argv=None):

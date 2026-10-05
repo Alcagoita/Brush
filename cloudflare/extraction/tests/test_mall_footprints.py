@@ -15,6 +15,11 @@ SQUARE = [[0.0, 0.0], [0.0, 1.0], [1.0, 1.0], [1.0, 0.0]]
 UBBO_DOOR = (38.775290, -9.220240)
 UBBO_BERSHKA_UNIT = (38.776258, -9.218830)
 UBBO_OYSHO_UNIT = (38.776436, -9.220108)
+# The brand that proves a name test cannot work: the hypermarket is a tenant,
+# the two fuel stations sharing its name are 284 m and 288 m away.
+AUCHAN_HYPERMARKET = (38.778124, -9.219726)
+AUCHAN_FUEL = (38.773786, -9.215978)
+GASOLINEIRA_AUCHAN = (38.773630, -9.216152)
 
 
 class RayCastingTest(unittest.TestCase):
@@ -47,12 +52,39 @@ class RealFootprintTest(unittest.TestCase):
         for point in (UBBO_BERSHKA_UNIT, UBBO_OYSHO_UNIT):
             self.assertTrue(mf.in_footprint(*point, self.footprints['UBBO']), point)
 
-    def test_the_street_door_is_OUTSIDE_the_building(self):
+    def test_the_street_door_is_outside_the_OUTLINE_but_within_the_centre(self):
         """This is why the two audits need two scopes. A door-pinned duplicate
-        sits on the centre's street address, which is outside its outline, so
-        `mall_door_duplicates` must run on a box while the tenant comparison
-        runs on the outline."""
-        self.assertFalse(mf.in_footprint(*UBBO_DOOR, self.footprints['UBBO']))
+        sits on the centre's street address, outside the building itself, so
+        `mall_door_duplicates` runs on a box while the tenant comparison runs
+        on the buffered footprint — which does include the door, because the
+        shop really is part of that centre."""
+        ubbo = self.footprints['UBBO']
+        self.assertFalse(mf.in_footprint(*UBBO_DOOR, ubbo, buffer_m=0))
+        self.assertTrue(mf.in_footprint(*UBBO_DOOR, ubbo))
+
+    def test_each_centre_carries_its_own_measured_buffer(self):
+        """One constant was wrong: the buffer depends on how isolated the
+        building is, not only on coordinate quality. Amoreiras has three other
+        shopping centres within 500 m and stops gaining matches at 50 m, while
+        UBBO keeps gaining to 75 m."""
+        self.assertEqual(self.footprints['UBBO']['buffer_m'], 75)
+        self.assertEqual(self.footprints['Amoreiras Shopping Center']['buffer_m'], 50)
+        for footprint in self.footprints.values():
+            self.assertTrue(footprint.get('buffer_note'), 'a buffer needs its measurement recorded')
+
+    def test_the_auchan_fuel_station_is_never_a_tenant(self):
+        """The hypermarket inside the centre and a fuel station sharing its
+        brand 284 m away. The buffer must separate them, since no name test
+        can."""
+        ubbo = self.footprints['UBBO']
+        self.assertTrue(mf.in_footprint(*AUCHAN_HYPERMARKET, ubbo), 'Auchan hypermarket')
+        for fuel in (AUCHAN_FUEL, GASOLINEIRA_AUCHAN):
+            self.assertFalse(mf.in_footprint(*fuel, ubbo), f'Auchan fuel at {fuel}')
+
+    def test_metres_outside_is_zero_inside_and_grows_outside(self):
+        ubbo = self.footprints['UBBO']
+        self.assertEqual(mf.metres_outside(*UBBO_OYSHO_UNIT, ubbo), 0.0)
+        self.assertGreater(mf.metres_outside(*UBBO_DOOR, ubbo), 0.0)
 
     def test_the_centres_do_not_contain_each_other(self):
         self.assertFalse(mf.in_footprint(*UBBO_DOOR, self.footprints['Amoreiras Shopping Center']))

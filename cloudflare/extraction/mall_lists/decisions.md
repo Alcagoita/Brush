@@ -181,13 +181,47 @@ the far end.
   polygon while their real-unit twins fall inside. Running the duplicate check
   on the outline finds nothing and silently leaves the duplicates serving.
 
-### A caveat that is not yet settled
+### The footprint needs a buffer, and it is per centre
 
-Tightening UBBO from the box to the outline moved 20 rows out of "confidently
-matched". Some are neighbours that never belonged; others may be real parts of
-the centre in an annex the polygon excludes — a hypermarket wing or a retail
-park unit. `mall_footprints` supports several rings per centre for exactly
-this, and no one has yet checked which of the 20 are which.
+Strict point-in-polygon drops real tenants. Source coordinates are coarse and
+often pinned to a street door, so a shop's own point routinely falls outside
+its own building. Measured at UBBO 2026-10-05, the 41 rows outside the outline
+separate cleanly by distance:
+
+| distance outside | what is there |
+|---|---|
+| ≤ 102 m | every real tenant — Auchan hypermarket 39 m, UCI Cinemas 35 m, a door-pin cluster 65 m |
+| ≥ 177 m | nothing that is a tenant — a primary school 177 m, the standalone Leroy Merlin 197 m, two Auchan fuel stations 284 m and 288 m |
+
+**The buffer is per centre, not one constant.** It was first written as one,
+on the theory that it only compensates for coordinate quality. Measuring both
+centres disproved that — it also depends on how isolated the building is:
+
+| buffer | Amoreiras matched / REMOVE | UBBO matched / REMOVE |
+|---|---|---|
+| 0 m | 76 / 18 | 97 / 18 |
+| 50 m | **87** / 28 | 114 / 23 |
+| 75 m | 87 / 35 | **117** / 24 |
+| 150 m | 88 / 55 | 117 / 26 |
+
+Amoreiras stops gaining matches at 50 m and then only accumulates neighbours —
+it has three other shopping centres within 500 m (`Amoreiras Plaza`,
+`Amoreiras Square`) and a street of shops. UBBO is an isolated retail complex
+and keeps gaining to 75 m at almost no cost. So each centre carries its own
+buffer and the measurement that justifies it, in `footprints.json`.
+
+### Auchan is why a name test cannot replace geometry
+
+UBBO holds an `Auchan` hypermarket **inside** the centre and two fuel stations
+also called `Auchan` 284 m and 288 m away. Matching tenants by brand name
+would pull the fuel stations in; the buffer separates them on geometry alone.
+Covered by a test.
+
+Still open: `Jumbo na Amadora` sits 39 m outside, is typed `supermarket`, and
+Jumbo is what Auchan was called in Portugal before the rebrand. It is very
+likely the same hypermarket held twice under both names — the
+`LEROY MERLIN` → `AKI` and `XIAOMI STORE` → `Mi Store` case. The door rule
+cannot catch it, because the names differ. Owner ruling needed.
 
 ## A van desk inside a store is not a place
 

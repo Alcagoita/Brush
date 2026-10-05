@@ -1,13 +1,15 @@
 
 ===== Amoreiras Shopping Center — 197 tenants on the operator list =====
 
-  held and confidently matched : 76
-  ESCALATE (a person decides)  : 22
+  held and confidently matched : 87
+  ESCALATE (a person decides)  : 37
   ADD from OSM                 : 2
-  on the list, no source has it: 103
-  REMOVE (held, not listed)    : 18   [only types the list covers]
+  on the list, no source has it: 89
+  REMOVE (held, not listed)    : 28   [only types the list covers]
 
   --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row Companhia / Perfumes & Companhia
+                           Perfumes & Companhia
     [0.90] two tenants, one held row Auchan / Auchan Gourmet
                            Auchan
     [0.90] two tenants, one held row Auchan / Auchan Tecnologia
@@ -18,6 +20,8 @@
                            Cinemas NOS Amoreiras
     [0.90] two tenants, one held row Mango / Mango Man
                            Mango
+    [0.90] two tenants, one held row Zara / Zara Home
+                           Zara
     [0.90] two tenants, one held row MultiOpticas / Óptica das Amoreiras
                            MultiOpticas
     [0.90] two tenants, one held row MultiOpticas / Óptica das Amoreiras
@@ -26,18 +30,34 @@
                            Ana e Carina Lda
     [0.75] tenant vs OSM  A Tarte
                            Art
+    [0.75] tenant vs held Area
+                           Zara
     [0.71] tenant vs OSM  Fotosport
                            Sport Lisboa e Amoreiras
-    [0.71] tenant vs held Oysho
-                           The Body Shop
+    [0.71] held vs tenant The Body Shop
+                           Oysho
     [0.71] tenant vs OSM  El Ganso
                            Latel Gás
     [0.71] tenant vs held Made In
                            O Madeirense
+    [0.70] held vs tenant Poké Bowls
+                           Poke House
+    [0.70] held vs tenant Banco BPI
+                           Banco Montepio
+    [0.67] held vs tenant Fresc Co
+                           Ecco
     [0.67] held vs tenant Praça Central
+                           Açaí Natura
+    [0.67] held vs tenant Go Natural
                            Açaí Natura
     [0.67] held vs tenant Cubanas Shoes
                            Casa Simões
+    [0.67] held vs tenant Hot Dog Spot
+                           Fotosport
+    [0.64] held vs tenant Gloss Cabeleireiros e Estetica
+                           Bento Cabeleireiros
+    [0.62] held vs tenant Mother Burger
+                           Garden Burger
     [0.62] held vs tenant Sical
                            Scalpers
     [0.62] held vs tenant Salsa
@@ -46,10 +66,20 @@
                            Cantê
     [0.60] held vs tenant Lis-amoreiras
                            Selfish
+    [0.60] held vs tenant QUIOSQUE QSTORE AMOREIRAS
+                           ISTO.
+    [0.59] held vs tenant Prego Gourmet
+                           Auchan Gourmet
     [0.57] held vs tenant Clarks
                            Scalpers
+    [0.57] held vs tenant LISBOA SC AMOREIRAS SHOPPING
+                           5àsec
+    [0.56] held vs tenant Maison Luce
+                           Mr. Blue
     [0.56] held vs tenant Pepe Jeans
                            El Ganso
+    [0.52] held vs tenant, shared word sushi Escola Sushi
+                           Sushi Café
     [0.45] held vs tenant, shared word agencia Fidelidade Agência Amoreiras
                            Agência Abreu
 
@@ -64,7 +94,6 @@
     Adolfo Dominguez
     Agência Abreu
     Allways
-    Area
     Automóvel Club de Portugal
     Açaí Natura
     BAEBE
@@ -79,7 +108,6 @@
     Casa Simões
     Cata Vassalo
     Claudie Pierlot
-    Companhia
     Delta Coffee House Experience
     Delta Espresso
     Dez Prá Uma
@@ -88,12 +116,10 @@
     Espadim 1985
     Espiral Relojoaria
     Favorite People
-    Garden Burger
     Gleba
     Globe
     Gold Suisse
     GreenKiss
-    H3
     Happy Faces
     HOSS Intropia
     Hurley
@@ -101,9 +127,7 @@
     Instanta
     IQOS Store
     ISTO.
-    Italian Republic
     Joana Reymão Nogueira doçarias
-    Joshua's Shoarma
     Knot
     La Casa de las Carcasas
     Laranjinha
@@ -126,10 +150,7 @@
     Oakberry
     Olhar de Prata
     Parmeggiana & Cia
-    Perfumes & Companhia
     Pet's Park
-    Português Café
-    Portugália Balcão
     Presse Linha
     Pés de Cereja
     Raquel Poço Jewellery
@@ -140,8 +161,6 @@
     Santini
     Scalpers
     Security Center
-    Selfish
-    Serra da Estrela
     Simple & Fast – Oficina Auto
     Simple Eco Wash
     SmashVille
@@ -155,20 +174,24 @@
     U Chá
     Verde Côco
     Viagens El Corte Inglés
-    Vitaminas
     Vodafone
     Wickett Jones
     Wiñk
     Women'secret
     Yellow Metric
-    Zara
-    Zara Home
 
   --- REMOVE: we hold it, the operator does not list it ---
+    :slow  [restaurant]
     A Loja do Gato Preto  [store]
+    ABANCA  [bank]
+    Bank BNI Europa  [bank]
+    Barbatana  [restaurant]
     Beiju Tapiocaria  [restaurant]
+    Bershka  [store]
     Buckle  [store]
     Bulhosa Books & Living  [store]
+    Caixa Geral de Depósitos (Amoreiras)  [bank]
+    Chimarrão  [restaurant]
     Denso Fio  [spa]
     Dreamy World  [store]
     Godiva  [bakery]
@@ -176,6 +199,8 @@
     L'Occitane en Provence - Lisboa  [store]
     Liu Jo  [store]
     Loja das Sopas  [restaurant]
+    Luisa de Brito  [store]
+    Massimo Dutti  [store]
     Powerdot  [electric_vehicle_charging_station]
     Pull&Bear  [store]
     Reposteiro Dourado  [restaurant]
@@ -183,9 +208,24 @@
     United Colors of Benetton  [store]
     Uterque  [store]
     Wok to Walk Amoreiras  [restaurant]
+    Worten  [store]
 
 ===== Amoreiras Shopping Center — door-pinned duplicates, double confirmed =====
 
   BOTH halves (removable)   : 0
-  one half only (left alone): 0
+  one half only (left alone): 12
 
+
+  --- one half only: NOT removable ---
+  Nichele Haircut                        [meta        ] at a door, no twin
+  Tiana.hairstylist                      [meta        ] at a door, no twin
+  Miraduro De Sao Jorge                  [meta        ] at a door, no twin
+  Eduardo VII Park                       [meta        ] at a door, no twin
+  Adriano Llopes                         [meta        ] at a door, no twin
+  Lust in rio                            [meta        ] at a door, no twin
+  meia.duzia                             [meta        ] at a door, no twin
+  MAC Cosmetics                          [AllThePlaces] at a door, no twin
+  Oysho                                  [Microsoft   ] at a door, no twin
+  Bershka                                [Microsoft   ] at a door, no twin
+  HAVAIANAS                              [Microsoft   ] at a door, no twin
+  Zara                                   [AllThePlaces] at a door, no twin
