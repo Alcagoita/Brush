@@ -8,25 +8,41 @@ An escalation is never acted on silently: this document is the act of
 settling one, and the comparison output
 (`ubbo-comparison-2026-10-05.txt`) is what it was settled against.
 
-## Still open — the owner decides
+## Settled by the owner, 2026-10-05 — the operator decides what is a unit
 
-All six are one shape: **the operator lists two or more units and we hold a
-single row.** That is not automatically a duplicate — `Wells` / `Wells Ótica`
-at Strada are two businesses sharing one unit and carry two rows, while
-`TOP ATLÂNTICO` / `TOP ATLÂNTICO – VIAGENS E TURISMO` at Colombo are one unit
-listed twice. Only a person knows which.
+> "if the Source of true have the stores separated, we should have them. Even
+> if it's inside the main store (like Auchan) the user needs to know that
+> inside Auchan, we have a Auchan Ótica."
+
+Five of the six open questions were one shape — the operator lists two or
+more units and we hold a single row — and this answers all five. A concession
+is a place a user walks into and solves a task at; someone who needs an
+optician is not helped by being told there is a supermarket there.
+
+| operator lists | we hold | outcome |
+|---|---|---|
+| `Auchan`, `Auchan Ótica`, `Auchan Saúde e Bem Estar`, `Auchan Tecnologia` | `Auchan [supermarket]` | keep the hypermarket, **add three** — an optician, a health and wellbeing counter, an electronics counter |
+| `Olá`, `O meu Olá` | `Olá [ice_cream]` | keep, **add one** |
+| `Tramas Home`, `Tramas+` | `Tramas [store]` | **add one** — which of the two the held row is still needs reading against the unit |
+| `Carrossel`, `Carrossel Experience` | `Carrossel [hairdresser]` | keep, **add one** |
+| `Holmes Place`, `Holmes Place SPA` | `Holmes Place Tejo - Amadora [gym]` | keep, **add one** |
+
+Seven new rows, none placeable by any source, so all seven go at the centre's
+coordinate under the owner's earlier ruling. Each needs a real type and a
+specific `store_kind` — `Auchan Ótica` is an optician, not a supermarket, and
+typing it as its host would waste the whole point of holding it.
+
+### Still open — the one this does not answer
 
 | operator lists | we hold | question |
 |---|---|---|
-| `Auchan`, `Auchan Ótica`, `Auchan Saúde e Bem Estar`, `Auchan Tecnologia` | one `Auchan [supermarket]` | three separate units, or departments inside the hypermarket? |
-| `Olá`, `O meu Olá` | one `Olá [ice_cream]` | two kiosks or one? |
-| `Tramas Home`, `Tramas+` | one `Tramas [store]` | which one do we hold — or both? |
-| `Carrossel`, `Carrossel Experience` | `Carrossel [hairdresser]` | we hold it as a hairdresser; is `Carrossel Experience` a different business? |
-| `Holmes Place`, `Holmes Place SPA` | `Holmes Place Tejo - Amadora [gym]` | a separate spa row, or one gym? |
-| `Farmácia Reis Barata` | `Farmácia Dolce Vita [pharmacy]` | the same pharmacy renamed when the centre went Dolce Vita → UBBO? |
+| `Farmácia Reis Barata` | `Farmácia Dolce Vita [pharmacy]` | the same pharmacy renamed when the centre went Dolce Vita → UBBO, or two different pharmacies? |
 
-The last one is the Jumbo/Auchan shape again: a rename leaves two names
-sharing nothing, so no matcher can settle it.
+The rule above does not reach it: the operator lists **one** pharmacy, not
+two. If it is a rename, adding `Farmácia Reis Barata` creates a duplicate; if
+it is not, the held row stays anyway, because a tenant list adds and never
+retires. Same shape as Jumbo/Auchan — a rename leaves two names sharing
+nothing, so no matcher can settle it.
 
 ## Settled — the tenant IS the row we hold
 

@@ -65,11 +65,45 @@ much the names invite merging) · `Carpisa` ≠ `Parfois` ·
 `Wells` / `Wells Ótica` at Strada — two shops sharing one unit, so TWO rows:
 the parapharmacy and the optician are different businesses at one address
 
-## One unit listed under two names — keep ONE
+## The operator decides what is a separate unit
 
-`TOP ATLÂNTICO` / `TOP ATLÂNTICO – VIAGENS E TURISMO` (Colombo, Piso 0) ·
+**If the operator lists them separately, we hold them separately — including
+a shop inside another shop** (owner, 2026-10-05):
+
+> "if the Source of true have the stores separated, we should have them. Even
+> if it's inside the main store (like Auchan) the user needs to know that
+> inside Auchan, we have a Auchan Ótica."
+
+A concession is a place a user can walk into and solve a task at. Someone who
+needs an optician is not helped by being told there is a supermarket there.
+
+This is the default, and it answers the whole "two tenants, one held row"
+family without asking again. At UBBO it means separate rows for
+`Auchan Ótica`, `Auchan Saúde e Bem Estar` and `Auchan Tecnologia` beside the
+`Auchan` hypermarket, for `O meu Olá` beside `Olá`, for `Tramas Home` and
+`Tramas+`, for `Carrossel Experience` beside `Carrossel`, and for
+`Holmes Place SPA` beside the gym.
+
+It also supersedes the older reading of the `Well's`-inside-Continente note
+below: a concession not in the directory was *kept*, and a concession that IS
+in the directory is now certainly kept.
+
+### The exception: the same business listed twice
+
+One unit, two listings, keep ONE. These were ruled before the rule above and
+still hold, because none of them is a second business:
+
+`TOP ATLÂNTICO` / `TOP ATLÂNTICO – VIAGENS E TURISMO` (Colombo, Piso 0 — the
+second is the fuller name of the same travel agency) ·
 `VODAFONE` / `Vodafone Empresas` (Colombo, Piso 0) ·
 `BERSHKA` / `BERSKA` (Vasco da Gama, a typo on the operator's page)
+
+**The test that separates the two cases is whether the second listing is a
+different kind of business.** `Auchan Ótica` is an optician inside a
+supermarket — different type, different task, its own row. `TOP ATLÂNTICO –
+VIAGENS E TURISMO` is the same travel agency written out in full — same type,
+one row. Where our own types differ, it is a separate unit; where they are
+identical and the names are variants of each other, look before adding.
 
 ## Kept despite being absent from the directory
 
