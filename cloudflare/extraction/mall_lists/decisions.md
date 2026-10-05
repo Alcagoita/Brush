@@ -36,6 +36,50 @@ a building whose contents are defined by someone else's document.
 inside a centre that the operator does not list is not deleted by this rule —
 removal still needs a person, ruling on it individually.
 
+## A row inside a centre that the operator does not list is wrong
+
+Owner, 2026-10-05, on the two statements of THE rule above:
+
+> "If we have 24 stores at Ubbo that aren't on the source of true, that's
+> wrong. Same for Amoreiras."
+
+So the list is authoritative **in both directions**, and the older "a tenant
+list adds; it does not retire" no longer holds inside a shopping centre. It
+was written when Overture was treated as a co-source for mall interiors;
+Overture is not a source there at all.
+
+### Removal uses the STRICT outline, never the buffer
+
+This is the part that will destroy real places if it is got wrong, and it
+nearly did. The buffer exists so a listed tenant with an imprecise coordinate
+still matches. Using that same buffered set to **remove** sweeps in the
+neighbours:
+
+| row | nearest centre | Amoreiras Shopping Center |
+|---|---|---|
+| `Worten` | **Amoreiras Plaza, 19 m** | 106 m |
+| `Massimo Dutti` | **Amoreiras Plaza, 30 m** | 95 m |
+
+Both are tenants of a *different* shopping centre — `Amoreiras Plaza` and
+`Amoreiras Square` are separate `shop=mall` buildings in the same block. The
+buffer ring also holds ordinary street businesses (`ABANCA`, `Caixa Geral de
+Depósitos`, a `Powerdot` charger 203 m out).
+
+**So: match on the buffered footprint, remove only from the strict outline.**
+At UBBO that is 18 rows of the 24, at Amoreiras 17 of the 28.
+
+### And the match must be checked by hand first
+
+The matcher misses listed tenants, so a REMOVE list is a draft, never an
+instruction. Two of the 35 were listed all along:
+
+* `H3 Hambúrguer Gourmet` is the listed `H3` — already a confirmed pair, and
+  this file already says `H3` is too short for the containment rule;
+* `UCI Dolce Vita Tejo` is the listed `UCI Luxe`, under the centre's old name.
+
+UBBO also holds the cinema twice, as `UCI Dolce Vita Tejo` and `UCI CINEMAS` —
+a duplicate to settle, not two removals.
+
 ## Confirmed matches — the tenant IS the row we hold
 
 The matcher scored these below its confident bar. They are the same shop.
