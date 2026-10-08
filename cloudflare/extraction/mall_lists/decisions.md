@@ -83,7 +83,7 @@ a duplicate to settle, not two removals.
 ## Types our own data disagreed about, ruled 2026-10-08
 
 Eight names behind the unplaceable units were held under more than one type in
-production, so our own rows could not settle them. The owner ruled five:
+production, so our own rows could not settle them. All eight are now ruled:
 
 | unit | type | why |
 |---|---|---|
@@ -92,29 +92,33 @@ production, so our own rows could not settle them. The owner ruled five:
 | `Wiñk` | `nail_salon` | a nail salon, not a general beauty salon |
 | `Pluricosmética` | `store` + `store_kind=beauty` | a cosmetics store |
 | `Casa da Sorte` | `lottery` | |
+| `Laranjinha` | `store` + `store_kind=childrens_clothing` | Amoreiras |
+| `Maria Croissant` | **both** `bakery` and `cafe` | both valid, in every occurrence |
+| `Padaria do Bairro` | **both** `bakery` and `cafe` | both valid, in every occurrence |
 
-Still unruled: `Laranjinha`, `Maria Croissant`, `Padaria do Bairro`.
+## A brand carries the same type SET in every branch
 
-### A brand carries ONE type everywhere
+> "We can have multiple types for a brand, we just need for them to be same in
+> every occurrence." — owner, 2026-10-08
 
-> "We should have more in our DB, and should have it equal for all, because
-> it's one important errand that users can do 'Buy coffee'" — owner, on
-> Nespresso.
+The rule is **consistency, not singularity**. `Maria Croissant` and
+`Padaria do Bairro` are a bakery *and* a café, and both types belong on every
+branch. What is wrong is one branch carrying `bakery` while another carries
+`cafe`, because then a user tagging "buy bread" reaches some of them and not
+others.
 
-A brand means the same thing in every branch, so a user tagging "buy coffee"
-must reach every Nespresso. Ours are split four ways — `cafe` ×13,
-`store` ×5 (with `coffee_supplies`, the correct answer), `restaurant` ×1 and
-`supermarket` ×1 — so 15 of the 20 are wrong and the right type is already in
-our data.
+Nespresso is the case that showed it: `cafe` ×13, `store` + `coffee_supplies`
+×5, `restaurant` ×1, `supermarket` ×1. It sells capsules and machines, so the
+correct answer is the one **5 rows** hold, not the one 13 do — **a majority
+vote would have picked the wrong type.**
 
-This is **not** confined to Nespresso. Measured 2026-10-08, 36 names with five
-or more rows carry more than one type, among them `ponto ctt` with **17 types
-across 1,222 rows**, `loja ctt` with 9 across 508, `minipreco` with 7 across
-567 and `western union` with 6 across 580. See KAN-480.
-
-Not every one is a fault — a brand can genuinely run different formats, and a
-`Pingo Doce` with a filling station is two real types. The audit has to tell
-those apart rather than force one type on every name.
+Measured 2026-10-08, comparing each row's full set of types rather than its
+primary: of 36 names already known to carry more than one type, **all 36 hold
+different type sets across their rows** — `ponto ctt` has 18 distinct sets
+across 1,222 rows, `loja ctt` 9 across 508, `minipreco` 7 across 567. That
+sample was pre-selected, so it says nothing about the overall rate; what it
+does say is that none of those 36 turned out to be a legitimate multi-format
+brand. See KAN-480.
 
 ## Confirmed matches — the tenant IS the row we hold
 
