@@ -24,7 +24,7 @@ the `store_kind` values live in production), never from the operator's words.
 | Cort&Cose | `clothing_repair` | — | confirmed |
 | Gold Suisse | `pawn`¹ | `pawn` | owner — pawn shop, buys and sells gold |
 | MyForce | `car_repair` | — | owner |
-| Wiñk | `beauty_salon` | — | owner |
+| Wiñk | `nail_salon` | — | owner — a nail salon (corrected 2026-10-08; recorded as `beauty_salon` before) |
 
 ¹ `pawn` exists as a `store_kind` (13 rows in production) but not as a
 `poi_type`. Either the row is `store` + `store_kind = pawn`, or `pawn` becomes

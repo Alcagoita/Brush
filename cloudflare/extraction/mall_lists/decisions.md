@@ -80,6 +80,42 @@ instruction. Two of the 35 were listed all along:
 UBBO also holds the cinema twice, as `UCI Dolce Vita Tejo` and `UCI CINEMAS` —
 a duplicate to settle, not two removals.
 
+## Types our own data disagreed about, ruled 2026-10-08
+
+Eight names behind the unplaceable units were held under more than one type in
+production, so our own rows could not settle them. The owner ruled five:
+
+| unit | type | why |
+|---|---|---|
+| `Nespresso` | `store` + `store_kind=coffee_supplies` | **sells capsules and machines, not coffee to drink** — it is not a café |
+| `Santini` | `ice_cream` | the single `butcher` row is wrong |
+| `Wiñk` | `nail_salon` | a nail salon, not a general beauty salon |
+| `Pluricosmética` | `store` + `store_kind=beauty` | a cosmetics store |
+| `Casa da Sorte` | `lottery` | |
+
+Still unruled: `Laranjinha`, `Maria Croissant`, `Padaria do Bairro`.
+
+### A brand carries ONE type everywhere
+
+> "We should have more in our DB, and should have it equal for all, because
+> it's one important errand that users can do 'Buy coffee'" — owner, on
+> Nespresso.
+
+A brand means the same thing in every branch, so a user tagging "buy coffee"
+must reach every Nespresso. Ours are split four ways — `cafe` ×13,
+`store` ×5 (with `coffee_supplies`, the correct answer), `restaurant` ×1 and
+`supermarket` ×1 — so 15 of the 20 are wrong and the right type is already in
+our data.
+
+This is **not** confined to Nespresso. Measured 2026-10-08, 36 names with five
+or more rows carry more than one type, among them `ponto ctt` with **17 types
+across 1,222 rows**, `loja ctt` with 9 across 508, `minipreco` with 7 across
+567 and `western union` with 6 across 580. See KAN-480.
+
+Not every one is a fault — a brand can genuinely run different formats, and a
+`Pingo Doce` with a filling station is two real types. The audit has to tell
+those apart rather than force one type on every name.
+
 ## Confirmed matches — the tenant IS the row we hold
 
 The matcher scored these below its confident bar. They are the same shop.
