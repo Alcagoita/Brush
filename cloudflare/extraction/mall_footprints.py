@@ -63,10 +63,31 @@ FOOTPRINTS_PATH = os.path.join(
 DEFAULT_BUFFER_M = 75
 
 
+_CACHE = {}
+
+
 def load(path=FOOTPRINTS_PATH):
-    """{name: {'osm': id, 'centroid': [lat, lng], 'rings': [[[lat, lng], …]]}}"""
-    with open(path) as handle:
-        return json.load(handle)
+    """{name: {'osm': id, 'centroid': [lat, lng], 'rings': [[[lat, lng], …]]}}
+
+    Cached: the promoter asks `mall_at` once per candidate, and a country
+    import decides hundreds of thousands of them.
+    """
+    if path not in _CACHE:
+        with open(path) as handle:
+            footprints = json.load(handle)
+        # A bounding box per centre, widened by its buffer, so the common
+        # case — a candidate nowhere near any mall — costs two comparisons
+        # instead of ray casting every edge. A country import asks this of
+        # every candidate it decides.
+        for footprint in footprints.values():
+            points = [p for ring in footprint['rings'] for p in ring]
+            pad = footprint.get('buffer_m', DEFAULT_BUFFER_M) / 111320.0
+            footprint['_box'] = (min(p[0] for p in points) - pad,
+                                 max(p[0] for p in points) + pad,
+                                 min(p[1] for p in points) - pad * 1.3,
+                                 max(p[1] for p in points) + pad * 1.3)
+        _CACHE[path] = footprints
+    return _CACHE[path]
 
 
 def in_ring(lat, lng, ring) -> bool:
@@ -123,6 +144,9 @@ def in_footprint(lat, lng, footprint, buffer_m=None) -> bool:
     `buffer_m=0` is the strict outline — which the door-duplicate audit wants,
     since a door-pinned row sits on the street address, outside the building.
     """
+    box = footprint.get('_box')
+    if box and not (box[0] <= lat <= box[1] and box[2] <= lng <= box[3]):
+        return False
     return metres_outside(lat, lng, footprint) <= buffer_for(footprint, buffer_m)
 
 

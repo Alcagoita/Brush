@@ -45,6 +45,7 @@ from classify_and_load import (
     match_keyword_subtypes, normalize_text, replaces_generic_store, sql_escape,
     types_from_name,
 )
+from mall_footprints import mall_at
 from opening_hours import hours_for_poi_type
 
 CLOUDFLARE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -483,6 +484,16 @@ def decide(row, mapping, reachable, brand_dictionary, store_kind_aliases=None,
     normalized = normalize_text(row['name'] or '')
     if not normalized:
         return 'rejected', (), (), 'unnamed'
+
+    # KAN-439. A shopping centre's contents are manual-only (owner,
+    # 2026-10-04): the operator's published tenant list is the source of truth
+    # for what is inside, and Overture is a helper there, never a source. An
+    # automated decision inside one of these buildings will eventually
+    # disagree with that list, so it is never made. The row stays in
+    # `overture_candidate` with the reason on it; nothing is deleted.
+    mall = mall_at(row['lat'], row['lng']) if row.get('lat') is not None else None
+    if mall:
+        return 'rejected', (), (), f'inside {mall}; shopping centres are manual only'
 
     # Rejections come first, and the category outranks the name here. A
     # dentist named "Clínica Farmácia Silva" is still a dentist; letting a

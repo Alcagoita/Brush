@@ -298,14 +298,25 @@ maintain by hand will always eventually disagree with the operator's own
 list, and the operator is the authority. Removing the writer removes the
 whole class of failure. "This will always fail" — owner.
 
-What it requires, and what is not built yet:
+**Built and wired, 2026-10-23.** `mall_footprints.mall_at()` answers "which
+centre is this point inside", and two callers consult it:
 
-* a registry of mall footprints, so "inside a mall" is a thing code can test;
-* a guard in `promote_overture_candidates` and `refresh_overture_country`
-  that skips any candidate falling inside one.
+* `promote_overture_candidates.decide()` rejects any candidate inside a
+  centre, with `inside <centre>; shopping centres are manual only` on the row.
+  Nothing is deleted — the candidate keeps its reason in
+  `overture_candidate`.
+* `refresh_overture_country.apply()` holds such rows back in **both**
+  directions: a changed row inside a centre is not refreshed, and a row that
+  vanished from the release is not retired, because the operator's list
+  decides that and not a data drop. The run reports
+  `mall_rows_held_by_hand`.
 
-Until that guard exists, the next Overture refresh will walk into these
-buildings. It is part of KAN-439.
+The guard is cheap enough to ask of every candidate in a country import — a
+bounding box per centre answers the common case in under a microsecond, so
+200,000 far-away candidates cost 0.14 s.
+
+Eight tests cover it (`tests/test_mall_manual_only.py`), including that a row
+with no coordinates does not crash it and that the reason names the centre.
 
 ### Many POIs at one point is the intended behaviour
 

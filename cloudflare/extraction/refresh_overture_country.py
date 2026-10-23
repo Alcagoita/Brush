@@ -48,6 +48,7 @@ EXTRACTION_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, EXTRACTION_DIR)
 
 from classify_and_load import MAX_STATEMENT_BYTES, byte_len, encode_geohash, normalize_text, sql_escape  # noqa: E402
+from mall_footprints import mall_at  # noqa: E402
 
 D1_ID_BATCH = 150
 MAX_VALUES_TERMS = 500
@@ -214,14 +215,33 @@ def currently_retired_ids():
         where='retired_in_release IS NOT NULL')}
 
 
+def in_a_mall(row):
+    """KAN-439. A row inside a shopping centre is manual-only.
+
+    The operator's published tenant list is the source of truth for what is
+    inside, so a refresh must not change such a row's served fields and must
+    not retire it because a release stopped listing it. Overture is a helper
+    inside these buildings, never a source.
+    """
+    lat, lng = row.get('lat'), row.get('lng')
+    return bool(lat is not None and lng is not None and mall_at(lat, lng))
+
+
 def apply(previous_csv, current_csv, release, refreshed, execute):
     """The refresh's own writes, after the loader has upserted the archive.
     Returns the report counts. `execute` is d1_client.execute."""
     previous = archive_rows(previous_csv)
     current = archive_rows(current_csv)
     sets = diff_archives(previous, current)
-    changed_ids = [i for i, _ in sets['changed']]
-    category_changed = [i for i, moved in sets['changed'] if 'category' in moved]
+    # Shopping centres are manual-only, in BOTH directions: a changed row
+    # inside one is not refreshed, and a row that vanished from the release is
+    # not retired — the operator's list decides that, not a data drop.
+    held_by_hand = {i for i, _ in sets['changed'] if in_a_mall(current[i])}
+    retired_in_mall = {i for i in sets['retired'] if in_a_mall(previous[i])}
+    changed_ids = [i for i, _ in sets['changed'] if i not in held_by_hand]
+    category_changed = [i for i, moved in sets['changed']
+                        if 'category' in moved and i not in held_by_hand]
+    sets['retired'] = [i for i in sets['retired'] if i not in retired_in_mall]
 
     for statement in served_refresh_statements((current[i] for i in changed_ids), refreshed):
         execute(statement)
@@ -236,6 +256,7 @@ def apply(previous_csv, current_csv, release, refreshed, execute):
         'new_rows': len(sets['new']), 'changed_rows': len(changed_ids),
         'category_changed_rows': len(category_changed), 'retired_rows': len(sets['retired']),
         'unretired_rows': len(back), 'unchanged_rows': len(sets['unchanged']),
+        'mall_rows_held_by_hand': len(held_by_hand) + len(retired_in_mall),
     }
 
 
