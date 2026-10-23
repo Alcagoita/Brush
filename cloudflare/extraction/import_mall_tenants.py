@@ -50,6 +50,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from classify_and_load import byte_len, encode_geohash, normalize_text, sql_escape  # noqa: E402
 import mall_footprints  # noqa: E402
 import mall_tenants  # noqa: E402
+from mall_tenants import CONFIDENT_THRESHOLD, mall_tokens, name_similarity, tenant_key  # noqa: E402
 
 MAX_STATEMENT_BYTES = 80000
 MAX_VALUES_TERMS = 500
@@ -103,29 +104,47 @@ def read_types(path):
     return out
 
 
-def placements(tenants, held, osm, footprint, centre_slug, types):
+def already_held(tenant, held, tokens):
+    """The row we already serve for this tenant, if there is one.
+
+    This MUST use the same test the comparison uses, not an exact name match.
+    A venue inside a mall carries the mall, the city and its own shop word in
+    its name — `Loja CTT` for `CTT`, `Aldo, Amoreiras Shopping` for `Aldo` —
+    so an exact match misses the row and a second one gets created. That is
+    how 58 duplicates were written on 2026-10-23, and a duplicate showing the
+    same shop twice in Nearby is the failure users notice.
+    """
+    key = tenant_key(tenant, tokens)
+    for row in held:
+        if name_similarity(key, tenant_key(row['name'], tokens)) >= CONFIDENT_THRESHOLD:
+            return row
+    return None
+
+
+def placements(tenants, held, osm, footprint, centre_slug, types, mall_name=None):
     """One decision per listed tenant: already held, placed by OSM, or at the
     centre. Returns (to_write, already_held, untyped)."""
-    held_by_name = {fold(r['name']): r for r in held}
+    tokens = mall_tokens(mall_name or '')
     osm_by_name = {fold(r['name']): r for r in osm}
     centroid = footprint['centroid']
 
     to_write, already, untyped = [], [], []
     for tenant, floor in tenants:
         key = fold(tenant)
-        if key in held_by_name:
-            already.append((tenant, held_by_name[key]))
+        match = already_held(tenant, held, tokens)
+        if match:
+            already.append((tenant, match))
             continue
         typing = types.get(key)
         if not typing:
             untyped.append(tenant)
             continue
         primary, kind, extra, evidence = typing
-        match = osm_by_name.get(key)
-        if match and mall_footprints.in_footprint(match['lat'], match['lng'], footprint):
-            lat, lng, source = match['lat'], match['lng'], 'osm'
+        placed = osm_by_name.get(key)
+        if placed and mall_footprints.in_footprint(placed['lat'], placed['lng'], footprint):
+            lat, lng, source = placed['lat'], placed['lng'], 'osm'
             # the operator's Piso wins; OSM's level only fills a gap
-            shown_floor = floor or (f"Piso {match['level']}" if match.get('level') else None)
+            shown_floor = floor or (f"Piso {placed['level']}" if placed.get('level') else None)
         else:
             lat, lng, source = centroid[0], centroid[1], 'centre'
             shown_floor = floor or None
@@ -201,7 +220,7 @@ def main(argv=None):
     footprint = mall_footprints.load()[args.mall]
     to_write, already, untyped = placements(
         tenants, json.load(open(args.held)), json.load(open(args.osm)),
-        footprint, args.slug, read_types(args.types))
+        footprint, args.slug, read_types(args.types), args.mall)
 
     print(f'{len(tenants)} listed  {len(already)} already held  '
           f'{len(to_write)} to create  {len(untyped)} untyped (not written)',

@@ -3,38 +3,48 @@
 # every other row of evidence here.
 name	poi_type	store_kind	extra_types	evidence
 100 Gramas	restaurant			operator category: Restaurantes
+5àsec	laundry			ruled by a person
+A Padaria Portuguesa	bakery			OSM bakery
 A Tarte	restaurant			held elsewhere in Portugal
 ActivoBank	bank			held elsewhere in Portugal
 Adolfo Dominguez	store	clothing		held elsewhere in Portugal
 Agência Abreu	travel_agency			ruled by a person
 Aldo	store	shoes		held elsewhere in Portugal
 Allways	restaurant			ruled by a person
+Amor Aos Pedaços	bakery			ruled by a person
 Amoreiras 360º Panoramic View	historical_landmark			held elsewhere in Portugal
 Anselmo Rosa Joalheiro	store	jewelry		ruled by a person
 Area	store	furniture		held elsewhere in Portugal
 Arezzo	store	shoes		held elsewhere in Portugal
 Auchan Gourmet	supermarket			ruled by a person
-Auchan Tecnologia	store	electronics		operator category: Tecnologia e Telecomunicações
+Auchan Tecnologia	store	home		OSM houseware
 Automóvel Club de Portugal	store	auto_parts_and_supply		ruled by a person
 Açaí Natura	restaurant			held elsewhere in Portugal
 BAEBE	store	beauty		ruled by a person
 Balthazar por Confeitaria Nacional	bakery			ruled by a person
+Banco Montepio	bank			OSM bank
 Bang & Olufsen	store	electronics		held elsewhere in Portugal
+Benamôr	store	beauty		ruled by a person
 Bento Cabeleireiros	hairdresser			held elsewhere in Portugal
 Bertrand Livreiros	store	books		held elsewhere in Portugal
 Big Foot	store	shoes		ruled by a person
+Bimba Y Lola	store	clothing		OSM clothes
 Block House	restaurant			held elsewhere in Portugal
+Boss Store	store	clothing		ruled by a person
 Botaminuto	shoe_repair			ruled by a person
 Boutique dos Relógios	store	jewelry		held elsewhere in Portugal
 Boutique dos Relógios Plus	store	jewelry		held elsewhere in Portugal
 Bricolage	store	hardware		ruled by a person
+Brownie	store	clothing		OSM clothes
 Bubbles Company	store	clothing		ruled by a person
 Calzedonia	store	clothing		held elsewhere in Portugal
 Cantê	store	lingerie		ruled by a person
 Capela das Amoreiras	church			ruled by a person
+Caroll	store	womens_clothing		ruled by a person
 Casa Havaneza	lottery		store,tobacco	held elsewhere in Portugal
 Casa Simões	store	arts_and_crafts		held elsewhere in Portugal
 Cata Vassalo	store	jewelry		held elsewhere in Portugal
+Celeiro	supermarket			OSM supermarket
 Cinemas NOS (Salas 1, 2 e 3)	movie_theater			ruled by a person
 Cinemas NOS (Salas Vip 1, 2 , 3 e 4)	movie_theater			ruled by a person
 Claudie Pierlot	store	womens_clothing		held elsewhere in Portugal
@@ -45,8 +55,10 @@ Delta Espresso	cafe			held elsewhere in Portugal
 Dez Prá Uma	restaurant			held elsewhere in Portugal
 Dim Sum	restaurant			held elsewhere in Portugal
 Douglas	store	beauty		held elsewhere in Portugal
+Ecco	store	shoes		OSM shoes
 El Ganso	store	clothing		held elsewhere in Portugal
 Elements 75'80	store	clothing		ruled by a person
+Empanadas MBQ	restaurant			ruled by a person
 Espadim 1985	store	antique		held elsewhere in Portugal
 Espiral Relojoaria	store	watch		ruled by a person
 Falconeri	store	clothing		held elsewhere in Portugal
@@ -55,6 +67,8 @@ Florista Jardim Das Amoreiras	florist			held elsewhere in Portugal
 Flying Tiger	florist			held elsewhere in Portugal
 Fnac	store	books		ruled by a person
 Fotosport	store	photography_store_and_services		held elsewhere in Portugal
+Furla	store	handbag		ruled by a person
+GANT	store	clothing		OSM clothes
 Garden Burger	restaurant			held elsewhere in Portugal
 Geox	store	shoes		held elsewhere in Portugal
 Gleba	bakery			held elsewhere in Portugal
@@ -62,10 +76,13 @@ Globe	store	womens_clothing		held elsewhere in Portugal
 Gms Store	store	electronics		operator category: Tecnologia e Telecomunicações
 Gold Suisse	store	pawn		ruled by a person
 GreenKiss	store	clothing		ruled by a person
+Guess	store	clothing		OSM clothes
 H3	restaurant			held elsewhere in Portugal
 Happy Faces	store	toys		ruled by a person
+HOSS Intropia	store	womens_clothing		ruled by a person
 Hurley	store	clothing		held elsewhere in Portugal
 Häagen-Dazs	ice_cream			held elsewhere in Portugal
+ibeauty Cosmetics	store	beauty		ruled by a person
 Instanta	store	photography_store_and_services		held elsewhere in Portugal
 Intimissimi	store	clothing		held elsewhere in Portugal
 IQOS Store	tobacco			ruled by a person
@@ -73,9 +90,11 @@ iServices	phone_repair			ruled by a person
 ISTO.	store	clothing		held elsewhere in Portugal
 Italian Republic	restaurant			held elsewhere in Portugal
 IUMAN-Intimissimi Uomo	store	clothing		held elsewhere in Portugal
+Jean Louis David	hairdresser			OSM hairdresser
 Joana Reymão Nogueira doçarias	bakery			ruled by a person
 Joshua's Shoarma	restaurant			held elsewhere in Portugal
 Kiko Milano	store	beauty		held elsewhere in Portugal
+Knot	store	clothing		OSM clothes
 La Brasserie de L’Entrecôte	restaurant			held elsewhere in Portugal
 La Casa de las Carcasas	phone_repair		store,phone	held elsewhere in Portugal
 La Crêperie	restaurant			ruled by a person
@@ -85,6 +104,7 @@ Le Laboratoire	store	beauty		ruled by a person
 Leonor Henriques	store	fashion_accessories		held elsewhere in Portugal
 Let’s Copy	store	office_equipment		held elsewhere in Portugal
 Levi`s	store	clothing		held elsewhere in Portugal
+Lion of Porches	store	clothing		OSM clothes
 Local Your Healthy Kitchen	restaurant			ruled by a person
 Loja das Meias	store	clothing		held elsewhere in Portugal
 Lola Casademunt	store	fashion_accessories		ruled by a person
@@ -105,23 +125,28 @@ Monkey Brain	cafe			held elsewhere in Portugal
 Mr. Blue	store	clothing		held elsewhere in Portugal
 MultiOpticas	store	eyewear_and_optician		held elsewhere in Portugal
 Nails4’Us	nail_salon			ruled by a person
+NaturaPura	store	childrens_clothing		ruled by a person
 Nature & Découvertes	supermarket			held elsewhere in Portugal
 Nespresso	store	coffee_supplies		ruled by a person
 Noon	store	womens_clothing		held elsewhere in Portugal
 Noori	restaurant			held elsewhere in Portugal
-NOS	store	electronics		operator category: Tecnologia e Telecomunicações
+NOS	store	phone		OSM mobile_phone
 NovaCâmbios	currency_exchange			ruled by a person
 Novo Banco	bank			held elsewhere in Portugal
+O Boticário	store	beauty		ruled by a person
 O Lisboeta	restaurant			ruled by a person
 O Madeirense	restaurant			held elsewhere in Portugal
 Oakberry	juice			ruled by a person
-Oysho	store	sports		operator category: Desporto
+Olhar de Prata	store	jewelry		OSM jewelry
+Oysho	store	clothing		OSM clothes
 Panda Cantina	restaurant			held elsewhere in Portugal
 Parfois	store	jewelry		held elsewhere in Portugal
 Parmeggiana & Cia	restaurant			ruled by a person
 Perfumes & Companhia	store	beauty		held elsewhere in Portugal
 Pet's Park	store	pet		held elsewhere in Portugal
+Place Santé	store	beauty		ruled by a person
 Poke House	restaurant			held elsewhere in Portugal
+Polo Ralph Lauren	store	clothing		OSM clothes
 Português Café	bakery			held elsewhere in Portugal
 Portugália Balcão	restaurant			operator category: Restaurantes
 Presse Linha	store	newspaper_and_magazines		ruled by a person
@@ -131,6 +156,7 @@ Raquel Poço Jewellery	store	jewelry		ruled by a person
 Rituals	store	beauty		held elsewhere in Portugal
 Sabor Gaúcho	restaurant			held elsewhere in Portugal
 Sacoor Brothers	store	clothing		held elsewhere in Portugal
+Samsonite	store	handbag		OSM bag
 Sandro	store	clothing		ruled by a person
 Sanjugo	restaurant			ruled by a person
 Santini	ice_cream			ruled by a person
@@ -138,27 +164,31 @@ Scalpers	store	clothing		held elsewhere in Portugal
 Sebago	store	shoes		ruled by a person
 Security Center	store	electronics		ruled by a person
 Selfish	restaurant			held elsewhere in Portugal
-Serra da Estrela	restaurant			operator category: Restaurantes
+Serra da Estrela	restaurant			OSM restaurant
 Simple & Fast – Oficina Auto	car_repair			ruled by a person
 Simple Eco Wash	car_wash			ruled by a person
 SmashVille	restaurant			operator category: Restaurantes
 Soya Express	restaurant			ruled by a person
+Sport Zone	store	sports		OSM sports
 Springfield	store	clothing		held elsewhere in Portugal
 Stone By Stone	store	jewelry		held elsewhere in Portugal
 Sunglass Hut	store	eyewear_and_optician		held elsewhere in Portugal
 Sushi Café	restaurant			held elsewhere in Portugal
 Swarovski	store	jewelry		held elsewhere in Portugal
+Swatch	store	watch		OSM watches
 Teresa Alecrim	store	fabric		held elsewhere in Portugal
 The Cut	restaurant			held elsewhere in Portugal
+Timberland	store	clothing		OSM clothes
 Tomatino	restaurant			held elsewhere in Portugal
 Top Atlântico	travel_agency			ruled by a person
+Tous	store	jewelry		OSM jewelry
 Triumph	store	clothing		held elsewhere in Portugal
 U Chá	tea			ruled by a person
 Verde Côco	restaurant			ruled by a person
 Viagens El Corte Inglés	travel_agency			ruled by a person
 Vista Alegre	store	home		operator category: Casa e Decoração
-Vitaminas	restaurant			operator category: Restaurantes
-Vodafone	store	electronics		operator category: Tecnologia e Telecomunicações
+Vitaminas	restaurant			OSM restaurant
+Vodafone	store	phone		OSM mobile_phone
 Weeel	ice_cream			held elsewhere in Portugal
 Wickett Jones	store	womens_clothing		held elsewhere in Portugal
 Wiñk	nail_salon			ruled by a person

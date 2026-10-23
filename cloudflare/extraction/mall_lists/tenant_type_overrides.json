@@ -368,6 +368,51 @@
   ],
   "Viagens El Corte Inglés": [
    "travel_agency"
+  ],
+  "5àsec": [
+   "laundry"
+  ],
+  "Amor Aos Pedaços": [
+   "bakery"
+  ],
+  "Empanadas MBQ": [
+   "restaurant"
+  ],
+  "Benamôr": [
+   "store",
+   "beauty"
+  ],
+  "ibeauty Cosmetics": [
+   "store",
+   "beauty"
+  ],
+  "Place Santé": [
+   "store",
+   "beauty"
+  ],
+  "O Boticário": [
+   "store",
+   "beauty"
+  ],
+  "Boss Store": [
+   "store",
+   "clothing"
+  ],
+  "Caroll": [
+   "store",
+   "womens_clothing"
+  ],
+  "Furla": [
+   "store",
+   "handbag"
+  ],
+  "HOSS Intropia": [
+   "store",
+   "womens_clothing"
+  ],
+  "NaturaPura": [
+   "store",
+   "childrens_clothing"
   ]
  }
 }

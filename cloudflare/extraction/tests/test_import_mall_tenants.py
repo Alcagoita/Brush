@@ -30,7 +30,27 @@ def tenants(*pairs):
 
 class PlacementTest(unittest.TestCase):
     def place(self, listed, held=(), osm=()):
-        return writer.placements(listed, list(held), list(osm), UBBO, 'ubbo', TYPES)
+        return writer.placements(listed, list(held), list(osm), UBBO, 'ubbo', TYPES, 'UBBO')
+
+    def test_a_held_row_carrying_the_mall_or_a_shop_word_still_counts_as_held(self):
+        """The regression that wrote 58 duplicates on 2026-10-23. A venue
+        inside a mall carries the mall, the city and its own shop word in its
+        name, so an exact match misses the row and creates a second one."""
+        for held_name in ('Loja Zara', 'Zara, UBBO Shopping', 'Zara Amadora'):
+            to_write, already, _ = self.place(
+                tenants(('Zara', 'Piso 1')),
+                held=[{'name': held_name, 'lat': INSIDE[0], 'lng': INSIDE[1]}])
+            self.assertEqual(to_write, [], f'{held_name} is the Zara we already serve')
+            self.assertEqual(len(already), 1)
+
+    def test_a_different_shop_with_a_similar_name_is_not_held(self):
+        """`Auchan Ótica` is its own unit beside `Auchan` (owner, 2026-10-05),
+        so a loose test must not swallow it."""
+        to_write, already, _ = self.place(
+            tenants(('Starbucks', '')),
+            held=[{'name': 'Star Pizza', 'lat': INSIDE[0], 'lng': INSIDE[1]}])
+        self.assertEqual(len(to_write), 1)
+        self.assertEqual(already, [])
 
     def test_a_tenant_we_already_hold_is_not_written_again(self):
         to_write, already, untyped = self.place(
