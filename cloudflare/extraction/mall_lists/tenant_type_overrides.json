@@ -226,6 +226,148 @@
   "Bricolage": [
    "store",
    "hardware"
+  ],
+  "Agência Abreu": [
+   "travel_agency"
+  ],
+  "Top Atlântico": [
+   "travel_agency"
+  ],
+  "Mango Teen": [
+   "store",
+   "clothing"
+  ],
+  "Oakberry": [
+   "juice"
+  ],
+  "Sical – Quiosque": [
+   "cafe"
+  ],
+  "Gleba – Quiosque": [
+   "bakery"
+  ],
+  "Holmes Place SPA": [
+   "spa"
+  ],
+  "Cacifos CTT Locky": [
+   "post"
+  ],
+  "Kivet": [
+   "veterinary_care"
+  ],
+  "Fábrica dos Óculos": [
+   "store",
+   "eyewear_and_optician"
+  ],
+  "Shades World": [
+   "store",
+   "sunglasses"
+  ],
+  "Sould Park Jump": [
+   "amusement_park"
+  ],
+  "KidZania": [
+   "amusement_park"
+  ],
+  "Lifephone": [
+   "store",
+   "phone"
+  ],
+  "Auchan Saúde e Bem Estar": [
+   "store",
+   "drugstore"
+  ],
+  "Outlet El Corte Inglés": [
+   "store",
+   "clothing"
+  ],
+  "ROCK'S": [
+   "store",
+   "clothing"
+  ],
+  "Natura": [
+   "store",
+   "clothing"
+  ],
+  "Oriente-se": [
+   "store",
+   "gift"
+  ],
+  "Grace and Beauty": [
+   "beauty_salon"
+  ],
+  "iServices": [
+   "phone_repair"
+  ],
+  "Jeronymo": [
+   "cafe"
+  ],
+  "MO": [
+   "store",
+   "clothing"
+  ],
+  "NEOON": [
+   "store",
+   "toys"
+  ],
+  "Carrossel Experience": [
+   "hairdresser"
+  ],
+  "Anselmo Rosa Joalheiro": [
+   "store",
+   "jewelry"
+  ],
+  "Raquel Poço Jewellery": [
+   "store",
+   "jewelry"
+  ],
+  "Auchan Gourmet": [
+   "supermarket"
+  ],
+  "Botaminuto": [
+   "shoe_repair"
+  ],
+  "Capela das Amoreiras": [
+   "church"
+  ],
+  "Cinemas NOS (Salas 1, 2 e 3)": [
+   "movie_theater"
+  ],
+  "Cinemas NOS (Salas Vip 1, 2 , 3 e 4)": [
+   "movie_theater"
+  ],
+  "Fnac": [
+   "store",
+   "books"
+  ],
+  "La Crêperie": [
+   "restaurant"
+  ],
+  "Made In": [
+   "store",
+   "clothing"
+  ],
+  "Mango Man": [
+   "store",
+   "mens_clothing"
+  ],
+  "NovaCâmbios": [
+   "currency_exchange"
+  ],
+  "Pés de Cereja": [
+   "store",
+   "childrens_clothing"
+  ],
+  "Sandro": [
+   "store",
+   "clothing"
+  ],
+  "Sebago": [
+   "store",
+   "shoes"
+  ],
+  "Viagens El Corte Inglés": [
+   "travel_agency"
   ]
  }
 }
