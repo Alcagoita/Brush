@@ -1,4 +1,7 @@
-# KAN-439 — the units that actually need a ruling
+# KAN-439 — the units that needed a ruling
+
+> **All resolved, 2026-10-23.** The owner corrected three and accepted the
+> rest, and the single tier-1 conflict (`Mandarim`) with them.
 
 **37 of 186.** The rest are settled by evidence, not opinion:
 
@@ -34,7 +37,7 @@ My proposal in each row. **Correct only what is wrong** — silence means I writ
 | `Le Laboratoire` | Amoreiras | Beleza e Saúde | `store/beauty` |
 | `M.A.C` | Amoreiras | Beleza e Saúde | `store/beauty` |
 | `Nails4’Us` | Amoreiras | Beleza e Saúde | `nail_salon` |
-| `Monster Cookies – Quiosque` | UBBO | Cafetaria, Gelataria e Doçaria, Quiosques | `cafe` |
+| `Monster Cookies – Quiosque` | UBBO | Cafetaria, Gelataria e Doçaria, Quiosques | `bakery` — owner |
 | `BACHIYO` | UBBO | Cafetaria, Gelataria e Doçaria, Quiosques, Restauração | `cafe` |
 | `Arara` | UBBO | Cafetaria, Gelataria e Doçaria, Restauração | `cafe` |
 | `Oakberry Truck` | UBBO | Cafetaria, Gelataria e Doçaria, Restauração | `juice` |
@@ -56,12 +59,29 @@ My proposal in each row. **Correct only what is wrong** — silence means I writ
 | `Migacho` | Amoreiras | Moda e Acessórios | `store/clothing` |
 | `AWA Massage` | UBBO | Saúde e Bem-Estar | `spa` |
 | `Ortopedia.pt` | UBBO | Saúde e Bem-Estar | `store/medical_supply` |
-| `Automóvel Club de Portugal` | Amoreiras | Serviços | `?` |
+| `Automóvel Club de Portugal` | Amoreiras | Serviços | `store` + `auto_parts_and_supply` — matching the ACP row we hold at Leiria |
 | `Security Center` | Amoreiras | Serviços | `store/electronics` |
 | `Simple & Fast – Oficina Auto` | Amoreiras | Serviços | `car_repair` |
 | `Simple Eco Wash` | Amoreiras | Serviços | `car_wash` |
 
-## Two I am not confident about
+## The three the owner corrected
+
+| unit | I proposed | owner |
+|---|---|---|
+| `IQOS Store` | `store/electronics` by its category | **`tobacco`** — it sells heated tobacco |
+| `Monster Cookies – Quiosque` | `cafe` | **`bakery`** |
+| `Automóvel Club de Portugal` | `?` | **ACP** — we already hold one, so match it |
+
+`Automóvel Club de Portugal` is ACP. We hold `ACP Automovel Club de Portugal
+Leiria` as `store` + `auto_parts_and_supply` — at Leiria, not Colombo — and
+the brand-consistency rule says the Amoreiras one carries the same.
+
+**Flagged, not silently copied:** `auto_parts_and_supply` is a strange fit for
+a motoring club's office, which sells membership, roadside assistance and
+travel services rather than car parts. Consistency says copy it; if the Leiria
+typing is wrong it is now wrong twice.
+
+## The original note on those two
 
 * **`Automóvel Club de Portugal`** (Amoreiras, `Serviços`) — the motoring club's
   office. OSM has it as `association`. We have no type for a members' office,
