@@ -150,12 +150,32 @@ def in_footprint(lat, lng, footprint, buffer_m=None) -> bool:
     return metres_outside(lat, lng, footprint) <= buffer_for(footprint, buffer_m)
 
 
+def _coordinate(value):
+    """A float, or None when the value cannot be one.
+
+    The guard runs inside `promote_overture_candidates.decide`, which is
+    called from several places, and they do not agree on types: a row read
+    from an archive CSV carries coordinates as STRINGS, and a row can be
+    missing one entirely. Blowing up there would take down an import for a
+    question that is only ever "is this inside a shopping centre".
+    """
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def mall_at(lat, lng, footprints=None, buffer_m=None):
     """The centre containing this point, or None.
 
     This is the test the manual-only rule needs: a candidate returning a name
     here must not be written by an import, a promotion or a refresh.
     """
+    lat, lng = _coordinate(lat), _coordinate(lng)
+    if lat is None or lng is None:
+        return None
     for name, footprint in (footprints or load()).items():
         if in_footprint(lat, lng, footprint, buffer_m):
             return name

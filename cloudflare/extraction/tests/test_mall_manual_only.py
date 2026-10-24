@@ -71,6 +71,26 @@ class PromoterGuardTest(unittest.TestCase):
         status, _, _, reason = self.decide(row)
         self.assertNotIn('manual only', reason or '')
 
+    def test_coordinates_that_are_not_floats_do_not_crash_the_guard(self):
+        """CI caught this: `backfill_chain_brands` reads rows from an archive
+        CSV, so lat and lng arrive as STRINGS, and `decide` is shared. A guard
+        that raises there takes down an import over a question that is only
+        ever "is this inside a shopping centre"."""
+        for lat, lng in ((str(OUTSIDE[0]), str(OUTSIDE[1])), ('n/a', 'x'),
+                         (OUTSIDE[0], None), ('', '')):
+            row = candidate(OUTSIDE[0], OUTSIDE[1])
+            row['lat'], row['lng'] = lat, lng
+            status, _, _, reason = self.decide(row)
+            self.assertNotIn('manual only', reason or '', f'{lat!r},{lng!r}')
+
+    def test_a_string_coordinate_inside_a_centre_is_still_caught(self):
+        """Tolerating strings must not mean ignoring them."""
+        row = candidate(*INSIDE_UBBO)
+        row['lat'], row['lng'] = str(INSIDE_UBBO[0]), str(INSIDE_UBBO[1])
+        status, _, _, reason = self.decide(row)
+        self.assertEqual(status, 'rejected')
+        self.assertIn('manual only', reason)
+
 
 class RefreshGuardTest(unittest.TestCase):
     def test_a_row_inside_a_centre_is_recognised(self):
