@@ -1,0 +1,248 @@
+# KAN-439. UBBO operator categories, verbatim. A HELPER ONLY —
+# our poi_type and store_kind are never derived from these.
+name	operator_categories
+100 Montaditos	Restauração
+1920 Barber Shop	Serviços
+5 à Sec	Serviços
+A-100	Restauração
+Açaí Natura	Cafetaria, Gelataria e Doçaria
+Acium	Acessórios de Moda e Bijuteria
+Action	Brinquedos, Prendas e Brindes, Decoração, Casa e Bricolage, Hiper/Supermercado e Produtos Alimentares, Perfumaria e Cosmética
+Adidas	Desporto
+Agência Abreu	Cultura, Lazer e Entretenimento, Serviços
+ALAIN AFFLELOU	Ótica
+Aldo	Sapataria
+Ale-Hop	Decoração, Casa e Bricolage
+Alentejo	Restauração
+Amor aos Pedaços	Cafetaria, Gelataria e Doçaria
+Ana Joalheiros	Acessórios de Moda e Bijuteria, Ourivesaria, Joalharia e Relojoaria
+Arara	Cafetaria, Gelataria e Doçaria, Restauração
+Arcádia	Cafetaria, Gelataria e Doçaria
+Auchan	Hiper/Supermercado e Produtos Alimentares
+Auchan Ótica	Ótica
+Auchan Saúde e Bem Estar	Saúde e Bem-Estar
+Auchan Tecnologia	Eletrodomésticos, Telecomunicações e Informática
+Aurya	Perfumaria e Cosmética
+AWA Massage	Saúde e Bem-Estar
+BACHIYO	Cafetaria, Gelataria e Doçaria, Quiosques, Restauração
+Barber Best Boss	Serviços
+Belle Vogue	Moda Feminina
+Beontime	Ourivesaria, Joalharia e Relojoaria
+Bershka	Moda Feminina, Moda Masculina
+Bertrand	Cultura, Lazer e Entretenimento, Livraria, Tabacaria e Papelaria
+Bifanas de Vendas Novas	Restauração
+Bijou Brigitte	Acessórios de Moda e Bijuteria
+Bitoque no Ponto	Restauração
+Blue Kids	Moda Infantil
+BlueBird	Acessórios de Moda e Bijuteria, Ourivesaria, Joalharia e Relojoaria
+Braza	Restauração
+Bubble Time	Cafetaria, Gelataria e Doçaria
+Burger King	Restauração
+Cacifos CTT Locky	Serviços
+Calçado Guimarães	Sapataria
+Calzedonia	Moda Íntima
+Capri	Restauração
+Car Wash & Spa	Serviços
+Carpet Store	Decoração, Casa e Bricolage
+Carrossel	Serviços
+Carrossel Experience	Serviços
+Casa da Sorte	Serviços
+Casa do Sono	Decoração, Casa e Bricolage
+Casa Móvil	Eletrodomésticos, Telecomunicações e Informática
+Cash Converters	Eletrodomésticos, Telecomunicações e Informática
+Celeiro	Hiper/Supermercado e Produtos Alimentares, Restauração, Saúde e Bem-Estar
+Celio	Moda Masculina
+Centroxogo	Brinquedos, Prendas e Brindes
+CeX	Eletrodomésticos, Telecomunicações e Informática
+Chicco	Brinquedos, Prendas e Brindes, Moda Infantil
+Chickinho	Restauração
+Cloud House Vaper Store	Serviços
+ColchãoNet	Decoração, Casa e Bricolage
+Cort&Cose	Serviços
+Cortefiel	Moda Feminina, Moda Masculina
+CTT	Serviços
+Deichmann	Sapataria
+Delícias do Bairro	Cafetaria, Gelataria e Doçaria, Quiosques, Restauração
+Delta Espresso	Cafetaria, Gelataria e Doçaria, Restauração
+DIGI	Eletrodomésticos, Telecomunicações e Informática
+Dom Gelato	Cafetaria, Gelataria e Doçaria
+Don Ciccio	Restauração
+Emma	Decoração, Casa e Bricolage
+Equivalenza	Perfumaria e Cosmética
+Espaço Casa	Decoração, Casa e Bricolage
+Euro Sofás	Decoração, Casa e Bricolage
+Fábrica dos Óculos	Ótica, Serviços
+Farmácia Reis Barata	Saúde e Bem-Estar
+Figu	Acessórios de Moda e Bijuteria
+Fireaway Pizza	Restauração
+Flying Tiger Copenhagen	Brinquedos, Prendas e Brindes, Decoração, Casa e Bricolage
+Fnac	Cultura, Lazer e Entretenimento, Eletrodomésticos, Telecomunicações e Informática
+Fogo de Chão	Restauração
+Food&More	Restauração
+Foot Locker	Desporto, Sapataria
+Fotosport	Eletrodomésticos, Telecomunicações e Informática, Serviços
+Fútbol Emotion	Desporto, Moda Feminina, Moda Infantil, Moda Masculina
+Galeria da Jóia	Ourivesaria, Joalharia e Relojoaria
+Gato Preto	Decoração, Casa e Bricolage
+Georgia Brigadeiros	Restauração
+Gleba – Quiosque	Cafetaria, Gelataria e Doçaria, Quiosques, Restauração
+Glo – Quiosque	Livraria, Tabacaria e Papelaria
+Gold Suisse	Serviços
+Grace and Beauty	Saúde e Bem-Estar, Serviços
+Grace Hair	Serviços
+H&M	Acessórios de Moda e Bijuteria, Moda Feminina, Moda Infantil, Moda Masculina
+H3	Restauração
+Hair & Body	Perfumaria e Cosmética
+Hanami Sushi	Restauração
+Havaianas	Sapataria
+Hebe Gyros	Restauração
+Holmes Place	Desporto, Saúde e Bem-Estar, Serviços
+Holmes Place SPA	Saúde e Bem-Estar, Serviços
+Intimissimi	Moda Feminina, Moda Íntima
+IQOS	Livraria, Tabacaria e Papelaria
+iServices	Eletrodomésticos, Telecomunicações e Informática, Serviços
+iStore	Cultura, Lazer e Entretenimento, Eletrodomésticos, Telecomunicações e Informática, Serviços
+Italian Republic	Cultura, Lazer e Entretenimento, Restauração
+IUMAN Intimissimi Uomo	Moda Íntima, Moda Masculina
+Jack & Jones	Moda Masculina
+Japon Market	Cafetaria, Gelataria e Doçaria
+JD Sports	Desporto, Sapataria
+Jeronymo	Cafetaria, Gelataria e Doçaria, Restauração
+JOSE LUIS Joyerías	Acessórios de Moda e Bijuteria, Ourivesaria, Joalharia e Relojoaria
+Joshua's Shoarma Grill	Restauração
+KFC	Restauração
+KIABI	Acessórios de Moda e Bijuteria, Moda Feminina, Moda Infantil, Moda Masculina
+KidZania	Cultura, Lazer e Entretenimento
+KIKO MILANO	Perfumaria e Cosmética
+Kivet	Animais, Plantas e Flores, Serviços
+Kiwoko	Animais, Plantas e Flores
+Kyoto	Restauração
+Lefties	Acessórios de Moda e Bijuteria, Moda Feminina, Moda Infantil, Moda Íntima, Moda Masculina
+Levi's	Moda Feminina, Moda Masculina
+Liberjóia	Ourivesaria, Joalharia e Relojoaria
+Lifephone	Eletrodomésticos, Telecomunicações e Informática, Serviços
+llaollao	Cafetaria, Gelataria e Doçaria, Restauração
+Lugar da Jóia	Ourivesaria, Joalharia e Relojoaria
+Mais Optica	Ótica, Saúde e Bem-Estar, Serviços
+Mandarim	Restauração
+Mango	Moda Feminina, Moda Infantil
+Mango Man	Moda Masculina
+Mango Teen	Moda Feminina, Moda Infantil, Moda Masculina
+Maria Croissant	Restauração
+Massimo Dutti	Moda Feminina, Moda Masculina
+McDonald's	Restauração
+MCS Men	Desporto, Moda Feminina, Moda Masculina
+Mediterrâneo	Restauração
+MEO	Eletrodomésticos, Telecomunicações e Informática
+Merrell CAT	Desporto, Moda Feminina, Moda Masculina, Sapataria
+MICO	Acessórios de Moda e Bijuteria
+Mister Minit	Serviços
+MO	Acessórios de Moda e Bijuteria, Moda Feminina, Moda Infantil, Moda Íntima, Moda Masculina
+Mobile Fix	Eletrodomésticos, Telecomunicações e Informática, Serviços
+Monster Cookies – Quiosque	Cafetaria, Gelataria e Doçaria, Quiosques
+Morangos Please	Cafetaria, Gelataria e Doçaria
+Morena Rosa	Animais, Plantas e Flores
+Motocard	Cultura, Lazer e Entretenimento, Desporto
+Mr. Blue	Moda Masculina
+MultiOpticas	Ótica, Serviços
+MWash Auto SPA	Serviços
+MyForce	Serviços
+Nails4'Us	Perfumaria e Cosmética, Serviços
+Natura	Acessórios de Moda e Bijuteria, Moda Feminina, Sapataria
+NEOON	Brinquedos, Prendas e Brindes, Cultura, Lazer e Entretenimento
+Nespresso	Hiper/Supermercado e Produtos Alimentares
+New Story	Acessórios de Moda e Bijuteria
+New Yorker	Moda Feminina, Moda Masculina
+Normal	Brinquedos, Prendas e Brindes, Hiper/Supermercado e Produtos Alimentares, Perfumaria e Cosmética
+NOS	Eletrodomésticos, Telecomunicações e Informática, Serviços
+O Boticário	Perfumaria e Cosmética, Saúde e Bem-Estar
+O meu Olá	Cafetaria, Gelataria e Doçaria
+Oakberry	Cafetaria, Gelataria e Doçaria, Restauração
+Oakberry Truck	Cafetaria, Gelataria e Doçaria, Restauração
+Olá	Restauração
+ONLY	Moda Feminina
+Opticália	Ótica
+Oriente-se	Acessórios de Moda e Bijuteria, Serviços
+Oro Vivo	Ourivesaria, Joalharia e Relojoaria
+Ortopedia.pt	Saúde e Bem-Estar
+Outlet El Corte Inglés	Acessórios de Moda e Bijuteria, Moda Feminina, Moda Infantil, Moda Masculina
+Oysho	Moda Íntima
+PACOMARTINEZ	Acessórios de Moda e Bijuteria
+Padaria do Bairro	Cafetaria, Gelataria e Doçaria, Restauração
+Pandora	Acessórios de Moda e Bijuteria, Ourivesaria, Joalharia e Relojoaria
+Pans & Company	Restauração
+Parfois	Acessórios de Moda e Bijuteria, Moda Feminina, Sapataria
+Pepco	Decoração, Casa e Bricolage, Moda Feminina, Moda Infantil, Moda Masculina
+Perfumes & Companhia	Perfumaria e Cosmética
+Pet's Park	Animais, Plantas e Flores
+Pizza Hut	Restauração
+Pluricosmética	Perfumaria e Cosmética
+Poke House	Restauração
+Portugália	Restauração
+Prazeres Picanha	Restauração
+Presse Linha	Livraria, Tabacaria e Papelaria
+Primark	Moda Feminina, Moda Infantil, Moda Masculina
+Primor	Perfumaria e Cosmética
+Pull&Bear	Moda Feminina, Moda Masculina
+Punto Roma	Moda Feminina
+Quasi Pronti	Restauração
+Quebramar	Acessórios de Moda e Bijuteria, Moda Feminina, Moda Masculina
+Ramen Go	Restauração
+Real Transfer	Serviços
+Rituals	Decoração, Casa e Bricolage, Perfumaria e Cosmética
+ROCK'S	Moda Feminina, Moda Infantil, Moda Masculina
+Salsa	Moda Feminina, Moda Masculina
+Scartezini	Restauração
+Seaside	Sapataria
+Sephora	Perfumaria e Cosmética
+Shades World	Acessórios de Moda e Bijuteria, Ótica
+Sical – Quiosque	Cafetaria, Gelataria e Doçaria, Restauração
+Skechers	Desporto, Moda Feminina, Moda Infantil, Moda Masculina, Sapataria
+SL Benfica	Desporto
+Snipes	Desporto, Sapataria
+Sould Park Jump	Cultura, Lazer e Entretenimento
+Sport Zone	Desporto, Moda Feminina, Moda Masculina
+Sporting	Desporto
+Springfield	Moda Feminina, Moda Masculina
+Starbucks	Cafetaria, Gelataria e Doçaria, Restauração
+Stone by Stone	Ourivesaria, Joalharia e Relojoaria
+Stradivarius	Moda Feminina
+Street Smash Burgers	Restauração
+Subway	Restauração
+Suco Bagaço	Cafetaria, Gelataria e Doçaria
+Suits Inc	Moda Masculina
+Swarovski	Ourivesaria, Joalharia e Relojoaria
+Tabink	Livraria, Tabacaria e Papelaria
+Taco Bell	Restauração
+Talho Burger	Restauração
+Tezenis	Moda Íntima
+TGB – The Good Burger	Restauração
+Tiffosi	Moda Feminina, Moda Infantil, Moda Masculina
+Tip Top Tailor	Moda Feminina, Moda Masculina
+Top Atlântico	Cultura, Lazer e Entretenimento, Serviços
+Tous	Acessórios de Moda e Bijuteria, Ourivesaria, Joalharia e Relojoaria
+Tramas Home	Decoração, Casa e Bricolage
+Tramas+	Decoração, Casa e Bricolage
+Tudo4Mobile	Eletrodomésticos, Telecomunicações e Informática
+UCI Luxe	Cultura, Lazer e Entretenimento
+Under Blue	Moda Masculina
+Unicâmbio	Serviços
+United Colors of Benetton	Moda Feminina, Moda Infantil
+UZO	Eletrodomésticos, Telecomunicações e Informática
+Valores	Serviços
+Vilanova	Acessórios de Moda e Bijuteria
+VisionLab	Ótica, Serviços
+Vitaminas	Restauração
+Vodafone	Eletrodomésticos, Telecomunicações e Informática
+Weeel	Cafetaria, Gelataria e Doçaria, Restauração
+Wells	Perfumaria e Cosmética, Saúde e Bem-Estar
+Wiñk	Serviços
+Wok to Walk	Restauração
+Women'secret	Moda Íntima
+WOO	Eletrodomésticos, Telecomunicações e Informática
+Worten	Cultura, Lazer e Entretenimento, Eletrodomésticos, Telecomunicações e Informática
+Worten Mobile	Cultura, Lazer e Entretenimento, Eletrodomésticos, Telecomunicações e Informática, Serviços
+Zara	Moda Feminina, Moda Infantil, Moda Masculina
+Zero Latency	Cultura, Lazer e Entretenimento
+Zippy	Moda Infantil
+ZooJoy	Brinquedos, Prendas e Brindes

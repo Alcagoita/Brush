@@ -27,6 +27,13 @@ it retires real places with false confidence.
 | `vasco_da_gama_stores.txt` | Centro Comercial Vasco da Gama | shops (154) | 2026-08-31 |
 | `colombo_stores.txt` | Centro Comercial Colombo | shops (235) | 2026-08-31 |
 | `strada.txt` | Strada Outlet Odivelas | shops and eating (113) | 2026-09-01 |
+| `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (246) | 2026-10-04 |
+| `amoreiras.txt` | Amoreiras Shopping Center, Lisboa | shops and eating (196) | 2026-10-05 |
+
+`ubbo_operator_categories.tsv` holds UBBO's operator categories verbatim.
+It is a **helper for a person reading an escalation** — our `poi_type` and
+`store_kind` are never derived from it (owner, 2026-10-04). UBBO publishes no
+floor for any unit, so every floor there comes from OSM.
 
 A list covers only what it covers. An eating-places page says nothing about
 the shops in the same centre — `mall_tenants.py` enforces that through its
