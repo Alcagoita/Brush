@@ -93,6 +93,40 @@ class PlacementTest(unittest.TestCase):
         self.assertEqual(untyped, ['Something Unknown'])
 
 
+class RepeatedListingTest(unittest.TestCase):
+    """UBBO lists `Snipes` twice for two real units (owner, 2026-10-04).
+    Production held ONE where the operator lists two, because both entries
+    took the same held row and the same poi_id."""
+
+    def place(self, listed, held=(), osm=()):
+        return writer.placements(listed, list(held), list(osm), UBBO, 'ubbo', TYPES, 'UBBO')
+
+    def test_a_second_listing_does_not_reuse_the_first_held_row(self):
+        to_write, already, _ = self.place(
+            tenants(('Zara', 'Piso 1'), ('Zara', 'Piso 1')),
+            held=[{'name': 'Zara', 'lat': INSIDE[0], 'lng': INSIDE[1]}])
+        self.assertEqual(len(already), 1, 'one held row answers one unit')
+        self.assertEqual(len(to_write), 1, 'the second unit still needs a row')
+
+    def test_two_listings_get_two_distinct_ids(self):
+        to_write, _, _ = self.place(tenants(('Zara', 'Piso 1'), ('Zara', 'Piso 1')))
+        self.assertEqual(len(to_write), 2)
+        self.assertEqual(len({r['poi_id'] for r in to_write}), 2)
+
+    def test_the_first_id_never_moves(self):
+        """Ids are already in production; adding the suffix must not rewrite
+        the row that is there."""
+        self.assertEqual(writer.poi_id('ubbo', 'Snipes', 0), 'mall:ubbo:snipes')
+        self.assertEqual(writer.poi_id('ubbo', 'Snipes', 1), 'mall:ubbo:snipes-2')
+
+    def test_a_second_listing_does_not_reuse_the_first_osm_location(self):
+        to_write, _, _ = self.place(
+            tenants(('Starbucks', ''), ('Starbucks', '')),
+            osm=[{'name': 'Starbucks', 'lat': INSIDE[0], 'lng': INSIDE[1], 'level': '1'}])
+        placed = [r['placed_by'] for r in to_write]
+        self.assertEqual(sorted(placed), ['centre', 'osm'])
+
+
 class IdempotenceTest(unittest.TestCase):
     def test_the_id_is_derived_so_a_re_run_writes_nothing(self):
         first = writer.poi_id('ubbo', 'Perfumes & Companhia')

@@ -8,7 +8,13 @@ Plaza), `Massimo Dutti` (30 m from Plaza) and the street banks around Amoreiras
 are tenants of other places and stay.
 
 `H3 Hambúrguer Gourmet` and `UCI Dolce Vita Tejo` were on the REMOVE draft and
-are **kept** — they are the listed `H3` and `UCI Luxe`, which the matcher missed.
+are **kept here** — they are the listed `H3` and `UCI Luxe`, which the matcher
+missed.
+
+**`UCI Dolce Vita Tejo` was withdrawn afterwards, by `0060`.** Keeping it was
+half right: it is the same cinema as the listed `UCI Luxe`, but a row literally
+named `UCI Luxe` also exists and is the better one to hold. UBBO was serving
+the cinema four times. Amoreiras had the same shape and `0062` settled it.
 
 
 ## UBBO — 18 rows

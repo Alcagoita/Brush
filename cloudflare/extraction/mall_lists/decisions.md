@@ -270,11 +270,14 @@ place. The list itself is the source for existence; only the position is
 missing, and the mall's own coordinate is an honest answer to "where" — the
 shop is in that building. It is not a guess about which unit.
 
-The coordinate is the mall's **polygon centroid**, not a street door:
+The coordinate is the mall's **polygon centroid**, not a street door — the
+average of the outline's own points, which is what `footprints.json` holds and
+what every row was written at. It is ~35 m from the `center` OSM reports for
+the same relation, and the two should not be confused:
 
 | centre | OSM | centroid |
 |---|---|---|
-| UBBO | `relation/14978983` `shop=mall`, `building=retail` | 38.7769342, −9.2200815 |
+| UBBO | `relation/14978983` `shop=mall`, `building=retail` | 38.7769534, −9.2204064 |
 
 These rows are ours, so they are `curated_poi` with provenance recorded, the
 same as every served place that is not Overture. Each still needs a real

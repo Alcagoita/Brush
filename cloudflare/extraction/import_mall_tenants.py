@@ -82,17 +82,26 @@ def fold(value: str) -> str:
     return re.sub(r'[^a-z0-9]+', ' ', value.lower()).strip()
 
 
-def poi_id(centre_slug: str, tenant: str) -> str:
+def poi_id(centre_slug: str, tenant: str, occurrence: int = 0) -> str:
     """Derived, not random, so a re-run produces the same id and writes
     nothing. The centre is part of it because two centres can hold the same
-    brand, and those are two different places."""
-    return POI_ID_PREFIX + centre_slug + ':' + re.sub(r'\s+', '-', fold(tenant))
+    brand, and those are two different places.
+
+    `occurrence` separates a unit the operator lists more than once. UBBO
+    lists `Snipes` twice for two real units on the same floor (owner,
+    2026-10-04); with one id the second collapsed into the first under
+    `ON CONFLICT DO NOTHING`, and production held one Snipes where the
+    operator lists two. The first occurrence keeps the bare id, so ids
+    already written never move.
+    """
+    base = POI_ID_PREFIX + centre_slug + ':' + re.sub(r'\s+', '-', fold(tenant))
+    return base if occurrence == 0 else f'{base}-{occurrence + 1}'
 
 
 def read_types(path):
     """{folded name: (primary, store_kind, [extra types], evidence)}"""
     out = {}
-    for line in open(path):
+    for line in open(path, encoding='utf-8'):
         if line.startswith('#') or line.startswith('name\t'):
             continue
         parts = line.rstrip('\n').split('\t')
@@ -104,7 +113,7 @@ def read_types(path):
     return out
 
 
-def already_held(tenant, held, tokens):
+def already_held(tenant, held, tokens, claimed=None):
     """The row we already serve for this tenant, if there is one.
 
     This MUST use the same test the comparison uses, not an exact name match.
@@ -115,8 +124,12 @@ def already_held(tenant, held, tokens):
     same shop twice in Nearby is the failure users notice.
     """
     key = tenant_key(tenant, tokens)
-    for row in held:
+    for index, row in enumerate(held):
+        if claimed is not None and index in claimed:
+            continue            # one held row answers one listed unit, not two
         if name_similarity(key, tenant_key(row['name'], tokens)) >= CONFIDENT_THRESHOLD:
+            if claimed is not None:
+                claimed.add(index)
             return row
     return None
 
@@ -128,10 +141,16 @@ def placements(tenants, held, osm, footprint, centre_slug, types, mall_name=None
     osm_by_name = {fold(r['name']): r for r in osm}
     centroid = footprint['centroid']
 
+    # Held rows and OSM locations are consumed one-to-one. Two listed units of
+    # one brand are two places, so the second must not reuse the first's
+    # evidence; it gets its own row at the centre instead.
+    claimed_held, claimed_osm, seen = set(), set(), {}
     to_write, already, untyped = [], [], []
     for tenant, floor in tenants:
         key = fold(tenant)
-        match = already_held(tenant, held, tokens)
+        occurrence = seen.get(key, 0)
+        seen[key] = occurrence + 1
+        match = already_held(tenant, held, tokens, claimed_held)
         if match:
             already.append((tenant, match))
             continue
@@ -141,7 +160,10 @@ def placements(tenants, held, osm, footprint, centre_slug, types, mall_name=None
             continue
         primary, kind, extra, evidence = typing
         placed = osm_by_name.get(key)
+        if placed is not None and key in claimed_osm:
+            placed = None                 # the first unit of this name took it
         if placed and mall_footprints.in_footprint(placed['lat'], placed['lng'], footprint):
+            claimed_osm.add(key)
             lat, lng, source = placed['lat'], placed['lng'], 'osm'
             # the operator's Piso wins; OSM's level only fills a gap
             shown_floor = floor or (f"Piso {placed['level']}" if placed.get('level') else None)
@@ -149,7 +171,7 @@ def placements(tenants, held, osm, footprint, centre_slug, types, mall_name=None
             lat, lng, source = centroid[0], centroid[1], 'centre'
             shown_floor = floor or None
         to_write.append({
-            'tenant': tenant, 'poi_id': poi_id(centre_slug, tenant),
+            'tenant': tenant, 'poi_id': poi_id(centre_slug, tenant, occurrence),
             'lat': lat, 'lng': lng, 'floor': shown_floor,
             'primary': primary, 'kind': kind, 'extra': extra,
             'placed_by': source, 'evidence': evidence,
@@ -233,7 +255,7 @@ def main(argv=None):
     for name in untyped:
         print(f'  UNTYPED, skipped: {name}', file=sys.stderr)
 
-    out = open(args.out, 'w') if args.out else sys.stdout
+    out = open(args.out, 'w', encoding='utf-8') if args.out else sys.stdout
     for statement in statements(to_write, args.imported_at, args.run_id):
         out.write(statement)
     if args.out:

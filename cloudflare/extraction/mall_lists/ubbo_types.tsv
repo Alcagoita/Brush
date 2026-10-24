@@ -48,7 +48,7 @@ Carrossel	restaurant			OSM restaurant
 Carrossel Experience	hairdresser			ruled by a person
 Casa da Sorte	lottery			ruled by a person
 Casa do Sono	store	mattress		held elsewhere in Portugal
-Casa Móvil	phone_repair		store,phone	held elsewhere in Portugal
+Casa Móvil	phone_repair	phone	store	held elsewhere in Portugal
 Cash Converters	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
 Celeiro	supermarket			OSM supermarket
 Celio	store	mens_clothing		held elsewhere in Portugal
@@ -97,7 +97,7 @@ Hebe Gyros	restaurant			held elsewhere in Portugal
 Holmes Place	gym			held elsewhere in Portugal
 Holmes Place SPA	spa			ruled by a person
 Intimissimi	store	clothing		held elsewhere in Portugal
-IQOS	lottery		store,e_cigarette	held elsewhere in Portugal
+IQOS	lottery	e_cigarette	store	held elsewhere in Portugal
 iServices	phone_repair			ruled by a person
 iStore	store	electronics		held elsewhere in Portugal
 Italian Republic	restaurant			held elsewhere in Portugal
@@ -221,7 +221,7 @@ Top Atlântico	travel_agency			ruled by a person
 Tous	store	jewelry		OSM jewelry
 Tramas Home	store	home		operator category: Decoração, Casa e Bricolage
 Tramas+	store	fabric		held elsewhere in Portugal
-Tudo4Mobile	phone_repair		store,phone	held elsewhere in Portugal
+Tudo4Mobile	phone_repair	phone	store	held elsewhere in Portugal
 UCI Luxe	movie_theater			held elsewhere in Portugal
 Under Blue	store	clothing		held elsewhere in Portugal
 Unicâmbio	currency_exchange			ruled by a person
@@ -238,8 +238,8 @@ Wiñk	nail_salon			ruled by a person
 Wok to Walk	restaurant			held elsewhere in Portugal
 Women'secret	store	clothing		held elsewhere in Portugal
 WOO	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
-Worten	phone_repair		store,electronics	held elsewhere in Portugal
-Worten Mobile	phone_repair		store,electronics	held elsewhere in Portugal
+Worten	phone_repair	electronics	store	held elsewhere in Portugal
+Worten Mobile	phone_repair	electronics	store	held elsewhere in Portugal
 Zara	store	clothing		held elsewhere in Portugal
 Zero Latency	amusement_park			held elsewhere in Portugal
 Zippy	store	clothing		held elsewhere in Portugal

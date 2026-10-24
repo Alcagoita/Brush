@@ -144,10 +144,17 @@ def in_footprint(lat, lng, footprint, buffer_m=None) -> bool:
     `buffer_m=0` is the strict outline — which the door-duplicate audit wants,
     since a door-pinned row sits on the street address, outside the building.
     """
+    limit = buffer_for(footprint, buffer_m)
     box = footprint.get('_box')
-    if box and not (box[0] <= lat <= box[1] and box[2] <= lng <= box[3]):
-        return False
-    return metres_outside(lat, lng, footprint) <= buffer_for(footprint, buffer_m)
+    if box:
+        # The box is padded with the centre's OWN buffer, so a caller asking
+        # for a wider one must widen the box too — otherwise the cheap test
+        # rejects a point the real test would accept (review, 2026-10-24).
+        pad = max(0.0, limit - footprint.get('buffer_m', DEFAULT_BUFFER_M)) / 111320.0
+        if not (box[0] - pad <= lat <= box[1] + pad
+                and box[2] - pad * 1.3 <= lng <= box[3] + pad * 1.3):
+            return False
+    return metres_outside(lat, lng, footprint) <= limit
 
 
 def _coordinate(value):

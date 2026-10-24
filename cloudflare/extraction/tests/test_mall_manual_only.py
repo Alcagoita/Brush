@@ -101,6 +101,52 @@ class RefreshGuardTest(unittest.TestCase):
         self.assertFalse(refresh.in_a_mall({'lat': None, 'lng': None}))
         self.assertFalse(refresh.in_a_mall({}))
 
+    def test_apply_holds_a_mall_row_back_through_its_own_counters(self):
+        """Exercise `refresh.apply` itself rather than re-implementing its
+        filtering in the test, and cover the row that MOVES out of the
+        footprint: a release nudging a tenant's point just outside must not
+        hand it to the refresh (review, 2026-10-24)."""
+        import csv, os, tempfile
+        import refresh_overture_country as r
+        fields = ('overture_id', 'name', 'name_local', 'name_local_lang', 'lat', 'lng',
+                  'address', 'category', 'confidence')
+
+        def archive(path, rows):
+            with open(path, 'w', newline='', encoding='utf-8') as handle:
+                writer = csv.DictWriter(handle, fieldnames=fields)
+                writer.writeheader()
+                for item in rows:
+                    writer.writerow({f: item.get(f, '') for f in fields})
+
+        def row(oid, name, lat, lng):
+            return {'overture_id': oid, 'name': name, 'lat': lat, 'lng': lng,
+                    'address': 'x', 'category': 'clothing_store', 'confidence': 0.9}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            old = os.path.join(tmp, 'old.csv')
+            new = os.path.join(tmp, 'new.csv')
+            archive(old, [row('stays', 'Oysho', *INSIDE_UBBO),
+                          row('moves', 'Bershka', *INSIDE_UBBO),
+                          row('far', 'Shop', *OUTSIDE)])
+            # `moves` ends up 2 km away; `far` simply changes its name
+            archive(new, [row('stays', 'Oysho Renamed', *INSIDE_UBBO),
+                          row('moves', 'Bershka', 38.7500, -9.2500),
+                          row('far', 'Shop Renamed', *OUTSIDE)])
+            executed = []
+            real = r.currently_retired_ids
+            r.currently_retired_ids = lambda: set()
+            try:
+                stats = r.apply(old, new, '2026-10-24.0', '2026-10-24', executed.append)
+            finally:
+                r.currently_retired_ids = real
+
+        self.assertEqual(stats['mall_rows_held_by_hand'], 2,
+                         'the row inside and the row that moved out are both held')
+        statements = '\n'.join(executed)
+        self.assertNotIn('stays', statements)
+        self.assertNotIn('moves', statements, 'a tenant leaving the footprint is still a mall row')
+        self.assertIn('far', statements, 'an ordinary row is refreshed as before')
+
     def test_a_changed_mall_row_is_not_refreshed_and_a_vanished_one_not_retired(self):
         """Both directions. A release that renames a tenant must not overwrite
         the operator's name, and a release that drops one must not retire a

@@ -236,7 +236,13 @@ def apply(previous_csv, current_csv, release, refreshed, execute):
     # Shopping centres are manual-only, in BOTH directions: a changed row
     # inside one is not refreshed, and a row that vanished from the release is
     # not retired — the operator's list decides that, not a data drop.
-    held_by_hand = {i for i, _ in sets['changed'] if in_a_mall(current[i])}
+    # BOTH positions matter. A release that nudges a tenant's point just
+    # outside the footprint would otherwise stop looking like a mall row, and
+    # the refresh would overwrite its served coordinates without an operator
+    # decision (review, 2026-10-24). A row inside the centre before OR after
+    # the release is held back.
+    held_by_hand = {i for i, _ in sets['changed']
+                    if in_a_mall(current[i]) or in_a_mall(previous.get(i, {}))}
     retired_in_mall = {i for i in sets['retired'] if in_a_mall(previous[i])}
     changed_ids = [i for i, _ in sets['changed'] if i not in held_by_hand]
     category_changed = [i for i, moved in sets['changed']

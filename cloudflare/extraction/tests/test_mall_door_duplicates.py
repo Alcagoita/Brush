@@ -69,6 +69,25 @@ class DoubleConfirmationTest(unittest.TestCase):
         confirmed, _ = door.find(rows, UBBO_WORDS)
         self.assertEqual(confirmed, [])
 
+    def test_two_copies_at_ONE_door_never_both_become_removable(self):
+        """If each copy may nominate the other, `find` confirms both and
+        withdrawing them removes the shop entirely (review, 2026-10-24)."""
+        rows = [row('Zara', *DOOR, 'Microsoft', 'AVENIDA CRUZEIRO SEIXAS 5'),
+                row('Zara', *DOOR, 'meta', 'Avenida Cruzeiro Seixas 5')]
+        confirmed, partial = door.find(rows, UBBO_WORDS)
+        self.assertEqual(confirmed, [], 'neither copy looks like the real unit')
+        self.assertEqual(len(partial), 2, 'both are left for a person')
+
+    def test_a_twin_away_from_the_door_is_still_the_better_row(self):
+        """The fix must not stop the real case working: a door copy whose
+        twin sits elsewhere is still removable even without a unit address."""
+        rows = [row('Zara', *DOOR, 'Microsoft', 'AVENIDA CRUZEIRO SEIXAS 5'),
+                row('Filler', *DOOR, 'meta', 'AVENIDA CRUZEIRO SEIXAS 5'),
+                row('Zara', 38.776258, -9.218830, 'Foursquare', 'Av. cruzeiro seixas 5')]
+        confirmed, _ = door.find(rows, UBBO_WORDS)
+        self.assertEqual([c['row']['name'] for c in confirmed], ['Zara'])
+        self.assertEqual(door.dataset(confirmed[0]['row']), 'Microsoft')
+
     def test_a_twin_from_the_same_dataset_is_not_a_twin(self):
         """Two Foursquare rows at one door (Aldo, Intimissimi at Amoreiras) are
         the same provider pinning two shops, not one shop recorded twice."""

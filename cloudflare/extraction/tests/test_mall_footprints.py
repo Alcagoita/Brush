@@ -81,6 +81,24 @@ class RealFootprintTest(unittest.TestCase):
         for fuel in (AUCHAN_FUEL, GASOLINEIRA_AUCHAN):
             self.assertFalse(mf.in_footprint(*fuel, ubbo), f'Auchan fuel at {fuel}')
 
+    def test_a_wider_buffer_is_honoured_by_the_cheap_box_test(self):
+        """The bounding box is padded with the centre's OWN buffer, so a
+        caller asking for a wider one must widen the box too — otherwise the
+        fast path rejects a point the real test accepts (review, 2026-10-24)."""
+        ubbo = self.footprints['UBBO']
+        far = (38.7730, -9.2160)
+        self.assertFalse(mf.in_footprint(*far, ubbo))
+        self.assertTrue(mf.in_footprint(*far, ubbo, buffer_m=2000))
+
+    def test_the_recorded_centroid_is_the_one_rows_are_written_at(self):
+        """`decisions.md` once quoted the `center` OSM reports for the
+        relation, ~35 m from the outline's own average. Rows are written at
+        the average, so that is what the file must hold."""
+        ubbo = self.footprints['UBBO']
+        points = [p for ring in ubbo['rings'] for p in ring]
+        self.assertAlmostEqual(ubbo['centroid'][0], sum(p[0] for p in points) / len(points), places=5)
+        self.assertAlmostEqual(ubbo['centroid'][1], sum(p[1] for p in points) / len(points), places=5)
+
     def test_metres_outside_is_zero_inside_and_grows_outside(self):
         ubbo = self.footprints['UBBO']
         self.assertEqual(mf.metres_outside(*UBBO_OYSHO_UNIT, ubbo), 0.0)

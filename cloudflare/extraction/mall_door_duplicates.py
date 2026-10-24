@@ -121,8 +121,15 @@ def find(rows, mall_words):
         at_door = (row['lat'], row['lng']) in doors
         # The twin must look like the real unit, or we cannot tell which of
         # the two is the pinned copy — and then neither may be removed.
-        better = [t for t in twins if unit_address(t.get('address'))
-                  or not unit_address(row.get('address'))]
+        # The twin must be the row that looks like the REAL unit, which means
+        # it names a unit, or at least is not pinned to the same door. Taking
+        # "any twin without a unit address" let two door-pinned copies of one
+        # shop each nominate the other, so `find` confirmed BOTH and
+        # withdrawing them would have removed the shop entirely (review,
+        # 2026-10-24). When neither copy looks like the unit, a person decides.
+        better = [t for t in twins
+                  if unit_address(t.get('address'))
+                  or (t['lat'], t['lng']) != (row['lat'], row['lng'])]
         if twins and at_door and better and not unit_address(row.get('address')):
             confirmed.append({
                 'row': row, 'twin': better[0],

@@ -105,9 +105,19 @@ def fold(value: str) -> str:
     return re.sub(r'[^a-z0-9]+', ' ', value.lower()).strip()
 
 
+def split_ruling(value):
+    """A ruling is [poi_type] or [poi_type, store_kind], or several poi types
+    for a unit that genuinely is more than one thing. Only a `store` carries a
+    kind, so anything after a non-store primary is another type."""
+    value = tuple(value)
+    if value and value[0] == 'store' and len(value) == 2:
+        return (value[:1], value[1])
+    return (value, None)
+
+
 def load_overrides(path=OVERRIDES_PATH):
-    with open(path) as handle:
-        return {fold(k): tuple(v) for k, v in json.load(handle)['types'].items()}
+    with open(path, encoding='utf-8') as handle:
+        return {fold(k): split_ruling(v) for k, v in json.load(handle)['types'].items()}
 
 
 def load_categories(centre_slug):
@@ -116,7 +126,7 @@ def load_categories(centre_slug):
     out = {}
     if not os.path.exists(path):
         return out
-    for line in open(path):
+    for line in open(path, encoding='utf-8'):
         if line.startswith('#') or line.startswith('name\t'):
             continue
         name, _, category = line.rstrip('\n').partition('\t')
@@ -148,10 +158,12 @@ def held_elsewhere(names, query):
         if len(found) != 1:
             continue                      # our own rows disagree; not evidence
         types, kinds = next(iter(found))
-        value = tuple(types.split(','))
-        if kinds:
-            value = value + (kinds.split(',')[0],)
-        out[key] = value
+        # A store kind is NOT a poi type and the two must never share a tuple.
+        # Appending `phone` to ('store',) and reading position 1 as the kind
+        # works until the row has two real types, and then the second type is
+        # written as a kind and the kind as a type — which put `poi_type=phone`
+        # on four production rows (found in review, 2026-10-24).
+        out[key] = (tuple(types.split(',')), kinds.split(',')[0] if kinds else None)
     return out
 
 
@@ -217,9 +229,9 @@ def resolve(tenants, overrides, held, osm, categories):
         elif dedupe in held:
             resolved.append((name, held[dedupe], 'held elsewhere in Portugal'))
         elif key in osm and osm[key] in OSM_TAG:
-            resolved.append((name, OSM_TAG[osm[key]], f'OSM {osm[key]}'))
+            resolved.append((name, split_ruling(OSM_TAG[osm[key]]), f'OSM {osm[key]}'))
         elif categories.get(key) in SINGLE_CATEGORY:
-            resolved.append((name, SINGLE_CATEGORY[categories[key]],
+            resolved.append((name, split_ruling(SINGLE_CATEGORY[categories[key]]),
                              f'operator category: {categories[key]}'))
         else:
             unresolved.append((name, categories.get(key, '')))
@@ -228,16 +240,14 @@ def resolve(tenants, overrides, held, osm, categories):
 
 def write_table(centre_slug, resolved, unresolved):
     path = os.path.join(LISTS_DIR, f'{centre_slug}_types.tsv')
-    with open(path, 'w') as handle:
+    with open(path, 'w', encoding='utf-8') as handle:
         handle.write('# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.\n')
         handle.write('# A ruling belongs in tenant_type_overrides.json, which outranks\n')
         handle.write('# every other row of evidence here.\n')
         handle.write('name\tpoi_type\tstore_kind\textra_types\tevidence\n')
-        for name, types, evidence in resolved:
-            primary = types[0]
-            kind = types[1] if len(types) > 1 and primary == 'store' else ''
-            extra = ','.join(t for t in types[1:] if t != kind) if primary != 'store' else ''
-            handle.write(f'{name}\t{primary}\t{kind}\t{extra}\t{evidence}\n')
+        for name, (types, kind), evidence in resolved:
+            handle.write(f'{name}\t{types[0]}\t{kind or ""}\t'
+                         f'{",".join(types[1:])}\t{evidence}\n')
     return path
 
 

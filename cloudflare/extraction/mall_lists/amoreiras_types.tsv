@@ -41,7 +41,7 @@ Calzedonia	store	clothing		held elsewhere in Portugal
 Cantê	store	lingerie		ruled by a person
 Capela das Amoreiras	church			ruled by a person
 Caroll	store	womens_clothing		ruled by a person
-Casa Havaneza	lottery		store,tobacco	held elsewhere in Portugal
+Casa Havaneza	lottery	tobacco	store	held elsewhere in Portugal
 Casa Simões	store	arts_and_crafts		held elsewhere in Portugal
 Cata Vassalo	store	jewelry		held elsewhere in Portugal
 Celeiro	supermarket			OSM supermarket
@@ -96,7 +96,7 @@ Joshua's Shoarma	restaurant			held elsewhere in Portugal
 Kiko Milano	store	beauty		held elsewhere in Portugal
 Knot	store	clothing		OSM clothes
 La Brasserie de L’Entrecôte	restaurant			held elsewhere in Portugal
-La Casa de las Carcasas	phone_repair		store,phone	held elsewhere in Portugal
+La Casa de las Carcasas	phone_repair	phone	store	held elsewhere in Portugal
 La Crêperie	restaurant			ruled by a person
 Lacoste	store	clothing		held elsewhere in Portugal
 Laranjinha	store	childrens_clothing		ruled by a person
