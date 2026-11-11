@@ -30,10 +30,20 @@ it retires real places with false confidence.
 | `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (246) | 2026-10-04 |
 | `amoreiras.txt` | Amoreiras Shopping Center, Lisboa | shops and eating (196) | 2026-10-05 |
 
-`ubbo_operator_categories.tsv` holds UBBO's operator categories verbatim.
-It is a **helper for a person reading an escalation** — our `poi_type` and
-`store_kind` are never derived from it (owner, 2026-10-04). UBBO publishes no
-floor for any unit, so every floor there comes from OSM.
+`ubbo_operator_categories.tsv` and `amoreiras_operator_categories.tsv` hold
+each centre's operator categories verbatim. They are first a **helper for a
+person reading an escalation** (owner, 2026-10-04), and they are the **last
+resort** in `resolve_mall_types`, used only where one category implies exactly
+one type — `Restauração` → `restaurant`, `Sapataria` → `store`/`shoes`.
+Anything broader escalates rather than being typed: `Serviços` covers a
+barber, a car wash and a currency exchange, and reading it as a type is how
+`Mandarim`, a Chinese restaurant, came to be held as `store`/`home`.
+
+A ruling by a person, a row we already hold elsewhere in Portugal, and OSM all
+outrank the category, and every typed row records which of them answered it.
+
+UBBO publishes no floor for any unit, so every floor there comes from OSM;
+Amoreiras publishes one for 195 of its 196.
 
 A list covers only what it covers. An eating-places page says nothing about
 the shops in the same centre — `mall_tenants.py` enforces that through its
