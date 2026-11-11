@@ -214,27 +214,37 @@ def best_match(target: str, candidates, mall: frozenset, key=lambda r: r['name']
     target_key = tenant_key(target, mall)
     best, best_score = None, 0.0
     for candidate in candidates:
-        candidate_key = tenant_key(key(candidate), mall)
-        score = name_similarity(target_key, candidate_key)
-        # Run-together brand names are the same name: "SushiCorner" is
-        # "Sushi Corner". Compare with spaces removed too, and keep the
-        # better of the two — the length guard stops short fragments from
-        # swallowing longer names.
-        left, right = target_key.replace(' ', ''), candidate_key.replace(' ', '')
-        if left and right and min(len(left), len(right)) >= 6:
-            if left == right or left in right or right in left:
-                score = max(score, 0.9)
-        # Word order is not identity either. "Jeronymo Cafe" is "Cafe
-        # Jeronymo" — we already held it in Colombo while the tenant list
-        # was proposing to ADD it, which is the duplicate this ticket exists
-        # to prevent. Compare the token sets, requiring the SAME set rather
-        # than an overlap so "Cafe 3" still cannot become "Nosso Cafe".
-        left_tokens, right_tokens = set(target_key.split()), set(candidate_key.split())
-        if left_tokens and left_tokens == right_tokens:
-            score = max(score, 0.95)
+        score = key_score(target_key, tenant_key(key(candidate), mall))
         if score > best_score:
             best, best_score = candidate, score
     return best, best_score
+
+
+def key_score(target_key: str, candidate_key: str) -> float:
+    """How alike two tenant keys are — the one score every matcher uses.
+
+    Shared so a caller scoring pairs itself (`reconcile_mall_list`) agrees
+    with `compare`: scored with `name_similarity` alone, `MaxMara` missed
+    `Weekend Max Mara` and would have been written a second time (KAN-462).
+    """
+    score = name_similarity(target_key, candidate_key)
+    # Run-together brand names are the same name: "SushiCorner" is
+    # "Sushi Corner". Compare with spaces removed too, and keep the
+    # better of the two — the length guard stops short fragments from
+    # swallowing longer names.
+    left, right = target_key.replace(' ', ''), candidate_key.replace(' ', '')
+    if left and right and min(len(left), len(right)) >= 6:
+        if left == right or left in right or right in left:
+            score = max(score, 0.9)
+    # Word order is not identity either. "Jeronymo Cafe" is "Cafe
+    # Jeronymo" — we already held it in Colombo while the tenant list
+    # was proposing to ADD it, which is the duplicate this ticket exists
+    # to prevent. Compare the token sets, requiring the SAME set rather
+    # than an overlap so "Cafe 3" still cannot become "Nosso Cafe".
+    left_tokens, right_tokens = set(target_key.split()), set(candidate_key.split())
+    if left_tokens and left_tokens == right_tokens:
+        score = max(score, 0.95)
+    return score
 
 
 def _claim_held(claimed, row_name, tenant, confident, escalate, score):

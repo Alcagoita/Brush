@@ -413,6 +413,284 @@
   "NaturaPura": [
    "store",
    "childrens_clothing"
+  ],
+  "ACASCATA": [
+   "restaurant"
+  ],
+  "ACP": [
+   "store",
+   "auto_parts_and_supply"
+  ],
+  "AMORINO – GELATO AL NATURALE": [
+   "ice_cream"
+  ],
+  "ARCÁDIA – NESCAFÉ": [
+   "cafe"
+  ],
+  "Arcádia – Roastelier by Nescafé": [
+   "cafe"
+  ],
+  "Arcádia – Galleria": [
+   "bakery"
+  ],
+  "B STRONG KIDS": [
+   "store",
+   "shoes"
+  ],
+  "CAFÉ JERONYMO": [
+   "cafe"
+  ],
+  "CAFÉ JOYEUX": [
+   "cafe"
+  ],
+  "CALVIN KLEIN JEANS": [
+   "store",
+   "clothing"
+  ],
+  "Chaviarte": [
+   "shoe_repair"
+  ],
+  "CHAVIARTE PREMIUM": [
+   "shoe_repair"
+  ],
+  "CINEMAS NOS": [
+   "movie_theater"
+  ],
+  "COLUNEX": [
+   "store",
+   "mattress"
+  ],
+  "Dyson": [
+   "store",
+   "electronics"
+  ],
+  "Elements": [
+   "store",
+   "jewelry"
+  ],
+  "Fabric Store": [
+   "store",
+   "home"
+  ],
+  "Florista Luciano Arte Flores": [
+   "florist"
+  ],
+  "GRAFIPRONTO": [
+   "store",
+   "copy_shop"
+  ],
+  "GUACAMOLE GMG": [
+   "restaurant"
+  ],
+  "H&M": [
+   "store",
+   "clothing"
+  ],
+  "HAPPY FOOD": [
+   "restaurant"
+  ],
+  "HeyDoc": [
+   "store",
+   "beauty"
+  ],
+  "INÊS PEREIRA CABELEIREIROS": [
+   "hairdresser"
+  ],
+  "IUMAN": [
+   "store",
+   "mens_clothing"
+  ],
+  "Jo Malone": [
+   "store",
+   "beauty"
+  ],
+  "JUST IN CASE": [
+   "store",
+   "phone"
+  ],
+  "LÄDERACH": [
+   "bakery"
+  ],
+  "Lindt": [
+   "bakery"
+  ],
+  "LEITARIA DA QUINTA DO PAÇO": [
+   "bakery",
+   "cafe"
+  ],
+  "MALVÓN": [
+   "restaurant"
+  ],
+  "MANUEL ALVES SAPATARIAS": [
+   "store",
+   "shoes"
+  ],
+  "MaxMara": [
+   "store",
+   "womens_clothing"
+  ],
+  "MCDONALD’S": [
+   "restaurant"
+  ],
+  "MEO 2": [
+   "store",
+   "phone"
+  ],
+  "Mimo.Cool": [
+   "store",
+   "childrens_clothing"
+  ],
+  "Miss Pavlova": [
+   "bakery",
+   "cafe"
+  ],
+  "MOLDURA MINUTO": [
+   "store",
+   "arts_and_crafts"
+  ],
+  "MONTBLANC": [
+   "store",
+   "fashion_accessories"
+  ],
+  "MR. PARKING / STARWASH": [
+   "car_wash"
+  ],
+  "Nata Sweet Nata": [
+   "bakery",
+   "cafe"
+  ],
+  "NICI": [
+   "store",
+   "toys"
+  ],
+  "NORTH FACE": [
+   "store",
+   "clothing"
+  ],
+  "NOTE!": [
+   "store",
+   "books"
+  ],
+  "NOVA CÂMBIOS": [
+   "currency_exchange"
+  ],
+  "NP4GAME": [
+   "store",
+   "video_game"
+  ],
+  "NUTRYSTORE": [
+   "store",
+   "vitamins_and_supplements"
+  ],
+  "O Quiosque": [
+   "store",
+   "newspaper_and_magazines"
+  ],
+  "PIZZA HUT DELIVERY": [
+   "restaurant"
+  ],
+  "Point Fort Fichet": [
+   "shoe_repair"
+  ],
+  "PORTUGÁLIA BALCÃO": [
+   "restaurant"
+  ],
+  "Q Store": [
+   "store",
+   "clothing"
+  ],
+  "QUAD": [
+   "store",
+   "sports"
+  ],
+  "RECREIO INFANTIL – NORTELAND": [
+   "playground"
+  ],
+  "RELLENO": [
+   "restaurant"
+  ],
+  "RT FOCACCIAS BY REITORIA": [
+   "restaurant"
+  ],
+  "SMOLL REPUBLIC": [
+   "store",
+   "jewelry"
+  ],
+  "SOLÁRIO PAREDÃO": [
+   "beauty_salon"
+  ],
+  "TALHO DO MERCADO": [
+   "restaurant"
+  ],
+  "TIENDA ANIMAL": [
+   "store",
+   "pet"
+  ],
+  "TOP COSTURA": [
+   "clothing_repair"
+  ],
+  "UNIKE Jewellery": [
+   "store",
+   "jewelry"
+  ],
+  "VICTORIA’S SECRET": [
+   "store",
+   "lingerie"
+  ],
+  "VILANOVA": [
+   "store",
+   "fashion_accessories"
+  ],
+  "VISTA ALEGRE": [
+   "store",
+   "home"
+  ],
+  "WELL’S": [
+   "store",
+   "drugstore"
+  ],
+  "WELL’S ÓPTICA": [
+   "store",
+   "eyewear_and_optician"
+  ],
+  "WIZINK": [
+   "bank"
+  ],
+  "WOO": [
+   "store",
+   "phone"
+  ],
+  "WTF": [
+   "store",
+   "phone"
+  ],
+  "YORN": [
+   "store",
+   "phone"
+  ],
+  "FLYING TIGER": [
+   "store",
+   "gift"
+  ],
+  "MAC": [
+   "store",
+   "beauty"
+  ],
+  "ZARA HOME": [
+   "store",
+   "home"
+  ],
+  "OTRO Perfume Concept": [
+   "store",
+   "beauty"
+  ],
+  "TWINSET": [
+   "store",
+   "womens_clothing"
+  ],
+  "TERESINHA CARTEIRAS": [
+   "store",
+   "handbag"
   ]
  }
 }
