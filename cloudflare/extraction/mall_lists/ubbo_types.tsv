@@ -1,0 +1,246 @@
+# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.
+# A ruling belongs in tenant_type_overrides.json, which outranks
+# every other row of evidence here.
+name	poi_type	store_kind	extra_types	evidence
+100 Montaditos	restaurant			OSM restaurant
+1920 Barber Shop	barber			ruled by a person
+5 à Sec	laundry			held elsewhere in Portugal
+A-100	restaurant			held elsewhere in Portugal
+Açaí Natura	restaurant			held elsewhere in Portugal
+Acium	store	jewelry		OSM jewelry
+Action	store	discount_store		OSM variety_store
+Adidas	store	shoes		held elsewhere in Portugal
+Agência Abreu	travel_agency			ruled by a person
+ALAIN AFFLELOU	store	eyewear_and_optician		held elsewhere in Portugal
+Aldo	store	shoes		held elsewhere in Portugal
+Ale-Hop	store	discount_store		OSM variety_store
+Alentejo	restaurant			held elsewhere in Portugal
+Amor aos Pedaços	cafe			operator category: Cafetaria, Gelataria e Doçaria
+Ana Joalheiros	store	jewelry		held elsewhere in Portugal
+Arara	cafe			ruled by a person
+Arcádia	cafe			operator category: Cafetaria, Gelataria e Doçaria
+Auchan Ótica	store	eyewear_and_optician		operator category: Ótica
+Auchan Saúde e Bem Estar	store	drugstore		ruled by a person
+Auchan Tecnologia	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
+Aurya	store	beauty		operator category: Perfumaria e Cosmética
+AWA Massage	spa			ruled by a person
+BACHIYO	cafe			ruled by a person
+Barber Best Boss	barber			ruled by a person
+Belle Vogue	store	womens_clothing		operator category: Moda Feminina
+Beontime	store	jewelry		operator category: Ourivesaria, Joalharia e Relojoaria
+Bershka	store	clothing		held elsewhere in Portugal
+Bertrand	store	books		held elsewhere in Portugal
+Bifanas de Vendas Novas	restaurant			held elsewhere in Portugal
+Bijou Brigitte	store	jewelry		OSM jewelry
+Bitoque no Ponto	restaurant			held elsewhere in Portugal
+Blue Kids	store	clothing		OSM clothes
+BlueBird	store	jewelry		held elsewhere in Portugal
+Braza	restaurant			OSM restaurant
+Bubble Time	tea			held elsewhere in Portugal
+Burger King	restaurant			held elsewhere in Portugal
+Cacifos CTT Locky	post			ruled by a person
+Calçado Guimarães	store	shoes		held elsewhere in Portugal
+Calzedonia	store	clothing		held elsewhere in Portugal
+Capri	cafe			OSM cafe
+Car Wash & Spa	car_wash			ruled by a person
+Carpet Store	store	carpet		held elsewhere in Portugal
+Carrossel	restaurant			OSM restaurant
+Carrossel Experience	hairdresser			ruled by a person
+Casa da Sorte	lottery			ruled by a person
+Casa do Sono	store	mattress		held elsewhere in Portugal
+Casa Móvil	phone_repair	phone	store	held elsewhere in Portugal
+Cash Converters	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
+Celeiro	supermarket			OSM supermarket
+Celio	store	mens_clothing		held elsewhere in Portugal
+Centroxogo	store	toys		held elsewhere in Portugal
+CeX	store	electronics		OSM electronics
+Chicco	store	clothing		held elsewhere in Portugal
+Chickinho	restaurant			held elsewhere in Portugal
+Cloud House Vaper Store	store	e_cigarette		ruled by a person
+ColchãoNet	store	mattress		held elsewhere in Portugal
+Cort&Cose	clothing_repair			ruled by a person
+Cortefiel	store	clothing		held elsewhere in Portugal
+CTT	post			held elsewhere in Portugal
+Deichmann	store	shoes		held elsewhere in Portugal
+Delícias do Bairro	cafe			held elsewhere in Portugal
+Delta Espresso	cafe			held elsewhere in Portugal
+DIGI	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
+Dom Gelato	cafe			operator category: Cafetaria, Gelataria e Doçaria
+Don Ciccio	restaurant			operator category: Restauração
+Emma	store	home		operator category: Decoração, Casa e Bricolage
+Equivalenza	store	beauty		held elsewhere in Portugal
+Espaço Casa	store	home		operator category: Decoração, Casa e Bricolage
+Euro Sofás	store	home		operator category: Decoração, Casa e Bricolage
+Fábrica dos Óculos	store	eyewear_and_optician		ruled by a person
+Farmácia Reis Barata	pharmacy			held elsewhere in Portugal
+Figu	store	jewelry		OSM jewelry
+Fireaway Pizza	restaurant			operator category: Restauração
+Flying Tiger Copenhagen	store	discount_store		held elsewhere in Portugal
+Fogo de Chão	restaurant			held elsewhere in Portugal
+Food&More	restaurant			operator category: Restauração
+Foot Locker	store	shoes		held elsewhere in Portugal
+Fotosport	store	photography_store_and_services		held elsewhere in Portugal
+Fútbol Emotion	store	hobby		held elsewhere in Portugal
+Galeria da Jóia	store	jewelry		operator category: Ourivesaria, Joalharia e Relojoaria
+Gato Preto	store	home		operator category: Decoração, Casa e Bricolage
+Georgia Brigadeiros	restaurant			operator category: Restauração
+Gleba – Quiosque	bakery			ruled by a person
+Glo – Quiosque	store	books		operator category: Livraria, Tabacaria e Papelaria
+Gold Suisse	store	pawn		ruled by a person
+Grace and Beauty	beauty_salon			ruled by a person
+Grace Hair	hairdresser			ruled by a person
+H3	restaurant			held elsewhere in Portugal
+Hair & Body	store	beauty		operator category: Perfumaria e Cosmética
+Hanami Sushi	restaurant			held elsewhere in Portugal
+Havaianas	store	shoes		held elsewhere in Portugal
+Hebe Gyros	restaurant			held elsewhere in Portugal
+Holmes Place	gym			held elsewhere in Portugal
+Holmes Place SPA	spa			ruled by a person
+Intimissimi	store	clothing		held elsewhere in Portugal
+IQOS	lottery	e_cigarette	store	held elsewhere in Portugal
+iServices	phone_repair			ruled by a person
+iStore	store	electronics		held elsewhere in Portugal
+Italian Republic	restaurant			held elsewhere in Portugal
+IUMAN Intimissimi Uomo	store	clothing		held elsewhere in Portugal
+Jack & Jones	store	mens_clothing		held elsewhere in Portugal
+Japon Market	cafe			operator category: Cafetaria, Gelataria e Doçaria
+JD Sports	store	shoes		held elsewhere in Portugal
+Jeronymo	cafe			ruled by a person
+JOSE LUIS Joyerías	store	jewelry		ruled by a person
+Joshua's Shoarma Grill	restaurant			held elsewhere in Portugal
+KFC	restaurant			held elsewhere in Portugal
+KIABI	store	clothing		OSM clothes
+KidZania	amusement_park			ruled by a person
+KIKO MILANO	store	beauty		held elsewhere in Portugal
+Kivet	veterinary_care			ruled by a person
+Kiwoko	store	pet		held elsewhere in Portugal
+Kyoto	restaurant			held elsewhere in Portugal
+Lefties	store	clothing		held elsewhere in Portugal
+Levi's	store	clothing		held elsewhere in Portugal
+Liberjóia	store	jewelry		held elsewhere in Portugal
+Lifephone	store	phone		ruled by a person
+llaollao	ice_cream			OSM ice_cream
+Lugar da Jóia	store	jewelry		held elsewhere in Portugal
+Mais Optica	store	eyewear_and_optician		held elsewhere in Portugal
+Mandarim	restaurant			ruled by a person
+Mango	store	clothing		held elsewhere in Portugal
+Mango Man	store	mens_clothing		operator category: Moda Masculina
+Mango Teen	store	clothing		ruled by a person
+Maria Croissant	bakery		cafe	ruled by a person
+Massimo Dutti	store	clothing		held elsewhere in Portugal
+McDonald's	restaurant			operator category: Restauração
+MCS Men	store	mens_clothing		ruled by a person
+Mediterrâneo	restaurant			held elsewhere in Portugal
+MEO	store	phone		held elsewhere in Portugal
+Merrell CAT	store	shoes		ruled by a person
+MICO	store	jewelry		held elsewhere in Portugal
+Mister Minit	shoe_repair			ruled by a person
+MO	store	clothing		ruled by a person
+Mobile Fix	phone_repair			ruled by a person
+Monster Cookies – Quiosque	bakery			ruled by a person
+Morangos Please	cafe			operator category: Cafetaria, Gelataria e Doçaria
+Morena Rosa	florist			ruled by a person
+Motocard	store	motorsports		held elsewhere in Portugal
+Mr. Blue	store	clothing		held elsewhere in Portugal
+MultiOpticas	store	eyewear_and_optician		held elsewhere in Portugal
+MWash Auto SPA	car_wash			ruled by a person
+MyForce	car_repair			ruled by a person
+Nails4'Us	nail_salon			ruled by a person
+Natura	store	clothing		ruled by a person
+NEOON	store	toys		ruled by a person
+Nespresso	store	coffee_supplies		ruled by a person
+New Story	store	fashion_accessories		operator category: Acessórios de Moda e Bijuteria
+New Yorker	store	clothing		OSM clothes
+Normal	store	discount_store		held elsewhere in Portugal
+NOS	store	phone		OSM mobile_phone
+O meu Olá	cafe			operator category: Cafetaria, Gelataria e Doçaria
+Oakberry	juice			ruled by a person
+Oakberry Truck	juice			ruled by a person
+Olá	ice_cream			held elsewhere in Portugal
+ONLY	store	womens_clothing		operator category: Moda Feminina
+Opticália	store	eyewear_and_optician		OSM optician
+Oriente-se	store	gift		ruled by a person
+Oro Vivo	store	jewelry		held elsewhere in Portugal
+Ortopedia.pt	store	medical_supply		ruled by a person
+Outlet El Corte Inglés	store	clothing		ruled by a person
+Oysho	store	clothing		OSM clothes
+PACOMARTINEZ	store	fashion_accessories		operator category: Acessórios de Moda e Bijuteria
+Padaria do Bairro	bakery		cafe	ruled by a person
+Pandora	store	jewelry		OSM jewelry
+Pans & Company	restaurant			held elsewhere in Portugal
+Parfois	store	jewelry		held elsewhere in Portugal
+Pepco	store	clothing		held elsewhere in Portugal
+Perfumes & Companhia	store	beauty		held elsewhere in Portugal
+Pet's Park	store	pet		held elsewhere in Portugal
+Pizza Hut	restaurant			held elsewhere in Portugal
+Pluricosmética	store	beauty		ruled by a person
+Poke House	restaurant			held elsewhere in Portugal
+Portugália	bar			OSM pub
+Prazeres Picanha	restaurant			operator category: Restauração
+Presse Linha	store	newspaper_and_magazines		ruled by a person
+Primark	store	clothing		held elsewhere in Portugal
+Primor	store	beauty		held elsewhere in Portugal
+Pull&Bear	store	clothing		held elsewhere in Portugal
+Punto Roma	store	womens_clothing		operator category: Moda Feminina
+Quasi Pronti	restaurant			held elsewhere in Portugal
+Quebramar	store	clothing		held elsewhere in Portugal
+Ramen Go	restaurant			operator category: Restauração
+Real Transfer	money_transfer			ruled by a person
+Rituals	store	beauty		held elsewhere in Portugal
+ROCK'S	store	clothing		ruled by a person
+Salsa	store	clothing		held elsewhere in Portugal
+Scartezini	restaurant			held elsewhere in Portugal
+Seaside	store	shoes		OSM shoes
+Sephora	store	beauty		held elsewhere in Portugal
+Shades World	store	sunglasses		ruled by a person
+Sical – Quiosque	cafe			ruled by a person
+Skechers	store	shoes		held elsewhere in Portugal
+SL Benfica	store	sports		operator category: Desporto
+Snipes	store	shoes		held elsewhere in Portugal
+Snipes	store	shoes		held elsewhere in Portugal
+Sould Park Jump	amusement_park			ruled by a person
+Sport Zone	store	sports		OSM sports
+Sporting	cafe			OSM cafe
+Springfield	store	clothing		held elsewhere in Portugal
+Starbucks	cafe			held elsewhere in Portugal
+Stone by Stone	store	jewelry		held elsewhere in Portugal
+Stradivarius	store	clothing		held elsewhere in Portugal
+Street Smash Burgers	restaurant			operator category: Restauração
+Subway	restaurant			OSM fast_food
+Suco Bagaço	cafe			operator category: Cafetaria, Gelataria e Doçaria
+Suits Inc	store	clothing		held elsewhere in Portugal
+Swarovski	store	jewelry		held elsewhere in Portugal
+Tabink	store	books		operator category: Livraria, Tabacaria e Papelaria
+Taco Bell	restaurant			held elsewhere in Portugal
+Talho Burger	butcher		restaurant	held elsewhere in Portugal
+Tezenis	store	clothing		held elsewhere in Portugal
+TGB – The Good Burger	restaurant			held elsewhere in Portugal
+Tiffosi	store	clothing		held elsewhere in Portugal
+Tip Top Tailor	clothing_repair			ruled by a person
+Top Atlântico	travel_agency			ruled by a person
+Tous	store	jewelry		OSM jewelry
+Tramas Home	store	home		operator category: Decoração, Casa e Bricolage
+Tramas+	store	fabric		held elsewhere in Portugal
+Tudo4Mobile	phone_repair	phone	store	held elsewhere in Portugal
+UCI Luxe	movie_theater			held elsewhere in Portugal
+Under Blue	store	clothing		held elsewhere in Portugal
+Unicâmbio	currency_exchange			ruled by a person
+United Colors of Benetton	store	clothing		held elsewhere in Portugal
+UZO	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
+Valores	store	jewelry		held elsewhere in Portugal
+Vilanova	store	fashion_accessories		operator category: Acessórios de Moda e Bijuteria
+VisionLab	store	eyewear_and_optician		held elsewhere in Portugal
+Vitaminas	restaurant			OSM restaurant
+Vodafone	store	phone		OSM mobile_phone
+Weeel	ice_cream			held elsewhere in Portugal
+Wells	store	drugstore		OSM chemist
+Wiñk	nail_salon			ruled by a person
+Wok to Walk	restaurant			held elsewhere in Portugal
+Women'secret	store	clothing		held elsewhere in Portugal
+WOO	store	electronics		operator category: Eletrodomésticos, Telecomunicações e Informática
+Worten	phone_repair	electronics	store	held elsewhere in Portugal
+Worten Mobile	phone_repair	electronics	store	held elsewhere in Portugal
+Zara	store	clothing		held elsewhere in Portugal
+Zero Latency	amusement_park			held elsewhere in Portugal
+Zippy	store	clothing		held elsewhere in Portugal
+ZooJoy	store	toys		operator category: Brinquedos, Prendas e Brindes

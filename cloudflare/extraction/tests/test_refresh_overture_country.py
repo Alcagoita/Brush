@@ -134,8 +134,12 @@ class ApplyTest(unittest.TestCase):
             self.stage(new, NEW_KEY, refresh_mode=True)
             stats = refresh.apply(old, new, RELEASE, '2026-10-16', self.execute)
 
+        # `mall_rows_held_by_hand` is 0 here because none of these rows is
+        # inside a shopping centre. KAN-439 makes a centre's contents
+        # manual-only, so a row inside one is neither refreshed nor retired.
         self.assertEqual(stats, {'new_rows': 1, 'changed_rows': 2, 'category_changed_rows': 1, 'retired_rows': 1,
-                                 'unretired_rows': 1, 'unchanged_rows': 1})
+                                 'unretired_rows': 1, 'unchanged_rows': 1,
+                                 'mall_rows_held_by_hand': 0})
         cand = {r['overture_id']: r for r in self.select('SELECT * FROM overture_candidate')}
         # every seen row moved to the new key; the dropped row stayed on the old one
         self.assertEqual({i: c['country_source_r2_key'] for i, c in cand.items()},
