@@ -574,3 +574,14 @@ UOMO` `mens_clothing`, `JOCORUM TABACARIAS` `tobacco`, `WELLS` `drugstore`.
 `BRIGHTMOBILES` is `store` + `phone`: an override cannot carry a store kind
 beside a non-store primary, so `phone_repair` + `phone` (Fashion Phone's set)
 is not expressible as a ruling.
+
+## Brand type sets applied nationally, 2026-11-12
+
+The mall rulings above corrected nine brands at NorteShopping and Via
+Catarina; the owner asked for every other branch to be fixed in the same
+ticket (migration 0067, overrides batch `kan462_brand_type_sets`). Flying
+Tiger follows the owner's `gift` ruling — which Vasco da Gama's curated row
+already carried — over the `discount_store` its 70 Overture rows held.
+`MAC` in Almada (a historical landmark) and the businesses that merely share
+a word with a brand (`Twin Set Spa`, `Teresinha Cabeleireiros`, the `Naco`
+restaurants) were left alone.
