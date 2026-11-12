@@ -320,6 +320,12 @@ const SEED_DICTIONARY: Record<SupportedLang, KeywordMap> = {
     'western union': 'money_transfer', moneygram: 'money_transfer',
     'serviço financeiro': 'financial_service', crédito: 'financial_service', seguros: 'financial_service',
     leasing: 'financial_service', factoring: 'financial_service', finanças: 'financial_service',
+    // KAN-500. Insurance phrases, not a bare `seguro`: it is also the
+    // adjective "safe" ("guardar num lugar seguro").
+    seguradora: 'financial_service', 'seguro automóvel': 'financial_service',
+    'seguro auto': 'financial_service', 'seguro do carro': 'financial_service',
+    'renovar seguro': 'financial_service', 'seguro de viagem': 'financial_service',
+    'seguro de saúde': 'financial_service', 'seguro de casa': 'financial_service',
     // ── restaurant ──
     restaurante: 'restaurant', 'almoço': 'restaurant', jantar: 'restaurant',
     reserva: 'restaurant', 'refeição': 'restaurant',
@@ -330,7 +336,11 @@ const SEED_DICTIONARY: Record<SupportedLang, KeywordMap> = {
     // ── library ──
     biblioteca: 'library', 'devolver livro': 'library', 'requisitar livro': 'library',
     // ── post ──
-    correios: 'post', carta: 'post', encomenda: 'post', selo: 'post',
+    // KAN-500. Not a bare `carta`: "renovar carta de condução" is a driving
+    // licence, and sending it to the post office is wrong.
+    correios: 'post', 'enviar carta': 'post', 'mandar carta': 'post',
+    'carta registada': 'post', 'pôr carta no correio': 'post',
+    encomenda: 'post', selo: 'post',
     'enviar encomenda': 'post',
     // ── store ──
     loja: 'store', 'centro comercial': 'store', shopping: 'store',

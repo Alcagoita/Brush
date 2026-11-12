@@ -133,6 +133,15 @@ class RealFootprintTest(unittest.TestCase):
         self.assertTrue(mf.in_footprint(*vc['centroid'], vc, buffer_m=0))
         self.assertEqual(mf.mall_at(*vc['centroid'], self.footprints), 'Via Catarina Shopping')
 
+    def test_colombo_holds_the_acp_unit_osm_maps(self):
+        """KAN-500. Colombo's ACP was listed and never written; it is at
+        OSM's own unit, way/1466236772, inside the outline."""
+        colombo = self.footprints['Centro Comercial Colombo']
+        self.assertEqual(colombo['osm'], 'way/42645796')
+        self.assertEqual(colombo['buffer_m'], 75)
+        self.assertTrue(mf.in_footprint(38.7537645, -9.1886437, colombo, buffer_m=0))
+        self.assertEqual(mf.mall_at(*colombo['centroid'], self.footprints), 'Centro Comercial Colombo')
+
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
         self.assertTrue(mf.in_footprint(*amoreiras['centroid'], amoreiras))
