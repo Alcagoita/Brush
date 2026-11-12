@@ -1,0 +1,122 @@
+2life|Piso 0
+Açaí Natura|Piso 0
+Acium|Piso 0
+Agência Abreu|Piso 0
+Aldo|Piso 1
+Amados Cabeleireiros|Piso 0
+Bagga|Piso 0
+Beontime|Piso 1
+Bershka|Piso 0
+Bijou Brigitte|Piso 0
+BlueBird|Piso 0
+Boutique dos Relógios|Piso 0
+Brasa Rio|Piso 1
+BStrong|Piso 0
+Burger King|Piso 1
+Calzedonia|Piso 0
+Celeiro|Piso 0
+CeX|Piso 0
+Chaviarte Express|Piso 0
+Cinemas NOS|Piso 1
+Continente|Piso 0
+Cortes de Lisboa|Piso 0
+Decenio|Piso 1
+Digi|Piso 0
+Druni|Piso 0
+Equivalenza|Piso 0
+Ericeira|Piso 0
+Espaço Come|Piso 1
+Espaco Nicola|Piso 1
+Farmácia Maio|Piso 0
+Feu Vert|Piso 0
+Flormar|Piso 1
+Flying Tiger|Piso 0
+Fnac|Piso 1
+Giovanni Galli|Piso 1
+Gráfia|Piso 0
+Guess|Piso 1
+H3 - New Hamburgology|Piso 1
+Hanami Sushi|Piso 1
+HeyDoc|Piso 0
+H&M|Piso 1
+Ice It|Piso 1
+Intimissimi|Piso 0
+Intimissimi Uomo|Piso 0
+IQOS|Piso 0
+IServices|Piso 0
+iStore|Piso 0
+Italian Republic|Piso 1
+JD Sports|Piso 0
+Joshua's Shoarma|Piso 1
+Just in Case|Piso 0
+KFC|Piso 1
+Kiko Milano|Piso 0
+Kiko Ourivesarias|Piso 0
+La Casa de Las Carcasas|Piso 0
+Lanidor|Piso 0
+Lefties|Piso 1
+Leitão com Pão|Piso 1
+Levi’s Store|Piso 0
+Lion Of Porches|Piso 1
+Lojas das Sopas|Piso 1
+Magnolia|Piso 0
+Mais Óptica|Piso 0
+Mango|Piso 1
+Massimo Dutti|Piso 1
+McDonald's|Piso 1
+MEO|Piso 0
+MO|Piso 0
+Mollaris|Piso 0
+Mr-Blue|Piso 0
+Mr. Wash|Piso -1
+MultiOpticas|Piso 0
+Natura|Piso 0
+Nespresso|Piso 0
+Normal|Piso 1
+NOS|Piso 0
+NOTE|Piso 0
+O Boticário|Piso 0
+Olá|Piso 0
+Opticalia|Piso 1
+Oysho|Piso 0
+Pandora|Piso 0
+Pans & Company|Piso 1
+Parfois|Piso 0
+Perfumes & Companhia|Piso 0
+Pizza Hut|Piso 1
+Pluricosmética|Piso 0
+Plush|Piso 0
+Portugália Balcão|Piso 1
+Pull & Bear|Piso 1
+Quebramar|Piso 0
+Sacoor Brothers|Piso 0
+Salsa|Piso 0
+Skechers|Piso 0
+Sport Zone|Piso 0
+Springfield|Piso 1
+Stradivarius|Piso 0
+Subway|Piso 1
+Suits Inc.|Piso 0
+Swarovski|Piso 0
+Tezenis|Piso 0
+Tienda Animal|Piso 0
+Tiffosi|Piso 0
+Timberland|Piso 1
+Tomatino|Piso 1
+Tous|Piso 1
+Triumph|Piso 0
+Tutto Chicco|Piso 0
+Unicâmbio|Piso 0
+UpStyle|Piso 0
+Vet Shopping|Piso 0
+Vitaminas|Piso 1
+Vodafone|Piso 0
+Well's|Piso 0
+Wiñk|Piso 0
+Wok to Walk|Piso 1
+Women’secret|Piso 1
+Worten|Piso 0
+Worten Mobile|Piso 0
+Xiaomi Store|Piso 0
+Zara|Piso 0
+Zippy|Piso 0

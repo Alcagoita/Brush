@@ -156,6 +156,8 @@ restaurant, `Box Jumbo` and `Quiq+, Jumbo Aveiro` are shops named after the
 store they sit beside. None may be touched by a brand sweep.
 | `H3` | `H3 Hambúrguer Gourmet` | Strada — too short for the containment rule |
 | `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | NorteShopping, Via Catarina — the chain's new name (owner, 2026-11-11) |
+| `H3 - New Hamburgology` | `H3 Hambúrguer Gourmet` | LeiriaShopping — the chain's new name (owner, 2026-11-11) |
+| `Well's` | `WELLS LEIRIA SHOPPING` | LeiriaShopping |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -613,3 +615,36 @@ reviewed overrides. 85 have a real Overture category (`gift_shop`, `spas`,
 it raises `invalid reviewed override` the day a refresh re-decides one. They
 are withdrawn through the reversal log; the retype itself stays on the rows,
 since a refresh keeps types and only a category change re-decides.
+
+## LeiriaShopping, ruled 2026-11-12 (KAN-465)
+
+The operator lists **122** units. Footprint `way/192124002`, buffer **55 m**:
+matches are flat from 25 to 50 m, Zara, Bershka and Oysho sit 53 m out, and
+past 55 m the ring gains only the ESTG campus and car dealers.
+
+**The street is not address evidence.** Rua do Alto Vieiro is shared by the
+centre, the polytechnic and the dealerships, so only `Leiria Shopping` /
+`LeiriaShopping` marks a row as the centre's. Leiridance (*atrás do*
+LeiriaShopping — behind it), Try Moto and a Worten outlet on Quinta do
+Seminário are neighbours.
+
+**The cinema is Cinemas NOS** as the operator lists it; both `Cineplace` rows
+are withdrawn and a NOS row written (owner).
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| `2life` — buys and sells gold and other metals | `store` + `pawn`, as Gold Suisse |
+| `Mollaris` — quick-consultation dentist | `clinic`: `dentist` is not reachable; every "dentista" task resolves to `clinic`, which is the point of serving it |
+| `UpStyle` | `store` + `clothing` |
+| `Mr. Wash` (Piso -1, the car park) | `car_wash`, not the `laundry` our rows elsewhere say |
+| `Plush` | `store` + `gift` |
+| `Vet Shopping` — vet and pet store | `veterinary_care` + `store` / `pet`, so both a vet task and a pet-food task find it |
+| `Feu Vert` | `store` + `auto_parts_and_supply` — its rows elsewhere say `store` + `home`, which is wrong; `car_repair` is deliberately unreachable |
+| `IQOS` | `tobacco`, as ruled in KAN-439 (rows elsewhere say lottery) |
+
+Brands keep the set they carry at NorteShopping and Via Catarina: Worten and
+Worten Mobile `phone_repair` + `store` / `electronics`, Chaviarte Express
+`shoe_repair`, Tutto Chicco `store` / `clothing` (Chicco), Magnolia
+`store` / `jewelry`, Ericeira `store` / `sports`.
