@@ -585,3 +585,31 @@ already carried — over the `discount_store` its 70 Overture rows held.
 `MAC` in Almada (a historical landmark) and the businesses that merely share
 a word with a brand (`Twin Set Spa`, `Teresinha Cabeleireiros`, the `Naco`
 restaurants) were left alone.
+
+## ACP is a financial service, ruled 2026-11-12 (KAN-500)
+
+ACP answers three errands — licence renewal, travel documents and car
+insurance — and a user typing any of them should be offered it (owner). Of
+the types a task can reach today only insurance has a home, so every ACP
+branch carries `financial_service` + `financial_service_kind = insurance`.
+Licence renewal and travel documents wait for a motoring-services type (its
+own ticket), which will be added to every branch when it exists. The old
+`store` + `auto_parts_and_supply` was wrong everywhere: ACP sells no parts.
+
+Branches: Leiria (Overture), Amoreiras, NorteShopping, and Colombo — listed
+since KAN-435 and never added, now written at OSM's own unit
+(`way/1466236772`, level 0). Colombo's footprint is `way/42645796`, buffer
+75 m. `Acp Barbearia` in Gaia is a barber and is not ACP.
+
+`travel_agency` is in our data (Agência Abreu, Top Atlântico) but is not a
+type any task can reach — not in the app's types, nor in `type_relation`.
+Typing a row `travel_agency` alone makes it served and unfindable.
+
+### Overrides apply only to generic-category rows
+
+KAN-462's `kan462_brand_type_sets` batch put 86 retyped Overture rows in the
+reviewed overrides. 85 have a real Overture category (`gift_shop`, `spas`,
+`furniture_store` …), and the promoter refuses an override on such a row —
+it raises `invalid reviewed override` the day a refresh re-decides one. They
+are withdrawn through the reversal log; the retype itself stays on the rows,
+since a refresh keeps types and only a category change re-decides.

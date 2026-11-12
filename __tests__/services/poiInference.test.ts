@@ -341,3 +341,31 @@ describe('KAN-408 review — keywords the dedupe gave to the wrong type', () => 
     expect(inferPoiFromRules('spa', 'pt-PT')).toBe('spa');
   });
 });
+
+// KAN-500: ACP answers car insurance, and a driving licence is not a letter.
+describe('motoring errands in pt-PT', () => {
+  it('sends car insurance tasks to a financial service', () => {
+    for (const title of ['seguro automóvel', 'renovar o seguro do carro', 'pagar seguro auto', 'ligar à seguradora']) {
+      expect(inferPoiFromRules(title, 'pt-PT')).toBe('financial_service');
+    }
+  });
+
+  it('does not read the adjective "seguro" (safe) as insurance', () => {
+    expect(inferPoiFromRules('guardar num lugar seguro', 'pt-PT')).toBeNull();
+  });
+
+  it('never sends a driving licence to the post office', () => {
+    for (const title of ['renovar carta de condução', 'renovar a carta', 'carta de condução internacional',
+      'tratar da carta de condução', 'renovar a carta de condução']) {
+      expect(inferPoiFromRules(title, 'pt-PT')).not.toBe('post');
+    }
+  });
+
+  it('still sends letters and parcels to the post office', () => {
+    for (const title of ['enviar carta', 'carta registada', 'mandar carta à avó', 'enviar encomenda', 'comprar selo',
+      'enviar uma carta', 'enviar a carta ao senhorio', 'mandar uma carta', 'mandar a carta',
+      'enviar as cartas', 'pôr a carta no correio', 'cartas registadas']) {
+      expect(inferPoiFromRules(title, 'pt-PT')).toBe('post');
+    }
+  });
+});
