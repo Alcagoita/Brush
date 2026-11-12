@@ -338,8 +338,12 @@ const SEED_DICTIONARY: Record<SupportedLang, KeywordMap> = {
     // ── post ──
     // KAN-500. Not a bare `carta`: "renovar carta de condução" is a driving
     // licence, and sending it to the post office is wrong.
+    // A phrase matches only as written, so the article variants are listed.
     correios: 'post', 'enviar carta': 'post', 'mandar carta': 'post',
-    'carta registada': 'post', 'pôr carta no correio': 'post',
+    'enviar a carta': 'post', 'enviar uma carta': 'post', 'enviar cartas': 'post',
+    'enviar as cartas': 'post', 'mandar a carta': 'post', 'mandar uma carta': 'post',
+    'mandar cartas': 'post', 'carta registada': 'post', 'cartas registadas': 'post',
+    'pôr carta no correio': 'post', 'pôr a carta no correio': 'post',
     encomenda: 'post', selo: 'post',
     'enviar encomenda': 'post',
     // ── store ──

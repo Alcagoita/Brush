@@ -355,13 +355,16 @@ describe('motoring errands in pt-PT', () => {
   });
 
   it('never sends a driving licence to the post office', () => {
-    for (const title of ['renovar carta de condução', 'renovar a carta', 'carta de condução internacional']) {
+    for (const title of ['renovar carta de condução', 'renovar a carta', 'carta de condução internacional',
+      'tratar da carta de condução', 'renovar a carta de condução']) {
       expect(inferPoiFromRules(title, 'pt-PT')).not.toBe('post');
     }
   });
 
   it('still sends letters and parcels to the post office', () => {
-    for (const title of ['enviar carta', 'carta registada', 'mandar carta à avó', 'enviar encomenda', 'comprar selo']) {
+    for (const title of ['enviar carta', 'carta registada', 'mandar carta à avó', 'enviar encomenda', 'comprar selo',
+      'enviar uma carta', 'enviar a carta ao senhorio', 'mandar uma carta', 'mandar a carta',
+      'enviar as cartas', 'pôr a carta no correio', 'cartas registadas']) {
       expect(inferPoiFromRules(title, 'pt-PT')).toBe('post');
     }
   });

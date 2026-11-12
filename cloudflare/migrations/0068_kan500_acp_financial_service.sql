@@ -27,18 +27,20 @@
 -- that position and is keyed on it the way KAN-435 keyed Colombo's other
 -- tenants (`mall:way-<id>`, source `manual`, origin `osm`).
 --
--- Retypes and one insert; no row removed. Idempotent.
+-- Retypes and one insert; no row removed. Idempotent. Every child row is
+-- written through a SELECT on its parent, so a replay where the parent is
+-- absent writes nothing rather than an orphan.
 
 UPDATE overture_poi SET primary_poi_type = 'financial_service', updated_at = '2026-11-12'
  WHERE overture_id = 'd6ab2e2d-181c-4d7d-a43a-03b617ab6be7';
 DELETE FROM overture_poi_type WHERE overture_id = 'd6ab2e2d-181c-4d7d-a43a-03b617ab6be7';
 INSERT INTO overture_poi_type (overture_id, poi_type, rank)
-VALUES ('d6ab2e2d-181c-4d7d-a43a-03b617ab6be7', 'financial_service', 0);
+SELECT overture_id, 'financial_service', 0 FROM overture_poi WHERE overture_id = 'd6ab2e2d-181c-4d7d-a43a-03b617ab6be7';
 DELETE FROM overture_poi_attribute
  WHERE overture_id = 'd6ab2e2d-181c-4d7d-a43a-03b617ab6be7'
    AND dimension IN ('store_kind', 'financial_service_kind');
 INSERT INTO overture_poi_attribute (overture_id, dimension, value)
-VALUES ('d6ab2e2d-181c-4d7d-a43a-03b617ab6be7', 'financial_service_kind', 'insurance');
+SELECT overture_id, 'financial_service_kind', 'insurance' FROM overture_poi WHERE overture_id = 'd6ab2e2d-181c-4d7d-a43a-03b617ab6be7';
 
 UPDATE curated_poi
    SET primary_poi_type = 'financial_service', updated_at = '2026-11-12', updated_by = 'kan-500-acp'
@@ -46,9 +48,9 @@ UPDATE curated_poi
 DELETE FROM curated_poi_attribute
  WHERE poi_id IN ('mall:amoreiras:automovel-club-de-portugal', 'mall:norteshopping:acp')
    AND dimension IN ('store_kind', 'poi_type', 'financial_service_kind');
-INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES
-  ('mall:amoreiras:automovel-club-de-portugal', 'financial_service_kind', 'insurance'),
-  ('mall:norteshopping:acp', 'financial_service_kind', 'insurance');
+INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value)
+SELECT poi_id, 'financial_service_kind', 'insurance' FROM curated_poi
+ WHERE poi_id IN ('mall:amoreiras:automovel-club-de-portugal', 'mall:norteshopping:acp');
 
 INSERT INTO curated_poi
   (poi_id, source, name, dedupe_name, lat, lng, geohash, primary_poi_type,
@@ -61,4 +63,4 @@ VALUES
    'kan-500-acp', 'osm', 'way/1466236772', 'ODbL', '2026-11-12', 'kan500-20261112')
 ON CONFLICT (poi_id) DO NOTHING;
 INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value)
-VALUES ('mall:way-1466236772', 'financial_service_kind', 'insurance');
+SELECT poi_id, 'financial_service_kind', 'insurance' FROM curated_poi WHERE poi_id = 'mall:way-1466236772';
