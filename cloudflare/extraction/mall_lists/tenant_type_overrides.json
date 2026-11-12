@@ -771,6 +771,65 @@
   "NORSEC/TOP COSTURA": [
    "clothing_repair",
    "laundry"
+  ],
+  "2life": [
+   "store",
+   "pawn"
+  ],
+  "Mollaris": [
+   "clinic"
+  ],
+  "UpStyle": [
+   "store",
+   "clothing"
+  ],
+  "Mr. Wash": [
+   "car_wash"
+  ],
+  "Plush": [
+   "store",
+   "gift"
+  ],
+  "Beontime": [
+   "store",
+   "watch"
+  ],
+  "Chaviarte Express": [
+   "shoe_repair"
+  ],
+  "Digi": [
+   "store",
+   "phone"
+  ],
+  "Ericeira": [
+   "store",
+   "sports"
+  ],
+  "Kiko Ourivesarias": [
+   "store",
+   "jewelry"
+  ],
+  "Lojas das Sopas": [
+   "restaurant"
+  ],
+  "Magnolia": [
+   "store",
+   "jewelry"
+  ],
+  "Tutto Chicco": [
+   "store",
+   "clothing"
+  ],
+  "Xiaomi Store": [
+   "store",
+   "electronics"
+  ],
+  "IQOS": [
+   "tobacco"
+  ],
+  "Feu Vert": [
+   "store",
+   "auto_parts_and_supply"
   ]
  }
 }

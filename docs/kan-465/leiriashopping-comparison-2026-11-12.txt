@@ -1,0 +1,113 @@
+
+===== LeiriaShopping — 122 tenants on the operator list =====
+
+  held and confidently matched : 65
+  ESCALATE (a person decides)  : 11
+  ADD from OSM                 : 11
+  on the list, no source has it: 40
+  REMOVE (held, not listed)    : 13   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row Açaí Natura / Natura
+                           Natura
+    [1.00] two tenants, one OSM element Cinemas NOS / NOS
+                           NOS
+    [0.90] two tenants, one held row Intimissimi / Intimissimi Uomo
+                           Intimissimi
+    [0.69] tenant vs held Worten Mobile
+                           Worten - Leiria
+    [0.67] held vs tenant Colshop
+                           Oysho
+    [0.62] held vs tenant Claire's
+                           Celeiro
+    [0.61] held vs tenant Sports Direct
+                           Sport Zone
+    [0.60] held vs tenant Douglas
+                           Olá
+    [0.57] held vs tenant Geox
+                           CeX
+    [0.57] held vs tenant My Tags
+                           Mr. Wash
+    [0.39] held vs tenant, shared word sushi Sushi-Leiria DiscoClub
+                           Hanami Sushi
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    Agência Abreu
+      -> OSM: Abreu
+    Aldo
+      -> OSM: Aldo
+    Bijou Brigitte
+      -> OSM: Bijou Brigitte
+    Levi’s Store
+      -> OSM: Levi's
+    McDonald's
+      -> OSM: McDonald's
+    Normal
+      -> OSM: Normal
+    Pandora
+      -> OSM: Pandora
+    Skechers
+      -> OSM: Skechers
+    Swarovski
+      -> OSM: Swarovski
+    Vodafone
+      -> OSM: Vodafone
+    Women’secret
+      -> OSM: Women'secret
+
+  --- listed but no source can place it (no coordinates) ---
+    2life
+    Acium
+    Bagga
+    Beontime
+    Boutique dos Relógios
+    CeX
+    Chaviarte Express
+    Decenio
+    Digi
+    Druni
+    Ericeira
+    Feu Vert
+    Flormar
+    Giovanni Galli
+    HeyDoc
+    Ice It
+    IQOS
+    IServices
+    iStore
+    Italian Republic
+    Just in Case
+    KFC
+    Kiko Milano
+    Kiko Ourivesarias
+    Lefties
+    Lion Of Porches
+    Magnolia
+    Mollaris
+    Mr-Blue
+    Mr. Wash
+    Opticalia
+    Pluricosmética
+    Salsa
+    Suits Inc.
+    Tomatino
+    Unicâmbio
+    UpStyle
+    Wiñk
+    Xiaomi Store
+    Zippy
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    5àSec  [laundry]
+    A Loja do Gato Preto  [store]
+    Amazon Locker - Andre  [post]
+    C&A  [store]
+    Cineplace LeiriaShopping  [movie_theater]
+    Cineplace Portugal  [movie_theater]
+    Domundo  [restaurant]
+    Eurekakids  [store]
+    Galp  [gas]
+    Igreja de S. Pedro  [church]
+    JEEP LPM LEIRIA  [store]
+    Samsonite  [store]
+    Sunglass Hut  [store]

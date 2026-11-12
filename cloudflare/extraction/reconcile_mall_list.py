@@ -227,7 +227,7 @@ def plan(tenants, held, osm, mall_name, slug, types, confirmed=None, address_wor
         metres = round(mall_footprints.metres_outside(row['lat'], row['lng'], footprint))
         if best[0] >= CONFIDENT_THRESHOLD:
             withdraw.append((row, f'listed {best[1]!r} pinned {metres} m outside {mall_name}; '
-                                  f'the unit is held inside'))
+                                  f'the unit is served from a row inside'))
         else:
             withdraw.append((row, f"{mall_name}'s address but not on its tenant list, pinned {metres} m outside"))
     for row in unlisted:
