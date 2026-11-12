@@ -158,6 +158,10 @@ store they sit beside. None may be touched by a brand sweep.
 | `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | NorteShopping, Via Catarina — the chain's new name (owner, 2026-11-11) |
 | `H3 - New Hamburgology` | `H3 Hambúrguer Gourmet` | LeiriaShopping — the chain's new name (owner, 2026-11-11) |
 | `Well's` | `WELLS LEIRIA SHOPPING` | LeiriaShopping |
+| `H3 HAMBÚRGUER GOURMET` | `H3` | Braga Parque |
+| `BLUEBIRD – RELÓGIOS E JOIAS` | `Bluebird - Watches & Jewels` | Braga Parque |
+| `TIGER` | `Flying Tiger Copenhagen` | Braga Parque — the brand's short name |
+| `WIDEX – ESPECIALISTAS EM AUDIÇÃO` | `Widex Centro Auditivo Braga Parque` | Braga Parque |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -648,3 +652,52 @@ Brands keep the set they carry at NorteShopping and Via Catarina: Worten and
 Worten Mobile `phone_repair` + `store` / `electronics`, Chaviarte Express
 `shoe_repair`, Tutto Chicco `store` / `clothing` (Chicco), Magnolia
 `store` / `jewelry`, Ericeira `store` / `sports`.
+
+## Braga Parque and Nova Arcada, ruled 2026-11-12 (KAN-463)
+
+Both lists were read from the operators' own sites. Braga Parque publishes
+the floor on each store's page; Nova Arcada on its directory.
+
+**Braga Parque — 160 units.** Footprint `way/41679420`, buffer **50 m**:
+Pandora sits 34 m out on the centre's address, and past 50 m the ring gains
+only Avenida Antero de Quental street shops and the Via Circular fuel
+stations. Address evidence is `Braga Parque` / `Bragaparque` only: four
+bakeries called "Pastelaria Braga Parque" and a nail salon, a pharmacy, a
+Fidelidade and an Equivalenza on other streets carry the name and are not
+the centre's.
+
+**Nova Arcada — 96 units.** Footprint `way/55617020`, the landuse outline,
+not the mall building: it takes in the retail park (IKEA, JYSK, Kiwoko,
+Midas, Toys "R" Us, Hospital Trofa Saúde). Buffer **75 m** — Burger King is
+57 m out at Avenida de Lamas 100, the centre's own address, which is address
+evidence alongside `Nova Arcada`. The operator lists Cinebox, which replaced
+Cineplace; the Cineplace row is withdrawn.
+
+**Floors (owner):** Nova Arcada's "Piso R" (the retail park) is **Piso 0**;
+Braga Parque's VEIN publishes unit 22 and no floor — **Piso 1**, as every
+unit numbered 1–25 there; Studio Auto publishes neither — Piso 0.
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| `TUTTO CARS` — ride-on car rental for children (owner) | `playground` |
+| `Playground – Luna Kids` | `playground` |
+| `Sould Park Bowling` | `bowling_alley` |
+| `HOSPITAL TROFA SAÚDE` | `hospital` |
+| `CLÍNICA DE SANTA MADALENA`, `VIP CLINIC` | `clinic` |
+| `STUDIO AUTO`, `CADETEWASH` | `car_wash` |
+| `MIDAS` | `store` / `auto_parts_and_supply` — the Feu Vert set; `car_repair` is not reachable |
+| `Cavalinho` — bags and leather goods | `store` / `handbag` (our row elsewhere says `church`, which is wrong) |
+| `DOM BRASIL` — Brazilian food kiosk | `supermarket` (not the newsagent of the same name) |
+| `CHÁLÁLA` (bubble tea), `TEA SHOP` | `tea` |
+| `ONE` — watches and jewellery | `store` / `watch` |
+| `MELTINO BAR & LOUNGE` — a café | `cafe` |
+| `WIDEX – ESPECIALISTAS EM AUDIÇÃO` | `store` / `hearing_aid_provider` |
+| `IQOS BOUTIQUE` | `tobacco` |
+| `TIGER` | `store` / `gift` — the Flying Tiger set |
+| `WORTEN`, `WORTEN MOBILE` | `phone_repair` + `electronics` + `store`, the NorteShopping set |
+
+The rest are in `tenant_type_overrides.json` with plain readings (C&A
+clothing, Correios CTT post, Arcádia cafe / bakery, Samsonite and Sintety
+handbag, Vista Alegre home ...).

@@ -1,0 +1,164 @@
+# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.
+# A ruling belongs in tenant_type_overrides.json, which outranks
+# every other row of evidence here.
+name	poi_type	store_kind	extra_types	evidence
+2LIFE	store	pawn		ruled by a person
+5 À SEC	laundry			held elsewhere in Portugal
+ACIUM	store	jewelry		OSM jewelry
+ADIDAS	store	sports		OSM sports
+AGÊNCIA ABREU	travel_agency			ruled by a person
+ALBERTO OCULISTA	store	eyewear_and_optician		held elsewhere in Portugal
+ALDO	store	shoes		held elsewhere in Portugal
+ALI BABA KEBAB HAUS	restaurant			held elsewhere in Portugal
+ASIÁTICO	restaurant			OSM restaurant
+AURYA	store	beauty		ruled by a person
+BEONTIME	store	watch		ruled by a person
+BERSHKA	store	clothing		held elsewhere in Portugal
+BIJOU BRIGITTE	store	jewelry		OSM jewelry
+BIMBA Y LOLA	store	clothing		OSM clothes
+BLUEBIRD – RELÓGIOS E JOIAS	store	jewelry		held elsewhere in Portugal
+BODEGÃO	restaurant			held elsewhere in Portugal
+BOSS STORE	store	clothing		ruled by a person
+BOUTIQUE DOS RELÓGIOS	store	jewelry		held elsewhere in Portugal
+BOUTIQUE NESPRESSO	supermarket			held elsewhere in Portugal
+BRASA RIO	restaurant			held elsewhere in Portugal
+BROWNIE	store	clothing		OSM clothes
+CALZEDONIA	store	clothing		held elsewhere in Portugal
+CAMPO EM FLOR	florist			held elsewhere in Portugal
+CELEIRO	supermarket			OSM supermarket
+CENTROXOGO	store	toys		held elsewhere in Portugal
+CERVEJARIA BRAGA PARQUE	restaurant			OSM fast_food
+CEX	store	electronics		OSM electronics
+CHICCO	store	clothing		held elsewhere in Portugal
+CHURRASQUEIRA BRAZA	restaurant			OSM restaurant
+CINEMAS NOS BRAGA PARQUE	movie_theater			held elsewhere in Portugal
+COMPANHIA	restaurant			held elsewhere in Portugal
+CORTES DE LISBOA	hairdresser			OSM hairdresser
+DECENIO	store	clothing		held elsewhere in Portugal
+DOM BRASIL	supermarket			ruled by a person
+ECCO	store	shoes		OSM shoes
+EQUIVALENZA	store	beauty		held elsewhere in Portugal
+ERICEIRA SURF & SKATE	store	sports		held elsewhere in Portugal
+FITNESS UP	gym			held elsewhere in Portugal
+FNAC	store	books		ruled by a person
+FOTOSPORT	store	photography_store_and_services		held elsewhere in Portugal
+FUXIA	store	shoes		held elsewhere in Portugal
+GANT	store	clothing		OSM clothes
+H&M	store	clothing		ruled by a person
+H3 HAMBÚRGUER GOURMET	restaurant			held elsewhere in Portugal
+HANAMI SUSHI	restaurant			held elsewhere in Portugal
+HUMMY	bakery			OSM confectionery
+INTIMISSIMI	store	clothing		held elsewhere in Portugal
+ISERVICES	phone_repair			ruled by a person
+ITALIAN REPUBLIC	restaurant			held elsewhere in Portugal
+IUMAN	store	mens_clothing		ruled by a person
+JD SPORTS	store	sports		OSM sports
+JEAN LOUIS DAVID	hairdresser			OSM hairdresser
+KFC	restaurant			held elsewhere in Portugal
+KIKO MILANO	store	beauty		held elsewhere in Portugal
+KIOSKU	store	cards_and_stationery		held elsewhere in Portugal
+LA CASA DE LAS CARCASAS	phone_repair	phone	store	held elsewhere in Portugal
+LACOSTE	store	clothing		held elsewhere in Portugal
+LEFTIES	store	clothing		held elsewhere in Portugal
+LEVI'S	store	clothing		held elsewhere in Portugal
+LION OF PORCHES	store	clothing		OSM clothes
+LLAOLLAO	ice_cream			OSM ice_cream
+LUGAR DA JÓIA	store	jewelry		held elsewhere in Portugal
+MALANDRINHO DE POMBAL	restaurant			held elsewhere in Portugal
+MANGO	store	clothing		held elsewhere in Portugal
+MASSIMO DUTTI	store	clothing		held elsewhere in Portugal
+MCDONALD'S	restaurant			ruled by a person
+MEO	store	phone		held elsewhere in Portugal
+MERRELL CAT	store	shoes		ruled by a person
+MISTER MINIT	shoe_repair			ruled by a person
+MR. BLUE	store	clothing		held elsewhere in Portugal
+MULTIOPTICAS	store	eyewear_and_optician		held elsewhere in Portugal
+NATA LISBOA	cafe			OSM cafe
+NATURAPURA	store	childrens_clothing		ruled by a person
+NATURA	store	clothing		ruled by a person
+NOS	store	phone		OSM mobile_phone
+NUTRYSTORE	store	vitamins_and_supplements		ruled by a person
+O BOTICÁRIO	store	beauty		ruled by a person
+OLÁ	ice_cream			held elsewhere in Portugal
+ORO VIVO	store	jewelry		held elsewhere in Portugal
+OYSHO	store	clothing		OSM clothes
+PACO MARTINEZ	store	handbag		OSM bag
+PANDORA	store	jewelry		OSM jewelry
+PARFOIS	store	jewelry		held elsewhere in Portugal
+PEPE JEANS	store	clothing		held elsewhere in Portugal
+PERFUMES & COMPANHIA	store	beauty		held elsewhere in Portugal
+PINGO DOCE	supermarket			OSM supermarket
+PIZZA HUT	restaurant			held elsewhere in Portugal
+PLURICOSMÉTICA	store	beauty		ruled by a person
+POKE HOUSE	restaurant			held elsewhere in Portugal
+PRIMARK	store	clothing		held elsewhere in Portugal
+PROF	store	shoes		held elsewhere in Portugal
+PULL&BEAR	store	clothing		held elsewhere in Portugal
+PUNT ROMA	store	womens_clothing		held elsewhere in Portugal
+QUAD	store	sports		ruled by a person
+RITUALS	store	beauty		held elsewhere in Portugal
+SACOOR	store	womens_clothing		held elsewhere in Portugal
+SALSA	store	clothing		held elsewhere in Portugal
+SEASIDE	store	shoes		OSM shoes
+SEPHORA	store	beauty		held elsewhere in Portugal
+SKECHERS	store	shoes		held elsewhere in Portugal
+SMK	store	clothing		OSM clothes
+SPRINGFIELD	store	clothing		held elsewhere in Portugal
+STONE BY STONE	store	jewelry		held elsewhere in Portugal
+STRADIVARIUS	store	clothing		held elsewhere in Portugal
+SUITS INC	store	clothing		held elsewhere in Portugal
+SUNGLASS HUT	store	eyewear_and_optician		held elsewhere in Portugal
+SWAROVSKI	store	jewelry		held elsewhere in Portugal
+TABACARIA PAIS	lottery	tobacco	store	held elsewhere in Portugal
+TACO BELL	restaurant			held elsewhere in Portugal
+TEZENIS	store	clothing		held elsewhere in Portugal
+THE BODY SHOP	store	beauty		held elsewhere in Portugal
+TIFFOSI	store	clothing		held elsewhere in Portugal
+TOMATINO	restaurant			held elsewhere in Portugal
+TOMMY HILFIGER	store	clothing		OSM clothes
+TOP ATLÂNTICO	travel_agency			ruled by a person
+TRIUMPH	store	clothing		held elsewhere in Portugal
+UNICÂMBIO	currency_exchange			ruled by a person
+UNITED COLORS OF BENETTON	store	clothing		held elsewhere in Portugal
+URBAN PROJECT	store	clothing		held elsewhere in Portugal
+VITAMINAS	restaurant			OSM restaurant
+VODAFONE	store	phone		OSM mobile_phone
+WIÑK	nail_salon			ruled by a person
+WOK TO WALK	restaurant			held elsewhere in Portugal
+WOMEN´SECRET	store	clothing		held elsewhere in Portugal
+WORTEN MOBILE	phone_repair	electronics	store	brand set held at NorteShopping and Via Catarina
+ZARA HOME	store	home		ruled by a person
+ZARA MAN	store	clothing		OSM clothes
+ZARA	store	clothing		held elsewhere in Portugal
+ZIPPY	store	clothing		held elsewhere in Portugal
+ARCÁDIA	cafe			ruled by a person
+C&A	store	clothing		ruled by a person
+CASA BOLAS DE BERLIM	bakery			ruled by a person
+CHÁLÁLA	tea			ruled by a person
+CLÍNICA DE SANTA MADALENA	clinic			ruled by a person
+CORREIOS CTT	post			ruled by a person
+ESTÚDIO SEISSETE PROFISSIONAL	hairdresser			ruled by a person
+FÁBRICA DOS ÓCULOS – A ORIGINAL	store	eyewear_and_optician		ruled by a person
+GMS STORE - APPLE PREMIUM RESELLER	store	electronics		ruled by a person
+GUESS JEANS	store	clothing		ruled by a person
+IQOS BOUTIQUE	tobacco			ruled by a person
+MAGNOLIA JEWELRY	store	jewelry		ruled by a person
+MELTINO BAR & LOUNGE	cafe			ruled by a person
+MUNDO DO CAFÉ DELTA	cafe			ruled by a person
+ONE	store	watch		ruled by a person
+PAPPA'LAB - GELATARIA ARTESANAL	ice_cream			ruled by a person
+PARQUE ESPLANADA	restaurant			ruled by a person
+SAMSONITE	store	handbag		ruled by a person
+SINTETY: LOJA DAS MALAS	store	handbag		ruled by a person
+SPORTING CLUBE DE BRAGA - LOJA OFICIAL	store	sports		ruled by a person
+STUDIO AUTO	car_wash			ruled by a person
+TEA SHOP	tea			ruled by a person
+TIGER	store	gift		ruled by a person
+TIMBERLAND	store	shoes		ruled by a person
+TOUS	store	jewelry		ruled by a person
+TRINCAS	restaurant			ruled by a person
+VEIN	store	shoes		ruled by a person
+VISTA ALEGRE ATLANTIS	store	home		ruled by a person
+WELLS ÓTICA	store	eyewear_and_optician		ruled by a person
+WIDEX – ESPECIALISTAS EM AUDIÇÃO	store	hearing_aid_provider		ruled by a person
+TUTTO CARS	playground			ruled by a person

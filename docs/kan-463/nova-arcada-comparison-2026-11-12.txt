@@ -1,0 +1,109 @@
+
+===== Nova Arcada — 96 tenants on the operator list =====
+
+  held and confidently matched : 43
+  ESCALATE (a person decides)  : 6
+  ADD from OSM                 : 17
+  on the list, no source has it: 36
+  REMOVE (held, not listed)    : 11   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [0.80] tenant vs OSM  MO
+                           MEO
+    [0.73] tenant vs held FORTE Store
+                           Worten
+    [0.62] held vs tenant Leonidas
+                           MIDAS
+    [0.58] held vs tenant Leitão & Espumante
+                           TENTAÇÕES DO NORTE
+    [0.56] held vs tenant A Loja do Gato Preto
+                           SOLÁRIO PAREDÃO
+    [0.48] held vs tenant, shared word cinemas Cinemas Cineplace
+                           CINEBOX PREMIUM CINEMAS
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    BERTRAND LIVREIROS
+      -> OSM: Bertrand
+    CELEIRO
+      -> OSM: Celeiro
+    CORTEFIEL
+      -> OSM: Cortefiel
+    ESPAÇO CASA
+      -> OSM: Espaço Casa
+    INTIMISSIMI
+      -> OSM: Intimissimi
+    MEO
+      -> OSM: MEO
+    MIDAS
+      -> OSM: Midas
+    NORMAL
+      -> OSM: Normal
+    NOS
+      -> OSM: NOS
+    O BOTICÁRIO
+      -> OSM: O Boticário
+    Playground – Luna Kids
+      -> OSM: Luna Kids
+    PRIMOR
+      -> OSM: Primor
+    SEASIDE
+      -> OSM: Seaside
+    Taco Bell
+      -> OSM: Taco Bell
+    VODAFONE
+      -> OSM: Vodafone
+    WOMEN’SECRET
+      -> OSM: Women'secret
+    ZIPPY
+      -> OSM: Zippy
+
+  --- listed but no source can place it (no coordinates) ---
+    1920 Barber Shop
+    Açaí Natura
+    ACIUM
+    Arcádia – Casa do Chocolate
+    AURYA
+    B STRONG
+    CADETEWASH
+    Casa das Bolas de Berlim
+    Cavalinho
+    CBWEED
+    CINEBOX PREMIUM CINEMAS
+    COFFEE & SOFT
+    COLCHAONET
+    FITNESS PARK
+    FORTE STORE KIDS
+    H3 – NEW HAMBURGOLOGY
+    HIMÁ ORIENTAL TASTE
+    HOSPITAL TROFA SAÚDE
+    ISERVICES
+    ISTORE
+    Lugar da Jóia
+    MAISON CROISSANT
+    MUNDO DO CAFÉ
+    NATURA
+    NP4GAME
+    OAKBERRY
+    PERFUMES & COMPANHIA
+    PLURICOSMÉTICA
+    SACOOR BLUE
+    SANJAM
+    SECRET PACK
+    SOLÁRIO PAREDÃO
+    Sould Park Bowling
+    TOMATINO
+    VILANOVA
+    VIP CLINIC
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    Agrikolage  [store]
+    Blukids  [store]
+    Cacifo Locky  [post]
+    Calçado Guimarães  [store]
+    DeGema Hamburgueria  [restaurant]
+    Home Nut  [bakery]
+    Kalorias Braga  [gym]
+    Kivet Clínicas Veterinarias  [veterinary_care]
+    MASS Perfumarias  [store]
+    Nova Arcada  [store]
+    Sunglass Hut  [store]

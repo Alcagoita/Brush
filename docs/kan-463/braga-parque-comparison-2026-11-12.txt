@@ -1,0 +1,180 @@
+
+===== Braga Parque — 160 tenants on the operator list =====
+
+  held and confidently matched : 90
+  ESCALATE (a person decides)  : 16
+  ADD from OSM                 : 54
+  on the list, no source has it: 10
+  REMOVE (held, not listed)    : 14   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row ZARA HOME / ZARA
+                           Zara
+    [0.90] two tenants, one held row CINEMAS NOS BRAGA PARQUE / NOS
+                           Cinemas NOS Braga Parque
+    [0.90] two tenants, one held row ZARA HOME / ZARA MAN
+                           Zara
+    [0.83] tenant vs OSM  CLÍNICA DE SANTA MADALENA
+                           Clínica Dentária Santa Madalena
+    [0.80] tenant vs OSM  5 À SEC
+                           5àsec
+    [0.71] held vs tenant Lanidor
+                           PANDORA
+    [0.62] held vs tenant Claire's
+                           CELEIRO
+    [0.62] held vs tenant Brightmobiles Braga
+                           WORTEN MOBILE
+    [0.61] held vs tenant 67 Cabeleireiros
+                           CELEIRO
+    [0.60] held vs tenant Wash Me
+                           H&M
+    [0.60] held vs tenant Loja das Sopas
+                           SALSA
+    [0.57] held vs tenant Nike Store
+                           ONE
+    [0.57] held vs tenant Bezerra
+                           BERSHKA
+    [0.56] held vs tenant Estación de servicio Cepsa
+                           ISERVICES
+    [0.56] held vs tenant A Braguista
+                           ALBERTO OCULISTA
+    [0.53] held vs tenant, shared word urban Urban Design Care Braga
+                           URBAN PROJECT
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    ADIDAS
+      -> OSM: Adidas
+    AGÊNCIA ABREU
+      -> OSM: Abreu
+    ALBERTO OCULISTA
+      -> OSM: Alberto Oculista
+    ALDO
+      -> OSM: ALDO
+    ARCÁDIA
+      -> OSM: Arcádia
+    ASIÁTICO
+      -> OSM: Asiatico
+    AURYA
+      -> OSM: Aurya
+    BEONTIME
+      -> OSM: BeOnTime
+    BIJOU BRIGITTE
+      -> OSM: Bijou Brigitte
+    BROWNIE
+      -> OSM: Brownie
+    C&A
+      -> OSM: C&A
+    CASA BOLAS DE BERLIM
+      -> OSM: Casa Bolas de Berlim
+    CENTROXOGO
+      -> OSM: Centroxogo
+    CERVEJARIA BRAGA PARQUE
+      -> OSM: Cervejaria Braga Parque
+    CHURRASQUEIRA BRAZA
+      -> OSM: Churrasqueira Braza
+    CORREIOS CTT
+      -> OSM: CTT
+    ECCO
+      -> OSM: ECCO
+    EQUIVALENZA
+      -> OSM: Equivalenza
+    ESTÚDIO SEISSETE PROFISSIONAL
+      -> OSM: Estúdio Seissete Profissional
+    FOTOSPORT
+      -> OSM: Fotosport
+    HUMMY
+      -> OSM: Hummy
+    IQOS BOUTIQUE
+      -> OSM: IQOS
+    LA CASA DE LAS CARCASAS
+      -> OSM: La Casa de las Carcasas
+    LUGAR DA JÓIA
+      -> OSM: Lugar da Jóia
+    MAGNOLIA JEWELRY
+      -> OSM: Magnolia Jewelry
+    MALANDRINHO DE POMBAL
+      -> OSM: Malandrinho de Pombal
+    MELTINO BAR & LOUNGE
+      -> OSM: Meltino Bar & Lounge
+    MERRELL CAT
+      -> OSM: Merrell;Caterpillar
+    MISTER MINIT
+      -> OSM: Mister Minit
+    MUNDO DO CAFÉ DELTA
+      -> OSM: Delta
+    NATA LISBOA
+      -> OSM: Nata Lisboa
+    NATURAPURA
+      -> OSM: NaturaPura
+    NATURA
+      -> OSM: Natura
+    NUTRYSTORE
+      -> OSM: NutryStore
+    ORO VIVO
+      -> OSM: Ouro Vivo
+    PACO MARTINEZ
+      -> OSM: Paco Martinez
+    PARQUE ESPLANADA
+      -> OSM: Parque Esplanada
+    PEPE JEANS
+      -> OSM: Pepe Jeans
+    PLURICOSMÉTICA
+      -> OSM: Pluricosmética
+    RITUALS
+      -> OSM: Rituals
+    SACOOR
+      -> OSM: Sacoor
+    SEASIDE
+      -> OSM: Seaside
+    SINTETY: LOJA DAS MALAS
+      -> OSM: Sintety: Loja das Malas
+    SKECHERS
+      -> OSM: Skechers
+    SMK
+      -> OSM: SMK
+    SPORTING CLUBE DE BRAGA - LOJA OFICIAL
+      -> OSM: Sporting Clube de Braga - Loja Oficial
+    SUITS INC
+      -> OSM: Suits Inc
+    SUNGLASS HUT
+      -> OSM: Sunglass Hut
+    SWAROVSKI
+      -> OSM: Swarovski
+    TOP ATLÂNTICO
+      -> OSM: TopAtlântico
+    TUTTO CARS
+      -> OSM: Tutto Cars
+    UNICÂMBIO
+      -> OSM: Unicâmbio
+    WIÑK
+      -> OSM: Wiñk
+    ZIPPY
+      -> OSM: Zippy
+
+  --- listed but no source can place it (no coordinates) ---
+    2LIFE
+    ACIUM
+    ALI BABA KEBAB HAUS
+    CHÁLÁLA
+    FÁBRICA DOS ÓCULOS – A ORIGINAL
+    IUMAN
+    PAPPA'LAB - GELATARIA ARTESANAL
+    QUAD
+    TEA SHOP
+    WELLS ÓTICA
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    (Permanently Closed) Nike Store Braga  [store]
+    Centro Estética 4Ever  [salon]
+    Funny City  [amusement_park]
+    MISAKO  [store]
+    Moeve  [gas]
+    Pedro Ferreira Cabeleireiros  [hairdresser]
+    Posto de abastecimiento Cepsa  [gas]
+    Powerdot  [electric_vehicle_charging_station]
+    Restaurante Casa Alves  [restaurant]
+    Sabão Rosa  [night_club]
+    Sport Zone Braga Parque  [store]
+    Teppan Yaki  [restaurant]
+    Zoofeira  [store]
+    iLook Store  [store]
