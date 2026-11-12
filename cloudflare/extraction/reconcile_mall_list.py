@@ -192,10 +192,14 @@ def withdrawals(rows, ticket, today):
     over = [(r, why) for r, why in rows if not is_curated(r)]
     cur = [(r, why) for r, why in rows if is_curated(r)]
     if over:
-        yield ('INSERT OR IGNORE INTO poi_source_correction (source, source_id, visible, review_note, created_at) VALUES\n'
+        # An upsert, not INSERT OR IGNORE: a row that already carries a
+        # correction (a name override, or `visible = 1`) would otherwise keep
+        # it and stay served. Only visibility and the note change; any name
+        # override on the row is left as it is.
+        yield ('INSERT INTO poi_source_correction (source, source_id, visible, review_note, created_at) VALUES\n'
                + ',\n'.join(f"  ('overture', {sql_escape(r['overture_id'])}, 0, "
                             f"{sql_escape(f'{ticket}: {why}')}, {sql_escape(today)})" for r, why in over)
-               + ';\n')
+               + '\nON CONFLICT (source, source_id) DO UPDATE SET visible = 0, review_note = excluded.review_note;\n')
     for r, why in cur:
         yield (f"UPDATE curated_poi SET status = 'removed', removed_at = {sql_escape(today)}, "
                f"removed_by = {sql_escape(writer.ACTOR)}, removal_reason = {sql_escape(f'{ticket}: {why}')} "
@@ -238,6 +242,9 @@ def plan(tenants, held, osm, mall_name, slug, types, confirmed=None, address_wor
     result = mall_tenants.compare([n for n, _ in missing], [], osm, mall_name, covers=None)
     paired = [dict(o, name=tenant) for tenant, o in result['add'] if o is not None]
     to_write, _, untyped = writer.placements(missing, [], paired, footprint, slug, types, mall_name)
+    # A held unit with no typing gets no type or floor from `held_updates`;
+    # report it with the unwritten ones rather than skip it silently.
+    untyped = [tenants[t][0] for t in sorted(answers) if writer.fold(tenants[t][0]) not in types] + untyped
     return {'answers': answers, 'withdraw': withdraw, 'kept_outside': kept_outside,
             'to_write': to_write, 'untyped': untyped}
 
@@ -274,7 +281,7 @@ def main(argv=None):
           f"{len(result['untyped'])} untyped; {len(result['withdraw'])} to withdraw, "
           f"{len(result['kept_outside'])} neighbours kept", file=sys.stderr)
     for name in result['untyped']:
-        print(f'  UNTYPED, not written: {name}', file=sys.stderr)
+        print(f'  UNTYPED, not written or not retyped: {name}', file=sys.stderr)
 
     if args.plan:
         json.dump({

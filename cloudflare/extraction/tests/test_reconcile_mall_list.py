@@ -164,6 +164,28 @@ class StatementTest(unittest.TestCase):
         self.assertIn("poi_id = 'fsq:abc'", sql)
         self.assertNotIn('DELETE', sql, 'nothing is deleted')
 
+    def test_a_row_with_an_existing_correction_is_still_hidden(self):
+        """INSERT OR IGNORE would keep a `visible = 1` correction and leave the
+        row served. Run the statement against a real table to prove it."""
+        import sqlite3
+        db = sqlite3.connect(':memory:')
+        db.execute('CREATE TABLE poi_source_correction (source TEXT NOT NULL, source_id TEXT NOT NULL, '
+                   'visible INTEGER NOT NULL, name_override TEXT, review_note TEXT NOT NULL, '
+                   'created_at TEXT, PRIMARY KEY (source, source_id))')
+        db.execute("INSERT INTO poi_source_correction VALUES ('overture', 'ov-1', 1, 'Kept Name', 'old', 'd')")
+        for statement in rec.withdrawals([(held('X', 'ov-1'), 'not listed'), (held('Y', 'ov-2'), 'not listed')],
+                                         'KAN-462', '2026-11-12'):
+            db.executescript(statement)
+        rows = dict((r[0], r[1:]) for r in db.execute(
+            'SELECT source_id, visible, name_override, review_note FROM poi_source_correction'))
+        self.assertEqual(rows['ov-1'], (0, 'Kept Name', 'KAN-462: not listed'))
+        self.assertEqual(rows['ov-2'], (0, None, 'KAN-462: not listed'))
+
+    def test_a_held_unit_without_a_typing_is_reported_not_skipped(self):
+        result = rec.plan([('ZARA HOME', 'Piso 1')], [held('Zara Home', 'zh')], [], MALL,
+                          'norteshopping', {})
+        self.assertEqual(result['untyped'], ['ZARA HOME'])
+
     def test_a_held_row_takes_the_lists_type_and_floor(self):
         tenants = [('ZARA HOME', 'Piso 1')]
         types = {'zara home': ('store', 'home', [], 'ruled by a person')}
