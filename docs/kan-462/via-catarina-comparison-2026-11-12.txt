@@ -1,0 +1,160 @@
+
+===== Via Catarina Shopping — 76 tenants on the operator list =====
+
+  held and confidently matched : 37
+  ESCALATE (a person decides)  : 23
+  ADD from OSM                 : 16
+  on the list, no source has it: 17
+  REMOVE (held, not listed)    : 49   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [0.90] two tenants, one OSM element INTIMISSIMI / IUMAN INTIMISSIMI UOMO
+                           Intimissimi
+    [0.76] tenant vs held Pizza Hut Fatias
+                           Pizza Hut ViaCatarina
+    [0.73] tenant vs OSM  Braza
+                           Banzai
+    [0.71] tenant vs held NEW YORKER
+                           New Era
+    [0.71] tenant vs held UNDER BLUE
+                           Loja Mr. Blue
+    [0.69] tenant vs OSM  CRISTINA SOARES
+                           Cristina Ferreira N&G
+    [0.67] held vs tenant Rituals
+                           ORIENTAL
+    [0.67] held vs tenant Retrozão & Companhia
+                           PERFUMES & COMPANHIA
+    [0.67] held vs tenant Sportino
+                           SPORT ZONE
+    [0.65] held vs tenant Talho Burger Via Catarina
+                           STREET SMASH BURGER
+    [0.63] held vs tenant KristinaDuarteStudio
+                           CRISTINA SOARES
+    [0.61] held vs tenant Real Santa Catarina
+                           REAL TRANSFER
+    [0.61] held vs tenant ECCO Porto
+                           Sabores do Porto
+    [0.57] held vs tenant CODE
+                           CEX
+    [0.56] held vs tenant PORTO SC VIA CATARINA
+                           SPORT ZONE
+    [0.55] held vs tenant LAMEIRINHO - Porto
+                           Sabores do Porto
+    [0.55] held vs tenant RoofTop Sta. Catarina
+                           NORSEC/TOP COSTURA
+    [0.54] held vs tenant, shared word porto AndrÉ Silva Tattoo Porto
+                           Sabores do Porto
+    [0.53] held vs tenant, shared word fashion Fashion Makers Studio
+                           FASHION PHONE
+    [0.53] held vs tenant, shared word companhia Companhia das Sandes
+                           PERFUMES & COMPANHIA
+    [0.52] held vs tenant, shared word porto Bellamamamia's Porto
+                           Sabores do Porto
+    [0.36] held vs tenant, shared word porto Ópticas MultiOpticas R. Santa Catarina Porto
+                           Sabores do Porto
+    [0.32] held vs tenant, shared word jewellery beAuthentique Jewellery - Jóias Aço Inoxidável
+                           MAGNOLIA SILVER JEWELLERY
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    DE CAFÉ
+      -> OSM: Café Santos Snack Bar
+    BIJOU BRIGITTE
+      -> OSM: Bijou Brigitte
+    BURGER KING
+      -> OSM: Burger King
+    COORDENADA PERFEITA
+      -> OSM: Copy-Shop Coordenada Perfeita
+    MAIS ÓPTICA
+      -> OSM: Mais Optica
+    MISAKO
+      -> OSM: Misako
+    NATA7
+      -> OSM: Nata7
+    NOS
+      -> OSM: NOS
+    PERFUMES & COMPANHIA
+      -> OSM: Perfumes & Companhia
+    PLURICOSMÉTICA
+      -> OSM: Pluricosmética
+    Poké House
+      -> OSM: Poke House
+    REAL TRANSFER
+      -> OSM: Real Transfer
+    Taco Bell
+      -> OSM: Taco Bell
+    VILANOVA
+      -> OSM: Vilanova
+    VODAFONE
+      -> OSM: Vodafone
+    WELLS
+      -> OSM: Wells
+
+  --- listed but no source can place it (no coordinates) ---
+    Açaí Concept
+    BIJUFA
+    BRIGHTMOBILES
+    CBWEED
+    CHOCOLATE ROSA
+    FASHION PHONE
+    JOCORUM TABACARIAS
+    LOS TAKITOS
+    MAGNOLIA SILVER JEWELLERY
+    NACO
+    ORIENTAL
+    SAMSONITE
+    SANTINI
+    SECRET PACK
+    SENZI
+    STREET SMASH BURGER
+    ViaCarWash
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    100 Culpa  [restaurant]
+    Adidas Santa Catarina  [store]
+    Ale-Hop  [store]
+    Amadeu Carneiro  [store]
+    Ativo Kids  [store]
+    BMCPharma  [spa]
+    BOHO - Eat, drink n’ dance  [restaurant]
+    Body Shop  [store]
+    Bolli  [store]
+    Bárbara Penaforte  [art_gallery]
+    Courir  [store]
+    DanSendo Studio  [gym]
+    Dola Dyana Souvenirs Mercearia  [store]
+    Escola de Yôga Antigo  [gym]
+    Espaço Fábrica  [store]
+    Estetica feminina&masculina  [salon]
+    Farggi  [restaurant]
+    Fazteaobife  [restaurant]
+    Fernanda Araujo Nails  [salon]
+    Flormar  [store]
+    Fruta Da D. Ermelinda  [supermarket]
+    Fábrica da Nata  [bakery]
+    Graça Batista Joias  [store]
+    Helena Araújo Abreu-  Advogados  [spa]
+    Holmes Place  [gym]
+    Hussel  [bakery]
+    Indi Go by Real Indiana  [restaurant]
+    Indian Grocery and Halal Shop  [supermarket]
+    LIFT Rooftop Via Catarina  [bar]
+    Lavandaria Marlinwash  [laundry]
+    Loja das Sopas  [restaurant]
+    Lucinda Maia Cabeleireiros  [hairdresser]
+    Ministry Of Port  [supermarket]
+    Nuances & Glamour  [salon]
+    Oblivion Shop  [store]
+    Original Eco Mercado  [restaurant]
+    Panda Bento- Sushi take-away  [restaurant]
+    Para Sempre Tattoos  [tattoo]
+    Paula Teixeira Cabeleireiros  [hairdresser]
+    Perfumaria Dubai  [store]
+    Pollux  [store]
+    SNIPES  [store]
+    Salsa  [store]
+    Stuppendo  [restaurant]
+    Tapioca  [restaurant]
+    Tiffosi  [store]
+    Walkstore  [store]
+    houdini art crime  [art_gallery]
+    ocla_tattoo  [tattoo]

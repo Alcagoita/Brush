@@ -1,0 +1,320 @@
+
+===== NorteShopping — 279 tenants on the operator list =====
+
+  held and confidently matched : 147
+  ESCALATE (a person decides)  : 45
+  ADD from OSM                 : 85
+  on the list, no source has it: 23
+  REMOVE (held, not listed)    : 21   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row Clínica Fnac / FNAC
+                           Fnac
+    [1.00] two tenants, one OSM element AMORINO – GELATO AL NATURALE / NATURA
+                           Natura
+    [1.00] two tenants, one held row WORTEN / WORTEN MOBILE
+                           Worten Mobile
+    [1.00] two tenants, one held row ZARA / ZARA HOME
+                           Zara Home
+    [0.90] two tenants, one OSM element ARCÁDIA – NESCAFÉ / Arcádia – Roastelier by Nescafé
+                           Arcádia
+    [0.90] two tenants, one OSM element Chaviarte / CHAVIARTE PREMIUM
+                           Chaviarte
+    [0.90] two tenants, one held row INTIMISSIMI / INTIMISSIMI UOMO
+                           Intimissimi
+    [0.90] two tenants, one held row MEO / MEO 2
+                           Loja MEO
+    [0.90] two tenants, one held row PIZZA HUT / PIZZA HUT DELIVERY
+                           Pizza Hut
+    [0.90] two tenants, one held row NORTH FACE / THE NORTH FACE
+                           The North Face Norteshopping Porto
+    [0.90] two tenants, one held row WELL’S / WELL’S ÓPTICA
+                           Well's
+    [0.80] tenant vs held 5 À SEC
+                           5àsec
+    [0.80] tenant vs OSM  OMNIA
+                           Domni
+    [0.75] held vs tenant Clinicanimal
+                           Clínica Fnac
+    [0.74] held vs tenant Jose Luis Jewelry
+                           JOSE LUIS JOYERÍAS
+    [0.73] tenant vs held KIKO MAKE UP MILANO
+                           Kiko Milano
+    [0.73] tenant vs held Maldito
+                           Aldo
+    [0.71] tenant vs held CELEIRO
+                           Elena Mirò
+    [0.70] tenant vs held RITUAL CAFFÉ
+                           Pasta Caffé
+    [0.67] held vs tenant MATOSINHOS
+                           TOMATINO
+    [0.67] held vs tenant Farmácia do NorteShopping | Porto
+                           FCPORTO STORE
+    [0.62] held vs tenant Redken
+                           RELLENO
+    [0.62] held vs tenant Ponto CTT
+                           Point Fort Fichet
+    [0.61] held vs tenant Casa Ferreira
+                           Farmácia Ferreira da Silva
+    [0.61] held vs tenant InMocion Sport
+                           FOTOSPORT
+    [0.61] held vs tenant WELLS ÓTICA MATOSINHOS NORTESHOPPING
+                           WELL’S ÓPTICA
+    [0.60] held vs tenant McCafé
+                           Maje
+    [0.60] held vs tenant Lanidor Woman
+                           PANDORA
+    [0.60] held vs tenant Galeria de Arte Loja NS
+                           MARIA MARCELINO
+    [0.59] held vs tenant Arcadia Casa do Chocolate
+                           ARCÁDIA – NESCAFÉ
+    [0.59] held vs tenant SALA - 5
+                           SALSA JEANS
+    [0.57] held vs tenant Galp
+                           ACP
+    [0.57] held vs tenant Time To Be
+                           STONE BY STONE
+    [0.57] held vs tenant Prénatal
+                           NATURA
+    [0.57] held vs tenant Nortejóias
+                           NOTE!
+    [0.57] held vs tenant Clarks
+                           Scalpers
+    [0.57] held vs tenant Dielmar
+                           PRIMARK
+    [0.57] held vs tenant Loja IQOS Norteshopping
+                           NOS
+    [0.57] held vs tenant Silo - Espaço Cultural
+                           AMORINO – GELATO AL NATURALE
+    [0.56] held vs tenant A Loja do Gato Preto
+                           SOLÁRIO PAREDÃO
+    [0.56] held vs tenant Real Transfer
+                           RITUAL CAFFÉ
+    [0.56] held vs tenant Chimarrão
+                           Chaviarte
+    [0.56] held vs tenant Sala Xvision
+                           MALVÓN
+    [0.55] held vs tenant H3 Hambúrguer Gourmet
+                           H3 – NEW HAMBURGOLOGY
+    [0.47] held vs tenant, shared word house Steaks and Beer House
+                           Poke House
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    100 MONTADITOS
+      -> OSM: 100 Montaditos
+    A CALDEIRA
+      -> OSM: A Caldeira
+    Abbraccio
+      -> OSM: Abbraccio
+    ACP
+      -> OSM: Acp
+    AGÊNCIA ABREU
+      -> OSM: Abreu
+    Arcádia – Galleria
+      -> OSM: Galleria
+    B STRONG KIDS
+      -> OSM: B Strong Kids
+    BAGGA
+      -> OSM: Bagga
+    BARBOUR
+      -> OSM: Barbour
+    BOUTIQUE DOS RELÓGIOS PLUS
+      -> OSM: Boutique dos Relógios
+    Braza
+      -> OSM: A Braza
+    BROWNIE
+      -> OSM: Brownie
+    CAFÉ PANS
+      -> OSM: Café Pans
+    Claudie Pierlot
+      -> OSM: Claudie Pierlot
+    Confeitaria Moura
+      -> OSM: Confeitaria Moura
+    CREMOSI
+      -> OSM: Cremosi
+    Desigual
+      -> OSM: Desigual
+    ECCO
+      -> OSM: Ecco
+    Elements
+      -> OSM: Elements 7580
+    EQUIVALENZA
+      -> OSM: Equivalenza
+    ERICEIRA SURF & SKATE
+      -> OSM: Ericeira
+    FCPORTO STORE
+      -> OSM: Fcporto Store
+    FLORES CONTINENTE
+      -> OSM: Flores Continente
+    Florista Luciano Arte Flores
+      -> OSM: Luciano
+    GANT
+      -> OSM: Gant
+    GIOVANNI GALLI
+      -> OSM: Giovanni galli
+    Gold Suisse
+      -> OSM: Gold Suisse
+    GRAFIPRONTO
+      -> OSM: Grafipronto
+    GUACAMOLE GMG
+      -> OSM: Guacamole
+    H3 – NEW HAMBURGOLOGY
+      -> OSM: H3 New Hamburgology
+    Hawkers
+      -> OSM: Hawkers
+    HEBE GYROS
+      -> OSM: Hebe Gyros
+    HeyDoc
+      -> OSM: HeyDoc
+    HOFF
+      -> OSM: HOFF
+    HOSS INTROPIA
+      -> OSM: Hoss Intropia
+    INÊS PEREIRA CABELEIREIROS
+      -> OSM: Inês Pereira
+    Jo Malone
+      -> OSM: Jo Malone
+    JOCORUM TABACARIAS
+      -> OSM: Jocorum Tabacarias
+    JUST IN CASE
+      -> OSM: Just In Case
+    LARANJINHA
+      -> OSM: Laranjinha
+    LION OF PORCHES
+      -> OSM: Lion of Porches
+    LUGAR DA JÓIA
+      -> OSM: Lugar da Jóia
+    MANUEL ALVES SAPATARIAS
+      -> OSM: Manuel Alves
+    MARIA MARCELINO
+      -> OSM: Maria Marcelino
+    MOLDURA MINUTO
+      -> OSM: Moldura Minuto
+    MyForce
+      -> OSM: MForce
+    NATURAPURA
+      -> OSM: Natura Pura
+    NICI
+      -> OSM: Nici
+    NOVA CÂMBIOS
+      -> OSM: NOVA CÂMBIOS
+    NP4GAME
+      -> OSM: NP4GAME
+    NUTRYSTORE
+      -> OSM: Nutrystore
+    O Forno do leitão do Zé
+      -> OSM: O Forno do Leitão do Zé
+    O Quiosque
+      -> OSM: O Quiosque
+    OAKBERRY
+      -> OSM: Oakberry
+    Opatra London
+      -> OSM: Opatra London
+    ORO VIVO
+      -> OSM: Oro vivo
+    OTRO Perfume Concept
+      -> OSM: OTRO Perfume Concept
+    PEDRO DEL HIERRO
+      -> OSM: Pedro del hierro
+    PORTUGÁLIA BALCÃO
+      -> OSM: Portugália
+    PROF
+      -> OSM: Prof
+    QUEBRAMAR
+      -> OSM: Quebramar
+    ROBERTO VERINO
+      -> OSM: Roberto verino
+    SAMSUNG
+      -> OSM: Samsung
+    Sandro
+      -> OSM: Sandro
+    Santa Francesinha By Cufra
+      -> OSM: Santa Francesinha by Cufra
+    Scalpers
+      -> OSM: Scalpers
+    SMOLL REPUBLIC
+      -> OSM: Smoll
+    SOLÁRIO PAREDÃO
+      -> OSM: Solário Paredão
+    Steve Madden
+      -> OSM: Steve Madden
+    SUITS INC
+      -> OSM: Suits inc
+    SUZYPETROS
+      -> OSM: Suzy Petros
+    Tea Shop
+      -> OSM: Tea Shop
+    TOMATINO
+      -> OSM: Tomatino
+    Top Atlântico
+      -> OSM: Top Atlântico
+    UNIKE Jewellery
+      -> OSM: Unike Jewellery
+    VICTORIA’S SECRET
+      -> OSM: Victoria's Secret
+    VILANOVA
+      -> OSM: Vilanova
+    VITAMINAS
+      -> OSM: Vitaminas
+    VODAFONE
+      -> OSM: Vodafone
+    WIÑK
+      -> OSM: Wink
+    WIZINK
+      -> OSM: Wizink
+    WOO
+      -> OSM: Woo
+    WTF
+      -> OSM: Wtf
+    YORN
+      -> OSM: Yorn
+    ZU
+      -> OSM: ZU
+
+  --- listed but no source can place it (no coordinates) ---
+    CAFÉ JOYEUX
+    Cata Vassalo
+    CENTROXOGO
+    Dyson
+    Fabric Store
+    HAPPY FOOD
+    IUMAN
+    JACK & JONES
+    LA CASA DE LAS CARCASAS
+    LÄDERACH
+    MALVÓN
+    Mimo.Cool
+    NUTRIBIO
+    PANDA CANTINA
+    PLOOM
+    Point Fort Fichet
+    QUAD
+    RECREIO INFANTIL – NORTELAND
+    RELLENO
+    RT FOCACCIAS BY REITORIA
+    SANJŪGO
+    SMASHVILLE
+    TIMBERLAND
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    :slow  [restaurant]
+    Américo Tavar NorteShopping  [store]
+    Bossê Tattoo  [tattoo]
+    Bubbles & Pearls  [bar]
+    G-Star RAW Store  [store]
+    Helpdesk da Sonae  [store]
+    Hussel  [bakery]
+    LAO BAO - asian flavours  [restaurant]
+    Nice Things Paloma S.  [store]
+    Nicethings Porto  [store]
+    PORTO SC NORTE SHOPPING  [store]
+    Pico Tango  [store]
+    Praça do Vapor  [historical_landmark]
+    Pura - Gourmet Salads  [restaurant]
+    Rádio Popular  [store]
+    Serra da Estrela - Cantinho Regional  [restaurant]
+    Teatro Rivoli-Porto  [theatre]
+    Tino González NorteShopping  [store]
+    United Colors of Benetton  [store]
+    World Bowling - Entretenimento e Lazer  [bowling_alley]
+    okaidi  [store]

@@ -113,6 +113,26 @@ class RealFootprintTest(unittest.TestCase):
         written by an import, a promotion or a refresh."""
         self.assertEqual(mf.mall_at(*UBBO_BERSHKA_UNIT, self.footprints), 'UBBO')
 
+    def test_norteshopping_is_one_ring_joined_from_its_two_outer_ways(self):
+        """KAN-462. OSM draws the outline as two open ways; joined, they must
+        close into one ring that holds the centroid rows are written at."""
+        norte = self.footprints['NorteShopping']
+        self.assertEqual(norte['osm'], 'relation/16708133')
+        self.assertEqual(norte['buffer_m'], 50)
+        self.assertEqual(len(norte['rings']), 1)
+        self.assertTrue(mf.in_footprint(*norte['centroid'], norte, buffer_m=0))
+        self.assertIsNone(mf.mall_at(*norte['centroid'], {k: v for k, v in self.footprints.items()
+                                                           if k != 'NorteShopping'}))
+
+    def test_via_catarina_is_a_tight_footprint_on_a_shopping_street(self):
+        """KAN-462. 30 m, not 50: Rua de Santa Catarina's own shops start at
+        the door, and a wider ring sweeps them in."""
+        vc = self.footprints['Via Catarina Shopping']
+        self.assertEqual(vc['osm'], 'way/365658312')
+        self.assertEqual(vc['buffer_m'], 30)
+        self.assertTrue(mf.in_footprint(*vc['centroid'], vc, buffer_m=0))
+        self.assertEqual(mf.mall_at(*vc['centroid'], self.footprints), 'Via Catarina Shopping')
+
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
         self.assertTrue(mf.in_footprint(*amoreiras['centroid'], amoreiras))

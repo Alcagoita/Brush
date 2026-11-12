@@ -29,6 +29,8 @@ it retires real places with false confidence.
 | `strada.txt` | Strada Outlet Odivelas | shops and eating (113) | 2026-09-01 |
 | `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (246) | 2026-10-04 |
 | `amoreiras.txt` | Amoreiras Shopping Center, Lisboa | shops and eating (196) | 2026-10-05 |
+| `norteshopping.txt` | NorteShopping, Senhora da Hora (Matosinhos) | shops and eating (279) | 2026-11-11 |
+| `via_catarina.txt` | Via Catarina Shopping, Porto | shops and eating (76) | 2026-11-12 |
 
 `ubbo_operator_categories.tsv` and `amoreiras_operator_categories.tsv` hold
 each centre's operator categories verbatim. They are first a **helper for a
@@ -43,7 +45,8 @@ A ruling by a person, a row we already hold elsewhere in Portugal, and OSM all
 outrank the category, and every typed row records which of them answered it.
 
 UBBO publishes no floor for any unit, so every floor there comes from OSM;
-Amoreiras publishes one for 195 of its 196.
+Amoreiras publishes one for 195 of its 196. NorteShopping publishes one for
+all but 11; those are Piso 0 by the owner's ruling (2026-11-11).
 
 A list covers only what it covers. An eating-places page says nothing about
 the shops in the same centre — `mall_tenants.py` enforces that through its

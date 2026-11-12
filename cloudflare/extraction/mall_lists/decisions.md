@@ -132,7 +132,7 @@ The matcher scored these below its confident bar. They are the same shop.
 | `SALSA JEANS` | `Salsa Denim Innovation` | Colombo |
 | `T.Hair Barber's` | `T-Hair for Men` | Colombo |
 | `ORIENTE-SE – TATTOOS & PIERCINGS` | `Oriente-Se Artigos Orientais` | Colombo |
-| `BERTRAND LIVREIROS` | `Livraria Bertrand` | Vasco da Gama |
+| `BERTRAND LIVREIROS` | `Livraria Bertrand` | Vasco da Gama, Via Catarina |
 | `PANS & COMPANY` | `Pans and Company` | both |
 | `XIAOMI STORE PORTUGAL` | `Mi Store Portugal` | Colombo — renamed |
 | `LEROY MERLIN` | `AKI` | Colombo — rebrand, renamed |
@@ -155,6 +155,19 @@ without being one — `Jumbo Cascais` is a bar, `Restaurante Chinês Jumbo` a
 restaurant, `Box Jumbo` and `Quiq+, Jumbo Aveiro` are shops named after the
 store they sit beside. None may be touched by a brand sweep.
 | `H3` | `H3 Hambúrguer Gourmet` | Strada — too short for the containment rule |
+| `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | NorteShopping, Via Catarina — the chain's new name (owner, 2026-11-11) |
+| `5 À SEC` | `5àsec` | NorteShopping |
+| `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
+| `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
+| `Arcádia – Galleria` | `Arcadia Casa do Chocolate` | NorteShopping (owner, 2026-11-11) |
+| `CONTINENTE BOM DIA` | `Continente Bom Dia NorteShopping` | NorteShopping |
+| `CONTINENTE BOM DIA` | `SAT MATOSINHOS CONTINENTE BOM DIA NORTESHOPPING` | NorteShopping — a second row for the Bom Dia, NOT the hypermarket |
+| `FNAC` | `Fnac` | NorteShopping — held twice; Clínica Fnac is its own unit |
+| `FNAC` | `FNAC Norte Shopping` | NorteShopping |
+| `JOSE LUIS JOYERÍAS` | `Jose Luis Jewelry` | NorteShopping — held twice |
+| `JOSE LUIS JOYERÍAS` | `José Luís Jóias` | NorteShopping |
+| `Farmácia Ferreira da Silva` | `Farmácia do NorteShopping Porto` | NorteShopping — the same Loja 140, held twice |
+| `Farmácia Ferreira da Silva` | `Farmácia Ferreira da Silva` | NorteShopping |
 
 ## Confirmed NOT matches — different businesses
 
@@ -464,3 +477,111 @@ does not answer this.)
   opened is a place that does not exist.
 * **`Clínica`** in a Portuguese name is not a medical clinic. `Clínica do
   Pêlo` is a waxing salon.
+* **`ENCERRADA TEMPORARIAMENTE`** (NorteShopping) is the same thing — opening
+  hours, not a closure. All three units it appears against are kept (owner,
+  2026-11-11).
+
+## NorteShopping, ruled 2026-11-11
+
+The operator lists **279** units (owner: one entry on the page was a
+duplicate, probably a shop with two doors). Footprint `relation/16708133`,
+buffer 50 m — matches climb to 50 m and are flat to 100 m.
+
+**Only the listed places may exist in the centre.** Every row inside that the
+operator does not list is withdrawn, curated rows included — `Silo – Espaço
+Cultural`, `Praça do Vapor`, the gallery and the two cinema screens went with
+the shops. This is the UBBO/Amoreiras rule applied without exceptions.
+
+**Two held rows for one listed store are the same store.** Keep one, give it
+the list's type and floor, withdraw the other. The double confirmation for
+door duplicates (same name AND a door pin) is not required here: the owner
+ruled these pairs directly — Fnac, José Luís, Pull&Bear, the pharmacy at Loja
+140, and the second Continente Bom Dia row.
+
+**A unit with no published floor is Piso 0.** Floors are stored as the digit
+(`0`, `-4`), the shape `overture_poi.floor` holds. KAN-439 wrote `Piso N` into
+135 curated rows; that is a format to normalise, not a second convention.
+
+**The ring is read by address, and so is the far side.** Removal stays on the
+strict outline unless the address says the row is the centre's:
+
+* in the 50 m ring, `Norteshopping` / `Rua Sara Afonso` in the address makes
+  it a unit pinned a few metres off (Benetton, Lanidor, Clarks …); another
+  street makes it a neighbour, kept — Galp, Clinicanimal, Bossê Tattoo,
+  Nortejóias on Rua Monte da Luz, Ponto CTT;
+* beyond the buffer, the centre's own address on a row 77 m to 2 km away is
+  the same shop with a bad coordinate. FNAC, Sephora, Tezenis, BOSS and
+  others were each served a second time 1–2 km off. Withdrawn; a matching
+  unit is answered by the row inside. `Staples` — *junto ao Norte Shopping*,
+  next to it — is a neighbour.
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| chocolate shops — `Lindt`, `LÄDERACH`, `Arcádia – Galleria` | `bakery`, as every Lindt we hold |
+| keys and locks — `Chaviarte`, `CHAVIARTE PREMIUM`, `Point Fort Fichet` | `shoe_repair`, as Mister Minit |
+| `IUMAN` — men's underwear | `store` + `mens_clothing` |
+| `Mimo.Cool` — children's clothing and shoes | `store` + `childrens_clothing` |
+| `QUAD` — sports clothing and equipment | `store` + `sports` |
+| `Fabric Store` — home decor and textiles | `store` + `home` |
+| `NOTE!` — stationery and books | `store` + `books` |
+
+Six typings our own rows carried were plainly wrong and are corrected for the
+mall units: `FLYING TIGER` (was `florist`) → `store` + `gift`; `MAC` (was
+`historical_landmark`) → `store` + `beauty`; `ZARA HOME` → `store` + `home`;
+`OTRO Perfume Concept` (was `spa`) → `store` + `beauty`; `TWINSET` →
+`womens_clothing`; `TERESINHA CARTEIRAS` → `handbag`. The same wrong sets sit
+on those brands' other branches; fixing them nationally is a follow-up
+(owner, 2026-11-11), because a brand carries one type set everywhere.
+
+**ACP** keeps its current brand set here; KAN-500 retypes every branch.
+
+## Via Catarina, ruled 2026-11-12
+
+The operator lists **76** units. Footprint `way/365658312`, buffer **30 m**:
+Rua de Santa Catarina is lined with shops, matches stop climbing at 30 m, and
+beyond it every extra 10 m roughly doubles what a buffer removal would sweep
+in. The NorteShopping rules apply unchanged.
+
+**Address evidence on a shopping street.** The street's name is not evidence
+here — half the street's own shops give it. A ring row is the centre's only
+when the address says `Via Catarina` or the centre's number, `Santa Catarina
+312` (the centre is 312–350). A row the matcher scores higher but that sits on
+the street — `Kiko Milano` at no. 412, `MISAKO` at no. 397 — is a neighbour:
+a row certainly inside answers the unit first, and a street twin is kept.
+
+`Cristina Soares` publishes two shops in one address field, Via Catarina loja
+3.08 and Rua do Almada 233. The row 146 m out is the Via Catarina unit pinned
+badly and is withdrawn; the row 522 m out, by Rua do Almada, is the other shop
+and is kept.
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| `CBWEED` — CBD beauty products | `store` + `beauty` |
+| `COORDENADA PERFEITA` — printing, photos | `store` + `copy_shop` |
+| `SECRET PACK` — mystery boxes | `store` + `gift` |
+| `NACO` — beauty salon, nails | `beauty_salon` + `nail_salon` (our rows elsewhere said `spa`) |
+| `ORIENTAL` — Asian restaurant, sushi | `restaurant` (our rows elsewhere said `cafe`) |
+| `CHOCOLATE ROSA` | `bakery` (our rows elsewhere said `tea`) |
+| `NORSEC/TOP COSTURA` | `clothing_repair` + `laundry` |
+
+Brands already typed at NorteShopping keep that set here: `FLYING TIGER
+COPENHAGEN` `store` + `gift`, `PACOMARTINEZ` `handbag`, `IUMAN INTIMISSIMI
+UOMO` `mens_clothing`, `JOCORUM TABACARIAS` `tobacco`, `WELLS` `drugstore`.
+`BRIGHTMOBILES` is `store` + `phone`: an override cannot carry a store kind
+beside a non-store primary, so `phone_repair` + `phone` (Fashion Phone's set)
+is not expressible as a ruling.
+
+## Brand type sets applied nationally, 2026-11-12
+
+The mall rulings above corrected nine brands at NorteShopping and Via
+Catarina; the owner asked for every other branch to be fixed in the same
+ticket (migration 0067, overrides batch `kan462_brand_type_sets`). Flying
+Tiger follows the owner's `gift` ruling — which Vasco da Gama's curated row
+already carried — over the `discount_store` its 70 Overture rows held.
+`MAC` in Almada (a historical landmark) and the businesses that merely share
+a word with a brand (`Twin Set Spa`, `Teresinha Cabeleireiros`, the `Naco`
+restaurants) were left alone.

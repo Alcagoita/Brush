@@ -2180,11 +2180,6 @@
       }
     },
     "reviewed_discount_store": {
-      "ebb38555-60d6-4b68-b9d2-71f49bffa074": {
-        "poi_type": "store",
-        "store_kind": "discount_store",
-        "reason": "reviewed discount store chain"
-      },
       "15ec0aac-0608-4513-be76-609c9f763517": {
         "poi_type": "store",
         "store_kind": "discount_store",
@@ -5567,6 +5562,439 @@
       "a7c7bfe7-cb54-4ac5-af67-3d27fc247760": {
         "decision": "rejected",
         "reason": "gas station, not a supermarket"
+      }
+    },
+    "kan462_brand_type_sets": {
+      "0666cdb9-3274-4784-946d-14816011d18a": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "1ad1bc31-2a78-4124-9257-4fea863f8792": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "1f96185c-ab46-4da2-85ad-b4210b36f600": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "3a3d0049-e314-4c3b-8e83-9bb999bf41ba": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "5c6b2b3c-5b2f-4651-a57b-d65da087a2cb": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "7876d611-5680-4978-b0de-449ed69004d2": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "7f6f183e-d5bf-435e-932c-162b2d32bf57": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "8aefd175-2964-49f9-9560-7ae6be800c72": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "a2982d5f-c3f0-442e-91b2-789c4eb9aa7f": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "b4833df7-99d2-4d16-9c92-ee2f636f7811": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d1a941e1-c4df-4f18-a30c-5b96f1f65a42": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d34c6300-a90e-4357-b4e2-d1a2580dab5f": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "dac2b4e2-7478-45e9-8b8c-68f637f0b377": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "e967213e-dbfe-4252-b4fe-0435edac766a": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "fe2745d8-85eb-473a-85ba-79fede7e9bc0": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "00356780-94d5-4bd7-8eb2-1253b3420cbc": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "09595aa3-d4a7-435f-b0d6-f00ba80074a5": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "1276c4dd-fbe5-4dab-86df-0f9a9f222a47": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "19ede9ae-9484-417c-b52f-e384377f5c1d": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "204c6b6c-602e-4778-8721-0c652e334a8b": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "20ccd87d-8553-4204-866b-bc12bf0c6c3f": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "2729203d-d680-42ab-b316-49d4d13a2d03": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "2a573fba-d1ee-4dc2-8ae9-8ea211a4f3ca": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "2eab7649-9f81-4cbd-8aa3-d53d3f219972": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "2f38eead-f29a-4173-9779-8a895078ee03": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "30454156-507a-423b-a971-f8acaf3bf2bb": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "30e0a63e-583d-4afe-bccf-013699fead49": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "3827d1c8-1316-48ba-8113-785bac51966b": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "3b058588-9e14-443d-8979-7b57ce9cb1cb": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "3ceae5b7-39fd-437b-9c55-dda1c57239da": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "4739be1d-01e4-4fa6-9eed-54d211236bad": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "49cba580-8cc3-42b6-b889-5e3c51267edb": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "4fb892dd-9378-419b-a68f-813e0d6e4531": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "52565756-be8a-43ad-81ff-9c1d6a950c2f": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "5ec2f41d-cee1-4f42-905f-ef9e6afe16d9": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "62ac0a24-bd9d-4bd4-aa75-40327f13b393": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "6505e84d-ce60-41c1-b154-e3e0bec2cf3b": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "6671e16f-d626-4ef1-955c-21aa2ec175b1": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "6c797a6e-7f6d-406d-a7f9-e12c5f4b815b": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "73607df4-cc64-416a-acd1-ebef420415f7": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "7cdf64f3-ecc9-45ed-89c7-e56e85f68638": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "7e149316-92e2-424a-b482-95c421cd5fc3": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "7f1c9669-2c3d-4c78-983f-c82388575cbe": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "9244f690-3818-4535-b0df-7b8c99a8dd12": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "98de7921-a36e-47bd-88ce-705a04437d28": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "9e3154a8-c07d-4e5a-8d6d-47e5875088d4": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ab272137-45e2-4cf4-9972-7fb589cb027e": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ab7fdcde-7d27-4073-91c8-89136cc23633": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "acbc4667-daf3-4770-85a0-5f15179f2b41": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "af012cd4-3e71-431d-af47-4c8483b3ced7": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ba4dd6bf-69b1-4faa-85c7-4f58f99a09a0": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "bda7ac34-2403-4154-8094-f481d5757c7d": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "c3c0ec4d-5d42-4a54-aaa0-305c4154bab8": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "c962c696-cfbf-4aad-878a-4e513c2f3ca1": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "cd2ef7dd-52ae-4c2b-bc50-3d93a42ed9f1": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d06c135e-10e2-46cb-8217-2648a5b0a0f7": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d30afb55-32e5-4c89-ad9c-91e1799b1f7c": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d4537a87-20f1-48bc-9e44-49c85f7c4038": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d976e86d-025b-4089-a5c4-5b095329971a": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "d9d17e3d-fc17-4338-917a-18f27c8afd48": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ddd34e12-ad1e-417e-99a5-7f79330c9aa2": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "df842572-a01e-4803-85a9-13ebcbbf89e7": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "e51d3437-a015-4747-948b-2ea39e45c386": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "e67fdf22-58d0-4d9f-915f-20837f3fc499": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ece1a21b-4b4e-40f2-8a94-34ab0d81ebde": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ef2f115d-93ac-4bf5-ba1f-13349f16dca2": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "fb0dcd6f-ecb0-426d-83a8-b0ea4721aec0": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "fb555a9a-2c8e-4b44-a6e8-fbbee484b3e3": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "ebb38555-60d6-4b68-b9d2-71f49bffa074": {
+        "poi_type": "store",
+        "reason": "KAN-462: Flying Tiger Copenhagen carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "gift"
+      },
+      "1dd99b1b-ebad-4b81-9f4d-47731b680b92": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "9175219f-0072-4809-88c4-1b22c2fa01b5": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "b61afef4-7999-4437-9d3a-2f5ca7c96a29": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "b72ccbb9-37a3-4c0b-96bf-95a56d73d8b9": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "d5a5c60b-f7a7-4152-866a-1788a3155ab7": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "53fc9c7c-a403-4085-934a-56cfda050e59": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "911363d8-df88-4851-81d9-7222e82390ca": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "b872f81a-914e-47f4-a5d0-0a6372cad7fa": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "d631c74b-8b43-4e02-93de-2da416565893": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "f5686225-6932-4d94-a0e5-b59a74de2384": {
+        "poi_type": "store",
+        "reason": "KAN-462: Zara Home carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "home"
+      },
+      "00b74811-a740-4c0a-ac9b-09a101e8de58": {
+        "poi_type": "store",
+        "reason": "KAN-462: OTRO Perfume Concept carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "beauty"
+      },
+      "b6511ae7-e00d-414a-843d-8ccafe718bb4": {
+        "poi_type": "store",
+        "reason": "KAN-462: OTRO Perfume Concept carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "beauty"
+      },
+      "e5848e50-e7d8-46d3-9595-196b01728f4b": {
+        "poi_type": "store",
+        "reason": "KAN-462: OTRO Perfume Concept carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "beauty"
+      },
+      "e08b13a9-8cc5-4962-9c0d-c0168b9595a9": {
+        "poi_type": "store",
+        "reason": "KAN-462: Twinset carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "womens_clothing"
+      },
+      "d3cc1575-a0c3-496a-804f-f3380f50fb6f": {
+        "poi_type": "store",
+        "reason": "KAN-462: Teresinha Carteiras carries one type set in every branch (owner, 2026-11-11/12)",
+        "store_kind": "handbag"
+      },
+      "c752425a-7c22-4dee-93da-5880587a8ca8": {
+        "poi_type": [
+          "beauty_salon",
+          "nail_salon"
+        ],
+        "reason": "KAN-462: Naco carries one type set in every branch (owner, 2026-11-11/12)"
+      },
+      "f97267bd-cff1-4f50-b351-24d811037903": {
+        "poi_type": "bakery",
+        "reason": "KAN-462: Chocolate Rosa carries one type set in every branch (owner, 2026-11-11/12)"
       }
     }
   }
