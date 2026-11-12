@@ -691,6 +691,86 @@
   "TERESINHA CARTEIRAS": [
    "store",
    "handbag"
+  ],
+  "DE CAFÉ": [
+   "cafe"
+  ],
+  "BIJUFA": [
+   "store",
+   "jewelry"
+  ],
+  "MAGNOLIA SILVER JEWELLERY": [
+   "store",
+   "jewelry"
+  ],
+  "BRIGHTMOBILES": [
+   "store",
+   "phone"
+  ],
+  "CRISTINA SOARES": [
+   "store",
+   "clothing"
+  ],
+  "SENZI": [
+   "store",
+   "fashion_accessories"
+  ],
+  "NATA7": [
+   "bakery",
+   "cafe"
+  ],
+  "ViaCarWash": [
+   "car_wash"
+  ],
+  "O Pátio": [
+   "restaurant"
+  ],
+  "Pizza Hut Fatias": [
+   "restaurant"
+  ],
+  "STREET SMASH BURGER": [
+   "restaurant"
+  ],
+  "JOCORUM TABACARIAS": [
+   "tobacco"
+  ],
+  "PACOMARTINEZ": [
+   "store",
+   "handbag"
+  ],
+  "FLYING TIGER COPENHAGEN": [
+   "store",
+   "gift"
+  ],
+  "IUMAN INTIMISSIMI UOMO": [
+   "store",
+   "mens_clothing"
+  ],
+  "CBWEED": [
+   "store",
+   "beauty"
+  ],
+  "COORDENADA PERFEITA": [
+   "store",
+   "copy_shop"
+  ],
+  "SECRET PACK": [
+   "store",
+   "gift"
+  ],
+  "NACO": [
+   "beauty_salon",
+   "nail_salon"
+  ],
+  "ORIENTAL": [
+   "restaurant"
+  ],
+  "CHOCOLATE ROSA": [
+   "bakery"
+  ],
+  "NORSEC/TOP COSTURA": [
+   "clothing_repair",
+   "laundry"
   ]
  }
 }

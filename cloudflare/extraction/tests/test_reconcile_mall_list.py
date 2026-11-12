@@ -83,6 +83,27 @@ class AssignTest(unittest.TestCase):
         self.assertEqual({t: r['overture_id'] for t, r in answers.items()}, {0: 'a', 1: 'b'})
         self.assertEqual(unlisted, [])
 
+    def test_a_row_certainly_inside_answers_before_a_better_named_one_in_the_ring(self):
+        """Via Catarina, 2026-11-12: `Kiko Milano` at Rua de Santa Catarina 412
+        is a street shop 15 m outside; the unit is `Kiko Store` inside."""
+        tenants = [('KIKO MILANO', 'Piso 2')]
+        street = held('Kiko Milano', 'street', RING, 'Rua de Santa Catarina 412')
+        unit = held('Kiko Store', 'unit', INSIDE, 'R. de Santa Catarina, 312-350')
+        answers, twins, _ = rec.assign(tenants, [street, unit], MALL,
+                                       certain=lambda r: r['overture_id'] == 'unit')
+        self.assertEqual(answers[0]['overture_id'], 'unit')
+        self.assertEqual([r['overture_id'] for r, _ in twins], ['street'])
+
+    def test_a_twin_on_the_street_is_kept_not_withdrawn(self):
+        tenants = [('KIKO MILANO', 'Piso 2')]
+        street = held('Kiko Milano', 'street', RING, 'Rua de Santa Catarina 412')
+        unit = held('Kiko Store', 'unit', INSIDE, 'NorteShopping')
+        result = rec.plan(tenants, [street, unit], [], MALL, 'norteshopping',
+                          {'kiko milano': ('store', 'beauty', [], 'x')},
+                          address_words=('norteshopping',))
+        self.assertEqual([r['overture_id'] for r, _ in result['withdraw']], [])
+        self.assertEqual([r['overture_id'] for r in result['kept_outside']], ['street'])
+
     def test_a_row_matching_no_listed_unit_is_unlisted(self):
         answers, twins, unlisted = rec.assign([('ZARA', 'Piso 1')],
                                               [held('Rádio Popular', 'x')], MALL)

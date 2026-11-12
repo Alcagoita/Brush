@@ -1,0 +1,80 @@
+# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.
+# A ruling belongs in tenant_type_overrides.json, which outranks
+# every other row of evidence here.
+name	poi_type	store_kind	extra_types	evidence
+DE CAFÉ	cafe			ruled by a person
+Açaí Concept	restaurant			held elsewhere in Portugal
+ALI BABA KEBAB HAUS	restaurant			held elsewhere in Portugal
+BERTRAND LIVREIROS	store	books		held elsewhere in Portugal
+BIJOU BRIGITTE	store	jewelry		OSM jewelry
+BIJUFA	store	jewelry		ruled by a person
+BOTICÁRIO	store	beauty		held elsewhere in Portugal
+Braza	restaurant			OSM restaurant
+BRIGHTMOBILES	store	phone		ruled by a person
+BURGER KING	restaurant			held elsewhere in Portugal
+CALZEDONIA	store	clothing		held elsewhere in Portugal
+CBWEED	store	beauty		ruled by a person
+CELEIRO	supermarket			OSM supermarket
+CEX	store	electronics		OSM electronics
+CHOCOLATE ROSA	bakery			ruled by a person
+CONTINENTE BOM DIA	supermarket			held elsewhere in Portugal
+COORDENADA PERFEITA	store	copy_shop		ruled by a person
+CORTEFIEL	store	clothing		held elsewhere in Portugal
+CRISTINA SOARES	store	clothing		ruled by a person
+FASHION PHONE	phone_repair	phone	store	held elsewhere in Portugal
+FLYING TIGER COPENHAGEN	store	gift		ruled by a person
+H&M	store	clothing		ruled by a person
+H3 – NEW HAMBURGOLOGY	restaurant			held elsewhere in Portugal
+INTIMISSIMI	store	clothing		held elsewhere in Portugal
+IUMAN INTIMISSIMI UOMO	store	mens_clothing		ruled by a person
+JOCORUM TABACARIAS	tobacco			ruled by a person
+KIKO MILANO	store	beauty		held elsewhere in Portugal
+LEVI’S	store	clothing		held elsewhere in Portugal
+LOS TAKITOS	restaurant			OSM restaurant
+MAGNOLIA SILVER JEWELLERY	store	jewelry		ruled by a person
+MAIS ÓPTICA	store	eyewear_and_optician		held elsewhere in Portugal
+MCDONALD’S	restaurant			ruled by a person
+MEO	store	phone		held elsewhere in Portugal
+MISAKO	store	jewelry		held elsewhere in Portugal
+MORGAN DE TOI	store	boutique		held elsewhere in Portugal
+MR. BLUE	store	clothing		held elsewhere in Portugal
+NACO	beauty_salon		nail_salon	ruled by a person
+NATA7	bakery		cafe	ruled by a person
+NATURA	store	clothing		ruled by a person
+New Era	store	fashion_accessories		held elsewhere in Portugal
+NEW YORKER	store	clothing		OSM clothes
+NORSEC/TOP COSTURA	clothing_repair		laundry	ruled by a person
+NOS	store	phone		OSM mobile_phone
+O Pátio	restaurant			ruled by a person
+OLÁ	ice_cream			held elsewhere in Portugal
+ORIENTAL	restaurant			ruled by a person
+PACOMARTINEZ	store	handbag		ruled by a person
+PANS & COMPANY	restaurant			held elsewhere in Portugal
+PERFUMES & COMPANHIA	store	beauty		held elsewhere in Portugal
+PIZZA HUT	restaurant			held elsewhere in Portugal
+Pizza Hut Fatias	restaurant			ruled by a person
+PLURICOSMÉTICA	store	beauty		ruled by a person
+Poké House	restaurant			held elsewhere in Portugal
+REAL TRANSFER	money_transfer			ruled by a person
+Sabores do Porto	restaurant			held elsewhere in Portugal
+SAMSONITE	store	handbag		OSM bag
+SANTINI	ice_cream			ruled by a person
+SECRET PACK	store	gift		ruled by a person
+SENZI	store	fashion_accessories		ruled by a person
+SPORT ZONE	store	sports		OSM sports
+SPRINGFIELD	store	clothing		held elsewhere in Portugal
+STONE BY STONE	store	jewelry		held elsewhere in Portugal
+STREET SMASH BURGER	restaurant			ruled by a person
+SUNGLASS HUT	store	eyewear_and_optician		held elsewhere in Portugal
+Taco Bell	restaurant			held elsewhere in Portugal
+TOMATINO	restaurant			held elsewhere in Portugal
+TRIUMPH	store	clothing		held elsewhere in Portugal
+UNDER BLUE	store	clothing		held elsewhere in Portugal
+ViaCarWash	car_wash			ruled by a person
+VILANOVA	store	fashion_accessories		ruled by a person
+VITAMINAS	restaurant			OSM restaurant
+VODAFONE	store	phone		OSM mobile_phone
+WELLS	store	drugstore		OSM chemist
+WOK TO WALK	restaurant			held elsewhere in Portugal
+WOMEN’SECRET	store	clothing		held elsewhere in Portugal
+WORTEN	phone_repair	electronics	store	held elsewhere in Portugal

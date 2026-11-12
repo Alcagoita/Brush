@@ -30,6 +30,7 @@ it retires real places with false confidence.
 | `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (246) | 2026-10-04 |
 | `amoreiras.txt` | Amoreiras Shopping Center, Lisboa | shops and eating (196) | 2026-10-05 |
 | `norteshopping.txt` | NorteShopping, Senhora da Hora (Matosinhos) | shops and eating (279) | 2026-11-11 |
+| `via_catarina.txt` | Via Catarina Shopping, Porto | shops and eating (76) | 2026-11-12 |
 
 `ubbo_operator_categories.tsv` and `amoreiras_operator_categories.tsv` hold
 each centre's operator categories verbatim. They are first a **helper for a

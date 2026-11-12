@@ -79,13 +79,20 @@ def is_curated(row) -> bool:
     return bool(row.get('poi_id'))
 
 
-def assign(tenants, held, mall_name, confirmed=None):
+def assign(tenants, held, mall_name, confirmed=None, certain=None):
     """(answers, twins, unlisted).
 
     answers  {tenant index: held row}
     twins    [(held row, tenant index it duplicates)]
     unlisted [held row]
+
+    `certain(row)` says a row is certainly the centre's — inside the outline,
+    or carrying its address. Those answer a unit before any row in the buffer
+    ring does, whatever the score: on Rua de Santa Catarina the matcher gave
+    `KIKO MILANO` to `Kiko Milano` at no. 412, a street shop past the
+    centre's 312–350, and made the `Kiko Store` inside its twin.
     """
+    certain = certain or (lambda row: True)
     tokens = mall_tokens(mall_name)
     confirmed = confirmed or {}
     # A row a person has confirmed for a tenant answers only that tenant. The
@@ -95,6 +102,7 @@ def assign(tenants, held, mall_name, confirmed=None):
     for tenant_norm, rows in confirmed.items():
         for row_norm in rows:
             ruled_for.setdefault(row_norm, set()).add(tenant_norm)
+    sure_row = [certain(row) for row in held]
     edges = []
     for t, (name, _) in enumerate(tenants):
         t_key = tenant_key(name, tokens)
@@ -108,11 +116,11 @@ def assign(tenants, held, mall_name, confirmed=None):
             score = 1.0 if r_norm in sure else key_score(t_key, r_key)
             if score >= CONFIDENT_THRESHOLD:
                 exact = 1 if t_key == r_key else 0
-                edges.append((-score, -exact, abs(len(t_key) - len(r_key)), t, h))
+                edges.append((0 if sure_row[h] else 1, -score, -exact, abs(len(t_key) - len(r_key)), t, h))
     edges.sort()
 
     answers, taken = {}, set()
-    for _, _, _, t, h in edges:
+    for *_, t, h in edges:
         if t in answers or h in taken:
             continue
         answers[t] = held[h]
@@ -122,7 +130,7 @@ def assign(tenants, held, mall_name, confirmed=None):
     for h, row in enumerate(held):
         if h in taken:
             continue
-        best = next((t for _, _, _, t, hh in edges if hh == h and t in answers), None)
+        best = next((t for *_, t, hh in edges if hh == h and t in answers), None)
         if best is not None:
             twins.append((row, best))
         else:
@@ -199,11 +207,15 @@ def plan(tenants, held, osm, mall_name, slug, types, confirmed=None, address_wor
     the same shop pinned 100 m to 2 km away. Their coordinate is wrong, so
     they never answer a unit; each is withdrawn, as a twin or as unlisted."""
     footprint = mall_footprints.load()[mall_name]
-    answers, twins, unlisted = assign(tenants, held, mall_name, confirmed)
+    certain = lambda row: withdrawable(row, footprint, address_words)  # noqa: E731
+    answers, twins, unlisted = assign(tenants, held, mall_name, confirmed, certain)
 
     withdraw, kept_outside = [], []
     for row, t in twins:
-        withdraw.append((row, f'same shop as listed {tenants[t][0]!r}, held twice; the other row kept'))
+        if certain(row):
+            withdraw.append((row, f'same shop as listed {tenants[t][0]!r}, held twice; the other row kept'))
+        else:
+            kept_outside.append(row)      # a branch on the street, not a second copy
     tokens = mall_tokens(mall_name)
     for row in far:
         r_key = tenant_key(row['name'], tokens)
