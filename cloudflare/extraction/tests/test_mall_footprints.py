@@ -144,12 +144,18 @@ class RealFootprintTest(unittest.TestCase):
 
     def test_leiriashopping_takes_in_the_inditex_units_and_not_the_campus(self):
         """KAN-465. Zara, Bershka and Oysho sit 53 m outside the outline; the
-        ESTG campus on the same street starts beyond 55 m."""
+        ESTG campus on the same street starts beyond 55 m. Coordinates are the
+        held rows, measured in production on 2026-11-12."""
         leiria = self.footprints['LeiriaShopping']
         self.assertEqual(leiria['osm'], 'way/192124002')
         self.assertEqual(leiria['buffer_m'], 55)
         self.assertTrue(mf.in_footprint(*leiria['centroid'], leiria, buffer_m=0))
         self.assertEqual(mf.mall_at(*leiria['centroid'], self.footprints), 'LeiriaShopping')
+        inditex = (39.73218, -8.82554)          # Zara, Bershka and Oysho share this pin
+        self.assertFalse(mf.in_footprint(*inditex, leiria, buffer_m=0), 'outside the outline')
+        self.assertTrue(mf.in_footprint(*inditex, leiria), 'inside the buffer')
+        for campus in ((39.7307, -8.8248), (39.73072, -8.82485)):   # ESTG, Games and Multimedia
+            self.assertFalse(mf.in_footprint(*campus, leiria), f'ESTG at {campus}')
 
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
