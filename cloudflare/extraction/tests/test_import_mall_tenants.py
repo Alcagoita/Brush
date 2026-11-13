@@ -65,7 +65,7 @@ class PlacementTest(unittest.TestCase):
         self.assertEqual(len(to_write), 1)
         self.assertEqual(to_write[0]['placed_by'], 'osm')
         self.assertEqual((to_write[0]['lat'], to_write[0]['lng']), INSIDE)
-        self.assertEqual(to_write[0]['floor'], 'Piso 1', 'OSM level fills a missing Piso')
+        self.assertEqual(to_write[0]['floor'], '1', 'OSM level fills a missing Piso')
 
     def test_an_osm_row_outside_the_centre_does_not_place_a_tenant(self):
         """A shop of the same name in another town is not this tenant."""
@@ -78,19 +78,57 @@ class PlacementTest(unittest.TestCase):
         to_write, _, _ = self.place(
             tenants(('Starbucks', 'Piso 2')),
             osm=[{'name': 'Starbucks', 'lat': INSIDE[0], 'lng': INSIDE[1], 'level': '1'}])
-        self.assertEqual(to_write[0]['floor'], 'Piso 2')
+        self.assertEqual(to_write[0]['floor'], '2')
 
     def test_a_tenant_nothing_can_place_goes_at_the_centre(self):
         to_write, _, _ = self.place(tenants(('Zara', 'Piso 1')))
         self.assertEqual(to_write[0]['placed_by'], 'centre')
         self.assertEqual([to_write[0]['lat'], to_write[0]['lng']], UBBO['centroid'])
-        self.assertEqual(to_write[0]['floor'], 'Piso 1')
+        self.assertEqual(to_write[0]['floor'], '1')
 
     def test_an_untyped_tenant_is_reported_and_never_written(self):
         """No bare `store`: a tenant we cannot type is skipped, not guessed."""
         to_write, _, untyped = self.place(tenants(('Something Unknown', '')))
         self.assertEqual(to_write, [])
         self.assertEqual(untyped, ['Something Unknown'])
+
+
+class FloorShapeTest(unittest.TestCase):
+    """KAN-503. Every written floor is a bare integer string or None — never
+    `Piso N`. KAN-439 wrote the operator's `Piso N` verbatim, so Amoreiras and
+    UBBO held a second format the app couldn't sort or translate."""
+
+    BARE = r'^-?\d+$'
+
+    def place(self, listed, osm=()):
+        return writer.placements(listed, [], list(osm), UBBO, 'ubbo', TYPES, 'UBBO')
+
+    def test_floor_value(self):
+        cases = {'Piso 1': '1', 'Piso -1': '-1', 'Piso -4': '-4', 'Piso 0 GARE': '0',
+                 'Piso -1 GARE': '-1', '2': '2', 1: '1', '0;1': '0',
+                 '': None, None: None, 'Piso': None}
+        for raw, want in cases.items():
+            self.assertEqual(writer.floor_value(raw), want, repr(raw))
+
+    def test_every_written_floor_is_bare_or_none(self):
+        listed_floors = ['Piso 1', 'Piso -1', 'Piso 0 GARE', '', 'Piso']
+        osm_levels = [None, '1', '-1', '0;1', '']
+        for floor in listed_floors:
+            for level in osm_levels:
+                osm = [{'name': 'Starbucks', 'lat': INSIDE[0], 'lng': INSIDE[1], 'level': level}]
+                for row in self.place(tenants(('Starbucks', floor), ('Zara', floor)), osm)[0]:
+                    if row['floor'] is not None:
+                        self.assertRegex(row['floor'], self.BARE, (floor, level, row['floor']))
+
+    def test_osm_level_fills_only_a_missing_floor_and_is_bare(self):
+        to_write, _, _ = self.place(
+            tenants(('Starbucks', '')),
+            osm=[{'name': 'Starbucks', 'lat': INSIDE[0], 'lng': INSIDE[1], 'level': '-1'}])
+        self.assertEqual(to_write[0]['floor'], '-1')
+
+    def test_reconcile_uses_the_same_rule(self):
+        import reconcile_mall_list as rec
+        self.assertIs(rec.floor_value, writer.floor_value)
 
 
 class RepeatedListingTest(unittest.TestCase):
@@ -145,7 +183,7 @@ class StatementTest(unittest.TestCase):
         out = []
         for i in range(n):
             out.append({'tenant': f'Shop {i}', 'poi_id': f'mall:ubbo:shop-{i}',
-                        'lat': INSIDE[0], 'lng': INSIDE[1], 'floor': 'Piso 1',
+                        'lat': INSIDE[0], 'lng': INSIDE[1], 'floor': '1',
                         'primary': 'store', 'kind': 'clothing', 'extra': [],
                         'placed_by': 'centre', 'evidence': 'test'})
         return out
