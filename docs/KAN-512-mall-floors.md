@@ -13,7 +13,7 @@ Status: **approved by the owner** (2026-11-13). Follow-ups filed.
 | **The app ignores it.** | No `floor` field in `src/types`, `habitatCache.ts` (no column), `NearbyCard.tsx`, or `proximity.ts`. |
 | The null floors are street places, not mall units. | All 13 nulls at Alma are Overture rows round the stadium (`Mr.Pizza Solum`, `Marisqueira do Estádio`, …). Every curated (operator-list) row there has a floor. |
 | **28% of Alma's served rows sit on the centre's own coordinate.** | 23 of 82 rows have exactly `40.2044068, -8.4077033` (the footprint centroid) and `distanceMeters: 0`. These are listed tenants that no source could place (`decisions.md`, THE rule, point 1). A distance to them is invented. |
-| Floor vocabulary across all 17 lists. | `Piso 0` 779, `Piso 1` 726, `Piso 2` 378, empty 369, `Piso 3` 46, `Piso 4` 26, `Piso -1` 21, `Piso 0/-1/1 GARE` 35, then single figures from `-4` to `6`. |
+| Floor vocabulary across all 17 lists. | `Piso 0` 779, `Piso 1` 726, `Piso 2` 378, empty 369, `Piso 3` 46, `Piso 4` 26, `Piso -1` 21, `Piso 0 GARE` 17, `Piso -1 GARE` 15, `Piso 1 GARE` 3, then single figures from `-4` to `6`. Every field holds exactly one floor (or none); no list writes two floors in one field. |
 | "Mall" today means a **toggle**, not a place. | Lantern Mall state (`lantern.ts:132`) comes only from a `MallSnapshot` (KAN-237): the user turns on "Activate Mall mode" in Profile, the app downloads a 400 m nearby circle (capped 50 per type), and Mall state holds while within 400 m of the mall's centre. One mall at a time. |
 | A second, older indoor path still exists. | `indoorDetection.ts` (GPS degraded + a `shopping_mall` within 300 m) starts `indoorProximity.ts` (KAN-75): 15 s polling, **10 m store alerts**, matching on `placeId`. It calls `searchNearbyPlaces` and matches a stored place id — both against current rules (no Google in runtime, no pinned places). |
 | `footprints.json` is extraction-only. | Read by `mall_tenants.py`; nothing in `src/` or `cloudflare/src/` loads it. 13 centres have outlines. |
@@ -143,16 +143,29 @@ not one button for the whole card.
 - Displayed: **pt-PT `Piso 2`, en `Floor 2`**, using the operator's number.
   `0` stays `0`, and isn't translated to "ground floor", because the signs
   in the centre say 0. Negative floors read as written: `Piso -1` / `Floor -1`.
-- `Piso R` is stored as `0` (existing ruling). Zone words (`GARE`) are dropped,
-  as in the mall-list README.
+- `Piso R` is stored as `0` (existing ruling). A trailing zone word is dropped,
+  as in the mall-list README: `Piso 0 GARE` → `"0"`, `Piso -1 GARE` → `"-1"`,
+  `Piso 1 GARE` → `"1"` (Vasco da Gama's adjoining station building). Each is
+  one unit on one floor, so KAN-503 writes one row with one floor; nothing is
+  split or excluded.
+- A brand on two floors is already **two lines, two rows** in the operator's
+  list (e.g. `OAKBERRY|Piso 0` and `OAKBERRY|Piso 2`). The stored data never
+  holds more than one floor per row; combining them is display only
+  (decision 6).
 - Sentence case; no banned words.
 
 ### 6. One brand on several floors
 
 A brand's units in one centre are **one suggestion**, not several, and the
 row lists **every distinct floor, lowest first**: `Pisos -1 e 2` /
-`Floors -1 and 2`. Today's data never has more than two. If a third
-appears, show the first two and `+1`.
+`Floors -1 and 2`. The card builds this at display time from the brand's
+separate rows (one floor each, decision 5).
+
+Measured across all 17 lists: no brand has units on more than two distinct
+floors of one centre (`OAKBERRY` Colombo 0 and 2, `PORTELA CAFÉS` Vasco da
+Gama 2 and -1, `NOS` Vasco da Gama 0 and -1; `NOS` and `WORTEN` at
+NorteShopping have two units on the same floor, which display as one floor).
+If a third distinct floor appears, show the first two and `+1`.
 
 ### 7. Offline
 
@@ -187,6 +200,7 @@ Inside Alma Shopping, Lantern in Mall state.
 | Row button | Try another place | Tentar outro local |
 | Row, several floors | OAKBERRY · Floors 0 and 2 | OAKBERRY · Pisos 0 e 2 |
 | Row, no floor | Zara | Zara |
+
 Outside any centre: the existing `NearbyCard`, unchanged (`Pharmacy · 60 m`).
 
 The title reuses the existing `mallSheetTitle` strings. Check the pt-PT
@@ -206,11 +220,12 @@ needs it. Revisit only if users ask for "what's on my floor".
 | A | **KAN-503** (existed): one floor format | data | — |
 | B | **KAN-382** (rewritten 2026-11-13): paginated venue inventory carrying `floor` + footprint; offline cache (`floor` column); replaces KAN-237 snapshot; drop the opt-in prompt | Worker + app data | A |
 | C | **KAN-513**: centre detection by footprint, enter/leave hysteresis; Lantern Mall state automatic; remove the Profile toggle; exposes "inside centre X" for the card switch | app logic | B |
-| D | **KAN-514**: new `MallNearbyCard` with its own `mall*` tokens (light + dark), floor rows, no distance, floor grouping, several-floor brands, copy en + pt-PT; Today renders it inside a centre and `NearbyCard` only outside | app UI + tokens + copy | C |
+| D | **KAN-514**: new `MallNearbyCard` with its own `mall*` tokens (light + dark), floor on each row sorted by floor, "Try another place" per row, no distance, several-floor brands, copy en + pt-PT; Today renders it inside a centre and `NearbyCard` only outside | app UI + tokens + copy | C |
 | E | **KAN-515**: retire the KAN-75 indoor engine (`indoorDetection` → `indoorProximity`): Google lookup, `placeId` match, 10 m alerts, Store fine tuning prompt | app cleanup | — |
 
 Jira links: KAN-503 blocks KAN-382 blocks KAN-513 blocks KAN-514; KAN-512
-relates to all five. All under epic KAN-72, in the backlog.
+relates to all five. KAN-513/514/515 are under epic KAN-72; all five are in
+Sprint 21.
 
 Dependencies recorded: KAN-503 (floor format), KAN-382 (offline inventory),
 KAN-301 (Lantern Mall state), KAN-55 (accuracy mode, unchanged), plus
