@@ -431,7 +431,8 @@
    "cafe"
   ],
   "Arcádia – Galleria": [
-   "bakery"
+   "bakery",
+   "cafe"
   ],
   "B STRONG KIDS": [
    "store",
@@ -830,6 +831,180 @@
   "Feu Vert": [
    "store",
    "auto_parts_and_supply"
+  ],
+  "ARCÁDIA": [
+   "bakery",
+   "cafe"
+  ],
+  "C&A": [
+   "store",
+   "clothing"
+  ],
+  "CASA BOLAS DE BERLIM": [
+   "bakery"
+  ],
+  "CHÁLÁLA": [
+   "tea"
+  ],
+  "CLÍNICA DE SANTA MADALENA": [
+   "clinic"
+  ],
+  "CORREIOS CTT": [
+   "post"
+  ],
+  "ESTÚDIO SEISSETE PROFISSIONAL": [
+   "hairdresser"
+  ],
+  "FÁBRICA DOS ÓCULOS – A ORIGINAL": [
+   "store",
+   "eyewear_and_optician"
+  ],
+  "GMS STORE - APPLE PREMIUM RESELLER": [
+   "store",
+   "electronics"
+  ],
+  "GUESS JEANS": [
+   "store",
+   "clothing"
+  ],
+  "IQOS BOUTIQUE": [
+   "tobacco"
+  ],
+  "MAGNOLIA JEWELRY": [
+   "store",
+   "jewelry"
+  ],
+  "MELTINO BAR & LOUNGE": [
+   "cafe"
+  ],
+  "MUNDO DO CAFÉ DELTA": [
+   "cafe"
+  ],
+  "ONE": [
+   "store",
+   "watch"
+  ],
+  "PAPPA'LAB - GELATARIA ARTESANAL": [
+   "ice_cream"
+  ],
+  "PARQUE ESPLANADA": [
+   "restaurant"
+  ],
+  "SAMSONITE": [
+   "store",
+   "handbag"
+  ],
+  "SINTETY: LOJA DAS MALAS": [
+   "store",
+   "handbag"
+  ],
+  "SPORTING CLUBE DE BRAGA - LOJA OFICIAL": [
+   "store",
+   "sports"
+  ],
+  "STUDIO AUTO": [
+   "car_wash"
+  ],
+  "TEA SHOP": [
+   "tea"
+  ],
+  "TIGER": [
+   "store",
+   "gift"
+  ],
+  "TIMBERLAND": [
+   "store",
+   "shoes"
+  ],
+  "TOUS": [
+   "store",
+   "jewelry"
+  ],
+  "TRINCAS": [
+   "restaurant"
+  ],
+  "VEIN": [
+   "store",
+   "shoes"
+  ],
+  "VISTA ALEGRE ATLANTIS": [
+   "store",
+   "home"
+  ],
+  "WELLS ÓTICA": [
+   "store",
+   "eyewear_and_optician"
+  ],
+  "WIDEX – ESPECIALISTAS EM AUDIÇÃO": [
+   "store",
+   "hearing_aid_provider"
+  ],
+  "DOM BRASIL": [
+   "supermarket"
+  ],
+  "Cavalinho": [
+   "store",
+   "handbag"
+  ],
+  "MIDAS": [
+   "store",
+   "auto_parts_and_supply"
+  ],
+  "Arcádia – Casa do Chocolate": [
+   "bakery",
+   "cafe"
+  ],
+  "AURYA": [
+   "store",
+   "beauty"
+  ],
+  "B STRONG": [
+   "store",
+   "shoes"
+  ],
+  "CADETEWASH": [
+   "car_wash"
+  ],
+  "Casa das Bolas de Berlim": [
+   "bakery"
+  ],
+  "CINEBOX PREMIUM CINEMAS": [
+   "movie_theater"
+  ],
+  "COFFEE & SOFT": [
+   "cafe"
+  ],
+  "ESPAÇO CASA": [
+   "store",
+   "home"
+  ],
+  "FITNESS PARK": [
+   "gym"
+  ],
+  "HOSPITAL TROFA SAÚDE": [
+   "hospital"
+  ],
+  "MAISON CROISSANT": [
+   "bakery"
+  ],
+  "Playground – Luna Kids": [
+   "playground"
+  ],
+  "SANJAM": [
+   "hairdresser"
+  ],
+  "Sould Park Bowling": [
+   "bowling_alley"
+  ],
+  "VIP CLINIC": [
+   "clinic"
+  ],
+  "TUTTO CARS": [
+   "playground"
+  ],
+  "Arcádia": [
+   "bakery",
+   "cafe"
   ]
  }
 }

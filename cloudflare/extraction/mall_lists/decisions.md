@@ -158,6 +158,10 @@ store they sit beside. None may be touched by a brand sweep.
 | `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | NorteShopping, Via Catarina — the chain's new name (owner, 2026-11-11) |
 | `H3 - New Hamburgology` | `H3 Hambúrguer Gourmet` | LeiriaShopping — the chain's new name (owner, 2026-11-11) |
 | `Well's` | `WELLS LEIRIA SHOPPING` | LeiriaShopping |
+| `H3 HAMBÚRGUER GOURMET` | `H3` | Braga Parque |
+| `BLUEBIRD – RELÓGIOS E JOIAS` | `Bluebird - Watches & Jewels` | Braga Parque |
+| `TIGER` | `Flying Tiger Copenhagen` | Braga Parque — the brand's short name |
+| `WIDEX – ESPECIALISTAS EM AUDIÇÃO` | `Widex Centro Auditivo Braga Parque` | Braga Parque |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -648,3 +652,76 @@ Brands keep the set they carry at NorteShopping and Via Catarina: Worten and
 Worten Mobile `phone_repair` + `store` / `electronics`, Chaviarte Express
 `shoe_repair`, Tutto Chicco `store` / `clothing` (Chicco), Magnolia
 `store` / `jewelry`, Ericeira `store` / `sports`.
+
+## Braga Parque and Nova Arcada, ruled 2026-11-12 (KAN-463)
+
+Both lists were read from the operators' own sites. Braga Parque publishes
+the floor on each store's page; Nova Arcada on its directory.
+
+**Braga Parque — 160 units.** Footprint `way/41679420`, buffer **50 m**:
+Pandora sits 34 m out on the centre's address, and past 50 m the ring gains
+only Avenida Antero de Quental street shops and the Via Circular fuel
+stations. Address evidence is `Braga Parque` / `Bragaparque` only: four
+bakeries called "Pastelaria Braga Parque" and a nail salon, a pharmacy, a
+Fidelidade and an Equivalenza on other streets carry the name and are not
+the centre's.
+
+**Nova Arcada — 96 units.** Footprint `way/55617020`, the landuse outline,
+not the mall building: it takes in the retail park (IKEA, JYSK, Kiwoko,
+Midas, Toys "R" Us, Hospital Trofa Saúde). Buffer **75 m** — Burger King is
+57 m out at Avenida de Lamas 100, the centre's own address, which is address
+evidence alongside `Nova Arcada`. The operator lists Cinebox, which replaced
+Cineplace; the Cineplace row is withdrawn.
+
+**Floors (owner):** Nova Arcada's "Piso R" (the retail park) is **Piso 0**;
+Braga Parque's VEIN publishes unit 22 and no floor — **Piso 1**, as every
+unit numbered 1–25 there; Studio Auto publishes neither — Piso 0.
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| `TUTTO CARS` — ride-on car rental for children (owner) | `playground` |
+| `Playground – Luna Kids` | `playground` |
+| `Sould Park Bowling` | `bowling_alley` |
+| `HOSPITAL TROFA SAÚDE` | `hospital` |
+| `CLÍNICA DE SANTA MADALENA`, `VIP CLINIC` | `clinic` |
+| `STUDIO AUTO`, `CADETEWASH` | `car_wash` |
+| `MIDAS` | `store` / `auto_parts_and_supply` — the Feu Vert set; `car_repair` is not reachable |
+| `Cavalinho` — bags and leather goods | `store` / `handbag` (our row elsewhere says `church`, which is wrong) |
+| `DOM BRASIL` — Brazilian food kiosk | `supermarket` (not the newsagent of the same name) |
+| `CHÁLÁLA` (bubble tea), `TEA SHOP` | `tea` |
+| `ONE` — watches and jewellery | `store` / `watch` |
+| `MELTINO BAR & LOUNGE` — a café | `cafe` |
+| `WIDEX – ESPECIALISTAS EM AUDIÇÃO` | `store` / `hearing_aid_provider` |
+| `IQOS BOUTIQUE` | `tobacco` |
+| `TIGER` | `store` / `gift` — the Flying Tiger set |
+| `WORTEN`, `WORTEN MOBILE` | `phone_repair` + `electronics` + `store`, the NorteShopping set |
+
+The rest are in `tenant_type_overrides.json` with plain readings (C&A
+clothing, Correios CTT post, Samsonite and Sintety
+handbag, Vista Alegre home ...).
+
+**EV chargers are not tenants** (owner, 2026-11-13): a Powerdot charging
+point inside Braga Parque's outline is withdrawn under the list-only rule —
+it is a car charger, not a store.
+
+**Zara and Zara Man are two units** (owner, 2026-11-13): the same brand,
+Zara Man the men's store. When a centre lists both, both are kept; at Braga
+Parque each answers from its own held row (both named "Zara" in our data).
+
+**Corrected in review (2026-11-13, migration 0071):**
+
+- `SANJAM` is a national chain of hair salons — `hairdresser`, not a
+  clothing store.
+- **Arcádia keeps one set everywhere: `bakery` + `cafe`** — a chocolatier
+  with a café counter. Our rows had it as bakery, cafe or restaurant by
+  source; the mall units (Braga Parque, Nova Arcada, NorteShopping's
+  Galleria, UBBO) and every row named "Casa do Chocolate" / "Arcadia
+  Chocolate" now carry both. A bare "Arcádia" on a street can be an
+  unrelated café and is left alone. The Nescafé-branded counters at
+  NorteShopping are a different concept and stay `cafe`.
+- A `|` cannot appear inside a name in a list: it is the delimiter, and
+  `5 À SEC | 5 À FIL|Piso 1` was read as floor 5. Braga Parque's two such
+  names are written as their brand (`5 À SEC`, `BEONTIME`), and the reader
+  now refuses an unexpected field.

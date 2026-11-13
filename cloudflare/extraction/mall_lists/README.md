@@ -4,7 +4,9 @@ Transcribed by hand from each shopping centre's own website. The operator is
 the authority for what is inside and on which floor — see
 docs/poi-classification-rules.md.
 
-Format is `Name|Piso N`, one per line. A trailing zone word (`Piso 0 GARE`)
+Format is `Name|Piso N`, one per line. `|` is the delimiter and cannot
+appear in a name — write the brand alone (`5 À SEC`, not `5 À SEC | 5 À FIL`);
+`read_tenant_list` refuses a line with an unexpected extra field. A trailing zone word (`Piso 0 GARE`)
 is kept as written and ignored when reading the floor: it is the same floor
 of an adjoining building, and a person finds it from the floor alone.
 
@@ -32,6 +34,8 @@ it retires real places with false confidence.
 | `norteshopping.txt` | NorteShopping, Senhora da Hora (Matosinhos) | shops and eating (279) | 2026-11-11 |
 | `via_catarina.txt` | Via Catarina Shopping, Porto | shops and eating (76) | 2026-11-12 |
 | `leiriashopping.txt` | LeiriaShopping, Leiria | shops and eating (122) | 2026-11-12 |
+| `braga_parque.txt` | Braga Parque, Braga | shops and eating (160) | 2026-11-12 |
+| `nova_arcada.txt` | Nova Arcada, Braga | shops, eating and retail park (96) | 2026-11-12 |
 
 `ubbo_operator_categories.tsv` and `amoreiras_operator_categories.tsv` hold
 each centre's operator categories verbatim. They are first a **helper for a

@@ -212,6 +212,12 @@ class TenantListFormatTest(unittest.TestCase):
         path = self.write("AWA MASSAGE|\n")
         self.assertEqual(mall_tenants.read_tenant_list(path), [('AWA MASSAGE', '')])
 
+    def test_a_pipe_inside_a_name_is_refused_not_read_as_the_floor(self):
+        """`5 À SEC | 5 À FIL|Piso 1` once became floor `5` (KAN-463 review)."""
+        path = self.write("5 À SEC | 5 À FIL|Piso 1\n")
+        with self.assertRaises(ValueError):
+            mall_tenants.read_tenant_list(path)
+
     def test_the_shipped_lists_all_parse(self):
         lists = os.path.join(EXTRACTION_DIR, 'mall_lists')
         for name in os.listdir(lists):

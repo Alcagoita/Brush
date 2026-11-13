@@ -157,6 +157,31 @@ class RealFootprintTest(unittest.TestCase):
         for campus in ((39.7307, -8.8248), (39.73072, -8.82485)):   # ESTG, Games and Multimedia
             self.assertFalse(mf.in_footprint(*campus, leiria), f'ESTG at {campus}')
 
+    def test_braga_parque_takes_in_pandora_and_not_the_avenue(self):
+        """KAN-463. Pandora sits 34 m out on the centre's own address; the
+        Avenida Antero de Quental shops start beyond 50 m. Coordinates are the
+        held rows, measured in production on 2026-11-12."""
+        bp = self.footprints['Braga Parque']
+        self.assertEqual(bp['osm'], 'way/41679420')
+        self.assertEqual(bp['buffer_m'], 50)
+        self.assertEqual(mf.mall_at(*bp['centroid'], self.footprints), 'Braga Parque')
+        pandora = (41.5573334, -8.4072141)
+        self.assertFalse(mf.in_footprint(*pandora, bp, buffer_m=0), 'outside the outline')
+        self.assertTrue(mf.in_footprint(*pandora, bp), 'inside the buffer')
+        for street in ((41.55684, -8.40352), (41.55922379, -8.40499437)):   # Be InGym, Izturk Doneria
+            self.assertFalse(mf.in_footprint(*street, bp), f'street shop at {street}')
+
+    def test_nova_arcada_is_the_landuse_outline_with_its_retail_park(self):
+        """KAN-463. The mall building alone leaves out IKEA, JYSK and Kiwoko,
+        which the operator lists; the landuse outline holds them."""
+        na = self.footprints['Nova Arcada']
+        self.assertEqual(na['osm'], 'way/55617020')
+        self.assertEqual(na['buffer_m'], 75)
+        self.assertEqual(mf.mall_at(*na['centroid'], self.footprints), 'Nova Arcada')
+        for unit in ((41.57800104, -8.43068753), (41.5786791, -8.429762), (41.578304, -8.430111)):
+            self.assertTrue(mf.in_footprint(*unit, na, buffer_m=0), f'retail park unit at {unit}')
+        self.assertTrue(mf.in_footprint(41.5793799, -8.4324919, na), 'Burger King, 57 m out')
+
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
         self.assertTrue(mf.in_footprint(*amoreiras['centroid'], amoreiras))

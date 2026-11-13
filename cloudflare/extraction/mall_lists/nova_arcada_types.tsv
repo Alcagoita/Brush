@@ -1,0 +1,100 @@
+# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.
+# A ruling belongs in tenant_type_overrides.json, which outranks
+# every other row of evidence here.
+name	poi_type	store_kind	extra_types	evidence
+1920 Barber Shop	barber			ruled by a person
+Açaí Natura	restaurant			held elsewhere in Portugal
+ACIUM	store	jewelry		OSM jewelry
+BERSHKA	store	clothing		held elsewhere in Portugal
+BERTRAND LIVREIROS	store	books		held elsewhere in Portugal
+BURGER KING	restaurant			held elsewhere in Portugal
+Cavalinho	store	handbag		ruled by a person
+CBWEED	store	beauty		ruled by a person
+CELEIRO	supermarket			OSM supermarket
+COLCHAONET	store	mattress		held elsewhere in Portugal
+CONTINENTE	supermarket			held elsewhere in Portugal
+CORTEFIEL	store	clothing		held elsewhere in Portugal
+D’ORO JÓIAS	store	jewelry		held elsewhere in Portugal
+FLYING TIGER COPENHAGEN	store	gift		ruled by a person
+FORTE Store	store	clothing		held elsewhere in Portugal
+FORTE STORE KIDS	store	clothing		held elsewhere in Portugal
+H&M	store	clothing		ruled by a person
+H3 – NEW HAMBURGOLOGY	restaurant			held elsewhere in Portugal
+HEBE GYROS	restaurant			held elsewhere in Portugal
+HIMÁ ORIENTAL TASTE	restaurant			held elsewhere in Portugal
+IKEA	store	furniture		OSM furniture
+INTIMISSIMI	store	clothing		held elsewhere in Portugal
+ISERVICES	phone_repair			ruled by a person
+ISTORE	store	electronics		held elsewhere in Portugal
+JD SPORTS	store	sports		OSM sports
+JYSK	store	furniture		OSM furniture
+KFC	restaurant			held elsewhere in Portugal
+KIKO MILANO	store	beauty		held elsewhere in Portugal
+KIWOKO	store	pet		held elsewhere in Portugal
+LA CASA DE LAS CARCASAS	phone_repair	phone	store	held elsewhere in Portugal
+LA ROTISSERIE	restaurant			held elsewhere in Portugal
+LANIDOR	store	clothing		held elsewhere in Portugal
+LEFTIES	store	clothing		held elsewhere in Portugal
+LEVI’S	store	clothing		held elsewhere in Portugal
+Lugar da Jóia	store	jewelry		held elsewhere in Portugal
+MAYORAL	store	clothing		held elsewhere in Portugal
+MEO	store	phone		held elsewhere in Portugal
+MIDAS	store	auto_parts_and_supply		ruled by a person
+MO	store	clothing		ruled by a person
+MULTIOPTICAS	store	eyewear_and_optician		held elsewhere in Portugal
+MUNDO DO CAFÉ	cafe			held elsewhere in Portugal
+NATURA	store	clothing		ruled by a person
+NEW YORKER	store	clothing		OSM clothes
+NORMAL	store	discount_store		held elsewhere in Portugal
+NOS	store	phone		OSM mobile_phone
+NP4GAME	store	video_game		ruled by a person
+O BOTICÁRIO	store	beauty		ruled by a person
+OAKBERRY	juice			ruled by a person
+Opticália Premium	store	eyewear_and_optician		held elsewhere in Portugal
+PANDORA	store	jewelry		OSM jewelry
+PARFOIS	store	jewelry		held elsewhere in Portugal
+PEPCO	store	clothing		held elsewhere in Portugal
+PERFUMES & COMPANHIA	store	beauty		held elsewhere in Portugal
+PIZZA HUT	restaurant			held elsewhere in Portugal
+PLURICOSMÉTICA	store	beauty		ruled by a person
+PRIMOR	store	beauty		held elsewhere in Portugal
+PROF	store	shoes		held elsewhere in Portugal
+PULL & BEAR	store	clothing		held elsewhere in Portugal
+RITUALS	store	beauty		held elsewhere in Portugal
+SACOOR BLUE	store	clothing		held elsewhere in Portugal
+SALSA	store	clothing		held elsewhere in Portugal
+SEASIDE	store	shoes		OSM shoes
+SECRET PACK	store	gift		ruled by a person
+SMK DENIM&CO.	store	mens_clothing		held elsewhere in Portugal
+SOLÁRIO PAREDÃO	beauty_salon			ruled by a person
+SPORT ZONE	store	sports		OSM sports
+SPRINGFIELD	store	clothing		held elsewhere in Portugal
+STRADIVARIUS	store	clothing		held elsewhere in Portugal
+Taco Bell	restaurant			held elsewhere in Portugal
+TENTAÇÕES DO NORTE	restaurant			held elsewhere in Portugal
+TIFFOSI	store	clothing		held elsewhere in Portugal
+TOMATINO	restaurant			held elsewhere in Portugal
+TOUS	store	jewelry		ruled by a person
+TOYS “R” US	store	toys		held elsewhere in Portugal
+VILANOVA	store	fashion_accessories		ruled by a person
+VITAMINAS	restaurant			OSM restaurant
+VODAFONE	store	phone		OSM mobile_phone
+WOK TO WALK	restaurant			held elsewhere in Portugal
+WOMEN’SECRET	store	clothing		held elsewhere in Portugal
+WORTEN	phone_repair	electronics	store	brand set held at NorteShopping and Via Catarina
+ZIPPY	store	clothing		held elsewhere in Portugal
+Arcádia – Casa do Chocolate	bakery		cafe	ruled by a person
+AURYA	store	beauty		ruled by a person
+B STRONG	store	shoes		ruled by a person
+CADETEWASH	car_wash			ruled by a person
+Casa das Bolas de Berlim	bakery			ruled by a person
+CINEBOX PREMIUM CINEMAS	movie_theater			ruled by a person
+COFFEE & SOFT	cafe			ruled by a person
+ESPAÇO CASA	store	home		ruled by a person
+FITNESS PARK	gym			ruled by a person
+HOSPITAL TROFA SAÚDE	hospital			ruled by a person
+MAISON CROISSANT	bakery			ruled by a person
+Playground – Luna Kids	playground			ruled by a person
+SANJAM	hairdresser			ruled by a person
+Sould Park Bowling	bowling_alley			ruled by a person
+VIP CLINIC	clinic			ruled by a person
