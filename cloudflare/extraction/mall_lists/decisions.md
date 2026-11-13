@@ -167,6 +167,11 @@ store they sit beside. None may be touched by a brand sweep.
 | `5 à Sec e 5 à Fil` | `5àsec` | Alma Shopping |
 | `Tiger` | `Flying Tiger Copenhagen` | Alma Shopping — the brand's short name |
 | `H3` | `H3 Hambúrguer Gourmet` | Alma Shopping |
+| `Auchan Faro` | `Auchan` | Forum Algarve — the hypermarket, not Óptica Auchan Faro |
+| `H3` | `H3 Hambúrguer Gourmet` | MAR Shopping Algarve |
+| `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | AlgarveShopping — the chain's new name |
+| `ALENTEJO / BIFANAS DE VENDAS NOVAS` | `Alentejo - Pão, Azeite & Alho` | AlgarveShopping — one unit, two brands |
+| `ERICEIRA SURF & SKATE` | `Ericeira Surf Shop` | AlgarveShopping |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -791,3 +796,75 @@ Parfois.
 `office_equipment`; Activo Bank → `bank`; Cex We Buy → the CeX set; Worten and
 Worten Mobile → the NorteShopping set; 5 à Sec e 5 à Fil → `laundry`, as every
 5àSec.
+
+## Algarve, ruled 2026-11-13 (KAN-466)
+
+Three centres, read from the operators' sites. **Aqua Portimão** is left for
+later (owner): "if we really need, we circle back to it".
+
+**Forum Algarve — 117 units.** Same site as Forum Coimbra, but the map tabs
+are Piso -1, 0 and 1, so **floor = data-floor − 2** (checked by clicking:
+1920 Barber Shop → Piso -1, ACP → Piso 0, Aldo → Piso 1). Footprint
+`way/182734578`, buffer **50 m** (the Auchan hypermarket sits 34 m out).
+Address evidence: "Forum Algarve" and its road position, "km 103".
+`Cortefiel | Women'Secret` is one unit and is written `Cortefiel /
+Women'Secret`. The listed `Auchan Faro` is the hypermarket; `Óptica Auchan
+Faro` is not listed and is withdrawn.
+
+**MAR Shopping Algarve — 119 units**: 88 shops and the 31 restaurants the
+operator lists on a separate page; each floor is on the unit's own page.
+Not written (owner): **Designer Outlet Algarve**, the outlet centre next
+door (its own outline, its own shops — left untouched); **Super Quinta**, a
+monthly discount event; **Woofland**, the centre's pet-sitting area, which
+waits for a pet-sitting type in its own ticket. Footprint `way/525348390`,
+buffer **75 m** — the outline is the mall alone and its units on "Complexo
+Comercial IKEA" addresses sit up to 72 m out. Address evidence: "MAR
+Shopping", "Complexo Comercial IKEA"; the Designer Outlet's shops share
+Avenida do Algarve and are neighbours. "Emotions - Coffee Shop" on Av. do
+Algarve 2 is not a unit and was out of the held set (the matcher had given
+it G-Shop, a Casio store).
+
+**AlgarveShopping — 116 units.** Footprint `relation/7759235` (outer ring),
+buffer **50 m**. **Century 21**, an estate agency, is held out until a
+real-estate type exists (owner).
+
+**Floors (owner rule):** a unit with no published floor is Piso 0 — Açaí
+Algarve Express here; at MAR, Diana Studio, ELY Flowers, G-Shop,
+Grasshopper, iStore, RKS, Sol e Sal, TIFFOSI, Tuttocars and seven
+restaurants.
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| `Seeds` — a florist (owner) | `florist` |
+| `Volto Drive` — rent-a-car, Piso -1 | `car_rental` |
+| `Love N'Roll` — rolled ice cream | `ice_cream` |
+| `Terra Pura` — natural products, supplements | `store` / `health_food` |
+| `Emma` — mattresses | `store` / `mattress` |
+| `Hawkers` — sunglasses | `store` / `sunglasses` |
+| `Talho Burger` (our rows said butcher) | `restaurant` |
+| `LEGO FAN FACTORY` — a free play space for children (said park) | `playground`, as Luna Kids |
+| `Sol e Sal` (said jewellery) — beauty | `beauty_salon` |
+| `Gumania` — sweets | `bakery`, the confectionery precedent |
+| `Grasshopper` — mini-golf; `SOULD PARK` | `amusement_park` |
+| `Tuttocars` — ride-on cars for children | `playground`, as Tutto Cars |
+| `G-Shop` — Casio | `store` / `watch` |
+| `FALA SIMPLES` — telecoms | `store` / `phone` |
+| `Le Croissant`, `Quiosque Le Croissant` | `bakery` + `cafe` |
+| `LOJA DAS BAÍNHAS` — hems | `clothing_repair` |
+| `CARILOR` (operator: ourivesaria) | `store` / `jewelry` |
+| `Q.B. CONCEPT` — Italian | `restaurant` |
+| `UltraWash` | `car_wash` |
+| `Worten`, `Worten Mobile` | the NorteShopping set |
+
+**Matcher fixes:** a person's confirmed pair now outranks a row inside the
+outline (`Auchan Faro` had gone to the optician), and a confirmed far row is
+named as its tenant (`H3 Hambúrguer Gourmet` 132 m out from MAR is the
+listed `H3`).
+
+**Corrected in review (2026-11-13, migration 0076):** `Hey Doc` / `HeyDoc` is
+Grupo Lusíadas Saúde's network of dental clinics, not a beauty shop —
+`clinic`, as Mollaris (`dentist` is not reachable). Every branch we hold is
+retyped: Forum Algarve, NorteShopping, LeiriaShopping and the Oeiras Parque
+row. `LEGO FAN FACTORY` at MAR is a free play space, not a toy shop.

@@ -1,0 +1,119 @@
+Acium|Piso 0
+ALDO|Piso 1
+AROMAS|Piso 0
+BERSHKA|Piso 1
+BPI|Piso 0
+CALZEDONIA|Piso 0
+CELEIRO|Piso 0
+CENTROXOGO|Piso 0
+Chicco|Piso 1
+Cinemas NOS|Piso 1
+Clínica CUF Loulé|Piso 0
+D'Oro Jóias|Piso 0
+DECIMAS|Piso 0
+DEICHMANN|Piso 0
+Diana Studio|Piso 0
+ELY Flowers|Piso 0
+Equivalenza|Piso 1
+EYECONIC|Piso 0
+FALA SIMPLES|Piso 0
+FARMÁCIA SILVEIRA|Piso 0
+FLYING TIGER COPENHAGEN|Piso 0
+FNAC|Piso 1
+G-Shop|Piso 0
+Gold Suisse|Piso 0
+Grasshopper|Piso 0
+Gumania|Piso 0
+H&M|Piso 0
+IKEA|Piso 0
+Intimissimi|Piso 0
+INTIMISSIMI UOMO|Piso 0
+iStore|Piso 0
+JEAN LOUIS DAVID|Piso 0
+JOSE LUIS Joyerías|Piso 0
+KIWOKO|Piso 0
+La Casa de las Carcasas|Piso 0
+LEFTIES|Piso 1
+LEGO FAN FACTORY|Piso 0
+Maisons du Monde|Piso 1
+MANGO|Piso 0
+MASSIMO DUTTI|Piso 0
+MAYORAL|Piso 1
+MEO|Piso 0
+Midas|Piso -1
+Mister Minit|Piso 0
+MR BLUE|Piso 0
+Natura|Piso 0
+Normal|Piso 1
+NOS|Piso 0
+NOTE!|Piso 0
+O BOTICÁRIO|Piso 0
+Opticalia|Piso 0
+ORO VIVO|Piso 0
+OYSHO|Piso 0
+PACOMARTINEZ|Piso 0
+PANDORA|Piso 0
+PARFOIS|Piso 0
+Pingo Doce|Piso 0
+PLURICOSMÉTICA|Piso 0
+PRIMARK|Piso 0
+PULL&BEAR|Piso 1
+PUNT ROMA|Piso 0
+RITUALS|Piso 0
+RKS|Piso 0
+SALSA|Piso 0
+SEPHORA|Piso 0
+Sfera|Piso 1
+SKECHERS|Piso 1
+Snipes|Piso 1
+Sol e Sal|Piso 0
+Sport Zone|Piso 0
+SPRINGFIELD|Piso 1
+STRADIVARIUS|Piso 1
+SWAROVSKI|Piso 0
+TEZENIS|Piso 0
+The Barber Company|Piso 1
+TIFFOSI|Piso 0
+TOUS|Piso 0
+TRAMAS|Piso 1
+Tuttocars|Piso 0
+Viagens Abreu|Piso 0
+VODAFONE|Piso 0
+WIÑK|Piso 1
+WOMEN'SECRET|Piso 0
+WORTEN|Piso 0
+XIAOMI STORE PORTUGAL|Piso 0
+ZARA|Piso 0
+ZARA HOME|Piso 0
+ZIPPY|Piso 0
+Açaí Bliss|Piso 0
+ARCÁDIA - Casa do Chocolate|Piso 0
+Arroz com Alma|Piso 1
+Bagel and Coffee Point|Piso 0
+Baja Fresh|Piso 1
+BIFANAS DE VENDAS NOVAS|Piso 1
+Carte D’Or|Piso 0
+Delta Espresso|Piso 0
+Franguinho do Shopping|Piso 1
+Grill & Beer|Piso 1
+H3|Piso 1
+Häagen Dazs|Piso 1
+HANAMI SUSHI|Piso 1
+JOSHUA'S SHOARMA|Piso 1
+KFC|Piso 1
+Le Jardin Café|Piso 0
+Leonidas|Piso 0
+Loja das Sopas|Piso 1
+McDonald's|Piso 1
+My Pastta|Piso 1
+PANS & COMPANY|Piso 1
+PIZZA PINO|Piso 1
+Poke House|Piso 1
+Portugália Balcão|Piso 1
+PORTUGUESE LAB|Piso 1
+STARBUCKS|Piso 0
+TALHO BURGER|Piso 1
+The Pizza Lab|Piso 0
+VITAMINAS|Piso 1
+Weeel|Piso 0
+WOK TO WALK|Piso 1

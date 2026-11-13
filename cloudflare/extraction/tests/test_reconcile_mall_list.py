@@ -94,6 +94,27 @@ class AssignTest(unittest.TestCase):
         self.assertEqual(answers[0]['overture_id'], 'unit')
         self.assertEqual([r['overture_id'] for r, _ in twins], ['street'])
 
+    def test_a_confirmed_row_answers_before_a_certain_one(self):
+        """Forum Algarve, 2026-11-13: the listed `Auchan Faro` is the
+        hypermarket, confirmed as the `Auchan` row 34 m out; `Óptica Auchan
+        Faro` inside the outline must not take it."""
+        tenants = [('Auchan Faro', 'Piso 0')]
+        hyper = held('Auchan', 'hyper', RING, 'N125')
+        optician = held('Óptica Auchan Faro', 'optician', INSIDE, 'Estrada Nacional 125, km 103')
+        answers, _, _ = rec.assign(tenants, [optician, hyper], MALL,
+                                   confirmed={'auchan faro': {'auchan'}},
+                                   certain=lambda r: r['overture_id'] == 'optician')
+        self.assertEqual(answers[0]['overture_id'], 'hyper')
+
+    def test_a_confirmed_far_row_is_named_as_its_tenant(self):
+        """MAR Shopping Algarve, 2026-11-13: `H3 Hambúrguer Gourmet` pinned
+        132 m out is the listed `H3`, not an unlisted shop."""
+        far = held('H3 Hambúrguer Gourmet', 'far', (41.1900, -8.6560), 'C. C. NorteShopping')
+        result = rec.plan([('H3', 'Piso 1')], [], [], MALL, 'norteshopping',
+                          {'h3': ('restaurant', None, [], 'x')},
+                          confirmed={'h3': {'h3 hamburguer gourmet'}}, far=[far])
+        self.assertIn("listed 'H3'", result['withdraw'][0][1])
+
     def test_a_twin_on_the_street_is_kept_not_withdrawn(self):
         tenants = [('KIKO MILANO', 'Piso 2')]
         street = held('Kiko Milano', 'street', RING, 'Rua de Santa Catarina 412')
