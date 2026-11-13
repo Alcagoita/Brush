@@ -699,7 +699,7 @@ unit numbered 1–25 there; Studio Auto publishes neither — Piso 0.
 | `WORTEN`, `WORTEN MOBILE` | `phone_repair` + `electronics` + `store`, the NorteShopping set |
 
 The rest are in `tenant_type_overrides.json` with plain readings (C&A
-clothing, Correios CTT post, Arcádia cafe / bakery, Samsonite and Sintety
+clothing, Correios CTT post, Samsonite and Sintety
 handbag, Vista Alegre home ...).
 
 **EV chargers are not tenants** (owner, 2026-11-13): a Powerdot charging
@@ -709,3 +709,19 @@ it is a car charger, not a store.
 **Zara and Zara Man are two units** (owner, 2026-11-13): the same brand,
 Zara Man the men's store. When a centre lists both, both are kept; at Braga
 Parque each answers from its own held row (both named "Zara" in our data).
+
+**Corrected in review (2026-11-13, migration 0071):**
+
+- `SANJAM` is a national chain of hair salons — `hairdresser`, not a
+  clothing store.
+- **Arcádia keeps one set everywhere: `bakery` + `cafe`** — a chocolatier
+  with a café counter. Our rows had it as bakery, cafe or restaurant by
+  source; the mall units (Braga Parque, Nova Arcada, NorteShopping's
+  Galleria, UBBO) and every row named "Casa do Chocolate" / "Arcadia
+  Chocolate" now carry both. A bare "Arcádia" on a street can be an
+  unrelated café and is left alone. The Nescafé-branded counters at
+  NorteShopping are a different concept and stay `cafe`.
+- A `|` cannot appear inside a name in a list: it is the delimiter, and
+  `5 À SEC | 5 À FIL|Piso 1` was read as floor 5. Braga Parque's two such
+  names are written as their brand (`5 À SEC`, `BEONTIME`), and the reader
+  now refuses an unexpected field.

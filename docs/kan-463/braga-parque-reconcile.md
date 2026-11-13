@@ -1,6 +1,6 @@
 # Braga Parque reconcile — KAN-463, applied 2026-11-12
 
-Produced by `cloudflare/extraction/reconcile_mall_list.py`, applied as migration `0070_kan463_braga.sql`, and verified through `POST /poi/nearby`: all 160 listed units are served, and none of the 38 withdrawn rows is.
+Produced by `cloudflare/extraction/reconcile_mall_list.py`, applied as migration `0070_kan463_braga.sql (floors and types corrected by 0071_kan463_review_fixes.sql)`, and verified through `POST /poi/nearby`: all 160 listed units are served, and none of the 38 withdrawn rows is.
 
 ## Inputs
 
@@ -165,17 +165,17 @@ Produced by `cloudflare/extraction/reconcile_mall_list.py`, applied as migration
 | listed | id | placed by | floor | type |
 |---|---|---|---|---|
 | 2LIFE | `mall:braga_parque:2life` | centre | 1 | store / pawn |
-| 5 À SEC | `mall:braga_parque:5-a-sec` | centre | 5 | laundry |
+| 5 À SEC | `mall:braga_parque:5-a-sec` | centre | 1 | laundry |
 | ACIUM | `mall:braga_parque:acium` | centre | 1 | store / jewelry |
 | ADIDAS | `mall:braga_parque:adidas` | osm | 2 | store / sports |
 | AGÊNCIA ABREU | `mall:braga_parque:agencia-abreu` | osm | 1 | travel_agency |
 | ALBERTO OCULISTA | `mall:braga_parque:alberto-oculista` | osm | 1 | store / eyewear_and_optician |
 | ALDO | `mall:braga_parque:aldo` | osm | 1 | store / shoes |
 | ALI BABA KEBAB HAUS | `mall:braga_parque:ali-baba-kebab-haus` | centre | 2 | restaurant |
-| ARCÁDIA | `mall:braga_parque:arcadia` | osm | 2 | cafe |
+| ARCÁDIA | `mall:braga_parque:arcadia` | osm | 2 | bakery |
 | ASIÁTICO | `mall:braga_parque:asiatico` | osm | 2 | restaurant |
 | AURYA | `mall:braga_parque:aurya` | osm | 1 | store / beauty |
-| BEONTIME | `mall:braga_parque:beontime` | osm | Piso 0 | store / watch |
+| BEONTIME | `mall:braga_parque:beontime` | osm | 1 | store / watch |
 | BIJOU BRIGITTE | `mall:braga_parque:bijou-brigitte` | osm | 1 | store / jewelry |
 | BROWNIE | `mall:braga_parque:brownie` | osm | 2 | store / clothing |
 | C&A | `mall:braga_parque:c-a` | osm | 1 | store / clothing |

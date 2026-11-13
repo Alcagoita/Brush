@@ -116,13 +116,21 @@ def read_tenant_list(path):
     enforced by hand, which is not enforcement.
 
     A blank floor (`Name|`) means the operator publishes none.
+
+    `|` is the delimiter, so it cannot appear inside a name. Anything after
+    the floor other than `opening` is refused rather than read: an operator
+    name such as `5 À SEC | 5 À FIL` would otherwise turn its second half
+    into the floor (KAN-463 review).
     """
     tenants = []
-    for line in open(path):
+    for number, line in enumerate(open(path), 1):
         cells = [c.strip() for c in line.rstrip('\n').split('|')]
         name = cells[0].strip()
         if not name:
             continue
+        if any(c.lower() not in ('opening', '') for c in cells[2:]):
+            raise ValueError(f'{path}:{number}: unexpected field after the floor in {line.strip()!r}; '
+                             'a "|" inside a name must be written another way')
         if any(c.lower() == 'opening' for c in cells[2:]):
             continue
         floor = cells[1] if len(cells) > 1 else ''

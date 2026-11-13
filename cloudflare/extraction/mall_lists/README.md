@@ -4,7 +4,9 @@ Transcribed by hand from each shopping centre's own website. The operator is
 the authority for what is inside and on which floor — see
 docs/poi-classification-rules.md.
 
-Format is `Name|Piso N`, one per line. A trailing zone word (`Piso 0 GARE`)
+Format is `Name|Piso N`, one per line. `|` is the delimiter and cannot
+appear in a name — write the brand alone (`5 À SEC`, not `5 À SEC | 5 À FIL`);
+`read_tenant_list` refuses a line with an unexpected extra field. A trailing zone word (`Piso 0 GARE`)
 is kept as written and ignored when reading the floor: it is the same floor
 of an adjoining building, and a person finds it from the floor alone.
 

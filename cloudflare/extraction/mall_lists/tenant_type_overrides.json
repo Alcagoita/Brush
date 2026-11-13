@@ -431,7 +431,8 @@
    "cafe"
   ],
   "Arcádia – Galleria": [
-   "bakery"
+   "bakery",
+   "cafe"
   ],
   "B STRONG KIDS": [
    "store",
@@ -832,6 +833,7 @@
    "auto_parts_and_supply"
   ],
   "ARCÁDIA": [
+   "bakery",
    "cafe"
   ],
   "C&A": [
@@ -949,7 +951,8 @@
    "auto_parts_and_supply"
   ],
   "Arcádia – Casa do Chocolate": [
-   "bakery"
+   "bakery",
+   "cafe"
   ],
   "AURYA": [
    "store",
@@ -988,8 +991,7 @@
    "playground"
   ],
   "SANJAM": [
-   "store",
-   "clothing"
+   "hairdresser"
   ],
   "Sould Park Bowling": [
    "bowling_alley"
@@ -999,6 +1001,10 @@
   ],
   "TUTTO CARS": [
    "playground"
+  ],
+  "Arcádia": [
+   "bakery",
+   "cafe"
   ]
  }
 }

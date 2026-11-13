@@ -1,6 +1,6 @@
 # Nova Arcada reconcile — KAN-463, applied 2026-11-12
 
-Produced by `cloudflare/extraction/reconcile_mall_list.py`, applied as migration `0070_kan463_braga.sql`, and verified through `POST /poi/nearby`: all 96 listed units are served, and none of the 18 withdrawn rows is.
+Produced by `cloudflare/extraction/reconcile_mall_list.py`, applied as migration `0070_kan463_braga.sql (types corrected by 0071_kan463_review_fixes.sql)`, and verified through `POST /poi/nearby`: all 96 listed units are served, and none of the 18 withdrawn rows is.
 
 ## Inputs
 
@@ -129,7 +129,7 @@ Produced by `cloudflare/extraction/reconcile_mall_list.py`, applied as migration
 | PLURICOSMÉTICA | `mall:nova_arcada:pluricosmetica` | centre | 0 | store / beauty |
 | PRIMOR | `mall:nova_arcada:primor` | osm | 1 | store / beauty |
 | SACOOR BLUE | `mall:nova_arcada:sacoor-blue` | centre | 1 | store / clothing |
-| SANJAM | `mall:nova_arcada:sanjam` | centre | 0 | store / clothing |
+| SANJAM | `mall:nova_arcada:sanjam` | centre | 0 | hairdresser |
 | SEASIDE | `mall:nova_arcada:seaside` | osm | 0 | store / shoes |
 | SECRET PACK | `mall:nova_arcada:secret-pack` | centre | 1 | store / gift |
 | SOLÁRIO PAREDÃO | `mall:nova_arcada:solario-paredao` | centre | 2 | beauty_salon |
