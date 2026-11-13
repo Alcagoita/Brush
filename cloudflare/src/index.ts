@@ -4,6 +4,12 @@ import { ExtractionContainer } from './extractionContainer';
 import { MANUAL_POI_TYPES, MANUAL_SUBTYPE_FILTERS, normalizePoiName, parseManualPoiInput, isManualPoiInput, type ManualPoiAttribute } from './manualPoi';
 import { POI_REMOVAL_REASONS, parsePoiRemovalInput, isPoiRemovalInput, type PoiRemovalReason, type PoiRemovalSource } from './poiRemoval';
 import { findHeldPois, type HeldPoiSource } from './heldPois';
+import { MANUAL_POI_DUPLICATE_DISTANCE_METERS, suppressDuplicates } from './duplicateSuppression';
+import { parseSourceNames } from './sourceNames';
+import {
+  listVenues, findVenue, queryVenueUnits, pageVenueUnits,
+  DEFAULT_PAGE_SIZE as VENUE_DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE as VENUE_MAX_PAGE_SIZE,
+} from './venueInventory';
 import { bearerToken, verifyFirebaseIdToken } from './firebaseAuth';
 import {
   OSM_SCOPE_BATCH_SIZE, claimBatch, completeScope, countriesAwaitingBatch, failScope,
@@ -127,7 +133,7 @@ function json(data: unknown, status = 200): Response {
 // KAN-362's public form is intentionally a narrow CORS surface.  The POI
 // API itself remains Firebase-authenticated and must not become browser-open.
 const MANUAL_POI_PUBLIC_ORIGIN = 'https://brushaway.app';
-const MANUAL_POI_DUPLICATE_DISTANCE_METERS = 20;
+// MANUAL_POI_DUPLICATE_DISTANCE_METERS lives in duplicateSuppression.ts (KAN-382).
 // Exact-name matches inside a 20 m box: a chain with several branches in one
 // mall is the most a name can plausibly yield here.
 const MANUAL_POI_DUPLICATE_PER_SOURCE_LIMIT = 50;
@@ -1321,19 +1327,6 @@ export function curatedTypeClause(types: string[], offset: number, brand?: strin
   };
 }
 
-function parseSourceNames(value: string | null): Record<string, string> {
-  if (!value) return {};
-  try {
-    const parsed: unknown = JSON.parse(value);
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
-    return Object.fromEntries(Object.entries(parsed).filter(([code, name]) =>
-      /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/.test(code) && typeof name === 'string' && name.trim(),
-    )) as Record<string, string>;
-  } catch {
-    return {};
-  }
-}
-
 async function queryNearbyPoiDb(
   db: D1Database,
   lat: number,
@@ -1523,19 +1516,6 @@ async function queryNearbyPoiDb(
     }
   }
 
-  // Two sources can hold the same shop at coordinates a few metres apart.
-  // Suppress the twin at read time so the user never sees one shop twice.
-  //
-  // Least authoritative first, so each source is suppressed by everything
-  // above it. Overture is the national base and curated mall tenants remain
-  // authoritative for a building and its floor. `legacy_poi` left this list
-  // at KAN-454 (empty since KAN-438, no longer read); `osm_poi` never joined
-  // it (KAN-442). Both tables still exist; nearby reads neither.
-  //
-  // The rule itself is unchanged and must stay: it matches on `dedupeName`
-  // plus proximity, never on source ids. An id identifies a row for a
-  // correction; it never decides which of two places a user sees.
-  const SUPPRESSION_ORDER = ['overture', 'community'] as const;
   for (const row of multibancoRows) {
     const distanceMeters = haversineMeters(lat, lng, row.lat, row.lng);
     if (distanceMeters > radiusMeters) continue;
@@ -1548,41 +1528,9 @@ async function queryNearbyPoiDb(
     });
   }
 
-  // Odivelas rollout: official MULTIBANCO ATMs take precedence at the same
-  // physical location. The lower-priority source remains stored for audit.
-  const officialDemoAtms = [...candidates.values()].filter(candidate =>
-    candidate.source === 'multibanco' && candidate.demoZone && candidate.primary_poi_type === 'atm');
-  for (const [key, candidate] of candidates) {
-    if (candidate.source === 'multibanco' || candidate.primary_poi_type !== 'atm') continue;
-    if (officialDemoAtms.some(official =>
-      haversineMeters(official.lat, official.lng, candidate.lat, candidate.lng) <= MANUAL_POI_DUPLICATE_DISTANCE_METERS)) {
-      candidates.delete(key);
-    }
-  }
-
-  const bySource = new Map<string, typeof candidates extends Map<string, infer V> ? V[] : never>();
-  for (const candidate of candidates.values()) {
-    const list = bySource.get(candidate.source ?? '') ?? [];
-    list.push(candidate);
-    bySource.set(candidate.source ?? '', list);
-  }
-
-  for (const [key, candidate] of candidates) {
-    const rank = SUPPRESSION_ORDER.indexOf(candidate.source as typeof SUPPRESSION_ORDER[number]);
-    if (rank < 0) continue;
-    const suppressors = SUPPRESSION_ORDER.slice(rank + 1)
-      .flatMap(source => bySource.get(source) ?? []);
-    if (suppressors.some(primary => {
-      if (haversineMeters(primary.lat, primary.lng, candidate.lat, candidate.lng) > MANUAL_POI_DUPLICATE_DISTANCE_METERS) return false;
-      const names = new Set([candidate.dedupeName, candidate.name_local]
-        .concat(Object.values(candidate.names ?? {}))
-        .filter((name): name is string => !!name).map(normalizePoiName));
-      return [primary.dedupeName, primary.name_local, ...Object.values(primary.names ?? {})]
-        .filter((name): name is string => !!name).some(name => names.has(normalizePoiName(name)));
-    })) {
-      candidates.delete(key);
-    }
-  }
+  // Official MULTIBANCO precedence, then the read-time twin rule (see
+  // duplicateSuppression.ts). Shared with the venue inventory (KAN-382).
+  suppressDuplicates(candidates);
 
   const candidateCounts = { overture: 0, community: 0, openstreetmap: 0, multibanco: 0 };
   for (const candidate of candidates.values()) {
@@ -3367,6 +3315,41 @@ export default {
         { results, placeName: areaNameForClient(place) },
         { d1: timings.d1Ms, filter: timings.filterMs, total: totalMs },
       );
+    }
+
+    // GET /venues — every shopping centre with an inventory (KAN-382): id,
+    // name, OSM id, centroid and strict outline. Static per deploy; the app
+    // uses it to decide which centres near the user to download.
+    if (url.pathname === '/venues' && request.method === 'GET') {
+      const limited = await enforceUserRateLimit(caller, env.POI_RATE_LIMITER, 'poiAll');
+      if (limited) return limited;
+      return json({ venues: listVenues() });
+    }
+
+    // GET /venues/:id/units?cursor=&limit= — one centre's full inventory,
+    // paged in a stable order (KAN-382). `version` changes when anything in
+    // the centre changes; a client that sees it change mid-download restarts.
+    const venueUnitsMatch = /^\/venues\/([a-z0-9-]{1,80})\/units$/.exec(url.pathname);
+    if (venueUnitsMatch && request.method === 'GET') {
+      const limited = await enforceUserRateLimit(caller, env.POI_RATE_LIMITER, 'poiAll');
+      if (limited) return limited;
+      const venue = findVenue(venueUnitsMatch[1]);
+      if (!venue) return json({ error: 'unknown venue' }, 404);
+      const rawLimit = url.searchParams.get('limit');
+      const limit = rawLimit === null ? VENUE_DEFAULT_PAGE_SIZE : Number(rawLimit);
+      if (!Number.isInteger(limit) || limit < 1 || limit > VENUE_MAX_PAGE_SIZE) {
+        return json({ error: `limit must be an integer between 1 and ${VENUE_MAX_PAGE_SIZE}` }, 400);
+      }
+      const cursor = url.searchParams.get('cursor');
+      if (cursor !== null && (cursor === '' || cursor.length > 200)) {
+        return json({ error: 'cursor must be a non-empty string of at most 200 characters' }, 400);
+      }
+      const { units, version } = await queryVenueUnits(env.REGISTRY_DB, venue);
+      const { page, nextCursor } = pageVenueUnits(units, cursor, limit);
+      return json({
+        venue: { id: venue.id, name: venue.name },
+        version, total: units.length, units: page, nextCursor,
+      });
     }
 
     // GET /coverage?lat=&lng=  — is this location ready / building / none?

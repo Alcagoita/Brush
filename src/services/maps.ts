@@ -94,6 +94,12 @@ export interface NearbyPlace {
   closeMin?: number | null;
   /** Canonical brand returned by Brush's POI API, when classified. */
   brand?: string | null;
+  /**
+   * Which floor of a building this is on, as a bare integer string ("-1",
+   * "0", "2" — KAN-503), or null. Null nearly everywhere; inside a shopping
+   * centre it's what locates a shop (KAN-512). The app adds the word.
+   */
+  floor?: string | null;
 }
 
 /** A request-specific nearby bucket. Generic requests omit `attribute`; subtype
@@ -497,6 +503,7 @@ async function searchNearbyPlacesCloudflare(
           financialServiceKinds: financialServiceKinds.length > 0 ? financialServiceKinds : undefined,
           openMin: p.open_min,
           closeMin: p.close_min,
+          floor: p.floor ?? null,
         };
         places.set(p.poi_id, place);
         result[request.type].push(place);

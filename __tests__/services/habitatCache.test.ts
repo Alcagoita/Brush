@@ -85,6 +85,8 @@ interface MockHabitatRow {
   area_name?: string | null;
   /** KAN-368 follow-up — canonical chain retained for offline matching. */
   brand?: string | null;
+  /** KAN-382 — floor inside a shopping centre, bare integer string. */
+  floor?: string | null;
 }
 
 // ─── In-memory expo-sqlite mock ────────────────────────────────────────────────
@@ -126,7 +128,7 @@ const mockDb = {
         { name: 'osm_fetched_at' }, { name: 'last_matched_at' }, { name: 'cache_area_id' }, { name: 'expires_at' },
         { name: 'footprint_area_m2' }, { name: 'website' }, { name: 'restaurant_food_type' }, { name: 'store_subtype' }, { name: 'financial_service_kinds' },
         { name: 'area_name' }, { name: 'brand' }, { name: 'name_local' }, { name: 'name_local_lang' },
-        { name: 'names_json' }, { name: 'country_code' },
+        { name: 'names_json' }, { name: 'country_code' }, { name: 'floor' },
       ] as unknown as T[];
     }
     if (s.startsWith('SELECT MAX(last_matched_at) as maxTs FROM habitat_places WHERE cache_area_id IS NULL')) {
@@ -210,22 +212,22 @@ const mockDb = {
     const s = sql.replace(/\s+/g, ' ').trim();
 
     if (s.startsWith('INSERT INTO habitat_places')) {
-      const [id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name] = params as any[];
-      rows.push({ id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name });
+      const [id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name, floor] = params as any[];
+      rows.push({ id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name, floor });
       return {} as any;
     }
     if (s.startsWith('UPDATE habitat_places')) {
       const [
         google, osm, fsq, overture, brush, osmFlag1, lat, osmFlag2, lng, osmFlag3, osmFetchedAt,
         footprintAreaM2, website,
-        restaurantFoodType, storeSubtype, financialServiceKinds, brand, nameLocal, nameLocalLang, namesJson, countryCode,
+        restaurantFoodType, storeSubtype, financialServiceKinds, brand, floor, nameLocal, nameLocalLang, namesJson, countryCode,
         areaName,
         tripCacheAreaId, tripExpiresAtA, tripExpiresAtB, tripExpiresAtC,
         lastMatchedAt, id,
       ] = params as [
         string | null, string | null, string | null, string | null, string | null, number, number, number, number, number, number,
         number | null, string | null,
-        string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null,
+        string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null, string | null,
         string | null,
         string | null, number | null, number | null, number | null,
         number, string,
@@ -250,6 +252,7 @@ const mockDb = {
         row.store_subtype = storeSubtype ?? row.store_subtype ?? null;
         row.financial_service_kinds = financialServiceKinds ?? row.financial_service_kinds ?? null;
         row.brand = brand ?? row.brand ?? null;
+        row.floor = floor ?? row.floor ?? null;
         row.name_local = nameLocal ?? row.name_local ?? null;
         row.name_local_lang = nameLocalLang ?? row.name_local_lang ?? null;
         row.names_json = namesJson ?? row.names_json ?? null;
@@ -778,6 +781,20 @@ describe('queryHabitatCache', () => {
 
     expect(rows.find(row => row.name === 'Zara')?.brand).toBe('Zara');
     expect(result.store.map(place => place.brand)).toEqual(['Zara', 'Fnac']);
+  });
+
+  it('keeps a live floor through insert, merge and read, and never clears it (KAN-382)', () => {
+    upsertPlace({ poiType: 'store', name: 'Zara', lat: 0.0004, lng: 0, source: { overture: 'ov-zara' }, floor: '1' });
+    upsertPlace({ poiType: 'store', name: 'Fnac', lat: 0.0005, lng: 0, source: { overture: 'ov-fnac' } });
+    // A later sighting without a floor merges into the same row and must not erase it.
+    upsertPlace({ poiType: 'store', name: 'Zara', lat: 0.0004, lng: 0, source: { overture: 'ov-zara' } });
+
+    const result = queryHabitatCache(ORIGIN.lat, ORIGIN.lng, ['store'], 500);
+
+    expect(rows.filter(row => row.name === 'Zara')).toHaveLength(1);
+    expect(result.store.map(place => [place.name, place.floor])).toEqual([['Zara', '1'], ['Fnac', null]]);
+    const zaraId = rows.find(row => row.name === 'Zara')!.id;
+    expect(getHabitatPlaceById(zaraId)?.floor).toBe('1');
   });
 
   it('drops stale cached subtype keys at the read boundary', () => {
