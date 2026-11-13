@@ -1,0 +1,123 @@
+
+===== Alma Shopping — 97 tenants on the operator list =====
+
+  held and confidently matched : 47
+  ESCALATE (a person decides)  : 13
+  ADD from OSM                 : 19
+  on the list, no source has it: 25
+  REMOVE (held, not listed)    : 18   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row Companhia / Perfumes & Companhia
+                           Perfumes & Companhia
+    [0.90] two tenants, one held row Worten / Worten Mobile
+                           Worten - Mobile Coimbra Estádio
+    [0.80] tenant vs held MO
+                           Loja MEO
+    [0.75] tenant vs OSM  Coffee House
+                           Coffee Solum
+    [0.73] tenant vs OSM  Salsa
+                           Sacola
+    [0.71] held vs tenant Oysho
+                           The Body Shop
+    [0.70] held vs tenant Mais Óptica
+                           MultiOpticas
+    [0.67] held vs tenant Claire's
+                           CHAVIARTE
+    [0.62] held vs tenant Scalpers
+                           Salsa
+    [0.60] held vs tenant Zara
+                           Natura
+    [0.57] held vs tenant Góis
+                           NOS
+    [0.57] held vs tenant That Kids
+                           Lanidor Kids
+    [0.47] held vs tenant, shared word pizza Mr.Pizza Solum Coimbra
+                           Pizza Hut
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    Alberto Oculista
+      -> OSM: Alberto Oculista
+    Alentejo
+      -> OSM: Alentejo
+    Calzedonia
+      -> OSM: Calzedonia
+    Cidália Cabeleireiros
+      -> OSM: Cidália Cabeleireiros
+    Cortefiel
+      -> OSM: Cortefiel
+    Equivalenza
+      -> OSM: Equivalenza
+    Feu Vert
+      -> OSM: Feu Vert
+    Lanidor Kids
+      -> OSM: Lanidor
+    Mayoral
+      -> OSM: Mayoral
+    McDonald’s
+      -> OSM: McDonald's
+    Normal
+      -> OSM: Normal
+    Pluricosmética
+      -> OSM: Pluricosmética
+    Primor
+      -> OSM: Primor
+    Staza
+      -> OSM: Staza
+    Tomatino
+      -> OSM: Tomatino
+    Viagens Abreu
+      -> OSM: Abreu
+    Vista Alegre
+      -> OSM: Vista Alegre
+    Vodafone
+      -> OSM: Vodafone
+    Women’Secret
+      -> OSM: Women'secret
+
+  --- listed but no source can place it (no coordinates) ---
+    Acium
+    Braza
+    Café Pans
+    Centroxogo
+    CHAVIARTE
+    Decenio
+    Delta Espresso
+    Douglas
+    Fotosport
+    Giovanni Galli
+    Go Gym
+    I Love Kebab
+    Ink House
+    iServices
+    Kung Fu Noodle
+    Lion of Porches
+    Natura
+    New Home Decor
+    Quebramar
+    Quiosque dos Sabores
+    Seaside
+    Solinca
+    Swarovski
+    Vilanova
+    Wall Street English
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    2o Jardim Escola Joao De Deus Coimbra  [school]
+    Bershka  [store]
+    COIMBRA SC ALMA SHOPPING  [store]
+    Cacifo Locky  [post]
+    Casa das Peles, Dolce Vita Coimbra  [store]
+    Chicco  [store]
+    Devernois Coimbra  [store]
+    Foot Locker  [store]
+    Lavandaria Lavesec  [laundry]
+    Massimo Dutti  [store]
+    Pull & Bear  [store]
+    Quadrar - Construção e Promoção Imobiliária  [historical_landmark]
+    Stradivarius, Coimbra  [store]
+    Sugar Daddy - Ice Cream & Co.  [ice_cream]
+    Sunglass Hut  [store]
+    Sushi Gourmet  [restaurant]
+    United Colors of Benetton  [store]
+    Urban Trend  [hairdresser]
