@@ -1,9 +1,9 @@
 /**
  * Feature-flag style user preferences stored on the root user document.
  *
- * Low-battery pause (KAN-52) and Store fine tuning (KAN-74) both live under
- * `poiPreferences` on /users/{uid} to keep user-controlled feature flags in
- * one document instead of adding a subcollection per flag.
+ * Low-battery pause (KAN-52) lives under `poiPreferences` on /users/{uid} to
+ * keep user-controlled feature flags in one document instead of adding a
+ * subcollection per flag.
  *
  * User Preferences (KAN-120) is a separate document:
  * /users/{uid}/userPreferences/prefs.
@@ -41,33 +41,6 @@ export async function getLowBatteryPausePref(uid: string): Promise<boolean> {
   const snap = await getDoc(userRef(uid));
   const data = snap.data() as User | undefined;
   return data?.poiPreferences?.lowBatteryPause ?? false;
-}
-
-/**
- * Persist the user's Store fine tuning preference.
- *
- * `true`  — user enabled via prompt or settings toggle
- * `false` — user explicitly disabled via settings toggle (suppresses prompt)
- */
-export async function setStoreTuningPref(
-  uid: string,
-  enabled: boolean,
-): Promise<void> {
-  await updateDoc(userRef(uid), { 'poiPreferences.storeTuningEnabled': enabled });
-}
-
-/**
- * Read the user's Store fine tuning preference once.
- *
- * Returns `true | false | undefined`:
- *   undefined — field not yet set (first-time user; show prompt on indoor_mapped)
- *   true      — user has enabled the feature
- *   false     — user explicitly disabled (suppress prompt)
- */
-export async function getStoreTuningPref(uid: string): Promise<boolean | undefined> {
-  const snap = await getDoc(userRef(uid));
-  const data = snap.data() as User | undefined;
-  return data?.poiPreferences?.storeTuningEnabled;
 }
 
 /**

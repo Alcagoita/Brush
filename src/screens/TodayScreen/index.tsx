@@ -52,7 +52,6 @@ import ErrandBundleCard from '../../components/ErrandBundleCard';
 import TripSuggestionCard from '../../components/TripSuggestionCard';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
 import { useNewTaskSheetStore } from '../../store/newTaskSheetStore';
-import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
 import { useLanternState } from '../../hooks/useLanternState';
@@ -113,10 +112,6 @@ export default function TodayScreen() {
     placeContext,
     coords,
     permissionGranted,
-    storeTuningActive,
-    showStoreTuningPrompt,
-    onStoreTuningTurnOn,
-    onStoreTuningNotNow,
     customCategories,
     inboxCount,
     socialUnreadCount,
@@ -266,13 +261,12 @@ export default function TodayScreen() {
 
   const listHeader = useMemo(() => (
     <>
-      {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
+      {/* ── Nearby card (KAN-46 / KAN-52) ── */}
       {DEBUG_SHOW_NEARBY && (
       <NearbyCard
         tasks={sortedTasks}
         nearbyPoiType={nearbyPoiType}
         poiPlaces={poiPlaces}
-        storeTuningActive={storeTuningActive}
         onRefreshLocation={refreshProximity}
         onHasContent={setNearbyHasContent}
       />
@@ -307,7 +301,7 @@ export default function TodayScreen() {
       </View>
     </>
   ), [
-    sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
+    sortedTasks, nearbyPoiType, poiPlaces,
     palette,
     nearbyHasContent, setNearbyHasContent,
     refreshProximity,
@@ -509,13 +503,6 @@ export default function TodayScreen() {
         uid={uid ?? ''}
         onTaskAdded={refresh}
         customCategories={customCategories}
-      />
-
-      {/* ── Store fine tuning opt-in prompt (KAN-74 / KAN-75) ── */}
-      <StoreTuningPromptSheet
-        visible={showStoreTuningPrompt}
-        onTurnOn={onStoreTuningTurnOn}
-        onNotNow={onStoreTuningNotNow}
       />
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ── */}

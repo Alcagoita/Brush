@@ -52,7 +52,6 @@ jest.mock('../../src/services/firestore', () => ({
   getPoiPreferencesMap: (...args: unknown[]) => mockGetPoiPreferencesMap(...args),
   getTotalPoints:       (...args: unknown[]) => mockGetTotalPoints(...args),
   getInboxUnreadCount:  (...args: unknown[]) => mockGetInboxUnreadCount(...args),
-  setStoreTuningPref:   jest.fn().mockResolvedValue(undefined),
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
   getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
@@ -173,7 +172,6 @@ jest.mock('../../src/services/proximity', () => ({
   // every optimistic-toggle test (caught by the same block's catch/revert).
   getActivePlaceContext:         jest.fn().mockReturnValue(null),
   updateProximityPoiPreferences: jest.fn(),
-  setLocationTap:                jest.fn(),
   setPlaceContextTap:            jest.fn(),
   setNavigateToTripPlanner:      jest.fn(),
   updateNotifNearbyEnabled:      jest.fn(),
@@ -189,26 +187,6 @@ jest.mock('../../src/services/home', () => ({
 
 jest.mock('../../src/services/maps', () => ({
   getDistanceMeters: jest.fn().mockReturnValue(0),
-}));
-
-jest.mock('../../src/services/indoorProximity', () => ({
-  startIndoorProximityMonitoring: jest.fn().mockReturnValue(jest.fn()),
-  stopIndoorProximityMonitoring:  jest.fn(),
-  updateIndoorTasks:              jest.fn(),
-  updateIndoorExitPromptPref:     jest.fn(),
-}));
-
-jest.mock('../../src/services/indoorDetection', () => ({
-  startIndoorDetection: jest.fn().mockReturnValue(jest.fn()),
-  feedLocation:         jest.fn(),
-  stopIndoorDetection:  jest.fn(),
-}));
-
-jest.mock('../../src/services/storeTuning', () => ({
-  startStoreTuning:        jest.fn().mockReturnValue(jest.fn()),
-  onLocationContextChange: jest.fn(),
-  activateStoreTuning:     jest.fn(),
-  dismissStoreTuning:      jest.fn(),
 }));
 
 jest.mock('../../src/services/battery', () => ({

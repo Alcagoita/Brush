@@ -34,10 +34,6 @@ const DEFAULT_HOOK_RETURN = {
   poiPlaces:               {},
   placeContext:            null,
   coords:                  null,
-  storeTuningActive:       false,
-  showStoreTuningPrompt:   false,
-  onStoreTuningTurnOn:     jest.fn(),
-  onStoreTuningNotNow:     jest.fn(),
   refreshProximity:        mockRefreshProximity,
   locationUnavailable:     false,
   sheetVisible:            false,
@@ -143,7 +139,6 @@ jest.mock('../../src/hooks/useAreaCoverageNotice', () => ({
 jest.mock('../../src/components/NearbyCard',            () => () => null);
 jest.mock('../../src/components/ErrandBundleCard',      () => () => null);
 jest.mock('../../src/components/TripSuggestionCard',    () => () => null);
-jest.mock('../../src/components/StoreTuningPromptSheet',() => ({ __esModule: true, default: () => null }));
 jest.mock('../../src/components/NewTaskSheet', () => {
   const { forwardRef } = require('react');
   return { __esModule: true, default: forwardRef(() => null) };

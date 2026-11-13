@@ -289,13 +289,6 @@ let _activeTrips: Trip[] = [];
 /** KAN-237 — the current mall snapshot, if any, fed in from outside (see setMallSnapshot). */
 let _mallSnapshot: MallSnapshot | null = null;
 
-/**
- * Optional tap into the GPS stream (KAN-75 indoor detection).
- * Every position fix is forwarded here so indoor detection can run without
- * a competing GPS watcher.
- */
-let _locationTap: ((lat: number, lng: number, accuracy: number) => void) | null = null;
-
 /** Whether nearby-POI notifications are enabled (KAN-142). */
 let notifNearbyEnabled = true;
 
@@ -597,7 +590,7 @@ export function getActivePlaceContext(): PlaceContext {
 /**
  * KAN-242 — register a tap fired with the resolved place context on every
  * position fix taken by runProximitySearch, independent of onUpdate/
- * ProximityCallback (mirrors setLocationTap below). Feeds the header context
+ * ProximityCallback. Feeds the header context
  * chip without changing ProximityCallback's signature or any of its existing
  * call-site tests. Pass null to unregister.
  */
@@ -665,7 +658,6 @@ async function runProximitySearch(
     const poiTypesKey = nearbyRequests.map(request => request.key).sort().join(',');
 
     if (uniquePoiTypes.length === 0) {
-      _locationTap?.(coords.lat, coords.lng, coords.accuracy);
       _lastPlaceContext = findActivePlaceContext(coords.lat, coords.lng);
       _placeContextTap?.(_lastPlaceContext);
       _currentNearbyType = null;
@@ -876,7 +868,6 @@ function processProximityTick(
   answeredFromCache: boolean,
   onUpdate: ProximityCallback,
 ): void {
-  _locationTap?.(coords.lat, coords.lng, coords.accuracy ?? 0);
   // Store before tapping so getActivePlaceContext() (task completion's
   // completedTripId stamp) reads this tick's context, not a stale one — the
   // empty-POI branch above does the same.
@@ -1097,8 +1088,6 @@ async function checkPositionAndMaybeSearch(
     return; // location unavailable — skip this tick silently
   }
 
-  _locationTap?.(coords.lat, coords.lng, coords.accuracy);
-
   // Always search on first tick (no previous origin).
   if (!_lastSearchCoords) {
     await runProximitySearch(uid, getLatestTasks(), onUpdate);
@@ -1249,16 +1238,6 @@ export function resetProximityState(): void {
   _lastPoiSearchCoverageStatus = undefined;
 
   geofenceEntryTimes.clear();
-}
-
-/**
- * Register a callback that receives every GPS fix (KAN-75 indoor detection).
- * Pass null to unregister.
- */
-export function setLocationTap(
-  cb: ((lat: number, lng: number, accuracy: number) => void) | null,
-): void {
-  _locationTap = cb;
 }
 
 /**

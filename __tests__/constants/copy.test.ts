@@ -97,7 +97,6 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.nearbyCard.openInMaps).toBe('Abrir no Mapas');
     expect(COPY.nearbyCard.openInMapsA11y('Continente')).toBe('Abrir Continente no Mapas');
     expect(COPY.nearbyCard.tryAnotherPlace).toBe('Tentar outro local');
-    expect(COPY.nearbyCard.storeTuningOn).toBe('Ajuste de lojas ativo');
     expect(COPY.nearbyCard.refreshUpdated).toBe('Atualizado');
     expect(COPY.nearbyCard.refreshFailed).toBe('Falhou');
     expect(COPY.nearbyCard.alsoClose).toBe('Também perto');

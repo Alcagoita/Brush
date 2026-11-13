@@ -464,7 +464,7 @@ export function QrCodeIcon({ color, size = 24 }: IconProps) {
   );
 }
 
-/** Building / store icon — used by KAN-74 Store fine tuning indicator. */
+/** Building / store icon. */
 export function BuildingIcon({ color, size = 24 }: IconProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

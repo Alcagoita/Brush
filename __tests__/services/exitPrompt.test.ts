@@ -49,7 +49,6 @@ jest.mock('../../src/services/firestore', () => ({
   subscribeToTasksForDate:        jest.fn(() => () => {}),
   subscribeToCurrentStreak:       jest.fn(() => () => {}),
   getWeeklyCompletedCount:        jest.fn().mockResolvedValue(0),
-  markStoreAlertSeen:             jest.fn().mockResolvedValue(undefined),
   setTaskDone:                    jest.fn().mockResolvedValue(undefined),
 }));
 

@@ -2,21 +2,21 @@
  * useProximityEngine — KAN-59 / KAN-214
  *
  * Owns every location-driven engine on the Today screen: location permission,
- * battery-aware refresh on foreground, outdoor proximity search (KAN-24/53),
- * indoor detection + Store fine tuning (KAN-73/74/75), and the resulting
- * "nearby" state (poiType/place/places) that either engine may produce.
+ * refresh on foreground, outdoor proximity search (KAN-24/53), and the
+ * resulting "nearby" state (poiType/place/places).
+ *
+ * The KAN-73/74/75 indoor engine (indoor detection, Store fine tuning, 15 s
+ * store polling) was retired by KAN-515: shopping centres are handled by
+ * footprint detection and the mall Nearby card (KAN-513/514).
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { setStoreTuningPref } from '../../services/firestore';
 import { requestLocationPermission, startTracking, stopTracking } from '../../services/geolocation';
-import type { LocationContext } from '../../services/geolocation';
 import {
   runProximitySearch,
   runProximitySearchOrReuseSnapshot,
   getLastSearchCoords,
-  setLocationTap,
   setPlaceContextTap,
   setNavigateToTripPlanner,
 } from '../../services/proximity';
@@ -24,20 +24,7 @@ import type { PlacesMap, PlaceContext } from '../../services/proximity';
 import { navigateTo } from '../../navigation/navigationRef';
 import { getDistanceMeters } from '../../services/maps';
 import type { NearbyPlace } from '../../services/maps';
-import {
-  startIndoorProximityMonitoring,
-  stopIndoorProximityMonitoring,
-  updateIndoorTasks,
-} from '../../services/indoorProximity';
-import { startIndoorDetection, feedLocation } from '../../services/indoorDetection';
-import {
-  startStoreTuning,
-  onLocationContextChange,
-  activateStoreTuning,
-  dismissStoreTuning,
-} from '../../services/storeTuning';
-import { getBatteryLevel, useBatteryLevel } from '../../services/battery';
-import type { StoreTuningState, Task } from '../../types';
+import type { Task } from '../../types';
 import { DEBUG_DISABLE_BACKGROUND } from './debugFlags';
 
 /**
@@ -52,8 +39,7 @@ export interface ProximityEngine {
   permissionGranted:  boolean;
   /** True once the Nearby list reflects a real, settled outcome — either a
    *  proximity search has completed (success or failure), or there was
-   *  never going to be one (no POI tasks, permission denied, Store tuning
-   *  active). False while a first search is genuinely in flight. Anything
+   *  never going to be one (no POI tasks, permission denied). False while a first search is genuinely in flight. Anything
    *  derived from poiPlaces (far-away arrows, "one trip for all of these")
    *  must gate on this — showing it against the {} default before the real
    *  list lands means it can vanish moments later with no explanation. */
@@ -74,10 +60,6 @@ export interface ProximityEngine {
    *  fix in that case. */
   coords:             { lat: number; lng: number } | null;
   locationUnavailable: boolean;
-  storeTuningActive:      boolean;
-  showStoreTuningPrompt:  boolean;
-  onStoreTuningTurnOn:    () => void;
-  onStoreTuningNotNow:    () => void;
   refreshProximity:   () => Promise<boolean>;
 }
 
@@ -85,8 +67,6 @@ export function useProximityEngine(
   uid: string | undefined,
   tasks: Task[],
   latestTasksRef: React.RefObject<Task[]>,
-  lowBatteryPausePref: boolean,
-  storeTuningEnabled: boolean | undefined,
 ): ProximityEngine {
   const [permissionGranted, setPermissionGranted] = useState(false);
   const permissionGrantedRef = useRef(false);
@@ -100,7 +80,6 @@ export function useProximityEngine(
   // not call the raw unconditional search.
   const uidRef               = useRef<string | undefined>(uid);
   const hasPOITasksRef       = useRef(false);
-  const isStoreTuningActiveRef = useRef(false);
   useEffect(() => { uidRef.current = uid; }, [uid]);
 
   // ── Nearby-list readiness (see ProximityEngine.nearbyReady doc) ────────────
@@ -119,16 +98,12 @@ export function useProximityEngine(
   const [coords,              setCoords]              = useState<{ lat: number; lng: number } | null>(null);
   const [locationUnavailable, setLocationUnavailable] = useState(false);
 
-  // ── Battery level (KAN-52) — read on foreground only; not used for pausing ──
+  // ── Foreground re-check ────────────────────────────────────────────────────
 
-  const hookBatteryLevel = useBatteryLevel();
-  const [batteryLevel, setBatteryLevel] = useState(hookBatteryLevel);
-  useEffect(() => { setBatteryLevel(hookBatteryLevel); }, [hookBatteryLevel]);
   useEffect(() => {
     if (DEBUG_DISABLE_BACKGROUND) { return; }
-    const sub = AppState.addEventListener('change', async (nextState) => {
+    const sub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active') {
-        setBatteryLevel(await getBatteryLevel());
         if (permissionGrantedRef.current) {
           // Foregrounding (including an OS-level process resume after a
           // low-memory kill, which fires this exact same 'active' event —
@@ -140,7 +115,7 @@ export function useProximityEngine(
           // refreshProximity this hook returns) is unaffected — that's an
           // explicit request, always real, never routed through this gate.
           const uidNow = uidRef.current;
-          if (uidNow && hasPOITasksRef.current && !isStoreTuningActiveRef.current) {
+          if (uidNow && hasPOITasksRef.current) {
             runProximitySearchOrReuseSnapshot(uidNow, latestTasksRef.current, onNearbyUpdateRef.current)
               .catch(() => setLocationUnavailable(true));
           }
@@ -155,14 +130,6 @@ export function useProximityEngine(
     return () => sub.remove();
   }, []);
 
-  // ── Store fine tuning (KAN-74 / KAN-75) ────────────────────────────────────
-
-  const [storeTuningState,   setStoreTuningState]    = useState<StoreTuningState>('off');
-  const [locationContext,    setLocationContext]      = useState<LocationContext>('outdoor');
-
-  const isIndoorMonitoringRef   = useRef(false);
-  const stopIndoorMonitoringRef = useRef<(() => void) | null>(null);
-
   // ── Location permission (KAN-53) ──────────────────────────────────────────
 
   useEffect(() => {
@@ -175,43 +142,19 @@ export function useProximityEngine(
     }).finally(() => setPermissionChecked(true));
   }, [uid]);
 
-  // ── Indoor detection + store tuning (KAN-73 / KAN-74) ─────────────────────
+  // ── Place context + trip planner taps (KAN-242) ───────────────────────────
 
   useEffect(() => {
     if (!uid || !permissionGranted) { return; }
 
-    const stopDetection = startIndoorDetection((ctx) => {
-      setLocationContext(ctx);
-    });
-
-    const stopTuning = startStoreTuning({
-      onStateChange: setStoreTuningState,
-      onLowBatterySuppress: () => {},
-    });
-
-    setLocationTap((lat, lng, accuracy) => { feedLocation(lat, lng, accuracy); });
     setPlaceContextTap(setPlaceContext);
     setNavigateToTripPlanner(() => navigateTo('TripPlanner'));
 
     return () => {
-      setLocationTap(null);
       setPlaceContextTap(null);
       setNavigateToTripPlanner(null);
-      stopTuning();
-      stopDetection();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, permissionGranted]);
-
-  useEffect(() => {
-    if (!uid || !permissionGranted) { return; }
-    onLocationContextChange(
-      locationContext,
-      storeTuningEnabled,
-      lowBatteryPausePref,
-      batteryLevel,
-    );
-  }, [uid, permissionGranted, locationContext, storeTuningEnabled, lowBatteryPausePref, batteryLevel]);
 
   // ── Derived: are there any undone POI tasks? ───────────────────────────────
 
@@ -220,9 +163,6 @@ export function useProximityEngine(
     [tasks],
   );
   useEffect(() => { hasPOITasksRef.current = hasPOITasks; }, [hasPOITasks]);
-
-  const isStoreTuningActive = storeTuningState === 'active';
-  useEffect(() => { isStoreTuningActiveRef.current = isStoreTuningActive; }, [isStoreTuningActive]);
 
   // ── Stable onUpdate callback ───────────────────────────────────────────────
 
@@ -249,8 +189,8 @@ export function useProximityEngine(
   // ── Outdoor proximity lifecycle (KAN-24 / KAN-53) ─────────────────────────
 
   useEffect(() => {
-    if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) {
-      if (!hasPOITasks || isStoreTuningActive) {
+    if (!uid || !permissionGranted || !hasPOITasks) {
+      if (!hasPOITasks) {
         nearbyPoiTypeRef.current = null;
         setNearbyPoiType(null);
         nearbyPlaceRef.current = null;
@@ -261,8 +201,7 @@ export function useProximityEngine(
         // review fix) — e.g. the user's last POI task got completed while
         // inside a mall, and the chip would freeze there indefinitely.
         setPlaceContext(null);
-        // No POI tasks (or Store tuning owns the nearby state instead) means
-        // there was never a search to wait for — {} is already the settled,
+        // No POI tasks means there was never a search to wait for — {} is already the settled,
         // correct answer.
         setHasCompletedScan(true);
       }
@@ -320,7 +259,7 @@ export function useProximityEngine(
       stopTracking();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
+  }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
 
   // ── Re-check when tasks actually change (KAN-285 follow-up) ────────────────
   //
@@ -341,74 +280,16 @@ export function useProximityEngine(
   const isFirstTasksIdentityRef = useRef(true);
   useEffect(() => {
     if (isFirstTasksIdentityRef.current) { isFirstTasksIdentityRef.current = false; return; }
-    if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return; }
+    if (!uid || !permissionGranted || !hasPOITasks) { return; }
     setHasCompletedScan(false);
     runProximitySearchOrReuseSnapshot(uid, tasks, onNearbyUpdate).catch(() => setLocationUnavailable(true));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
-  // ── Indoor proximity engine lifecycle (KAN-75) ─────────────────────────────
-
-  useEffect(() => {
-    if (!uid || !permissionGranted) { return; }
-
-    if (!isStoreTuningActive) {
-      if (isIndoorMonitoringRef.current) {
-        stopIndoorMonitoringRef.current?.();
-        stopIndoorMonitoringRef.current = null;
-        stopIndoorProximityMonitoring();
-        isIndoorMonitoringRef.current = false;
-      }
-      return;
-    }
-
-    if (!isIndoorMonitoringRef.current) {
-      const stop = startIndoorProximityMonitoring(
-        uid,
-        tasks,
-        (task, place) => {
-          nearbyPoiTypeRef.current = task?.poi ?? null;
-          setNearbyPoiType(task?.poi ?? null);
-          nearbyPlaceRef.current = place;
-          setNearbyPlace(place);
-          // Populate poiPlaces so NearbyCard heroEntries computation can find
-          // the indoor match (it derives hero cards from poiPlaces, not nearbyPlace).
-          setPoiPlaces(task?.poi && place ? { [task.poi]: [place] } : {});
-        },
-      );
-      isIndoorMonitoringRef.current   = true;
-      stopIndoorMonitoringRef.current = stop;
-    }
-
-    return () => {
-      stopIndoorMonitoringRef.current?.();
-      stopIndoorMonitoringRef.current = null;
-      isIndoorMonitoringRef.current = false;
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid, permissionGranted, isStoreTuningActive]);
-
-  useEffect(() => {
-    if (!isIndoorMonitoringRef.current) { return; }
-    updateIndoorTasks(tasks);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tasks]);
-
-  // ── Store tuning handlers ───────────────────────────────────────────────────
-
-  const onStoreTuningTurnOn = useCallback(() => {
-    activateStoreTuning();
-    if (uid) {
-      setStoreTuningPref(uid, true).catch(() => {});
-    }
-  }, [uid]);
-
-  const onStoreTuningNotNow = useCallback(() => { dismissStoreTuning(); }, []);
-
   // ── Manual proximity refresh ────────────────────────────────────────────────
 
   const refreshProximity = useCallback(async (): Promise<boolean> => {
-    if (!uid || !permissionGranted || !hasPOITasks || isStoreTuningActive) { return false; }
+    if (!uid || !permissionGranted || !hasPOITasks) { return false; }
     try {
       await runProximitySearch(uid, latestTasksRef.current, onNearbyUpdate);
       return true;
@@ -416,12 +297,12 @@ export function useProximityEngine(
       setLocationUnavailable(true);
       return false;
     }
-  }, [uid, permissionGranted, hasPOITasks, isStoreTuningActive, onNearbyUpdate]);
+  }, [uid, permissionGranted, hasPOITasks, onNearbyUpdate]);
 
   // Settled once permission is known AND either nothing was ever going to
-  // search (no permission, no POI tasks, Store tuning owns it instead) or a
-  // real search attempt has completed.
-  const nearbyReady = permissionChecked && (!permissionGranted || !hasPOITasks || isStoreTuningActive || hasCompletedScan);
+  // search (no permission, no POI tasks) or a real search attempt has
+  // completed.
+  const nearbyReady = permissionChecked && (!permissionGranted || !hasPOITasks || hasCompletedScan);
 
   return {
     permissionGranted,
@@ -434,10 +315,6 @@ export function useProximityEngine(
     placeContext,
     coords,
     locationUnavailable,
-    storeTuningActive: isStoreTuningActive,
-    showStoreTuningPrompt: storeTuningState === 'prompt_shown',
-    onStoreTuningTurnOn,
-    onStoreTuningNotNow,
     refreshProximity,
   };
 }
