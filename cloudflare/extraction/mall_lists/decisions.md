@@ -701,3 +701,11 @@ unit numbered 1–25 there; Studio Auto publishes neither — Piso 0.
 The rest are in `tenant_type_overrides.json` with plain readings (C&A
 clothing, Correios CTT post, Arcádia cafe / bakery, Samsonite and Sintety
 handbag, Vista Alegre home ...).
+
+**EV chargers are not tenants** (owner, 2026-11-13): a Powerdot charging
+point inside Braga Parque's outline is withdrawn under the list-only rule —
+it is a car charger, not a store.
+
+**Zara and Zara Man are two units** (owner, 2026-11-13): the same brand,
+Zara Man the men's store. When a centre lists both, both are kept; at Braga
+Parque each answers from its own held row (both named "Zara" in our data).
