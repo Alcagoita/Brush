@@ -156,6 +156,17 @@ def already_held(tenant, held, tokens, claimed=None):
     return None
 
 
+def floor_value(floor) -> str | None:
+    """The one stored shape of a floor (0030, KAN-503): a bare integer
+    string — `Piso -4` -> `-4`, `Piso 0 GARE` -> `0`, OSM level `1` -> `1` —
+    or None. Never the `Piso ` prefix: the app adds the word in the user's
+    language, and a prefixed value can't be sorted."""
+    if floor is None:
+        return None
+    match = re.search(r'-?\d+', str(floor))
+    return match.group(0) if match else None
+
+
 def placements(tenants, held, osm, footprint, centre_slug, types, mall_name=None):
     """One decision per listed tenant: already held, placed by OSM, or at the
     centre. Returns (to_write, already_held, untyped)."""
@@ -188,10 +199,10 @@ def placements(tenants, held, osm, footprint, centre_slug, types, mall_name=None
             claimed_osm.add(key)
             lat, lng, source = placed['lat'], placed['lng'], 'osm'
             # the operator's Piso wins; OSM's level only fills a gap
-            shown_floor = floor or (f"Piso {placed['level']}" if placed.get('level') else None)
+            shown_floor = floor_value(floor) or floor_value(placed.get('level'))
         else:
             lat, lng, source = centroid[0], centroid[1], 'centre'
-            shown_floor = floor or None
+            shown_floor = floor_value(floor)
         to_write.append({
             'tenant': tenant, 'poi_id': poi_id(centre_slug, tenant, occurrence),
             'lat': lat, 'lng': lng, 'floor': shown_floor,

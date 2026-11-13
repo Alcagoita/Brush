@@ -52,7 +52,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -63,12 +62,8 @@ import mall_footprints  # noqa: E402
 import mall_tenants  # noqa: E402
 from mall_tenants import CONFIDENT_THRESHOLD, key_score, mall_tokens, tenant_key  # noqa: E402
 
-def floor_value(floor: str | None) -> str | None:
-    """`Piso -4` -> `-4`, the shape `overture_poi.floor` holds (0030)."""
-    if not floor:
-        return None
-    match = re.search(r'-?\d+', floor)
-    return match.group(0) if match else None
+# One stored floor shape for every writer (KAN-503); defined in the writer.
+floor_value = writer.floor_value
 
 
 def row_id(row) -> str:
