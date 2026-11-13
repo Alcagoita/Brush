@@ -33,7 +33,7 @@ are a check on floors, not a recount of tenants.
 | **UBBO** | **246 of 246** (operator publishes none) | **108 of 111** | 111 of 111 | Effectively no floors. README says floors come from OSM; served data shows they mostly didn't land |
 | **Strada Outlet** | **113 of 113** (operator publishes none) | 0 of 48 | 61 | Curated rows have OSM-derived floors, unchecked against anything (README) |
 | Centro Comercial Colombo | 8 of 300 (`100 MONTADITOS`, `HAPPY FOOD`, `AWA MASSAGE`, `COS`, `LEROY MERLIN`, `NATURAPURA`, `NOS Stand`, `WORTEN`) | 4 of 75 (`Baloes Samba`, `IMAX`, `Montanha Russa`, `NATURAPURA`) | 28 of 174 | |
-| Amoreiras Shopping Center | 2 of 196 (`Simple & Fast – Oficina Auto`, `Simple Eco Wash`) | 2 of 93 | **87 of 87** | Also **91 rows store `Piso N`** → KAN-503 |
+| Amoreiras Shopping Center | 2 of 196 (`Simple & Fast – Oficina Auto`, `Simple Eco Wash`) | 2 of 93 | **87 of 87** | Before KAN-503, 91 of these rows stored `Piso N`; migration 0077 (applied 2026-11-13) rewrote them to bare integers |
 | Vasco da Gama | 0 of 218 | 0 of 31 | 22 | |
 | NorteShopping, Via Catarina, LeiriaShopping, Braga Parque, Nova Arcada, Forum Coimbra, Alma Shopping, Forum Algarve, MAR Shopping Algarve, AlgarveShopping | 0 | 0 | 0 | Complete |
 
@@ -46,25 +46,43 @@ They'd show on the mall card with no floor until that review happens.
 ### Second OSM outlines of reconciled centres
 
 These appear as separate `shop=mall` objects, so they're in the CSV below,
-but they belong to centres already reconciled. Worth checking for KAN-513:
-detection uses one outline per centre.
+marked in its `note` column, but they belong to centres already reconciled.
+Worth checking for KAN-513: detection uses one outline per centre.
 
 - `Forum Algarve` — `way/92036327` (46,859 m²); `footprints.json` uses `way/182734578`
 - `Nova Arcada` — `way/827832125` (22,998 m²; likely the retail park); `footprints.json` uses `way/55617020`
 
-## 2. Centres with no operator list (595) — no floor information at all
+## 2. OSM mall objects with no operator list — no floor information at all
 
-Every `shop=mall` in Portugal that isn't one of the 15 above. With no
-operator list there is no reliable floor for any unit (floors don't come
-from OSM — README, "Floors do not come from OSM"). Full list with OSM id,
-coordinates, outline area and website: **`docs/mall-floor-inventory.csv`**,
-largest first.
+The CSV holds **595 OSM `shop=mall` objects**, every one in Portugal except
+the 15 reconciled outlines above. Objects are not centres: one centre can be
+mapped as several. Three are known second outlines, marked in the CSV's
+`note` column:
 
-Most are small: by outline area, 13 are ≥ 40,000 m², 69 are 10–40,000 m²,
-124 are 2–10,000 m², 185 are under 2,000 m² (galleries), and 204 have no
-area (OSM node or relation). 53 have no name.
+- 2 belong to reconciled centres (Forum Algarve, Nova Arcada), so they are
+  not unreconciled centres;
+- 1 is a second outline of Centro Comercial Continente de Loures.
+
+That leaves **593 objects for centres with no operator list**. The distinct
+count of centres is lower still and not measured: repeated names (e.g.
+`Centro Comercial Bela Vista` ×3) may be one centre or several in different
+towns.
+
+With no operator list there is no reliable floor for any unit (floors don't
+come from OSM — README, "Floors do not come from OSM"). Full list with OSM
+id, coordinates, outline area, website and note:
+**`docs/mall-floor-inventory.csv`**, largest first.
+
+Most are small. Of the 593, by outline area: 12 are ≥ 40,000 m², 68 are
+10–40,000 m², 124 are 2–10,000 m², 185 are under 2,000 m² (galleries), and
+204 have no area (OSM node or relation). 53 have no name. (Counting all 595
+objects gives 13 and 69: the extra ≥ 40,000 m² object is Forum Algarve's
+second outline, the extra 10–40,000 m² one is Nova Arcada's.)
 
 ### The largest 30, for a first pass
+
+Second outlines of reconciled centres are left out; rows 1–12 are the 12
+objects of 40,000 m² or more.
 
 | # | Centre | Area m² | OSM |
 |---|---|---|---|
