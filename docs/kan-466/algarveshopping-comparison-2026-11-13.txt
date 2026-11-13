@@ -1,0 +1,125 @@
+
+===== AlgarveShopping — 116 tenants on the operator list =====
+
+  held and confidently matched : 47
+  ESCALATE (a person decides)  : 8
+  ADD from OSM                 : 19
+  on the list, no source has it: 41
+  REMOVE (held, not listed)    : 14   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [1.00] two tenants, one held row WORTEN / WORTEN MOBILE
+                           Worten Mobile
+    [0.90] two tenants, one OSM element INTIMISSIMI / IUMAN Intimissimi Uomo
+                           Intimissimi
+    [0.90] two tenants, one held row Le Croissant / Quiosque Le Croissant
+                           Le Croissant Guia
+    [0.90] two tenants, one held row ZARA / ZARA HOME
+                           Zara
+    [0.71] held vs tenant The Body Shop
+                           OYSHO
+    [0.70] tenant vs OSM  Tramas Home
+                           Zara Home
+    [0.67] held vs tenant Bertrand
+                           TIMBERLAND
+    [0.57] held vs tenant Pepe Jeans, Algarveshopping
+                           SALSA JEANS
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    1920 BARBER SHOP
+      -> OSM: 1920 Barber Shop
+    AGÊNCIA ABREU
+      -> OSM: Abreu
+    ALDO
+      -> OSM: Aldo
+    C&A
+      -> OSM: C&A
+    CELEIRO
+      -> OSM: Celeiro
+    ECCO
+      -> OSM: Ecco
+    Farmácia do Shopping
+      -> OSM: Farmácia do Shopping
+    JEAN LOUIS DAVID
+      -> OSM: Jean Louis David
+    MISTER MINIT
+      -> OSM: Mister Minit
+    O BOTICÁRIO
+      -> OSM: O Boticário
+    OPTICÁLIA
+      -> OSM: Opticalia
+    PRIMOR
+      -> OSM: Primor
+    SAMSONITE
+      -> OSM: Samsonite
+    SKECHERS
+      -> OSM: Skechers
+    STRADIVARIUS
+      -> OSM: Stradivarius
+    Taco Bell
+      -> OSM: Taco Bell
+    VITAMINAS
+      -> OSM: Vitaminas
+    VODAFONE
+      -> OSM: Vodafone
+    WOMEN’SECRET
+      -> OSM: Women'secret
+
+  --- listed but no source can place it (no coordinates) ---
+    Açaí Algarve Express
+    ALI BABA KEBAB HAUS
+    Arcádia
+    BEONTIME
+    BLUEBIRD
+    BOUTIQUE DOS RELÓGIOS
+    BRIGHTMOBILES
+    CAFÉ PANS
+    CARILOR
+    Cavalinho
+    Clínica CUF Guia – AlgarveShopping
+    CORTEFIEL
+    Decenio
+    ISTORE
+    ITALIAN REPUBLIC
+    JOSE LUIS JOALHARIAS
+    Lefties
+    LION OF PORCHES
+    LOJA DAS BAÍNHAS
+    Mayoral
+    MR. BLUE
+    MUNDO DO CAFÉ
+    NATURA
+    ORO VIVO
+    PACO MARTINEZ
+    PANELA DA SOPA/DOM BACALHAU
+    PLURICOSMÉTICA
+    Poke House
+    Q.B. CONCEPT
+    QUEBRAMAR
+    QUICK PICK
+    REAL TRANSFER
+    RITUALS
+    SOULD PARK
+    SUITS INC
+    TECHNOLOGY & ACCESSORIES
+    TIFFOSI
+    UltraWash
+    VILANOVA ACCESSORIES
+    VISTA ALEGRE
+    XIAOMI STORE PORTUGAL
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    Cineplace  [movie_theater]
+    Equivalenza AlgarveShopping  [spa]
+    G-Star RAW Store  [store]
+    GUIA DELIVERY  [restaurant]
+    Happy Family  [restaurant]
+    Hussel  [bakery]
+    Joshua's Shoarma Grill  [restaurant]
+    Mango  [store]
+    New Game  [store]
+    Ray-Ban  [store]
+    Restaurante O Aurelio  [restaurant]
+    Superdry  [store]
+    made|in  [store]
+    note! Guia  [store]

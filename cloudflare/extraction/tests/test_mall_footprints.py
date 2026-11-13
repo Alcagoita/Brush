@@ -210,6 +210,22 @@ class RealFootprintTest(unittest.TestCase):
         for outside in ((40.203352871277, -8.40751948234), (40.20521583, -8.40597067)):   # stadium, ESEC
             self.assertFalse(mf.in_footprint(*outside, alma), f'neighbour at {outside}')
 
+    def test_the_algarve_centres_take_in_the_units_measured_outside_their_outlines(self):
+        """KAN-466. The hypermarket at Forum Algarve sits 34 m out, MAR's
+        Tezenis (Complexo Comercial IKEA) 39 m, and AlgarveShopping's La Casa
+        de las Carcasas 44 m. Coordinates are the held rows, measured in
+        production on 2026-11-13."""
+        for name, osm, buffer_m, unit in (
+                ('Forum Algarve', 'way/182734578', 50, (37.02792326, -7.94406396)),
+                ('MAR Shopping Algarve', 'way/525348390', 75, (37.0993241, -7.9995127)),
+                ('AlgarveShopping', 'relation/7759235', 50, (37.12829162, -8.27868911))):
+            fp = self.footprints[name]
+            self.assertEqual(fp['osm'], osm)
+            self.assertEqual(fp['buffer_m'], buffer_m)
+            self.assertEqual(mf.mall_at(*fp['centroid'], self.footprints), name)
+            self.assertFalse(mf.in_footprint(*unit, fp, buffer_m=0), f'{name}: outside the outline')
+            self.assertTrue(mf.in_footprint(*unit, fp), f'{name}: inside the buffer')
+
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
         self.assertTrue(mf.in_footprint(*amoreiras['centroid'], amoreiras))

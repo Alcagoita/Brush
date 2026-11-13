@@ -1,0 +1,121 @@
+# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.
+# A ruling belongs in tenant_type_overrides.json, which outranks
+# every other row of evidence here.
+name	poi_type	store_kind	extra_types	evidence
+1920 Barber Shop	barber			ruled by a person
+ACP	store	auto_parts_and_supply		ruled by a person
+Alberto Oculista	store	eyewear_and_optician		held elsewhere in Portugal
+Aldo	store	shoes		held elsewhere in Portugal
+Arcádia	bakery		cafe	ruled by a person
+Auchan Faro	supermarket			held elsewhere in Portugal
+Baja Fresh	restaurant			held elsewhere in Portugal
+Bershka	store	clothing		held elsewhere in Portugal
+Bifanas de Vendas Novas	restaurant			held elsewhere in Portugal
+Boutique dos Relógios	store	jewelry		held elsewhere in Portugal
+Burger King	restaurant			held elsewhere in Portugal
+C&A	store	clothing		ruled by a person
+Café do Lado	cafe			held elsewhere in Portugal
+Calzedonia	store	clothing		held elsewhere in Portugal
+Celeiro	supermarket			OSM supermarket
+Centro Xogo	store	toys		OSM toys
+CeX	store	electronics		OSM electronics
+Chamaquito	lottery	tobacco	store	held elsewhere in Portugal
+Cinemas NOS	movie_theater			ruled by a person
+Delta Espresso	cafe			held elsewhere in Portugal
+Doner Kebab Al Sultão	restaurant			held elsewhere in Portugal
+Douglas	store	beauty		held elsewhere in Portugal
+Eco Car Wash	car_wash			held elsewhere in Portugal
+Equivalenza	store	beauty		held elsewhere in Portugal
+Ericeira Surf & Skate	store	sports		held elsewhere in Portugal
+Farmácia Baptista	pharmacy			held elsewhere in Portugal
+Flying Tiger	store	gift		ruled by a person
+FNAC	store	books		ruled by a person
+Fotosport	store	photography_store_and_services		held elsewhere in Portugal
+Gant	store	clothing		OSM clothes
+Guess	store	clothing		OSM clothes
+H3	restaurant			held elsewhere in Portugal
+Hanami Sushi	restaurant			held elsewhere in Portugal
+Hawkers	store	sunglasses		ruled by a person
+Intimissimi	store	clothing		held elsewhere in Portugal
+JD Sports	store	sports		OSM sports
+Joshua's Shoarma	restaurant			held elsewhere in Portugal
+KFC	restaurant			held elsewhere in Portugal
+Kiko Milano	store	beauty		held elsewhere in Portugal
+Lacoste	store	clothing		held elsewhere in Portugal
+Lefties	store	clothing		held elsewhere in Portugal
+Levi's Store	store	clothing		held elsewhere in Portugal
+Livraria Bertrand	store	books		held elsewhere in Portugal
+Loja das Sopas	restaurant			held elsewhere in Portugal
+Mais Óptica	store	eyewear_and_optician		held elsewhere in Portugal
+Mango	store	clothing		held elsewhere in Portugal
+Massimo Dutti	store	clothing		held elsewhere in Portugal
+Mayoral	store	clothing		held elsewhere in Portugal
+McDonald's	restaurant			ruled by a person
+MEO	store	phone		held elsewhere in Portugal
+Mister Minit	shoe_repair			ruled by a person
+Mr. Blue	store	clothing		held elsewhere in Portugal
+MultiOpticas	store	eyewear_and_optician		held elsewhere in Portugal
+Mundo do Café	cafe			held elsewhere in Portugal
+Nata Lisboa	cafe			OSM cafe
+Nespresso	store	coffee_supplies		ruled by a person
+NOS	store	phone		OSM mobile_phone
+O Boticário	store	beauty		ruled by a person
+O Melhor Croissant da Rua	cafe			OSM cafe
+O Seu Bitoque	restaurant			held elsewhere in Portugal
+Oysho	store	clothing		OSM clothes
+Paco Martinez	store	handbag		OSM bag
+Pandora	store	jewelry		OSM jewelry
+Pans & Company	restaurant			held elsewhere in Portugal
+Parfois	store	jewelry		held elsewhere in Portugal
+Paulo Miranda Joalheiro	store	jewelry		held elsewhere in Portugal
+Pizza Hut	restaurant			held elsewhere in Portugal
+Pluricosmética	store	beauty		ruled by a person
+Poke House	restaurant			held elsewhere in Portugal
+Portugália Balcão	restaurant			ruled by a person
+Presse Linha	store	newspaper_and_magazines		ruled by a person
+Primor	store	beauty		held elsewhere in Portugal
+Pull & Bear	store	clothing		held elsewhere in Portugal
+Rituals	store	beauty		held elsewhere in Portugal
+Sabores do Churrasco	restaurant			held elsewhere in Portugal
+Salsa	store	clothing		held elsewhere in Portugal
+Samsung	store	electronics		OSM electronics
+Santander Totta	bank			held elsewhere in Portugal
+Sergent Major	store	childrens_clothing		held elsewhere in Portugal
+Skechers	store	shoes		held elsewhere in Portugal
+Snipes	store	shoes		held elsewhere in Portugal
+Sportzone	store	sports		OSM sports
+Springfield	store	clothing		held elsewhere in Portugal
+Starbucks	cafe			held elsewhere in Portugal
+Stradivarius	store	clothing		held elsewhere in Portugal
+Swarovski	store	jewelry		held elsewhere in Portugal
+Taco Bell	restaurant			held elsewhere in Portugal
+Talho Burger	restaurant			ruled by a person
+Tiffosi	store	clothing		held elsewhere in Portugal
+Timberland	store	shoes		ruled by a person
+Tomatino	restaurant			held elsewhere in Portugal
+Top Atlântico	travel_agency			ruled by a person
+Tous	store	jewelry		ruled by a person
+Triumph	store	clothing		held elsewhere in Portugal
+Unicâmbio	currency_exchange			ruled by a person
+Vans	store	shoes		OSM shoes
+Viagens Abreu	travel_agency			OSM travel_agency
+Vista Alegre	store	home		ruled by a person
+Vitaminas	restaurant			OSM restaurant
+Vodafone	store	phone		OSM mobile_phone
+Wiñk	nail_salon			ruled by a person
+Wok to Walk	restaurant			held elsewhere in Portugal
+Worten Mobile	phone_repair	electronics	store	brand set held at NorteShopping and Via Catarina
+Zara	store	clothing		held elsewhere in Portugal
+Zara Home	store	home		ruled by a person
+Zippy	store	clothing		held elsewhere in Portugal
+Blue Banana	store	clothing		ruled by a person
+Blue Lavandaria	laundry			ruled by a person
+Cortefiel / Women'Secret	store	clothing		ruled by a person
+Diana Studio	nail_salon			ruled by a person
+Emma	store	mattress		ruled by a person
+GMS Store	store	electronics		ruled by a person
+Hey Doc	store	beauty		ruled by a person
+Love N'Roll	ice_cream			ruled by a person
+Seeds	florist			ruled by a person
+Terra Pura	store	health_food		ruled by a person
+Volto Drive	car_rental			ruled by a person

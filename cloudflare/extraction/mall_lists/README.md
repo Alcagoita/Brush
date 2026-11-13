@@ -38,6 +38,9 @@ it retires real places with false confidence.
 | `nova_arcada.txt` | Nova Arcada, Braga | shops, eating and retail park (96) | 2026-11-12 |
 | `forum_coimbra.txt` | Forum Coimbra, Coimbra | shops and eating (127) | 2026-11-13 |
 | `alma_shopping.txt` | Alma Shopping (ex Dolce Vita), Coimbra | shops and eating (97) | 2026-11-13 |
+| `forum_algarve.txt` | Forum Algarve, Faro | shops and eating (117) | 2026-11-13 |
+| `mar_shopping_algarve.txt` | MAR Shopping Algarve, Loulé | shops (88) and eating (31) | 2026-11-13 |
+| `algarveshopping.txt` | AlgarveShopping, Guia | shops and eating (116) | 2026-11-13 |
 
 `ubbo_operator_categories.tsv` and `amoreiras_operator_categories.tsv` hold
 each centre's operator categories verbatim. They are first a **helper for a

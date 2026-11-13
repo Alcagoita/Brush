@@ -1,0 +1,176 @@
+
+===== MAR Shopping Algarve — 119 tenants on the operator list =====
+
+  held and confidently matched : 36
+  ESCALATE (a person decides)  : 5
+  ADD from OSM                 : 51
+  on the list, no source has it: 27
+  REMOVE (held, not listed)    : 21   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [0.90] two tenants, one held row Cinemas NOS / NOS
+                           Cinemas NOS MAR Shopping Algarve
+    [0.80] tenant vs held Natura
+                           Nata Lisboa - Algarve
+    [0.73] tenant vs OSM  Midas
+                           Adidas
+    [0.69] tenant vs held The Barber Company
+                           Pans & Company
+    [0.50] held vs tenant, shared word loule LOULÉ SC MAR SHOPPING ALGARVE
+                           Clínica CUF Loulé
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    ALDO
+      -> OSM: Aldo
+    AROMAS
+      -> OSM: Aromas
+    BPI
+      -> OSM: BPI
+    CENTROXOGO
+      -> OSM: Centroxogo
+    Chicco
+      -> OSM: Chicco
+    DECIMAS
+      -> OSM: Decimas
+    DEICHMANN
+      -> OSM: Deichmann
+    EYECONIC
+      -> OSM: Eyeconic
+    FNAC
+      -> OSM: Fnac
+    G-Shop
+      -> OSM: G-Shop
+    JEAN LOUIS DAVID
+      -> OSM: Jean Louis David
+    JOSE LUIS Joyerías
+      -> OSM: José Luis Joyerías
+    Maisons du Monde
+      -> OSM: Maisons du Monde
+    MASSIMO DUTTI
+      -> OSM: Massimo Dutti
+    MAYORAL
+      -> OSM: Mayoral
+    MEO
+      -> OSM: MEO
+    Mister Minit
+      -> OSM: Mister Minit
+    MR BLUE
+      -> OSM: Mr. Blue
+    Normal
+      -> OSM: Normal
+    NOTE!
+      -> OSM: note!
+    O BOTICÁRIO
+      -> OSM: O Boticário
+    ORO VIVO
+      -> OSM: Oro Vivo
+    OYSHO
+      -> OSM: Oysho
+    PACOMARTINEZ
+      -> OSM: Pacomartinez
+    PANDORA
+      -> OSM: Pandora
+    PLURICOSMÉTICA
+      -> OSM: Pluricosmética
+    PULL&BEAR
+      -> OSM: Pull & Bear
+    PUNT ROMA
+      -> OSM: Punt Roma
+    SALSA
+      -> OSM: Salsa
+    Sfera
+      -> OSM: Sfera
+    SKECHERS
+      -> OSM: Skechers
+    Snipes
+      -> OSM: Snipes
+    SPRINGFIELD
+      -> OSM: Springfield
+    STRADIVARIUS
+      -> OSM: Stradivarius
+    SWAROVSKI
+      -> OSM: Swarovski
+    TIFFOSI
+      -> OSM: Tiffosi
+    TRAMAS
+      -> OSM: Tramas
+    Viagens Abreu
+      -> OSM: Abreu
+    VODAFONE
+      -> OSM: Vodafone
+    WOMEN'SECRET
+      -> OSM: Women'secret
+    WORTEN
+      -> OSM: Worten
+    ZARA
+      -> OSM: Zara
+    ZARA HOME
+      -> OSM: Zara Home
+    ZIPPY
+      -> OSM: Zippy
+    ARCÁDIA - Casa do Chocolate
+      -> OSM: Arcádia
+    BIFANAS DE VENDAS NOVAS
+      -> OSM: Bifanas de Vendas Novas
+    Grill & Beer
+      -> OSM: Grill & Beer
+    H3
+      -> OSM: h3
+    HANAMI SUSHI
+      -> OSM: Hanami Sushi
+    JOSHUA'S SHOARMA
+      -> OSM: Joshua's Shoarma
+    Portugália Balcão
+      -> OSM: Portugália
+
+  --- listed but no source can place it (no coordinates) ---
+    Acium
+    D'Oro Jóias
+    Diana Studio
+    ELY Flowers
+    Equivalenza
+    FALA SIMPLES
+    Gold Suisse
+    Grasshopper
+    Gumania
+    iStore
+    La Casa de las Carcasas
+    Opticalia
+    RKS
+    Sol e Sal
+    Sport Zone
+    Tuttocars
+    WIÑK
+    XIAOMI STORE PORTUGAL
+    Açaí Bliss
+    Arroz com Alma
+    Carte D’Or
+    Delta Espresso
+    Le Jardin Café
+    Leonidas
+    Loja das Sopas
+    Poke House
+    Weeel
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    100 Montaditos  [restaurant]
+    American Vintage Algarve, Outlet  [store]
+    BOSS Outlet  [store]
+    Calvin Klein  [store]
+    D'Berlim  [bar]
+    Douglas  [store]
+    EDJOIA Quinta do Lago  [store]
+    Haribo  [bakery]
+    Le Creuset  [store]
+    Loja do Gato Preto  [store]
+    MultiOpticas Designer Outlet Algarve  [store]
+    New Balance  [store]
+    Padaria do Bairro  [cafe]
+    Ponto CTT  [post]
+    Quiksilver  [store]
+    REVOLUTION LAUNDRY  [laundry]
+    Sunglass Hut  [store]
+    ThaiBrás-by-LeonelPereira  [restaurant]
+    Timberland Outlet Algarve  [store]
+    Triumph Outlet  [store]
+    Wash.ME - Almancil - Mar Shopping  [laundry]

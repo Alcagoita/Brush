@@ -1,0 +1,117 @@
+1920 Barber Shop|Piso -1
+ACP|Piso 0
+Alberto Oculista|Piso 0
+Aldo|Piso 1
+Arcádia|Piso 0
+Auchan Faro|Piso 0
+Baja Fresh|Piso 1
+Bershka|Piso 0
+Bifanas de Vendas Novas|Piso 1
+Blue Banana|Piso 0
+Blue Lavandaria|Piso -1
+Boutique dos Relógios|Piso 0
+Burger King|Piso 1
+C&A|Piso 0
+Café do Lado|Piso 0
+Calzedonia|Piso 0
+Celeiro|Piso 0
+Centro Xogo|Piso 1
+CeX|Piso 0
+Chamaquito|Piso 0
+Cinemas NOS|Piso 1
+Cortefiel / Women'Secret|Piso 0
+Delta Espresso|Piso 1
+Diana Studio|Piso 0
+Doner Kebab Al Sultão|Piso 1
+Douglas|Piso 0
+Eco Car Wash|Piso -1
+Emma|Piso 0
+Equivalenza|Piso 0
+Ericeira Surf & Skate|Piso 1
+Farmácia Baptista|Piso 0
+Flying Tiger|Piso 0
+FNAC|Piso 0
+Fotosport|Piso 0
+Gant|Piso 1
+GMS Store|Piso 0
+Guess|Piso 0
+H3|Piso 1
+Hanami Sushi|Piso 1
+Hawkers|Piso 0
+Hey Doc|Piso 0
+Intimissimi|Piso 0
+JD Sports|Piso 0
+Joshua's Shoarma|Piso 1
+KFC|Piso 1
+Kiko Milano|Piso 0
+Lacoste|Piso 1
+Lefties|Piso 1
+Levi's Store|Piso 1
+Livraria Bertrand|Piso 0
+Loja das Sopas|Piso 1
+Love N'Roll|Piso 1
+Mais Óptica|Piso 0
+Mango|Piso 1
+Massimo Dutti|Piso 0
+Mayoral|Piso 0
+McDonald's|Piso 1
+MEO|Piso 0
+Mister Minit|Piso 0
+Mr. Blue|Piso 1
+MultiOpticas|Piso 0
+Mundo do Café|Piso 0
+Nata Lisboa|Piso 0
+Nespresso|Piso 0
+NOS|Piso 0
+O Boticário|Piso 0
+O Melhor Croissant da Rua|Piso 0
+O Seu Bitoque|Piso 1
+Oysho|Piso 0
+Paco Martinez|Piso 0
+Pandora|Piso 0
+Pans & Company|Piso 1
+Parfois|Piso 1
+Paulo Miranda Joalheiro|Piso 0
+Pizza Hut|Piso 1
+Pluricosmética|Piso 1
+Poke House|Piso 1
+Portugália Balcão|Piso 1
+Presse Linha|Piso 1
+Primor|Piso 1
+Pull & Bear|Piso 0
+Rituals|Piso 0
+Sabores do Churrasco|Piso 1
+Salsa|Piso 1
+Samsung|Piso 0
+Santander Totta|Piso 0
+Seeds|Piso 0
+Sergent Major|Piso 0
+Skechers|Piso 0
+Snipes|Piso 0
+Sportzone|Piso 1
+Springfield|Piso 0
+Starbucks|Piso 0
+Stradivarius|Piso 0
+Swarovski|Piso 0
+Taco Bell|Piso 1
+Talho Burger|Piso 1
+Terra Pura|Piso 0
+Tiffosi|Piso 1
+Timberland|Piso 0
+Tomatino|Piso 1
+Top Atlântico|Piso 0
+Tous|Piso 0
+Triumph|Piso 0
+Unicâmbio|Piso 0
+Vans|Piso 0
+Viagens Abreu|Piso 0
+Vista Alegre|Piso 0
+Vitaminas|Piso 1
+Vodafone|Piso 0
+Volto Drive|Piso -1
+Wiñk|Piso 0
+Wok to Walk|Piso 1
+Worten Mobile|Piso 0
+Zara|Piso 0
+Zara Home|Piso 0
+Zippy|Piso 1

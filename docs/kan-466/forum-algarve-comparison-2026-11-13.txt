@@ -1,0 +1,120 @@
+
+===== Forum Algarve — 117 tenants on the operator list =====
+
+  held and confidently matched : 61
+  ESCALATE (a person decides)  : 12
+  ADD from OSM                 : 15
+  on the list, no source has it: 37
+  REMOVE (held, not listed)    : 13   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [0.90] two tenants, one held row Cinemas NOS / NOS
+                           Cinemas NOS Forum Algarve
+    [0.90] two tenants, one held row Zara / Zara Home
+                           Zara
+    [0.71] held vs tenant The Body Shop
+                           Oysho
+    [0.70] tenant vs OSM  Delta Espresso
+                           Nespresso
+    [0.69] tenant vs held Boutique dos Relógios
+                           Boutique Nespresso
+    [0.62] held vs tenant Claire's
+                           Celeiro
+    [0.58] held vs tenant Imaginarium
+                           Viagens Abreu
+    [0.58] held vs tenant Il Café Di Roma
+                           Café do Lado
+    [0.57] held vs tenant O Dogao_Faro
+                           Auchan Faro
+    [0.57] held vs tenant Geox
+                           CeX
+    [0.57] held vs tenant Jumbo de Faro
+                           Auchan Faro
+    [0.47] held vs tenant, shared word relogios Relógios e Joias PT
+                           Boutique dos Relógios
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    Aldo
+      -> OSM: Aldo
+    Equivalenza
+      -> OSM: Equivalenza
+    Gant
+      -> OSM: GANT
+    Kiko Milano
+      -> OSM: KIKO Milano
+    Mister Minit
+      -> OSM: Mister Minit
+    O Boticário
+      -> OSM: O Boticário
+    Primor
+      -> OSM: Primor
+    Samsung
+      -> OSM: Samsung
+    Santander Totta
+      -> OSM: Santander
+    Tomatino
+      -> OSM: Tomatino
+    Viagens Abreu
+      -> OSM: Abreu
+    Vitaminas
+      -> OSM: Vitaminas
+    Vodafone
+      -> OSM: Vodafone
+    Worten Mobile
+      -> OSM: Worten Mobile
+    Zippy
+      -> OSM: Zippy
+
+  --- listed but no source can place it (no coordinates) ---
+    ACP
+    Alberto Oculista
+    Arcádia
+    Baja Fresh
+    Bifanas de Vendas Novas
+    Blue Banana
+    Blue Lavandaria
+    Centro Xogo
+    CeX
+    Diana Studio
+    Eco Car Wash
+    Emma
+    Ericeira Surf & Skate
+    Fotosport
+    Hanami Sushi
+    Hawkers
+    Hey Doc
+    Love N'Roll
+    Mayoral
+    Mundo do Café
+    Nata Lisboa
+    O Melhor Croissant da Rua
+    O Seu Bitoque
+    Paco Martinez
+    Paulo Miranda Joalheiro
+    Pluricosmética
+    Poke House
+    Presse Linha
+    Salsa
+    Seeds
+    Sergent Major
+    Taco Bell
+    Top Atlântico
+    Unicâmbio
+    Vista Alegre
+    Volto Drive
+    Wiñk
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    A Loja do Gato Preto  [store]
+    Bubble Spot  [tea]
+    Courir  [store]
+    Diocese do Algarve  [church]
+    Foot Locker  [store]
+    Happy Family  [restaurant]
+    Jean Louis David  [barber]
+    QUICK PICK  [store]
+    Redken  [spa]
+    Sabor Carioca Salgados  [restaurant]
+    The world needs natas  [cafe]
+    Wash.ME - Faro - Lidl  [laundry]
+    llaollao  [ice_cream]

@@ -113,10 +113,16 @@ def assign(tenants, held, mall_name, confirmed=None, certain=None):
             if r_norm in ruled_for and t_norm not in ruled_for[r_norm]:
                 continue
             r_key = tenant_key(row['name'], tokens)
-            score = 1.0 if r_norm in sure else key_score(t_key, r_key)
+            ruled = r_norm in sure
+            score = 1.0 if ruled else key_score(t_key, r_key)
             if score >= CONFIDENT_THRESHOLD:
                 exact = 1 if t_key == r_key else 0
-                edges.append((0 if sure_row[h] else 1, -score, -exact, abs(len(t_key) - len(r_key)), t, h))
+                # A person's ruling outranks geometry: at Forum Algarve the
+                # listed `Auchan Faro` (the hypermarket, confirmed as the
+                # `Auchan` row 34 m out) went to `Óptica Auchan Faro`
+                # inside the outline (KAN-466).
+                edges.append((0 if ruled else 1, 0 if sure_row[h] else 1, -score, -exact,
+                              abs(len(t_key) - len(r_key)), t, h))
     edges.sort()
 
     answers, taken = {}, set()
@@ -221,9 +227,16 @@ def plan(tenants, held, osm, mall_name, slug, types, confirmed=None, address_wor
         else:
             kept_outside.append(row)      # a branch on the street, not a second copy
     tokens = mall_tokens(mall_name)
+    # A far row a person has confirmed as a tenant is that tenant, whatever the
+    # name score: MAR Shopping Algarve's `H3 Hambúrguer Gourmet` is listed `H3`.
+    ruled = {row_norm: tenant_norm for tenant_norm, rows in (confirmed or {}).items() for row_norm in rows}
+    listed_by_norm = {normalize_text(n): n for n, _ in tenants}
     for row in far:
         r_key = tenant_key(row['name'], tokens)
         best = max(((key_score(tenant_key(n, tokens), r_key), n) for n, _ in tenants), default=(0, None))
+        ruled_tenant = listed_by_norm.get(ruled.get(normalize_text(row['name'])))
+        if ruled_tenant:
+            best = (1.0, ruled_tenant)
         metres = round(mall_footprints.metres_outside(row['lat'], row['lng'], footprint))
         if best[0] >= CONFIDENT_THRESHOLD:
             withdraw.append((row, f'listed {best[1]!r} pinned {metres} m outside {mall_name}; '
