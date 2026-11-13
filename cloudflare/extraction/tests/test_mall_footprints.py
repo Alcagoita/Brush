@@ -182,6 +182,20 @@ class RealFootprintTest(unittest.TestCase):
             self.assertTrue(mf.in_footprint(*unit, na, buffer_m=0), f'retail park unit at {unit}')
         self.assertTrue(mf.in_footprint(41.5793799, -8.4324919, na), 'Burger King, 57 m out')
 
+    def test_forum_coimbra_takes_in_its_loja_units_and_not_the_far_pins(self):
+        """KAN-464. Intimissimi and Tezenis share a pin 63.5 m out on the
+        centre's own "Loja 0.xx" address; Pandora and LEGO, pinned 101 m out
+        on the centre's address, are far rows. Coordinates are the held rows,
+        measured in production on 2026-11-13."""
+        fc = self.footprints['Forum Coimbra']
+        self.assertEqual(fc['osm'], 'way/37079296')
+        self.assertEqual(fc['buffer_m'], 65)
+        self.assertEqual(mf.mall_at(*fc['centroid'], self.footprints), 'Forum Coimbra')
+        loja = (40.2116774, -8.44110137)
+        self.assertFalse(mf.in_footprint(*loja, fc, buffer_m=0), 'outside the outline')
+        self.assertTrue(mf.in_footprint(*loja, fc), 'inside the buffer')
+        self.assertFalse(mf.in_footprint(40.21174, -8.44063, fc), 'Pandora / LEGO far pin')
+
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
         self.assertTrue(mf.in_footprint(*amoreiras['centroid'], amoreiras))
