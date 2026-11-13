@@ -1,0 +1,100 @@
+# KAN-464. Alma Shopping operator categories, verbatim. A HELPER ONLY —
+# our poi_type and store_kind are never derived from these.
+name	operator_categories
+5 à Sec e 5 à Fil	Serviços
+Acium	Acessórios
+Activo Bank	Serviços
+Alberto Oculista	Saúde e Beleza
+Alentejo	Alimentação
+Auchan	Alimentação
+Bertrand	Entretenimento
+Bitoque no Ponto	Alimentação
+BlueBird	Acessórios
+Boutique dos Relógios	Acessórios
+Braza	Alimentação
+BStrong	Desporto
+Burger King	Alimentação
+Café Pans	Alimentação
+Calzedonia	Moda
+Celeiro Dieta	Alimentação
+Centroxogo	Entretenimento
+Cex We Buy	Entretenimento
+CHAVIARTE	Serviços
+Cidália Cabeleireiros	Saúde e Beleza
+Cinemas NOS	Entretenimento
+Coffee House	Alimentação
+Companhia	Alimentação
+Cortefiel	Moda
+Decenio	Moda
+Delta Espresso	Alimentação
+Douglas	Saúde e Beleza
+Equivalenza	Saúde e Beleza
+Feu Vert	Serviços
+Florista Tina	Serviços
+Fotosport	Serviços
+GEOX	Acessórios
+Giovanni Galli	Moda
+Go Gym	Serviços
+H3	Alimentação
+I Love Kebab	Alimentação
+Ink House	Tecnologias
+Intimissimi	Moda
+iServices	Serviços
+JD Sports	Moda
+KFC	Alimentação
+Kung Fu Noodle	Alimentação
+La Casa de Las Carcasas	Acessórios
+Lanidor	Moda
+Lanidor Kids	Infantil
+Leonidas	Alimentação
+Lion of Porches	Moda
+Llao Llao	Alimentação
+Mayoral	Infantil
+McDonald’s	Alimentação
+MEO	Serviços
+MO	Moda
+Mr. Blue	Moda
+MultiOpticas	Saúde e Beleza
+Natura	Moda
+New Home Decor	Casa e Decoração
+Normal	Saúde e Beleza
+NOS	Serviços
+Pandora	Acessórios
+Pans & Company	Alimentação
+Parfois	Acessórios
+Pepco	Casa e Decoração
+Perfeit’Olhar	Saúde e Beleza
+Perfumes & Companhia	Saúde e Beleza
+Pizza Hut	Alimentação
+Pluricosmética	Saúde e Beleza
+Portugália	Alimentação
+Primor	Saúde e Beleza
+Quebramar	Moda
+Quiosque dos Sabores	Alimentação
+Sacoor Brothers	Moda
+Salsa	Moda
+Samsonite	Acessórios
+Seaside	Acessórios
+Sfera	Moda
+Solinca	Serviços
+Sport Zone	Desporto
+Springfield	Moda
+Staza	Acessórios
+Swarovski	Acessórios
+The Body Shop	Saúde e Beleza
+Tiendanimal	Serviços
+Tiffosi	Moda
+Tiger	Entretenimento
+Tomatino	Alimentação
+Tous	Acessórios
+Triumph	Moda
+Viagens Abreu	Serviços
+Vilanova	Moda
+Vista Alegre	Casa e Decoração
+Vitaminas	Alimentação
+Vodafone	Serviços
+Wall Street English	Serviços
+Women’Secret	Moda
+Worten	Entretenimento
+Worten Mobile	Serviços
+Zippy	Infantil

@@ -47,7 +47,7 @@ import unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from classify_and_load import byte_len, encode_geohash, normalize_text, sql_escape  # noqa: E402
+from classify_and_load import byte_len, encode_geohash, find_brand, normalize_text, sql_escape  # noqa: E402
 import mall_footprints  # noqa: E402
 import mall_tenants  # noqa: E402
 from mall_tenants import CONFIDENT_THRESHOLD, mall_tokens, name_similarity, tenant_key  # noqa: E402
@@ -66,10 +66,32 @@ EXTRA_TYPE_DIMENSION = 'poi_type'  # what curated_poi_attribute already uses (24
 
 CURATED_COLUMNS = (
     'poi_id', 'source', 'name', 'dedupe_name', 'lat', 'lng', 'geohash',
-    'primary_poi_type', 'address', 'floor', 'country_code',
+    'primary_poi_type', 'brand', 'address', 'floor', 'country_code',
     'status', 'created_at', 'created_by', 'updated_at', 'updated_by',
     'origin_source', 'origin_id', 'origin_licence', 'imported_at', 'import_run_id',
 )
+
+# KAN-464 review. A written row carries its canonical brand from the shared
+# catalogue, as every other curated row does; brand-aware nearby filters on
+# the column. backfill_brands.py cannot reach these rows — it walks hex id
+# prefixes and every id here starts "mall:" — so the writer must set it.
+BRAND_DICTIONARY_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+    os.path.abspath(__file__)))), 'src', 'constants', 'brandDictionary.json')
+# A name the catalogue matches to the wrong brand: Kiko Ourivesarias is a
+# jeweller, not KIKO MILANO (owner, KAN-465).
+NOT_THE_BRAND = {'kiko ourivesarias'}
+_brand_dictionary = None
+
+
+def brand_for(name, poi_types):
+    """The catalogue's canonical brand for a tenant, or None."""
+    global _brand_dictionary
+    if fold(name) in NOT_THE_BRAND:
+        return None
+    if _brand_dictionary is None:
+        with open(BRAND_DICTIONARY_PATH, encoding='utf-8') as source:
+            _brand_dictionary = json.load(source)
+    return find_brand(name, [t for t in poi_types if t], _brand_dictionary)
 CURATED_INSERT_PREFIX = f'INSERT INTO curated_poi ({", ".join(CURATED_COLUMNS)}) VALUES\n'
 CURATED_INSERT_SUFFIX = '\nON CONFLICT (poi_id) DO NOTHING;\n'
 ATTRIBUTE_INSERT_PREFIX = 'INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES\n'
@@ -186,7 +208,9 @@ def curated_value(row, imported_at, run_id, country_code='PT'):
         sql_escape(normalize_text(name) or name.strip().lower()),
         repr(float(row['lat'])), repr(float(row['lng'])),
         sql_escape(encode_geohash(row['lat'], row['lng'], GEOHASH_PRECISION)),
-        sql_escape(row['primary']), 'NULL', sql_escape(row['floor']),
+        sql_escape(row['primary']),
+        sql_escape(brand_for(name, [row['primary'], *(row.get('extra') or [])])),
+        'NULL', sql_escape(row['floor']),
         sql_escape(country_code), sql_escape('active'),
         sql_escape(imported_at), sql_escape(ACTOR), sql_escape(imported_at), sql_escape(ACTOR),
         sql_escape(ORIGIN_SOURCE), sql_escape(row['poi_id']), sql_escape(ORIGIN_LICENCE),

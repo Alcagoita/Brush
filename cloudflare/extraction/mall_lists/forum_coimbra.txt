@@ -1,0 +1,127 @@
+A Tabacaria|Piso 0
+Adidas|Piso 1
+Aldo|Piso 1
+Alentejo|Piso 2
+Arcádia|Piso 0
+Benetton|Piso 1
+Bershka|Piso 1
+BERTRAND|Piso 0
+Bifanas de Vendas Novas|Piso 2
+Bijou Brigitte|Piso 1
+BIMBA Y LOLA|Piso 1
+Bitoque no Ponto|Piso 2
+Boutique dos Relógios|Piso 1
+Brasil ao Peso / Grelhados & Cª|Piso 2
+Burger King|Piso 2
+CALZEDONIA|Piso 0
+Celeiro|Piso 0
+CEX|Piso 0
+Chicco|Piso 0
+Chimarrão|Piso 2
+Cinemas NOS|Piso 2
+Clínica de Santa Madalena|Piso 0
+Continente|Piso 0
+CORTEFIEL|Piso 1
+Cortes de Lisboa|Piso 0
+Dreams For You|Piso 1
+Ericeira|Piso 0
+Farmácia do Forum|Piso 0
+Fitness Factory|Piso 2
+Flying Tiger|Piso 0
+FNAC|Piso 1
+Frango da Guia|Piso 2
+FUXIA|Piso 0
+GANT|Piso 1
+GÓIS JOALHEIROS|Piso 1
+GUESS|Piso 1
+H&M|Piso 1
+H3|Piso 2
+Hanami Sushi|Piso 2
+I Services|Piso 0
+INTIMISSIMI|Piso 0
+INTIMISSIMI UOMO|Piso 0
+INVEJA|Piso 2
+iStore|Piso 0
+Italian Republic|Piso 2
+JD SPORTS|Piso 0
+Jean Louis David|Piso 0
+Joshua’s Shoarma Grill|Piso 2
+KFC|Piso 2
+KIKO MILANO|Piso 1
+LACOSTE|Piso 1
+Lefties|Piso 0
+LEGO|Piso 0
+Levi's|Piso 1
+Lion of Porches|Piso 1
+Loja do Benfica|Piso 0
+Lugar da Jóia|Piso 0
+Mais Optica|Piso 0
+Mango|Piso 1
+MANIA POKE BOWLS|Piso 2
+Massimo Dutti|Piso 1
+Mau Feitio|Piso 1
+McDonald's|Piso 2
+MEO|Piso 0
+MISAKO|Piso 0
+MISTER MINIT|Piso 0
+Multiópticas|Piso 0
+NAILS 4' US|Piso 1
+NESPRESSO|Piso 1
+Nicola|Piso 2
+Norauto|Piso 1
+NOS|Piso 0
+Nova Câmbios|Piso 0
+O Boticário|Piso 0
+OLÁ|Piso 2
+ORO VIVO|Piso 0
+Pandora|Piso 1
+Pans & Company|Piso 2
+Parfois|Piso 1
+Perfumes&Companhia|Piso 1
+Pizza Hut|Piso 2
+Pluricosmética|Piso 0
+Portugália|Piso 2
+PRIMARK|Piso 0
+PRIMOR|Piso 1
+Pull&Bear|Piso 1
+PUNT ROMA|Piso 1
+Quiosque VIIM|Piso 1
+RITUALS|Piso 0
+SACOOR|Piso 1
+Salsa|Piso 1
+Samsonite|Piso 1
+SAMSUNG|Piso 0
+SEASIDE|Piso 0
+SICAL|Piso 0
+Sisley|Piso 1
+Skechers|Piso 0
+SNIPES|Piso 1
+Sopas&Sopas|Piso 2
+SPRINGFIELD|Piso 1
+STRADIVARIUS|Piso 1
+SUBWAY|Piso 2
+Suits Inc|Piso 1
+SUNGLASS HUT|Piso 0
+Swarovski|Piso 1
+Taco Bell|Piso 2
+Tea Shop|Piso 0
+Tezenis|Piso 0
+The North Face|Piso 0
+TIFFOSI DENIM & KIDS|Piso 0
+TIMBERLAND|Piso 1
+Tomatino|Piso 2
+TOUS|Piso 1
+Triumph|Piso 0
+Viagens ABREU|Piso 0
+Vícios Urbanos|Piso 1
+VITAMINAS|Piso 2
+Vodafone|Piso 0
+Wells Ótica|Piso 0
+WOK TO WALK|Piso 2
+WOMEN’SECRET|Piso 1
+WORTEN|Piso 0
+Xiaomi|Piso 0
+XTREME|Piso 0
+ZARA|Piso 1
+ZARA HOME|Piso 1
+ZIPPY|Piso 0

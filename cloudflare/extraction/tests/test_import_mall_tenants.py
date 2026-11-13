@@ -182,6 +182,21 @@ class StatementTest(unittest.TestCase):
         for expected in ("'community'", "'mall_directory'", "'ODbL'", "'run-1'", "'active'"):
             self.assertIn(expected, value)
 
+    def test_a_written_row_carries_its_canonical_brand(self):
+        """KAN-464 review: backfill_brands.py walks hex id prefixes and never
+        reaches a `mall:` id, so the writer sets the catalogue brand itself."""
+        row = dict(self.rows(1)[0], tenant='CALZEDONIA', primary='store', kind='clothing', extra=[])
+        value = writer.curated_value(row, '2026-11-13', 'run-1')
+        self.assertIn("'Calzedonia'", value)
+        self.assertEqual(writer.CURATED_COLUMNS.index('brand'), writer.CURATED_COLUMNS.index('primary_poi_type') + 1)
+
+    def test_a_tenant_outside_the_catalogue_has_no_brand(self):
+        self.assertIsNone(writer.brand_for('Acium', ['store']))
+
+    def test_a_jeweller_is_not_the_cosmetics_brand_it_shares_a_word_with(self):
+        self.assertEqual(writer.brand_for('KIKO MILANO', ['store']), 'Kiko')
+        self.assertIsNone(writer.brand_for('Kiko Ourivesarias', ['store']))
+
     def test_the_country_code_is_set_so_the_name_picker_can_resolve(self):
         """KAN-471: a curated row without a country takes the no-country
         branch in selectPoiName and can never show a native name."""

@@ -1,0 +1,141 @@
+
+===== Forum Coimbra — 127 tenants on the operator list =====
+
+  held and confidently matched : 74
+  ESCALATE (a person decides)  : 12
+  ADD from OSM                 : 41
+  on the list, no source has it: 6
+  REMOVE (held, not listed)    : 13   [only types the list covers]
+
+  --- ESCALATE: too close to call, nothing done ---
+    [0.90] two tenants, one held row Cinemas NOS / NOS
+                           Cinemas NOS Forum Coimbra
+    [0.90] two tenants, one held row ZARA / ZARA HOME
+                           Zara
+    [0.77] tenant vs held PRIMOR
+                           Primark
+    [0.73] tenant vs OSM  Clínica de Santa Madalena
+                           Clínica Médica Dentária Santa Madalena
+    [0.62] held vs tenant Claire's
+                           Celeiro
+    [0.60] held vs tenant Nike
+                           SNIPES
+    [0.60] held vs tenant Douglas
+                           OLÁ
+    [0.60] held vs tenant IKEA
+                           INVEJA
+    [0.59] held vs tenant The Body Shop
+                           Tea Shop
+    [0.57] held vs tenant Talho Burger Coimbra
+                           Taco Bell
+    [0.56] held vs tenant Mille Paste
+                           LACOSTE
+    [0.45] held vs tenant, shared word ponto Ponto CTT
+                           Bitoque no Ponto
+
+  --- ADD: listed, OSM can place it, we lack it ---
+    Adidas
+      -> OSM: Adidas
+    Aldo
+      -> OSM: Aldo
+    Arcádia
+      -> OSM: Arcádia
+    Bifanas de Vendas Novas
+      -> OSM: Bifanas de Vendas Novas
+    Bijou Brigitte
+      -> OSM: Bijou Brigitte
+    BIMBA Y LOLA
+      -> OSM: Bimba y Lola
+    Bitoque no Ponto
+      -> OSM: Bitoque no Ponto
+    Celeiro
+      -> OSM: Celeiro
+    Chicco
+      -> OSM: Chicco
+    CORTEFIEL
+      -> OSM: Cortefiel
+    Dreams For You
+      -> OSM: Dreams for You
+    INVEJA
+      -> OSM: Inveja Kebab
+    iStore
+      -> OSM: iStore
+    Lugar da Jóia
+      -> OSM: Lugar da Jóia
+    MEO
+      -> OSM: MEO
+    MISTER MINIT
+      -> OSM: Mister Minit
+    Nicola
+      -> OSM: Nicola
+    Norauto
+      -> OSM: Norauto
+    Nova Câmbios
+      -> OSM: Nova Câmbios
+    ORO VIVO
+      -> OSM: Oro Vivo
+    Pandora
+      -> OSM: Pandora
+    Pluricosmética
+      -> OSM: Pluricosmética
+    Portugália
+      -> OSM: Portugália
+    PUNT ROMA
+      -> OSM: Punt Roma
+    Salsa
+      -> OSM: Salsa
+    SAMSUNG
+      -> OSM: Samsung
+    SEASIDE
+      -> OSM: Seaside
+    Sisley
+      -> OSM: Sisley
+    Skechers
+      -> OSM: Skechers
+    Sopas&Sopas
+      -> OSM: Sopas & Sopas
+    Suits Inc
+      -> OSM: Suits Inc.
+    Swarovski
+      -> OSM: Swarovski
+    Tomatino
+      -> OSM: Tomatino
+    Viagens ABREU
+      -> OSM: Abreu
+    Vícios Urbanos
+      -> OSM: Vícios Urbanos
+    Vodafone
+      -> OSM: Vodafone
+    Wells Ótica
+      -> OSM: Wells
+    WOK TO WALK
+      -> OSM: Wok to Walk
+    WOMEN’SECRET
+      -> OSM: Women'secret
+    Xiaomi
+      -> OSM: Xiaomi
+    ZIPPY
+      -> OSM: Zippy Kidstore
+
+  --- listed but no source can place it (no coordinates) ---
+    Fitness Factory
+    LEGO
+    Loja do Benfica
+    NAILS 4' US
+    Quiosque VIIM
+    Tea Shop
+
+  --- REMOVE: we hold it, the operator does not list it ---
+    A Loja do Gato Preto  [store]
+    CTT  [post]
+    Carlos Santos Hair Shop  [store]
+    Courir  [store]
+    Decathlon Coimbra  [store]
+    EcoCarWash Coimbra  [car_wash]
+    Galp  [gas]
+    Hussel  [bakery]
+    Lanidor Kids, Forum Coimbra  [store]
+    M&M Flowers - Florista  [florist]
+    Oysho  [store]
+    Redken  [salon]
+    Restaurante Tun Fon  [restaurant]

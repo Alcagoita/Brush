@@ -162,6 +162,11 @@ store they sit beside. None may be touched by a brand sweep.
 | `BLUEBIRD – RELÓGIOS E JOIAS` | `Bluebird - Watches & Jewels` | Braga Parque |
 | `TIGER` | `Flying Tiger Copenhagen` | Braga Parque — the brand's short name |
 | `WIDEX – ESPECIALISTAS EM AUDIÇÃO` | `Widex Centro Auditivo Braga Parque` | Braga Parque |
+| `H3` | `H3 Hambúrguer Gourmet` | Forum Coimbra |
+| `GÓIS JOALHEIROS` | `Gois Time and Secrets` | Forum Coimbra — the jeweller's own row, unit 1.57 |
+| `5 à Sec e 5 à Fil` | `5àsec` | Alma Shopping |
+| `Tiger` | `Flying Tiger Copenhagen` | Alma Shopping — the brand's short name |
+| `H3` | `H3 Hambúrguer Gourmet` | Alma Shopping |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -725,3 +730,64 @@ Parque each answers from its own held row (both named "Zara" in our data).
   `5 À SEC | 5 À FIL|Piso 1` was read as floor 5. Braga Parque's two such
   names are written as their brand (`5 À SEC`, `BEONTIME`), and the reader
   now refuses an unexpected field.
+
+## Forum Coimbra, ruled 2026-11-13 (KAN-464)
+
+The operator lists **127** units (three "abre brevemente" / "nova loja em
+breve" placeholders are not units). The site gives each card a `data-floor`
+1–3: it is the index of the map tab, and the tabs are Piso 0, 1 and 2, so
+**floor = data-floor − 1** (checked by clicking Cinemas NOS → Piso 2,
+Continente → Piso 0, Zara → Piso 1).
+
+Footprint `way/37079296`, buffer **65 m**: matches are flat to 50 m;
+Intimissimi, Tezenis and Sunglass Hut sit 51–63 m out on the centre's own
+"Loja 0.xx" addresses. **Only "Forum Coimbra" is address evidence** —
+Decathlon and a Galp station share the street number (Av. José Bonifácio de
+Andrade e Silva 1) and are neighbours. A second The North Face row on that
+number, 46 m out, is the listed shop held twice and is withdrawn.
+
+The IKEA row inside is an IKEA point at Loja 0.27, not the store; the
+operator does not list it, so it is withdrawn.
+
+**Types ruled:**
+
+| unit | type |
+|---|---|
+| `Vícios Urbanos` — tobacco, lottery, newspapers and books (owner) | `tobacco` + `lottery` + `store` / `newspaper_and_magazines` |
+| `A Tabacaria` | the same set |
+| `Norauto` | `store` / `auto_parts_and_supply` — the Feu Vert set; `car_repair` is not reachable |
+| `Mau Feitio` — clothing, footwear, accessories (our row said restaurant) | `store` / `clothing` |
+| `Portugália` (OSM said pub) | `restaurant` |
+| `INVEJA` — kebabs | `restaurant` |
+| `Quiosque VIIM` — Delta coffee kiosk | `cafe` |
+| `XTREME` — streetwear sneakers | `store` / `shoes` |
+| `INTIMISSIMI UOMO` | `store` / `mens_clothing`, the IUMAN set |
+| `Xiaomi` | `store` / `electronics`, as `Xiaomi Store` |
+| `WORTEN` | the NorteShopping set |
+
+The rest are plain readings in `tenant_type_overrides.json`.
+
+## Alma Shopping, ruled 2026-11-13 (KAN-464)
+
+The operator lists **97** units; each card's markup carries the name, the
+operator category and "Piso N Loja M" (owner pointed at the page source).
+Café Pans is two kiosks (Piso 0 and Piso 3) under one brand; it is one unit
+here, on Piso 0 — a brand answers the task wherever the kiosk is.
+
+Footprint `way/174739239` (OSM's old name: Dolce Vita Coimbra), buffer
+**40 m**: units sit 3–12 m out and The Body Shop (Loja 114A) 35 m; past 40 m
+the ring gains street shops on Dom Manuel I and Dom João III, the education
+school and the stadium. **Address evidence:** "Alma Shopping", "Dolce Vita"
+and the centre's own number, Rua General Humberto Delgado **207** — the
+neighbours at 281 and 283 are not the centre's. A football academy named
+"Dolce Vita" 4 km away is not either.
+
+Withdrawn beyond the plan: a second JD Sports row 39 m out (the listed shop
+held twice) and Scalpers at Loja 116, a centre unit the list gives to
+Parfois.
+
+**Types ruled:** Celeiro Dieta → `supermarket` (every Celeiro); Perfeit'Olhar
+(brows and lashes) → `beauty_salon`; Ink House (ink and toner) → `store` /
+`office_equipment`; Activo Bank → `bank`; Cex We Buy → the CeX set; Worten and
+Worten Mobile → the NorteShopping set; 5 à Sec e 5 à Fil → `laundry`, as every
+5àSec.

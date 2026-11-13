@@ -36,6 +36,8 @@ it retires real places with false confidence.
 | `leiriashopping.txt` | LeiriaShopping, Leiria | shops and eating (122) | 2026-11-12 |
 | `braga_parque.txt` | Braga Parque, Braga | shops and eating (160) | 2026-11-12 |
 | `nova_arcada.txt` | Nova Arcada, Braga | shops, eating and retail park (96) | 2026-11-12 |
+| `forum_coimbra.txt` | Forum Coimbra, Coimbra | shops and eating (127) | 2026-11-13 |
+| `alma_shopping.txt` | Alma Shopping (ex Dolce Vita), Coimbra | shops and eating (97) | 2026-11-13 |
 
 `ubbo_operator_categories.tsv` and `amoreiras_operator_categories.tsv` hold
 each centre's operator categories verbatim. They are first a **helper for a

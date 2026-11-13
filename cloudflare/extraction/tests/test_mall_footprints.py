@@ -182,6 +182,34 @@ class RealFootprintTest(unittest.TestCase):
             self.assertTrue(mf.in_footprint(*unit, na, buffer_m=0), f'retail park unit at {unit}')
         self.assertTrue(mf.in_footprint(41.5793799, -8.4324919, na), 'Burger King, 57 m out')
 
+    def test_forum_coimbra_takes_in_its_loja_units_and_not_the_far_pins(self):
+        """KAN-464. Intimissimi and Tezenis share a pin 63.5 m out on the
+        centre's own "Loja 0.xx" address; Pandora and LEGO, pinned 101 m out
+        on the centre's address, are far rows. Coordinates are the held rows,
+        measured in production on 2026-11-13."""
+        fc = self.footprints['Forum Coimbra']
+        self.assertEqual(fc['osm'], 'way/37079296')
+        self.assertEqual(fc['buffer_m'], 65)
+        self.assertEqual(mf.mall_at(*fc['centroid'], self.footprints), 'Forum Coimbra')
+        loja = (40.2116774, -8.44110137)
+        self.assertFalse(mf.in_footprint(*loja, fc, buffer_m=0), 'outside the outline')
+        self.assertTrue(mf.in_footprint(*loja, fc), 'inside the buffer')
+        self.assertFalse(mf.in_footprint(40.21174, -8.44063, fc), 'Pandora / LEGO far pin')
+
+    def test_alma_shopping_takes_in_the_body_shop_and_not_the_stadium(self):
+        """KAN-464. The Body Shop (Loja 114A) sits 35 m out; the education
+        school and the stadium beside the centre start beyond 40 m.
+        Coordinates are the held rows, measured in production on 2026-11-13."""
+        alma = self.footprints['Alma Shopping']
+        self.assertEqual(alma['osm'], 'way/174739239')
+        self.assertEqual(alma['buffer_m'], 40)
+        self.assertEqual(mf.mall_at(*alma['centroid'], self.footprints), 'Alma Shopping')
+        body_shop = (40.20371152, -8.40875323)
+        self.assertFalse(mf.in_footprint(*body_shop, alma, buffer_m=0), 'outside the outline')
+        self.assertTrue(mf.in_footprint(*body_shop, alma), 'inside the buffer')
+        for outside in ((40.203352871277, -8.40751948234), (40.20521583, -8.40597067)):   # stadium, ESEC
+            self.assertFalse(mf.in_footprint(*outside, alma), f'neighbour at {outside}')
+
     def test_amoreiras_centroid_is_inside_its_own_outline(self):
         amoreiras = self.footprints['Amoreiras Shopping Center']
         self.assertTrue(mf.in_footprint(*amoreiras['centroid'], amoreiras))
