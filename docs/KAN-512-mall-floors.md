@@ -74,10 +74,14 @@ needed for v1.
 after one escalator) and we don't infer it from the last brush (a guess
 presented as knowledge).
 
-Inside a centre, Nearby **groups matches by floor, lowest first** (`-1, 0, 1,
-2 …`). Within a floor, it keeps the task list's own order. Grouping is a
-way of reading, not a proximity claim: it's how the centre's own directory
-is laid out. Units with no floor come last.
+Inside a centre, Nearby **sorts matches by floor, lowest first** (`-1, 0, 1,
+2 …`), and each row carries its own floor ("Zara · Floor 1"). There are no
+floor section headers: a row can swap to another floor (decision 4b), and a
+header would make it jump section under the user's thumb. Within a floor,
+the task list's own order holds. Sorting is a way of reading, not a
+proximity claim: it's how the centre's own directory is laid out. Units with
+no floor come last. The sort runs when the card loads; a swapped row keeps
+its position until the next entry.
 
 ### 4. Two Nearby cards, one per context (owner, 2026-11-13)
 
@@ -86,7 +90,7 @@ Detection (decision 1) picks the card. The two never show together.
 | Context | Card | Shows |
 |---|---|---|
 | Outside any centre | `NearbyCard`, **unchanged** | Closest match as hero (≤ 100 m), "also close" 100–400 m, distances |
-| Inside a centre | **new `MallNearbyCard`** | The centre's name, every matching task in the centre, grouped by floor, with the floor on each row, **no distance** |
+| Inside a centre | **new `MallNearbyCard`** | The centre's name, every matching task in the centre, sorted by floor, the floor on each row, "Try another place" per row, **no distance** |
 
 - Inside a centre, **the whole centre is "here".** `HERO_RADIUS_M` and
   `NEARBY_RADIUS` don't apply to the centre's own units.
@@ -106,6 +110,30 @@ Detection (decision 1) picks the card. The two never show together.
   outdoor card doesn't render there. The mall card has no "also close"
   section (owner approved the mockup without one, 2026-11-13).
 - Store-level notifications inside a centre stay off (KAN-382, unchanged).
+  With foreground-only location, "the app changes" means the mall card is
+  what Today shows when opened inside a centre; nothing is pushed.
+
+### 4b. "Try another place" on each row (owner, 2026-11-13)
+
+Each suggestion on the mall card has its own **"Try another place"** /
+**"Tentar outro local"** (the existing `nearbyCard.tryAnotherPlace` strings),
+not one button for the whole card.
+
+- Shown only when the centre holds **at least two different places** that
+  solve that task.
+- Tapping it swaps **that row only** to the next candidate's name and floor;
+  other rows don't move. It wraps round after the last one, as `NearbyCard`'s
+  `handleTryAnother` does.
+- Candidates: every unit in the centre matching the task (type, subtype,
+  brand), learned brand first, then floor ascending.
+- Brand-required tasks (Gym, Bank, Store once KAN-368 lands) rotate only
+  within that brand.
+- Units of the **same brand count as one candidate** (decision 6), so the
+  button moves to a different place, never to the same brand's other floor.
+- The choice is **for this visit only**: it resets on the next entry and is
+  never stored, so no place is ever pinned.
+- Accessibility label names the task ("Try another place for Buy a white
+  shirt").
 
 ### 5. Floor wording
 
@@ -121,7 +149,8 @@ Detection (decision 1) picks the card. The two never show together.
 
 ### 6. One brand on several floors
 
-The card lists **every distinct floor, lowest first**: `Pisos -1 e 2` /
+A brand's units in one centre are **one suggestion**, not several, and the
+row lists **every distinct floor, lowest first**: `Pisos -1 e 2` /
 `Floors -1 and 2`. Today's data never has more than two. If a third
 appears, show the first two and `+1`.
 
@@ -133,11 +162,17 @@ so detection (decision 1) and the card (decision 2) both work with no signal.
 KAN-237 snapshot, which only holds a 400 m nearby circle capped at 50 per type:
 not every tenant of a 279-unit centre fits in it.
 
+Offline works once the centre has been downloaded, which needs a signal at
+least once. A first-ever visit with no signal and no earlier download still
+shows nothing. Prefetching nearby centres in the background, as the
+habitat prefetch already learns the 5 km around the user, covers most of
+those; it belongs in KAN-382.
+
 ### 8. Places with no floor
 
 - **Outside a centre:** unchanged. Name plus distance.
-- **Inside a centre, unit with no floor:** name only, no secondary line,
-  grouped last. The Lantern already names the centre, and the app shows
+- **Inside a centre, unit with no floor:** name only, no floor after it,
+  sorted last. The Lantern already names the centre, and the app shows
   nothing rather than a placeholder or a guessed floor.
 
 ## Mock copy
@@ -148,8 +183,8 @@ Inside Alma Shopping, Lantern in Mall state.
 |---|---|---|
 | Centre card title | While you're at Alma Shopping | Enquanto estás no Alma Shopping |
 | Count line | 3 waiting here | 3 à espera aqui |
-| Floor group header | Floor 0 | Piso 0 |
 | Row, with floor | Zara · Floor 1 | Zara · Piso 1 |
+| Row button | Try another place | Tentar outro local |
 | Row, several floors | OAKBERRY · Floors 0 and 2 | OAKBERRY · Pisos 0 e 2 |
 | Row, no floor | Zara | Zara |
 Outside any centre: the existing `NearbyCard`, unchanged (`Pharmacy · 60 m`).
