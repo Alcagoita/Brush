@@ -844,7 +844,7 @@ restaurants.
 | `Emma` — mattresses | `store` / `mattress` |
 | `Hawkers` — sunglasses | `store` / `sunglasses` |
 | `Talho Burger` (our rows said butcher) | `restaurant` |
-| `LEGO FAN FACTORY` (said park) | `store` / `toys` |
+| `LEGO FAN FACTORY` — a free play space for children (said park) | `playground`, as Luna Kids |
 | `Sol e Sal` (said jewellery) — beauty | `beauty_salon` |
 | `Gumania` — sweets | `bakery`, the confectionery precedent |
 | `Grasshopper` — mini-golf; `SOULD PARK` | `amusement_park` |
@@ -862,3 +862,9 @@ restaurants.
 outline (`Auchan Faro` had gone to the optician), and a confirmed far row is
 named as its tenant (`H3 Hambúrguer Gourmet` 132 m out from MAR is the
 listed `H3`).
+
+**Corrected in review (2026-11-13, migration 0076):** `Hey Doc` / `HeyDoc` is
+Grupo Lusíadas Saúde's network of dental clinics, not a beauty shop —
+`clinic`, as Mollaris (`dentist` is not reachable). Every branch we hold is
+retyped: Forum Algarve, NorteShopping, LeiriaShopping and the Oeiras Parque
+row. `LEGO FAN FACTORY` at MAR is a free play space, not a toy shop.
