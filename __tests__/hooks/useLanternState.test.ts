@@ -43,6 +43,15 @@ jest.mock('../../src/services/centreDetection', () => ({
   updateCentreContext: (...a: unknown[]) => mockUpdateCentreContext(...a),
 }));
 
+// KAN-513 — the hook re-checks when stored outlines change; captured here so a test can fire it.
+let mockOutlinesListener: (() => void) | null = null;
+jest.mock('../../src/services/venueInventory', () => ({
+  subscribeVenueInventory: (listener: () => void) => {
+    mockOutlinesListener = listener;
+    return () => { mockOutlinesListener = null; };
+  },
+}));
+
 import {
   useLanternState,
   LOCATING_MIN_MS,
@@ -63,6 +72,7 @@ beforeEach(() => {
   mockGetCachedAreaName.mockReturnValue(null);
   mockReverseGeocode.mockResolvedValue(null);
   mockGetLastKnownPosition.mockResolvedValue(null);
+  mockUpdateCentreContext.mockReset();
   mockUpdateCentreContext.mockReturnValue(null);
 });
 afterEach(() => {
@@ -96,6 +106,44 @@ it('shows the centre with no POI tasks when its own fix is inside a centre outli
 
   expect(result.current).toEqual({ kind: 'mall', name: 'Centro Comercial Colombo' });
   expect(mockUpdateCentreContext).toHaveBeenCalledWith(38.7546, -9.1882);
+});
+
+it('never lets the cached OS fix enter a centre; only a live fix feeds detection (KAN-513)', async () => {
+  mockGetHomeLocation.mockReturnValue(HOME);
+  mockDistanceFromHome.mockReturnValue(4000);
+  const INSIDE = { lat: 38.7546, lng: -9.1882 };   // the cached fix: minutes old, inside
+  const OUTSIDE = { lat: 38.7560, lng: -9.1882 };  // the live fix: just outside the door
+  mockGetLastKnownPosition.mockResolvedValue(INSIDE);
+  let resolveLive: (c: { lat: number; lng: number }) => void = () => {};
+  mockGetPositionLowAccuracy.mockReturnValue(new Promise(r => { resolveLive = r; }));
+  mockUpdateCentreContext.mockImplementation((lat: number) =>
+    (lat === INSIDE.lat ? { venueId: 'centro-comercial-colombo', name: 'Centro Comercial Colombo' } : null));
+
+  const { result } = renderHook(() => useLanternState(null, null, true));
+  await act(async () => {});                                     // cached fix lands
+  expect(mockUpdateCentreContext).not.toHaveBeenCalled();
+  await act(async () => { resolveLive(OUTSIDE); });              // live fix lands
+  await act(async () => { jest.advanceTimersByTime(LOCATING_MIN_MS); });
+
+  expect(mockUpdateCentreContext.mock.calls).toEqual([[OUTSIDE.lat, OUTSIDE.lng]]);
+  expect(result.current.kind).not.toBe('mall');
+});
+
+it('re-checks the same fix when a centre outline is stored after it (KAN-513)', async () => {
+  mockGetHomeLocation.mockReturnValue(HOME);
+  mockDistanceFromHome.mockReturnValue(4000);
+  mockGetPositionLowAccuracy.mockResolvedValue({ lat: 38.7546, lng: -9.1882 });
+
+  const { result } = renderHook(() => useLanternState(null, null, true));
+  await act(async () => {});
+  await act(async () => { jest.advanceTimersByTime(LOCATING_MIN_MS); });
+  expect(result.current.kind).not.toBe('mall');
+
+  // The centre's download finishes while the user stands inside.
+  mockUpdateCentreContext.mockReturnValue({ venueId: 'centro-comercial-colombo', name: 'Centro Comercial Colombo' });
+  await act(async () => { mockOutlinesListener?.(); });
+
+  expect(result.current).toEqual({ kind: 'mall', name: 'Centro Comercial Colombo' });
 });
 
 it('leaves the engine context alone when the engine already resolved one (KAN-513)', () => {

@@ -28,7 +28,7 @@ jest.mock('../../src/services/poiApi', () => {
 
 import {
   __resetVenueInventoryForTests, getVenueInventory, refreshVenueInventoriesIfDue, searchVenueUnits,
-  writeVenueInventory, VENUE_RECHECK_MS, type Venue, type VenueUnitWire,
+  writeVenueInventory, subscribeVenueInventory, VENUE_RECHECK_MS, type Venue, type VenueUnitWire,
 } from '../../src/services/venueInventory';
 import { PoiApiError } from '../../src/services/poiApi';
 
@@ -215,6 +215,21 @@ describe('download', () => {
     ]);
 
     expect(unitPaths()).toEqual(['/venues/alma-shopping/units?limit=200']);
+  });
+});
+
+describe('change notifications', () => {
+  it('tells subscribers when a centre is written, and stops after unsubscribe', async () => {
+    serve({ 'alma-shopping': { version: 'v1', units: [unit('community:a:zara', 'Zara')] } }, [ALMA]);
+    const listener = jest.fn();
+    const unsubscribe = subscribeVenueInventory(listener);
+
+    await refreshVenueInventoriesIfDue(NEAR_ALMA.lat, NEAR_ALMA.lng, T0);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    unsubscribe();
+    writeVenueInventory(ALMA, 'v2', []);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 });
 
