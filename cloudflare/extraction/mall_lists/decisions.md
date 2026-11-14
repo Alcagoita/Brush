@@ -299,12 +299,20 @@ How a floor is read when the page doesn't simply say `Piso N`:
   `Piso Loja 0.060`). Units and stated Piso agree on every page that gives
   both, except one (below).
 * **`Lefties` spans Piso 0 and 1.** Stored `0`, which is true of it.
-* **No floor, by rule:** `Carrossel Experience` (page says `Piso 1 Loja
-  0.073`, and the unit number says Piso 0); `KidZania`, `NEOON`, `Sould Park
-  Jump`, `UCI Luxe`, `Zero Latency` (their pages state no location, and OSM
-  has none of them); `Havaianas`, `O meu Olá`, `ONLY` (no page on the site
-  any more).
+* **Floors from the owner** (2026-11-14), where the page states none or
+  contradicts itself: Piso 0 — `Carrossel Experience` (its page says
+  `Piso 1 Loja 0.073`), `Zero Latency` (laser tag), `NEOON` (bowling),
+  `Sould Park Jump` (trampoline park); Piso 1 — `KidZania` (paid play space
+  for children), `UCI Luxe` (cinema).
 * OSM `level` at UBBO agrees with the operator on all 11 units that have both.
+
+### UBBO holds only what ubbo.pt shows (owner, 2026-11-14)
+
+Every row inside UBBO that is not on the operator's site is withdrawn (0079):
+the 26 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
+`Mayoral` ×2, `Tejo Fan Park`, `AMADORA SC UBBO`, a second `Sould Park Jump`,
+`Sould Park TRAMPOLIN JUMP Lisboa`, …), and `Havaianas`, `O meu Olá` and
+`ONLY`, which left the site and the list. Nothing is deleted.
 
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
