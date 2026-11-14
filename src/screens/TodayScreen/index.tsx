@@ -48,6 +48,8 @@ import Header from '../../components/Header';
 import Lantern from '../../components/Lantern';
 import TaskRow from '../../components/TaskRow';
 import NearbyCard from '../../components/NearbyCard';
+import MallNearbyCard from '../../components/MallNearbyCard';
+import { useMallCard } from '../../hooks/useMallCard';
 import ErrandBundleCard from '../../components/ErrandBundleCard';
 import TripSuggestionCard from '../../components/TripSuggestionCard';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
@@ -111,6 +113,7 @@ export default function TodayScreen() {
     nearbyPoiType,
     poiPlaces,
     placeContext,
+    learnedPlaces,
     coords,
     permissionGranted,
     storeTuningActive,
@@ -182,6 +185,9 @@ export default function TodayScreen() {
     }),
     [tasks],
   );
+
+  // ── Mall Nearby card (KAN-514) — null outside a centre or without its inventory ──
+  const mallCard = useMallCard(placeContext, sortedTasks, learnedPlaces);
 
   // ── "One trip for all of these" entry row (KAN-281) ───────────────────────────
   // Pure sync check against data already in memory — no Firestore, no network,
@@ -266,8 +272,18 @@ export default function TodayScreen() {
 
   const listHeader = useMemo(() => (
     <>
-      {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74) ── */}
-      {DEBUG_SHOW_NEARBY && (
+      {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74). Inside a shopping centre
+           with a complete inventory, the mall card takes its place — floors,
+           never distances (KAN-514). Keyed by centre so "Try another place"
+           choices reset on the next entry. ── */}
+      {DEBUG_SHOW_NEARBY && (mallCard ? (
+      <MallNearbyCard
+        key={mallCard.venueId}
+        centreName={mallCard.name}
+        rows={mallCard.rows}
+        onHasContent={setNearbyHasContent}
+      />
+      ) : (
       <NearbyCard
         tasks={sortedTasks}
         nearbyPoiType={nearbyPoiType}
@@ -276,7 +292,7 @@ export default function TodayScreen() {
         onRefreshLocation={refreshProximity}
         onHasContent={setNearbyHasContent}
       />
-      )}
+      ))}
 
       {/* ── Errand bundle card (KAN-235) — absent by default ── */}
       {errandBundle && (
@@ -307,7 +323,7 @@ export default function TodayScreen() {
       </View>
     </>
   ), [
-    sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive,
+    sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive, mallCard,
     palette,
     nearbyHasContent, setNearbyHasContent,
     refreshProximity,

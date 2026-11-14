@@ -22,6 +22,7 @@ import { useCallback, useEffect } from 'react';
 import type { NearbyPlace } from '../../services/maps';
 import { setLearnedPlaces } from '../../services/proximity';
 import type { PlacesMap, PlaceContext } from '../../services/proximity';
+import type { LearnedBrand } from '../../services/learnedPlaces';
 import type { Category, Task } from '../../types';
 import { useTodayScreenData } from './useTodayScreenData';
 import { useProximityEngine } from './useProximityEngine';
@@ -55,6 +56,8 @@ export interface TodayScreenState {
   poiPlaces:        PlacesMap;
   /** Mall/trip context for the last position fix (KAN-242) — feeds the Lantern. */
   placeContext:     PlaceContext;
+  /** On-device learned brands (KAN-230) — the mall card puts a learned brand first (KAN-514). */
+  learnedPlaces:    LearnedBrand[];
   /** Last settled-search position (KAN-301) — feeds the Lantern's home/outside resolution. Null before any fix. */
   coords:           { lat: number; lng: number } | null;
   storeTuningActive:        boolean;
@@ -182,6 +185,7 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     nearbyPlace: proximity.nearbyPlace,
     poiPlaces: proximity.poiPlaces,
     placeContext: proximity.placeContext,
+    learnedPlaces,
     coords: proximity.coords,
     storeTuningActive:     proximity.storeTuningActive,
     showStoreTuningPrompt: proximity.showStoreTuningPrompt,

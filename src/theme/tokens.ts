@@ -28,6 +28,14 @@ export const lightPalette = {
   nearTint2:  '#f9ede0',   // oklch(0.94 0.05 65)
   nearBorder: '#e8c9a0',   // oklch(0.85 0.09 65)
   nearText:   '#7a4a20',   // oklch(0.42 0.13 65)
+  // Mall Nearby card (KAN-514) — a muted teal, apart from the category hues
+  // (blue 250, sage 165, purple 305, peach 65–70). Text ≥ 6.9:1 on both tints;
+  // mallAccent carries small text, so it keeps ≥ 4.5:1 too (5.29 / 4.84).
+  mallTint:   '#eef6f6',
+  mallTint2:  '#dceeee',
+  mallBorder: '#7fb6b8',
+  mallText:   '#1f5658',
+  mallAccent: '#2c6f71',
   // Lantern halo tints (KAN-301) — the soft circular glow behind the header
   // icon, rendered as a low-opacity View fill (never an SVG). Home reuses the
   // peach ringFill hue; the "away" states (outside/mall/trip) use accent; the
@@ -63,6 +71,11 @@ export const darkPalette = {
   nearTint2:  '#362514',   // oklch(0.27 0.06 65)
   nearBorder: '#a06f40',   // oklch(0.52 0.10 65) — ≥3:1 vs both nearTint and nearTint2
   nearText:   '#dba87a',   // oklch(0.86 0.10 65)
+  mallTint:   '#112629',
+  mallTint2:  '#163236',
+  mallBorder: '#3f8b8f',   // ≥3:1 vs both mallTint (3.98) and mallTint2 (3.43), as nearBorder
+  mallText:   '#93d2d2',   // 8.0:1 on mallTint2
+  mallAccent: '#5fb5b7',
   // Lantern halo tints (KAN-301) — dedicated dark values, NOT a dimmed
   // light-mode ramp: luminance can't be pushed lower on #0e0e0c without the
   // halo disappearing, so these are pitched brighter to stay visible at
@@ -97,6 +110,11 @@ export type Palette = {
   nearTint2: string;
   nearBorder: string;
   nearText: string;
+  mallTint: string;
+  mallTint2: string;
+  mallBorder: string;
+  mallText: string;
+  mallAccent: string;
   haloHome: string;
   haloPlace: string;
   haloUnset: string;
