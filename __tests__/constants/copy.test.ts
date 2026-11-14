@@ -138,3 +138,20 @@ describe('COPY — attribution names every source that ships (KAN-451)', () => {
     expect(attribution).not.toMatch(/Foursquare|Google/);
   });
 });
+
+describe('centre notification copy (KAN-515)', () => {
+  afterEach(() => setCopyLanguage('en'));
+
+  it('names the centre and counts, with the singular, in English', () => {
+    setCopyLanguage('en');
+    expect(COPY.notification.centreTitle('Alma Shopping')).toBe('Alma Shopping');
+    expect(COPY.notification.centreBody(1)).toBe("1 waiting here. I'll show you the floor.");
+    expect(COPY.notification.centreBody(3)).toBe("3 waiting here. I'll show you the floors.");
+  });
+
+  it('reads the same in Portuguese (pt-PT)', () => {
+    setCopyLanguage('pt-PT');
+    expect(COPY.notification.centreBody(1)).toBe('1 à espera aqui. Mostro-te o piso.');
+    expect(COPY.notification.centreBody(3)).toBe('3 à espera aqui. Mostro-te os pisos.');
+  });
+});

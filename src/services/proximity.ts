@@ -91,7 +91,8 @@ import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
-import { refreshVenueInventoriesIfDue } from './venueInventory';
+import { refreshVenueInventoriesIfDue, getVenueInventory, searchVenueUnits } from './venueInventory';
+import { buildMallRows } from './mallSuggestions';
 import { updateCentreContext } from './centreDetection';
 import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
 import { useToastStore } from '../store/toastStore';
@@ -296,6 +297,13 @@ let _mallSnapshot: MallSnapshot | null = null;
 /** Whether nearby-POI notifications are enabled (KAN-142). */
 let notifNearbyEnabled = true;
 
+/**
+ * KAN-515 — the centre whose ONE entry notification has already been handled
+ * (sent, or skipped for quiet hours / the setting). Cleared the first tick
+ * the user is no longer inside it, so the next entry notifies again.
+ */
+let _notifiedCentreId: string | null = null;
+
 /** Whether exit-prompt notifications are enabled. */
 let exitPromptEnabled = true;
 
@@ -416,6 +424,51 @@ async function ensureChannel(): Promise<void> {
     sound:      'default',
     vibration:  true,
   });
+}
+
+/** KAN-515 — inside a centre: one notification for the whole centre, never one per shop. */
+async function fireCentreNotification(centreName: string, taskCount: number): Promise<void> {
+  await ensureChannel();
+  const title = COPY.notification.centreTitle(centreName);
+  const body  = COPY.notification.centreBody(taskCount);
+  await notifee.displayNotification({
+    title,
+    body,
+    data:  { screen: 'Today' },
+    android: {
+      channelId:   CHANNEL_ID,
+      importance:  AndroidImportance.HIGH,
+      pressAction: { id: 'default' },
+    },
+    ios: { sound: 'default' },
+  });
+  if (Platform.OS === 'android') {
+    WearNotificationModule?.sendProximityAlert(title, body, '');
+  }
+}
+
+/**
+ * KAN-515 — the one notification a shopping centre gets. Sent once per
+ * entry, only when the mall view is active (inside a centre with a complete
+ * inventory, the same condition as the mall card) and the centre can solve
+ * at least one open task. The count is the mall card's row count, from the
+ * same rules. Nearby-notification setting and quiet hours apply, as for the
+ * normal "X nearby" alert, which stays blocked inside.
+ */
+function maybeNotifyCentre(tasks: Task[]): void {
+  const ctx = _lastPlaceContext;
+  if (ctx?.kind !== 'centre') { _notifiedCentreId = null; return; }
+  if (_notifiedCentreId === ctx.venueId) { return; }
+  if (!getVenueInventory(ctx.venueId)?.complete) { return; }
+  const rows = buildMallRows(tasks, poiType => searchVenueUnits(ctx.venueId, { poiType }), _learnedPlaces);
+  // Nothing to solve here yet: don't spend this entry's notification, so a
+  // task added while still inside can still bring one.
+  if (rows.length === 0) { return; }
+  _notifiedCentreId = ctx.venueId;
+  if (!notifNearbyEnabled || isQuietHours()) { return; }
+  fireCentreNotification(ctx.name, rows.length).catch(err =>
+    reportProximityError('centre notification failed', err),
+  );
 }
 
 async function fireNotification(poiLabel: string, taskCount: number): Promise<void> {
@@ -619,9 +672,10 @@ export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): vo
  * and the stored outlines, so those ticks must not leave the Lantern on the
  * previous context, which is exactly what happens under a mall roof.
  */
-function publishPlaceContext(lat: number, lng: number): void {
+function publishPlaceContext(lat: number, lng: number, tasks: Task[]): void {
   _lastPlaceContext = findActivePlaceContext(lat, lng);
   _placeContextTap?.(_lastPlaceContext);
+  maybeNotifyCentre(tasks);
 }
 
 /**
@@ -684,7 +738,7 @@ async function runProximitySearch(
     const poiTypesKey = nearbyRequests.map(request => request.key).sort().join(',');
 
     if (uniquePoiTypes.length === 0) {
-      publishPlaceContext(coords.lat, coords.lng);
+      publishPlaceContext(coords.lat, coords.lng, tasks);
       _currentNearbyType = null;
       _lastAllPlaces = {};
       // No undone POI tasks left to prompt for — nothing to fire, just
@@ -747,7 +801,7 @@ async function runProximitySearch(
         } catch { /* treat as unknown — not offline */ }
         // Nothing to show from this tick, but the position is real: keep
         // the place context (centre, mall, trip) current (KAN-513).
-        if (!offline) { publishPlaceContext(coords.lat, coords.lng); return; }
+        if (!offline) { publishPlaceContext(coords.lat, coords.lng, tasks); return; }
 
         _enqueueSearch(uid, tasks, onUpdate);
         results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
@@ -797,7 +851,7 @@ async function runProximitySearch(
       }
       // No places, but the position is real — offline under a mall roof is
       // the case that matters here (KAN-513).
-      publishPlaceContext(coords.lat, coords.lng);
+      publishPlaceContext(coords.lat, coords.lng, tasks);
       return;
     }
 
@@ -905,12 +959,13 @@ function processProximityTick(
   answeredFromCache: boolean,
   onUpdate: ProximityCallback,
 ): void {
-  publishPlaceContext(coords.lat, coords.lng);
+  publishPlaceContext(coords.lat, coords.lng, tasks);
   // KAN-515 — inside a shopping centre location isn't trusted: many units sit
   // on the centre's own coordinate (distance 0) and GPS can't tell floors
   // apart. So nothing here may claim a shop is near: no "X nearby"
   // notification, no "Did you get it?" dwell. The mall card (KAN-514) is what
-  // the user sees. Any dwell clock started on invented distances is dropped
+  // the user sees, and the centre gets one notification of its own per entry
+  // (maybeNotifyCentre, called from publishPlaceContext above). Any dwell clock started on invented distances is dropped
   // so it can't fire the moment they walk out.
   const insideCentre = _lastPlaceContext?.kind === 'centre';
   if (insideCentre) { geofenceEntryTimes.clear(); }
@@ -1278,6 +1333,7 @@ export function resetProximityState(): void {
   _activeTrips = [];
   _mallSnapshot = null;
   _lastPlaceContext = null;
+  _notifiedCentreId = null;
   _lastPoiSearchSource = null;
   _lastPoiSearchCoverageStatus = undefined;
 

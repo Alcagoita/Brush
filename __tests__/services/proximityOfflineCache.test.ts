@@ -58,6 +58,14 @@ jest.mock('../../src/services/proximitySnapshot');
 // KAN-513 — centre detection is driven explicitly by the tests that need it;
 // everywhere else no centre outline covers the position.
 const mockUpdateCentreContext = jest.fn().mockReturnValue(null);
+// KAN-515 — the centre's stored inventory, driven per test; by default none.
+const mockGetVenueInventory = jest.fn().mockReturnValue(null);
+const mockSearchVenueUnits = jest.fn().mockReturnValue([]);
+jest.mock('../../src/services/venueInventory', () => ({
+  refreshVenueInventoriesIfDue: jest.fn().mockResolvedValue(undefined),
+  getVenueInventory: (...args: unknown[]) => mockGetVenueInventory(...args),
+  searchVenueUnits: (...args: unknown[]) => mockSearchVenueUnits(...args),
+}));
 jest.mock('../../src/services/centreDetection', () => ({
   updateCentreContext: (...args: unknown[]) => mockUpdateCentreContext(...args),
 }));
@@ -112,6 +120,10 @@ jest.mock('../../src/constants/copy', () => ({
     notification: {
       proximityTitle: (label: string) => `You're near ${label}`,
       proximityBody:  (count: number) => `${count} task(s) nearby`,
+      // KAN-515 — the real English strings, so the test reads the shipped copy.
+      centreTitle: (centre: string) => centre,
+      centreBody:  (count: number) =>
+        (count === 1 ? "1 waiting here. I'll show you the floor." : `${count} waiting here. I'll show you the floors.`),
     },
     offline: {
       genericBanner:       'Offline — changes may not sync',
@@ -183,6 +195,7 @@ import {
   setMallSnapshot,
   setPlaceContextTap,
   setNavigateToTripPlanner,
+  updateNotifNearbyEnabled,
   buildGeofenceId,
   __setGeofenceEntryTime,
 } from '../../src/services/proximity';
@@ -938,5 +951,86 @@ describe('inside a shopping centre: no alerts (KAN-515)', () => {
     await flushAsync();
 
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('inside a shopping centre: one notification per entry (KAN-515)', () => {
+  const COLOMBO = { venueId: 'colombo', name: 'Centro Comercial Colombo' };
+  const ATM_UNIT = {
+    key: 'multibanco:mb-1', poiId: 'mb-1', source: 'multibanco', poiType: 'atm', primaryPoiType: 'atm',
+    name: 'Multibanco Colombo', nameLocal: null, nameLocalLang: null, names: {}, countryCode: 'PT',
+    lat: 0, lng: 0, floor: '0', brand: null, attributes: {},
+  };
+
+  async function tick(inside: boolean): Promise<void> {
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+    mockUpdateCentreContext.mockReturnValue(inside ? COLOMBO : null);
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    await flushAsync();
+  }
+
+  beforeEach(() => {
+    mockGetVenueInventory.mockReturnValue({ complete: true });
+    mockSearchVenueUnits.mockImplementation((_venue: string, query: { poiType: string }) =>
+      (query.poiType === 'atm' ? [ATM_UNIT] : []));
+  });
+  afterEach(() => {
+    mockUpdateCentreContext.mockReturnValue(null);
+    mockGetVenueInventory.mockReturnValue(null);
+    mockSearchVenueUnits.mockReturnValue([]);
+    updateNotifNearbyEnabled(true);
+  });
+
+  it('sends one notification naming the centre and how many tasks it can solve', async () => {
+    await tick(true);
+
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+    expect(mockDisplayNotification).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Centro Comercial Colombo',
+      body: "1 waiting here. I'll show you the floor.",
+    }));
+  });
+
+  it('never repeats while the user stays inside', async () => {
+    await tick(true);
+    await tick(true);
+    await tick(true);
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('notifies again on the next entry after leaving', async () => {
+    await tick(true);
+    await tick(false); // outside: the ordinary hero alert may fire here
+    mockDisplayNotification.mockClear();
+
+    await tick(true);
+
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+    expect(mockDisplayNotification).toHaveBeenCalledWith(expect.objectContaining({ title: 'Centro Comercial Colombo' }));
+  });
+
+  it('stays quiet when the centre solves nothing, and notifies once something matches', async () => {
+    mockSearchVenueUnits.mockReturnValue([]);
+    await tick(true);
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+
+    mockSearchVenueUnits.mockImplementation((_venue: string, query: { poiType: string }) =>
+      (query.poiType === 'atm' ? [ATM_UNIT] : []));
+    await tick(true);
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('stays quiet without a complete inventory (the mall view is not active)', async () => {
+    mockGetVenueInventory.mockReturnValue(null);
+    await tick(true);
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  it('respects the Nearby notifications setting', async () => {
+    updateNotifNearbyEnabled(false);
+    await tick(true);
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
   });
 });

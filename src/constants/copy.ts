@@ -57,6 +57,11 @@ const en = {
     proximityBody: (count: number) =>
       `You have ${count} thing${count === 1 ? '' : 's'} to brush away.`,
 
+    /** KAN-515 — the ONE notification inside a shopping centre, replacing the per-shop ones. */
+    centreTitle: (centre: string) => centre,
+    centreBody: (count: number) =>
+      count === 1 ? "1 waiting here. I'll show you the floor." : `${count} waiting here. I'll show you the floors.`,
+
     /** Daily complete celebration. */
     dailyCompleteTitle: "You've brushed it all away today 🖌",
     dailyCompleteBody:  "Every task brushed. Clean canvas!",
@@ -1381,6 +1386,10 @@ const ptPT: typeof en = {
     proximityTitle: (poiLabel: string) => `Estás perto de: ${poiLabel}`,
     proximityBody: (count: number) =>
       `Tens ${count} coisa${count === 1 ? '' : 's'} para tratar.`,
+
+    centreTitle: (centre: string) => centre,
+    centreBody: (count: number) =>
+      count === 1 ? '1 à espera aqui. Mostro-te o piso.' : `${count} à espera aqui. Mostro-te os pisos.`,
 
     dailyCompleteTitle: 'Já trataste de tudo hoje 🖌',
     dailyCompleteBody:  'Todas as tarefas tratadas. Tela limpa!',
