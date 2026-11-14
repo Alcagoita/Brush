@@ -309,7 +309,8 @@ How a floor is read when the page doesn't simply say `Piso N`:
 ### UBBO holds only what ubbo.pt shows (owner, 2026-11-14)
 
 Every row inside UBBO that is not on the operator's site is withdrawn (0079):
-the 26 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
+the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
+`Raia Beauty Spot`,
 `Mayoral` ×2, `Tejo Fan Park`, `AMADORA SC UBBO`, a second `Sould Park Jump`,
 `Sould Park TRAMPOLIN JUMP Lisboa`, …), and `Havaianas`, `O meu Olá` and
 `ONLY`, which left the site and the list. Nothing is deleted.
