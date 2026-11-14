@@ -54,8 +54,11 @@ barber, a car wash and a currency exchange, and reading it as a type is how
 A ruling by a person, a row we already hold elsewhere in Portugal, and OSM all
 outrank the category, and every typed row records which of them answered it.
 
-UBBO publishes no floor for any unit, so every floor there comes from OSM;
-Amoreiras publishes one for 195 of its 196. NorteShopping publishes one for
+UBBO's directory has no floor, but each store's own page does
+(`Localização: Piso 0 Loja 0.004 C`). `ubbo_store_pages.tsv` holds all 247
+pages as read on 2026-11-14, and `mall_floors.py` turned them into
+`ubbo_floors.tsv`: the floor, how it was read and the row it went to, per
+listed unit (KAN-517). Amoreiras publishes one for 195 of its 196. NorteShopping publishes one for
 all but 11; those are Piso 0 by the owner's ruling (2026-11-11).
 
 A list covers only what it covers. An eating-places page says nothing about

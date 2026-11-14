@@ -287,6 +287,25 @@ establish no rule elsewhere.
   does.
 * **`VitaFlores` is not `Valores`** — the matcher paired them at 0.82.
 
+### UBBO floors, read 2026-11-14 (KAN-517)
+
+From each store's own page (`ubbo_store_pages.tsv` → `ubbo_floors.tsv`).
+How a floor is read when the page doesn't simply say `Piso N`:
+
+* **`Praça Central` is Piso 0.** UBBO's own pages put units 0.003 and 0.004
+  there (`Kivet`, `Maria Croissant`, `100 Montaditos`). It answers the
+  kiosks that give only `Praça Central, R7` / `G5`. Scoped to UBBO.
+* **A unit number alone gives the floor** (`L0.040`, `Lojas 0.013 + 0.014`,
+  `Piso Loja 0.060`). Units and stated Piso agree on every page that gives
+  both, except one (below).
+* **`Lefties` spans Piso 0 and 1.** Stored `0`, which is true of it.
+* **No floor, by rule:** `Carrossel Experience` (page says `Piso 1 Loja
+  0.073`, and the unit number says Piso 0); `KidZania`, `NEOON`, `Sould Park
+  Jump`, `UCI Luxe`, `Zero Latency` (their pages state no location, and OSM
+  has none of them); `Havaianas`, `O meu Olá`, `ONLY` (no page on the site
+  any more).
+* OSM `level` at UBBO agrees with the operator on all 11 units that have both.
+
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
 Ruled by the owner 2026-10-04: **we cannot exclude a store we know is
