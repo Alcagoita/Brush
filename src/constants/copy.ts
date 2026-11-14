@@ -1223,6 +1223,20 @@ const en = {
     alsoClose: 'Also close',
   },
 
+  // ── Mall Nearby card (KAN-514) — inside a shopping centre: floors, never distances ──
+  mallNearbyCard: {
+    title: (centre: string) => `While you're at ${centre}`,
+    waitingHere: (n: number) => `${n} waiting here`,
+    floor: (floor: string) => `Floor ${floor}`,
+    /** Two floors, lowest first: "Floors 0 and 2". */
+    floors: (a: string, b: string) => `Floors ${a} and ${b}`,
+    /** More than two: "Floors -1 and 0 +1". */
+    moreFloors: (n: number) => `+${n}`,
+    tryAnotherPlace: 'Try another place',
+    tryAnotherPlaceA11y: (task: string) => `Try another place for ${task}`,
+    rowA11y: (task: string, place: string) => `${task}, ${place}`,
+  },
+
   newTaskSheet2: {
     closeA11y: 'Close',
     moreDetailsA11y: 'More details',
@@ -2411,6 +2425,20 @@ const ptPT: typeof en = {
     refreshUpdated: 'Atualizado',
     refreshFailed: 'Falhou',
     alsoClose: 'Também perto',
+  },
+
+  // ── Mall Nearby card (KAN-514) ──
+  mallNearbyCard: {
+    // "em" rather than "no/na": a centre's grammatical gender varies by name,
+    // and "em" reads correctly for every one of them.
+    title: (centre: string) => `Enquanto estás em ${centre}`,
+    waitingHere: (n: number) => `${n} à espera aqui`,
+    floor: (floor: string) => `Piso ${floor}`,
+    floors: (a: string, b: string) => `Pisos ${a} e ${b}`,
+    moreFloors: (n: number) => `+${n}`,
+    tryAnotherPlace: 'Tentar outro local',
+    tryAnotherPlaceA11y: (task: string) => `Tentar outro local para ${task}`,
+    rowA11y: (task: string, place: string) => `${task}, ${place}`,
   },
 
   newTaskSheet2: {

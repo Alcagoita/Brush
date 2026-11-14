@@ -33,6 +33,7 @@ const DEFAULT_HOOK_RETURN = {
   nearbyPlace:             null,
   poiPlaces:               {},
   placeContext:            null,
+  learnedPlaces:           [],
   coords:                  null,
   storeTuningActive:       false,
   showStoreTuningPrompt:   false,
@@ -140,7 +141,19 @@ jest.mock('../../src/hooks/useLanternState', () => ({ useLanternState: () => ({ 
 jest.mock('../../src/hooks/useAreaCoverageNotice', () => ({
   useAreaCoverageNotice: () => ({ notice: null, recheck: jest.fn() }),
 }));
-jest.mock('../../src/components/NearbyCard',            () => () => null);
+jest.mock('../../src/components/NearbyCard', () => {
+  const { createElement } = require('react');
+  const { View } = require('react-native');
+  return () => createElement(View, { testID: 'nearby-card' });
+});
+// KAN-514 — the mall card and the hook that decides it, driven per test.
+let mockMallCard: unknown = null;
+jest.mock('../../src/hooks/useMallCard', () => ({ useMallCard: () => mockMallCard }));
+jest.mock('../../src/components/MallNearbyCard', () => {
+  const { createElement } = require('react');
+  const { View } = require('react-native');
+  return (props: { centreName: string }) => createElement(View, { testID: 'mall-nearby-card', accessibilityLabel: props.centreName });
+});
 jest.mock('../../src/components/ErrandBundleCard',      () => () => null);
 jest.mock('../../src/components/TripSuggestionCard',    () => () => null);
 jest.mock('../../src/components/StoreTuningPromptSheet',() => ({ __esModule: true, default: () => null }));
@@ -316,5 +329,31 @@ describe('TodayScreen UI — KAN-60 interaction', () => {
     expect(mockNavigate).toHaveBeenCalledWith('ItineraryOptions', expect.objectContaining({
       farTaskIds: expect.arrayContaining(['task-1']),
     }));
+  });
+});
+
+describe('TodayScreen UI — KAN-514 Nearby card switch', () => {
+  const TASK = {
+    id: 'task-1', title: 'Buy a white shirt', category: 'errands', poi: 'store',
+    done: false, date: '2026-06-01', createdAt: { toDate: () => new Date() } as any,
+  };
+
+  beforeEach(() => {
+    mockHookReturn = { ...DEFAULT_HOOK_RETURN, isLoading: false, tasks: [TASK], totalTasks: 1 };
+    mockMallCard = null;
+  });
+
+  it('shows the outdoor Nearby card, and only it, outside a centre', () => {
+    render(<TodayScreen />);
+    expect(screen.getByTestId('nearby-card')).toBeTruthy();
+    expect(screen.queryByTestId('mall-nearby-card')).toBeNull();
+  });
+
+  it('shows the mall card, and only it, inside a centre', () => {
+    mockMallCard = { venueId: 'alma-shopping', name: 'Alma Shopping', rows: [] };
+    render(<TodayScreen />);
+    expect(screen.getByTestId('mall-nearby-card')).toBeTruthy();
+    expect(screen.getByLabelText('Alma Shopping')).toBeTruthy();
+    expect(screen.queryByTestId('nearby-card')).toBeNull();
   });
 });
