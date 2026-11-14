@@ -123,7 +123,7 @@ jest.mock('../../src/constants/copy', () => ({
       // KAN-515 — the real English strings, so the test reads the shipped copy.
       centreTitle: (centre: string) => centre,
       centreBody:  (count: number) =>
-        (count === 1 ? "1 waiting here. I'll show you the floor." : `${count} waiting here. I'll show you the floors.`),
+        (count === 1 ? "One waiting here. I'll show you the floor." : `${count} waiting here. I'll show you the floors.`),
     },
     offline: {
       genericBanner:       'Offline — changes may not sync',
@@ -989,7 +989,7 @@ describe('inside a shopping centre: one notification per entry (KAN-515)', () =>
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
     expect(mockDisplayNotification).toHaveBeenCalledWith(expect.objectContaining({
       title: 'Centro Comercial Colombo',
-      body: "1 waiting here. I'll show you the floor.",
+      body: "One waiting here. I'll show you the floor.",
     }));
   });
 

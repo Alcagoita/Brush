@@ -142,16 +142,20 @@ describe('COPY — attribution names every source that ships (KAN-451)', () => {
 describe('centre notification copy (KAN-515)', () => {
   afterEach(() => setCopyLanguage('en'));
 
-  it('names the centre and counts, with the singular, in English', () => {
+  it('names the centre and spells the count out, in English', () => {
     setCopyLanguage('en');
     expect(COPY.notification.centreTitle('Alma Shopping')).toBe('Alma Shopping');
-    expect(COPY.notification.centreBody(1)).toBe("1 waiting here. I'll show you the floor.");
-    expect(COPY.notification.centreBody(3)).toBe("3 waiting here. I'll show you the floors.");
+    expect(COPY.notification.centreBody(1)).toBe("One waiting here. I'll show you the floor.");
+    expect(COPY.notification.centreBody(3)).toBe("Three waiting here. I'll show you the floors.");
+    expect(COPY.notification.centreBody(9)).toBe("Nine waiting here. I'll show you the floors.");
+    expect(COPY.notification.centreBody(12)).toBe("12 waiting here. I'll show you the floors.");
   });
 
   it('reads the same in Portuguese (pt-PT)', () => {
     setCopyLanguage('pt-PT');
-    expect(COPY.notification.centreBody(1)).toBe('1 à espera aqui. Mostro-te o piso.');
-    expect(COPY.notification.centreBody(3)).toBe('3 à espera aqui. Mostro-te os pisos.');
+    expect(COPY.notification.centreBody(1)).toBe('Uma à espera aqui. Mostro-te o piso.');
+    expect(COPY.notification.centreBody(2)).toBe('Duas à espera aqui. Mostro-te os pisos.');
+    expect(COPY.notification.centreBody(3)).toBe('Três à espera aqui. Mostro-te os pisos.');
+    expect(COPY.notification.centreBody(12)).toBe('12 à espera aqui. Mostro-te os pisos.');
   });
 });

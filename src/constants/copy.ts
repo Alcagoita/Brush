@@ -59,8 +59,14 @@ const en = {
 
     /** KAN-515 — the ONE notification inside a shopping centre, replacing the per-shop ones. */
     centreTitle: (centre: string) => centre,
-    centreBody: (count: number) =>
-      count === 1 ? "1 waiting here. I'll show you the floor." : `${count} waiting here. I'll show you the floors.`,
+    // Spelled out, not digits: it opens a sentence a person reads, so
+    // "Three waiting here" reads naturally (owner, 2026-11-14). 10+ stays a
+    // number — "Twelve waiting" reads worse than "12".
+    centreBody: (count: number) => {
+      const words = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+      const n = words[count - 1] ?? String(count);
+      return count === 1 ? `${n} waiting here. I'll show you the floor.` : `${n} waiting here. I'll show you the floors.`;
+    },
 
     /** Daily complete celebration. */
     dailyCompleteTitle: "You've brushed it all away today 🖌",
@@ -1388,8 +1394,12 @@ const ptPT: typeof en = {
       `Tens ${count} coisa${count === 1 ? '' : 's'} para tratar.`,
 
     centreTitle: (centre: string) => centre,
-    centreBody: (count: number) =>
-      count === 1 ? '1 à espera aqui. Mostro-te o piso.' : `${count} à espera aqui. Mostro-te os pisos.`,
+    // Feminine forms ("Uma", "Duas"): what's waiting is tarefas.
+    centreBody: (count: number) => {
+      const words = ['Uma', 'Duas', 'Três', 'Quatro', 'Cinco', 'Seis', 'Sete', 'Oito', 'Nove'];
+      const n = words[count - 1] ?? String(count);
+      return count === 1 ? `${n} à espera aqui. Mostro-te o piso.` : `${n} à espera aqui. Mostro-te os pisos.`;
+    },
 
     dailyCompleteTitle: 'Já trataste de tudo hoje 🖌',
     dailyCompleteBody:  'Todas as tarefas tratadas. Tela limpa!',
