@@ -12,6 +12,7 @@
  */
 
 import { setWifiOnlyDownloads } from '../../services/habitatCache';
+import { setTrackingAccuracy } from '../../services/geolocation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
@@ -30,7 +31,6 @@ import { getIncomingSharedTasksCount } from '../../services/sharing';
 import { setHomeLocation } from '../../services/home';
 import { updateNotifNearbyEnabled, updateProximityPoiPreferences, setActiveTrips, setMallSnapshot as setProximityMallSnapshot } from '../../services/proximity';
 import { updateExitPromptPref } from '../../services/proximity';
-import { updateIndoorExitPromptPref } from '../../services/indoorProximity';
 import { syncTasksToWatch } from '../../services/wearSync';
 import type { Category, MallSnapshot, Task, Trip } from '../../types';
 import { todayISO } from '../../utils/date';
@@ -73,7 +73,6 @@ export interface TodayScreenData {
   inboxCount:        number;
   socialUnreadCount: number;
   lowBatteryPausePref: boolean;
-  storeTuningEnabled:  boolean | undefined;
   /** Active trip areas + current mall snapshot (KAN-237) — fed into the
    *  proximity engine's cache-first check. Refetched on every load (boot
    *  fast path, initial non-boot fetch, and refresh) so cache-first coverage
@@ -99,7 +98,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
   const [inboxCount,      setInboxCount]      = useState(0);
   const [socialUnreadCount, setSocialUnreadCount] = useState(0);
   const [lowBatteryPausePref, setLowBatteryPausePref] = useState(false);
-  const [storeTuningEnabled, setStoreTuningEnabled]  = useState<boolean | undefined>(undefined);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [mallSnapshot, setMallSnapshot] = useState<MallSnapshot | null>(null);
   const [listenerGeneration, setListenerGeneration] = useState(0);
@@ -116,7 +114,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     inboxCount: 0,
     socialUnreadCount: 0,
     lowBatteryPausePref: false,
-    storeTuningEnabled: undefined as boolean | undefined,
     trips: [] as Trip[],
     mallSnapshot: null as MallSnapshot | null,
   });
@@ -127,7 +124,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       inboxCount,
       socialUnreadCount,
       lowBatteryPausePref,
-      storeTuningEnabled,
       trips,
       mallSnapshot,
     };
@@ -137,7 +133,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     inboxCount,
     socialUnreadCount,
     lowBatteryPausePref,
-    storeTuningEnabled,
     trips,
     mallSnapshot,
   ]);
@@ -164,7 +159,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setInboxCount(0);
       setSocialUnreadCount(0);
       setLowBatteryPausePref(false);
-      setStoreTuningEnabled(undefined);
       setTrips([]);
       setMallSnapshot(null);
       setActiveTrips(null);
@@ -193,7 +187,8 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
           if (bootData.userData) {
             setLowBatteryPausePref(bootData.userData.poiPreferences?.lowBatteryPause ?? false);
             setWifiOnlyDownloads(bootData.userData.poiPreferences?.wifiOnlyDownloads ?? false);
-            setStoreTuningEnabled(bootData.userData.poiPreferences?.storeTuningEnabled);
+            // KAN-515 — the user's "High accuracy" choice, restored at start.
+            setTrackingAccuracy(bootData.userData.poiPreferences?.highAccuracy ? 'fine' : 'coarse');
           }
           setTrips(bootData.trips);
           setMallSnapshot(bootData.mallSnapshot);
@@ -207,7 +202,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
           setHomeLocation(bootData.userData?.home ?? null);
           updateNotifNearbyEnabled(bootData.userPrefs.notif_nearby_enabled ?? true);
           updateExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
-          updateIndoorExitPromptPref(bootData.userPrefs.exitPrompt ?? true);
           updateProximityPoiPreferences(bootData.poiPrefsMap);
           setIsLoading(false);
         }
@@ -296,14 +290,13 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         setHomeLocation(userData?.home ?? null);
         setLowBatteryPausePref(userData?.poiPreferences?.lowBatteryPause ?? false);
         setWifiOnlyDownloads(userData?.poiPreferences?.wifiOnlyDownloads ?? false);
-        setStoreTuningEnabled(userData?.poiPreferences?.storeTuningEnabled);
+        setTrackingAccuracy(userData?.poiPreferences?.highAccuracy ? 'fine' : 'coarse');
       }
 
       if (userPrefsResult.status === 'fulfilled') {
         const userPrefs = userPrefsResult.value;
         updateNotifNearbyEnabled(userPrefs.notif_nearby_enabled ?? true);
         updateExitPromptPref(userPrefs.exitPrompt ?? true);
-        updateIndoorExitPromptPref(userPrefs.exitPrompt ?? true);
       }
 
       if (poiPrefsMapResult.status === 'fulfilled') {
@@ -420,7 +413,6 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
     inboxCount,
     socialUnreadCount,
     lowBatteryPausePref,
-    storeTuningEnabled,
     trips,
     mallSnapshot,
     latestTasksRef,

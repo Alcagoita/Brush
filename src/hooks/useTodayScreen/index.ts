@@ -3,8 +3,7 @@
  *
  * ViewModel-layer hook for TodayScreen. Composes four focused sub-hooks:
  *   - useTodayScreenData    — Firestore fetch, loading/error, task/points state
- *   - useProximityEngine    — location permission, outdoor/indoor proximity,
- *                             Store fine tuning
+ *   - useProximityEngine    — location permission, proximity search
  *   - useTaskCompletion     — task-done toggle + achievements/challenges
  *   - useLearnedPlaces      — on-device learned-place ranking (KAN-230),
  *                             fed into the proximity engine and refreshed
@@ -60,10 +59,6 @@ export interface TodayScreenState {
   learnedPlaces:    LearnedBrand[];
   /** Last settled-search position (KAN-301) — feeds the Lantern's home/outside resolution. Null before any fix. */
   coords:           { lat: number; lng: number } | null;
-  storeTuningActive:        boolean;
-  showStoreTuningPrompt:    boolean;
-  onStoreTuningTurnOn:      () => void;
-  onStoreTuningNotNow:      () => void;
   /** Custom categories from Firestore — passed to NewTaskSheet. */
   customCategories: Category[];
   totalTasks:   number;
@@ -106,8 +101,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     uid,
     data.tasks,
     data.latestTasksRef,
-    data.lowBatteryPausePref,
-    data.storeTuningEnabled,
   );
   const { handleToggle: handleToggleInner } = useTaskCompletion(
     uid,
@@ -187,10 +180,6 @@ export function useTodayScreen(uid: string | undefined): TodayScreenState {
     placeContext: proximity.placeContext,
     learnedPlaces,
     coords: proximity.coords,
-    storeTuningActive:     proximity.storeTuningActive,
-    showStoreTuningPrompt: proximity.showStoreTuningPrompt,
-    onStoreTuningTurnOn: proximity.onStoreTuningTurnOn,
-    onStoreTuningNotNow: proximity.onStoreTuningNotNow,
     customCategories: data.customCategories,
     totalTasks,
     doneTasks,

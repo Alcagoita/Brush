@@ -293,13 +293,6 @@ let _activeTrips: Trip[] = [];
 /** KAN-237 — the current mall snapshot, if any, fed in from outside (see setMallSnapshot). */
 let _mallSnapshot: MallSnapshot | null = null;
 
-/**
- * Optional tap into the GPS stream (KAN-75 indoor detection).
- * Every position fix is forwarded here so indoor detection can run without
- * a competing GPS watcher.
- */
-let _locationTap: ((lat: number, lng: number, accuracy: number) => void) | null = null;
-
 /** Whether nearby-POI notifications are enabled (KAN-142). */
 let notifNearbyEnabled = true;
 
@@ -608,7 +601,7 @@ export function getActivePlaceContext(): PlaceContext {
 /**
  * KAN-242 — register a tap fired with the resolved place context on every
  * position fix taken by runProximitySearch, independent of onUpdate/
- * ProximityCallback (mirrors setLocationTap below). Feeds the header context
+ * ProximityCallback. Feeds the header context
  * chip without changing ProximityCallback's signature or any of its existing
  * call-site tests. Pass null to unregister.
  */
@@ -691,7 +684,6 @@ async function runProximitySearch(
     const poiTypesKey = nearbyRequests.map(request => request.key).sort().join(',');
 
     if (uniquePoiTypes.length === 0) {
-      _locationTap?.(coords.lat, coords.lng, coords.accuracy);
       publishPlaceContext(coords.lat, coords.lng);
       _currentNearbyType = null;
       _lastAllPlaces = {};
@@ -913,8 +905,15 @@ function processProximityTick(
   answeredFromCache: boolean,
   onUpdate: ProximityCallback,
 ): void {
-  _locationTap?.(coords.lat, coords.lng, coords.accuracy ?? 0);
   publishPlaceContext(coords.lat, coords.lng);
+  // KAN-515 — inside a shopping centre location isn't trusted: many units sit
+  // on the centre's own coordinate (distance 0) and GPS can't tell floors
+  // apart. So nothing here may claim a shop is near: no "X nearby"
+  // notification, no "Did you get it?" dwell. The mall card (KAN-514) is what
+  // the user sees. Any dwell clock started on invented distances is dropped
+  // so it can't fire the moment they walk out.
+  const insideCentre = _lastPlaceContext?.kind === 'centre';
+  if (insideCentre) { geofenceEntryTimes.clear(); }
 
   // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
   let heroType:  string | null = null;
@@ -967,7 +966,7 @@ function processProximityTick(
     // display threshold below. A type with zero results this tick is
     // simply skipped here (nothing to check) — an in-progress dwell clock
     // is left untouched, not reset; see trackExitPromptGeofence's docs.
-    trackExitPromptGeofence(poiType, nearest, uid, tasks);
+    if (!insideCentre) { trackExitPromptGeofence(poiType, nearest, uid, tasks); }
 
     if (!nearest) { continue; }
 
@@ -1083,6 +1082,7 @@ function processProximityTick(
     );
     if (
       eligible.length > 0 &&
+      !insideCentre &&
       notifNearbyEnabled &&
       !isQuietHours() &&
       !_alertedTodayTypes.has(heroType)
@@ -1102,7 +1102,9 @@ function processProximityTick(
     _alertedTodayTypes.delete(_currentNearbyType);
   }
 
-  _currentNearbyType = heroType;
+  // Inside a centre no hero counts as "entered" (KAN-515): otherwise the
+  // first real hero of the same type after walking out wouldn't alert.
+  _currentNearbyType = insideCentre ? null : heroType;
   _lastAllPlaces = allPlaces;
   _lastSearchPoiTypesKey = poiTypesKey;
   _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
@@ -1129,8 +1131,6 @@ async function checkPositionAndMaybeSearch(
   } catch {
     return; // location unavailable — skip this tick silently
   }
-
-  _locationTap?.(coords.lat, coords.lng, coords.accuracy);
 
   // Always search on first tick (no previous origin).
   if (!_lastSearchCoords) {
@@ -1282,16 +1282,6 @@ export function resetProximityState(): void {
   _lastPoiSearchCoverageStatus = undefined;
 
   geofenceEntryTimes.clear();
-}
-
-/**
- * Register a callback that receives every GPS fix (KAN-75 indoor detection).
- * Pass null to unregister.
- */
-export function setLocationTap(
-  cb: ((lat: number, lng: number, accuracy: number) => void) | null,
-): void {
-  _locationTap = cb;
 }
 
 /**

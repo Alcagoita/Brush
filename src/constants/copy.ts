@@ -312,6 +312,12 @@ const en = {
     placeRefreshErrorToast: "Couldn't refresh — check your connection and try again.",
   },
 
+  // ─── High accuracy (KAN-515) — the Profile switch; the user's choice only ───
+  highAccuracy: {
+    rowLabel: 'High accuracy',
+    rowSublabel: 'I check where you are more precisely. It uses more battery.',
+  },
+
   // ─── Mall snapshot (KAN-237) ───────────────────────────────────────────────
   mallSnapshot: {
     rowLabel: 'Activate Mall mode',
@@ -1217,7 +1223,6 @@ const en = {
     tryAnotherPlace: 'Try another place',
     tryAnotherPlaceA11y: 'Try another place',
     refreshLocationA11y: 'Refresh location',
-    storeTuningOn: 'Store tuning on',
     refreshUpdated: 'Updated',
     refreshFailed: 'Failed',
     alsoClose: 'Also close',
@@ -1240,12 +1245,6 @@ const en = {
   newTaskSheet2: {
     closeA11y: 'Close',
     moreDetailsA11y: 'More details',
-  },
-
-  storeTuningPromptSheet: {
-    dismissA11y: 'Dismiss prompt',
-    turnOnA11y: 'Turn on Store fine tuning',
-    notNowA11y: 'Not now',
   },
 
   importTasksSection: {
@@ -1576,6 +1575,11 @@ const ptPT: typeof en = {
     placeSheetCoverageLine: 'Aprendi os sítios aqui perto.',
     mallSheetFreshnessLine: (date: string) => `Última aprendizagem a ${date}`,
     placeRefreshErrorToast: 'Não consegui atualizar — verifica a tua ligação e tenta outra vez.',
+  },
+
+  highAccuracy: {
+    rowLabel: 'Alta precisão',
+    rowSublabel: 'Verifico onde estás com mais precisão. Gasta mais bateria.',
   },
 
   mallSnapshot: {
@@ -2421,7 +2425,6 @@ const ptPT: typeof en = {
     tryAnotherPlace: 'Tentar outro local',
     tryAnotherPlaceA11y: 'Tentar outro local',
     refreshLocationA11y: 'Atualizar localização',
-    storeTuningOn: 'Ajuste de lojas ativo',
     refreshUpdated: 'Atualizado',
     refreshFailed: 'Falhou',
     alsoClose: 'Também perto',
@@ -2444,12 +2447,6 @@ const ptPT: typeof en = {
   newTaskSheet2: {
     closeA11y: 'Fechar',
     moreDetailsA11y: 'Mais detalhes',
-  },
-
-  storeTuningPromptSheet: {
-    dismissA11y: 'Dispensar aviso',
-    turnOnA11y: 'Ativar afinação da loja',
-    notNowA11y: 'Agora não',
   },
 
   importTasksSection: {

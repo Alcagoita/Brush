@@ -88,11 +88,6 @@ interface NearbyCardProps {
   nearbyPoiType: string | null;
   /** All nearby places per POI type from the proximity service, ordered nearest-first. */
   poiPlaces:     PlacesMap;
-  /**
-   * When true Store fine tuning is active (KAN-74).
-   * A small indicator appears in the header.
-   */
-  storeTuningActive?: boolean;
   /** Called when user taps the refresh button in the header. */
   onRefreshLocation?: () => Promise<boolean>;
   /** Called on every render — true if content is visible, false if null. */
@@ -327,7 +322,6 @@ function NearbyCard({
   tasks,
   nearbyPoiType,
   poiPlaces,
-  storeTuningActive = false,
   onRefreshLocation,
   onHasContent,
 }: NearbyCardProps) {
@@ -452,11 +446,6 @@ function NearbyCard({
         </View>
 
         <View style={styles.headerRight}>
-          {storeTuningActive && (
-            <Text style={[styles.tuningLabel, { color: palette.accent }]}>
-              {COPY.nearbyCard.storeTuningOn}
-            </Text>
-          )}
           <Animated.Text style={[styles.feedbackLabel, { color: refreshResult === 'ok' ? palette.accent : palette.muted }, feedbackStyle]}>
             {refreshResult === 'ok' ? COPY.nearbyCard.refreshUpdated : COPY.nearbyCard.refreshFailed}
           </Animated.Text>
@@ -571,12 +560,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems:    'center',
     gap:           8,
-  },
-  tuningLabel: {
-    fontSize:      10,
-    fontWeight:    '500',
-    fontFamily:    'Geist-Medium',
-    letterSpacing: 0.5,
   },
   placesCount: {
     fontSize:   11,

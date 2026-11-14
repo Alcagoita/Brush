@@ -40,13 +40,12 @@ import {
   SettingsIcon,
   ShareIcon,
   CameraIcon,
-  BuildingIcon,
+  CrosshairIcon,
   PinIcon,
   CloudOffIcon,
 } from '../components/AppIcon';
 import Avatar from '../components/Avatar';
-import LoadingDots from '../components/LoadingDots';
-import { useMallSnapshotToggle } from '../hooks/useMallSnapshotToggle';
+import { useHighAccuracyToggle } from '../hooks/useHighAccuracyToggle';
 import {
   getUserPointsSummary,
   updateDisplayName,
@@ -81,7 +80,7 @@ export default function ProfileScreen() {
   const userPhotoURL = currentUser?.photoURL ?? null;
 
   // ── Mall snapshot toggle (KAN-237) ────────────────────────────────────────
-  const { enabled: mallSnapshotEnabled, loading: mallSnapshotLoading, toggle: toggleMallSnapshot } = useMallSnapshotToggle();
+  const { enabled: highAccuracyEnabled, toggle: toggleHighAccuracy } = useHighAccuracyToggle();
 
   // ── Live data ──────────────────────────────────────────────────────────────
   const [totalPoints,   setTotalPoints]   = useState(0);
@@ -399,34 +398,23 @@ export default function ProfileScreen() {
           <ChevronRightIcon color={palette.faint} size={18} />
         </Pressable>
 
-        {/* ── 2c. Mall snapshot toggle (KAN-237) ── */}
+        {/* ── 2c. High accuracy (KAN-515) — replaced the KAN-237 "Activate Mall mode" row ── */}
         <View style={[styles.shareRow, { backgroundColor: palette.surface, borderColor: palette.line }]}>
           <View style={[styles.iconTile, { backgroundColor: palette.surface2 }]}>
-            <BuildingIcon color={palette.muted} size={20} />
+            <CrosshairIcon color={palette.muted} size={20} />
           </View>
           <View style={styles.mallRowTextCol}>
-            <Text style={[styles.shareRowLabel, { color: palette.text }]}>{COPY.mallSnapshot.rowLabel}</Text>
-            <Text style={[styles.mallRowSublabel, { color: palette.muted }]}>{COPY.mallSnapshot.rowSublabel}</Text>
+            <Text style={[styles.shareRowLabel, { color: palette.text }]}>{COPY.highAccuracy.rowLabel}</Text>
+            <Text style={[styles.mallRowSublabel, { color: palette.muted }]}>{COPY.highAccuracy.rowSublabel}</Text>
           </View>
-          {mallSnapshotLoading ? (
-            <View style={styles.mallRowLoading} importantForAccessibility="no-hide-descendants">
-              <LoadingDots color={palette.accent} size={6} />
-            </View>
-          ) : (
-            <Switch
-              value={mallSnapshotEnabled}
-              onValueChange={toggleMallSnapshot}
-              trackColor={{ false: palette.surface2, true: palette.accent }}
-              thumbColor={palette.bg}
-              accessibilityLabel={COPY.mallSnapshot.rowLabel}
-            />
-          )}
+          <Switch
+            value={highAccuracyEnabled}
+            onValueChange={toggleHighAccuracy}
+            trackColor={{ false: palette.surface2, true: palette.accent }}
+            thumbColor={palette.bg}
+            accessibilityLabel={COPY.highAccuracy.rowLabel}
+          />
         </View>
-        {mallSnapshotLoading ? (
-          <Text style={[styles.mallDownloadingLabel, { color: palette.muted }]}>
-            {COPY.mallSnapshot.downloadingLabel}
-          </Text>
-        ) : null}
 
         {/* ── Community (KAN-374) ── */}
         <Text style={[styles.sectionLabel, { color: palette.muted }]}>
@@ -769,17 +757,6 @@ const styles = StyleSheet.create({
   mallRowSublabel: {
     fontSize:   12,
     fontFamily: 'Geist-Regular',
-  },
-  mallRowLoading: {
-    width:          51, // matches native Switch footprint so the row doesn't reflow
-    alignItems:     'center',
-    justifyContent: 'center',
-  },
-  mallDownloadingLabel: {
-    fontSize:   12,
-    fontFamily: 'Geist-Regular',
-    marginTop:  -8,
-    marginLeft: 4,
   },
 
   // ── Icon tile (shared) ──

@@ -94,8 +94,9 @@ jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
 }));
 
+const mockFireExitPrompt = jest.fn().mockResolvedValue(undefined);
 jest.mock('../../src/services/notifications', () => ({
-  fireExitPrompt: jest.fn().mockResolvedValue(undefined),
+  fireExitPrompt: (...args: unknown[]) => mockFireExitPrompt(...args),
 }));
 
 jest.mock('../../src/config/keys', () => ({
@@ -182,6 +183,8 @@ import {
   setMallSnapshot,
   setPlaceContextTap,
   setNavigateToTripPlanner,
+  buildGeofenceId,
+  __setGeofenceEntryTime,
 } from '../../src/services/proximity';
 import type { Task, Trip, MallSnapshot } from '../../src/types';
 import type { NearbyPlace } from '../../src/services/maps';
@@ -885,5 +888,55 @@ describe('place context tap (KAN-242) — feeds the header ContextChip, mall-fir
     return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
       expect(tap).toHaveBeenCalledWith(null);
     });
+  });
+});
+
+describe('inside a shopping centre: no alerts (KAN-515)', () => {
+  const COLOMBO = { venueId: 'colombo', name: 'Centro Comercial Colombo' };
+  afterEach(() => { mockUpdateCentreContext.mockReturnValue(null); });
+
+  it('shows the hero but sends no "X nearby" notification while inside a centre', async () => {
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+    mockUpdateCentreContext.mockReturnValue(COLOMBO);
+
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+    await flushAsync();
+
+    expect(onUpdate).toHaveBeenCalledWith('atm', expect.anything(), expect.anything());
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  it('sends no "Did you get it?" prompt inside a centre, even with a long dwell already counted', async () => {
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+    mockUpdateCentreContext.mockReturnValue(COLOMBO);
+    __setGeofenceEntryTime(buildGeofenceId('atm', 'hp_cached_1'), Date.now() - 60 * 60 * 1_000);
+
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    await flushAsync();
+
+    expect(mockFireExitPrompt).not.toHaveBeenCalled();
+  });
+
+  it('alerts again for the first real nearby place after walking out', async () => {
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+    mockUpdateCentreContext.mockReturnValue(COLOMBO);
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    await flushAsync();
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockUpdateCentreContext.mockReturnValue(null);
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    await flushAsync();
+
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
 });
