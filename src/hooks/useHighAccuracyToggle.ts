@@ -17,6 +17,7 @@ import { getAuth } from '@react-native-firebase/auth/lib/modular';
 import '@react-native-firebase/auth';
 import { setTrackingAccuracy } from '../services/geolocation';
 import { getHighAccuracyPref, setHighAccuracyPref } from '../services/firestore';
+import { highAccuracyGeneration, noteHighAccuracyChange } from '../services/highAccuracy';
 
 export interface HighAccuracyToggleState {
   enabled: boolean;
@@ -33,26 +34,50 @@ export function useHighAccuracyToggle(): HighAccuracyToggleState {
     return () => { mountedRef.current = false; };
   }, []);
 
+  // The last value known to be saved. A failed save goes back to this, not
+  // to "the opposite of what was tried", which is wrong once two saves overlap.
+  const confirmedRef = useRef(false);
+  // Saves run one after another, in the order the user flipped the switch.
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
+  const latestOpRef = useRef(0);
+
   useEffect(() => {
     if (!uid) { return; }
+    const readGeneration = highAccuracyGeneration();
     getHighAccuracyPref(uid)
-      .then(value => { if (mountedRef.current) { setEnabled(value); } })
+      .then(value => {
+        // The user flipped the switch while this read was in flight: their
+        // choice is newer than what was read.
+        if (highAccuracyGeneration() !== readGeneration) { return; }
+        confirmedRef.current = value;
+        if (mountedRef.current) { setEnabled(value); }
+      })
       .catch(err => console.warn('[useHighAccuracyToggle] initial load failed', err));
   }, [uid]);
 
-  const toggle = useCallback(async (value: boolean) => {
-    if (!uid) { return; }
+  const toggle = useCallback((value: boolean) => {
+    if (!uid) { return Promise.resolve(); }
+    noteHighAccuracyChange();
+    const op = ++latestOpRef.current;
     setEnabled(value);
     setTrackingAccuracy(value ? 'fine' : 'coarse');
-    try {
-      await setHighAccuracyPref(uid, value);
-    } catch (err) {
-      // Not saved: put the switch and the watcher back where they were, so
-      // what the screen says matches what the app does.
-      console.warn('[useHighAccuracyToggle] save failed', err);
-      setTrackingAccuracy(value ? 'coarse' : 'fine');
-      if (mountedRef.current) { setEnabled(!value); }
-    }
+    const run = saveChainRef.current.then(async () => {
+      try {
+        await setHighAccuracyPref(uid, value);
+        confirmedRef.current = value;
+      } catch (err) {
+        console.warn('[useHighAccuracyToggle] save failed', err);
+        // A newer flip is queued behind this one and will settle the state.
+        if (op !== latestOpRef.current) { return; }
+        // Not saved: put the switch and the watcher back on what is saved,
+        // so what the screen says matches what the app does.
+        const saved = confirmedRef.current;
+        setTrackingAccuracy(saved ? 'fine' : 'coarse');
+        if (mountedRef.current) { setEnabled(saved); }
+      }
+    });
+    saveChainRef.current = run;
+    return run;
   }, [uid]);
 
   return { enabled, toggle };

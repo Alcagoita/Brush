@@ -202,6 +202,7 @@ jest.mock('../../src/services/battery', () => ({
 
 import { act, renderHook } from '@testing-library/react-native';
 import { useTodayScreen } from '../../src/hooks/useTodayScreen';
+import { noteHighAccuracyChange } from '../../src/services/highAccuracy';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -455,6 +456,23 @@ describe('useTodayScreen — High accuracy restored at start (KAN-515)', () => {
     renderHook(() => useTodayScreen(UID));
     await act(async () => {});
     expect(mockSetTrackingAccuracy).toHaveBeenLastCalledWith('coarse');
+  });
+
+  it('does not undo a Profile flip made while the start-up fetch was still waiting', async () => {
+    // getUser has answered (switch off), but another read in the same batch is still pending.
+    mockGetUser.mockResolvedValue({ poiPreferences: { highAccuracy: false } });
+    let resolveTrips: (value: unknown[]) => void = () => {};
+    mockGetTrips.mockReturnValueOnce(new Promise(resolve => { resolveTrips = resolve; }));
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    // The user turns High accuracy on in Profile and the save succeeds.
+    noteHighAccuracyChange();
+    mockSetTrackingAccuracy.mockClear();
+
+    await act(async () => { resolveTrips([]); });
+
+    expect(mockSetTrackingAccuracy).not.toHaveBeenCalledWith('coarse');
   });
 });
 

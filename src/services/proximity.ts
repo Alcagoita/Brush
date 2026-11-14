@@ -91,7 +91,7 @@ import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
-import { refreshVenueInventoriesIfDue, getVenueInventory, searchVenueUnits } from './venueInventory';
+import { refreshVenueInventoriesIfDue, getVenueInventory, searchVenueUnits, subscribeVenueInventory } from './venueInventory';
 import { buildMallRows } from './mallSuggestions';
 import { updateCentreContext } from './centreDetection';
 import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
@@ -675,7 +675,41 @@ export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): vo
 function publishPlaceContext(lat: number, lng: number, tasks: Task[]): void {
   _lastPlaceContext = findActivePlaceContext(lat, lng);
   _placeContextTap?.(_lastPlaceContext);
+  if (_lastPlaceContext?.kind === 'centre') { enterCentreQuiet(); }
+  _lastTickTasks = tasks;
+  ensureInventoryListener();
   maybeNotifyCentre(tasks);
+}
+
+/**
+ * KAN-515 — inside a centre no outdoor hero counts, on every tick including
+ * the ones that end early (offline under the roof is the usual case). Dwell
+ * clocks started outside are dropped so they can't fire on the way out, and
+ * the hero type held from outside is released the same way walking away
+ * releases it, so its alert can fire again after the visit.
+ */
+function enterCentreQuiet(): void {
+  geofenceEntryTimes.clear();
+  if (_currentNearbyType !== null) {
+    _alertedTodayTypes.delete(_currentNearbyType);
+    _currentNearbyType = null;
+  }
+}
+
+/** KAN-515 — the tasks from the latest tick, for the inventory-change re-check below. */
+let _lastTickTasks: Task[] = [];
+let _inventoryUnsubscribe: (() => void) | null = null;
+
+/**
+ * KAN-515 — a centre's inventory often finishes downloading while the user is
+ * already inside, and inside a centre they rarely move far enough to cause
+ * another tick. So the centre notification is re-checked when the stored
+ * inventory changes, with the latest tick's tasks; maybeNotifyCentre keeps
+ * its own complete-inventory check and once-per-entry guard.
+ */
+function ensureInventoryListener(): void {
+  if (_inventoryUnsubscribe) { return; }
+  _inventoryUnsubscribe = subscribeVenueInventory(() => maybeNotifyCentre(_lastTickTasks));
 }
 
 /**
@@ -965,10 +999,9 @@ function processProximityTick(
   // apart. So nothing here may claim a shop is near: no "X nearby"
   // notification, no "Did you get it?" dwell. The mall card (KAN-514) is what
   // the user sees, and the centre gets one notification of its own per entry
-  // (maybeNotifyCentre, called from publishPlaceContext above). Any dwell clock started on invented distances is dropped
-  // so it can't fire the moment they walk out.
+  // (maybeNotifyCentre, called from publishPlaceContext above, which also
+  // drops outdoor dwell clocks and the held hero type: enterCentreQuiet).
   const insideCentre = _lastPlaceContext?.kind === 'centre';
-  if (insideCentre) { geofenceEntryTimes.clear(); }
 
   // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
   let heroType:  string | null = null;
@@ -1334,6 +1367,7 @@ export function resetProximityState(): void {
   _mallSnapshot = null;
   _lastPlaceContext = null;
   _notifiedCentreId = null;
+  _lastTickTasks = [];
   _lastPoiSearchSource = null;
   _lastPoiSearchCoverageStatus = undefined;
 

@@ -13,6 +13,7 @@
 
 import { setWifiOnlyDownloads } from '../../services/habitatCache';
 import { setTrackingAccuracy } from '../../services/geolocation';
+import { highAccuracyGeneration } from '../../services/highAccuracy';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import {
@@ -216,6 +217,7 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
       setIsLoading(true);
     }
     setError(null);
+    const accuracyGeneration = highAccuracyGeneration();
 
     try {
       const [
@@ -290,7 +292,11 @@ export function useTodayScreenData(uid: string | undefined): TodayScreenData {
         setHomeLocation(userData?.home ?? null);
         setLowBatteryPausePref(userData?.poiPreferences?.lowBatteryPause ?? false);
         setWifiOnlyDownloads(userData?.poiPreferences?.wifiOnlyDownloads ?? false);
-        setTrackingAccuracy(userData?.poiPreferences?.highAccuracy ? 'fine' : 'coarse');
+        // Skipped when the user flipped the switch after this fetch began:
+        // what was read here is older than their choice.
+        if (highAccuracyGeneration() === accuracyGeneration) {
+          setTrackingAccuracy(userData?.poiPreferences?.highAccuracy ? 'fine' : 'coarse');
+        }
       }
 
       if (userPrefsResult.status === 'fulfilled') {

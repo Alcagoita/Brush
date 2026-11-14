@@ -65,7 +65,14 @@ jest.mock('../../src/services/venueInventory', () => ({
   refreshVenueInventoriesIfDue: jest.fn().mockResolvedValue(undefined),
   getVenueInventory: (...args: unknown[]) => mockGetVenueInventory(...args),
   searchVenueUnits: (...args: unknown[]) => mockSearchVenueUnits(...args),
+  // The engine re-checks the centre notification when an inventory lands;
+  // captured so a test can fire it.
+  subscribeVenueInventory: (listener: () => void) => {
+    mockInventoryListener = listener;
+    return () => { mockInventoryListener = null; };
+  },
 }));
+let mockInventoryListener: (() => void) | null = null;
 jest.mock('../../src/services/centreDetection', () => ({
   updateCentreContext: (...args: unknown[]) => mockUpdateCentreContext(...args),
 }));
@@ -952,6 +959,44 @@ describe('inside a shopping centre: no alerts (KAN-515)', () => {
 
     expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
   });
+
+  it('alerts again after a visit for a type that had alerted before the user went in', async () => {
+    const tickAt = async (inside: boolean) => {
+      goOffline();
+      mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+      mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+      mockUpdateCentreContext.mockReturnValue(inside ? COLOMBO : null);
+      await runProximitySearch('uid-1', [makeTask()], jest.fn());
+      await flushAsync();
+    };
+    await tickAt(false);
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+
+    await tickAt(true);
+    await tickAt(false);
+
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it('drops an outdoor dwell clock on an inside tick that ends early, so leaving fires no prompt', async () => {
+    __setGeofenceEntryTime(buildGeofenceId('atm', 'hp_cached_1'), Date.now() - 60 * 60 * 1_000);
+    // Inside, offline, nothing cached here: the tick ends before the hero split.
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({});
+    mockUpdateCentreContext.mockReturnValue(COLOMBO);
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    await flushAsync();
+
+    goOffline();
+    mockSearchOsmPlacesStrict.mockRejectedValueOnce(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [cachedPlace()] });
+    mockUpdateCentreContext.mockReturnValue(null);
+    await runProximitySearch('uid-1', [makeTask()], jest.fn());
+    await flushAsync();
+
+    expect(mockFireExitPrompt).not.toHaveBeenCalled();
+  });
 });
 
 describe('inside a shopping centre: one notification per entry (KAN-515)', () => {
@@ -1026,6 +1071,19 @@ describe('inside a shopping centre: one notification per entry (KAN-515)', () =>
     mockGetVenueInventory.mockReturnValue(null);
     await tick(true);
     expect(mockDisplayNotification).not.toHaveBeenCalled();
+  });
+
+  it('notifies when the inventory finishes downloading while the user is inside, without another tick', async () => {
+    mockGetVenueInventory.mockReturnValue(null);
+    await tick(true);
+    expect(mockDisplayNotification).not.toHaveBeenCalled();
+
+    mockGetVenueInventory.mockReturnValue({ complete: true });
+    mockInventoryListener?.();
+    await flushAsync();
+
+    expect(mockDisplayNotification).toHaveBeenCalledTimes(1);
+    expect(mockDisplayNotification).toHaveBeenCalledWith(expect.objectContaining({ title: 'Centro Comercial Colombo' }));
   });
 
   it('respects the Nearby notifications setting', async () => {
