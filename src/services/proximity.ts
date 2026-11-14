@@ -92,6 +92,7 @@ import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
 import { refreshVenueInventoriesIfDue } from './venueInventory';
+import { updateCentreContext } from './centreDetection';
 import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
 import { useToastStore } from '../store/toastStore';
 import { getLearnedPlaceForPoiType, type LearnedBrand } from './learnedPlaces';
@@ -167,6 +168,8 @@ export type PlacesMap = Partial<Record<string, NearbyPlace[]>>;
  * specific cacheAreaId) — this one's order is a real product requirement.
  */
 export type PlaceContext =
+  /** KAN-513 — inside a shopping centre's outline (centreDetection.ts). Checked first. */
+  | { kind: 'centre'; venueId: string; name: string }
   | { kind: 'mall'; snapshot: MallSnapshot }
   | { kind: 'trip'; trip: Trip }
   | null;
@@ -571,6 +574,13 @@ export function isLocationKnown(lat: number, lng: number): boolean {
 /** KAN-242 — see PlaceContext's doc comment for why this mall-first order is distinct from findActiveCacheArea's above. */
 function findActivePlaceContext(lat: number, lng: number): PlaceContext {
   const now = Date.now();
+  // KAN-513 — a centre's outline is the first answer to "in a mall". The
+  // KAN-237 snapshot below stays as it was and still answers where no
+  // stored outline covers the position (owner, 2026-11-14).
+  const centre = updateCentreContext(lat, lng);
+  if (centre) {
+    return { kind: 'centre', venueId: centre.venueId, name: centre.name };
+  }
   if (_mallSnapshot && _mallSnapshot.expiresAt >= now &&
       getDistanceMeters(lat, lng, _mallSnapshot.centerLat, _mallSnapshot.centerLng) <= _mallSnapshot.radius) {
     return { kind: 'mall', snapshot: _mallSnapshot };
@@ -604,6 +614,21 @@ export function getActivePlaceContext(): PlaceContext {
  */
 export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): void {
   _placeContextTap = cb;
+}
+
+/**
+ * Resolve and publish the place context for this tick's position. Stored
+ * before tapping so getActivePlaceContext() (task completion's
+ * completedTripId stamp) reads this tick's context, not a stale one.
+ *
+ * KAN-513 — also called on the ticks that end early (an online search error,
+ * an empty offline-cache answer): centre detection needs only the position
+ * and the stored outlines, so those ticks must not leave the Lantern on the
+ * previous context, which is exactly what happens under a mall roof.
+ */
+function publishPlaceContext(lat: number, lng: number): void {
+  _lastPlaceContext = findActivePlaceContext(lat, lng);
+  _placeContextTap?.(_lastPlaceContext);
 }
 
 /**
@@ -667,8 +692,7 @@ async function runProximitySearch(
 
     if (uniquePoiTypes.length === 0) {
       _locationTap?.(coords.lat, coords.lng, coords.accuracy);
-      _lastPlaceContext = findActivePlaceContext(coords.lat, coords.lng);
-      _placeContextTap?.(_lastPlaceContext);
+      publishPlaceContext(coords.lat, coords.lng);
       _currentNearbyType = null;
       _lastAllPlaces = {};
       // No undone POI tasks left to prompt for — nothing to fire, just
@@ -729,7 +753,9 @@ async function runProximitySearch(
           const state = await NetInfo.fetch();
           offline = state.isConnected === false || state.isInternetReachable === false;
         } catch { /* treat as unknown — not offline */ }
-        if (!offline) { return; }
+        // Nothing to show from this tick, but the position is real: keep
+        // the place context (centre, mall, trip) current (KAN-513).
+        if (!offline) { publishPlaceContext(coords.lat, coords.lng); return; }
 
         _enqueueSearch(uid, tasks, onUpdate);
         results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
@@ -777,6 +803,9 @@ async function runProximitySearch(
           useToastStore.getState().showToast(COPY.offline.uncoveredAreaToast);
         }
       }
+      // No places, but the position is real — offline under a mall roof is
+      // the case that matters here (KAN-513).
+      publishPlaceContext(coords.lat, coords.lng);
       return;
     }
 
@@ -885,11 +914,7 @@ function processProximityTick(
   onUpdate: ProximityCallback,
 ): void {
   _locationTap?.(coords.lat, coords.lng, coords.accuracy ?? 0);
-  // Store before tapping so getActivePlaceContext() (task completion's
-  // completedTripId stamp) reads this tick's context, not a stale one — the
-  // empty-POI branch above does the same.
-  _lastPlaceContext = findActivePlaceContext(coords.lat, coords.lng);
-  _placeContextTap?.(_lastPlaceContext);
+  publishPlaceContext(coords.lat, coords.lng);
 
   // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
   let heroType:  string | null = null;

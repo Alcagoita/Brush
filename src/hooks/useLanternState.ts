@@ -15,7 +15,9 @@
  * it never fires again once any position is known. Until a fix exists the
  * resolver holds `locating` rather than guessing Outside.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { updateCentreContext } from '../services/centreDetection';
+import { subscribeVenueInventory } from '../services/venueInventory';
 import { AppState } from 'react-native';
 import type { PlaceContext } from '../services/proximity';
 import { distanceFromHome, getHomeLocation } from '../services/home';
@@ -150,8 +152,31 @@ export function useLanternState(
   const homeDistanceM: number | null =
     homeSet && effectiveCoords ? distanceFromHome(effectiveCoords) : null;
 
+  // KAN-513 — the engine only resolves a place context while it searches
+  // (open POI tasks). Without one, the Lantern's own fix answers "inside a
+  // centre?" through the same detector and the same enter/leave memory.
+  //
+  // Only a live fix (the engine's or our own) feeds that memory. The OS's
+  // cached fix can be minutes old: letting it enter a centre would hold the
+  // user "inside" through the first live fix just outside the door.
+  const liveCoords = coords ?? seedCoords;
+  const centreLat = liveCoords?.lat;
+  const centreLng = liveCoords?.lng;
+  // A centre's outline can land after the fix did (first download while the
+  // user is already inside): re-check when the stored outlines change.
+  const [outlinesVersion, setOutlinesVersion] = useState(0);
+  useEffect(() => subscribeVenueInventory(() => setOutlinesVersion(v => v + 1)), []);
+  const centreContext = useMemo<PlaceContext>(() => {
+    if (placeContext || centreLat == null || centreLng == null) { return null; }
+    const centre = updateCentreContext(centreLat, centreLng);
+    return centre ? { kind: 'centre', venueId: centre.venueId, name: centre.name } : null;
+  // outlinesVersion isn't read inside: it's the signal that the stored
+  // outlines changed, so the same position must be checked again.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placeContext, centreLat, centreLng, outlinesVersion]);
+
   const state = resolveLanternState({
-    placeContext,
+    placeContext: placeContext ?? centreContext,
     todayIso: todayISO(),
     homeSet,
     homeDistanceM,

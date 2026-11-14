@@ -129,6 +129,11 @@ export interface ResolveLanternStateInput {
 export function resolveLanternState({
   placeContext, todayIso, homeSet, homeDistanceM, wasHome, cityName,
 }: ResolveLanternStateInput): LanternState {
+  if (placeContext?.kind === 'centre') {
+    // KAN-513 — inside the centre's outline; the name comes with the stored
+    // outline, so it's correct offline too.
+    return { kind: 'mall', name: placeContext.name };
+  }
   if (placeContext?.kind === 'mall') {
     // The mall name comes from the stored snapshot, so it's correct offline too.
     return { kind: 'mall', name: placeContext.snapshot.name };

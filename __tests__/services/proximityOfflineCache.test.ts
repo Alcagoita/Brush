@@ -55,6 +55,12 @@ jest.mock('../../src/services/habitatCache', () => ({
 }));
 
 jest.mock('../../src/services/proximitySnapshot');
+// KAN-513 — centre detection is driven explicitly by the tests that need it;
+// everywhere else no centre outline covers the position.
+const mockUpdateCentreContext = jest.fn().mockReturnValue(null);
+jest.mock('../../src/services/centreDetection', () => ({
+  updateCentreContext: (...args: unknown[]) => mockUpdateCentreContext(...args),
+}));
 
 const mockDisplayNotification = jest.fn().mockResolvedValue(undefined);
 jest.mock('@notifee/react-native', () => ({
@@ -809,6 +815,64 @@ describe('place context tap (KAN-242) — feeds the header ContextChip, mall-fir
     return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
       expect(tap).toHaveBeenCalledWith({ kind: 'trip', trip });
     });
+  });
+
+  it('reports the centre first when its outline covers the position, even with a mall snapshot there (KAN-513)', () => {
+    setMallSnapshot(makeMallSnapshot({ centerLat: 0, centerLng: 0, radius: 300 }));
+    mockUpdateCentreContext.mockReturnValueOnce({ venueId: 'colombo', name: 'Centro Comercial Colombo' });
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+
+    return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
+      expect(tap).toHaveBeenCalledWith({ kind: 'centre', venueId: 'colombo', name: 'Centro Comercial Colombo' });
+      expect(mockUpdateCentreContext).toHaveBeenCalledWith(expect.any(Number), expect.any(Number));
+    });
+  });
+
+  it('still reports the mall snapshot where no centre outline covers the position (KAN-237 kept)', () => {
+    const mall = makeMallSnapshot({ centerLat: 0, centerLng: 0, radius: 300 });
+    setMallSnapshot(mall);
+    mockUpdateCentreContext.mockReturnValueOnce(null);
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+
+    return runProximitySearch('uid-1', [makeTask()], jest.fn()).then(() => {
+      expect(tap).toHaveBeenCalledWith({ kind: 'mall', snapshot: mall });
+    });
+  });
+
+  it('still publishes the centre when the live search fails while online (KAN-513)', async () => {
+    mockFetch.mockRejectedValue(new Error('server error'));
+    mockSearchOsmPlacesStrict.mockRejectedValue(new Error('server error'));
+    mockUpdateCentreContext.mockReturnValue({ venueId: 'colombo', name: 'Centro Comercial Colombo' });
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(onUpdate).not.toHaveBeenCalled(); // nothing to show from this tick
+    expect(tap).toHaveBeenCalledWith({ kind: 'centre', venueId: 'colombo', name: 'Centro Comercial Colombo' });
+    mockUpdateCentreContext.mockReturnValue(null);
+  });
+
+  it('still publishes the centre offline when the cache has nothing for this spot (KAN-513)', async () => {
+    goOffline();
+    mockFetch.mockRejectedValue(new Error('network down'));
+    mockSearchOsmPlacesStrict.mockRejectedValue(new Error('network down'));
+    mockQueryHabitatCache.mockReturnValue({ atm: [] });
+    mockUpdateCentreContext.mockReturnValue({ venueId: 'colombo', name: 'Centro Comercial Colombo' });
+
+    const tap = jest.fn();
+    setPlaceContextTap(tap);
+    const onUpdate = jest.fn();
+    await runProximitySearch('uid-1', [makeTask()], onUpdate);
+
+    expect(onUpdate).not.toHaveBeenCalled(); // the cache miss still preserves what was on screen
+    expect(tap).toHaveBeenCalledWith({ kind: 'centre', venueId: 'colombo', name: 'Centro Comercial Colombo' });
+    mockUpdateCentreContext.mockReturnValue(null);
   });
 
   it('reports null when neither a trip nor the mall snapshot covers the position', () => {

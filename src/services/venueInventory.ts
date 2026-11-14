@@ -180,6 +180,44 @@ export function getVenueInventory(venueId: string): VenueInventoryMeta | null {
   }
 }
 
+// ─── Change notifications ─────────────────────────────────────────────────────
+
+const listeners = new Set<() => void>();
+
+/**
+ * Called after a centre's stored copy (units and outline) is written. Lets
+ * centre detection re-check a position it already has when an outline
+ * arrives later (KAN-513). Returns the unsubscribe function.
+ */
+export function subscribeVenueInventory(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+function notifyChanged(): void {
+  for (const listener of [...listeners]) {
+    try { listener(); } catch (err) { console.warn('[venueInventory] listener failed', err); }
+  }
+}
+
+/**
+ * Every centre we hold an outline for (any stored copy), as a `Venue`. The
+ * offline source of outlines for centre detection (KAN-513). Never throws.
+ */
+export function listStoredVenues(): Venue[] {
+  try {
+    return getDb().getAllSync<{
+      venue_id: string; name: string; centroid_lat: number; centroid_lng: number; rings_json: string;
+    }>('SELECT venue_id, name, centroid_lat, centroid_lng, rings_json FROM venue ORDER BY venue_id').map(row => ({
+      id: row.venue_id, name: row.name, osm: '', centroid: [row.centroid_lat, row.centroid_lng] as [number, number],
+      rings: JSON.parse(row.rings_json) as Ring[],
+    }));
+  } catch (err) {
+    console.warn('[venueInventory] listStoredVenues failed', err);
+    return [];
+  }
+}
+
 /**
  * Replace one centre's stored inventory with `units`, as one transaction,
  * and mark it complete. Throws on failure — the transaction rolls back and
@@ -212,6 +250,7 @@ export function writeVenueInventory(venue: Venue, version: string, units: VenueU
         version, units.length, now, now],
     );
   });
+  notifyChanged();
 }
 
 /**
@@ -224,6 +263,7 @@ function touchChecked(venue: Venue, now: number): void {
     'UPDATE venue SET name = ?, centroid_lat = ?, centroid_lng = ?, rings_json = ?, checked_at = ? WHERE venue_id = ?',
     [venue.name, venue.centroid[0], venue.centroid[1], JSON.stringify(venue.rings), now, venue.id],
   );
+  notifyChanged();
 }
 
 // ─── Offline lookup ───────────────────────────────────────────────────────────
