@@ -1271,6 +1271,101 @@
   "VILANOVA ACCESSORIES": [
    "store",
    "fashion_accessories"
+  ],
+  "Balcão Portugália": [
+   "restaurant"
+  ],
+  "Café do Ponto": [
+   "cafe"
+  ],
+  "Ponto do Café": [
+   "cafe"
+  ],
+  "Centro de Cópias": [
+   "store",
+   "copy_shop"
+  ],
+  "Fifty factory By Grupo Cortefiel": [
+   "store",
+   "clothing"
+  ],
+  "Instanta Fotografia": [
+   "store",
+   "photography_store_and_services"
+  ],
+  "Jardim Verde": [
+   "store",
+   "health_food"
+  ],
+  "Loja do Cidadão": [
+   "local_government_office"
+  ],
+  "Turismo de Odivelas": [
+   "local_government_office"
+  ],
+  "Mineral Store": [
+   "store",
+   "clothing"
+  ],
+  "Mr. Pizza/Ice It": [
+   "restaurant",
+   "ice_cream"
+  ],
+  "Paez Outlet": [
+   "store",
+   "shoes"
+  ],
+  "Páteo das Festas": [
+   "store",
+   "gift"
+  ],
+  "Puma": [
+   "store",
+   "sports"
+  ],
+  "Sanjugo Asian Bowls": [
+   "restaurant"
+  ],
+  "Santa Madalena Clinica Dentária": [
+   "clinic"
+  ],
+  "Tagus Excellence Barber Shop": [
+   "barber"
+  ],
+  "Unicambio Western Union": [
+   "currency_exchange",
+   "money_transfer"
+  ],
+  "Unisa": [
+   "store",
+   "shoes"
+  ],
+  "Widex Centros Auditivos": [
+   "store",
+   "hearing_aid_provider"
+  ],
+  "Guess": [
+   "store",
+   "clothing"
+  ],
+  "Lion of Porches": [
+   "store",
+   "clothing"
+  ],
+  "Cadena": [
+   "store",
+   "womens_clothing"
+  ],
+  "BigFoot": [
+   "store",
+   "clothing"
+  ],
+  "Benfica Official Outlet": [
+   "store",
+   "club_store"
+  ],
+  "100 gramas": [
+   "restaurant"
   ]
  }
 }

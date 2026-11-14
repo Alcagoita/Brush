@@ -28,7 +28,7 @@ it retires real places with false confidence.
 | `colombo_eating.txt` | Centro Comercial Colombo | eating places (65) | 2026-08-31 |
 | `vasco_da_gama_stores.txt` | Centro Comercial Vasco da Gama | shops (154) | 2026-08-31 |
 | `colombo_stores.txt` | Centro Comercial Colombo | shops (235) | 2026-08-31 |
-| `strada.txt` | Strada Outlet Odivelas | shops and eating (113) | 2026-09-01 |
+| `strada.txt` | Strada Outlet Odivelas | shops and eating (115), with floors | 2026-11-14 |
 | `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (243) | 2026-11-14 |
 | `amoreiras.txt` | Amoreiras Shopping Center, Lisboa | shops and eating (196) | 2026-10-05 |
 | `norteshopping.txt` | NorteShopping, Senhora da Hora (Matosinhos) | shops and eating (279) | 2026-11-11 |

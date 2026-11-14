@@ -172,6 +172,8 @@ store they sit beside. None may be touched by a brand sweep.
 | `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | AlgarveShopping — the chain's new name |
 | `ALENTEJO / BIFANAS DE VENDAS NOVAS` | `Alentejo - Pão, Azeite & Alho` | AlgarveShopping — one unit, two brands |
 | `ERICEIRA SURF & SKATE` | `Ericeira Surf Shop` | AlgarveShopping |
+| `5 À Sec` | `5àSec` | Strada Outlet |
+| `Widex Centros Auditivos` | `Widex Centro Auditivo Odivelas` | Strada Outlet |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -314,6 +316,25 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
 `Mayoral` ×2, `Tejo Fan Park`, `AMADORA SC UBBO`, a second `Sould Park Jump`,
 `Sould Park TRAMPOLIN JUMP Lisboa`, …), and `Havaianas`, `O meu Olá` and
 `ONLY`, which left the site and the list. Nothing is deleted.
+
+## Strada Outlet, ruled 2026-11-14 (KAN-517)
+
+* **The site is the truth, at every centre** (owner): which units exist and
+  their floor come from the operator's site. OSM gives coordinates and
+  nothing more; its `level` never decides or questions a floor.
+* `strada.txt` is now the site's 115 units, each with the floor its page
+  shows (`strada_store_pages.tsv`): `Café do Ponto` and `Sacoor` are two
+  units each. Floors from the owner where the page has none: `Car Wash & Spa`
+  Piso -1, `Weeel Frozen Yogurt` and `Nutrystore` Piso 0.
+* Reconciled with `reconcile_mall_list.py` (0081): 98 units answered by rows
+  we held, 15 written, 19 withdrawn. `5àSec` and `Widex Centro Auditivo
+  Odivelas` are the listed `5 À Sec` and `Widex Centros Auditivos`.
+* Typed from each store's page: `Jardim Verde` health food, `Mineral Store`
+  clothing, `Páteo das Festas` party supplies (gift), `Cadena` women's
+  clothing, `100 gramas` steakhouse, `Loja do Cidadão` and `Turismo de
+  Odivelas` (the council's office) `local_government_office`.
+* **Not written yet:** `Remax Place` (real estate, waits on KAN-511) and
+  `Cartório Notarial de Odivelas` (no notary type).
 
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
