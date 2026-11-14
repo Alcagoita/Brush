@@ -39,7 +39,6 @@ import {
 } from './src/services/notifications';
 import { forgetDatedTask, moveDatedTaskToTomorrow } from './src/services/datedTaskHandoff';
 import { updateExitPromptPref } from './src/services/proximity';
-import { updateIndoorExitPromptPref } from './src/services/indoorProximity';
 import notifeeApp, { AndroidImportance as AppAndroidImportance } from '@notifee/react-native';
 import ShareMenu from 'react-native-share-menu';
 
@@ -272,7 +271,7 @@ function AppShell() {
     });
   }, [displayUser]);
 
-  // Fetch exitPrompt preference once on login and propagate to proximity engines.
+  // Fetch exitPrompt preference once on login and propagate to the proximity engine.
   useEffect(() => {
     if (!displayUser) { return; }
     let cancelled = false;
@@ -281,7 +280,6 @@ function AppShell() {
       if (cancelled) { return; }
       const enabled = prefs.exitPrompt ?? true;
       updateExitPromptPref(enabled);
-      updateIndoorExitPromptPref(enabled);
     }).catch(() => {});
     return () => { cancelled = true; };
   }, [displayUser]);

@@ -120,15 +120,10 @@ jest.mock('../src/services/notifications', () => ({
   registerExitPromptCategory: jest.fn().mockResolvedValue(undefined),
 }));
 
-// App.tsx imports these two directly (updateExitPromptPref /
-// updateIndoorExitPromptPref) — both transitively reach expo-location, an
-// ESM native module Jest can't parse.
+// App.tsx imports updateExitPromptPref directly — it transitively reaches
+// expo-location, an ESM native module Jest can't parse.
 jest.mock('../src/services/proximity', () => ({
   updateExitPromptPref: jest.fn(),
-}));
-
-jest.mock('../src/services/indoorProximity', () => ({
-  updateIndoorExitPromptPref: jest.fn(),
 }));
 
 jest.mock('react-native-share-menu', () => ({

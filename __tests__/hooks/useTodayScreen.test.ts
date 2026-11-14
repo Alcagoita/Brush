@@ -52,7 +52,6 @@ jest.mock('../../src/services/firestore', () => ({
   getPoiPreferencesMap: (...args: unknown[]) => mockGetPoiPreferencesMap(...args),
   getTotalPoints:       (...args: unknown[]) => mockGetTotalPoints(...args),
   getInboxUnreadCount:  (...args: unknown[]) => mockGetInboxUnreadCount(...args),
-  setStoreTuningPref:   jest.fn().mockResolvedValue(undefined),
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   awardPoint:           jest.fn().mockResolvedValue(undefined),
   getLearnedPlaceCounts: (...args: unknown[]) => mockGetLearnedPlaceCounts(...args),
@@ -148,6 +147,7 @@ jest.mock('../../src/services/datedTaskHandoff', () => ({
   refreshDatedTaskHandoff: (...args: unknown[]) => mockRefreshDatedTaskHandoff(...args),
 }));
 
+const mockSetTrackingAccuracy = jest.fn();
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
   // KAN-301 — useProximityEngine seeds the Lantern's position with one
@@ -157,6 +157,7 @@ jest.mock('../../src/services/geolocation', () => ({
   // now, not a timer. These tests don't move the user, so the watcher never
   // fires; they only need it to exist.
   startTracking:             jest.fn(),
+  setTrackingAccuracy:       (...args: unknown[]) => mockSetTrackingAccuracy(...args),
   stopTracking:              jest.fn(),
   LocationContext:           {},
 }));
@@ -173,7 +174,6 @@ jest.mock('../../src/services/proximity', () => ({
   // every optimistic-toggle test (caught by the same block's catch/revert).
   getActivePlaceContext:         jest.fn().mockReturnValue(null),
   updateProximityPoiPreferences: jest.fn(),
-  setLocationTap:                jest.fn(),
   setPlaceContextTap:            jest.fn(),
   setNavigateToTripPlanner:      jest.fn(),
   updateNotifNearbyEnabled:      jest.fn(),
@@ -191,26 +191,6 @@ jest.mock('../../src/services/maps', () => ({
   getDistanceMeters: jest.fn().mockReturnValue(0),
 }));
 
-jest.mock('../../src/services/indoorProximity', () => ({
-  startIndoorProximityMonitoring: jest.fn().mockReturnValue(jest.fn()),
-  stopIndoorProximityMonitoring:  jest.fn(),
-  updateIndoorTasks:              jest.fn(),
-  updateIndoorExitPromptPref:     jest.fn(),
-}));
-
-jest.mock('../../src/services/indoorDetection', () => ({
-  startIndoorDetection: jest.fn().mockReturnValue(jest.fn()),
-  feedLocation:         jest.fn(),
-  stopIndoorDetection:  jest.fn(),
-}));
-
-jest.mock('../../src/services/storeTuning', () => ({
-  startStoreTuning:        jest.fn().mockReturnValue(jest.fn()),
-  onLocationContextChange: jest.fn(),
-  activateStoreTuning:     jest.fn(),
-  dismissStoreTuning:      jest.fn(),
-}));
-
 jest.mock('../../src/services/battery', () => ({
   useBatteryLevel:       () => 1.0,
   getBatteryLevel:       jest.fn().mockResolvedValue(1.0),
@@ -222,6 +202,7 @@ jest.mock('../../src/services/battery', () => ({
 
 import { act, renderHook } from '@testing-library/react-native';
 import { useTodayScreen } from '../../src/hooks/useTodayScreen';
+import { noteHighAccuracyChange } from '../../src/services/highAccuracy';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -459,6 +440,39 @@ describe('useTodayScreen — cache-first proximity boot wiring (KAN-237)', () =>
 
     expect(mockSetActiveTrips).toHaveBeenCalledWith([]);
     expect(mockSetMallSnapshot).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('useTodayScreen — High accuracy restored at start (KAN-515)', () => {
+  it('runs the watcher at fine accuracy when the user switched High accuracy on', async () => {
+    mockGetUser.mockResolvedValue({ poiPreferences: { highAccuracy: true } });
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+    expect(mockSetTrackingAccuracy).toHaveBeenLastCalledWith('fine');
+  });
+
+  it('stays coarse when the switch is off or was never set', async () => {
+    mockGetUser.mockResolvedValue({ poiPreferences: {} });
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+    expect(mockSetTrackingAccuracy).toHaveBeenLastCalledWith('coarse');
+  });
+
+  it('does not undo a Profile flip made while the start-up fetch was still waiting', async () => {
+    // getUser has answered (switch off), but another read in the same batch is still pending.
+    mockGetUser.mockResolvedValue({ poiPreferences: { highAccuracy: false } });
+    let resolveTrips: (value: unknown[]) => void = () => {};
+    mockGetTrips.mockReturnValueOnce(new Promise(resolve => { resolveTrips = resolve; }));
+    renderHook(() => useTodayScreen(UID));
+    await act(async () => {});
+
+    // The user turns High accuracy on in Profile and the save succeeds.
+    noteHighAccuracyChange();
+    mockSetTrackingAccuracy.mockClear();
+
+    await act(async () => { resolveTrips([]); });
+
+    expect(mockSetTrackingAccuracy).not.toHaveBeenCalledWith('coarse');
   });
 });
 

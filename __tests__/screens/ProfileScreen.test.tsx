@@ -128,6 +128,7 @@ jest.mock('../../src/components/AppIcon', () => ({
   StarIcon:         () => null,
   SuitcaseIcon:     () => null,
   BuildingIcon:     () => null,
+  CrosshairIcon:    () => null,
   CloudOffIcon:     () => null,
 }));
 
@@ -145,17 +146,13 @@ jest.mock('../../src/components/LoadingDots', () => {
 
 jest.mock('../../src/components/ShareProfileSheet', () => () => null);
 
-// Mocked directly (KAN-237) — the hook pulls in getCurrentPosition, which
-// transitively imports expo-location (ESM, unparseable by this suite's jest
-// config). Screen tests only need to drive the toggle/loading/enabled surface.
-const mockToggleMallSnapshot = jest.fn();
-const mockUseMallSnapshotToggle = jest.fn(() => ({
-  enabled: false,
-  loading: false,
-  toggle: mockToggleMallSnapshot,
-}));
-jest.mock('../../src/hooks/useMallSnapshotToggle', () => ({
-  useMallSnapshotToggle: () => mockUseMallSnapshotToggle(),
+// Mocked directly — the hook pulls in geolocation, which transitively
+// imports expo-location (ESM, unparseable by this suite's jest config).
+// Screen tests only drive the toggle/enabled surface (KAN-515).
+const mockToggleHighAccuracy = jest.fn();
+const mockUseHighAccuracyToggle = jest.fn(() => ({ enabled: false, toggle: mockToggleHighAccuracy }));
+jest.mock('../../src/hooks/useHighAccuracyToggle', () => ({
+  useHighAccuracyToggle: () => mockUseHighAccuracyToggle(),
 }));
 
 // ─── Imports ──────────────────────────────────────────────────────────────────
@@ -453,47 +450,30 @@ describe('ProfileScreen — off-grid entry row (KAN-246)', () => {
 
 // ─── Mall snapshot toggle row (KAN-237) ───────────────────────────────────────
 
-describe('ProfileScreen — mall snapshot toggle row (KAN-237)', () => {
+describe('ProfileScreen — High accuracy switch (KAN-515)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     setupDefaultMocks();
-    mockUseMallSnapshotToggle.mockReturnValue({
-      enabled: false,
-      loading: false,
-      toggle: mockToggleMallSnapshot,
-    });
+    mockUseHighAccuracyToggle.mockReturnValue({ enabled: false, toggle: mockToggleHighAccuracy });
   });
 
-  it('renders the "Activate Mall mode" row', async () => {
+  it('renders the "High accuracy" row in place of "Activate Mall mode"', async () => {
     await renderScreen();
-    expect(screen.getByText('Activate Mall mode')).toBeTruthy();
+    expect(screen.getByText('High accuracy')).toBeTruthy();
+    expect(screen.getByText('I check where you are more precisely. It uses more battery.')).toBeTruthy();
+    expect(screen.queryByText('Activate Mall mode')).toBeNull();
   });
 
-  it('flips the toggle on when the switch is pressed', async () => {
+  it('turns it on when the switch is pressed', async () => {
     await renderScreen();
-    fireEvent(screen.getByLabelText('Activate Mall mode'), 'valueChange', true);
-    expect(mockToggleMallSnapshot).toHaveBeenCalledWith(true);
+    fireEvent(screen.getByLabelText('High accuracy'), 'valueChange', true);
+    expect(mockToggleHighAccuracy).toHaveBeenCalledWith(true);
   });
 
   it('reflects enabled: true with the switch on', async () => {
-    mockUseMallSnapshotToggle.mockReturnValue({
-      enabled: true,
-      loading: false,
-      toggle: mockToggleMallSnapshot,
-    });
+    mockUseHighAccuracyToggle.mockReturnValue({ enabled: true, toggle: mockToggleHighAccuracy });
     await renderScreen();
-    expect(screen.getByLabelText('Activate Mall mode').props.value).toBe(true);
-  });
-
-  it('shows the downloading label and hides the switch while loading', async () => {
-    mockUseMallSnapshotToggle.mockReturnValue({
-      enabled: false,
-      loading: true,
-      toggle: mockToggleMallSnapshot,
-    });
-    await renderScreen();
-    expect(screen.getByText('Downloading Shopping mall data…')).toBeTruthy();
-    expect(screen.queryByLabelText('Activate Mall mode')).toBeNull();
+    expect(screen.getByLabelText('High accuracy').props.value).toBe(true);
   });
 });
 

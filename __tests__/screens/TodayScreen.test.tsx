@@ -47,7 +47,6 @@ jest.mock('../../src/services/firestore', () => ({
   getTotalPoints:       (...args: unknown[]) => mockGetTotalPoints(...args),
   getInboxUnreadCount:  (...args: unknown[]) => mockGetInboxUnreadCount(...args),
   getTrips:             (...args: unknown[]) => mockGetTrips(...args),
-  setStoreTuningPref:   jest.fn().mockResolvedValue(undefined),
   setTaskDone:          (...args: unknown[]) => mockSetTaskDone(...args),
   // KAN-230/240/317 — useLearnedPlaces (rendered inside the real
   // useTodayScreen hook) fetches both on mount.
@@ -262,10 +261,12 @@ jest.mock('../../src/components/AppIcon', () => ({
 
 // ─── Service mocks ────────────────────────────────────────────────────────────
 
+const mockSetTrackingAccuracy = jest.fn();
 jest.mock('../../src/services/geolocation', () => ({
   requestLocationPermission: jest.fn().mockResolvedValue('granted'),
   getPositionLowAccuracy:    jest.fn().mockResolvedValue({ lat: 0, lng: 0 }),
   LocationContext:           {},
+  setTrackingAccuracy:       (...args: unknown[]) => mockSetTrackingAccuracy(...args),
 }));
 // KAN-59/KAN-214 review — there is no separate startProximityMonitoring/
 // stopProximityMonitoring pair anymore; useProximityEngine.ts drives the
@@ -299,7 +300,6 @@ jest.mock('../../src/services/proximity', () => ({
   updateProximityPoiPreferences: jest.fn(),
   pauseGeofenceMonitoring:       jest.fn(),
   resumeGeofenceMonitoring:      jest.fn(),
-  setLocationTap:                jest.fn(),
   setPlaceContextTap:            jest.fn(),
   setNavigateToTripPlanner:      jest.fn(),
   updateNotifNearbyEnabled:      jest.fn(),
@@ -307,31 +307,6 @@ jest.mock('../../src/services/proximity', () => ({
   setLearnedPlaces:              jest.fn(),
   setActiveTrips:                jest.fn(),
   setMallSnapshot:                jest.fn(),
-}));
-
-jest.mock('../../src/services/indoorProximity', () => ({
-  startIndoorProximityMonitoring: jest.fn().mockReturnValue(jest.fn()),
-  stopIndoorProximityMonitoring:  jest.fn(),
-  updateIndoorTasks:              jest.fn(),
-  updateIndoorExitPromptPref:     jest.fn(),
-}));
-
-jest.mock('../../src/services/indoorDetection', () => ({
-  startIndoorDetection: jest.fn().mockReturnValue(jest.fn()),
-  feedLocation:         jest.fn(),
-  stopIndoorDetection:  jest.fn(),
-}));
-
-jest.mock('../../src/services/storeTuning', () => ({
-  startStoreTuning:         jest.fn().mockReturnValue(jest.fn()),
-  onLocationContextChange:  jest.fn(),
-  activateStoreTuning:      jest.fn(),
-  dismissStoreTuning:       jest.fn(),
-}));
-
-jest.mock('../../src/components/StoreTuningPromptSheet', () => ({
-  __esModule: true,
-  default: () => null,
 }));
 
 jest.mock('../../src/services/battery', () => ({

@@ -91,7 +91,8 @@ import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
-import { refreshVenueInventoriesIfDue } from './venueInventory';
+import { refreshVenueInventoriesIfDue, getVenueInventory, searchVenueUnits, subscribeVenueInventory } from './venueInventory';
+import { buildMallRows } from './mallSuggestions';
 import { updateCentreContext } from './centreDetection';
 import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
 import { useToastStore } from '../store/toastStore';
@@ -293,15 +294,15 @@ let _activeTrips: Trip[] = [];
 /** KAN-237 — the current mall snapshot, if any, fed in from outside (see setMallSnapshot). */
 let _mallSnapshot: MallSnapshot | null = null;
 
-/**
- * Optional tap into the GPS stream (KAN-75 indoor detection).
- * Every position fix is forwarded here so indoor detection can run without
- * a competing GPS watcher.
- */
-let _locationTap: ((lat: number, lng: number, accuracy: number) => void) | null = null;
-
 /** Whether nearby-POI notifications are enabled (KAN-142). */
 let notifNearbyEnabled = true;
+
+/**
+ * KAN-515 — the centre whose ONE entry notification has already been handled
+ * (sent, or skipped for quiet hours / the setting). Cleared the first tick
+ * the user is no longer inside it, so the next entry notifies again.
+ */
+let _notifiedCentreId: string | null = null;
 
 /** Whether exit-prompt notifications are enabled. */
 let exitPromptEnabled = true;
@@ -423,6 +424,51 @@ async function ensureChannel(): Promise<void> {
     sound:      'default',
     vibration:  true,
   });
+}
+
+/** KAN-515 — inside a centre: one notification for the whole centre, never one per shop. */
+async function fireCentreNotification(centreName: string, taskCount: number): Promise<void> {
+  await ensureChannel();
+  const title = COPY.notification.centreTitle(centreName);
+  const body  = COPY.notification.centreBody(taskCount);
+  await notifee.displayNotification({
+    title,
+    body,
+    data:  { screen: 'Today' },
+    android: {
+      channelId:   CHANNEL_ID,
+      importance:  AndroidImportance.HIGH,
+      pressAction: { id: 'default' },
+    },
+    ios: { sound: 'default' },
+  });
+  if (Platform.OS === 'android') {
+    WearNotificationModule?.sendProximityAlert(title, body, '');
+  }
+}
+
+/**
+ * KAN-515 — the one notification a shopping centre gets. Sent once per
+ * entry, only when the mall view is active (inside a centre with a complete
+ * inventory, the same condition as the mall card) and the centre can solve
+ * at least one open task. The count is the mall card's row count, from the
+ * same rules. Nearby-notification setting and quiet hours apply, as for the
+ * normal "X nearby" alert, which stays blocked inside.
+ */
+function maybeNotifyCentre(tasks: Task[]): void {
+  const ctx = _lastPlaceContext;
+  if (ctx?.kind !== 'centre') { _notifiedCentreId = null; return; }
+  if (_notifiedCentreId === ctx.venueId) { return; }
+  if (!getVenueInventory(ctx.venueId)?.complete) { return; }
+  const rows = buildMallRows(tasks, poiType => searchVenueUnits(ctx.venueId, { poiType }), _learnedPlaces);
+  // Nothing to solve here yet: don't spend this entry's notification, so a
+  // task added while still inside can still bring one.
+  if (rows.length === 0) { return; }
+  _notifiedCentreId = ctx.venueId;
+  if (!notifNearbyEnabled || isQuietHours()) { return; }
+  fireCentreNotification(ctx.name, rows.length).catch(err =>
+    reportProximityError('centre notification failed', err),
+  );
 }
 
 async function fireNotification(poiLabel: string, taskCount: number): Promise<void> {
@@ -608,7 +654,7 @@ export function getActivePlaceContext(): PlaceContext {
 /**
  * KAN-242 — register a tap fired with the resolved place context on every
  * position fix taken by runProximitySearch, independent of onUpdate/
- * ProximityCallback (mirrors setLocationTap below). Feeds the header context
+ * ProximityCallback. Feeds the header context
  * chip without changing ProximityCallback's signature or any of its existing
  * call-site tests. Pass null to unregister.
  */
@@ -626,9 +672,44 @@ export function setPlaceContextTap(cb: ((ctx: PlaceContext) => void) | null): vo
  * and the stored outlines, so those ticks must not leave the Lantern on the
  * previous context, which is exactly what happens under a mall roof.
  */
-function publishPlaceContext(lat: number, lng: number): void {
+function publishPlaceContext(lat: number, lng: number, tasks: Task[]): void {
   _lastPlaceContext = findActivePlaceContext(lat, lng);
   _placeContextTap?.(_lastPlaceContext);
+  if (_lastPlaceContext?.kind === 'centre') { enterCentreQuiet(); }
+  _lastTickTasks = tasks;
+  ensureInventoryListener();
+  maybeNotifyCentre(tasks);
+}
+
+/**
+ * KAN-515 — inside a centre no outdoor hero counts, on every tick including
+ * the ones that end early (offline under the roof is the usual case). Dwell
+ * clocks started outside are dropped so they can't fire on the way out, and
+ * the hero type held from outside is released the same way walking away
+ * releases it, so its alert can fire again after the visit.
+ */
+function enterCentreQuiet(): void {
+  geofenceEntryTimes.clear();
+  if (_currentNearbyType !== null) {
+    _alertedTodayTypes.delete(_currentNearbyType);
+    _currentNearbyType = null;
+  }
+}
+
+/** KAN-515 — the tasks from the latest tick, for the inventory-change re-check below. */
+let _lastTickTasks: Task[] = [];
+let _inventoryUnsubscribe: (() => void) | null = null;
+
+/**
+ * KAN-515 — a centre's inventory often finishes downloading while the user is
+ * already inside, and inside a centre they rarely move far enough to cause
+ * another tick. So the centre notification is re-checked when the stored
+ * inventory changes, with the latest tick's tasks; maybeNotifyCentre keeps
+ * its own complete-inventory check and once-per-entry guard.
+ */
+function ensureInventoryListener(): void {
+  if (_inventoryUnsubscribe) { return; }
+  _inventoryUnsubscribe = subscribeVenueInventory(() => maybeNotifyCentre(_lastTickTasks));
 }
 
 /**
@@ -691,8 +772,7 @@ async function runProximitySearch(
     const poiTypesKey = nearbyRequests.map(request => request.key).sort().join(',');
 
     if (uniquePoiTypes.length === 0) {
-      _locationTap?.(coords.lat, coords.lng, coords.accuracy);
-      publishPlaceContext(coords.lat, coords.lng);
+      publishPlaceContext(coords.lat, coords.lng, tasks);
       _currentNearbyType = null;
       _lastAllPlaces = {};
       // No undone POI tasks left to prompt for — nothing to fire, just
@@ -755,7 +835,7 @@ async function runProximitySearch(
         } catch { /* treat as unknown — not offline */ }
         // Nothing to show from this tick, but the position is real: keep
         // the place context (centre, mall, trip) current (KAN-513).
-        if (!offline) { publishPlaceContext(coords.lat, coords.lng); return; }
+        if (!offline) { publishPlaceContext(coords.lat, coords.lng, tasks); return; }
 
         _enqueueSearch(uid, tasks, onUpdate);
         results = queryHabitatCache(coords.lat, coords.lng, uniquePoiTypes, NEARBY_RADIUS);
@@ -805,7 +885,7 @@ async function runProximitySearch(
       }
       // No places, but the position is real — offline under a mall roof is
       // the case that matters here (KAN-513).
-      publishPlaceContext(coords.lat, coords.lng);
+      publishPlaceContext(coords.lat, coords.lng, tasks);
       return;
     }
 
@@ -913,8 +993,15 @@ function processProximityTick(
   answeredFromCache: boolean,
   onUpdate: ProximityCallback,
 ): void {
-  _locationTap?.(coords.lat, coords.lng, coords.accuracy ?? 0);
-  publishPlaceContext(coords.lat, coords.lng);
+  publishPlaceContext(coords.lat, coords.lng, tasks);
+  // KAN-515 — inside a shopping centre location isn't trusted: many units sit
+  // on the centre's own coordinate (distance 0) and GPS can't tell floors
+  // apart. So nothing here may claim a shop is near: no "X nearby"
+  // notification, no "Did you get it?" dwell. The mall card (KAN-514) is what
+  // the user sees, and the centre gets one notification of its own per entry
+  // (maybeNotifyCentre, called from publishPlaceContext above, which also
+  // drops outdoor dwell clocks and the held hero type: enterCentreQuiet).
+  const insideCentre = _lastPlaceContext?.kind === 'centre';
 
   // Split results: orange hero (< 100 m) vs. grey approaching (100–400 m).
   let heroType:  string | null = null;
@@ -967,7 +1054,7 @@ function processProximityTick(
     // display threshold below. A type with zero results this tick is
     // simply skipped here (nothing to check) — an in-progress dwell clock
     // is left untouched, not reset; see trackExitPromptGeofence's docs.
-    trackExitPromptGeofence(poiType, nearest, uid, tasks);
+    if (!insideCentre) { trackExitPromptGeofence(poiType, nearest, uid, tasks); }
 
     if (!nearest) { continue; }
 
@@ -1083,6 +1170,7 @@ function processProximityTick(
     );
     if (
       eligible.length > 0 &&
+      !insideCentre &&
       notifNearbyEnabled &&
       !isQuietHours() &&
       !_alertedTodayTypes.has(heroType)
@@ -1102,7 +1190,9 @@ function processProximityTick(
     _alertedTodayTypes.delete(_currentNearbyType);
   }
 
-  _currentNearbyType = heroType;
+  // Inside a centre no hero counts as "entered" (KAN-515): otherwise the
+  // first real hero of the same type after walking out wouldn't alert.
+  _currentNearbyType = insideCentre ? null : heroType;
   _lastAllPlaces = allPlaces;
   _lastSearchPoiTypesKey = poiTypesKey;
   _lastSearchCoords = { lat: coords.lat, lng: coords.lng };
@@ -1129,8 +1219,6 @@ async function checkPositionAndMaybeSearch(
   } catch {
     return; // location unavailable — skip this tick silently
   }
-
-  _locationTap?.(coords.lat, coords.lng, coords.accuracy);
 
   // Always search on first tick (no previous origin).
   if (!_lastSearchCoords) {
@@ -1278,20 +1366,12 @@ export function resetProximityState(): void {
   _activeTrips = [];
   _mallSnapshot = null;
   _lastPlaceContext = null;
+  _notifiedCentreId = null;
+  _lastTickTasks = [];
   _lastPoiSearchSource = null;
   _lastPoiSearchCoverageStatus = undefined;
 
   geofenceEntryTimes.clear();
-}
-
-/**
- * Register a callback that receives every GPS fix (KAN-75 indoor detection).
- * Pass null to unregister.
- */
-export function setLocationTap(
-  cb: ((lat: number, lng: number, accuracy: number) => void) | null,
-): void {
-  _locationTap = cb;
 }
 
 /**

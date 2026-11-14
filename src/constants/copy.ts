@@ -57,6 +57,17 @@ const en = {
     proximityBody: (count: number) =>
       `You have ${count} thing${count === 1 ? '' : 's'} to brush away.`,
 
+    /** KAN-515 — the ONE notification inside a shopping centre, replacing the per-shop ones. */
+    centreTitle: (centre: string) => centre,
+    // Spelled out, not digits: it opens a sentence a person reads, so
+    // "Three waiting here" reads naturally (owner, 2026-11-14). 10+ stays a
+    // number — "Twelve waiting" reads worse than "12".
+    centreBody: (count: number) => {
+      const words = ['One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine'];
+      const n = words[count - 1] ?? String(count);
+      return count === 1 ? `${n} waiting here. I'll show you the floor.` : `${n} waiting here. I'll show you the floors.`;
+    },
+
     /** Daily complete celebration. */
     dailyCompleteTitle: "You've brushed it all away today 🖌",
     dailyCompleteBody:  "Every task brushed. Clean canvas!",
@@ -310,6 +321,12 @@ const en = {
     placeSheetCoverageLine: "I've learned the places around here.",
     mallSheetFreshnessLine: (date: string) => `Last learned ${date}`,
     placeRefreshErrorToast: "Couldn't refresh — check your connection and try again.",
+  },
+
+  // ─── High accuracy (KAN-515) — the Profile switch; the user's choice only ───
+  highAccuracy: {
+    rowLabel: 'High accuracy',
+    rowSublabel: 'I check where you are more precisely. It uses more battery.',
   },
 
   // ─── Mall snapshot (KAN-237) ───────────────────────────────────────────────
@@ -1217,7 +1234,6 @@ const en = {
     tryAnotherPlace: 'Try another place',
     tryAnotherPlaceA11y: 'Try another place',
     refreshLocationA11y: 'Refresh location',
-    storeTuningOn: 'Store tuning on',
     refreshUpdated: 'Updated',
     refreshFailed: 'Failed',
     alsoClose: 'Also close',
@@ -1240,12 +1256,6 @@ const en = {
   newTaskSheet2: {
     closeA11y: 'Close',
     moreDetailsA11y: 'More details',
-  },
-
-  storeTuningPromptSheet: {
-    dismissA11y: 'Dismiss prompt',
-    turnOnA11y: 'Turn on Store fine tuning',
-    notNowA11y: 'Not now',
   },
 
   importTasksSection: {
@@ -1382,6 +1392,14 @@ const ptPT: typeof en = {
     proximityTitle: (poiLabel: string) => `Estás perto de: ${poiLabel}`,
     proximityBody: (count: number) =>
       `Tens ${count} coisa${count === 1 ? '' : 's'} para tratar.`,
+
+    centreTitle: (centre: string) => centre,
+    // Feminine forms ("Uma", "Duas"): what's waiting is tarefas.
+    centreBody: (count: number) => {
+      const words = ['Uma', 'Duas', 'Três', 'Quatro', 'Cinco', 'Seis', 'Sete', 'Oito', 'Nove'];
+      const n = words[count - 1] ?? String(count);
+      return count === 1 ? `${n} à espera aqui. Mostro-te o piso.` : `${n} à espera aqui. Mostro-te os pisos.`;
+    },
 
     dailyCompleteTitle: 'Já trataste de tudo hoje 🖌',
     dailyCompleteBody:  'Todas as tarefas tratadas. Tela limpa!',
@@ -1576,6 +1594,11 @@ const ptPT: typeof en = {
     placeSheetCoverageLine: 'Aprendi os sítios aqui perto.',
     mallSheetFreshnessLine: (date: string) => `Última aprendizagem a ${date}`,
     placeRefreshErrorToast: 'Não consegui atualizar — verifica a tua ligação e tenta outra vez.',
+  },
+
+  highAccuracy: {
+    rowLabel: 'Alta precisão',
+    rowSublabel: 'Verifico onde estás com mais precisão. Gasta mais bateria.',
   },
 
   mallSnapshot: {
@@ -2421,7 +2444,6 @@ const ptPT: typeof en = {
     tryAnotherPlace: 'Tentar outro local',
     tryAnotherPlaceA11y: 'Tentar outro local',
     refreshLocationA11y: 'Atualizar localização',
-    storeTuningOn: 'Ajuste de lojas ativo',
     refreshUpdated: 'Atualizado',
     refreshFailed: 'Falhou',
     alsoClose: 'Também perto',
@@ -2444,12 +2466,6 @@ const ptPT: typeof en = {
   newTaskSheet2: {
     closeA11y: 'Fechar',
     moreDetailsA11y: 'Mais detalhes',
-  },
-
-  storeTuningPromptSheet: {
-    dismissA11y: 'Dispensar aviso',
-    turnOnA11y: 'Ativar afinação da loja',
-    notNowA11y: 'Agora não',
   },
 
   importTasksSection: {

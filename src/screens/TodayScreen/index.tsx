@@ -54,7 +54,6 @@ import ErrandBundleCard from '../../components/ErrandBundleCard';
 import TripSuggestionCard from '../../components/TripSuggestionCard';
 import NewTaskSheetHost from '../../components/NewTaskSheetHost';
 import { useNewTaskSheetStore } from '../../store/newTaskSheetStore';
-import StoreTuningPromptSheet from '../../components/StoreTuningPromptSheet';
 import { RootStackParamList } from '../../navigation/AppNavigator';
 import { useTodayScreen } from '../../hooks/useTodayScreen';
 import { useLanternState } from '../../hooks/useLanternState';
@@ -116,10 +115,6 @@ export default function TodayScreen() {
     learnedPlaces,
     coords,
     permissionGranted,
-    storeTuningActive,
-    showStoreTuningPrompt,
-    onStoreTuningTurnOn,
-    onStoreTuningNotNow,
     customCategories,
     inboxCount,
     socialUnreadCount,
@@ -272,7 +267,7 @@ export default function TodayScreen() {
 
   const listHeader = useMemo(() => (
     <>
-      {/* ── Nearby card (KAN-46 / KAN-52 / KAN-74). Inside a shopping centre
+      {/* ── Nearby card (KAN-46 / KAN-52). Inside a shopping centre
            with a complete inventory, the mall card takes its place — floors,
            never distances (KAN-514). Keyed by centre so "Try another place"
            choices reset on the next entry. ── */}
@@ -288,7 +283,6 @@ export default function TodayScreen() {
         tasks={sortedTasks}
         nearbyPoiType={nearbyPoiType}
         poiPlaces={poiPlaces}
-        storeTuningActive={storeTuningActive}
         onRefreshLocation={refreshProximity}
         onHasContent={setNearbyHasContent}
       />
@@ -323,7 +317,7 @@ export default function TodayScreen() {
       </View>
     </>
   ), [
-    sortedTasks, nearbyPoiType, poiPlaces, storeTuningActive, mallCard,
+    sortedTasks, nearbyPoiType, poiPlaces, mallCard,
     palette,
     nearbyHasContent, setNearbyHasContent,
     refreshProximity,
@@ -525,13 +519,6 @@ export default function TodayScreen() {
         uid={uid ?? ''}
         onTaskAdded={refresh}
         customCategories={customCategories}
-      />
-
-      {/* ── Store fine tuning opt-in prompt (KAN-74 / KAN-75) ── */}
-      <StoreTuningPromptSheet
-        visible={showStoreTuningPrompt}
-        onTurnOn={onStoreTuningTurnOn}
-        onNotNow={onStoreTuningNotNow}
       />
 
       {/* ── Loading overlay — blocks touches until initial fetch completes ── */}

@@ -13,17 +13,6 @@ export function toDateString(value: string): DateString {
   return value as DateString;
 }
 
-// ─── Store fine tuning (KAN-74) ──────────────────────────────────────────────
-
-/**
- * Session-level state for the Store fine tuning feature.
- *
- *   off           — not active; prompt has not been shown (or was shown and dismissed)
- *   prompt_shown  — the bottom-sheet prompt is visible / pending user response
- *   active        — user tapped "Turn on"; indoor proximity radius = 10 m
- */
-export type StoreTuningState = 'off' | 'prompt_shown' | 'active';
-
 // ─── User ─────────────────────────────────────────────────────────────────────
 
 /** /users/{uid} */
@@ -87,6 +76,12 @@ export interface User {
      */
     lowBatteryPause?: boolean;
     /**
+     * KAN-515 — the Profile "High accuracy" switch. When true the location
+     * watcher runs at fine accuracy everywhere (KAN-55's `fine`); absent or
+     * false, coarse. A user choice: the app never turns it on by itself.
+     */
+    highAccuracy?: boolean;
+    /**
      * Restraint, not permission (KAN-366). The proactive download is how the
      * app works and has no off switch; this only defers it to Wi-Fi for
      * someone roaming or on a metered plan.
@@ -95,17 +90,8 @@ export interface User {
      * kilometre, so cellular is an ordinary choice, not a concession.
      */
     wifiOnlyDownloads?: boolean;
-    /**
-     * Store fine tuning preference (KAN-74).
-     *
-     *   absent / undefined — user has never interacted; prompt is shown on first
-     *                        indoor_mapped detection each session.
-     *   true               — user has activated via prompt or settings toggle;
-     *                        mode auto-activates silently on indoor_mapped.
-     *   false              — user has explicitly disabled via settings toggle;
-     *                        prompt is suppressed permanently.
-     */
-    storeTuningEnabled?: boolean;
+    // `storeTuningEnabled` (KAN-74) may still exist on stored user docs; the
+    // app no longer reads or writes it (KAN-515 retired Store fine tuning).
   };
   /**
    * Explicit home anchor (KAN-247) — set by the user in Settings, never
@@ -1240,7 +1226,7 @@ export interface MallSnapshot {
   name: string;
   centerLat: number;
   centerLng: number;
-  /** Meters — MALL_SEARCH_RADIUS_M, reused from indoorDetection.ts. */
+  /** Meters — mallSnapshots.ts's MALL_SNAPSHOT_DOWNLOAD_RADIUS_M. */
   radius: number;
   /** Joins to habitatCache's habitat_places.cache_area_id — fixed constant, see mallSnapshots.ts. */
   cacheAreaId: string;

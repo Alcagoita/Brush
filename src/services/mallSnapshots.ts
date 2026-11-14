@@ -23,7 +23,7 @@ import { NEARBY_RADIUS } from './proximity';
 /** Fixed — only one mall snapshot exists per user at a time. */
 export const MALL_SNAPSHOT_CACHE_AREA_ID = 'mall_snapshot';
 
-/** Radius used to find the mall itself — matches indoorDetection.ts's own mall lookup. Deliberately smaller than the download radius below: this only needs to bracket the mall place entity, not the POIs around it. */
+/** Radius used to find the mall itself. Deliberately smaller than the download radius below: this only needs to bracket the mall place entity, not the POIs around it. */
 export const MALL_SEARCH_RADIUS_M = 300;
 
 /**

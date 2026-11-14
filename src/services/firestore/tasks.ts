@@ -443,18 +443,6 @@ export async function markExitPromptSeen(
 }
 
 /**
- * Record that an indoor proximity alert has been shown for `taskId` on `date`.
- * Updates `store.alertSeenDate` to suppress repeat alerts on the same day (KAN-75).
- */
-export async function markStoreAlertSeen(
-  uid: string,
-  taskId: string,
-  date: string,
-): Promise<void> {
-  await updateDoc(taskRef(uid, taskId), { 'store.alertSeenDate': date });
-}
-
-/**
  * Returns the number of tasks completed during the current calendar week
  * (Monday 00:00 – Sunday 23:59:59 local time).
  *

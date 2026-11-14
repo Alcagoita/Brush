@@ -97,7 +97,6 @@ describe('COPY — pt-PT localized count strings', () => {
     expect(COPY.nearbyCard.openInMaps).toBe('Abrir no Mapas');
     expect(COPY.nearbyCard.openInMapsA11y('Continente')).toBe('Abrir Continente no Mapas');
     expect(COPY.nearbyCard.tryAnotherPlace).toBe('Tentar outro local');
-    expect(COPY.nearbyCard.storeTuningOn).toBe('Ajuste de lojas ativo');
     expect(COPY.nearbyCard.refreshUpdated).toBe('Atualizado');
     expect(COPY.nearbyCard.refreshFailed).toBe('Falhou');
     expect(COPY.nearbyCard.alsoClose).toBe('Também perto');
@@ -137,5 +136,26 @@ describe('COPY — attribution names every source that ships (KAN-451)', () => {
     expect(attribution).toContain('MULTIBANCO');
     // Retired sources must not be credited: the footer is a licence statement, not a history.
     expect(attribution).not.toMatch(/Foursquare|Google/);
+  });
+});
+
+describe('centre notification copy (KAN-515)', () => {
+  afterEach(() => setCopyLanguage('en'));
+
+  it('names the centre and spells the count out, in English', () => {
+    setCopyLanguage('en');
+    expect(COPY.notification.centreTitle('Alma Shopping')).toBe('Alma Shopping');
+    expect(COPY.notification.centreBody(1)).toBe("One waiting here. I'll show you the floor.");
+    expect(COPY.notification.centreBody(3)).toBe("Three waiting here. I'll show you the floors.");
+    expect(COPY.notification.centreBody(9)).toBe("Nine waiting here. I'll show you the floors.");
+    expect(COPY.notification.centreBody(12)).toBe("12 waiting here. I'll show you the floors.");
+  });
+
+  it('reads the same in Portuguese (pt-PT)', () => {
+    setCopyLanguage('pt-PT');
+    expect(COPY.notification.centreBody(1)).toBe('Uma à espera aqui. Mostro-te o piso.');
+    expect(COPY.notification.centreBody(2)).toBe('Duas à espera aqui. Mostro-te os pisos.');
+    expect(COPY.notification.centreBody(3)).toBe('Três à espera aqui. Mostro-te os pisos.');
+    expect(COPY.notification.centreBody(12)).toBe('12 à espera aqui. Mostro-te os pisos.');
   });
 });
