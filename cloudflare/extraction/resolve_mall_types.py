@@ -203,8 +203,7 @@ def _overpass(query):
     request = urllib.request.Request(
         'https://overpass-api.de/api/interpreter',
         data=urllib.parse.urlencode({'data': query}).encode(),
-        headers={'User-Agent': 'BrushAway/1.0 (KAN-439 mall tenant typing; '
-                               'olegarioncnascimento@gmail.com)'})
+        headers={'User-Agent': 'brush-extraction/1.0'})
     for attempt in range(3):
         try:
             with urllib.request.urlopen(request, timeout=150) as response:

@@ -54,8 +54,9 @@ EXTRACTION_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, EXTRACTION_DIR)
 
 ENDPOINT = 'https://query.wikidata.org/sparql'
-USER_AGENT = ('BrushPOI/0.20 (https://brushaway.app; olegarioncnascimento@gmail.com) '
-              'KAN-471 native place names')
+# Generic client name with the project's site as contact, which Wikimedia's
+# User-Agent policy accepts. Never a person's address.
+USER_AGENT = 'brush-extraction/1.0 (https://brushaway.app)'
 CELL = 0.5           # degrees; one request per cell, ~3k items in the densest
 MAX_DISTANCE_M = 100
 PAUSE_SECONDS = 1.0  # between requests, unprompted; the service is a shared one
