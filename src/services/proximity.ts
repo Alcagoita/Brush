@@ -92,6 +92,7 @@ import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
 import { refreshVenueInventoriesIfDue } from './venueInventory';
+import { updateCentreContext } from './centreDetection';
 import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
 import { useToastStore } from '../store/toastStore';
 import { getLearnedPlaceForPoiType, type LearnedBrand } from './learnedPlaces';
@@ -167,6 +168,8 @@ export type PlacesMap = Partial<Record<string, NearbyPlace[]>>;
  * specific cacheAreaId) — this one's order is a real product requirement.
  */
 export type PlaceContext =
+  /** KAN-513 — inside a shopping centre's outline (centreDetection.ts). Checked first. */
+  | { kind: 'centre'; venueId: string; name: string }
   | { kind: 'mall'; snapshot: MallSnapshot }
   | { kind: 'trip'; trip: Trip }
   | null;
@@ -571,6 +574,13 @@ export function isLocationKnown(lat: number, lng: number): boolean {
 /** KAN-242 — see PlaceContext's doc comment for why this mall-first order is distinct from findActiveCacheArea's above. */
 function findActivePlaceContext(lat: number, lng: number): PlaceContext {
   const now = Date.now();
+  // KAN-513 — a centre's outline is the first answer to "in a mall". The
+  // KAN-237 snapshot below stays as it was and still answers where no
+  // stored outline covers the position (owner, 2026-11-14).
+  const centre = updateCentreContext(lat, lng);
+  if (centre) {
+    return { kind: 'centre', venueId: centre.venueId, name: centre.name };
+  }
   if (_mallSnapshot && _mallSnapshot.expiresAt >= now &&
       getDistanceMeters(lat, lng, _mallSnapshot.centerLat, _mallSnapshot.centerLng) <= _mallSnapshot.radius) {
     return { kind: 'mall', snapshot: _mallSnapshot };

@@ -15,7 +15,8 @@
  * it never fires again once any position is known. Until a fix exists the
  * resolver holds `locating` rather than guessing Outside.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { updateCentreContext } from '../services/centreDetection';
 import { AppState } from 'react-native';
 import type { PlaceContext } from '../services/proximity';
 import { distanceFromHome, getHomeLocation } from '../services/home';
@@ -150,8 +151,19 @@ export function useLanternState(
   const homeDistanceM: number | null =
     homeSet && effectiveCoords ? distanceFromHome(effectiveCoords) : null;
 
+  // KAN-513 — the engine only resolves a place context while it searches
+  // (open POI tasks). Without one, the Lantern's own fix answers "inside a
+  // centre?" through the same detector and the same enter/leave memory.
+  const centreLat = effectiveCoords?.lat;
+  const centreLng = effectiveCoords?.lng;
+  const centreContext = useMemo<PlaceContext>(() => {
+    if (placeContext || centreLat == null || centreLng == null) { return null; }
+    const centre = updateCentreContext(centreLat, centreLng);
+    return centre ? { kind: 'centre', venueId: centre.venueId, name: centre.name } : null;
+  }, [placeContext, centreLat, centreLng]);
+
   const state = resolveLanternState({
-    placeContext,
+    placeContext: placeContext ?? centreContext,
     todayIso: todayISO(),
     homeSet,
     homeDistanceM,

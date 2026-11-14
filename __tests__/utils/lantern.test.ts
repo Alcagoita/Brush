@@ -54,6 +54,12 @@ describe('resolveLanternState — states (KAN-301 AC1)', () => {
       .toEqual({ kind: 'outside', cityName: null });
   });
 
+  it('Mall, with the centre name, when inside a centre outline (KAN-513)', () => {
+    const centre = { kind: 'centre', venueId: 'centro-comercial-colombo', name: 'Centro Comercial Colombo' } as PlaceContext;
+    expect(resolveLanternState({ ...base, placeContext: centre, homeDistanceM: 4000 }))
+      .toEqual({ kind: 'mall', name: 'Centro Comercial Colombo' });
+  });
+
   it('Mall when placeContext is a mall', () => {
     expect(resolveLanternState({ ...base, placeContext: mallCtx('Colombo'), homeDistanceM: 4000 }))
       .toEqual({ kind: 'mall', name: 'Colombo' });

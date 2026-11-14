@@ -181,6 +181,24 @@ export function getVenueInventory(venueId: string): VenueInventoryMeta | null {
 }
 
 /**
+ * Every centre we hold an outline for (any stored copy), as a `Venue`. The
+ * offline source of outlines for centre detection (KAN-513). Never throws.
+ */
+export function listStoredVenues(): Venue[] {
+  try {
+    return getDb().getAllSync<{
+      venue_id: string; name: string; centroid_lat: number; centroid_lng: number; rings_json: string;
+    }>('SELECT venue_id, name, centroid_lat, centroid_lng, rings_json FROM venue ORDER BY venue_id').map(row => ({
+      id: row.venue_id, name: row.name, osm: '', centroid: [row.centroid_lat, row.centroid_lng] as [number, number],
+      rings: JSON.parse(row.rings_json) as Ring[],
+    }));
+  } catch (err) {
+    console.warn('[venueInventory] listStoredVenues failed', err);
+    return [];
+  }
+}
+
+/**
  * Replace one centre's stored inventory with `units`, as one transaction,
  * and mark it complete. Throws on failure — the transaction rolls back and
  * the previous copy (if any) stays exactly as it was.
