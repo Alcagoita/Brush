@@ -2,26 +2,14 @@
  * KAN-382 — a shopping centre's inventory, downloaded whole and searchable
  * offline.
  *
- * Real SQLite (node:sqlite) behind a thin expo-sqlite adapter, so the SQL the
+ * Real SQLite (node:sqlite) behind the expo-sqlite adapter in ../helpers, so the SQL the
  * store runs is the SQL being tested — including the transaction that keeps
  * a previous complete copy when a download fails.
  */
-import { DatabaseSync } from 'node:sqlite';
 import NetInfo from '@react-native-community/netinfo';
+import { nodeSqlite, resetNodeSqlite } from '../helpers/expoSqliteNode';
 
-let mockSqlite: DatabaseSync;
-jest.mock('expo-sqlite', () => ({
-  openDatabaseSync: () => ({
-    execSync: (sql: string) => mockSqlite.exec(sql),
-    runSync: (sql: string, params: unknown[] = []) => mockSqlite.prepare(sql).run(...(params as never[])),
-    getAllSync: (sql: string, params: unknown[] = []) => mockSqlite.prepare(sql).all(...(params as never[])),
-    getFirstSync: (sql: string, params: unknown[] = []) => mockSqlite.prepare(sql).get(...(params as never[])) ?? null,
-    withTransactionSync: (task: () => void) => {
-      mockSqlite.exec('BEGIN');
-      try { task(); mockSqlite.exec('COMMIT'); } catch (error) { mockSqlite.exec('ROLLBACK'); throw error; }
-    },
-  }),
-}));
+jest.mock('expo-sqlite', () => require('../helpers/expoSqliteNode').expoSqliteMock);
 
 let mockWifiOnly = false;
 jest.mock('../../src/services/habitatCache', () => ({
@@ -40,7 +28,7 @@ jest.mock('../../src/services/poiApi', () => {
 
 import {
   __resetVenueInventoryForTests, getVenueInventory, refreshVenueInventoriesIfDue, searchVenueUnits,
-  VENUE_RECHECK_MS, type Venue, type VenueUnitWire,
+  writeVenueInventory, VENUE_RECHECK_MS, type Venue, type VenueUnitWire,
 } from '../../src/services/venueInventory';
 import { PoiApiError } from '../../src/services/poiApi';
 
@@ -88,7 +76,7 @@ function unitPaths(): string[] {
 }
 
 beforeEach(() => {
-  mockSqlite = new DatabaseSync(':memory:');
+  resetNodeSqlite();
   __resetVenueInventoryForTests();
   mockPoiApiGet.mockReset();
   mockWifiOnly = false;
@@ -176,6 +164,35 @@ describe('download', () => {
     expect(getVenueInventory('alma-shopping')).toBeNull();
   });
 
+  it('rolls the whole write back when an insert fails after the old units were deleted', async () => {
+    serve({ 'alma-shopping': { version: 'v1', units: [unit('community:a:zara', 'Zara', { floor: '1' })] } }, [ALMA]);
+    await refreshVenueInventoriesIfDue(NEAR_ALMA.lat, NEAR_ALMA.lng, T0);
+    const before = getVenueInventory('alma-shopping');
+
+    // The replacement deletes the old rows first, then this unit's insert aborts.
+    nodeSqlite().exec(`CREATE TRIGGER fail_on_poison BEFORE INSERT ON venue_unit
+                       WHEN NEW.name = 'Poison' BEGIN SELECT RAISE(ABORT, 'disk full'); END;`);
+    expect(() => writeVenueInventory(ALMA, 'v2', [unit('community:a:ok', 'OK'), unit('community:a:poison', 'Poison')], T0 + 1))
+      .toThrow('disk full');
+
+    expect(getVenueInventory('alma-shopping')).toEqual(before);
+    expect(searchVenueUnits('alma-shopping', { poiType: 'store' }).map(u => [u.name, u.floor])).toEqual([['Zara', '1']]);
+  });
+
+  it('refreshes the stored name and outline when the units are unchanged', async () => {
+    serve({ 'alma-shopping': { version: 'v1', units: [unit('community:a:zara', 'Zara')] } }, [ALMA]);
+    await refreshVenueInventoriesIfDue(NEAR_ALMA.lat, NEAR_ALMA.lng, T0);
+    const moved: Venue = { ...ALMA, name: 'Alma Shopping Coimbra', rings: [[...ALMA.rings[0].slice(0, -1), [40.2041, -8.4081], ALMA.rings[0][0]]] };
+    serve({ 'alma-shopping': { version: 'v1', units: [unit('community:a:zara', 'Zara')] } }, [moved]);
+    __resetVenueInventoryForTests();
+    mockPoiApiGet.mockClear();
+
+    await refreshVenueInventoriesIfDue(NEAR_ALMA.lat, NEAR_ALMA.lng, T0 + VENUE_RECHECK_MS + 1);
+
+    expect(unitPaths()).toEqual(['/venues/alma-shopping/units?limit=1']);
+    expect(getVenueInventory('alma-shopping')).toMatchObject({ name: 'Alma Shopping Coimbra', rings: moved.rings, version: 'v1', unitCount: 1, complete: true });
+  });
+
   it('stops every remaining centre on HTTP 429', async () => {
     serve({ 'alma-shopping': { version: 'v1', units: [] }, 'forum-coimbra': { version: 'f1', units: [unit('community:f:1', 'Zara')] } });
     const real = mockPoiApiGet.getMockImplementation()!;
@@ -235,7 +252,7 @@ describe('offline lookup', () => {
 
   it('answers nothing for a centre it holds no complete copy of', () => {
     expect(searchVenueUnits('norteshopping', { poiType: 'store' })).toEqual([]);
-    mockSqlite.prepare("UPDATE venue SET complete = 0 WHERE venue_id = 'alma-shopping'").run();
+    nodeSqlite().prepare("UPDATE venue SET complete = 0 WHERE venue_id = 'alma-shopping'").run();
     expect(searchVenueUnits('alma-shopping', { poiType: 'store' })).toEqual([]);
   });
 });

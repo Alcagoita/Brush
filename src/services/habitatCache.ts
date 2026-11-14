@@ -482,6 +482,7 @@ function findMatchingRow(
   isGenericName: boolean | undefined,
   lat: number,
   lng: number,
+  floor?: string | null,
 ): HabitatRow | null {
   const box = boundingBoxDeg(lat, lng, IDENTITY_MATCH_RADIUS_M);
   const rows = database.getAllSync<HabitatRow>(
@@ -497,6 +498,10 @@ function findMatchingRow(
   return rows.find(row => {
     const dist = getDistanceMeters(lat, lng, row.lat, row.lng);
     if (dist > IDENTITY_MATCH_RADIUS_M) { return false; }
+    // KAN-382 — one brand on two floors of a centre (OAKBERRY at Colombo,
+    // Piso 0 and 2) is two places a few metres apart. When both floors are
+    // known and differ they never merge; an unknown floor merges as before.
+    if (floor != null && row.floor != null && floor !== row.floor) { return false; }
     const rowName = normalize(row.name);
     if (candidateIsGeneric || row.is_generic_name === 1) {
       return rowName === candidateName;
@@ -555,7 +560,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const isFreelyStorable = refIsFreelyStorable(candidate.source);
   const match = findMatchingRow(
     database, candidate.poiType, candidate.name, candidate.isGenericName,
-    candidate.lat, candidate.lng,
+    candidate.lat, candidate.lng, candidate.floor,
   );
 
   if (match) {

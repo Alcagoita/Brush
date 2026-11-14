@@ -214,8 +214,16 @@ export function writeVenueInventory(venue: Venue, version: string, units: VenueU
   });
 }
 
-function touchChecked(venueId: string, now: number): void {
-  getDb().runSync('UPDATE venue SET checked_at = ? WHERE venue_id = ?', [now, venueId]);
+/**
+ * The units are unchanged (same version): keep them, but take the centre's
+ * current name, centroid and outline from the venue list, which can change
+ * on a deploy without changing the units.
+ */
+function touchChecked(venue: Venue, now: number): void {
+  getDb().runSync(
+    'UPDATE venue SET name = ?, centroid_lat = ?, centroid_lng = ?, rings_json = ?, checked_at = ? WHERE venue_id = ?',
+    [venue.name, venue.centroid[0], venue.centroid[1], JSON.stringify(venue.rings), now, venue.id],
+  );
 }
 
 // ─── Offline lookup ───────────────────────────────────────────────────────────
@@ -338,7 +346,7 @@ async function refreshOne(venue: Venue, now: number): Promise<void> {
   if (stored?.complete && now - stored.checkedAt < VENUE_RECHECK_MS) { return; }
   if (stored?.complete) {
     const probe = await poiApiGet<UnitsPage>(unitsPath(venue.id, 1, null));
-    if (probe.version === stored.version) { touchChecked(venue.id, now); return; }
+    if (probe.version === stored.version) { touchChecked(venue, now); return; }
   }
   const { version, units } = await fetchVenueUnits(venue.id);
   writeVenueInventory(venue, version, units, now);
