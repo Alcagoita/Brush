@@ -4,7 +4,19 @@
  */
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import { lightPalette, darkPalette } from '../../src/theme/tokens';
+
+/** WCAG 2 contrast ratio between two #rrggbb colours. */
+function contrast(a: string, b: string): number {
+  const luminance = (hex: string) => {
+    const [r, g, bl] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+      .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
 
 jest.mock('../../src/theme', () => ({
   useTheme: () => ({ palette: jest.requireActual('../../src/theme/tokens').lightPalette }),
@@ -82,6 +94,42 @@ describe('MallNearbyCard', () => {
     expect(screen.getByText('Zara · Floor 1')).toBeTruthy();
   });
 
+  it('keeps the chosen place when the candidates are rebuilt around it', () => {
+    const { rerender } = render(<MallNearbyCard centreName="Alma Shopping" rows={ROWS} />);
+    fireEvent.press(screen.getByLabelText('Try another place for Buy a white shirt'));
+    expect(screen.getByText('Mango · Floor 2')).toBeTruthy();
+
+    // An inventory update adds a place before the chosen one.
+    const rebuilt = ROWS.map(row => row.task.id !== 'shirt' ? row : {
+      ...row,
+      candidates: [{ key: 'brand:Bershka', name: 'Bershka', floors: ['0'], poiType: 'store' }, ...row.candidates],
+    });
+    rerender(<MallNearbyCard centreName="Alma Shopping" rows={rebuilt} />);
+
+    expect(screen.getByText('Mango · Floor 2')).toBeTruthy();
+    expect(screen.queryByText('Bershka · Floor 0')).toBeNull();
+  });
+
+  it('falls back to the first place when the chosen one is no longer offered', () => {
+    const { rerender } = render(<MallNearbyCard centreName="Alma Shopping" rows={ROWS} />);
+    fireEvent.press(screen.getByLabelText('Try another place for Buy a white shirt'));
+
+    const withoutMango = ROWS.map(row => row.task.id !== 'shirt' ? row : {
+      ...row,
+      candidates: row.candidates.filter(c => c.key !== 'brand:Mango'),
+    });
+    rerender(<MallNearbyCard centreName="Alma Shopping" rows={withoutMango} />);
+
+    expect(screen.getByText('Zara · Floor 1')).toBeTruthy();
+  });
+
+  it('gives "Try another place" a 44×44 touch target', () => {
+    render(<MallNearbyCard centreName="Alma Shopping" rows={ROWS} />);
+    const style = StyleSheet.flatten(screen.getByLabelText('Try another place for Buy a white shirt').props.style);
+    expect(style.minHeight).toBeGreaterThanOrEqual(44);
+    expect(style.minWidth).toBeGreaterThanOrEqual(44);
+  });
+
   it('renders nothing, and says so, when the centre solves no open task', () => {
     const onHasContent = jest.fn();
     render(<MallNearbyCard centreName="Alma Shopping" rows={[]} onHasContent={onHasContent} />);
@@ -96,5 +144,14 @@ describe('MallNearbyCard', () => {
       }
     }
     expect(lightPalette.mallTint).not.toBe(lightPalette.nearTint);
+  });
+
+  it('keeps small text readable: ≥ 4.5:1 on both tints, in both themes', () => {
+    for (const palette of [lightPalette, darkPalette]) {
+      for (const tint of [palette.mallTint, palette.mallTint2]) {
+        expect(contrast(palette.mallAccent, tint)).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(palette.mallText, tint)).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 });

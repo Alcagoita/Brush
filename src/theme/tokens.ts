@@ -29,12 +29,13 @@ export const lightPalette = {
   nearBorder: '#e8c9a0',   // oklch(0.85 0.09 65)
   nearText:   '#7a4a20',   // oklch(0.42 0.13 65)
   // Mall Nearby card (KAN-514) — a muted teal, apart from the category hues
-  // (blue 250, sage 165, purple 305, peach 65–70). Text ≥ 6.9:1 on both tints.
+  // (blue 250, sage 165, purple 305, peach 65–70). Text ≥ 6.9:1 on both tints;
+  // mallAccent carries small text, so it keeps ≥ 4.5:1 too (5.29 / 4.84).
   mallTint:   '#eef6f6',
   mallTint2:  '#dceeee',
   mallBorder: '#7fb6b8',
   mallText:   '#1f5658',
-  mallAccent: '#3a8a8c',
+  mallAccent: '#2c6f71',
   // Lantern halo tints (KAN-301) — the soft circular glow behind the header
   // icon, rendered as a low-opacity View fill (never an SVG). Home reuses the
   // peach ringFill hue; the "away" states (outside/mall/trip) use accent; the

@@ -35,8 +35,14 @@ interface MallNearbyCardProps {
 
 function MallRowView({ row, isLast }: { row: MallRow; isLast: boolean }) {
   const { palette } = useTheme();
-  const [index, setIndex] = useState(0);
-  const candidate = row.candidates[Math.min(index, row.candidates.length - 1)];
+  // The chosen place is held by its stable key, not its position: Today
+  // rebuilds the candidates when tasks or the inventory change, and an index
+  // would then point at a different place. A key no longer offered falls
+  // back to the first candidate.
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const found = selectedKey == null ? -1 : row.candidates.findIndex(c => c.key === selectedKey);
+  const index = found < 0 ? 0 : found;
+  const candidate = row.candidates[index];
   const floorLine = formatFloors(candidate.floors, COPY.mallNearbyCard);
   const placeLine = floorLine ? `${candidate.name} · ${floorLine}` : candidate.name;
 
@@ -63,7 +69,7 @@ function MallRowView({ row, isLast }: { row: MallRow; isLast: boolean }) {
               styles.tryAnother,
               { borderColor: palette.mallBorder, opacity: pressed ? 0.6 : 1 },
             ]}
-            onPress={() => setIndex(i => nextCandidateIndex(i, row.candidates.length))}
+            onPress={() => setSelectedKey(row.candidates[nextCandidateIndex(index, row.candidates.length)].key)}
             accessibilityRole="button"
             accessibilityLabel={COPY.mallNearbyCard.tryAnotherPlaceA11y(row.task.title)}>
             <Text style={[styles.tryAnotherLabel, { color: palette.mallText }]}>
@@ -149,8 +155,12 @@ const styles = StyleSheet.create({
     marginTop:       6,
     borderRadius:    radius.chip,
     borderWidth:     StyleSheet.hairlineWidth,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingHorizontal: 12,
+    // 44×44 is the smallest comfortable touch target.
+    minHeight:       44,
+    minWidth:        44,
+    alignItems:      'center',
+    justifyContent:  'center',
   },
   tryAnotherLabel: {
     fontSize:   12,
