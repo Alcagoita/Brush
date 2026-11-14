@@ -91,6 +91,7 @@ import { markExitPromptSeen } from './firestore';
 import { COPY } from '../constants/copy';
 import { todayISO } from '../utils/date';
 import { recordLiveResult, refreshHabitatCacheIfStale, queryHabitatCache, findExistingPlaceId, hasCachedPlaces } from './habitatCache';
+import { refreshVenueInventoriesIfDue } from './venueInventory';
 import { saveProximitySnapshot, loadProximitySnapshot } from './proximitySnapshot';
 import { useToastStore } from '../store/toastStore';
 import { getLearnedPlaceForPoiType, type LearnedBrand } from './learnedPlaces';
@@ -811,6 +812,7 @@ async function runProximitySearch(
                 source: placeSourceRef(place.placeId, tickSource, place.sourceKind),
                 brand: place.brand,
                 financialServiceKinds: place.financialServiceKinds,
+                floor: place.floor,
                 // KAN-377 — the settlement name rides along with the places it
                 // came with, so this area stays nameable offline everywhere we
                 // hold POIs. Undefined on an OSM tick: that source doesn't name
@@ -838,6 +840,12 @@ async function runProximitySearch(
           ])];
           refreshHabitatCacheIfStale(coords.lat, coords.lng, prefetchTypes).catch(err =>
             reportProximityError('habitat cache refresh failed', err),
+          );
+          // KAN-382 — every known shopping centre near here, downloaded whole
+          // with its floors, so a centre works offline under its roof. Same
+          // live-tick moment as the habitat prefetch; no extra watcher or poll.
+          refreshVenueInventoriesIfDue(coords.lat, coords.lng).catch(err =>
+            reportProximityError('venue inventory refresh failed', err),
           );
         } catch (err) {
           reportProximityError('habitat cache seed failed', err);

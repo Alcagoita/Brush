@@ -104,6 +104,11 @@ export function setWifiOnlyDownloads(enabled: boolean): void {
   _wifiOnlyDownloads = enabled;
 }
 
+/** The same preference, for other downloaders that must honour it (KAN-382 venue inventory). */
+export function getWifiOnlyDownloads(): boolean {
+  return _wifiOnlyDownloads;
+}
+
 /** Hard cap on total cached rows — keeps the on-device footprint small. */
 export const MAX_CACHED_PLACES = 2_000;
 
@@ -297,6 +302,11 @@ function getDb(): SQLite.SQLiteDatabase {
     // any more, and a device that already added it keeps it, unused, until
     // the cache is rebuilt — dropping a nullable column nobody touches would
     // be a device migration for no gain.
+    // KAN-382 — the floor inside a shopping centre ("-1", "0", "2"; KAN-503).
+    // NULL means no floor stated, which is every place outside a centre.
+    if (!existingColumns.has('floor')) {
+      database.execSync('ALTER TABLE habitat_places ADD COLUMN floor TEXT');
+    }
     for (const column of ['name_local', 'name_local_lang', 'names_json', 'country_code']) {
       if (!existingColumns.has(column)) {
         database.execSync(`ALTER TABLE habitat_places ADD COLUMN ${column} TEXT`);
@@ -354,6 +364,8 @@ export interface HabitatRow {
   financial_service_kinds: string | null;
   /** Canonical Store/Gym/Bank brand when known from a live source. */
   brand: string | null;
+  /** Floor inside a shopping centre, bare integer string (KAN-382/503); null elsewhere. */
+  floor: string | null;
 }
 
 /** SQL predicate: the row is anchored by a source whose coordinates we may keep (see placeIdentity.isFreelyStorable). */
@@ -404,6 +416,8 @@ export interface PlaceCandidate {
   financialServiceKinds?: FinancialServiceKind[] | null;
   /** Canonical brand supplied by the source; never a free-form guess. */
   brand?: string | null;
+  /** Floor inside a shopping centre, bare integer string (KAN-382/503). Omitted or null elsewhere. */
+  floor?: string | null;
 }
 
 function candidateRestaurantFoodType(candidate: PlaceCandidate): RestaurantFoodType | null {
@@ -468,6 +482,7 @@ function findMatchingRow(
   isGenericName: boolean | undefined,
   lat: number,
   lng: number,
+  floor?: string | null,
 ): HabitatRow | null {
   const box = boundingBoxDeg(lat, lng, IDENTITY_MATCH_RADIUS_M);
   const rows = database.getAllSync<HabitatRow>(
@@ -483,6 +498,10 @@ function findMatchingRow(
   return rows.find(row => {
     const dist = getDistanceMeters(lat, lng, row.lat, row.lng);
     if (dist > IDENTITY_MATCH_RADIUS_M) { return false; }
+    // KAN-382 — one brand on two floors of a centre (OAKBERRY at Colombo,
+    // Piso 0 and 2) is two places a few metres apart. When both floors are
+    // known and differ they never merge; an unknown floor merges as before.
+    if (floor != null && row.floor != null && floor !== row.floor) { return false; }
     const rowName = normalize(row.name);
     if (candidateIsGeneric || row.is_generic_name === 1) {
       return rowName === candidateName;
@@ -541,7 +560,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
   const isFreelyStorable = refIsFreelyStorable(candidate.source);
   const match = findMatchingRow(
     database, candidate.poiType, candidate.name, candidate.isGenericName,
-    candidate.lat, candidate.lng,
+    candidate.lat, candidate.lng, candidate.floor,
   );
 
   if (match) {
@@ -569,6 +588,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
            store_subtype        = COALESCE(?, store_subtype),
            financial_service_kinds = COALESCE(?, financial_service_kinds),
            brand                = COALESCE(?, brand),
+           floor                = COALESCE(?, floor),
            name_local           = COALESCE(?, name_local),
            name_local_lang      = COALESCE(?, name_local_lang),
            names_json           = COALESCE(?, names_json),
@@ -596,6 +616,7 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
         storeSubtype,
         financialServiceKinds,
         candidate.brand ?? null,
+        candidate.floor ?? null,
         candidate.nameLocal ?? null,
         candidate.nameLocalLang ?? null,
         serializePlaceNames(candidate.names),
@@ -622,15 +643,16 @@ function upsertPlaceCore(candidate: PlaceCandidate, trip?: TripStamp): string {
     : null;
   database.runSync(
     `INSERT INTO habitat_places
-       (id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       (id, poi_type, name, name_local, name_local_lang, names_json, country_code, is_generic_name, lat, lng, google_place_id, osm_id, fsq_place_id, overture_id, brush_id, osm_fetched_at, last_matched_at, cache_area_id, expires_at, footprint_area_m2, website, restaurant_food_type, store_subtype, financial_service_kinds, brand, area_name, floor)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [id, candidate.poiType, candidate.name, candidate.nameLocal ?? null,
       candidate.nameLocalLang ?? null, serializePlaceNames(candidate.names),
       candidate.countryCode ?? null, candidate.isGenericName === true ? 1 : 0, candidate.lat, candidate.lng,
       candidate.source.google ?? null, candidate.source.osm ?? null, candidate.source.fsq ?? null,
       candidate.source.overture ?? null, candidate.source.brush ?? null, now, now,
       trip?.cacheAreaId ?? null, trip?.expiresAt ?? null, candidate.footprintAreaM2 ?? null,
-      candidate.website ?? null, restaurantFoodType, storeSubtype, financialServiceKinds, candidate.brand ?? null, candidate.areaName ?? null],
+      candidate.website ?? null, restaurantFoodType, storeSubtype, financialServiceKinds, candidate.brand ?? null, candidate.areaName ?? null,
+      candidate.floor ?? null],
   );
   return id;
 }
@@ -724,6 +746,8 @@ export function recordLiveResult(candidate: {
   brand?: string | null;
   /** Authoritative financial-service kinds returned by the same live source. */
   financialServiceKinds?: FinancialServiceKind[];
+  /** Floor inside a shopping centre from the same live answer (KAN-382). */
+  floor?: string | null;
 }): void {
   upsertPlace({
     poiType: candidate.poiType,
@@ -738,6 +762,7 @@ export function recordLiveResult(candidate: {
     brand:   candidate.brand,
     areaName: candidate.areaName,
     financialServiceKinds: candidate.financialServiceKinds,
+    floor: candidate.floor,
   });
 }
 
@@ -801,6 +826,7 @@ export function queryHabitatCache(
         storeSubtype:       normalizeCachedStoreSubtype(row.store_subtype),
         financialServiceKinds: normalizeCachedFinancialServiceKinds(row.financial_service_kinds),
         brand:              row.brand ?? getCanonicalBrand(row.poi_type, row.name) ?? undefined,
+        floor:              row.floor ?? null,
       });
     }
 
@@ -855,6 +881,7 @@ export function getHabitatPlaceById(id: string): NearbyPlace | null {
       storeSubtype:       normalizeCachedStoreSubtype(row.store_subtype),
       financialServiceKinds: normalizeCachedFinancialServiceKinds(row.financial_service_kinds),
       brand:              row.brand ?? getCanonicalBrand(row.poi_type, row.name) ?? undefined,
+      floor:              row.floor ?? null,
     };
   } catch (err) {
     console.warn('[habitatCache] getHabitatPlaceById failed', err);

@@ -1,5 +1,6 @@
 {
  "Amoreiras Shopping Center": {
+  "id": "amoreiras-shopping-center",
   "osm": "way/755751570",
   "centroid": [
    38.7234284,
@@ -169,6 +170,7 @@
   "buffer_note": "dense Lisbon, three other centres within 500 m; matches stop climbing at 50 m while REMOVE triples (measured 2026-10-05)"
  },
  "UBBO": {
+  "id": "ubbo",
   "osm": "relation/14978983",
   "centroid": [
    38.7769534,
@@ -478,6 +480,7 @@
   "buffer_note": "isolated retail complex; matches climb to 75 m, REMOVE barely moves (measured 2026-10-05)"
  },
  "NorteShopping": {
+  "id": "norteshopping",
   "osm": "relation/16708133",
   "centroid": [
    41.1806563,
@@ -1371,6 +1374,7 @@
   "buffer_note": "suburban centre with a car park ring; matches climb to 50 m then flat to 100 m while held and escalations keep growing (measured 2026-11-11)"
  },
  "Via Catarina Shopping": {
+  "id": "via-catarina-shopping",
   "osm": "way/365658312",
   "centroid": [
    41.1490549,
@@ -1620,6 +1624,7 @@
   "buffer_note": "dense downtown street lined with shops; matches climb to 30 m and stall while REMOVE doubles every 10 m beyond it (measured 2026-11-12)"
  },
  "Centro Comercial Colombo": {
+  "id": "centro-comercial-colombo",
   "osm": "way/42645796",
   "centroid": [
    38.7546307,
@@ -2469,6 +2474,7 @@
   "buffer_note": "large isolated centre ringed by roads and car parks; matches climb to 75 m and stop, REMOVE barely moves (measured 2026-11-12)"
  },
  "LeiriaShopping": {
+  "id": "leiriashopping",
   "osm": "way/192124002",
   "centroid": [
    39.732619,
@@ -2582,6 +2588,7 @@
   "buffer_note": "matches flat from 25 to 50 m; Zara, Bershka and Oysho sit 53 m out, and past 55 m the ring gains only the ESTG campus and car dealers on the same street, Alto do Vieiro (measured 2026-11-12)"
  },
  "Braga Parque": {
+  "id": "braga-parque",
   "osm": "way/41679420",
   "centroid": [
    41.5580514,
@@ -2955,6 +2962,7 @@
   "buffer_note": "matches climb to 50 m (Pandora sits 34 m out on the centre address); past 50 m the ring gains only Avenida Antero de Quental street shops and the Via Circular fuel stations (measured 2026-11-12)"
  },
  "Nova Arcada": {
+  "id": "nova-arcada",
   "osm": "way/55617020",
   "centroid": [
    41.578701,
@@ -3156,6 +3164,7 @@
   "buffer_note": "the landuse outline already holds the mall and its retail park; matches are flat to 50 m, Burger King sits 57 m out at Avenida de Lamas 100, and nothing more is gained to 100 m (measured 2026-11-12)"
  },
  "Forum Coimbra": {
+  "id": "forum-coimbra",
   "osm": "way/37079296",
   "centroid": [
    40.2118179,
@@ -3373,6 +3382,7 @@
   "buffer_note": "matches flat to 50 m; Intimissimi, Tezenis and Sunglass Hut sit 51-63 m out on the centre's own \"Loja 0.xx\" addresses, and past 65 m the ring gains only Decathlon and a Galp station, separate neighbours on the same street number (measured 2026-11-13)"
  },
  "Alma Shopping": {
+  "id": "alma-shopping",
   "osm": "way/174739239",
   "centroid": [
    40.2044068,
@@ -3630,6 +3640,7 @@
   "buffer_note": "a city block by the stadium; units sit 3-12 m out and The Body Shop (Loja 114A) 35 m; past 40 m the ring gains only street shops on Dom Manuel I and Dom João III, a school and the stadium (measured 2026-11-13)"
  },
  "Forum Algarve": {
+  "id": "forum-algarve",
   "osm": "way/182734578",
   "centroid": [
    37.0290502,
@@ -3839,6 +3850,7 @@
   "buffer_note": "matches climb to 25 m and the Auchan hypermarket sits 34 m out; nothing more is gained to 100 m (measured 2026-11-13)"
  },
  "MAR Shopping Algarve": {
+  "id": "mar-shopping-algarve",
   "osm": "way/525348390",
   "centroid": [
    37.0988231,
@@ -4104,6 +4116,7 @@
   "buffer_note": "the outline is the mall alone; units on the centre's \"Complexo Comercial IKEA\" addresses sit up to 72 m out (Tezenis 39 m, IKEA Loulé 67 m); past 75 m the ring is the Designer Outlet's shops, which share Avenida do Algarve (measured 2026-11-13)"
  },
  "AlgarveShopping": {
+  "id": "algarveshopping",
   "osm": "relation/7759235",
   "centroid": [
    37.1277517,
@@ -4455,5 +4468,497 @@
   ],
   "buffer_m": 50,
   "buffer_note": "matches flat from 25 m; La Casa de las Carcasas sits 44 m out on the centre's address; nothing more to 100 m (measured 2026-11-13)"
+ },
+ "Centro Comercial Vasco da Gama": {
+  "id": "centro-comercial-vasco-da-gama",
+  "osm": "way/240816973",
+  "centroid": [
+   38.767696,
+   -9.0968202
+  ],
+  "rings": [
+   [
+    [
+     38.7684944,
+     -9.0974144
+    ],
+    [
+     38.7683369,
+     -9.0975618
+    ],
+    [
+     38.7678801,
+     -9.0975989
+    ],
+    [
+     38.7678702,
+     -9.0976073
+    ],
+    [
+     38.7678366,
+     -9.0976274
+    ],
+    [
+     38.7678314,
+     -9.0976306
+    ],
+    [
+     38.7677903,
+     -9.0976461
+    ],
+    [
+     38.7677478,
+     -9.0976537
+    ],
+    [
+     38.7677421,
+     -9.0976534
+    ],
+    [
+     38.7677049,
+     -9.0976531
+    ],
+    [
+     38.7676626,
+     -9.0976443
+    ],
+    [
+     38.7676571,
+     -9.097642
+    ],
+    [
+     38.7676218,
+     -9.0976275
+    ],
+    [
+     38.7676111,
+     -9.0976208
+    ],
+    [
+     38.7671927,
+     -9.0976548
+    ],
+    [
+     38.7671845,
+     -9.0974906
+    ],
+    [
+     38.7672699,
+     -9.0974837
+    ],
+    [
+     38.7672367,
+     -9.0968185
+    ],
+    [
+     38.7672097,
+     -9.0968207
+    ],
+    [
+     38.7669614,
+     -9.0968409
+    ],
+    [
+     38.7668915,
+     -9.0968466
+    ],
+    [
+     38.7668903,
+     -9.096821
+    ],
+    [
+     38.7668883,
+     -9.0967808
+    ],
+    [
+     38.7668755,
+     -9.0965275
+    ],
+    [
+     38.766874,
+     -9.0964977
+    ],
+    [
+     38.7668597,
+     -9.0962103
+    ],
+    [
+     38.7668438,
+     -9.0961992
+    ],
+    [
+     38.7668349,
+     -9.0961791
+    ],
+    [
+     38.7668357,
+     -9.0961559
+    ],
+    [
+     38.766846,
+     -9.0961368
+    ],
+    [
+     38.7668586,
+     -9.0961287
+    ],
+    [
+     38.7668726,
+     -9.096128
+    ],
+    [
+     38.7668856,
+     -9.096135
+    ],
+    [
+     38.7668951,
+     -9.0961483
+    ],
+    [
+     38.7670904,
+     -9.0961324
+    ],
+    [
+     38.7670882,
+     -9.096089
+    ],
+    [
+     38.7676344,
+     -9.0960446
+    ],
+    [
+     38.7676675,
+     -9.0960419
+    ],
+    [
+     38.7677139,
+     -9.0960381
+    ],
+    [
+     38.7677282,
+     -9.096037
+    ],
+    [
+     38.7680603,
+     -9.09601
+    ],
+    [
+     38.7680826,
+     -9.0960082
+    ],
+    [
+     38.7680976,
+     -9.0960069
+    ],
+    [
+     38.7681318,
+     -9.0960041
+    ],
+    [
+     38.7681731,
+     -9.0960008
+    ],
+    [
+     38.7681764,
+     -9.0960677
+    ],
+    [
+     38.7682144,
+     -9.0968281
+    ],
+    [
+     38.7684945,
+     -9.0968053
+    ],
+    [
+     38.7684945,
+     -9.0968468
+    ],
+    [
+     38.7684945,
+     -9.0968599
+    ],
+    [
+     38.7684945,
+     -9.096939
+    ],
+    [
+     38.7684944,
+     -9.0974144
+    ]
+   ]
+  ],
+  "buffer_m": 75,
+  "buffer_note": "NOT MEASURED. Outline added by KAN-382 (2026-11-13) so the venue inventory, which uses the strict outline only, covers this reconciled centre; 75 m is DEFAULT_BUFFER_M. Measure before relying on the buffer for tenant matching."
+ },
+ "Strada Outlet": {
+  "id": "strada-outlet",
+  "osm": "way/18942721",
+  "centroid": [
+   38.7822619,
+   -9.1924735
+  ],
+  "rings": [
+   [
+    [
+     38.7831457,
+     -9.1931578
+    ],
+    [
+     38.7832033,
+     -9.1929845
+    ],
+    [
+     38.7832797,
+     -9.1928144
+    ],
+    [
+     38.7832766,
+     -9.1927778
+    ],
+    [
+     38.7833652,
+     -9.192629
+    ],
+    [
+     38.7834569,
+     -9.1925097
+    ],
+    [
+     38.7828284,
+     -9.1915237
+    ],
+    [
+     38.7828083,
+     -9.1914913
+    ],
+    [
+     38.7827232,
+     -9.1913791
+    ],
+    [
+     38.7827769,
+     -9.1913233
+    ],
+    [
+     38.78266,
+     -9.1911283
+    ],
+    [
+     38.7826078,
+     -9.191186
+    ],
+    [
+     38.7825262,
+     -9.1910579
+    ],
+    [
+     38.7825058,
+     -9.1910774
+    ],
+    [
+     38.7824509,
+     -9.1910284
+    ],
+    [
+     38.7824333,
+     -9.191016
+    ],
+    [
+     38.7823668,
+     -9.1909694
+    ],
+    [
+     38.7823553,
+     -9.1909439
+    ],
+    [
+     38.7823987,
+     -9.1908943
+    ],
+    [
+     38.7823553,
+     -9.1908346
+    ],
+    [
+     38.7822783,
+     -9.1909161
+    ],
+    [
+     38.7819202,
+     -9.1913046
+    ],
+    [
+     38.7816217,
+     -9.1916248
+    ],
+    [
+     38.781567,
+     -9.1916824
+    ],
+    [
+     38.7815358,
+     -9.1917152
+    ],
+    [
+     38.7815226,
+     -9.1916959
+    ],
+    [
+     38.7815234,
+     -9.1916832
+    ],
+    [
+     38.7814761,
+     -9.1916772
+    ],
+    [
+     38.7814682,
+     -9.1917855
+    ],
+    [
+     38.7814073,
+     -9.1917955
+    ],
+    [
+     38.7813216,
+     -9.1918438
+    ],
+    [
+     38.7812638,
+     -9.1919105
+    ],
+    [
+     38.7812448,
+     -9.1919383
+    ],
+    [
+     38.7812152,
+     -9.1919953
+    ],
+    [
+     38.781198,
+     -9.1919853
+    ],
+    [
+     38.7811593,
+     -9.1920973
+    ],
+    [
+     38.7811441,
+     -9.1921938
+    ],
+    [
+     38.7811405,
+     -9.1922743
+    ],
+    [
+     38.7811499,
+     -9.1923534
+    ],
+    [
+     38.7811635,
+     -9.1924346
+    ],
+    [
+     38.781186,
+     -9.1924299
+    ],
+    [
+     38.7811954,
+     -9.1924674
+    ],
+    [
+     38.7812659,
+     -9.1926143
+    ],
+    [
+     38.7813149,
+     -9.1926616
+    ],
+    [
+     38.7813476,
+     -9.1926849
+    ],
+    [
+     38.7812933,
+     -9.192741
+    ],
+    [
+     38.7815697,
+     -9.1931553
+    ],
+    [
+     38.7814993,
+     -9.1932325
+    ],
+    [
+     38.7815426,
+     -9.1932976
+    ],
+    [
+     38.7815653,
+     -9.1932754
+    ],
+    [
+     38.7815866,
+     -9.1932567
+    ],
+    [
+     38.7816653,
+     -9.193378
+    ],
+    [
+     38.7816329,
+     -9.1934129
+    ],
+    [
+     38.7816737,
+     -9.1934766
+    ],
+    [
+     38.7817082,
+     -9.1934397
+    ],
+    [
+     38.7817364,
+     -9.1934967
+    ],
+    [
+     38.7817651,
+     -9.1935389
+    ],
+    [
+     38.7820485,
+     -9.1939772
+    ],
+    [
+     38.7821765,
+     -9.1941753
+    ],
+    [
+     38.7822842,
+     -9.1940573
+    ],
+    [
+     38.7824609,
+     -9.1938642
+    ],
+    [
+     38.7824222,
+     -9.1938052
+    ],
+    [
+     38.7830515,
+     -9.193148
+    ],
+    [
+     38.7831457,
+     -9.1931578
+    ]
+   ]
+  ],
+  "buffer_m": 75,
+  "buffer_note": "NOT MEASURED. Outline added by KAN-382 (2026-11-13) so the venue inventory, which uses the strict outline only, covers this reconciled centre; 75 m is DEFAULT_BUFFER_M. Measure before relying on the buffer for tenant matching."
  }
 }

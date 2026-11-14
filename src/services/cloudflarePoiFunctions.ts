@@ -70,6 +70,8 @@ interface PoiAllResponse {
     /** KAN-318: default opening window, minutes from local midnight; null = always open. */
     open_min: number | null;
     close_min: number | null;
+    /** Bare integer string ("-1", "2") or null (KAN-503). Absent from an older Worker. */
+    floor?: string | null;
     distanceMeters: number;
     attributes: Record<string, string[]>;
   }>>;
