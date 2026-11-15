@@ -2,7 +2,7 @@
 -- Floors from the owner for 100 MONTADITOS, HAPPY FOOD, AWA MASSAGE, COS, LEROY
 -- MERLIN, NATURAPURA, NOS Stand, WORTEN. Written by reconcile_mall_list.py from
 -- colombo_stores.txt + colombo_eating.txt. Estádio da Luz, next door, untouched.
--- Not written: Happ'li, PONTO ELECTRÃO (untyped); TOP ATLÂNTICO – VIAGENS E
+-- Not written: PONTO ELECTRÃO (recycling; no type); TOP ATLÂNTICO – VIAGENS E
 -- TURISMO and Vodafone Empresas are the same units as TOP ATLÂNTICO and VODAFONE.
 -- Nothing deleted.
 
@@ -1083,3 +1083,10 @@ INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES
 ('mall:colombo:zara', 'store_kind', 'clothing'),
 ('mall:colombo:zuky-luxury', 'store_kind', 'clothing'),
 ('mall:colombo:nespresso', 'store_kind', 'coffee_supplies');
+
+-- Happ'li: low-cost handmade costume jewellery and accessories (owner, 2026-11-15).
+INSERT INTO curated_poi (poi_id, source, name, dedupe_name, lat, lng, geohash, primary_poi_type, brand, address, floor, country_code, status, created_at, created_by, updated_at, updated_by, origin_source, origin_id, origin_licence, imported_at, import_run_id) VALUES
+('mall:colombo:happ-li', 'community', 'Happ''li', 'happ li', 38.7546307, -9.1882655, 'eyckqzj61', 'store', NULL, NULL, '1', 'PT', 'active', '2026-11-15', 'kan-439-mall-tenants', '2026-11-15', 'kan-439-mall-tenants', 'mall_directory', 'mall:colombo:happ-li', 'ODbL', '2026-11-15', 'kan-517-colombo-2026-11-15')
+ON CONFLICT (poi_id) DO NOTHING;
+INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES
+('mall:colombo:happ-li', 'store_kind', 'fashion_accessories');
