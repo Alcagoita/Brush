@@ -806,3 +806,7 @@ INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES
 ('mall:vasco_da_gama:grazze', 'store_kind', 'womens_clothing'),
 ('mall:vasco_da_gama:just-k', 'store_kind', 'beauty'),
 ('mall:vasco_da_gama:well-s-otica', 'store_kind', 'eyewear_and_optician');
+
+-- Owner, 2026-11-15: floors the site leaves blank.
+UPDATE overture_poi SET floor = '2', updated_at = '2026-11-15' WHERE overture_id = 'aad702bd-3a03-4feb-a0c1-a47d3875ee91';  -- ALENTEJO – PÃO, AZEITE E ALHO
+UPDATE curated_poi SET floor = '0', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:xtreme';  -- XTREME
