@@ -36,7 +36,6 @@ Maria Croissant|Piso 1
 Marie Blachère|Piso 0
 MCDONALD'S|Piso 2
 MR. PIZZA|Piso 2
-NESPRESSO|Piso 0
 NOORI SUSHI|Piso 2
 NOSSO CAFÉ|Piso 0
 O LISBOETA|Piso 0

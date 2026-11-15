@@ -392,6 +392,22 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
 * `PONTO ELECTRÃO` (Colombo) is a recycling point (owner); no recycling type
   exists, so it is not written.
 
+## Listed units pinned outside the outline, 2026-11-15 (KAN-517)
+
+The mall inventory counts a unit in a centre only when its pin is inside the
+strict outline, so a listed unit whose row sits in the buffer ring was served
+by `/poi/nearby` but missing from the mall card (Olá at Vasco da Gama, 51 m
+out). The rule below already answers it: a listed unit we cannot place goes at
+the centre's coordinate (0087). Our own rows move; an Overture row is withdrawn
+and replaced by our row with the same type and floor. UBBO 18, Strada 2,
+Colombo 25, Amoreiras 12, Vasco da Gama 11. Units the owner places outside the
+building stay where they are: the Gare do Oriente units and Colombo's
+`100 MONTADITOS`.
+
+`NESPRESSO` at Colombo is one boutique listed on both the shop and the eating
+page: one row (the Overture one inside), the second listing removed from
+`colombo_eating.txt`.
+
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
 Ruled by the owner 2026-10-04: **we cannot exclude a store we know is
