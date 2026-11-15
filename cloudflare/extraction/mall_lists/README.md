@@ -24,9 +24,8 @@ it retires real places with false confidence.
 
 | file | centre | covers | verified |
 |---|---|---|---|
-| `vasco_da_gama_eating.txt` | Centro Comercial Vasco da Gama | eating places (68) | 2026-08-31 |
+| `vasco_da_gama.txt` | Centro Comercial Vasco da Gama | shops and eating (223), with floors | 2026-11-15 |
 | `colombo_eating.txt` | Centro Comercial Colombo | eating places (65) | 2026-08-31 |
-| `vasco_da_gama_stores.txt` | Centro Comercial Vasco da Gama | shops (154) | 2026-08-31 |
 | `colombo_stores.txt` | Centro Comercial Colombo | shops (235) | 2026-08-31 |
 | `strada.txt` | Strada Outlet Odivelas | shops and eating (115), with floors | 2026-11-14 |
 | `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (243) | 2026-11-14 |

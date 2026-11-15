@@ -368,21 +368,26 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
 
 ## Vasco da Gama, ruled 2026-11-15 (KAN-517)
 
-* Reconciled to its operator lists like Colombo (0085): 131 units answered
-  by held rows, 85 written, 25 withdrawn. Lists of 2026-08-31, not re-read.
-* The five units marked `opening` in August (`Brownie`, `CLAIRE'S`, `MEO`,
-  `PARFOIS`, `PERFUMES & COMPANHIA`) are open now; three were already held
-  by Overture rows inside the centre.
-* `BOTA MINUTO` is two units: Piso -1, and Piso -1 at the Gare.
-* Gare do Oriente units on the list are typed as what they are: `AVIS`,
-  `RentAuto` car rental, `FLIXBUS` bus station, `Galp` gas station.
-* `Happ'li` (Colombo and here) is low-cost handmade costume jewellery and
+* First reconciled to the August lists (0085), then **re-read from
+  centrovascodagama.pt** (0086) when the owner found WORTEN on Piso 0, not 1:
+  the site has renumbered its floors since August, and the Gare do Oriente
+  units now sit on the mall's own numbering. `vasco_da_gama.txt` (223 units)
+  replaces `vasco_da_gama_stores.txt` + `vasco_da_gama_eating.txt`.
+* `Multibanco BPI` is on the site as a unit and stays (`bank`, Piso 0).
+* Eleven cards show `Piso` with no number, and their pages none either:
+  `ALENTEJO – PÃO, AZEITE E ALHO`, one `BOTA MINUTO`, `CENTRO DE ESTÉTICA E
+  UNHAS`, `CarWash`, `GUACAMOLE`, `KIK`, `OLÁ`, one `PLURICOSMÉTICA`,
+  `Restaurante da Gare`, `UNIVERSO SÉNIOR`, `XTREME` — written without a
+  floor until a person gives one.
+* Typed by the owner: `2 Life` buys gold (`store`/`pawn`), `COOLAND` phone
+  accessories, `Grazze` women's clothing, `Intercentro` transport tickets
+  (`bus_station`, as `FLIXBUS`), `JUST K` skincare (`store`/`beauty`), `JMB`
+  coffee (`cafe`). Gare units typed as what they are: `AVIS`, `RentAuto` car
+  rental, `FLIXBUS` bus station, `Galp` gas station.
+* `Happ'li` (here and Colombo) is low-cost handmade costume jewellery and
   accessories (owner): `store`/`fashion_accessories`, not `jewelry`.
 * `PONTO ELECTRÃO` (Colombo) is a recycling point (owner); no recycling type
   exists, so it is not written.
-* Not written here: `2 Life`, `COOLAND`, `Grazze`, `Intercentro`, `JUST K`,
-  `JMB` (unknown what they are); `BERSKA` is the operator's typo for
-  `BERSHKA` (ruled above).
 
 ## A listed tenant nobody can place goes at the mall's own coordinate
 

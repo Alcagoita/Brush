@@ -1,56 +1,106 @@
-# KAN-439. Derived by resolve_mall_types.py — do not hand-edit.
-# A ruling belongs in tenant_type_overrides.json, which outranks
-# every other row of evidence here.
 name	poi_type	store_kind	extra_types	evidence
+2 Life	store	pawn		ruled by a person
 5 À SEC	laundry			held elsewhere in Portugal
+AÇAI TOP	restaurant			held elsewhere in Portugal
 ACIUM	store	jewelry		OSM jewelry
 ACTIVOBANK	bank			held elsewhere in Portugal
 Adolfo Dominguez	store	clothing		held elsewhere in Portugal
 AGÊNCIA ABREU	travel_agency			ruled by a person
 ALBERTO OCULISTA	store	eyewear_and_optician		held elsewhere in Portugal
 ALDO	store	shoes		held elsewhere in Portugal
+ALENTEJO – PÃO, AZEITE E ALHO	restaurant			held elsewhere in Portugal
+ALENTEJO / BIFANAS DE VENDAS NOVAS	restaurant			ruled by a person
 AMIGO	restaurant			OSM restaurant
+AMORINO – GELATO AL NATURALE	ice_cream			ruled by a person
+Arcádia – Nescafé	cafe			ruled by a person
+ARDINA CAFFÉ	cafe			ruled by a person
+AURYA	store	beauty		ruled by a person
 Avatim	hairdresser			OSM hairdresser
+AVIS	car_rental			ruled by a person
 B STRONG	store	shoes		ruled by a person
+BAAN CANTEEN	restaurant			ruled by a person
 Benamôr	store	beauty		ruled by a person
 Benfica Official Store	store	sports		OSM sports
 BERSHKA	store	clothing		held elsewhere in Portugal
 BERTRAND LIVREIROS	store	books		held elsewhere in Portugal
 BLUE BANANA	store	clothing		ruled by a person
+BOTA MINUTO	shoe_repair			ruled by a person
 BOUTIQUE DOS RELÓGIOS	store	jewelry		held elsewhere in Portugal
+BREAD & FRIENDS	bakery			held elsewhere in Portugal
+Brownie	store	womens_clothing		ruled by a person
+BURGER KING	restaurant			held elsewhere in Portugal
 C&A	store	clothing		ruled by a person
+CAFÉ JERONYMO	cafe			ruled by a person
 CALZEDONIA	store	clothing		held elsewhere in Portugal
+CAPRI	cafe			OSM cafe
 CAROLL	store	womens_clothing		ruled by a person
+Cartório Lurdes Pires	local_government_office			ruled by a person
 Cavalinho	store	handbag		ruled by a person
 CELEIRO	supermarket			OSM supermarket
+CENTRO DE ESTÉTICA E UNHAS	nail_salon			ruled by a person
+CERVEJARIA MALANDRA	restaurant			ruled by a person
 CEX	store	electronics		OSM electronics
-CHILLI BEANS	store	eyewear_and_optician		OSM optician
 Cinemas NOS	movie_theater			ruled by a person
 CONTINENTE	supermarket			held elsewhere in Portugal
+COOLAND	store	phone		ruled by a person
 CORTEFIEL	store	clothing		held elsewhere in Portugal
 CTT-CORREIOS DE PORTUGAL	post			held elsewhere in Portugal
+DESEJO PRONTO DELICIOUS COFFE & GRILL	restaurant			ruled by a person
 DOUGLAS	store	beauty		held elsewhere in Portugal
+ECCO	store	shoes		OSM shoes
+EMPANADAS	restaurant			ruled by a person
 ERICEIRA SURF & SKATE	store	sports		held elsewhere in Portugal
 EuropCar	car_rental			held elsewhere in Portugal
+EXPRESSO DO ORIENTE	cafe			ruled by a person
+Fabric Store	store	home		ruled by a person
 Farmácia Gare do Oriente	pharmacy			held elsewhere in Portugal
+FEEL RIO	restaurant			held elsewhere in Portugal
+FIGU	store	jewelry		OSM jewelry
+FLIXBUS	bus_station			ruled by a person
 FLYING TIGER COPENHAGEN	store	gift		ruled by a person
 FNAC	store	books		ruled by a person
+FootSport Outlaw	store	shoes		ruled by a person
 FOTOSPORT	store	photography_store_and_services		held elsewhere in Portugal
+Frango da Gare	restaurant			held elsewhere in Portugal
+FURIO	restaurant			held elsewhere in Portugal
+Galp	gas_station			ruled by a person
+GANT	store	clothing		ruled by a person
 GILLES JOALHEIROS	store	jewelry		held elsewhere in Portugal
+Gleba	bakery			held elsewhere in Portugal
+Grazze	store	womens_clothing		ruled by a person
+GUACAMOLE	restaurant			held elsewhere in Portugal
 GUESS	store	clothing		ruled by a person
+GULDEN DRAAK	store	wine_and_spirits		held elsewhere in Portugal
 H&M	store	clothing		ruled by a person
+H3 – NEW HAMBURGOLOGY	restaurant			held elsewhere in Portugal
+HÄAGEN-DAZS	ice_cream			held elsewhere in Portugal
+Happ'li	store	fashion_accessories		ruled by a person
+HAPPY COOKIES	bakery			ruled by a person
+IMED – VASCO DA GAMA	clinic			ruled by a person
+INSPIRAL	store	phone		ruled by a person
+Intercentro	bus_station			ruled by a person
 INTIMISSIMI	store	clothing		held elsewhere in Portugal
 Intimissimi Uomo	store	mens_clothing		ruled by a person
 IQOS	tobacco			ruled by a person
 ISERVICES	phone_repair			ruled by a person
 ISTORE	store	electronics		held elsewhere in Portugal
 JACADI	store	childrens_clothing		held elsewhere in Portugal
+JD SPORTS	store	shoes		held elsewhere in Portugal
 JEAN LOUIS DAVID	hairdresser			OSM hairdresser
+JMB	cafe			ruled by a person
+JOSHUA'S SHOARMA	restaurant			held elsewhere in Portugal
+JRN DOÇARIAS	bakery			ruled by a person
+JUST K	store	beauty		ruled by a person
+KFC	restaurant			held elsewhere in Portugal
 KIK	store	clothing		held elsewhere in Portugal
 KIKO MILANO	store	beauty		held elsewhere in Portugal
 KIWOKO	store	pet		held elsewhere in Portugal
+L'ÓREAL	store	beauty		ruled by a person
 LA CASA DE LAS CARCASAS	phone_repair	phone	store	held elsewhere in Portugal
+LA PARRILLA	restaurant			held elsewhere in Portugal
+LABCO – ANÁLISES CLÍNICAS	medical_lab			ruled by a person
 LACOSTE	store	clothing		held elsewhere in Portugal
+LAS MUNS	restaurant			held elsewhere in Portugal
 LEVI'S	store	clothing		held elsewhere in Portugal
 LION OF PORCHES	store	clothing		ruled by a person
 LIT CHOON	store	fashion_accessories		held elsewhere in Portugal
@@ -58,46 +108,77 @@ LOLA	store	shoes		held elsewhere in Portugal
 MAIS ÓPTICA	store	eyewear_and_optician		held elsewhere in Portugal
 MANGO	store	clothing		held elsewhere in Portugal
 MANGO TEEN	store	clothing		ruled by a person
+Marie Blachère	bakery			held elsewhere in Portugal
 MASSIMO DUTTI	store	clothing		held elsewhere in Portugal
+MCDONALD'S	restaurant			ruled by a person
+MEO	store	phone		ruled by a person
 MILLENNIUM BCP	bank			held elsewhere in Portugal
 MISAKO	store	jewelry		held elsewhere in Portugal
 MR. BLUE	store	clothing		held elsewhere in Portugal
+MÚ – GELATO ITALIANO	ice_cream			ruled by a person
 MULTIOPTICAS	store	eyewear_and_optician		held elsewhere in Portugal
 MyForce	car_repair			ruled by a person
 NATURA	store	clothing		ruled by a person
 NESPRESSO	store	coffee_supplies		ruled by a person
-NOS	store	phone		OSM mobile_phone
+NOOD	restaurant			held elsewhere in Portugal
+NOORI LAB	restaurant			ruled by a person
+NOORI POTS	restaurant			ruled by a person
 NOS	store	phone		OSM mobile_phone
 NOVA CÂMBIOS	currency_exchange			ruled by a person
 NUTRYSTORE	store	vitamins_and_supplements		ruled by a person
 O BOTICÁRIO	store	beauty		ruled by a person
+O Forno do leitão do Zé	restaurant			held elsewhere in Portugal
+O Lisboeta	restaurant			ruled by a person
+O MUNDO DAS GOMAS	bakery			ruled by a person
 O Papagaio Sem Penas	store	toys		held elsewhere in Portugal
+OLÁ	ice_cream			held elsewhere in Portugal
 ONE	store	watch		ruled by a person
 ORO VIVO	store	jewelry		held elsewhere in Portugal
 OYSHO	store	clothing		OSM clothes
 PACOMARTINEZ	store	handbag		ruled by a person
+PANDA CANTINA	restaurant			held elsewhere in Portugal
 PANDORA	store	jewelry		ruled by a person
+PANS & COMPANY	restaurant			held elsewhere in Portugal
+PARFOIS	store	jewelry		held elsewhere in Portugal
+PERFUMES & COMPANHIA	store	beauty		held elsewhere in Portugal
+PIZZA HUT	restaurant			held elsewhere in Portugal
 PLURICOSMÉTICA	store	beauty		ruled by a person
-PLURICOSMÉTICA	store	beauty		ruled by a person
+Poké House	restaurant			held elsewhere in Portugal
+PORTELA CAFÉS	cafe			held elsewhere in Portugal
+PORTUGÁLIA	restaurant			ruled by a person
 Presse Linha	store	newspaper_and_magazines		ruled by a person
+Print Point Expo	store	copy_shop		ruled by a person
 PROF	store	shoes		held elsewhere in Portugal
 PULL & BEAR	store	clothing		held elsewhere in Portugal
 QUEBRAMAR	store	clothing		held elsewhere in Portugal
+QUIOSQUE DOS SABORES	cafe			OSM cafe
+RentAuto	car_rental			ruled by a person
+Restaurante da Gare	restaurant			held elsewhere in Portugal
 RITUALS	store	beauty		held elsewhere in Portugal
+SABOR GAÚCHO	restaurant			held elsewhere in Portugal
 SACOOR BROTHERS	store	clothing		OSM clothes
 SALSA	store	clothing		held elsewhere in Portugal
 SAMSONITE	store	handbag		ruled by a person
+Santa Francesinha by Cufra	restaurant			OSM restaurant
 Scalpers	store	clothing		held elsewhere in Portugal
 SEPHORA	store	beauty		held elsewhere in Portugal
+SERRA DA ESTRELA	restaurant			OSM restaurant
 SILVERLAND	store	jewelry		held elsewhere in Portugal
 SKECHERS	store	shoes		held elsewhere in Portugal
 SPORT ZONE	store	sports		OSM sports
 SPORTING	cafe			OSM cafe
 SPRINGFIELD	store	clothing		held elsewhere in Portugal
+SR. FRANGO DA GUIA	restaurant			held elsewhere in Portugal
+Steve Madden	store	shoes		OSM shoes
 STONE BY STONE	store	jewelry		held elsewhere in Portugal
 STRADIVARIUS	store	clothing		held elsewhere in Portugal
+STREET SMASH BURGER	restaurant			ruled by a person
+SUBWAY	restaurant			OSM fast_food
 SUNGLASS HUT	store	eyewear_and_optician		held elsewhere in Portugal
 SWAROVSKI	store	jewelry		held elsewhere in Portugal
+TABINK	store	books		ruled by a person
+Taco Bell	restaurant			held elsewhere in Portugal
+TALHO DO MERCADO	restaurant			ruled by a person
 Tea Shop	tea			ruled by a person
 TEZENIS	store	clothing		held elsewhere in Portugal
 The Barber Company	barber			held elsewhere in Portugal
@@ -106,99 +187,32 @@ TIFFOSI	store	clothing		held elsewhere in Portugal
 TIMBERLAND	store	shoes		ruled by a person
 TOP ATLÂNTICO	travel_agency			ruled by a person
 TOUS	store	jewelry		ruled by a person
+TRE BAMBU	restaurant			held elsewhere in Portugal
 TRIUMPH	store	clothing		held elsewhere in Portugal
 UNICÂMBIO	currency_exchange			ruled by a person
+UNICÂMBIO – Gare	currency_exchange			ruled by a person
+UNIVERSO SÉNIOR	store	medical_supply		ruled by a person
 VISTA ALEGRE	store	home		ruled by a person
+VITAMINAS	restaurant			OSM restaurant
 VODAFONE	store	phone		OSM mobile_phone
+Weeel	ice_cream			held elsewhere in Portugal
 WIÑK	nail_salon			ruled by a person
 WIZINK	bank			ruled by a person
+WOK TO WALK	restaurant			held elsewhere in Portugal
 WOMEN'SECRET	store	clothing		held elsewhere in Portugal
 WOO	store	phone		ruled by a person
-WORTEN	store	electronics		OSM electronics
+WORTEN	phone_repair	electronics	store	held elsewhere in Portugal
 WTF	store	phone		ruled by a person
 XTREME	store	shoes		ruled by a person
 ZARA	store	clothing		held elsewhere in Portugal
 ZARA HOME	store	home		ruled by a person
 ZIPPY	store	clothing		held elsewhere in Portugal
-AÇAI TOP	restaurant			held elsewhere in Portugal
-ALENTEJO – PÃO, AZEITE E ALHO	restaurant			held elsewhere in Portugal
-ALENTEJO / BIFANAS DE VENDAS NOVAS	restaurant			ruled by a person
-AMORINO – GELATO AL NATURALE	ice_cream			ruled by a person
-Arcádia – Nescafé	cafe			ruled by a person
-BAGGA	cafe			OSM cafe
-BREAD & FRIENDS	bakery			held elsewhere in Portugal
-BURGER KING	restaurant			held elsewhere in Portugal
-CAFÉ JERONYMO	cafe			ruled by a person
-FEEL RIO	restaurant			held elsewhere in Portugal
-FNAC	store	books		ruled by a person
-Frango da Gare	restaurant			held elsewhere in Portugal
-FURIO	restaurant			held elsewhere in Portugal
-Gleba	bakery			held elsewhere in Portugal
-GUACAMOLE	restaurant			held elsewhere in Portugal
-GULDEN DRAAK	store	wine_and_spirits		held elsewhere in Portugal
-H3 – NEW HAMBURGOLOGY	restaurant			held elsewhere in Portugal
-HÄAGEN-DAZS	ice_cream			held elsewhere in Portugal
-JOSHUA'S SHOARMA	restaurant			held elsewhere in Portugal
-KFC	restaurant			held elsewhere in Portugal
-LA PARRILLA	restaurant			held elsewhere in Portugal
-LAS MUNS	restaurant			held elsewhere in Portugal
-LEITARIA DA QUINTA DO PAÇO	bakery		cafe	ruled by a person
-MCDONALD'S	restaurant			ruled by a person
-NESPRESSO	store	coffee_supplies		ruled by a person
-NOOD	restaurant			held elsewhere in Portugal
-O Forno do leitão do Zé	restaurant			held elsewhere in Portugal
-O Lisboeta	restaurant			ruled by a person
-OLÁ	ice_cream			held elsewhere in Portugal
-PANDA CANTINA	restaurant			held elsewhere in Portugal
-PANS & COMPANY	restaurant			held elsewhere in Portugal
-PIZZA HUT	restaurant			held elsewhere in Portugal
-Poké House	restaurant			held elsewhere in Portugal
-PORTELA CAFÉS	cafe			held elsewhere in Portugal
-PORTELA CAFÉS	cafe			held elsewhere in Portugal
-PORTUGÁLIA	restaurant			ruled by a person
-QUIOSQUE DOS SABORES	cafe			OSM cafe
-Restaurante da Gare	restaurant			held elsewhere in Portugal
-SABOR GAÚCHO	restaurant			held elsewhere in Portugal
-Santa Francesinha by Cufra	restaurant			OSM restaurant
-SERRA DA ESTRELA	restaurant			OSM restaurant
-SR. FRANGO DA GUIA	restaurant			held elsewhere in Portugal
-STREET SMASH BURGER	restaurant			ruled by a person
-SUBWAY	restaurant			OSM fast_food
-Taco Bell	restaurant			held elsewhere in Portugal
-TALHO DO MERCADO	restaurant			ruled by a person
-TRE BAMBU	restaurant			held elsewhere in Portugal
-VITAMINAS	restaurant			OSM restaurant
-Weeel	ice_cream			held elsewhere in Portugal
-WOK TO WALK	restaurant			held elsewhere in Portugal
-AVIS	car_rental			ruled by a person
-RentAuto	car_rental			ruled by a person
-FLIXBUS	bus_station			ruled by a person
-Galp	gas_station			ruled by a person
-Cartório Lurdes Pires	local_government_office			ruled by a person
-CENTRO DE ESTÉTICA E UNHAS	nail_salon			ruled by a person
-FootSport Outlaw	store	shoes		ruled by a person
-GANT	store	clothing		ruled by a person
-IMED – VASCO DA GAMA	clinic			ruled by a person
-INSPIRAL	store	phone		ruled by a person
-L'ÓREAL	store	beauty		ruled by a person
-LABCO – ANÁLISES CLÍNICAS	medical_lab			ruled by a person
-Print Point Expo	store	copy_shop		ruled by a person
-TABINK	store	books		ruled by a person
-UNICÂMBIO – Gare	currency_exchange			ruled by a person
-UNIVERSO SÉNIOR	store	medical_supply		ruled by a person
-ARDINA CAFFÉ	cafe			ruled by a person
-BAAN CANTEEN	restaurant			ruled by a person
-CERVEJARIA MALANDRA	restaurant			ruled by a person
-DESEJO PRONTO DELICIOUS COFFE & GRILL	restaurant			ruled by a person
-EMPANADAS	restaurant			ruled by a person
-EXPRESSO DO ORIENTE	cafe			ruled by a person
-HAPPY COOKIES	bakery			ruled by a person
-JRN DOÇARIAS	bakery			ruled by a person
-MÚ – GELATO ITALIANO	ice_cream			ruled by a person
-NOORI LAB	restaurant			ruled by a person
-NOORI POTS	restaurant			ruled by a person
-O MUNDO DAS GOMAS	bakery			ruled by a person
-Happ'li	store	fashion_accessories		ruled by a person
-MEO	store	phone		ruled by a person
-Brownie	store	womens_clothing		ruled by a person
-BOTA MINUTO	shoe_repair			ruled by a person
+Barões do Café	cafe			ruled by a person
+BOALI	restaurant			ruled by a person
+CarWash	car_wash			ruled by a person
+CLAIRE'S	store	fashion_accessories		ruled by a person
+Coffee & Me	cafe			ruled by a person
+Di Casa – cozinha italiana	restaurant			ruled by a person
+Italian Burger	restaurant			ruled by a person
+WELL'S ÓTICA	store	eyewear_and_optician		ruled by a person
+Multibanco BPI	bank			held row type (a BPI cash point)

@@ -1523,6 +1523,54 @@
   ],
   "BOTA MINUTO": [
    "shoe_repair"
+  ],
+  "2 Life": [
+   "store",
+   "pawn"
+  ],
+  "COOLAND": [
+   "store",
+   "phone"
+  ],
+  "Grazze": [
+   "store",
+   "womens_clothing"
+  ],
+  "Intercentro": [
+   "bus_station"
+  ],
+  "JUST K": [
+   "store",
+   "beauty"
+  ],
+  "JMB": [
+   "cafe"
+  ],
+  "Barões do Café": [
+   "cafe"
+  ],
+  "BOALI": [
+   "restaurant"
+  ],
+  "CarWash": [
+   "car_wash"
+  ],
+  "CLAIRE'S": [
+   "store",
+   "fashion_accessories"
+  ],
+  "Coffee & Me": [
+   "cafe"
+  ],
+  "Di Casa – cozinha italiana": [
+   "restaurant"
+  ],
+  "Italian Burger": [
+   "restaurant"
+  ],
+  "WELL'S ÓTICA": [
+   "store",
+   "eyewear_and_optician"
   ]
  }
 }
