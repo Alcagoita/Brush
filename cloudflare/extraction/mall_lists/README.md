@@ -24,12 +24,11 @@ it retires real places with false confidence.
 
 | file | centre | covers | verified |
 |---|---|---|---|
-| `vasco_da_gama_eating.txt` | Centro Comercial Vasco da Gama | eating places (68) | 2026-08-31 |
+| `vasco_da_gama.txt` | Centro Comercial Vasco da Gama | shops and eating (223), with floors | 2026-11-15 |
 | `colombo_eating.txt` | Centro Comercial Colombo | eating places (65) | 2026-08-31 |
-| `vasco_da_gama_stores.txt` | Centro Comercial Vasco da Gama | shops (154) | 2026-08-31 |
 | `colombo_stores.txt` | Centro Comercial Colombo | shops (235) | 2026-08-31 |
-| `strada.txt` | Strada Outlet Odivelas | shops and eating (113) | 2026-09-01 |
-| `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (246) | 2026-10-04 |
+| `strada.txt` | Strada Outlet Odivelas | shops and eating (115), with floors | 2026-11-14 |
+| `ubbo_stores.txt` | UBBO (Dolce Vita Tejo), Amadora | shops and eating (243) | 2026-11-14 |
 | `amoreiras.txt` | Amoreiras Shopping Center, Lisboa | shops and eating (196) | 2026-10-05 |
 | `norteshopping.txt` | NorteShopping, Senhora da Hora (Matosinhos) | shops and eating (279) | 2026-11-11 |
 | `via_catarina.txt` | Via Catarina Shopping, Porto | shops and eating (76) | 2026-11-12 |
@@ -54,8 +53,11 @@ barber, a car wash and a currency exchange, and reading it as a type is how
 A ruling by a person, a row we already hold elsewhere in Portugal, and OSM all
 outrank the category, and every typed row records which of them answered it.
 
-UBBO publishes no floor for any unit, so every floor there comes from OSM;
-Amoreiras publishes one for 195 of its 196. NorteShopping publishes one for
+UBBO's directory has no floor, but each store's own page does
+(`Localização: Piso 0 Loja 0.004 C`). `ubbo_store_pages.tsv` holds all 247
+pages as read on 2026-11-14, and `mall_floors.py` turned them into
+`ubbo_floors.tsv`: the floor, how it was read and the row it went to, per
+listed unit (KAN-517). Amoreiras publishes one for 195 of its 196. NorteShopping publishes one for
 all but 11; those are Piso 0 by the owner's ruling (2026-11-11).
 
 A list covers only what it covers. An eating-places page says nothing about

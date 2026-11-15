@@ -35,7 +35,7 @@ Botaminuto	shoe_repair			ruled by a person
 Boutique dos Relógios	store	jewelry		held elsewhere in Portugal
 Boutique dos Relógios Plus	store	jewelry		held elsewhere in Portugal
 Bricolage	store	hardware		ruled by a person
-Brownie	store	clothing		OSM clothes
+Brownie	store	womens_clothing		ruled by a person
 Bubbles Company	store	clothing		ruled by a person
 Calzedonia	store	clothing		held elsewhere in Portugal
 Cantê	store	lingerie		ruled by a person
@@ -64,7 +64,7 @@ Espiral Relojoaria	store	watch		ruled by a person
 Falconeri	store	clothing		held elsewhere in Portugal
 Favorite People	store	childrens_clothing		ruled by a person
 Florista Jardim Das Amoreiras	florist			held elsewhere in Portugal
-Flying Tiger	florist			held elsewhere in Portugal
+Flying Tiger	store	gift		ruled by a person
 Fnac	store	books		ruled by a person
 Fotosport	store	photography_store_and_services		held elsewhere in Portugal
 Furla	store	handbag		ruled by a person
@@ -89,7 +89,7 @@ IQOS Store	tobacco			ruled by a person
 iServices	phone_repair			ruled by a person
 ISTO.	store	clothing		held elsewhere in Portugal
 Italian Republic	restaurant			held elsewhere in Portugal
-IUMAN-Intimissimi Uomo	store	clothing		held elsewhere in Portugal
+IUMAN-Intimissimi Uomo	store	mens_clothing		ruled by a person
 Jean Louis David	hairdresser			OSM hairdresser
 Joana Reymão Nogueira doçarias	bakery			ruled by a person
 Joshua's Shoarma	restaurant			held elsewhere in Portugal
@@ -178,7 +178,7 @@ Swarovski	store	jewelry		held elsewhere in Portugal
 Swatch	store	watch		OSM watches
 Teresa Alecrim	store	fabric		held elsewhere in Portugal
 The Cut	restaurant			held elsewhere in Portugal
-Timberland	store	clothing		OSM clothes
+Timberland	store	shoes		ruled by a person
 Tomatino	restaurant			held elsewhere in Portugal
 Top Atlântico	travel_agency			ruled by a person
 Tous	store	jewelry		OSM jewelry
@@ -195,5 +195,5 @@ Wiñk	nail_salon			ruled by a person
 Women'secret	store	clothing		held elsewhere in Portugal
 Yellow Metric	laundry			held elsewhere in Portugal
 Zara	store	clothing		held elsewhere in Portugal
-Zara Home	store	clothing		held elsewhere in Portugal
+Zara Home	store	home		ruled by a person
 Óptica das Amoreiras	store	eyewear_and_optician		held elsewhere in Portugal

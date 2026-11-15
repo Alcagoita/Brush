@@ -172,6 +172,11 @@ store they sit beside. None may be touched by a brand sweep.
 | `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | AlgarveShopping — the chain's new name |
 | `ALENTEJO / BIFANAS DE VENDAS NOVAS` | `Alentejo - Pão, Azeite & Alho` | AlgarveShopping — one unit, two brands |
 | `ERICEIRA SURF & SKATE` | `Ericeira Surf Shop` | AlgarveShopping |
+| `5 À Sec` | `5àSec` | Strada Outlet |
+| `Widex Centros Auditivos` | `Widex Centro Auditivo Odivelas` | Strada Outlet |
+| `5àsec` | `5àSec` | Amoreiras |
+| `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | Colombo — the chain's new name |
+| `CONTINENTE BOM DIA` | `SAT COLOMBO BOM DIA COLOMBO` | Colombo — the Bom Dia, NOT the hypermarket |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -286,6 +291,133 @@ establish no rule elsewhere.
   that has not opened does not exist yet, while a shop that is shut for now
   does.
 * **`VitaFlores` is not `Valores`** — the matcher paired them at 0.82.
+
+### UBBO floors, read 2026-11-14 (KAN-517)
+
+From each store's own page (`ubbo_store_pages.tsv` → `ubbo_floors.tsv`).
+How a floor is read when the page doesn't simply say `Piso N`:
+
+* **`Praça Central` is Piso 0.** UBBO's own pages put units 0.003 and 0.004
+  there (`Kivet`, `Maria Croissant`, `100 Montaditos`). It answers the
+  kiosks that give only `Praça Central, R7` / `G5`. Scoped to UBBO.
+* **A unit number alone gives the floor** (`L0.040`, `Lojas 0.013 + 0.014`,
+  `Piso Loja 0.060`). Units and stated Piso agree on every page that gives
+  both, except one (below).
+* **`Lefties` spans Piso 0 and 1.** Stored `0`, which is true of it.
+* **Floors from the owner** (2026-11-14), where the page states none or
+  contradicts itself: Piso 0 — `Carrossel Experience` (its page says
+  `Piso 1 Loja 0.073`), `Zero Latency` (laser tag), `NEOON` (bowling),
+  `Sould Park Jump` (trampoline park); Piso 1 — `KidZania` (paid play space
+  for children), `UCI Luxe` (cinema).
+* OSM `level` at UBBO agrees with the operator on all 11 units that have both.
+
+### UBBO holds only what ubbo.pt shows (owner, 2026-11-14)
+
+Every row inside UBBO that is not on the operator's site is withdrawn (0079):
+the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
+`Raia Beauty Spot`,
+`Mayoral` ×2, `Tejo Fan Park`, `AMADORA SC UBBO`, a second `Sould Park Jump`,
+`Sould Park TRAMPOLIN JUMP Lisboa`, …), and `Havaianas`, `O meu Olá` and
+`ONLY`, which left the site and the list. Nothing is deleted.
+
+## Strada Outlet, ruled 2026-11-14 (KAN-517)
+
+* **The site is the truth, at every centre** (owner): which units exist and
+  their floor come from the operator's site. OSM gives coordinates and
+  nothing more; its `level` never decides or questions a floor.
+* `strada.txt` is now the site's 115 units, each with the floor its page
+  shows (`strada_store_pages.tsv`): `Café do Ponto` and `Sacoor` are two
+  units each. Floors from the owner where the page has none: `Car Wash & Spa`
+  Piso -1, `Weeel Frozen Yogurt` and `Nutrystore` Piso 0.
+* Reconciled with `reconcile_mall_list.py` (0081): 98 units answered by rows
+  we held, 15 written, 19 withdrawn. `5àSec` and `Widex Centro Auditivo
+  Odivelas` are the listed `5 À Sec` and `Widex Centros Auditivos`.
+* Typed by the owner (2026-11-15): `Jardim Verde` supplements
+  (`store`/`vitamins_and_supplements`), `Mineral Store` summer clothing
+  (`store`/`swimwear`), `Cartório Notarial de Odivelas`
+  `local_government_office` (0082).
+* Typed from each store's page: `Páteo das Festas` party supplies (gift), `Cadena` women's
+  clothing, `100 gramas` steakhouse, `Loja do Cidadão` and `Turismo de
+  Odivelas` (the council's office) `local_government_office`.
+* **Not written yet:** `Remax Place` (real estate, waits on KAN-511).
+
+## Colombo and Amoreiras, ruled 2026-11-15 (KAN-517)
+
+* **Only units the venue validates** (owner): both centres reconciled to
+  their operator lists with `reconcile_mall_list.py` — Amoreiras 0083,
+  Colombo 0084. The lists are the ones read from the sites (Colombo
+  2026-08-31, Amoreiras 2026-10-05); the sites were not re-read.
+* Floors from the owner — Colombo: `100 MONTADITOS` 0 (outside), `HAPPY FOOD`
+  2, `AWA MASSAGE` 1, `COS` 1, `LEROY MERLIN` 0, `NATURAPURA` 1, `NOS Stand`
+  0, `WORTEN` 0. Amoreiras: `Simple & Fast – Oficina Auto` -2, `Simple Eco
+  Wash` -1.
+* `Estádio da Luz` is the stadium next to Colombo, not a unit: left out.
+* Typed at Colombo: `American Tourister` luggage, `AMIGO Stand` / `MEO
+  Stand` / `NOS Stand` phone, `CENTRO DENTÁRIO COLOMBO` and `JOAQUIM CHAVES
+  SAÚDE` clinic, `City Escape Room` amusement park, `Clínica do Pêlo`
+  beauty salon, `CTT/BANCO CTT` post + bank, `GRANDOPTICAL LAB` optician,
+  `GUESS ACCESSORIES` and `Parfois Closet` fashion accessories, `ZUKY
+  LUXURY` clothing.
+* Not written at Colombo: `Happ'li` and `PONTO ELECTRÃO` (unknown what they
+  are); `TOP ATLÂNTICO – VIAGENS E TURISMO` and `Vodafone Empresas` (the same
+  units as `TOP ATLÂNTICO` and `VODAFONE`, above).
+* Left as they are: rows in the buffer ring that don't carry the centre's
+  address (the ring rule above) — 12 at Amoreiras, 9 at Colombo, plus 5
+  second rows of listed Colombo shops (`O Boticário`, `Perfumes & Companhia`,
+  `Boutique dos Relógios`, `SANJAM`, a jeans shop) for a person to look at.
+
+## Vasco da Gama, ruled 2026-11-15 (KAN-517)
+
+* First reconciled to the August lists (0085), then **re-read from
+  centrovascodagama.pt** (0086) when the owner found WORTEN on Piso 0, not 1:
+  the site has renumbered its floors since August, and the Gare do Oriente
+  units now sit on the mall's own numbering. `vasco_da_gama.txt` (223 units)
+  replaces `vasco_da_gama_stores.txt` + `vasco_da_gama_eating.txt`.
+* `Multibanco BPI` is on the site as a unit and stays (`bank`, Piso 0).
+* Eleven cards show `Piso` with no number, and their pages none either.
+  Owner: `ALENTEJO – PÃO, AZEITE E ALHO` 2, `XTREME` 0, `CENTRO DE ESTÉTICA E
+  UNHAS` 0, `CarWash` -1, `GUACAMOLE` 2, `OLÁ` 0. One `PLURICOSMÉTICA` (the
+  other is Piso 0) has no floor anyone knows.
+* **A floor marked `GARE` is outside the mall**, in Gare do Oriente station
+  (owner). Those units stay, with the station's floor as given: `BOTA
+  MINUTO` -1 (the other is Piso 1), `KIK` 1, `Restaurante da Gare` 0,
+  `UNIVERSO SÉNIOR` 0. The stored floor is the number only.
+* Typed by the owner: `2 Life` buys gold (`store`/`pawn`), `COOLAND` phone
+  accessories, `Grazze` women's clothing, `Intercentro` transport tickets
+  (`bus_station`, as `FLIXBUS`), `JUST K` skincare (`store`/`beauty`), `JMB`
+  coffee (`cafe`). Gare units typed as what they are: `AVIS`, `RentAuto` car
+  rental, `FLIXBUS` bus station, `Galp` gas station.
+* `Happ'li` (here and Colombo) is low-cost handmade costume jewellery and
+  accessories (owner): `store`/`fashion_accessories`, not `jewelry`.
+* `PONTO ELECTRÃO` (Colombo) is a recycling point (owner); no recycling type
+  exists, so it is not written.
+
+## Listed units pinned outside the outline, 2026-11-15 (KAN-517)
+
+The mall inventory counts a unit in a centre only when its pin is inside the
+strict outline, so a listed unit whose row sits in the buffer ring was served
+by `/poi/nearby` but missing from the mall card (Olá at Vasco da Gama, 51 m
+out). The rule below already answers it: a listed unit we cannot place goes at
+the centre's coordinate (0087). Our own rows move; an Overture row is withdrawn
+and replaced by our row with the same type and floor. UBBO 18, Strada 2,
+Colombo 25, Amoreiras 12, Vasco da Gama 11. Units the owner places outside the
+building stay where they are: the Gare do Oriente units and Colombo's
+`100 MONTADITOS`.
+
+`NESPRESSO` at Colombo is one boutique listed on both the shop and the eating
+page: one row (the Overture one inside), the second listing removed from
+`colombo_eating.txt`.
+
+## KAN-517 review corrections (2026-11-15)
+
+* A centre's `<slug>_types.tsv` can go stale against `tenant_type_overrides.json`;
+  a person's ruling wins. Strada, Colombo and Amoreiras tables realigned and the
+  rows retyped (0088): `Tefal` is cookware (`store`/`kitchen_supply`, not
+  `childrens_clothing`), `Zara Home` `store`/`home`, `Flying Tiger` `store`/`gift`
+  (not `florist`), `Timberland` `store`/`shoes`, `IUMAN Intimissimi Uomo`
+  `store`/`mens_clothing`, `Brownie` `store`/`womens_clothing`.
+* `mall_floors.py` pairs same-name units with their page and row by floor, not
+  input order, and holds them when nothing tells them apart.
 
 ## A listed tenant nobody can place goes at the mall's own coordinate
 

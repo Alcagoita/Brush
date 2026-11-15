@@ -1,113 +1,115 @@
-ANI+|
-100 gramas|
-5 À Sec|
-A Padaria Portuguesa|
-Açai Natura|
-Ana Joalheiros|
-Balcão Portugália|
-Benfica Official Outlet|
-Beontime|
-Bertrand|
-BigFoot|
-BigFoot Sport|
-Blue Kids|
-Burger King|
-C&A|
-Cadena|
-Café do Ponto|
-Calzedonia - Intimissimi|
-Car Wash & Spa|
-Cartório Notarial de Odivelas|
-Celeiro|
-Centro de Cópias|
-Cinemas NOS|
-Companhia|
-Cort&Cose|
-Daily Planet|
-Decenio|
-Delta Espresso|
-Farmácia Tanara|
-Fifty factory By Grupo Cortefiel|
-Fotosport|
-Giovanni Galli|
-Guess|
-H3|
-Instanta Fotografia|
-iServices|
-Jardim Verde|
-Jean Louis David|
-Joshua's Shoarma|
-Kiko Milano|
-La Casa de las Carcasas|
-Lanidor|
-Lefties|
-Lion of Porches|
-Loja das Sopas|
-Loja do Cidadão|
-Magnolia|
-Mango|
-Mayoral|
-McDonald's|
-Meo|
-Mineral Store|
-Mister Minit|
-Mr. Blue|
-Mr. Pizza/Ice It|
-MultiOpticas|
-Nicola|
-Nike|
-Noori Sushi|
-Nos|
-Nutrystore|
-O Boticário|
-Opticália|
-Paez Outlet|
-Parfois|
-Páteo das Festas|
-Perfumes & Companhia|
-Pingo Doce|
-Pizza Hut|
-Pluricosmética|
-Poké House|
-Ponto do Café|
-Presse Linha|
-Puma|
-Quebramar|
-Remax Place|
-Rolling Luggage|
-Sabor Gaúcho|
-Sacoor|
-Salsa|
-Samsonite|
-Sanjugo Asian Bowls|
-Santa Madalena Clinica Dentária|
-Seaside|
-Shampoo & Cia|
-Suits Inc.|
-Sunglass Hut|
-Taco Bell|
-Tagus Excellence Barber Shop|
-Tefal|
-The Body Shop|
-Tiffosi|
-Timberland|
-Tomatino|
-Tous|
-Triumph|
-Turismo de Odivelas|
-Under Blue|
-Unicambio Western Union|
-Unisa|
-United Colors of Benetton|
-Viagens El Corte Inglés|
-Vista Alegre|
-Vitaminas|
-Vivagym|
-Vodafone|
-Weeel Frozen Yogurt|
-Wells|
-Wells Ótica|
-Widex Centros Auditivos|
-Wiñk|
-Wok To Walk|
-Zippy|
++ ANI+|Piso 1
+100 gramas|Piso 2
+5 À Sec|Piso 1
+A Padaria Portuguesa|Piso 2
+Açai Natura|Piso 2
+Ana Joalheiros|Piso 1
+Balcão Portugália|Piso 2
+Benfica Official Outlet|Piso 1
+Beontime|Piso 1
+Bertrand|Piso 2
+BigFoot|Piso 1
+BigFoot Sport|Piso 1
+Blue Kids|Piso 2
+Burger King|Piso 2
+C&A|Piso 1
+Cadena|Piso 1
+Café do Ponto|Piso 1
+Café do Ponto|Piso 2
+Calzedonia - Intimissimi|Piso 1
+Car Wash & Spa|Piso -1
+Cartório Notarial de Odivelas|Piso 2
+Celeiro|Piso 1
+Centro de Cópias|Piso 1
+Cinemas NOS|Piso 2
+Companhia|Piso 2
+Cort&Cose|Piso 0
+Daily Planet|Piso 1
+Decenio|Piso 1
+Delta Espresso|Piso 1
+Farmácia Tanara|Piso 1
+Fifty factory By Grupo Cortefiel|Piso 1
+Fotosport|Piso 1
+Giovanni Galli|Piso 1
+Guess|Piso 1
+H3|Piso 2
+Instanta Fotografia|Piso 1
+iServices|Piso 1
+Jardim Verde|Piso 1
+Jean Louis David|Piso 1
+Joshua's Shoarma|Piso 2
+Kiko Milano|Piso 1
+La Casa de las Carcasas|Piso 1
+Lanidor|Piso 1
+Lefties|Piso 1
+Lion of Porches|Piso 1
+Loja das Sopas|Piso 2
+Loja do Cidadão|Piso 2
+Magnolia|Piso 1
+Mango|Piso 1
+Mayoral|Piso 2
+McDonald’s®|Piso 2
+Meo|Piso 2
+Mineral Store|Piso 1
+Mister Minit|Piso 1
+Mr. Blue|Piso 1
+Mr. Pizza/Ice It|Piso 2
+MultiOpticas|Piso 1
+Nicola|Piso 1
+Nike|Piso 1
+Noori Sushi|Piso 2
+Nos|Piso 2
+Nutrystore|Piso 0
+O Boticário|Piso 1
+Opticália|Piso 1
+Paez Outlet|Piso 1
+Parfois|Piso 1
+Páteo das Festas|Piso 1
+Perfumes & Companhia|Piso 1
+Pingo Doce|Piso 1
+Pizza Hut|Piso 2
+Pluricosmética|Piso 2
+Poké House|Piso 2
+Ponto do Café|Piso 2
+Presse Linha|Piso 2
+Puma|Piso 1
+Quebramar|Piso 1
+Remax Place|Piso 2
+Rolling Luggage|Piso 1
+Sabor Gaúcho|Piso 2
+Sacoor|Piso 1
+Sacoor|Piso 1
+Salsa|Piso 1
+Samsonite|Piso 1
+Sanjugo Asian Bowls|Piso 2
+Santa Madalena Clinica Dentária|Piso 2
+Seaside|Piso 2
+Shampoo & Cia|Piso 1
+Suits Inc.|Piso 1
+Sunglass Hut|Piso 1
+Taco Bell|Piso 2
+Tagus Excellence Barber Shop|Piso 1
+Tefal|Piso 1
+The Body Shop|Piso 1
+Tiffosi|Piso 1
+Timberland|Piso 1
+Tomatino|Piso 2
+Tous|Piso 1
+Triumph|Piso 1
+Turismo de Odivelas|Piso 2
+Under Blue|Piso 1
+Unicambio Western Union|Piso 2
+Unisa|Piso 1
+United Colors of Benetton|Piso 1
+Viagens El Corte Inglés|Piso 1
+Vista Alegre|Piso 2
+Vitaminas|Piso 2
+Vivagym|Piso 2
+Vodafone|Piso 2
+Weeel Frozen Yogurt|Piso 0
+Wells|Piso 2
+Wells Ótica|Piso 2
+Widex Centros Auditivos|Piso 1
+Wiñk|Piso 1
+Wok To Walk|Piso 2
+Zippy|Piso 2

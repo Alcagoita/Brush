@@ -162,8 +162,8 @@ Sebago|Piso 2
 Security Center|Piso 1
 Selfish|Piso 2
 Serra da Estrela|Piso 2
-Simple & Fast – Oficina Auto|
-Simple Eco Wash|
+Simple & Fast – Oficina Auto|Piso -2
+Simple Eco Wash|Piso -1
 SmashVille|Piso 2
 Soya Express|Piso 2
 Sport Zone|Piso 1

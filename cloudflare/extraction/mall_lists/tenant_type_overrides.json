@@ -1271,6 +1271,310 @@
   "VILANOVA ACCESSORIES": [
    "store",
    "fashion_accessories"
+  ],
+  "Balcão Portugália": [
+   "restaurant"
+  ],
+  "Café do Ponto": [
+   "cafe"
+  ],
+  "Ponto do Café": [
+   "cafe"
+  ],
+  "Centro de Cópias": [
+   "store",
+   "copy_shop"
+  ],
+  "Fifty factory By Grupo Cortefiel": [
+   "store",
+   "clothing"
+  ],
+  "Instanta Fotografia": [
+   "store",
+   "photography_store_and_services"
+  ],
+  "Jardim Verde": [
+   "store",
+   "vitamins_and_supplements"
+  ],
+  "Loja do Cidadão": [
+   "local_government_office"
+  ],
+  "Turismo de Odivelas": [
+   "local_government_office"
+  ],
+  "Mineral Store": [
+   "store",
+   "swimwear"
+  ],
+  "Mr. Pizza/Ice It": [
+   "restaurant",
+   "ice_cream"
+  ],
+  "Paez Outlet": [
+   "store",
+   "shoes"
+  ],
+  "Páteo das Festas": [
+   "store",
+   "gift"
+  ],
+  "Puma": [
+   "store",
+   "sports"
+  ],
+  "Sanjugo Asian Bowls": [
+   "restaurant"
+  ],
+  "Santa Madalena Clinica Dentária": [
+   "clinic"
+  ],
+  "Tagus Excellence Barber Shop": [
+   "barber"
+  ],
+  "Unicambio Western Union": [
+   "currency_exchange",
+   "money_transfer"
+  ],
+  "Unisa": [
+   "store",
+   "shoes"
+  ],
+  "Widex Centros Auditivos": [
+   "store",
+   "hearing_aid_provider"
+  ],
+  "Guess": [
+   "store",
+   "clothing"
+  ],
+  "Lion of Porches": [
+   "store",
+   "clothing"
+  ],
+  "Cadena": [
+   "store",
+   "womens_clothing"
+  ],
+  "BigFoot": [
+   "store",
+   "clothing"
+  ],
+  "Benfica Official Outlet": [
+   "store",
+   "club_store"
+  ],
+  "100 gramas": [
+   "restaurant"
+  ],
+  "Cartório Notarial de Odivelas": [
+   "local_government_office"
+  ],
+  "American Tourister": [
+   "store",
+   "luggage"
+  ],
+  "AMIGO Stand": [
+   "store",
+   "phone"
+  ],
+  "CENTRO DENTÁRIO COLOMBO": [
+   "clinic"
+  ],
+  "City Escape Room": [
+   "amusement_park"
+  ],
+  "Clínica do Pêlo": [
+   "beauty_salon"
+  ],
+  "CTT/BANCO CTT": [
+   "post",
+   "bank"
+  ],
+  "GRANDOPTICAL LAB": [
+   "store",
+   "eyewear_and_optician"
+  ],
+  "GUESS ACCESSORIES": [
+   "store",
+   "fashion_accessories"
+  ],
+  "JOAQUIM CHAVES SAÚDE": [
+   "clinic"
+  ],
+  "MEO Stand": [
+   "store",
+   "phone"
+  ],
+  "NOS Stand": [
+   "store",
+   "phone"
+  ],
+  "Parfois Closet": [
+   "store",
+   "fashion_accessories"
+  ],
+  "ZUKY LUXURY": [
+   "store",
+   "clothing"
+  ],
+  "Happ'li": [
+   "store",
+   "fashion_accessories"
+  ],
+  "AVIS": [
+   "car_rental"
+  ],
+  "RentAuto": [
+   "car_rental"
+  ],
+  "FLIXBUS": [
+   "bus_station"
+  ],
+  "Galp": [
+   "gas_station"
+  ],
+  "Cartório Lurdes Pires": [
+   "local_government_office"
+  ],
+  "CENTRO DE ESTÉTICA E UNHAS": [
+   "nail_salon"
+  ],
+  "FootSport Outlaw": [
+   "store",
+   "shoes"
+  ],
+  "GANT": [
+   "store",
+   "clothing"
+  ],
+  "IMED – VASCO DA GAMA": [
+   "clinic"
+  ],
+  "INSPIRAL": [
+   "store",
+   "phone"
+  ],
+  "L'ÓREAL": [
+   "store",
+   "beauty"
+  ],
+  "LABCO – ANÁLISES CLÍNICAS": [
+   "medical_lab"
+  ],
+  "Print Point Expo": [
+   "store",
+   "copy_shop"
+  ],
+  "TABINK": [
+   "store",
+   "books"
+  ],
+  "UNICÂMBIO – Gare": [
+   "currency_exchange"
+  ],
+  "UNIVERSO SÉNIOR": [
+   "store",
+   "medical_supply"
+  ],
+  "ARDINA CAFFÉ": [
+   "cafe"
+  ],
+  "BAAN CANTEEN": [
+   "restaurant"
+  ],
+  "CERVEJARIA MALANDRA": [
+   "restaurant"
+  ],
+  "DESEJO PRONTO DELICIOUS COFFE & GRILL": [
+   "restaurant"
+  ],
+  "EMPANADAS": [
+   "restaurant"
+  ],
+  "EXPRESSO DO ORIENTE": [
+   "cafe"
+  ],
+  "HAPPY COOKIES": [
+   "bakery"
+  ],
+  "JRN DOÇARIAS": [
+   "bakery"
+  ],
+  "MÚ – GELATO ITALIANO": [
+   "ice_cream"
+  ],
+  "NOORI LAB": [
+   "restaurant"
+  ],
+  "NOORI POTS": [
+   "restaurant"
+  ],
+  "O MUNDO DAS GOMAS": [
+   "bakery"
+  ],
+  "MEO": [
+   "store",
+   "phone"
+  ],
+  "Brownie": [
+   "store",
+   "womens_clothing"
+  ],
+  "BOTA MINUTO": [
+   "shoe_repair"
+  ],
+  "2 Life": [
+   "store",
+   "pawn"
+  ],
+  "COOLAND": [
+   "store",
+   "phone"
+  ],
+  "Grazze": [
+   "store",
+   "womens_clothing"
+  ],
+  "Intercentro": [
+   "bus_station"
+  ],
+  "JUST K": [
+   "store",
+   "beauty"
+  ],
+  "JMB": [
+   "cafe"
+  ],
+  "Barões do Café": [
+   "cafe"
+  ],
+  "BOALI": [
+   "restaurant"
+  ],
+  "CarWash": [
+   "car_wash"
+  ],
+  "CLAIRE'S": [
+   "store",
+   "fashion_accessories"
+  ],
+  "Coffee & Me": [
+   "cafe"
+  ],
+  "Di Casa – cozinha italiana": [
+   "restaurant"
+  ],
+  "Italian Burger": [
+   "restaurant"
+  ],
+  "WELL'S ÓTICA": [
+   "store",
+   "eyewear_and_optician"
+  ],
+  "Tefal": [
+   "store",
+   "kitchen_supply"
   ]
  }
 }

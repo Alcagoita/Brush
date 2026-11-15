@@ -91,7 +91,6 @@ H&M|
 H3|
 Hair & Body|
 Hanami Sushi|
-Havaianas|
 Hebe Gyros|
 Holmes Place|
 Holmes Place SPA|
@@ -153,11 +152,9 @@ New Yorker|
 Normal|
 NOS|
 O Boticário|
-O meu Olá|
 Oakberry|
 Oakberry Truck|
 Olá|
-ONLY|
 Opticália|
 Oriente-se|
 Oro Vivo|
