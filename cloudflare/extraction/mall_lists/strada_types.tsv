@@ -36,7 +36,7 @@ Guess	store	clothing		ruled by a person
 H3	restaurant			held elsewhere in Portugal
 Instanta Fotografia	store	photography_store_and_services		ruled by a person
 iServices	phone_repair			ruled by a person
-Jardim Verde	store	health_food		ruled by a person
+Jardim Verde	store	vitamins_and_supplements		ruled by a person
 Jean Louis David	hairdresser			OSM hairdresser
 Joshua's Shoarma	restaurant			held elsewhere in Portugal
 Kiko Milano	store	beauty		held elsewhere in Portugal
@@ -51,7 +51,7 @@ Mango	store	clothing		held elsewhere in Portugal
 Mayoral	store	clothing		held elsewhere in Portugal
 McDonald’s®	restaurant			ruled by a person
 Meo	store	phone		held elsewhere in Portugal
-Mineral Store	store	clothing		ruled by a person
+Mineral Store	store	swimwear		ruled by a person
 Mister Minit	shoe_repair			ruled by a person
 Mr. Blue	store	clothing		held elsewhere in Portugal
 Mr. Pizza/Ice It	restaurant		ice_cream	ruled by a person
@@ -115,3 +115,4 @@ Wok To Walk	restaurant			held elsewhere in Portugal
 Zippy	store	clothing		held elsewhere in Portugal
 Benfica Official Outlet	store	club_store		ruled by a person
 100 gramas	restaurant			ruled by a person
+Cartório Notarial de Odivelas	local_government_office			ruled by a person

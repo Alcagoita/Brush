@@ -1295,7 +1295,7 @@
   ],
   "Jardim Verde": [
    "store",
-   "health_food"
+   "vitamins_and_supplements"
   ],
   "Loja do Cidadão": [
    "local_government_office"
@@ -1305,7 +1305,7 @@
   ],
   "Mineral Store": [
    "store",
-   "clothing"
+   "swimwear"
   ],
   "Mr. Pizza/Ice It": [
    "restaurant",
@@ -1366,6 +1366,9 @@
   ],
   "100 gramas": [
    "restaurant"
+  ],
+  "Cartório Notarial de Odivelas": [
+   "local_government_office"
   ]
  }
 }

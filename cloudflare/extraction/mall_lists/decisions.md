@@ -329,12 +329,14 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
 * Reconciled with `reconcile_mall_list.py` (0081): 98 units answered by rows
   we held, 15 written, 19 withdrawn. `5àSec` and `Widex Centro Auditivo
   Odivelas` are the listed `5 À Sec` and `Widex Centros Auditivos`.
-* Typed from each store's page: `Jardim Verde` health food, `Mineral Store`
-  clothing, `Páteo das Festas` party supplies (gift), `Cadena` women's
+* Typed by the owner (2026-11-15): `Jardim Verde` supplements
+  (`store`/`vitamins_and_supplements`), `Mineral Store` summer clothing
+  (`store`/`swimwear`), `Cartório Notarial de Odivelas`
+  `local_government_office` (0082).
+* Typed from each store's page: `Páteo das Festas` party supplies (gift), `Cadena` women's
   clothing, `100 gramas` steakhouse, `Loja do Cidadão` and `Turismo de
   Odivelas` (the council's office) `local_government_office`.
-* **Not written yet:** `Remax Place` (real estate, waits on KAN-511) and
-  `Cartório Notarial de Odivelas` (no notary type).
+* **Not written yet:** `Remax Place` (real estate, waits on KAN-511).
 
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
