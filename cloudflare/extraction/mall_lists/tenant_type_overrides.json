@@ -1417,6 +1417,112 @@
   "ZUKY LUXURY": [
    "store",
    "clothing"
+  ],
+  "Happ'li": [
+   "store",
+   "fashion_accessories"
+  ],
+  "AVIS": [
+   "car_rental"
+  ],
+  "RentAuto": [
+   "car_rental"
+  ],
+  "FLIXBUS": [
+   "bus_station"
+  ],
+  "Galp": [
+   "gas_station"
+  ],
+  "Cartório Lurdes Pires": [
+   "local_government_office"
+  ],
+  "CENTRO DE ESTÉTICA E UNHAS": [
+   "nail_salon"
+  ],
+  "FootSport Outlaw": [
+   "store",
+   "shoes"
+  ],
+  "GANT": [
+   "store",
+   "clothing"
+  ],
+  "IMED – VASCO DA GAMA": [
+   "clinic"
+  ],
+  "INSPIRAL": [
+   "store",
+   "phone"
+  ],
+  "L'ÓREAL": [
+   "store",
+   "beauty"
+  ],
+  "LABCO – ANÁLISES CLÍNICAS": [
+   "medical_lab"
+  ],
+  "Print Point Expo": [
+   "store",
+   "copy_shop"
+  ],
+  "TABINK": [
+   "store",
+   "books"
+  ],
+  "UNICÂMBIO – Gare": [
+   "currency_exchange"
+  ],
+  "UNIVERSO SÉNIOR": [
+   "store",
+   "medical_supply"
+  ],
+  "ARDINA CAFFÉ": [
+   "cafe"
+  ],
+  "BAAN CANTEEN": [
+   "restaurant"
+  ],
+  "CERVEJARIA MALANDRA": [
+   "restaurant"
+  ],
+  "DESEJO PRONTO DELICIOUS COFFE & GRILL": [
+   "restaurant"
+  ],
+  "EMPANADAS": [
+   "restaurant"
+  ],
+  "EXPRESSO DO ORIENTE": [
+   "cafe"
+  ],
+  "HAPPY COOKIES": [
+   "bakery"
+  ],
+  "JRN DOÇARIAS": [
+   "bakery"
+  ],
+  "MÚ – GELATO ITALIANO": [
+   "ice_cream"
+  ],
+  "NOORI LAB": [
+   "restaurant"
+  ],
+  "NOORI POTS": [
+   "restaurant"
+  ],
+  "O MUNDO DAS GOMAS": [
+   "bakery"
+  ],
+  "MEO": [
+   "store",
+   "phone"
+  ],
+  "Brownie": [
+   "store",
+   "womens_clothing"
+  ],
+  "BOTA MINUTO": [
+   "shoe_repair"
   ]
  }
 }

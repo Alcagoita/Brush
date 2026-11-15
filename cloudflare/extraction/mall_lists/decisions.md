@@ -366,6 +366,24 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
   second rows of listed Colombo shops (`O Boticário`, `Perfumes & Companhia`,
   `Boutique dos Relógios`, `SANJAM`, a jeans shop) for a person to look at.
 
+## Vasco da Gama, ruled 2026-11-15 (KAN-517)
+
+* Reconciled to its operator lists like Colombo (0085): 131 units answered
+  by held rows, 85 written, 25 withdrawn. Lists of 2026-08-31, not re-read.
+* The five units marked `opening` in August (`Brownie`, `CLAIRE'S`, `MEO`,
+  `PARFOIS`, `PERFUMES & COMPANHIA`) are open now; three were already held
+  by Overture rows inside the centre.
+* `BOTA MINUTO` is two units: Piso -1, and Piso -1 at the Gare.
+* Gare do Oriente units on the list are typed as what they are: `AVIS`,
+  `RentAuto` car rental, `FLIXBUS` bus station, `Galp` gas station.
+* `Happ'li` (Colombo and here) is low-cost handmade costume jewellery and
+  accessories (owner): `store`/`fashion_accessories`, not `jewelry`.
+* `PONTO ELECTRÃO` (Colombo) is a recycling point (owner); no recycling type
+  exists, so it is not written.
+* Not written here: `2 Life`, `COOLAND`, `Grazze`, `Intercentro`, `JUST K`,
+  `JMB` (unknown what they are); `BERSKA` is the operator's typo for
+  `BERSHKA` (ruled above).
+
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
 Ruled by the owner 2026-10-04: **we cannot exclude a store we know is
