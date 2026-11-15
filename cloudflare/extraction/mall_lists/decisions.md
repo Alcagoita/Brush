@@ -408,6 +408,17 @@ building stay where they are: the Gare do Oriente units and Colombo's
 page: one row (the Overture one inside), the second listing removed from
 `colombo_eating.txt`.
 
+## KAN-517 review corrections (2026-11-15)
+
+* A centre's `<slug>_types.tsv` can go stale against `tenant_type_overrides.json`;
+  a person's ruling wins. Strada, Colombo and Amoreiras tables realigned and the
+  rows retyped (0088): `Tefal` is cookware (`store`/`kitchen_supply`, not
+  `childrens_clothing`), `Zara Home` `store`/`home`, `Flying Tiger` `store`/`gift`
+  (not `florist`), `Timberland` `store`/`shoes`, `IUMAN Intimissimi Uomo`
+  `store`/`mens_clothing`, `Brownie` `store`/`womens_clothing`.
+* `mall_floors.py` pairs same-name units with their page and row by floor, not
+  input order, and holds them when nothing tells them apart.
+
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
 Ruled by the owner 2026-10-04: **we cannot exclude a store we know is

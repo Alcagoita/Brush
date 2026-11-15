@@ -94,19 +94,78 @@ def row_key(row):
     return 'curated', row['poi_id']
 
 
+HELD_SAME_NAME = 'same-name units on different floors, and nothing tells them apart; held for review'
+
+
+def _pair_by_floor(keys, floors):
+    """{key: floor} matched one-to-one to `floors`, or None when the floors
+    don't single each key out (a key with no floor, two keys on one floor, or
+    a floor nobody has)."""
+    if any(f is None for f in keys.values()) or len(set(keys.values())) != len(keys):
+        return None
+    if sorted(keys.values()) != sorted(floors):
+        return None
+    return dict(keys)
+
+
+def _resolve_same_name(group, tenants, page_for, row_for, aliases):
+    """Pages and rows for units that share a name, paired by floor, never by
+    input order. Strada lists `Café do Ponto` twice, on Piso 1 and Piso 2;
+    paired by order, each row took the other unit's floor (KAN-517 review).
+
+    Returns {tenant index: (page, floor, how, row)}."""
+    pages = [page_for.get(t) for t in group]
+    rows = [row_for.get(t) for t in group]
+    read = {i: floor_from_location(p['location'], aliases) if p else (None, 'no page on the operator site')
+            for i, p in enumerate(pages)}
+    page_floors = [read[i][0] for i in range(len(group))]
+    if len({f for f in page_floors}) <= 1:
+        # Every page gives the same floor: any pairing is right.
+        return {t: (pages[i], read[i][0], read[i][1], rows[i]) for i, t in enumerate(group)}
+    # Page -> unit by the floor the operator's list gives each unit.
+    by_list = _pair_by_floor({i: writer.floor_value(tenants[t][1]) for i, t in enumerate(group)}, page_floors)
+    # Row -> page by the floor the row already carries.
+    present = [r for r in rows if r is not None]
+    by_row = _pair_by_floor({id(r): r.get('floor') for r in present}, page_floors) if len(present) == len(group) else None
+    if by_row is None:
+        return {t: (pages[i], None, HELD_SAME_NAME, rows[i]) for i, t in enumerate(group)}
+    page_of_floor = {f: i for i, f in enumerate(page_floors)}
+    row_of_floor = {r.get('floor'): r for r in present}
+    out = {}
+    for i, t in enumerate(group):
+        p = page_of_floor[by_list[i]] if by_list else i
+        floor, how = read[p]
+        out[t] = (pages[p], floor, how, row_of_floor[floor])
+    return out
+
+
 def plan(tenants, pages, rows, mall_name, aliases=None, confirmed=None):
-    """One record per listed unit: (tenant, page, floor, how, row)."""
+    """One record per listed unit: (tenant, page, floor, how, row).
+
+    Units that share a name are paired with their page and row by floor, not
+    by the order they come in; where floors can't tell them apart they are
+    held, and `updates` writes nothing for them."""
     confirmed = confirmed or {}
     page_for, _, _ = reconcile.assign(tenants, pages, mall_name, confirmed=confirmed)
     row_for, _, _ = reconcile.assign(tenants, rows, mall_name, confirmed=confirmed)
+    groups = {}
+    for t, (name, _) in enumerate(tenants):
+        groups.setdefault(writer.fold(name), []).append(t)
+    shared = {}
+    for group in groups.values():
+        if len(group) > 1:
+            shared.update(_resolve_same_name(group, tenants, page_for, row_for, aliases))
     out = []
     for t, (name, _) in enumerate(tenants):
-        page = page_for.get(t)
-        if page is None:
-            floor, how = None, 'no page on the operator site'
+        if t in shared:
+            page, floor, how, row = shared[t]
         else:
-            floor, how = floor_from_location(page['location'], aliases)
-        out.append((name, page, floor, how, row_for.get(t)))
+            page, row = page_for.get(t), row_for.get(t)
+            if page is None:
+                floor, how = None, 'no page on the operator site'
+            else:
+                floor, how = floor_from_location(page['location'], aliases)
+        out.append((name, page, floor, how, row))
     return out
 
 

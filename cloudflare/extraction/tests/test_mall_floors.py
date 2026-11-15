@@ -75,6 +75,32 @@ class PlanTest(unittest.TestCase):
             ('Mango Man', 'Mango Man', '1', 'mall:ubbo:mango-man'),
             ('Salsa', 'Salsa Jeans', '1', 'o2')])
 
+    def test_same_name_units_pair_by_the_floor_rows_already_carry(self):
+        # Strada: Café do Ponto on Piso 1 and Piso 2. Rows come in the
+        # opposite order to the pages; each must keep its own unit's floor.
+        tenants = [('Café do Ponto', ''), ('Café do Ponto', '')]
+        pages = [page('Café do Ponto', 'Piso 1'), page('Café do Ponto', 'Piso 2')]
+        rows = [row('Café do Ponto', 'up', floor='2'), row('Café do Ponto', 'down', floor='1')]
+        out = mf.plan(tenants, pages, rows, 'Strada Outlet')
+        self.assertEqual(sorted((r['poi_id'], f) for _, _, f, _, r in out), [('down', '1'), ('up', '2')])
+        self.assertEqual(list(mf.updates(out, 'd', 'a')), [])
+
+    def test_same_name_units_nothing_tells_apart_are_held(self):
+        tenants = [('Café do Ponto', ''), ('Café do Ponto', '')]
+        pages = [page('Café do Ponto', 'Piso 1'), page('Café do Ponto', 'Piso 2')]
+        rows = [row('Café do Ponto', 'a'), row('Café do Ponto', 'b')]
+        out = mf.plan(tenants, pages, rows, 'Strada Outlet')
+        self.assertEqual([(f, how) for _, _, f, how, _ in out], [(None, mf.HELD_SAME_NAME)] * 2)
+        self.assertEqual(list(mf.updates(out, 'd', 'a')), [])
+
+    def test_same_name_units_on_one_floor_need_no_evidence(self):
+        tenants = [('Sacoor', ''), ('Sacoor', '')]
+        pages = [page('Sacoor', 'Piso 1'), page('Sacoor', 'Piso 1')]
+        rows = [row('Sacoor', 'a'), row('Sacoor', 'b')]
+        out = mf.plan(tenants, pages, rows, 'Strada Outlet')
+        self.assertEqual([f for _, _, f, _, _ in out], ['1', '1'])
+        self.assertEqual(len(list(mf.updates(out, 'd', 'a'))), 2)
+
     def test_a_unit_with_no_page_keeps_no_floor(self):
         out = mf.plan([('Havaianas', '')], [page('Mango', 'Piso 1')], [row('Havaianas', 'o1')], 'UBBO')
         self.assertEqual(out[0][2], None)
