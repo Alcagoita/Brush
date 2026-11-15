@@ -174,6 +174,9 @@ store they sit beside. None may be touched by a brand sweep.
 | `ERICEIRA SURF & SKATE` | `Ericeira Surf Shop` | AlgarveShopping |
 | `5 À Sec` | `5àSec` | Strada Outlet |
 | `Widex Centros Auditivos` | `Widex Centro Auditivo Odivelas` | Strada Outlet |
+| `5àsec` | `5àSec` | Amoreiras |
+| `H3 – NEW HAMBURGOLOGY` | `H3 Hambúrguer Gourmet` | Colombo — the chain's new name |
+| `CONTINENTE BOM DIA` | `SAT COLOMBO BOM DIA COLOMBO` | Colombo — the Bom Dia, NOT the hypermarket |
 | `5 À SEC` | `5àsec` | NorteShopping |
 | `KIKO MAKE UP MILANO` | `Kiko Milano` | NorteShopping |
 | `WELL’S ÓPTICA` | `WELLS ÓTICA MATOSINHOS NORTESHOPPING` | NorteShopping |
@@ -337,6 +340,31 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
   clothing, `100 gramas` steakhouse, `Loja do Cidadão` and `Turismo de
   Odivelas` (the council's office) `local_government_office`.
 * **Not written yet:** `Remax Place` (real estate, waits on KAN-511).
+
+## Colombo and Amoreiras, ruled 2026-11-15 (KAN-517)
+
+* **Only units the venue validates** (owner): both centres reconciled to
+  their operator lists with `reconcile_mall_list.py` — Amoreiras 0083,
+  Colombo 0084. The lists are the ones read from the sites (Colombo
+  2026-08-31, Amoreiras 2026-10-05); the sites were not re-read.
+* Floors from the owner — Colombo: `100 MONTADITOS` 0 (outside), `HAPPY FOOD`
+  2, `AWA MASSAGE` 1, `COS` 1, `LEROY MERLIN` 0, `NATURAPURA` 1, `NOS Stand`
+  0, `WORTEN` 0. Amoreiras: `Simple & Fast – Oficina Auto` -2, `Simple Eco
+  Wash` -1.
+* `Estádio da Luz` is the stadium next to Colombo, not a unit: left out.
+* Typed at Colombo: `American Tourister` luggage, `AMIGO Stand` / `MEO
+  Stand` / `NOS Stand` phone, `CENTRO DENTÁRIO COLOMBO` and `JOAQUIM CHAVES
+  SAÚDE` clinic, `City Escape Room` amusement park, `Clínica do Pêlo`
+  beauty salon, `CTT/BANCO CTT` post + bank, `GRANDOPTICAL LAB` optician,
+  `GUESS ACCESSORIES` and `Parfois Closet` fashion accessories, `ZUKY
+  LUXURY` clothing.
+* Not written at Colombo: `Happ'li` and `PONTO ELECTRÃO` (unknown what they
+  are); `TOP ATLÂNTICO – VIAGENS E TURISMO` and `Vodafone Empresas` (the same
+  units as `TOP ATLÂNTICO` and `VODAFONE`, above).
+* Left as they are: rows in the buffer ring that don't carry the centre's
+  address (the ring rule above) — 12 at Amoreiras, 9 at Colombo, plus 5
+  second rows of listed Colombo shops (`O Boticário`, `Perfumes & Companhia`,
+  `Boutique dos Relógios`, `SANJAM`, a jeans shop) for a person to look at.
 
 ## A listed tenant nobody can place goes at the mall's own coordinate
 
