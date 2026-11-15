@@ -810,3 +810,13 @@ INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES
 -- Owner, 2026-11-15: floors the site leaves blank.
 UPDATE overture_poi SET floor = '2', updated_at = '2026-11-15' WHERE overture_id = 'aad702bd-3a03-4feb-a0c1-a47d3875ee91';  -- ALENTEJO – PÃO, AZEITE E ALHO
 UPDATE curated_poi SET floor = '0', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:xtreme';  -- XTREME
+UPDATE curated_poi SET floor = '-1', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:way-1464366474';  -- CarWash
+UPDATE curated_poi SET floor = '0', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:centro-de-estetica-e-unhas';  -- CENTRO DE ESTÉTICA E UNHAS
+UPDATE overture_poi SET floor = '2', updated_at = '2026-11-15' WHERE overture_id = 'ab78d47e-0840-4397-afc8-ffded9fcee3f';  -- GUACAMOLE
+UPDATE overture_poi SET floor = '0', updated_at = '2026-11-15' WHERE overture_id = '882c2f8a-cb85-405c-8923-9a41280e6b58';  -- OLÁ
+
+-- Gare do Oriente units, outside the mall, with the station floor (owner, 2026-11-15).
+UPDATE curated_poi SET floor = '-1', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:bota-minuto';  -- BOTA MINUTO
+UPDATE curated_poi SET floor = '1', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:kik';  -- KIK
+UPDATE curated_poi SET floor = '0', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:restaurante-da-gare';  -- Restaurante da Gare
+UPDATE curated_poi SET floor = '0', updated_at = '2026-11-15', updated_by = 'kan-517-mall-floors' WHERE poi_id = 'mall:vasco_da_gama:universo-senior';  -- UNIVERSO SÉNIOR

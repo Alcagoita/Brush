@@ -375,10 +375,13 @@ the 27 the list never claimed (`Claire's`, `The Body Shop`, `Western Union`,
   replaces `vasco_da_gama_stores.txt` + `vasco_da_gama_eating.txt`.
 * `Multibanco BPI` is on the site as a unit and stays (`bank`, Piso 0).
 * Eleven cards show `Piso` with no number, and their pages none either.
-  Owner: `ALENTEJO – PÃO, AZEITE E ALHO` Piso 2, `XTREME` Piso 0. Still
-  without a floor until a person gives one: one `BOTA MINUTO`, `CENTRO DE
-  ESTÉTICA E UNHAS`, `CarWash`, `GUACAMOLE`, `KIK`, `OLÁ`, one
-  `PLURICOSMÉTICA`, `Restaurante da Gare`, `UNIVERSO SÉNIOR`.
+  Owner: `ALENTEJO – PÃO, AZEITE E ALHO` 2, `XTREME` 0, `CENTRO DE ESTÉTICA E
+  UNHAS` 0, `CarWash` -1, `GUACAMOLE` 2, `OLÁ` 0. One `PLURICOSMÉTICA` (the
+  other is Piso 0) has no floor anyone knows.
+* **A floor marked `GARE` is outside the mall**, in Gare do Oriente station
+  (owner). Those units stay, with the station's floor as given: `BOTA
+  MINUTO` -1 (the other is Piso 1), `KIK` 1, `Restaurante da Gare` 0,
+  `UNIVERSO SÉNIOR` 0. The stored floor is the number only.
 * Typed by the owner: `2 Life` buys gold (`store`/`pawn`), `COOLAND` phone
   accessories, `Grazze` women's clothing, `Intercentro` transport tickets
   (`bus_station`, as `FLIXBUS`), `JUST K` skincare (`store`/`beauty`), `JMB`

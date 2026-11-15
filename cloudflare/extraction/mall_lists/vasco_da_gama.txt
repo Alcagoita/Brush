@@ -27,7 +27,7 @@ BERSHKA|Piso 1
 BERTRAND LIVREIROS|Piso 0
 BLUE BANANA|Piso 2
 BOALI|Piso 3
-BOTA MINUTO|
+BOTA MINUTO|Piso -1 GARE
 BOTA MINUTO|Piso 1
 BOUTIQUE DOS RELÓGIOS|Piso 1
 BREAD & FRIENDS|Piso 3
@@ -39,10 +39,10 @@ CALZEDONIA|Piso 0
 CAPRI|Piso 2
 CAROLL|Piso 1
 Cartório Lurdes Pires|Piso 0
-CarWash|
+CarWash|Piso -1
 Cavalinho|Piso 0
 CELEIRO|Piso 0
-CENTRO DE ESTÉTICA E UNHAS|
+CENTRO DE ESTÉTICA E UNHAS|Piso 0
 CERVEJARIA MALANDRA|Piso 3
 CEX|Piso 2
 Cinemas NOS|Piso 0
@@ -77,7 +77,7 @@ GANT|Piso 1
 GILLES JOALHEIROS|Piso 1
 Gleba|Piso 0
 Grazze|Piso 0
-GUACAMOLE|
+GUACAMOLE|Piso 2
 GUESS|Piso 1
 GULDEN DRAAK|Piso 3
 H&M|Piso 0
@@ -102,7 +102,7 @@ JOSHUA'S SHOARMA|Piso 2
 JRN DOÇARIAS|Piso 1
 JUST K|Piso 0
 KFC|Piso 2
-KIK|
+KIK|Piso 1 GARE
 KIKO MILANO|Piso 1
 KIWOKO|Piso 0
 L'ÓREAL|Piso 0
@@ -142,7 +142,7 @@ O Forno do leitão do Zé|Piso 3
 O Lisboeta|Piso 0
 O MUNDO DAS GOMAS|Piso 1
 O Papagaio Sem Penas|Piso 0
-OLÁ|
+OLÁ|Piso 0
 ONE|Piso 0
 ORO VIVO|Piso 0
 OYSHO|Piso 1
@@ -166,7 +166,7 @@ PULL & BEAR|Piso 1
 QUEBRAMAR|Piso 1
 QUIOSQUE DOS SABORES|Piso 2
 RentAuto|Piso 1
-Restaurante da Gare|
+Restaurante da Gare|Piso 0 GARE
 RITUALS|Piso 0
 SABOR GAÚCHO|Piso 2
 SACOOR BROTHERS|Piso 2
@@ -204,7 +204,7 @@ TRE BAMBU|Piso 3
 TRIUMPH|Piso 1
 UNICÂMBIO|Piso 0
 UNICÂMBIO – Gare|Piso 1
-UNIVERSO SÉNIOR|
+UNIVERSO SÉNIOR|Piso 0 GARE
 VISTA ALEGRE|Piso 0
 VITAMINAS|Piso 2
 VODAFONE|Piso 0
