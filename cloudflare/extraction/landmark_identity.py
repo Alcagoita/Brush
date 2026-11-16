@@ -85,16 +85,100 @@ def load_terms(path=TERMS_PATH):
 
 
 KIND_WORDS = load_kind_words()
+# A kind word that is also a common place-reference: "Sé" names the cathedral
+# only as the first word ("Sé de Lisboa"); "Elevador da Sé" is a lift.
+LEADING_ONLY = {'se'}
+PLACES_PATH = os.path.join(os.path.dirname(TERMS_PATH), '..', 'kan-461', 'place-names-PT.txt')
+# Two rows of one kind with different names are a red flag only this close.
+RED_FLAG_METRES = 40
+# Kinds a town has one of, so two rows named only after the town are one place.
+ONE_PER_PLACE = {'cathedral'}
+SIMILAR = 0.8
+# Not a place to visit, whatever the type says.
+NOT_A_PLACE_WORDS = {'apartment', 'apartments', 'apartamento', 'apartamentos', 'home', 'homes', 'suite', 'suites',
+                     'hostel', 'flat', 'flats', 'rooms', 'deluxe', 'airbnb', 'guesthouse', 'alojamento', 'fest',
+                     'festival', 'tours', 'best'}
+STREET_WORDS = {'rua', 'avenida', 'av', 'travessa', 'beco', 'calcada', 'escadinhas', 'estrada', 'street', 'road',
+                'avenue', 'calle', 'rue', 'via'}
+
+
+def load_place_names(path=PLACES_PATH):
+    """Place names as folded word tuples, longest first."""
+    names = set()
+    for line in open(path, encoding='utf-8'):
+        if line.strip() and not line.startswith('#'):
+            toks = tuple(t for t in fold(line) if t not in FILLER)
+            if toks:
+                names.add(toks)
+    return sorted(names, key=len, reverse=True)
+
+
+PLACE_NAMES = load_place_names()
+
+
+def _strip_places(words):
+    """Words that belong to a place name (Lisboa, Aguiar da Beira, Lisbon) come off.
+    Exact only: Camões is not the hamlet Camboes."""
+    out = list(words)
+    for name in PLACE_NAMES:
+        n = len(name)
+        i = 0
+        while i + n <= len(out):
+            if tuple(out[i:i + n]) == name:
+                del out[i:i + n]
+            else:
+                i += 1
+    return out
 
 
 def describe(row, terms):
-    """(kind, distinctive words) for one row."""
+    """(kinds, distinctive words) for one row."""
     raw = fold(row['name'])
-    kind = next((KIND_WORDS[w] for w in raw if w in KIND_WORDS), None) or TYPE_KIND.get(row.get('type'), 'other')
-    # Distinctive words, translated so "Jardim Botânico" and "Botanical Garden" share them.
+    kinds = {KIND_WORDS[w] for i, w in enumerate(raw)
+             if w in KIND_WORDS and (w not in LEADING_ONLY or i == 0)}
+    if not kinds:
+        kinds = {TYPE_KIND.get(row.get('type'), 'other')}
+    # Distinctive words, translated so "Jardim Botânico" and "Botanical Garden" share them,
+    # without place names, so "de Lisboa" makes no two churches alike.
     words = [x for w in raw if w not in KIND_WORDS for x in terms.get(w, w).split()]
-    distinctive = {w for w in words if w not in KIND_WORDS and w not in FILLER and len(w) > 1}
-    return kind, distinctive
+    words = [w for w in words if w not in KIND_WORDS and w not in FILLER and len(w) > 1]
+    distinctive = {w for w in _strip_places(words) if not w.isdigit()}
+    return kinds, distinctive
+
+
+def _all_words(row, terms):
+    """Distinctive words with place names kept: a church named after its
+    parish ("Igreja de Madalena") has nothing else to go on."""
+    raw = fold(row['name'])
+    words = [x for w in raw if w not in KIND_WORDS for x in terms.get(w, w).split()]
+    return {w for w in words if w not in KIND_WORDS and w not in FILLER and len(w) > 1 and not w.isdigit()}
+
+
+def _similar(x, y):
+    from difflib import SequenceMatcher
+    return x == y or (min(len(x), len(y)) >= 4 and SequenceMatcher(None, x, y).ratio() >= SIMILAR)
+
+
+def shares(wa, wb):
+    """Some distinctive word of one is (nearly) a word of the other: Magdalene ≈ Madalena."""
+    return any(_similar(x, y) for x in wa for y in wb)
+
+
+def not_a_place(row, terms):
+    """Why a row is not a place to visit, or None."""
+    words = fold(row['name'])
+    if not words:
+        return 'no name'
+    if set(words) & NOT_A_PLACE_WORDS:
+        return 'a rental, event or advert, not a place'
+    if words[0] in STREET_WORDS:
+        return 'a street address'
+    kinds, distinctive = describe(row, terms)
+    if not distinctive and not (set(words) & set(KIND_WORDS)):
+        return 'only a place name'
+    if not _all_words(row, terms) and len(words) == 1:
+        return 'only a kind word, no name'
+    return None
 
 
 def metres(a, b):
@@ -104,14 +188,25 @@ def metres(a, b):
 def verdict(a, b, terms):
     """'duplicate' | 'validate' | 'separate' for two rows."""
     (ka, wa), (kb, wb) = describe(a, terms), describe(b, terms)
-    if metres(a, b) > max(RADIUS.get(ka, 60), RADIUS.get(kb, 60)):
+    d = metres(a, b)
+    common = ka & kb
+    if common:
+        if d > max(RADIUS.get(k, 60) for k in common):
+            return 'separate'
+        if shares(wa, wb):
+            return 'duplicate'
+        if not wa or not wb:
+            # Named only after the place. One cathedral per city: "Lisbon Cathedral"
+            # is "Catedral Lisboa". Not so for squares or churches — "Largo da Sé" and
+            # "Largo da Madalena" are two squares.
+            if not wa and not wb and common & ONE_PER_PLACE:
+                return 'duplicate'
+            if shares(_all_words(a, terms), _all_words(b, terms)):
+                return 'duplicate'
+        return 'validate' if d <= RED_FLAG_METRES else 'separate'
+    if bool(ka & OPEN_SPACE) != bool(kb & OPEN_SPACE):
         return 'separate'
-    shared = wa & wb
-    if ka == kb:
-        return 'duplicate' if shared else 'validate'
-    if (ka in OPEN_SPACE) != (kb in OPEN_SPACE):
-        return 'separate'
-    if ka in COMPLEX and kb in COMPLEX and shared:
+    if ka & COMPLEX and kb & COMPLEX and shares(wa, wb) and d <= max(RADIUS.get(k, 60) for k in ka | kb):
         return 'validate'
     return 'separate'
 
