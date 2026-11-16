@@ -87,6 +87,13 @@ class SeAndTorreTest(unittest.TestCase):
             self.assertIsNone(li.not_a_place(place(name, 0, 0), TERMS), name)
 
 
+class StatueTest(unittest.TestCase):
+    def test_a_bust_is_the_monument_osm_names_after_the_person(self):
+        a = place('Busto De Augusto Rosa', 38.71010, -9.13330)
+        b = place('Augusto Rosa', 38.71012, -9.13335)  # OSM historic=memorial, ~5 m
+        self.assertEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+
 class OwnerRulesTest(unittest.TestCase):
     def test_a_monastery_a_fountain_and_a_tower_are_three_places(self):
         mon = place('Mosteiro de Alcobaça', 39.5481, -8.9800, 'church')

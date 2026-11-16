@@ -33,7 +33,9 @@
   "square": "square",
   "lighthouse": "lighthouse",
   "theatre": "theatre",
-  "theater": "theatre"
+  "theater": "theatre",
+  "lake": "lake",
+  "pond": "lake"
  },
  "pt": {
   "mosteiro": "monastery",
@@ -75,7 +77,9 @@
   "terreiro": "square",
   "farol": "lighthouse",
   "teatro": "theatre",
-  "abadia": "monastery"
+  "abadia": "monastery",
+  "lago": "lake",
+  "lagoa": "lake"
  },
  "es": {
   "monasterio": "monastery",
@@ -102,7 +106,9 @@
   "plaza": "square",
   "faro": "lighthouse",
   "teatro": "theatre",
-  "abadia": "monastery"
+  "abadia": "monastery",
+  "lago": "lake",
+  "laguna": "lake"
  },
  "fr": {
   "monastere": "monastery",
@@ -129,7 +135,9 @@
   "parc": "park",
   "place": "square",
   "phare": "lighthouse",
-  "theatre": "theatre"
+  "theatre": "theatre",
+  "lac": "lake",
+  "etang": "lake"
  },
  "it": {
   "monastero": "monastery",
@@ -157,7 +165,8 @@
   "parco": "park",
   "piazza": "square",
   "faro": "lighthouse",
-  "teatro": "theatre"
+  "teatro": "theatre",
+  "lago": "lake"
  },
  "de": {
   "kloster": "monastery",
@@ -184,6 +193,8 @@
   "park": "park",
   "platz": "square",
   "leuchtturm": "lighthouse",
-  "theater": "theatre"
+  "theater": "theatre",
+  "see": "lake",
+  "teich": "lake"
  }
 }

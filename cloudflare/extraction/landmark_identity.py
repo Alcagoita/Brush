@@ -49,7 +49,12 @@ def load_kind_words(path=KINDS_PATH):
 # A kind no word names comes from the row's type.
 TYPE_KIND = {'church': 'church', 'museum': 'museum', 'historical_landmark': 'monument', 'park': 'park',
              'plaza': 'square', 'botanical_garden': 'garden', 'art_gallery': 'gallery', 'bridge': 'bridge',
-             'lighthouse': 'lighthouse', 'theatre': 'theatre', 'mosque': 'church', 'synagogue': 'church'}
+             'lighthouse': 'lighthouse', 'theatre': 'theatre', 'mosque': 'church', 'synagogue': 'church',
+             'tourist_attraction': 'attraction', 'viewpoint': 'viewpoint', 'beach': 'beach', 'marina': 'marina',
+             'nature_preserve': 'nature', 'hiking_area': 'trail', 'lake': 'lake', 'river': 'river', 'waterfall': 'waterfall',
+             'aquarium': 'aquarium', 'zoo': 'zoo', 'amusement_park': 'amusement', 'hot_spring': 'spring', 'mountain': 'mountain'}
+# The landmark family: rows of these types are compared; anything else (a café, a shop) never is.
+LANDMARK_TYPES = frozenset(TYPE_KIND)
 BUILDING = {'monastery', 'cloister', 'cathedral', 'church', 'chapel', 'tomb', 'museum', 'castle', 'fort', 'palace',
             'tower', 'gallery', 'theatre'}
 OPEN_SPACE = {'garden', 'park', 'square'}
@@ -60,7 +65,7 @@ COMPLEX = {'monastery', 'cloister', 'cathedral', 'church', 'chapel', 'tomb'}
 # metres within which two rows of a kind can be one place
 RADIUS = {'monastery': 250, 'cathedral': 200, 'castle': 250, 'fort': 200, 'palace': 150, 'museum': 150,
           'church': 120, 'chapel': 60, 'cloister': 150, 'tomb': 120, 'fountain': 40, 'statue': 40, 'monument': 60,
-          'tower': 60, 'bridge': 150, 'garden': 150, 'park': 200, 'square': 100, 'gallery': 80, 'theatre': 100}
+          'tower': 60, 'bridge': 150, 'garden': 150, 'park': 200, 'square': 100, 'gallery': 80, 'theatre': 100, 'lake': 150}
 FILLER = {'of', 'the', 'and', 'de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'os', 'as', 'ao', 'aos', 'del', 'la',
           'le', 'les', 'el', 'los', 'di', 'du', 'des', 'em', 'no', 'na', 'old', 'antigo', 'antiga', 'santa', 'santo',
           'saint', 'sao', 'st', 'nossa', 'senhora', 'our', 'lady', 'i', 'ii', 'iii'}
@@ -91,6 +96,7 @@ LEADING_ONLY = {'se'}
 PLACES_PATH = os.path.join(os.path.dirname(TERMS_PATH), '..', 'kan-461', 'place-names-PT.txt')
 # Two rows of one kind with different names are a red flag only this close.
 RED_FLAG_METRES = 40
+SAME_KIND = {'statue': 'monument'}
 # Kinds a town has one of, so two rows named only after the town are one place.
 ONE_PER_PLACE = {'cathedral'}
 SIMILAR = 0.8
@@ -131,13 +137,26 @@ def _strip_places(words):
     return out
 
 
+_DESCRIBED = {}
+
+
 def describe(row, terms):
-    """(kinds, distinctive words) for one row."""
+    """(kinds, distinctive words) for one row, cached by (name, type)."""
+    key = (row['name'], row.get('type'))
+    if key not in _DESCRIBED:
+        _DESCRIBED[key] = _describe(row, terms)
+    return _DESCRIBED[key]
+
+
+def _describe(row, terms):
     raw = fold(row['name'])
     kinds = {KIND_WORDS[w] for i, w in enumerate(raw)
              if w in KIND_WORDS and (w not in LEADING_ONLY or i == 0)}
     if not kinds:
         kinds = {TYPE_KIND.get(row.get('type'), 'other')}
+    # A bust or statue is a monument: OSM's "Augusto Rosa" (historic=memorial)
+    # is Foursquare's "Busto de Augusto Rosa".
+    kinds = {SAME_KIND.get(k, k) for k in kinds}
     # Distinctive words, translated so "Jardim Botânico" and "Botanical Garden" share them,
     # without place names, so "de Lisboa" makes no two churches alike.
     words = [x for w in raw if w not in KIND_WORDS for x in terms.get(w, w).split()]
@@ -189,6 +208,8 @@ def verdict(a, b, terms):
     """'duplicate' | 'validate' | 'separate' for two rows."""
     (ka, wa), (kb, wb) = describe(a, terms), describe(b, terms)
     d = metres(a, b)
+    if ka & kb and fold(a['name']) == fold(b['name']) and d <= max(RADIUS.get(k, 60) for k in ka & kb):
+        return 'duplicate'   # "Chafariz da Fonte Santa" twice: nothing distinctive, same name
     common = ka & kb
     if common:
         if d > max(RADIUS.get(k, 60) for k in common):

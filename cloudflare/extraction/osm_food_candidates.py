@@ -44,6 +44,10 @@ OUTING_TYPES = frozenset({
     'mountain', 'lake', 'hot_spring', 'nature_preserve', 'beach', 'botanical_garden', 'hiking_area', 'bridge',
     'lighthouse', 'marina', 'plaza', 'aquarium', 'amusement_park', 'zoo', 'tourist_attraction',
 })
+# Tags kept on each candidate so the landmark import can tell a zoo enclosure,
+# a shop tagged as an attraction or a sewage pond from a place to visit.
+KEEP_TAGS = ('tourism', 'historic', 'leisure', 'natural', 'attraction', 'zoo', 'animal', 'garden:type', 'water',
+             'shop', 'amenity', 'access', 'wikidata', 'man_made')
 NOT_A_VISIT = {('memorial', 'plaque'), ('memorial', 'blue_plaque'), ('memorial', 'stolperstein')}
 
 LIFECYCLE = ('disused:', 'was:', 'abandoned:', 'demolished:', 'removed:')
@@ -101,6 +105,7 @@ class Reader(osmium.SimpleHandler):
         self.rows.append({'osm_id': f'{kind}/{oid}', 'name': tags['name'].strip(), 'lat': lat, 'lng': lng,
                           'types': poi_types, 'edited': ts, 'check_date': tags.get('check_date'),
                           'opening_hours': tags.get('opening_hours'),
+                          'tags': {k: tags[k] for k in KEEP_TAGS if k in tags},
                           'address': ', '.join(v for v in (tags.get('addr:street'), tags.get('addr:housenumber'),
                                                            tags.get('addr:city')) if v) or None})
 
