@@ -94,25 +94,24 @@ def groups(rows, terms):
     return [g for g in by_root.values() if len(g) > 1]
 
 
-def statements(hide, date):
-    """hide: [(row, why)] → SQL, bounded statements."""
-    over = [(r, w) for r, w in hide if r.get('source') == 'overture']
-    cur = [(r, w) for r, w in hide if r.get('source') != 'overture']
+def statements(hide, date, area_key):
+    """hide: [(row, why)] → a few bounded statements per area: one upsert per
+    150 Overture ids, one UPDATE … IN (…) per 150 curated ids (the D1 request
+    limit, CLAUDE.md). The reason per row is in the area's report."""
+    over = [r for r, _ in hide if r.get('source') == 'overture']
+    cur = [r for r, _ in hide if r.get('source') != 'overture']
+    note = f'KAN-461 cleanup: duplicate or not a place to visit — docs/kan-461/cleanup/{area_key}.md'
     out = []
-    values = [f"('overture', {sql_escape(r['id'])}, 0, {sql_escape('KAN-461 cleanup: ' + w)}, {sql_escape(date)})" for r, w in over]
-    out += list(fsq.batched(values, 'INSERT INTO poi_source_correction (source, source_id, visible, review_note, created_at) VALUES\n',
-                            '\nON CONFLICT (source, source_id) DO UPDATE SET visible = 0, review_note = excluded.review_note;\n'))
-    for r, w in cur:
+    for i in range(0, len(over), 150):
+        out.append('INSERT INTO poi_source_correction (source, source_id, visible, review_note, created_at) VALUES\n'
+                   + ',\n'.join(f"('overture', {sql_escape(r['id'])}, 0, {sql_escape(note)}, {sql_escape(date)})"
+                                 for r in over[i:i + 150])
+                   + '\nON CONFLICT (source, source_id) DO UPDATE SET visible = 0, review_note = excluded.review_note;\n')
+    for i in range(0, len(cur), 150):
+        ids = ', '.join(sql_escape(r['id']) for r in cur[i:i + 150])
         out.append(f"UPDATE curated_poi SET status = 'removed', removed_at = {sql_escape(date)}, removed_by = 'kan-461', "
-                   f"removal_reason = {sql_escape('KAN-461 cleanup: ' + w)} WHERE status = 'active' AND poi_id = {sql_escape(r['id'])};\n")
+                   f"removal_reason = {sql_escape(note)} WHERE status = 'active' AND poi_id IN ({ids});\n")
     return out
-
-
-def localities(overture_csv):
-    import csv
-    csv.field_size_limit(10 ** 8)
-    with open(overture_csv, newline='', encoding='utf-8') as fh:
-        return {(r.get('locality') or '').strip() for r in csv.DictReader(fh)} - {''}
 
 
 def main(argv=None):
@@ -164,7 +163,7 @@ def main(argv=None):
         share = len(hide) / len(rows) if rows else 0
         gate = f'would hide {len(hide)} of {len(rows)} ({share:.0%})' if share > HIDE_SHARE else None
         status = 'clean' if not hide else ('held' if gate else ('written' if args.emit else 'dry-run'))
-        changes = fsq.emit(statements(hide, args.date), args.work_dir) if status == 'written' else None
+        changes = fsq.emit(statements(hide, args.date, key), args.work_dir) if status == 'written' else None
         by = Counter('not a place' if w.startswith(('a ', 'only', 'no ')) else 'duplicate' for _, w in hide)
         lines = [f"# KAN-461 cleanup — {name} — {status.upper()}", '', f'Served landmark rows: {len(rows):,}. '
                  f"To hide: {len(hide):,} (duplicates {by['duplicate']:,}, not a place {by['not a place']:,})."
