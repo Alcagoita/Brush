@@ -17,7 +17,13 @@ Skipped: no name; a lifecycle prefix (disused:, was:, abandoned:, demolished:,
 removed:) on the amenity/shop key; opening_hours=closed. The last-edit date
 and check_date are kept on every candidate so freshness can be reported.
 
-    python3 osm_food_candidates.py <portugal.osm.pbf> <out.json>
+    python3 osm_food_candidates.py <portugal.osm.pbf> <out.json> [--family outings]
+
+`--family outings` reads places to visit instead (KAN-461, owner 2026-11-16):
+historic, religious, cultural, natural and built landmarks, typed by the
+KAN-408 OSM tag rules (`supplement_osm_pois.types_for`) and kept only when
+the type is in OUTING_TYPES. Memorial plaques and stumbling stones are
+`historic=memorial` but not a place to visit, so they are skipped.
 """
 from __future__ import annotations
 
@@ -26,7 +32,19 @@ import re
 import sys
 import unicodedata
 
+import os
+
 import osmium
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from supplement_osm_pois import types_for as tag_types  # noqa: E402
+
+OUTING_TYPES = frozenset({
+    'historical_landmark', 'church', 'mosque', 'museum', 'art_gallery', 'viewpoint', 'waterfall', 'river',
+    'mountain', 'lake', 'hot_spring', 'nature_preserve', 'beach', 'botanical_garden', 'hiking_area', 'bridge',
+    'lighthouse', 'marina', 'plaza', 'aquarium', 'amusement_park', 'zoo', 'tourist_attraction',
+})
+NOT_A_VISIT = {('memorial', 'plaque'), ('memorial', 'blue_plaque'), ('memorial', 'stolperstein')}
 
 LIFECYCLE = ('disused:', 'was:', 'abandoned:', 'demolished:', 'removed:')
 BAKERY_SHOPS = {'bakery', 'pastry', 'confectionery'}
@@ -36,6 +54,15 @@ CAFE_WORDS = r'\b(pastelaria|confeitaria|cafe|cafetaria|snack)\b'
 
 def fold(value):
     return ''.join(c for c in unicodedata.normalize('NFKD', value.lower()) if not unicodedata.combining(c))
+
+
+def outing_types(tags):
+    """Our types for a place to visit, or [] when the tags are not one."""
+    if (tags.get('historic'), tags.get('memorial')) in {(a, b) for a, b in NOT_A_VISIT} or \
+            (tags.get('historic') == 'memorial' and tags.get('memorial') in {b for _, b in NOT_A_VISIT}):
+        return []
+    kept = [t for t in tag_types(tags) if t in OUTING_TYPES]
+    return list(dict.fromkeys(kept))
 
 
 def types_for(tags):
@@ -55,13 +82,14 @@ def closed(tags):
 
 
 class Reader(osmium.SimpleHandler):
-    def __init__(self):
+    def __init__(self, family='food'):
         super().__init__()
+        self.typer = outing_types if family == 'outings' else types_for
         self.rows, self.skipped = [], {'closed': 0, 'no name': 0}
 
     def _take(self, kind, oid, tags, lat, lng, ts):
         tags = {t.k: t.v for t in tags}
-        poi_types = types_for(tags)
+        poi_types = self.typer(tags)
         if not poi_types:
             return
         if not tags.get('name', '').strip():
@@ -97,8 +125,22 @@ class Reader(osmium.SimpleHandler):
 
 def main(argv=None):
     argv = argv or sys.argv[1:]
-    reader = Reader()
-    reader.apply_file(argv[0], locations=True)
+    family = argv[argv.index('--family') + 1] if '--family' in argv else 'food'
+    keys = argv[argv.index('--key') + 1].split(',') if '--key' in argv else None
+    reader = Reader(family)
+    if keys:
+        # One phase: only objects carrying one of `keys` reach Python; the
+        # filter runs in C++, so a phase reads Portugal in minutes.
+        wanted = osmium.filter.KeyFilter(*keys)
+        processor = (osmium.FileProcessor(argv[0]).with_locations()
+                     .with_areas(osmium.filter.KeyFilter(*keys)).with_filter(wanted))
+        for obj in processor:
+            if obj.is_node():
+                reader.node(obj)
+            elif obj.is_area():
+                reader.area(obj)
+    else:
+        reader.apply_file(argv[0], locations=True)
     json.dump({'source': argv[0].rsplit('/', 1)[-1], 'skipped': reader.skipped, 'rows': reader.rows},
               open(argv[1], 'w', encoding='utf-8'), ensure_ascii=False)
     print(f"{len(reader.rows):,} candidates; skipped {reader.skipped}", file=sys.stderr)

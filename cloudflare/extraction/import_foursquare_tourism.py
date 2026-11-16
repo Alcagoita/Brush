@@ -106,7 +106,7 @@ HAND_CHECK_ROWS = 50
 
 SKIP_ORDER = (
     'excluded leaf', 'noise leaf', 'parent-only leaf', 'tier 2 leaf', 'unmapped leaf',
-    'no coordinates', 'empty name', 'hidden by poi_source_correction',
+    'no coordinates', 'empty name', 'held for review', 'hidden by poi_source_correction',
     'matched', 'matched (translated)', 'weak name', 'suspect', 'in-batch duplicate',
 )
 
@@ -533,9 +533,12 @@ def served_alias_twins(inserts, grid):
     return sorted(twins, key=lambda twin: (twin[2], twin[0]['fsq_place_id']))
 
 
-def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None):
+def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None, hold=None):
     """Every record → a decision. Returns (inserts, skips) where inserts
-    are records with 'types' set and skips are (record, reason, detail)."""
+    are records with 'types' set and skips are (record, reason, detail).
+    `hold` is {fsq id: why}: rows a person reviews before they are written
+    (KAN-461: street, roundabout and village names under a place leaf)."""
+    hold = hold or {}
     skips = []
     candidates = []
     for record in records:
@@ -545,6 +548,9 @@ def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None):
             skips.append((record, decision, ', '.join(f'{leaf} ({kind})' for leaf, kind in sorted(kinds.items()))))
             continue
         record['types'] = types
+        if record['fsq_place_id'] in hold:
+            skips.append((record, 'held for review', hold[record['fsq_place_id']]))
+            continue
         correction = corrections.get(record['fsq_place_id'])
         if correction and int(correction.get('visible') or 0) == 0:
             skips.append((record, 'hidden by poi_source_correction', correction.get('review_note') or ''))
@@ -916,7 +922,11 @@ def run(args):
     table = terms.table_for(args.country)
     if table is None:
         print(f'[import] no landmark-terms table for {args.country}: translation step off', file=sys.stderr)
-    inserts, skips = plan(records, paths_by_id, leaf_map, grid, corrections, (table, terms) if table else None)
+    hold = {}
+    if args.hold:
+        with open(args.hold, encoding='utf-8') as handle:
+            hold = {row['fsq_place_id']: row['why'] for row in json.load(handle)['hold']}
+    inserts, skips = plan(records, paths_by_id, leaf_map, grid, corrections, (table, terms) if table else None, hold)
     inserts.sort(key=lambda r: r['fsq_place_id'])
     skips.sort(key=lambda s: s[0]['fsq_place_id'])
     imported_at = args.imported_at or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -1001,6 +1011,7 @@ def main(argv=None):
     parser.add_argument('--landmark-terms', default=DEFAULT_LANDMARK_TERMS,
                         help='per-language landmark word table for the translation-aware match (keyed by --country)')
     parser.add_argument('--tier', type=int, default=1)
+    parser.add_argument('--hold', help='JSON {"hold": [{"fsq_place_id", "name", "why"}]}: reviewed before writing')
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--report-out', required=True, help='markdown path; the .jsonl goes beside it')
     parser.add_argument('--sql-out', help='also write every statement to this file (dry run inspection)')
