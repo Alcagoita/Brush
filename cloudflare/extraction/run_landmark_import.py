@@ -70,6 +70,13 @@ def municipalities():
     return areas + [(slug(REST_OF_COUNTRY[0]), REST_OF_COUNTRY[0], REST_OF_COUNTRY[1])]
 
 
+def localities(overture_csv):
+    import csv
+    csv.field_size_limit(10 ** 8)
+    with open(overture_csv, newline='', encoding='utf-8') as fh:
+        return {(r.get('locality') or '').strip() for r in csv.DictReader(fh)} - {''}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--candidates', required=True)
@@ -88,6 +95,7 @@ def main(argv=None):
     state = json.load(open(state_path)) if os.path.exists(state_path) else {}
 
     terms = li.load_terms()
+    li.add_place_names(localities(args.overture_csv))
     cands = [dict(r, id=r['osm_id'], type=r['types'][0]) for r in json.load(open(args.candidates, encoding='utf-8'))['rows']]
     served, _ = preflight.served_overture(args.overture_csv, args.overture_key)
     served = [s for s in served + preflight.served_curated_all() if s.get('type') in li.LANDMARK_TYPES]

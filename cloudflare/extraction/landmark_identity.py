@@ -33,6 +33,7 @@ import math
 import os
 import re
 import unicodedata
+from collections import Counter
 from itertools import combinations
 
 TERMS_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
@@ -49,7 +50,7 @@ def load_kind_words(path=KINDS_PATH):
 # A kind no word names comes from the row's type.
 TYPE_KIND = {'church': 'church', 'museum': 'museum', 'historical_landmark': 'monument', 'park': 'park',
              'plaza': 'square', 'botanical_garden': 'garden', 'art_gallery': 'gallery', 'bridge': 'bridge',
-             'lighthouse': 'lighthouse', 'theatre': 'theatre', 'mosque': 'church', 'synagogue': 'church',
+             'lighthouse': 'lighthouse', 'theatre': 'theatre', 'mosque': 'mosque', 'synagogue': 'synagogue',
              'tourist_attraction': 'attraction', 'viewpoint': 'viewpoint', 'beach': 'beach', 'marina': 'marina',
              'nature_preserve': 'nature', 'hiking_area': 'trail', 'lake': 'lake', 'river': 'river', 'waterfall': 'waterfall',
              'aquarium': 'aquarium', 'zoo': 'zoo', 'amusement_park': 'amusement', 'hot_spring': 'spring', 'mountain': 'mountain'}
@@ -99,7 +100,7 @@ RED_FLAG_METRES = 40
 SAME_KIND = {'statue': 'monument'}
 # Kinds a town has one of, so two rows named only after the town are one place.
 ONE_PER_PLACE = {'cathedral'}
-SIMILAR = 0.8
+SIMILAR = 0.82
 # Not a place to visit, whatever the type says.
 NOT_A_PLACE_WORDS = {'apartment', 'apartments', 'apartamento', 'apartamentos', 'home', 'homes', 'suite', 'suites',
                      'hostel', 'flat', 'flats', 'rooms', 'deluxe', 'airbnb', 'guesthouse', 'alojamento', 'fest',
@@ -120,6 +121,15 @@ def load_place_names(path=PLACES_PATH):
 
 
 PLACE_NAMES = load_place_names()
+
+
+def add_place_names(names):
+    """More place names, e.g. every `locality` in the country's Overture file —
+    so "Sacavém" is a town, not a church's name, in any country."""
+    global PLACE_NAMES
+    extra = {tuple(t for t in fold(n) if t not in FILLER) for n in names if n}
+    PLACE_NAMES = sorted(set(PLACE_NAMES) | {e for e in extra if e}, key=len, reverse=True)
+    _DESCRIBED.clear()
 
 
 def _strip_places(words):
@@ -200,6 +210,29 @@ def not_a_place(row, terms):
     return None
 
 
+# Words too common within a kind to tell two places apart ("arte" among
+# galleries, "deus" or "graca" among churches). Learned from the served rows
+# with learn_common_words(); empty until then, so the rule works without it.
+COMMON = {}
+
+
+def learn_common_words(rows, terms, min_rows=5, share=0.01):
+    """Per kind, the distinctive words that appear in at least `min_rows` rows
+    and `share` of that kind's rows. Measured from our own data, so it holds
+    in any language."""
+    seen, total = {}, Counter()
+    for r in rows:
+        kinds, words = describe(r, terms)
+        for k in kinds:
+            total[k] += 1
+            seen.setdefault(k, Counter()).update(words)
+    COMMON.clear()
+    for k, counts in seen.items():
+        limit = max(min_rows, share * total[k])
+        COMMON[k] = {w for w, n in counts.items() if n >= limit}
+    return COMMON
+
+
 def metres(a, b):
     return math.hypot((a['lat'] - b['lat']) * 111320, (a['lng'] - b['lng']) * 111320 * math.cos(math.radians(a['lat'])))
 
@@ -211,6 +244,8 @@ def verdict(a, b, terms):
     if ka & kb and fold(a['name']) == fold(b['name']) and d <= max(RADIUS.get(k, 60) for k in ka & kb):
         return 'duplicate'   # "Chafariz da Fonte Santa" twice: nothing distinctive, same name
     common = ka & kb
+    noise = set().union(*(COMMON.get(k, set()) for k in (common or ka | kb)))
+    wa, wb = wa - noise, wb - noise
     if common:
         if d > max(RADIUS.get(k, 60) for k in common):
             return 'separate'
@@ -222,7 +257,9 @@ def verdict(a, b, terms):
             # "Largo da Madalena" are two squares.
             if not wa and not wb and common & ONE_PER_PLACE:
                 return 'duplicate'
-            if shares(_all_words(a, terms), _all_words(b, terms)):
+            # Only the place name is left: the same place only if right beside it
+            # ("Igreja de Madalena", 13 m), never across a town ("… de Sacavém").
+            if d <= RED_FLAG_METRES and shares(_all_words(a, terms), _all_words(b, terms)):
                 return 'duplicate'
         return 'validate' if d <= RED_FLAG_METRES else 'separate'
     if bool(ka & OPEN_SPACE) != bool(kb & OPEN_SPACE):

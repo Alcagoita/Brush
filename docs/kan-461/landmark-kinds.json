@@ -35,7 +35,10 @@
   "theatre": "theatre",
   "theater": "theatre",
   "lake": "lake",
-  "pond": "lake"
+  "pond": "lake",
+  "mosque": "mosque",
+  "masjid": "mosque",
+  "synagogue": "synagogue"
  },
  "pt": {
   "mosteiro": "monastery",
@@ -79,7 +82,9 @@
   "teatro": "theatre",
   "abadia": "monastery",
   "lago": "lake",
-  "lagoa": "lake"
+  "lagoa": "lake",
+  "mesquita": "mosque",
+  "sinagoga": "synagogue"
  },
  "es": {
   "monasterio": "monastery",
@@ -108,7 +113,9 @@
   "teatro": "theatre",
   "abadia": "monastery",
   "lago": "lake",
-  "laguna": "lake"
+  "laguna": "lake",
+  "mezquita": "mosque",
+  "sinagoga": "synagogue"
  },
  "fr": {
   "monastere": "monastery",
@@ -137,7 +144,9 @@
   "phare": "lighthouse",
   "theatre": "theatre",
   "lac": "lake",
-  "etang": "lake"
+  "etang": "lake",
+  "mosquee": "mosque",
+  "synagogue": "synagogue"
  },
  "it": {
   "monastero": "monastery",
@@ -166,7 +175,9 @@
   "piazza": "square",
   "faro": "lighthouse",
   "teatro": "theatre",
-  "lago": "lake"
+  "lago": "lake",
+  "moschea": "mosque",
+  "sinagoga": "synagogue"
  },
  "de": {
   "kloster": "monastery",
@@ -195,6 +206,8 @@
   "leuchtturm": "lighthouse",
   "theater": "theatre",
   "see": "lake",
-  "teich": "lake"
+  "teich": "lake",
+  "moschee": "mosque",
+  "synagoge": "synagogue"
  }
 }

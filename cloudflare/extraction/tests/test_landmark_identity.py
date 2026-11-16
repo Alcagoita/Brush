@@ -94,6 +94,20 @@ class StatueTest(unittest.TestCase):
         self.assertEqual(li.verdict(a, b, TERMS), 'duplicate')
 
 
+class CleanupCasesTest(unittest.TestCase):
+    """Lisbon cleanup dry run, 2026-11-16."""
+    def test_a_mosque_and_a_church_of_one_parish_are_two_places(self):
+        a = place('Masjid BaiturRahim, Arroios, Lisboa', 38.7330, -9.1350, 'mosque')
+        b = place('Fabrica da Igreja Paroquial de São Jorge de Arroios', 38.7331, -9.1351, 'church')
+        self.assertEqual(li.verdict(a, b, TERMS), 'separate')
+
+    def test_churches_named_after_one_town_are_not_merged_across_it(self):
+        li.add_place_names(['Sacavém'])  # as run_landmark_cleanup adds every Overture locality
+        a = place('Assembleia de Deus de Sacavém', 38.7900, -9.1050, 'church')
+        b = place('Igreja de Sacavém', 38.7905, -9.1050, 'church')  # ~55 m
+        self.assertNotEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+
 class OwnerRulesTest(unittest.TestCase):
     def test_a_monastery_a_fountain_and_a_tower_are_three_places(self):
         mon = place('Mosteiro de Alcobaça', 39.5481, -8.9800, 'church')
