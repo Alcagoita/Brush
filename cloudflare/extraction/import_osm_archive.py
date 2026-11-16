@@ -27,6 +27,7 @@ Dry run by default; `--emit` writes, one bounded statement per request.
 from __future__ import annotations
 
 import argparse
+import math
 import datetime
 import os
 import sqlite3
@@ -128,6 +129,46 @@ def freshness(row):
     return 'before 2015'
 
 
+# The same café under two spellings: "Café Encontro" and "O Encontro - Odivelas"
+# on one street (owner, 2026-11-16). Whole-name similarity misses it, so the
+# generic words and a trailing "- <place>" come off first and what is left is
+# compared. Only inside the food-and-drink family: "Café BP" in a petrol
+# station answers a café task, BP answers a fuel task — two places.
+GENERIC_WORDS = frozenset(
+    'cafe cafetaria caftaria pastelaria confeitaria padaria panificadora snack bar snackbar restaurante casa '
+    'o a os as do da dos das de e the coffee shop pao quente lda'.split())
+FOOD_FAMILY = frozenset({'cafe', 'bakery', 'bar', 'restaurant', 'ice_cream'})
+CORE_TWIN_METRES = 50.0
+
+
+def core_name(name):
+    """The identifying part of a food-and-drink name: accents, generic words
+    and a trailing ' - <place>' removed. '' when nothing identifying is left."""
+    head = re.split(r'\s[-–]\s', _fold(name or ''))[0]
+    return ' '.join(t for t in re.findall(r'[a-z0-9]+', head) if t not in GENERIC_WORDS)
+
+
+def _metres(a_lat, a_lng, b_lat, b_lng):
+    return ((a_lat - b_lat) * 111320) ** 2 + ((a_lng - b_lng) * 111320 * math.cos(math.radians(a_lat))) ** 2
+
+
+def core_twin(record, grid):
+    """A served food-and-drink row within 50 m with the same core name, or None."""
+    if record.get('type') not in FOOD_FAMILY:
+        return None
+    key = core_name(record['name'])
+    if not key:
+        return None
+    cell_lat, cell_lng = int(record['lat'] // preflight.CELL), int(record['lng'] // preflight.CELL)
+    for i in (-1, 0, 1):
+        for j in (-1, 0, 1):
+            for place in grid.get((cell_lat + i, cell_lng + j), ()):
+                if (place.get('type') in FOOD_FAMILY and core_name(place['name']) == key
+                        and _metres(record['lat'], record['lng'], place['lat'], place['lng']) <= CORE_TWIN_METRES ** 2):
+                    return place
+    return None
+
+
 def decide(record, grid, footprints):
     if not record['dedupe_name']:
         return 'empty name'
@@ -136,6 +177,8 @@ def decide(record, grid, footprints):
     counterpart = preflight.best_counterpart(record, None, grid)
     if counterpart and counterpart[3] == 'matched':
         return 'served'
+    if core_twin(record, grid):
+        return 'served (same core name)'
     same, _ = fsq.far_same_name(record, grid)
     return 'suspect' if same else 'import'
 
@@ -165,11 +208,12 @@ def statements(inserts, imported_at, run_id):
 def render(c):
     lines = [f"# KAN-461 — OSM archive import, {', '.join(c['types'])} — {'DRY RUN' if c['dry_run'] else 'EMITTED'}", '',
              f"Run `{c['run_id']}`, {c['generated_at']}. Archive `{c['archive']}`; served base {c['served']}.", '',
-             '| type | archive rows | import | served | suspect | inside a centre | empty name |',
-             '|---|---:|---:|---:|---:|---:|---:|']
+             '| type | archive rows | import | served | served (same core name) | suspect | inside a centre | empty name |',
+             '|---|---:|---:|---:|---:|---:|---:|---:|']
     for t in c['types']:
         k = c['by_type'][t]
-        lines.append(f"| `{t}` | {sum(k.values()):,} | **{k['import']:,}** | {k['served']:,} | {k['suspect']:,} "
+        lines.append(f"| `{t}` | {sum(k.values()):,} | **{k['import']:,}** | {k['served']:,} "
+                     f"| {k['served (same core name)']:,} | {k['suspect']:,} "
                      f"| {k['inside a reconciled centre']:,} | {k['empty name']:,} |")
     lines += ['', '## Imports by the type they are written as', '',
               '| archive type | written as | rows | how |', '|---|---|---:|---|']
