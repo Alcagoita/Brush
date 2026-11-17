@@ -65,6 +65,7 @@ REPO_ROOT = os.path.dirname(CLOUDFLARE_DIR)
 sys.path.insert(0, EXTRACTION_DIR)
 
 import preflight_foursquare_archive as preflight  # noqa: E402
+import rejection_registry  # noqa: E402
 from classify_and_load import MAX_STATEMENT_BYTES, byte_len, encode_geohash, normalize_text, sql_escape  # noqa: E402
 from enrich_osm_cuisine import MATCH_RADIUS_METERS, haversine_m  # noqa: E402
 from supplement_osm_pois import identity_tokens, name_similarity, names_match  # noqa: E402
@@ -87,17 +88,29 @@ CURATED_COLUMNS = (
     'status', 'created_at', 'created_by', 'updated_at', 'updated_by',
     'origin_source', 'origin_id', 'origin_licence', 'imported_at', 'import_run_id',
 )
-CURATED_INSERT_PREFIX = f'INSERT INTO curated_poi ({", ".join(CURATED_COLUMNS)}) VALUES\n'
+# KAN-461: an origin on the rejection list (poi_source_correction,
+# visible = 0) is never written again — checked in the statement itself, so
+# no importer can skip it (rejection_registry).
+_ORIGIN_SOURCE_COL = f"v.column{CURATED_COLUMNS.index('origin_source') + 1}"
+_ORIGIN_ID_COL = f"v.column{CURATED_COLUMNS.index('origin_id') + 1}"
+CURATED_INSERT_PREFIX, _CURATED_WHERE = rejection_registry.guarded_values(
+    f'curated_poi ({", ".join(CURATED_COLUMNS)})',
+    'NOT ' + rejection_registry.rejected_origin(_ORIGIN_SOURCE_COL, _ORIGIN_ID_COL))
 # The conflict target names 0042's partial unique index — SQLite requires
 # the WHERE to match the index's own — so the idempotency guarantee is the
 # index, not this script. The poi_id clause is belt and braces: the id is
 # derived from origin_id, so both fire on the same re-run.
 CURATED_INSERT_SUFFIX = (
+    _CURATED_WHERE +
     '\nON CONFLICT (origin_source, origin_id) WHERE origin_source IS NOT NULL AND origin_id IS NOT NULL DO NOTHING'
     '\nON CONFLICT (poi_id) DO NOTHING;\n'
 )
-ATTRIBUTE_INSERT_PREFIX = 'INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES\n'
-ATTRIBUTE_INSERT_SUFFIX = ';\n'
+# An attribute only for a curated row that exists: a refused row leaves nothing.
+ATTRIBUTE_INSERT_PREFIX, _ATTRIBUTE_WHERE = rejection_registry.guarded_values(
+    'curated_poi_attribute (poi_id, dimension, value)',
+    'EXISTS (SELECT 1 FROM curated_poi p WHERE p.poi_id = v.column1)')
+ATTRIBUTE_INSERT_PREFIX = ATTRIBUTE_INSERT_PREFIX.replace('INSERT INTO', 'INSERT OR IGNORE INTO', 1)
+ATTRIBUTE_INSERT_SUFFIX = _ATTRIBUTE_WHERE + ';\n'
 MAX_VALUES_TERMS = 500
 D1_ID_BATCH = 150
 # The two hand-check samples the owner reads before merge: pairs the

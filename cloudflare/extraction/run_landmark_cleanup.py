@@ -45,6 +45,9 @@ import run_landmark_import as rli  # noqa: E402
 from classify_and_load import sql_escape  # noqa: E402
 
 HIDE_SHARE = 0.30
+# The reasons that held up in the 2026-11-17 sample; duplicates and
+# "only a place name" wait for a rule fix.
+SAFE_REASONS = {'a street address', 'a rental, event or advert, not a place', 'only a kind word, no name'}
 PT_WORDS = {w for w, _ in json.load(open(li.KINDS_PATH, encoding='utf-8'))['pt'].items()}
 
 
@@ -114,6 +117,14 @@ def statements(hide, date, area_key):
     return out
 
 
+def localities(overture_csv):
+    """Every Overture locality in the country: place names, not landmark names."""
+    import csv
+    csv.field_size_limit(10 ** 8)
+    with open(overture_csv, newline='', encoding='utf-8') as fh:
+        return {(r.get('locality') or '').strip() for r in csv.DictReader(fh)} - {''}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('--overture-key', required=True)
@@ -123,6 +134,9 @@ def main(argv=None):
     ap.add_argument('--report-dir', default=os.path.join(il.REPO_ROOT, 'docs', 'kan-461', 'cleanup'))
     ap.add_argument('--only')
     ap.add_argument('--emit', action='store_true')
+    ap.add_argument('--safe-only', action='store_true',
+                    help='hide only street addresses, rentals/events/adverts and bare kind words')
+    ap.add_argument('--sql-out', help='write every area\'s statements to this one migration file instead of sending them')
     args = ap.parse_args(argv)
 
     os.makedirs(args.report_dir, exist_ok=True)
@@ -145,7 +159,7 @@ def main(argv=None):
         areas = [a for a in areas if a[1] in wanted]
     done = set()
     for key, name, box in areas:
-        if state.get(key, {}).get('status') in ('written', 'held', 'clean'):
+        if state.get(key, {}).get('status') in ('written', 'held', 'clean', 'planned'):
             done.update(state[key].get('ids', []))
             continue
         rows = [s for s in served if il.inside(s, box) and s['id'] not in done]
@@ -154,16 +168,23 @@ def main(argv=None):
             why = li.not_a_place(r, terms)
             if why:
                 hide.append((r, why))
+        if args.safe_only:
+            hide = [(r, w) for r, w in hide if w in SAFE_REASONS]
         bad = {r['id'] for r, _ in hide}
-        for g in groups([r for r in rows if r['id'] not in bad], terms):
+        for g in ([] if args.safe_only else groups([r for r in rows if r['id'] not in bad], terms)):
             k = keeper(g)
             # Only a direct duplicate of the kept row goes: A=B and B=C does not make A=C.
             hide += [(r, f'same place as {k["id"]} "{k["name"]}"') for r in g
                      if r is not k and li.verdict(r, k, terms) == 'duplicate']
         share = len(hide) / len(rows) if rows else 0
         gate = f'would hide {len(hide)} of {len(rows)} ({share:.0%})' if share > HIDE_SHARE else None
-        status = 'clean' if not hide else ('held' if gate else ('written' if args.emit else 'dry-run'))
+        status = 'clean' if not hide else ('held' if gate else
+                                           ('planned' if args.sql_out else 'written' if args.emit else 'dry-run'))
         changes = fsq.emit(statements(hide, args.date, key), args.work_dir) if status == 'written' else None
+        if status == 'planned':
+            with open(args.sql_out, 'a', encoding='utf-8') as fh:
+                fh.write(f'\n-- {name}: {len(hide)} hidden (docs/kan-461/cleanup/{key}-planned.md)\n')
+                fh.writelines(statements(hide, args.date, key + '-planned'))
         by = Counter('not a place' if w.startswith(('a ', 'only', 'no ')) else 'duplicate' for _, w in hide)
         lines = [f"# KAN-461 cleanup — {name} — {status.upper()}", '', f'Served landmark rows: {len(rows):,}. '
                  f"To hide: {len(hide):,} (duplicates {by['duplicate']:,}, not a place {by['not a place']:,})."

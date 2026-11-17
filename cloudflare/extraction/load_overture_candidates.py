@@ -39,12 +39,26 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from classify_and_load import MAX_STATEMENT_BYTES, byte_len, sql_escape
+from promote_overture_candidates import REJECTED_CATEGORIES
+import rejection_registry
 
-INSERT_PREFIX = (
-    'INSERT OR IGNORE INTO overture_candidate '
-    '(overture_id, name, name_local, name_local_lang, names_json, country_code, lat, lng, address, locality, category, basic_category, '
-    'category_path, confidence, source_datasets, imported_at, country_source_r2_key, last_seen_source_key) VALUES '
-)
+_COLUMNS = ('overture_candidate (overture_id, name, name_local, name_local_lang, names_json, country_code, lat, lng, '
+            'address, locality, category, basic_category, category_path, confidence, source_datasets, imported_at, '
+            'country_source_r2_key, last_seen_source_key)')
+# KAN-461. What is never staged, checked in the statement itself:
+#   * a GERS id on the rejection list (poi_source_correction, visible = 0);
+#   * a new row in a category we do not serve. A row already staged is
+#     still updated, so a refresh that moves a served row into such a
+#     category reaches it and the rules reject it.
+# Serving a category later (taking it out of REJECTED_CATEGORIES) stages
+# its rows on the next load, on purpose.
+_REJECTED_CATEGORY_SQL = ', '.join(sql_escape(c) for c in sorted(REJECTED_CATEGORIES))
+INSERT_PREFIX, GUARD = rejection_registry.guarded_values(
+    _COLUMNS,
+    f"NOT {rejection_registry.rejected_overture('v.column1')} "
+    f"AND (v.column11 IS NULL OR v.column11 NOT IN ({_REJECTED_CATEGORY_SQL}) "
+    f"OR v.column1 IN (SELECT overture_id FROM overture_candidate))")
+INSERT_PREFIX = INSERT_PREFIX.replace('INSERT INTO', 'INSERT OR IGNORE INTO', 1)
 MAX_VALUES_TERMS = 500
 
 
@@ -115,7 +129,8 @@ def value_tuple(row):
 
 
 def batched(pieces):
-    values, size = [], byte_len(INSERT_PREFIX) + 2
+    overhead = byte_len(INSERT_PREFIX) + byte_len(GUARD) + 2
+    values, size = [], overhead
     for piece in pieces:
         # +2, not +1: join writes ',\n' between values. Undercounting by a
         # byte per value lets a 500-value statement exceed the cap it is
@@ -123,12 +138,12 @@ def batched(pieces):
         piece_size = byte_len(piece) + 2
         if values and (size + piece_size > MAX_STATEMENT_BYTES
                        or len(values) >= MAX_VALUES_TERMS):
-            yield INSERT_PREFIX + ',\n'.join(values) + ';\n'
-            values, size = [], byte_len(INSERT_PREFIX) + 2
+            yield INSERT_PREFIX + ',\n'.join(values) + GUARD + ';\n'
+            values, size = [], overhead
         values.append(piece)
         size += piece_size
     if values:
-        yield INSERT_PREFIX + ',\n'.join(values) + ';\n'
+        yield INSERT_PREFIX + ',\n'.join(values) + GUARD + ';\n'
 
 
 def _with_country_source(statement):

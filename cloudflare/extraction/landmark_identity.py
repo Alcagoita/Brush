@@ -200,7 +200,8 @@ def not_a_place(row, terms):
         return 'no name'
     if set(words) & NOT_A_PLACE_WORDS:
         return 'a rental, event or advert, not a place'
-    if words[0] in STREET_WORDS:
+    joined = ' '.join(words)
+    if words[0] in STREET_WORDS and not any(x in joined for x in ('via sacra', 'street art', 'mural')):
         return 'a street address'
     kinds, distinctive = describe(row, terms)
     if not distinctive and not (set(words) & set(KIND_WORDS)):
