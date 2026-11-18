@@ -63,7 +63,8 @@ class FakeWorker:
     def __init__(self, scopes, mode='dry_run', source=None, emit_filter='all'):
         self.scopes, self.mode, self.source, self.filter, self.results = scopes, mode, source, emit_filter, {}
 
-    def landmark_cleanup_claim(self, run_id, worker_id, batch_size):
+    def landmark_cleanup_claim(self, run_id, worker_id, batch_size, job_version):
+        self.job_version = job_version
         return {'locked': True, 'mode': self.mode, 'sourceRunId': self.source, 'emitFilter': self.filter, 'scopes': self.scopes}
 
     def landmark_cleanup_completed(self, run_id, area_key, worker_id, rows, to_remove, removed, held, report):
@@ -145,6 +146,17 @@ class CleanupJobTest(unittest.TestCase):
                  'type': 'historical_landmark'} for i in range(4)]
         remove, held = job.decide_area(rows, job.li.load_terms())
         self.assertIsNotNone(held)
+
+    def test_the_job_sends_its_version_and_stops_when_refused(self):
+        worker = FakeWorker([LISBOA])
+        job.run_batch('dry', self.d1, self.r2, worker, self.tmp)
+        self.assertEqual(worker.job_version, job.JOB_VERSION)
+
+        class Refusing(FakeWorker):
+            def landmark_cleanup_claim(self, run_id, worker_id, batch_size, job_version):
+                return {'locked': False, 'scopes': [], 'refused': 'container job version 1 is older than 3'}
+        out = job.run_batch('dry', self.d1, self.r2, Refusing([LISBOA]), self.tmp)
+        self.assertEqual(out['refused'], 'container job version 1 is older than 3')
 
     def test_a_row_is_judged_in_one_area_only(self):
         rows = [{'lat': 38.75, 'lng': -9.15}]

@@ -2957,7 +2957,10 @@ export default {
         if (!mode) return json({ error: "mode must be 'dry_run' or 'emit'" }, 400);
         const emitFilter = body.emitFilter === undefined ? 'safe' : body.emitFilter === 'safe' || body.emitFilter === 'all' ? body.emitFilter : null;
         if (!emitFilter) return json({ error: "emitFilter must be 'safe' or 'all'" }, 400);
-        const started = await startLandmarkCleanup(env, { countryCode, mode, sourceRunId: str(body.sourceRunId) ?? undefined, emitFilter, now });
+        const areaLimit = body.areaLimit === undefined ? undefined
+          : Number.isSafeInteger(body.areaLimit) && (body.areaLimit as number) > 0 ? body.areaLimit as number : null;
+        if (areaLimit === null) return json({ error: 'areaLimit must be a positive integer' }, 400);
+        const started = await startLandmarkCleanup(env, { countryCode, mode, sourceRunId: str(body.sourceRunId) ?? undefined, emitFilter, areaLimit, now });
         if ('error' in started) return json({ error: started.error }, 409);
         if (started.started) triggerBuild(env, ctx, 'landmark-cleanup', started.runId, undefined, started.runId);
         return json({ ok: true, ...started });
@@ -2971,7 +2974,8 @@ export default {
       if (!runId || !workerId) return json({ error: 'runId and workerId are required' }, 400);
       if (route === 'claim') {
         const batchSize = Number.isSafeInteger(body.batchSize) ? body.batchSize as number : LANDMARK_CLEANUP_BATCH_SIZE;
-        return json({ ok: true, ...await claimCleanupBatch(env, { runId, workerId, batchSize, now }) });
+        const jobVersion = Number.isSafeInteger(body.jobVersion) ? body.jobVersion as number : 0;
+        return json({ ok: true, ...await claimCleanupBatch(env, { runId, workerId, batchSize, jobVersion, now }) });
       }
       if (route === 'scope-result') {
         const areaKey = str(body.areaKey);

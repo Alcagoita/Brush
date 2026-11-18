@@ -40,6 +40,10 @@ import rejection_registry as rr  # noqa: E402
 import run_landmark_cleanup as rlc  # noqa: E402
 from classify_and_load import sql_escape  # noqa: E402
 
+# The Worker hands areas only to a container running at least the version it
+# requires (src/landmarkCleanup.ts LANDMARK_CLEANUP_JOB_VERSION). Bump both
+# together whenever the job's behaviour changes. 2 = emit filter + backup.
+JOB_VERSION = 2
 BATCH_SIZE = 10  # areas per batch; cron starts the next one (owner, 2026-11-18)
 PAGE = 5000
 IN_LIST = 150  # CLAUDE.md: IN lists of at most 150 ids
@@ -296,7 +300,10 @@ def now_iso():
 
 def run_batch(run_id, d1, r2, worker, work_dir='/tmp'):
     worker_id = str(uuid.uuid4())
-    claim = worker.landmark_cleanup_claim(run_id, worker_id, BATCH_SIZE)
+    claim = worker.landmark_cleanup_claim(run_id, worker_id, BATCH_SIZE, JOB_VERSION)
+    if claim.get('refused'):
+        print(f"[landmark-cleanup] {run_id}: refused — {claim['refused']}")
+        return {'locked': False, 'refused': claim['refused']}
     if not claim.get('locked'):
         print(f'[landmark-cleanup] {run_id}: another batch holds the run')
         return {'locked': False}

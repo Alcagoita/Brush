@@ -247,8 +247,10 @@ def overture_repromote_failed(country_code, run_id, error):
 
 
 # KAN-461 — landmark cleanup job (docs/kan-461/landmark-cleanup-job.md).
-def landmark_cleanup_claim(run_id, worker_id, batch_size):
-    return _post('/internal/landmark-cleanup/claim', {'runId': run_id, 'workerId': worker_id, 'batchSize': batch_size})
+def landmark_cleanup_claim(run_id, worker_id, batch_size, job_version):
+    return _post('/internal/landmark-cleanup/claim', {
+        'runId': run_id, 'workerId': worker_id, 'batchSize': batch_size, 'jobVersion': job_version,
+    })
 
 
 def landmark_cleanup_completed(run_id, area_key, worker_id, rows, to_remove, removed, held_reason, report_r2_key):

@@ -18,6 +18,14 @@ export const LANDMARK_CLEANUP_LEASE_MS = 20 * 60 * 1_000;
 export const LANDMARK_CLEANUP_LOCK_MS = 25 * 60 * 1_000;
 export const LANDMARK_CLEANUP_MAX_ATTEMPTS = 3;
 export const LANDMARK_CLEANUP_COUNTRIES = ['PT'] as const;
+/**
+ * The job code a container must run to be handed areas. A container sends
+ * its version with every claim; an older one gets nothing (2026-11-18: an
+ * emit started right after a deploy was claimed by the previous image, which
+ * had no filter and no backup, and deleted 84 rows it should not have).
+ * Bump with landmark_cleanup_job.JOB_VERSION whenever the job's behaviour changes.
+ */
+export const LANDMARK_CLEANUP_JOB_VERSION = 2;
 
 // Lisbon first, then every municipality-level place (some are stored as a
 // city or town), the county boxes, then one area for whatever no box covers —
@@ -69,7 +77,11 @@ export async function cleanupCounts(env: Env, runId: string, now: number) {
  * One run at a time per country.
  */
 export async function startLandmarkCleanup(
-  env: Env, options: { countryCode: string; mode: CleanupMode; sourceRunId?: string; emitFilter?: EmitFilter; now: number },
+  env: Env, options: {
+    countryCode: string; mode: CleanupMode; sourceRunId?: string; emitFilter?: EmitFilter; now: number;
+    /** emit only: the first N areas still to emit (a pilot), by run order */
+    areaLimit?: number;
+  },
 ) {
   const { countryCode, mode, now } = options;
   const busy = await env.REGISTRY_DB.prepare(
@@ -110,8 +122,13 @@ export async function startLandmarkCleanup(
       `INSERT INTO landmark_cleanup_scope (run_id, area_key, name, seq, min_lat, max_lat, min_lng, max_lng, status, report_r2_key)
        SELECT ?, area_key, name, seq, min_lat, max_lat, min_lng, max_lng, 'pending', report_r2_key
        FROM landmark_cleanup_scope
-       WHERE run_id = ? AND status = 'completed' AND held_reason IS NULL AND to_remove > 0`,
-    ).bind(runId, options.sourceRunId).run();
+       WHERE run_id = ? AND status = 'completed' AND held_reason IS NULL AND to_remove > 0
+         -- an area an earlier emit of this dry run already finished is not emitted again
+         AND area_key NOT IN (
+           SELECT s.area_key FROM landmark_cleanup_scope s JOIN landmark_cleanup_run r ON r.run_id = s.run_id
+           WHERE r.mode = 'emit' AND r.source_run_id = ? AND s.status = 'completed')
+       ORDER BY seq LIMIT ?`,
+    ).bind(runId, options.sourceRunId, options.sourceRunId, options.areaLimit ?? -1).run();
   }
   const counts = await cleanupCounts(env, runId, now);
   if (counts.total === 0) {
@@ -124,9 +141,14 @@ export async function startLandmarkCleanup(
 }
 
 export async function claimCleanupBatch(
-  env: Env, options: { runId: string; workerId: string; now: number; batchSize: number },
-): Promise<{ locked: boolean; mode: CleanupMode | null; sourceRunId: string | null; emitFilter: EmitFilter | null; scopes: CleanupScope[] }> {
+  env: Env, options: { runId: string; workerId: string; now: number; batchSize: number; jobVersion: number },
+): Promise<{ locked: boolean; mode: CleanupMode | null; sourceRunId: string | null; emitFilter: EmitFilter | null; scopes: CleanupScope[]; refused?: string }> {
   const { runId, workerId, now } = options;
+  if (!(options.jobVersion >= LANDMARK_CLEANUP_JOB_VERSION)) {
+    const refused = `container job version ${options.jobVersion || 'none'} is older than ${LANDMARK_CLEANUP_JOB_VERSION}`;
+    await env.REGISTRY_DB.prepare('UPDATE landmark_cleanup_run SET last_error = ? WHERE run_id = ?').bind(refused, runId).run();
+    return { locked: false, mode: null, sourceRunId: null, emitFilter: null, scopes: [], refused };
+  }
   const lockUntil = iso(now + LANDMARK_CLEANUP_LOCK_MS);
   const leaseUntil = iso(now + LANDMARK_CLEANUP_LEASE_MS);
   const batchSize = Math.min(Math.max(options.batchSize, 1), LANDMARK_CLEANUP_BATCH_SIZE);
