@@ -2955,7 +2955,9 @@ export default {
         if (!(LANDMARK_CLEANUP_COUNTRIES as readonly string[]).includes(countryCode)) return json({ error: 'countryCode must be PT' }, 400);
         const mode = body.mode === 'emit' ? 'emit' : body.mode === 'dry_run' ? 'dry_run' : null;
         if (!mode) return json({ error: "mode must be 'dry_run' or 'emit'" }, 400);
-        const started = await startLandmarkCleanup(env, { countryCode, mode, sourceRunId: str(body.sourceRunId) ?? undefined, now });
+        const emitFilter = body.emitFilter === undefined ? 'safe' : body.emitFilter === 'safe' || body.emitFilter === 'all' ? body.emitFilter : null;
+        if (!emitFilter) return json({ error: "emitFilter must be 'safe' or 'all'" }, 400);
+        const started = await startLandmarkCleanup(env, { countryCode, mode, sourceRunId: str(body.sourceRunId) ?? undefined, emitFilter, now });
         if ('error' in started) return json({ error: started.error }, 409);
         if (started.started) triggerBuild(env, ctx, 'landmark-cleanup', started.runId, undefined, started.runId);
         return json({ ok: true, ...started });

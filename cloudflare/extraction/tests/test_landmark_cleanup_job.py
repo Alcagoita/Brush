@@ -60,11 +60,11 @@ class FakeR2:
 
 
 class FakeWorker:
-    def __init__(self, scopes, mode='dry_run', source=None):
-        self.scopes, self.mode, self.source, self.results = scopes, mode, source, {}
+    def __init__(self, scopes, mode='dry_run', source=None, emit_filter='all'):
+        self.scopes, self.mode, self.source, self.filter, self.results = scopes, mode, source, emit_filter, {}
 
     def landmark_cleanup_claim(self, run_id, worker_id, batch_size):
-        return {'locked': True, 'mode': self.mode, 'sourceRunId': self.source, 'scopes': self.scopes}
+        return {'locked': True, 'mode': self.mode, 'sourceRunId': self.source, 'emitFilter': self.filter, 'scopes': self.scopes}
 
     def landmark_cleanup_completed(self, run_id, area_key, worker_id, rows, to_remove, removed, held, report):
         self.results[area_key] = {'rows': rows, 'to_remove': to_remove, 'removed': removed, 'held': held}
@@ -151,6 +151,62 @@ class CleanupJobTest(unittest.TestCase):
         job.assign_areas(rows, [{'area_key': 'b', 'seq': 2, 'min_lat': 38, 'max_lat': 39, 'min_lng': -10, 'max_lng': -9},
                                 {'area_key': 'a', 'seq': 1, 'min_lat': 38, 'max_lat': 39, 'min_lng': -10, 'max_lng': -9}][::-1])
         self.assertEqual(rows[0]['area'], 'a')
+
+
+class EmitFilterBackupRestoreTest(unittest.TestCase):
+    def setUp(self):
+        self.d1, self.r2, self.tmp = FakeD1(), FakeR2(), tempfile.mkdtemp()
+        seed(self.d1)
+        # a fuzzy duplicate next to an identical one
+        self.d1.db.execute("INSERT INTO overture_poi VALUES ('g-twin', 'Torre de Belém', 38.69160, -9.21600, 'historical_landmark', NULL)")
+        job.run_batch('dry', self.d1, self.r2, FakeWorker([LISBOA]), self.tmp)
+        self.decisions = json.loads(self.r2.objects['reviews/kan-461/landmark-cleanup/dry/areas/relation/1.json'])
+
+    def emit(self, run, emit_filter):
+        worker = FakeWorker([LISBOA], mode='emit', source='dry', emit_filter=emit_filter)
+        job.run_batch(run, self.d1, self.r2, worker, self.tmp)
+        return worker.results['relation/1']
+
+    def served(self):
+        return {r['overture_id'] for r in self.d1.select('SELECT overture_id FROM overture_poi')} | \
+               {r['poi_id'] for r in self.d1.select('SELECT poi_id FROM curated_poi')}
+
+    def test_safe_emits_only_not_a_place_and_identical_names(self):
+        fuzzy = [x['id'] for x in self.decisions['remove'] if not job.is_safe(x)]
+        safe = [x['id'] for x in self.decisions['remove'] if job.is_safe(x)]
+        self.assertTrue(fuzzy and safe, self.decisions['remove'])   # the fixture has both
+        self.emit('e1', 'safe')
+        left = self.served()
+        self.assertFalse(set(safe) & left)
+        self.assertTrue(set(fuzzy) <= left)
+
+    def test_the_backup_is_in_r2_and_restore_puts_everything_back(self):
+        before_rows = self.served()
+        before_markers = self.d1.select('SELECT * FROM poi_source_correction ORDER BY source, source_id')
+        self.emit('e2', 'all')
+        self.assertNotEqual(self.served(), before_rows)
+        backup = json.loads(self.r2.objects['reviews/kan-461/landmark-cleanup/e2/backup/relation/1.json'])
+        for statement in job.restore_statements(backup):
+            self.d1.db.execute(statement)
+        self.assertEqual(self.served(), before_rows)
+        self.assertEqual(self.d1.select('SELECT * FROM poi_source_correction ORDER BY source, source_id'), before_markers)
+        self.assertEqual(self.d1.select("SELECT COUNT(*) AS n FROM overture_poi_type WHERE overture_id = 'g-street'")[0]['n'], 1)
+        self.assertEqual(self.d1.select("SELECT COUNT(*) AS n FROM curated_poi_attribute WHERE poi_id = 'fsq:mad'")[0]['n'],
+                         1 if 'fsq:mad' in before_rows else 0)
+
+    def test_no_backup_no_delete(self):
+        class BrokenR2(FakeR2):
+            def upload_bytes(self, data, key, content_type='application/json'):
+                if '/backup/' in key:
+                    raise Exception('R2 outbound upload failed (500)')
+                super().upload_bytes(data, key, content_type)
+        broken = BrokenR2()
+        broken.objects = self.r2.objects
+        before = self.served()
+        worker = FakeWorker([LISBOA], mode='emit', source='dry', emit_filter='all')
+        job.run_batch('e3', self.d1, broken, worker, self.tmp)
+        self.assertEqual(self.served(), before)
+        self.assertIn('error', worker.results['relation/1'])
 
 
 if __name__ == '__main__':

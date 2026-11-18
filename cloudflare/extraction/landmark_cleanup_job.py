@@ -204,20 +204,88 @@ def emit_statements(remove, note, date):
     return out
 
 
-def emit_area(scope, source_run_id, run_id, d1, r2, work_dir):
+def keeper_name(why):
+    prefix = 'same place as "'
+    return why[len(prefix):-1] if why.startswith(prefix) and why.endswith('"') else None
+
+
+def is_safe(decision):
+    """Not a place, or a duplicate with the identical name — the two groups the
+    2026-11-18 sample found right (15/15, 25/25)."""
+    keep = keeper_name(decision['why'])
+    return keep is None or li.fold(decision['name']) == li.fold(keep)
+
+
+# Every table a removed row lives in, keyed by the column holding its id.
+BACKUP_TABLES = {
+    'overture': (('overture_poi', 'overture_id'), ('overture_poi_type', 'overture_id'),
+                 ('overture_poi_attribute', 'overture_id'), ('overture_candidate', 'overture_id')),
+    'curated': (('curated_poi', 'poi_id'), ('curated_poi_attribute', 'poi_id')),
+}
+
+
+def backup_rows(d1, remove):
+    """Full copies of everything the emit is about to delete, plus the markers
+    that already existed for those ids (a restore must not remove those)."""
+    out = {'tables': {}, 'existing_markers': []}
+    for kind, ids in (('overture', [x['id'] for x in remove if x['source'] == 'overture']),
+                      ('curated', [x['id'] for x in remove if x['source'] != 'overture'])):
+        for i in range(0, len(ids), IN_LIST):
+            chunk = ', '.join(sql_escape(x) for x in ids[i:i + IN_LIST])
+            for table, column in BACKUP_TABLES[kind]:
+                out['tables'].setdefault(table, []).extend(
+                    _retry(d1.select, f'SELECT * FROM {table} WHERE {column} IN ({chunk})'))
+    keys = [('overture', x['id']) for x in remove if x['source'] == 'overture'] + [
+        (rr.CORRECTION_SOURCE.get(r.get('origin_source') or ''), r.get('origin_id'))
+        for r in out['tables'].get('curated_poi', [])]
+    keys = [(s, i) for s, i in keys if s and i]
+    for i in range(0, len(keys), IN_LIST):
+        cond = ' OR '.join(f'(source = {sql_escape(s)} AND source_id = {sql_escape(x)})' for s, x in keys[i:i + IN_LIST])
+        out['existing_markers'] += _retry(d1.select, f'SELECT * FROM poi_source_correction WHERE {cond}')
+    out['markers_added'] = [list(k) for k in keys]
+    return out
+
+
+def restore_statements(backup):
+    """SQL that puts an emit's deletes back: the rows (parents first), then the
+    markers the emit added are removed and the ones that were there before
+    are put back as they were."""
+    order = ('overture_poi', 'overture_poi_type', 'overture_poi_attribute', 'overture_candidate',
+             'curated_poi', 'curated_poi_attribute')
+    out = []
+    def value(v):
+        return 'NULL' if v is None else repr(v) if isinstance(v, (int, float)) else sql_escape(v)
+    for table in order:
+        for row in backup['tables'].get(table, []):
+            cols = list(row)
+            out.append(f"INSERT OR IGNORE INTO {table} ({', '.join(cols)}) VALUES ({', '.join(value(row[c]) for c in cols)});")
+    for source, source_id in backup.get('markers_added', []):
+        out.append(f'DELETE FROM poi_source_correction WHERE source = {sql_escape(source)} AND source_id = {sql_escape(source_id)};')
+    for row in backup.get('existing_markers', []):
+        cols = list(row)
+        out.append(f"INSERT OR REPLACE INTO poi_source_correction ({', '.join(cols)}) VALUES ({', '.join(value(row[c]) for c in cols)});")
+    return out
+
+
+def emit_area(scope, source_run_id, run_id, d1, r2, work_dir, emit_filter='safe'):
     path = os.path.join(work_dir, f"decisions-{scope['areaKey'].replace('/', '_')}.json")
     r2.download_file(key_for(source_run_id, f"areas/{scope['areaKey']}.json"), path)
     decisions = json.load(open(path, encoding='utf-8'))
     if decisions.get('held'):
         return decisions.get('rows', 0), 0, 0, decisions['held'], None
-    remove = decisions['remove']
+    remove = decisions['remove'] if emit_filter == 'all' else [x for x in decisions['remove'] if is_safe(x)]
+    if not remove:
+        return decisions.get('rows', 0), 0, 0, None, None
+    # The backup is in R2 before anything is deleted; no backup, no delete.
+    backup_key = key_for(run_id, f"backup/{scope['areaKey']}.json")
+    r2.upload_bytes(json.dumps(backup_rows(d1, remove), ensure_ascii=False, default=str), backup_key)
     note = f"KAN-461 landmark cleanup {source_run_id} ({key_for(source_run_id, 'areas/' + scope['areaKey'] + '.md')})"
     removed = 0
     for statement in emit_statements(remove, note, now_iso()[:10]):
         meta = _retry(d1.execute, statement) or {}
         if statement.startswith(('DELETE FROM overture_poi WHERE', 'DELETE FROM curated_poi WHERE')):
             removed += int(meta.get('changes') or 0)
-    return decisions.get('rows', 0), len(remove), removed, None, None
+    return decisions.get('rows', 0), len(remove), removed, None, backup_key
 
 
 # ----------------------------------------------------------------------------- batch
@@ -240,7 +308,8 @@ def run_batch(run_id, d1, r2, worker, work_dir='/tmp'):
         for scope in scopes:
             try:
                 if claim.get('mode') == 'emit':
-                    rows, to_remove, removed, held, report = emit_area(scope, claim['sourceRunId'], run_id, d1, r2, work_dir)
+                    rows, to_remove, removed, held, report = emit_area(scope, claim['sourceRunId'], run_id, d1, r2, work_dir,
+                                                                       claim.get('emitFilter') or 'safe')
                 else:
                     rows, to_remove, held, report = dry_run_area(scope, context, terms, run_id, r2)
                     removed = 0
@@ -257,3 +326,22 @@ def run_batch(run_id, d1, r2, worker, work_dir='/tmp'):
         released = worker.landmark_cleanup_release(run_id, worker_id)
     print(f"[landmark-cleanup] {run_id}: {done} of {len(scopes)} areas this batch; finalized={released.get('finalized')}")
     return {'locked': True, 'done': done, 'released': released}
+
+
+def main(argv=None):
+    """`restore-sql <backup.json>…` → SQL that undoes those emits, for
+    `wrangler d1 execute --file`. The backups are in R2 under
+    reviews/kan-461/landmark-cleanup/<emit run>/backup/<area>.json."""
+    import argparse
+    ap = argparse.ArgumentParser(description=main.__doc__)
+    ap.add_argument('command', choices=['restore-sql'])
+    ap.add_argument('backups', nargs='+')
+    args = ap.parse_args(argv)
+    for path in args.backups:
+        for statement in restore_statements(json.load(open(path, encoding='utf-8'))):
+            print(statement)
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -529,6 +529,8 @@ CREATE TABLE IF NOT EXISTS landmark_cleanup_run (
   mode                   TEXT NOT NULL CHECK (mode IN ('dry_run', 'emit')),
   -- emit replays the decisions of this dry run, it never recomputes
   source_run_id          TEXT REFERENCES landmark_cleanup_run(run_id),
+  -- 'safe' | 'all' on an emit run (0095); NULL on a dry run
+  emit_filter            TEXT,
   status                 TEXT NOT NULL CHECK (status IN ('running', 'done', 'failed')),
   started_at             TEXT NOT NULL,
   completed_at           TEXT,

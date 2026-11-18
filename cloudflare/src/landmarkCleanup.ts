@@ -26,6 +26,8 @@ const AREA_KINDS = "('municipality', 'city', 'town', 'city_district', 'county')"
 export const REST_OF_COUNTRY = { areaKey: 'rest-of-country', name: 'Resto de Portugal', box: [32.0, 42.2, -31.5, -6.1] } as const;
 
 export type CleanupMode = 'dry_run' | 'emit';
+/** 'safe': not-a-place rows and identical-name duplicates only; 'all': every decision. */
+export type EmitFilter = 'safe' | 'all';
 export type CleanupScope = {
   areaKey: string; name: string; seq: number;
   minLat: number; maxLat: number; minLng: number; maxLng: number;
@@ -67,7 +69,7 @@ export async function cleanupCounts(env: Env, runId: string, now: number) {
  * One run at a time per country.
  */
 export async function startLandmarkCleanup(
-  env: Env, options: { countryCode: string; mode: CleanupMode; sourceRunId?: string; now: number },
+  env: Env, options: { countryCode: string; mode: CleanupMode; sourceRunId?: string; emitFilter?: EmitFilter; now: number },
 ) {
   const { countryCode, mode, now } = options;
   const busy = await env.REGISTRY_DB.prepare(
@@ -84,9 +86,10 @@ export async function startLandmarkCleanup(
   }
   const runId = crypto.randomUUID();
   await env.REGISTRY_DB.prepare(
-    `INSERT INTO landmark_cleanup_run (run_id, country_code, mode, source_run_id, status, started_at)
-     VALUES (?, ?, ?, ?, 'running', ?)`,
-  ).bind(runId, countryCode, mode, mode === 'emit' ? options.sourceRunId : null, iso(now)).run();
+    `INSERT INTO landmark_cleanup_run (run_id, country_code, mode, source_run_id, emit_filter, status, started_at)
+     VALUES (?, ?, ?, ?, ?, 'running', ?)`,
+  ).bind(runId, countryCode, mode, mode === 'emit' ? options.sourceRunId : null,
+    mode === 'emit' ? (options.emitFilter ?? 'safe') : null, iso(now)).run();
   if (mode === 'dry_run') {
     await env.REGISTRY_DB.prepare(
       `INSERT INTO landmark_cleanup_scope (run_id, area_key, name, seq, min_lat, max_lat, min_lng, max_lng, status)
@@ -122,7 +125,7 @@ export async function startLandmarkCleanup(
 
 export async function claimCleanupBatch(
   env: Env, options: { runId: string; workerId: string; now: number; batchSize: number },
-): Promise<{ locked: boolean; mode: CleanupMode | null; sourceRunId: string | null; scopes: CleanupScope[] }> {
+): Promise<{ locked: boolean; mode: CleanupMode | null; sourceRunId: string | null; emitFilter: EmitFilter | null; scopes: CleanupScope[] }> {
   const { runId, workerId, now } = options;
   const lockUntil = iso(now + LANDMARK_CLEANUP_LOCK_MS);
   const leaseUntil = iso(now + LANDMARK_CLEANUP_LEASE_MS);
@@ -132,9 +135,9 @@ export async function claimCleanupBatch(
      WHERE run_id = ? AND status = 'running' AND cancel_requested = 0
        AND (batch_lease_expires_at IS NULL OR batch_lease_expires_at <= ? OR batch_worker_id = ?)`,
   ).bind(workerId, lockUntil, runId, iso(now), workerId).run();
-  if (lock.meta.changes !== 1) return { locked: false, mode: null, sourceRunId: null, scopes: [] };
-  const run = await env.REGISTRY_DB.prepare('SELECT mode, source_run_id FROM landmark_cleanup_run WHERE run_id = ?')
-    .bind(runId).first<{ mode: CleanupMode; source_run_id: string | null }>();
+  if (lock.meta.changes !== 1) return { locked: false, mode: null, sourceRunId: null, emitFilter: null, scopes: [] };
+  const run = await env.REGISTRY_DB.prepare('SELECT mode, source_run_id, emit_filter FROM landmark_cleanup_run WHERE run_id = ?')
+    .bind(runId).first<{ mode: CleanupMode; source_run_id: string | null; emit_filter: EmitFilter | null }>();
 
   await env.REGISTRY_DB.prepare(
     `UPDATE landmark_cleanup_scope SET status = 'running', worker_id = ?, lease_expires_at = ?,
@@ -150,7 +153,7 @@ export async function claimCleanupBatch(
     area_key: string; name: string; seq: number; min_lat: number; max_lat: number; min_lng: number; max_lng: number;
   }>();
   return {
-    locked: true, mode: run?.mode ?? null, sourceRunId: run?.source_run_id ?? null,
+    locked: true, mode: run?.mode ?? null, sourceRunId: run?.source_run_id ?? null, emitFilter: run?.emit_filter ?? null,
     scopes: (claimed.results ?? []).map(s => ({
       areaKey: s.area_key, name: s.name, seq: s.seq,
       minLat: s.min_lat, maxLat: s.max_lat, minLng: s.min_lng, maxLng: s.max_lng,

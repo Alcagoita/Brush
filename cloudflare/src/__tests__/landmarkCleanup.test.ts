@@ -93,8 +93,18 @@ describe('KAN-461 landmark cleanup job', () => {
     const emit = await call(env, post('/internal/landmark-cleanup/start', { countryCode: 'PT', mode: 'emit', sourceRunId: runId }));
     expect(emit.status).toBe(200);
     const claim = await call(env, post('/internal/landmark-cleanup/claim', { runId: emit.body.runId, workerId: 'w9', batchSize: 10 }));
-    expect(claim.body).toMatchObject({ mode: 'emit', sourceRunId: runId });
+    expect(claim.body).toMatchObject({ mode: 'emit', sourceRunId: runId, emitFilter: 'safe' });
     expect((claim.body.scopes as Array<{ name: string }>).map(s => s.name)).toEqual(['Lisboa', 'Resto de Portugal']);
+  });
+
+  it('emit takes an explicit filter and refuses an unknown one', async () => {
+    const env = envFor(testDb());
+    const { runId } = await finishDryRun(env);
+    const bad = await call(env, post('/internal/landmark-cleanup/start', { countryCode: 'PT', mode: 'emit', sourceRunId: runId, emitFilter: 'everything' }));
+    expect(bad.status).toBe(400);
+    const all = await call(env, post('/internal/landmark-cleanup/start', { countryCode: 'PT', mode: 'emit', sourceRunId: runId, emitFilter: 'all' }));
+    const claim = await call(env, post('/internal/landmark-cleanup/claim', { runId: all.body.runId, workerId: 'w9', batchSize: 10 }));
+    expect(claim.body.emitFilter).toBe('all');
   });
 
   it('a failed area goes back to pending, then to failed after three tries', async () => {
