@@ -28,6 +28,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src ./src
 COPY cloudflare/src ./cloudflare/src
 COPY cloudflare/extraction ./cloudflare/extraction
+# KAN-461: the landmark rule's word lists (landmark_identity.py reads them
+# REPO_ROOT-relative): kinds per language, PT place names, translations.
+COPY docs/kan-461/landmark-kinds.json docs/kan-461/place-names-PT.txt ./docs/kan-461/
+COPY docs/kan-433/landmark-terms.json ./docs/kan-433/
 
 WORKDIR /app/cloudflare/extraction
 RUN mkdir -p ../build

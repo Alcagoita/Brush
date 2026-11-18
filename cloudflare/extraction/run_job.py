@@ -623,6 +623,15 @@ if __name__ == '__main__':
             sys.exit(2)
         stats = promote_overture_candidates.run_country_overrides(source_key, batch)
         print(f"[run_job] OVERTURE overrides {batch}: {stats}")
+    elif mode == 'landmark-cleanup':
+        # KAN-461 — docs/kan-461/landmark-cleanup-job.md
+        run_id = os.environ.get('LANDMARK_CLEANUP_RUN_ID')
+        if not run_id:
+            print('LANDMARK_CLEANUP_RUN_ID is required for landmark-cleanup mode', file=sys.stderr)
+            sys.exit(2)
+        os.environ['D1_INTERNAL'] = '1'
+        import landmark_cleanup_job
+        landmark_cleanup_job.run_batch(run_id, d1_client, r2_client, worker_client, extract.BUILD_DIR)
     elif mode == 'overture-repromote':
         source_key = os.environ.get('COUNTRY_SOURCE_R2_KEY')
         run_id = os.environ.get('OVERTURE_REPROMOTE_RUN_ID')
@@ -631,5 +640,5 @@ if __name__ == '__main__':
             sys.exit(2)
         run_overture_repromote(target.upper(), run_id, source_key)
     else:
-        print(f"unknown MODE '{mode}' — expected 'place', 'country', 'country-reconcile', 'settlements', 'osm-country', 'multibanco-country', 'overture-country', 'overture-overrides', or 'overture-repromote'")
+        print(f"unknown MODE '{mode}' — expected 'place', 'country', 'country-reconcile', 'settlements', 'osm-country', 'multibanco-country', 'overture-country', 'overture-overrides', 'overture-repromote', or 'landmark-cleanup'")
         sys.exit(2)
