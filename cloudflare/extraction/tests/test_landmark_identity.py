@@ -128,5 +128,94 @@ class OwnerRulesTest(unittest.TestCase):
         self.assertEqual(li.verdict(a, b, TERMS), 'separate')
 
 
+class SampleCasesTest(unittest.TestCase):
+    """KAN-461 import sample through the endpoint, 2026-11-18."""
+    def test_the_same_name_under_two_sources_types_is_one_place(self):
+        a = place('Reserva Florestal de Recreio da Boca da Baleia', 39.39416, -31.20762, 'hiking_area')
+        b = place('Reserva Florestal de Recreio da Boca da Baleia', 39.39490, -31.20700, 'park')  # ~97 m
+        self.assertEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+    def test_the_same_name_far_apart_is_still_two(self):
+        a = place('Reserva Florestal de Recreio', 39.39416, -31.20762, 'hiking_area')
+        b = place('Reserva Florestal de Recreio', 39.39700, -31.20762, 'park')  # ~316 m
+        self.assertEqual(li.verdict(a, b, TERMS), 'separate')
+
+    def test_madalena_in_two_languages_is_one_church(self):
+        a = place('Igreja de Madalena', 38.71039, -9.13490, 'church')
+        b = place('Church of Saint Mary Magdalene', 38.71046, -9.13493, 'church')  # ~8 m
+        self.assertEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+    def test_a_chapel_tagged_as_a_viewpoint_is_a_church(self):
+        import import_landmarks as il
+        c = {'name': 'Capela de Monserrate', 'type': 'viewpoint', 'types': ['viewpoint'], 'lat': 41.81454, 'lng': -8.44285}
+        self.assertEqual(il.type_from_name(c, TERMS), 'church')
+        self.assertEqual(c['types'], ['church', 'viewpoint'])
+
+    def test_a_viewpoint_without_a_building_name_stays_a_viewpoint(self):
+        import import_landmarks as il
+        c = {'name': 'Miradouro do Gorito', 'type': 'viewpoint', 'types': ['viewpoint'], 'lat': 41.89575, 'lng': -8.80737}
+        self.assertEqual(il.type_from_name(c, TERMS), 'viewpoint')
+
+
+def off(lat, lng, metres_north):
+    return lat + metres_north / 111_320, lng
+
+
+class LisbonCleanupCasesTest(unittest.TestCase):
+    """The 12 wrong rows of the Lisbon cleanup dry run, 2026-11-18."""
+    def pair(self, a, ta, b, tb, metres):
+        lat, lng = 38.7100, -9.1400
+        return place(a, lat, lng, ta), place(b, *off(lat, lng, metres), tb)
+
+    def test_a_statue_of_dom_afonso_henriques_is_not_the_cathedral(self):
+        a, b = self.pair('Dom Afonso Henriques', 'historical_landmark', 'Catedral Lisboa', 'church', 184)
+        self.assertNotEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+    def test_two_galleries_share_only_the_word_gallery(self):
+        a, b = self.pair('Galeria Acervo', 'art_gallery', 'Galeria de Arte de São Bento', 'art_gallery', 13)
+        self.assertNotEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+    def test_two_ateliers_share_only_the_word_atelier(self):
+        for name in ('Atelier João Figueiredo', 'Galeria / Atelier Travessa'):
+            a, b = self.pair(name, 'art_gallery', "39'93 Atelier", 'art_gallery', 27)
+            self.assertNotEqual(li.verdict(a, b, TERMS), 'duplicate', name)
+
+    def test_two_rooms_of_one_building_are_two_rooms(self):
+        a, b = self.pair('Salle Du Chapitre', 'museum', 'Salle De D. Manuel', 'museum', 8)
+        self.assertNotEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+    def test_the_square_named_after_the_museum_is_not_the_museum(self):
+        a, b = self.pair('Marinha - Museu Marinha - Planetário Calouste Gulbenkian', 'museum',
+                         'Praça do Museu de Marinha e do Planetário', 'plaza', 129)
+        self.assertEqual(li.verdict(a, b, TERMS), 'separate')
+
+    def test_the_playground_of_a_garden_is_not_the_garden(self):
+        a, b = self.pair('Jardim da Cerca da Graça', 'park', 'Parque Infantil do Jardim da Cerca de Graça', 'park', 52)
+        self.assertNotEqual(li.verdict(a, b, TERMS), 'duplicate')
+
+    def test_scouts_and_catechism_are_not_places_to_visit(self):
+        for name in ('CNE Agrupamento 1100 Parque das Nações', 'Catequese - Paróquia da Venda Nova - Amadora'):
+            self.assertIsNotNone(li.not_a_place(place(name, 0, 0, 'church'), TERMS), name)
+        self.assertIsNone(li.not_a_place(place('A Ponte - Igreja Evangélica Baptista Do Parque Das Nações', 0, 0, 'church'), TERMS))
+
+
+class KeeperTest(unittest.TestCase):
+    """Which row of a duplicate stays: the place, never its playground or social centre."""
+    def keep(self, *names):
+        import run_landmark_cleanup as rlc
+        rows = [{'id': f'fsq:{i}', 'source': 'curated', 'name': n, 'lat': 38.71, 'lng': -9.14, 'type': 'park'}
+                for i, n in enumerate(names)]
+        rows[-1]['source'], rows[-1]['id'] = 'overture', 'gers-1'  # the part comes from the base: still not kept
+        return rlc.keeper(rows)['name']
+
+    def test_the_park_is_kept_over_its_playground(self):
+        self.assertEqual(self.keep('Mata de Benfica - Parque Silva Porto', 'Parque Infantil do Parque Silva Porto'),
+                         'Mata de Benfica - Parque Silva Porto')
+
+    def test_the_parish_is_kept_over_its_social_centre(self):
+        self.assertEqual(self.keep('Paróquia de Cristo Rei de Algés - Miraflores', 'Centro Social da Paroquia Cristo Rei de Algés'),
+                         'Paróquia de Cristo Rei de Algés - Miraflores')
+
+
 if __name__ == '__main__':
     unittest.main()

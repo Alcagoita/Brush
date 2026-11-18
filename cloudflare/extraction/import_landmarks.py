@@ -98,6 +98,25 @@ def tag_check(c):
 
 
 ZOO_METRES = 350
+# KAN-461 sample, 2026-11-18. OSM tags a chapel on a hill as a viewpoint
+# ("Capela de Monserrate"). When the name says what the building is and the
+# tag only says what it is good for, the name decides the type and the tag's
+# type stays as the second one.
+GENERIC_TYPES = {'viewpoint', 'tourist_attraction', 'hiking_area'}
+RELIGIOUS_KINDS = {'church', 'chapel', 'cathedral', 'monastery', 'mosque', 'synagogue'}
+
+
+def type_from_name(c, terms):
+    if c['type'] not in GENERIC_TYPES:
+        return c['type']
+    kinds = li.describe({'name': c['name'], 'type': c['type'], 'lat': c['lat'], 'lng': c['lng']}, terms)[0]
+    if kinds & RELIGIOUS_KINDS:
+        new = 'mosque' if 'mosque' in kinds else 'synagogue' if 'synagogue' in kinds else 'church'
+        if c['type'] not in c.get('types', []):
+            c['types'] = [c['type']] + list(c.get('types', []))
+        c['types'] = [new] + [t for t in c['types'] if t != new]
+        return new
+    return c['type']
 
 
 def in_a_zoo(c, zoos, terms):
@@ -117,6 +136,7 @@ def plan(candidates, served, terms):
     kept_grid = {}
     for c in sorted(candidates, key=lambda r: r['id']):
         why, c['type'] = tag_check(c)
+        c['type'] = type_from_name(c, terms)
         why = why or ('part of a zoo' if in_a_zoo(c, zoos, terms) else None) or li.not_a_place(c, terms)
         if why:
             dropped.append((c, 'not a place', why))

@@ -69,7 +69,11 @@ RADIUS = {'monastery': 250, 'cathedral': 200, 'castle': 250, 'fort': 200, 'palac
           'tower': 60, 'bridge': 150, 'garden': 150, 'park': 200, 'square': 100, 'gallery': 80, 'theatre': 100, 'lake': 150}
 FILLER = {'of', 'the', 'and', 'de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'os', 'as', 'ao', 'aos', 'del', 'la',
           'le', 'les', 'el', 'los', 'di', 'du', 'des', 'em', 'no', 'na', 'old', 'antigo', 'antiga', 'santa', 'santo',
-          'saint', 'sao', 'st', 'nossa', 'senhora', 'our', 'lady', 'i', 'ii', 'iii'}
+          'saint', 'sao', 'st', 'nossa', 'senhora', 'our', 'lady', 'i', 'ii', 'iii',
+          # KAN-461, 2026-11-18: words every gallery or room shares ("Galeria de Arte de São Bento"
+          # is not "Galeria Acervo"; "Salle du Chapitre" is not "Salle de D. Manuel").
+          'art', 'arte', 'arts', 'artes', 'contemporary', 'contemporanea', 'contemporaneo',
+          'sala', 'salle', 'room', 'hall'}
 
 
 def fold(value):
@@ -97,6 +101,10 @@ LEADING_ONLY = {'se'}
 PLACES_PATH = os.path.join(os.path.dirname(TERMS_PATH), '..', 'kan-461', 'place-names-PT.txt')
 # Two rows of one kind with different names are a red flag only this close.
 RED_FLAG_METRES = 40
+# KAN-461 sample, 2026-11-18. The same full name this close is one place,
+# whatever each source called its type: "Reserva Florestal de Recreio da Boca
+# da Baleia" came in as an OSM hiking area 91 m from the Foursquare park.
+SAME_NAME_METRES = 150
 SAME_KIND = {'statue': 'monument'}
 # Kinds a town has one of, so two rows named only after the town are one place.
 ONE_PER_PLACE = {'cathedral'}
@@ -104,7 +112,9 @@ SIMILAR = 0.82
 # Not a place to visit, whatever the type says.
 NOT_A_PLACE_WORDS = {'apartment', 'apartments', 'apartamento', 'apartamentos', 'home', 'homes', 'suite', 'suites',
                      'hostel', 'flat', 'flats', 'rooms', 'deluxe', 'airbnb', 'guesthouse', 'alojamento', 'fest',
-                     'festival', 'tours', 'best'}
+                     'festival', 'tours', 'best',
+                     # a scout group or a catechism class meets at the church; it is not the church
+                     'catequese', 'catechism', 'agrupamento', 'escuteiros', 'escutismo', 'cne'}
 STREET_WORDS = {'rua', 'avenida', 'av', 'travessa', 'beco', 'calcada', 'escadinhas', 'estrada', 'street', 'road',
                 'avenue', 'calle', 'rue', 'via'}
 
@@ -164,6 +174,11 @@ def _describe(row, terms):
              if w in KIND_WORDS and (w not in LEADING_ONLY or i == 0)}
     if not kinds:
         kinds = {TYPE_KIND.get(row.get('type'), 'other')}
+    else:
+        first = next(KIND_WORDS[w] for i, w in enumerate(raw) if w in KIND_WORDS and (w not in LEADING_ONLY or i == 0))
+        if first in OPEN_SPACE:
+            # "Praça do Museu de Marinha", "Largo dos Jerónimos": the square named after the building
+            kinds = {first}
     # A bust or statue is a monument: OSM's "Augusto Rosa" (historic=memorial)
     # is Foursquare's "Busto de Augusto Rosa".
     kinds = {SAME_KIND.get(k, k) for k in kinds}
@@ -244,6 +259,8 @@ def verdict(a, b, terms):
     d = metres(a, b)
     if ka & kb and fold(a['name']) == fold(b['name']) and d <= max(RADIUS.get(k, 60) for k in ka & kb):
         return 'duplicate'   # "Chafariz da Fonte Santa" twice: nothing distinctive, same name
+    if fold(a['name']) == fold(b['name']) and d <= SAME_NAME_METRES:
+        return 'duplicate'   # same name, two sources' types for it
     common = ka & kb
     noise = set().union(*(COMMON.get(k, set()) for k in (common or ka | kb)))
     wa, wb = wa - noise, wb - noise

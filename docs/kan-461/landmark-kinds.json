@@ -1,5 +1,5 @@
 {
- "_comment": "KAN-461. Words that name a KIND of landmark, per language, mapped to one English kind. landmark_identity.py reads the kind of a row from the first kind word in its name (accent-insensitive), else from its type. A new country adds its language block; nothing else changes.",
+ "_comment": "KAN-461. Words that name a KIND of landmark, per language, mapped to one English kind. landmark_identity.py reads the kind of a row from the first kind word in its name (accent-insensitive), else from its type. A new country adds its language block; nothing else changes. German \"dom\" is left out: in Portuguese it is a title (\"Dom Afonso Henriques\"), not a cathedral (KAN-461, 2026-11-18).",
  "en": {
   "monastery": "monastery",
   "convent": "monastery",
@@ -38,7 +38,10 @@
   "pond": "lake",
   "mosque": "mosque",
   "masjid": "mosque",
-  "synagogue": "synagogue"
+  "synagogue": "synagogue",
+  "gallery": "gallery",
+  "atelier": "gallery",
+  "studio": "gallery"
  },
  "pt": {
   "mosteiro": "monastery",
@@ -84,7 +87,10 @@
   "lago": "lake",
   "lagoa": "lake",
   "mesquita": "mosque",
-  "sinagoga": "synagogue"
+  "sinagoga": "synagogue",
+  "galeria": "gallery",
+  "atelier": "gallery",
+  "atelie": "gallery"
  },
  "es": {
   "monasterio": "monastery",
@@ -115,7 +121,8 @@
   "lago": "lake",
   "laguna": "lake",
   "mezquita": "mosque",
-  "sinagoga": "synagogue"
+  "sinagoga": "synagogue",
+  "galeria": "gallery"
  },
  "fr": {
   "monastere": "monastery",
@@ -146,7 +153,9 @@
   "lac": "lake",
   "etang": "lake",
   "mosquee": "mosque",
-  "synagogue": "synagogue"
+  "synagogue": "synagogue",
+  "galerie": "gallery",
+  "atelier": "gallery"
  },
  "it": {
   "monastero": "monastery",
@@ -177,13 +186,13 @@
   "teatro": "theatre",
   "lago": "lake",
   "moschea": "mosque",
-  "sinagoga": "synagogue"
+  "sinagoga": "synagogue",
+  "galleria": "gallery"
  },
  "de": {
   "kloster": "monastery",
   "abtei": "monastery",
   "kreuzgang": "cloister",
-  "dom": "cathedral",
   "kathedrale": "cathedral",
   "munster": "cathedral",
   "kirche": "church",
@@ -208,6 +217,7 @@
   "see": "lake",
   "teich": "lake",
   "moschee": "mosque",
-  "synagoge": "synagogue"
+  "synagoge": "synagogue",
+  "galerie": "gallery"
  }
 }
