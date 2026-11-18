@@ -41,7 +41,7 @@ const call = async (env: Env, request: Request) => {
 async function finishDryRun(env: Env) {
   const start = await call(env, post('/internal/landmark-cleanup/start', { countryCode: 'PT', mode: 'dry_run' }));
   const runId = start.body.runId as string;
-  const claim = await call(env, post('/internal/landmark-cleanup/claim', { runId, workerId: 'w1', batchSize: 40 }));
+  const claim = await call(env, post('/internal/landmark-cleanup/claim', { runId, workerId: 'w1', batchSize: 10 }));
   for (const scope of claim.body.scopes as Array<{ areaKey: string }>) {
     await call(env, post('/internal/landmark-cleanup/scope-result', {
       runId, workerId: 'w1', areaKey: scope.areaKey, status: 'completed',
@@ -92,7 +92,7 @@ describe('KAN-461 landmark cleanup job', () => {
     const { runId } = await finishDryRun(env);
     const emit = await call(env, post('/internal/landmark-cleanup/start', { countryCode: 'PT', mode: 'emit', sourceRunId: runId }));
     expect(emit.status).toBe(200);
-    const claim = await call(env, post('/internal/landmark-cleanup/claim', { runId: emit.body.runId, workerId: 'w9', batchSize: 40 }));
+    const claim = await call(env, post('/internal/landmark-cleanup/claim', { runId: emit.body.runId, workerId: 'w9', batchSize: 10 }));
     expect(claim.body).toMatchObject({ mode: 'emit', sourceRunId: runId });
     expect((claim.body.scopes as Array<{ name: string }>).map(s => s.name)).toEqual(['Lisboa', 'Resto de Portugal']);
   });

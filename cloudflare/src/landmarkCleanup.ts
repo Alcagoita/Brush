@@ -13,7 +13,7 @@ import type { Env } from './index';
  * only its areas that were not held — so what the owner approved is exactly
  * what is deleted.
  */
-export const LANDMARK_CLEANUP_BATCH_SIZE = 40;
+export const LANDMARK_CLEANUP_BATCH_SIZE = 10;
 export const LANDMARK_CLEANUP_LEASE_MS = 20 * 60 * 1_000;
 export const LANDMARK_CLEANUP_LOCK_MS = 25 * 60 * 1_000;
 export const LANDMARK_CLEANUP_MAX_ATTEMPTS = 3;

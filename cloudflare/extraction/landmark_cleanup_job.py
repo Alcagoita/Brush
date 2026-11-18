@@ -40,7 +40,7 @@ import rejection_registry as rr  # noqa: E402
 import run_landmark_cleanup as rlc  # noqa: E402
 from classify_and_load import sql_escape  # noqa: E402
 
-BATCH_SIZE = 40
+BATCH_SIZE = 10  # areas per batch; cron starts the next one (owner, 2026-11-18)
 PAGE = 5000
 IN_LIST = 150  # CLAUDE.md: IN lists of at most 150 ids
 HIDE_SHARE = rlc.HIDE_SHARE
