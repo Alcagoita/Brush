@@ -282,10 +282,31 @@ def metres(a, b):
     return math.hypot((a['lat'] - b['lat']) * 111320, (a['lng'] - b['lng']) * 111320 * math.cos(math.radians(a['lat'])))
 
 
+# Words that say "beach" or locate it, never which beach it is.
+BEACH_NOISE = {w for w, k in KIND_WORDS.items() if k == 'beach'} | {'bay', 'baia', 'enseada', 'cove', 'algarve', 'portugal'}
+
+
+def _beach_words(row):
+    raw = [w for w in fold(row['name']) if w not in FILLER and w not in BEACH_NOISE]
+    return set(_strip_places(raw)) or set(raw)
+
+
+def same_beach(a, b):
+    """Owner, 2026-11-19: many beaches sit side by side and that is fine. Two
+    rows are one beach only when their names say the same words — accents,
+    typos, language and the town aside ("Praia da Oura" = "Praia Da Oura (Oura
+    Beach)", "Praia da Falésia" = "Falésia Bay"). "Praia do Castelo" is not
+    "Praia da Galé"; "Ponta Pequena" is not "Ponta Grande"."""
+    x, y = _beach_words(a), _beach_words(b)
+    return bool(x and y) and all(any(_similar(p, q) for q in y) for p in x) and all(any(_similar(q, p) for p in x) for q in y)
+
+
 def verdict(a, b, terms):
     """'duplicate' | 'validate' | 'separate' for two rows."""
     (ka, wa), (kb, wb) = describe(a, terms), describe(b, terms)
     d = metres(a, b)
+    if 'beach' in ka and 'beach' in kb:
+        return 'duplicate' if d <= RADIUS['beach'] and same_beach(a, b) else 'separate'
     if ka & kb and fold(a['name']) == fold(b['name']) and d <= max(RADIUS.get(k, 60) for k in ka & kb):
         return 'duplicate'   # "Chafariz da Fonte Santa" twice: nothing distinctive, same name
     if fold(a['name']) == fold(b['name']) and d <= SAME_NAME_METRES:

@@ -268,5 +268,34 @@ class CountryDryRunCasesTest(unittest.TestCase):
         self.assertEqual(self.v('Basílica de Nossa Senhora dos Mártires', 'church', 'Basílica dos Mártires', 'church', 20), 'duplicate')
 
 
+class BeachTest(unittest.TestCase):
+    """Owner, 2026-11-19: beaches merge only on the same name words."""
+    @classmethod
+    def setUpClass(cls):
+        li.add_place_names(['Albufeira', 'Maia'])
+
+    def v(self, a, b, metres):
+        lat, lng = 37.09, -8.25
+        return li.verdict(place(a, lat, lng, 'beach'), place(b, *off(lat, lng, metres), 'beach'), TERMS)
+
+    def test_the_same_beach_under_similar_names_is_one(self):
+        self.assertEqual(self.v('Praia da Oura', 'Praia Da Oura (Oura Beach)', 50), 'duplicate')
+        self.assertEqual(self.v('Praia da Falésia', 'Falésia Bay', 120), 'duplicate')
+        self.assertEqual(self.v('Playa De Falesia', 'Praia da Falésia', 80), 'duplicate')
+        self.assertEqual(self.v('Praia Maria Luísa', 'Praia Maria Luisa', 30), 'duplicate')
+        self.assertEqual(self.v('Albufeira Playa De Los Pescadores', 'Praia dos Pescadores', 60), 'duplicate')
+
+    def test_different_names_side_by_side_are_two_beaches(self):
+        for a, b in (('Praia De Castelo Albufeira', 'Albufeira , Praia Da Galé'),
+                     ('Praia da Ponta Pequena', 'Praia Ponta Grande Cala'),
+                     ('Praia Marinha, Algarve', 'Praia da Cala'),
+                     ('praia do calhau da maia', 'Praia De Maia'),
+                     ('AlfaMar Praia da Falesia', 'Praia da Falésia')):
+            self.assertEqual(self.v(a, b, 10), 'separate', a)
+
+    def test_far_apart_the_same_name_is_two_beaches(self):
+        self.assertEqual(self.v('Praia da Rocha', 'Praia da Rocha', 900), 'separate')
+
+
 if __name__ == '__main__':
     unittest.main()

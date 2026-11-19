@@ -158,6 +158,16 @@ class CleanupJobTest(unittest.TestCase):
         out = job.run_batch('dry', self.d1, self.r2, Refusing([LISBOA]), self.tmp)
         self.assertEqual(out['refused'], 'container job version 1 is older than 3')
 
+    def test_a_bar_or_deck_at_the_beach_is_never_removed_nor_kept_over_it(self):
+        rows = [{'id': f'g{i}', 'source': 'overture', 'name': n, 'lat': 37.09, 'lng': -8.25, 'type': 'beach'}
+                for i, n in enumerate(('Praia do Peneco', 'Deck da praia do Peneco', 'Bar da Praia do Peneco',
+                                       'Restaurante da Praia do Peneco'))]
+        rows += [{'id': f'm{i}', 'source': 'overture', 'name': f'Museu {n}', 'lat': 37.0 + i, 'lng': -8.0, 'type': 'museum'}
+                 for i, n in enumerate(('Alfa', 'Beta', 'Gama', 'Delta', 'Épsilon', 'Zeta', 'Eta', 'Teta'))]
+        remove, held = job.decide_area(rows, job.li.load_terms())
+        self.assertIsNone(held)
+        self.assertEqual(remove, [])
+
     def test_a_row_is_judged_in_one_area_only(self):
         rows = [{'lat': 38.75, 'lng': -9.15}]
         job.assign_areas(rows, [{'area_key': 'b', 'seq': 2, 'min_lat': 38, 'max_lat': 39, 'min_lng': -10, 'max_lng': -9},

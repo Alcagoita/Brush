@@ -43,7 +43,7 @@ from classify_and_load import sql_escape  # noqa: E402
 # The Worker hands areas only to a container running at least the version it
 # requires (src/landmarkCleanup.ts LANDMARK_CLEANUP_JOB_VERSION). Bump both
 # together whenever the job's behaviour changes. 2 = emit filter + backup.
-JOB_VERSION = 3  # 3 = rule fixes of 2026-11-19
+JOB_VERSION = 4  # 3 = rule fixes of 2026-11-19; 4 = beaches and businesses (owner, 2026-11-19)
 BATCH_SIZE = 10  # areas per batch; cron starts the next one (owner, 2026-11-18)
 PAGE = 5000
 IN_LIST = 150  # CLAUDE.md: IN lists of at most 150 ids
@@ -133,9 +133,22 @@ def load_context(d1, r2, run_id, work_dir):
 
 # ----------------------------------------------------------------------------- one area
 
+# Owner, 2026-11-19: a bar, restaurant, deck or terrace — at the beach or
+# anywhere — is a valid place. The landmark cleanup never removes one, and
+# never keeps one in place of the landmark it stands at.
+BUSINESS_WORDS = {'bar', 'bares', 'restaurante', 'restaurant', 'cafe', 'cafetaria', 'snack', 'esplanada', 'deck',
+                  'chiringuito', 'xiringuito', 'quiosque', 'kiosk', 'marisqueira', 'churrasqueira', 'pizzaria',
+                  'gelataria', 'club', 'apoio', 'lounge', 'tasca', 'taberna', 'pastelaria', 'padaria'}
+
+
+def is_business(row):
+    return bool(set(li.fold(row['name'])) & BUSINESS_WORDS)
+
+
 def decide_area(rows, terms):
     """(remove [(row, why, keeper_id)], held_reason or None)."""
     remove = []
+    rows_all, rows = rows, [r for r in rows if not is_business(r)]
     for r in rows:
         why = li.not_a_place(r, terms)
         if why in NOT_A_PLACE_REASONS:
@@ -148,6 +161,7 @@ def decide_area(rows, terms):
                    if r is not k and li.verdict(r, k, terms) == 'duplicate']
     # A contributor's row is its own audit trail: never removed here.
     remove = [x for x in remove if x[0].get('curated_source') != 'manual']
+    rows = rows_all
     share = len(remove) / len(rows) if rows else 0
     held = f'would remove {len(remove)} of {len(rows)} ({share:.0%})' if share > HIDE_SHARE else None
     return remove, held
