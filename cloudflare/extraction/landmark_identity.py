@@ -231,6 +231,12 @@ def _similar(x, y):
     return x == y or (min(len(x), len(y)) >= 6 and SequenceMatcher(None, x, y).ratio() >= SIMILAR)
 
 
+def within(x, y):
+    """Every word of x is (nearly) a word of y: "Museu de Artes Decorativas" is
+    inside "Museu Escola de Artes Decorativas da Fundação …"."""
+    return bool(x) and all(any(_similar(p, q) for q in y) for p in x)
+
+
 def shares(wa, wb):
     """Some distinctive word of one is (nearly) a word of the other: Magdalene ≈ Madalena."""
     return any(_similar(x, y) for x in wa for y in wb)
@@ -317,8 +323,13 @@ def verdict(a, b, terms):
     if common:
         if d > max(RADIUS.get(k, 60) for k in common):
             return 'separate'
-        if shares(wa, wb):
+        # One place only when one name's own words are all in the other's
+        # (2026-11-19). Sharing a word while each keeps one of its own is two
+        # places side by side — Igreja do Carmo and Igreja dos Carmelitas, Porto.
+        if within(wa, wb) or within(wb, wa):
             return 'duplicate'
+        if shares(wa, wb):
+            return 'validate'
         if not wa or not wb:
             # Named only after the place. One cathedral per city: "Lisbon Cathedral"
             # is "Catedral Lisboa". Not so for squares or churches — "Largo da Sé" and
@@ -332,8 +343,11 @@ def verdict(a, b, terms):
             if d <= RED_FLAG_METRES:
                 named = wa or wb
                 bare = b if wa else a
+                all_a, all_b = _all_words(a, terms), _all_words(b, terms)
+                # Both named only after their town: one place only if one name is
+                # inside the other — a shared "Porto" is not enough (2026-11-19).
                 if (shares(named, _all_words(bare, terms)) if named
-                        else shares(_all_words(a, terms), _all_words(b, terms))):
+                        else within(all_a, all_b) or within(all_b, all_a)):
                     return 'duplicate'
         return 'validate' if d <= RED_FLAG_METRES else 'separate'
     if bool(ka & OPEN_SPACE) != bool(kb & OPEN_SPACE):

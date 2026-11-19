@@ -43,7 +43,7 @@ from classify_and_load import sql_escape  # noqa: E402
 # The Worker hands areas only to a container running at least the version it
 # requires (src/landmarkCleanup.ts LANDMARK_CLEANUP_JOB_VERSION). Bump both
 # together whenever the job's behaviour changes. 2 = emit filter + backup.
-JOB_VERSION = 4  # 3 = rule fixes of 2026-11-19; 4 = beaches and businesses (owner, 2026-11-19)
+JOB_VERSION = 5  # 3 = rule fixes of 2026-11-19; 4 = beaches and businesses; 5 = all words within
 BATCH_SIZE = 10  # areas per batch; cron starts the next one (owner, 2026-11-18)
 PAGE = 5000
 IN_LIST = 150  # CLAUDE.md: IN lists of at most 150 ids
@@ -138,11 +138,32 @@ def load_context(d1, r2, run_id, work_dir):
 # never keeps one in place of the landmark it stands at.
 BUSINESS_WORDS = {'bar', 'bares', 'restaurante', 'restaurant', 'cafe', 'cafetaria', 'snack', 'esplanada', 'deck',
                   'chiringuito', 'xiringuito', 'quiosque', 'kiosk', 'marisqueira', 'churrasqueira', 'pizzaria',
-                  'gelataria', 'club', 'apoio', 'lounge', 'tasca', 'taberna', 'pastelaria', 'padaria'}
+                  'gelataria', 'club', 'apoio', 'lounge', 'tasca', 'taberna', 'pastelaria', 'padaria',
+                  # the taxi rank named after the square is not the square (Praça de Parada Leitão)
+                  'taxi', 'taxis'}
 
 
 def is_business(row):
     return bool(set(li.fold(row['name'])) & BUSINESS_WORDS)
+
+
+KEEP_BOTH_PATH = os.path.join(os.path.dirname(li.KINDS_PATH), 'keep-both.json')
+
+
+def load_keep_both(path=KEEP_BOTH_PATH):
+    """Owner's list of pairs that are two places though the rule says one."""
+    try:
+        pairs = json.load(open(path, encoding='utf-8'))['pairs']
+    except FileNotFoundError:
+        return set()
+    return {frozenset((' '.join(li.fold(a)), ' '.join(li.fold(b)))) for a, b, *_ in pairs}
+
+
+KEEP_BOTH = load_keep_both()
+
+
+def kept_both(a, b):
+    return frozenset((' '.join(li.fold(a['name'])), ' '.join(li.fold(b['name'])))) in KEEP_BOTH
 
 
 def decide_area(rows, terms):
@@ -158,7 +179,7 @@ def decide_area(rows, terms):
         k = rlc.keeper(g)
         # Only a direct duplicate of the kept row goes: A=B and B=C does not make A=C.
         remove += [(r, f'same place as "{k["name"]}"', k['id']) for r in g
-                   if r is not k and li.verdict(r, k, terms) == 'duplicate']
+                   if r is not k and li.verdict(r, k, terms) == 'duplicate' and not kept_both(r, k)]
     # A contributor's row is its own audit trail: never removed here.
     remove = [x for x in remove if x[0].get('curated_source') != 'manual']
     rows = rows_all

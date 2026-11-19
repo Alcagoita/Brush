@@ -1,0 +1,6 @@
+{
+ "_comment": "KAN-461. Pairs the landmark rule would call one place that are two (owner's list). Names as served; order does not matter. landmark_cleanup_job never removes either row of a listed pair as a duplicate of the other.",
+ "pairs": [
+  ["Ordem do Carmo", "Igreja da Nossa Senhora do Carmo das Carmelitas", "Porto: Igreja do Carmo and Igreja dos Carmelitas, the twin churches side by side (2026-11-19)"]
+ ]
+}

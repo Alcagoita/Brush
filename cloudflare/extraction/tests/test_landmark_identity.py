@@ -297,5 +297,32 @@ class BeachTest(unittest.TestCase):
         self.assertEqual(self.v('Praia da Rocha', 'Praia da Rocha', 900), 'separate')
 
 
+class AllWordsWithinTest(unittest.TestCase):
+    """The dry run 31209166, sampled 2026-11-19: one place only when one name is inside the other."""
+    @classmethod
+    def setUpClass(cls):
+        li.add_place_names(['Porto', 'Mateus', 'Alfornelos', 'Mafamude'])
+
+    def v(self, a, ta, b, tb, metres):
+        lat, lng = 41.147, -8.616
+        return li.verdict(place(a, lat, lng, ta), place(b, *off(lat, lng, metres), tb), TERMS)
+
+    def test_the_twin_churches_of_porto_are_two(self):
+        self.assertNotEqual(self.v('Ordem do Carmo', 'church', 'Igreja da Nossa Senhora do Carmo das Carmelitas', 'church', 20), 'duplicate')
+
+    def test_a_shared_town_name_is_not_a_place(self):
+        self.assertNotEqual(self.v('Matriz Associação de Gravura do Porto', 'art_gallery', 'Eye Origin Porto', 'art_gallery', 20), 'duplicate')
+
+    def test_one_name_inside_the_other_is_one_place(self):
+        self.assertEqual(self.v('Museu Escola de Artes Decorativas da Fundação Ricardo do Espírito Santo Silva', 'museum',
+                                'Museu de Artes Decorativas', 'museum', 30), 'duplicate')
+        self.assertEqual(self.v('Parque de Lazer das Camélias', 'park', 'Parque das Camélias', 'park', 60), 'duplicate')
+        self.assertEqual(self.v('Miradouro Da Garganta Funda', 'viewpoint', 'Garganta Funda', 'viewpoint', 30), 'duplicate')
+        self.assertEqual(self.v('Igreja Paroquial De Mafamude', 'church', 'Igreja de Mafamude', 'church', 20), 'duplicate')
+
+    def test_the_ruins_and_their_museum_are_two(self):
+        self.assertNotEqual(self.v('Ruínas de Conímbriga', 'historical_landmark', 'Museu Monográfico de Conimbriga', 'museum', 80), 'duplicate')
+
+
 if __name__ == '__main__':
     unittest.main()

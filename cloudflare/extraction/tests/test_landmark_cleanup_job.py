@@ -168,6 +168,19 @@ class CleanupJobTest(unittest.TestCase):
         self.assertIsNone(held)
         self.assertEqual(remove, [])
 
+    def test_a_taxi_rank_is_never_kept_over_its_square(self):
+        self.assertTrue(job.is_business({'name': 'Praça de Táxis do Porto - Praça Parada Leitão'}))
+
+    def test_a_pair_on_the_keep_both_list_is_never_merged(self):
+        rows = [{'id': 'g1', 'source': 'overture', 'name': 'Ordem do Carmo', 'lat': 41.1474, 'lng': -8.6166, 'type': 'church'},
+                {'id': 'g2', 'source': 'overture', 'name': 'Igreja da Nossa Senhora do Carmo das Carmelitas',
+                 'lat': 41.1475, 'lng': -8.6167, 'type': 'church'}]
+        rows += [{'id': f'm{i}', 'source': 'overture', 'name': f'Museu {n}', 'lat': 40.0 + i, 'lng': -8.0, 'type': 'museum'}
+                 for i, n in enumerate(('Alfa', 'Beta', 'Gama', 'Delta', 'Épsilon', 'Zeta', 'Eta', 'Teta'))]
+        self.assertTrue(job.kept_both(rows[0], rows[1]))
+        remove, _ = job.decide_area(rows, job.li.load_terms())
+        self.assertEqual(remove, [])
+
     def test_a_row_is_judged_in_one_area_only(self):
         rows = [{'lat': 38.75, 'lng': -9.15}]
         job.assign_areas(rows, [{'area_key': 'b', 'seq': 2, 'min_lat': 38, 'max_lat': 39, 'min_lng': -10, 'max_lng': -9},

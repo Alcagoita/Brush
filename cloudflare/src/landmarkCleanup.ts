@@ -25,7 +25,7 @@ export const LANDMARK_CLEANUP_COUNTRIES = ['PT'] as const;
  * had no filter and no backup, and deleted 84 rows it should not have).
  * Bump with landmark_cleanup_job.JOB_VERSION whenever the job's behaviour changes.
  */
-export const LANDMARK_CLEANUP_JOB_VERSION = 4;
+export const LANDMARK_CLEANUP_JOB_VERSION = 5;
 
 // Lisbon first, then every municipality-level place (some are stored as a
 // city or town), the county boxes, then one area for whatever no box covers —
