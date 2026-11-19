@@ -59,6 +59,10 @@ LANDMARK_TYPES = frozenset(TYPE_KIND)
 BUILDING = {'monastery', 'cloister', 'cathedral', 'church', 'chapel', 'tomb', 'museum', 'castle', 'fort', 'palace',
             'tower', 'gallery', 'theatre'}
 OPEN_SPACE = {'garden', 'park', 'square'}
+# A name led by one of these is that place, whatever else it names: "Praça do
+# Museu de Marinha" is a square, "Praia do Castelo do Queijo" a beach,
+# "Miradouro do Castelo" a viewpoint (2026-11-19).
+NAMED_AFTER = OPEN_SPACE | {'beach', 'viewpoint', 'lake'}
 # Different kinds sharing a name are a red flag only inside one religious
 # complex (the church, cloister and tombs of a monastery). A tower, fountain,
 # statue or castle beside a monastery shares the town's name, not its identity.
@@ -66,14 +70,19 @@ COMPLEX = {'monastery', 'cloister', 'cathedral', 'church', 'chapel', 'tomb'}
 # metres within which two rows of a kind can be one place
 RADIUS = {'monastery': 250, 'cathedral': 200, 'castle': 250, 'fort': 200, 'palace': 150, 'museum': 150,
           'church': 120, 'chapel': 60, 'cloister': 150, 'tomb': 120, 'fountain': 40, 'statue': 40, 'monument': 60,
-          'tower': 60, 'bridge': 150, 'garden': 150, 'park': 200, 'square': 100, 'gallery': 80, 'theatre': 100, 'lake': 150}
+          'tower': 60, 'bridge': 150, 'garden': 150, 'park': 200, 'square': 100, 'gallery': 80, 'theatre': 100, 'lake': 150,
+          'beach': 300, 'viewpoint': 60}
 FILLER = {'of', 'the', 'and', 'de', 'do', 'da', 'dos', 'das', 'e', 'a', 'o', 'os', 'as', 'ao', 'aos', 'del', 'la',
           'le', 'les', 'el', 'los', 'di', 'du', 'des', 'em', 'no', 'na', 'old', 'antigo', 'antiga', 'santa', 'santo',
           'saint', 'sao', 'st', 'nossa', 'senhora', 'our', 'lady', 'i', 'ii', 'iii',
           # KAN-461, 2026-11-18: words every gallery or room shares ("Galeria de Arte de São Bento"
           # is not "Galeria Acervo"; "Salle du Chapitre" is not "Salle de D. Manuel").
           'art', 'arte', 'arts', 'artes', 'contemporary', 'contemporanea', 'contemporaneo',
-          'sala', 'salle', 'room', 'hall'}
+          'sala', 'salle', 'room', 'hall',
+          # 2026-11-19: "Centro Social …" of the parish is not "Centro Social …" of the town hall
+          'centro', 'center', 'centre', 'social', 'municipal', 'urbano', 'urban',
+          # "Igreja Paroquial da Ajuda" is "Igreja de Nossa Senhora da Ajuda": the parish is not a name
+          'paroquial', 'paroquia', 'parish', 'matriz', 'mother'}
 
 
 def fold(value):
@@ -168,16 +177,34 @@ def describe(row, terms):
     return _DESCRIBED[key]
 
 
+def _kind_positions(raw):
+    """Positions of kind words that are not part of a town's name: "Castelo
+    Branco" and "Ponte de Lima" are towns, not a castle and a bridge
+    (2026-11-19, the Sé of Castelo Branco). Only multi-word town names with a
+    kind word in them; "Castelo de Castelo de Vide" keeps its castle."""
+    content = [(i, w) for i, w in enumerate(raw) if w not in FILLER]
+    words = [w for _, w in content]
+    town = set()
+    for name in PLACE_NAMES:
+        if len(name) < 2 or not any(w in KIND_WORDS for w in name):
+            continue
+        n = len(name)
+        for j in range(len(words) - n + 1):
+            if tuple(words[j:j + n]) == name and not town & {content[k][0] for k in range(j, j + n)}:
+                town |= {content[k][0] for k in range(j, j + n)}
+    return [i for i, w in enumerate(raw) if w in KIND_WORDS and i not in town and (w not in LEADING_ONLY or i == 0)]
+
+
 def _describe(row, terms):
     raw = fold(row['name'])
-    kinds = {KIND_WORDS[w] for i, w in enumerate(raw)
-             if w in KIND_WORDS and (w not in LEADING_ONLY or i == 0)}
+    positions = _kind_positions(raw)
+    kinds = {KIND_WORDS[raw[i]] for i in positions}
     if not kinds:
         kinds = {TYPE_KIND.get(row.get('type'), 'other')}
     else:
-        first = next(KIND_WORDS[w] for i, w in enumerate(raw) if w in KIND_WORDS and (w not in LEADING_ONLY or i == 0))
-        if first in OPEN_SPACE:
-            # "Praça do Museu de Marinha", "Largo dos Jerónimos": the square named after the building
+        first = KIND_WORDS[raw[positions[0]]]
+        if first in NAMED_AFTER:
+            # "Praça do Museu de Marinha", "Praia do Castelo do Queijo": the place named after the building
             kinds = {first}
     # A bust or statue is a monument: OSM's "Augusto Rosa" (historic=memorial)
     # is Foursquare's "Busto de Augusto Rosa".
@@ -199,8 +226,9 @@ def _all_words(row, terms):
 
 
 def _similar(x, y):
+    # Near-matches only between longer words: Magdalene ≈ Madalena, but Paulo is not Paulino.
     from difflib import SequenceMatcher
-    return x == y or (min(len(x), len(y)) >= 4 and SequenceMatcher(None, x, y).ratio() >= SIMILAR)
+    return x == y or (min(len(x), len(y)) >= 6 and SequenceMatcher(None, x, y).ratio() >= SIMILAR)
 
 
 def shares(wa, wb):
@@ -213,7 +241,8 @@ def not_a_place(row, terms):
     words = fold(row['name'])
     if not words:
         return 'no name'
-    if set(words) & NOT_A_PLACE_WORDS:
+    # "Museu do CNE" is a museum: a name led by a kind word is never ruled out by these words.
+    if set(words) & NOT_A_PLACE_WORDS and words[0] not in KIND_WORDS:
         return 'a rental, event or advert, not a place'
     joined = ' '.join(words)
     if words[0] in STREET_WORDS and not any(x in joined for x in ('via sacra', 'street art', 'mural')):
@@ -275,10 +304,16 @@ def verdict(a, b, terms):
             # "Largo da Madalena" are two squares.
             if not wa and not wb and common & ONE_PER_PLACE:
                 return 'duplicate'
-            # Only the place name is left: the same place only if right beside it
-            # ("Igreja de Madalena", 13 m), never across a town ("… de Sacavém").
-            if d <= RED_FLAG_METRES and shares(_all_words(a, terms), _all_words(b, terms)):
-                return 'duplicate'
+            # Only the place name is left on one side: the same place only if the
+            # other row's own word IS that place name, right beside it ("Igreja de
+            # Madalena" = "Church of Saint Mary Magdalene", 13 m). "Igreja de Santo
+            # António do Estoril" is not "Igreja dos Salesianos Estoril" (2026-11-19).
+            if d <= RED_FLAG_METRES:
+                named = wa or wb
+                bare = b if wa else a
+                if (shares(named, _all_words(bare, terms)) if named
+                        else shares(_all_words(a, terms), _all_words(b, terms))):
+                    return 'duplicate'
         return 'validate' if d <= RED_FLAG_METRES else 'separate'
     if bool(ka & OPEN_SPACE) != bool(kb & OPEN_SPACE):
         return 'separate'

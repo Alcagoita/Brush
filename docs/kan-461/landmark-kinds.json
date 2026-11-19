@@ -1,5 +1,5 @@
 {
- "_comment": "KAN-461. Words that name a KIND of landmark, per language, mapped to one English kind. landmark_identity.py reads the kind of a row from the first kind word in its name (accent-insensitive), else from its type. A new country adds its language block; nothing else changes. German \"dom\" is left out: in Portuguese it is a title (\"Dom Afonso Henriques\"), not a cathedral (KAN-461, 2026-11-18).",
+ "_comment": "KAN-461. Words that name a KIND of landmark, per language, mapped to one English kind. landmark_identity.py reads the kind of a row from the first kind word in its name (accent-insensitive), else from its type. A new country adds its language block; nothing else changes. German \"dom\" is left out: in Portuguese it is a title (\"Dom Afonso Henriques\"), not a cathedral (KAN-461, 2026-11-18). Beaches and viewpoints have kind words (2026-11-19): without them every \"Praia …\" shared the word \"beach\" as if it were its name.",
  "en": {
   "monastery": "monastery",
   "convent": "monastery",
@@ -41,7 +41,11 @@
   "synagogue": "synagogue",
   "gallery": "gallery",
   "atelier": "gallery",
-  "studio": "gallery"
+  "studio": "gallery",
+  "beach": "beach",
+  "beaches": "beach",
+  "viewpoint": "viewpoint",
+  "lookout": "viewpoint"
  },
  "pt": {
   "mosteiro": "monastery",
@@ -90,7 +94,11 @@
   "sinagoga": "synagogue",
   "galeria": "gallery",
   "atelier": "gallery",
-  "atelie": "gallery"
+  "atelie": "gallery",
+  "praia": "beach",
+  "praias": "beach",
+  "miradouro": "viewpoint",
+  "mirante": "viewpoint"
  },
  "es": {
   "monasterio": "monastery",
@@ -122,7 +130,9 @@
   "laguna": "lake",
   "mezquita": "mosque",
   "sinagoga": "synagogue",
-  "galeria": "gallery"
+  "galeria": "gallery",
+  "playa": "beach",
+  "mirador": "viewpoint"
  },
  "fr": {
   "monastere": "monastery",
@@ -155,7 +165,9 @@
   "mosquee": "mosque",
   "synagogue": "synagogue",
   "galerie": "gallery",
-  "atelier": "gallery"
+  "atelier": "gallery",
+  "plage": "beach",
+  "belvedere": "viewpoint"
  },
  "it": {
   "monastero": "monastery",
@@ -187,7 +199,9 @@
   "lago": "lake",
   "moschea": "mosque",
   "sinagoga": "synagogue",
-  "galleria": "gallery"
+  "galleria": "gallery",
+  "spiaggia": "beach",
+  "belvedere": "viewpoint"
  },
  "de": {
   "kloster": "monastery",
@@ -218,6 +232,8 @@
   "teich": "lake",
   "moschee": "mosque",
   "synagoge": "synagogue",
-  "galerie": "gallery"
+  "galerie": "gallery",
+  "strand": "beach",
+  "aussichtspunkt": "viewpoint"
  }
 }

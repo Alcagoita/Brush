@@ -43,7 +43,7 @@ from classify_and_load import sql_escape  # noqa: E402
 # The Worker hands areas only to a container running at least the version it
 # requires (src/landmarkCleanup.ts LANDMARK_CLEANUP_JOB_VERSION). Bump both
 # together whenever the job's behaviour changes. 2 = emit filter + backup.
-JOB_VERSION = 2
+JOB_VERSION = 3  # 3 = rule fixes of 2026-11-19
 BATCH_SIZE = 10  # areas per batch; cron starts the next one (owner, 2026-11-18)
 PAGE = 5000
 IN_LIST = 150  # CLAUDE.md: IN lists of at most 150 ids

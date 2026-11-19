@@ -217,5 +217,56 @@ class KeeperTest(unittest.TestCase):
                          'Paróquia de Cristo Rei de Algés - Miraflores')
 
 
+class CountryDryRunCasesTest(unittest.TestCase):
+    """The country cleanup dry run d1fb28ab, sampled 2026-11-18/19."""
+    @classmethod
+    def setUpClass(cls):
+        li.add_place_names(['Castelo Branco', 'Estoril', 'Albufeira', 'Maia', 'Ajuda', 'Alcácer do Sal', 'Abrantes'])
+
+    def v(self, a, ta, b, tb, metres):
+        lat, lng = 38.7100, -9.1400
+        return li.verdict(place(a, lat, lng, ta), place(b, *off(lat, lng, metres), tb), TERMS)
+
+    def test_a_town_named_castle_is_not_a_castle(self):
+        self.assertNotEqual(self.v('Sé Catedral de Castelo Branco', 'church',
+                                   'Pastoral Familiar Portalegre - Castelo Branco', 'church', 38), 'duplicate')
+
+    def test_the_beach_named_after_the_fort_is_the_beach(self):
+        self.assertEqual(self.v('Castelo Do Queijo', 'historical_landmark', 'Praia do Castelo do Queijo', 'beach', 40), 'separate')
+
+    def test_two_beaches_do_not_share_the_word_beach(self):
+        self.assertNotEqual(self.v('Praia Marinha, Algarve', 'beach', 'Praia da Cala', 'beach', 0), 'duplicate')
+        self.assertNotEqual(self.v('Praia da Coelha, Albufeira, Algarve - Portugal', 'beach', 'Albufeira , Praia Da Galé', 'beach', 11), 'duplicate')
+        self.assertNotEqual(self.v('praia do calhau da maia', 'beach', 'Praia De Maia', 'beach', 33), 'duplicate')
+
+    def test_a_church_named_after_its_town_is_not_every_church_there(self):
+        self.assertNotEqual(self.v('Igreja dos Salesianos Estoril', 'church', 'Igreja de Santo António do Estoril', 'church', 27), 'duplicate')
+
+    def test_short_names_need_the_same_word_not_a_similar_one(self):
+        self.assertNotEqual(self.v('Paulo & Marta Madeira', 'park', 'Leonel Paulino Santos Husqvarna Alcobaça', 'park', 186), 'duplicate')
+
+    def test_two_social_centres_share_only_the_words(self):
+        self.assertNotEqual(self.v('Centro Social Interparoquial de Abrantes', 'church',
+                                   'Centro Social do Pessoal do Município de Abrantes', 'church', 95), 'duplicate')
+
+    def test_the_castle_is_kept_over_its_crypt(self):
+        import run_landmark_cleanup as rlc
+        rows = [{'id': 'gers-1', 'source': 'overture', 'name': 'Cripta Arqueológica do Castelo de Alcácer do Sal',
+                 'lat': 38.37, 'lng': -8.51, 'type': 'museum'},
+                {'id': 'fsq:1', 'source': 'curated', 'name': 'Castillo de Alcácer do Sal', 'lat': 38.37, 'lng': -8.51,
+                 'type': 'historical_landmark'}]
+        self.assertEqual(rlc.keeper(rows)['name'], 'Castillo de Alcácer do Sal')
+
+    def test_a_museum_of_the_scouts_is_a_museum(self):
+        self.assertIsNone(li.not_a_place(place('Museu do CNE', 0, 0, 'museum'), TERMS))
+
+    def test_the_parish_church_in_two_names_is_one(self):
+        self.assertEqual(self.v('Igreja Paroquial da Ajuda', 'church', 'Igreja de Nossa Senhora da Ajuda', 'church', 13), 'duplicate')
+
+    def test_madalena_and_the_martires_still_merge(self):
+        self.assertEqual(self.v('Igreja de Madalena', 'church', 'Church of Saint Mary Magdalene', 'church', 8), 'duplicate')
+        self.assertEqual(self.v('Basílica de Nossa Senhora dos Mártires', 'church', 'Basílica dos Mártires', 'church', 20), 'duplicate')
+
+
 if __name__ == '__main__':
     unittest.main()

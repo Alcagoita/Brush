@@ -67,7 +67,9 @@ def source_rank(row):
 PART_WORDS = {'loja', 'livraria', 'shop', 'store', 'sala', 'bilheteira', 'entrada', 'entrance', 'cafe', 'cafetaria',
               'restaurante', 'bar', 'auditorio', 'parking', 'estacionamento', 'wc', 'gift', 'ticket', 'tickets',
               # KAN-461, 2026-11-18: the playground of the garden, the social centre of the parish
-              'infantil', 'playground', 'centro', 'social'}
+              'infantil', 'playground', 'centro', 'social',
+              # 2026-11-19: the crypt of the castle, the café terrace on the beach
+              'cripta', 'crypt', 'esplanada'}
 
 
 def keeper(group):
