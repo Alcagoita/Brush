@@ -1,0 +1,176 @@
+{
+ "_comment": "KAN-461: the 19 landmark rows within 200 m of 38.69781,-9.20502 (Belém) on 2026-11-16, before migration 0090. hidden = what the owner ruled a duplicate or not a place.",
+ "rows": [
+  {
+   "id": "1e3903a0-fadc-4384-bd6f-c8bf7c1388c7",
+   "name": "Belém Art Fest",
+   "lat": 38.6968498,
+   "lng": -9.20644,
+   "type": "music_venue",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "2143eba3-70aa-4944-b76b-b1a56d6bd93f",
+   "name": "Parque Belém I",
+   "lat": 38.697297,
+   "lng": -9.204119,
+   "type": "park",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "5b85f94d-aba8-4124-bea9-c549a28087b8",
+   "name": "Jardin",
+   "lat": 38.69748458,
+   "lng": -9.20424344,
+   "type": "park",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "741827b9-5e36-4e4c-9bcd-a8096f4210ab",
+   "name": "Rosa dos ventos-Belém at its best",
+   "lat": 38.69713,
+   "lng": -9.20538,
+   "type": "plaza",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "83b645ac-38e0-41c8-a9f8-e6bda094c620",
+   "name": "Túmulos de Luís de Camões e Vasco da Gama",
+   "lat": 38.69762447,
+   "lng": -9.20569727,
+   "type": "church",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "af9a4cd2-63f5-4d4f-81ea-ac624dc2c415",
+   "name": "Sepultura de Vasco da Gama",
+   "lat": 38.697692,
+   "lng": -9.205473,
+   "type": "historical_landmark",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "c8a5afe1-fb86-4f73-b25e-6e91c4f4eb1b",
+   "name": "Tumulo De Fernando Pessoa",
+   "lat": 38.698678333333,
+   "lng": -9.206095,
+   "type": "church",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "d2acdf60-fcc5-4e2c-a682-5b24468aeeed",
+   "name": "Marinha - CulturaMar",
+   "lat": 38.697962012994,
+   "lng": -9.2064464092255,
+   "type": "museum",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "e5d132b4-d035-467d-aa60-970c5121518d",
+   "name": "Túmulo de Fernando Pessoa",
+   "lat": 38.69797235465103,
+   "lng": -9.205960404365278,
+   "type": "historical_landmark",
+   "source": "overture",
+   "hidden": true
+  },
+  {
+   "id": "fsq:50155621e4b0f8ec78f63b28",
+   "name": "Igreja dos Jerónimos",
+   "lat": 38.697505068515106,
+   "lng": -9.205946683876613,
+   "type": "church",
+   "source": "curated",
+   "hidden": true
+  },
+  {
+   "id": "fsq:526ffc3411d22093eb83ba39",
+   "name": "Claustro do Mosteiro dos Jerónimos",
+   "lat": 38.69805670659673,
+   "lng": -9.205808049411607,
+   "type": "historical_landmark",
+   "source": "curated",
+   "hidden": true
+  },
+  {
+   "id": "fsq:635bcbbf95fab601730affa5",
+   "name": "Sepultura de Luis de Camões",
+   "lat": 38.697604,
+   "lng": -9.205783,
+   "type": "church",
+   "source": "curated",
+   "hidden": true
+  },
+  {
+   "id": "fsq:665b310f02bcfd007d902693",
+   "name": "Túmulo de Camões",
+   "lat": 38.697834,
+   "lng": -9.205743,
+   "type": "historical_landmark",
+   "source": "curated",
+   "hidden": true
+  },
+  {
+   "id": "ee495395-584e-4a19-8cc7-0274a668ea40",
+   "name": "Jerónimos Monastery",
+   "lat": 38.69792674,
+   "lng": -9.20656794,
+   "type": "church",
+   "source": "overture",
+   "hidden": false
+  },
+  {
+   "id": "fsq:4fff380b16486a14237428b6",
+   "name": "Monumento ao Suplício dos Tavoras",
+   "lat": 38.69787860455499,
+   "lng": -9.203344609289331,
+   "type": "historical_landmark",
+   "source": "community",
+   "hidden": false
+  },
+  {
+   "id": "70c5f367-e70b-4115-b381-6b0084ff266d",
+   "name": "Museu da Marinha",
+   "lat": 38.69703853,
+   "lng": -9.2069187,
+   "type": "museum",
+   "source": "overture",
+   "hidden": false
+  },
+  {
+   "id": "cab69a00-c302-4d6c-861b-c7ab83b1d739",
+   "name": "Largo dos Jerónimos",
+   "lat": 38.69755,
+   "lng": -9.203762,
+   "type": "plaza",
+   "source": "overture",
+   "hidden": false
+  },
+  {
+   "id": "5342837f-3500-4e84-a96c-91a46502cb75",
+   "name": "Centro Cultural Casapiano",
+   "lat": 38.699258,
+   "lng": -9.205586,
+   "type": "art_gallery",
+   "source": "overture",
+   "hidden": false
+  },
+  {
+   "id": "a49ad09b-8918-4214-957c-4a5de2652679",
+   "name": "Jardim Botânico Tropical",
+   "lat": 38.69827915,
+   "lng": -9.20382268,
+   "type": "botanical_garden",
+   "source": "overture",
+   "hidden": false
+  }
+ ]
+}

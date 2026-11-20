@@ -1,0 +1,1793 @@
+{
+ "_comment": "KAN-461: Foursquare outing places held for the owner to review case by case; not written.",
+ "hold": [
+  {
+   "fsq_place_id": "4c172fa8daf42d7fb1504566",
+   "name": "Rotunda das Olaias",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4c2a73ff9a559c744af30ce2",
+   "name": "Rua Latino Coelho",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4c5ef599d25320a16717ca7a",
+   "name": "Promenade do Lido",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4cf9998bfeec6dcb103d3a36",
+   "name": "Rotunda Gil Eanes",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4d18c91f81cea35dc91af0ec",
+   "name": "Avenida António Augusto Aguiar",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4d35aeea6c7c721ed437cd56",
+   "name": "Lazarim",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4d5c75d8b9b2a143988f768c",
+   "name": "Rua dos Prazeres",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4d67b2257579224bcf0e039a",
+   "name": "Faial Historic Vilage",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4d7e6557f635236a97146716",
+   "name": "Lg. Raphael Bordallo Pinheiro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4d986c8b942ba093ab3d848c",
+   "name": "Avenida Heróis de Angola",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4d9a310ae5fd6ea8e3a767f5",
+   "name": "Rua Cidade de Cabinda",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4d9bbd85e115721ec83f3f0b",
+   "name": "Jardim das Pichas Murchas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4da5af5f7ccc816efefaab7b",
+   "name": "Avenida Miguel Fernandes Beja",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4daae4b4f7b145b37019d857",
+   "name": "Centro Civico da Ponta do Pargo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4dbed439f7b1ab37dd95c92c",
+   "name": "Rua do Regedor",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4dcbe988b3adc75073b13512",
+   "name": "Feira das Oportunidades",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4dd7cd57b0fb8af3808e9951",
+   "name": "Escola Pratica Cavalaria",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4df2ace66284fefe8fbfc8d1",
+   "name": "Sentinas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4df2bc0118a88611c6ba0b72",
+   "name": "O Quintalão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4df359a0fa76abc3d86c782e",
+   "name": "Jardim da Praça da República",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e0502231495e0c5a5d2df0c",
+   "name": "Febres",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e0545ef8877394591d8931c",
+   "name": "Rua Antonio Alrixo",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4e07196352b165b7d7ac2582",
+   "name": "Outil",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e2452991838712abe8fce16",
+   "name": "Mercado 2 De Maio",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e26e2fc8877d0ffee84c235",
+   "name": "Pedrogão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e308999a809711248ff6ef5",
+   "name": "Passeio Marítimo de Espinho",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e39298745dd9ef03f13403f",
+   "name": "Turismo - Informações",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e3ac3f618a80688f96b5855",
+   "name": "Rotunda do Ramalhão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e3c745afa76455375aafdd0",
+   "name": "Fonte das Oliveiras",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e3d7448d164b52911acaf9d",
+   "name": "Lavadores",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e440ec11838e44e8987af28",
+   "name": "Centro Social Paroquial De Ereira",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e46c134ae60fa7232f80520",
+   "name": "Feira de 1000lides",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e46f3dec65bd6ffbe997d77",
+   "name": "Almádena",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e50feead4c0b6da5d93808b",
+   "name": "Velada",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e5115e062e14b77e3b28a18",
+   "name": "São Romão De Aregos",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e57eff0887710a8481db826",
+   "name": "Pátio Júlio Simões",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e58c672b0fbdca309f3d1c0",
+   "name": "Urbanização das Serralheiras",
+   "type": "playground",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4e602231483bd9a973525b56",
+   "name": "Cidadela Green - Urbanização",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e614bc0483bd9a973d458cf",
+   "name": "Quintela de Baixo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e625b8ad4c06542aae88981",
+   "name": "Avenida da Liberdade",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e7278bac65bf4cc2d193e48",
+   "name": "Ficton",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e775f68a809582dd6c76024",
+   "name": "Feira Nova",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e79a42a62e1645552ea55a8",
+   "name": "Urbanização Colina da Asseca",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4e7dc85f02d5c3c4010717d7",
+   "name": "Mourão - Vila Flor",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e7e0473b634766b5222ad40",
+   "name": "Quinta das Pedras",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e872d8877c869dd0415d80b",
+   "name": "São Luís",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e8b5ae202d540e452c8f16e",
+   "name": "Rua Anchieta",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e90c4ff8b81c6df65d8cf01",
+   "name": "Pelourinho Frechas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e919b9d29c2117fa440de2b",
+   "name": "Coreto",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e92cfbdd22d95ed0d781b75",
+   "name": "Ferreirinha",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e976eda0aafa2a0991dbd35",
+   "name": "Sítio do Pica-pau Amarelo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4e9ad70f0aaf5f690e7de218",
+   "name": "Rua Sao Miguel",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4eab20e882312ec2f6cd6c67",
+   "name": "Paraíso, Delães",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4eafd55c61af6ac587ff720a",
+   "name": "Curvel",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4eb5a50d6da1df9ffa960741",
+   "name": "Vila Ca",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ec19720a17c8cdeb94acf8f",
+   "name": "Correios",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ec81fd0f5b9e88193536b19",
+   "name": "Freguesia Benfica",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ed155dee3007feb7ea0231b",
+   "name": "Rua Jorge Peixinho",
+   "type": "playground",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4ed50bf3e3007ce6d7c1fb62",
+   "name": "Pátio das Laranjeiras",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4edc8bf19a5286d921df1d6c",
+   "name": "Fonte Luminosa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ee355c46da14e7d989a83df",
+   "name": "Negrais",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ee3c1a693adf8e1a6fce13b",
+   "name": "Pousadinha",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4eed2a0430f824cfc4ac3e82",
+   "name": "Rua da Saudade",
+   "type": "beach",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4eef956d77c82b92fa72a995",
+   "name": "Dan Turélls Plads",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ef38c106c25074225631f88",
+   "name": "Rua De Almeida Sousa",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4ef680c4469012b8c04c4cdf",
+   "name": "Urbanizaçao Quinta do Belmonto",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4ef74b28d3e354f0bd0d828c",
+   "name": "Rua da Engenheira",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4efa2fa861af454600ba3c3b",
+   "name": "Teixeira",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4efda71a02d580f8edce80f9",
+   "name": "Avenida dos Banhos",
+   "type": "beach",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4eff9c8b02d580f8efbb2830",
+   "name": "Esplanada António Silva Guimarães",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f077ce1754a5b5397c53c41",
+   "name": "Rua da Igreja",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f10bafce4b0297e5579bc7b",
+   "name": "rua do mario",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4f182364e4b0bb143ec2112d",
+   "name": "Pátio - ISCTE-IUL",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f1d7243e4b04ae085215364",
+   "name": "BRAGA",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f25a074e4b04f6e6a6785ef",
+   "name": "Cabeço D'El Rei",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f2863397beb6b2df86b446b",
+   "name": "Rua Capitão José Pacheco",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f2978d8e4b0ea161e3feeb7",
+   "name": "Centro Civico de Vila Nova de Gaia",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f2d33bde4b094acc46c2cc1",
+   "name": "Mercadito De La Redoma prados Del Este",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f2d5537e4b01982f0d55303",
+   "name": "Fonte São Vicente",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f36521fe4b0cc4ce2395a39",
+   "name": "Rua Miguel Torga",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4f428604e4b0085fefb4a88d",
+   "name": "Paço Do Marquês",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f489622e4b072f5aaa5f7dd",
+   "name": "Pelourinho",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f5bfb9be4b0c4b68950bc59",
+   "name": "Remolares",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f5dc513e4b0ea859aadb363",
+   "name": "Av. Mouzinho de Albuquerque",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f65fa46e4b02cbb80668449",
+   "name": "Rua Gil Eanes",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f6c84e2e4b0463c92cd921c",
+   "name": "Luz de Tavira",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f782d7ce4b042108371343a",
+   "name": "Rua 5 de Outubro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f797d97e4b06336496b7c20",
+   "name": "Tagarro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f7c30fae4b032c26c1d784b",
+   "name": "Rua Joao Frederico Ludovice",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4f7ddbcbe4b0393e9901a235",
+   "name": "Rua do Alambique",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "4f8306a3e4b06d09fb95bb93",
+   "name": "Rua António botto",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f972df1e4b0d1d5d52397e5",
+   "name": "25 de Abril sempre",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4f97cfade4b0c56b6f934274",
+   "name": "Promenade Caniçal",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fa02fd5e4b04840ba4983d5",
+   "name": "Casais Novos",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fa6f974e4b0fed482f7dee2",
+   "name": "Travessa do Convento das Bernardas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4faae323e4b0db927cadbc03",
+   "name": "Carvalhal da Aroeira",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fc139017bebf637c20cb225",
+   "name": "Festas da Sé",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fccbf8ae4b093c3858ccee1",
+   "name": "Alcoitão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fd66034e4b02bbdc6d00e94",
+   "name": "Bairro Do Frei Aleixo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fd7b60be4b0ff9bcafbec47",
+   "name": "Esplanada Dolce Vita",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fd8e8d9e4b0251900b75764",
+   "name": "rua ary dos santos",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fe04d90e4b0ac20bec7a932",
+   "name": "Plaza De La Ribera",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fe08146e4b0a1e6c2d553d1",
+   "name": "Pampilheira",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4fe08d82e4b0d973b0094647",
+   "name": "Bairro Sant'Ana",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ffc4171e4b07ec1035259b7",
+   "name": "Pinheiro Manso",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "4ffd9f03e4b098f172587c57",
+   "name": "Portagens bombarral",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "500203f1e4b0eed3b739bf72",
+   "name": "Vale Bejinha",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50141fdbe4b0f8ec7870baeb",
+   "name": "Porto Rio",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50155718e4b0073bd0cc7afb",
+   "name": "Avenida dos Plátanos",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "50159165e4b034c3e0b30477",
+   "name": "Rotunda do Infante",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50184dc3e4b035110ca5e0a8",
+   "name": "Alto das Covas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50228395e4b057124f4686f0",
+   "name": "serra",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5024e3a5e4b0f761ddf2d66f",
+   "name": "Caminho do Alecrim",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "502bde76e4b042ed6dc63dc5",
+   "name": "Caminho do Arboreto",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "502be486e4b08caa15ad04de",
+   "name": "Rua Comandante Cousteau",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "50322e7ce4b045d7912fc52a",
+   "name": "Aldeia de Santos",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5036165de4b074a234daabf6",
+   "name": "Agua Reves",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50361a41e4b0006c00955704",
+   "name": "Bairro Nova Sintra",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50378e6ae4b092ff11f89d04",
+   "name": "Rio Frio",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50379b95e4b0b4924bccd027",
+   "name": "Alto Barro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "503faad9e4b02a078d33c788",
+   "name": "Alguber",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "504e2afce4b03e71206467f2",
+   "name": "Rainha D. Leonor Square",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "504f07f3e4b04e8bdec382ea",
+   "name": "Freixial",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50586737e4b05809b0ef8113",
+   "name": "Bairro da Laje",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "50622bd0e4b0100721d8ff85",
+   "name": "Casal do Chapim, Odivelas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5066e13ae4b0e370b1a94273",
+   "name": "Rua da Meditação",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50685166e4b033d358b770ae",
+   "name": "Chafariz",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "506c1953e4b037d925cd0e0f",
+   "name": "Chafariz De Loures",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "507a849ee4b0dad822dc3bb2",
+   "name": "Montachique",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "508953f4e4b06cb69f85e376",
+   "name": "Rua Dos Remédios",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50944d66e4b0abc855b9db0e",
+   "name": "ventosa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5095028fe4b0b68d682d8019",
+   "name": "seixo alvo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5095585f498ecb7e549d0939",
+   "name": "La Pausa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5097d9d9e4b08bdee13fff7b",
+   "name": "Rua Prof Joao Castro Mendes",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "509e827fe4b01b9e49a493f5",
+   "name": "Rotunda Rato",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "509feb02e4b09f0185f8cab0",
+   "name": "paialvo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50ae796de4b01d0e2a7376ec",
+   "name": "Avenida Egas Moniz",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "50ba9766e4b026fe4bc40a5e",
+   "name": "Rua das Farinhas",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "50d49f65e4b0c5b1c025da9a",
+   "name": "Avenida Brasil",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50d98726e4b0260d1a1ead77",
+   "name": "Ribafeita",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "50e85639498e768c84b6e27d",
+   "name": "Jardim da Praça Eng. Armando Rodrigues",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "51652454e4b00bb1e44e3757",
+   "name": "Quadrado do Fumo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5172a792e4b0158bdbe3cb43",
+   "name": "Escadório de Sta. Marinha",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "517571b3e4b0d23a2978105e",
+   "name": "S.Mamede",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "517a8786e4b0fb92e9198c32",
+   "name": "Esplanada dos Gajos Bons",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "517b2b59e0e26b7d8a8e9089",
+   "name": "Vadiando",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "518ee0bd498e744b80ab66d4",
+   "name": "Rotunda Sul",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "518f6121498e54069b75f27a",
+   "name": "Velada",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "51b2c503498e675b339da6e5",
+   "name": "Academia da Cidade - SVF",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "51b9d624498e55622f01a257",
+   "name": "Passeio Alegre",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "51d0256b498ef001092b6b26",
+   "name": "Cruz",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "51d0265e498ebe6bf556dddc",
+   "name": "Estátua Sra das Seixas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "51f10084498e957cfed4a0b0",
+   "name": "Avenida do Mar",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "51f834d8498e34b75efd7a07",
+   "name": "Avenida 8",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "520ce6c111d24e447abbef45",
+   "name": "Avenida Bento de Jesus Caraça",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "520fdbbc11d2775a6d2f0d8c",
+   "name": "Tasquina Erra",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5210a54c11d230adcd12d56d",
+   "name": "Mercado do Tapado",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5217c9dc11d2b4624fe700cb",
+   "name": "Adsamo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5218be1811d2a6c2de98b48c",
+   "name": "Travessa do Mascarenhas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "521dff76498e76324d4edc0e",
+   "name": "Bidoeira De Baixo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5222058911d25b22f6d47bca",
+   "name": "Fontain",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5259eaef498e5d8e7e0bde36",
+   "name": "Pinheiro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "525efb7c498e93e60d22e56e",
+   "name": "Fonte (não) Luminosa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "526662c5498e39935cd3ee20",
+   "name": "Pátio da Biblioteca",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5271936f498e177c397dfdcc",
+   "name": "Rua das Papoilas",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "52743880498e60adcb90c2b2",
+   "name": "Rua de José Falcão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "52f230f7498ea5f11ff7b993",
+   "name": "Fonte Paredes",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5308843d11d2514728ae6cd8",
+   "name": "Fonte S.Geraldo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5315b935498e987e561c44aa",
+   "name": "PÁTIO Das CANTIGAS",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "533bbde5498e3f8af4e9ca86",
+   "name": "Serzedo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "535dad90498e0b716d77303a",
+   "name": "Semana Academica de Leiria",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5373f237498ec1a3ad26e713",
+   "name": "plaza mayor, Salamanca",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5381056f498e1120b2c6373f",
+   "name": "Santo Amaro, Sousel",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "538dac91498e20c4a141d197",
+   "name": "Travessa da Ressurreição",
+   "type": "beach",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "5394fee5498efde5f31e600b",
+   "name": "Esplanada de 28 de Maio",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "539f5f81498e9146896c988b",
+   "name": "ceta",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53a5df01498e183ecb248962",
+   "name": "S. João Vila do Conde",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53aaf9a6498e6c106b067214",
+   "name": "Maria da Fonte",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53b9bae5498e1170f3228e4c",
+   "name": "Cantanhede, Portugal",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53c3cf68498ee6d423db7a17",
+   "name": "provisende",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53d2bd05498ece88aeb107d9",
+   "name": "Ciclovia Lourinhã - Praia da Areia Branca",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53d6dc14498e55b92a1d2c4b",
+   "name": "Varanda dos Combatentes",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "53e7dc2b498e03a758f4c184",
+   "name": "rua comercio",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "5401a8e2498ee424eeca5f8e",
+   "name": "alto da lixa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "54136d6e498eb7150f65fc2c",
+   "name": "Parque Da Vila",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "54145b6a498e90969f023f61",
+   "name": "Passeio Luís Pinto Coelho",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "54155c99498eec6ac4961ec5",
+   "name": "Lavadouro Público",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "542f07b6498ec8da89e8ac1e",
+   "name": "Recinto Festas Nossa Senhora das Neves",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "543bb712498ed3511498b13a",
+   "name": "Rua Neves Costa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "545d739f498ef40021719e8d",
+   "name": "São Pedro do Estoril, Cascais",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "545e1379498e95315955cc29",
+   "name": "Placa da Estalagem",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5462a9e7498e6e7ec83c4bb5",
+   "name": "Figueiró",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "546e5df1498e0e46bdb1522b",
+   "name": "Rua da Fábrica",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5479ba8b498ecc35f99278de",
+   "name": "Chafariz de S. Marcos",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5499f8f0498e9c099edcdc3d",
+   "name": "3 Estrelas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "54ad7b32498eb2b48de697bb",
+   "name": "Outeiro  (Pelourinho)",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "54b02dbd498e7274a6b42efb",
+   "name": "Escadinhas das Olarias",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "55181437498efa51481d100a",
+   "name": "Passadiço Moínho Pequeno",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "552013db498e9390e1bbf9d9",
+   "name": "Pátio da Biblioteca Municipal de Viseu",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "55469ff5498e6091e23fe303",
+   "name": "akaretler porto",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "55b6346f498eeb02c6ed2ee4",
+   "name": "travessa entre campos",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "55ce19d3498e87a836004877",
+   "name": "portas da cidade",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "55d12242498e0062f636baa7",
+   "name": "beco das violetas",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "55da1a06498e4af8efbe64ec",
+   "name": "Passeio dos Sombras",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "55fd7105498eb741a330662b",
+   "name": "Rua do Canhoto  - Irivo Penafiel",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "560881fd498ecb2047305d50",
+   "name": "Rua Francisco da Conceição Silva",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5623e2eb498ef05d7569f87e",
+   "name": "Calçadão da Av. Arrais Batista Cera",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5637d663498e640934d50211",
+   "name": "Pres de l'eau",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5671b4c9498e5ebcea92ec60",
+   "name": "rotunda harvey foster",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "567d518b498e3cc40b76779f",
+   "name": "Lardo De D. Sebastião",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "56db66c4498eb11c013b4011",
+   "name": "Spot Iberopa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "56ed8834498ebcce4a905311",
+   "name": "Travessa Julio cesar Da Silva",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "571be1da498eaa31fe95f6b1",
+   "name": "Car Racing Pist",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "577927ac498e58df2a13221c",
+   "name": "Lagro do Terreiro Capitão Anselmo Baleeiro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "577bb641498ee32e9ea5cc54",
+   "name": "Pelourinho",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5798e73d498edb20b67ce931",
+   "name": "rotunda do barco",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "57b4145b498e26f0a6ddcf84",
+   "name": "Rua Visconde Anadia",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "57c882d4498e289da51ead50",
+   "name": "Rua Nova do Agro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "57d5c8b2cd1076ef2a0f95f3",
+   "name": "Rua 25 de Abril",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "580ce0ff38fa90b6430bc908",
+   "name": "Rua Nossa Senhora Do Amparo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5813c37038fa16f5bd1a853c",
+   "name": "Rua Cidade do Fundão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "584e3026de0cbc4a664e5568",
+   "name": "rua norberto de araujo",
+   "type": "viewpoint",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "585c68f0727ba373f28cc88a",
+   "name": "Travessa Vila União",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "586d450e730a9256e05d0468",
+   "name": "Rua Da Graça",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "586d46750037eb4b1000327b",
+   "name": "Rua Do Cemitério",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "587566ee0e0a1e75e286dcfc",
+   "name": "Rua Do Centro Paroquial",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "587795be0acb6a496b694b02",
+   "name": "Rua Marquês de Ávila e Bolama",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "58d4ffe726032752d7aac6ea",
+   "name": "Vereda Ribeiro Francês",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "58efed218f2c1a6dfe4134b2",
+   "name": "La Place",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "58fe29c6603d2a4855bfbdc0",
+   "name": "Rua Da Saudade",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "59106e72e96d0c61de720b81",
+   "name": "Calçada Alta (Rua José Ramalho)",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5921d05be0755049adb7e152",
+   "name": "Rua De Antonio Cardoso",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "595b72ea1fa763146a9eed66",
+   "name": "Duque De Wellington",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5964b2e7e2da1953803b6b82",
+   "name": "Rua Queiroz Ribeiro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "597a1d4ef96b2c44dc236dc9",
+   "name": "Avenida Da República",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5985f9cd1fa7635deb078e1d",
+   "name": "Rua Da República Peruana",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "598c76a58d0a5310232bc097",
+   "name": "Pilori A Base De Sanglier",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "59ad8e349deb7d72167f5c55",
+   "name": "R. Guilherme Gomes Fernandes",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5a57a8a9e57ca60d3f3ec204",
+   "name": "Rua Da Arrábida",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5afeb2fa3b4e00002c1e7068",
+   "name": "Jardim Público das Taipas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5b33de7f90d1ed002c60668f",
+   "name": "Fan Zone",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5b4221499411f2002cc13405",
+   "name": "Estatuas Do Cochicho",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5b8e93b38194fc0039c88471",
+   "name": "Rua do Comércio",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5cb85e2958002c002ce819cf",
+   "name": "Jardim Luís Ferreira",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d2b72c45459f2002342df9b",
+   "name": "Rotunda Nelson Mandela",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d330ef610b4e60007741110",
+   "name": "Rua Da Alfandega",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d3392a3f221540008839b76",
+   "name": "Avenida Do Infante Dom Henrique",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d3496c2e30d57000705806d",
+   "name": "Avenida Antonio Augusto Almeida Valente",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d3c98897e05d90008c55034",
+   "name": "Rua Do Saco",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "5d4eb05b29474e00083bfb66",
+   "name": "Rotunda das Sardinhas",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d6670b6228cfc0008c3c6fb",
+   "name": "Coreto",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5d7d12ef16a27b0008981120",
+   "name": "Rotunda Nossa Senhora dos Remédios",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "5e23146a568f980008f4b264",
+   "name": "Jardim Do Pego",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "602e453b0e6d761a9bbcd988",
+   "name": "Rio Covo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6107e8964fe40b1660520e23",
+   "name": "Pelourinho De Beja",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6224e5b6d893a0616088ebe3",
+   "name": "old alfama square",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "626f043de2d9487278290ec1",
+   "name": "R.T. - Jardins e Regas",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "6308458b8b23eb7bd9b11bcd",
+   "name": "Plaza Del Comercio Lisboa Portugal",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6342e3860f90f16643292cf6",
+   "name": "Anjo Caido",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "645bbcc16a610935fda4955e",
+   "name": "Rampa Do Infante Santo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "645be4095d753f7392bac410",
+   "name": "Rua dos Canastreiros",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "645fb269c3ea987a1af5e239",
+   "name": "Passeio 25 De Abril",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6460fa6e31f01718ed84df2a",
+   "name": "Rua Dos Combatantes Da Grande Guerra",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "64611467fc8a6022494c15a2",
+   "name": "Rua Homem De Christo",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "646140f77f37a709533fe5b6",
+   "name": "Rua Do Ten. Rezende",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "646144587af8ac17af4546b5",
+   "name": "R. De Luís Cipriano",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6463e1a286a87b0137ae69cd",
+   "name": "R. Dos Mercadores",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6464c5b5cf01c415e09b6dd7",
+   "name": "Av. De Ramos Pinto",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "64650a779d8ea73da34b6e6e",
+   "name": "Rua Da Assunção",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6474e49acacbce4fed94a33a",
+   "name": "Memorial Senhor Do Adeus",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "64a1b9cbe9a9ca2cff162c8f",
+   "name": "Chafriz Do Largo Das Pimenteiras",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65ec5820df8d79264506ba2b",
+   "name": "Rua Conselheiro Bívar",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65edfcf79ec58320c9ae3da6",
+   "name": "Rua Dom Afonso III",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65ee0088057a727139786154",
+   "name": "Rua Da Bateria",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65eefcabca4aec2f84f82bfe",
+   "name": "Rua Alves Correia",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65ef1114aa1bc627cf16e043",
+   "name": "Rua Da Igreja Velha",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65ef12166c26e665436f668d",
+   "name": "Rua São Gonçalo De Lagos",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65f1d92b1d7c256132947f79",
+   "name": "Rua Dos Pioneiros",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65f1e7a7f45b7e566f14908e",
+   "name": "Rua L. Galvão",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65f1ef5f7ebd171232ab0bb8",
+   "name": "Rua Da Nau",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65f1f1feb2552a0b6f5c736b",
+   "name": "Rua Formosa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65f3236055dc1e01dd64de02",
+   "name": "Rua Garrett",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "65f4589d1ef90111583b0240",
+   "name": "Rua Marquês De Pombal",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6607f3322741b50cfc18f0f5",
+   "name": "Mirador Ria Formosa",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "66324bf152b1ad2af6b0e5bc",
+   "name": "RUA DO EMBAIXADOR",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6666c77e25732f19208c6374",
+   "name": "Jardim do Largo Dr. Jorge Correia",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "66a01b42b93d5800eb7c830e",
+   "name": "Beco Dos Paus",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "66a1428f94bfc12ec19c97fe",
+   "name": "Rua De Cima Do Muro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "66afb50a51427a6935278f3e",
+   "name": "Travessa Da Pisca",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "66f935384f695052eeccfa08",
+   "name": "preceta de Palestina",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6723849a2665384fea4fd20c",
+   "name": "Estrada Hortênsia",
+   "type": "park",
+   "why": "a street, roundabout or estate name under a place leaf"
+  },
+  {
+   "fsq_place_id": "673865a8e3afe335aa3345e5",
+   "name": "Quinta Das Lages",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "681ceada6883f861b58be742",
+   "name": "Rua Joaquim António De Aguiar",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6828e690eee8474a2313799f",
+   "name": "Tejo Promenade",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6893a4b65c824e3fd46f779b",
+   "name": "Circuito Alrota Arpim",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6a2c94160d4bd945a2b3e3cb",
+   "name": "Beco do Jasmim",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6a35205e723dd632c96b9551",
+   "name": "Vimieiro",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  },
+  {
+   "fsq_place_id": "6a6b803be6f0aa7a07085863",
+   "name": "Buggy North Adventure",
+   "type": "plaza",
+   "why": "plaza whose name is not a square (street, roundabout, village, event)"
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+{
+ "_comment": "KAN-461: only the KAN-433 tier-2 leaves of places that do not close (owner, 2026-11-15). The tier-1 leaves imported by KAN-433 are deliberately absent, so this run touches nothing they wrote. Island stays tier 2: half the KAN-433 sample was not an island.",
+ "tier1": {
+  "Scenic Lookout": [
+   "viewpoint"
+  ],
+  "Park": [
+   "park"
+  ],
+  "Garden": [
+   "park"
+  ],
+  "Plaza": [
+   "plaza"
+  ],
+  "Pedestrian Plaza": [
+   "plaza"
+  ],
+  "Beach": [
+   "beach"
+  ],
+  "Playground": [
+   "playground"
+  ]
+ },
+ "suffix": {},
+ "tier2": [
+  "Island"
+ ],
+ "noise": [
+  "Structure",
+  "Other Great Outdoors",
+  "Farm",
+  "Field",
+  "Neighborhood",
+  "City",
+  "Town",
+  "Village",
+  "Well",
+  "Forest",
+  "States and Municipalities",
+  "Waterfront",
+  "Tree",
+  "Canal",
+  "Bay",
+  "Reservoir",
+  "Canal Lock",
+  "Hill",
+  "State",
+  "County",
+  "Pass",
+  "Pond",
+  "Country"
+ ],
+ "parent": [
+  "Arts and Entertainment",
+  "Spiritual Center",
+  "Landmarks and Outdoors"
+ ],
+ "excluded": {
+  "ATM": "never — MULTIBANCO is the ATM source",
+  "Bank": "deferred to a later step"
+ }
+}

@@ -1,0 +1,266 @@
+# KAN-461 — OSM landmarks, Amarante — EMITTED
+
+Run `kan461-landmarks-amarante-20261116`. Source: Geofabrik `portugal-261114.osm.pbf` (OSM data to 2026-11-14). Rule: `landmark_identity` (owner, 2026-11-16). Served landmark rows in the area: 230.
+
+| step | rows |
+|---|---:|
+| OSM candidates in Amarante | 220 |
+| dropped — not a place | 10 |
+| dropped — OSM duplicate | 6 |
+| dropped — served duplicate | 33 |
+| dropped — red flag with a served row | 4 |
+| **to write** | **167** |
+
+Emitted: 168 D1 change(s).
+
+## To write, by type
+
+| type | rows |
+|---|---:|
+| `historical_landmark` | 49 |
+| `church` | 41 |
+| `mountain` | 23 |
+| `tourist_attraction` | 19 |
+| `plaza` | 17 |
+| `viewpoint` | 7 |
+| `beach` | 3 |
+| `park` | 3 |
+| `lake` | 2 |
+| `museum` | 1 |
+| `bridge` | 1 |
+| `hot_spring` | 1 |
+
+## To write
+
+- Baloiço do Monte de São Mamede — `tourist_attraction` — 41.29976, -8.18418 (node/10697996537)
+- Povoado fortificado do Ladoeiro — `historical_landmark` — 41.25999, -8.13827 (node/10735410482)
+- Padrão de Salvador do Monte — `historical_landmark` — 41.22591, -8.09749 (node/11170027205)
+- Túmulo dos 4 irmãos — `historical_landmark` — 41.19754, -8.19187 (node/11740857234)
+- Pelourinho de Portocarreiro — `historical_landmark` — 41.19134, -8.20320 (node/11740860037)
+- Ao Conselheiro Antonio Cândido — `historical_landmark` — 41.26814, -8.07474 (node/11918159736)
+- Praia da Pontinha — `beach` — 41.19718, -8.13208 (node/12115227338)
+- Largo do Paço — `plaza` — 41.26856, -8.07766 (node/12554828395)
+- Casa do Pão de Ló de Margaride — `museum` — 41.36601, -8.19834 (node/12601028839)
+- Campos 1 — `historical_landmark` — 41.36394, -8.09487 (node/12949728788)
+- Largo 1º de Maio — `plaza` — 41.21890, -8.13920 (node/13114409740)
+- Largo Padre Manuel Ribeiro Gomes — `plaza` — 41.20759, -8.14430 (node/13114409779)
+- Largo da Aldeia — `plaza` — 41.23353, -8.16725 (node/13527521118)
+- Largo do Lima — `plaza` — 41.23998, -8.16731 (node/13527521354)
+- Largo da Estrada — `plaza` — 41.23880, -8.16379 (node/13527521396)
+- Largo do Eirô — `plaza` — 41.25139, -8.14849 (node/13533423739)
+- Largo António Pinto Carneiro — `plaza` — 41.25177, -8.15069 (node/13533423740)
+- Largo do Vale — `plaza` — 41.25212, -8.14888 (node/13533423773)
+- Largo do Pocinho — `plaza` — 41.25457, -8.14529 (node/13533423814)
+- Menir de Candemil — `historical_landmark` — 41.23548, -7.96568 (node/13685394550)
+- Baden Powell — `historical_landmark` — 41.27136, -8.07507 (node/2460490245)
+- Estátua de Leonardo Coimbra — `historical_landmark` — 41.32454, -8.14537 (node/2626252198)
+- Monumento do Soldado Desconhecido — `historical_landmark` — 41.32276, -8.14509 (node/2626252201)
+- Busto de Padre António Durães — `historical_landmark` — 41.32114, -8.14606 (node/2626252204)
+- Busto de Doutor Eduardo Freitas — `historical_landmark` — 41.32121, -8.14558 (node/2684409276)
+- Pelourinho de Vila Meã — `tourist_attraction` — 41.25169, -8.18615 (node/3236326285)
+- Alto da Penícia — `viewpoint` — 41.35220, -8.04849 (node/3619744080)
+- Dólmen de Outeiro de Ante 1 — `historical_landmark` — 41.19208, -8.03541 (node/3994226729)
+- Dólmen de Outeiro de Ante 3 — `historical_landmark` — 41.19117, -8.03530 (node/3994226730)
+- Pelourinho de Airães (frag.) — `tourist_attraction` — 41.31479, -8.19875 (node/3995961397)
+- Pelourinho de Ovelha do Marão — `tourist_attraction` — 41.27730, -7.99521 (node/3995964230)
+- Pelourinho de Rua — `tourist_attraction` — 41.19117, -7.92291 (node/3995964392)
+- Pelourinho do Marco — `tourist_attraction` — 41.19033, -8.15738 (node/3995964436)
+- Pelourinho de Torre / Pelourinho de Porto Carreiro — `tourist_attraction` — 41.20072, -8.20346 (node/3995964445)
+- Pelourinho do Castelo — `tourist_attraction` — 41.36432, -8.05275 (node/3995965113)
+- Fraga Gorda — `viewpoint` — 41.29861, -7.91277 (node/4022375218)
+- Minas do Teixo — `historical_landmark` — 41.23122, -7.91094 (node/4022405187)
+- Mamoa de São Simão — `historical_landmark` — 41.19976, -8.03297 (node/4807730806)
+- Lagar de Saída — `historical_landmark` — 41.26639, -8.03506 (node/4845695620)
+- Outeiro Meão — `mountain` — 41.24681, -8.16183 (node/5161225167)
+- Minas de Fonte Figueira — `historical_landmark` — 41.28161, -7.95480 (node/5250404471)
+- Praceta Antero Teixeira da Cunha — `plaza` — 41.36807, -8.20576 (node/5412073063)
+- Senhora da Guia — `mountain` — 41.19577, -8.02815 (node/5584339409)
+- Freitas — `mountain` — 41.26757, -7.89627 (node/5584340086)
+- São Salvador — `mountain` — 41.23673, -8.09465 (node/5584340099)
+- Picotos — `mountain` — 41.28563, -8.01804 (node/5584340100)
+- Ladoeiro — `mountain` — 41.25904, -8.13708 (node/5584340102)
+- Pena Suar — `mountain` — 41.29565, -7.91637 (node/5584340663)
+- Vigias — `mountain` — 41.33181, -8.04899 (node/5584340672)
+- São Gruivo — `mountain` — 41.36413, -8.03787 (node/5584340673)
+- Prelonga — `mountain` — 41.29032, -8.12954 (node/5584340674)
+- Crista — `mountain` — 41.33542, -7.98205 (node/5584340675)
+- Cheira — `mountain` — 41.31809, -8.09377 (node/5584340676)
+- Borrança — `mountain` — 41.35415, -7.95542 (node/5584340677)
+- Feiteira — `mountain` — 41.30432, -7.95788 (node/5584340678)
+- Santa Quitéria — `mountain` — 41.37366, -8.19443 (node/5584340689)
+- Alto das Veias — `mountain` — 41.27220, -7.91670 (node/5618044582)
+- Chorida — `mountain` — 41.21318, -7.93160 (node/5618045443)
+- Monte Crasto — `mountain` — 41.25870, -8.14775 (node/5618046594)
+- São Simão — `mountain` — 41.33612, -8.18367 (node/5618047511)
+- Arranhadouro — `mountain` — 41.25484, -8.00928 (node/5618051586)
+- Cimo da Vila — `mountain` — 41.27680, -8.21033 (node/5618051587)
+- Trovoada — `mountain` — 41.29914, -8.18972 (node/5618051598)
+- Senhora do Pinheiro — `mountain` — 41.37110, -8.15246 (node/5618051599)
+- Miradouro da Senhora de Moreira — `viewpoint` — 41.26209, -7.95487 (node/5813569313)
+- Homenagem aos Combatentes do Ultramar — `historical_landmark` — 41.19127, -8.14501 (node/6213194475)
+- Arquitetura de Pedra — `historical_landmark` — 41.19047, -8.11959 (node/6572823038)
+- Miradouro do Torrão — `viewpoint` — 41.31763, -7.89688 (node/7927795902)
+- Miradouro — `tourist_attraction` — 41.31817, -8.20727 (node/8955271919)
+- Mémé — `tourist_attraction` — 41.32426, -8.19837 (node/8955295717)
+- Baloiço Vinhateiro — `tourist_attraction` — 41.31871, -8.20750 (node/9106279352)
+- Baloiço da Praia Fluvial de Agilde — `tourist_attraction` — 41.36366, -8.10441 (node/9106279368)
+- Baloiço do Olival — `tourist_attraction` — 41.36357, -8.10965 (node/9106279369)
+- Baloiço de Agilde Voar Alto — `tourist_attraction` — 41.36319, -8.10673 (node/9106279370)
+- Baloiço do Tâmega — `tourist_attraction` — 41.34903, -7.98340 (node/9106279440)
+- Miradouro da Nossa Senhora da Guia — `viewpoint` — 41.19259, -8.02716 (node/9439641046)
+- Alto da Barra — `viewpoint` — 41.30945, -7.90301 (node/9863702439)
+- Casa do Marmoiral — `historical_landmark` — 41.25124, -8.18920 (relation/20173756)
+- Penedo dos Cornudos — `tourist_attraction` — 41.21751, -8.00476 (way/1011980941)
+- Paço de Dona Loba — `historical_landmark` — 41.24909, -8.04528 (way/1034190944)
+- Igreja Paroquial do Divino Salvador de Fervença — `church` — 41.35768, -8.08809 (way/104662549)
+- Alminhas do lugar do Tapado — `tourist_attraction` — 41.35903, -8.09010 (way/106183204)
+- Capela [particular] — `tourist_attraction` — 41.35443, -8.09415 (way/107681687)
+- Moinho de água — `historical_landmark` — 41.34376, -8.09821 (way/107682496)
+- Igreja do Salvador — `church` — 41.29919, -8.12215 (way/1120388590)
+- Igreja de Nossa Senhora da Conceição — `church` — 41.25369, -8.02840 (way/1140769584)
+- Igreja Matriz de Carvalho de Rei — `church` — 41.22448, -8.01824 (way/1140781288)
+- Igreja Paroquial de Folhada — `church` — 41.21234, -8.07504 (way/1141520420)
+- Igreja Matriz de Gouveia - S. Simão — `church` — 41.21645, -8.06257 (way/1141520422)
+- Castelo de Santa Cruz — `historical_landmark` — 41.24897, -8.13330 (way/1154324222)
+- Casa de Santa Cruz — `historical_landmark` — 41.24991, -8.18779 (way/1155077789)
+- Igreja de Jazente — `church` — 41.24388, -8.05785 (way/1155629691)
+- Igreja de Santa Cristina — `church` — 41.29770, -8.17693 (way/1201174489)
+- Igreja Paroquial de São Martinho de Aliviada — `church` — 41.20348, -8.13009 (way/1205241972)
+- Casa do Cabo — `historical_landmark` — 41.20659, -8.11512 (way/1205241991)
+- Igreja Paroquial de Ataíde — `church` — 41.24889, -8.19536 (way/1221406924)
+- Capela de Nossa Senhora do Vau — `church` — 41.28972, -8.05918 (way/1225972438)
+- Casa das Donas — `historical_landmark` — 41.25217, -8.18596 (way/1259707587)
+- Casa da Costa — `historical_landmark` — 41.26849, -8.17019 (way/1265686098)
+- Largo Cipriano da Fonseca (Largo de São Pedro) — `plaza` — 41.26979, -8.08130 (way/1276613693)
+- Igreja Paroquial de Chapa — `church` — 41.31739, -8.05414 (way/1310884528)
+- Ponte do Bairro — `bridge` — 41.20676, -8.15200 (way/1311025874)
+- Termas de Amarante — `hot_spring` — 41.27147, -8.07459 (way/1356513351)
+- Casa de Pascoaes — `historical_landmark` — 41.28639, -8.07119 (way/1409208783)
+- Igreja Paroquial de Candemil — `church` — 41.24648, -7.96566 (way/141135309)
+- Casa do Carvalho — `historical_landmark` — 41.24637, -8.16940 (way/1426616964)
+- Dorna de Campanhó — `lake` — 41.31312, -7.92346 (way/1463893877)
+- Casa de São Brás — `historical_landmark` — 41.24069, -8.18028 (way/1474326187)
+- Casa do Ribeiro — `historical_landmark` — 41.25427, -8.19872 (way/1474326190)
+- Casa da Botica — `historical_landmark` — 41.25123, -8.18651 (way/1474439846)
+- Casa de Manhufe — `historical_landmark` — 41.26378, -8.15502 (way/1474439849)
+- Casa de Cello — `historical_landmark` — 41.27192, -8.16362 (way/1474439852)
+- Solar de Carvalhosa — `historical_landmark` — 41.23104, -8.16761 (way/1474566613)
+- Casa de Regoufe — `historical_landmark` — 41.23782, -8.16156 (way/1474566627)
+- Casa do Bustelo — `historical_landmark` — 41.24149, -8.15630 (way/1474566670)
+- Praça 25 de Abril — `park` — 41.25185, -8.17490 (way/1475058766)
+- Largo de Pidre — `plaza` — 41.26633, -8.14263 (way/1487688545)
+- Igreja de Fregim — `church` — 41.26438, -8.10731 (way/150016001)
+- Aldeia Miniatura de Pedro Lemos — `tourist_attraction` — 41.35517, -8.12164 (way/1512736914)
+- Pedreira de Aboadela — `lake` — 41.27011, -7.99029 (way/169543867)
+- Praia Fluvial de Aboadela — `beach` — 41.27756, -7.99595 (way/169544219)
+- Igreja de Figueiró (Santiago) — `church` — 41.30164, -8.16298 (way/170280462)
+- Mirante do Fontanário — `viewpoint` — 41.26894, -8.08104 (way/183795521)
+- Casa dos Macedos — `historical_landmark` — 41.26960, -8.08031 (way/184241857)
+- Solar dos Magalhães — `historical_landmark` — 41.27157, -8.08242 (way/188723687)
+- Arco Romano — `historical_landmark` — 41.26827, -8.07487 (way/196848688)
+- Igreja da Misericórdia — `church` — 41.27175, -8.08155 (way/197502744)
+- Praça da República — `plaza` — 41.36507, -8.19894 (way/237138603)
+- Praia Fluvial Aurora — `beach` — 41.27493, -8.07205 (way/238195470)
+- Jardim Baden Powell — `park` — 41.27094, -8.07547 (way/238196134)
+- Campo da Feira — `plaza` — 41.27202, -8.07948 (way/244022609)
+- Igreja Paroquial de Campanhó — `church` — 41.32358, -7.92984 (way/248123806)
+- Mosteiro de Arnoia — `historical_landmark` — 41.37383, -8.01506 (way/248610969)
+- Igreja Paroquial de Carvalhosa — `church` — 41.23730, -8.16350 (way/252636934)
+- Igreja de São Paio de Loivos do Monte — `church` — 41.19444, -7.97189 (way/256165184)
+- Igreja de Refontoura — `church` — 41.33212, -8.19371 (way/256282185)
+- Igreja do Salvador de Lufrei — `church` — 41.27364, -8.05435 (way/257182542)
+- Casa do Casal — `historical_landmark` — 41.37262, -8.01229 (way/370750764)
+- Casa do Telhô — `historical_landmark` — 41.37325, -8.01040 (way/370751105)
+- Casa de Toiande — `historical_landmark` — 41.37254, -8.00308 (way/370751515)
+- Igreja de Codessoso — `historical_landmark` — 41.33625, -8.01991 (way/375248210)
+- Igreja de Vila Chã do Marão — `church` — 41.29108, -8.02690 (way/409849923)
+- Igreja de São Nicolau — `church` — 41.19254, -8.16142 (way/440723347)
+- Igreja Paroquial de Várzea da Ovelha — `church` — 41.20444, -8.11381 (way/506999406)
+- Igreja do Alto da Lixa — `church` — 41.31521, -8.14078 (way/543001680)
+- Padrão Comemorativo dos Centenários da Pátria — `historical_landmark` — 41.26759, -7.89630 (way/543115387)
+- Igreja Matriz de Canadelo - S. Pedro — `church` — 41.32334, -7.97252 (way/551932763)
+- Praça do Foral — `plaza` — 41.36509, -8.19942 (way/553155669)
+- Oratório do Senhor do Monte — `church` — 41.36960, -7.93633 (way/626780447)
+- Igreja de Vilar do Torno — `church` — 41.28448, -8.21281 (way/651987378)
+- Torre de Nevões — `historical_landmark` — 41.19469, -8.10819 (way/683463603)
+- Largo das Alminhas — `plaza` — 41.20391, -8.10249 (way/694157030)
+- Igreja Paroquial de Cepelos — `church` — 41.25318, -8.08287 (way/709255946)
+- Jardim de Guimarães — `park` — 41.27351, -8.08517 (way/837277498)
+- Igreja de Carneiro — `church` — 41.21472, -7.97365 (way/869059638)
+- Igreja Paroquial de Aboadela — `church` — 41.27799, -7.98743 (way/869078916)
+- Igreja Paroquial de Bustelo — `church` — 41.23771, -8.00034 (way/874923228)
+- Igreja Matriz de Moreira do Castelo - Santa Maria — `church` — 41.34946, -8.06360 (way/878678448)
+- Igreja Paroquial de Aboim — `church` — 41.32616, -8.06909 (way/886812423)
+- Igreja de Vila Garcia — `church` — 41.31288, -8.07747 (way/887286633)
+- Santo André de Telões — `church` — 41.31021, -8.10786 (way/887605553)
+- Igreja Paroquial de Lomba — `church` — 41.24849, -8.06640 (way/889042832)
+- Igreja Paroquial de São Mamede de Recezinhos — `church` — 41.23917, -8.20733 (way/889961318)
+- Igreja de Vila Caiz — `church` — 41.23578, -8.14371 (way/889961342)
+- Igreja Paroquial de Oliveira — `church` — 41.25719, -8.20128 (way/889963674)
+- Igreja de Teixeira — `church` — 41.19209, -7.92401 (way/890137517)
+- Antigo posto de junta de freguesia — `historical_landmark` — 41.27715, -7.99413 (way/894308447)
+
+## Dropped — served duplicate (33)
+
+- Museu Municipal Amadeo de Souza-Cardoso ↔ Museu Municipal Amadeo de Souza Cardoso (overture)
+- Anta da Aboboreira ↔ Dolmen Chã de Parada (overture)
+- Dólmen das Meninas do Crasto 3 ↔ Meninas do Crasto (overture)
+- Mosteiro de Travanca ↔ Mosteiro de São Salvador de Travanca (overture)
+- Igreja matriz de Agilde ↔ Igreja matriz de Agilde (curated)
+- Igreja de Santa Maria de Airães ↔ Igreja Românica de Santa Maria de Airães (overture)
+- Igreja Românica de Santa Maria de Gondar ↔ Igreja de Santa Maria de Gondar (overture)
+- Igreja de São Mamede de Vila Verde ↔ Igreja de São Mamede de Vila Verde (overture)
+- Igreja Paroquial de Salvador do Monte ↔ Salão Paroquial de Salvador (overture)
+- Casa de Simães ↔ Casa e Portal de Simães (overture)
+- Igreja Paroquial de Banho ↔ Banho (curated)
+- Torre de Vilar ↔ Torre de Vilar (overture)
+- Igreja da Lixa ↔ Igreja Nova da Lixa (overture)
+- Igreja de São Domingos ↔ Igreja de São Domingos (overture)
+- Igreja de São Pedro ↔ Igreja de São Pedro (Amarante) (overture)
+- Igreja da Madalena ↔ Igreja da Madalena (overture)
+- Praia Fluvial de Real ↔ Praia fluvial de Vila Meã (overture)
+- Castelo de Arnóia ↔ Castelo de Arnoia (overture)
+- Igreja Paroquial de Real ↔ Jardim da Igreja de Real (curated)
+- Igreja Paroquial de Mancelos ↔ Igreja De Mancelos (overture)
+- Igreja de São Veríssimo ↔ Igreja S. Veríssimo (curated)
+- Igreja de Lufrei ↔ Igreja Paroquial de Lufrei (overture)
+- Igreja de Santo André de Vila Boa de Quires ↔ Igreja de Santo Andre (overture)
+- Ponte de São Gonçalo ↔ Ponte de São Gonçalo (overture)
+- Praça da República (Largo de São Gonçalo) ↔ Largo de S. Gonçalo (overture)
+- Igreja de Santa Quitéria ↔ Igreja Santa Quitéria (overture)
+- Igreja Matriz de Felgueiras ↔ Igreja Matriz de Felgueiras (overture)
+- Igreja de Santa Marinha ↔ Igreja de Santa Marinha (overture)
+- Igreja Paroquial de Gatão ↔ Paróquia de Gatão (overture)
+- Igreja de Santo Isidoro ↔ Igreja Paroquial de Santo Isidoro (overture)
+- Igreja de Santa Maria de Sobretâmega ↔ Santa Maria do Sobretâmega (curated)
+- Antiga Igreja Paroquial de Real ↔ Igreja Do Salvador De Real (overture)
+- Igreja Matriz de Louredo - S. João Baptista ↔ Igreja Matriz De Louredo (curated)
+
+## Dropped — red flag with a served row (4)
+
+- Monumento aos Combatentes ↔ Memorial aos Mortos da Guerra Colonial (curated)
+- Igreja de São Gonçalo ↔ Igreja de São Domingos (overture)
+- Convento de Santa Clara ↔ Coventa E Capela De Santa Clara (curated)
+- Ponte de Fundo de Rua ↔ Ponte Romanica de Aboadela (overture)
+
+## Dropped — OSM duplicate (6)
+
+- Dólmen de Outeiro de Ante 2 ↔ Dólmen de Outeiro de Ante 1
+- Torre de Menagem do Castelo de Arnoia ↔ Castelo de Arnóia
+- Jardim Mosteiro de Arnoia ↔ Mosteiro de Arnoia
+- Jardim da Praça do Foral ↔ Praça do Foral
+- Praceta Antero Teixeira da Cunha ↔ Praceta Antero Teixeira da Cunha
+- Praceta Antero Teixeira da Cunha ↔ Praceta Antero Teixeira da Cunha
+
+## Dropped — not a place (10)
+
+- Torre da Pena ↔ private
+- Reservatório de Água do Rio de Santa Natália ↔ not a lake (water works or basin)
+- Ponto de Água ↔ water without a lake name or tag
+- Praia Fluvial de Mafómedes ↔ water without a lake name or tag
+- Câmara de Carga do Aproveitamento Hidroelétrico do Pego Negro ↔ not a lake (water works or basin)
+- Casa de Arnoia ↔ private
+- Tanque ↔ not a lake (water works or basin)
+- Tanque ↔ not a lake (water works or basin)
+- Tanque ↔ not a lake (water works or basin)
+- Tanque ↔ not a lake (water works or basin)

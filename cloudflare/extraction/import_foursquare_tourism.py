@@ -65,6 +65,7 @@ REPO_ROOT = os.path.dirname(CLOUDFLARE_DIR)
 sys.path.insert(0, EXTRACTION_DIR)
 
 import preflight_foursquare_archive as preflight  # noqa: E402
+import rejection_registry  # noqa: E402
 from classify_and_load import MAX_STATEMENT_BYTES, byte_len, encode_geohash, normalize_text, sql_escape  # noqa: E402
 from enrich_osm_cuisine import MATCH_RADIUS_METERS, haversine_m  # noqa: E402
 from supplement_osm_pois import identity_tokens, name_similarity, names_match  # noqa: E402
@@ -87,17 +88,29 @@ CURATED_COLUMNS = (
     'status', 'created_at', 'created_by', 'updated_at', 'updated_by',
     'origin_source', 'origin_id', 'origin_licence', 'imported_at', 'import_run_id',
 )
-CURATED_INSERT_PREFIX = f'INSERT INTO curated_poi ({", ".join(CURATED_COLUMNS)}) VALUES\n'
+# KAN-461: an origin on the rejection list (poi_source_correction,
+# visible = 0) is never written again — checked in the statement itself, so
+# no importer can skip it (rejection_registry).
+_ORIGIN_SOURCE_COL = f"v.column{CURATED_COLUMNS.index('origin_source') + 1}"
+_ORIGIN_ID_COL = f"v.column{CURATED_COLUMNS.index('origin_id') + 1}"
+CURATED_INSERT_PREFIX, _CURATED_WHERE = rejection_registry.guarded_values(
+    f'curated_poi ({", ".join(CURATED_COLUMNS)})',
+    'NOT ' + rejection_registry.rejected_origin(_ORIGIN_SOURCE_COL, _ORIGIN_ID_COL))
 # The conflict target names 0042's partial unique index — SQLite requires
 # the WHERE to match the index's own — so the idempotency guarantee is the
 # index, not this script. The poi_id clause is belt and braces: the id is
 # derived from origin_id, so both fire on the same re-run.
 CURATED_INSERT_SUFFIX = (
+    _CURATED_WHERE +
     '\nON CONFLICT (origin_source, origin_id) WHERE origin_source IS NOT NULL AND origin_id IS NOT NULL DO NOTHING'
     '\nON CONFLICT (poi_id) DO NOTHING;\n'
 )
-ATTRIBUTE_INSERT_PREFIX = 'INSERT OR IGNORE INTO curated_poi_attribute (poi_id, dimension, value) VALUES\n'
-ATTRIBUTE_INSERT_SUFFIX = ';\n'
+# An attribute only for a curated row that exists: a refused row leaves nothing.
+ATTRIBUTE_INSERT_PREFIX, _ATTRIBUTE_WHERE = rejection_registry.guarded_values(
+    'curated_poi_attribute (poi_id, dimension, value)',
+    'EXISTS (SELECT 1 FROM curated_poi p WHERE p.poi_id = v.column1)')
+ATTRIBUTE_INSERT_PREFIX = ATTRIBUTE_INSERT_PREFIX.replace('INSERT INTO', 'INSERT OR IGNORE INTO', 1)
+ATTRIBUTE_INSERT_SUFFIX = _ATTRIBUTE_WHERE + ';\n'
 MAX_VALUES_TERMS = 500
 D1_ID_BATCH = 150
 # The two hand-check samples the owner reads before merge: pairs the
@@ -106,7 +119,7 @@ HAND_CHECK_ROWS = 50
 
 SKIP_ORDER = (
     'excluded leaf', 'noise leaf', 'parent-only leaf', 'tier 2 leaf', 'unmapped leaf',
-    'no coordinates', 'empty name', 'hidden by poi_source_correction',
+    'no coordinates', 'empty name', 'held for review', 'hidden by poi_source_correction',
     'matched', 'matched (translated)', 'weak name', 'suspect', 'in-batch duplicate',
 )
 
@@ -533,9 +546,12 @@ def served_alias_twins(inserts, grid):
     return sorted(twins, key=lambda twin: (twin[2], twin[0]['fsq_place_id']))
 
 
-def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None):
+def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None, hold=None):
     """Every record → a decision. Returns (inserts, skips) where inserts
-    are records with 'types' set and skips are (record, reason, detail)."""
+    are records with 'types' set and skips are (record, reason, detail).
+    `hold` is {fsq id: why}: rows a person reviews before they are written
+    (KAN-461: street, roundabout and village names under a place leaf)."""
+    hold = hold or {}
     skips = []
     candidates = []
     for record in records:
@@ -545,6 +561,9 @@ def plan(records, paths_by_id, leaf_map, grid, corrections, translation=None):
             skips.append((record, decision, ', '.join(f'{leaf} ({kind})' for leaf, kind in sorted(kinds.items()))))
             continue
         record['types'] = types
+        if record['fsq_place_id'] in hold:
+            skips.append((record, 'held for review', hold[record['fsq_place_id']]))
+            continue
         correction = corrections.get(record['fsq_place_id'])
         if correction and int(correction.get('visible') or 0) == 0:
             skips.append((record, 'hidden by poi_source_correction', correction.get('review_note') or ''))
@@ -916,7 +935,11 @@ def run(args):
     table = terms.table_for(args.country)
     if table is None:
         print(f'[import] no landmark-terms table for {args.country}: translation step off', file=sys.stderr)
-    inserts, skips = plan(records, paths_by_id, leaf_map, grid, corrections, (table, terms) if table else None)
+    hold = {}
+    if args.hold:
+        with open(args.hold, encoding='utf-8') as handle:
+            hold = {row['fsq_place_id']: row['why'] for row in json.load(handle)['hold']}
+    inserts, skips = plan(records, paths_by_id, leaf_map, grid, corrections, (table, terms) if table else None, hold)
     inserts.sort(key=lambda r: r['fsq_place_id'])
     skips.sort(key=lambda s: s[0]['fsq_place_id'])
     imported_at = args.imported_at or datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -1001,6 +1024,7 @@ def main(argv=None):
     parser.add_argument('--landmark-terms', default=DEFAULT_LANDMARK_TERMS,
                         help='per-language landmark word table for the translation-aware match (keyed by --country)')
     parser.add_argument('--tier', type=int, default=1)
+    parser.add_argument('--hold', help='JSON {"hold": [{"fsq_place_id", "name", "why"}]}: reviewed before writing')
     parser.add_argument('--run-id', required=True)
     parser.add_argument('--report-out', required=True, help='markdown path; the .jsonl goes beside it')
     parser.add_argument('--sql-out', help='also write every statement to this file (dry run inspection)')
