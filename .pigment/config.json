@@ -1,0 +1,6 @@
+{
+  "version": 1,
+  "storage": "cloud",
+  "provider": "cloudflare",
+  "serverUrl": "https://pigment-brush.olegarioncnascimento.workers.dev"
+}
