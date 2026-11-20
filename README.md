@@ -297,6 +297,22 @@ All feature and bugfix branches use the `KAN-XX-` prefix.
 
 ---
 
+## AI work costs (Pigment)
+
+Optional. [Pigment](https://github.com/Alcagoita/pigment) is a Claude Code mod that shows, beside the chat, what each prompt, task and session costs and how long each task was worked on; the manager view adds the sprint by task, tasks in development and quiet sessions. The task comes from the branch name (`KAN-55-…` → KAN-55).
+
+This project keeps its numbers in the team's cloud: `.pigment/config.json` points to Brush's Pigment server. Only numbers are stored (ticket, session, name, cost, tokens, worked time) — never prompts or code. The file holds no key.
+
+**To join:**
+
+1. Install Pigment in Claude Code: `/plugin install pigment --marketplace Alcagoita/pigment`
+2. Open the project. Pigment shows **Developer setup**.
+3. Ask the project owner for the team key, and add it in `/config` under Pigment (**Team key**, **Your name**). For worklogs at Testing, add your Jira site, email and API token there too.
+
+Costs are estimates at list price; on a subscription they show what the work would cost, not what is paid.
+
+---
+
 ## Troubleshooting
 
 - **Metro cache**: `npm start -- --reset-cache`
