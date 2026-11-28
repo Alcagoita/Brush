@@ -1,0 +1,327 @@
+# KAN-461 OSM batch 1 — short names, complete (dry run, nothing written)
+
+Batch 1: laundry, butcher, fishmonger, florist, tattoo, ice cream. 1,688 green; 32 market stalls held for KAN-539.
+
+## A. Chain names, 3+ branches (124 rows)
+
+- Washy ×88
+- 5àsec ×33
+- Lavisek ×3
+
+## B. Only the kind of shop, no name (80 rows)
+
+- A Lavandaria — `laundry` — (no address) — 38.44400, -9.09965
+- Charcutaria — `butcher` — Rua 25 de Abril — 38.62075, -9.11833
+- Charcutaria — `butcher` — (no address) — 40.96497, -7.26195
+- Charcutaria — `butcher` — (no address) — 41.24901, -8.62376
+- Flores — `florist` — (no address) — 40.92905, -8.24559
+- Flores — `florist` — (no address) — 41.00185, -8.17669
+- Florista — `florist` — (no address) — 38.77309, -27.17040
+- Florista — `florist` — (no address) — 39.06931, -8.86717
+- Florista — `florist` — (no address) — 40.56231, -8.76523
+- Florista — `florist` — (no address) — 40.64827, -8.63099
+- Florista — `florist` — (no address) — 41.08497, -8.04332
+- Florista — `florist` — (no address) — 41.35778, -8.36572
+- Florista — `florist` — (no address) — 41.38043, -8.31240
+- Florista — `florist` — (no address) — 41.49535, -7.17663
+- Florista — `florist` — (no address) — 41.51499, -7.99072
+- Florista — `florist` — (no address) — 41.62620, -8.79891
+- Florista — `florist` — 1398 — 41.63985, -7.94728
+- Launderette — `laundry` — Rua Vasco de Lima Couto — 38.76596, -9.23188
+- Launderette — `laundry` — Rua Artur Ferreira da Silva, 39, 1885-031, Moscavide — 38.77611, -9.10291
+- Laundering — `laundry` — (no address) — 38.75626, -9.25455
+- Laundry Service — `laundry` — Rua de Frei João de Chaves, Loja 1, 5400-318, Chaves — 41.74317, -7.47563
+- Lavandaria — `laundry` — (no address) — 37.09196, -7.70293
+- Lavandaria — `laundry` — (no address) — 38.78043, -9.26131
+- Lavandaria — `laundry` — (no address) — 40.64815, -8.63133
+- Lavandaria — `laundry` — (no address) — 41.36080, -8.36129
+- Lavandaria . Laundry — `laundry` — (no address) — 37.52555, -8.77574
+- Lavandaria Self Service — `laundry` — (no address) — 37.12482, -7.64549
+- Lavandaria Self Service — `laundry` — (no address) — 38.74470, -9.27786
+- Lavandaria Self Service — `laundry` — Avenida Professor Adelino Mamede de Oliveira, 2500-067, Caldas da Rainha — 39.40968, -9.14365
+- Lavandaria Self Service — `laundry` — Rua das Padeiras — 40.20974, -8.43078
+- Lavandaria Self Service — `laundry` — (no address) — 41.18446, -8.69468
+- Lavandaria Self-Service — `laundry` — (no address) — 32.65813, -16.97369
+- Lavandaria Self-Service — `laundry` — (no address) — 37.09425, -7.67782
+- Lavandaria Self-Service — `laundry` — Estrada dos Alamos, 39, Laranjeiro — 38.65035, -9.15107
+- Lavandaria Self-Service — `laundry` — Rua Josefa de Óbidos, 35A — 38.71219, -9.33081
+- Lavandaria Self-Service — `laundry` — Passeio Júlio Verne, 11, Parque das Nações — 38.77919, -9.09419
+- Lavandaria Self-Service — `laundry` — Rua Cooperativa A Sacavenense, 2685, Sacavém — 38.78990, -9.10741
+- Lavandaria Self-Service — `laundry` — (no address) — 39.59885, -9.07136
+- Lavandaria Self-Service — `laundry` — (no address) — 39.73839, -8.82484
+- Lavandaria Self-Service — `laundry` — (no address) — 40.41332, -7.70676
+- Lavandaria Self-service — `laundry` — (no address) — 37.08636, -8.82807
+- Lavandaria self-service — `laundry` — (no address) — 38.68587, -9.34651
+- Lavandaria self-service — `laundry` — (no address) — 38.75834, -9.26663
+- Lavandaria self-service — `laundry` — (no address) — 40.97926, -8.57494
+- Lavandaria self_service — `laundry` — Calçada da Rinchoa, 6, Rio de Mouro - Rinchoa — 38.78449, -9.32022
+- Loja das Flores — `florist` — Praça da Liberdade, 123 — 41.14674, -8.61083
+- O Talho — `butcher` — (no address) — 37.36185, -8.37700
+- Peixaria — `fishmonger` — (no address) — 37.93524, -7.77554
+- Peixaria — `fishmonger` — (no address) — 38.17640, -8.56338
+- Peixaria — `fishmonger` — (no address) — 41.24900, -8.62356
+- Peixaria — `fishmonger` — (no address) — 41.40065, -8.40749
+- Peixaria — `fishmonger` — (no address) — 41.42184, -8.29966
+- Peixaria — `fishmonger` — (no address) — 41.42653, -8.35431
+- Peixaria — `fishmonger` — (no address) — 41.74819, -7.46628
+- Self service laundry — `laundry` — (no address) — 41.15221, -8.61784
+- Self service lavanderia — `laundry` — (no address) — 40.20184, -8.41359
+- Self-service laundry — `laundry` — (no address) — 32.74209, -16.71120
+- Self-service laundry — `laundry` — Rua Mário Dionísio, 4, 1600-248 — 38.76358, -9.17121
+- Studio tattoo — `tattoo` — (no address) — 40.94660, -8.54762
+- Talho — `butcher` — (no address) — 32.80565, -16.88512
+- Talho — `butcher` — Rua Magalhães Lima, 59 — 37.05485, -7.74668
+- Talho — `butcher` — (no address) — 37.08353, -8.91340
+- Talho — `butcher` — (no address) — 38.70614, -9.23159
+- Talho — `butcher` — (no address) — 38.71618, -9.34963
+- Talho — `butcher` — (no address) — 38.81289, -9.11881
+- Talho — `butcher` — (no address) — 39.45862, -8.47112
+- Talho — `butcher` — (no address) — 39.50878, -8.49057
+- Talho — `butcher` — (no address) — 39.59759, -9.07161
+- Talho — `butcher` — (no address) — 39.85078, -8.86642
+- Talho — `butcher` — (no address) — 40.07751, -7.49566
+- Talho — `butcher` — Nespereira — 40.51501, -7.60809
+- Talho — `butcher` — (no address) — 40.60057, -8.66865
+- Talho — `butcher` — (no address) — 41.00076, -8.17662
+- Talho — `butcher` — (no address) — 41.03914, -7.81546
+- Talho — `butcher` — (no address) — 41.17409, -7.05318
+- Talho — `butcher` — (no address) — 41.24923, -8.62355
+- Talho — `butcher` — (no address) — 41.55971, -8.40875
+- Talho — `butcher` — (no address) — 41.74859, -7.46650
+- Talho Loja das Carnes — `butcher` — Rua de Bento de Jesus Caraça, 19 — 38.65521, -9.14880
+- peixaria — `fishmonger` — (no address) — 38.75826, -9.22759
+
+## C. One word or a person's name (232 rows)
+
+- Achatalho — `butcher` — (no address) — 38.96807, -9.36649
+- Adalma — `butcher` — Rua da Carvalha, 21, 4760-706, Ribeirão — 41.34689, -8.57223
+- Almeida — `butcher` — Rua dos 3 Vales, 61A, Caparica — 38.66766, -9.18777
+- Alturcarnes — `butcher` — (no address) — 37.17667, -7.49931
+- Cabrito — `butcher` — (no address) — 41.15688, -8.60907
+- Canas — `butcher` — (no address) — 41.81395, -8.86305
+- CarneSalgado — `butcher` — (no address) — 41.76593, -8.58609
+- Carvalho — `butcher` — (no address) — 41.63316, -8.44143
+- Casalinho — `butcher` — (no address) — 41.43799, -8.52303
+- Casel — `butcher` — (no address) — 39.81515, -8.18839
+- Caxicarnes — `butcher` — (no address) — 41.36972, -8.75736
+- ComeCarne — `butcher` — (no address) — 38.81494, -9.11862
+- Comércicarnes — `butcher` — (no address) — 37.19398, -7.42132
+- Correia — `butcher` — (no address) — 40.54588, -8.50823
+- Daniel — `butcher` — (no address) — 39.73975, -8.80839
+- Daniel — `butcher` — (no address) — 41.53492, -6.95758
+- Expresso — `butcher` — (no address) — 41.27676, -7.47484
+- Filipe — `butcher` — (no address) — 41.91007, -8.55960
+- Finis — `butcher` — (no address) — 38.75050, -9.23096
+- Frisicarnes — `butcher` — (no address) — 41.35031, -8.74686
+- Gelcarnes — `butcher` — Rua do Arrabalde, 22, Odivelas — 38.16765, -8.14818
+- GidaCarnes — `butcher` — (no address) — 41.56245, -8.41971
+- GidaCarnes — `butcher` — (no address) — 41.53433, -8.45370
+- Gondocarnes — `butcher` — (no address) — 41.11509, -8.48788
+- JRD — `butcher` — (no address) — 40.55806, -8.62549
+- Kilom — `butcher` — (no address) — 38.85812, -9.13710
+- Lacota — `butcher` — (no address) — 41.54877, -8.42133
+- Loja Da Carne — `butcher` — R. Cláudio Nunes, 1, 1500-305, Lisboa — 38.75098, -9.20153
+- Luvipedro — `butcher` — Alameda Dom Afonso Henriques, 2480-306 — 39.59834, -8.81902
+- Luzcarnes — `butcher` — (no address) — 38.00781, -7.85467
+- Macano — `butcher` — (no address) — 41.46694, -8.27818
+- Manel — `butcher` — (no address) — 39.91858, -7.91381
+- Matibom — `butcher` — (no address) — 40.77454, -7.06809
+- Mesquita — `butcher` — (no address) — 41.24376, -7.30337
+- Miracorvo — `butcher` — (no address) — 41.62373, -8.43366
+- Montaraz — `butcher` — (no address) — 37.70815, -8.32668
+- Mosteiro — `butcher` — (no address) — 41.42334, -8.67101
+- Novitalho — `butcher` — Rua da Rechousa, 4410-222, Vila Nova de Gaia — 41.09445, -8.59804
+- Pampita — `butcher` — Rua júlio Dantas, 17E — 38.71030, -9.43424
+- Parente — `butcher` — (no address) — 41.40580, -7.45026
+- Parente — `butcher` — (no address) — 41.65532, -7.12699
+- Pereira — `butcher` — (no address) — 41.63455, -8.19219
+- Pessegueiro — `butcher` — (no address) — 41.04042, -8.64729
+- Pessegueiro — `butcher` — (no address) — 41.21676, -8.55150
+- Portral — `butcher` — 2710-089, Abrunheiroa - Sintra — 38.76836, -9.34851
+- QuimCarnes — `butcher` — (no address) — 41.70791, -8.81084
+- Ralph — `butcher` — (no address) — 38.75664, -9.25660
+- Raquel — `butcher` — (no address) — 39.42928, -8.98028
+- Ricamel — `butcher` — (no address) — 39.79881, -8.70939
+- Romão — `butcher` — (no address) — 38.17541, -8.56450
+- Saldanha — `butcher` — (no address) — 41.43325, -8.41958
+- Salsicharia — `butcher` — (no address) — 41.47155, -6.42156
+- Salvador — `butcher` — Av. Valentim Ribeiro, 29, 4740-208, Esposende — 41.53283, -8.77768
+- Silau — `butcher` — (no address) — 38.78437, -9.18783
+- Silau — `butcher` — Rua do Moinho, 61-L1, Caparica — 38.66793, -9.18888
+- SuperTalho — `butcher` — (no address) — 38.52759, -8.89650
+- Talh3o — `butcher` — Rua Doutor António Elvas, 5-9 — 38.65546, -9.15544
+- TalhoCerto — `butcher` — (no address) — 38.78265, -9.09504
+- Talhofresco — `butcher` — (no address) — 37.19417, -7.42137
+- Teixugueiras — `butcher` — (no address) — 41.38323, -8.31525
+- TiAntónio — `butcher` — (no address) — 39.50013, -8.50616
+- Tina — `butcher` — (no address) — 41.06918, -8.40329
+- Torricarnes — `butcher` — Avenida Cidade de Orense, 40, 5000-670, Vila Real — 41.30423, -7.74555
+- Tozeli — `butcher` — Rua Carlos Seixas, 127 A — 40.19528, -8.41584
+- Veneza — `butcher` — (no address) — 41.45286, -8.16860
+- Vicente — `butcher` — (no address) — 40.49393, -7.59268
+- Vieiras — `butcher` — (no address) — 41.62701, -8.36587
+- Aquário — `fishmonger` — (no address) — 39.60367, -8.40724
+- Candilota — `fishmonger` — (no address) — 41.55736, -8.42034
+- CongeVal — `fishmonger` — (no address) — 42.11582, -8.26119
+- Congelados — `fishmonger` — (no address) — 41.17484, -7.05158
+- Dimar — `fishmonger` — Avenida 23 de Julho, 343 — 38.66052, -9.15698
+- DocaPesca — `fishmonger` — (no address) — 38.96523, -9.41915
+- EdroPeixe — `fishmonger` — (no address) — 41.18435, -8.69603
+- Gelfeira — `fishmonger` — Rua Ferreira de Castro, 111, Santa Maria da Feira — 40.92593, -8.55838
+- Golfinho — `fishmonger` — (no address) — 39.24096, -9.10279
+- Juilmar — `fishmonger` — Rua de Bento Carqueja — 41.25020, -8.62962
+- MariaMar — `fishmonger` — (no address) — 41.12244, -8.60479
+- Marisco — `fishmonger` — Avenida 1º de Maio, 34, Costa da Caparica — 38.64519, -9.23754
+- Mundimariscos — `fishmonger` — (no address) — 38.75541, -9.27770
+- Ongel — `fishmonger` — (no address) — 41.21347, -8.54901
+- Pinheirogel — `fishmonger` — Avenida Gago Coutinho, 84 A — 38.78417, -9.32263
+- Porgel — `fishmonger` — (no address) — 39.72774, -8.80916
+- Ribapeixe — `fishmonger` — (no address) — 39.47739, -8.53632
+- Rosita — `fishmonger` — (no address) — 41.06294, -8.56956
+- extrafishPEIXARIA — `fishmonger` — (no address) — 38.75255, -9.20684
+- ANossaManeira — `florist` — (no address) — 41.24324, -7.30502
+- Aflorado — `florist` — Avenida da Fundação, 33, Almada, Cova da Piedade, Pragal e Cacilhas — 38.66952, -9.16089
+- Amarestufas — `florist` — (no address) — 41.55022, -8.42926
+- Cidália — `florist` — (no address) — 40.72472, -6.90534
+- Conceição — `florist` — (no address) — 41.46690, -8.27822
+- Decoflor — `florist` — (no address) — 39.35705, -9.38238
+- Decorflor — `florist` — (no address) — 40.57439, -8.44275
+- Diverplantas — `florist` — (no address) — 40.67912, -7.92090
+- Dulce — `florist` — (no address) — 38.00592, -8.41421
+- Eloi — `florist` — (no address) — 41.34310, -6.70986
+- FlorDecor — `florist` — (no address) — 40.83669, -8.42994
+- FlorHália — `florist` — (no address) — 41.17181, -8.66516
+- Floratta — `florist` — (no address) — 41.11726, -8.60813
+- Florescer — `florist` — (no address) — 41.29751, -7.73490
+- Florilandia — `florist` — (no address) — 41.18340, -8.68848
+- Florimex — `florist` — Travessa Joaquim Lopes Pintor, 81, 4405-869, Mafamude e Vilar do Paraíso — 41.11132, -8.62138
+- Florinha — `florist` — Praça da Liberdade, 2825-355, Costa da Caparica — 38.64399, -9.23363
+- Floripes — `florist` — (no address) — 41.01742, -7.77516
+- Floripétalha — `florist` — (no address) — 38.52478, -8.88183
+- Florlar — `florist` — (no address) — 39.69172, -8.54242
+- Gardénia — `florist` — (no address) — 40.57217, -8.44571
+- Girassol — `florist` — (no address) — 39.90215, -8.27712
+- Gracinda — `florist` — (no address) — 41.39462, -8.31376
+- Helene — `florist` — (no address) — 40.68806, -8.48043
+- InterFlor — `florist` — (no address) — 41.81421, -8.41904
+- Interflora — `florist` — (no address) — 39.62829, -8.67046
+- Isaflor — `florist` — Rua 1 de Outubro, 3140, Seixo de Gatões — 40.23814, -8.68336
+- Izilda — `florist` — (no address) — 37.15204, -7.88852
+- Jadimcampo — `florist` — (no address) — 37.74030, -25.66838
+- Joaninha — `florist` — (no address) — 39.66537, -8.68496
+- Juliana — `florist` — (no address) — 40.64043, -8.61102
+- Kefrô — `florist` — (no address) — 38.73839, -9.39872
+- Lila — `florist` — (no address) — 40.75495, -8.48672
+- Margarida — `florist` — (no address) — 39.74187, -8.70749
+- Marguiflor — `florist` — Rua do Comércio, 23, 2785-575, Rana — 38.69827, -9.34901
+- Matilde — `florist` — (no address) — 40.93935, -8.54066
+- NeivaFlor — `florist` — (no address) — 41.64354, -8.62693
+- Oliplanta — `florist` — (no address) — 40.71340, -8.17707
+- Paloma — `florist` — (no address) — 40.37778, -8.45011
+- PatiFlor — `florist` — (no address) — 41.37316, -8.37911
+- Plantillos — `florist` — (no address) — 38.84810, -9.43726
+- Plantizha — `florist` — (no address) — 38.69548, -9.44361
+- Primavera — `florist` — (no address) — 41.80816, -6.75780
+- Pétala — `florist` — (no address) — 40.84969, -8.39364
+- Quina — `florist` — (no address) — 41.50445, -8.43740
+- Ramalhete — `florist` — (no address) — 41.48528, -8.25619
+- Raízes — `florist` — (no address) — 41.69308, -8.82839
+- Roberto — `florist` — (no address) — 41.06680, -8.47908
+- Silvana — `florist` — (no address) — 41.55830, -8.41442
+- Sociflor — `florist` — Rua de Belém, 2780-005, Oeiras — 38.69717, -9.30495
+- Tulipa — `florist` — Rua do Sabão, 65, 9000-056, Funchal — 32.64872, -16.90715
+- Tulipa — `florist` — Rua do Calvário, 49, 7830-347, Serpa — 37.94229, -7.59591
+- Velareza — `florist` — Travessa Joaquim Lopes Pintor, 81, 4405-869, Mafamude e Vilar do Paraíso — 41.11121, -8.62158
+- Aguinhas — `laundry` — (no address) — 38.79735, -9.11183
+- Aquacare — `laundry` — (no address) — 39.85076, -8.84388
+- Aquaprática — `laundry` — (no address) — 39.62789, -8.66673
+- Aquaprática — `laundry` — Rua de Paris, 13, 2415-584, Leiria — 39.75761, -8.80328
+- Aroma — `laundry` — (no address) — 33.06058, -16.33490
+- Asia — `laundry` — (no address) — 38.75996, -9.25007
+- Bela — `laundry` — (no address) — 38.46004, -9.10382
+- Belar — `laundry` — (no address) — 41.12099, -8.61024
+- Bessa — `laundry` — (no address) — 41.70822, -8.81350
+- Brancal — `laundry` — (no address) — 41.41716, -8.53460
+- Brilimpe — `laundry` — (no address) — 37.13696, -8.01717
+- Caravela — `laundry` — (no address) — 41.02688, -8.55532
+- Carla — `laundry` — (no address) — 41.15713, -8.68088
+- Centronet — `laundry` — (no address) — 32.67859, -17.05878
+- Centronet — `laundry` — (no address) — 41.81422, -8.41909
+- Cestinho — `laundry` — (no address) — 39.71663, -8.80230
+- Cisne — `laundry` — (no address) — 38.70484, -9.38554
+- Clean — `laundry` — Rua do Comandante Quelhas Lima, 16, 4465-085, São Mamede de Infesta — 41.19565, -8.61327
+- Clean2you — `laundry` — Rua Vilarinho de Baixo, 4475-730, Castêlo da Maia — 41.26758, -8.61862
+- Delicada — `laundry` — (no address) — 40.95961, -8.58597
+- Distrilimpa — `laundry` — (no address) — 37.01492, -7.92102
+- DoSado — `laundry` — (no address) — 38.52771, -8.87692
+- Easy — `laundry` — (no address) — 41.18091, -8.66719
+- EcoLavar — `laundry` — (no address) — 41.81879, -8.86879
+- Ecolavar — `laundry` — (no address) — 41.53435, -8.77856
+- Ecolave — `laundry` — (no address) — 41.35291, -8.74090
+- Engomadoria — `laundry` — Rua Professor Orlando Ribeiro, 27a, Cascais e Estoril — 38.69885, -9.43772
+- Engomass — `laundry` — 35C — 38.74308, -9.26560
+- Esfrega — `laundry` — Travessa da Horta, 16 — 39.36488, -9.37764
+- Estrela — `laundry` — Rua da Cordoaria, 10A, 284-054, Amora — 38.62125, -9.12238
+- Fast — `laundry` — (no address) — 41.21354, -8.54880
+- Felava — `laundry` — (no address) — 39.75315, -8.81250
+- FozSec — `laundry` — (no address) — 41.19397, -8.57853
+- Glutões — `laundry` — (no address) — 38.52772, -8.87504
+- H20+ — `laundry` — (no address) — 40.19948, -8.44004
+- HyperSec — `laundry` — Rua Capitão Manuel Carvalho, 36, 4760-020, Vila Nova de Famalicao — 41.40528, -8.51679
+- Iriswash — `laundry` — Funchal — 32.65431, -16.91129
+- JSF — `laundry` — (no address) — 41.41555, -8.64575
+- Jardim — `laundry` — (no address) — 41.70184, -8.82348
+- Jocacel — `laundry` — Rua das Quintas, 46B, Caparica — 38.66667, -9.18784
+- Jonimar — `laundry` — Rua dos Pescadores, 1A — 40.76049, -8.70983
+- KISwash — `laundry` — Rua da Estrada Nacional — 40.92327, -8.56880
+- Kaparica — `laundry` — (no address) — 38.63845, -9.22969
+- LavExpress — `laundry` — (no address) — 38.71164, -9.24615
+- LavFlash — `laundry` — (no address) — 41.18378, -8.61354
+- Lava+ — `laundry` — (no address) — 41.17779, -8.62593
+- LavaMaria — `laundry` — Rua Engenheiro Ferreira Dias, 954, 4100-246, Porto — 41.17694, -8.64686
+- Lavadouro — `laundry` — (no address) — 32.70860, -16.77460
+- Lavagora — `laundry` — (no address) — 38.75663, -9.23859
+- Lavamais — `laundry` — Rua Mário Pais, 22 — 40.21298, -8.43234
+- Lavanda — `laundry` — Rua do Amial, 1040 — 41.18202, -8.61345
+- Lavandara — `laundry` — (no address) — 39.70066, -8.78838
+- Lavandarina — `laundry` — (no address) — 37.09622, -8.67284
+- Lavandawash — `laundry` — (no address) — 41.16248, -8.61469
+- Lavandrias — `laundry` — (no address) — 37.11738, -8.24657
+- Lavatu — `laundry` — Avenida Maria da Conceição — 38.68860, -9.33773
+- Lavawash — `laundry` — (no address) — 38.79525, -9.33808
+- LaveSeOself — `laundry` — (no address) — 41.24858, -8.62325
+- Lavisol — `laundry` — Rua José Carlos Ary dos Santos, 4 — 38.65092, -9.14411
+- Lavseca — `laundry` — Rua da Estrada Velha, 842 — 41.33315, -8.73092
+- Limpiseca — `laundry` — (no address) — 38.67123, -9.15657
+- LinFresh — `laundry` — (no address) — 38.73862, -9.22133
+- Magali — `laundry` — Rua da Escola, 26 — 42.11460, -8.25888
+- Magicbubbles — `laundry` — Avenida do Oceano, 36 — 38.65581, -9.23670
+- MegaWash — `laundry` — (no address) — 38.81006, -9.16165
+- Milú — `laundry` — Rua de Braga, 27 — 38.71561, -9.41638
+- Modipex — `laundry` — (no address) — 41.29578, -8.69592
+- Norsec — `laundry` — (no address) — 41.18040, -8.60449
+- Néliana — `laundry` — Rua Direita, 12 — 37.09065, -8.72751
+- OpenBlue — `laundry` — (no address) — 41.16316, -7.80347
+- Pmb — `laundry` — (no address) — 38.42534, -7.53619
+- Portimonense — `laundry` — (no address) — 37.13036, -8.53926
+- R — `laundry` — (no address) — 40.88096, -8.61823
+- R — `laundry` — (no address) — 38.38077, -8.51410
+- Ronil — `laundry` — Praceta 9 de Abril, 40B, São Pedro do Estoril — 38.69737, -9.37234
+- SafiraWash — `laundry` — (no address) — 41.12755, -8.65177
+- Sereia — `laundry` — (no address) — 41.82245, -8.87136
+- Sol — `laundry` — Rua Doutor Mário Sacramento, Aveiro — 40.63047, -8.64794
+- Sunwash — `laundry` — (no address) — 41.18247, -8.63178
+- Tanque — `laundry` — (no address) — 38.69717, -9.30405
+- Tranbana — `laundry` — (no address) — 40.68840, -8.48021
+- Vagafresh — `laundry` — (no address) — 40.55979, -8.77008
+- Vianesa — `laundry` — Rua Joaquim Francisco de Oliveira, 7, Águeda — 40.57665, -8.44506
+- Vilacampo — `laundry` — (no address) — 38.46988, -9.09987
+- VizelBranca — `laundry` — (no address) — 41.38335, -8.31525
+- Wash4you — `laundry` — Rua Francisco Pereira da Silva, 1, 2410-105, Leiria — 39.73860, -8.80579
+- Washdiamond — `laundry` — Rua Oliveira Matos, 70, Arganil — 40.21853, -8.05344
+- Waterland — `laundry` — (no address) — 37.07611, -8.09597
+- Waterproof — `laundry` — (no address) — 38.53369, -8.86755
+- WeWash — `laundry` — (no address) — 41.00471, -8.63635
+- Woosh — `laundry` — (no address) — 41.24217, -8.63203
+- byfaith — `laundry` — Rua Serra da Estrela, 21 — 38.70728, -9.34682
+- Águafofa — `laundry` — (no address) — 40.11389, -8.51289
