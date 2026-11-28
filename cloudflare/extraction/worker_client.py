@@ -244,3 +244,28 @@ def overture_repromote_failed(country_code, run_id, error):
     return _post('/internal/overture-repromote/failed', {
         'countryCode': country_code, 'runId': run_id, 'error': str(error)[:1_000],
     })
+
+
+# KAN-461 — landmark cleanup job (docs/kan-461/landmark-cleanup-job.md).
+def landmark_cleanup_claim(run_id, worker_id, batch_size, job_version):
+    return _post('/internal/landmark-cleanup/claim', {
+        'runId': run_id, 'workerId': worker_id, 'batchSize': batch_size, 'jobVersion': job_version,
+    })
+
+
+def landmark_cleanup_completed(run_id, area_key, worker_id, rows, to_remove, removed, held_reason, report_r2_key):
+    return _post('/internal/landmark-cleanup/scope-result', {
+        'runId': run_id, 'areaKey': area_key, 'workerId': worker_id, 'status': 'completed',
+        'rows': rows, 'toRemove': to_remove, 'removed': removed,
+        'heldReason': held_reason, 'reportR2Key': report_r2_key,
+    })
+
+
+def landmark_cleanup_failed(run_id, area_key, worker_id, error):
+    return _post('/internal/landmark-cleanup/scope-result', {
+        'runId': run_id, 'areaKey': area_key, 'workerId': worker_id, 'status': 'failed', 'error': str(error)[:1_000],
+    })
+
+
+def landmark_cleanup_release(run_id, worker_id):
+    return _post('/internal/landmark-cleanup/batch-release', {'runId': run_id, 'workerId': worker_id})

@@ -1,0 +1,467 @@
+# KAN-461: names of PT places (D1 place table, 2026-11-16). A landmark name word that is a place name is not distinctive.
+Abrantes
+Abóboda
+Agroal
+Agros
+Aguiar da Beira
+Alandroal
+Albergaria-a-Velha
+Albufeira
+Alcabideche
+Alcanena
+Alcaria Alta
+Alcobaça
+Alcochete
+Alcoutim
+Alcácer do Sal
+Aldeia Turística do Trebilhadouro
+Aldeia de Bezeguimbra
+Alenquer
+Alfândega da Fé
+Algodres
+Alijó
+Aljezur
+Aljustrel
+Almada
+Almeida
+Almeirim
+Almodôvar
+Alpertuche
+Alpiarça
+Altares
+Alter do Chão
+Alto
+Alvaiázere
+Alvarães
+Alvito
+Amadora
+Amarante
+Amares
+Anadia
+Angorês
+Angra do Heroísmo
+Ansião
+Arcos de Valdevez
+Arcozelo
+Arganil
+Armamar
+Arouca
+Arraiolos
+Arronches
+Arruda dos Vinhos
+Assembleia da Junta de Freguesia
+Assomada
+Atalaias
+Atrozela
+Aveiro
+Avis
+Azambuja
+Açores
+Baião
+Bajancas Cimeiras
+Barbedo
+Barcelos
+Barrancos
+Barreiro
+Barrins de Baixo
+Barroselas
+Barrunchal
+Batalha
+Beja
+Beleiral
+Belmonte
+Benavente
+Bicesse
+Boas Eiras
+Bombarral
+Borba
+Bostelim
+Boticas
+Braga
+Bragança
+Branda de Bosgalinhas
+Cabeceiras de Basto
+Cabo de Vila
+Cadaval
+Caldas da Rainha
+Calheta
+Camarneira
+Cambões
+Caminha
+Campo Maior
+Canada Longa
+Cantanhede
+Capela
+Capelo
+Carcavelos
+Carqueijo
+Carrascal de Manique
+Carrazeda de Ansiães
+Carregal do Sal
+Cartaxo
+Carvalheira
+Carvalho
+Casa do Povo e Sede da Junta de Freguesia
+Casal Mau
+Casal Pequeno
+Casal Vila Chã
+Casal das Amoeiras
+Casal das Sete Fontes
+Casal de Torredeita
+Casal do Sapo
+Cascais
+Castanheira de Pera
+Castelo Branco
+Castelo de Paiva
+Castelo de Vide
+Castro Daire
+Castro Marim
+Castro Verde
+Celorico da Beira
+Celorico de Basto
+Chamusca
+Chaves
+Cinfães
+Coimbra
+Colo de Pito
+Conceição da Abóboda
+Condeixa-a-Nova
+Constância
+Cortelha de Baixo
+Coruche
+Corvo
+Coudelaria de Alter
+Courelas da Brava
+Covilhã
+Crasto
+Crato
+Cuba
+Cubo
+Câmara de Lobos
+Darque
+Duas Ribeiras
+Elvas
+Entroncamento
+Escoural
+Escouras
+Espinho
+Esposende
+Estarreja
+Estremoz
+Estrica
+Fafe
+Fajã Grande
+Fajãzinha
+Faro
+Fazenda
+Felgueiras
+Ferreira do Alentejo
+Ferreira do Zêzere
+Ferrenha
+Fervença de Baixo
+Fetais
+Figueira da Foz
+Figueira de Castelo Rodrigo
+Figueiró dos Vinhos
+Flamengos
+Fontainhas
+Fonte Errada
+Fornos de Algodres
+Freixo de Espada à Cinta
+Fronteira
+Funchal
+Fundão
+Galiza
+Gavião
+Giesteiras
+Golegã
+Gondomar
+Gouveia
+Grândola
+Guarda
+Guimarães
+Góis
+Horta
+Idanha-a-Nova
+Jerumelo
+Juncal do Campo
+Junta de Freguesia de Tamel (Santa Leocádia)
+Lagoa
+Lagoa (Santa Cruz)
+Lagos
+Lajes das Flores
+Lajes do Pico
+Lajinha
+Lamego
+Leiria
+Lisboa
+Livramento
+Lomba
+Loulé
+Loures
+Lourinhã
+Lousada
+Lousã
+Lugar da Canada
+Macedo de Cavaleiros
+Maceira
+Machico
+Madalena
+Mafra
+Magarelas
+Maia
+Mangualde
+Manteigas
+Marco de Canaveses
+Marinha Grande
+Marvão
+Matosinhos
+Mação
+Mealha
+Mealhada
+Meijão
+Melgaço
+Mesquita
+Mesão Frio
+Meã
+Milheiro
+Mira
+Miranda do Corvo
+Miranda do Douro
+Mirandela
+Mogadouro
+Moimenta da Beira
+Moita
+Monchique
+Mondim de Basto
+Monforte
+Montalegre
+Monte Laranjo
+Monte do Pisão
+Montemor-o-Novo
+Montemor-o-Velho
+Montijo
+Montinho
+Monção
+Mora
+Mortágua
+Moura
+Mourão
+Mouta
+Murtosa
+Murça
+Mértola
+Mêda
+Nazaré
+Nelas
+Nespereira
+Nisa
+Nordeste
+Novais
+Novelas
+Odemira
+Odivelas
+Oeiras
+Oleiros
+Olhão
+Oliveira de Azeméis
+Oliveira de Frades
+Oliveira do Bairro
+Oliveira do Hospital
+Ourentela
+Ourique
+Ourém
+Outeiro de Polima
+Ovar
+PT generic POIs
+Palmela
+Pampilhosa da Serra
+Panasqueira
+Parada de Ester
+Paredes
+Paredes de Coura
+Passais
+Pau Gordo
+Paços de Ferreira
+Pedras de El-Rei
+Pedrinhas
+Pedrógão Grande
+Penacova
+Penafiel
+Penalva do Castelo
+Penamacor
+Penedono
+Penela
+Penha Longa
+Peniche
+Peso da Régua
+Pindelo
+Pinhel
+Pinhão
+Pombal
+Ponta Delgada
+Ponta do Sol
+Ponte da Barca
+Ponte de Lima
+Ponte de Sor
+Portalegre
+Portel
+Portelinha
+Portimão
+Porto
+Porto Moniz
+Porto Santo
+Porto de Mós
+Portugal
+Postemião
+Povoação
+Praia da Vitória
+Praia do Norte
+Proença-a-Nova
+Póvoa de Lanhoso
+Póvoa de Rodrigo Alves
+Póvoa de Varzim
+Quinta Lobateira
+Rana
+Ranholas
+Recoveiro
+Redondo
+Reguengo da Valada
+Reguengos de Monsaraz
+Resende
+Ribeira Brava
+Ribeira Grande
+Ribeira de Pena
+Ribeira do Arroio
+Rio Maior
+Rua
+Sabrosa
+Sabugal
+Salgueiro
+Salvaterra de Magos
+Santa Bárbara de Nexe
+Santa Comba Dão
+Santa Cruz
+Santa Cruz da Graciosa
+Santa Cruz das Flores
+Santa Luzia
+Santa Maria da Feira
+Santa Marta de Penaguião
+Santana
+Santarém
+Santiago do Cacém
+Santo Amaro
+Santo André (Montalvão)
+Santo Tirso
+Sardoal
+Sede da União das Freguesias de Milhazes, Vilar de Figos e Faria
+Seia
+Seixal
+Sernancelhe
+Serpa
+Serra das Ligeiras
+Sertã
+Sesimbra
+Setúbal
+Sever do Vouga
+Silves
+Sines
+Sintra
+Soajo
+Sobral de Monte Agraço
+Soida
+Soure
+Sousel
+Souto
+Sátão
+São Brás de Alportel
+São João da Madeira
+São João da Pesqueira
+São João do Estoril
+São Pedro de Nordestinho
+São Pedro do Estoril
+São Pedro do Sul
+São Roque do Pico
+São Vicente
+Tabuaço
+Talaíde
+Tarouca
+Tavira
+Teixedas
+Terras de Bouro
+Terreiro das Dez
+Tojal
+Tomar
+Tondela
+Torre de Moncorvo
+Torredeita
+Torres Novas
+Torres Vedras
+Touraz
+Trancoso
+Travanca
+Travasso
+Trofa
+Tábua
+União das Freguesias de Oriz (Santa Marinha) e Oriz (São Miguel)
+Vagos
+Vala do Carregado
+Vale das Éguas
+Vale de Cambra
+Vale de Cerdeira
+Valença
+Valongo
+Valpaços
+Velas
+Vendas Novas
+Viana do Alentejo
+Viana do Castelo
+Vidigueira
+Vieira do Minho
+Vila Flor
+Vila Franca de Xira
+Vila Franca do Campo
+Vila Nova da Barquinha
+Vila Nova de Anha
+Vila Nova de Cerveira
+Vila Nova de Famalicão
+Vila Nova de Foz Côa
+Vila Nova de Gaia
+Vila Nova de Paiva
+Vila Nova de Poiares
+Vila Pouca de Aguiar
+Vila Praia de Âncora
+Vila Real
+Vila Real de Santo António
+Vila Velha de Ródão
+Vila Verde
+Vila Viçosa
+Vila de Rei
+Vila do Bispo
+Vila do Conde
+Vila do Porto
+Viladra
+Vilarinho de São Roque
+Vilas Covas
+Vimioso
+Vinhais
+Viseu
+Vizela
+Vouzela
+Várzea
+Às Nove
+Águeda
+Évora
+Ílhavo
+Óbidos
+Portugal
+# Foreign spellings of PT place names (a name word matching one is not distinctive).
+Lisbon
+Lisbona
+Lissabon
+Lisbonne
+Lisboa
+Oporto
+Porto
+Portugal
+Portogallo

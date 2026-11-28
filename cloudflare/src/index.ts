@@ -23,6 +23,11 @@ import {
   releaseMultibancoBatch,
 } from './multibancoImport';
 import {
+  LANDMARK_CLEANUP_BATCH_SIZE, LANDMARK_CLEANUP_COUNTRIES, cancelLandmarkCleanup, claimCleanupBatch, cleanupCounts,
+  cleanupRunsAwaitingBatch, completeCleanupScope, failCleanupScope, landmarkCleanupStatus, releaseCleanupBatch,
+  startLandmarkCleanup,
+} from './landmarkCleanup';
+import {
   checkpointOvertureCountrySource, completeOvertureCountryImport, failOvertureCountryImport,
   leaseOvertureRepromote, overtureCountryImportStatus, queueOvertureCountryImport, recordOvertureRepromote, releaseOvertureRepromote,
 } from './overtureCountryImport';
@@ -1694,7 +1699,7 @@ const OVERTURE_RELEASE_PATTERN = /^\d{4}-\d{2}-\d{2}\.\d+$/;
 function triggerBuild(
   env: Env,
   ctx: ExecutionContext | undefined,
-  mode: 'place' | 'country' | 'country-reconcile' | 'settlements' | 'osm-country' | 'multibanco-country' | 'overture-country' | 'overture-overrides' | 'overture-repromote',
+  mode: 'place' | 'country' | 'country-reconcile' | 'settlements' | 'osm-country' | 'multibanco-country' | 'overture-country' | 'overture-overrides' | 'overture-repromote' | 'landmark-cleanup',
   target: string,
   countrySourceR2Key?: string,
   countryRunId?: string,
@@ -1717,6 +1722,8 @@ function triggerBuild(
       ...(mode === 'overture-country' ? { D1_INTERNAL: '1', OVERTURE_COUNTRY_RUN_ID: countryRunId ?? '' } : {}),
       ...(mode === 'overture-overrides' ? { D1_INTERNAL: '1', OVERTURE_OVERRIDE_BATCH: countryRunId ?? '' } : {}),
       ...(mode === 'overture-repromote' ? { D1_INTERNAL: '1', OVERTURE_REPROMOTE_RUN_ID: countryRunId ?? '' } : {}),
+      // KAN-461: the landmark cleanup reads and writes D1 through the binding only.
+      ...(mode === 'landmark-cleanup' ? { D1_INTERNAL: '1', LANDMARK_CLEANUP_RUN_ID: countryRunId ?? '' } : {}),
       // KAN-456: an Overture refresh names the archive it replaces and the
       // release to extract (OVERTURE_PREVIOUS_SOURCE_KEY, OVERTURE_RELEASE).
       ...extraEnv,
@@ -1746,6 +1753,11 @@ function triggerBuild(
       await failOvertureCountryImport(env, target, countryRunId ?? '', 'container start failed', Date.now());
     } else if (mode === 'overture-repromote') {
       await releaseOvertureRepromote(env, target, countryRunId ?? '');
+    } else if (mode === 'landmark-cleanup') {
+      // Nothing to undo: the run keeps its scopes, cron offers the batch again.
+      await env.REGISTRY_DB.prepare(
+        'UPDATE landmark_cleanup_run SET batch_worker_id = NULL, batch_lease_expires_at = NULL, last_error = ? WHERE run_id = ?',
+      ).bind('container start failed', countryRunId ?? '').run();
     } else {
       await env.REGISTRY_DB.prepare(
         "UPDATE country SET status = 'none' WHERE country_code = ? AND status = 'mapping'",
@@ -1854,6 +1866,15 @@ export default {
         continue;
       }
       triggerBuild(env, ctx, 'multibanco-country', country.country_code, undefined, country.active_run_id);
+    }
+    // KAN-461 — the landmark cleanup, same continuation as MULTIBANCO.
+    for (const run of await cleanupRunsAwaitingBatch(env, now)) {
+      const counts = await cleanupCounts(env, run.run_id, now);
+      if (counts.claimable === 0) {
+        if (counts.running === 0) await releaseCleanupBatch(env, { runId: run.run_id, workerId: 'cron', now });
+        continue;
+      }
+      triggerBuild(env, ctx, 'landmark-cleanup', run.run_id, undefined, run.run_id);
     }
   },
 
@@ -2913,6 +2934,69 @@ export default {
         truncated: listed.truncated,
         cursor: listed.truncated ? listed.cursor : null,
       });
+    }
+
+    // KAN-461 — landmark cleanup as a container job (docs/kan-461/landmark-cleanup-job.md).
+    if (url.pathname.startsWith('/internal/landmark-cleanup/')) {
+      const internalAuthError = authenticateInternal(request, env);
+      if (internalAuthError) return internalAuthError;
+      const now = Date.now();
+      const route = url.pathname.slice('/internal/landmark-cleanup/'.length);
+      if (route === 'status' && request.method === 'GET') {
+        const status = await landmarkCleanupStatus(env, url.searchParams.get('runId') ?? '', now);
+        return status ? json(status) : json({ error: 'no such run' }, 404);
+      }
+      if (request.method !== 'POST') return json({ error: 'not found' }, 404);
+      const body = await request.json<Record<string, unknown>>().catch(() => null);
+      if (!body) return json({ error: 'invalid JSON body' }, 400);
+      const str = (value: unknown) => (typeof value === 'string' && value.length > 0 && value.length <= 200 ? value : null);
+      if (route === 'start') {
+        const countryCode = typeof body.countryCode === 'string' ? body.countryCode.toUpperCase() : '';
+        if (!(LANDMARK_CLEANUP_COUNTRIES as readonly string[]).includes(countryCode)) return json({ error: 'countryCode must be PT' }, 400);
+        const mode = body.mode === 'emit' ? 'emit' : body.mode === 'dry_run' ? 'dry_run' : null;
+        if (!mode) return json({ error: "mode must be 'dry_run' or 'emit'" }, 400);
+        const emitFilter = body.emitFilter === undefined ? 'safe' : body.emitFilter === 'safe' || body.emitFilter === 'all' ? body.emitFilter : null;
+        if (!emitFilter) return json({ error: "emitFilter must be 'safe' or 'all'" }, 400);
+        const areaLimit = body.areaLimit === undefined ? undefined
+          : Number.isSafeInteger(body.areaLimit) && (body.areaLimit as number) > 0 ? body.areaLimit as number : null;
+        if (areaLimit === null) return json({ error: 'areaLimit must be a positive integer' }, 400);
+        const started = await startLandmarkCleanup(env, { countryCode, mode, sourceRunId: str(body.sourceRunId) ?? undefined, emitFilter, areaLimit, now });
+        if ('error' in started) return json({ error: started.error }, 409);
+        if (started.started) triggerBuild(env, ctx, 'landmark-cleanup', started.runId, undefined, started.runId);
+        return json({ ok: true, ...started });
+      }
+      const runId = str(body.runId);
+      const workerId = str(body.workerId);
+      if (route === 'cancel') {
+        if (!runId) return json({ error: 'runId is required' }, 400);
+        return await cancelLandmarkCleanup(env, runId, now) ? json({ ok: true }) : json({ error: 'run is not running' }, 409);
+      }
+      if (!runId || !workerId) return json({ error: 'runId and workerId are required' }, 400);
+      if (route === 'claim') {
+        const batchSize = Number.isSafeInteger(body.batchSize) ? body.batchSize as number : LANDMARK_CLEANUP_BATCH_SIZE;
+        const jobVersion = Number.isSafeInteger(body.jobVersion) ? body.jobVersion as number : 0;
+        return json({ ok: true, ...await claimCleanupBatch(env, { runId, workerId, batchSize, jobVersion, now }) });
+      }
+      if (route === 'scope-result') {
+        const areaKey = str(body.areaKey);
+        if (!areaKey || (body.status !== 'completed' && body.status !== 'failed')) return json({ error: 'invalid scope-result payload' }, 400);
+        let ok: boolean;
+        if (body.status === 'completed') {
+          const fields = ['rows', 'toRemove', 'removed'] as const;
+          if (fields.some(field => !Number.isSafeInteger(body[field]) || (body[field] as number) < 0)) {
+            return json({ error: 'counts must be non-negative integers' }, 400);
+          }
+          ok = await completeCleanupScope(env, {
+            runId, areaKey, workerId, now, rows: body.rows as number, toRemove: body.toRemove as number,
+            removed: body.removed as number, heldReason: str(body.heldReason), reportR2Key: str(body.reportR2Key),
+          });
+        } else {
+          ok = await failCleanupScope(env, { runId, areaKey, workerId, error: typeof body.error === 'string' ? body.error : 'unknown' });
+        }
+        return ok ? json({ ok: true }) : json({ error: 'area is not leased by this worker' }, 409);
+      }
+      if (route === 'batch-release') return json({ ok: true, ...await releaseCleanupBatch(env, { runId, workerId, now }) });
+      return json({ error: 'not found' }, 404);
     }
 
     if (url.pathname === '/internal/multibanco/claim' && request.method === 'POST') {
